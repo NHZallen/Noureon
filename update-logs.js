@@ -1,5 +1,16 @@
 ﻿const updateLogs = [
          {
+    "version": "16.4.4",
+    "date": "2025-12-16",
+    "content": [
+        "<strong>【GPT-5.2 強勢登場，模型陣容全面升級】</strong>",
+        "本次更新正式引入 OpenAI 最新旗艦 GPT-5.2 系列，帶來更強大的推理與生成能力。同時優化模型列表，移除舊版型號，並針對 Qwen 系列進行費率調整，確保您始終享有最頂尖的 AI 服務體驗。",
+        "<strong>✨ 更新重點：</strong>",
+        "<ul><li><strong>🚀 旗艦升級：</strong> 新增 <strong>OpenAI GPT-5.2</strong> 與 <strong>GPT-5.2 Pro</strong>，提供更精準的回答與更強的邏輯能力。同步下架 GPT-5.1、GPT-4.1 及 Grok 4 Fast 等舊版模型。</li><li><strong>⚖️ 費率調整：</strong> <strong>Qwen 3 Next 80B</strong> 與 <strong>Qwen 3 Coder Exact</strong> 費率已更新，請參閱模型列表以獲取最新定價資訊。</li></ul>",
+        "Astra 開發團隊 敬上"
+    ]
+},
+         {
     "version": "16.4.3",
     "date": "2025-12-10",
     "content": [
@@ -725,6 +736,7 @@
     // 未來的新版本請加在此處最上方
 
 ];
+
 
 
 
