@@ -428,6 +428,8 @@ window.i18n = {
         // Others Paid
         model_deepseek_v3_2_desc_tier_paid: '百萬輸入/0.27$、百萬輸出/0.40$',
         model_minimax_m2_1_desc_tier_paid: '百萬輸入/0.27$、百萬輸出/1.12$',
+        model_gemini_3_flash_preview_or_desc_tier_free: '不提供',
+        model_gemini_3_flash_preview_or_desc_tier_paid: '百萬輸入/0.5$、百萬輸出/3$',
         // Official Astras
         astras_official_writer_01_name: '旅遊小編',
         astras_official_writer_01_desc: '這是一款專為社群平台設計的Astras，能以優雅且富有感染力的語言撰寫旅遊景點與飯店介紹，透過細膩的文筆展現高級質感，同時結合城市歷史背景與熱門主題標籤，吸引目標客群並提升內容曝光度。',
@@ -881,6 +883,8 @@ window.i18n = {
         // Others Paid
         model_deepseek_v3_2_desc_tier_paid: '$0.27/M input, $0.40/M output',
         model_minimax_m2_1_desc_tier_paid: '$0.27/M input, $1.12/M output',
+        model_gemini_3_flash_preview_or_desc_tier_free: 'Not available',
+        model_gemini_3_flash_preview_or_desc_tier_paid: '$0.5/M input, $3/M output',
         // Official Astras
         astras_official_writer_01_name: 'Travel Blogger',
         astras_official_writer_01_desc: 'This is an Astras designed for social media platforms, capable of writing elegant and engaging introductions for tourist attractions and hotels. It uses refined language to convey a high-end feel, incorporating the city\'s historical background and popular hashtags to attract the target audience and increase content visibility.',
@@ -1334,6 +1338,8 @@ window.i18n = {
         // Others Paid
         model_deepseek_v3_2_desc_tier_paid: '0,27 $/M entrée, 0,40 $/M sortie',
         model_minimax_m2_1_desc_tier_paid: '0,27 $/M entrée, 1,12 $/M sortie',
+        model_gemini_3_flash_preview_or_desc_tier_free: 'Non disponible',
+        model_gemini_3_flash_preview_or_desc_tier_paid: '0,50 $/M entrée, 3 $/M sortie',
         // Official Astras
         astras_official_writer_01_name: 'Blogueur de Voyage',
         astras_official_writer_01_desc: 'Ceci est un Astras conçu pour les plateformes de médias sociaux, capable de rédiger des introductions élégantes et engageantes pour les attractions touristiques et les hôtels. Il utilise un langage raffiné pour transmettre une sensation haut de gamme, en incorporant le contexte historique de la ville et des hashtags populaires pour attirer le public cible et augmenter la visibilité du contenu.',
