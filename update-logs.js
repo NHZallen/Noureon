@@ -1,5 +1,16 @@
 ﻿const updateLogs = [
          {
+    "version": "16.4.5",
+    "date": "2026-01-15",
+    "content": [
+        "<strong>【Gemini 3.0 Flash 速極登場，模型生態系大換血】</strong>",
+        "隨著 AI 技術的快速迭代，本次更新全面引進 Google 最新 <strong>Gemini 3.0 Flash Preview</strong>，提供極致的反應速度與視覺處理能力。同時我們對模型庫進行了大幅度整理，汰換舊版 Gemini 2.5 系列，並引入多款高性價比的新銳模型，讓您的 AI 工具箱更加輕量且強大。",
+        "<strong>✨ 更新重點：</strong>",
+        "<ul><li><strong>⚡ Gemini 全面進化：</strong> 新增 <strong>Gemini 3.0 Flash Preview</strong> (支援 Google 原生與 OpenRouter)，具備優秀的圖片輸入支援。同步下架 Gemini 2.5 Pro、Flash 及 Flash-Lite 等舊版模型。</li><li><strong>🌟 新銳模型加入：</strong> 引入 OpenRouter 的 <strong>Xiaomi Mimo V2 Flash</strong> (免費) 與 <strong>Minimax M2.1</strong>，為您提供更多元的模型選擇。</li><li><strong>💻 程式碼助手升級：</strong> 新增 <strong>OpenAI GPT-5.2 Codex</strong> (支援圖片輸入)，正式取代 GPT-5.1 Codex，帶來更精準的程式碼生成與除錯體驗。</li></ul>",
+        "Astra 開發團隊 敬上"
+    ]
+},
+         {
     "version": "16.4.4",
     "date": "2025-12-16",
     "content": [
@@ -736,6 +747,7 @@
     // 未來的新版本請加在此處最上方
 
 ];
+
 
 
 
