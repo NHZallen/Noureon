@@ -610,64 +610,61 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         };
         const MODELS = [
     // Gemini Models (Native)
-    { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_pro_preview_desc' },
-    { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_flash_preview_desc' },
+    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_desc' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
 
     // OpenRouter Free Models
-    { id: 'tngtech/deepseek-r1t2-chimera:free', name: 'Deepseek R1T2 Chimera', provider: 'openrouter', descriptionKey: 'model_deepseek_r1t2_chimera_desc' },
-    { id: 'nvidia/nemotron-nano-12b-v2-vl:free', name: 'Nemotron Nano 12B V2 VL', provider: 'openrouter', descriptionKey: 'model_nemotron_nano_12b_v2_vl_desc', category: 'image' },
-    { id: 'tngtech/tng-r1t-chimera:free', name: 'TNG R1T Chimera', provider: 'openrouter', descriptionKey: 'model_tng_r1t_chimera_desc' },
-    { id: 'amazon/nova-2-lite-v1:free', name: 'Amazon Nova 2 Lite', provider: 'openrouter', descriptionKey: 'model_nova_2_lite_v1_desc', category: 'general' },
-    { id: 'mistralai/devstral-2512:free', name: 'Mistral Devstral 2512', provider: 'openrouter', descriptionKey: 'model_devstral_2512_desc', category: 'coding' },
-    { id: 'xiaomi/mimo-v2-flash:free', name: 'Xiaomi Mimo V2 Flash', provider: 'openrouter', descriptionKey: 'model_mimo_v2_flash_desc', category: 'general' },
+    { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
+    { id: 'nex-agi/nex-n2-pro:free', name: 'Nex AGI Nex-N2-Pro', provider: 'openrouter', descriptionKey: 'model_nex_n2_pro_desc', category: 'general' },
+    { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
 
     // OpenRouter Paid Models (OpenAI)
-    { id: 'openai/gpt-5.2-pro', name: 'OpenAI GPT-5.2 Pro', provider: 'openrouter', descriptionKey: 'model_gpt_5_2_pro_desc', category: 'general' },
-    { id: 'openai/gpt-5.2', name: 'OpenAI GPT-5.2', provider: 'openrouter', descriptionKey: 'model_gpt_5_2_desc', category: 'general' },
-    { id: 'openai/gpt-5-mini', name: 'OpenAI GPT-5 Mini', provider: 'openrouter', descriptionKey: 'model_gpt_5_mini_desc', category: 'general' },
-    { id: 'openai/gpt-5-nano', name: 'OpenAI GPT-5 Nano', provider: 'openrouter', descriptionKey: 'model_gpt_5_nano_desc', category: 'general' },
-    { id: 'openai/o3', name: 'OpenAI O3', provider: 'openrouter', descriptionKey: 'model_o3_desc', category: 'thinking' },
-    { id: 'openai/o3-mini-high', name: 'OpenAI O3 Mini High', provider: 'openrouter', descriptionKey: 'model_o3_mini_high_desc', category: 'thinking' },
-    { id: 'openai/gpt-5.2-codex', name: 'OpenAI GPT-5.2 Codex', provider: 'openrouter', descriptionKey: 'model_gpt_5_2_codex_desc', category: 'coding' },
+    { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },
+    { id: 'openai/gpt-5.4', name: 'OpenAI GPT-5.4', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_desc', category: 'general' },
+    { id: 'openai/gpt-5.4-mini', name: 'OpenAI GPT-5.4 Mini', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_mini_desc', category: 'general' },
+    { id: 'openai/gpt-5.4-nano', name: 'OpenAI GPT-5.4 Nano', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_nano_desc', category: 'general' },
 
     // OpenRouter Paid Models (Anthropic)
-    { id: 'anthropic/claude-sonnet-4.5', name: 'Claude 4.5 Sonnet', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_4_5_desc' },
+    { id: 'anthropic/claude-opus-4.8', name: 'Claude 4.8 Opus', provider: 'openrouter', descriptionKey: 'model_claude_opus_4_8_desc' },
+    { id: 'anthropic/claude-sonnet-4.6', name: 'Claude 4.6 Sonnet', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_4_6_desc' },
     { id: 'anthropic/claude-haiku-4.5', name: 'Claude 4.5 Haiku', provider: 'openrouter', descriptionKey: 'model_claude_haiku_4_5_desc' },
-    { id: 'anthropic/claude-opus-4.5', name: 'Claude 4.5 Opus', provider: 'openrouter', descriptionKey: 'model_claude_opus_4_5_desc' },
-
-    // OpenRouter Paid Models (x-ai)
-    { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast', provider: 'openrouter', descriptionKey: 'model_grok_4_1_fast_desc', category: 'general' },
-    { id: 'x-ai/grok-code-fast-1', name: 'Grok Code Fast 1', provider: 'openrouter', descriptionKey: 'model_grok_code_fast_1_desc', category: 'coding' },
 
     // OpenRouter Paid Models (Qwen)
-    { id: 'qwen/qwen3-coder', name: 'Qwen3 Coder', provider: 'openrouter', descriptionKey: 'model_qwen3_coder_desc', category: 'coding' },
-    { id: 'qwen/qwen3-coder:exact', name: 'Qwen3 Coder Exact', provider: 'openrouter', descriptionKey: 'model_qwen3_coder_exact_desc', category: 'coding' },
-    { id: 'qwen/qwen3-235b-a22b-2507', name: 'Qwen3 235B 2507', provider: 'openrouter', descriptionKey: 'model_qwen_qwen3_235b_a22b_2507_desc', category: 'general' },
-    { id: 'qwen/qwen3-235b-a22b-thinking-2507', name: 'Qwen3 235B Thinking 2507', provider: 'openrouter', descriptionKey: 'model_qwen_qwen3_235b_a22b_thinking_2507_desc', category: 'thinking' },
-    { id: 'qwen/qwen3-next-80b-a3b-instruct', name: 'Qwen3 Next 80B', provider: 'openrouter', descriptionKey: 'model_qwen3_next_80b_desc', category: 'general' },
-    { id: 'qwen/qwen3-vl-30b-a3b-instruct', name: 'Qwen3 VL 30B', provider: 'openrouter', descriptionKey: 'model_qwen3_vl_30b_desc', category: 'image' },
+    { id: 'qwen/qwen3.7-max', name: 'Qwen3.7 Max', provider: 'openrouter', descriptionKey: 'model_qwen3_7_max_desc', category: 'general' },
+    { id: 'qwen/qwen3.7-plus', name: 'Qwen3.7 Plus', provider: 'openrouter', descriptionKey: 'model_qwen3_7_plus_desc', category: 'general' },
+    { id: 'qwen/qwen3.5-flash-02-23', name: 'Qwen3.5 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_5_flash_02_23_desc', category: 'general' },
 
-    // OpenRouter Paid Models (DeepSeek & Others)
-    { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek V3.2', provider: 'openrouter', descriptionKey: 'model_deepseek_v3_2_desc', category: 'general' },
-    { id: 'minimax/minimax-m2.1', name: 'Minimax M2.1', provider: 'openrouter', descriptionKey: 'model_minimax_m2_1_desc', category: 'general' },
-    
-    // OpenRouter Paid Models (Gemini)
-    { id: 'google/gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', provider: 'openrouter', descriptionKey: 'model_gemini_3_pro_preview_desc', category: 'general' },
-    { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', provider: 'openrouter', descriptionKey: 'model_gemini_3_flash_preview_or_desc', category: 'general' },
+    // OpenRouter Paid Models (Minimax)
+    { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
+
+    // OpenRouter Paid Models (DeepSeek)
+    { id: 'deepseek/deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_pro_desc', category: 'general' },
+    { id: 'deepseek/deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_flash_desc', category: 'general' },
+
+    // OpenRouter Paid Models (Xiaomi)
+    { id: 'xiaomi/mimo-v2.5-pro', name: 'Xiaomi MiMo V2.5 Pro', provider: 'openrouter', descriptionKey: 'model_mimo_v2_5_pro_desc', category: 'general' },
+    { id: 'xiaomi/mimo-v2.5', name: 'Xiaomi MiMo V2.5', provider: 'openrouter', descriptionKey: 'model_mimo_v2_5_desc', category: 'general' },
+
+    // OpenRouter Paid Models (MoonshotAI)
+    { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code', provider: 'openrouter', descriptionKey: 'model_kimi_k2_7_code_desc', category: 'coding' },
+    { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: 'openrouter', descriptionKey: 'model_kimi_k2_6_desc', category: 'general' },
 ];
-        const CHEAP_MODEL_ID = 'gemini-2.5-flash-lite';
+        const CHEAP_MODEL_ID = 'gemini-3.1-flash-lite';
         const OPENROUTER_VISION_MODELS = [
-    'openai/gpt-5.2-pro', 'openai/gpt-5.2', 'openai/gpt-5-mini', 'openai/gpt-5-nano',
-    'openai/o3',
-    'anthropic/claude-sonnet-4.5', 'anthropic/claude-haiku-4.5',
-    'x-ai/grok-4.1-fast',
-    'nvidia/nemotron-nano-12b-v2-vl:free',
-    'google/gemini-3-pro-preview',
-    'google/gemini-3-flash-preview',
-    'openai/gpt-5.2-codex',
-    'anthropic/claude-opus-4.5',
-    'amazon/nova-2-lite-v1:free',
-    'qwen/qwen3-vl-30b-a3b-instruct'
+    'nex-agi/nex-n2-pro:free',
+    'openai/gpt-5.5',
+    'openai/gpt-5.4',
+    'openai/gpt-5.4-mini',
+    'openai/gpt-5.4-nano',
+    'anthropic/claude-opus-4.8',
+    'anthropic/claude-sonnet-4.6',
+    'anthropic/claude-haiku-4.5',
+    'qwen/qwen3.7-plus',
+    'qwen/qwen3.5-flash-02-23',
+    'minimax/minimax-m3',
+    'xiaomi/mimo-v2.5',
+    'moonshotai/kimi-k2.7-code',
+    'moonshotai/kimi-k2.6'
 ];
         const FOLDER_COLORS = {
             black: '#000000',gray: '#808080', red: '#f87171', yellow: '#facc15', green: '#4ade80',

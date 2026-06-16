@@ -396,42 +396,36 @@ window.i18n = {
         processingFiles: '正在處理檔案...',
         zipNoJson: 'ZIP 檔案中找不到 JSON 資料。',
         // Model Descriptions & Limits
-        model_gemini_3_pro_preview_desc_tier_paid: '百萬輸入/2$、百萬輸出/12$',
-        model_gemini_3_flash_preview_desc_tier_paid: '百萬輸入/0.5$、百萬輸出/3$',
+        model_gemini_3_5_flash_desc_tier_paid: '百萬輸入/1.5$、百萬輸出/9$',
+        model_gemini_3_1_pro_preview_desc_tier_paid: '百萬輸入/2$、百萬輸出/12$',
         // OpenRouter Free
-        model_deepseek_r1t2_chimera_desc_tier_free: '費用-免費 (20次/分鐘、50次/天)',
-        model_tng_r1t_chimera_desc_tier_free: '費用-免費',
-        model_nemotron_nano_12b_v2_vl_desc_tier_free: '費用-免費 (20次/分鐘、50次/天)',
-        model_nova_2_lite_v1_desc_tier_free: '費用-免費',
-        model_devstral_2512_desc_tier_free: '費用-免費',
-        model_mimo_v2_flash_desc_tier_free: '費用-免費',
+        model_nemotron_3_ultra_550b_a55b_desc_tier_free: '費用-免費',
+        model_nex_n2_pro_desc_tier_free: '費用-免費',
+        model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
         // OpenAI Paid
-        model_gpt_5_2_pro_desc_tier_paid: '百萬輸入/21$、百萬輸出/168$',
-        model_gpt_5_2_desc_tier_paid: '百萬輸入/1.75$、百萬輸出/14$',
-        model_gpt_5_mini_desc_tier_paid: '百萬輸入/0.25$、百萬輸出/2$',
-        model_gpt_5_nano_desc_tier_paid: '百萬輸入/0.05$、百萬輸出/0.40$',
-        model_o3_desc_tier_paid: '百萬輸入/2$、百萬輸出/8$',
-        model_o3_mini_high_desc_tier_paid: '百萬輸入/1.10$、百萬輸出/4.40$',
-        model_gpt_5_2_codex_desc_tier_paid: '百萬輸入/1.75$、百萬輸出/14$',
+        model_gpt_5_5_desc_tier_paid: '百萬輸入/5$、百萬輸出/30$',
+        model_gpt_5_4_desc_tier_paid: '百萬輸入/2.5$、百萬輸出/15$',
+        model_gpt_5_4_mini_desc_tier_paid: '百萬輸入/0.75$、百萬輸出/4.5$',
+        model_gpt_5_4_nano_desc_tier_paid: '百萬輸入/0.2$、百萬輸出/1.25$',
         // Anthropic Paid
-        model_claude_opus_4_5_desc_tier_paid: '百萬輸入/5$、百萬輸出/25$',
-        model_claude_sonnet_4_5_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
+        model_claude_opus_4_8_desc_tier_paid: '百萬輸入/5$、百萬輸出/25$',
+        model_claude_sonnet_4_6_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
         model_claude_haiku_4_5_desc_tier_paid: '百萬輸入/1$、百萬輸出/5$',
-        // x-ai Paid
-        model_grok_4_1_fast_desc_tier_paid: '百萬輸入/0.2$、百萬輸出/0.5$',
-        model_grok_code_fast_1_desc_tier_paid: '百萬輸入/0.20$、百萬輸出/1.50$',
         // Qwen Paid
-        model_qwen3_coder_desc_tier_paid: '百萬輸入/0.22$、百萬輸出/0.95$',
-        model_qwen3_coder_exact_desc_tier_paid: '百萬輸入/0.22$、百萬輸出/1.80$',
-        model_qwen_qwen3_235b_a22b_2507_desc_tier_paid: '百萬輸入/0.07$、百萬輸出/0.46$',
-        model_qwen3_next_80b_desc_tier_paid: '百萬輸入/0.10$、百萬輸出/1.10$',
-        model_qwen_qwen3_235b_a22b_thinking_2507_desc_tier_paid: '百萬輸入/0.11$、百萬輸出/0.60$',
-        model_qwen3_vl_30b_desc_tier_paid: '百萬輸入/0.15$、百萬輸出/0.60$',
-        // Others Paid
-        model_deepseek_v3_2_desc_tier_paid: '百萬輸入/0.27$、百萬輸出/0.40$',
-        model_minimax_m2_1_desc_tier_paid: '百萬輸入/0.27$、百萬輸出/1.12$',
-        model_gemini_3_flash_preview_or_desc_tier_free: '不提供',
-        model_gemini_3_flash_preview_or_desc_tier_paid: '百萬輸入/0.5$、百萬輸出/3$',
+        model_qwen3_7_max_desc_tier_paid: '百萬輸入/1.25$、百萬輸出/3.75$',
+        model_qwen3_7_plus_desc_tier_paid: '百萬輸入/0.32$、百萬輸出/1.28$',
+        model_qwen3_5_flash_02_23_desc_tier_paid: '百萬輸入/0.065$、百萬輸出/0.26$',
+        // Minimax Paid
+        model_minimax_m3_desc_tier_paid: '百萬輸入/0.3$、百萬輸出/1.2$',
+        // DeepSeek Paid
+        model_deepseek_v4_pro_desc_tier_paid: '百萬輸入/0.435$、百萬輸出/0.87$',
+        model_deepseek_v4_flash_desc_tier_paid: '百萬輸入/0.098$、百萬輸出/0.196$',
+        // Xiaomi Paid
+        model_mimo_v2_5_pro_desc_tier_paid: '百萬輸入/0.435$、百萬輸出/0.87$',
+        model_mimo_v2_5_desc_tier_paid: '百萬輸入/0.14$、百萬輸出/0.28$',
+        // MoonshotAI Paid
+        model_kimi_k2_7_code_desc_tier_paid: '百萬輸入/0.75$、百萬輸出/3.5$',
+        model_kimi_k2_6_desc_tier_paid: '百萬輸入/0.68$、百萬輸出/3.41$',
         // Official Astras
         astras_official_writer_01_name: '旅遊小編',
         astras_official_writer_01_desc: '這是一款專為社群平台設計的Astras，能以優雅且富有感染力的語言撰寫旅遊景點與飯店介紹，透過細膩的文筆展現高級質感，同時結合城市歷史背景與熱門主題標籤，吸引目標客群並提升內容曝光度。',
@@ -853,42 +847,36 @@ window.i18n = {
         processingFiles: 'Processing files...', // New
         zipNoJson: 'No JSON data found in the ZIP file.', // New
         // Model Descriptions & Limits
-        model_gemini_3_pro_preview_desc_tier_paid: '$2/M input, $12/M output',
-        model_gemini_3_flash_preview_desc_tier_paid: '$0.5/M input, $3/M output',
+        model_gemini_3_5_flash_desc_tier_paid: '$1.5/M input, $9/M output',
+        model_gemini_3_1_pro_preview_desc_tier_paid: '$2/M input, $12/M output',
         // OpenRouter Free
-        model_deepseek_r1t2_chimera_desc_tier_free: 'Cost - Free (20 req/min, 50 req/day)',
-        model_tng_r1t_chimera_desc_tier_free: 'Cost - Free',
-        model_nemotron_nano_12b_v2_vl_desc_tier_free: 'Cost - Free (20 req/min, 50 req/day)',
-        model_nova_2_lite_v1_desc_tier_free: 'Cost - Free',
-        model_devstral_2512_desc_tier_free: 'Cost - Free',
-        model_mimo_v2_flash_desc_tier_free: 'Cost - Free',
+        model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
+        model_nex_n2_pro_desc_tier_free: 'Cost - Free',
+        model_nemotron_3_super_120b_a12b_desc_tier_free: 'Cost - Free',
         // OpenAI Paid
-        model_gpt_5_2_pro_desc_tier_paid: '$21/M input, $168/M output',
-        model_gpt_5_2_desc_tier_paid: '$1.75/M input, $14/M output',
-        model_gpt_5_mini_desc_tier_paid: '$0.25/M input, $2/M output',
-        model_gpt_5_nano_desc_tier_paid: '$0.05/M input, $0.40/M output',
-        model_o3_desc_tier_paid: '$2/M input, $8/M output',
-        model_o3_mini_high_desc_tier_paid: '$1.10/M input, $4.40/M output',
-        model_gpt_5_2_codex_desc_tier_paid: '$1.75/M input, $14/M output',
+        model_gpt_5_5_desc_tier_paid: '$5/M input, $30/M output',
+        model_gpt_5_4_desc_tier_paid: '$2.5/M input, $15/M output',
+        model_gpt_5_4_mini_desc_tier_paid: '$0.75/M input, $4.5/M output',
+        model_gpt_5_4_nano_desc_tier_paid: '$0.2/M input, $1.25/M output',
         // Anthropic Paid
-        model_claude_opus_4_5_desc_tier_paid: '$5/M input, $25/M output',
-        model_claude_sonnet_4_5_desc_tier_paid: '$3/M input, $15/M output',
+        model_claude_opus_4_8_desc_tier_paid: '$5/M input, $25/M output',
+        model_claude_sonnet_4_6_desc_tier_paid: '$3/M input, $15/M output',
         model_claude_haiku_4_5_desc_tier_paid: '$1/M input, $5/M output',
-        // x-ai Paid
-        model_grok_4_1_fast_desc_tier_paid: '$0.2/M input, $0.5/M output',
-        model_grok_code_fast_1_desc_tier_paid: '$0.20/M input, $1.50/M output',
         // Qwen Paid
-        model_qwen3_coder_desc_tier_paid: '$0.22/M input, $0.95/M output',
-        model_qwen3_coder_exact_desc_tier_paid: '$0.22/M input, $1.80/M output',
-        model_qwen_qwen3_235b_a22b_2507_desc_tier_paid: '$0.07/M input, $0.46/M output',
-        model_qwen3_next_80b_desc_tier_paid: '$0.10/M input, $1.10/M output',
-        model_qwen_qwen3_235b_a22b_thinking_2507_desc_tier_paid: '$0.11/M input, $0.60/M output',
-        model_qwen3_vl_30b_desc_tier_paid: '$0.15/M input, $0.60/M output',
-        // Others Paid
-        model_deepseek_v3_2_desc_tier_paid: '$0.27/M input, $0.40/M output',
-        model_minimax_m2_1_desc_tier_paid: '$0.27/M input, $1.12/M output',
-        model_gemini_3_flash_preview_or_desc_tier_free: 'Not available',
-        model_gemini_3_flash_preview_or_desc_tier_paid: '$0.5/M input, $3/M output',
+        model_qwen3_7_max_desc_tier_paid: '$1.25/M input, $3.75/M output',
+        model_qwen3_7_plus_desc_tier_paid: '$0.32/M input, $1.28/M output',
+        model_qwen3_5_flash_02_23_desc_tier_paid: '$0.065/M input, $0.26/M output',
+        // Minimax Paid
+        model_minimax_m3_desc_tier_paid: '$0.3/M input, $1.2/M output',
+        // DeepSeek Paid
+        model_deepseek_v4_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
+        model_deepseek_v4_flash_desc_tier_paid: '$0.098/M input, $0.196/M output',
+        // Xiaomi Paid
+        model_mimo_v2_5_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
+        model_mimo_v2_5_desc_tier_paid: '$0.14/M input, $0.28/M output',
+        // MoonshotAI Paid
+        model_kimi_k2_7_code_desc_tier_paid: '$0.75/M input, $3.5/M output',
+        model_kimi_k2_6_desc_tier_paid: '$0.68/M input, $3.41/M output',
         // Official Astras
         astras_official_writer_01_name: 'Travel Blogger',
         astras_official_writer_01_desc: 'This is an Astras designed for social media platforms, capable of writing elegant and engaging introductions for tourist attractions and hotels. It uses refined language to convey a high-end feel, incorporating the city\'s historical background and popular hashtags to attract the target audience and increase content visibility.',
@@ -1310,42 +1298,36 @@ window.i18n = {
         processingFiles: 'Traitement des fichiers...', // New
         zipNoJson: 'Aucune donnée JSON trouvée dans le fichier ZIP.', // New
         // Model Descriptions & Limits
-        model_gemini_3_pro_preview_desc_tier_paid: '2 $/M entrée, 12 $/M sortie',
-        model_gemini_3_flash_preview_desc_tier_paid: '0,50 $/M entrée, 3 $/M sortie',
+        model_gemini_3_5_flash_desc_tier_paid: '1,50 $/M entrée, 9 $/M sortie',
+        model_gemini_3_1_pro_preview_desc_tier_paid: '2 $/M entrée, 12 $/M sortie',
         // OpenRouter Free
-        model_deepseek_r1t2_chimera_desc_tier_free: 'Coût - Gratuit (20 req/min, 50 req/jour)',
-        model_tng_r1t_chimera_desc_tier_free: 'Coût - Gratuit',
-        model_nemotron_nano_12b_v2_vl_desc_tier_free: 'Coût - Gratuit (20 req/min, 50 req/jour)',
-        model_nova_2_lite_v1_desc_tier_free: 'Coût - Gratuit',
-        model_devstral_2512_desc_tier_free: 'Coût - Gratuit',
-        model_mimo_v2_flash_desc_tier_free: 'Coût - Gratuit',
+        model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
+        model_nex_n2_pro_desc_tier_free: 'Coût - Gratuit',
+        model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
         // OpenAI Paid
-        model_gpt_5_2_pro_desc_tier_paid: '21 $/M entrée, 168 $/M sortie',
-        model_gpt_5_2_desc_tier_paid: '1,75 $/M entrée, 14 $/M sortie',
-        model_gpt_5_mini_desc_tier_paid: '0,25 $/M entrée, 2 $/M sortie',
-        model_gpt_5_nano_desc_tier_paid: '0,05 $/M entrée, 0,40 $/M sortie',
-        model_o3_desc_tier_paid: '2 $/M entrée, 8 $/M sortie',
-        model_o3_mini_high_desc_tier_paid: '1,10 $/M entrée, 4,40 $/M sortie',
-        model_gpt_5_2_codex_desc_tier_paid: '1,75 $/M entrée, 14 $/M sortie',
+        model_gpt_5_5_desc_tier_paid: '5 $/M entrée, 30 $/M sortie',
+        model_gpt_5_4_desc_tier_paid: '2,50 $/M entrée, 15 $/M sortie',
+        model_gpt_5_4_mini_desc_tier_paid: '0,75 $/M entrée, 4,50 $/M sortie',
+        model_gpt_5_4_nano_desc_tier_paid: '0,20 $/M entrée, 1,25 $/M sortie',
         // Anthropic Paid
-        model_claude_opus_4_5_desc_tier_paid: '5 $/M entrée, 25 $/M sortie',
-        model_claude_sonnet_4_5_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
+        model_claude_opus_4_8_desc_tier_paid: '5 $/M entrée, 25 $/M sortie',
+        model_claude_sonnet_4_6_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
         model_claude_haiku_4_5_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
-        // x-ai Paid
-        model_grok_4_1_fast_desc_tier_paid: '0,20 $/M entrée, 0,50 $/M sortie',
-        model_grok_code_fast_1_desc_tier_paid: '0,20 $/M entrée, 1,50 $/M sortie',
         // Qwen Paid
-        model_qwen3_coder_desc_tier_paid: '0,22 $/M entrée, 0,95 $/M sortie',
-        model_qwen3_coder_exact_desc_tier_paid: '0,22 $/M entrée, 1,80 $/M sortie',
-        model_qwen_qwen3_235b_a22b_2507_desc_tier_paid: '0,07 $/M entrée, 0,46 $/M sortie',
-        model_qwen3_next_80b_desc_tier_paid: '0,10 $/M entrée, 1,10 $/M sortie',
-        model_qwen_qwen3_235b_a22b_thinking_2507_desc_tier_paid: '0,11 $/M entrée, 0,60 $/M sortie',
-        model_qwen3_vl_30b_desc_tier_paid: '0,15 $/M entrée, 0,60 $/M sortie',
-        // Others Paid
-        model_deepseek_v3_2_desc_tier_paid: '0,27 $/M entrée, 0,40 $/M sortie',
-        model_minimax_m2_1_desc_tier_paid: '0,27 $/M entrée, 1,12 $/M sortie',
-        model_gemini_3_flash_preview_or_desc_tier_free: 'Non disponible',
-        model_gemini_3_flash_preview_or_desc_tier_paid: '0,50 $/M entrée, 3 $/M sortie',
+        model_qwen3_7_max_desc_tier_paid: '1,25 $/M entrée, 3,75 $/M sortie',
+        model_qwen3_7_plus_desc_tier_paid: '0,32 $/M entrée, 1,28 $/M sortie',
+        model_qwen3_5_flash_02_23_desc_tier_paid: '0,065 $/M entrée, 0,26 $/M sortie',
+        // Minimax Paid
+        model_minimax_m3_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
+        // DeepSeek Paid
+        model_deepseek_v4_pro_desc_tier_paid: '0,435 $/M entrée, 0,87 $/M sortie',
+        model_deepseek_v4_flash_desc_tier_paid: '0,098 $/M entrée, 0,196 $/M sortie',
+        // Xiaomi Paid
+        model_mimo_v2_5_pro_desc_tier_paid: '0,435 $/M entrée, 0,87 $/M sortie',
+        model_mimo_v2_5_desc_tier_paid: '0,14 $/M entrée, 0,28 $/M sortie',
+        // MoonshotAI Paid
+        model_kimi_k2_7_code_desc_tier_paid: '0,75 $/M entrée, 3,50 $/M sortie',
+        model_kimi_k2_6_desc_tier_paid: '0,68 $/M entrée, 3,41 $/M sortie',
         // Official Astras
         astras_official_writer_01_name: 'Blogueur de Voyage',
         astras_official_writer_01_desc: 'Ceci est un Astras conçu pour les plateformes de médias sociaux, capable de rédiger des introductions élégantes et engageantes pour les attractions touristiques et les hôtels. Il utilise un langage raffiné pour transmettre une sensation haut de gamme, en incorporant le contexte historique de la ville et des hashtags populaires pour attirer le public cible et augmenter la visibilité du contenu.',
