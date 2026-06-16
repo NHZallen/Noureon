@@ -1,0 +1,30 @@
+{
+  "name": "astrachat-vite",
+  "version": "16.4.5",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "dev:server": "node scripts/dev-server.mjs",
+    "build": "vite build",
+    "check:sizes": "node scripts/check-file-sizes.mjs",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.0",
+    "cropperjs": "^1.6.2",
+    "dompurify": "^3.2.6",
+    "html5-qrcode": "^2.3.8",
+    "jszip": "^3.10.1",
+    "katex": "^0.16.22",
+    "marked": "^15.0.12",
+    "peerjs": "^1.5.5",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^8.0.16"
+  }
+}

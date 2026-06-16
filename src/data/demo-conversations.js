@@ -393,3 +393,7 @@ window.demoConversations = {
     </div>
   `
 };
+
+globalThis.demoConversations = window.demoConversations;
+export const demoConversations = globalThis.demoConversations;
+export default demoConversations;

@@ -1,0 +1,1066 @@
+<div id="wallpaper-container"></div>
+    <div id="auth-container">
+        <div class="min-h-screen flex flex-col">
+            <header class="p-4 sm:px-6 lg:px-8 bg-white/80 backdrop-blur-sm sticky top-0 z-20 border-b border-gray-200">
+                <div class="max-w-7xl mx-auto flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-8 w-auto text-blue-600" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 15h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                        <span class="text-xl font-bold text-gray-800">ASTRA</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div id="login-language-switcher" class="relative">
+                            <button id="login-lang-btn" class="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                <span id="login-lang-label">繁體中文</span>
+                            </button>
+                            <div id="login-lang-menu" class="popover absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-30">
+                                <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-lang="zh-TW">繁體中文</a>
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-lang="en">English</a>
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-lang="fr">Français</a>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="#login-section" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors" data-lang-key="login">
+                            登入
+                        </a>
+                    </div>
+                </div>
+            </header>
+            <main class="flex-grow">
+                <section id="login-section" class="relative py-20 lg:py-32 bg-white">
+                    <div class="absolute inset-0 overflow-hidden">
+                         <div class="absolute top-0 left-0 w-96 h-96 bg-blue-100 rounded-full opacity-50 -translate-x-20 -translate-y-20"></div>
+                         <div class="absolute bottom-0 right-0 w-96 h-96 bg-indigo-100 rounded-full opacity-50 translate-x-20 translate-y-20"></div>
+                    </div>
+                    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-16 items-center">
+                        <div class="text-center lg:text-left">
+                            <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 tracking-tight">
+                                <span data-lang-key="welcome">歡迎使用</span> <span class="text-blue-600">ASTRA</span>
+                            </h1>
+                            <p class="mt-4 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto lg:mx-0" data-lang-key="heroSubtitle">
+                                從創意激盪到數據決策，一鍵直達。體驗前所未有的 AI 協作，釋放您的全部潛力。
+                            </p>
+                        </div>
+                        <div class="w-full max-w-md mx-auto auth-form-container">
+                             <div class="p-8 bg-white/70 backdrop-blur-md rounded-2xl shadow-lg border border-gray-200">
+                                <h2 class="text-2xl font-bold text-center text-gray-800 mb-2" data-lang-key="loginOrRegister">登入或註冊</h2>
+                                <p class="text-center text-gray-500 mb-8 text-sm" data-lang-key="startJourney">開始您的智慧旅程</p>
+                                <form id="auth-form">
+                                    <div class="mb-4">
+                                        <label for="username-input" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="username">使用者名稱</label>
+                                        <input type="text" id="username-input" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" placeholder="請輸入您的名稱" required data-lang-key-placeholder="usernamePlaceholder">
+                                    </div>
+                                    <div class="mb-6">
+                                        <label for="password-input" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="password">密碼</label>
+                                        <input type="password" id="password-input" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" placeholder="用於登入驗證" required data-lang-key-placeholder="passwordPlaceholder">
+                                    </div>
+                                    <div class="space-y-3">
+                                        <button type="submit" id="register-btn" class="w-full p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors" data-lang-key="loginRegisterButton">
+                                            登入 / 註冊
+                                        </button>
+                                        <button type="button" id="import-btn-auth" class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed" disabled data-lang-key="importRecords">
+                                            匯入紀錄
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section class="py-20 lg:py-24 bg-gray-50">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="text-center">
+                            <h2 class="text-3xl lg:text-4xl font-bold text-gray-900" data-lang-key="exploreModels">探索我們的 AI 模型</h2>
+                            <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto" data-lang-key="exploreModelsDesc">
+                                我們提供一系列為不同任務量身打造的頂尖模型，無論是創意寫作、程式設計還是商業分析，總有一款適合您。
+                            </p>
+                        </div>
+                        <div class="mt-16 max-w-5xl mx-auto">
+                            <div class="demo-model-selector grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
+                            </div>
+                            <div class="mt-8 bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                                <div class="p-4 border-b border-gray-200">
+                                    <h3 id="demo-chat-title" class="text-lg font-semibold text-gray-800 text-center" data-lang-key="demoChatTitle">Astra-ProMax 對話範例</h3>
+                                </div>
+                                <div id="demo-chat-window" class="p-6 h-96 overflow-y-auto space-y-6 bg-gray-100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+            <footer class="bg-white border-t border-gray-200">
+                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
+                    <p data-lang-key="copyright">ASTRA版權所有</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+    <div id="app-container" class="hidden fixed inset-0">
+        <div class="relative flex h-full w-full bg-[var(--chat-bg)]">
+            <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 opacity-0"></div>
+            <div id="sidebar-open-handle" class="fixed top-0 left-0 h-full z-20" style="width: 20px; touch-action: pan-y;"></div>
+            <aside id="sidebar" class="sidebar w-72 lg:w-72 flex-shrink-0 flex flex-col fixed h-full z-40 transform -translate-x-full">
+                <div class="p-2 flex items-center gap-2">
+    <button id="open-search-btn" class="flex-1 flex items-center gap-3 text-left px-4 py-2 rounded-full bg-[var(--hover-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-bg)] hover:text-[var(--text-primary)] transition-colors duration-200 ease-in-out">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        <span class="text-sm" data-lang-key="search">搜尋</span>
+    </button>
+    <button id="selection-mode-btn" class="sidebar-item p-2 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0" data-lang-key-title="batchSelect" title="批次選取">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>
+    </button>
+    <button id="new-chat-btn" class="sidebar-item p-2 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0" data-lang-key-title="newChat" title="新對話">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"></path></svg>
+</button>
+</div>
+                <div class="flex-1 overflow-y-auto px-2 scroll-area">
+    
+    <!-- Astras 區塊 -->
+    <div class="sidebar-section" data-section="astras" data-open="true">
+        <header class="sidebar-section-header">
+            <div class="title-group">
+                <svg class="section-toggle-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <span data-lang-key="astras">Astras</span>
+            </div>
+            <div class="actions-group">
+                <button id="open-store-btn" class="section-action-btn" title="Astras 商店" data-lang-key-title="astrasStore">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                </button>
+                <button id="share-astras-btn" class="section-action-btn" title="P2P 分享 Astras" style="margin-right: 2px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                </button>
+                <button id="new-astras-btn" class="section-action-btn" title="新增 Astras" data-lang-key-title="addAstras">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+            </div>
+        </header>
+        <div class="sidebar-section-content">
+            <div id="astras-list" class="flex-1 space-y-1"></div>
+        </div>
+    </div>
+
+
+    <!-- 資料夾 區塊 -->
+    <div class="sidebar-section" data-section="folders" data-open="true">
+        <header class="sidebar-section-header">
+            <div class="title-group">
+                <svg class="section-toggle-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <span data-lang-key="folders">資料夾</span>
+            </div>
+            <div class="actions-group">
+                <button id="share-folders-btn" class="section-action-btn" title="P2P 分享資料夾" style="margin-right: 2px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                </button>
+                <button id="new-folder-btn" class="section-action-btn" title="新增資料夾" data-lang-key-title="addFolder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+            </div>
+        </header>
+        <div class="sidebar-section-content">
+            <div id="folder-list" class="flex-1 mt-1"></div>
+        </div>
+    </div>
+
+
+    <!-- 歷史紀錄 區塊 -->
+    <div class="sidebar-section" data-section="history" data-open="true">
+        <header class="sidebar-section-header">
+            <div class="title-group">
+                <svg class="section-toggle-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <span data-lang-key="history">歷史紀錄</span>
+            </div>
+        </header>
+        <div class="sidebar-section-content">
+            <div id="history-list" class="space-y-1"></div>
+        </div>
+    </div>
+
+
+</div>
+                <div class="p-2 border-t border-[var(--border-color)]">
+                    <div id="batch-action-bar" class="hidden">
+                        <div class="flex justify-between items-center text-xs mb-1 px-1">
+                            <span id="selection-count" class="font-medium text-[var(--text-secondary)]"></span>
+                            <button id="cancel-selection-btn" class="text-blue-600 hover:underline font-semibold" data-lang-key="done">完成</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1">
+                            <button id="batch-delete-btn" class="p-1.5 text-xs rounded-md bg-red-500 text-white disabled:bg-red-300" disabled data-lang-key="delete">刪除</button>
+                            <button id="batch-archive-btn" class="p-1.5 text-xs rounded-md bg-yellow-500 text-white disabled:bg-yellow-300" disabled data-lang-key="archive">封存</button>
+                            <button id="batch-move-btn" class="p-1.5 text-xs rounded-md bg-blue-500 text-white disabled:bg-blue-300" disabled data-lang-key="move">移動</button>
+                        </div>
+                    </div>
+                    <div id="user-controls">
+    <button id="user-profile-btn" class="sidebar-item w-full text-left rounded-lg flex items-center">
+         <div class="user-avatar"></div> <!-- 新增的使用者頭像 -->
+         <span id="username-display" class="font-semibold truncate">User</span>
+    </button>
+    <button id="settings-btn" class="sidebar-item rounded-lg flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0 2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span data-lang-key="settings">設定</span>
+    </button>
+</div>
+                </div>
+            </aside>
+            <main class="flex-1 flex flex-col relative h-full">
+<header class="relative z-10 p-1.5 md:p-2 flex justify-between items-center border-b border-[var(--border-color)]">
+    <div class="flex items-center gap-2 min-w-0">
+        <button id="menu-toggle-btn" class="p-2 rounded-md hover:bg-[var(--hover-bg)]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div id="model-switcher-container" class="relative"></div>
+        <h1 id="header-title" class="text-xl font-semibold truncate hidden">新對話</h1>
+        <div id="api-key-warning-badge" class="hidden cursor-pointer" title="目前選用的模型需要 API 金鑰，請點此設定" data-lang-key-title="apiKeyWarning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" />
+            </svg>
+        </div>
+    </div>
+    <div class="flex items-center gap-2">
+        <button id="show-prompts-btn" class="p-2 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 hover:bg-[var(--hover-bg)] hidden" title="顯示後續追問">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M12 21v-1m0-10a4 4 0 100 8 4 4 0 000-8z" /></svg>
+    </button>
+        <button id="new-chat-btn-header" class="p-2 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 hover:bg-[var(--hover-bg)] hidden" data-lang-key-title="newChat" title="新對話">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"></path></svg>
+</button>
+    </div>
+</header>
+                <div id="follow-up-container" class="p-2 md:p-4 bg-[var(--input-bar-bg)] hidden">
+            <div id="follow-up-content-wrapper" class="max-w-4xl mx-auto spotlight-effect">
+                <div id="follow-up-header" class="flex items-center justify-between cursor-pointer">
+                    <h4 class="text-sm font-semibold text-[var(--text-secondary)]" data-lang-key="followUp">後續追問</h4>
+                </div>
+                <div id="follow-up-prompts-list" class="flex flex-wrap gap-2 transition-all duration-300 overflow-hidden">
+                </div>
+            </div>
+        </div>
+
+
+        <div id="chat-container" class="flex-1 p-4 md:p-6 overflow-y-auto scroll-area">
+            <div id="message-list" class="space-y-8 max-w-4xl mx-auto"></div>
+        </div>
+                <div id="history-sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-10 opacity-0 hidden"></div>
+                <div id="history-sidebar" class="absolute top-0 right-0 h-full bg-[var(--sidebar-bg)] shadow-lg z-20 w-72 md:w-80 border-l border-[var(--border-color)] flex flex-col">
+    <header class="p-4 border-b border-[var(--border-color)]">
+        <h3 class="font-semibold text-lg" data-lang-key="messageDirectory">訊息目錄</h3>
+    </header>
+    <div id="history-sidebar-list" class="flex-1 overflow-y-auto scroll-area p-2 space-y-1">
+        <!-- 歷史訊息項目將會被 JavaScript 動態加到這裡 -->
+    </div>
+</div>
+
+
+<!-- ✨ 電腦版懸停觸發區域 ✨ -->
+<div id="history-sidebar-trigger-zone" class="hidden md:block absolute top-0 right-0 h-full w-4 z-10"></div>
+                <button id="scroll-to-bottom-btn" title="滾動到底部">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div id="input-bar-container" class="p-2 md:p-4">
+                    <div class="max-w-4xl mx-auto">
+                        <div id="file-preview-container" class="w-full flex flex-wrap gap-2 mb-2 px-2 empty:hidden"></div>
+                        <div class="input-wrapper w-full flex items-end gap-2 p-2 rounded-full bg-[var(--input-field-bg)] border border-[var(--border-color)] shadow-sm spotlight-effect">
+                            <div id="input-indicator-container" class="flex gap-1 empty:hidden">
+                            </div>
+                            <div class="w-full flex items-end gap-2">
+                                <div id="file-input-container" class="relative">
+                                    <button id="add-file-btn" title="附加檔案" class="flex-shrink:0 h-10 w-10 rounded-full flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 transition-colors" data-lang-key-title="attachFile">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    </button>
+                                    <div id="file-options-popover" class="popover absolute bottom-full left-0 mb-2 w-56 z-20">
+    <button id="camera-btn" class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+        <span data-lang-key="camera">相機</span>
+    </button>
+    <button id="upload-image-btn" class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <span data-lang-key="image">影像</span>
+    </button>
+    <button id="upload-file-btn" class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+        <span data-lang-key="file">檔案</span>
+    </button>
+    <div class="border-t border-[var(--border-color)] my-1"></div>
+    <button id="web-search-popover-btn" class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        <span data-lang-key="search">搜索</span>
+    </button>
+    <button id="learning-mode-btn" class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3">
+        <!-- SVG已改成書本圖案 -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"/></svg>
+        <span data-lang-key="learning">學習</span>
+    </button>
+    <!-- ✨ 新增深度研究按鈕 -->
+    <div class="border-t border-[var(--border-color)] my-1"></div>
+    <button id="deep-research-btn" class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        <span data-lang-key="research">研究</span>
+    </button>
+</div>
+                                </div>
+                                <form id="chat-form" class="flex-1 flex items-end relative">
+                                    <textarea id="message-input" placeholder="請先在設定中輸入 API 金鑰..." class="w-full p-2 bg-transparent border-0 focus:ring-0 disabled:bg-transparent resize-none overflow-y-hidden" rows="1" autocomplete="off" disabled data-lang-key-placeholder="enterApiKeyPlaceholder"></textarea>
+                                    <button type="button" id="expand-input-btn" class="absolute top-1 right-1 w-6 h-6 rounded-full hover:bg-gray-500/20 flex items-center justify-center hidden transition-transform text-[var(--text-secondary)]">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
+                                        </svg>
+                                    </button>
+                                </form>
+                                <button id="voice-input-btn-message" title="語音輸入" class="voice-input-btn" data-lang-key-title="voiceInput">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                                </button>
+                                <button id="submit-btn" class="flex-shrink:0 h-10 w-10 rounded-full flex items-center justify-center disabled:bg-gray-300 dark:disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors btn-primary">
+                                    <span id="submit-btn-icon">
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <div id="store-container" class="hidden h-screen w-full flex flex-col bg-[var(--chat-bg)]">
+        <header class="relative z-10 p-2 md:p-4 flex items-center border-b border-[var(--border-color)]">
+            <button id="back-to-chat-btn" class="p-2 rounded-md hover:bg-[var(--hover-bg)] mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </button>
+            <div class="flex-1 flex justify-between items-center">
+    <h1 class="text-xl font-semibold" data-lang-key="astrasStore">Astras 商店</h1>
+    <button id="propose-astras-btn" class="px-3 py-1.5 rounded-md btn-primary text-sm" data-lang-key="proposeAstras">
+        提案 Astras
+    </button>
+</div>
+        </header>
+        <div id="store-category-filter" class="flex-shrink-0 px-4 md:px-6 lg:px-8 pt-4 border-b border-[var(--border-color)]">
+        <div id="store-category-list" class="flex items-center gap-2 pb-3 overflow-x-auto">
+        </div>
+    </div>
+        <main id="store-main-content" class="flex-1 overflow-y-auto scroll-area p-4 md:p-6 lg:p-8">
+            <div id="store-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            </div>
+        </main>
+    </div>
+    <div id="settings-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-0 z-50">
+    <div class="bg-[var(--modal-bg)] rounded-none w-full h-full flex flex-col" style="max-height: 100vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h2 class="text-2xl font-bold" data-lang-key="settings">設定</h2>
+                <button id="logout-btn" title="登出" class="p-2 rounded-md hover:bg-[var(--active-bg)] text-[var(--text-secondary)]" data-lang-key-title="logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+            <div class="flex flex-1 overflow-hidden">
+                <nav class="w-1/4 border-r border-[var(--border-color)] overflow-y-auto scroll-area">
+                    <ul id="settings-nav" class="space-y-2 p-4">
+                        <li class="settings-nav-item p-3 rounded-md active" data-section="personalization" data-lang-key="personalization">個人化</li>
+                        <li class="settings-nav-item p-3 rounded-md" data-section="memory" data-lang-key="memoryManagement">記憶管理</li>
+                        <li class="settings-nav-item p-3 rounded-md" data-section="model-management" data-lang-key="modelManagement">模型管理</li>
+                        <li class="settings-nav-item p-3 rounded-md" data-section="data-management" data-lang-key="dataManagement">資料管理</li>
+                        <li class="settings-nav-item p-3 rounded-md" data-section="accessibility" data-lang-key="accessibility">輔助功能</li>
+                        <li class="settings-nav-item p-3 rounded-md" data-section="trash" data-lang-key="trash">垃圾桶</li>
+                        <li class="settings-nav-item p-3 rounded-md" data-section="advanced-features" data-lang-key="advancedFeatures">進階功能</li>
+                        <li class="settings-nav-item p-3 rounded-md" data-section="about" data-lang-key="about">關於</li>
+                    </ul>
+                </nav>
+                <div class="flex-1 p-6 overflow-y-auto scroll-area space-y-6">
+                    <div id="personalization-section" class="settings-section active">
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="appearance">外觀</h3>
+                        <div class="theme-button-group">
+                            <button id="theme-light-btn" class="theme-btn text-center" data-lang-key="lightMode">淺色</button>
+                            <button id="theme-dark-btn" class="theme-btn text-center" data-lang-key="darkMode">深色</button>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-3 mt-6" data-lang-key="languageSettings">語言設定</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="ui-language-select" class="block text-sm font-medium mb-1" data-lang-key="uiLanguage">介面語言</label>
+                                <select id="ui-language-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
+                                    <option value="zh-TW">繁體中文</option>
+                                    <option value="en">English</option>
+                                    <option value="fr">Français</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="ai-language-select" class="block text-sm font-medium mb-1" data-lang-key="aiReplyLanguage">AI 預設回覆語言</label>
+                                <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="aiReplyLanguageDesc">
+                                    AI 將以此語言回覆，除非您在對話中另有指定。
+                                </p>
+                                <select id="ai-language-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
+                                    <option value="zh-TW">繁體中文</option>
+                                    <option value="en">English</option>
+                                    <option value="fr">Français</option>
+                                </select>
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-3 mt-6" data-lang-key="primaryButtonColor">主按鈕顏色</h3>
+                        <div id="ui-color-options" class="space-y-3 text-sm">
+                            <div class="flex items-center">
+                                <input type="radio" id="color-theme-default" name="color-theme" value="default" class="w-4 h-4 mr-2">
+                                <label for="color-theme-default" data-lang-key="colorDefault">預設 (藍色)</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" id="color-theme-adaptive" name="color-theme" value="adaptive" class="w-4 h-4 mr-2">
+                                <label for="color-theme-adaptive" data-lang-key="colorAdaptive">自適應 (從桌布提取)</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" id="color-theme-custom" name="color-theme" value="custom" class="w-4 h-4 mr-2">
+                                <label for="color-theme-custom" data-lang-key="colorCustom">自訂</label>
+                            </div>
+                            <div id="button-style-container" class="hidden pl-6 pt-2">
+                                <label class="block text-sm font-medium" data-lang-key="buttonStyle">按鈕樣式</label>
+                                <div class="flex items-center gap-4 mt-1">
+                                    <div>
+                                        <input type="radio" id="color-style-single" name="color-style" value="single" class="w-4 h-4 mr-2">
+                                        <label for="color-style-single" data-lang-key="styleSingle">單色</label>
+                                    </div>
+                                    <div>
+                                        <input type="radio" id="color-style-gradient" name="color-style" value="gradient" class="w-4 h-4 mr-2">
+                                        <label for="color-style-gradient" data-lang-key="styleGradient">漸變</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="custom-color-picker-container" class="hidden pl-6 pt-2">
+                                <div id="custom-color-swatches" class="grid grid-cols-8 gap-2">
+                                </div>
+                            </div>
+                            <div id="gradient-picker-container" class="hidden pl-6 pt-2">
+                                <p class="text-sm text-[var(--text-secondary)] mb-2" data-lang-key="gradientDesc">
+                                    從桌布提取的顏色組合。
+                                </p>
+                                <div id="gradient-swatches" class="grid grid-cols-4 gap-2">
+                                </div>
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-3 mt-6" data-lang-key="aiBubbleColor">AI 回覆泡泡底色</h3>
+                        <div id="ai-bubble-color-dropdown" class="color-dropdown-container"></div>
+                        <h3 class="text-lg font-semibold mb-3 mt-6" data-lang-key="userBubbleColor">使用者訊息泡泡底色</h3>
+                        <div id="user-bubble-color-dropdown" class="color-dropdown-container"></div>
+                        <h3 class="text-lg font-semibold mb-3 mt-6" data-lang-key="customWallpaper">自訂義桌布</h3>
+                        <p class="text-sm text-[var(--text-secondary)] mb-2" data-lang-key="customWallpaperDesc">
+                            上傳圖片後將覆蓋整個介面，並禁用深淺色模式。
+                        </p>
+                        <div class="flex gap-2">
+                            <button id="upload-wallpaper-btn" class="flex-1 text-center p-2 rounded-md bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 font-medium" data-lang-key="uploadImage">上傳圖片</button>
+                            <button id="restore-wallpaper-btn" class="flex-1 text-center p-2 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 font-medium" data-lang-key="restoreDefault">還原預設</button>
+                        </div>
+                    </div>
+                    <div id="memory-section" class="settings-section">
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="memorySwitch">記憶功能開關</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <label class="flex-1 text-sm font-medium" data-lang-key="personalMemory">個人習慣記憶 (類型1)</label>
+                                <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" id="memory-toggle-1" class="toggle-checkbox absolute block w-full, h-full rounded-full opacity-0 appearance-none cursor-pointer"/>
+                                    <label for="memory-toggle-1" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label for="auto-memory-toggle-switch" class="flex-1 text-sm font-medium" data-lang-key="enableAutoMemory">啟用自動添加記憶</label>
+                                <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="auto-memory-toggle-switch" id="auto-memory-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                    <label for="auto-memory-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                                </div>
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-3 mt-6" data-lang-key="personalMemoryManage">個人習慣記憶管理</h3>
+                        <div id="personal-memory-list" class="space-y-2"></div>
+                        <button id="add-personal-memory-btn" class="mt-4 px-4 py-2 rounded-md btn-primary" data-lang-key="addMemory">新增記憶</button>
+                    </div>
+                    <div id="model-management-section" class="settings-section">
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="apiKeyManagement">API 金鑰管理</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-sm text-red-500 mb-2" data-lang-key="geminiFollowUpNotice">如需啟用後續追問功能必需填入 gemini api 才可啟用。</p>
+                                <label for="gemini-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="geminiApiKey">Gemini API 金鑰</label>
+                                <input type="password" id="gemini-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="輸入您的 Google API 金鑰" data-lang-key-placeholder="geminiApiPlaceholder">
+                            </div>
+                            <div>
+                                <label for="openrouter-api-key-input-all" class="block text-sm font-medium mb-1" data-lang-key="openRouterApiKey">OpenRouter API 金鑰</label>
+                                <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="openRouterApiDescAll">輸入您的單一 OpenRouter 金鑰以啟用所有相關模型。</p>
+                                <input type="password" id="openrouter-api-key-input-all" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="sk-or-..." data-lang-key-placeholder="openRouterApiPlaceholder">
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-3 mt-6" data-lang-key="modelListManagement">模型清單管理</h3>
+                        <p class="text-sm text-[var(--text-secondary)] mb-3" data-lang-key="modelListManagementDesc">點擊箭頭以排序、點擊眼睛以隱藏/顯示、點擊圓圈以設定預設模型。</p>
+                        <div id="model-management-list" class="space-y-2">
+                        </div>
+                    </div>
+                    <div id="data-management-section" class="settings-section">
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="dataSync">資料同步</h3>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button id="export-data-btn" class="flex-1 text-center p-2 rounded-md bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 font-medium" data-lang-key="exportData">匯出資料</button>
+                            <button id="import-data-btn" class="flex-1 text-center p-2 rounded-md bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800 font-medium" data-lang-key="importData">匯入資料</button>
+                        </div>
+                        <button id="open-archived-modal-btn" class="w-full text-left p-2 rounded-md hover:bg-[var(--hover-bg)] font-medium mt-4" data-lang-key="manageArchived">
+                            管理已封存的對話
+                        </button>
+                        <div class="mt-6 pt-4 border-t border-red-500/30">
+                            <h3 class="text-lg font-semibold mb-3 text-red-600" data-lang-key="dangerZone">危險區域</h3>
+                            <p class="text-sm text-[var(--text-secondary)] mb-3" data-lang-key="dangerZoneDesc">
+                                以下操作將會永久刪除您在此瀏覽器上的所有資料，且無法復原。請謹慎操作。
+                            </p>
+                            <button id="delete-all-data-btn" class="w-full text-center p-2 rounded-md bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 font-medium" data-lang-key="deleteAllData">
+                                清除所有紀錄與資料
+                            </button>
+                        </div>
+                    </div>
+                    <div id="accessibility-section" class="settings-section">
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="accessibility">輔助功能</h3>
+                        <div class="flex items-center justify-between">
+                            <label for="follow-up-toggle-switch" class="flex-1 text-sm font-medium" data-lang-key="enableFollowUp">啟用後續追問提示</label>
+                            <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="follow-up-toggle-switch" id="follow-up-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="follow-up-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-4">
+                            <label for="auto-naming-toggle-switch" class="flex-1 text-sm font-medium" data-lang-key="enableAutoNaming">啟用對話自動命名</label>
+                            <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="auto-naming-toggle-switch" id="auto-naming-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="auto-naming-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-4">
+                            <label for="auto-web-search-toggle-switch" class="flex-1 text-sm font-medium" data-lang-key="enableSmartWebSearch">啟用智慧連網搜尋</label>
+                            <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="auto-web-search-toggle-switch" id="auto-web-search-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="auto-web-search-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="advanced-features-section" class="settings-section">
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="advancedFeatures">進階功能</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="deep-research-query-count-slider" class="block text-sm font-medium mb-1" data-lang-key="deepResearchQueryCount">深度研究搜尋次數</label>
+                                <p class="text-xs text-[var(--text-secondary)] mb-3" data-lang-key="deepResearchQueryCountDesc">
+                                    設定深度研究模式單次執行的搜尋次數。「自動」模式將由 AI 根據問題複雜度決定。
+                                </p>
+                                <div class="flex items-center gap-4">
+                                    <input type="range" id="deep-research-query-count-slider" min="0" max="10" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                                    <span id="deep-research-query-count-label" class="text-sm font-semibold w-20 text-center">自動</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="trash-section" class="settings-section">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold" data-lang-key="trash">垃圾桶</h3>
+                            <div class="flex gap-2">
+                                <button id="trash-batch-select-btn" class="text-sm px-3 py-1.5 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] hover:bg-[var(--hover-bg)]" data-lang-key="batchSelect">
+                                    批次選取
+                                </button>
+                                <button id="empty-trash-btn" class="text-sm px-3 py-1.5 rounded-md bg-red-100 text-red-800 hover:bg-red-200" data-lang-key="emptyTrash">
+                                    清空垃圾桶
+                                </button>
+                            </div>
+                        </div>
+                        <div id="trash-batch-action-bar" class="hidden mb-4 p-2 rounded-md bg-[var(--sidebar-bg)] border border-[var(--border-color)]">
+                            <div class="flex justify-between items-center text-xs mb-1 px-1">
+                                <span id="trash-selection-count" class="font-medium text-[var(--text-secondary)]"></span>
+                                <button id="trash-cancel-selection-btn" class="text-blue-600 hover:underline font-semibold" data-lang-key="done">完成</button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="trash-batch-restore-btn" class="p-2 text-sm rounded-md bg-green-500 text-white disabled:bg-green-300" disabled data-lang-key="restore">復原</button>
+                                <button id="trash-batch-delete-btn" class="p-2 text-sm rounded-md bg-red-500 text-white disabled:bg-red-300" disabled data-lang-key="permanentlyDelete">永久刪除</button>
+                            </div>
+                        </div>
+                        <div id="trash-list-container" class="space-y-2">
+                        </div>
+                    </div>
+                    <div id="about-section" class="settings-section">
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="feedback">意見反饋</h3>
+<p class="text-sm text-[var(--text-secondary)] mb-2" data-lang-key="feedbackDesc">
+    有任何問題或建議嗎？請告訴我們！您的反饋將直接發送到開發者的信箱。
+</p>
+<div class="space-y-3">
+    <textarea id="feedback-textarea" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] h-28" placeholder="請在此輸入您的寶貴意見..." data-lang-key-placeholder="feedbackPlaceholder"></textarea>
+    <button id="send-feedback-btn" class="w-full text-center p-2 rounded-md btn-primary" data-lang-key="sendFeedback">
+        發送意見
+    </button>
+</div>
+<div class="border-t border-[var(--border-color)] my-6"></div>
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="helpCenter">協助中心</h3>
+                        <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="helpCenterDesc">內容待補充...</p>
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="termsOfUse">使用條款</h3>
+                        <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="termsOfUseDesc">內容待補充...</p>
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="privacyPolicy">隱私權政策</h3>
+                        <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="privacyPolicyDesc">內容待補充...</p>
+                        <h3 class="text-lg font-semibold mb-3" data-lang-key="versionInfo">版本資訊</h3>
+                        <div class="space-y-3 p-3 rounded-lg bg-[var(--input-field-bg)] border border-[var(--border-color)]">
+                            <button id="update-info-btn" class="w-full text-left py-2 rounded-md hover:bg-[var(--hover-bg)] font-medium flex justify-between items-center">
+                                <span data-lang-key="viewUpdateHistory">查看版本更新資訊</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                            <div class="border-t border-[var(--border-color)]"></div>
+                            <div class="flex items-center justify-between pt-2">
+                                <label for="enable-update-notifications-toggle" class="flex-1 text-sm font-medium" data-lang-key="enableUpdateNotifications">啟用更新通知彈窗</label>
+                                <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="enable-update-notifications-toggle" id="enable-update-notifications-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                    <label for="enable-update-notifications-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-sm text-[var(--text-secondary)] mt-4" data-lang-key="versionNumber">目前版本：<span id="version-number-display">15.0.0</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-[var(--sidebar-bg)] border-t border-[var(--border-color)] flex justify-end gap-3">
+                <button id="close-settings-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="close">關閉</button>
+                <button id="save-settings-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="save">儲存</button>
+            </div>
+        </div>
+    </div>
+    <div id="export-data-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4" data-lang-key="exportData">匯出資料</h2>
+            <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="selectDataToExport">選擇您想要匯出的資料。</p>
+            <div class="space-y-3 mb-4">
+                <label class="flex items-center space-x-3 p-2 rounded-md bg-[var(--input-field-bg)]">
+                    <input type="checkbox" id="export-history-check" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                    <span data-lang-key="exportHistory">歷史對話紀錄 (含封存與資料夾)</span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-md bg-[var(--input-field-bg)]">
+                    <input type="checkbox" id="export-astras-check" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                    <span data-lang-key="astras">Astras</span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-md bg-[var(--input-field-bg)]">
+                    <input type="checkbox" id="export-settings-check" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                    <span data-lang-key="appSettings">應用程式設定</span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-md bg-[var(--input-field-bg)]">
+                    <input type="checkbox" id="export-api-check" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span data-lang-key="exportApiKeys">API 金鑰 (Gemini 和 OpenRouter)</span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-md bg-[var(--input-field-bg)]">
+                    <input type="checkbox" id="export-memory-check" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span data-lang-key="exportPersonalMemory">個人習慣記憶 (類型1)</span>
+                </label>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button id="cancel-export-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+                <button id="confirm-export-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirmAndExport">確認並匯出</button>
+            </div>
+        </div>
+    </div>
+    <div id="import-data-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+    <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4" data-lang-key="importData">匯入資料</h2>
+        <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="importDataDesc">選擇一個之前匯出的 `.json` 或 `.zip` 檔案。</p>
+        
+        <div class="mb-4">
+            <label for="import-file-input" class="block text-sm font-medium mb-1" data-lang-key="selectFile">選擇檔案</label>
+            <input type="file" id="import-file-input" class="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept=".json,.zip" required>
+        </div>
+
+        <!-- ✨ 新增：進度條容器 (預設隱藏) -->
+        <div id="import-progress-container" class="mb-4 hidden">
+            <div class="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
+                <span id="import-status-text">正在準備...</span>
+                <span id="import-percentage">0%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
+                <div id="import-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p class="text-xs text-red-500 mt-1 hidden" id="import-warning-text">檔案較大，請勿關閉視窗...</p>
+        </div>
+        <!-- ✨ 新增結束 -->
+
+        <div class="flex justify-end gap-3">
+            <button id="cancel-import-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+            <button id="confirm-import-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700" data-lang-key="confirmAndImport">確認並匯入</button>
+        </div>
+    </div>
+</div>
+    <div id="import-data-modal-auth" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+    <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4" data-lang-key="importRecords">匯入紀錄</h2>
+        <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="importDataDescAuth">選擇一個之前匯出的 `.json` 檔案。您輸入的帳號密碼將用於驗證備份檔案的所有權。</p>
+        <div class="mb-4">
+            <label for="import-file-input-auth" class="block text-sm font-medium mb-1" data-lang-key="selectFile">選擇檔案</label>
+            <input type="file" id="import-file-input-auth" class="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept=".json,.zip" required>
+        </div>
+        <div id="import-progress-container-auth" class="mb-4 hidden">
+            <div class="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
+                <span id="import-status-text-auth">正在準備...</span>
+                <span id="import-percentage-auth">0%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
+                <div id="import-progress-bar-auth" class="bg-green-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+        <div class="flex justify-end gap-3">
+            <button id="cancel-import-btn-auth" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+            <button id="confirm-import-btn-auth" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700" data-lang-key="confirmAndImport">確認並匯入</button>
+        </div>
+    </div>
+</div>
+    <div id="archived-chats-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-2xl flex flex-col" style="max-height: 90vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h2 class="text-2xl font-bold" data-lang-key="archivedChats">已封存的對話</h2>
+                <button id="close-archived-modal-btn" class="p-2 rounded-full hover:bg-[var(--hover-bg)] text-2xl leading-none">&times;</button>
+            </div>
+            <div id="archived-chats-container" class="p-6 overflow-y-auto space-y-2 scroll-area"></div>
+        </div>
+    </div>
+    <div id="view-archived-chat-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[51]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-3xl flex flex-col" style="max-height: 90vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center flex-shrink-0">
+                <h2 id="view-archived-title" class="text-2xl font-bold truncate" data-lang-key="viewArchivedChat">檢視封存的對話</h2>
+                <button id="close-view-archived-modal-btn" class="p-2 rounded-full hover:bg-[var(--hover-bg)] text-2xl leading-none">&times;</button>
+            </div>
+            <div id="view-archived-content" class="p-6 overflow-y-auto space-y-4 scroll-area flex-1">
+            </div>
+            <div class="p-4 bg-[var(--sidebar-bg)] border-t border-[var(--border-color)] flex justify-end gap-3 flex-shrink-0">
+                <button id="close-view-archived-modal-btn-footer" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="close">關閉</button>
+            </div>
+        </div>
+    </div>
+    <div id="rename-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4" data-lang-key="rename">重新命名</h2>
+            <input type="text" id="rename-input" class="w-full p-2 border border-[var(--border-color)] rounded-md mb-4 bg-[var(--input-field-bg)]" placeholder="輸入新名稱" data-lang-key-placeholder="enterNewName">
+            <div class="flex justify-end gap-3">
+                <button id="cancel-rename-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+                <button id="save-rename-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="save">儲存</button>
+            </div>
+        </div>
+    </div>
+    <div id="folder-settings-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4" data-lang-key="customizeFolder">自訂資料夾</h2>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="text-sm font-medium mb-2" data-lang-key="selectColor">選擇顏色</h3>
+                    <div id="color-swatches-container" class="grid grid-cols-8 gap-2"></div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium mb-2" data-lang-key="selectIcon">選擇圖示</h3>
+                    <div id="icon-options-container" class="grid grid-cols-8 gap-2"></div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="cancel-folder-settings-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+                <button id="save-folder-settings-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="save">儲存</button>
+            </div>
+        </div>
+    </div>
+    <div id="search-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-0 z-50">
+    <div class="bg-[var(--modal-bg)] rounded-none w-full h-full flex flex-col" style="max-height: 100vh;">
+            <div class="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h2 class="text-xl font-bold" data-lang-key="searchConversations">搜尋對話</h2>
+                <button id="close-search-modal-btn" class="p-2 rounded-full hover:bg-[var(--hover-bg)] text-2xl leading-none">&times;</button>
+            </div>
+            <div class="p-4 flex items-center gap-2 border-b border-[var(--border-color)]">
+                <input type="search" id="modal-search-input" placeholder="搜尋..." class="flex-1 p-2 text-sm border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] focus:ring-2 focus:ring-blue-500 focus:outline-none" data-lang-key-placeholder="searchPlaceholder">
+                <select id="modal-search-scope-select" class="text-sm border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] focus:ring-2 focus:ring-blue-500 focus:outline-none p-2">
+                    <option value="keyword-title" data-lang-key="searchScopeTitle">關鍵字 (標題)</option>
+                    <option value="keyword-content" data-lang-key="searchScopeContent">關鍵字 (內文)</option>
+                    <option value="natural" data-lang-key="searchScopeNatural">自然語言</option>
+                </select>
+                <button id="perform-search-btn" class="p-2 rounded-md text-white btn-primary" data-lang-key="search">搜尋</button>
+                <button id="voice-input-btn-search" title="語音輸入" class="voice-input-btn" data-lang-key-title="voiceInput">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                </button>
+            </div>
+            <div id="search-results-container" class="p-4 overflow-y-auto space-y-2 scroll-area flex-1">
+                <p class="text-center text-[var(--text-secondary)]" data-lang-key="searchPrompt">請輸入關鍵字進行搜尋。</p>
+            </div>
+        </div>
+    </div>
+    <div id="search-view-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[51]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-3xl flex flex-col" style="max-height: 90vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center flex-shrink-0">
+                <h2 id="search-view-title" class="text-2xl font-bold truncate">檢視對話</h2>
+                <button id="close-search-view-modal-btn" class="p-2 rounded-full hover:bg-[var(--hover-bg)] text-2xl leading-none">&times;</button>
+            </div>
+            <div id="search-view-content" class="p-6 overflow-y-auto space-y-4 scroll-area flex-1" style="-webkit-user-select: none; user-select: none;">
+            </div>
+            <div class="p-4 bg-[var(--sidebar-bg)] border-t border-[var(--border-color)] flex justify-end gap-3 flex-shrink-0">
+                <button id="search-view-close-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="close">關閉</button>
+                <button id="search-view-confirm-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirm">確認</button>
+            </div>
+        </div>
+    </div>
+    <div id="trash-view-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[51]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-3xl flex flex-col" style="max-height: 90vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center flex-shrink-0">
+                <h2 id="trash-view-title" class="text-2xl font-bold truncate" data-lang-key="viewTrashItem">檢視已刪除項目</h2>
+                <button id="close-trash-view-modal-btn" class="p-2 rounded-full hover:bg-[var(--hover-bg)] text-2xl leading-none">&times;</button>
+            </div>
+            <div id="trash-view-content" class="p-6 overflow-y-auto space-y-4 scroll-area flex-1">
+            </div>
+            <div class="p-4 bg-[var(--sidebar-bg)] border-t border-[var(--border-color)] flex justify-end gap-3 flex-shrink-0">
+                <button id="trash-view-close-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="close">關閉</button>
+            </div>
+        </div>
+    </div>
+    <div id="notification-container"></div>
+    <div id="custom-dialog-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h2 id="custom-dialog-title" class="text-xl font-bold mb-4"></h2>
+            <p id="custom-dialog-message" class="text-[var(--text-secondary)] mb-6"></p>
+            <div id="custom-dialog-input-container" class="mb-4 hidden">
+                <input id="custom-dialog-input" type="text" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
+            </div>
+            <div id="custom-dialog-buttons" class="flex justify-end gap-3"></div>
+        </div>
+    </div>
+    <div id="astras-create-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4" data-lang-key="createAstras">創建 Astras</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="astras-name-input" class="block text-sm font-medium mb-1" data-lang-key="name">名稱</label>
+                    <input type="text" id="astras-name-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="輸入 Astras 名稱" data-lang-key-placeholder="astrasNamePlaceholder">
+                </div>
+                <div>
+                    <label for="astras-desc-input" class="block text-sm font-medium mb-1" data-lang-key="description">說明</label>
+                    <input type="text" id="astras-desc-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="輸入 Astras 說明" data-lang-key-placeholder="astrasDescPlaceholder">
+                </div>
+                <div>
+                    <label for="astras-instructions-input" class="block text-sm font-medium mb-1" data-lang-key="instructions">指令</label>
+                    <textarea id="astras-instructions-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] h-32" placeholder="輸入 Astras 指令" data-lang-key-placeholder="astrasInstructionsPlaceholder"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="cancel-astras-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+                <button id="save-astras-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="save">儲存</button>
+            </div>
+        </div>
+    </div>
+    <div id="batch-move-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4" data-lang-key="batchMove">批次移動</h2>
+            <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="batchMoveDesc">選擇要移動到的資料夾，或移出資料夾。</p>
+            <div class="space-y-2 mb-4" id="batch-move-folder-list">
+            </div>
+            <div class="flex justify-end gap-3">
+                <button id="batch-move-cancel-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+                <button id="batch-move-confirm-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirm">確認</button>
+            </div>
+        </div>
+    </div>
+    <div id="data-dashboard-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-0 z-50">
+    <div class="bg-[var(--modal-bg)] rounded-none w-full h-full flex flex-col" style="height: 100vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h2 class="text-2xl font-bold" data-lang-key="dashboard">個人數據面板</h2>
+                <button id="close-dashboard-btn" class="p-2 rounded-full hover:bg-[var(--hover-bg)] text-2xl leading-none">&times;</button>
+            </div>
+            <div class="flex-1 p-6 overflow-y-auto scroll-area space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-[var(--sidebar-bg)] rounded-lg">
+                        <h3 class="text-sm font-medium text-[var(--text-secondary)]" data-lang-key="totalConversations">總對話數</h3>
+                        <p id="total-conv-stat" class="text-3xl font-bold"></p>
+                    </div>
+                    <div class="p-4 bg-[var(--sidebar-bg)] rounded-lg">
+                        <h3 class="text-sm font-medium text-[var(--text-secondary)]" data-lang-key="totalFolders">資料夾數量</h3>
+                        <p id="total-folder-stat" class="text-3xl font-bold"></p>
+                    </div>
+                    <div class="p-4 bg-[var(--sidebar-bg)] rounded-lg">
+                        <h3 class="text-sm font-medium text-[var(--text-secondary)]" data-lang-key="mostUsedModel">最常使用的模型</h3>
+                        <p id="most-used-model-stat" class="text-2xl font-bold truncate"></p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3" data-lang-key="modelUsageRatio">模型使用比例</h3>
+                    <div class="p-4 bg-[var(--sidebar-bg)] rounded-lg" style="height: 300px;">
+                        <canvas id="model-usage-pie-chart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3" data-lang-key="messageTimeDistribution">訊息數量時間分佈</h3>
+                    <div class="p-4 bg-[var(--sidebar-bg)] rounded-lg">
+                        <div class="flex flex-wrap gap-2 mb-4 items-center">
+                            <label for="time-analysis-year-select" class="text-sm" data-lang-key="year">年份:</label>
+                            <select id="time-analysis-year-select" class="p-1 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] text-sm"></select>
+                            <label for="time-analysis-month-select" class="text-sm" data-lang-key="month">月份:</label>
+                            <select id="time-analysis-month-select" class="p-1 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] text-sm" disabled></select>
+                            <label for="time-analysis-day-select" class="text-sm" data-lang-key="day">日期:</label>
+                            <select id="time-analysis-day-select" class="p-1 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] text-sm" disabled></select>
+                        </div>
+                        <div id="time-chart-container" style="height: 300px;">
+                             <canvas id="time-distribution-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="wallpaper-crop-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[51]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-4xl p-6">
+            <h2 class="text-2xl font-bold mb-4" data-lang-key="cropWallpaper">裁切桌布</h2>
+            <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="cropWallpaperDesc">
+                拖動選框以調整您想要的桌布區域，建議使用符合螢幕比例的裁切。
+            </p>
+            <div id="wallpaper-crop-container">
+                <img id="wallpaper-crop-image" src="" alt="Wallpaper for cropping">
+            </div>
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="cancel-crop-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+                <button id="confirm-crop-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirmAndApply">確認並套用</button>
+            </div>
+        </div>
+    </div>
+    <div id="astras-avatar-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[51]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-lg p-6">
+            <h2 class="text-2xl font-bold mb-4" data-lang-key="setAstrasAvatar">設定 Astras 頭像</h2>
+            <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="cropAvatarDesc">
+                移動和縮放圖片以裁切您喜歡的圓形頭像。
+            </p>
+            <div id="avatar-crop-container" class="w-full max-h-[50vh] mb-4 bg-gray-200 dark:bg-gray-700 rounded-md">
+                <img id="avatar-crop-image" src="" alt="Avatar for cropping">
+            </div>
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="cancel-avatar-crop-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+                <button id="confirm-avatar-crop-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirmAndApply">確認並套用</button>
+            </div>
+        </div>
+    </div>
+    <div id="update-info-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[51]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-2xl flex flex-col" style="max-height: 90vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h2 class="text-2xl font-bold" data-lang-key="updateHistory">版本更新歷史</h2>
+                <button id="close-update-info-modal-btn" class="p-2 rounded-full hover:bg-[var(--hover-bg)] text-2xl leading-none">&times;</button>
+            </div>
+            <div id="update-info-content" class="p-6 overflow-y-auto space-y-6 scroll-area">
+            </div>
+        </div>
+    </div>
+    <div id="latest-update-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-lg">
+            <div class="p-6 border-b border-[var(--border-color)]">
+                <h2 class="text-xl font-bold" data-lang-key="newVersionReleased">新版本發布！</h2>
+            </div>
+            <div id="latest-update-content" class="p-6 prose prose-sm max-w-none">
+            </div>
+            <div class="p-4 bg-[var(--sidebar-bg)] border-t border-[var(--border-color)] flex justify-end gap-3">
+                <button id="close-latest-update-modal-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="iGotIt">我知道了</button>
+            </div>
+        </div>
+    </div>
+    <input type="file" id="image-video-input" class="hidden" accept="image/*,video/*" multiple>
+    <input type="file" id="file-upload-input" class="hidden" multiple>
+    <input type="file" id="wallpaper-upload-input" class="hidden" accept="image/*">
+    <input type="file" id="astras-avatar-input" class="hidden" accept="image/*">
+    <div id="astras-proposal-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+    <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4" data-lang-key="proposeNewAstras">提案新的 Astras</h2>
+        <p class="text-sm text-[var(--text-secondary)] mb-4" data-lang-key="proposeAstrasDesc">
+            您的提案將會以郵件形式發送給開發者，感謝您的貢獻！
+        </p>
+        <div class="space-y-4">
+            <div>
+                <label for="proposal-name-input" class="block text-sm font-medium mb-1" data-lang-key="name">名稱</label>
+                <input type="text" id="proposal-name-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="為這個 Astras 取個名字" data-lang-key-placeholder="astrasNamePlaceholder">
+            </div>
+            <div>
+                <label for="proposal-desc-input" class="block text-sm font-medium mb-1" data-lang-key="description">說明 (選填)</label>
+                <input type="text" id="proposal-desc-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="簡短描述它的功能" data-lang-key-placeholder="astrasDescPlaceholder">
+            </div>
+            <div>
+                <label for="proposal-instructions-input" class="block text-sm font-medium mb-1" data-lang-key="instructions">指令</label>
+                <textarea id="proposal-instructions-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] h-32" placeholder="詳細說明這個 Astras 該如何運作" data-lang-key-placeholder="astrasInstructionsPlaceholder"></textarea>
+            </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+            <button id="cancel-proposal-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="cancel">取消</button>
+            <button id="submit-proposal-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="submitProposal">提交提案</button>
+        </div>
+    </div>
+</div>
+        <div id="p2p-share-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl p-6 w-full max-w-md flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 border-b border-[var(--border-color)] pb-2">
+                <h2 id="p2p-modal-title" class="text-xl font-bold">P2P 分享</h2>
+                <button id="close-p2p-modal-btn" class="p-1 rounded-full hover:bg-[var(--hover-bg)]">&times;</button>
+            </div>
+            
+            <div id="p2p-content-area" class="flex-1 overflow-y-auto scroll-area">
+                <!-- 步驟 1: 選擇角色 -->
+                <div id="p2p-step-role" class="space-y-4">
+                    <p class="text-sm text-[var(--text-secondary)]">請選擇您的角色：</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="p2p-role-sender" class="p-4 rounded-lg border-2 border-[var(--border-color)] hover:border-blue-500 flex flex-col items-center gap-2 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            <span class="font-bold">我要傳送</span>
+                        </button>
+                        <button id="p2p-role-receiver" class="p-4 rounded-lg border-2 border-[var(--border-color)] hover:border-green-500 flex flex-col items-center gap-2 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span class="font-bold">我要接收</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 步驟 2 (傳送方): 選擇項目 -->
+                <div id="p2p-step-select" class="hidden space-y-4">
+                    <p class="text-sm text-[var(--text-secondary)]">請選擇要傳送的項目：</p>
+                    <div id="p2p-item-list" class="space-y-2 max-h-60 overflow-y-auto border border-[var(--border-color)] rounded-md p-2">
+                        <!-- 動態填入項目 -->
+                    </div>
+                    <button id="p2p-confirm-selection-btn" class="w-full btn-primary py-2 rounded-md">確認並產生代碼</button>
+                </div>
+
+                <!-- 步驟 3 (傳送方): 顯示代碼與等待 -->
+                <div id="p2p-step-wait" class="hidden flex flex-col items-center space-y-4">
+                    <div id="p2p-qrcode-container" class="bg-white p-2 rounded-lg"></div>
+                    <div class="text-center">
+                        <p class="text-sm text-[var(--text-secondary)]">分享代碼 (5碼)</p>
+                        <p id="p2p-share-code" class="text-3xl font-mono font-bold tracking-widest text-blue-600 my-2">-----</p>
+                    </div>
+                    <p class="text-xs text-[var(--text-secondary)] animate-pulse">等待接收方連線...</p>
+                </div>
+
+                <!-- 步驟 2 (接收方): 輸入代碼或掃碼 -->
+                <div id="p2p-step-connect" class="hidden space-y-4">
+                    <div id="p2p-reader" class="w-full bg-black rounded-lg overflow-hidden hidden"></div>
+                    <button id="p2p-start-scan-btn" class="w-full py-2 rounded-md bg-[var(--hover-bg)] flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
+                        掃描 QR Code
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="p2p-code-input" class="flex-1 p-2 border border-[var(--border-color)] rounded-md text-center font-mono uppercase" placeholder="輸入5碼代碼" maxlength="5">
+                        <button id="p2p-connect-btn" class="btn-primary px-4 py-2 rounded-md">連線</button>
+                    </div>
+                </div>
+
+                <!-- 步驟 4: 傳輸進度 (雙方共用) -->
+                <div id="p2p-step-progress" class="hidden space-y-4">
+                    <p id="p2p-status-text" class="text-center font-medium">正在準備...</p>
+                    <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 overflow-hidden">
+                        <div id="p2p-progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p id="p2p-percentage" class="text-center text-sm text-[var(--text-secondary)]">0%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="mobile-context-menu-wrapper"></div>
+        <div id="attachment-menu-wrapper"></div>
+    
+    <!-- ✨ 新增：互動式計畫編輯器 Modal -->
+    <div id="interactive-plan-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[52]">
+        <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-2xl flex flex-col" style="max-height: 90vh;">
+            <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h2 class="text-2xl font-bold" data-lang-key="editResearchPlan">編輯研究計畫</h2>
+                <button id="add-plan-step-btn" class="px-3 py-1.5 rounded-md btn-primary text-sm" data-lang-key="addStep">
+                    新增步驟
+                </button>
+            </div>
+            <div id="plan-editor-steps-container" class="p-6 overflow-y-auto scroll-area space-y-4">
+                <!-- 計畫步驟將會動態插入此處 -->
+            </div>
+            <div class="p-4 bg-[var(--sidebar-bg)] border-t border-[var(--border-color)] flex justify-between items-center">
+    <!-- ✨ 新增的「取消研究」按鈕 -->
+    <button id="fully-cancel-research-btn" class="text-red-600 hover:underline text-sm font-medium px-4 py-2 rounded-md" data-lang-key="cancelResearch">取消研究</button>
+    
+    <!-- ✨ 右側的按鈕群組 -->
+    <div class="flex gap-3">
+        <!-- ✨ 原本的「取消」按鈕，修改了 ID、文字和功能 -->
+        <button id="close-plan-editor-btn" class="bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]" data-lang-key="closeEditor">關閉編輯</button>
+        <button id="confirm-plan-btn" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirmAndRun">確認並執行</button>
+    </div>
+</div>
+        </div>
+    </div>

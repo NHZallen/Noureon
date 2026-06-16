@@ -88,3 +88,7 @@ const OFFICIAL_ASTRAS = [
         avatarUrl: null
     },
 ];
+
+globalThis.OFFICIAL_ASTRAS = OFFICIAL_ASTRAS;
+export { OFFICIAL_ASTRAS };
+export default OFFICIAL_ASTRAS;

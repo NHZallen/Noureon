@@ -22,6 +22,7 @@ window.i18n = {
         batchSelect: '批次選取',
         cancelBatchSelect: '取消選取',
         search: '搜索',
+        history: '歷史',
         astras: 'Astras',
         addAstras: '新增 Astras',
         astrasStore: 'Astras 商店',
@@ -108,6 +109,7 @@ window.i18n = {
         geminiApiKey: 'Gemini API 金鑰',
         geminiApiPlaceholder: '輸入您的 Google API 金鑰',
         openRouterApiKey: 'OpenRouter API 金鑰',
+        openRouterApiPlaceholder: '輸入您的 OpenRouter API 金鑰',
         openRouterApiDescAll: '輸入您的單一 OpenRouter 金鑰以啟用所有相關模型。',
         save: '儲存',
         modelListManagement: '模型清單管理',
@@ -477,6 +479,7 @@ window.i18n = {
         batchSelect: 'Batch Select',
         cancelBatchSelect: 'Cancel Select',
         search: 'Search',
+        history: 'History',
         astras: 'Astras',
         addAstras: 'New Astras',
         astrasStore: 'Astras Store',
@@ -563,6 +566,7 @@ window.i18n = {
         geminiApiKey: 'Gemini API Key',
         geminiApiPlaceholder: 'Enter your Google API Key',
         openRouterApiKey: 'OpenRouter API Key',
+        openRouterApiPlaceholder: 'Enter your OpenRouter API key',
         openRouterApiDescAll: 'Enter your single OpenRouter key to enable all related models.',
         save: 'Save',
         modelListManagement: 'Model List Management',
@@ -932,6 +936,7 @@ window.i18n = {
         batchSelect: 'Sélection Multiple',
         cancelBatchSelect: 'Annuler la Sélection',
         search: 'Rechercher',
+        history: 'Historique',
         astras: 'Astras',
         addAstras: 'Nouvel Astras',
         astrasStore: 'Boutique Astras',
@@ -1018,6 +1023,7 @@ window.i18n = {
         geminiApiKey: 'Clé API Gemini',
         geminiApiPlaceholder: 'Entrez votre clé API Google',
         openRouterApiKey: 'Clé API OpenRouter',
+        openRouterApiPlaceholder: 'Entrez votre clé API OpenRouter',
         openRouterApiDescAll: 'Entrez votre clé OpenRouter unique pour activer tous les modèles associés.',
         save: 'Enregistrer',
         modelListManagement: 'Gestion de la Liste des Modèles',
@@ -1365,3 +1371,7 @@ window.i18n = {
         astras_official_editor_11_desc: 'Un Astras de mystère interactif mettant en scène un détective lycéen. Le joueur n\'est pas une machine à résoudre des crimes mais un jeune observateur entraîné dans les événements par le destin. L\'histoire commence par un rassemblement apparemment ordinaire - un voyage scolaire, une croisière, une invitation à une galerie - et à mesure que des détails inhabituels apparaissent, les événements et la nature humaine s\'entremêlent en une toile complexe.',
     }
 };
+
+globalThis.i18n = window.i18n;
+export const i18n = globalThis.i18n;
+export default i18n;

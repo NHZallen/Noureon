@@ -1,0 +1,1383 @@
+import { installTouchGuards } from '/src/pwa/touch-guards.js';
+import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
+
+const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
+const i18n = globalThis.i18n;
+const demoConversations = globalThis.demoConversations;
+const OFFICIAL_ASTRAS = globalThis.OFFICIAL_ASTRAS;
+const updateLogs = globalThis.updateLogs;
+
+const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+}[char]));
+
+const renderUserText = (value = '') => escapeHTML(value).replace(/\n/g, '<br>');
+
+const sanitizeTrustedHTML = (value = '') => {
+    if (DOMPurify?.sanitize) {
+        return DOMPurify.sanitize(String(value));
+    }
+    return escapeHTML(value);
+};
+
+const readErrorBody = async (response) => {
+    const text = await response.text();
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { error: { message: text || response.statusText } };
+    }
+};
+
+const getErrorMessage = (errorBody, fallback = 'API 請求失敗') => (
+    errorBody?.error?.message ||
+    errorBody?.message ||
+    fallback
+);
+
+const postJsonWithReadableError = async (url, data, options = {}) => {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) },
+        body: JSON.stringify(data),
+        signal: options.signal
+    });
+
+    if (!response.ok) {
+        const errorBody = await readErrorBody(response);
+        throw new Error(getErrorMessage(errorBody, `HTTP ${response.status}`));
+    }
+
+    return response;
+};
+
+const getBackupUsername = (rawData) => rawData?.backup_identity?.username || rawData?.user_credentials?.username || '';
+
+async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
+    const total = items.length;
+    let index = 0;
+
+    while (index < total) {
+        const chunk = items.slice(index, index + chunkSize);
+        await Promise.all(chunk.map((item) => processFn(item)));
+        index += chunk.length;
+
+        if (onProgress) {
+            onProgress(index, total);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+}
+    document.addEventListener('DOMContentLoaded', () => {
+        // 直接讓登入/註冊畫面顯示出來
+        document.getElementById('auth-container').classList.add('visible');
+        
+            const demoModels = [
+  { id: 'proMax', name: 'Astra-Pro Max', title: 'Astra-Pro Max 對話範例', desc: '深度決策，商業研究最佳拍檔' },
+  { id: 'proPV', name: 'Astra-Pro PV', title: 'Astra-Pro PV 對話範例', desc: '預覽新技術，多模態高速體驗' },
+  { id: 'pro', name: 'Astra-Pro', title: 'Astra-Pro 對話範例', desc: '高效多模態，文檔圖像兼擅' },
+  { id: 'plusPV', name: 'Astra-Plus PV', title: 'Astra-Plus PV 對話範例', desc: '輕量快速，日常應用即刻啟動' },
+  { id: 'mini', name: 'Astra-Mini', title: 'Astra-Mini 對話範例', desc: '強大推理，長文與數理皆能' },
+  { id: 'mill', name: 'Astra-Mill', title: 'Astra-Mill 對話範例', desc: '開源高效，短文生成與結構化' },
+  { id: 'nano', name: 'Astra-Nano', title: 'Astra-Nano 對話範例', desc: '程式專精，技術代碼好幫手' },
+];
+            const selectorContainer = document.querySelector('.demo-model-selector');
+            const chatWindow = document.getElementById('demo-chat-window');
+            const chatTitle = document.getElementById('demo-chat-title');
+            if (selectorContainer && chatWindow && chatTitle) {
+                demoModels.forEach((model, index) => {
+                    const button = document.createElement('button');
+                    button.className = `selector-btn text-center p-3 rounded-lg border-2 border-gray-200 bg-white ${index === 0 ? 'active' : ''}`;
+                    button.dataset.modelId = model.id;
+                    button.innerHTML = `
+                        <div class="font-semibold text-sm text-gray-800">${model.name}</div>
+                        <div class="text-xs text-gray-500">${model.desc}</div>
+                    `;
+                    selectorContainer.appendChild(button);
+                    const contentDiv = document.createElement('div');
+                    contentDiv.id = `demo-chat-${model.id}`;
+                    contentDiv.className = `demo-chat-content space-y-6 ${index === 0 ? 'active' : ''}`;
+                    contentDiv.innerHTML = demoConversations[model.id];
+                    chatWindow.appendChild(contentDiv);
+                });
+                selectorContainer.addEventListener('click', (e) => {
+                    const button = e.target.closest('.selector-btn');
+                    if (!button) return;
+                    const modelId = button.dataset.modelId;
+                    selectorContainer.querySelector('.active').classList.remove('active');
+                    button.classList.add('active');
+                    chatWindow.querySelector('.active').classList.remove('active');
+                    document.getElementById(`demo-chat-${modelId}`).classList.add('active');
+                    const modelInfo = demoModels.find(m => m.id === modelId);
+                    chatTitle.textContent = modelInfo.title;
+                });
+            }
+        });
+        const ALL_ELEMENTS = {
+            authContainer: document.getElementById('auth-container'),
+            appContainer: document.getElementById('app-container'),
+            authForm: document.getElementById('auth-form'),
+            usernameInput: document.getElementById('username-input'),
+            passwordInput: document.getElementById('password-input'),
+            importBtnAuth: document.getElementById('import-btn-auth'),
+            importDataModalAuth: document.getElementById('import-data-modal-auth'),
+            importFileInputAuth: document.getElementById('import-file-input-auth'),
+            cancelImportBtnAuth: document.getElementById('cancel-import-btn-auth'),
+            confirmImportBtnAuth: document.getElementById('confirm-import-btn-auth'),
+            logoutBtn: document.getElementById('logout-btn'),
+            usernameDisplay: document.getElementById('username-display'),
+            newChatBtn: document.getElementById('new-chat-btn'),
+            newChatBtnHeader: document.getElementById('new-chat-btn-header'),
+            openSearchBtn: document.getElementById('open-search-btn'),
+            historyList: document.getElementById('history-list'),
+            folderList: document.getElementById('folder-list'),
+            newFolderBtn: document.getElementById('new-folder-btn'),
+            settingsBtn: document.getElementById('settings-btn'),
+            headerTitle: document.getElementById('header-title'),
+            modelSwitcherContainer: document.getElementById('model-switcher-container'),
+            chatContainer: document.getElementById('chat-container'),
+            historySidebar: document.getElementById('history-sidebar'),
+            historySidebarList: document.getElementById('history-sidebar-list'),
+            historySidebarTriggerZone: document.getElementById('history-sidebar-trigger-zone'),
+            historySidebarOverlay: document.getElementById('history-sidebar-overlay'),
+            messageList: document.getElementById('message-list'),
+            messageInput: document.getElementById('message-input'),
+            chatForm: document.getElementById('chat-form'),
+            submitButton: document.getElementById('submit-btn'),
+            submitButtonIcon: document.getElementById('submit-btn-icon'),
+            settingsModal: document.getElementById('settings-modal'),
+            saveSettingsBtn: document.getElementById('save-settings-btn'),
+            closeSettingsBtn: document.getElementById('close-settings-btn'),
+            geminiApiKeyInput: document.getElementById('gemini-api-key-input'),
+            openrouterApiKeyInputAll: document.getElementById('openrouter-api-key-input-all'),
+            modelManagementList: document.getElementById('model-management-list'),
+            openArchivedModalBtn: document.getElementById('open-archived-modal-btn'),
+            themeLightBtn: document.getElementById('theme-light-btn'),
+            themeDarkBtn: document.getElementById('theme-dark-btn'),
+            archivedChatsModal: document.getElementById('archived-chats-modal'),
+            closeArchivedModalBtn: document.getElementById('close-archived-modal-btn'),
+            archivedChatsContainer: document.getElementById('archived-chats-container'),
+            viewArchivedChatModal: document.getElementById('view-archived-chat-modal'),
+            viewArchivedTitle: document.getElementById('view-archived-title'),
+            viewArchivedContent: document.getElementById('view-archived-content'),
+            closeViewArchivedModalBtn: document.getElementById('close-view-archived-modal-btn'),
+            closeViewArchivedModalBtnFooter: document.getElementById('close-view-archived-modal-btn-footer'),
+            renameModal: document.getElementById('rename-modal'),
+            renameInput: document.getElementById('rename-input'),
+            saveRenameBtn: document.getElementById('save-rename-btn'),
+            cancelRenameBtn: document.getElementById('cancel-rename-btn'),
+            folderSettingsModal: document.getElementById('folder-settings-modal'),
+            colorSwatchesContainer: document.getElementById('color-swatches-container'),
+            iconOptionsContainer: document.getElementById('icon-options-container'),
+            saveFolderSettingsBtn: document.getElementById('save-folder-settings-btn'),
+            cancelFolderSettingsBtn: document.getElementById('cancel-folder-settings-btn'),
+            notificationContainer: document.getElementById('notification-container'),
+            customDialogModal: document.getElementById('custom-dialog-modal'),
+            customDialogTitle: document.getElementById('custom-dialog-title'),
+            customDialogMessage: document.getElementById('custom-dialog-message'),
+            customDialogInputContainer: document.getElementById('custom-dialog-input-container'),
+            customDialogInput: document.getElementById('custom-dialog-input'),
+            customDialogButtons: document.getElementById('custom-dialog-buttons'),
+            webSearchPopoverBtn: document.getElementById('web-search-popover-btn'),
+            inputIndicatorContainer: document.getElementById('input-indicator-container'),
+            selectionModeBtn: document.getElementById('selection-mode-btn'),
+            batchActionBar: document.getElementById('batch-action-bar'),
+            selectionCount: document.getElementById('selection-count'),
+            cancelSelectionBtn: document.getElementById('cancel-selection-btn'),
+            batchDeleteBtn: document.getElementById('batch-delete-btn'),
+            batchArchiveBtn: document.getElementById('batch-archive-btn'),
+            batchMoveBtn: document.getElementById('batch-move-btn'),
+            batchMoveModal: document.getElementById('batch-move-modal'),
+            batchMoveFolderList: document.getElementById('batch-move-folder-list'),
+            batchMoveCancelBtn: document.getElementById('batch-move-cancel-btn'),
+            batchMoveConfirmBtn: document.getElementById('batch-move-confirm-btn'),
+            userControls: document.getElementById('user-controls'),
+            searchModal: document.getElementById('search-modal'),
+            closeSearchModalBtn: document.getElementById('close-search-modal-btn'),
+            modalSearchInput: document.getElementById('modal-search-input'),
+            modalSearchScopeSelect: document.getElementById('modal-search-scope-select'),
+            searchResultsContainer: document.getElementById('search-results-container'),
+            performSearchBtn: document.getElementById('perform-search-btn'),
+            fileInputContainer: document.getElementById('file-input-container'),
+            addFileBtn: document.getElementById('add-file-btn'),
+            fileOptionsPopover: document.getElementById('file-options-popover'),
+            cameraBtn: document.getElementById('camera-btn'),
+            uploadImageBtn: document.getElementById('upload-image-btn'),
+            uploadFileBtn: document.getElementById('upload-file-btn'),
+            imageVideoInput: document.getElementById('image-video-input'),
+            fileUploadInput: document.getElementById('file-upload-input'),
+            filePreviewContainer: document.getElementById('file-preview-container'),
+            exportDataBtn: document.getElementById('export-data-btn'),
+            importDataBtn: document.getElementById('import-data-btn'),
+            exportDataModal: document.getElementById('export-data-modal'),
+            importDataModal: document.getElementById('import-data-modal'),
+            cancelExportBtn: document.getElementById('cancel-export-btn'),
+            confirmExportBtn: document.getElementById('confirm-export-btn'),
+            exportHistoryCheck: document.getElementById('export-history-check'),
+            exportAstrasCheck: document.getElementById('export-astras-check'),
+            exportSettingsCheck: document.getElementById('export-settings-check'),
+            exportMemoryCheck: document.getElementById('export-memory-check'),
+            cancelImportBtn: document.getElementById('cancel-import-btn'),
+            confirmImportBtn: document.getElementById('confirm-import-btn'),
+            importFileInput: document.getElementById('import-file-input'),
+            sidebar: document.getElementById('sidebar'),
+            sidebarOverlay: document.getElementById('sidebar-overlay'),
+            menuToggleBtn: document.getElementById('menu-toggle-btn'),
+            sidebarOpenHandle: document.getElementById('sidebar-open-handle'),
+            followUpContainer: document.getElementById('follow-up-container'),
+            followUpHeader: document.getElementById('follow-up-header'),
+            followUpPromptsList: document.getElementById('follow-up-prompts-list'),
+            followUpToggleSwitch: document.getElementById('follow-up-toggle-switch'),
+            autoNamingToggleSwitch: document.getElementById('auto-naming-toggle-switch'),
+            autoWebSearchToggleSwitch: document.getElementById('auto-web-search-toggle-switch'),
+            astrasList: document.getElementById('astras-list'),
+            newAstrasBtn: document.getElementById('new-astras-btn'),
+            astrasCreateModal: document.getElementById('astras-create-modal'),
+            astrasNameInput: document.getElementById('astras-name-input'),
+            astrasDescInput: document.getElementById('astras-desc-input'),
+            astrasInstructionsInput: document.getElementById('astras-instructions-input'),
+            saveAstrasBtn: document.getElementById('save-astras-btn'),
+            cancelAstrasBtn: document.getElementById('cancel-astras-btn'),
+            currentAstrasName: document.getElementById('current-astras-name'),
+            aiBubbleColorDropdown: document.getElementById('ai-bubble-color-dropdown'),
+            userBubbleColorDropdown: document.getElementById('user-bubble-color-dropdown'),
+            settingsNav: document.getElementById('settings-nav'),
+            voiceInputBtnMessage: document.getElementById('voice-input-btn-message'),
+            voiceInputBtnSearch: document.getElementById('voice-input-btn-search'),
+            memoryToggle1: document.getElementById('memory-toggle-1'),
+            personalMemoryList: document.getElementById('personal-memory-list'),
+            addPersonalMemoryBtn: document.getElementById('add-personal-memory-btn'),
+            autoMemoryToggleSwitch: document.getElementById('auto-memory-toggle-switch'),
+            wallpaperContainer: document.getElementById('wallpaper-container'),
+            uploadWallpaperBtn: document.getElementById('upload-wallpaper-btn'),
+            restoreWallpaperBtn: document.getElementById('restore-wallpaper-btn'),
+            wallpaperUploadInput: document.getElementById('wallpaper-upload-input'),
+            uiColorOptions: document.getElementById('ui-color-options'),
+            customColorPickerContainer: document.getElementById('custom-color-picker-container'),
+            customColorSwatches: document.getElementById('custom-color-swatches'),
+            buttonStyleContainer: document.getElementById('button-style-container'),
+            gradientPickerContainer: document.getElementById('gradient-picker-container'),
+            gradientSwatches: document.getElementById('gradient-swatches'),
+            apiKeyWarningBadge: document.getElementById('api-key-warning-badge'),
+            userProfileBtn: document.getElementById('user-profile-btn'),
+            dataDashboardModal: document.getElementById('data-dashboard-modal'),
+            closeDashboardBtn: document.getElementById('close-dashboard-btn'),
+            totalConvStat: document.getElementById('total-conv-stat'),
+            totalFolderStat: document.getElementById('total-folder-stat'),
+            mostUsedModelStat: document.getElementById('most-used-model-stat'),
+            timeAnalysisYearSelect: document.getElementById('time-analysis-year-select'),
+            timeAnalysisMonthSelect: document.getElementById('time-analysis-month-select'),
+            timeAnalysisDaySelect: document.getElementById('time-analysis-day-select'),
+            wallpaperCropModal: document.getElementById('wallpaper-crop-modal'),
+            wallpaperCropImage: document.getElementById('wallpaper-crop-image'),
+            cancelCropBtn: document.getElementById('cancel-crop-btn'),
+            confirmCropBtn: document.getElementById('confirm-crop-btn'),
+            deleteAllDataBtn: document.getElementById('delete-all-data-btn'),
+            loginLanguageSwitcher: document.getElementById('login-language-switcher'),
+            loginLangBtn: document.getElementById('login-lang-btn'),
+            loginLangMenu: document.getElementById('login-lang-menu'),
+            loginLangLabel: document.getElementById('login-lang-label'),
+            uiLanguageSelect: document.getElementById('ui-language-select'),
+            aiLanguageSelect: document.getElementById('ai-language-select'),
+            storeContainer: document.getElementById('store-container'),
+            openStoreBtn: document.getElementById('open-store-btn'),
+            backToChatBtn: document.getElementById('back-to-chat-btn'),
+            storeGrid: document.getElementById('store-grid'),
+            astrasAvatarModal: document.getElementById('astras-avatar-modal'),
+            avatarCropContainer: document.getElementById('avatar-crop-container'),
+            avatarCropImage: document.getElementById('avatar-crop-image'),
+            confirmAvatarCropBtn: document.getElementById('confirm-avatar-crop-btn'),
+            cancelAvatarCropBtn: document.getElementById('cancel-avatar-crop-btn'),
+            astrasAvatarInput: document.getElementById('astras-avatar-input'),
+            scrollToBottomBtn: document.getElementById('scroll-to-bottom-btn'),
+            inputBarContainer: document.getElementById('input-bar-container'),
+            searchViewModal: document.getElementById('search-view-modal'),
+            searchViewTitle: document.getElementById('search-view-title'),
+            searchViewContent: document.getElementById('search-view-content'),
+            closeSearchViewModalBtn: document.getElementById('close-search-view-modal-btn'),
+            searchViewCloseBtn: document.getElementById('search-view-close-btn'),
+            searchViewConfirmBtn: document.getElementById('search-view-confirm-btn'),
+            updateInfoBtn: document.getElementById('update-info-btn'),
+            updateInfoModal: document.getElementById('update-info-modal'),
+            closeUpdateInfoModalBtn: document.getElementById('close-update-info-modal-btn'),
+            updateInfoContent: document.getElementById('update-info-content'),
+            enableUpdateNotificationsToggle: document.getElementById('enable-update-notifications-toggle'),
+            latestUpdateModal: document.getElementById('latest-update-modal'),
+            closeLatestUpdateModalBtn: document.getElementById('close-latest-update-modal-btn'),
+            latestUpdateContent: document.getElementById('latest-update-content'),
+            trashSection: document.getElementById('trash-section'),
+            trashBatchSelectBtn: document.getElementById('trash-batch-select-btn'),
+            emptyTrashBtn: document.getElementById('empty-trash-btn'),
+            trashBatchActionBar: document.getElementById('trash-batch-action-bar'),
+            trashSelectionCount: document.getElementById('trash-selection-count'),
+            trashCancelSelectionBtn: document.getElementById('trash-cancel-selection-btn'),
+            trashBatchRestoreBtn: document.getElementById('trash-batch-restore-btn'),
+            trashBatchDeleteBtn: document.getElementById('trash-batch-delete-btn'),
+            trashListContainer: document.getElementById('trash-list-container'),
+            trashViewModal: document.getElementById('trash-view-modal'),
+            trashViewTitle: document.getElementById('trash-view-title'),
+            trashViewContent: document.getElementById('trash-view-content'),
+            closeTrashViewModalBtn: document.getElementById('close-trash-view-modal-btn'),
+            trashViewCloseBtn: document.getElementById('trash-view-close-btn'),
+            learningModeBtn: document.getElementById('learning-mode-btn'),
+            deepResearchBtn: document.getElementById('deep-research-btn'), // ✨ 新增元素
+            feedbackTextarea: document.getElementById('feedback-textarea'),
+            sendFeedbackBtn: document.getElementById('send-feedback-btn'),
+            proposeAstrasBtn: document.getElementById('propose-astras-btn'),
+            astrasProposalModal: document.getElementById('astras-proposal-modal'),
+            proposalNameInput: document.getElementById('proposal-name-input'),
+            proposalDescInput: document.getElementById('proposal-desc-input'),
+            proposalInstructionsInput: document.getElementById('proposal-instructions-input'),
+            cancelProposalBtn: document.getElementById('cancel-proposal-btn'),
+            submitProposalBtn: document.getElementById('submit-proposal-btn'),
+            // ✨ 新增互動式計畫編輯器元素
+            interactivePlanModal: document.getElementById('interactive-plan-modal'),
+            planEditorStepsContainer: document.getElementById('plan-editor-steps-container'),
+            addPlanStepBtn: document.getElementById('add-plan-step-btn'),
+            confirmPlanBtn: document.getElementById('confirm-plan-btn'),
+            cancelPlanBtn: document.getElementById('cancel-plan-btn'),
+            showPromptsBtn: document.getElementById('show-prompts-btn'), // 新增這行
+            importProgressContainer: document.getElementById('import-progress-container'),
+    importProgressBar: document.getElementById('import-progress-bar'),
+    importStatusText: document.getElementById('import-status-text'),
+    importPercentage: document.getElementById('import-percentage'),
+    importWarningText: document.getElementById('import-warning-text'),
+            importProgressContainerAuth: document.getElementById('import-progress-container-auth'),
+    importProgressBarAuth: document.getElementById('import-progress-bar-auth'),
+    importStatusTextAuth: document.getElementById('import-status-text-auth'),
+    importPercentageAuth: document.getElementById('import-percentage-auth'),
+        };
+        function toggleHistorySidebar(show) {
+    const { historySidebar, historySidebarOverlay } = ALL_ELEMENTS;
+    if (show) {
+        requestAnimationFrame(() => {
+            setupMessageIntersectionObserver();
+        });
+        historySidebarOverlay.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            historySidebar.classList.add('visible');
+            historySidebarOverlay.classList.add('visible');
+        });
+    } else {
+        historySidebar.classList.remove('visible');
+        historySidebarOverlay.classList.remove('visible');
+        // 等待動畫結束後再徹底隱藏遮罩層
+        historySidebarOverlay.addEventListener('transitionend', () => {
+            if (!historySidebarOverlay.classList.contains('visible')) {
+                historySidebarOverlay.classList.add('hidden');
+            }
+        }, { once: true });
+    }
+}
+
+
+    // 根據訊息內容，判斷是否顯示圖示
+    function getMessageTypeIcon(message) {
+        if (!message.parts || message.parts.length === 0) {
+            return '';
+        }
+        const hasImage = message.parts.some(p => p.inlineData && p.inlineData.mimeType.startsWith('image/'));
+        const hasFile = message.parts.some(p => p.inlineData && !p.inlineData.mimeType.startsWith('image/'));
+
+
+        if (hasImage) return '📷 ';
+        if (hasFile) return '📎 ';
+        return '';
+    }
+
+
+    // 渲染歷史訊息側邊欄的內容
+    function renderHistorySidebarContent() {
+    const { historySidebarList } = ALL_ELEMENTS;
+    const conv = getActiveConversation();
+    
+    historySidebarList.innerHTML = ''; // 先清空舊的列表
+
+
+    if (!conv || conv.messages.length === 0) {
+        historySidebarList.innerHTML = `<p class="p-4 text-sm text-center text-[var(--text-secondary)]">沒有歷史訊息</p>`;
+        return;
+    }
+
+
+    conv.messages.forEach((msg, index) => {
+        const textPart = msg.parts.find(p => p.text);
+        let snippet = textPart ? textPart.text : (msg.role === 'user' ? '用戶訊息' : 'AI 回覆');
+        
+        const icon = getMessageTypeIcon(msg);
+        
+        const listItem = document.createElement('div');
+        listItem.className = 'history-sidebar-item';
+        listItem.dataset.messageIndex = index;
+        
+        // ✨ --- 以下是新增的核心邏輯 --- ✨
+        
+        // 1. 判斷訊息角色並獲取對應顏色設定
+        const isUser = msg.role === 'user';
+        const colorConfig = isUser ? USER_BUBBLE_COLORS : AI_BUBBLE_COLORS;
+        const colorName = isUser ? config.userBubbleColor : config.aiBubbleColor;
+        
+        // 2. 根據當前主題（淺色/深色）取得正確的顏色碼
+        const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        const bgColor = (colorConfig[colorName] || colorConfig['default'])[theme];
+
+
+        // 3. 應用背景色，並稍微降低飽和度/增加透明度，讓它不那麼刺眼
+        // 我們使用 RGBA 來添加透明度
+        const rgbaColor = hexToRgba(bgColor, 0.4); // 40% 的透明度
+        listItem.style.backgroundColor = rgbaColor;
+
+
+        // 4. 根據背景色，自動決定文字顏色（黑或白）以確保可讀性
+        listItem.style.color = getTextColorForBackground(bgColor);
+        
+        // ✨ --- 新增邏輯結束 --- ✨
+
+
+        listItem.textContent = icon + snippet;
+        historySidebarList.appendChild(listItem);
+    });
+}
+
+
+    // 處理歷史訊息側邊欄的點擊事件
+    function setupHistorySidebarInteractions() {
+        const { historySidebarList, messageList } = ALL_ELEMENTS;
+
+
+        historySidebarList.addEventListener('click', (e) => {
+            const item = e.target.closest('.history-sidebar-item');
+            if (!item) return;
+
+
+            const messageIndex = item.dataset.messageIndex;
+            if (messageIndex === undefined) return;
+
+
+            // 根據索引找到主聊天視窗中對應的那則訊息
+            const targetMessageElement = messageList.querySelector(`[data-message-index="${messageIndex}"]`);
+
+
+            if (targetMessageElement) {
+                // 讓訊息滾動到畫面中央
+                targetMessageElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+
+
+                // 添加高亮效果
+                const bubble = targetMessageElement.querySelector('.message-bubble');
+                if (bubble) {
+                    bubble.classList.add('message-highlight');
+                    // 1.5秒後移除高亮效果
+                    setTimeout(() => {
+                        bubble.classList.remove('message-highlight');
+                    }, 1500);
+                }
+
+
+                // 點擊後自動關閉側邊欄
+                toggleHistorySidebar(false);
+            }
+        });
+    }
+
+
+    // 設定觸發歷史訊息側邊欄的各種機制
+    function setupHistorySidebarTriggers() {
+    const { chatContainer, historySidebar, historySidebarTriggerZone, historySidebarOverlay } = ALL_ELEMENTS;
+
+
+    // --- 點擊遮罩層來關閉 ---
+    // 這是解決手機版關不掉問題最可靠的方法！
+    historySidebarOverlay.addEventListener('click', () => {
+        historySidebarOverlay.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+
+    historySidebarOverlay.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+
+
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+        
+        // 如果是向右滑動超過 50 像素，且不是垂直滑動
+        if (deltaX > 50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
+            toggleHistorySidebar(false); // 執行關閉
+        }
+    }, { passive: true });
+        toggleHistorySidebar(false);
+    });
+
+
+    // --- 電腦版：滑鼠懸停 ---
+    historySidebarTriggerZone.addEventListener('mouseenter', () => {
+        renderHistorySidebarContent(); 
+        toggleHistorySidebar(true);
+    });
+
+
+    // 當滑鼠從側邊欄或遮罩層移開時，才關閉
+    document.body.addEventListener('mousemove', (e) => {
+        if (historySidebar.classList.contains('visible')) {
+            const isOverSidebar = historySidebar.contains(e.target);
+            const isOverTrigger = historySidebarTriggerZone.contains(e.target);
+            if (!isOverSidebar && !isOverTrigger) {
+                toggleHistorySidebar(false);
+            }
+        }
+    });
+
+
+    // --- 手機版：右往左滑動打開 ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+
+    chatContainer.addEventListener('touchstart', (e) => {
+        // ✨ 修改：如果使用者按在表格滾動容器內，就不紀錄滑動起點（等於停用側邊欄手勢）
+        if (e.target.closest('.table-scroll-container')) {
+            touchStartX = null; // 設為 null 標記為無效
+            return;
+        }
+        
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+
+    chatContainer.addEventListener('touchend', (e) => {
+        // ✨ 修改：如果起點是無效的 (null)，表示剛才按在表格上，直接結束不處理
+        if (touchStartX === null) return;
+
+
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+
+
+        if (deltaX < -50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
+            renderHistorySidebarContent();
+            toggleHistorySidebar(true);
+        }
+    }, { passive: true });
+
+
+    // --- 手機版：在側邊欄上左往右滑動來關閉 (保留此快捷操作) ---
+    historySidebar.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+
+    historySidebar.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+
+
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+        
+        if (deltaX > 50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
+            toggleHistorySidebar(false);
+        }
+    }, { passive: true });
+}
+        const compareVersions = (v1, v2) => {
+            if (!v2) return 1;
+            const parts1 = v1.split('.').map(Number);
+            const parts2 = v2.split('.').map(Number);
+            const len = Math.max(parts1.length, parts2.length);
+            for (let i = 0; i < len; i++) {
+                const p1 = parts1[i] || 0;
+                const p2 = parts2[i] || 0;
+                if (p1 > p2) return 1;
+                if (p1 < p2) return -1;
+            }
+            return 0;
+        };
+        const MODELS = [
+    // Gemini Models (Native)
+    { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_pro_preview_desc' },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_flash_preview_desc' },
+
+    // OpenRouter Free Models
+    { id: 'tngtech/deepseek-r1t2-chimera:free', name: 'Deepseek R1T2 Chimera', provider: 'openrouter', descriptionKey: 'model_deepseek_r1t2_chimera_desc' },
+    { id: 'nvidia/nemotron-nano-12b-v2-vl:free', name: 'Nemotron Nano 12B V2 VL', provider: 'openrouter', descriptionKey: 'model_nemotron_nano_12b_v2_vl_desc', category: 'image' },
+    { id: 'tngtech/tng-r1t-chimera:free', name: 'TNG R1T Chimera', provider: 'openrouter', descriptionKey: 'model_tng_r1t_chimera_desc' },
+    { id: 'amazon/nova-2-lite-v1:free', name: 'Amazon Nova 2 Lite', provider: 'openrouter', descriptionKey: 'model_nova_2_lite_v1_desc', category: 'general' },
+    { id: 'mistralai/devstral-2512:free', name: 'Mistral Devstral 2512', provider: 'openrouter', descriptionKey: 'model_devstral_2512_desc', category: 'coding' },
+    { id: 'xiaomi/mimo-v2-flash:free', name: 'Xiaomi Mimo V2 Flash', provider: 'openrouter', descriptionKey: 'model_mimo_v2_flash_desc', category: 'general' },
+
+    // OpenRouter Paid Models (OpenAI)
+    { id: 'openai/gpt-5.2-pro', name: 'OpenAI GPT-5.2 Pro', provider: 'openrouter', descriptionKey: 'model_gpt_5_2_pro_desc', category: 'general' },
+    { id: 'openai/gpt-5.2', name: 'OpenAI GPT-5.2', provider: 'openrouter', descriptionKey: 'model_gpt_5_2_desc', category: 'general' },
+    { id: 'openai/gpt-5-mini', name: 'OpenAI GPT-5 Mini', provider: 'openrouter', descriptionKey: 'model_gpt_5_mini_desc', category: 'general' },
+    { id: 'openai/gpt-5-nano', name: 'OpenAI GPT-5 Nano', provider: 'openrouter', descriptionKey: 'model_gpt_5_nano_desc', category: 'general' },
+    { id: 'openai/o3', name: 'OpenAI O3', provider: 'openrouter', descriptionKey: 'model_o3_desc', category: 'thinking' },
+    { id: 'openai/o3-mini-high', name: 'OpenAI O3 Mini High', provider: 'openrouter', descriptionKey: 'model_o3_mini_high_desc', category: 'thinking' },
+    { id: 'openai/gpt-5.2-codex', name: 'OpenAI GPT-5.2 Codex', provider: 'openrouter', descriptionKey: 'model_gpt_5_2_codex_desc', category: 'coding' },
+
+    // OpenRouter Paid Models (Anthropic)
+    { id: 'anthropic/claude-sonnet-4.5', name: 'Claude 4.5 Sonnet', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_4_5_desc' },
+    { id: 'anthropic/claude-haiku-4.5', name: 'Claude 4.5 Haiku', provider: 'openrouter', descriptionKey: 'model_claude_haiku_4_5_desc' },
+    { id: 'anthropic/claude-opus-4.5', name: 'Claude 4.5 Opus', provider: 'openrouter', descriptionKey: 'model_claude_opus_4_5_desc' },
+
+    // OpenRouter Paid Models (x-ai)
+    { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast', provider: 'openrouter', descriptionKey: 'model_grok_4_1_fast_desc', category: 'general' },
+    { id: 'x-ai/grok-code-fast-1', name: 'Grok Code Fast 1', provider: 'openrouter', descriptionKey: 'model_grok_code_fast_1_desc', category: 'coding' },
+
+    // OpenRouter Paid Models (Qwen)
+    { id: 'qwen/qwen3-coder', name: 'Qwen3 Coder', provider: 'openrouter', descriptionKey: 'model_qwen3_coder_desc', category: 'coding' },
+    { id: 'qwen/qwen3-coder:exact', name: 'Qwen3 Coder Exact', provider: 'openrouter', descriptionKey: 'model_qwen3_coder_exact_desc', category: 'coding' },
+    { id: 'qwen/qwen3-235b-a22b-2507', name: 'Qwen3 235B 2507', provider: 'openrouter', descriptionKey: 'model_qwen_qwen3_235b_a22b_2507_desc', category: 'general' },
+    { id: 'qwen/qwen3-235b-a22b-thinking-2507', name: 'Qwen3 235B Thinking 2507', provider: 'openrouter', descriptionKey: 'model_qwen_qwen3_235b_a22b_thinking_2507_desc', category: 'thinking' },
+    { id: 'qwen/qwen3-next-80b-a3b-instruct', name: 'Qwen3 Next 80B', provider: 'openrouter', descriptionKey: 'model_qwen3_next_80b_desc', category: 'general' },
+    { id: 'qwen/qwen3-vl-30b-a3b-instruct', name: 'Qwen3 VL 30B', provider: 'openrouter', descriptionKey: 'model_qwen3_vl_30b_desc', category: 'image' },
+
+    // OpenRouter Paid Models (DeepSeek & Others)
+    { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek V3.2', provider: 'openrouter', descriptionKey: 'model_deepseek_v3_2_desc', category: 'general' },
+    { id: 'minimax/minimax-m2.1', name: 'Minimax M2.1', provider: 'openrouter', descriptionKey: 'model_minimax_m2_1_desc', category: 'general' },
+    
+    // OpenRouter Paid Models (Gemini)
+    { id: 'google/gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', provider: 'openrouter', descriptionKey: 'model_gemini_3_pro_preview_desc', category: 'general' },
+    { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', provider: 'openrouter', descriptionKey: 'model_gemini_3_flash_preview_or_desc', category: 'general' },
+];
+        const CHEAP_MODEL_ID = 'gemini-2.5-flash-lite';
+        const OPENROUTER_VISION_MODELS = [
+    'openai/gpt-5.2-pro', 'openai/gpt-5.2', 'openai/gpt-5-mini', 'openai/gpt-5-nano',
+    'openai/o3',
+    'anthropic/claude-sonnet-4.5', 'anthropic/claude-haiku-4.5',
+    'x-ai/grok-4.1-fast',
+    'nvidia/nemotron-nano-12b-v2-vl:free',
+    'google/gemini-3-pro-preview',
+    'google/gemini-3-flash-preview',
+    'openai/gpt-5.2-codex',
+    'anthropic/claude-opus-4.5',
+    'amazon/nova-2-lite-v1:free',
+    'qwen/qwen3-vl-30b-a3b-instruct'
+];
+        const FOLDER_COLORS = {
+            black: '#000000',gray: '#808080', red: '#f87171', yellow: '#facc15', green: '#4ade80',
+            blue: '#60a5fa', indigo: '#818cf8', purple: '#a78bfa', pink: '#f472b6',
+        };
+        const AI_BUBBLE_COLORS = {
+            default: {light: '#f7f7f8', dark: '#1c1c1c'},
+            gray: {light: '#f3f4f6', dark: '#374151'},
+            blue: {light: '#e0f7fa', dark: '#006064'},
+            green: {light: '#e8f5e9', dark: '#1b5e20'},
+            yellow: {light: '#fffde7', dark: '#f57f17'},
+            orange: {light: '#fff3e0', dark: '#ef6c00'},
+            red: {light: '#ffebee', dark: '#b71c1c'},
+            purple: {light: '#f3e5f5', dark: '#6a1b9a'},
+            pink: {light: '#fce4ec', dark: '#ad1457'},
+            teal: {light: '#e0f2f1', dark: '#004d40'},
+        };
+        const USER_BUBBLE_COLORS = {
+            default: {light: '#3b82f6', dark: '#2563eb'},
+            gray: {light: '#6b7280', dark: '#4b5563'},
+            blue: {light: '#3b82f6', dark: '#2563eb'},
+            green: {light: '#22c55e', dark: '#15803d'},
+            yellow: {light: '#eab308', dark: '#a16207'},
+            orange: {light: '#f97316', dark: '#c2410c'},
+            red: {light: '#ef4444', dark: '#b91c1c'},
+            purple: {light: '#8b5cf6', dark: '#6d28d9'},
+            pink: {light: '#ec4899', dark: '#be185d'},
+            teal: {light: '#14b8a6', dark: '#0f766e'},
+        };
+        const UI_THEME_COLORS = {
+            Red: '#ef4444', Orange: '#f97316', Amber: '#f59e0b',
+            Yellow: '#eab308', Lime: '#84cc16', Green: '#22c55e',
+            Emerald: '#10b981', Teal: '#14b8a6', Cyan: '#06b6d4',
+            Sky: '#0ea5e9', Blue: '#3b82f6', Indigo: '#6366f1',
+            Violet: '#8b5cf6', Purple: '#a855f7', Fuchsia: '#d946ef',
+            Pink: '#ec4899', Rose: '#f43f5e', Slate: '#64748b'
+        };
+        let conversations = [];
+        let folders = [];
+        let astras = [];
+        let personalMemories = [];
+        let activeConversationId = null;
+        let config = {
+            apiKeys: { gemini: '', openrouter: '' },
+            defaultModel: MODELS[0].id,
+            theme: 'light',
+            modelSettings: [],
+            enableFollowUp: true,
+            enableAutoWebSearch: false,
+            aiBubbleColor: 'default',
+            userBubbleColor: 'default',
+            autoNaming: true,
+            lastUsedModel: null,
+            memoryEnabled1: true,
+            enableAutoMemory: true,
+            customWallpaper: null,
+            wallpaperBrightness: 'light',
+            uiTheme: {
+                mode: 'default',
+                style: 'single',
+                customColor: '#3b82f6',
+                adaptiveColor: '#3b82f6',
+                adaptivePalette: [],
+                adaptiveGradient: ''
+            },
+            uiLanguage: 'zh-TW',
+            aiDefaultLanguage: 'zh-TW',
+            enableUpdateNotifications: true,
+            lastSeenVersion: '',
+            isLearningMode: false,
+            isDeepResearchMode: false, // ✨ 新增狀態
+            deepResearchQueryCount: 0, // ✨ 新增這一行，0 代表自動
+        };
+        let itemToRename = { id: null, type: null };
+        let folderToCustomize = null;
+        let currentUser = null;
+        let abortController = null;
+        let isSelectionMode = false;
+        let selectedConversationIds = new Set();
+        let uploadedFiles = [];
+        let sidebarOpen = false;
+        let isFollowUpExpanded = true;
+        let editingAstrasId = null;
+        let currentSpeechRecognition = null;
+        let currentVoiceTarget = null;
+        let modelPieChart = null;
+        let timeDistChart = null;
+        let cropperInstance = null;
+        let messageObserver = null;
+        let currentStoreCategory = '全部';
+        let editingAstraForAvatarId = null;
+        let isAutoScrolling = false;
+        let isTrashSelectionMode = false;
+        let selectedTrashIds = new Set();
+        let originalMemorySettings = {}; // ✨ 新增：用於儲存原始記憶設定
+        const DB_NAME = 'ChatAppDB';
+        const STORE_NAME = 'keyValue';
+        let db;
+        async function openDB() {
+            if (db) return db;
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const idb = e.target.result;
+                    idb.createObjectStore(STORE_NAME, { keyPath: 'key' });
+                };
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+        async function getItem(key) {
+            const idb = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = idb.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result ? req.result.value : null);
+                req.onerror = reject;
+            });
+        }
+        async function setItem(key, value) {
+            const idb = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = idb.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put({ key, value });
+                tx.oncomplete = resolve;
+                tx.onerror = reject;
+            });
+        }
+        async function removeItem(key) {
+            const idb = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = idb.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.delete(key);
+                tx.oncomplete = resolve;
+                tx.onerror = reject;
+            });
+        }
+        const hashString = async (str) => {
+            const data = new TextEncoder().encode(str);
+            const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        };
+        const bytesToHex = (bytes) => Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        const hexToBytes = (hex) => new Uint8Array((hex.match(/.{1,2}/g) || []).map(byte => parseInt(byte, 16)));
+        const constantTimeEqual = (a, b) => {
+            if (a.length !== b.length) return false;
+            let diff = 0;
+            for (let i = 0; i < a.length; i += 1) {
+                diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+            }
+            return diff === 0;
+        };
+        const derivePasswordHash = async (password, saltHex, iterations = 210000) => {
+            const keyMaterial = await window.crypto.subtle.importKey(
+                'raw',
+                new TextEncoder().encode(password),
+                'PBKDF2',
+                false,
+                ['deriveBits']
+            );
+            const bits = await window.crypto.subtle.deriveBits(
+                {
+                    name: 'PBKDF2',
+                    hash: 'SHA-256',
+                    salt: hexToBytes(saltHex),
+                    iterations
+                },
+                keyMaterial,
+                256
+            );
+            return bytesToHex(new Uint8Array(bits));
+        };
+        const createPasswordRecord = async (username, password) => {
+            const saltBytes = new Uint8Array(16);
+            window.crypto.getRandomValues(saltBytes);
+            const passwordSalt = bytesToHex(saltBytes);
+            const passwordIterations = 210000;
+            const passwordHash = await derivePasswordHash(password, passwordSalt, passwordIterations);
+            return {
+                username,
+                passwordHash,
+                passwordSalt,
+                passwordIterations,
+                passwordKdf: 'PBKDF2-SHA-256'
+            };
+        };
+        const verifyPasswordRecord = async (password, userRecord) => {
+            if (userRecord?.passwordKdf === 'PBKDF2-SHA-256' && userRecord.passwordSalt) {
+                const derivedHash = await derivePasswordHash(password, userRecord.passwordSalt, userRecord.passwordIterations || 210000);
+                return constantTimeEqual(derivedHash, userRecord.passwordHash || '');
+            }
+
+            const legacyHash = await hashString(password);
+            return constantTimeEqual(legacyHash, userRecord?.passwordHash || '');
+        };
+        const upgradeLegacyPasswordRecord = async (password, userKey, userRecord) => {
+            if (userRecord?.passwordKdf === 'PBKDF2-SHA-256') return userRecord;
+            const upgradedRecord = await createPasswordRecord(userRecord.username, password);
+            await setItem(userKey, JSON.stringify(upgradedRecord));
+            return upgradedRecord;
+        };
+        const hexToRgba = (hex, alpha = 1) => {
+            if (!hex) return `rgba(255, 255, 255, ${alpha})`;
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            if (!result) return `rgba(255, 255, 255, ${alpha})`;
+            const r = parseInt(result[1], 16);
+            const g = parseInt(result[2], 16);
+            const b = parseInt(result[3], 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+        const formatFullTimestamp = (isoString) => {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        };
+        const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`;
+        const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;
+        const getUserKey = (username) => `chatUser_${username}`;
+        const showNotification = (message, type = 'success') => {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            ALL_ELEMENTS.notificationContainer.appendChild(notification);
+            setTimeout(() => { notification.remove(); }, 3000);
+        };
+        const toggleModal = (modalElement, show) => {
+            if (!modalElement) return;
+            const closeTimers = toggleModal.closeTimers || (toggleModal.closeTimers = new WeakMap());
+            if (show) {
+                const existingTimer = closeTimers.get(modalElement);
+                if (existingTimer) {
+                    clearTimeout(existingTimer);
+                    closeTimers.delete(modalElement);
+                }
+                document.body.classList.add('modal-open');
+                modalElement.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    modalElement.classList.add('visible');
+                });
+            } else {
+                document.body.classList.remove('modal-open');
+                modalElement.classList.remove('visible');
+                const onTransitionEnd = () => {
+                    modalElement.classList.add('hidden');
+                    modalElement.removeEventListener('transitionend', onTransitionEnd);
+                    const timer = closeTimers.get(modalElement);
+                    if (timer) {
+                        clearTimeout(timer);
+                        closeTimers.delete(modalElement);
+                    }
+                };
+                modalElement.addEventListener('transitionend', onTransitionEnd);
+                const fallbackTimer = setTimeout(onTransitionEnd, 350);
+                closeTimers.set(modalElement, fallbackTimer);
+            }
+        };
+         document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.modal').forEach(m => {
+    if (!m.classList.contains('visible')) {
+      m.classList.add('hidden');   // display:none
+      m.classList.remove('visible');
+    }
+  });
+});
+        const showCustomDialog = (options) => {
+            return new Promise((resolve) => {
+                const { title, message, input = null, buttons, dialogClass = '' } = options;
+                const dialogBox = ALL_ELEMENTS.customDialogModal.querySelector('.bg-\\[var\\(--modal-bg\\)\\]');
+                if (dialogClass) {
+                    dialogBox.classList.add(dialogClass);
+                }
+                ALL_ELEMENTS.customDialogTitle.textContent = title;
+                ALL_ELEMENTS.customDialogMessage.textContent = message;
+                if (input) {
+                    ALL_ELEMENTS.customDialogInput.type = input.type || 'text';
+                    ALL_ELEMENTS.customDialogInput.value = '';
+                    ALL_ELEMENTS.customDialogInput.placeholder = input.placeholder || '';
+                    ALL_ELEMENTS.customDialogInputContainer.classList.remove('hidden');
+                } else {
+                    ALL_ELEMENTS.customDialogInputContainer.classList.add('hidden');
+                }
+                ALL_ELEMENTS.customDialogButtons.innerHTML = '';
+                buttons.forEach(btnInfo => {
+                    const button = document.createElement('button');
+                    button.textContent = btnInfo.text;
+                    button.className = btnInfo.class;
+                    button.onclick = () => {
+                        toggleModal(ALL_ELEMENTS.customDialogModal, false);
+                        if (dialogClass) {
+                            dialogBox.classList.remove(dialogClass);
+                        }
+                        const inputValue = input ? ALL_ELEMENTS.customDialogInput.value : null;
+                        resolve(btnInfo.value(inputValue));
+                    };
+                    ALL_ELEMENTS.customDialogButtons.appendChild(button);
+                });
+                toggleModal(ALL_ELEMENTS.customDialogModal, true);
+                if (input) { ALL_ELEMENTS.customDialogInput.focus(); }
+            });
+        };
+        const showCustomConfirm = (message, title = '請確認') => showCustomDialog({ title, message, buttons: [{ text: '取消', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false }, { text: '確定', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }] });
+        const showCustomPrompt = (message, title = '請輸入', inputType = 'text') => showCustomDialog({ title, message, input: { type: inputType, placeholder: '請在此輸入...' }, buttons: [{ text: '取消', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null }, { text: '確定', class: 'px-4 py-2 rounded-md btn-primary', value: (val) => val }] });
+        const throttle = (func, limit) => {
+            let inThrottle;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            };
+        };
+        const renderMarkdown = (text) => {
+            const dirty = marked.parse(text);
+            const clean = DOMPurify.sanitize(dirty);
+            const documentFragment = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html');
+            documentFragment.body.querySelectorAll('table').forEach((table) => {
+                if (table.parentElement?.classList.contains('table-scroll-container')) return;
+                const wrapper = documentFragment.createElement('div');
+                wrapper.className = 'table-scroll-container';
+                table.replaceWith(wrapper);
+                wrapper.appendChild(table);
+            });
+
+            return documentFragment.body.innerHTML;
+        };
+        /**
+ * 渲染含有數學/化學公式的 Markdown 文本。
+ * @param {string} text - 包含 Markdown 和 KaTeX 公式的原始文本。
+ * @returns {string} - 渲染後的 HTML 字串。
+ */
+function renderMarkdownWithFormulas(text) {
+    // 首先，使用您現有的函式處理基礎 Markdown 和安全性過濾
+    let html = renderMarkdown(text);
+
+
+    // 使用規則運算式來尋找並替換區塊級公式 ($$ ... $$)
+    // marked.js 通常會把它們包在 <p>...</p> 裡面，所以我們匹配這種模式
+    html = html.replace(/<p>\$\$(.*)\$\$<\/p>/g, (match, formula) => {
+        try {
+            // 將公式文字解碼 (例如 &lt; 會變回 <)
+            const decodedFormula = new DOMParser().parseFromString(formula, "text/html").documentElement.textContent;
+            // 使用 KaTeX 渲染成 HTML 字串 (displayMode: true 代表是區塊)
+            return katex.renderToString(decodedFormula, {
+                displayMode: true,
+                throwOnError: false // 如果公式語法錯誤，不要拋出異常中斷程式
+            });
+        } catch (e) {
+            console.error("KaTeX block rendering error:", e);
+            return `<p style="color: red;">[數學公式渲染錯誤: ${formula}]</p>`; // 出錯時顯示錯誤訊息
+        }
+    });
+
+
+    // 使用規則運算式尋找並替換行內公式 ($ ... $)
+    html = html.replace(/\$(.*?)\$/g, (match, formula) => {
+        // 避免匹配到已經被處理過的 HTML 標籤
+        if (match.includes('<') || match.includes('>')) return match;
+        try {
+            const decodedFormula = new DOMParser().parseFromString(formula, "text/html").documentElement.textContent;
+            // 使用 KaTeX 渲染 (displayMode: false 代表是行內)
+            return katex.renderToString(decodedFormula, {
+                displayMode: false,
+                throwOnError: false
+            });
+        } catch (e) {
+            console.error("KaTeX inline rendering error:", e);
+            return `<span style="color: red;">[公式錯誤: ${formula}]</span>`;
+        }
+    });
+
+
+    return html;
+}
+        const saveConfig = async () => { if (currentUser) await setItem(getConfigKey(), JSON.stringify(config)); };
+        const loadConfig = async () => {
+            if (!currentUser) return;
+            const saved = await getItem(getConfigKey());
+            if (saved) {
+                const savedConfig = JSON.parse(saved);
+                let openrouterKey = '';
+                if (savedConfig.apiKeys && typeof savedConfig.apiKeys.openrouter === 'object' && savedConfig.apiKeys.openrouter !== null) {
+                    openrouterKey = Object.values(savedConfig.apiKeys.openrouter)[0] || '';
+                } else if (savedConfig.apiKeys && typeof savedConfig.apiKeys.openrouter === 'string') {
+                    openrouterKey = savedConfig.apiKeys.openrouter;
+                }
+                const savedOpenrouterKeys = savedConfig.apiKeys?.openrouter || {};
+                const defaultConfig = {
+                    ...config,
+                    ...savedConfig,
+                    apiKeys: {
+                        ...config.apiKeys,
+                        ...savedConfig.apiKeys,
+                        openrouter: openrouterKey
+                    },
+                    uiTheme: { ...config.uiTheme, ...(savedConfig.uiTheme || {}) }
+                };
+                defaultConfig.uiTheme.style = defaultConfig.uiTheme.style || 'single';
+                defaultConfig.uiTheme.adaptivePalette = defaultConfig.uiTheme.adaptivePalette || [];
+                defaultConfig.uiTheme.adaptiveGradient = defaultConfig.uiTheme.adaptiveGradient || '';
+                config = defaultConfig;
+            }
+            const savedModelSettings = config.modelSettings || [];
+            const allModelIds = new Set(MODELS.map(m => m.id));
+            const savedSettingIds = new Set(savedModelSettings.map(s => s.id));
+            MODELS.forEach((model, index) => {
+                if (!savedSettingIds.has(model.id)) {
+                    savedModelSettings.push({ id: model.id, hidden: false, order: savedModelSettings.length });
+                }
+            });
+            config.modelSettings = savedModelSettings.filter(s => allModelIds.has(s.id));
+            config.modelSettings.sort((a, b) => a.order - b.order);
+            config.modelSettings.forEach((s, index) => s.order = index);
+            if (!allModelIds.has(config.defaultModel)) {
+                config.defaultModel = MODELS[0].id;
+            }
+            if (!allModelIds.has(config.lastUsedModel)) {
+                config.lastUsedModel = MODELS[0].id;
+            }
+        };
+        const saveAppData = async () => { if (currentUser) await setItem(getAppDataKey(), JSON.stringify({ conversations, folders, astras, personalMemories })); };
+        const loadAppData = async () => {
+            if (!currentUser) return;
+            const saved = await getItem(getAppDataKey());
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    folders = (data.folders || []).map(f => ({...getDefaultFolder(), ...f}));
+                    conversations = (data.conversations || []).map(c => ({
+                        archived: false, summary: '', folderId: null, isWebSearchEnabled: false, astrasId: null, pinned: false, deletedAt: null, ...c,
+                        unsentMessage: c.unsentMessage || '',
+                        genConfig: c.genConfig || getDefaultGenConfig(),
+                        lastUpdatedAt: c.lastUpdatedAt || (c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1].createdAt : c.createdAt),
+                        messages: (c.messages || []).map(m => ({
+                            ...m,
+                            createdAt: m.createdAt || c.createdAt,
+                            parts: m.parts || [{ text: m.content }]
+                        }))
+                    }));
+                    astras = (data.astras || []).map(a => ({ avatarUrl: null, officialId: null, ...a }));
+                    personalMemories = data.personalMemories || [];
+                } catch (e) {
+                    console.error("Failed to parse app data:", e);
+                    showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
+                    conversations = [];
+                    folders = [];
+                    astras = [];
+                    personalMemories = [];
+                    await removeItem(getAppDataKey());
+                }
+            } else {
+                conversations = [];
+                folders = [];
+                astras = [];
+                personalMemories = [];
+            }
+        };
+        const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
+        const getDefaultFolder = () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false});
+        const createBaseConversation = (title) => {
+            const defaultModelInfo = MODELS.find(m => m.id === config.lastUsedModel) || MODELS.find(m => m.id === config.defaultModel) || MODELS[0];
+            const now = new Date().toISOString();
+            return {
+                id: crypto.randomUUID(),
+                title: title,
+                summary: '',
+                messages: [],
+                model: defaultModelInfo.id,
+                provider: defaultModelInfo.provider,
+                archived: false,
+                createdAt: now,
+                lastUpdatedAt: now,
+                genConfig: getDefaultGenConfig(),
+                isRenamed: false,
+                folderId: null,
+                astrasId: null,
+                isWebSearchEnabled: false,
+                pinned: false,
+                isTemporary: true,
+                isNaming: false,
+                deletedAt: null,
+                 unsentMessage: ''
+            };
+        };
+        const startNewChat = async () => {
+            const oldTempChatCount = conversations.length;
+            conversations = conversations.filter(c => !c.isTemporary || c.messages.length > 0);
+            if (conversations.length < oldTempChatCount) {
+                 await saveAppData();
+            }
+            uploadedFiles = [];
+            const newConv = createBaseConversation('新對話');
+            conversations.unshift(newConv);
+            activeConversationId = newConv.id;
+            renderAll();
+            ALL_ELEMENTS.messageInput.value = '';
+            setTimeout(adjustTextareaHeight, 0);
+            toggleSidebar(false);
+            updateInputState();
+            updateApiKeyWarningBadge();
+            renderFollowUpPrompts([]);
+        };
+        const loadChat = (id) => {
+            if (messageObserver) {
+        messageObserver.disconnect();
+    }
+            if (id !== activeConversationId) {
+                const previousConv = getActiveConversation();
+                if (previousConv && previousConv.isTemporary && previousConv.messages.length === 0) {
+                    conversations = conversations.filter(c => c.id !== previousConv.id);
+                }
+                activeConversationId = id;
+                uploadedFiles = [];
+                renderAll();
+                const conv = getActiveConversation();
+                ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
+                setTimeout(adjustTextareaHeight, 0);
+            }
+            updateInputState();
+            updateApiKeyWarningBadge();
+            renderFollowUpPrompts([]);
+            updateFunctionButtonsState();
+        };
+        const deleteChat = async (id, event) => {
+    event?.stopPropagation();
+    const conv = conversations.find(c => c.id === id);
+    if (conv) {
+        conv.deletedAt = new Date().toISOString();
+        if (conv.folderId) {
+            const folder = folders.find(f => f.id === conv.folderId);
+            if (folder) {
+                folder.conversationIds = folder.conversationIds.filter(cid => cid !== id);
+            }
+            conv.folderId = null;
+        }
+        await saveAppData();
+
+
+
+
+        // ↓↓↓↓↓↓ 就是這裡被修改了 ↓↓↓↓↓↓
+        if (activeConversationId === id) {
+            startNewChat();
+        } 
+        // ↑↑↑↑↑↑ 就是這裡被修改了 ↑↑↑↑↑↑
+        
+        else {
+            renderAll();
+        }
+        showNotification(i18n[config.uiLanguage].chatMovedToTrash || '對話已移至垃圾桶。', 'success');
+    }
+};
+        const archiveChat = async (id, event) => {
+            event?.stopPropagation();
+            const conv = conversations.find(c => c.id === id);
+            if(conv) conv.archived = true;
+            await saveAppData();
+            if (activeConversationId === id) {
+                const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
+                activeConversationId = nextConv ? nextConv.id : null;
+                if (!activeConversationId) startNewChat();
+                else loadChat(activeConversationId);
+            } else {
+                renderAll();
+            }
+        };
+        const unarchiveChat = async (id, event) => {
+            event?.stopPropagation();
+            const conv = conversations.find(c => c.id === id);
+            if(conv) conv.archived = false;
+            await saveAppData();
+            renderAll();
+        };
+        const showArchivedChatPreview = (id, event) => {
+            event?.stopPropagation();
+            const conv = conversations.find(c => c.id === id);
+            if (!conv) return;
+            ALL_ELEMENTS.viewArchivedTitle.textContent = conv.title;
+            const contentContainer = ALL_ELEMENTS.viewArchivedContent;
+            contentContainer.innerHTML = '';
+            if (conv.messages.length === 0) {
+                contentContainer.innerHTML = '<p class="text-center text-[var(--text-secondary)]">此對話沒有訊息。</p>';
+            } else {
+                conv.messages.forEach(msg => {
+                    const isUser = msg.role === 'user';
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
+                    const icon = isUser
+                        ? `<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold">${currentUser ? currentUser.username.charAt(0).toUpperCase() : 'Y'}</div>`
+                        : `<div class="bg-gray-800 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 15h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>`;
+                    let contentHTML = '';
+                    msg.parts.forEach(part => {
+                        if (part.text) {
+                             contentHTML += `<div>${isUser ? renderUserText(part.text) : renderMarkdown(part.text)}</div>`;
+                        } else if (part.inlineData) {
+                            const mimeType = escapeHTML(part.inlineData.mimeType || 'application/octet-stream');
+                            const src = `data:${mimeType};base64,${part.inlineData.data}`;
+                             if ((part.inlineData.mimeType || '').startsWith('image/')) {
+                                contentHTML += `<img src="${src}" class="mt-2 max-w-xs max-h-48 rounded-lg object-cover border border-[var(--border-color)]">`;
+                            }
+                        }
+                    });
+                    const messageBubble = `
+                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble">
+                            <div class="prose prose-sm max-w-none message-content ${isUser ? 'text-white' : 'text-[var(--text-primary)]'}">${contentHTML}</div>
+                        </div>`;
+                    messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
+                    contentContainer.appendChild(messageDiv);
+                });
+            }
+            toggleModal(ALL_ELEMENTS.viewArchivedChatModal, true);
+        };
+        const togglePinChat = async (id, event) => {
+            event?.stopPropagation();
+            const conv = conversations.find(c => c.id === id);
+            if (conv) {
+                conv.pinned = !conv.pinned;
+                await saveAppData();
+                renderAll();
+            }
+        };
+        const showRenameModal = (id, type, event) => {
+            event?.stopPropagation();
+            itemToRename = { id, type };
+            let currentTitle = '';
+            if (type === 'conversation') {
+                const conv = conversations.find(c => c.id === id);
+                if (conv) currentTitle = conv.title;
+            } else if (type === 'folder') {
+                const folder = folders.find(f => f.id === id);
+                if (folder) currentTitle = folder.name;
+            }
+            ALL_ELEMENTS.renameModal.querySelector('h2').textContent = `重新命名${type === 'folder' ? '資料夾' : '對話'}`;
+            ALL_ELEMENTS.renameInput.value = currentTitle;
+            toggleModal(ALL_ELEMENTS.renameModal, true);
+            ALL_ELEMENTS.renameInput.focus();
+        };
+        const handleRename = async () => {
+            const newTitle = ALL_ELEMENTS.renameInput.value.trim();
+            if (!newTitle || !itemToRename.id) return;
+            if (itemToRename.type === 'conversation') {
+                const conv = conversations.find(c => c.id === itemToRename.id);
+                if (conv) { conv.title = newTitle; conv.isRenamed = true; }
+            } else if (itemToRename.type === 'folder') {
+                const folder = folders.find(f => f.id === itemToRename.id);
+                if (folder) { folder.name = newTitle; }
+            }
+            await saveAppData();
+            renderAll();
+            toggleModal(ALL_ELEMENTS.renameModal, false);
+            itemToRename = { id: null, type: null };
+        };
+        const getActiveConversation = () => {
+            return conversations.find(c => c.id === activeConversationId);
+        };
+        const renderAll = () => {
+            renderHistorySidebar();
+            renderFolders();
+            renderAstras();
+            renderChat();
+            renderArchivedChats();
+            renderBatchActionBar();
+            renderFilePreviews();
+            updateFollowUpUI();
+            applyLanguage(config.uiLanguage);
+        };
+        const renderHistorySidebar = () => {
+            ALL_ELEMENTS.historyList.innerHTML = '';
+            const sortedConversations = conversations
+                .filter(c => !c.archived && !c.folderId && !c.deletedAt)
+                .sort((a, b) => {
+                    if (a.pinned && !b.pinned) return -1;
+                    if (!a.pinned && b.pinned) return 1;
+                    const dateB = b.lastUpdatedAt || b.createdAt;
+                    const dateA = a.lastUpdatedAt || a.createdAt;
+                    return new Date(dateB) - new Date(dateA);
+                });
+            sortedConversations.forEach(conv => {
+                if (conv.isTemporary) {
+                    return;
+                }
+                if (conv.isNaming) {
+                    const thinkingPlaceholder = document.createElement('div');
+                    thinkingPlaceholder.className = 'sidebar-item p-3 rounded-lg flex items-center gap-3 text-[var(--text-secondary)] italic';
+                    thinkingPlaceholder.innerHTML = `
+                        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span data-lang-key="naming">${i18n[config.uiLanguage].naming || 'AI思考中...'}</span>
+                    `;
+                    ALL_ELEMENTS.historyList.appendChild(thinkingPlaceholder);
+                    return;
+                }
+                ALL_ELEMENTS.historyList.appendChild(createConversationElement(conv));
+            });
+        };
+        const renderAstras = () => {
+            ALL_ELEMENTS.astrasList.innerHTML = '';

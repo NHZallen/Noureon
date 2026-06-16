@@ -1,0 +1,69 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vite';
+
+const projectRoot = fileURLToPath(new URL('.', import.meta.url));
+const legacyRuntimeModuleId = 'virtual:legacy-app-runtime';
+const resolvedLegacyRuntimeModuleId = `\0${legacyRuntimeModuleId}`;
+
+function legacyRuntimeFragmentsPlugin() {
+  const fragmentsDir = resolve(projectRoot, 'src/app/legacy-runtime/fragments');
+
+  return {
+    name: 'astra-legacy-runtime-fragments',
+    resolveId(id) {
+      if (id === legacyRuntimeModuleId) {
+        return resolvedLegacyRuntimeModuleId;
+      }
+      return null;
+    },
+    load(id) {
+      if (id !== resolvedLegacyRuntimeModuleId) {
+        return null;
+      }
+
+      const fragmentPaths = readdirSync(fragmentsDir)
+        .filter((file) => file.endsWith('.fragment.js'))
+        .sort()
+        .map((file) => resolve(fragmentsDir, file));
+
+      fragmentPaths.forEach((file) => this.addWatchFile(file));
+
+      return fragmentPaths
+        .map((file) => readFileSync(file, 'utf8'))
+        .join('\n');
+    }
+  };
+}
+
+export default defineConfig({
+  plugins: [legacyRuntimeFragmentsPlugin()],
+  server: {
+    host: '0.0.0.0'
+  },
+  preview: {
+    host: '0.0.0.0'
+  },
+  build: {
+    target: 'es2020',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+          if (id.includes('chart.js')) return 'vendor-chart';
+          if (id.includes('katex')) return 'vendor-katex';
+          if (id.includes('cropperjs')) return 'vendor-cropper';
+          if (id.includes('peerjs') || id.includes('html5-qrcode') || id.includes('qrcode')) {
+            return 'vendor-sharing';
+          }
+          if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
+          return 'vendor';
+        }
+      }
+    }
+  }
+});
