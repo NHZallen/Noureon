@@ -94,18 +94,14 @@
         }
         async function streamApiCall(parts, onChunk, signal, isWebSearchForced = false) {
             const conv = getActiveConversation();
-            const modelInfo = MODELS.find(m => m.id === conv.model);
+            const modelInfo = normalizeConversationModel(conv);
             if (!modelInfo) throw new Error(`找不到模型設定: ${conv.model}`);
             
             const { provider, id: modelId } = modelInfo;
             let apiKey;
 
 
-            if (provider === 'gemini') {
-                apiKey = config.apiKeys.gemini;
-            } else if (provider === 'openrouter') {
-                apiKey = config.apiKeys.openrouter;
-            }
+            apiKey = getApiKeyForProvider(provider);
 
 
             if (!apiKey) throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
@@ -246,6 +242,19 @@
                 });
 
 
+                const plugins = [];
+                if (conv.isWebSearchEnabled || isWebSearchForced) {
+                    plugins.push({ id: 'web' });
+                }
+                if (hasOpenRouterFileAttachment) {
+                    plugins.push({
+                        id: 'file-parser',
+                        pdf: {
+                            engine: 'mistral-ocr'
+                        }
+                    });
+                }
+
                 payload = {
                     model: modelId,
                     messages,
@@ -254,15 +263,8 @@
                     ...(conv.genConfig.topP !== null && { top_p: conv.genConfig.topP }),
                     ...(conv.genConfig.maxTokens !== null && { max_tokens: conv.genConfig.maxTokens }),
                 };
-                if (hasOpenRouterFileAttachment) {
-                    payload.plugins = [
-                        {
-                            id: 'file-parser',
-                            pdf: {
-                                engine: 'mistral-ocr'
-                            }
-                        }
-                    ];
+                if (plugins.length > 0) {
+                    payload.plugins = plugins;
                 }
                 headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
             }
@@ -345,7 +347,7 @@
             return fullText;
         }
         async function callApiWithSchema(prompt, responseSchema, signal) {
-            const apiKey = config.apiKeys.gemini;
+            const apiKey = getApiKeyForProvider('gemini');
             if (!apiKey) {
                 console.error("Gemini API key is not set for generating structured response.");
                 return null;
@@ -393,7 +395,7 @@
             return null;
         }
         async function shouldPerformWebSearch(prompt) {
-            const apiKey = config.apiKeys.gemini;
+            const apiKey = getApiKeyForProvider('gemini');
             if (!apiKey) {
                 console.warn("Gemini API key is not set. Cannot perform auto web search check.");
                 return false;
@@ -588,8 +590,7 @@
     ALL_ELEMENTS.messageInput.focus();
     // sendConfirmed = true; // <-- 刪除此行
     updateInputState();
-    // 直接觸發提交
-    ALL_ELEMENTS.chatForm.dispatchEvent(new Event('submit', {cancelable: true}));
+    submitChatForm();
     followUpContainer.classList.add('hidden');
     showPromptsBtn.classList.remove('active');
 };
@@ -659,14 +660,9 @@
                 ALL_ELEMENTS.messageInput.placeholder = i18n[config.uiLanguage].viewingArchived || '正在檢視封存的對話，無法傳送訊息。';
                 return;
             }
-            const modelInfo = MODELS.find(m => m.id === conv.model);
+            const modelInfo = normalizeConversationModel(conv);
             const provider = modelInfo?.provider;
-            let hasApiKey = false;
-            if (provider === 'gemini') {
-                hasApiKey = !!config.apiKeys.gemini;
-            } else if (provider === 'openrouter') {
-                hasApiKey = !!config.apiKeys.openrouter;
-            }
+            const hasApiKey = !!getApiKeyForProvider(provider);
             ALL_ELEMENTS.messageInput.disabled = !hasApiKey;
             ALL_ELEMENTS.messageInput.placeholder = hasApiKey ? i18n[config.uiLanguage].enterMessagePlaceholder : i18n[config.uiLanguage].enterApiKeyPlaceholder;
             if (!hasApiKey || !hasContent) {
@@ -678,8 +674,8 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             }
         };
         const setupSettingsModal = () => {
-            ALL_ELEMENTS.geminiApiKeyInput.value = config.apiKeys.gemini;
-            ALL_ELEMENTS.openrouterApiKeyInputAll.value = config.apiKeys.openrouter;
+            ALL_ELEMENTS.geminiApiKeyInput.value = getApiKeyForProvider('gemini');
+            ALL_ELEMENTS.openrouterApiKeyInputAll.value = getApiKeyForProvider('openrouter');
             ALL_ELEMENTS.followUpToggleSwitch.checked = config.enableFollowUp;
             ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
             ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;

@@ -1539,14 +1539,10 @@ ${JSON.stringify(potentialMemories, null, 2)}
                 ALL_ELEMENTS.apiKeyWarningBadge.classList.add('hidden');
                 return;
             }
-            const modelInfo = MODELS.find(m => m.id === conv.model);
+            const modelInfo = normalizeConversationModel(conv);
             let needsKey = false;
             if (modelInfo) {
-                if (modelInfo.provider === 'gemini' && !config.apiKeys.gemini) {
-                    needsKey = true;
-                } else if (modelInfo.provider === 'openrouter' && !config.apiKeys.openrouter) {
-                    needsKey = true;
-                }
+                needsKey = !getApiKeyForProvider(modelInfo.provider);
             }
             ALL_ELEMENTS.apiKeyWarningBadge.classList.toggle('hidden', !needsKey);
         };

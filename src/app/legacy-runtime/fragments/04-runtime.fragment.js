@@ -597,6 +597,7 @@
             if(ALL_ELEMENTS.loginLangLabel) {
                 ALL_ELEMENTS.loginLangLabel.textContent = translations.currentLanguageName || '繁體中文';
             }
+            updateInputState();
             document.documentElement.lang = lang;
         };
         const showMobileContextMenu = (convId) => {

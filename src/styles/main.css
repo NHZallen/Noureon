@@ -2393,6 +2393,56 @@ body.custom-wallpaper-active .input-indicator-item {
 }
 #input-bar-container .input-wrapper > .flex.items-end {
     width: 100%;
+    min-width: 0;
+    align-items: center;
+}
+#chat-form {
+    min-width: 0;
+    min-height: 2.5rem;
+    align-items: center;
+}
+#message-input {
+    min-width: 0;
+    min-height: 2.5rem;
+    line-height: 1.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    align-self: center;
+}
+#file-input-container,
+#voice-input-btn-message,
+#submit-btn {
+    flex: 0 0 auto;
+}
+#file-input-container {
+    display: flex;
+    align-items: center;
+}
+#add-file-btn,
+#voice-input-btn-message,
+#submit-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+#add-file-btn svg,
+#voice-input-btn-message svg,
+#submit-btn svg,
+#submit-btn-icon {
+    flex: 0 0 auto;
+}
+#submit-btn-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 /* ✨ 新增：互動式計畫編輯器樣式 */
 .plan-editor-step {

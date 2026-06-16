@@ -331,7 +331,7 @@ ${stepCountInstruction}
 
                 let initialResearchPlan;
                 try {
-                    const apiKey = config.apiKeys.gemini;
+                    const apiKey = getApiKeyForProvider('gemini');
                     if (!apiKey) throw new Error('Gemini API 金鑰未設定。');
 
 
@@ -809,7 +809,9 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             ALL_ELEMENTS.webSearchPopoverBtn.addEventListener('click', async () => {
                 ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
                 const conv = getActiveConversation();
-                if (!conv || conv.provider !== 'gemini' || conv.archived) {
+                const modelInfo = normalizeConversationModel(conv);
+                const supportsWebSearch = modelInfo?.provider === 'gemini' || modelInfo?.provider === 'openrouter';
+                if (!conv || !supportsWebSearch || conv.archived) {
                     showNotification(i18n[config.uiLanguage].webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
                     return;
                 }
@@ -914,8 +916,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
     if (abortController) {
         try { abortController.abort(); } catch {}
     } else if (!ALL_ELEMENTS.submitButton.disabled) {
-        // 直接觸發 form 的 submit 事件
-        ALL_ELEMENTS.chatForm.dispatchEvent(new Event('submit', {cancelable: true}));
+        submitChatForm();
     }
 });
             ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit);
@@ -1160,8 +1161,9 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
 
                 // 取得當前模型資訊
                 const conv = getActiveConversation();
-                const modelInfo = MODELS.find(m => m.id === conv?.model);
+                const modelInfo = normalizeConversationModel(conv);
                 const provider = modelInfo?.provider;
+                const supportsOpenRouterVision = provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(modelInfo?.id);
 
 
                 const allMenuItems = [
@@ -1178,22 +1180,12 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
 
                 let visibleMenuItems = allMenuItems;
                 if (provider === 'openrouter') {
-    const supportsVision = OPENROUTER_VISION_MODELS.includes(modelInfo?.id);
-    visibleMenuItems = allMenuItems.filter(item => {
-        // OpenRouter 模型總是顯示學習、研究 以及 ✨檔案上傳✨
-        if (item.id === 'learning-mode-btn' || item.id === 'deep-research-btn' || item.id === 'upload-file-btn') return true;
-        
-        // ✨ 修改點：只隱藏「網路搜尋」
-        if (item.id === 'web-search-popover-btn') return false;
-        
-        // 只有支援的模型才顯示相機和圖片
-        if (item.id === 'camera-btn' || item.id === 'upload-image-btn') return supportsVision;
-        
-        // 分隔線邏輯稍後處理
-        return item.type === 'divider';
-    });
-}
-
+                    visibleMenuItems = allMenuItems.filter(item => {
+                        if (item.type === 'divider') return true;
+                        if (item.id === 'camera-btn' || item.id === 'upload-image-btn') return supportsOpenRouterVision;
+                        return true;
+                    });
+                }
 
                 let itemsHTML = '';
                 visibleMenuItems.forEach((item, index) => {

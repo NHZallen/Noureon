@@ -159,7 +159,7 @@
             const item = document.createElement('div');
             item.className = `sidebar-item w-full text-left p-3 rounded-lg flex items-center justify-between cursor-pointer ${conv.id === activeConversationId && !isSelectionMode ? 'active' : ''}`;
             item.dataset.id = conv.id;
-            const modelInfo = MODELS.find(m => m.id === conv.model);
+            const modelInfo = normalizeConversationModel(conv);
             const modelCodename = modelInfo ? modelInfo.name.split(' (')[0] : '';
             const modelNameSuffix = modelCodename ? `<span class="model-suffix">${modelCodename}</span>` : '';
             const contentWrapper = document.createElement('div');
@@ -302,21 +302,31 @@
             if (!conv) return;
 
 
-            const modelInfo = MODELS.find(m => m.id === conv.model);
+            const modelInfo = normalizeConversationModel(conv);
             const provider = modelInfo?.provider;
+            const supportsVision = provider === 'gemini' || (provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(modelInfo?.id));
+            const supportsWebSearch = provider === 'gemini' || provider === 'openrouter';
 
 
             // 預設先顯示所有按鈕
             [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn, deepResearchBtn].forEach(btn => btn.style.display = 'flex');
             document.querySelectorAll('#file-options-popover .border-t').forEach(sep => sep.style.display = 'block');
+            [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn, deepResearchBtn]
+                .filter(Boolean)
+                .forEach(btn => btn.style.display = 'flex');
+            if (webSearchPopoverBtn) {
+                webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
+            }
+            [cameraBtn, uploadImageBtn]
+                .filter(Boolean)
+                .forEach(btn => btn.style.display = supportsVision ? 'flex' : 'none');
             
             if (provider === 'openrouter') {
     // 檢查當前 OpenRouter 模型是否支援圖片輸入
     const supportsVision = OPENROUTER_VISION_MODELS.includes(modelInfo?.id);
 
 
-    // 1. 修改這裡：只隱藏「網路搜尋」，允許顯示「檔案上傳」
-    [webSearchPopoverBtn].forEach(btn => btn.style.display = 'none');
+    if (webSearchPopoverBtn) webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
     
     // 2. 確保檔案上傳按鈕是顯示的 (flex)
     uploadFileBtn.style.display = 'flex';
@@ -358,7 +368,7 @@
             if (!conv) return;
 
 
-            const modelInfo = MODELS.find(m => m.id === conv.model);
+            const modelInfo = normalizeConversationModel(conv);
             
              if (config.isLearningMode) {
                 showNotification('學習模式啟用時，無法切換研究模式。', 'warning');

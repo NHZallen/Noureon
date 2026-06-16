@@ -763,6 +763,45 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const DB_NAME = 'ChatAppDB';
         const STORE_NAME = 'keyValue';
         let db;
+        function normalizeApiKeyValue(value) {
+            if (typeof value === 'string') {
+                return value.trim();
+            }
+            if (value && typeof value === 'object') {
+                const key = Object.values(value).find(v => typeof v === 'string' && v.trim());
+                return key ? key.trim() : '';
+            }
+            return '';
+        }
+        function getApiKeyForProvider(provider) {
+            if (provider === 'gemini') {
+                return normalizeApiKeyValue(config.apiKeys?.gemini);
+            }
+            if (provider === 'openrouter') {
+                return normalizeApiKeyValue(config.apiKeys?.openrouter);
+            }
+            return '';
+        }
+        function normalizeConversationModel(conv) {
+            if (!conv) return null;
+            let modelInfo = MODELS.find(m => m.id === conv.model);
+            if (!modelInfo) {
+                modelInfo = MODELS.find(m => m.id === config.defaultModel) || MODELS[0];
+                conv.model = modelInfo.id;
+            }
+            conv.provider = modelInfo.provider;
+            return modelInfo;
+        }
+
+        function submitChatForm() {
+            const form = ALL_ELEMENTS?.chatForm;
+            if (!form) return;
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            }
+        }
         async function openDB() {
             if (db) return db;
             return new Promise((resolve, reject) => {
@@ -1118,6 +1157,7 @@ function renderMarkdownWithFormulas(text) {
                             parts: m.parts || [{ text: m.content }]
                         }))
                     }));
+                    conversations.forEach(normalizeConversationModel);
                     astras = (data.astras || []).map(a => ({ avatarUrl: null, officialId: null, ...a }));
                     personalMemories = data.personalMemories || [];
                 } catch (e) {
@@ -1332,7 +1372,9 @@ function renderMarkdownWithFormulas(text) {
             itemToRename = { id: null, type: null };
         };
         const getActiveConversation = () => {
-            return conversations.find(c => c.id === activeConversationId);
+            const conv = conversations.find(c => c.id === activeConversationId);
+            if (conv) normalizeConversationModel(conv);
+            return conv;
         };
         const renderAll = () => {
             renderHistorySidebar();
