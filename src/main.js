@@ -11,7 +11,7 @@ import katex from 'katex/dist/katex.min.js';
 import Peer from 'peerjs';
 import QRCodeGenerator from 'qrcode';
 import { Html5Qrcode } from 'html5-qrcode';
-import appShell from './templates/app-shell.html?raw';
+import appShell from './templates/app-shell.js';
 
 class QRCodeCompat {
   constructor(container, options = {}) {
