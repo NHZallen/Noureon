@@ -770,10 +770,24 @@
     };
 
 
+    const modelVisionLabel = config.uiLanguage === 'zh-TW' ? '視覺' : 'Vision';
+    const createVisionBadgeHTML = (model) => {
+        const supportsVision = model.provider === 'gemini' || (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id));
+        if (!supportsVision) return '';
+        return `
+            <span class="model-vision-badge" title="${escapeHTML(modelVisionLabel)}" aria-label="${escapeHTML(modelVisionLabel)}">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </span>
+        `;
+    };
+
     const createModelOptionHTML = (model, descriptionText) => {
         return `
             <div data-model-id="${model.id}" class="model-option-btn-container ${isArchived ? 'cursor-not-allowed opacity-50' : ''}">
-                <h4 class="font-semibold">${model.name}</h4>
+                <h4 class="font-semibold model-option-title"><span class="model-name-text">${model.name}</span>${createVisionBadgeHTML(model)}</h4>
                 <p class="model-description">${descriptionText}</p>
             </div>
         `;

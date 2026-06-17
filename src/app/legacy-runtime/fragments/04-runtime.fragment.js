@@ -862,6 +862,18 @@
         };
         const setupScrollToBottomButton = () => {
     const { scrollToBottomBtn, chatContainer } = ALL_ELEMENTS;
+    const updateScrollButtonVisibility = () => {
+        const bottomDistance = Math.max(0, chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight);
+        scrollToBottomBtn.classList.toggle('visible', bottomDistance > 8);
+    };
+    let scrollButtonFrame = null;
+    const scheduleScrollButtonUpdate = () => {
+        if (isAutoScrolling || scrollButtonFrame !== null) return;
+        scrollButtonFrame = requestAnimationFrame(() => {
+            scrollButtonFrame = null;
+            updateScrollButtonVisibility();
+        });
+    };
     scrollToBottomBtn.addEventListener('click', () => {
         isAutoScrolling = true;
         scrollToBottomBtn.classList.remove('visible');
@@ -875,26 +887,22 @@
         });
         const scrollEndTimer = setTimeout(() => {
             isAutoScrolling = false;
+            updateScrollButtonVisibility();
         }, 1000);
         const interruptHandler = () => {
             clearTimeout(scrollEndTimer);
             isAutoScrolling = false;
+            scheduleScrollButtonUpdate();
             chatContainer.removeEventListener('wheel', interruptHandler);
             chatContainer.removeEventListener('touchstart', interruptHandler);
         };
         chatContainer.addEventListener('wheel', interruptHandler, { once: true });
         chatContainer.addEventListener('touchstart', interruptHandler, { once: true });
     });
-    const handleScroll = () => {
-        if (isAutoScrolling) return;
-        const isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
-        if (isAtBottom) {
-            scrollToBottomBtn.classList.remove('visible');
-        } else {
-            scrollToBottomBtn.classList.add('visible');
-        }
-    };
-    chatContainer.addEventListener('scroll', throttle(handleScroll, 100));
+    chatContainer.addEventListener('scroll', scheduleScrollButtonUpdate, { passive: true });
+    chatContainer.addEventListener('wheel', scheduleScrollButtonUpdate, { passive: true });
+    chatContainer.addEventListener('touchend', scheduleScrollButtonUpdate, { passive: true });
+    updateScrollButtonVisibility();
 
 
     // ✨ 這是核心修正 ✨

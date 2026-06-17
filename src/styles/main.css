@@ -306,6 +306,11 @@ body.custom-wallpaper-active #history-sidebar h3 {
     padding: 0.75rem;
     justify-content: center;
 }
+#settings-btn svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    flex-shrink: 0;
+}
 #settings-btn:hover {
 }
 #settings-btn span {
@@ -313,6 +318,30 @@ body.custom-wallpaper-active #history-sidebar h3 {
 }
 #settings-btn span {
     display: none; /* 隱藏原本的 "設定" 文字 */
+}
+    #sidebar > .p-2:first-child {
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem 0.5rem;
+}
+#open-search-btn {
+    min-height: 2.75rem;
+    align-items: center;
+}
+#selection-mode-btn,
+#new-chat-btn {
+    width: 2.75rem !important;
+    height: 2.75rem !important;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+#selection-mode-btn svg,
+#new-chat-btn svg {
+    width: 1.35rem;
+    height: 1.35rem;
 }
     #file-options-popover button {
     -webkit-user-select: none;
@@ -1366,6 +1395,35 @@ button:not(.btn-primary):active:not(:disabled) {
     .model-option-btn-container:hover {
         background-color: var(--hover-bg);
     }
+    .model-option-title {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-width: 0;
+    }
+    .model-name-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .model-vision-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.35rem;
+        height: 1.35rem;
+        border-radius: 9999px;
+        color: var(--button-primary-bg);
+        background-color: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
+        border: 1px solid color-mix(in srgb, var(--button-primary-bg) 28%, transparent);
+        flex: 0 0 auto;
+    }
+    .model-vision-badge svg {
+        width: 0.9rem;
+        height: 0.9rem;
+        display: block;
+    }
     #model-options-popover {
         max-height: calc(100vh - 150px);
     }
@@ -2369,6 +2427,16 @@ body.custom-wallpaper-active .store-category-btn.active {
     flex-direction: column;
     gap: 0.25rem;
 }
+#input-bar-container .input-wrapper {
+    min-height: 3.5rem;
+    justify-content: center;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+#input-bar-container .input-wrapper.has-indicators {
+    padding-top: 2.25rem;
+    padding-bottom: 0.5rem;
+}
 .input-indicator-item {
     color: var(--button-primary-bg);
     background-color: var(--hover-bg);
@@ -2394,12 +2462,13 @@ body.custom-wallpaper-active .input-indicator-item {
 #input-bar-container .input-wrapper > .flex.items-end {
     width: 100%;
     min-width: 0;
-    align-items: center;
+    min-height: 2.5rem;
+    align-items: center !important;
 }
 #chat-form {
     min-width: 0;
     min-height: 2.5rem;
-    align-items: center;
+    align-items: center !important;
 }
 #message-input {
     min-width: 0;
@@ -2408,6 +2477,8 @@ body.custom-wallpaper-active .input-indicator-item {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
     align-self: center;
+    display: block;
+    margin: 0;
 }
 #file-input-container,
 #voice-input-btn-message,
@@ -2430,6 +2501,7 @@ body.custom-wallpaper-active .input-indicator-item {
     align-items: center;
     justify-content: center;
     line-height: 1;
+    align-self: center;
 }
 #add-file-btn svg,
 #voice-input-btn-message svg,
