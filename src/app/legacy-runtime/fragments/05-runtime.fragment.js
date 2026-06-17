@@ -210,30 +210,233 @@
         toggleModal(interactivePlanModal, true);
     });
 }
+
+        function sanitizeInlinePartsForGemini(parts) {
+            return parts
+                .filter(part => part.inlineData)
+                .map(part => ({
+                    inlineData: {
+                        mimeType: part.inlineData.mimeType,
+                        data: part.inlineData.data
+                    }
+                }));
+        }
+
+        function parseResearchJsonResponse(rawText) {
+            if (!rawText || typeof rawText !== 'string') {
+                throw new Error('API 未回傳可解析的 JSON 內容。');
+            }
+
+            const attempts = [];
+            const trimmed = rawText.trim();
+            attempts.push(trimmed);
+
+            const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+            if (fencedMatch?.[1]) {
+                attempts.push(fencedMatch[1].trim());
+            }
+
+            const firstArray = trimmed.indexOf('[');
+            const firstObject = trimmed.indexOf('{');
+            const starts = [firstArray, firstObject].filter(index => index >= 0);
+            if (starts.length > 0) {
+                const start = Math.min(...starts);
+                const openChar = trimmed[start];
+                const closeChar = openChar === '[' ? ']' : '}';
+                const end = trimmed.lastIndexOf(closeChar);
+                if (end > start) {
+                    attempts.push(trimmed.slice(start, end + 1));
+                }
+            }
+
+            for (const attempt of attempts) {
+                try {
+                    return JSON.parse(attempt);
+                } catch (error) {
+                    // Try the next normalized shape.
+                }
+            }
+
+            console.error('無法解析研究 JSON，原始內容:', rawText);
+            throw new Error('API 未回傳有效的研究 JSON。');
+        }
+
+        function normalizeResearchPlan(plan) {
+            const steps = Array.isArray(plan)
+                ? plan
+                : (Array.isArray(plan?.steps) ? plan.steps : plan?.plan);
+
+            if (!Array.isArray(steps)) return [];
+
+            return steps
+                .map((item, index) => ({
+                    step: String(item?.step || item?.title || `${index + 1}. 研究步驟`).trim(),
+                    action: String(item?.action || item?.description || item?.query || '').trim()
+                }))
+                .filter(item => item.step && item.action);
+        }
+
+        function normalizeSearchQueries(queries) {
+            const rawQueries = Array.isArray(queries)
+                ? queries
+                : (Array.isArray(queries?.queries) ? queries.queries : queries?.searchQueries);
+
+            if (!Array.isArray(rawQueries)) return [];
+
+            return rawQueries
+                .map(query => typeof query === 'string' ? query : (query?.query || query?.keyword || ''))
+                .map(query => query.trim())
+                .filter(Boolean)
+                .slice(0, 3);
+        }
+
+        function buildOpenRouterStructuredContent(prompt, extraParts = []) {
+            let hasFileAttachment = false;
+            const parts = [{ text: prompt }, ...extraParts];
+            const content = parts.map(part => {
+                if (part.text) {
+                    return { type: 'text', text: part.text };
+                }
+
+                if (part.inlineData) {
+                    const mimeType = part.inlineData.mimeType;
+                    const fullDataUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+                    if (mimeType.startsWith('image/')) {
+                        return {
+                            type: 'image_url',
+                            image_url: { url: fullDataUrl }
+                        };
+                    }
+
+                    hasFileAttachment = true;
+                    return {
+                        type: 'file',
+                        file: {
+                            filename: part.inlineData.name || 'document',
+                            file_data: fullDataUrl
+                        }
+                    };
+                }
+
+                return null;
+            }).filter(Boolean);
+
+            return { content, hasFileAttachment };
+        }
+
+        async function callResearchJsonWithCurrentModel(prompt, responseSchema, signal, extraParts = []) {
+            const conv = getActiveConversation();
+            const modelInfo = normalizeConversationModel(conv);
+            if (!modelInfo) throw new Error('找不到目前對話的模型設定。');
+
+            const apiKey = getApiKeyForProvider(modelInfo.provider);
+            if (!apiKey) throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
+
+            const strictPrompt = `${prompt}
+
+# JSON 輸出硬性要求
+只輸出可被 JSON.parse 解析的 JSON，不要加入 Markdown code fence、前言或說明文字。
+JSON 結構必須符合此 schema:
+${JSON.stringify(responseSchema)}`;
+
+            if (modelInfo.provider === 'gemini') {
+                const payload = {
+                    contents: [{
+                        role: 'user',
+                        parts: [{ text: strictPrompt }, ...sanitizeInlinePartsForGemini(extraParts)]
+                    }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema
+                    }
+                };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CHEAP_MODEL_ID}:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal
+                });
+
+                if (!response.ok) {
+                    const errorBody = await readErrorBody(response);
+                    throw new Error(getErrorMessage(errorBody, '研究 JSON 生成失敗'));
+                }
+
+                const result = await response.json();
+                const jsonString = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                return parseResearchJsonResponse(jsonString);
+            }
+
+            if (modelInfo.provider === 'openrouter') {
+                const { content, hasFileAttachment } = buildOpenRouterStructuredContent(strictPrompt, extraParts);
+                const payload = {
+                    model: modelInfo.id,
+                    messages: [{
+                        role: 'user',
+                        content: content.length === 1 && content[0].type === 'text' ? content[0].text : content
+                    }],
+                    stream: false,
+                    temperature: 0.2
+                };
+
+                if (hasFileAttachment) {
+                    payload.plugins = [{
+                        id: 'file-parser',
+                        pdf: { engine: 'mistral-ocr' }
+                    }];
+                }
+
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                    signal
+                });
+
+                if (!response.ok) {
+                    const errorBody = await readErrorBody(response);
+                    throw new Error(getErrorMessage(errorBody, '研究 JSON 生成失敗'));
+                }
+
+                const result = await response.json();
+                const jsonString = result?.choices?.[0]?.message?.content;
+                return parseResearchJsonResponse(jsonString);
+            }
+
+            throw new Error(`目前模型供應商不支援深度研究: ${modelInfo.provider}`);
+        }
         
         // ✨ 更新後的深度研究核心函數
         async function handleDeepResearch(userMessage) {
             renderFollowUpPrompts([]);
             const conv = getActiveConversation();
             if (conv.archived) return;
+            normalizeConversationModel(conv);
 
 
             abortController = new AbortController();
             updateSubmitButtonState(true);
 
 
-            const hasFiles = uploadedFiles.length > 0;
+            const researchFiles = uploadedFiles.map(file => ({ ...file }));
+            const hasFiles = researchFiles.length > 0;
             const userParts = [{ text: userMessage }];
             if (hasFiles) {
-                uploadedFiles.forEach(file => {
+                researchFiles.forEach(file => {
                     userParts.push({
                         inlineData: {
                             mimeType: file.type,
-                            data: file.base64.split(',')[1]
+                            data: file.base64.split(',')[1],
+                            name: file.name
                         }
                     });
                 });
             }
+            const researchInlineParts = userParts.filter(p => p.inlineData);
 
 
             const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
@@ -331,27 +534,13 @@ ${stepCountInstruction}
 
                 let initialResearchPlan;
                 try {
-                    const apiKey = getApiKeyForProvider('gemini');
-                    if (!apiKey) throw new Error('Gemini API 金鑰未設定。');
-
-
-                    const plannerPayload = {
-                        contents: [{ role: 'user', parts: [{ text: plannerPrompt }, ...userParts.filter(p => p.inlineData)] }],
-                        generationConfig: { responseMimeType: "application/json", responseSchema: plannerSchema }
-                    };
-                    const plannerApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CHEAP_MODEL_ID}:generateContent?key=${apiKey}`;
-                    const plannerResponse = await fetch(plannerApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(plannerPayload), signal: abortController.signal });
-
-
-                    if (!plannerResponse.ok) throw new Error(`研究計畫生成失敗: ${(await plannerResponse.json()).error?.message || 'API request failed'}`);
-                    
-                    const result = await plannerResponse.json();
-                    const jsonString = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (jsonString) {
-                        initialResearchPlan = JSON.parse(jsonString.trim().replace(/^```json|```$/g, '').trim());
-                    } else {
-                        throw new Error('API 未回傳有效的研究計畫 JSON。');
-                    }
+                    const plannerResponse = await callResearchJsonWithCurrentModel(
+                        plannerPrompt,
+                        plannerSchema,
+                        abortController.signal,
+                        researchInlineParts
+                    );
+                    initialResearchPlan = normalizeResearchPlan(plannerResponse);
                 } catch (error) {
                     console.error('生成研究計畫時出錯:', error);
                     throw error;
@@ -377,73 +566,47 @@ ${stepCountInstruction}
                 // --- 階段三：執行編輯後的計畫 ---
                 dashboard = addResearchDashboardCard('正在執行您確認的研究計畫...', finalResearchPlan.map(p => `${p.step}: ${p.action}`));
                 const allContextData = [];
-                const currentModelInfo = MODELS.find(m => m.id === conv.model);
+                if (hasFiles) {
+                    const fileInfo = researchFiles.map(file => `- ${file.name} (${file.type})`).join('\n');
+                    allContextData.push(`## 使用者上傳的檔案\n${fileInfo}`);
+                }
 
 
-                // ✨ 核心修改：根據模型供應商決定研究方式
-                if (currentModelInfo?.provider === 'openrouter') {
-                    // --- OpenRouter 的「離線」研究流程 ---
-                    dashboard.setTitle('正在整理現有資料...');
-                    
-                    // 1. 收集所有可用上下文
-                    const historyText = conv.messages.slice(0, -1).map(m => `${m.role}:\n${m.parts.map(p => p.text || `[${p.inlineData.mimeType}]`).join('\n')}`).join('\n\n');
-                    allContextData.push(`## 對話歷史紀錄\n${historyText}`);
+                for (let i = 0; i < finalResearchPlan.length; i++) {
+                    if (abortController.signal.aborted) throw new Error("研究已中止。");
+                    const planStep = finalResearchPlan[i];
+                    dashboard.updateStep(i, 'running');
 
 
-                    if (hasFiles) {
-                        const fileInfo = uploadedFiles.map(f => `- ${f.name} (${f.type})`).join('\n');
-                        allContextData.push(`## 使用者上傳的檔案\n${fileInfo}\n(檔案內容已在系統後端處理，你只需知曉有這些檔案存在即可)`);
-                    }
-
-
-                    // 2. 模擬步驟完成的儀表板更新
-                    for (let i = 0; i < finalResearchPlan.length; i++) {
-                         if (abortController.signal.aborted) throw new Error("研究已中止。");
-                         dashboard.updateStep(i, 'running', `正在分析與「${finalResearchPlan[i].step}」相關的資料...`);
-                         // 模擬處理延遲
-                         await new Promise(resolve => setTimeout(resolve, 300));
-                         dashboard.updateStep(i, 'completed', `「${finalResearchPlan[i].step}」的資料已整理完畢`);
-                    }
-
-
-                } else {
-                    // --- Gemini 的「線上」研究流程 (原本的程式碼) ---
-                    for (let i = 0; i < finalResearchPlan.length; i++) {
-                        if (abortController.signal.aborted) throw new Error("研究已中止。");
-                        const planStep = finalResearchPlan[i];
-                        dashboard.updateStep(i, 'running');
-
-
-                        const queryGenPrompt = `基於以下總體研究目標和當前具體的研究步驟，生成 2-3 個最有效的 Google 搜尋關鍵字。請嚴格以 JSON 陣列格式回傳。
+                    const queryGenPrompt = `基於以下總體研究目標和當前具體的研究步驟，生成 2-3 個最有效的 Google 搜尋關鍵字。請嚴格以 JSON 陣列格式回傳。
 
 
 總體目標: "${userMessage}"
 當前步驟: "${planStep.step}: ${planStep.action}"`;
                         
-                        const queryGenSchema = { type: "ARRAY", items: { type: "STRING" }, maxItems: 3 };
-                        const searchQueries = await callApiWithSchema(queryGenPrompt, queryGenSchema, abortController.signal);
+                    const queryGenSchema = { type: "ARRAY", items: { type: "STRING" }, maxItems: 3 };
+                    const searchQueries = normalizeSearchQueries(await callResearchJsonWithCurrentModel(queryGenPrompt, queryGenSchema, abortController.signal, researchInlineParts));
 
 
-                        if (!searchQueries || searchQueries.length === 0) {
-                            allContextData.push(`--- 步驟 "${planStep.step}" 的資料收集失敗：無法生成有效的搜尋關鍵字 ---\n`);
-                            dashboard.updateStep(i, 'error');
-                            continue;
-                        }
-                        
-                        const searchPromises = searchQueries.map(query => 
-                            streamApiCall(
-                                [{ text: query }], 
-                                () => {}, 
-                                abortController.signal,
-                                true // 強制使用 Web Search
-                            ).then(result => `--- 關於 "${query}" 的搜尋結果 ---\n${result}\n`)
-                             .catch(err => `--- 關於 "${query}" 的搜尋失敗 ---\n錯誤訊息: ${err.message}\n`)
-                        );
-                        
-                        const stepResults = await Promise.all(searchPromises);
-                        allContextData.push(`## 來自研究步驟「${planStep.step}」的資料：\n\n` + stepResults.join('\n'));
-                        dashboard.updateStep(i, 'completed');
+                    if (!searchQueries || searchQueries.length === 0) {
+                        allContextData.push(`--- 步驟 "${planStep.step}" 的資料收集失敗：無法生成有效的搜尋關鍵字 ---\n`);
+                        dashboard.updateStep(i, 'error');
+                        continue;
                     }
+                        
+                    const searchPromises = searchQueries.map(query =>
+                        streamApiCall(
+                            [{ text: query }],
+                            () => {},
+                            abortController.signal,
+                            true // 強制使用 Web Search
+                        ).then(result => `--- 關於 "${query}" 的搜尋結果 ---\n${result}\n`)
+                         .catch(err => `--- 關於 "${query}" 的搜尋失敗 ---\n錯誤訊息: ${err.message}\n`)
+                    );
+                        
+                    const stepResults = await Promise.all(searchPromises);
+                    allContextData.push(`## 來自研究步驟「${planStep.step}」的資料：\n\n` + stepResults.join('\n'));
+                    dashboard.updateStep(i, 'completed');
                 }
 
 
@@ -485,11 +648,8 @@ ${stepCountInstruction}
 原始任務: "${userMessage}"
 
 
-// ✨ 修改：根據模型類型提供不同的資料描述
-${currentModelInfo?.provider === 'openrouter'
-    ? "你正在進行離線研究。下方是你需要分析的全部資料，包含對話歷史和使用者上傳的檔案資訊。"
-    : (hasFiles ? "此研究基於使用者提供的檔案，並結合了外部網路搜尋資料。" : "此研究基於外部網路搜尋資料。")
-}
+資料來源說明:
+${hasFiles ? "此研究基於使用者提供的檔案，並結合了外部網路搜尋資料。" : "此研究基於外部網路搜尋資料。"}
 
 
 收集到的資料:
@@ -506,7 +666,7 @@ ${allContextData.join('\n\n')}`;
                     fullReport = await typewriterStream(
                         reportContentDiv,
                         (onChunk) => streamApiCall(
-                            [{ text: synthesizerPrompt }],
+                            [{ text: synthesizerPrompt }, ...researchInlineParts],
                             onChunk,
                             abortController.signal,
                             false

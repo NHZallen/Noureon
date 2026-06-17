@@ -961,7 +961,8 @@
             conv.model = newModelInfo.id;
             conv.provider = newModelInfo.provider;
             config.lastUsedModel = newModelId;
-            if (config.isDeepResearchMode && newModelInfo.provider !== 'gemini') {
+            const supportsDeepResearch = newModelInfo.provider === 'gemini' || newModelInfo.provider === 'openrouter';
+            if (config.isDeepResearchMode && !supportsDeepResearch) {
                 toggleDeepResearchMode();
             }
             await saveAppData();
