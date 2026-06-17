@@ -637,6 +637,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     // OpenRouter Paid Models (Minimax)
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
 
+    // OpenRouter Paid Models (Z.AI)
+    { id: 'z-ai/glm-5.2', name: 'Z.AI GLM-5.2', provider: 'openrouter', descriptionKey: 'model_glm_5_2_desc', category: 'general' },
+
     // OpenRouter Paid Models (DeepSeek)
     { id: 'deepseek/deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_pro_desc', category: 'general' },
     { id: 'deepseek/deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_flash_desc', category: 'general' },
@@ -649,7 +652,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code', provider: 'openrouter', descriptionKey: 'model_kimi_k2_7_code_desc', category: 'coding' },
     { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: 'openrouter', descriptionKey: 'model_kimi_k2_6_desc', category: 'general' },
 ];
-        const CHEAP_MODEL_ID = 'gemini-3.1-flash-lite';
+        const CHEAP_MODEL_ID = 'gemma-4-31b-it';
         const OPENROUTER_VISION_MODELS = [
     'nex-agi/nex-n2-pro:free',
     'openai/gpt-5.5',

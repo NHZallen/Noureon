@@ -417,6 +417,8 @@ window.i18n = {
         model_qwen3_5_flash_02_23_desc_tier_paid: '百萬輸入/0.065$、百萬輸出/0.26$',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '百萬輸入/0.3$、百萬輸出/1.2$',
+        // Z.AI Paid
+        model_glm_5_2_desc_tier_paid: '百萬輸入/1.40$、百萬輸出/4.40$',
         // DeepSeek Paid
         model_deepseek_v4_pro_desc_tier_paid: '百萬輸入/0.435$、百萬輸出/0.87$',
         model_deepseek_v4_flash_desc_tier_paid: '百萬輸入/0.098$、百萬輸出/0.196$',
@@ -868,6 +870,8 @@ window.i18n = {
         model_qwen3_5_flash_02_23_desc_tier_paid: '$0.065/M input, $0.26/M output',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '$0.3/M input, $1.2/M output',
+        // Z.AI Paid
+        model_glm_5_2_desc_tier_paid: '$1.40/M input, $4.40/M output',
         // DeepSeek Paid
         model_deepseek_v4_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
         model_deepseek_v4_flash_desc_tier_paid: '$0.098/M input, $0.196/M output',
@@ -1319,6 +1323,8 @@ window.i18n = {
         model_qwen3_5_flash_02_23_desc_tier_paid: '0,065 $/M entrée, 0,26 $/M sortie',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
+        // Z.AI Paid
+        model_glm_5_2_desc_tier_paid: '1,40 $/M entrée, 4,40 $/M sortie',
         // DeepSeek Paid
         model_deepseek_v4_pro_desc_tier_paid: '0,435 $/M entrée, 0,87 $/M sortie',
         model_deepseek_v4_flash_desc_tier_paid: '0,098 $/M entrée, 0,196 $/M sortie',
