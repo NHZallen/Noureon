@@ -860,9 +860,11 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 });
             }
             ALL_ELEMENTS.messageInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && e.shiftKey) { 
-                    e.preventDefault(); // 阻止 Shift+Enter 的默認換行行為
-                    ALL_ELEMENTS.submitButton.click();
+                if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+                    e.preventDefault();
+                    if (!ALL_ELEMENTS.submitButton.disabled) {
+                        submitChatForm();
+                    }
                 }
             });
             const handleInputFocus = () => {

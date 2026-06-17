@@ -745,6 +745,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let isSelectionMode = false;
         let selectedConversationIds = new Set();
         let uploadedFiles = [];
+        let sendConfirmed = false;
         let sidebarOpen = false;
         let isFollowUpExpanded = true;
         let editingAstrasId = null;
@@ -796,8 +797,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         function submitChatForm() {
             const form = ALL_ELEMENTS?.chatForm;
             if (!form) return;
-            if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
+            if (typeof SubmitEvent === 'function') {
+                form.dispatchEvent(new SubmitEvent('submit', {
+                    bubbles: true,
+                    cancelable: true,
+                    submitter: ALL_ELEMENTS?.submitButton || null
+                }));
             } else {
                 form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
             }
@@ -1099,10 +1104,8 @@ function renderMarkdownWithFormulas(text) {
             if (saved) {
                 const savedConfig = JSON.parse(saved);
                 let openrouterKey = '';
-                if (savedConfig.apiKeys && typeof savedConfig.apiKeys.openrouter === 'object' && savedConfig.apiKeys.openrouter !== null) {
-                    openrouterKey = Object.values(savedConfig.apiKeys.openrouter)[0] || '';
-                } else if (savedConfig.apiKeys && typeof savedConfig.apiKeys.openrouter === 'string') {
-                    openrouterKey = savedConfig.apiKeys.openrouter;
+                if (savedConfig.apiKeys) {
+                    openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter);
                 }
                 const savedOpenrouterKeys = savedConfig.apiKeys?.openrouter || {};
                 const defaultConfig = {
