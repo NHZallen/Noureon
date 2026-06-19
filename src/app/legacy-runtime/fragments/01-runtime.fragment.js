@@ -674,13 +674,16 @@
             return visibleModels;
         };
         const renderCouncilControls = () => {
-            const inputRoot = ALL_ELEMENTS.inputBarContainer?.querySelector('.max-w-4xl');
-            if (!inputRoot) return;
+            const inputControls = ALL_ELEMENTS.fileInputContainer?.parentElement;
+            if (!inputControls) return;
             let container = document.getElementById('model-council-control');
+            const wasVisible = container?.querySelector('#model-council-popover')?.classList.contains('visible') || false;
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'model-council-control';
-                inputRoot.insertBefore(container, inputRoot.firstChild);
+            }
+            if (container.parentElement !== inputControls || container.previousElementSibling !== ALL_ELEMENTS.fileInputContainer) {
+                ALL_ELEMENTS.fileInputContainer.insertAdjacentElement('afterend', container);
             }
             const conv = getActiveConversation();
             if (!conv) {
@@ -697,6 +700,8 @@
             const statusText = conv.council.enabled
                 ? (validation.ok ? `${texts.ready} · ${selectedParticipants.length} · ${synthesizer?.name || texts.selectSynthesizer}` : validation.message)
                 : texts.disabled;
+            const doneText = i18n[config.uiLanguage]?.done || i18n[config.uiLanguage]?.confirm || '完成';
+            const dotClass = conv.council.enabled ? (validation.ok ? 'ready' : 'warning') : 'off';
             const modelRows = modelList.map(model => {
                 const checked = conv.council.participantModelIds.includes(model.id);
                 const maxed = !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
@@ -721,13 +726,22 @@
             `).join('');
             container.innerHTML = `
                 <div class="model-council-bar ${enabledClass}">
-                    <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="false" title="${escapeHTML(texts.title)}">
+                    <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                        <span>${texts.title}</span>
+                        <span class="council-toggle-label">${texts.title}</span>
+                        <span class="model-council-dot ${dotClass}" aria-hidden="true"></span>
                     </button>
-                    <span class="model-council-status ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(statusText)}</span>
-                    <div id="model-council-popover" class="popover model-council-popover">
+                    <div id="model-council-popover" class="popover model-council-popover ${wasVisible ? 'visible' : ''}">
                         <div class="council-popover-header">
+                            <div>
+                                <h3 class="council-popover-title">${texts.title}</h3>
+                                <p class="model-council-status ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(statusText)}</p>
+                            </div>
+                            <button type="button" id="model-council-close-btn" class="council-popover-close" title="${escapeHTML(doneText)}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                        <div class="council-popover-header compact">
                             <label class="council-enable-row">
                                 <input type="checkbox" id="model-council-enabled" ${conv.council.enabled ? 'checked' : ''}>
                                 <span>${texts.enable}</span>
@@ -750,16 +764,26 @@
                             <span>${texts.rawNotes}</span>
                         </label>
                         <p class="council-validation ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(conv.council.enabled ? validation.message : texts.required)}</p>
+                        <div class="council-popover-footer">
+                            <button type="button" id="model-council-done-btn" class="council-done-btn">${escapeHTML(doneText)}</button>
+                        </div>
                     </div>
                 </div>
             `;
             const popover = container.querySelector('#model-council-popover');
-            container.querySelector('#model-council-toggle-btn').addEventListener('click', () => {
+            const toggleButton = container.querySelector('#model-council-toggle-btn');
+            const closeCouncilPopover = () => {
+                popover.classList.remove('visible');
+                toggleButton.setAttribute('aria-expanded', 'false');
+            };
+            toggleButton.addEventListener('click', () => {
                 const wasVisible = popover.classList.contains('visible');
                 closeAllPopovers();
                 popover.classList.toggle('visible', !wasVisible);
-                container.querySelector('#model-council-toggle-btn').setAttribute('aria-expanded', String(!wasVisible));
+                toggleButton.setAttribute('aria-expanded', String(!wasVisible));
             });
+            container.querySelector('#model-council-close-btn').addEventListener('click', closeCouncilPopover);
+            container.querySelector('#model-council-done-btn').addEventListener('click', closeCouncilPopover);
             container.querySelector('#model-council-enabled').addEventListener('change', async (event) => {
                 conv.council.enabled = event.target.checked;
                 if (conv.council.enabled) seedCouncilParticipants(conv);
