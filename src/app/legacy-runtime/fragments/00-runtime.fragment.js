@@ -671,6 +671,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const COUNCIL_MIN_MODELS = 2;
         const COUNCIL_MAX_MODELS = 5;
         const COUNCIL_RESPONSE_CHAR_LIMIT = 8000;
+        const COUNCIL_RETRY_DELAY_MS = 900;
         const COUNCIL_TEXT = {
             'zh-TW': {
                 title: '模型理事會',
@@ -911,7 +912,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     failed: 'Failed',
                     skippedStatus: 'Skipped',
                     activeVisionNote: 'Only image-capable members will answer this image request.',
-                    comparisonToggle: 'Summarize agreements and differences'
+                    comparisonToggle: 'Summarize agreements and differences',
+                    retrying: 'Retrying once',
+                    councilLocked: 'Council is running; settings are locked until this reply finishes.',
+                    searchManualNotice: 'Council mode does not enable Search automatically. Turn on Search before sending if this question needs current web information.',
+                    searchEnabledNote: 'Search is on: the council will use one shared search packet.'
                 };
             }
             if (config.uiLanguage === 'fr') {
@@ -934,7 +939,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     failed: 'Échec',
                     skippedStatus: 'Ignoré',
                     activeVisionNote: 'Seuls les membres capables de traiter les images répondront à cette demande.',
-                    comparisonToggle: 'Résumer les accords et différences'
+                    comparisonToggle: 'Résumer les accords et différences',
+                    retrying: 'Nouvelle tentative',
+                    councilLocked: 'Le conseil est en cours; les réglages sont verrouillés jusqu’à la fin de la réponse.',
+                    searchManualNotice: 'Le mode conseil n’active pas la recherche automatiquement. Activez Recherche avant l’envoi si la question demande des informations actuelles.',
+                    searchEnabledNote: 'Recherche activée : le conseil utilisera un seul dossier de recherche partagé.'
                 };
             }
             return {
@@ -956,7 +965,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 failed: '失敗',
                 skippedStatus: '略過',
                 activeVisionNote: '這次含圖片，只有支援圖片的理事會回答。',
-                comparisonToggle: '整理共識與差異'
+                comparisonToggle: '整理共識與差異',
+                retrying: '重試一次中',
+                councilLocked: '理事會運作中，回覆完成前不能變更設定。',
+                searchManualNotice: '模型理事會不會自動開啟搜尋；如果問題需要最新資訊，請送出前手動開啟搜尋。',
+                searchEnabledNote: '搜尋已開啟：理事會會共用同一份搜尋資料包。'
             };
         };
         const isVisualUploadedFile = (file) => {
@@ -1038,6 +1051,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let folderToCustomize = null;
         let currentUser = null;
         let abortController = null;
+        let isCouncilRunning = false;
         let isSelectionMode = false;
         let selectedConversationIds = new Set();
         let uploadedFiles = [];

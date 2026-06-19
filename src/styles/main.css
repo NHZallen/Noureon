@@ -2825,6 +2825,33 @@ body.custom-wallpaper-active .input-indicator-item {
     color: var(--text-primary);
 }
 
+.council-mode-tabs button:disabled,
+.council-enable-row input:disabled,
+.council-raw-row input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.council-search-note {
+    margin: 0.55rem 0 0;
+    padding: 0.48rem 0.58rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+.council-search-note.is-on {
+    border-color: color-mix(in srgb, #22c55e 45%, var(--border-color));
+    color: var(--text-primary);
+}
+
+.council-search-note.is-off,
+.council-search-note.is-locked {
+    border-color: color-mix(in srgb, #f59e0b 42%, var(--border-color));
+}
+
 .council-section {
     margin-top: 0.75rem;
 }
@@ -2844,6 +2871,7 @@ body.custom-wallpaper-active .input-indicator-item {
 }
 
 .council-model-row {
+    position: relative;
     gap: 0.55rem;
     min-width: 0;
     padding: 0.5rem;
@@ -2876,17 +2904,39 @@ body.custom-wallpaper-active .input-indicator-item {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .council-model-row strong {
     color: var(--text-primary);
     font-size: 0.84rem;
+    white-space: nowrap;
 }
 
 .council-model-row small {
     color: var(--text-secondary);
     font-size: 0.72rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.council-model-row[data-tooltip]:hover::after,
+.council-model-row[data-tooltip]:focus-within::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 0.35rem;
+    right: 0.35rem;
+    bottom: calc(100% + 0.35rem);
+    z-index: 40;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: var(--bg-color);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+    color: var(--text-primary);
+    font-size: 0.74rem;
+    line-height: 1.45;
+    white-space: pre-line;
 }
 
 .council-model-badges,
@@ -2965,9 +3015,35 @@ body.custom-wallpaper-active .input-indicator-item {
 }
 
 .council-progress-panel {
+    position: relative;
     display: grid;
     gap: 0.6rem;
     min-width: min(28rem, 72vw);
+    overflow: hidden;
+}
+
+.council-progress-orbit {
+    display: flex;
+    gap: 0.22rem;
+    width: fit-content;
+}
+
+.council-progress-orbit span {
+    display: block;
+    width: 1.15rem;
+    height: 0.22rem;
+    border-radius: 999px;
+    background: var(--accent-color, #3b82f6);
+    opacity: 0.35;
+    animation: council-activity-bar 1.2s ease-in-out infinite;
+}
+
+.council-progress-orbit span:nth-child(2) {
+    animation-delay: 0.16s;
+}
+
+.council-progress-orbit span:nth-child(3) {
+    animation-delay: 0.32s;
 }
 
 .council-progress-heading,
@@ -2981,6 +3057,50 @@ body.custom-wallpaper-active .input-indicator-item {
 .council-progress-heading {
     justify-content: space-between;
     color: var(--text-primary);
+    font-weight: 800;
+}
+
+.council-progress-stage {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.18rem 0.48rem;
+    border-radius: 999px;
+    background: var(--active-bg);
+    color: var(--text-primary);
+    font-size: 0.74rem;
+}
+
+.council-progress-time {
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    font-weight: 800;
+}
+
+.council-progress-message {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+.council-progress-note {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.council-progress-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.council-progress-stats span {
+    padding: 0.16rem 0.44rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
     font-weight: 800;
 }
 
@@ -2999,18 +3119,30 @@ body.custom-wallpaper-active .input-indicator-item {
 
 .council-progress-model {
     justify-content: space-between;
+    align-items: flex-start;
     padding: 0.42rem 0.55rem;
     border-radius: 0.5rem;
     background: color-mix(in srgb, var(--input-field-bg) 88%, transparent);
     font-size: 0.78rem;
 }
 
-.council-progress-model-name {
+.council-progress-model-copy {
+    display: grid;
     min-width: 0;
     flex: 1;
+}
+
+.council-progress-model-name {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.council-progress-model-detail {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    line-height: 1.35;
 }
 
 .council-progress-model-status {
@@ -3065,6 +3197,11 @@ body.custom-wallpaper-active .input-indicator-item {
 @keyframes council-pulse {
     0%, 100% { transform: scale(0.9); opacity: 0.65; }
     50% { transform: scale(1.18); opacity: 1; }
+}
+
+@keyframes council-activity-bar {
+    0%, 100% { opacity: 0.25; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-1px); }
 }
 
 @media (max-width: 640px) {

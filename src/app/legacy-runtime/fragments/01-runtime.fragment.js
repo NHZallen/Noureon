@@ -443,12 +443,13 @@
                 const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
                 const texts = getCouncilTexts();
                 const validation = getCouncilValidation(conv);
+                const participantSummary = formatCouncilModelSummary(participants, 2);
                 activeIndicators.set('model-council-indicator', {
                     id: 'model-council-indicator',
                     html: `
                         <span class="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                            <span>${texts.title} · ${council.mode === 'deliberation' ? texts.deliberation : texts.consensus} · ${participants.length}/${COUNCIL_MAX_MODELS}${synthesizer ? ` · ${synthesizer.name}` : ''}</span>
+                            <span>${texts.title} · ${council.mode === 'deliberation' ? texts.deliberation : texts.consensus} · ${escapeHTML(participantSummary || `${participants.length}/${COUNCIL_MAX_MODELS}`)}${synthesizer ? ` → ${escapeHTML(synthesizer.name)}` : ''}</span>
                         </span>
                         <button id="close-model-council-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${escapeHTML(validation.message || texts.title)}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -475,13 +476,19 @@
             });
         
             activeIndicators.forEach((indicatorData, key) => {
-                if (!document.getElementById(indicatorData.id)) {
+                const existingIndicator = document.getElementById(indicatorData.id);
+                if (!existingIndicator) {
                     const indicator = document.createElement('div');
                     indicator.id = indicatorData.id;
                     indicator.className = 'input-indicator-item flex items-center justify-between text-sm font-medium px-2 py-1 rounded-full enter';
                     indicator.innerHTML = indicatorData.html;
+                    indicator.dataset.indicatorHtml = indicatorData.html;
                     container.appendChild(indicator);
                     indicatorData.eventListener(indicator);
+                } else if (existingIndicator.dataset.indicatorHtml !== indicatorData.html) {
+                    existingIndicator.innerHTML = indicatorData.html;
+                    existingIndicator.dataset.indicatorHtml = indicatorData.html;
+                    indicatorData.eventListener(existingIndicator);
                 }
             });
             
@@ -705,6 +712,8 @@
             const selectedParticipants = getModelsByIds(conv.council.participantModelIds);
             const synthesizer = MODELS.find(model => model.id === conv.council.synthesizerModelId);
             const participantSummary = formatCouncilModelSummary(selectedParticipants, 2);
+            const isLocked = isCouncilRunning && conv.council.enabled;
+            const lockAttr = isLocked ? 'disabled' : '';
             const enabledClass = conv.council.enabled ? 'is-enabled' : '';
             const statusText = conv.council.enabled
                 ? (validation.ok ? `${texts.ready} · ${selectedParticipants.length} · ${synthesizer?.name || texts.selectSynthesizer}` : validation.message)
@@ -714,6 +723,17 @@
             const priceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
             const visionLabel = config.uiLanguage === 'en' ? 'Vision' : '視覺';
             const searchLabel = i18n[config.uiLanguage]?.search || '搜尋';
+            const providerLabel = config.uiLanguage === 'en' ? 'Provider' : '供應商';
+            const abilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
+            const noExtraAbilityLabel = config.uiLanguage === 'en' ? 'Text / file' : '文字 / 文件';
+            const makeModelTooltip = (model) => {
+                const abilities = [
+                    noExtraAbilityLabel,
+                    modelSupportsVision(model) ? visionLabel : '',
+                    modelSupportsWebSearch(model) ? searchLabel : ''
+                ].filter(Boolean).join(' · ');
+                return `${model.name}\n${providerLabel}: ${model.provider}\n${abilityLabel}: ${abilities}\n${priceLabel}: ${getModelPriceLabel(model)}`;
+            };
             const createCouncilModelMetaHTML = (model) => `
                 <span class="council-model-badges">
                     ${modelSupportsVision(model) ? `<span class="council-capability-badge" title="${escapeHTML(visionLabel)}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>${escapeHTML(visionLabel)}</span>` : ''}
@@ -724,9 +744,11 @@
             const modelRows = modelList.map(model => {
                 const checked = conv.council.participantModelIds.includes(model.id);
                 const maxed = !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
+                const disabled = isLocked || maxed;
+                const tooltip = makeModelTooltip(model);
                 return `
-                    <label class="council-model-row ${checked ? 'selected' : ''} ${maxed ? 'is-disabled' : ''}">
-                        <input type="checkbox" data-council-participant="${escapeHTML(model.id)}" ${checked ? 'checked' : ''} ${maxed ? 'disabled' : ''}>
+                    <label class="council-model-row ${checked ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}" data-tooltip="${escapeHTML(tooltip)}">
+                        <input type="checkbox" data-council-participant="${escapeHTML(model.id)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
                         <span>
                             <strong>${escapeHTML(model.name)}</strong>
                             ${createCouncilModelMetaHTML(model)}
@@ -734,17 +756,20 @@
                     </label>
                 `;
             }).join('');
-            const synthesizerRows = modelList.map(model => `
-                <label class="council-model-row ${conv.council.synthesizerModelId === model.id ? 'selected' : ''}">
-                    <input type="radio" name="council-synthesizer" data-council-synthesizer="${escapeHTML(model.id)}" ${conv.council.synthesizerModelId === model.id ? 'checked' : ''}>
+            const synthesizerRows = modelList.map(model => {
+                const tooltip = makeModelTooltip(model);
+                return `
+                <label class="council-model-row ${conv.council.synthesizerModelId === model.id ? 'selected' : ''} ${isLocked ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}" data-tooltip="${escapeHTML(tooltip)}">
+                    <input type="radio" name="council-synthesizer" data-council-synthesizer="${escapeHTML(model.id)}" ${conv.council.synthesizerModelId === model.id ? 'checked' : ''} ${lockAttr}>
                     <span>
                         <strong>${escapeHTML(model.name)}</strong>
                         ${createCouncilModelMetaHTML(model)}
                     </span>
                 </label>
-            `).join('');
+            `;
+            }).join('');
             container.innerHTML = `
-                <div class="model-council-bar ${enabledClass}">
+                <div class="model-council-bar ${enabledClass} ${isLocked ? 'is-locked' : ''}">
                     <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
                         <span class="council-toggle-label">${texts.title}</span>
@@ -763,14 +788,16 @@
                         </div>
                         <div class="council-popover-header compact">
                             <label class="council-enable-row">
-                                <input type="checkbox" id="model-council-enabled" ${conv.council.enabled ? 'checked' : ''}>
+                                <input type="checkbox" id="model-council-enabled" ${conv.council.enabled ? 'checked' : ''} ${lockAttr}>
                                 <span>${texts.enable}</span>
                             </label>
                             <div class="council-mode-tabs">
-                                <button type="button" class="${conv.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus">${texts.consensus}</button>
-                                <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation">${texts.deliberation}</button>
+                                <button type="button" class="${conv.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus" ${lockAttr}>${texts.consensus}</button>
+                                <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${lockAttr}>${texts.deliberation}</button>
                             </div>
                         </div>
+                        <p class="council-search-note ${conv.isWebSearchEnabled ? 'is-on' : 'is-off'}">${escapeHTML(conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : runtimeTexts.searchManualNotice)}</p>
+                        ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
                         <div class="council-section">
                             <div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${COUNCIL_MAX_MODELS})</div>
                             <div class="council-model-list">${modelRows}</div>
@@ -780,11 +807,11 @@
                             <div class="council-model-list">${synthesizerRows}</div>
                         </div>
                         <label class="council-raw-row">
-                            <input type="checkbox" id="model-council-show-raw" ${conv.council.showRawResponses ? 'checked' : ''}>
+                            <input type="checkbox" id="model-council-show-raw" ${conv.council.showRawResponses ? 'checked' : ''} ${lockAttr}>
                             <span>${texts.rawNotes}</span>
                         </label>
                         <label class="council-raw-row">
-                            <input type="checkbox" id="model-council-show-comparison" ${conv.council.showComparisonTable ? 'checked' : ''}>
+                            <input type="checkbox" id="model-council-show-comparison" ${conv.council.showComparisonTable ? 'checked' : ''} ${lockAttr}>
                             <span>${runtimeTexts.comparisonToggle}</span>
                         </label>
                         <p class="council-validation ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(conv.council.enabled ? validation.message : texts.required)}</p>
@@ -809,18 +836,35 @@
             container.querySelector('#model-council-close-btn').addEventListener('click', closeCouncilPopover);
             container.querySelector('#model-council-done-btn').addEventListener('click', closeCouncilPopover);
             container.querySelector('#model-council-enabled').addEventListener('change', async (event) => {
+                if (isCouncilRunning) {
+                    showNotification(runtimeTexts.councilLocked, 'warning');
+                    renderCouncilControls();
+                    return;
+                }
                 conv.council.enabled = event.target.checked;
                 if (conv.council.enabled) seedCouncilParticipants(conv);
                 await persistCouncilConfig(conv);
+                if (conv.council.enabled && !conv.isWebSearchEnabled) {
+                    showNotification(runtimeTexts.searchManualNotice, 'warning');
+                }
             });
             container.querySelectorAll('[data-council-mode]').forEach(button => {
                 button.addEventListener('click', async () => {
+                    if (isCouncilRunning) {
+                        showNotification(runtimeTexts.councilLocked, 'warning');
+                        return;
+                    }
                     conv.council.mode = button.dataset.councilMode;
                     await persistCouncilConfig(conv);
                 });
             });
             container.querySelectorAll('[data-council-participant]').forEach(input => {
                 input.addEventListener('change', async () => {
+                    if (isCouncilRunning) {
+                        showNotification(runtimeTexts.councilLocked, 'warning');
+                        renderCouncilControls();
+                        return;
+                    }
                     const modelId = input.dataset.councilParticipant;
                     const nextIds = new Set(conv.council.participantModelIds);
                     if (input.checked) {
@@ -839,16 +883,31 @@
             });
             container.querySelectorAll('[data-council-synthesizer]').forEach(input => {
                 input.addEventListener('change', async () => {
+                    if (isCouncilRunning) {
+                        showNotification(runtimeTexts.councilLocked, 'warning');
+                        renderCouncilControls();
+                        return;
+                    }
                     if (!input.checked) return;
                     conv.council.synthesizerModelId = input.dataset.councilSynthesizer;
                     await persistCouncilConfig(conv);
                 });
             });
             container.querySelector('#model-council-show-raw').addEventListener('change', async (event) => {
+                if (isCouncilRunning) {
+                    showNotification(runtimeTexts.councilLocked, 'warning');
+                    renderCouncilControls();
+                    return;
+                }
                 conv.council.showRawResponses = event.target.checked;
                 await persistCouncilConfig(conv);
             });
             container.querySelector('#model-council-show-comparison').addEventListener('change', async (event) => {
+                if (isCouncilRunning) {
+                    showNotification(runtimeTexts.councilLocked, 'warning');
+                    renderCouncilControls();
+                    return;
+                }
                 conv.council.showComparisonTable = event.target.checked;
                 await persistCouncilConfig(conv);
             });
@@ -858,6 +917,32 @@
                 return `<div class="council-progress-panel"><div class="council-progress-heading">${escapeHTML(progress)}</div></div>`;
             }
             const runtimeTexts = getCouncilRuntimeTexts();
+            const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
+            const stageLabels = {
+                search: runtimeTexts.sharedSearch,
+                firstRound: config.uiLanguage === 'en' ? 'Independent round' : '第一輪獨立回答',
+                deliberation: config.uiLanguage === 'en' ? 'Second-round discussion' : '第二輪討論',
+                synthesis: config.uiLanguage === 'en' ? 'Synthesis' : '統整結論',
+                completed: runtimeTexts.completed
+            };
+            const stageNotes = {
+                search: config.uiLanguage === 'en'
+                    ? 'Gathering one shared research packet so every member sees the same evidence.'
+                    : '正在建立同一份共同搜尋資料，讓所有理事看同樣的依據。',
+                firstRound: config.uiLanguage === 'en'
+                    ? 'Members are answering independently. The page is alive; slower models may still be thinking.'
+                    : '各模型正在獨立作答，畫面沒有卡住，較慢的模型可能還在思考。',
+                deliberation: config.uiLanguage === 'en'
+                    ? 'Members are comparing reasons without blindly following the majority.'
+                    : '理事正在比較理由，並避免只因多數意見就從眾。',
+                synthesis: config.uiLanguage === 'en'
+                    ? 'The synthesizer is checking claims and turning the council into one useful answer.'
+                    : '統整模型正在檢查主張，把理事會結果整理成可用答案。',
+                completed: config.uiLanguage === 'en' ? 'Council finished.' : '理事會完成。'
+            };
+            const modelCountLabel = config.uiLanguage === 'en' ? 'models' : '模型';
+            const doneCountLabel = config.uiLanguage === 'en' ? 'done' : '完成';
+            const runningCountLabel = config.uiLanguage === 'en' ? 'running' : '進行中';
             const statusText = {
                 pending: runtimeTexts.pending,
                 running: runtimeTexts.running,
@@ -874,21 +959,37 @@
             const modelRows = (progress.modelStates || []).map(model => `
                 <div class="council-progress-model ${escapeHTML(model.status)}">
                     <span class="council-progress-dot ${escapeHTML(model.status)}"></span>
-                    <span class="council-progress-model-name">${escapeHTML(model.modelName)}</span>
+                    <span class="council-progress-model-copy">
+                        <span class="council-progress-model-name">${escapeHTML(model.modelName)}</span>
+                        <span class="council-progress-model-detail">${escapeHTML(model.detail || statusText[model.status] || model.status)}</span>
+                    </span>
                     <span class="council-progress-model-status">${escapeHTML(statusText[model.status] || model.status)}</span>
                 </div>
             `).join('');
+            const doneCount = (progress.modelStates || []).filter(model => model.status === 'done').length;
+            const runningCount = (progress.modelStates || []).filter(model => model.status === 'running').length;
             return `
                 <div class="council-progress-panel">
+                    <div class="council-progress-orbit" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                    </div>
                     <div class="council-progress-heading">
-                        <span>${escapeHTML(progress.message || runtimeTexts.running)}</span>
-                        <span>${escapeHTML(String(progress.activeParticipants || 0))}/${escapeHTML(String(progress.totalParticipants || 0))}</span>
+                        <span class="council-progress-stage">${escapeHTML(stageLabels[progress.stage] || runtimeTexts.running)}</span>
+                        <span class="council-progress-time">${elapsedSeconds}s</span>
+                    </div>
+                    <div class="council-progress-message">${escapeHTML(progress.message || runtimeTexts.running)}</div>
+                    <div class="council-progress-note">${escapeHTML(stageNotes[progress.stage] || stageNotes.firstRound)}</div>
+                    <div class="council-progress-stats">
+                        <span>${escapeHTML(String(progress.activeParticipants || 0))}/${escapeHTML(String(progress.totalParticipants || 0))} ${modelCountLabel}</span>
+                        <span>${escapeHTML(String(doneCount))} ${doneCountLabel}</span>
+                        <span>${escapeHTML(String(runningCount))} ${runningCountLabel}</span>
                     </div>
                     ${searchHTML}
                     <div class="council-progress-models">${modelRows}</div>
                 </div>
             `;
         };
+        const isCouncilDeferredSectionVisible = (text = '') => /<details\b|共識與差異整理|模型理事會紀錄|Model council record|Compte rendu du conseil/i.test(String(text || ''));
         const renderModelSwitcher = () => {
     const conv = getActiveConversation();
     ALL_ELEMENTS.modelSwitcherContainer.innerHTML = '';
@@ -1479,6 +1580,9 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                 renderCouncilControls();
                 return;
             }
+            if (isCouncilEnabled(conv) && !conv.isWebSearchEnabled) {
+                showNotification(getCouncilRuntimeTexts().searchManualNotice, 'warning');
+            }
             const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
             addMessageToUI(userMessageObject, conv.messages.length, true);
             conv.lastUpdatedAt = new Date().toISOString();
@@ -1494,7 +1598,7 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                 }
                 await saveAppData();
             }
-            if (config.enableAutoWebSearch && conv.provider === 'gemini' && !conv.isWebSearchEnabled) {
+            if (!isCouncilEnabled(conv) && config.enableAutoWebSearch && conv.provider === 'gemini' && !conv.isWebSearchEnabled) {
                 try {
                     const needsSearch = await shouldPerformWebSearch(userMessage);
                     if (needsSearch) {
@@ -1520,6 +1624,9 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
 
                 // 1. 先等待 API 回應完全結束，獲取完整文字
                 if (isCouncilEnabled(conv)) {
+                    isCouncilRunning = true;
+                    renderCouncilControls();
+                    renderInputIndicators();
                     const councilResult = await runModelCouncil(
                         userParts,
                         abortController.signal,
@@ -1572,7 +1679,8 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
 
                                 const chatContainer = ALL_ELEMENTS.chatContainer;
                                 const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
-                                if (isNearBottom) {
+                                const pauseCouncilAutoScroll = finalAiMessage.council && isCouncilDeferredSectionVisible(currentText);
+                                if (!pauseCouncilAutoScroll && isNearBottom) {
                                     chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
                                 }
 
@@ -1611,7 +1719,10 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                 }
             } finally {
                 // ... finally 區塊的程式碼保持不變 ...
+                isCouncilRunning = false;
                 abortController = null;
                 updateSubmitButtonState(false);
                 updateInputState();
+                renderCouncilControls();
+                renderInputIndicators();
                 const lastMessageDiv = ALL_ELEMENTS.messageList.lastElementChild;

@@ -366,6 +366,41 @@
             const value = String(text || '').trim();
             return value.length > limit ? `${value.slice(0, limit)}\n\n[truncated]` : value;
         };
+        const waitCouncilRetryDelay = (signal) => new Promise((resolve, reject) => {
+            if (signal?.aborted) {
+                reject(new DOMException('Aborted', 'AbortError'));
+                return;
+            }
+            const cleanup = () => signal?.removeEventListener('abort', onAbort);
+            const timer = setTimeout(() => {
+                cleanup();
+                resolve();
+            }, COUNCIL_RETRY_DELAY_MS);
+            const onAbort = () => {
+                clearTimeout(timer);
+                cleanup();
+                reject(new DOMException('Aborted', 'AbortError'));
+            };
+            signal?.addEventListener('abort', onAbort, { once: true });
+        });
+        const streamCouncilApiCallWithRetry = async (parts, onChunk, signal, isWebSearchForced = false, requestOptions = {}) => {
+            const { onRetry, ...streamOptions } = requestOptions;
+            try {
+                return await streamApiCall(parts, onChunk, signal, isWebSearchForced, streamOptions);
+            } catch (firstError) {
+                if (firstError?.name === 'AbortError' || signal?.aborted) throw firstError;
+                if (typeof onRetry === 'function') onRetry(firstError);
+                await waitCouncilRetryDelay(signal);
+                try {
+                    return await streamApiCall(parts, onChunk, signal, isWebSearchForced, streamOptions);
+                } catch (secondError) {
+                    if (secondError?.name === 'AbortError' || signal?.aborted) throw secondError;
+                    const error = new Error(`${secondError?.message || 'API request failed'} (retried once; first attempt: ${firstError?.message || 'unknown error'})`);
+                    error.name = secondError?.name || 'Error';
+                    throw error;
+                }
+            }
+        };
         const formatRecentConversationContext = (conv) => {
             if (!conv?.messages?.length) return '';
             return conv.messages
@@ -388,7 +423,9 @@ You are preparing a shared web research packet for a multi-model council.
 User request:
 ${extractTextFromParts(parts)}
 
-Search the web once, then produce a concise evidence packet for the council:
+Search the web once, then produce a concise evidence packet for the council.
+This packet is system-generated council context, not user-provided material.
+- Label it as shared council research context.
 - Key current facts and dates
 - Important source names or URLs when available
 - Disagreements, uncertainty, and freshness risks
@@ -400,7 +437,7 @@ Do not answer the user directly. Prepare shared context only.
             if (!sharedSearchPacket?.trim()) return parts;
             return [
                 {
-                    text: `# Shared council search packet\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
+                    text: `# Shared council search packet (system-generated, not user-provided)\nUse this as common research context. Do not say or imply that the user provided this packet.\n\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
                 },
                 ...parts
             ];
@@ -408,7 +445,7 @@ Do not answer the user directly. Prepare shared context only.
         const buildCouncilComparisonInstruction = (enabled) => enabled ? `
 
 Additional output requirement:
-Before the final answer, include a concise collapsed "共識與差異整理" section using this HTML wrapper:
+After the final answer, include a concise collapsed "共識與差異整理" section using this HTML wrapper:
 <details class="council-collapse"><summary>共識與差異整理</summary>
 ...your Markdown table and notes...
 </details>
@@ -421,13 +458,18 @@ Use a Markdown table when it helps. Cover:
         const buildCouncilMemberInstruction = (mode) => `
 你是「模型理事會」中的獨立成員。請先獨立思考，不要假設其他模型會補足你的答案。
 請提供清楚、可驗證、可執行的回答；若資訊不足，請明確標出不確定處。
+如果你看到「Shared council search packet」，那是系統為理事會產生的共同搜尋資料，不是使用者提供的資料；引用時請稱為「共同搜尋資料」或「搜尋資料包」。
 目前模式：${mode === 'deliberation' ? '討論模式，第一輪先提出自己的最佳答案。' : '共識模式，提出自己的最佳答案供統整模型比較。'}
 `;
-        const buildCouncilDeliberationPrompt = (originalParts, firstRoundResults, currentModelName) => `
+        const buildSharedSearchSection = (sharedSearchPacket = '') => sharedSearchPacket?.trim()
+            ? `\n# 理事會共同搜尋資料（系統產生，不是使用者提供）\n${truncateCouncilText(sharedSearchPacket, 5000)}\n`
+            : '';
+        const buildCouncilDeliberationPrompt = (originalParts, sharedSearchPacket, firstRoundResults, currentModelName) => `
 你正在參與模型理事會第二輪討論。以下是使用者問題與其他模型第一輪答案。
 
 # 使用者問題
 ${extractTextFromParts(originalParts)}
+${buildSharedSearchSection(sharedSearchPacket)}
 
 # 第一輪答案
 ${formatCouncilResponses(firstRoundResults)}
@@ -437,12 +479,14 @@ ${formatCouncilResponses(firstRoundResults)}
 - 指出你同意的共識。
 - 指出你認為有問題、缺漏或需要修正的地方。
 - 給出你第二輪後的最佳答案。
+- 不要把「理事會共同搜尋資料」稱為使用者提供的資料。
 `;
-        const buildCouncilSynthesisPrompt = (conv, originalParts, firstRoundResults, finalRoundResults, failures, mode) => `
+        const buildCouncilSynthesisPrompt = (conv, originalParts, sharedSearchPacket, firstRoundResults, finalRoundResults, failures, mode) => `
 你是使用者指定的「模型理事會統整模型」。請閱讀多個模型的回答，產生給使用者的最終答案。
 
 # 使用者問題
 ${extractTextFromParts(originalParts)}
+${buildSharedSearchSection(sharedSearchPacket)}
 
 ${formatRecentConversationContext(conv) ? `# 近期對話脈絡\n${formatRecentConversationContext(conv)}\n` : ''}
 # 理事會模式
@@ -453,11 +497,14 @@ ${formatCouncilResponses(finalRoundResults)}
 
 ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelName}: ${item.error}`).join('\n')}\n` : ''}
 # 統整要求
-- 直接回答使用者，不要只摘要模型們說了什麼。
+- 先回應使用者的核心問題，但不要只給短結論或簡答版；不要用「直接結論」這類像速答的標題作開場。
+- 除非問題本身非常簡單，請至少包含：判斷摘要、主要依據與推理、重要分歧或不確定性、風險提示或後續觀察點。
 - 優先採納有明確理由、相互印證、符合使用者需求的內容。
 - 若模型之間有重要分歧，請簡短說明分歧與你的取捨。
 - 若答案存在風險或不確定性，請明確標出。
+- 若使用共同搜尋資料，請稱為「共同搜尋資料」或「搜尋資料包」，不要寫成「你提供的資料」。
 - 使用自然、清楚、可執行的語氣。
+- 不要用「如果你要，我可以...」作為結尾。
 `;
         const buildCouncilAppendix = (firstRoundResults, finalRoundResults, failures, mode) => {
             const texts = getCouncilTexts();
@@ -495,18 +542,45 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
             const searchState = conv.isWebSearchEnabled
                 ? { status: 'pending', label: runtimeTexts.sharedSearch, detail: runtimeTexts.pending }
                 : null;
+            const startedAt = Date.now();
+            let progressTick = 0;
             const progress = (stage, message = stage, extra = {}) => {
                 if (typeof onProgress !== 'function') return;
                 onProgress({
                     stage,
                     message,
                     mode,
+                    tick: ++progressTick,
+                    elapsedMs: Date.now() - startedAt,
+                    searchEnabled: Boolean(searchState),
                     totalParticipants: participants.length,
                     activeParticipants: activeParticipants.length,
                     modelStates: Array.from(modelStates.values()),
                     search: searchState ? { ...searchState } : null,
                     ...extra
                 });
+            };
+            const createCouncilStreamTracker = (state, stage, modelName) => {
+                let receivedChars = 0;
+                let lastUpdateAt = 0;
+                return (chunk = '') => {
+                    receivedChars += String(chunk || '').length;
+                    const now = Date.now();
+                    if (!state || now - lastUpdateAt < 850) return;
+                    lastUpdateAt = now;
+                    const chunkUnit = config.uiLanguage === 'en' ? 'chunks' : '段內容';
+                    state.detail = `${runtimeTexts.running} · ${Math.max(1, Math.round(receivedChars / 100))}${chunkUnit}`;
+                    progress(stage, `${runtimeTexts.running}: ${modelName}`);
+                };
+            };
+            const createCouncilStageTracker = (stage, messageBuilder) => {
+                let lastUpdateAt = 0;
+                return () => {
+                    const now = Date.now();
+                    if (now - lastUpdateAt < 850) return;
+                    lastUpdateAt = now;
+                    progress(stage, typeof messageBuilder === 'function' ? messageBuilder() : messageBuilder);
+                };
             };
 
             if (activeParticipants.length === 0) {
@@ -525,9 +599,13 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                 searchState.detail = runtimeTexts.searchRunning;
                 progress('search', runtimeTexts.searchRunning);
                 try {
-                    sharedSearchPacket = await streamApiCall(
+                    const searchStreamTracker = createCouncilStageTracker('search', () => runtimeTexts.searchRunning);
+                    sharedSearchPacket = await streamCouncilApiCallWithRetry(
                         [{ text: buildCouncilSharedSearchPrompt(parts) }],
-                        () => {},
+                        () => {
+                            searchState.detail = runtimeTexts.running;
+                            searchStreamTracker();
+                        },
                         signal,
                         false,
                         {
@@ -535,7 +613,11 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                             historyForApi: [],
                             forceWebSearch: true,
                             ignoreConversationWebSearch: true,
-                            additionalSystemInstruction: 'Prepare shared web research context for the council. Do not answer the user directly.'
+                            additionalSystemInstruction: 'Prepare shared web research context for the council. Do not answer the user directly.',
+                            onRetry: () => {
+                                searchState.detail = runtimeTexts.retrying;
+                                progress('search', `${runtimeTexts.searchRunning} · ${runtimeTexts.retrying}`);
+                            }
                         }
                     );
                     searchState.status = 'done';
@@ -557,15 +639,21 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                     state.detail = runtimeTexts.running;
                     progress('firstRound', `${runtimeTexts.firstRound}: ${modelInfo.name}`);
                 }
-                const text = await streamApiCall(
+                const text = await streamCouncilApiCallWithRetry(
                     councilParts,
-                    () => {},
+                    createCouncilStreamTracker(state, 'firstRound', modelInfo.name),
                     signal,
                     false,
                     {
                         modelInfo,
                         ignoreConversationWebSearch: true,
-                        additionalSystemInstruction: buildCouncilMemberInstruction(mode)
+                        additionalSystemInstruction: buildCouncilMemberInstruction(mode),
+                        onRetry: () => {
+                            if (state) {
+                                state.detail = runtimeTexts.retrying;
+                                progress('firstRound', `${runtimeTexts.retrying}: ${modelInfo.name}`);
+                            }
+                        }
                     }
                 );
                 if (state) {
@@ -600,7 +688,11 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                 }
             });
             if (firstRoundResults.length === 0) {
-                throw new Error(`${texts.title}: all participant models failed.`);
+                const failureSummary = failures
+                    .filter(item => !item.skipped)
+                    .map(item => `${item.modelName}: ${item.error}`)
+                    .join('；');
+                throw new Error(`${texts.title}: all participant models failed after one retry.${failureSummary ? ` ${failureSummary}` : ''}`);
             }
 
             let finalRoundResults = firstRoundResults;
@@ -614,21 +706,27 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                         state.detail = runtimeTexts.deliberation;
                         progress('deliberation', `${runtimeTexts.deliberation}: ${result.modelName}`);
                     }
-                    const text = await streamApiCall(
+                    const text = await streamCouncilApiCallWithRetry(
                         [{
-                            text: `${buildCouncilDeliberationPrompt(councilParts, firstRoundResults, result.modelName)}
+                            text: `${buildCouncilDeliberationPrompt(parts, sharedSearchPacket, firstRoundResults, result.modelName)}
 
 Important anti-conformity rule:
 Do not change your judgment merely because most other models disagree. Only revise your position when another model provides clear evidence or stronger reasoning. If you keep a minority view, state the reason clearly.`
                         }],
-                        () => {},
+                        createCouncilStreamTracker(state, 'deliberation', result.modelName),
                         signal,
                         false,
                         {
                             modelInfo,
                             historyForApi: [],
                             ignoreConversationWebSearch: true,
-                            additionalSystemInstruction: '你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。'
+                            additionalSystemInstruction: '你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把共同搜尋資料稱為使用者提供的資料。',
+                            onRetry: () => {
+                                if (state) {
+                                    state.detail = runtimeTexts.retrying;
+                                    progress('deliberation', `${runtimeTexts.retrying}: ${result.modelName}`);
+                                }
+                            }
                         }
                     );
                     if (state) {
@@ -657,24 +755,27 @@ Do not change your judgment merely because most other models disagree. Only revi
             }
 
             progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name}`);
-            const synthesisPrompt = buildCouncilSynthesisPrompt(conv, councilParts, firstRoundResults, finalRoundResults, failures, mode);
+            const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, sharedSearchPacket, firstRoundResults, finalRoundResults, failures, mode);
             const synthesisInstruction = `You are the council synthesizer.
 Before output, internally compare the core claims from each model using these criteria: correctness, completeness, actionability, fit to the user's question, risk disclosure, and whether a claim is unverified.
 For each important claim, judge whether it is supported by multiple models, has clear reasoning, needs external verification, or could mislead the user.
-Only keep content that passes this check in the final answer.${buildCouncilComparisonInstruction(council.showComparisonTable)}`;
+Only keep content that passes this check in the final answer.
+Do not refer to the shared council search packet as material provided by the user.
+Avoid overly brief answers: the final response should be complete enough for the user's decision unless the question is trivial.${buildCouncilComparisonInstruction(council.showComparisonTable)}`;
             let finalText = '';
             let synthesisError = null;
             try {
-                finalText = await streamApiCall(
+                finalText = await streamCouncilApiCallWithRetry(
                     [{ text: synthesisPrompt }],
-                    () => {},
+                    createCouncilStageTracker('synthesis', () => `${runtimeTexts.synthesis}: ${synthesizer.name}`),
                     signal,
                     false,
                     {
                         modelInfo: synthesizer,
                         historyForApi: [],
                         ignoreConversationWebSearch: true,
-                        additionalSystemInstruction: synthesisInstruction
+                        additionalSystemInstruction: synthesisInstruction,
+                        onRetry: () => progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name} · ${runtimeTexts.retrying}`)
                     }
                 );
             } catch (error) {
