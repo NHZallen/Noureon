@@ -344,7 +344,8 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             document.addEventListener('click', (e) => {
                 const targets = [
                     ALL_ELEMENTS.modelSwitcherContainer,
-                    ALL_ELEMENTS.fileInputContainer
+                    ALL_ELEMENTS.fileInputContainer,
+                    document.getElementById('model-council-control')
                 ];
                 let clickedInsidePopover = false;
                 document.querySelectorAll('.popover.visible').forEach(popover => {
@@ -353,6 +354,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 const clickedOnPopoverTrigger =
                     ALL_ELEMENTS.modelSwitcherContainer.contains(e.target) ||
                     ALL_ELEMENTS.fileInputContainer.contains(e.target) ||
+                    document.getElementById('model-council-control')?.contains(e.target) ||
                     e.target.closest('.chat-options-btn') ||
                     e.target.closest('.astras-options-btn') ||
                     e.target.closest('.folder-options-btn');

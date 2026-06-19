@@ -92,9 +92,9 @@
             const coverageRatio = score / keywords.length;
             return score * (1 + coverageRatio);
         }
-        async function streamApiCall(parts, onChunk, signal, isWebSearchForced = false) {
+        async function streamApiCall(parts, onChunk, signal, isWebSearchForced = false, requestOptions = {}) {
             const conv = getActiveConversation();
-            const modelInfo = normalizeConversationModel(conv);
+            const modelInfo = requestOptions.modelInfo || normalizeConversationModel(conv);
             if (!modelInfo) throw new Error(`找不到模型設定: ${conv.model}`);
             
             const { provider, id: modelId } = modelInfo;
@@ -107,8 +107,9 @@
             if (!apiKey) throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
 
 
-            const historyForApi = conv.messages.slice(0, -1);
-            const currentMessageForApi = { role: 'user', parts: parts };
+            const historyForApi = requestOptions.historyForApi || conv.messages.slice(0, -1);
+            const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts: parts };
+            const generationConfig = requestOptions.genConfig || conv.genConfig || getDefaultGenConfig();
             let url, payload, headers;
             let systemInstruction = null;
             let baseInstructionText = '';
@@ -156,6 +157,15 @@
                     systemInstruction = { parts: [{ text: memoryPrompt }] };
                 }
             }
+            if (requestOptions.additionalSystemInstruction) {
+                if (systemInstruction && systemInstruction.parts[0].text) {
+                    systemInstruction.parts[0].text += `\n\n${requestOptions.additionalSystemInstruction}`;
+                } else if (systemInstruction) {
+                    systemInstruction.parts.push({ text: requestOptions.additionalSystemInstruction });
+                } else {
+                    systemInstruction = { parts: [{ text: requestOptions.additionalSystemInstruction }] };
+                }
+            }
 
 
             if (provider === 'gemini') {
@@ -163,15 +173,15 @@
                 payload = {
                     contents: cleanGeminiHistory([...historyForApi, currentMessageForApi]),
                     generationConfig: {
-                        ...(conv.genConfig.temperature !== null && { temperature: conv.genConfig.temperature }),
-                        ...(conv.genConfig.topP !== null && { topP: conv.genConfig.topP }),
-                        ...(conv.genConfig.maxTokens !== null && { maxOutputTokens: conv.genConfig.maxTokens }),
+                        ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+                        ...(generationConfig.topP !== null && { topP: generationConfig.topP }),
+                        ...(generationConfig.maxTokens !== null && { maxOutputTokens: generationConfig.maxTokens }),
                     }
                 };
                 if (systemInstruction) {
                     payload.systemInstruction = systemInstruction;
                 }
-                if (conv.isWebSearchEnabled || isWebSearchForced) {
+                if (conv.isWebSearchEnabled || isWebSearchForced || requestOptions.forceWebSearch) {
                     payload.tools = [{"googleSearch": {}}];
                 }
                 headers = { 'Content-Type': 'application/json' };
@@ -243,7 +253,7 @@
 
 
                 const plugins = [];
-                if (conv.isWebSearchEnabled || isWebSearchForced) {
+                if (conv.isWebSearchEnabled || isWebSearchForced || requestOptions.forceWebSearch) {
                     plugins.push({ id: 'web' });
                 }
                 if (hasOpenRouterFileAttachment) {
@@ -259,9 +269,9 @@
                     model: modelId,
                     messages,
                     stream: true,
-                    ...(conv.genConfig.temperature !== null && { temperature: conv.genConfig.temperature }),
-                    ...(conv.genConfig.topP !== null && { top_p: conv.genConfig.topP }),
-                    ...(conv.genConfig.maxTokens !== null && { max_tokens: conv.genConfig.maxTokens }),
+                    ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+                    ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
+                    ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens }),
                 };
                 if (plugins.length > 0) {
                     payload.plugins = plugins;
@@ -345,6 +355,198 @@
                 }
             }
             return fullText;
+        }
+        const extractTextFromParts = (parts = []) => parts
+            .map(part => part.text || (part.inlineData ? `[${part.inlineData.name || part.inlineData.mimeType || 'attachment'}]` : ''))
+            .filter(Boolean)
+            .join('\n');
+        const truncateCouncilText = (text = '', limit = COUNCIL_RESPONSE_CHAR_LIMIT) => {
+            const value = String(text || '').trim();
+            return value.length > limit ? `${value.slice(0, limit)}\n\n[truncated]` : value;
+        };
+        const formatRecentConversationContext = (conv) => {
+            if (!conv?.messages?.length) return '';
+            return conv.messages
+                .slice(Math.max(0, conv.messages.length - 8), -1)
+                .map(message => {
+                    const role = message.role === 'model' ? 'assistant' : 'user';
+                    return `${role}: ${truncateCouncilText(extractTextFromParts(message.parts || []), 1200)}`;
+                })
+                .filter(line => !line.endsWith(': '))
+                .join('\n\n');
+        };
+        const formatCouncilResponses = (results = []) => results.map(result => `
+### ${result.modelName}
+
+${truncateCouncilText(result.finalText || result.roundTwo || result.roundOne)}
+`).join('\n');
+        const buildCouncilMemberInstruction = (mode) => `
+你是「模型理事會」中的獨立成員。請先獨立思考，不要假設其他模型會補足你的答案。
+請提供清楚、可驗證、可執行的回答；若資訊不足，請明確標出不確定處。
+目前模式：${mode === 'deliberation' ? '討論模式，第一輪先提出自己的最佳答案。' : '共識模式，提出自己的最佳答案供統整模型比較。'}
+`;
+        const buildCouncilDeliberationPrompt = (originalParts, firstRoundResults, currentModelName) => `
+你正在參與模型理事會第二輪討論。以下是使用者問題與其他模型第一輪答案。
+
+# 使用者問題
+${extractTextFromParts(originalParts)}
+
+# 第一輪答案
+${formatCouncilResponses(firstRoundResults)}
+
+# 你的任務
+你是 ${currentModelName}。請根據其他答案修正或補強你的看法：
+- 指出你同意的共識。
+- 指出你認為有問題、缺漏或需要修正的地方。
+- 給出你第二輪後的最佳答案。
+`;
+        const buildCouncilSynthesisPrompt = (conv, originalParts, firstRoundResults, finalRoundResults, failures, mode) => `
+你是使用者指定的「模型理事會統整模型」。請閱讀多個模型的回答，產生給使用者的最終答案。
+
+# 使用者問題
+${extractTextFromParts(originalParts)}
+
+${formatRecentConversationContext(conv) ? `# 近期對話脈絡\n${formatRecentConversationContext(conv)}\n` : ''}
+# 理事會模式
+${mode === 'deliberation' ? '討論模式：模型已完成第一輪獨立回答與第二輪修正。' : '共識模式：模型已完成第一輪獨立回答。'}
+
+# 可用模型觀點
+${formatCouncilResponses(finalRoundResults)}
+
+${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelName}: ${item.error}`).join('\n')}\n` : ''}
+# 統整要求
+- 直接回答使用者，不要只摘要模型們說了什麼。
+- 優先採納有明確理由、相互印證、符合使用者需求的內容。
+- 若模型之間有重要分歧，請簡短說明分歧與你的取捨。
+- 若答案存在風險或不確定性，請明確標出。
+- 使用自然、清楚、可執行的語氣。
+`;
+        const buildCouncilAppendix = (firstRoundResults, finalRoundResults, failures, mode) => {
+            const texts = getCouncilTexts();
+            const sections = [`\n\n---\n\n## ${texts.rawNotes}\n\n**${mode === 'deliberation' ? texts.deliberationMode : texts.consensusMode}**`];
+            sections.push('\n\n### First round\n');
+            sections.push(formatCouncilResponses(firstRoundResults));
+            if (mode === 'deliberation') {
+                sections.push(`\n\n### ${texts.deliberationRound}\n`);
+                sections.push(formatCouncilResponses(finalRoundResults));
+            }
+            if (failures.length) {
+                sections.push(`\n\n### ${texts.failedModels}\n`);
+                sections.push(failures.map(item => `- **${item.modelName}**: ${item.error}`).join('\n'));
+            }
+            return sections.join('');
+        };
+        async function runModelCouncil(parts, signal, onProgress) {
+            const conv = getActiveConversation();
+            const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
+            const texts = getCouncilTexts();
+            const mode = council.mode;
+            const progress = (message) => {
+                if (typeof onProgress === 'function') onProgress(message);
+            };
+
+            progress(`${texts.title}: ${participants.length} ${texts.participants}`);
+            const firstRoundSettled = await Promise.allSettled(participants.map(async (modelInfo) => {
+                const text = await streamApiCall(
+                    parts,
+                    () => {},
+                    signal,
+                    false,
+                    {
+                        modelInfo,
+                        additionalSystemInstruction: buildCouncilMemberInstruction(mode)
+                    }
+                );
+                return {
+                    modelId: modelInfo.id,
+                    modelName: modelInfo.name,
+                    roundOne: text,
+                    finalText: text
+                };
+            }));
+            const firstRoundResults = [];
+            const failures = [];
+            firstRoundSettled.forEach((result, index) => {
+                const modelInfo = participants[index];
+                if (result.status === 'fulfilled' && result.value?.roundOne?.trim()) {
+                    firstRoundResults.push(result.value);
+                } else {
+                    failures.push({
+                        modelId: modelInfo.id,
+                        modelName: modelInfo.name,
+                        error: result.reason?.message || 'No response'
+                    });
+                }
+            });
+            if (firstRoundResults.length === 0) {
+                throw new Error(`${texts.title}: all participant models failed.`);
+            }
+
+            let finalRoundResults = firstRoundResults;
+            if (mode === 'deliberation' && firstRoundResults.length > 1) {
+                progress(`${texts.title}: ${texts.deliberationRound}`);
+                const secondRoundSettled = await Promise.allSettled(firstRoundResults.map(async (result) => {
+                    const modelInfo = MODELS.find(model => model.id === result.modelId);
+                    const text = await streamApiCall(
+                        [{ text: buildCouncilDeliberationPrompt(parts, firstRoundResults, result.modelName) }],
+                        () => {},
+                        signal,
+                        false,
+                        {
+                            modelInfo,
+                            historyForApi: [],
+                            additionalSystemInstruction: '你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。'
+                        }
+                    );
+                    return { ...result, roundTwo: text, finalText: text || result.roundOne };
+                }));
+                finalRoundResults = secondRoundSettled.map((result, index) => {
+                    if (result.status === 'fulfilled') return result.value;
+                    const fallback = firstRoundResults[index];
+                    failures.push({
+                        modelId: fallback.modelId,
+                        modelName: fallback.modelName,
+                        error: result.reason?.message || 'Second round failed'
+                    });
+                    return fallback;
+                });
+            }
+
+            progress(`${texts.title}: ${texts.synthesizer} ${synthesizer.name}`);
+            const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, firstRoundResults, finalRoundResults, failures, mode);
+            let finalText = '';
+            let synthesisError = null;
+            try {
+                finalText = await streamApiCall(
+                    [{ text: synthesisPrompt }],
+                    () => {},
+                    signal,
+                    false,
+                    {
+                        modelInfo: synthesizer,
+                        historyForApi: [],
+                        additionalSystemInstruction: '你是模型理事會的統整模型。請給使用者一個完整、清楚、可採用的最終答案。'
+                    }
+                );
+            } catch (error) {
+                synthesisError = error;
+                finalText = `模型理事會已完成成員回答，但統整模型 ${synthesizer.name} 未能完成統整：${error.message}\n\n以下提供可用模型觀點供參考。\n\n${formatCouncilResponses(finalRoundResults)}`;
+            }
+            if (council.showRawResponses) {
+                finalText += buildCouncilAppendix(firstRoundResults, finalRoundResults, failures, mode);
+            }
+            return {
+                text: finalText,
+                metadata: {
+                    mode,
+                    participantModelIds: participants.map(model => model.id),
+                    synthesizerModelId: synthesizer.id,
+                    firstRoundResults,
+                    finalRoundResults,
+                    failures,
+                    synthesisError: synthesisError?.message || null
+                }
+            };
         }
         async function callApiWithSchema(prompt, responseSchema, signal) {
             const apiKey = getApiKeyForProvider('gemini');
@@ -662,10 +864,13 @@
             }
             const modelInfo = normalizeConversationModel(conv);
             const provider = modelInfo?.provider;
-            const hasApiKey = !!getApiKeyForProvider(provider);
+            const councilValidation = getCouncilValidation(conv);
+            const hasApiKey = isCouncilEnabled(conv) ? councilValidation.reason !== 'missingApiKey' : !!getApiKeyForProvider(provider);
             ALL_ELEMENTS.messageInput.disabled = !hasApiKey;
-            ALL_ELEMENTS.messageInput.placeholder = hasApiKey ? i18n[config.uiLanguage].enterMessagePlaceholder : i18n[config.uiLanguage].enterApiKeyPlaceholder;
-            if (!hasApiKey || !hasContent) {
+            ALL_ELEMENTS.messageInput.placeholder = hasApiKey
+                ? (isCouncilEnabled(conv) && !councilValidation.ok ? councilValidation.message : i18n[config.uiLanguage].enterMessagePlaceholder)
+                : i18n[config.uiLanguage].enterApiKeyPlaceholder;
+            if (!hasApiKey || !hasContent || (isCouncilEnabled(conv) && !councilValidation.ok)) {
                 submitButton.disabled = true;
                 submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 3 9-3 9 19-9Z"/><path d="M6 12h16"/></svg>`;
             } else {
