@@ -316,7 +316,6 @@ const updateLogs = [
     content: [
         '<strong>【後台系統革新】引入更強大的數據通道：</strong>我們已將「對話紀錄」、「意見反饋」與「Astra 提案」的後台處理系統全面升級。這確保了您的每一次互動數據都能被更穩定、更可靠地接收，並為未來的個人化功能打下堅實基礎。',
         '<strong>【智慧數據洞察】為您的使用習慣提供更深層的理解：</strong>在新的數據通道中，我們新增了對「使用模型」的記錄。這將幫助我們了解不同模型在處理特定任務時的表現，是我們持續優化 Astra 服務的關鍵一步。',
-        '<strong>【重要功能修正】確保「深度研究」的每一次探索都有價值：</strong>我們修復了在「深度研究」模式下，其產出的高品質報告有時未能被成功納入改進計畫的問題。現在，您的每一次深度分析都將成為我們優化複雜任務處理能力的重要參考。',
         "<strong>更新了我們的協助中心、使用條款、隱私權政策：</strong>更新了我們的協助中心、使用條款、隱私權政策我們邀請您查看",
     ]
   },
@@ -366,7 +365,6 @@ const updateLogs = [
         date: "2025-10-7",
         content: [
             "<strong>優化：</strong>全新的歷史對話選取高亮功能，更清楚目前調用的對話",
-            "<strong>新增：</strong>openrouter模型支援深度研究功能",
             "<strong>新增：</strong>更多的Astras",
             "<strong>修正：</strong>全域搜索搜索到垃圾桶內紀錄的問題",
         ]
@@ -383,23 +381,18 @@ const updateLogs = [
         date: "2025-10-6",
         content: [
             "<strong>修正：</strong>修正載入畫面會讓底層首頁滑動的問題",
-            "<strong>增加：</strong>在編輯研究計畫的彈出視窗增加-取消研究的欄位",
         ]
     },
         {
         version: "15.4.8",
         date: "2025-10-5",
         content: [
-            "<strong>修正：</strong>深度研究模式研究計畫無法插入的問題",
-            "<strong>修正：</strong>深度研究模式研究計畫無法調整順序的問題",
-            "<strong>修正：</strong>深度研究模式研究計畫數量與設定頁面不同步的問題",
         ]
     },
         {
         version: "15.4.7",
         date: "2025-10-5",
         content: [
-            "<strong>優化：</strong>深度研究模式文字輸出樣式",
         ]
     },
         {
@@ -413,31 +406,24 @@ const updateLogs = [
         version: "15.4.5",
         date: "2025-10-4",
         content: [
-            "<strong>新增：</strong>深度研究模式編輯研究計畫的功能(BETA測試版功能，我方不承擔任何出錯而導致的損失責任",
         ]
     },
         {
         version: "15.4.4",
         date: "2025-10-3",
         content: [
-            "<strong>修正：</strong>深度研究模式AI回覆泡泡複製與時間顯示功能失效的問題",
-            "<strong>修正：</strong>深度研究內容不連貫的問題",
-            "<strong>修正：</strong>深度研究圖像搜索時無法正常識別圖像的問題",
         ]
     },
         {
         version: "15.4.3",
         date: "2025-10-3",
         content: [
-            "<strong>修正：</strong>深度研究模式後續追問失效的問題",
-            "<strong>修正：</strong>深度研究，研究中的狀態UI",
         ]
     },
         {
         version: "15.4.2",
         date: "2025-10-3",
         content: [
-            "<strong>修正：</strong>深度研究模式Gemini模型無法上傳圖片與檔案的問題",
             "<strong>優化：</strong>AI輸出時會強制ˋ捲動至下方的問題",
         ]
     },
@@ -445,22 +431,18 @@ const updateLogs = [
         version: "15.4.1",
         date: "2025-10-3",
         content: [
-            "<strong>修正：</strong>深度研究模式後續追問失效的問題",
-            "<strong>優化：</strong>深度研究，研究中的狀態UI",
         ]
     },
         {
         version: "15.4.0",
         date: "2025-10-3",
         content: [
-            "<strong>新增：</strong>深度研究功能",
         ]
     },
         {
         version: "15.3.9",
         date: "2025-10-2",
         content: [
-            "<strong>修正：</strong>GEMINI模型使用學習與研究模式時，無法上傳圖片與檔案的問題",
         ]
     },
         {
@@ -554,7 +536,6 @@ const updateLogs = [
         version: "15.1.0",
         date: "2025-09-20",
         content: [
-            "<strong>新增：</strong>openrouter+功能學習與研究模式的支援",
         ]
     },
         {
@@ -570,7 +551,6 @@ const updateLogs = [
         date: "2025-09-20",
         content: [
             "<strong>新增：</strong>跨對話記憶功能",
-            "<strong>新增：</strong>學習與研究模式",
             "<strong>優化：</strong>跨對話記憶功能邏輯與提示詞",
             "<strong>優化：</strong>學習與研究功能邏輯與提示詞",
             "<strong>修正：</strong>輸入欄內外加功能超出輸入框右側的問題",

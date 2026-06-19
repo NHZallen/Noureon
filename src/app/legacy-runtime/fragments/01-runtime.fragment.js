@@ -297,7 +297,7 @@
         };
         
         const updateFunctionButtonsState = () => {
-            const { cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn, deepResearchBtn } = ALL_ELEMENTS;
+            const { cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn } = ALL_ELEMENTS;
             const conv = getActiveConversation();
             if (!conv) return;
 
@@ -309,9 +309,9 @@
 
 
             // 預設先顯示所有按鈕
-            [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn, deepResearchBtn].forEach(btn => btn.style.display = 'flex');
+            [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn].forEach(btn => btn.style.display = 'flex');
             document.querySelectorAll('#file-options-popover .border-t').forEach(sep => sep.style.display = 'block');
-            [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn, deepResearchBtn]
+            [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn]
                 .filter(Boolean)
                 .forEach(btn => btn.style.display = 'flex');
             if (webSearchPopoverBtn) {
@@ -349,60 +349,12 @@
 
 
         const toggleLearningMode = async () => {
-            if (config.isDeepResearchMode) {
-                showNotification('研究模式啟用時，無法切換學習模式。', 'warning');
-                return;
-            }
             config.isLearningMode = !config.isLearningMode;
             await saveConfig();
             renderInputIndicators();
             updateFunctionButtonsState();
             ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
             showNotification(config.isLearningMode ? (i18n[config.uiLanguage].learningEnabled || '學習模式已開啟') : (i18n[config.uiLanguage].learningDisabled || '學習模式已關閉'), 'success');
-        };
-
-
-        // ✨ 新增：深度研究模式切換函數
-        const toggleDeepResearchMode = async () => {
-            const conv = getActiveConversation();
-            if (!conv) return;
-
-
-            const modelInfo = normalizeConversationModel(conv);
-            
-             if (config.isLearningMode) {
-                showNotification('學習模式啟用時，無法切換研究模式。', 'warning');
-                return;
-            }
-
-
-            config.isDeepResearchMode = !config.isDeepResearchMode;
-
-
-            if (config.isDeepResearchMode) {
-                // 啟用模式：儲存並關閉記憶
-                originalMemorySettings = {
-                    memoryEnabled1: config.memoryEnabled1,
-                    enableAutoMemory: config.enableAutoMemory,
-                };
-                config.memoryEnabled1 = false;
-                config.memoryEnabled2 = false;
-                config.enableAutoMemory = false;
-                showNotification(i18n[config.uiLanguage].researchEnabledFull || '研究模式已啟用。記憶功能已暫時關閉。', 'success');
-            } else {
-                // 關閉模式：還原記憶設定
-                if (originalMemorySettings) {
-                    config.memoryEnabled1 = originalMemorySettings.memoryEnabled1;
-                    config.enableAutoMemory = originalMemorySettings.enableAutoMemory;
-                }
-                showNotification(i18n[config.uiLanguage].researchDisabledFull || '研究模式已關閉。記憶功能已還原。', 'success');
-            }
-
-
-            await saveConfig();
-            renderInputIndicators();
-            updateFunctionButtonsState();
-            ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
         };
 
 
@@ -421,24 +373,6 @@
         
             const activeIndicators = new Map();
             const astrasId = getActiveAstrasId();
-
-
-             // ✨ 新增：研究模式指示器邏輯
-            if (config.isDeepResearchMode) {
-                activeIndicators.set('research-mode-indicator', {
-                    id: 'research-mode-indicator',
-                    html: `
-                        <span class="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                            <span>${i18n[config.uiLanguage].researchIndicator || '研究模式'}
-                        </span>
-                        <button id="close-research-mode-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${i18n[config.uiLanguage].closeResearchMode || '關閉研究模式'}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    `,
-                    eventListener: (el) => el.querySelector('#close-research-mode-btn-input').addEventListener('click', toggleDeepResearchMode)
-                });
-            }
 
 
             if (config.isLearningMode) {
@@ -961,9 +895,6 @@
             conv.model = newModelInfo.id;
             conv.provider = newModelInfo.provider;
             config.lastUsedModel = newModelId;
-            if (config.isDeepResearchMode && newModelInfo.provider !== 'gemini') {
-                toggleDeepResearchMode();
-            }
             await saveAppData();
             await saveConfig();
             renderAll();
@@ -1204,13 +1135,6 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
             const userMessage = ALL_ELEMENTS.messageInput.value.trim();
             if (!userMessage && uploadedFiles.length === 0) return;
             
-            // ✨ 如果是深度研究模式，則呼叫專用函數
-            if (config.isDeepResearchMode) {
-                handleDeepResearch(userMessage);
-                return;
-            }
-
-
             renderFollowUpPrompts([]);
             const conv = getActiveConversation();
             if (conv.archived) return;
@@ -1332,7 +1256,7 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
 
                 // 4. ✨ 只有在打字機動畫結束後，才執行後續任務
                 if (!abortController.signal.aborted) {
-                    if(config.enableFollowUp && !config.isLearningMode && !config.isDeepResearchMode) {
+                    if(config.enableFollowUp && !config.isLearningMode) {
                         await generateFollowUpPrompts(userMessage, fullResponse);
                     }
                     if (config.memoryEnabled1 && config.enableAutoMemory) {

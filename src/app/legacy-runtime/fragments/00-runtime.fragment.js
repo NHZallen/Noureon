@@ -325,7 +325,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             closeTrashViewModalBtn: document.getElementById('close-trash-view-modal-btn'),
             trashViewCloseBtn: document.getElementById('trash-view-close-btn'),
             learningModeBtn: document.getElementById('learning-mode-btn'),
-            deepResearchBtn: document.getElementById('deep-research-btn'), // ✨ 新增元素
             feedbackTextarea: document.getElementById('feedback-textarea'),
             sendFeedbackBtn: document.getElementById('send-feedback-btn'),
             proposeAstrasBtn: document.getElementById('propose-astras-btn'),
@@ -336,11 +335,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             cancelProposalBtn: document.getElementById('cancel-proposal-btn'),
             submitProposalBtn: document.getElementById('submit-proposal-btn'),
             // ✨ 新增互動式計畫編輯器元素
-            interactivePlanModal: document.getElementById('interactive-plan-modal'),
-            planEditorStepsContainer: document.getElementById('plan-editor-steps-container'),
-            addPlanStepBtn: document.getElementById('add-plan-step-btn'),
-            confirmPlanBtn: document.getElementById('confirm-plan-btn'),
-            cancelPlanBtn: document.getElementById('cancel-plan-btn'),
             showPromptsBtn: document.getElementById('show-prompts-btn'), // 新增這行
             importProgressContainer: document.getElementById('import-progress-container'),
     importProgressBar: document.getElementById('import-progress-bar'),
@@ -743,8 +737,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             enableUpdateNotifications: true,
             lastSeenVersion: '',
             isLearningMode: false,
-            isDeepResearchMode: false, // ✨ 新增狀態
-            deepResearchQueryCount: 0, // ✨ 新增這一行，0 代表自動
         };
         let itemToRename = { id: null, type: null };
         let folderToCustomize = null;
@@ -768,7 +760,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let isAutoScrolling = false;
         let isTrashSelectionMode = false;
         let selectedTrashIds = new Set();
-        let originalMemorySettings = {}; // ✨ 新增：用於儲存原始記憶設定
         const DB_NAME = 'ChatAppDB';
         const STORE_NAME = 'keyValue';
         let db;
