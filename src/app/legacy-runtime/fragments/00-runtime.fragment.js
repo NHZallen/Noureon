@@ -813,7 +813,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 mode: 'consensus',
                 participantModelIds: [],
                 synthesizerModelId: null,
-                showRawResponses: true
+                showRawResponses: true,
+                showComparisonTable: true
             },
         };
         const getCouncilTexts = () => COUNCIL_TEXT[config.uiLanguage] || COUNCIL_TEXT['zh-TW'];
@@ -822,7 +823,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             mode: 'consensus',
             participantModelIds: [],
             synthesizerModelId: null,
-            showRawResponses: true
+            showRawResponses: true,
+            showComparisonTable: true
         });
         const normalizeCouncilConfig = (value = {}) => {
             const validModelIds = new Set(MODELS.map(model => model.id));
@@ -838,7 +840,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 mode: normalized.mode === 'deliberation' ? 'deliberation' : 'consensus',
                 participantModelIds,
                 synthesizerModelId,
-                showRawResponses: normalized.showRawResponses !== false
+                showRawResponses: normalized.showRawResponses !== false,
+                showComparisonTable: normalized.showComparisonTable !== false
             };
         };
         const cloneCouncilConfig = (value = {}) => normalizeCouncilConfig(JSON.parse(JSON.stringify(value || {})));
@@ -868,12 +871,117 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const mimeType = file.type || file.mimeType || file.inlineData?.mimeType || '';
             if (!mimeType) return true;
             if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
-                return model.provider === 'gemini' || (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id));
+                return modelSupportsVision(model);
             }
             return model.provider === 'gemini' || model.provider === 'openrouter';
         };
+        const modelSupportsVision = (model) => Boolean(model && (
+            model.provider === 'gemini' ||
+            (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id))
+        ));
+        const modelSupportsWebSearch = (model) => Boolean(model && (model.provider === 'gemini' || model.provider === 'openrouter'));
+        const getModelPriceLabel = (model) => {
+            if (!model) return '';
+            if (model.id?.includes(':free')) return config.uiLanguage === 'en' ? 'Free' : '免費';
+            const priceKey = model.descriptionKey ? `${model.descriptionKey}_tier_paid` : '';
+            const localizedPrice = priceKey ? i18n[config.uiLanguage]?.[priceKey] : '';
+            if (localizedPrice) return localizedPrice;
+            if (model.provider === 'gemini') return config.uiLanguage === 'en' ? 'Google API pricing' : 'Google API 計費';
+            if (model.provider === 'openrouter') return config.uiLanguage === 'en' ? 'OpenRouter pricing' : 'OpenRouter 計費';
+            return config.uiLanguage === 'en' ? 'Provider pricing' : '供應商計費';
+        };
+        const getCouncilRuntimeTexts = () => {
+            if (config.uiLanguage === 'en') {
+                return {
+                    visualOnly: 'visual participants',
+                    skipped: 'skipped',
+                    noVisionParticipants: 'At least one participant model must support images for this council request',
+                    skippedVisualReason: 'Skipped because this model does not support the attached image/video',
+                    sharedSearch: 'Shared search packet',
+                    searchRunning: 'Searching once for shared council context',
+                    searchDone: 'Shared search packet ready',
+                    searchFailed: 'Shared search failed; continuing without it',
+                    firstRound: 'Council members are thinking',
+                    deliberation: 'Council members are revising',
+                    synthesis: 'Synthesizer is combining the council',
+                    completed: 'Council completed',
+                    pending: 'Waiting',
+                    running: 'Thinking',
+                    done: 'Done',
+                    failed: 'Failed',
+                    skippedStatus: 'Skipped',
+                    activeVisionNote: 'Only image-capable members will answer this image request.',
+                    comparisonToggle: 'Summarize agreements and differences'
+                };
+            }
+            if (config.uiLanguage === 'fr') {
+                return {
+                    visualOnly: 'participants visuels',
+                    skipped: 'ignoré',
+                    noVisionParticipants: 'Au moins un modèle participant doit prendre en charge les images pour cette demande',
+                    skippedVisualReason: 'Ignoré car ce modèle ne prend pas en charge l’image/vidéo jointe',
+                    sharedSearch: 'Dossier de recherche partagé',
+                    searchRunning: 'Recherche unique du contexte partagé du conseil',
+                    searchDone: 'Dossier de recherche partagé prêt',
+                    searchFailed: 'La recherche partagée a échoué; poursuite sans elle',
+                    firstRound: 'Les membres du conseil réfléchissent',
+                    deliberation: 'Les membres du conseil révisent',
+                    synthesis: 'Le synthétiseur combine le conseil',
+                    completed: 'Conseil terminé',
+                    pending: 'En attente',
+                    running: 'Réflexion',
+                    done: 'Terminé',
+                    failed: 'Échec',
+                    skippedStatus: 'Ignoré',
+                    activeVisionNote: 'Seuls les membres capables de traiter les images répondront à cette demande.',
+                    comparisonToggle: 'Résumer les accords et différences'
+                };
+            }
+            return {
+                visualOnly: '可看圖理事',
+                skipped: '略過',
+                noVisionParticipants: '這次含圖片，至少要有一個支援圖片的理事模型',
+                skippedVisualReason: '此模型不支援圖片/影片附件，因此本輪略過',
+                sharedSearch: '共同搜尋資料包',
+                searchRunning: '正在先搜尋一次，建立理事會共同資料包',
+                searchDone: '共同搜尋資料包已完成',
+                searchFailed: '共同搜尋失敗，將不帶搜尋資料繼續',
+                firstRound: '理事正在各自思考',
+                deliberation: '理事正在第二輪修正',
+                synthesis: '統整模型正在整理結論',
+                completed: '理事會完成',
+                pending: '等待',
+                running: '思考中',
+                done: '完成',
+                failed: '失敗',
+                skippedStatus: '略過',
+                activeVisionNote: '這次含圖片，只有支援圖片的理事會回答。',
+                comparisonToggle: '整理共識與差異'
+            };
+        };
+        const isVisualUploadedFile = (file) => {
+            const mimeType = file?.type || file?.mimeType || file?.inlineData?.mimeType || '';
+            return mimeType.startsWith('image/') || mimeType.startsWith('video/');
+        };
+        const getCouncilVisualFiles = (files = uploadedFiles) => (files || []).filter(isVisualUploadedFile);
+        const getCouncilRunnableParticipants = (participants = [], files = uploadedFiles) => {
+            const visualFiles = getCouncilVisualFiles(files);
+            if (visualFiles.length === 0) {
+                return { activeParticipants: participants, skippedParticipants: [] };
+            }
+            const activeParticipants = participants.filter(model => visualFiles.every(file => modelSupportsUploadedFile(model, file)));
+            const skippedParticipants = participants.filter(model => !activeParticipants.some(active => active.id === model.id));
+            return { activeParticipants, skippedParticipants };
+        };
+        const formatCouncilModelSummary = (models = [], limit = 3) => {
+            const names = models.map(model => model?.name).filter(Boolean);
+            if (names.length === 0) return '';
+            if (names.length <= limit) return names.join(' / ');
+            return `${names.slice(0, limit).join(' / ')} +${names.length - limit}`;
+        };
         const getCouncilValidation = (conv, files = uploadedFiles) => {
             const texts = getCouncilTexts();
+            const runtimeTexts = getCouncilRuntimeTexts();
             if (!isCouncilEnabled(conv)) {
                 return { ok: true, message: '' };
             }
@@ -898,7 +1006,25 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     message: `${texts.missingApiKey}: ${missingKeyModels.map(model => model.name).join(', ')}`
                 };
             }
-            const unsupportedModels = participants.filter(model => (files || []).some(file => !modelSupportsUploadedFile(model, file)));
+            const visualFiles = getCouncilVisualFiles(files);
+            if (visualFiles.length > 0) {
+                const { activeParticipants, skippedParticipants } = getCouncilRunnableParticipants(participants, files);
+                if (activeParticipants.length === 0) {
+                    return {
+                        ok: false,
+                        reason: 'noVisionParticipants',
+                        message: runtimeTexts.noVisionParticipants
+                    };
+                }
+                if (skippedParticipants.length > 0) {
+                    return {
+                        ok: true,
+                        reason: 'readyWithSkippedParticipants',
+                        message: `${texts.ready} · ${runtimeTexts.visualOnly}: ${activeParticipants.length} · ${runtimeTexts.skipped}: ${formatCouncilModelSummary(skippedParticipants, 2)}`
+                    };
+                }
+            }
+            const unsupportedModels = participants.filter(model => (files || []).some(file => !isVisualUploadedFile(file) && !modelSupportsUploadedFile(model, file)));
             if (unsupportedModels.length > 0) {
                 return {
                     ok: false,

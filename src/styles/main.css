@@ -2683,6 +2683,15 @@ body.custom-wallpaper-active .input-indicator-item {
     transition: color 0.2s ease, background-color 0.2s ease;
 }
 
+.council-toggle-models {
+    max-width: 11rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
 .model-council-toggle:hover,
 .model-council-bar.is-enabled .model-council-toggle {
     color: var(--text-primary);
@@ -2880,6 +2889,52 @@ body.custom-wallpaper-active .input-indicator-item {
     font-size: 0.72rem;
 }
 
+.council-model-badges,
+.model-option-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.council-capability-badge,
+.model-capability-pill,
+.model-price-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.18rem;
+    max-width: 100%;
+    padding: 0.12rem 0.38rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.model-capability-pill .model-vision-badge {
+    width: 0.8rem;
+    height: 0.8rem;
+}
+
+.model-switcher-council-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.15;
+}
+
+.model-switcher-council-copy small {
+    max-width: min(52vw, 28rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+}
+
 .council-raw-row {
     margin-top: 0.85rem;
 }
@@ -2909,6 +2964,109 @@ body.custom-wallpaper-active .input-indicator-item {
     filter: brightness(1.05);
 }
 
+.council-progress-panel {
+    display: grid;
+    gap: 0.6rem;
+    min-width: min(28rem, 72vw);
+}
+
+.council-progress-heading,
+.council-progress-search,
+.council-progress-model {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.council-progress-heading {
+    justify-content: space-between;
+    color: var(--text-primary);
+    font-weight: 800;
+}
+
+.council-progress-search {
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+
+.council-progress-models {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.council-progress-model {
+    justify-content: space-between;
+    padding: 0.42rem 0.55rem;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--input-field-bg) 88%, transparent);
+    font-size: 0.78rem;
+}
+
+.council-progress-model-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.council-progress-model-status {
+    color: var(--text-secondary);
+    font-weight: 800;
+}
+
+.council-progress-dot {
+    width: 0.52rem;
+    height: 0.52rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.council-progress-dot.running {
+    background: var(--accent-color, #3b82f6);
+    opacity: 1;
+    animation: council-pulse 1s ease-in-out infinite;
+}
+
+.council-progress-dot.done {
+    background: #22c55e;
+    opacity: 1;
+}
+
+.council-progress-dot.failed {
+    background: #ef4444;
+    opacity: 1;
+}
+
+.council-progress-dot.skipped {
+    background: #f59e0b;
+    opacity: 1;
+}
+
+.council-collapse {
+    margin: 1rem 0;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--input-field-bg) 88%, transparent);
+}
+
+.council-collapse summary {
+    cursor: pointer;
+    color: var(--text-primary);
+    font-weight: 800;
+}
+
+@keyframes council-pulse {
+    0%, 100% { transform: scale(0.9); opacity: 0.65; }
+    50% { transform: scale(1.18); opacity: 1; }
+}
+
 @media (max-width: 640px) {
     .council-toggle-label {
         display: none;
@@ -2916,6 +3074,15 @@ body.custom-wallpaper-active .input-indicator-item {
     .model-council-toggle {
         width: 2.5rem;
         padding: 0;
+    }
+    .council-toggle-models {
+        display: none;
+    }
+    .model-switcher-council-copy small {
+        max-width: 54vw;
+    }
+    .council-progress-panel {
+        min-width: 0;
     }
     .model-council-popover {
         bottom: 5.25rem;

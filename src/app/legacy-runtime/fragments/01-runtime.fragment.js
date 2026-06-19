@@ -305,9 +305,15 @@
 
 
             const modelInfo = normalizeConversationModel(conv);
+            const { participants, synthesizer } = getCouncilSelectedModels(conv);
+            const councilActive = isCouncilEnabled(conv);
             const provider = modelInfo?.provider;
-            const supportsVision = provider === 'gemini' || (provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(modelInfo?.id));
-            const supportsWebSearch = provider === 'gemini' || provider === 'openrouter';
+            const supportsVision = councilActive
+                ? participants.some(modelSupportsVision)
+                : modelSupportsVision(modelInfo);
+            const supportsWebSearch = councilActive
+                ? modelSupportsWebSearch(synthesizer || modelInfo)
+                : modelSupportsWebSearch(modelInfo);
 
 
             // 預設先顯示所有按鈕
@@ -323,7 +329,7 @@
                 .filter(Boolean)
                 .forEach(btn => btn.style.display = supportsVision ? 'flex' : 'none');
             
-            if (provider === 'openrouter') {
+            if (!councilActive && provider === 'openrouter') {
     // 檢查當前 OpenRouter 模型是否支援圖片輸入
     const supportsVision = OPENROUTER_VISION_MODELS.includes(modelInfo?.id);
 
@@ -653,6 +659,7 @@
             await saveAppData();
             await saveConfig();
             if (shouldRender) {
+                renderModelSwitcher();
                 renderCouncilControls();
                 renderInputIndicators();
                 updateInputState();
@@ -692,16 +699,28 @@
             }
             conv.council = normalizeCouncilConfig(conv.council);
             const texts = getCouncilTexts();
+            const runtimeTexts = getCouncilRuntimeTexts();
             const validation = getCouncilValidation(conv);
             const modelList = getCouncilModelList(conv);
             const selectedParticipants = getModelsByIds(conv.council.participantModelIds);
             const synthesizer = MODELS.find(model => model.id === conv.council.synthesizerModelId);
+            const participantSummary = formatCouncilModelSummary(selectedParticipants, 2);
             const enabledClass = conv.council.enabled ? 'is-enabled' : '';
             const statusText = conv.council.enabled
                 ? (validation.ok ? `${texts.ready} · ${selectedParticipants.length} · ${synthesizer?.name || texts.selectSynthesizer}` : validation.message)
                 : texts.disabled;
             const doneText = i18n[config.uiLanguage]?.done || i18n[config.uiLanguage]?.confirm || '完成';
             const dotClass = conv.council.enabled ? (validation.ok ? 'ready' : 'warning') : 'off';
+            const priceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
+            const visionLabel = config.uiLanguage === 'en' ? 'Vision' : '視覺';
+            const searchLabel = i18n[config.uiLanguage]?.search || '搜尋';
+            const createCouncilModelMetaHTML = (model) => `
+                <span class="council-model-badges">
+                    ${modelSupportsVision(model) ? `<span class="council-capability-badge" title="${escapeHTML(visionLabel)}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>${escapeHTML(visionLabel)}</span>` : ''}
+                    ${modelSupportsWebSearch(model) ? `<span class="council-capability-badge">${escapeHTML(searchLabel)}</span>` : ''}
+                </span>
+                <small>${escapeHTML(model.provider)} · ${escapeHTML(priceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</small>
+            `;
             const modelRows = modelList.map(model => {
                 const checked = conv.council.participantModelIds.includes(model.id);
                 const maxed = !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
@@ -710,7 +729,7 @@
                         <input type="checkbox" data-council-participant="${escapeHTML(model.id)}" ${checked ? 'checked' : ''} ${maxed ? 'disabled' : ''}>
                         <span>
                             <strong>${escapeHTML(model.name)}</strong>
-                            <small>${escapeHTML(model.provider)}</small>
+                            ${createCouncilModelMetaHTML(model)}
                         </span>
                     </label>
                 `;
@@ -720,7 +739,7 @@
                     <input type="radio" name="council-synthesizer" data-council-synthesizer="${escapeHTML(model.id)}" ${conv.council.synthesizerModelId === model.id ? 'checked' : ''}>
                     <span>
                         <strong>${escapeHTML(model.name)}</strong>
-                        <small>${escapeHTML(model.provider)}</small>
+                        ${createCouncilModelMetaHTML(model)}
                     </span>
                 </label>
             `).join('');
@@ -729,6 +748,7 @@
                     <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
                         <span class="council-toggle-label">${texts.title}</span>
+                        ${participantSummary ? `<span class="council-toggle-models">${escapeHTML(participantSummary)}</span>` : ''}
                         <span class="model-council-dot ${dotClass}" aria-hidden="true"></span>
                     </button>
                     <div id="model-council-popover" class="popover model-council-popover ${wasVisible ? 'visible' : ''}">
@@ -762,6 +782,10 @@
                         <label class="council-raw-row">
                             <input type="checkbox" id="model-council-show-raw" ${conv.council.showRawResponses ? 'checked' : ''}>
                             <span>${texts.rawNotes}</span>
+                        </label>
+                        <label class="council-raw-row">
+                            <input type="checkbox" id="model-council-show-comparison" ${conv.council.showComparisonTable ? 'checked' : ''}>
+                            <span>${runtimeTexts.comparisonToggle}</span>
                         </label>
                         <p class="council-validation ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(conv.council.enabled ? validation.message : texts.required)}</p>
                         <div class="council-popover-footer">
@@ -824,6 +848,46 @@
                 conv.council.showRawResponses = event.target.checked;
                 await persistCouncilConfig(conv);
             });
+            container.querySelector('#model-council-show-comparison').addEventListener('change', async (event) => {
+                conv.council.showComparisonTable = event.target.checked;
+                await persistCouncilConfig(conv);
+            });
+        };
+        const renderCouncilProgress = (progress) => {
+            if (typeof progress === 'string') {
+                return `<div class="council-progress-panel"><div class="council-progress-heading">${escapeHTML(progress)}</div></div>`;
+            }
+            const runtimeTexts = getCouncilRuntimeTexts();
+            const statusText = {
+                pending: runtimeTexts.pending,
+                running: runtimeTexts.running,
+                done: runtimeTexts.done,
+                failed: runtimeTexts.failed,
+                skipped: runtimeTexts.skippedStatus
+            };
+            const searchHTML = progress.search ? `
+                <div class="council-progress-search ${escapeHTML(progress.search.status)}">
+                    <span class="council-progress-dot ${escapeHTML(progress.search.status)}"></span>
+                    <span><strong>${escapeHTML(progress.search.label)}</strong> · ${escapeHTML(progress.search.detail)}</span>
+                </div>
+            ` : '';
+            const modelRows = (progress.modelStates || []).map(model => `
+                <div class="council-progress-model ${escapeHTML(model.status)}">
+                    <span class="council-progress-dot ${escapeHTML(model.status)}"></span>
+                    <span class="council-progress-model-name">${escapeHTML(model.modelName)}</span>
+                    <span class="council-progress-model-status">${escapeHTML(statusText[model.status] || model.status)}</span>
+                </div>
+            `).join('');
+            return `
+                <div class="council-progress-panel">
+                    <div class="council-progress-heading">
+                        <span>${escapeHTML(progress.message || runtimeTexts.running)}</span>
+                        <span>${escapeHTML(String(progress.activeParticipants || 0))}/${escapeHTML(String(progress.totalParticipants || 0))}</span>
+                    </div>
+                    ${searchHTML}
+                    <div class="council-progress-models">${modelRows}</div>
+                </div>
+            `;
         };
         const renderModelSwitcher = () => {
     const conv = getActiveConversation();
@@ -859,6 +923,33 @@
     const currentModel = processedModels.find(m => m.id === conv.model) || processedModels[0];
     const isArchived = conv.archived;
     const translations = i18n[config.uiLanguage] || i18n['zh-TW'];
+
+    if (isCouncilEnabled(conv)) {
+        const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
+        const texts = getCouncilTexts();
+        const participantSummary = formatCouncilModelSummary(participants, 3);
+        ALL_ELEMENTS.modelSwitcherContainer.innerHTML = `
+            <button id="current-model-btn" class="model-switcher-council-btn flex items-center gap-2 text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] px-2 py-1 md:px-3 rounded-md ${isArchived ? 'cursor-not-allowed' : ''}" ${isArchived ? 'disabled' : ''}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
+                <span class="model-switcher-council-copy">
+                    <span class="font-semibold text-sm md:text-base text-[var(--text-primary)]">${texts.title}</span>
+                    <small>${council.mode === 'deliberation' ? texts.deliberation : texts.consensus} · ${escapeHTML(participantSummary)}${synthesizer ? ` → ${escapeHTML(synthesizer.name)}` : ''}</small>
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+        `;
+        document.getElementById('current-model-btn')?.addEventListener('click', () => {
+            if (isArchived) return;
+            renderCouncilControls();
+            const popover = document.getElementById('model-council-popover');
+            const toggleButton = document.getElementById('model-council-toggle-btn');
+            if (!popover || !toggleButton) return;
+            closeAllPopovers();
+            popover.classList.add('visible');
+            toggleButton.setAttribute('aria-expanded', 'true');
+        });
+        return;
+    }
 
 
     const popoverHTML = `
@@ -923,9 +1014,10 @@
 
 
     const modelVisionLabel = config.uiLanguage === 'zh-TW' ? '視覺' : 'Vision';
+    const modelSearchLabel = i18n[config.uiLanguage]?.search || '搜尋';
+    const modelPriceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
     const createVisionBadgeHTML = (model) => {
-        const supportsVision = model.provider === 'gemini' || (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id));
-        if (!supportsVision) return '';
+        if (!modelSupportsVision(model)) return '';
         return `
             <span class="model-vision-badge" title="${escapeHTML(modelVisionLabel)}" aria-label="${escapeHTML(modelVisionLabel)}">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -935,11 +1027,19 @@
             </span>
         `;
     };
+    const createModelBadgesHTML = (model) => `
+        <div class="model-option-meta-row">
+            ${modelSupportsVision(model) ? `<span class="model-capability-pill">${createVisionBadgeHTML(model)}${escapeHTML(modelVisionLabel)}</span>` : ''}
+            ${modelSupportsWebSearch(model) ? `<span class="model-capability-pill">${escapeHTML(modelSearchLabel)}</span>` : ''}
+            <span class="model-price-pill">${escapeHTML(modelPriceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</span>
+        </div>
+    `;
 
     const createModelOptionHTML = (model, descriptionText) => {
         return `
             <div data-model-id="${model.id}" class="model-option-btn-container ${isArchived ? 'cursor-not-allowed opacity-50' : ''}">
                 <h4 class="font-semibold model-option-title"><span class="model-name-text">${model.name}</span>${createVisionBadgeHTML(model)}</h4>
+                ${createModelBadgesHTML(model)}
                 <p class="model-description">${descriptionText}</p>
             </div>
         `;
@@ -1423,8 +1523,8 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                     const councilResult = await runModelCouncil(
                         userParts,
                         abortController.signal,
-                        (statusText) => {
-                            contentDiv.innerHTML = renderMarkdown(`_${statusText}_`);
+                        (progressState) => {
+                            contentDiv.innerHTML = renderCouncilProgress(progressState);
                         }
                     );
                     fullResponse = councilResult.text;

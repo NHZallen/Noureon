@@ -181,7 +181,8 @@
                 if (systemInstruction) {
                     payload.systemInstruction = systemInstruction;
                 }
-                if (conv.isWebSearchEnabled || isWebSearchForced || requestOptions.forceWebSearch) {
+                const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch && conv.isWebSearchEnabled;
+                if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
                     payload.tools = [{"googleSearch": {}}];
                 }
                 headers = { 'Content-Type': 'application/json' };
@@ -253,7 +254,8 @@
 
 
                 const plugins = [];
-                if (conv.isWebSearchEnabled || isWebSearchForced || requestOptions.forceWebSearch) {
+                const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch && conv.isWebSearchEnabled;
+                if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
                     plugins.push({ id: 'web' });
                 }
                 if (hasOpenRouterFileAttachment) {
@@ -380,6 +382,42 @@
 
 ${truncateCouncilText(result.finalText || result.roundTwo || result.roundOne)}
 `).join('\n');
+        const buildCouncilSharedSearchPrompt = (parts) => `
+You are preparing a shared web research packet for a multi-model council.
+
+User request:
+${extractTextFromParts(parts)}
+
+Search the web once, then produce a concise evidence packet for the council:
+- Key current facts and dates
+- Important source names or URLs when available
+- Disagreements, uncertainty, and freshness risks
+- What the council should pay attention to
+
+Do not answer the user directly. Prepare shared context only.
+`;
+        const buildCouncilRequestParts = (parts, sharedSearchPacket = '') => {
+            if (!sharedSearchPacket?.trim()) return parts;
+            return [
+                {
+                    text: `# Shared council search packet\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
+                },
+                ...parts
+            ];
+        };
+        const buildCouncilComparisonInstruction = (enabled) => enabled ? `
+
+Additional output requirement:
+Before the final answer, include a concise collapsed "共識與差異整理" section using this HTML wrapper:
+<details class="council-collapse"><summary>共識與差異整理</summary>
+...your Markdown table and notes...
+</details>
+Use a Markdown table when it helps. Cover:
+- Points where council members agree
+- Meaningful disagreements or tradeoffs
+- Which models raised each point
+- A short note on how the final answer resolves those differences
+` : '';
         const buildCouncilMemberInstruction = (mode) => `
 你是「模型理事會」中的獨立成員。請先獨立思考，不要假設其他模型會補足你的答案。
 請提供清楚、可驗證、可執行的回答；若資訊不足，請明確標出不確定處。
@@ -423,7 +461,7 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
 `;
         const buildCouncilAppendix = (firstRoundResults, finalRoundResults, failures, mode) => {
             const texts = getCouncilTexts();
-            const sections = [`\n\n---\n\n## ${texts.rawNotes}\n\n**${mode === 'deliberation' ? texts.deliberationMode : texts.consensusMode}**`];
+            const sections = [`\n\n<details class="council-collapse">\n<summary>${texts.rawNotes}</summary>\n\n**${mode === 'deliberation' ? texts.deliberationMode : texts.consensusMode}**`];
             sections.push('\n\n### First round\n');
             sections.push(formatCouncilResponses(firstRoundResults));
             if (mode === 'deliberation') {
@@ -434,29 +472,107 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                 sections.push(`\n\n### ${texts.failedModels}\n`);
                 sections.push(failures.map(item => `- **${item.modelName}**: ${item.error}`).join('\n'));
             }
+            sections.push('\n\n</details>');
             return sections.join('');
         };
         async function runModelCouncil(parts, signal, onProgress) {
             const conv = getActiveConversation();
             const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
             const texts = getCouncilTexts();
+            const runtimeTexts = getCouncilRuntimeTexts();
             const mode = council.mode;
-            const progress = (message) => {
-                if (typeof onProgress === 'function') onProgress(message);
+            const { activeParticipants, skippedParticipants } = getCouncilRunnableParticipants(participants, parts);
+            const modelStates = new Map();
+            participants.forEach(model => {
+                const isSkipped = skippedParticipants.some(item => item.id === model.id);
+                modelStates.set(model.id, {
+                    modelId: model.id,
+                    modelName: model.name,
+                    status: isSkipped ? 'skipped' : 'pending',
+                    detail: isSkipped ? runtimeTexts.skippedVisualReason : runtimeTexts.pending
+                });
+            });
+            const searchState = conv.isWebSearchEnabled
+                ? { status: 'pending', label: runtimeTexts.sharedSearch, detail: runtimeTexts.pending }
+                : null;
+            const progress = (stage, message = stage, extra = {}) => {
+                if (typeof onProgress !== 'function') return;
+                onProgress({
+                    stage,
+                    message,
+                    mode,
+                    totalParticipants: participants.length,
+                    activeParticipants: activeParticipants.length,
+                    modelStates: Array.from(modelStates.values()),
+                    search: searchState ? { ...searchState } : null,
+                    ...extra
+                });
             };
 
-            progress(`${texts.title}: ${participants.length} ${texts.participants}`);
-            const firstRoundSettled = await Promise.allSettled(participants.map(async (modelInfo) => {
+            if (activeParticipants.length === 0) {
+                throw new Error(runtimeTexts.noVisionParticipants);
+            }
+
+            const failures = skippedParticipants.map(model => ({
+                modelId: model.id,
+                modelName: model.name,
+                error: runtimeTexts.skippedVisualReason,
+                skipped: true
+            }));
+            let sharedSearchPacket = '';
+            if (searchState) {
+                searchState.status = 'running';
+                searchState.detail = runtimeTexts.searchRunning;
+                progress('search', runtimeTexts.searchRunning);
+                try {
+                    sharedSearchPacket = await streamApiCall(
+                        [{ text: buildCouncilSharedSearchPrompt(parts) }],
+                        () => {},
+                        signal,
+                        false,
+                        {
+                            modelInfo: synthesizer,
+                            historyForApi: [],
+                            forceWebSearch: true,
+                            ignoreConversationWebSearch: true,
+                            additionalSystemInstruction: 'Prepare shared web research context for the council. Do not answer the user directly.'
+                        }
+                    );
+                    searchState.status = 'done';
+                    searchState.detail = runtimeTexts.searchDone;
+                    progress('search', runtimeTexts.searchDone);
+                } catch (error) {
+                    searchState.status = 'failed';
+                    searchState.detail = `${runtimeTexts.searchFailed}: ${error.message}`;
+                    progress('search', searchState.detail);
+                }
+            }
+            const councilParts = buildCouncilRequestParts(parts, sharedSearchPacket);
+
+            progress('firstRound', `${runtimeTexts.firstRound}: ${activeParticipants.length}/${participants.length}`);
+            const firstRoundSettled = await Promise.allSettled(activeParticipants.map(async (modelInfo) => {
+                const state = modelStates.get(modelInfo.id);
+                if (state) {
+                    state.status = 'running';
+                    state.detail = runtimeTexts.running;
+                    progress('firstRound', `${runtimeTexts.firstRound}: ${modelInfo.name}`);
+                }
                 const text = await streamApiCall(
-                    parts,
+                    councilParts,
                     () => {},
                     signal,
                     false,
                     {
                         modelInfo,
+                        ignoreConversationWebSearch: true,
                         additionalSystemInstruction: buildCouncilMemberInstruction(mode)
                     }
                 );
+                if (state) {
+                    state.status = 'done';
+                    state.detail = runtimeTexts.done;
+                    progress('firstRound', `${runtimeTexts.done}: ${modelInfo.name}`);
+                }
                 return {
                     modelId: modelInfo.id,
                     modelName: modelInfo.name,
@@ -465,12 +581,17 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                 };
             }));
             const firstRoundResults = [];
-            const failures = [];
             firstRoundSettled.forEach((result, index) => {
-                const modelInfo = participants[index];
+                const modelInfo = activeParticipants[index];
                 if (result.status === 'fulfilled' && result.value?.roundOne?.trim()) {
                     firstRoundResults.push(result.value);
                 } else {
+                    const state = modelStates.get(modelInfo.id);
+                    if (state) {
+                        state.status = 'failed';
+                        state.detail = result.reason?.message || runtimeTexts.failed;
+                        progress('firstRound', `${runtimeTexts.failed}: ${modelInfo.name}`);
+                    }
                     failures.push({
                         modelId: modelInfo.id,
                         modelName: modelInfo.name,
@@ -484,25 +605,48 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
 
             let finalRoundResults = firstRoundResults;
             if (mode === 'deliberation' && firstRoundResults.length > 1) {
-                progress(`${texts.title}: ${texts.deliberationRound}`);
+                progress('deliberation', runtimeTexts.deliberation);
                 const secondRoundSettled = await Promise.allSettled(firstRoundResults.map(async (result) => {
                     const modelInfo = MODELS.find(model => model.id === result.modelId);
+                    const state = modelStates.get(result.modelId);
+                    if (state) {
+                        state.status = 'running';
+                        state.detail = runtimeTexts.deliberation;
+                        progress('deliberation', `${runtimeTexts.deliberation}: ${result.modelName}`);
+                    }
                     const text = await streamApiCall(
-                        [{ text: buildCouncilDeliberationPrompt(parts, firstRoundResults, result.modelName) }],
+                        [{
+                            text: `${buildCouncilDeliberationPrompt(councilParts, firstRoundResults, result.modelName)}
+
+Important anti-conformity rule:
+Do not change your judgment merely because most other models disagree. Only revise your position when another model provides clear evidence or stronger reasoning. If you keep a minority view, state the reason clearly.`
+                        }],
                         () => {},
                         signal,
                         false,
                         {
                             modelInfo,
                             historyForApi: [],
+                            ignoreConversationWebSearch: true,
                             additionalSystemInstruction: '你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。'
                         }
                     );
+                    if (state) {
+                        state.status = 'done';
+                        state.detail = runtimeTexts.done;
+                        progress('deliberation', `${runtimeTexts.done}: ${result.modelName}`);
+                    }
                     return { ...result, roundTwo: text, finalText: text || result.roundOne };
                 }));
                 finalRoundResults = secondRoundSettled.map((result, index) => {
                     if (result.status === 'fulfilled') return result.value;
                     const fallback = firstRoundResults[index];
+                    const state = modelStates.get(fallback.modelId);
+                    if (state) {
+                        state.status = 'failed';
+                        state.detail = result.reason?.message || runtimeTexts.failed;
+                        progress('deliberation', `${runtimeTexts.failed}: ${fallback.modelName}`);
+                    }
                     failures.push({
                         modelId: fallback.modelId,
                         modelName: fallback.modelName,
@@ -512,8 +656,12 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                 });
             }
 
-            progress(`${texts.title}: ${texts.synthesizer} ${synthesizer.name}`);
-            const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, firstRoundResults, finalRoundResults, failures, mode);
+            progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name}`);
+            const synthesisPrompt = buildCouncilSynthesisPrompt(conv, councilParts, firstRoundResults, finalRoundResults, failures, mode);
+            const synthesisInstruction = `You are the council synthesizer.
+Before output, internally compare the core claims from each model using these criteria: correctness, completeness, actionability, fit to the user's question, risk disclosure, and whether a claim is unverified.
+For each important claim, judge whether it is supported by multiple models, has clear reasoning, needs external verification, or could mislead the user.
+Only keep content that passes this check in the final answer.${buildCouncilComparisonInstruction(council.showComparisonTable)}`;
             let finalText = '';
             let synthesisError = null;
             try {
@@ -525,7 +673,8 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                     {
                         modelInfo: synthesizer,
                         historyForApi: [],
-                        additionalSystemInstruction: '你是模型理事會的統整模型。請給使用者一個完整、清楚、可採用的最終答案。'
+                        ignoreConversationWebSearch: true,
+                        additionalSystemInstruction: synthesisInstruction
                     }
                 );
             } catch (error) {
@@ -535,12 +684,17 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
             if (council.showRawResponses) {
                 finalText += buildCouncilAppendix(firstRoundResults, finalRoundResults, failures, mode);
             }
+            progress('completed', runtimeTexts.completed);
             return {
                 text: finalText,
                 metadata: {
                     mode,
                     participantModelIds: participants.map(model => model.id),
+                    activeParticipantModelIds: activeParticipants.map(model => model.id),
+                    skippedParticipantModelIds: skippedParticipants.map(model => model.id),
                     synthesizerModelId: synthesizer.id,
+                    sharedSearchPacket: sharedSearchPacket || null,
+                    showComparisonTable: council.showComparisonTable,
                     firstRoundResults,
                     finalRoundResults,
                     failures,

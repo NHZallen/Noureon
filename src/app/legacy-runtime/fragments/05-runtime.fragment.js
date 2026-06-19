@@ -230,7 +230,10 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
                 const conv = getActiveConversation();
                 const modelInfo = normalizeConversationModel(conv);
-                const supportsWebSearch = modelInfo?.provider === 'gemini' || modelInfo?.provider === 'openrouter';
+                const { synthesizer } = getCouncilSelectedModels(conv);
+                const supportsWebSearch = isCouncilEnabled(conv)
+                    ? modelSupportsWebSearch(synthesizer || modelInfo)
+                    : modelSupportsWebSearch(modelInfo);
                 if (!conv || !supportsWebSearch || conv.archived) {
                     showNotification(i18n[config.uiLanguage].webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
                     return;
