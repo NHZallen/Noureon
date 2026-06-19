@@ -1541,7 +1541,9 @@ ${JSON.stringify(potentialMemories, null, 2)}
             }
             const modelInfo = normalizeConversationModel(conv);
             let needsKey = false;
-            if (modelInfo) {
+            if (isCouncilEnabled(conv)) {
+                needsKey = getCouncilValidation(conv).reason === 'missingApiKey';
+            } else if (modelInfo) {
                 needsKey = !getApiKeyForProvider(modelInfo.provider);
             }
             ALL_ELEMENTS.apiKeyWarningBadge.classList.toggle('hidden', !needsKey);

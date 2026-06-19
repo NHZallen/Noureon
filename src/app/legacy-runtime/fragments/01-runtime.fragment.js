@@ -276,11 +276,13 @@
                 ALL_ELEMENTS.headerTitle.textContent = i18n[config.uiLanguage].newChat;
                 ALL_ELEMENTS.modelSwitcherContainer.innerHTML = '';
                 renderInputIndicators();
+                renderCouncilControls();
                 return;
             }
             ALL_ELEMENTS.headerTitle.textContent = conv.archived ? `(${i18n[config.uiLanguage].archived || '已封存'}) ${conv.title}` : conv.title;
             renderModelSwitcher();
             renderInputIndicators();
+            renderCouncilControls();
             messageList.innerHTML = '';
             if (conv.messages.length === 0) {
     const greeting = `${currentUser.username}, ${i18n[config.uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？'}`;
@@ -428,6 +430,27 @@
                         conv.isWebSearchEnabled = false;
                         await saveAppData();
                         renderInputIndicators();
+                    })
+                });
+            }
+            if (isCouncilEnabled(conv)) {
+                const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
+                const texts = getCouncilTexts();
+                const validation = getCouncilValidation(conv);
+                activeIndicators.set('model-council-indicator', {
+                    id: 'model-council-indicator',
+                    html: `
+                        <span class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
+                            <span>${texts.title} · ${council.mode === 'deliberation' ? texts.deliberation : texts.consensus} · ${participants.length}/${COUNCIL_MAX_MODELS}${synthesizer ? ` · ${synthesizer.name}` : ''}</span>
+                        </span>
+                        <button id="close-model-council-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${escapeHTML(validation.message || texts.title)}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    `,
+                    eventListener: (el) => el.querySelector('#close-model-council-btn-input').addEventListener('click', async () => {
+                        conv.council.enabled = false;
+                        await persistCouncilConfig(conv);
                     })
                 });
             }
@@ -606,6 +629,177 @@
             const modelInfo = MODELS.find(m => m.id === conv?.model);
             if (modelInfo?.provider !== 'gemini' && uploadedFiles.length > 0) {
             }
+        };
+        const seedCouncilParticipants = (conv) => {
+            if (!conv) return;
+            conv.council = normalizeCouncilConfig(conv.council);
+            if (conv.council.participantModelIds.length > 0) return;
+            const visibleModels = getVisibleCouncilModels();
+            const seedIds = [];
+            if (conv.model && MODELS.some(model => model.id === conv.model)) {
+                seedIds.push(conv.model);
+            }
+            visibleModels.forEach(model => {
+                if (seedIds.length < COUNCIL_MIN_MODELS && !seedIds.includes(model.id)) {
+                    seedIds.push(model.id);
+                }
+            });
+            conv.council.participantModelIds = seedIds.slice(0, COUNCIL_MAX_MODELS);
+        };
+        const persistCouncilConfig = async (conv, shouldRender = true) => {
+            if (!conv) return;
+            conv.council = normalizeCouncilConfig(conv.council);
+            config.lastCouncilConfig = cloneCouncilConfig(conv.council);
+            await saveAppData();
+            await saveConfig();
+            if (shouldRender) {
+                renderCouncilControls();
+                renderInputIndicators();
+                updateInputState();
+                updateApiKeyWarningBadge();
+            }
+        };
+        const getCouncilModelList = (conv) => {
+            const visibleModels = getVisibleCouncilModels();
+            const selectedIds = new Set([
+                ...(conv?.council?.participantModelIds || []),
+                conv?.council?.synthesizerModelId
+            ].filter(Boolean));
+            selectedIds.forEach(modelId => {
+                const model = MODELS.find(item => item.id === modelId);
+                if (model && !visibleModels.some(item => item.id === model.id)) {
+                    visibleModels.push(model);
+                }
+            });
+            return visibleModels;
+        };
+        const renderCouncilControls = () => {
+            const inputRoot = ALL_ELEMENTS.inputBarContainer?.querySelector('.max-w-4xl');
+            if (!inputRoot) return;
+            let container = document.getElementById('model-council-control');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'model-council-control';
+                inputRoot.insertBefore(container, inputRoot.firstChild);
+            }
+            const conv = getActiveConversation();
+            if (!conv) {
+                container.innerHTML = '';
+                return;
+            }
+            conv.council = normalizeCouncilConfig(conv.council);
+            const texts = getCouncilTexts();
+            const validation = getCouncilValidation(conv);
+            const modelList = getCouncilModelList(conv);
+            const selectedParticipants = getModelsByIds(conv.council.participantModelIds);
+            const synthesizer = MODELS.find(model => model.id === conv.council.synthesizerModelId);
+            const enabledClass = conv.council.enabled ? 'is-enabled' : '';
+            const statusText = conv.council.enabled
+                ? (validation.ok ? `${texts.ready} · ${selectedParticipants.length} · ${synthesizer?.name || texts.selectSynthesizer}` : validation.message)
+                : texts.disabled;
+            const modelRows = modelList.map(model => {
+                const checked = conv.council.participantModelIds.includes(model.id);
+                const maxed = !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
+                return `
+                    <label class="council-model-row ${checked ? 'selected' : ''} ${maxed ? 'is-disabled' : ''}">
+                        <input type="checkbox" data-council-participant="${escapeHTML(model.id)}" ${checked ? 'checked' : ''} ${maxed ? 'disabled' : ''}>
+                        <span>
+                            <strong>${escapeHTML(model.name)}</strong>
+                            <small>${escapeHTML(model.provider)}</small>
+                        </span>
+                    </label>
+                `;
+            }).join('');
+            const synthesizerRows = modelList.map(model => `
+                <label class="council-model-row ${conv.council.synthesizerModelId === model.id ? 'selected' : ''}">
+                    <input type="radio" name="council-synthesizer" data-council-synthesizer="${escapeHTML(model.id)}" ${conv.council.synthesizerModelId === model.id ? 'checked' : ''}>
+                    <span>
+                        <strong>${escapeHTML(model.name)}</strong>
+                        <small>${escapeHTML(model.provider)}</small>
+                    </span>
+                </label>
+            `).join('');
+            container.innerHTML = `
+                <div class="model-council-bar ${enabledClass}">
+                    <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="false" title="${escapeHTML(texts.title)}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
+                        <span>${texts.title}</span>
+                    </button>
+                    <span class="model-council-status ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(statusText)}</span>
+                    <div id="model-council-popover" class="popover model-council-popover">
+                        <div class="council-popover-header">
+                            <label class="council-enable-row">
+                                <input type="checkbox" id="model-council-enabled" ${conv.council.enabled ? 'checked' : ''}>
+                                <span>${texts.enable}</span>
+                            </label>
+                            <div class="council-mode-tabs">
+                                <button type="button" class="${conv.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus">${texts.consensus}</button>
+                                <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation">${texts.deliberation}</button>
+                            </div>
+                        </div>
+                        <div class="council-section">
+                            <div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${COUNCIL_MAX_MODELS})</div>
+                            <div class="council-model-list">${modelRows}</div>
+                        </div>
+                        <div class="council-section">
+                            <div class="council-section-title">${texts.synthesizer}</div>
+                            <div class="council-model-list">${synthesizerRows}</div>
+                        </div>
+                        <label class="council-raw-row">
+                            <input type="checkbox" id="model-council-show-raw" ${conv.council.showRawResponses ? 'checked' : ''}>
+                            <span>${texts.rawNotes}</span>
+                        </label>
+                        <p class="council-validation ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(conv.council.enabled ? validation.message : texts.required)}</p>
+                    </div>
+                </div>
+            `;
+            const popover = container.querySelector('#model-council-popover');
+            container.querySelector('#model-council-toggle-btn').addEventListener('click', () => {
+                const wasVisible = popover.classList.contains('visible');
+                closeAllPopovers();
+                popover.classList.toggle('visible', !wasVisible);
+                container.querySelector('#model-council-toggle-btn').setAttribute('aria-expanded', String(!wasVisible));
+            });
+            container.querySelector('#model-council-enabled').addEventListener('change', async (event) => {
+                conv.council.enabled = event.target.checked;
+                if (conv.council.enabled) seedCouncilParticipants(conv);
+                await persistCouncilConfig(conv);
+            });
+            container.querySelectorAll('[data-council-mode]').forEach(button => {
+                button.addEventListener('click', async () => {
+                    conv.council.mode = button.dataset.councilMode;
+                    await persistCouncilConfig(conv);
+                });
+            });
+            container.querySelectorAll('[data-council-participant]').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const modelId = input.dataset.councilParticipant;
+                    const nextIds = new Set(conv.council.participantModelIds);
+                    if (input.checked) {
+                        if (nextIds.size >= COUNCIL_MAX_MODELS) {
+                            showNotification(texts.tooMany, 'warning');
+                            renderCouncilControls();
+                            return;
+                        }
+                        nextIds.add(modelId);
+                    } else {
+                        nextIds.delete(modelId);
+                    }
+                    conv.council.participantModelIds = Array.from(nextIds);
+                    await persistCouncilConfig(conv);
+                });
+            });
+            container.querySelectorAll('[data-council-synthesizer]').forEach(input => {
+                input.addEventListener('change', async () => {
+                    if (!input.checked) return;
+                    conv.council.synthesizerModelId = input.dataset.councilSynthesizer;
+                    await persistCouncilConfig(conv);
+                });
+            });
+            container.querySelector('#model-council-show-raw').addEventListener('change', async (event) => {
+                conv.council.showRawResponses = event.target.checked;
+                await persistCouncilConfig(conv);
+            });
         };
         const renderModelSwitcher = () => {
     const conv = getActiveConversation();
@@ -1153,6 +1347,14 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
         }
     });
 });
+            const councilValidation = getCouncilValidation(conv, uploadedFiles);
+            if (!councilValidation.ok) {
+                showNotification(councilValidation.message, 'warning');
+                abortController = null;
+                updateSubmitButtonState(false);
+                renderCouncilControls();
+                return;
+            }
             const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
             addMessageToUI(userMessageObject, conv.messages.length, true);
             conv.lastUpdatedAt = new Date().toISOString();
@@ -1193,16 +1395,26 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
 
 
                 // 1. 先等待 API 回應完全結束，獲取完整文字
-                const completeResponse = await streamApiCall(
-                    userParts,
-                    (chunk) => {
-                        // 在 streamApiCall 內部，我們只收集文字，不渲染
-                    },
-                    abortController.signal
-                );
-
-
-                fullResponse = completeResponse;
+                if (isCouncilEnabled(conv)) {
+                    const councilResult = await runModelCouncil(
+                        userParts,
+                        abortController.signal,
+                        (statusText) => {
+                            contentDiv.innerHTML = renderMarkdown(`_${statusText}_`);
+                        }
+                    );
+                    fullResponse = councilResult.text;
+                    finalAiMessage.council = councilResult.metadata;
+                } else {
+                    const completeResponse = await streamApiCall(
+                        userParts,
+                        (chunk) => {
+                            // 在 streamApiCall 內部，我們只收集文字，不渲染
+                        },
+                        abortController.signal
+                    );
+                    fullResponse = completeResponse;
+                }
                 sendConversationToMail(userMessageObject, fullResponse);
 
 

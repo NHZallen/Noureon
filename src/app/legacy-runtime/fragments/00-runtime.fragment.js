@@ -668,6 +668,77 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     'moonshotai/kimi-k2.7-code',
     'moonshotai/kimi-k2.6'
 ];
+        const COUNCIL_MIN_MODELS = 2;
+        const COUNCIL_MAX_MODELS = 5;
+        const COUNCIL_RESPONSE_CHAR_LIMIT = 8000;
+        const COUNCIL_TEXT = {
+            'zh-TW': {
+                title: '模型理事會',
+                enable: '啟用理事會',
+                consensus: '共識',
+                deliberation: '討論',
+                participants: '參與模型',
+                synthesizer: '統整模型',
+                required: '請選擇 2-5 個參與模型與 1 個統整模型',
+                tooFew: '至少選擇 2 個參與模型',
+                tooMany: '最多只能選擇 5 個參與模型',
+                missingSynthesizer: '請選擇統整模型',
+                missingApiKey: '部分模型缺少 API 金鑰',
+                attachmentUnsupported: '部分參與模型不支援目前附件',
+                ready: '理事會已就緒',
+                disabled: '未啟用',
+                selectSynthesizer: '選擇統整模型',
+                rawNotes: '模型理事會紀錄',
+                failedModels: '未完成模型',
+                deliberationRound: '第二輪修正',
+                consensusMode: '共識模式',
+                deliberationMode: '討論模式'
+            },
+            en: {
+                title: 'Model Council',
+                enable: 'Enable council',
+                consensus: 'Consensus',
+                deliberation: 'Discussion',
+                participants: 'Participant models',
+                synthesizer: 'Synthesizer model',
+                required: 'Choose 2-5 participant models and 1 synthesizer model',
+                tooFew: 'Choose at least 2 participant models',
+                tooMany: 'Choose up to 5 participant models',
+                missingSynthesizer: 'Choose a synthesizer model',
+                missingApiKey: 'Some selected models are missing API keys',
+                attachmentUnsupported: 'Some participant models do not support the current attachments',
+                ready: 'Council ready',
+                disabled: 'Disabled',
+                selectSynthesizer: 'Choose synthesizer',
+                rawNotes: 'Model council record',
+                failedModels: 'Incomplete models',
+                deliberationRound: 'Second-round revisions',
+                consensusMode: 'Consensus mode',
+                deliberationMode: 'Discussion mode'
+            },
+            fr: {
+                title: 'Conseil de modèles',
+                enable: 'Activer le conseil',
+                consensus: 'Consensus',
+                deliberation: 'Discussion',
+                participants: 'Modèles participants',
+                synthesizer: 'Modèle de synthèse',
+                required: 'Choisissez 2 à 5 modèles participants et 1 modèle de synthèse',
+                tooFew: 'Choisissez au moins 2 modèles participants',
+                tooMany: 'Choisissez au maximum 5 modèles participants',
+                missingSynthesizer: 'Choisissez un modèle de synthèse',
+                missingApiKey: 'Certains modèles sélectionnés n’ont pas de clé API',
+                attachmentUnsupported: 'Certains modèles participants ne prennent pas en charge les pièces jointes',
+                ready: 'Conseil prêt',
+                disabled: 'Désactivé',
+                selectSynthesizer: 'Choisir le modèle de synthèse',
+                rawNotes: 'Compte rendu du conseil',
+                failedModels: 'Modèles incomplets',
+                deliberationRound: 'Révisions du second tour',
+                consensusMode: 'Mode consensus',
+                deliberationMode: 'Mode discussion'
+            }
+        };
         const FOLDER_COLORS = {
             black: '#000000',gray: '#808080', red: '#f87171', yellow: '#facc15', green: '#4ade80',
             blue: '#60a5fa', indigo: '#818cf8', purple: '#a78bfa', pink: '#f472b6',
@@ -737,6 +808,105 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             enableUpdateNotifications: true,
             lastSeenVersion: '',
             isLearningMode: false,
+            lastCouncilConfig: {
+                enabled: false,
+                mode: 'consensus',
+                participantModelIds: [],
+                synthesizerModelId: null,
+                showRawResponses: true
+            },
+        };
+        const getCouncilTexts = () => COUNCIL_TEXT[config.uiLanguage] || COUNCIL_TEXT['zh-TW'];
+        const getDefaultCouncilConfig = () => ({
+            enabled: false,
+            mode: 'consensus',
+            participantModelIds: [],
+            synthesizerModelId: null,
+            showRawResponses: true
+        });
+        const normalizeCouncilConfig = (value = {}) => {
+            const validModelIds = new Set(MODELS.map(model => model.id));
+            const normalized = { ...getDefaultCouncilConfig(), ...(value || {}) };
+            const participantModelIds = Array.isArray(normalized.participantModelIds)
+                ? normalized.participantModelIds
+                    .filter((modelId, index, arr) => validModelIds.has(modelId) && arr.indexOf(modelId) === index)
+                    .slice(0, COUNCIL_MAX_MODELS)
+                : [];
+            const synthesizerModelId = validModelIds.has(normalized.synthesizerModelId) ? normalized.synthesizerModelId : null;
+            return {
+                enabled: Boolean(normalized.enabled),
+                mode: normalized.mode === 'deliberation' ? 'deliberation' : 'consensus',
+                participantModelIds,
+                synthesizerModelId,
+                showRawResponses: normalized.showRawResponses !== false
+            };
+        };
+        const cloneCouncilConfig = (value = {}) => normalizeCouncilConfig(JSON.parse(JSON.stringify(value || {})));
+        const isCouncilEnabled = (conv) => Boolean(conv?.council?.enabled);
+        const getVisibleCouncilModels = () => {
+            const settings = Array.isArray(config.modelSettings) ? config.modelSettings : [];
+            const sortedVisible = settings
+                .filter(setting => !setting.hidden)
+                .sort((a, b) => a.order - b.order)
+                .map(setting => MODELS.find(model => model.id === setting.id))
+                .filter(Boolean);
+            return sortedVisible.length > 0 ? sortedVisible : [...MODELS];
+        };
+        const getModelsByIds = (modelIds = []) => modelIds
+            .map(modelId => MODELS.find(model => model.id === modelId))
+            .filter(Boolean);
+        const getCouncilSelectedModels = (conv) => {
+            const council = normalizeCouncilConfig(conv?.council);
+            return {
+                council,
+                participants: getModelsByIds(council.participantModelIds),
+                synthesizer: MODELS.find(model => model.id === council.synthesizerModelId) || null
+            };
+        };
+        const modelSupportsUploadedFile = (model, file) => {
+            if (!model || !file) return true;
+            const mimeType = file.type || file.mimeType || file.inlineData?.mimeType || '';
+            if (!mimeType) return true;
+            if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
+                return model.provider === 'gemini' || (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id));
+            }
+            return model.provider === 'gemini' || model.provider === 'openrouter';
+        };
+        const getCouncilValidation = (conv, files = uploadedFiles) => {
+            const texts = getCouncilTexts();
+            if (!isCouncilEnabled(conv)) {
+                return { ok: true, message: '' };
+            }
+            conv.council = normalizeCouncilConfig(conv.council);
+            const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
+            if (participants.length < COUNCIL_MIN_MODELS) {
+                return { ok: false, reason: 'tooFew', message: texts.tooFew };
+            }
+            if (participants.length > COUNCIL_MAX_MODELS) {
+                return { ok: false, reason: 'tooMany', message: texts.tooMany };
+            }
+            if (!council.synthesizerModelId || !synthesizer) {
+                return { ok: false, reason: 'missingSynthesizer', message: texts.missingSynthesizer };
+            }
+            const missingKeyModels = [...participants, synthesizer]
+                .filter((model, index, arr) => arr.findIndex(item => item.id === model.id) === index)
+                .filter(model => !getApiKeyForProvider(model.provider));
+            if (missingKeyModels.length > 0) {
+                return {
+                    ok: false,
+                    reason: 'missingApiKey',
+                    message: `${texts.missingApiKey}: ${missingKeyModels.map(model => model.name).join(', ')}`
+                };
+            }
+            const unsupportedModels = participants.filter(model => (files || []).some(file => !modelSupportsUploadedFile(model, file)));
+            if (unsupportedModels.length > 0) {
+                return {
+                    ok: false,
+                    reason: 'attachmentUnsupported',
+                    message: `${texts.attachmentUnsupported}: ${unsupportedModels.map(model => model.name).join(', ')}`
+                };
+            }
+            return { ok: true, reason: 'ready', message: texts.ready };
         };
         let itemToRename = { id: null, type: null };
         let folderToCustomize = null;
@@ -1139,6 +1309,7 @@ function renderMarkdownWithFormulas(text) {
             if (!allModelIds.has(config.lastUsedModel)) {
                 config.lastUsedModel = MODELS[0].id;
             }
+            config.lastCouncilConfig = normalizeCouncilConfig(config.lastCouncilConfig);
         };
         const saveAppData = async () => { if (currentUser) await setItem(getAppDataKey(), JSON.stringify({ conversations, folders, astras, personalMemories })); };
         const loadAppData = async () => {
@@ -1152,6 +1323,7 @@ function renderMarkdownWithFormulas(text) {
                         archived: false, summary: '', folderId: null, isWebSearchEnabled: false, astrasId: null, pinned: false, deletedAt: null, ...c,
                         unsentMessage: c.unsentMessage || '',
                         genConfig: c.genConfig || getDefaultGenConfig(),
+                        council: normalizeCouncilConfig(c.council || config.lastCouncilConfig),
                         lastUpdatedAt: c.lastUpdatedAt || (c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1].createdAt : c.createdAt),
                         messages: (c.messages || []).map(m => ({
                             ...m,
@@ -1194,6 +1366,7 @@ function renderMarkdownWithFormulas(text) {
                 createdAt: now,
                 lastUpdatedAt: now,
                 genConfig: getDefaultGenConfig(),
+                council: cloneCouncilConfig(config.lastCouncilConfig),
                 isRenamed: false,
                 folderId: null,
                 astrasId: null,
