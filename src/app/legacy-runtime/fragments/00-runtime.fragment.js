@@ -40,12 +40,22 @@ const getErrorMessage = (errorBody, fallback = 'API 請求失敗') => (
 );
 
 const postJsonWithReadableError = async (url, data, options = {}) => {
-    const response = await fetch(url, {
+    const request = {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) },
         body: JSON.stringify(data),
         signal: options.signal
-    });
+    };
+    let response;
+    try {
+        response = await fetch(url, request);
+    } catch (error) {
+        if (options.allowOpaqueFallback !== false) {
+            await fetch(url, { ...request, mode: 'no-cors' });
+            return { ok: true, opaque: true };
+        }
+        throw error;
+    }
 
     if (!response.ok) {
         const errorBody = await readErrorBody(response);
@@ -611,6 +621,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     // Gemini Models (Native)
     { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_desc' },
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
+    { id: 'gemma-4-31b-it', name: 'Gemma 4 31B IT', provider: 'gemini', descriptionKey: 'model_gemma_4_31b_it_desc', tier: ['free'] },
+    { id: 'gemma-4-26b-a4b-it', name: 'Gemma 4 26B A4B IT', provider: 'gemini', descriptionKey: 'model_gemma_4_26b_a4b_it_desc', tier: ['free'] },
 
     // OpenRouter Free Models
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
@@ -881,9 +893,23 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id))
         ));
         const modelSupportsWebSearch = (model) => Boolean(model && (model.provider === 'gemini' || model.provider === 'openrouter'));
+        const getModelTiers = (model) => {
+            if (!model || model.isBeta) return [];
+            if (Array.isArray(model.tier)) return model.tier;
+            if (typeof model.tier === 'string') return [model.tier];
+            return model.id?.includes(':free') ? ['free'] : ['paid'];
+        };
+        const getModelRetirementLabel = (model) => {
+            const retirementDate = model?.retirementDate || model?.deprecationDate || model?.sunsetDate;
+            if (!retirementDate) return '';
+            const label = config.uiLanguage === 'en'
+                ? 'Retires'
+                : (config.uiLanguage === 'fr' ? 'Retrait' : '下架');
+            return `${label} ${retirementDate}`;
+        };
         const getModelPriceLabel = (model) => {
             if (!model) return '';
-            if (model.id?.includes(':free')) return config.uiLanguage === 'en' ? 'Free' : '免費';
+            if (getModelTiers(model).includes('free')) return config.uiLanguage === 'en' ? 'Free' : '免費';
             const priceKey = model.descriptionKey ? `${model.descriptionKey}_tier_paid` : '';
             const localizedPrice = priceKey ? i18n[config.uiLanguage]?.[priceKey] : '';
             if (localizedPrice) return localizedPrice;

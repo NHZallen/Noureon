@@ -551,6 +551,7 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                     message,
                     mode,
                     tick: ++progressTick,
+                    startedAt,
                     elapsedMs: Date.now() - startedAt,
                     searchEnabled: Boolean(searchState),
                     totalParticipants: participants.length,

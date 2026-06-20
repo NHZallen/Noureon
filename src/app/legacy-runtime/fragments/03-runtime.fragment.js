@@ -994,10 +994,10 @@
         let tier = [];
         let company = null;
         if (provider === 'gemini') {
-            tier = ['free', 'paid'];
+            tier = getModelTiers(model);
             company = 'google'; 
         } else if (provider === 'openrouter') {
-            tier = model.id.includes(':free') ? ['free'] : ['paid'];
+            tier = getModelTiers(model);
             company = model.id.split('/')[0];
         }
         return { ...model, tier, company };
@@ -1143,10 +1143,10 @@
         let tier = [];
         let company = null;
         if (model.provider === 'gemini') {
-            tier = ['free', 'paid'];
+            tier = getModelTiers(model);
             company = 'google';
         } else if (model.provider === 'openrouter') {
-            tier = model.id.includes(':free') ? ['free'] : ['paid'];
+            tier = getModelTiers(model);
             company = model.id.split('/')[0];
         }
         return { ...model, tier, company };

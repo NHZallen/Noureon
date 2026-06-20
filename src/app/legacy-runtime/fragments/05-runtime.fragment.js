@@ -10,7 +10,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
     // 1. 取得當前使用的模型資訊
     const modelInfo = MODELS.find(m => m.id === conv?.model);
     // 2. 取得模型的顯示名稱，如果找不到就用 ID，再找不到就顯示 "未知"
-    const modelName = modelInfo ? modelInfo.name : (conv?.model || '未知模型');
+    const modelName = isCouncilEnabled(conv) ? getCouncilTexts().title : (modelInfo ? modelInfo.name : (conv?.model || '未知模型'));
     
     // 格式化使用者訊息
     const userContent = userMessageObject.parts.map(part => {

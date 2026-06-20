@@ -160,7 +160,7 @@
             item.className = `sidebar-item w-full text-left p-3 rounded-lg flex items-center justify-between cursor-pointer ${conv.id === activeConversationId && !isSelectionMode ? 'active' : ''}`;
             item.dataset.id = conv.id;
             const modelInfo = normalizeConversationModel(conv);
-            const modelCodename = modelInfo ? modelInfo.name.split(' (')[0] : '';
+            const modelCodename = isCouncilEnabled(conv) ? getCouncilTexts().title : (modelInfo ? modelInfo.name.split(' (')[0] : '');
             const modelNameSuffix = modelCodename ? `<span class="model-suffix">${modelCodename}</span>` : '';
             const contentWrapper = document.createElement('div');
             contentWrapper.className = 'flex-1 flex items-center justify-between truncate';
@@ -328,6 +328,9 @@
             [cameraBtn, uploadImageBtn]
                 .filter(Boolean)
                 .forEach(btn => btn.style.display = supportsVision ? 'flex' : 'none');
+            if (learningModeBtn) {
+                learningModeBtn.style.display = councilActive ? 'none' : 'flex';
+            }
             
             if (!councilActive && provider === 'openrouter') {
     // 檢查當前 OpenRouter 模型是否支援圖片輸入
@@ -357,6 +360,14 @@
 
 
         const toggleLearningMode = async () => {
+            const conv = getActiveConversation();
+            if (!config.isLearningMode && isCouncilEnabled(conv)) {
+                const message = config.uiLanguage === 'en'
+                    ? 'Learning Mode is unavailable while Model Council is enabled.'
+                    : '模型理事會模式無法啟用學習模式。';
+                showNotification(message, 'warning');
+                return;
+            }
             config.isLearningMode = !config.isLearningMode;
             await saveConfig();
             renderInputIndicators();
@@ -662,6 +673,9 @@
         const persistCouncilConfig = async (conv, shouldRender = true) => {
             if (!conv) return;
             conv.council = normalizeCouncilConfig(conv.council);
+            if (conv.council.enabled && config.isLearningMode) {
+                config.isLearningMode = false;
+            }
             config.lastCouncilConfig = cloneCouncilConfig(conv.council);
             await saveAppData();
             await saveConfig();
@@ -691,7 +705,9 @@
             const inputControls = ALL_ELEMENTS.fileInputContainer?.parentElement;
             if (!inputControls) return;
             let container = document.getElementById('model-council-control');
-            const wasVisible = container?.querySelector('#model-council-popover')?.classList.contains('visible') || false;
+            const existingPopover = container?.querySelector('#model-council-popover');
+            const wasVisible = existingPopover?.classList.contains('visible') || false;
+            const previousScrollTop = wasVisible ? existingPopover.scrollTop : 0;
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'model-council-control';
@@ -705,6 +721,10 @@
                 return;
             }
             conv.council = normalizeCouncilConfig(conv.council);
+            if (config.isLearningMode && !conv.council.enabled) {
+                container.innerHTML = '';
+                return;
+            }
             const texts = getCouncilTexts();
             const runtimeTexts = getCouncilRuntimeTexts();
             const validation = getCouncilValidation(conv);
@@ -747,7 +767,7 @@
                 const disabled = isLocked || maxed;
                 const tooltip = makeModelTooltip(model);
                 return `
-                    <label class="council-model-row ${checked ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}" data-tooltip="${escapeHTML(tooltip)}">
+                    <label class="council-model-row ${checked ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}">
                         <input type="checkbox" data-council-participant="${escapeHTML(model.id)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
                         <span>
                             <strong>${escapeHTML(model.name)}</strong>
@@ -759,7 +779,7 @@
             const synthesizerRows = modelList.map(model => {
                 const tooltip = makeModelTooltip(model);
                 return `
-                <label class="council-model-row ${conv.council.synthesizerModelId === model.id ? 'selected' : ''} ${isLocked ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}" data-tooltip="${escapeHTML(tooltip)}">
+                <label class="council-model-row ${conv.council.synthesizerModelId === model.id ? 'selected' : ''} ${isLocked ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}">
                     <input type="radio" name="council-synthesizer" data-council-synthesizer="${escapeHTML(model.id)}" ${conv.council.synthesizerModelId === model.id ? 'checked' : ''} ${lockAttr}>
                     <span>
                         <strong>${escapeHTML(model.name)}</strong>
@@ -823,15 +843,25 @@
             `;
             const popover = container.querySelector('#model-council-popover');
             const toggleButton = container.querySelector('#model-council-toggle-btn');
+            if (wasVisible) {
+                requestAnimationFrame(() => {
+                    popover.scrollTop = previousScrollTop;
+                });
+            }
             const closeCouncilPopover = () => {
                 popover.classList.remove('visible');
                 toggleButton.setAttribute('aria-expanded', 'false');
             };
             toggleButton.addEventListener('click', () => {
-                const wasVisible = popover.classList.contains('visible');
+                const wasVisibleNow = popover.classList.contains('visible');
                 closeAllPopovers();
-                popover.classList.toggle('visible', !wasVisible);
-                toggleButton.setAttribute('aria-expanded', String(!wasVisible));
+                popover.classList.toggle('visible', !wasVisibleNow);
+                if (!wasVisibleNow) {
+                    requestAnimationFrame(() => {
+                        popover.scrollTop = 0;
+                    });
+                }
+                toggleButton.setAttribute('aria-expanded', String(!wasVisibleNow));
             });
             container.querySelector('#model-council-close-btn').addEventListener('click', closeCouncilPopover);
             container.querySelector('#model-council-done-btn').addEventListener('click', closeCouncilPopover);
@@ -1002,10 +1032,10 @@
         let company = null;
         if (provider === 'gemini') {
             // 目前保留的 Gemini 模型 (3 Pro Preview, 3 Flash Preview) 均為付費模型
-            tier = ['paid'];
+            tier = getModelTiers(model);
             company = 'google'; 
         } else if (provider === 'openrouter') {
-            tier = model.isBeta ? [] : (model.id.includes(':free') ? ['free'] : ['paid']);
+            tier = getModelTiers(model);
             company = model.id.split('/')[0];
         }
         return { ...model, tier, company };
@@ -1048,6 +1078,9 @@
             closeAllPopovers();
             popover.classList.add('visible');
             toggleButton.setAttribute('aria-expanded', 'true');
+            requestAnimationFrame(() => {
+                popover.scrollTop = 0;
+            });
         });
         return;
     }
@@ -1116,7 +1149,10 @@
 
     const modelVisionLabel = config.uiLanguage === 'zh-TW' ? '視覺' : 'Vision';
     const modelSearchLabel = i18n[config.uiLanguage]?.search || '搜尋';
-    const modelPriceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
+    const createModelRetirementHTML = (model) => {
+        const retirementLabel = getModelRetirementLabel(model);
+        return retirementLabel ? `<span class="model-retirement-date">${escapeHTML(retirementLabel)}</span>` : '';
+    };
     const createVisionBadgeHTML = (model) => {
         if (!modelSupportsVision(model)) return '';
         return `
@@ -1132,14 +1168,13 @@
         <div class="model-option-meta-row">
             ${modelSupportsVision(model) ? `<span class="model-capability-pill">${createVisionBadgeHTML(model)}${escapeHTML(modelVisionLabel)}</span>` : ''}
             ${modelSupportsWebSearch(model) ? `<span class="model-capability-pill">${escapeHTML(modelSearchLabel)}</span>` : ''}
-            <span class="model-price-pill">${escapeHTML(modelPriceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</span>
         </div>
     `;
 
     const createModelOptionHTML = (model, descriptionText) => {
         return `
             <div data-model-id="${model.id}" class="model-option-btn-container ${isArchived ? 'cursor-not-allowed opacity-50' : ''}">
-                <h4 class="font-semibold model-option-title"><span class="model-name-text">${model.name}</span>${createVisionBadgeHTML(model)}</h4>
+                <h4 class="font-semibold model-option-title"><span class="model-name-text">${model.name}</span>${createModelRetirementHTML(model)}</h4>
                 ${createModelBadgesHTML(model)}
                 <p class="model-description">${descriptionText}</p>
             </div>
@@ -1616,6 +1651,7 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
             renderFilePreviews();
             const loadingMessageDiv = addMessageToUI({ role: 'model', parts: [{ text: '...' }], createdAt: new Date().toISOString() }, conv.messages.length, false);
             const contentDiv = loadingMessageDiv.querySelector('.message-content');
+            let councilProgressTimer = null;
             
             try {
                 let fullResponse = '';
@@ -1627,13 +1663,28 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                     isCouncilRunning = true;
                     renderCouncilControls();
                     renderInputIndicators();
+                    let latestCouncilProgress = null;
+                    const renderCouncilProgressState = (progressState) => {
+                        latestCouncilProgress = progressState;
+                        contentDiv.innerHTML = renderCouncilProgress(progressState);
+                    };
+                    councilProgressTimer = setInterval(() => {
+                        if (!latestCouncilProgress) return;
+                        const startedAt = latestCouncilProgress.startedAt || Date.now();
+                        latestCouncilProgress = {
+                            ...latestCouncilProgress,
+                            tick: (latestCouncilProgress.tick || 0) + 1,
+                            elapsedMs: Date.now() - startedAt
+                        };
+                        contentDiv.innerHTML = renderCouncilProgress(latestCouncilProgress);
+                    }, 1000);
                     const councilResult = await runModelCouncil(
                         userParts,
                         abortController.signal,
-                        (progressState) => {
-                            contentDiv.innerHTML = renderCouncilProgress(progressState);
-                        }
+                        renderCouncilProgressState
                     );
+                    clearInterval(councilProgressTimer);
+                    councilProgressTimer = null;
                     fullResponse = councilResult.text;
                     finalAiMessage.council = councilResult.metadata;
                 } else {
@@ -1719,6 +1770,9 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                 }
             } finally {
                 // ... finally 區塊的程式碼保持不變 ...
+                if (councilProgressTimer) {
+                    clearInterval(councilProgressTimer);
+                }
                 isCouncilRunning = false;
                 abortController = null;
                 updateSubmitButtonState(false);

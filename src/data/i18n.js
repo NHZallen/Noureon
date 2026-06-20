@@ -375,6 +375,8 @@ window.i18n = {
         // Model Descriptions & Limits
         model_gemini_3_5_flash_desc_tier_paid: '百萬輸入/1.5$、百萬輸出/9$',
         model_gemini_3_1_pro_preview_desc_tier_paid: '百萬輸入/2$、百萬輸出/12$',
+        model_gemma_4_31b_it_desc_tier_free: '費用-免費',
+        model_gemma_4_26b_a4b_it_desc_tier_free: '費用-免費',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: '費用-免費',
         model_nex_n2_pro_desc_tier_free: '費用-免費',
@@ -805,6 +807,8 @@ window.i18n = {
         // Model Descriptions & Limits
         model_gemini_3_5_flash_desc_tier_paid: '$1.5/M input, $9/M output',
         model_gemini_3_1_pro_preview_desc_tier_paid: '$2/M input, $12/M output',
+        model_gemma_4_31b_it_desc_tier_free: 'Cost - Free',
+        model_gemma_4_26b_a4b_it_desc_tier_free: 'Cost - Free',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
         model_nex_n2_pro_desc_tier_free: 'Cost - Free',
@@ -1235,6 +1239,8 @@ window.i18n = {
         // Model Descriptions & Limits
         model_gemini_3_5_flash_desc_tier_paid: '1,50 $/M entrée, 9 $/M sortie',
         model_gemini_3_1_pro_preview_desc_tier_paid: '2 $/M entrée, 12 $/M sortie',
+        model_gemma_4_31b_it_desc_tier_free: 'Coût - Gratuit',
+        model_gemma_4_26b_a4b_it_desc_tier_free: 'Coût - Gratuit',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
         model_nex_n2_pro_desc_tier_free: 'Coût - Gratuit',
