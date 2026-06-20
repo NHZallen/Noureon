@@ -34,7 +34,7 @@
                 }
             }
         };
-        function cleanGeminiHistory(history) {
+        function cleanGeminiHistory(history, targetModel = null) {
             const cleaned = []; 
             let lastRole = null;
             
@@ -44,6 +44,9 @@
                 // 並且過濾掉 inlineData 中的 name 屬性
                 const sanitizedParts = msg.parts.map(p => {
                     if (p.inlineData) {
+                        if (targetModel && !modelSupportsUploadedFile(targetModel, { inlineData: p.inlineData })) {
+                            return null;
+                        }
                         return {
                             inlineData: {
                                 mimeType: p.inlineData.mimeType,
@@ -97,7 +100,8 @@
             const modelInfo = requestOptions.modelInfo || normalizeConversationModel(conv);
             if (!modelInfo) throw new Error(`找不到模型設定: ${conv.model}`);
             
-            const { provider, id: modelId } = modelInfo;
+            const { provider } = modelInfo;
+            const modelId = getModelApiId(modelInfo);
             let apiKey;
 
 
@@ -171,7 +175,7 @@
             if (provider === 'gemini') {
                 url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent?key=${apiKey}`;
                 payload = {
-                    contents: cleanGeminiHistory([...historyForApi, currentMessageForApi]),
+                    contents: cleanGeminiHistory([...historyForApi, currentMessageForApi], modelInfo),
                     generationConfig: {
                         ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
                         ...(generationConfig.topP !== null && { topP: generationConfig.topP }),
@@ -187,7 +191,7 @@
                 }
                 headers = { 'Content-Type': 'application/json' };
             } else if (provider === 'nvidia') {
-                url = 'https://integrate.api.nvidia.com/v1/chat/completions';
+                url = '/api/nvidia-chat';
                 const messages = [];
                 if (systemInstruction) {
                     messages.push({ role: 'system', content: systemInstruction.parts.map(p => p.text).join('\n') });
@@ -608,6 +612,118 @@ Output requirements:
             }
             result.push(...filterPartsForModelCapability(originalParts, model).filter(part => part.inlineData));
             return result;
+        };
+        const getUnsupportedSingleDocumentParts = (parts = [], model) => parts.filter(part => {
+            if (!part.inlineData) return false;
+            const mimeType = part.inlineData.mimeType || '';
+            if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) return false;
+            return !modelSupportsUploadedFile(model, { inlineData: part.inlineData });
+        });
+        const buildSingleDocumentTranslationPrompt = (parts, targetModel) => `
+You are the single-model document translator for Astranos Chat.
+
+Target model that will receive your packet:
+- ${targetModel?.name || 'Unknown model'}
+
+Your job:
+Translate the attached document/file content into a detailed, faithful text packet for a target model that cannot read those files directly.
+Do not answer the user's request. Do not summarize too aggressively. Preserve the information the target model would need to reason over the files.
+
+User request for context:
+${extractTextFromParts(parts)}
+
+Output requirements:
+- Start with "# Document Translation Packet".
+- Identify each file by filename and MIME type when available.
+- Preserve headings, section order, paragraphs, tables, lists, numeric values, labels, citations, dates, code blocks, and page/section clues.
+- For tables, write the column names and rows clearly in Markdown.
+- Separate observed content from any necessary inference.
+- Mention unreadable, truncated, missing, low-confidence, or unsupported portions.
+- Do not invent details that are not in the files.
+- End with a compact "Use notes" section explaining how the target model should use this packet without claiming it is user-written.
+`;
+        const buildSingleSearchTranslationPrompt = (parts, targetModel) => `
+You are the single-model search translator for Astranos Chat.
+
+Target model that will receive your packet:
+- ${targetModel?.name || 'Unknown model'}
+
+Your job:
+Use web search once, then create a detailed research packet for a target model that cannot search the web directly.
+Do not answer the user directly. Prepare evidence and context only.
+
+User request:
+${extractTextFromParts(parts)}
+
+Output requirements:
+- Start with "# Search Translation Packet".
+- Include current facts, dates, named entities, and important source names or URLs when available.
+- Separate confirmed facts, uncertainty, disagreements, and freshness risks.
+- Include short source notes so the target model can judge reliability.
+- Explain what the target model should pay attention to.
+- Do not pretend this packet was written by the user.
+- Do not include private reasoning or irrelevant browsing chatter.
+`;
+        const buildSingleModelTranslatedRequestParts = async (parts, modelInfo, signal, onProgress) => {
+            const translatedSections = [];
+            const documentParts = getUnsupportedSingleDocumentParts(parts, modelInfo);
+            if (documentParts.length > 0) {
+                const translatorModel = getSingleDocumentTranslatorModel();
+                if (!translatorModel) {
+                    throw new Error(config.uiLanguage === 'en'
+                        ? 'This model needs a document translator model in Settings.'
+                        : '此模型需要先在設定中指定文件轉譯模型。');
+                }
+                onProgress?.('documentTranslation', `文件轉譯：${translatorModel.name}`);
+                const documentPacket = await streamCouncilApiCallWithRetry(
+                    [
+                        { text: buildSingleDocumentTranslationPrompt(parts, modelInfo) },
+                        ...documentParts
+                    ],
+                    () => onProgress?.('documentTranslation', `文件轉譯：${translatorModel.name}`),
+                    signal,
+                    false,
+                    {
+                        modelInfo: translatorModel,
+                        historyForApi: [],
+                        ignoreConversationWebSearch: true,
+                        additionalSystemInstruction: 'You only translate attached documents/files into detailed neutral packets. Do not answer the user.',
+                    }
+                );
+                translatedSections.push(`# Document translation packet\nThis packet was generated by ${translatorModel.name} for ${modelInfo.name}. It replaces only files the target model cannot read directly.\n\n${truncateCouncilText(documentPacket, 7000)}`);
+            }
+            const conv = getActiveConversation();
+            if (conv?.isWebSearchEnabled && !modelSupportsWebSearch(modelInfo)) {
+                const translatorModel = getSingleSearchTranslatorModel();
+                if (!translatorModel) {
+                    throw new Error(config.uiLanguage === 'en'
+                        ? 'This model needs a search translator model in Settings.'
+                        : '此模型需要先在設定中指定搜索轉譯模型。');
+                }
+                onProgress?.('searchTranslation', `搜索轉譯：${translatorModel.name}`);
+                const searchPacket = await streamCouncilApiCallWithRetry(
+                    [{ text: buildSingleSearchTranslationPrompt(parts, modelInfo) }],
+                    () => onProgress?.('searchTranslation', `搜索轉譯：${translatorModel.name}`),
+                    signal,
+                    false,
+                    {
+                        modelInfo: translatorModel,
+                        historyForApi: [],
+                        forceWebSearch: true,
+                        ignoreConversationWebSearch: true,
+                        additionalSystemInstruction: 'Prepare a detailed web research packet for another model. Do not answer the user directly.',
+                    }
+                );
+                translatedSections.push(`# Search translation packet\nThis packet was generated by ${translatorModel.name} for ${modelInfo.name}. It replaces web search for a target model without native search.\n\n${truncateCouncilText(searchPacket, 7000)}`);
+            }
+            const requestParts = [];
+            if (translatedSections.length > 0) {
+                requestParts.push({
+                    text: `# System-generated translation context\nUse the following packets as supporting context. They were generated by configured translator models and are not user-written. Continue to answer the user's request directly after reading them.\n\n${translatedSections.join('\n\n')}\n\n# User request follows`
+                });
+            }
+            requestParts.push(...filterPartsForModelCapability(parts, modelInfo));
+            return requestParts;
         };
         const buildCouncilComparisonInstruction = (enabled) => enabled ? `
 
@@ -1324,39 +1440,138 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                         <div>
                             <label for="council-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="councilTranslatorModel">Council translator model</label>
                             <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="councilTranslatorModelDesc">Only translates attachments into detailed text packets for the council.</p>
-                            <select id="council-translator-model-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]"></select>
+                            <input type="hidden" id="council-translator-model-select">
+                            <div class="translator-model-picker" data-translator-picker="councilTranslatorModelId"></div>
+                        </div>
+                        <div>
+                            <label for="single-document-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="singleDocumentTranslatorModel">單模型文件轉譯模型</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="singleDocumentTranslatorModelDesc">提供給不支援文件上傳的單一模型，只在該次請求轉成詳細文字包。</p>
+                            <input type="hidden" id="single-document-translator-model-select">
+                            <div class="translator-model-picker" data-translator-picker="singleDocumentTranslatorModelId"></div>
+                        </div>
+                        <div>
+                            <label for="single-search-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="singleSearchTranslatorModel">單模型搜索轉譯模型</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="singleSearchTranslatorModelDesc">提供給不支援搜索的單一模型，先整理一份詳細搜索脈絡。</p>
+                            <input type="hidden" id="single-search-translator-model-select">
+                            <div class="translator-model-picker" data-translator-picker="singleSearchTranslatorModelId"></div>
                         </div>
                     `);
                 }
             }
             ALL_ELEMENTS.nvidiaApiKeyInput = document.getElementById('nvidia-api-key-input');
             ALL_ELEMENTS.councilTranslatorModelSelect = document.getElementById('council-translator-model-select');
+            ALL_ELEMENTS.singleDocumentTranslatorModelSelect = document.getElementById('single-document-translator-model-select');
+            ALL_ELEMENTS.singleSearchTranslatorModelSelect = document.getElementById('single-search-translator-model-select');
         };
-        const renderCouncilTranslatorModelSelect = () => {
-            const select = ALL_ELEMENTS.councilTranslatorModelSelect;
-            if (!select) return;
-            const candidates = getCouncilTranslatorCandidates();
+        const renderTranslatorModelPicker = ({ input, pickerKey, configKey, candidates, emptyText }) => {
+            const picker = document.querySelector(`[data-translator-picker="${pickerKey}"]`);
+            if (!input || !picker) return;
             const translations = i18n[config.uiLanguage] || i18n['zh-TW'];
             if (candidates.length === 0) {
-                select.innerHTML = `<option value="">${escapeHTML(translations.noCouncilTranslatorModels || 'No eligible translator models')}</option>`;
-                select.disabled = true;
-                config.councilTranslatorModelId = null;
+                input.value = '';
+                input.disabled = true;
+                config[configKey] = null;
+                picker.innerHTML = `
+                    <button type="button" class="translator-picker-button" disabled>
+                        <span>${escapeHTML(emptyText)}</span>
+                    </button>
+                `;
                 return;
             }
-            select.disabled = false;
-            if (!candidates.some(model => model.id === config.councilTranslatorModelId)) {
-                config.councilTranslatorModelId = candidates[0].id;
+            input.disabled = false;
+            if (!candidates.some(model => model.id === config[configKey])) {
+                config[configKey] = candidates[0].id;
             }
-            select.innerHTML = candidates.map(model => `
-                <option value="${escapeHTML(model.id)}" ${model.id === config.councilTranslatorModelId ? 'selected' : ''}>${escapeHTML(model.name)}</option>
-            `).join('');
+            input.value = config[configKey] || '';
+            const selectedModel = candidates.find(model => model.id === config[configKey]) || candidates[0];
+            const featureLabels = (model) => [
+                modelSupportsVision(model) ? (translations.vision || '視覺') : '',
+                modelSupportsDocumentUpload(model) ? (translations.document || '文件') : '',
+                modelSupportsWebSearch(model) ? (translations.search || '搜索') : ''
+            ].filter(Boolean);
+            const optionHTML = candidates.map(model => {
+                const selected = model.id === selectedModel.id;
+                return `
+                    <button type="button" class="translator-picker-option ${selected ? 'selected' : ''}" data-translator-option="${escapeHTML(model.id)}">
+                        <span class="translator-picker-option-main">
+                            <strong>${escapeHTML(model.name)}</strong>
+                            <small>${escapeHTML(getProviderLabel(model.provider))} · ${escapeHTML(getModelPriceLabel(model))}</small>
+                        </span>
+                        <span class="translator-picker-option-chips">
+                            ${featureLabels(model).map(label => `<span>${escapeHTML(label)}</span>`).join('')}
+                        </span>
+                    </button>
+                `;
+            }).join('');
+            picker.innerHTML = `
+                <button type="button" class="translator-picker-button" data-translator-picker-button="${pickerKey}" aria-expanded="false">
+                    <span class="translator-picker-current">
+                        <strong>${escapeHTML(selectedModel.name)}</strong>
+                        <small>${escapeHTML(getProviderLabel(selectedModel.provider))} · ${escapeHTML(getModelPriceLabel(selectedModel))}</small>
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div class="translator-picker-menu" data-translator-picker-menu="${pickerKey}" hidden>
+                    ${optionHTML}
+                </div>
+            `;
+            picker.querySelector('[data-translator-picker-button]')?.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const menu = picker.querySelector('[data-translator-picker-menu]');
+                const isOpen = !menu.hasAttribute('hidden');
+                document.querySelectorAll('.translator-picker-menu').forEach(item => item.setAttribute('hidden', ''));
+                document.querySelectorAll('[data-translator-picker-button]').forEach(button => button.setAttribute('aria-expanded', 'false'));
+                if (!isOpen) {
+                    menu.removeAttribute('hidden');
+                    picker.querySelector('[data-translator-picker-button]')?.setAttribute('aria-expanded', 'true');
+                }
+            });
+            picker.querySelectorAll('[data-translator-option]').forEach(option => {
+                option.addEventListener('click', () => {
+                    config[configKey] = option.dataset.translatorOption;
+                    input.value = config[configKey];
+                    renderTranslatorModelPickers();
+                });
+            });
+        };
+        const renderTranslatorModelPickers = () => {
+            const translations = i18n[config.uiLanguage] || i18n['zh-TW'];
+            renderTranslatorModelPicker({
+                input: ALL_ELEMENTS.councilTranslatorModelSelect,
+                pickerKey: 'councilTranslatorModelId',
+                configKey: 'councilTranslatorModelId',
+                candidates: getCouncilTranslatorCandidates(),
+                emptyText: translations.noCouncilTranslatorModels || '沒有可用的理事會轉譯模型'
+            });
+            renderTranslatorModelPicker({
+                input: ALL_ELEMENTS.singleDocumentTranslatorModelSelect,
+                pickerKey: 'singleDocumentTranslatorModelId',
+                configKey: 'singleDocumentTranslatorModelId',
+                candidates: getSingleTranslatorCandidates(),
+                emptyText: translations.noSingleTranslatorModels || '沒有可用的單模型轉譯模型'
+            });
+            renderTranslatorModelPicker({
+                input: ALL_ELEMENTS.singleSearchTranslatorModelSelect,
+                pickerKey: 'singleSearchTranslatorModelId',
+                configKey: 'singleSearchTranslatorModelId',
+                candidates: getSingleTranslatorCandidates(),
+                emptyText: translations.noSingleTranslatorModels || '沒有可用的單模型轉譯模型'
+            });
+            if (!document.__translatorPickerOutsideHandlerBound) {
+                document.__translatorPickerOutsideHandlerBound = true;
+                document.addEventListener('click', (event) => {
+                    if (event.target.closest('.translator-model-picker')) return;
+                    document.querySelectorAll('.translator-picker-menu').forEach(item => item.setAttribute('hidden', ''));
+                    document.querySelectorAll('[data-translator-picker-button]').forEach(button => button.setAttribute('aria-expanded', 'false'));
+                });
+            }
         };
         const setupSettingsModal = () => {
             ensureCouncilTranslatorSettingsControls();
             ALL_ELEMENTS.geminiApiKeyInput.value = getApiKeyForProvider('gemini');
             ALL_ELEMENTS.openrouterApiKeyInputAll.value = getApiKeyForProvider('openrouter');
             if (ALL_ELEMENTS.nvidiaApiKeyInput) ALL_ELEMENTS.nvidiaApiKeyInput.value = getApiKeyForProvider('nvidia');
-            renderCouncilTranslatorModelSelect();
+            renderTranslatorModelPickers();
             applyLanguage(config.uiLanguage);
             ALL_ELEMENTS.followUpToggleSwitch.checked = config.enableFollowUp;
             ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
@@ -1403,6 +1618,8 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
             config.apiKeys.nvidia = ALL_ELEMENTS.nvidiaApiKeyInput?.value.trim() || '';
             config.councilTranslatorModelId = ALL_ELEMENTS.councilTranslatorModelSelect?.value || null;
+            config.singleDocumentTranslatorModelId = ALL_ELEMENTS.singleDocumentTranslatorModelSelect?.value || null;
+            config.singleSearchTranslatorModelId = ALL_ELEMENTS.singleSearchTranslatorModelSelect?.value || null;
             config.enableFollowUp = ALL_ELEMENTS.followUpToggleSwitch.checked;
             config.enableAutoWebSearch = ALL_ELEMENTS.autoWebSearchToggleSwitch.checked;
             config.aiBubbleColor = ALL_ELEMENTS.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default';

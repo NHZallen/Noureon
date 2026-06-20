@@ -714,6 +714,13 @@
             const existingPopover = container?.querySelector('#model-council-popover');
             const wasVisible = existingPopover?.classList.contains('visible') || false;
             const previousScrollTop = wasVisible ? existingPopover.scrollTop : 0;
+            const previousFilters = {
+                search: existingPopover?.querySelector('[data-council-filter="search"]')?.value || '',
+                provider: existingPopover?.querySelector('[data-council-filter="provider"]')?.value || 'all',
+                ability: existingPopover?.querySelector('[data-council-filter="ability"]')?.value || 'all',
+                price: existingPopover?.querySelector('[data-council-filter="price"]')?.value || 'all',
+                sort: existingPopover?.querySelector('[data-council-filter="sort"]')?.value || 'name'
+            };
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'model-council-control';
@@ -748,52 +755,164 @@
             const dotClass = conv.council.enabled ? (validation.ok ? 'ready' : 'warning') : 'off';
             const priceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
             const visionLabel = config.uiLanguage === 'en' ? 'Vision' : '視覺';
+            const documentLabel = config.uiLanguage === 'en' ? 'Documents' : '文件';
             const searchLabel = i18n[config.uiLanguage]?.search || '搜尋';
             const providerLabel = config.uiLanguage === 'en' ? 'Provider' : '供應商';
             const abilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
             const noExtraAbilityLabel = config.uiLanguage === 'en' ? 'Text / file' : '文字 / 文件';
+            const searchPlaceholder = config.uiLanguage === 'en' ? 'Search models' : '搜尋模型';
+            const allLabel = config.uiLanguage === 'en' ? 'All' : '全部';
+            const freeLabel = config.uiLanguage === 'en' ? 'Free' : '免費';
+            const paidLabel = config.uiLanguage === 'en' ? 'Paid' : '付費';
+            const providerCountLabel = config.uiLanguage === 'en' ? 'providers' : '供應商';
+            const sortNameLabel = config.uiLanguage === 'en' ? 'Name' : '名稱';
+            const sortProviderLabel = config.uiLanguage === 'en' ? 'Provider count' : '供應商數';
+            const sortPriceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
+            const sortCapabilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
             const makeModelTooltip = (model) => {
                 const abilities = [
                     noExtraAbilityLabel,
                     modelSupportsVision(model) ? visionLabel : '',
+                    modelSupportsDocumentUpload(model) ? documentLabel : '',
                     modelSupportsWebSearch(model) ? searchLabel : ''
                 ].filter(Boolean).join(' · ');
-                return `${model.name}\n${providerLabel}: ${model.provider}\n${abilityLabel}: ${abilities}\n${priceLabel}: ${getModelPriceLabel(model)}`;
+                return `${model.name}\n${providerLabel}: ${getProviderLabel(model.provider)}\n${abilityLabel}: ${abilities}\n${priceLabel}: ${getModelPriceLabel(model)}`;
             };
             const createCouncilModelMetaHTML = (model) => `
                 <span class="council-model-badges">
                     ${modelSupportsVision(model) ? `<span class="council-capability-badge" title="${escapeHTML(visionLabel)}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>${escapeHTML(visionLabel)}</span>` : ''}
+                    ${modelSupportsDocumentUpload(model) ? `<span class="council-capability-badge">${escapeHTML(documentLabel)}</span>` : ''}
                     ${modelSupportsWebSearch(model) ? `<span class="council-capability-badge">${escapeHTML(searchLabel)}</span>` : ''}
                 </span>
-                <small>${escapeHTML(model.provider)} · ${escapeHTML(priceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</small>
+                <small>${escapeHTML(getProviderLabel(model.provider))} · ${escapeHTML(priceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</small>
             `;
-            const modelRows = modelList.map(model => {
+            const getModelCapabilityScore = (model) => [
+                modelSupportsVision(model),
+                modelSupportsDocumentUpload(model),
+                modelSupportsWebSearch(model)
+            ].filter(Boolean).length;
+            const getModelPriceRank = (model) => getModelTiers(model).includes('free') ? 0 : 1;
+            const buildCouncilModelGroups = (models) => {
+                const groups = new Map();
+                models.forEach(model => {
+                    const key = getModelFamilyKey(model);
+                    if (!groups.has(key)) {
+                        groups.set(key, {
+                            key,
+                            name: getModelFamilyName(model) || model.name,
+                            variants: []
+                        });
+                    }
+                    groups.get(key).variants.push(model);
+                });
+                return Array.from(groups.values()).map(group => ({
+                    ...group,
+                    variants: group.variants.sort((a, b) => {
+                        const providerCompare = getProviderLabel(a.provider).localeCompare(getProviderLabel(b.provider));
+                        return providerCompare || a.name.localeCompare(b.name);
+                    })
+                }));
+            };
+            const matchesCouncilFilters = (model, groupName) => {
+                const query = previousFilters.search.trim().toLowerCase();
+                const searchable = `${groupName} ${model.name} ${getProviderLabel(model.provider)} ${getModelApiId(model)}`.toLowerCase();
+                const providerOk = previousFilters.provider === 'all' || model.provider === previousFilters.provider;
+                const abilityOk = previousFilters.ability === 'all'
+                    || (previousFilters.ability === 'vision' && modelSupportsVision(model))
+                    || (previousFilters.ability === 'document' && modelSupportsDocumentUpload(model))
+                    || (previousFilters.ability === 'search' && modelSupportsWebSearch(model));
+                const priceOk = previousFilters.price === 'all'
+                    || (previousFilters.price === 'free' && getModelTiers(model).includes('free'))
+                    || (previousFilters.price === 'paid' && !getModelTiers(model).includes('free'));
+                return (!query || searchable.includes(query)) && providerOk && abilityOk && priceOk;
+            };
+            const modelGroups = buildCouncilModelGroups(modelList)
+                .map(group => ({
+                    ...group,
+                    variants: group.variants.filter(model => matchesCouncilFilters(model, group.name))
+                }))
+                .filter(group => group.variants.length > 0)
+                .sort((a, b) => {
+                    if (previousFilters.sort === 'provider') {
+                        return b.variants.length - a.variants.length || a.name.localeCompare(b.name);
+                    }
+                    if (previousFilters.sort === 'price') {
+                        const priceCompare = Math.min(...a.variants.map(getModelPriceRank)) - Math.min(...b.variants.map(getModelPriceRank));
+                        return priceCompare || a.name.localeCompare(b.name);
+                    }
+                    if (previousFilters.sort === 'capability') {
+                        const capabilityCompare = Math.max(...b.variants.map(getModelCapabilityScore)) - Math.max(...a.variants.map(getModelCapabilityScore));
+                        return capabilityCompare || a.name.localeCompare(b.name);
+                    }
+                    return a.name.localeCompare(b.name);
+                });
+            const renderSelectableCouncilModelRow = (model, type) => {
+                const isParticipant = type === 'participant';
                 const checked = conv.council.participantModelIds.includes(model.id);
-                const maxed = !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
+                const selected = isParticipant ? checked : conv.council.synthesizerModelId === model.id;
+                const maxed = isParticipant && !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
                 const disabled = isLocked || maxed;
                 const tooltip = makeModelTooltip(model);
                 return `
-                    <label class="council-model-row ${checked ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}">
-                        <input type="checkbox" data-council-participant="${escapeHTML(model.id)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+                    <label class="council-model-row ${selected ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}">
+                        <input type="${isParticipant ? 'checkbox' : 'radio'}" ${isParticipant ? '' : 'name="council-synthesizer"'} ${isParticipant ? `data-council-participant="${escapeHTML(model.id)}"` : `data-council-synthesizer="${escapeHTML(model.id)}"`} ${selected ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
                         <span>
                             <strong>${escapeHTML(model.name)}</strong>
                             ${createCouncilModelMetaHTML(model)}
                         </span>
                     </label>
                 `;
-            }).join('');
-            const synthesizerRows = modelList.map(model => {
-                const tooltip = makeModelTooltip(model);
+            };
+            const renderCouncilModelGroups = (type) => modelGroups.map(group => {
+                if (group.variants.length === 1) {
+                    return renderSelectableCouncilModelRow(group.variants[0], type);
+                }
+                const providerNames = group.variants.map(model => getProviderLabel(model.provider)).join(' · ');
                 return `
-                <label class="council-model-row ${conv.council.synthesizerModelId === model.id ? 'selected' : ''} ${isLocked ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}">
-                    <input type="radio" name="council-synthesizer" data-council-synthesizer="${escapeHTML(model.id)}" ${conv.council.synthesizerModelId === model.id ? 'checked' : ''} ${lockAttr}>
-                    <span>
-                        <strong>${escapeHTML(model.name)}</strong>
-                        ${createCouncilModelMetaHTML(model)}
-                    </span>
-                </label>
-            `;
+                    <div class="council-model-group">
+                        <div class="council-model-family-row">
+                            <span>
+                                <strong>${escapeHTML(group.name)}</strong>
+                                <small>${escapeHTML(String(group.variants.length))} ${escapeHTML(providerCountLabel)}</small>
+                            </span>
+                            <span class="council-family-provider-list">${escapeHTML(providerNames)}</span>
+                        </div>
+                        <div class="council-provider-variant-list">
+                            ${group.variants.map(model => renderSelectableCouncilModelRow(model, type)).join('')}
+                        </div>
+                    </div>
+                `;
             }).join('');
+            const modelRows = renderCouncilModelGroups('participant');
+            const synthesizerRows = renderCouncilModelGroups('synthesizer');
+            const filtersHTML = `
+                <div class="council-filter-panel">
+                    <input type="search" data-council-filter="search" value="${escapeHTML(previousFilters.search)}" placeholder="${escapeHTML(searchPlaceholder)}">
+                    <select data-council-filter="provider">
+                        <option value="all" ${previousFilters.provider === 'all' ? 'selected' : ''}>${escapeHTML(allLabel)} ${escapeHTML(providerLabel)}</option>
+                        <option value="gemini" ${previousFilters.provider === 'gemini' ? 'selected' : ''}>Gemini</option>
+                        <option value="openrouter" ${previousFilters.provider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
+                        <option value="nvidia" ${previousFilters.provider === 'nvidia' ? 'selected' : ''}>NVIDIA</option>
+                    </select>
+                    <select data-council-filter="ability">
+                        <option value="all" ${previousFilters.ability === 'all' ? 'selected' : ''}>${escapeHTML(allLabel)} ${escapeHTML(abilityLabel)}</option>
+                        <option value="vision" ${previousFilters.ability === 'vision' ? 'selected' : ''}>${escapeHTML(visionLabel)}</option>
+                        <option value="document" ${previousFilters.ability === 'document' ? 'selected' : ''}>${escapeHTML(documentLabel)}</option>
+                        <option value="search" ${previousFilters.ability === 'search' ? 'selected' : ''}>${escapeHTML(searchLabel)}</option>
+                    </select>
+                    <select data-council-filter="price">
+                        <option value="all" ${previousFilters.price === 'all' ? 'selected' : ''}>${escapeHTML(allLabel)} ${escapeHTML(priceLabel)}</option>
+                        <option value="free" ${previousFilters.price === 'free' ? 'selected' : ''}>${escapeHTML(freeLabel)}</option>
+                        <option value="paid" ${previousFilters.price === 'paid' ? 'selected' : ''}>${escapeHTML(paidLabel)}</option>
+                    </select>
+                    <select data-council-filter="sort">
+                        <option value="name" ${previousFilters.sort === 'name' ? 'selected' : ''}>${escapeHTML(sortNameLabel)}</option>
+                        <option value="provider" ${previousFilters.sort === 'provider' ? 'selected' : ''}>${escapeHTML(sortProviderLabel)}</option>
+                        <option value="price" ${previousFilters.sort === 'price' ? 'selected' : ''}>${escapeHTML(sortPriceLabel)}</option>
+                        <option value="capability" ${previousFilters.sort === 'capability' ? 'selected' : ''}>${escapeHTML(sortCapabilityLabel)}</option>
+                    </select>
+                </div>
+            `;
             container.innerHTML = `
                 <div class="model-council-bar ${enabledClass} ${isLocked ? 'is-locked' : ''}">
                     <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
@@ -824,6 +943,7 @@
                         </div>
                         <p class="council-search-note ${conv.isWebSearchEnabled ? 'is-on' : 'is-off'}">${escapeHTML(conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : runtimeTexts.searchManualNotice)}</p>
                         ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
+                        ${filtersHTML}
                         <div class="council-section">
                             <div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${COUNCIL_MAX_MODELS})</div>
                             <div class="council-model-list">${modelRows}</div>
@@ -871,6 +991,12 @@
             });
             container.querySelector('#model-council-close-btn').addEventListener('click', closeCouncilPopover);
             container.querySelector('#model-council-done-btn').addEventListener('click', closeCouncilPopover);
+            container.querySelectorAll('[data-council-filter]').forEach(control => {
+                const eventName = control.tagName === 'INPUT' ? 'input' : 'change';
+                control.addEventListener(eventName, () => {
+                    renderCouncilControls();
+                });
+            });
             container.querySelector('#model-council-enabled').addEventListener('change', async (event) => {
                 if (isCouncilRunning) {
                     showNotification(runtimeTexts.councilLocked, 'warning');
@@ -1029,6 +1155,53 @@
                 </div>
             `;
         };
+        const renderSingleModelProgress = (progress) => {
+            const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
+            const stageLabels = {
+                preparing: config.uiLanguage === 'en' ? 'Preparing request' : '準備請求',
+                documentTranslation: config.uiLanguage === 'en' ? 'Document translation' : '文件轉譯',
+                searchTranslation: config.uiLanguage === 'en' ? 'Search translation' : '搜索轉譯',
+                streaming: config.uiLanguage === 'en' ? 'Model answering' : '模型作答',
+                completed: config.uiLanguage === 'en' ? 'Completed' : '完成'
+            };
+            const stageNotes = {
+                preparing: config.uiLanguage === 'en'
+                    ? 'Checking the target model capabilities before sending the request.'
+                    : '正在檢查目標模型的原生能力，決定是否需要轉譯包。',
+                documentTranslation: config.uiLanguage === 'en'
+                    ? 'A configured translator is turning unsupported documents into a detailed text packet for this turn only.'
+                    : '設定的轉譯模型正在把不支援的文件轉成只供本次請求使用的詳細文字包。',
+                searchTranslation: config.uiLanguage === 'en'
+                    ? 'A configured translator is gathering a web research packet for a model without native search.'
+                    : '設定的轉譯模型正在為不支援搜索的模型整理網頁研究包。',
+                streaming: config.uiLanguage === 'en'
+                    ? 'The selected model is streaming the final answer.'
+                    : '所選模型正在串流輸出最終回答。',
+                completed: config.uiLanguage === 'en' ? 'The response is ready.' : '回應已完成。'
+            };
+            const receivedLabel = config.uiLanguage === 'en' ? 'received characters' : '已接收字元';
+            return `
+                <details class="single-progress-panel" open>
+                    <summary>
+                        <span>${escapeHTML(progress.modelName || '')}</span>
+                        <span>${elapsedSeconds}s</span>
+                    </summary>
+                    <div class="council-progress-orbit" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="council-progress-heading">
+                        <span class="council-progress-stage">${escapeHTML(stageLabels[progress.stage] || stageLabels.preparing)}</span>
+                        <span class="council-progress-time">${elapsedSeconds}s</span>
+                    </div>
+                    <div class="council-progress-message">${escapeHTML(progress.message || stageLabels[progress.stage] || stageLabels.preparing)}</div>
+                    <div class="council-progress-note">${escapeHTML(stageNotes[progress.stage] || stageNotes.preparing)}</div>
+                    <div class="council-progress-stats">
+                        <span>${escapeHTML(receivedLabel)}: ${escapeHTML(String(progress.receivedChars || 0))}</span>
+                        ${progress.translatorName ? `<span>${escapeHTML(progress.translatorName)}</span>` : ''}
+                    </div>
+                </details>
+            `;
+        };
         const isCouncilDeferredSectionVisible = (text = '') => /<details\b|共識與差異整理|模型理事會紀錄|Model council record|Compte rendu du conseil/i.test(String(text || ''));
         const renderModelSwitcher = () => {
     const conv = getActiveConversation();
@@ -1049,7 +1222,7 @@
             company = model.id.split('/')[0];
         } else if (provider === 'nvidia') {
             tier = getModelTiers(model);
-            company = model.id.split('/')[0];
+            company = getModelApiId(model).split('/')[0];
         }
         return { ...model, tier, company };
     });
@@ -1161,6 +1334,9 @@
 
 
     const modelVisionLabel = config.uiLanguage === 'zh-TW' ? '視覺' : 'Vision';
+    const modelDocumentLabel = config.uiLanguage === 'zh-TW' ? '文件' : 'Documents';
+    const translatedDocumentLabel = config.uiLanguage === 'zh-TW' ? '轉譯文件' : 'Translated documents';
+    const translatedSearchLabel = config.uiLanguage === 'zh-TW' ? '轉譯搜索' : 'Translated search';
     const modelSearchLabel = i18n[config.uiLanguage]?.search || '搜尋';
     const createModelRetirementHTML = (model) => {
         const retirementLabel = getModelRetirementLabel(model);
@@ -1180,7 +1356,9 @@
     const createModelBadgesHTML = (model) => `
         <div class="model-option-meta-row">
             ${modelSupportsVision(model) ? `<span class="model-capability-pill">${createVisionBadgeHTML(model)}${escapeHTML(modelVisionLabel)}</span>` : ''}
+            ${modelSupportsDocumentUpload(model) ? `<span class="model-capability-pill">${escapeHTML(modelDocumentLabel)}</span>` : (getSingleDocumentTranslatorModel() ? `<span class="model-capability-pill">${escapeHTML(translatedDocumentLabel)}</span>` : '')}
             ${modelSupportsWebSearch(model) ? `<span class="model-capability-pill">${escapeHTML(modelSearchLabel)}</span>` : ''}
+            ${!modelSupportsWebSearch(model) && getSingleSearchTranslatorModel() ? `<span class="model-capability-pill">${escapeHTML(translatedSearchLabel)}</span>` : ''}
         </div>
     `;
 
@@ -1668,6 +1846,7 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
             const loadingMessageDiv = addMessageToUI({ role: 'model', parts: [{ text: '...' }], createdAt: new Date().toISOString() }, conv.messages.length, false);
             const contentDiv = loadingMessageDiv.querySelector('.message-content');
             let councilProgressTimer = null;
+            let singleProgressTimer = null;
             
             try {
                 let fullResponse = '';
@@ -1704,13 +1883,62 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                     fullResponse = councilResult.text;
                     finalAiMessage.council = councilResult.metadata;
                 } else {
-                    const completeResponse = await streamApiCall(
+                    const modelInfo = normalizeConversationModel(conv);
+                    const startedAt = Date.now();
+                    let latestSingleProgress = {
+                        stage: 'preparing',
+                        message: config.uiLanguage === 'en' ? 'Preparing request' : '準備請求',
+                        modelName: modelInfo?.name || conv.model,
+                        startedAt,
+                        elapsedMs: 0,
+                        receivedChars: 0
+                    };
+                    const renderSingleProgressState = (stage, message, extra = {}) => {
+                        latestSingleProgress = {
+                            ...latestSingleProgress,
+                            stage,
+                            message,
+                            elapsedMs: Date.now() - startedAt,
+                            ...extra
+                        };
+                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
+                    };
+                    renderSingleProgressState('preparing', config.uiLanguage === 'en' ? 'Checking model capabilities' : '檢查模型能力');
+                    singleProgressTimer = setInterval(() => {
+                        latestSingleProgress = {
+                            ...latestSingleProgress,
+                            elapsedMs: Date.now() - startedAt
+                        };
+                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
+                    }, 1000);
+                    const requestParts = await buildSingleModelTranslatedRequestParts(
                         userParts,
-                        (chunk) => {
-                            // 在 streamApiCall 內部，我們只收集文字，不渲染
-                        },
-                        abortController.signal
+                        modelInfo,
+                        abortController.signal,
+                        (stage, message) => renderSingleProgressState(stage, message)
                     );
+                    let receivedChars = 0;
+                    let lastSingleProgressAt = 0;
+                    const completeResponse = await streamApiCall(
+                        requestParts,
+                        (chunk) => {
+                            receivedChars += String(chunk || '').length;
+                            const now = Date.now();
+                            if (now - lastSingleProgressAt > 700) {
+                                lastSingleProgressAt = now;
+                                renderSingleProgressState(
+                                    'streaming',
+                                    config.uiLanguage === 'en' ? 'Model is answering' : '模型正在作答',
+                                    { receivedChars }
+                                );
+                            }
+                        },
+                        abortController.signal,
+                        false,
+                        { modelInfo }
+                    );
+                    clearInterval(singleProgressTimer);
+                    singleProgressTimer = null;
                     fullResponse = completeResponse;
                 }
                 sendConversationToMail(userMessageObject, fullResponse);
@@ -1788,6 +2016,9 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                 // ... finally 區塊的程式碼保持不變 ...
                 if (councilProgressTimer) {
                     clearInterval(councilProgressTimer);
+                }
+                if (singleProgressTimer) {
+                    clearInterval(singleProgressTimer);
                 }
                 isCouncilRunning = false;
                 abortController = null;

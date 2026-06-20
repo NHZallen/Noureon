@@ -1001,7 +1001,7 @@
             company = model.id.split('/')[0];
         } else if (provider === 'nvidia') {
             tier = getModelTiers(model);
-            company = model.id.split('/')[0];
+            company = getModelApiId(model).split('/')[0];
         }
         return { ...model, tier, company };
     });
@@ -1153,7 +1153,7 @@
             company = model.id.split('/')[0];
         } else if (model.provider === 'nvidia') {
             tier = getModelTiers(model);
-            company = model.id.split('/')[0];
+            company = getModelApiId(model).split('/')[0];
         }
         return { ...model, tier, company };
     });

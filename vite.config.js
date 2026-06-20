@@ -40,7 +40,14 @@ function legacyRuntimeFragmentsPlugin() {
 export default defineConfig({
   plugins: [legacyRuntimeFragmentsPlugin()],
   server: {
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    proxy: {
+      '/api/nvidia-chat': {
+        target: 'https://integrate.api.nvidia.com',
+        changeOrigin: true,
+        rewrite: () => '/v1/chat/completions'
+      }
+    }
   },
   preview: {
     host: '0.0.0.0'

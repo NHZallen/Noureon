@@ -167,6 +167,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             openrouterApiKeyInputAll: document.getElementById('openrouter-api-key-input-all'),
             nvidiaApiKeyInput: document.getElementById('nvidia-api-key-input'),
             councilTranslatorModelSelect: document.getElementById('council-translator-model-select'),
+            singleDocumentTranslatorModelSelect: document.getElementById('single-document-translator-model-select'),
+            singleSearchTranslatorModelSelect: document.getElementById('single-search-translator-model-select'),
             modelManagementList: document.getElementById('model-management-list'),
             openArchivedModalBtn: document.getElementById('open-archived-modal-btn'),
             themeLightBtn: document.getElementById('theme-light-btn'),
@@ -627,15 +629,15 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     { id: 'gemma-4-26b-a4b-it', name: 'Gemma 4 26B A4B IT', provider: 'gemini', descriptionKey: 'model_gemma_4_26b_a4b_it_desc', tier: ['free'] },
 
     // NVIDIA Build Free Models
-    { id: 'google/gemma-4-31b-it', name: 'NVIDIA Gemma 4 31B IT', provider: 'nvidia', descriptionKey: 'model_nvidia_gemma_4_31b_it_desc', tier: ['free'], category: 'general' },
-    { id: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
-    { id: 'deepseek-ai/deepseek-v4-flash', name: 'NVIDIA DeepSeek V4 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_desc', tier: ['free'], category: 'general' },
-    { id: 'minimaxai/minimax-m3', name: 'NVIDIA MiniMax M3', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m3_desc', tier: ['free'], category: 'general' },
-    { id: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
-    { id: 'z-ai/glm-5.1', name: 'NVIDIA GLM-5.1', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_1_desc', tier: ['free'], category: 'general' },
-    { id: 'qwen/qwen3.5-397b-a17b', name: 'NVIDIA Qwen3.5 397B A17B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_397b_a17b_desc', tier: ['free'], category: 'general' },
-    { id: 'stepfun-ai/step-3.7-flash', name: 'NVIDIA Step 3.7 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_step_3_7_flash_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/nemotron-3-ultra-550b-a55b', name: 'NVIDIA Nemotron 3 Ultra', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_ultra_550b_a55b_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/google/gemma-4-31b-it', apiId: 'google/gemma-4-31b-it', name: 'NVIDIA Gemma 4 31B IT', provider: 'nvidia', descriptionKey: 'model_nvidia_gemma_4_31b_it_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/deepseek-ai/deepseek-v4-pro', apiId: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/deepseek-ai/deepseek-v4-flash', apiId: 'deepseek-ai/deepseek-v4-flash', name: 'NVIDIA DeepSeek V4 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/minimaxai/minimax-m3', apiId: 'minimaxai/minimax-m3', name: 'NVIDIA MiniMax M3', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m3_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/moonshotai/kimi-k2.6', apiId: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/z-ai/glm-5.1', apiId: 'z-ai/glm-5.1', name: 'NVIDIA GLM-5.1', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_1_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/qwen/qwen3.5-397b-a17b', apiId: 'qwen/qwen3.5-397b-a17b', name: 'NVIDIA Qwen3.5 397B A17B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_397b_a17b_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/stepfun-ai/step-3.7-flash', apiId: 'stepfun-ai/step-3.7-flash', name: 'NVIDIA Step 3.7 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_step_3_7_flash_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/nvidia/nemotron-3-ultra-550b-a55b', apiId: 'nvidia/nemotron-3-ultra-550b-a55b', name: 'NVIDIA Nemotron 3 Ultra', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_ultra_550b_a55b_desc', tier: ['free'], category: 'general' },
 
     // OpenRouter Free Models
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
@@ -854,6 +856,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 showComparisonTable: true
             },
             councilTranslatorModelId: null,
+            singleDocumentTranslatorModelId: null,
+            singleSearchTranslatorModelId: null,
         };
         const getCouncilTexts = () => COUNCIL_TEXT[config.uiLanguage] || COUNCIL_TEXT['zh-TW'];
         const getDefaultCouncilConfig = () => ({
@@ -864,15 +868,23 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             showRawResponses: true,
             showComparisonTable: true
         });
+        const getCanonicalModelId = (modelId) => {
+            if (!modelId) return modelId;
+            if (MODELS.some(model => model.id === modelId)) return modelId;
+            const legacyNvidiaModel = MODELS.find(model => model.provider === 'nvidia' && model.apiId === modelId);
+            return legacyNvidiaModel?.id || modelId;
+        };
         const normalizeCouncilConfig = (value = {}) => {
             const validModelIds = new Set(MODELS.map(model => model.id));
             const normalized = { ...getDefaultCouncilConfig(), ...(value || {}) };
             const participantModelIds = Array.isArray(normalized.participantModelIds)
                 ? normalized.participantModelIds
+                    .map(getCanonicalModelId)
                     .filter((modelId, index, arr) => validModelIds.has(modelId) && arr.indexOf(modelId) === index)
                     .slice(0, COUNCIL_MAX_MODELS)
                 : [];
-            const synthesizerModelId = validModelIds.has(normalized.synthesizerModelId) ? normalized.synthesizerModelId : null;
+            const canonicalSynthesizerModelId = getCanonicalModelId(normalized.synthesizerModelId);
+            const synthesizerModelId = validModelIds.has(canonicalSynthesizerModelId) ? canonicalSynthesizerModelId : null;
             return {
                 enabled: Boolean(normalized.enabled),
                 mode: normalized.mode === 'deliberation' ? 'deliberation' : 'consensus',
@@ -894,7 +906,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             return sortedVisible.length > 0 ? sortedVisible : [...MODELS];
         };
         const getModelsByIds = (modelIds = []) => modelIds
-            .map(modelId => MODELS.find(model => model.id === modelId))
+            .map(modelId => MODELS.find(model => model.id === getCanonicalModelId(modelId)))
             .filter(Boolean);
         const getCouncilSelectedModels = (conv) => {
             const council = normalizeCouncilConfig(conv?.council);
@@ -904,6 +916,25 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 synthesizer: MODELS.find(model => model.id === council.synthesizerModelId) || null
             };
         };
+        const getModelApiId = (model) => model?.apiId || model?.id || '';
+        const getProviderLabel = (provider) => {
+            if (provider === 'gemini') return 'Gemini';
+            if (provider === 'openrouter') return 'OpenRouter';
+            if (provider === 'nvidia') return 'NVIDIA';
+            return provider || '';
+        };
+        const getModelFamilyKey = (model) => {
+            const apiId = getModelApiId(model).replace(/:free$/, '');
+            return apiId
+                .replace(/^google\//, '')
+                .replace(/^deepseek-ai\//, 'deepseek/')
+                .replace(/^minimaxai\//, 'minimax/')
+                .toLowerCase();
+        };
+        const getModelFamilyName = (model) => (model?.name || '')
+            .replace(/^NVIDIA\s+/i, '')
+            .replace(/\s+\(.*?\)$/g, '')
+            .trim();
         const modelSupportsUploadedFile = (model, file) => {
             if (!model || !file) return true;
             const mimeType = file.type || file.mimeType || file.inlineData?.mimeType || '';
@@ -916,7 +947,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const modelSupportsVision = (model) => Boolean(model && (
             model.provider === 'gemini' ||
             (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
-            (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(model.id))
+            (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model)))
         ));
         const modelSupportsDocumentUpload = (model) => Boolean(model && (
             (model.provider === 'gemini' && GEMINI_DOCUMENT_MODELS.includes(model.id)) ||
@@ -924,10 +955,25 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         ));
         const modelSupportsCouncilTranslation = (model) => Boolean(modelSupportsVision(model) && modelSupportsDocumentUpload(model));
         const getCouncilTranslatorCandidates = () => MODELS.filter(modelSupportsCouncilTranslation);
+        const modelSupportsSingleTranslation = (model) => Boolean(model && (
+            model.provider === 'openrouter' ||
+            (model.provider === 'gemini' && !getModelTiers(model).includes('free'))
+        ));
+        const getSingleTranslatorCandidates = () => MODELS.filter(modelSupportsSingleTranslation);
         const getCouncilTranslatorModel = () => {
             const candidates = getCouncilTranslatorCandidates();
             if (candidates.length === 0) return null;
             return candidates.find(model => model.id === config.councilTranslatorModelId) || candidates[0];
+        };
+        const getSingleDocumentTranslatorModel = () => {
+            const candidates = getSingleTranslatorCandidates();
+            if (candidates.length === 0) return null;
+            return candidates.find(model => model.id === config.singleDocumentTranslatorModelId) || candidates[0];
+        };
+        const getSingleSearchTranslatorModel = () => {
+            const candidates = getSingleTranslatorCandidates();
+            if (candidates.length === 0) return null;
+            return candidates.find(model => model.id === config.singleSearchTranslatorModelId) || candidates[0];
         };
         const modelSupportsWebSearch = (model) => Boolean(model && (model.provider === 'gemini' || model.provider === 'openrouter'));
         const getModelTiers = (model) => {
@@ -1170,11 +1216,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         }
         function normalizeConversationModel(conv) {
             if (!conv) return null;
-            let modelInfo = MODELS.find(m => m.id === conv.model);
+            const canonicalModelId = getCanonicalModelId(conv.model);
+            let modelInfo = MODELS.find(m => m.id === canonicalModelId);
             if (!modelInfo) {
                 modelInfo = MODELS.find(m => m.id === config.defaultModel) || MODELS[0];
-                conv.model = modelInfo.id;
             }
+            conv.model = modelInfo.id;
             conv.provider = modelInfo.provider;
             return modelInfo;
         }
@@ -1421,7 +1468,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             };
         };
         const renderMarkdown = (text) => {
-            const dirty = marked.parse(text);
+            const thinkingLabel = config.uiLanguage === 'en' ? 'Model thinking process' : '模型思考過程';
+            const normalizedText = String(text || '').replace(/<think>([\s\S]*?)<\/think>/gi, (_, content) => {
+                return `\n\n<details class="thinking-collapse"><summary>${thinkingLabel}</summary>\n\n${content.trim()}\n\n</details>\n\n`;
+            });
+            const dirty = marked.parse(normalizedText);
             const clean = DOMPurify.sanitize(dirty);
             const documentFragment = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html');
             documentFragment.body.querySelectorAll('table').forEach((table) => {
@@ -1511,8 +1562,14 @@ function renderMarkdownWithFormulas(text) {
                 defaultConfig.uiTheme.adaptiveGradient = defaultConfig.uiTheme.adaptiveGradient || '';
                 config = defaultConfig;
             }
-            const savedModelSettings = config.modelSettings || [];
             const allModelIds = new Set(MODELS.map(m => m.id));
+            const savedModelSettings = [];
+            (config.modelSettings || []).forEach(setting => {
+                const id = getCanonicalModelId(setting.id);
+                if (allModelIds.has(id) && !savedModelSettings.some(item => item.id === id)) {
+                    savedModelSettings.push({ ...setting, id });
+                }
+            });
             const savedSettingIds = new Set(savedModelSettings.map(s => s.id));
             MODELS.forEach((model, index) => {
                 if (!savedSettingIds.has(model.id)) {
@@ -1522,6 +1579,8 @@ function renderMarkdownWithFormulas(text) {
             config.modelSettings = savedModelSettings.filter(s => allModelIds.has(s.id));
             config.modelSettings.sort((a, b) => a.order - b.order);
             config.modelSettings.forEach((s, index) => s.order = index);
+            config.defaultModel = getCanonicalModelId(config.defaultModel);
+            config.lastUsedModel = getCanonicalModelId(config.lastUsedModel);
             if (!allModelIds.has(config.defaultModel)) {
                 config.defaultModel = MODELS[0].id;
             }
@@ -1531,6 +1590,12 @@ function renderMarkdownWithFormulas(text) {
             config.lastCouncilConfig = normalizeCouncilConfig(config.lastCouncilConfig);
             if (!getCouncilTranslatorCandidates().some(model => model.id === config.councilTranslatorModelId)) {
                 config.councilTranslatorModelId = getCouncilTranslatorCandidates()[0]?.id || null;
+            }
+            if (!getSingleTranslatorCandidates().some(model => model.id === config.singleDocumentTranslatorModelId)) {
+                config.singleDocumentTranslatorModelId = getSingleTranslatorCandidates()[0]?.id || null;
+            }
+            if (!getSingleTranslatorCandidates().some(model => model.id === config.singleSearchTranslatorModelId)) {
+                config.singleSearchTranslatorModelId = getSingleTranslatorCandidates()[0]?.id || null;
             }
         };
         const saveAppData = async () => { if (currentUser) await setItem(getAppDataKey(), JSON.stringify({ conversations, folders, astras, personalMemories })); };
