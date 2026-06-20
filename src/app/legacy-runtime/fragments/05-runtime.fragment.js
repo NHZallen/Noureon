@@ -588,8 +588,17 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 // 取得當前模型資訊
                 const conv = getActiveConversation();
                 const modelInfo = normalizeConversationModel(conv);
-                const provider = modelInfo?.provider;
-                const supportsOpenRouterVision = provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(modelInfo?.id);
+                const { participants, synthesizer } = getCouncilSelectedModels(conv);
+                const councilActive = isCouncilEnabled(conv);
+                const supportsVision = councilActive
+                    ? participants.some(modelSupportsVision)
+                    : modelSupportsVision(modelInfo);
+                const supportsDocumentUpload = councilActive
+                    ? true
+                    : modelSupportsDocumentUpload(modelInfo);
+                const supportsWebSearch = councilActive
+                    ? modelSupportsWebSearch(synthesizer || modelInfo)
+                    : modelSupportsWebSearch(modelInfo);
 
 
                 const allMenuItems = [
@@ -602,14 +611,14 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 ];
 
 
-                let visibleMenuItems = allMenuItems;
-                if (provider === 'openrouter') {
-                    visibleMenuItems = allMenuItems.filter(item => {
-                        if (item.type === 'divider') return true;
-                        if (item.id === 'camera-btn' || item.id === 'upload-image-btn') return supportsOpenRouterVision;
-                        return true;
-                    });
-                }
+                let visibleMenuItems = allMenuItems.filter(item => {
+                    if (item.type === 'divider') return true;
+                    if (item.id === 'camera-btn' || item.id === 'upload-image-btn') return supportsVision;
+                    if (item.id === 'upload-file-btn') return supportsDocumentUpload;
+                    if (item.id === 'web-search-popover-btn') return supportsWebSearch;
+                    if (item.id === 'learning-mode-btn') return !councilActive;
+                    return true;
+                });
 
                 let itemsHTML = '';
                 visibleMenuItems.forEach((item, index) => {

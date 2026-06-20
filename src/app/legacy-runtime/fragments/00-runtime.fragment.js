@@ -165,6 +165,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             closeSettingsBtn: document.getElementById('close-settings-btn'),
             geminiApiKeyInput: document.getElementById('gemini-api-key-input'),
             openrouterApiKeyInputAll: document.getElementById('openrouter-api-key-input-all'),
+            nvidiaApiKeyInput: document.getElementById('nvidia-api-key-input'),
+            councilTranslatorModelSelect: document.getElementById('council-translator-model-select'),
             modelManagementList: document.getElementById('model-management-list'),
             openArchivedModalBtn: document.getElementById('open-archived-modal-btn'),
             themeLightBtn: document.getElementById('theme-light-btn'),
@@ -624,6 +626,17 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     { id: 'gemma-4-31b-it', name: 'Gemma 4 31B IT', provider: 'gemini', descriptionKey: 'model_gemma_4_31b_it_desc', tier: ['free'] },
     { id: 'gemma-4-26b-a4b-it', name: 'Gemma 4 26B A4B IT', provider: 'gemini', descriptionKey: 'model_gemma_4_26b_a4b_it_desc', tier: ['free'] },
 
+    // NVIDIA Build Free Models
+    { id: 'google/gemma-4-31b-it', name: 'NVIDIA Gemma 4 31B IT', provider: 'nvidia', descriptionKey: 'model_nvidia_gemma_4_31b_it_desc', tier: ['free'], category: 'general' },
+    { id: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
+    { id: 'deepseek-ai/deepseek-v4-flash', name: 'NVIDIA DeepSeek V4 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_desc', tier: ['free'], category: 'general' },
+    { id: 'minimaxai/minimax-m3', name: 'NVIDIA MiniMax M3', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m3_desc', tier: ['free'], category: 'general' },
+    { id: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
+    { id: 'z-ai/glm-5.1', name: 'NVIDIA GLM-5.1', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_1_desc', tier: ['free'], category: 'general' },
+    { id: 'qwen/qwen3.5-397b-a17b', name: 'NVIDIA Qwen3.5 397B A17B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_397b_a17b_desc', tier: ['free'], category: 'general' },
+    { id: 'stepfun-ai/step-3.7-flash', name: 'NVIDIA Step 3.7 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_step_3_7_flash_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/nemotron-3-ultra-550b-a55b', name: 'NVIDIA Nemotron 3 Ultra', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_ultra_550b_a55b_desc', tier: ['free'], category: 'general' },
+
     // OpenRouter Free Models
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
     { id: 'nex-agi/nex-n2-pro:free', name: 'Nex AGI Nex-N2-Pro', provider: 'openrouter', descriptionKey: 'model_nex_n2_pro_desc', category: 'general' },
@@ -679,6 +692,17 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     'xiaomi/mimo-v2.5',
     'moonshotai/kimi-k2.7-code',
     'moonshotai/kimi-k2.6'
+];
+        const NVIDIA_VISION_MODELS = [
+    'google/gemma-4-31b-it',
+    'minimaxai/minimax-m3',
+    'moonshotai/kimi-k2.6',
+    'qwen/qwen3.5-397b-a17b',
+    'stepfun-ai/step-3.7-flash'
+];
+        const GEMINI_DOCUMENT_MODELS = [
+    'gemini-3.5-flash',
+    'gemini-3.1-pro-preview'
 ];
         const COUNCIL_MIN_MODELS = 2;
         const COUNCIL_MAX_MODELS = 5;
@@ -794,7 +818,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let personalMemories = [];
         let activeConversationId = null;
         let config = {
-            apiKeys: { gemini: '', openrouter: '' },
+            apiKeys: { gemini: '', openrouter: '', nvidia: '' },
             defaultModel: MODELS[0].id,
             theme: 'light',
             modelSettings: [],
@@ -829,6 +853,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 showRawResponses: true,
                 showComparisonTable: true
             },
+            councilTranslatorModelId: null,
         };
         const getCouncilTexts = () => COUNCIL_TEXT[config.uiLanguage] || COUNCIL_TEXT['zh-TW'];
         const getDefaultCouncilConfig = () => ({
@@ -886,17 +911,30 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
                 return modelSupportsVision(model);
             }
-            return model.provider === 'gemini' || model.provider === 'openrouter';
+            return modelSupportsDocumentUpload(model);
         };
         const modelSupportsVision = (model) => Boolean(model && (
             model.provider === 'gemini' ||
-            (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id))
+            (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
+            (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(model.id))
         ));
+        const modelSupportsDocumentUpload = (model) => Boolean(model && (
+            (model.provider === 'gemini' && GEMINI_DOCUMENT_MODELS.includes(model.id)) ||
+            model.provider === 'openrouter'
+        ));
+        const modelSupportsCouncilTranslation = (model) => Boolean(modelSupportsVision(model) && modelSupportsDocumentUpload(model));
+        const getCouncilTranslatorCandidates = () => MODELS.filter(modelSupportsCouncilTranslation);
+        const getCouncilTranslatorModel = () => {
+            const candidates = getCouncilTranslatorCandidates();
+            if (candidates.length === 0) return null;
+            return candidates.find(model => model.id === config.councilTranslatorModelId) || candidates[0];
+        };
         const modelSupportsWebSearch = (model) => Boolean(model && (model.provider === 'gemini' || model.provider === 'openrouter'));
         const getModelTiers = (model) => {
             if (!model || model.isBeta) return [];
             if (Array.isArray(model.tier)) return model.tier;
             if (typeof model.tier === 'string') return [model.tier];
+            if (model.provider === 'nvidia') return ['free'];
             return model.id?.includes(':free') ? ['free'] : ['paid'];
         };
         const getModelRetirementLabel = (model) => {
@@ -1002,7 +1040,23 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const mimeType = file?.type || file?.mimeType || file?.inlineData?.mimeType || '';
             return mimeType.startsWith('image/') || mimeType.startsWith('video/');
         };
+        const getUploadedFileKind = (file) => isVisualUploadedFile(file) ? 'visual' : 'document';
         const getCouncilVisualFiles = (files = uploadedFiles) => (files || []).filter(isVisualUploadedFile);
+        const getCouncilDocumentFiles = (files = uploadedFiles) => (files || []).filter(file => !isVisualUploadedFile(file));
+        const getCouncilAttachmentTranslationNeed = (models = [], files = uploadedFiles) => {
+            const selectedModels = (models || []).filter(Boolean);
+            const visualFiles = getCouncilVisualFiles(files);
+            const documentFiles = getCouncilDocumentFiles(files);
+            const needsVisualPacket = visualFiles.length > 0 && selectedModels.some(model => !modelSupportsVision(model));
+            const needsDocumentPacket = documentFiles.length > 0 && selectedModels.some(model => !modelSupportsDocumentUpload(model));
+            return {
+                needsVisualPacket,
+                needsDocumentPacket,
+                needsAnyPacket: needsVisualPacket || needsDocumentPacket,
+                visualFiles,
+                documentFiles
+            };
+        };
         const getCouncilRunnableParticipants = (participants = [], files = uploadedFiles) => {
             const visualFiles = getCouncilVisualFiles(files);
             if (visualFiles.length === 0) {
@@ -1035,7 +1089,10 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             if (!council.synthesizerModelId || !synthesizer) {
                 return { ok: false, reason: 'missingSynthesizer', message: texts.missingSynthesizer };
             }
-            const missingKeyModels = [...participants, synthesizer]
+            const selectedCouncilModels = [...participants, synthesizer].filter(Boolean);
+            const translationNeed = getCouncilAttachmentTranslationNeed(selectedCouncilModels, files);
+            const translatorModel = translationNeed.needsAnyPacket ? getCouncilTranslatorModel() : null;
+            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : [])]
                 .filter((model, index, arr) => arr.findIndex(item => item.id === model.id) === index)
                 .filter(model => !getApiKeyForProvider(model.provider));
             if (missingKeyModels.length > 0) {
@@ -1045,30 +1102,20 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     message: `${texts.missingApiKey}: ${missingKeyModels.map(model => model.name).join(', ')}`
                 };
             }
-            const visualFiles = getCouncilVisualFiles(files);
-            if (visualFiles.length > 0) {
-                const { activeParticipants, skippedParticipants } = getCouncilRunnableParticipants(participants, files);
-                if (activeParticipants.length === 0) {
-                    return {
-                        ok: false,
-                        reason: 'noVisionParticipants',
-                        message: runtimeTexts.noVisionParticipants
-                    };
-                }
-                if (skippedParticipants.length > 0) {
-                    return {
-                        ok: true,
-                        reason: 'readyWithSkippedParticipants',
-                        message: `${texts.ready} · ${runtimeTexts.visualOnly}: ${activeParticipants.length} · ${runtimeTexts.skipped}: ${formatCouncilModelSummary(skippedParticipants, 2)}`
-                    };
-                }
-            }
-            const unsupportedModels = participants.filter(model => (files || []).some(file => !isVisualUploadedFile(file) && !modelSupportsUploadedFile(model, file)));
-            if (unsupportedModels.length > 0) {
+            if (translationNeed.needsAnyPacket && !translatorModel) {
                 return {
                     ok: false,
-                    reason: 'attachmentUnsupported',
-                    message: `${texts.attachmentUnsupported}: ${unsupportedModels.map(model => model.name).join(', ')}`
+                    reason: 'missingCouncilTranslator',
+                    message: config.uiLanguage === 'en'
+                        ? 'Council attachments need a translator model that supports both vision and file upload. Choose one in Settings.'
+                        : '理事會附件需要同時支援視覺與文件上傳的轉譯模型，請先到設定中選擇。'
+                };
+            }
+            if (translationNeed.needsAnyPacket) {
+                return {
+                    ok: true,
+                    reason: 'readyWithAttachmentTranslation',
+                    message: `${texts.ready} · ${config.uiLanguage === 'en' ? 'attachment translator' : '附件轉譯模型'}: ${translatorModel.name}`
                 };
             }
             return { ok: true, reason: 'ready', message: texts.ready };
@@ -1115,6 +1162,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             }
             if (provider === 'openrouter') {
                 return normalizeApiKeyValue(config.apiKeys?.openrouter);
+            }
+            if (provider === 'nvidia') {
+                return normalizeApiKeyValue(config.apiKeys?.nvidia);
             }
             return '';
         }
@@ -1439,8 +1489,10 @@ function renderMarkdownWithFormulas(text) {
             if (saved) {
                 const savedConfig = JSON.parse(saved);
                 let openrouterKey = '';
+                let nvidiaKey = '';
                 if (savedConfig.apiKeys) {
                     openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter);
+                    nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia);
                 }
                 const savedOpenrouterKeys = savedConfig.apiKeys?.openrouter || {};
                 const defaultConfig = {
@@ -1449,7 +1501,8 @@ function renderMarkdownWithFormulas(text) {
                     apiKeys: {
                         ...config.apiKeys,
                         ...savedConfig.apiKeys,
-                        openrouter: openrouterKey
+                        openrouter: openrouterKey,
+                        nvidia: nvidiaKey
                     },
                     uiTheme: { ...config.uiTheme, ...(savedConfig.uiTheme || {}) }
                 };
@@ -1476,6 +1529,9 @@ function renderMarkdownWithFormulas(text) {
                 config.lastUsedModel = MODELS[0].id;
             }
             config.lastCouncilConfig = normalizeCouncilConfig(config.lastCouncilConfig);
+            if (!getCouncilTranslatorCandidates().some(model => model.id === config.councilTranslatorModelId)) {
+                config.councilTranslatorModelId = getCouncilTranslatorCandidates()[0]?.id || null;
+            }
         };
         const saveAppData = async () => { if (currentUser) await setItem(getAppDataKey(), JSON.stringify({ conversations, folders, astras, personalMemories })); };
         const loadAppData = async () => {

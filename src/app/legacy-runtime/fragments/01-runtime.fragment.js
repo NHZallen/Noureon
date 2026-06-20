@@ -311,6 +311,9 @@
             const supportsVision = councilActive
                 ? participants.some(modelSupportsVision)
                 : modelSupportsVision(modelInfo);
+            const supportsDocumentUpload = councilActive
+                ? true
+                : modelSupportsDocumentUpload(modelInfo);
             const supportsWebSearch = councilActive
                 ? modelSupportsWebSearch(synthesizer || modelInfo)
                 : modelSupportsWebSearch(modelInfo);
@@ -328,6 +331,9 @@
             [cameraBtn, uploadImageBtn]
                 .filter(Boolean)
                 .forEach(btn => btn.style.display = supportsVision ? 'flex' : 'none');
+            if (uploadFileBtn) {
+                uploadFileBtn.style.display = supportsDocumentUpload ? 'flex' : 'none';
+            }
             if (learningModeBtn) {
                 learningModeBtn.style.display = councilActive ? 'none' : 'flex';
             }
@@ -340,7 +346,7 @@
     if (webSearchPopoverBtn) webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
     
     // 2. 確保檔案上傳按鈕是顯示的 (flex)
-    uploadFileBtn.style.display = 'flex';
+    uploadFileBtn.style.display = supportsDocumentUpload ? 'flex' : 'none';
 
 
     // 根據是否支援圖片，決定是否顯示相機和圖片按鈕
@@ -950,12 +956,16 @@
             const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
             const stageLabels = {
                 search: runtimeTexts.sharedSearch,
+                translation: config.uiLanguage === 'en' ? 'Attachment translation' : '附件轉譯',
                 firstRound: config.uiLanguage === 'en' ? 'Independent round' : '第一輪獨立回答',
                 deliberation: config.uiLanguage === 'en' ? 'Second-round discussion' : '第二輪討論',
                 synthesis: config.uiLanguage === 'en' ? 'Synthesis' : '統整結論',
                 completed: runtimeTexts.completed
             };
             const stageNotes = {
+                translation: config.uiLanguage === 'en'
+                    ? 'Preparing detailed text packets for models that cannot read some attachment types directly.'
+                    : '正在為無法直接讀取部分附件類型的模型準備詳細轉譯包。',
                 search: config.uiLanguage === 'en'
                     ? 'Gathering one shared research packet so every member sees the same evidence.'
                     : '正在建立同一份共同搜尋資料，讓所有理事看同樣的依據。',
@@ -1035,6 +1045,9 @@
             tier = getModelTiers(model);
             company = 'google'; 
         } else if (provider === 'openrouter') {
+            tier = getModelTiers(model);
+            company = model.id.split('/')[0];
+        } else if (provider === 'nvidia') {
             tier = getModelTiers(model);
             company = model.id.split('/')[0];
         }
@@ -1229,7 +1242,10 @@
         btn.addEventListener('click', () => {
             const provider = btn.dataset.provider;
             tierView.innerHTML = createBackButtonHTML('back', 0);
-            const tiers = ['free', 'paid'];
+            const tiers = [...new Set(visibleModels
+                .filter(model => model.provider === provider)
+                .flatMap(model => model.tier || []))]
+                .sort((a, b) => (a === 'free' ? -1 : 1) - (b === 'free' ? -1 : 1));
             tierView.innerHTML += tiers.map(tier => `
                 <div class="model-option-btn-container tier-btn" data-provider="${provider}" data-tier="${tier}">
                     <h4 class="font-semibold capitalize">${tier === 'free' ? (translations.freeModels || '免費模型') : (translations.paidModels || '付費模型')}</h4>

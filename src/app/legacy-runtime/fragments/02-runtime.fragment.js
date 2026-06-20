@@ -186,6 +186,54 @@
                     payload.tools = [{"googleSearch": {}}];
                 }
                 headers = { 'Content-Type': 'application/json' };
+            } else if (provider === 'nvidia') {
+                url = 'https://integrate.api.nvidia.com/v1/chat/completions';
+                const messages = [];
+                if (systemInstruction) {
+                    messages.push({ role: 'system', content: systemInstruction.parts.map(p => p.text).join('\n') });
+                }
+
+                const allMessages = [...historyForApi, currentMessageForApi];
+                allMessages.forEach(m => {
+                    const role = m.role === 'model' ? 'assistant' : m.role;
+                    const content = [];
+                    m.parts.forEach(part => {
+                        if (part.text) {
+                            content.push({ type: 'text', text: part.text });
+                            return;
+                        }
+                        if (!part.inlineData) return;
+                        const mimeType = part.inlineData.mimeType || '';
+                        const base64Data = part.inlineData.data;
+                        const fullDataUrl = `data:${mimeType};base64,${base64Data}`;
+                        if ((mimeType.startsWith('image/') || mimeType.startsWith('video/')) && modelSupportsVision(modelInfo)) {
+                            content.push(mimeType.startsWith('video/')
+                                ? { type: 'video_url', video_url: { url: fullDataUrl } }
+                                : { type: 'image_url', image_url: { url: fullDataUrl } });
+                        } else {
+                            content.push({
+                                type: 'text',
+                                text: `[Attachment omitted for ${modelInfo.name}: ${part.inlineData.name || mimeType || 'file'}]`
+                            });
+                        }
+                    });
+                    const textOnly = content.length === 1 && content[0].type === 'text'
+                        ? content[0].text
+                        : content;
+                    if ((Array.isArray(textOnly) && textOnly.length > 0) || (typeof textOnly === 'string' && textOnly.trim())) {
+                        messages.push({ role, content: textOnly });
+                    }
+                });
+
+                payload = {
+                    model: modelId,
+                    messages,
+                    stream: true,
+                    ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+                    ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
+                    ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens }),
+                };
+                headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
             } else {
                 url = 'https://openrouter.ai/api/v1/chat/completions';
                 
@@ -442,6 +490,125 @@ Do not answer the user directly. Prepare shared context only.
                 ...parts
             ];
         };
+        const buildCouncilAttachmentTranslationPrompt = (kind, parts) => {
+            const requestText = extractTextFromParts(parts);
+            const title = kind === 'visual' ? '圖片/影像轉譯包' : '文件轉譯包';
+            const target = kind === 'visual'
+                ? 'attached images or videos'
+                : 'attached documents and non-visual files';
+            return `
+You are the Model Council attachment translator.
+
+Create a detailed, neutral ${title} for council models that cannot directly read ${target}.
+Do not answer the user's question. Translate the attachment content into faithful text only.
+
+User request for context:
+${requestText}
+
+Output requirements:
+- Start with "# ${title}".
+- Describe all visible/readable facts in detail.
+- Preserve exact wording, numbers, tables, labels, UI text, filenames, page or section hints, and uncertainty.
+- For images/screenshots: include layout, objects, colors only when meaningful, text/OCR, relationships, and anything needed for reasoning.
+- For documents: include structure, headings, key paragraphs, tables, lists, data, citations, and page/section references when available.
+- Separate observed content from inference.
+- Mention unreadable, truncated, missing, low-confidence, or unsupported portions.
+- Do not invent content that is not present.
+`;
+        };
+        const filterAttachmentPartsByKind = (parts = [], kind) => parts.filter(part => {
+            if (part.text) return true;
+            if (!part.inlineData) return false;
+            const mimeType = part.inlineData.mimeType || '';
+            const isVisual = mimeType.startsWith('image/') || mimeType.startsWith('video/');
+            return kind === 'visual' ? isVisual : !isVisual;
+        });
+        const buildCouncilAttachmentTranslationPackets = async (parts, selectedModels, signal, progress) => {
+            const need = getCouncilAttachmentTranslationNeed(selectedModels, parts);
+            if (!need.needsAnyPacket) {
+                return { visualPacket: '', documentPacket: '', translatorModelId: null, translatorModelName: null };
+            }
+            const translatorModel = getCouncilTranslatorModel();
+            if (!translatorModel) {
+                throw new Error(config.uiLanguage === 'en'
+                    ? 'Council attachments require a translator model in Settings.'
+                    : '理事會附件需要先在設定中選擇轉譯模型。');
+            }
+            const result = {
+                visualPacket: '',
+                documentPacket: '',
+                translatorModelId: translatorModel.id,
+                translatorModelName: translatorModel.name
+            };
+            const runTranslation = async (kind) => {
+                const label = kind === 'visual'
+                    ? (config.uiLanguage === 'en' ? 'image translation packet' : '圖片轉譯包')
+                    : (config.uiLanguage === 'en' ? 'document translation packet' : '文件轉譯包');
+                progress?.('translation', `${label}: ${translatorModel.name}`);
+                const translationParts = [
+                    { text: buildCouncilAttachmentTranslationPrompt(kind, parts) },
+                    ...filterAttachmentPartsByKind(parts, kind).filter(part => part.inlineData)
+                ];
+                return await streamCouncilApiCallWithRetry(
+                    translationParts,
+                    () => progress?.('translation', `${label}: ${translatorModel.name}`),
+                    signal,
+                    false,
+                    {
+                        modelInfo: translatorModel,
+                        historyForApi: [],
+                        ignoreConversationWebSearch: true,
+                        additionalSystemInstruction: 'You are only translating attachments into detailed neutral text packets for a model council. Do not answer the user.',
+                    }
+                );
+            };
+            if (need.needsVisualPacket) {
+                result.visualPacket = await runTranslation('visual');
+            }
+            if (need.needsDocumentPacket) {
+                result.documentPacket = await runTranslation('document');
+            }
+            return result;
+        };
+        const buildAttachmentPacketTextForModel = (model, packets = {}) => {
+            const sections = [];
+            if (packets.visualPacket?.trim() && !modelSupportsVision(model)) {
+                sections.push(`# 圖片轉譯包\n${truncateCouncilText(packets.visualPacket, 6000)}`);
+            }
+            if (packets.documentPacket?.trim() && !modelSupportsDocumentUpload(model)) {
+                sections.push(`# 文件轉譯包\n${truncateCouncilText(packets.documentPacket, 6000)}`);
+            }
+            if (sections.length === 0) return '';
+            return `# Attachment translation packet\nThis packet is system-generated by the configured council translator model. It replaces only the attachment types this model cannot read directly. Do not say the user wrote this packet.\n\n${sections.join('\n\n')}\n\n# User request follows`;
+        };
+        const filterPartsForModelCapability = (parts = [], model) => parts.filter(part => {
+            if (part.text) return true;
+            if (!part.inlineData) return false;
+            return modelSupportsUploadedFile(model, { inlineData: part.inlineData });
+        });
+        const buildCouncilRequestPartsForModel = (parts, sharedSearchPacket, attachmentPackets, model) => {
+            const result = [];
+            if (sharedSearchPacket?.trim()) {
+                result.push({
+                    text: `# Shared council search packet (system-generated, not user-provided)\nUse this as common research context. Do not say or imply that the user provided this packet.\n\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
+                });
+            }
+            const attachmentPacket = buildAttachmentPacketTextForModel(model, attachmentPackets);
+            if (attachmentPacket) {
+                result.push({ text: attachmentPacket });
+            }
+            result.push(...filterPartsForModelCapability(parts, model));
+            return result;
+        };
+        const buildCouncilSynthesisPartsForModel = (synthesisPrompt, originalParts, attachmentPackets, model) => {
+            const result = [{ text: synthesisPrompt }];
+            const attachmentPacket = buildAttachmentPacketTextForModel(model, attachmentPackets);
+            if (attachmentPacket) {
+                result.push({ text: attachmentPacket });
+            }
+            result.push(...filterPartsForModelCapability(originalParts, model).filter(part => part.inlineData));
+            return result;
+        };
         const buildCouncilComparisonInstruction = (enabled) => enabled ? `
 
 Additional output requirement:
@@ -528,7 +695,8 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
             const texts = getCouncilTexts();
             const runtimeTexts = getCouncilRuntimeTexts();
             const mode = council.mode;
-            const { activeParticipants, skippedParticipants } = getCouncilRunnableParticipants(participants, parts);
+            const activeParticipants = participants;
+            const skippedParticipants = [];
             const modelStates = new Map();
             participants.forEach(model => {
                 const isSkipped = skippedParticipants.some(item => item.id === model.id);
@@ -594,6 +762,13 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                 error: runtimeTexts.skippedVisualReason,
                 skipped: true
             }));
+            const selectedCouncilModels = [...participants, synthesizer].filter(Boolean);
+            const attachmentTranslation = await buildCouncilAttachmentTranslationPackets(
+                parts,
+                selectedCouncilModels,
+                signal,
+                progress
+            );
             let sharedSearchPacket = '';
             if (searchState) {
                 searchState.status = 'running';
@@ -630,8 +805,6 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                     progress('search', searchState.detail);
                 }
             }
-            const councilParts = buildCouncilRequestParts(parts, sharedSearchPacket);
-
             progress('firstRound', `${runtimeTexts.firstRound}: ${activeParticipants.length}/${participants.length}`);
             const firstRoundSettled = await Promise.allSettled(activeParticipants.map(async (modelInfo) => {
                 const state = modelStates.get(modelInfo.id);
@@ -640,6 +813,7 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                     state.detail = runtimeTexts.running;
                     progress('firstRound', `${runtimeTexts.firstRound}: ${modelInfo.name}`);
                 }
+                const councilParts = buildCouncilRequestPartsForModel(parts, sharedSearchPacket, attachmentTranslation, modelInfo);
                 const text = await streamCouncilApiCallWithRetry(
                     councilParts,
                     createCouncilStreamTracker(state, 'firstRound', modelInfo.name),
@@ -757,6 +931,7 @@ Do not change your judgment merely because most other models disagree. Only revi
 
             progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name}`);
             const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, sharedSearchPacket, firstRoundResults, finalRoundResults, failures, mode);
+            const synthesisParts = buildCouncilSynthesisPartsForModel(synthesisPrompt, parts, attachmentTranslation, synthesizer);
             const synthesisInstruction = `You are the council synthesizer.
 Before output, internally compare the core claims from each model using these criteria: correctness, completeness, actionability, fit to the user's question, risk disclosure, and whether a claim is unverified.
 For each important claim, judge whether it is supported by multiple models, has clear reasoning, needs external verification, or could mislead the user.
@@ -767,7 +942,7 @@ Avoid overly brief answers: the final response should be complete enough for the
             let synthesisError = null;
             try {
                 finalText = await streamCouncilApiCallWithRetry(
-                    [{ text: synthesisPrompt }],
+                    synthesisParts,
                     createCouncilStageTracker('synthesis', () => `${runtimeTexts.synthesis}: ${synthesizer.name}`),
                     signal,
                     false,
@@ -796,6 +971,7 @@ Avoid overly brief answers: the final response should be complete enough for the
                     skippedParticipantModelIds: skippedParticipants.map(model => model.id),
                     synthesizerModelId: synthesizer.id,
                     sharedSearchPacket: sharedSearchPacket || null,
+                    attachmentTranslation,
                     showComparisonTable: council.showComparisonTable,
                     firstRoundResults,
                     finalRoundResults,
@@ -1134,9 +1310,54 @@ Avoid overly brief answers: the final response should be complete enough for the
 submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 3 9-3 9 19-9Z"/><path d="M6 12h16"/></svg>`;
             }
         };
+        const ensureCouncilTranslatorSettingsControls = () => {
+            if (!document.getElementById('nvidia-api-key-input')) {
+                const openrouterInput = document.getElementById('openrouter-api-key-input-all');
+                const openrouterBlock = openrouterInput?.closest('div');
+                if (openrouterBlock) {
+                    openrouterBlock.insertAdjacentHTML('afterend', `
+                        <div>
+                            <label for="nvidia-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="nvidiaApiKey">NVIDIA API Key</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="nvidiaApiDesc">Enable NVIDIA free models.</p>
+                            <input type="password" id="nvidia-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="nvapi-..." data-lang-key-placeholder="nvidiaApiPlaceholder">
+                        </div>
+                        <div>
+                            <label for="council-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="councilTranslatorModel">Council translator model</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="councilTranslatorModelDesc">Only translates attachments into detailed text packets for the council.</p>
+                            <select id="council-translator-model-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]"></select>
+                        </div>
+                    `);
+                }
+            }
+            ALL_ELEMENTS.nvidiaApiKeyInput = document.getElementById('nvidia-api-key-input');
+            ALL_ELEMENTS.councilTranslatorModelSelect = document.getElementById('council-translator-model-select');
+        };
+        const renderCouncilTranslatorModelSelect = () => {
+            const select = ALL_ELEMENTS.councilTranslatorModelSelect;
+            if (!select) return;
+            const candidates = getCouncilTranslatorCandidates();
+            const translations = i18n[config.uiLanguage] || i18n['zh-TW'];
+            if (candidates.length === 0) {
+                select.innerHTML = `<option value="">${escapeHTML(translations.noCouncilTranslatorModels || 'No eligible translator models')}</option>`;
+                select.disabled = true;
+                config.councilTranslatorModelId = null;
+                return;
+            }
+            select.disabled = false;
+            if (!candidates.some(model => model.id === config.councilTranslatorModelId)) {
+                config.councilTranslatorModelId = candidates[0].id;
+            }
+            select.innerHTML = candidates.map(model => `
+                <option value="${escapeHTML(model.id)}" ${model.id === config.councilTranslatorModelId ? 'selected' : ''}>${escapeHTML(model.name)}</option>
+            `).join('');
+        };
         const setupSettingsModal = () => {
+            ensureCouncilTranslatorSettingsControls();
             ALL_ELEMENTS.geminiApiKeyInput.value = getApiKeyForProvider('gemini');
             ALL_ELEMENTS.openrouterApiKeyInputAll.value = getApiKeyForProvider('openrouter');
+            if (ALL_ELEMENTS.nvidiaApiKeyInput) ALL_ELEMENTS.nvidiaApiKeyInput.value = getApiKeyForProvider('nvidia');
+            renderCouncilTranslatorModelSelect();
+            applyLanguage(config.uiLanguage);
             ALL_ELEMENTS.followUpToggleSwitch.checked = config.enableFollowUp;
             ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
             ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
@@ -1180,6 +1401,8 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
         const saveSettings = async () => {
             config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
+            config.apiKeys.nvidia = ALL_ELEMENTS.nvidiaApiKeyInput?.value.trim() || '';
+            config.councilTranslatorModelId = ALL_ELEMENTS.councilTranslatorModelSelect?.value || null;
             config.enableFollowUp = ALL_ELEMENTS.followUpToggleSwitch.checked;
             config.enableAutoWebSearch = ALL_ELEMENTS.autoWebSearchToggleSwitch.checked;
             config.aiBubbleColor = ALL_ELEMENTS.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default';
