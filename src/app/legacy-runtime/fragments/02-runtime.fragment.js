@@ -96,91 +96,6 @@
             return score * (1 + coverageRatio);
         }
         const STEP_PLAN_SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
-        const STEP_PLAN_VIDEO_FRAME_COUNT = 4;
-        const STEP_PLAN_VIDEO_FRAME_MAX_SIZE = 1024;
-        const waitForMediaEvent = (element, eventName, timeoutMs = 8000) => new Promise((resolve, reject) => {
-            let timer = null;
-            const cleanup = () => {
-                clearTimeout(timer);
-                element.removeEventListener(eventName, onEvent);
-                element.removeEventListener('error', onError);
-            };
-            const onEvent = () => {
-                cleanup();
-                resolve();
-            };
-            const onError = () => {
-                cleanup();
-                reject(new Error('Media could not be loaded'));
-            };
-            timer = setTimeout(() => {
-                cleanup();
-                reject(new Error(`Timed out waiting for ${eventName}`));
-            }, timeoutMs);
-            element.addEventListener(eventName, onEvent, { once: true });
-            element.addEventListener('error', onError, { once: true });
-        });
-        const seekVideo = async (video, time) => {
-            const safeTime = Math.min(Math.max(0, time), Math.max(0, (video.duration || 0) - 0.05));
-            if (Math.abs(video.currentTime - safeTime) < 0.01 && video.readyState >= 2) return;
-            video.currentTime = safeTime;
-            await waitForMediaEvent(video, 'seeked', 8000);
-        };
-        const inlineDataToBlob = (inlineData) => {
-            const byteCharacters = atob(inlineData.data || '');
-            const byteArrays = [];
-            for (let offset = 0; offset < byteCharacters.length; offset += 8192) {
-                const slice = byteCharacters.slice(offset, offset + 8192);
-                const byteNumbers = new Array(slice.length);
-                for (let i = 0; i < slice.length; i += 1) {
-                    byteNumbers[i] = slice.charCodeAt(i);
-                }
-                byteArrays.push(new Uint8Array(byteNumbers));
-            }
-            return new Blob(byteArrays, { type: inlineData.mimeType || 'application/octet-stream' });
-        };
-        const captureStepPlanVideoFrames = async (inlineData) => {
-            if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof atob === 'undefined') return [];
-            const video = document.createElement('video');
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return [];
-            const objectUrl = URL.createObjectURL(inlineDataToBlob(inlineData));
-            try {
-                video.muted = true;
-                video.playsInline = true;
-                video.preload = 'metadata';
-                video.src = objectUrl;
-                await waitForMediaEvent(video, 'loadedmetadata', 10000);
-                if (video.readyState < 2) {
-                    await waitForMediaEvent(video, 'loadeddata', 10000);
-                }
-                const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
-                const frameTimes = duration > 0
-                    ? Array.from({ length: STEP_PLAN_VIDEO_FRAME_COUNT }, (_, index) => duration * ((index + 1) / (STEP_PLAN_VIDEO_FRAME_COUNT + 1)))
-                    : [0];
-                const width = video.videoWidth || STEP_PLAN_VIDEO_FRAME_MAX_SIZE;
-                const height = video.videoHeight || STEP_PLAN_VIDEO_FRAME_MAX_SIZE;
-                const scale = Math.min(1, STEP_PLAN_VIDEO_FRAME_MAX_SIZE / Math.max(width, height));
-                canvas.width = Math.max(1, Math.round(width * scale));
-                canvas.height = Math.max(1, Math.round(height * scale));
-                const frames = [];
-                for (const time of frameTimes) {
-                    try {
-                        await seekVideo(video, time);
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        frames.push(canvas.toDataURL('image/jpeg', 0.82));
-                    } catch (error) {
-                        console.warn('Step Plan video frame capture failed:', error);
-                    }
-                }
-                return frames;
-            } finally {
-                video.removeAttribute('src');
-                video.load();
-                URL.revokeObjectURL(objectUrl);
-            }
-        };
         const appendStepPlanAttachmentContent = async (content, inlineData, modelInfo) => {
             const mimeType = inlineData.mimeType || '';
             const name = inlineData.name || mimeType || 'attachment';
@@ -200,17 +115,11 @@
             }
             if (mimeType.startsWith('video/') && modelSupportsVision(modelInfo)) {
                 content.push({
-                    type: 'text',
-                    text: `[Uploaded video "${name}" is represented below as sampled frames because Step Plan only accepts http/https video URLs through Chat Completions.]`
+                    type: 'video_url',
+                    video_url: {
+                        url: `data:${mimeType};base64,${inlineData.data}`
+                    }
                 });
-                const frames = await captureStepPlanVideoFrames(inlineData);
-                frames.forEach((frameDataUrl, index) => {
-                    content.push({ type: 'text', text: `[Video frame ${index + 1}]` });
-                    content.push({ type: 'image_url', image_url: { url: frameDataUrl, detail: 'high' } });
-                });
-                if (frames.length === 0) {
-                    content.push({ type: 'text', text: '[No video frames could be extracted in this browser.]' });
-                }
                 return;
             }
             content.push({ type: 'text', text: `[Attachment omitted for ${modelInfo.name}: ${name}]` });
