@@ -96,6 +96,29 @@
             return score * (1 + coverageRatio);
         }
         const STEP_PLAN_SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
+        const STEP_PLAN_EXTENSION_BY_MIME_TYPE = {
+            'video/mp4': 'mp4',
+            'video/mpeg': 'mpeg',
+            'video/quicktime': 'mov',
+            'video/webm': 'webm',
+            'image/jpeg': 'jpg',
+            'image/jpg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+            'image/gif': 'gif'
+        };
+        const getStepPlanUploadFileName = (inlineData) => {
+            const originalName = String(inlineData.name || '').trim();
+            const originalExt = /\.([a-zA-Z0-9]{1,8})$/.exec(originalName)?.[1]?.toLowerCase();
+            const mimeExt = STEP_PLAN_EXTENSION_BY_MIME_TYPE[(inlineData.mimeType || '').toLowerCase()];
+            const ext = originalExt || mimeExt || 'bin';
+            const baseName = originalName
+                .replace(/\.[^.]*$/, '')
+                .replace(/[^a-zA-Z0-9._-]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .slice(0, 48) || 'step-upload';
+            return `${baseName}.${ext}`;
+        };
         const inlineDataToBlob = (inlineData) => {
             const byteCharacters = atob(inlineData.data || '');
             const byteArrays = [];
@@ -112,7 +135,7 @@
         const uploadStepPlanFile = async (inlineData, apiKey, signal) => {
             const formData = new FormData();
             formData.append('purpose', 'storage');
-            formData.append('file', inlineDataToBlob(inlineData), inlineData.name || 'upload.bin');
+            formData.append('file', inlineDataToBlob(inlineData), getStepPlanUploadFileName(inlineData));
             const response = await fetch('/api/step-plan-files', {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${apiKey}` },
@@ -294,10 +317,18 @@
                     }
                 }
 
+                const hasStepPlanVideo = provider === 'stepfun' && messages.some(message =>
+                    Array.isArray(message.content) &&
+                    message.content.some(part =>
+                        part?.type === 'video_url' &&
+                        String(part?.video_url?.url || '').startsWith('stepfile://')
+                    )
+                );
+
                 payload = {
                     model: modelId,
                     messages,
-                    stream: true,
+                    stream: !hasStepPlanVideo,
                     ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
                     ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
                     ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens }),
@@ -400,6 +431,15 @@
             if (!response.ok) {
                 const err = await readErrorBody(response);
                 throw new Error(getErrorMessage(err));
+            }
+            if (provider === 'stepfun' && payload.stream === false) {
+                const data = await response.json();
+                const messageContent = data?.choices?.[0]?.message?.content;
+                const fullText = Array.isArray(messageContent)
+                    ? messageContent.map(part => part?.text || '').join('')
+                    : String(messageContent || '');
+                if (fullText) onChunk(fullText);
+                return fullText;
             }
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
