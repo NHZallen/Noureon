@@ -728,7 +728,6 @@
                 search: existingPopover?.querySelector('[data-council-filter="search"]')?.value || '',
                 provider: existingPopover?.querySelector('[data-council-filter="provider"]')?.value || 'all',
                 ability: existingPopover?.querySelector('[data-council-filter="ability"]')?.value || 'all',
-                price: existingPopover?.querySelector('[data-council-filter="price"]')?.value || 'all',
                 sort: existingPopover?.querySelector('[data-council-filter="sort"]')?.value || 'priceLow'
             };
             if (!container) {
@@ -772,8 +771,6 @@
             const noExtraAbilityLabel = config.uiLanguage === 'en' ? 'Text / file' : '文字 / 文件';
             const searchPlaceholder = config.uiLanguage === 'en' ? 'Search models' : '搜尋模型';
             const allLabel = config.uiLanguage === 'en' ? 'All' : '全部';
-            const freeLabel = config.uiLanguage === 'en' ? 'Free' : '免費';
-            const paidLabel = config.uiLanguage === 'en' ? 'Paid' : '付費';
             const providerCountLabel = config.uiLanguage === 'en' ? 'providers' : '供應商';
             const sortProviderLabel = config.uiLanguage === 'en' ? 'Provider count' : '供應商數';
             const sortPriceLowLabel = config.uiLanguage === 'en' ? 'Price: low to high' : '價格由低到高';
@@ -831,10 +828,7 @@
                     || (previousFilters.ability === 'vision' && modelSupportsVision(model))
                     || (previousFilters.ability === 'document' && modelSupportsDocumentUpload(model))
                     || (previousFilters.ability === 'search' && modelSupportsWebSearch(model));
-                const priceOk = previousFilters.price === 'all'
-                    || (previousFilters.price === 'free' && getModelTiers(model).includes('free'))
-                    || (previousFilters.price === 'paid' && !getModelTiers(model).includes('free'));
-                return (!query || searchable.includes(query)) && providerOk && abilityOk && priceOk;
+                return (!query || searchable.includes(query)) && providerOk && abilityOk;
             };
             const modelGroups = buildCouncilModelGroups(modelList)
                 .map(group => ({
@@ -879,26 +873,24 @@
                 `;
             };
             const renderCouncilModelGroups = (type) => modelGroups.map(group => {
+                if (group.variants.length === 1) {
+                    return renderSelectableCouncilModelRow(group.variants[0], type);
+                }
                 const providerNames = group.variants.map(model => getProviderLabel(model.provider)).join(' · ');
                 const groupSearchText = `${group.name} ${providerNames}`.toLowerCase();
-                const shouldOpenGroup = Boolean(previousFilters.search.trim()) || group.variants.some(model => (
-                    type === 'participant'
-                        ? conv.council.participantModelIds.includes(model.id)
-                        : conv.council.synthesizerModelId === model.id
-                ));
                 return `
-                    <details class="council-model-group" data-council-group-search-text="${escapeHTML(groupSearchText)}" ${shouldOpenGroup ? 'open' : ''}>
-                        <summary class="council-model-family-row">
+                    <div class="council-model-group" data-council-group-search-text="${escapeHTML(groupSearchText)}">
+                        <div class="council-model-family-row">
                             <span>
                                 <strong>${escapeHTML(group.name)}</strong>
                                 <small>${escapeHTML(String(group.variants.length))} ${escapeHTML(providerCountLabel)}</small>
                             </span>
                             <span class="council-family-provider-list">${escapeHTML(providerNames)}</span>
-                        </summary>
+                        </div>
                         <div class="council-provider-variant-list">
                             ${group.variants.map(model => renderSelectableCouncilModelRow(model, type)).join('')}
                         </div>
-                    </details>
+                    </div>
                 `;
             }).join('');
             const modelRows = renderCouncilModelGroups('participant');
@@ -918,11 +910,6 @@
                         <option value="document" ${previousFilters.ability === 'document' ? 'selected' : ''}>${escapeHTML(documentLabel)}</option>
                         <option value="search" ${previousFilters.ability === 'search' ? 'selected' : ''}>${escapeHTML(searchLabel)}</option>
                     </select>
-                    <select data-council-filter="price">
-                        <option value="all" ${previousFilters.price === 'all' ? 'selected' : ''}>${escapeHTML(allLabel)} ${escapeHTML(priceLabel)}</option>
-                        <option value="free" ${previousFilters.price === 'free' ? 'selected' : ''}>${escapeHTML(freeLabel)}</option>
-                        <option value="paid" ${previousFilters.price === 'paid' ? 'selected' : ''}>${escapeHTML(paidLabel)}</option>
-                    </select>
                     <select data-council-filter="sort">
                         <option value="provider" ${previousFilters.sort === 'provider' ? 'selected' : ''}>${escapeHTML(sortProviderLabel)}</option>
                         <option value="priceLow" ${previousFilters.sort === 'priceLow' ? 'selected' : ''}>${escapeHTML(sortPriceLowLabel)}</option>
@@ -940,6 +927,7 @@
                         <span class="model-council-dot ${dotClass}" aria-hidden="true"></span>
                     </button>
                     <div id="model-council-popover" class="popover model-council-popover ${wasVisible ? 'visible' : ''}">
+                        <div class="council-popover-sticky-controls">
                         <div class="council-popover-header">
                             <div>
                                 <h3 class="council-popover-title">${texts.title}</h3>
@@ -959,9 +947,10 @@
                                 <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${lockAttr}>${texts.deliberation}</button>
                             </div>
                         </div>
-                        <p class="council-search-note ${conv.isWebSearchEnabled ? 'is-on' : 'is-off'}">${escapeHTML(conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : runtimeTexts.searchManualNotice)}</p>
-                        ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
-                        ${filtersHTML}
+                            <p class="council-search-note ${conv.isWebSearchEnabled ? 'is-on' : 'is-off'}">${escapeHTML(conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : runtimeTexts.searchManualNotice)}</p>
+                            ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
+                            ${filtersHTML}
+                        </div>
                         <div class="council-section">
                             <div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${COUNCIL_MAX_MODELS})</div>
                             <div class="council-model-list">${modelRows}</div>
@@ -987,6 +976,10 @@
             `;
             const popover = container.querySelector('#model-council-popover');
             const toggleButton = container.querySelector('#model-council-toggle-btn');
+            const updateCouncilStickyOffset = () => {
+                const stickyControls = popover.querySelector('.council-popover-sticky-controls');
+                popover.style.setProperty('--council-sticky-offset', `${stickyControls?.offsetHeight || 0}px`);
+            };
             const applyCouncilSearchFilter = () => {
                 const query = (container.querySelector('[data-council-filter="search"]')?.value || '').trim().toLowerCase();
                 container.querySelectorAll('.council-model-group').forEach(group => {
@@ -998,12 +991,17 @@
                         if (isVisible) visibleCount += 1;
                     });
                     group.hidden = visibleCount === 0;
-                    if (query && visibleCount > 0) group.open = true;
+                });
+                container.querySelectorAll('.council-model-list > .council-model-row').forEach(row => {
+                    const haystack = row.dataset.councilSearchText || '';
+                    row.hidden = Boolean(query) && !haystack.includes(query);
                 });
             };
+            requestAnimationFrame(updateCouncilStickyOffset);
             if (wasVisible) {
                 requestAnimationFrame(() => {
                     popover.scrollTop = previousScrollTop;
+                    updateCouncilStickyOffset();
                 });
             }
             const closeCouncilPopover = () => {
@@ -2199,6 +2197,9 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
             renderFilePreviews();
             const loadingMessageDiv = addMessageToUI({ role: 'model', parts: [{ text: '...' }], createdAt: new Date().toISOString() }, conv.messages.length, false);
             const contentDiv = loadingMessageDiv.querySelector('.message-content');
+            requestAnimationFrame(() => {
+                loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            });
             let councilProgressTimer = null;
             let singleProgressTimer = null;
             

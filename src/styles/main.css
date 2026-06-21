@@ -1113,17 +1113,17 @@ button:not(.btn-primary):active:not(:disabled) {
 
 .streaming-fade-char {
     opacity: 0;
-    animation: streamingFadeIn 0.12s ease-out forwards;
+    animation: streamingFadeIn 0.22s ease-out forwards;
 }
 
 @keyframes streamingFadeIn {
     from {
-        opacity: 0.35;
-        transform: translateY(1px);
+        opacity: 0;
+        filter: blur(2px);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        filter: blur(0);
     }
 }
 
@@ -2661,6 +2661,18 @@ body.custom-wallpaper-active .input-indicator-item {
     transform: translateX(-50%) scale(1) translateY(0);
 }
 
+.council-popover-sticky-controls {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    margin: -0.75rem -0.75rem 0;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0.75rem 0.75rem 0 0;
+    background: color-mix(in srgb, var(--sidebar-bg) 94%, white);
+    box-shadow: 0 0.55rem 1rem rgba(15, 23, 42, 0.05);
+}
+
 .council-popover-header,
 .council-mode-tabs,
 .council-enable-row,
@@ -2761,7 +2773,7 @@ body.custom-wallpaper-active .input-indicator-item {
 
 .council-filter-panel {
     display: grid;
-    grid-template-columns: minmax(9rem, 1.4fr) repeat(4, minmax(7rem, 1fr));
+    grid-template-columns: minmax(9rem, 1.4fr) repeat(3, minmax(7rem, 1fr));
     gap: 0.45rem;
     margin-top: 0.7rem;
 }
@@ -2784,7 +2796,13 @@ body.custom-wallpaper-active .input-indicator-item {
 }
 
 .council-section-title {
-    margin-bottom: 0.4rem;
+    position: sticky;
+    top: var(--council-sticky-offset, 0);
+    z-index: 6;
+    margin: 0 -0.75rem 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--sidebar-bg) 94%, white);
     color: var(--text-secondary);
     font-size: 0.76rem;
     font-weight: 800;
@@ -2847,20 +2865,6 @@ details.council-model-group > summary::-webkit-details-marker {
     justify-content: space-between;
     gap: 0.55rem;
     min-width: 0;
-}
-
-.council-model-family-row::after {
-    content: '›';
-    flex: 0 0 auto;
-    color: var(--text-secondary);
-    font-size: 1.05rem;
-    font-weight: 900;
-    line-height: 1.1;
-    transition: transform 0.16s ease;
-}
-
-details.council-model-group[open] > .council-model-family-row::after {
-    transform: rotate(90deg);
 }
 
 .council-model-family-row strong,
