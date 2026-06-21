@@ -902,6 +902,7 @@
                         <option value="all" ${previousFilters.provider === 'all' ? 'selected' : ''}>${escapeHTML(allLabel)} ${escapeHTML(providerLabel)}</option>
                         <option value="gemini" ${previousFilters.provider === 'gemini' ? 'selected' : ''}>Gemini</option>
                         <option value="openrouter" ${previousFilters.provider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
+                        <option value="stepfun" ${previousFilters.provider === 'stepfun' ? 'selected' : ''}>Step Plan</option>
                         <option value="nvidia" ${previousFilters.provider === 'nvidia' ? 'selected' : ''}>NVIDIA</option>
                     </select>
                     <select data-council-filter="ability">
@@ -1255,6 +1256,9 @@
         } else if (provider === 'openrouter') {
             tier = getModelTiers(model);
             company = model.id.split('/')[0];
+        } else if (provider === 'stepfun') {
+            tier = getModelTiers(model);
+            company = 'stepfun';
         } else if (provider === 'nvidia') {
             tier = getModelTiers(model);
             company = getModelApiId(model).split('/')[0];

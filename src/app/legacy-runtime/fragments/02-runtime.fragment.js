@@ -190,8 +190,8 @@
                     payload.tools = [{"googleSearch": {}}];
                 }
                 headers = { 'Content-Type': 'application/json' };
-            } else if (provider === 'nvidia') {
-                url = '/api/nvidia-chat';
+            } else if (provider === 'nvidia' || provider === 'stepfun') {
+                url = provider === 'stepfun' ? '/api/step-plan-chat' : '/api/nvidia-chat';
                 const messages = [];
                 if (systemInstruction) {
                     messages.push({ role: 'system', content: systemInstruction.parts.map(p => p.text).join('\n') });
@@ -237,6 +237,9 @@
                     ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
                     ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens }),
                 };
+                if (provider === 'stepfun' && modelInfo.reasoningEffort) {
+                    payload.reasoning_effort = modelInfo.reasoningEffort;
+                }
                 headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
             } else {
                 url = 'https://openrouter.ai/api/v1/chat/completions';
@@ -752,7 +755,7 @@ Output requirements:
             const apiKey = getTavilyApiKey();
             if (!apiKey) {
                 throw new Error(config.uiLanguage === 'en'
-                    ? 'Tavily API key is required for OpenRouter/NVIDIA search. Add it in Settings.'
+                    ? 'Tavily API key is required for OpenRouter/NVIDIA/Step Plan search. Add it in Settings.'
                     : 'OpenRouter/NVIDIA 搜索需要 Tavily API 金鑰，請先到設定頁新增。');
             }
             const query = buildTavilySearchQuery(Array.isArray(querySource)
@@ -1432,6 +1435,11 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                 if (openrouterBlock) {
                     openrouterBlock.insertAdjacentHTML('afterend', `
                         <div>
+                            <label for="step-plan-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="stepPlanApiKey">Step Plan API Key</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="stepPlanApiDesc">Enable StepFun Step Plan reasoning models.</p>
+                            <input type="password" id="step-plan-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="sk-..." data-lang-key-placeholder="stepPlanApiPlaceholder">
+                        </div>
+                        <div>
                             <label for="nvidia-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="nvidiaApiKey">NVIDIA API Key</label>
                             <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="nvidiaApiDesc">Enable NVIDIA free models.</p>
                             <input type="password" id="nvidia-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="nvapi-..." data-lang-key-placeholder="nvidiaApiPlaceholder">
@@ -1494,7 +1502,21 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                     `);
                 }
             }
+            if (!document.getElementById('step-plan-api-key-input')) {
+                const openrouterInput = document.getElementById('openrouter-api-key-input-all');
+                const openrouterBlock = openrouterInput?.closest('div');
+                if (openrouterBlock) {
+                    openrouterBlock.insertAdjacentHTML('afterend', `
+                        <div>
+                            <label for="step-plan-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="stepPlanApiKey">Step Plan API Key</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="stepPlanApiDesc">Enable StepFun Step Plan reasoning models.</p>
+                            <input type="password" id="step-plan-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="sk-..." data-lang-key-placeholder="stepPlanApiPlaceholder">
+                        </div>
+                    `);
+                }
+            }
             ALL_ELEMENTS.nvidiaApiKeyInput = document.getElementById('nvidia-api-key-input');
+            ALL_ELEMENTS.stepPlanApiKeyInput = document.getElementById('step-plan-api-key-input');
             ALL_ELEMENTS.tavilyApiKeyInput = document.getElementById('tavily-api-key-input');
             ALL_ELEMENTS.tavilySearchDepthSelect = document.getElementById('tavily-search-depth-select');
             ALL_ELEMENTS.councilTranslatorModelSelect = document.getElementById('council-translator-model-select');
@@ -1675,6 +1697,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             ensureOutputModeSettingsControls();
             ALL_ELEMENTS.geminiApiKeyInput.value = getApiKeyForProvider('gemini');
             ALL_ELEMENTS.openrouterApiKeyInputAll.value = getApiKeyForProvider('openrouter');
+            if (ALL_ELEMENTS.stepPlanApiKeyInput) ALL_ELEMENTS.stepPlanApiKeyInput.value = getApiKeyForProvider('stepfun');
             if (ALL_ELEMENTS.nvidiaApiKeyInput) ALL_ELEMENTS.nvidiaApiKeyInput.value = getApiKeyForProvider('nvidia');
             if (ALL_ELEMENTS.tavilyApiKeyInput) ALL_ELEMENTS.tavilyApiKeyInput.value = getApiKeyForProvider('tavily');
             if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();
@@ -1730,6 +1753,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
         const saveSettings = async () => {
             config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
+            config.apiKeys.stepPlan = ALL_ELEMENTS.stepPlanApiKeyInput?.value.trim() || '';
             config.apiKeys.nvidia = ALL_ELEMENTS.nvidiaApiKeyInput?.value.trim() || '';
             config.apiKeys.tavily = ALL_ELEMENTS.tavilyApiKeyInput?.value.trim() || '';
             config.tavilySearchDepth = ALL_ELEMENTS.tavilySearchDepthSelect?.value === 'advanced' ? 'advanced' : 'basic';

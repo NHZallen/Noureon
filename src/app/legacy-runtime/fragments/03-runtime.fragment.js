@@ -999,6 +999,9 @@
         } else if (provider === 'openrouter') {
             tier = getModelTiers(model);
             company = model.id.split('/')[0];
+        } else if (provider === 'stepfun') {
+            tier = getModelTiers(model);
+            company = 'stepfun';
         } else if (provider === 'nvidia') {
             tier = getModelTiers(model);
             company = getModelApiId(model).split('/')[0];
@@ -1030,7 +1033,7 @@
         tier.forEach(t => {
             if (!categorizedModels[provider][t]) categorizedModels[provider][t] = {};
             
-            if (provider === 'openrouter' || provider === 'nvidia') {
+            if (provider === 'openrouter' || provider === 'nvidia' || provider === 'stepfun') {
                 if (!categorizedModels[provider][t][company]) categorizedModels[provider][t][company] = [];
                 categorizedModels[provider][t][company].push(item);
             } else {
@@ -1088,7 +1091,7 @@
             const tierData = categorizedModels[provider][tier];
 
 
-            if (provider === 'openrouter' || provider === 'nvidia') {
+            if (provider === 'openrouter' || provider === 'nvidia' || provider === 'stepfun') {
                 // 遍歷公司
                 for (const company in tierData) {
                     const companySection = createCollapsibleSection(company, 2);
@@ -1151,6 +1154,9 @@
         } else if (model.provider === 'openrouter') {
             tier = getModelTiers(model);
             company = model.id.split('/')[0];
+        } else if (model.provider === 'stepfun') {
+            tier = getModelTiers(model);
+            company = 'stepfun';
         } else if (model.provider === 'nvidia') {
             tier = getModelTiers(model);
             company = getModelApiId(model).split('/')[0];

@@ -165,6 +165,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             closeSettingsBtn: document.getElementById('close-settings-btn'),
             geminiApiKeyInput: document.getElementById('gemini-api-key-input'),
             openrouterApiKeyInputAll: document.getElementById('openrouter-api-key-input-all'),
+            stepPlanApiKeyInput: document.getElementById('step-plan-api-key-input'),
             nvidiaApiKeyInput: document.getElementById('nvidia-api-key-input'),
             tavilyApiKeyInput: document.getElementById('tavily-api-key-input'),
             tavilySearchDepthSelect: document.getElementById('tavily-search-depth-select'),
@@ -634,6 +635,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     { id: 'nvidia/stepfun-ai/step-3.7-flash', apiId: 'stepfun-ai/step-3.7-flash', name: 'NVIDIA Step 3.7 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_step_3_7_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/nvidia/nemotron-3-ultra-550b-a55b', apiId: 'nvidia/nemotron-3-ultra-550b-a55b', name: 'NVIDIA Nemotron 3 Ultra', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_ultra_550b_a55b_desc', tier: ['free'], category: 'general' },
 
+    // Step Plan Models (Native StepFun)
+    { id: 'step-plan/step-3.7-flash', apiId: 'step-3.7-flash', name: 'Step Plan Step 3.7 Flash', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_7_flash_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'medium' },
+    { id: 'step-plan/step-3.5-flash-2603', apiId: 'step-3.5-flash-2603', name: 'Step Plan Step 3.5 Flash 2603', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_2603_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'low' },
+    { id: 'step-plan/step-3.5-flash', apiId: 'step-3.5-flash', name: 'Step Plan Step 3.5 Flash', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'medium' },
+    { id: 'step-plan/step-router-v1', apiId: 'step-router-v1', name: 'Step Plan Router V1', provider: 'stepfun', descriptionKey: 'model_step_plan_router_v1_desc', tier: ['paid'], category: 'thinking' },
+
     // OpenRouter Free Models
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
     { id: 'nex-agi/nex-n2-pro:free', name: 'Nex AGI Nex-N2-Pro', provider: 'openrouter', descriptionKey: 'model_nex_n2_pro_desc', category: 'general' },
@@ -695,6 +702,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     'moonshotai/kimi-k2.6',
     'qwen/qwen3.5-397b-a17b',
     'stepfun-ai/step-3.7-flash'
+];
+        const STEP_PLAN_VISION_MODELS = [
+    'step-3.7-flash'
 ];
         const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.5-flash',
@@ -814,7 +824,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let personalMemories = [];
         let activeConversationId = null;
         let config = {
-            apiKeys: { gemini: '', openrouter: '', nvidia: '', tavily: '' },
+            apiKeys: { gemini: '', openrouter: '', stepPlan: '', nvidia: '', tavily: '' },
             defaultModel: MODELS[0].id,
             theme: 'light',
             modelSettings: [],
@@ -914,6 +924,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const getProviderLabel = (provider) => {
             if (provider === 'gemini') return 'Gemini';
             if (provider === 'openrouter') return 'OpenRouter';
+            if (provider === 'stepfun') return 'Step Plan';
             if (provider === 'nvidia') return 'NVIDIA';
             if (provider === 'tavily') return 'Tavily';
             return provider || '';
@@ -942,6 +953,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const modelSupportsVision = (model) => Boolean(model && (
             model.provider === 'gemini' ||
             (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
+            (model.provider === 'stepfun' && STEP_PLAN_VISION_MODELS.includes(getModelApiId(model))) ||
             (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model)))
         ));
         const modelSupportsDocumentUpload = (model) => Boolean(model && (
@@ -966,7 +978,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             return candidates.find(model => model.id === config.singleDocumentTranslatorModelId) || candidates[0];
         };
         const modelUsesNativeWebSearch = (model) => Boolean(model && model.provider === 'gemini');
-        const modelUsesTavilySearch = (model) => Boolean(model && (model.provider === 'openrouter' || model.provider === 'nvidia'));
+        const modelUsesTavilySearch = (model) => Boolean(model && (model.provider === 'openrouter' || model.provider === 'nvidia' || model.provider === 'stepfun'));
         const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
         const getOutputMode = () => config.outputMode === 'realtime' ? 'realtime' : 'typewriter';
         const hasSingleDocumentAccess = (model) => Boolean(modelSupportsDocumentUpload(model) || getSingleDocumentTranslatorModel());
@@ -986,6 +998,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             if (Array.isArray(model.tier)) return model.tier;
             if (typeof model.tier === 'string') return [model.tier];
             if (model.provider === 'nvidia') return ['free'];
+            if (model.provider === 'stepfun') return ['paid'];
             return model.id?.includes(':free') ? ['free'] : ['paid'];
         };
         const getModelRetirementLabel = (model) => {
@@ -1004,6 +1017,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             if (localizedPrice) return localizedPrice;
             if (model.provider === 'gemini') return config.uiLanguage === 'en' ? 'Google API pricing' : 'Google API 計費';
             if (model.provider === 'openrouter') return config.uiLanguage === 'en' ? 'OpenRouter pricing' : 'OpenRouter 計費';
+            if (model.provider === 'stepfun') return 'Step Plan credits';
             return config.uiLanguage === 'en' ? 'Provider pricing' : '供應商計費';
         };
         const getCouncilRuntimeTexts = () => {
@@ -1218,6 +1232,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             }
             if (provider === 'openrouter') {
                 return normalizeApiKeyValue(config.apiKeys?.openrouter);
+            }
+            if (provider === 'stepfun') {
+                return normalizeApiKeyValue(config.apiKeys?.stepPlan);
             }
             if (provider === 'nvidia') {
                 return normalizeApiKeyValue(config.apiKeys?.nvidia);
@@ -1553,10 +1570,12 @@ function renderMarkdownWithFormulas(text) {
             if (saved) {
                 const savedConfig = JSON.parse(saved);
                 let openrouterKey = '';
+                let stepPlanKey = '';
                 let nvidiaKey = '';
                 let tavilyKey = '';
                 if (savedConfig.apiKeys) {
                     openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter);
+                    stepPlanKey = normalizeApiKeyValue(savedConfig.apiKeys.stepPlan);
                     nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia);
                     tavilyKey = normalizeApiKeyValue(savedConfig.apiKeys.tavily);
                 }
@@ -1568,6 +1587,7 @@ function renderMarkdownWithFormulas(text) {
                         ...config.apiKeys,
                         ...savedConfig.apiKeys,
                         openrouter: openrouterKey,
+                        stepPlan: stepPlanKey,
                         nvidia: nvidiaKey,
                         tavily: tavilyKey
                     },
