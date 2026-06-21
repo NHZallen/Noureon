@@ -336,6 +336,40 @@
             });
             return results;
         };
+        const CHAT_IMAGE_MAX_SIZE = 1600;
+        const CHAT_IMAGE_QUALITY = 0.78;
+        const normalizeImageForChatUpload = (dataUrl, mimeType, fileName = 'image') => new Promise((resolve) => {
+            mimeType = mimeType || '';
+            if (!mimeType.startsWith('image/') || mimeType === 'image/gif') {
+                resolve({ base64: dataUrl, type: mimeType });
+                return;
+            }
+            const img = new Image();
+            img.onload = () => {
+                const maxEdge = Math.max(img.width, img.height);
+                const scale = maxEdge > CHAT_IMAGE_MAX_SIZE ? CHAT_IMAGE_MAX_SIZE / maxEdge : 1;
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve({ base64: dataUrl, type: mimeType });
+                    return;
+                }
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve({
+                    base64: canvas.toDataURL('image/jpeg', CHAT_IMAGE_QUALITY),
+                    type: 'image/jpeg'
+                });
+            };
+            img.onerror = () => {
+                console.warn(`Could not normalize uploaded image for chat: ${fileName}`);
+                resolve({ base64: dataUrl, type: mimeType });
+            };
+            img.src = dataUrl;
+        });
         const renderFilePreviews = () => {
             const { filePreviewContainer } = ALL_ELEMENTS;
             filePreviewContainer.innerHTML = '';
@@ -363,11 +397,14 @@
             if (!files) return;
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
-                reader.onload = (e) => {
+                reader.onload = async (e) => {
+                    const normalized = await normalizeImageForChatUpload(e.target.result, file.type, file.name);
                     uploadedFiles.push({
                         id: crypto.randomUUID(),
-                        name: file.name,type: file.type,
-                        base64: e.target.result,
+                        name: file.name,
+                        type: normalized.type,
+                        originalType: file.type,
+                        base64: normalized.base64,
                     });
                     renderFilePreviews();
                 };
