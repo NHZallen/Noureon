@@ -52,11 +52,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => '/v1/chat/completions'
       },
-      '/api/step-plan-files': {
-        target: 'https://api.stepfun.com',
-        changeOrigin: true,
-        rewrite: () => '/v1/files'
-      },
       '/api/tavily-search': {
         target: 'https://api.tavily.com',
         changeOrigin: true,

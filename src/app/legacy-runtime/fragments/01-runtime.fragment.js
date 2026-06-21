@@ -2177,6 +2177,7 @@ const stopProgressTicker = (ticker) => {
         inlineData: {
             mimeType: file.type,
             data: file.base64.split(',')[1],
+            size: file.size,
             name: file.name // ✨ 新增這一行：保存檔名
         }
     });

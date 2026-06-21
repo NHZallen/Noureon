@@ -96,71 +96,41 @@
             return score * (1 + coverageRatio);
         }
         const STEP_PLAN_SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
-        const STEP_PLAN_EXTENSION_BY_MIME_TYPE = {
-            'video/mp4': 'mp4',
-            'video/mpeg': 'mpeg',
-            'video/quicktime': 'mov',
-            'video/webm': 'webm',
-            'image/jpeg': 'jpg',
-            'image/jpg': 'jpg',
-            'image/png': 'png',
-            'image/webp': 'webp',
-            'image/gif': 'gif'
+        const STEP_PLAN_SUPPORTED_VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/x-matroska']);
+        const STEP_PLAN_VIDEO_SIZE_LIMIT_BYTES = 128 * 1024 * 1024;
+        const STEP_PLAN_MIME_TYPE_BY_EXTENSION = {
+            jpg: 'image/jpeg',
+            jpeg: 'image/jpeg',
+            png: 'image/png',
+            webp: 'image/webp',
+            gif: 'image/gif',
+            mp4: 'video/mp4',
+            mov: 'video/quicktime',
+            qt: 'video/quicktime',
+            mkv: 'video/x-matroska'
         };
-        const getStepPlanUploadFileName = (inlineData) => {
-            const originalName = String(inlineData.name || '').trim();
-            const originalExt = /\.([a-zA-Z0-9]{1,8})$/.exec(originalName)?.[1]?.toLowerCase();
-            const mimeExt = STEP_PLAN_EXTENSION_BY_MIME_TYPE[(inlineData.mimeType || '').toLowerCase()];
-            const ext = originalExt || mimeExt || 'bin';
-            const baseName = originalName
-                .replace(/\.[^.]*$/, '')
-                .replace(/[^a-zA-Z0-9._-]+/g, '-')
-                .replace(/^-+|-+$/g, '')
-                .slice(0, 48) || 'step-upload';
-            return `${baseName}.${ext}`;
+        const getStepPlanAttachmentMimeType = (inlineData) => {
+            const mimeType = String(inlineData.mimeType || '').toLowerCase();
+            if (mimeType) return mimeType;
+            const ext = /\.([a-zA-Z0-9]{1,8})$/.exec(String(inlineData.name || ''))?.[1]?.toLowerCase();
+            return STEP_PLAN_MIME_TYPE_BY_EXTENSION[ext] || '';
         };
-        const inlineDataToBlob = (inlineData) => {
-            const byteCharacters = atob(inlineData.data || '');
-            const byteArrays = [];
-            for (let offset = 0; offset < byteCharacters.length; offset += 8192) {
-                const slice = byteCharacters.slice(offset, offset + 8192);
-                const byteNumbers = new Array(slice.length);
-                for (let i = 0; i < slice.length; i += 1) {
-                    byteNumbers[i] = slice.charCodeAt(i);
-                }
-                byteArrays.push(new Uint8Array(byteNumbers));
-            }
-            return new Blob(byteArrays, { type: inlineData.mimeType || 'application/octet-stream' });
+        const getBase64ByteLength = (base64 = '') => {
+            const value = String(base64).replace(/\s/g, '');
+            if (!value) return 0;
+            const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
+            return Math.floor((value.length * 3) / 4) - padding;
         };
-        const uploadStepPlanFile = async (inlineData, apiKey, signal) => {
-            const formData = new FormData();
-            formData.append('purpose', 'storage');
-            formData.append('file', inlineDataToBlob(inlineData), getStepPlanUploadFileName(inlineData));
-            const response = await fetch('/api/step-plan-files', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${apiKey}` },
-                body: formData,
-                signal
-            });
-            if (!response.ok) {
-                const err = await readErrorBody(response);
-                throw new Error(getErrorMessage(err, `Step Plan file upload failed (${response.status})`));
-            }
-            const data = await response.json();
-            if (!data?.id) {
-                throw new Error('Step Plan file upload did not return a file id.');
-            }
-            return data.id;
-        };
-        const appendStepPlanAttachmentContent = async (content, inlineData, modelInfo, apiKey, signal) => {
-            const mimeType = inlineData.mimeType || '';
+        const appendStepPlanAttachmentContent = (content, inlineData, modelInfo) => {
+            const mimeType = getStepPlanAttachmentMimeType(inlineData);
             const name = inlineData.name || mimeType || 'attachment';
+            const dataUrl = `data:${mimeType};base64,${inlineData.data}`;
             if (mimeType.startsWith('image/') && modelSupportsVision(modelInfo)) {
                 if (STEP_PLAN_SUPPORTED_IMAGE_MIME_TYPES.has(mimeType.toLowerCase())) {
                     content.push({
                         type: 'image_url',
                         image_url: {
-                            url: `data:${mimeType};base64,${inlineData.data}`,
+                            url: dataUrl,
                             detail: 'high'
                         }
                     });
@@ -170,13 +140,21 @@
                 return;
             }
             if (mimeType.startsWith('video/') && modelSupportsVision(modelInfo)) {
-                const fileId = await uploadStepPlanFile(inlineData, apiKey, signal);
-                content.push({
-                    type: 'video_url',
-                    video_url: {
-                        url: `stepfile://${fileId}`
+                if (STEP_PLAN_SUPPORTED_VIDEO_MIME_TYPES.has(mimeType.toLowerCase())) {
+                    const byteLength = Number(inlineData.size || 0) || getBase64ByteLength(inlineData.data);
+                    if (byteLength > STEP_PLAN_VIDEO_SIZE_LIMIT_BYTES) {
+                        content.push({ type: 'text', text: `[Video omitted for Step Plan: ${name} is larger than 128MB. Split it into smaller MP4 clips before sending.]` });
+                        return;
                     }
-                });
+                    content.unshift({
+                        type: 'video_url',
+                        video_url: {
+                            url: dataUrl
+                        }
+                    });
+                } else {
+                    content.push({ type: 'text', text: `[Unsupported video format for Step Plan: ${name}. Use MP4, QuickTime, or Matroska.]` });
+                }
                 return;
             }
             content.push({ type: 'text', text: `[Attachment omitted for ${modelInfo.name}: ${name}]` });
@@ -297,7 +275,7 @@
                         const base64Data = part.inlineData.data;
                         const fullDataUrl = `data:${mimeType};base64,${base64Data}`;
                         if (provider === 'stepfun') {
-                            await appendStepPlanAttachmentContent(content, part.inlineData, modelInfo, apiKey, signal);
+                            appendStepPlanAttachmentContent(content, part.inlineData, modelInfo);
                         } else if ((mimeType.startsWith('image/') || mimeType.startsWith('video/')) && modelSupportsVision(modelInfo)) {
                             content.push(mimeType.startsWith('video/')
                                 ? { type: 'video_url', video_url: { url: fullDataUrl } }
@@ -319,10 +297,7 @@
 
                 const hasStepPlanVideo = provider === 'stepfun' && messages.some(message =>
                     Array.isArray(message.content) &&
-                    message.content.some(part =>
-                        part?.type === 'video_url' &&
-                        String(part?.video_url?.url || '').startsWith('stepfile://')
-                    )
+                    message.content.some(part => part?.type === 'video_url')
                 );
 
                 payload = {

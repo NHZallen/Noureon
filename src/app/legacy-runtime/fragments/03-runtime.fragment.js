@@ -404,6 +404,7 @@
                         name: file.name,
                         type: normalized.type,
                         originalType: file.type,
+                        size: file.size,
                         base64: normalized.base64,
                     });
                     renderFilePreviews();
