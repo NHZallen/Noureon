@@ -1,13 +1,11 @@
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '25mb'
-    },
+    bodyParser: false,
     responseLimit: false
   }
 };
 
-const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/v1/chat/completions';
+const STEP_PLAN_FILES_URL = 'https://api.stepfun.com/v1/files';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
@@ -30,28 +28,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
-    const upstream = await fetch(STEP_PLAN_CHAT_COMPLETIONS_URL, {
+    const upstream = await fetch(STEP_PLAN_FILES_URL, {
       method: 'POST',
       headers: {
         Authorization: authorization,
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream'
+        'Content-Type': req.headers['content-type'] || 'multipart/form-data'
       },
-      body
+      body: req,
+      duplex: 'half'
     });
 
     res.status(upstream.status);
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'text/event-stream; charset=utf-8');
-    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json; charset=utf-8');
 
     if (!upstream.body) {
       res.end(await upstream.text());
       return;
     }
 
-    res.flushHeaders?.();
     const reader = upstream.body.getReader();
     while (true) {
       const { done, value } = await reader.read();
@@ -61,7 +56,7 @@ export default async function handler(req, res) {
     res.end();
   } catch (error) {
     res.status(502).json({
-      error: 'Step Plan proxy request failed',
+      error: 'Step Plan file upload failed',
       detail: error?.message || 'Unknown error'
     });
   }

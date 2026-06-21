@@ -96,7 +96,40 @@
             return score * (1 + coverageRatio);
         }
         const STEP_PLAN_SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
-        const appendStepPlanAttachmentContent = async (content, inlineData, modelInfo) => {
+        const inlineDataToBlob = (inlineData) => {
+            const byteCharacters = atob(inlineData.data || '');
+            const byteArrays = [];
+            for (let offset = 0; offset < byteCharacters.length; offset += 8192) {
+                const slice = byteCharacters.slice(offset, offset + 8192);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i += 1) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                byteArrays.push(new Uint8Array(byteNumbers));
+            }
+            return new Blob(byteArrays, { type: inlineData.mimeType || 'application/octet-stream' });
+        };
+        const uploadStepPlanFile = async (inlineData, apiKey, signal) => {
+            const formData = new FormData();
+            formData.append('purpose', 'storage');
+            formData.append('file', inlineDataToBlob(inlineData), inlineData.name || 'upload.bin');
+            const response = await fetch('/api/step-plan-files', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${apiKey}` },
+                body: formData,
+                signal
+            });
+            if (!response.ok) {
+                const err = await readErrorBody(response);
+                throw new Error(getErrorMessage(err, `Step Plan file upload failed (${response.status})`));
+            }
+            const data = await response.json();
+            if (!data?.id) {
+                throw new Error('Step Plan file upload did not return a file id.');
+            }
+            return data.id;
+        };
+        const appendStepPlanAttachmentContent = async (content, inlineData, modelInfo, apiKey, signal) => {
             const mimeType = inlineData.mimeType || '';
             const name = inlineData.name || mimeType || 'attachment';
             if (mimeType.startsWith('image/') && modelSupportsVision(modelInfo)) {
@@ -114,10 +147,11 @@
                 return;
             }
             if (mimeType.startsWith('video/') && modelSupportsVision(modelInfo)) {
+                const fileId = await uploadStepPlanFile(inlineData, apiKey, signal);
                 content.push({
                     type: 'video_url',
                     video_url: {
-                        url: `data:${mimeType};base64,${inlineData.data}`
+                        url: `stepfile://${fileId}`
                     }
                 });
                 return;
@@ -240,7 +274,7 @@
                         const base64Data = part.inlineData.data;
                         const fullDataUrl = `data:${mimeType};base64,${base64Data}`;
                         if (provider === 'stepfun') {
-                            await appendStepPlanAttachmentContent(content, part.inlineData, modelInfo);
+                            await appendStepPlanAttachmentContent(content, part.inlineData, modelInfo, apiKey, signal);
                         } else if ((mimeType.startsWith('image/') || mimeType.startsWith('video/')) && modelSupportsVision(modelInfo)) {
                             content.push(mimeType.startsWith('video/')
                                 ? { type: 'video_url', video_url: { url: fullDataUrl } }
