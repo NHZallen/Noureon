@@ -1620,6 +1620,85 @@
         }
     });
 };
+        const getInlineMediaSrc = (media) => `data:${media.mimeType || 'application/octet-stream'};base64,${media.data}`;
+        const renderMediaAttachmentGrid = (mediaParts = []) => {
+            if (!mediaParts.length) return '';
+            const mediaItems = mediaParts.map((media, mediaIndex) => {
+                const mimeType = media.mimeType || 'application/octet-stream';
+                const src = getInlineMediaSrc(media);
+                const name = media.name || mimeType || 'attachment';
+                if (mimeType.startsWith('image/')) {
+                    return `
+                        <button type="button" class="message-media-thumb" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
+                            <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}" loading="lazy">
+                            <span class="message-media-label">${escapeHTML(name)}</span>
+                        </button>
+                    `;
+                }
+                if (mimeType.startsWith('video/')) {
+                    return `
+                        <button type="button" class="message-media-thumb message-media-video" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
+                            <video src="${escapeHTML(src)}" preload="metadata" muted playsinline></video>
+                            <span class="message-media-play" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+                            </span>
+                            <span class="message-media-label">${escapeHTML(name)}</span>
+                        </button>
+                    `;
+                }
+                return `
+                    <div class="message-file-chip" title="${escapeHTML(name)}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        <span>${escapeHTML(name)}</span>
+                    </div>
+                `;
+            }).join('');
+            return `<div class="message-media-grid">${mediaItems}</div>`;
+        };
+        const openMediaPreview = (media) => {
+            if (!media) return;
+            document.querySelector('.media-lightbox')?.remove();
+            const mimeType = media.mimeType || 'application/octet-stream';
+            const src = getInlineMediaSrc(media);
+            const name = media.name || mimeType || 'attachment';
+            const overlay = document.createElement('div');
+            overlay.className = 'media-lightbox';
+            const mediaHTML = mimeType.startsWith('video/')
+                ? `<video src="${escapeHTML(src)}" controls autoplay playsinline></video>`
+                : `<img src="${escapeHTML(src)}" alt="${escapeHTML(name)}">`;
+            overlay.innerHTML = `
+                <button type="button" class="media-lightbox-close" aria-label="${config.uiLanguage === 'en' ? 'Close preview' : '關閉預覽'}">&times;</button>
+                <div class="media-lightbox-stage">
+                    ${mediaHTML}
+                    <div class="media-lightbox-title">${escapeHTML(name)}</div>
+                </div>
+            `;
+            const close = () => {
+                if (document.fullscreenElement === overlay) {
+                    document.exitFullscreen?.().catch(() => {});
+                }
+                overlay.remove();
+                document.removeEventListener('keydown', onKeyDown);
+            };
+            const onKeyDown = (event) => {
+                if (event.key === 'Escape') close();
+            };
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay || event.target.closest('.media-lightbox-close')) close();
+            });
+            document.addEventListener('keydown', onKeyDown);
+            document.body.appendChild(overlay);
+            overlay.requestFullscreen?.().catch(() => {});
+            overlay.querySelector('video')?.play?.().catch(() => {});
+        };
+        const bindMediaPreviewButtons = (root, mediaParts = []) => {
+            root.querySelectorAll('.message-media-thumb').forEach(button => {
+                button.addEventListener('click', () => {
+                    const mediaIndex = Number(button.dataset.mediaIndex);
+                    openMediaPreview(mediaParts[mediaIndex]);
+                });
+            });
+        };
         const addMessageToUI = (msg, index, shouldSave = true, shouldScroll = true) => {
             const conv = getActiveConversation();
             if (shouldSave) {
@@ -1641,6 +1720,7 @@
             let contentHTML = '';
             let actionButtons = '';
             let contentPaddingClass = '';
+            let previewMediaPartsContent = [];
             const isLoadingMessage = !isUser && msg.parts.length === 1 && msg.parts[0].text === '...';
             if (isLoadingMessage) {
             contentHTML = `<div class="typing-cursor">&nbsp;</div>`;
@@ -1659,6 +1739,9 @@
                     contentHTML += `<div>${isUser ? renderUserText(combinedText) : renderMarkdownWithFormulas(combinedText)}</div>`;
                 }
                 if (mediaPartsContent.length > 0) {
+                    previewMediaPartsContent = [...mediaPartsContent];
+                    contentHTML += renderMediaAttachmentGrid(previewMediaPartsContent);
+                    mediaPartsContent = [];
                     let mediaHTML = '<div class="mt-2 flex flex-wrap gap-2">';
                     mediaPartsContent.forEach(media => {
                         const mimeType = escapeHTML(media.mimeType || 'application/octet-stream');
@@ -1682,7 +1765,7 @@
                         }
                     });
                     mediaHTML += '</div>';
-                    contentHTML += mediaHTML;
+                    contentHTML += '';
                 }
                 if (!isUser) {
                     const timeString = formatFullTimestamp(msg.createdAt);
@@ -1714,6 +1797,7 @@
                     ${actionButtons}
                 </div>`;
             messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
+            bindMediaPreviewButtons(messageDiv, previewMediaPartsContent);
             if (ALL_ELEMENTS.messageList.querySelector('.text-center')) ALL_ELEMENTS.messageList.innerHTML = '';
             ALL_ELEMENTS.messageList.appendChild(messageDiv);
             if (shouldScroll) {

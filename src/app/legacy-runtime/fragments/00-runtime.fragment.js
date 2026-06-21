@@ -1805,22 +1805,21 @@ function renderMarkdownWithFormulas(text) {
                         ? `<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold">${currentUser ? currentUser.username.charAt(0).toUpperCase() : 'Y'}</div>`
                         : `<div class="bg-gray-800 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 15h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>`;
                     let contentHTML = '';
+                    const mediaParts = [];
                     msg.parts.forEach(part => {
                         if (part.text) {
                              contentHTML += `<div>${isUser ? renderUserText(part.text) : renderMarkdown(part.text)}</div>`;
                         } else if (part.inlineData) {
-                            const mimeType = escapeHTML(part.inlineData.mimeType || 'application/octet-stream');
-                            const src = `data:${mimeType};base64,${part.inlineData.data}`;
-                             if ((part.inlineData.mimeType || '').startsWith('image/')) {
-                                contentHTML += `<img src="${src}" class="mt-2 max-w-xs max-h-48 rounded-lg object-cover border border-[var(--border-color)]">`;
-                            }
+                            mediaParts.push(part.inlineData);
                         }
                     });
+                    contentHTML += renderMediaAttachmentGrid(mediaParts);
                     const messageBubble = `
                         <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble">
                             <div class="prose prose-sm max-w-none message-content ${isUser ? 'text-white' : 'text-[var(--text-primary)]'}">${contentHTML}</div>
                         </div>`;
                     messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
+                    bindMediaPreviewButtons(messageDiv, mediaParts);
                     contentContainer.appendChild(messageDiv);
                 });
             }
