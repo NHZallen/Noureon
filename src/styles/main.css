@@ -1111,6 +1111,23 @@ button:not(.btn-primary):active:not(:disabled) {
     overflow-wrap: anywhere;
 }
 
+.streaming-fade-char {
+    display: inline;
+    opacity: 0;
+    animation: streamingFadeIn 0.22s ease-out forwards;
+}
+
+@keyframes streamingFadeIn {
+    from {
+        opacity: 0;
+        filter: blur(2px);
+    }
+    to {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
 @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
@@ -3305,6 +3322,16 @@ body.custom-wallpaper-active .input-indicator-item {
     margin-bottom: 1.1rem;
 }
 
+#chat-container {
+    --chat-scroll-padding-top: 1rem;
+}
+
+@media (min-width: 768px) {
+    #chat-container {
+        --chat-scroll-padding-top: 1.5rem;
+    }
+}
+
 .prose details.council-collapse {
     margin: 1.3rem 0;
     padding: 0.9rem 1rem 1rem;
@@ -3330,7 +3357,7 @@ body.custom-wallpaper-active .input-indicator-item {
 
 .prose details.council-collapse[open] > summary {
     position: sticky;
-    top: 0;
+    top: calc(-1 * var(--chat-scroll-padding-top, 1rem));
     z-index: 30;
     margin: -0.9rem -1rem 0.85rem;
     padding: 0.85rem 1rem;

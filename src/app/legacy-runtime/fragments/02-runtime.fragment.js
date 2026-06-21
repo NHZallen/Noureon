@@ -732,6 +732,7 @@ After the final answer, include a concise collapsed "共識與差異整理" sect
 <details class="council-collapse"><summary>共識與差異整理</summary>
 ...your Markdown table and notes...
 </details>
+All comparison tables, bullets, and notes must stay inside this wrapper. Do not repeat or continue comparison Markdown after the closing </details> tag.
 Use a Markdown table when it helps. Cover:
 - Points where council members agree
 - Meaningful disagreements or tradeoffs
