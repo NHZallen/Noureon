@@ -1960,23 +1960,32 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
         restoreOpenCouncilDetails(finalizedNode, openKeys);
     };
 
+    const appendFadedText = (text = '') => {
+        if (!text) return;
+        const fragment = document.createDocumentFragment();
+        Array.from(text).forEach((char, index) => {
+            const span = document.createElement('span');
+            span.className = 'streaming-fade-char';
+            span.style.animationDelay = `${Math.min(index * 8, 96)}ms`;
+            span.textContent = char;
+            fragment.appendChild(span);
+        });
+        currentLineNode.appendChild(fragment);
+    };
+
     const updateCurrentLine = (text = '') => {
         const nextText = String(text || '');
-        const renderText = preserveCouncilDetails && hasUnclosedCouncilDetails(nextText)
-            ? `${nextText}\n\n</details>`
-            : nextText;
-        if (!renderText) {
+        if (!nextText) {
             currentLineNode.innerHTML = '';
             currentLineText = '';
             return;
         }
-        const nextHTML = renderMarkdown(renderText);
-        if (nextHTML === currentLineText) return;
-        currentLineNode.innerHTML = nextHTML;
-        currentLineNode.querySelectorAll('p, li, blockquote, pre, table, h1, h2, h3, h4, h5, h6').forEach(node => {
-            node.classList.add('streaming-fade-char');
-        });
-        currentLineText = nextHTML;
+        if (!nextText.startsWith(currentLineText)) {
+            currentLineNode.innerHTML = '';
+            currentLineText = '';
+        }
+        appendFadedText(nextText.slice(currentLineText.length));
+        currentLineText = nextText;
     };
 
     const flushPendingLines = (force = false, renderFormulas = false) => {
@@ -2002,15 +2011,6 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
             if (isFinalized || !chunk) return;
             const text = String(chunk);
             fullText += text;
-            if (preserveCouncilDetails) {
-                const shouldStick = isChatNearBottom();
-                const previousTop = ALL_ELEMENTS.chatContainer?.scrollTop || 0;
-                finalizedText += text;
-                renderFinalized(false);
-                updateCurrentLine('');
-                keepChatPositionAfterRender(shouldStick, previousTop);
-                return;
-            }
             pendingText += text;
             flushPendingLines(false, false);
         },
@@ -2060,11 +2060,13 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
     };
 
     const onChunkReceived = (chunk) => {
+        const nextChunk = String(chunk || '');
+        if (!nextChunk) return;
         if (!hasReceivedFirstChunk) {
             hasReceivedFirstChunk = true;
             options.onFirstChunk?.();
         }
-        textQueue += chunk || '';
+        textQueue += nextChunk;
         if (!isFrameRequested) {
             isFrameRequested = true;
             requestAnimationFrame(renderFrame);
@@ -2126,6 +2128,30 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
     for (let index = 0; index < source.length && !signal?.aborted; index += chunkSize) {
         renderer.appendText(source.slice(index, index + chunkSize));
         await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+};
+
+const startProgressTicker = (tick, intervalMs = 250) => {
+    let stopped = false;
+    let timerId = null;
+    const run = () => {
+        if (stopped) return;
+        tick();
+        timerId = setTimeout(run, intervalMs);
+    };
+    timerId = setTimeout(run, intervalMs);
+    return () => {
+        stopped = true;
+        if (timerId) clearTimeout(timerId);
+    };
+};
+
+const stopProgressTicker = (ticker) => {
+    if (typeof ticker === 'function') {
+        ticker();
+    } else if (ticker) {
+        clearInterval(ticker);
+        clearTimeout(ticker);
     }
 };
 
@@ -2226,7 +2252,7 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
                         if (getOutputMode() !== 'realtime') return;
                         if (!responseRenderedInRealtime) {
                             if (councilProgressTimer) {
-                                clearInterval(councilProgressTimer);
+                                stopProgressTicker(councilProgressTimer);
                                 councilProgressTimer = null;
                             }
                             contentDiv.innerHTML = '';
@@ -2236,7 +2262,7 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
                         realtimeCouncilText += chunk || '';
                         realtimeCouncilRenderer?.appendText(chunk || '');
                     };
-                    councilProgressTimer = setInterval(() => {
+                    councilProgressTimer = startProgressTicker(() => {
                         if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
                         if (!latestCouncilProgress) return;
                         const startedAt = latestCouncilProgress.startedAt || Date.now();
@@ -2246,14 +2272,14 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
                             elapsedMs: Date.now() - startedAt
                         };
                         contentDiv.innerHTML = renderCouncilProgress(latestCouncilProgress);
-                    }, 1000);
+                    });
                     const councilResult = await runModelCouncil(
                         userParts,
                         abortController.signal,
                         renderCouncilProgressState,
                         renderCouncilSynthesisChunk
                     );
-                    clearInterval(councilProgressTimer);
+                    stopProgressTicker(councilProgressTimer);
                     councilProgressTimer = null;
                     fullResponse = councilResult.text;
                     if (getOutputMode() === 'realtime') {
@@ -2294,13 +2320,13 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
                     let requestParts = userParts;
                     if (hasTranslationInputs) {
                         renderSingleProgressState('preparing', config.uiLanguage === 'en' ? 'Checking model capabilities' : 'Checking model capabilities');
-                        singleProgressTimer = setInterval(() => {
+                        singleProgressTimer = startProgressTicker(() => {
                             latestSingleProgress = {
                                 ...latestSingleProgress,
                                 elapsedMs: Date.now() - startedAt
                             };
                             contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        }, 1000);
+                        });
                         requestParts = await buildSingleModelTranslatedRequestParts(
                             userParts,
                             modelInfo,
@@ -2331,7 +2357,7 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
                     );
                     if (getOutputMode() === 'realtime') {
                         if (singleProgressTimer) {
-                            clearInterval(singleProgressTimer);
+                            stopProgressTicker(singleProgressTimer);
                             singleProgressTimer = null;
                         }
                         const realtimeProgress = {
@@ -2342,18 +2368,18 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
                         };
                         latestSingleProgress = realtimeProgress;
                         contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        singleProgressTimer = setInterval(() => {
+                        singleProgressTimer = startProgressTicker(() => {
                             latestSingleProgress = {
                                 ...latestSingleProgress,
                                 elapsedMs: Date.now() - startedAt
                             };
                             contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        }, 1000);
+                        });
                         fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal, {
                             placeholderHTML: renderSingleModelProgress(realtimeProgress),
                             onFirstChunk: () => {
                                 if (singleProgressTimer) {
-                                    clearInterval(singleProgressTimer);
+                                    stopProgressTicker(singleProgressTimer);
                                     singleProgressTimer = null;
                                 }
                             }
@@ -2362,17 +2388,17 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
                     } else {
                         if (!singleProgressTimer) {
                             renderSingleProgressState('streaming', config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering');
-                            singleProgressTimer = setInterval(() => {
+                            singleProgressTimer = startProgressTicker(() => {
                                 latestSingleProgress = {
                                     ...latestSingleProgress,
                                     elapsedMs: Date.now() - startedAt
                                 };
                                 contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                            }, 1000);
+                            });
                         }
                         fullResponse = await runSingleApiStream(updateSingleStreamingProgress);
                     }
-                    clearInterval(singleProgressTimer);
+                    stopProgressTicker(singleProgressTimer);
                     singleProgressTimer = null;
                 }
                 sendConversationToMail(userMessageObject, fullResponse);
@@ -2413,10 +2439,10 @@ const appendRendererTextGradually = async (renderer, text = '', signal, chunkSiz
             } finally {
                 // ... finally 區塊的程式碼保持不變 ...
                 if (councilProgressTimer) {
-                    clearInterval(councilProgressTimer);
+                    stopProgressTicker(councilProgressTimer);
                 }
                 if (singleProgressTimer) {
-                    clearInterval(singleProgressTimer);
+                    stopProgressTicker(singleProgressTimer);
                 }
                 isCouncilRunning = false;
                 abortController = null;
