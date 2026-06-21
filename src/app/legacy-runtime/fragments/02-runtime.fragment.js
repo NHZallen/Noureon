@@ -468,12 +468,16 @@ ${truncateCouncilText(result.finalText || result.roundTwo || result.roundOne)}
         const buildCouncilSharedSearchPrompt = (parts) => `
 You are preparing a shared web research packet for a multi-model council.
 
+Current date:
+${getSearchCurrentDate()}
+
 User request:
 ${extractTextFromParts(parts)}
 
 Search the web once, then produce a concise evidence packet for the council.
 This packet is system-generated council context, not user-provided material.
 - Label it as shared council research context.
+- Treat search evidence as newer than model pretraining.
 - Key current facts and dates
 - Important source names or URLs when available
 - Disagreements, uncertainty, and freshness risks
@@ -484,6 +488,9 @@ Do not answer the user directly. Prepare shared context only.
         const buildCouncilSecondSearchPrompt = (parts, firstRoundResults = []) => `
 You are preparing a second web research packet before the Model Council discussion round.
 
+Current date:
+${getSearchCurrentDate()}
+
 User request:
 ${extractTextFromParts(parts)}
 
@@ -491,6 +498,7 @@ First-round council claims to verify:
 ${formatCouncilResponses(firstRoundResults).slice(0, 5000)}
 
 Search the web again with attention to claims, disagreements, dated facts, and missing evidence.
+For time-sensitive facts, dated search evidence overrides stale model pretraining.
 Do not answer the user directly. Prepare only an updated evidence packet for the discussion round.
 `;
         const buildCouncilSecondSearchQuery = (parts, firstRoundResults = []) => {
@@ -500,7 +508,7 @@ Do not answer the user directly. Prepare only an updated evidence packet for the
                 .replace(/\s+/g, ' ')
                 .trim()
                 .slice(0, 120);
-            return normalizeSearchQuery(`${extractTextFromParts(parts)} verify latest facts dates evidence disagreements ${firstRoundFocus}`);
+            return buildTavilySearchQuery(`${extractTextFromParts(parts)} verify latest facts dates evidence disagreements ${firstRoundFocus}`);
         };
         const getSearchPacketFromModel = async (searchModel, promptOrQuery, signal, options = {}) => {
             if (!searchModel) {
@@ -531,7 +539,7 @@ Do not answer the user directly. Prepare only an updated evidence packet for the
             if (!sharedSearchPacket?.trim()) return parts;
             return [
                 {
-                    text: `# Shared council search packet (system-generated, not user-provided)\nUse this as common research context. Do not say or imply that the user provided this packet.\n\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
+                    text: `# Shared council search packet (system-generated, not user-provided)\nCurrent date: ${getSearchCurrentDate()}\nUse this as common research context. Do not say or imply that the user provided this packet. For time-sensitive facts, dated search evidence overrides stale model pretraining.\n\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
                 },
                 ...parts
             ];
@@ -636,7 +644,7 @@ Output requirements:
             const result = [];
             if (sharedSearchPacket?.trim()) {
                 result.push({
-                    text: `# Shared council search packet (system-generated, not user-provided)\nUse this as common research context. Do not say or imply that the user provided this packet.\n\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
+                    text: `# Shared council search packet (system-generated, not user-provided)\nCurrent date: ${getSearchCurrentDate()}\nUse this as common research context. Do not say or imply that the user provided this packet. For time-sensitive facts, dated search evidence overrides stale model pretraining.\n\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
                 });
             }
             const attachmentPacket = buildAttachmentPacketTextForModel(model, attachmentPackets);
@@ -686,6 +694,17 @@ Output requirements:
 `;
         const TAVILY_QUERY_CHAR_LIMIT = 380;
         const getTavilyApiKey = () => getApiKeyForProvider('tavily');
+        const getTavilySearchDepth = () => config.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
+        const getSearchCurrentDate = () => new Date().toISOString().slice(0, 10);
+        const isWorldCupQuery = (value = '') => /(\bworld cup\b|\bfifa\b|世界盃|世界杯|美加墨)/i.test(String(value || ''));
+        const isSportsResultsQuery = (value = '') => /(\bmatch\b|\bmatches\b|\bscore\b|\bscores\b|\bfixture\b|\bfixtures\b|\bstandings\b|\bgroup stage\b|\bwin\b|\bwins\b|\bwon\b|贏幾場|贏了幾場|幾勝|比分|賽果|戰績|小組賽|足球|賽程|排名)/i.test(String(value || '')) || isWorldCupQuery(value);
+        const buildTavilySearchQuery = (value = '') => {
+            const text = String(value || '');
+            const sportsBoost = isWorldCupQuery(text)
+                ? ' FIFA World Cup official match report results scores wins group stage'
+                : (isSportsResultsQuery(text) ? ' official results scores wins fixtures standings' : '');
+            return normalizeSearchQuery(`${text} current date ${getSearchCurrentDate()} latest${sportsBoost}`);
+        };
         const normalizeSearchQuery = (value = '') => String(value || '')
             .replace(/[\u0000-\u001f\u007f]/g, ' ')
             .replace(/```[\s\S]*?```/g, ' ')
@@ -693,7 +712,7 @@ Output requirements:
             .trim()
             .slice(0, TAVILY_QUERY_CHAR_LIMIT)
             .trim();
-        const getSearchQueryFromParts = (parts = []) => normalizeSearchQuery(extractTextFromParts(parts));
+        const getSearchQueryFromParts = (parts = []) => buildTavilySearchQuery(extractTextFromParts(parts));
         const formatTavilySearchPacket = (data, query, label = 'Web search packet') => {
             const results = Array.isArray(data?.results) ? data.results : [];
             const lines = [
@@ -701,6 +720,7 @@ Output requirements:
                 '',
                 `Provider: Tavily`,
                 `Query: ${data?.query || query}`,
+                `Current date: ${getSearchCurrentDate()}`,
                 `Retrieved at: ${new Date().toISOString()}`
             ];
             if (data?.answer) {
@@ -724,7 +744,7 @@ Output requirements:
             }
             lines.push(
                 '',
-                'Use this as system-generated web context. Do not say or imply that the user wrote this packet. Prefer cited URLs from the Sources section when making current factual claims.'
+                'Use this as system-generated web context. Do not say or imply that the user wrote this packet. Prefer dated source evidence from the Sources section when making current factual claims, and state uncertainty when sources conflict.'
             );
             return lines.join('\n');
         };
@@ -735,7 +755,7 @@ Output requirements:
                     ? 'Tavily API key is required for OpenRouter/NVIDIA search. Add it in Settings.'
                     : 'OpenRouter/NVIDIA 搜索需要 Tavily API 金鑰，請先到設定頁新增。');
             }
-            const query = normalizeSearchQuery(Array.isArray(querySource)
+            const query = buildTavilySearchQuery(Array.isArray(querySource)
                 ? getSearchQueryFromParts(querySource)
                 : querySource);
             if (!query) {
@@ -749,7 +769,7 @@ Output requirements:
                 },
                 body: JSON.stringify({
                     query,
-                    search_depth: 'basic',
+                    search_depth: options.searchDepth || getTavilySearchDepth(),
                     max_results: options.maxResults || 6,
                     include_answer: false,
                     include_raw_content: false,
@@ -1206,6 +1226,7 @@ Before output, internally compare the core claims from each model using these cr
 For each important claim, judge whether it is supported by multiple models, has clear reasoning, needs external verification, or could mislead the user.
 Only keep content that passes this check in the final answer.
 Do not refer to the shared council search packet as material provided by the user.
+For current facts, use dated source evidence from the search packet over stale pretrained knowledge. If sources conflict or freshness is unclear, say so instead of falling back to old assumptions.
 Avoid overly brief answers: the final response should be complete enough for the user's decision unless the question is trivial.${buildCouncilComparisonInstruction(council.showComparisonTable)}`;
             let finalText = '';
             let synthesisError = null;
@@ -1421,6 +1442,14 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                             <input type="password" id="tavily-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="tvly-..." data-lang-key-placeholder="tavilyApiPlaceholder">
                         </div>
                         <div>
+                            <label for="tavily-search-depth-select" class="block text-sm font-medium mb-1" data-lang-key="tavilySearchDepth">Tavily search depth</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="tavilySearchDepthDesc">Choose basic for lower cost, or advanced for deeper searches.</p>
+                            <select id="tavily-search-depth-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
+                                <option value="basic" data-lang-key="tavilySearchBasic">Basic</option>
+                                <option value="advanced" data-lang-key="tavilySearchAdvanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div>
                             <label for="council-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="councilTranslatorModel">Council document translation</label>
                             <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="councilTranslatorModelDesc">Only translates attachments or documents that council members cannot read directly.</p>
                             <input type="hidden" id="council-translator-model-select">
@@ -1449,8 +1478,25 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                     `);
                 }
             }
+            if (!document.getElementById('tavily-search-depth-select')) {
+                const tavilyInput = document.getElementById('tavily-api-key-input');
+                const tavilyBlock = tavilyInput?.closest('div');
+                if (tavilyBlock) {
+                    tavilyBlock.insertAdjacentHTML('afterend', `
+                        <div>
+                            <label for="tavily-search-depth-select" class="block text-sm font-medium mb-1" data-lang-key="tavilySearchDepth">Tavily search depth</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="tavilySearchDepthDesc">Choose basic for lower cost, or advanced for deeper searches.</p>
+                            <select id="tavily-search-depth-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
+                                <option value="basic" data-lang-key="tavilySearchBasic">Basic</option>
+                                <option value="advanced" data-lang-key="tavilySearchAdvanced">Advanced</option>
+                            </select>
+                        </div>
+                    `);
+                }
+            }
             ALL_ELEMENTS.nvidiaApiKeyInput = document.getElementById('nvidia-api-key-input');
             ALL_ELEMENTS.tavilyApiKeyInput = document.getElementById('tavily-api-key-input');
+            ALL_ELEMENTS.tavilySearchDepthSelect = document.getElementById('tavily-search-depth-select');
             ALL_ELEMENTS.councilTranslatorModelSelect = document.getElementById('council-translator-model-select');
             ALL_ELEMENTS.singleDocumentTranslatorModelSelect = document.getElementById('single-document-translator-model-select');
         };
@@ -1631,6 +1677,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             ALL_ELEMENTS.openrouterApiKeyInputAll.value = getApiKeyForProvider('openrouter');
             if (ALL_ELEMENTS.nvidiaApiKeyInput) ALL_ELEMENTS.nvidiaApiKeyInput.value = getApiKeyForProvider('nvidia');
             if (ALL_ELEMENTS.tavilyApiKeyInput) ALL_ELEMENTS.tavilyApiKeyInput.value = getApiKeyForProvider('tavily');
+            if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();
             renderTranslatorModelPickers();
             applyLanguage(config.uiLanguage);
             ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
@@ -1685,6 +1732,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
             config.apiKeys.nvidia = ALL_ELEMENTS.nvidiaApiKeyInput?.value.trim() || '';
             config.apiKeys.tavily = ALL_ELEMENTS.tavilyApiKeyInput?.value.trim() || '';
+            config.tavilySearchDepth = ALL_ELEMENTS.tavilySearchDepthSelect?.value === 'advanced' ? 'advanced' : 'basic';
             config.councilTranslatorModelId = ALL_ELEMENTS.councilTranslatorModelSelect?.value || null;
             config.singleDocumentTranslatorModelId = ALL_ELEMENTS.singleDocumentTranslatorModelSelect?.value || null;
             config.enableAutoWebSearch = ALL_ELEMENTS.autoWebSearchToggleSwitch.checked;

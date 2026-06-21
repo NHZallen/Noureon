@@ -167,6 +167,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             openrouterApiKeyInputAll: document.getElementById('openrouter-api-key-input-all'),
             nvidiaApiKeyInput: document.getElementById('nvidia-api-key-input'),
             tavilyApiKeyInput: document.getElementById('tavily-api-key-input'),
+            tavilySearchDepthSelect: document.getElementById('tavily-search-depth-select'),
             councilTranslatorModelSelect: document.getElementById('council-translator-model-select'),
             singleDocumentTranslatorModelSelect: document.getElementById('single-document-translator-model-select'),
             modelManagementList: document.getElementById('model-management-list'),
@@ -818,6 +819,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             theme: 'light',
             modelSettings: [],
             enableAutoWebSearch: false,
+            tavilySearchDepth: 'basic',
             outputMode: 'typewriter',
             aiBubbleColor: 'default',
             userBubbleColor: 'default',
@@ -1575,6 +1577,7 @@ function renderMarkdownWithFormulas(text) {
                 defaultConfig.uiTheme.adaptivePalette = defaultConfig.uiTheme.adaptivePalette || [];
                 defaultConfig.uiTheme.adaptiveGradient = defaultConfig.uiTheme.adaptiveGradient || '';
                 defaultConfig.outputMode = defaultConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter';
+                defaultConfig.tavilySearchDepth = defaultConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
                 config = defaultConfig;
             }
             const allModelIds = new Set(MODELS.map(m => m.id));
