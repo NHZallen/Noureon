@@ -111,25 +111,8 @@
             showNotification("無法啟動相機", "error");
         });
     }
-            setupHistorySidebarInteractions(); // 啟用側邊欄的點擊跳轉功能
-    setupHistorySidebarTriggers();   // 啟用側邊欄的滑動和懸停觸發功能
-            ALL_ELEMENTS.showPromptsBtn.addEventListener('click', () => {
-    const container = ALL_ELEMENTS.followUpContainer;
-    
-    // 直接切換容器的顯示/隱藏
-    container.classList.toggle('hidden');
-    
-    // 根據容器「現在」是否可見，來決定按鈕是否為 active (黃色)
-    const isVisible = !container.classList.contains('hidden');
-    ALL_ELEMENTS.showPromptsBtn.classList.toggle('active', isVisible);
-});
-        const followUpContainer = document.getElementById('follow-up-container');
-        if (followUpContainer) {
-            const stopPropagation = (e) => e.stopPropagation();
-            followUpContainer.addEventListener('touchstart', stopPropagation);
-            followUpContainer.addEventListener('touchmove', stopPropagation);
-            followUpContainer.addEventListener('touchend', stopPropagation);
-        }
+            setupHistorySidebarInteractions();
+    setupHistorySidebarTriggers();
             ALL_ELEMENTS.shareAstrasBtn = document.getElementById('share-astras-btn');
             ALL_ELEMENTS.shareFoldersBtn = document.getElementById('share-folders-btn');
             

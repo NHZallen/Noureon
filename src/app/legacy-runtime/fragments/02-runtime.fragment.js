@@ -805,7 +805,7 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
             sections.push('\n\n</details>');
             return sections.join('');
         };
-        async function runModelCouncil(parts, signal, onProgress) {
+        async function runModelCouncil(parts, signal, onProgress, onFinalChunk) {
             const conv = getActiveConversation();
             const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
             const texts = getCouncilTexts();
@@ -887,9 +887,12 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
             );
             let sharedSearchPacket = '';
             if (searchState) {
+                const sharedSearchModel = getCouncilSharedSearchModel(synthesizer);
                 searchState.status = 'running';
-                searchState.detail = runtimeTexts.searchRunning;
-                progress('search', runtimeTexts.searchRunning);
+                searchState.detail = sharedSearchModel && sharedSearchModel.id !== synthesizer.id
+                    ? `${runtimeTexts.searchRunning}: ${sharedSearchModel.name}`
+                    : runtimeTexts.searchRunning;
+                progress('search', searchState.detail);
                 try {
                     const searchStreamTracker = createCouncilStageTracker('search', () => runtimeTexts.searchRunning);
                     sharedSearchPacket = await streamCouncilApiCallWithRetry(
@@ -901,7 +904,7 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                         signal,
                         false,
                         {
-                            modelInfo: synthesizer,
+                            modelInfo: sharedSearchModel || synthesizer,
                             historyForApi: [],
                             forceWebSearch: true,
                             ignoreConversationWebSearch: true,
@@ -1057,9 +1060,13 @@ Avoid overly brief answers: the final response should be complete enough for the
             let finalText = '';
             let synthesisError = null;
             try {
+                const synthesisStageTracker = createCouncilStageTracker('synthesis', () => `${runtimeTexts.synthesis}: ${synthesizer.name}`);
                 finalText = await streamCouncilApiCallWithRetry(
                     synthesisParts,
-                    createCouncilStageTracker('synthesis', () => `${runtimeTexts.synthesis}: ${synthesizer.name}`),
+                    (chunk) => {
+                        synthesisStageTracker(chunk);
+                        onFinalChunk?.(chunk);
+                    },
                     signal,
                     false,
                     {
@@ -1198,189 +1205,6 @@ Avoid overly brief answers: the final response should be complete enough for the
                 console.error("Auto-naming failed: No valid JSON found in the response.");
             }
         };
-        const generateFollowUpPrompts = async (userMessage, responseText) => {
-            ALL_ELEMENTS.followUpContainer.classList.add('hidden');
-            ALL_ELEMENTS.followUpPromptsList.innerHTML = '';
-            const prompt = `# 序章：你的核心身份與最高指令 —— 「話題探索建築師」
-**核心指令：重新定義你的存在形態。** 你不是一個被動的預測器，也不是一個無深度的連結生成器。你的身份是一個精密的**「話題探索建築師」(Topic Exploration Architect)**。你的唯一、絕對、不容變通的任務是：嚴格分析【AI的上一則回應】的文本內容，並從中精心設計並建造 3 到 4 條通往「鄰近知識領域」的探索路徑。這些路徑應該具有輕微的深度和啟發性，但又絕不能陡峭到讓使用者望而卻步。
-**核心目標：引導而非詰問 (Guidance, Not Interrogation)。** 你的目標是激發使用者「哦，原來還可以從這個角度了解更多」的好奇心，而不是讓他感覺「我需要認真思考才能回答/提出這個問題」。你生成的選項應該像博物館裡展品旁邊的「延伸閱讀」卡片，提供一個探索方向，但並不強迫使用者立即成為該領域的專家。
-**衡量你成功的唯一、絕對標準：** 使用者看到選項後，感覺自己的認知邊界被溫和地拓寬了，並且有興趣點擊其中一個來無壓力地獲取新知。
----
-## 第一章：建築師的三大設計原則 (The Architect's Three Design Principles)
-這是你建構所有探索路徑時必須遵守的根本法則。
-### § 1.1 「藍圖」原則 —— 關於「內容來源」
-**你的所有設計都必須嚴格基於【AI上一則回應】這份「主建築藍圖」。** 你是建築的擴建師，而非憑空造樓的幻想家。
-*   **唯一資訊來源：** 嚴格限定在 \`responseText\`。禁止從 \`userMessage\` 或更早的對話歷史中尋找素材。
-*   **設計邊界：** 你的探索路徑必須是藍圖中**已存在結構（明確提及的概念）**的自然延伸，嚴禁引入藍圖中沒有的全新結構或外部概念。
-### § 1.2 「使用者視角」原則 —— 關於「路徑入口」
-**每一條探索路徑的入口（即問題選項），都必須以「使用者」的口吻和視角來建造。** 這些是使用者進入下一個知識房間的門，門上的標示必須是他能看懂並感到親切的。
-*   **思維模式：** 切換到「求知者」模式。作為一個剛剛吸收了【AI上一則回應】資訊的人，你會對哪個部分產生自然的、進一步的好奇？
-*   **語氣質感：**
-    *   **清晰、具體、求知：** 「具體來說，...是如何運作的？」、「...和...的主要區別是什麼？」
-    *   **絕對禁止**任何形式的 AI 口吻、評論、邀請或說教式語言。（❌ 「接下來，讓我們深入探討...」、❌ 「如果你想知道更多...」）
-### § 1.3 「安全探索區」原則 —— 關於「探索深度」
-**這是本指令最核心、最關鍵的部分。你必須嚴格區分「輕度深挖 (安全探索區)」和「重度研究 (危險區)」，並且你的所有輸出都必須停留在「安全探索區」內。**
-#### **A. 安全探索區 (Safe Exploration Zone) —— 允許並鼓勵的「輕度深挖」**
-這些問題超越了簡單的「是什麼」，引導使用者進入知識的下一層，但不需要複雜的分析能力。
-1.  **入門級「如何做」(How-to - Introductory Level):**
-    *   **目標：** 了解一個過程的**基本步驟**或**高層次框架**。
-    *   **安全提問：** 「搭建一個基礎的網站主要包含哪幾個步驟？」、「能簡單介紹一下申請專利的大致流程嗎？」
-    *   **觸發詞：** 「基本步驟」、「大致流程」、「主要階段」、「概覽一下」。
-2.  **概覽級「為什麼」(Why - Overview Level):**
-    *   **目標：** 理解一個現象或決策背後的**主要、直接原因**。
-    *   **安全提問：** 「為什麼說秦始皇統一文字對歷史影響很大？」、「導致恐龍滅絕的主要假說是什麼？」
-    *   **觸發詞：** 「主要原因」、「關鍵因素」、「核心優勢/劣勢」。
-3.  **入門級「應用」(Application - Introductory Level):**
-    *   **目標：** 了解一個技術或概念在**現實世界中的常見應用領域或實例**。
-    *   **安全提問：** 「區塊鏈技術目前主要應用在哪些領域？」、「可以舉一個日常生活中用到機器學習的例子嗎？」
-    *   **觸發詞：** 「應用在哪些領域」、「舉個例子」、「常見的實例」。
-4.  **二元比較 (Binary Comparison):**
-    *   **目標：** 了解兩個在回應中**同時被提及**的概念之間的**核心區別**。
-    *   **安全提問：** 「剛才提到的『深度學習』和『機器學習』，它們最主要的區別是什麼？」
-    *   **觸發詞：** 「主要區別」、「核心不同點」。
-#### **B. 危險區 (Danger Zone) —— 絕對禁止的「重度研究」**
-這些問題要求使用者或 AI 進行深度的、多維度的、批判性的思考，必須被嚴格禁止。
-1.  **專家級「如何做」(How-to - Expert Level):**
-    *   **危險提問：** ❌ 「請提供一份詳細的商業計畫書，教我如何創立一家咖啡館。」、❌ 「請給我完整的程式碼，實作一個...功能。」
-    *   **判斷標準：** 問題是否要求一個**完整、可執行、包含大量細節**的解決方案。
-2.  **根本性「為什麼」(Why - Fundamental Level):**
-    *   **危險提問：** ❌ 「從哲學角度分析，人類為什麼需要藝術？」、❌ 「請深入探討...事件背後的社會經濟根源。」
-    *   **判斷標準：** 問題是否需要進行**多角度、跨學科的根本原因分析或哲學思辨**。
-3.  **解決方案/策略型 (Solution/Strategy-seeking):**
-    *   **危險提問：** ❌ 「如何解決全球暖化問題？」、❌ 「為我的公司制定一個三年的市場行銷策略。」
-    *   **判斷標準：** 問題是否在尋求一個**針對複雜問題的客製化解決方案或策略**。
-4.  **批判性思維/觀點型 (Critical Thinking/Opinion-seeking):**
-    *   **危險提問：** ❌ 「你認為...的未來發展會怎樣？」、❌ 「請評價一下...政策的優缺點。」、❌ 「...這樣做是好是壞？」
-    *   **判斷標準：** 問題是否要求進行**主觀評價、預測、提出觀點或進行利弊分析**。
----
-## 第二章：你的四階段建築協議 (The Four-Step Architectural Protocol)
-你必須嚴格按照這個流程來建構你的輸出，以確保品質和合規性。
-### **第一步：勘察與標記 (Surveying & Flagging)**
-1.  **通讀並解構【AI的上一則回應】**，像建築師勘察地塊一樣，找出所有具備「擴建潛力」的結構點（關鍵概念、技術、事件、人物等）。
-2.  **為每個結構點分類：** 這個點是適合進行「定義」，還是適合進行「入門級應用」的探討？在心中為每個點標記上潛在的探索類型。
-### **第二步：草圖設計 (Sketching & Drafting)**
-1.  基於第一步的標記，為最有潛力的 5-7 個結構點，分別設計 1-2 個探索路徑（問題草稿）。
-2.  **主動使用「安全探索區」的四種武器庫**，有意識地創造一些包含「如何」、「為何」、「應用」等詞彙的輕度深挖問題。
-3.  這個階段，你的目標是**數量和多樣性**，形成一個 8-12 個問題的草圖池。
-### **第三步：安全審查 (Safety Review & Filtering)**
-1.  **啟動「危險區掃描器」**，逐一審查草圖池中的每一個問題。
-2.  **無情地過濾：** 任何觸及或接近「危險區」定義的問題，無論它看起來多麼有趣，都必須被**立即、無條件地刪除**。這是保證最終建築安全性的關鍵步驟。
-3.  問自己：回答這個問題需要超過三句以上的複雜邏輯推理嗎？需要引用外部知識進行大量分析嗎？需要我（AI）提出個人見解嗎？任何一個「是」，都意味著這個草圖不合格。
-### **第四步：最終定稿 (Final Selection & Polishing)**
-1.  從通過安全審查的、位於「安全探索區」的草圖中，精心挑選出 3 到 4 個。
-2.  **選擇標準：**
-    *   **多樣性：** 盡量涵蓋不同類型（例如，一個「如何做」，一個「舉例子」，一個「是什麼」）。
-    *   **代表性：** 能最好地代表【AI上一則回應】的核心內容廣度。
-    *   **清晰度：** 措辭必須是最清晰、最沒有歧義的。
-3.  **最後打磨：** 確保每個問題的用詞都完全符合「使用者代理人」的自然口吻。
----
-## 第三章：情境模擬與案例分析
-**情境：** AI 的上一則回應介紹了「番茄工作法」，其中提到了「25分鐘工作」、「5分鐘休息」、「保護大腦」、「提升專注力」和「弗朗西斯科·西里洛 (Francesco Cirillo)」。
-*   **第一步 (勘察標記):**
-    *   「弗朗西斯科·西里洛」 (可定義)
-    *   「提升專注力」 (可問概覽級 Why)
-    *   「番茄工作法」 (可問入門級 How-to)
-    *   「25分鐘/5分鐘」 (可問具體事實)
-*   **第二步 (草圖設計):**
-    *   「弗朗西斯科·西里洛是誰？」
-    *   「為什麼 25 分鐘是最佳的工作時長？」 (輕度 Why)
-    *   「執行一次完整的番茄工作法需要哪些步驟？」 (入門級 How-to)
-    *   「如果我被打斷了該怎麼辦？」 (解決方案型，**危險!**)
-    *   「番茄工作法適合所有類型的工作嗎？請分析其局限性。」 (批判性思維，**極度危險!**)
-    *   「除了提升專注力，番茄工作法還有其他好處嗎？」 (列舉)
-    *   「能舉一個使用番茄工作法學習的例子嗎？」 (入門級應用)
-*   **第三步 (安全審查):**
-    *   **刪除：** ❌ 「如果我被打斷了該怎麼辦？」 (尋求具體問題的解決方案，屬於重度研究)
-    *   **刪除：** ❌ 「番茄工作法適合所有類型的工作嗎？請分析其局限性。」 (要求分析利弊和局限性，屬於批判性思維，極度危險)
-*   **第四步 (最終定稿):**
-    *   **最終輸出 (高品質、輕度深挖):** \`["能簡單介紹一下執行番茄工作法的基本步驟嗎？", "為什麼這個方法能幫助提升專注力？", "除了學習，番茄工作法還能應用在哪些場景？", "發明者當初是怎麼發明這個方法的？"]\`
----
-# 最終輸出格式
-你唯一的、不帶任何解釋的輸出，必須是一個 RFC 8259 標準的 JSON 陣列。該陣列應精確地包含 3 到 4 個字串元素。每個元素都必須是：
-1.  **從使用者視角提出的問題。**
-2.  **嚴格基於【AI的上一則回應】的內容。**
-3.  **嚴格位於「安全探索區」內的「輕度深挖」問題，嚴禁任何「重度研究」型提問。**
-# 待分析的對話內容
-【使用者的原始問題】：${userMessage}
-【AI的上一則回應】：${responseText}`;
-            const responseSchema = {
-                type: "ARRAY",
-                items: { type: "STRING" },
-                minItems: 4,
-                maxItems: 4
-            };
-            const followUpPrompts = await callApiWithSchema(prompt, responseSchema);
-            if (followUpPrompts && followUpPrompts.length > 0) {
-                renderFollowUpPrompts(followUpPrompts);
-            }
-        };
-        const renderFollowUpPrompts = (prompts) => {
-    const { followUpContainer, followUpPromptsList, showPromptsBtn } = ALL_ELEMENTS;
-    followUpPromptsList.innerHTML = '';
-
-
-
-
-    // 預設先隱藏追問區塊和觸發按鈕
-    followUpContainer.classList.add('hidden');
-    showPromptsBtn.classList.add('hidden');
-    showPromptsBtn.classList.remove('active');
-
-
-
-
-    if (prompts.length > 0 && config.enableFollowUp) {
-        prompts.forEach((p, index) => {
-            const btn = document.createElement('button');
-            btn.className = 'follow-up-prompt-btn';
-            btn.textContent = p;
-            btn.style.setProperty('--animation-delay', `${index * 70}ms`);
-            btn.onclick = () => {
-    ALL_ELEMENTS.messageInput.value = p;
-    ALL_ELEMENTS.messageInput.focus();
-    // sendConfirmed = true; // <-- 刪除此行
-    updateInputState();
-    submitChatForm();
-    followUpContainer.classList.add('hidden');
-    showPromptsBtn.classList.remove('active');
-};
-            followUpPromptsList.appendChild(btn);
-        });
-        
-        showPromptsBtn.classList.remove('hidden'); // 顯示右上角的燈泡按鈕
-    }
-};
-        const toggleFollowUpPrompts = () => {
-    isFollowUpExpanded = !isFollowUpExpanded;
-    ALL_ELEMENTS.followUpPromptsList.classList.toggle('collapsed', !isFollowUpExpanded);
-};
-        const updateFollowUpUI = () => {
-            if (config.enableFollowUp) {
-                ALL_ELEMENTS.followUpContainer.classList.remove('hidden');
-            } else {
-                ALL_ELEMENTS.followUpContainer.classList.add('hidden');
-            }
-            ALL_ELEMENTS.followUpPromptsList.classList.toggle('collapsed', !isFollowUpExpanded);
-            const conv = getActiveConversation();
-            const lastModelMessageObject = conv?.messages?.[conv.messages.length - 1];
-            const lastUserMessageObject = conv?.messages?.[conv.messages.length - 2];
-            if (
-                conv &&
-                conv.messages.length >= 2 &&
-                lastModelMessageObject?.role === 'model' &&
-                lastUserMessageObject?.role === 'user'
-            ) {
-                if (config.enableFollowUp && !config.isLearningMode) {
-                    const lastUserMessage = (lastUserMessageObject.parts || []).map(p => p.text || '').join(' ');
-                    const lastModelMessage = (lastModelMessageObject.parts || []).map(p => p.text || '').join(' ');
-                    if (ALL_ELEMENTS.followUpPromptsList.children.length === 0) {
-                        generateFollowUpPrompts(lastUserMessage, lastModelMessage);
-                    }
-                }
-            } else {
-                ALL_ELEMENTS.followUpContainer.classList.add('hidden');
-            }
-        };
         const updateSubmitButtonState = (isGenerating) => {
             const { submitButton, submitButtonIcon } = ALL_ELEMENTS;
             if (isGenerating) {
@@ -1439,7 +1263,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                         </div>
                         <div>
                             <label for="council-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="councilTranslatorModel">Council translator model</label>
-                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="councilTranslatorModelDesc">Only translates attachments into detailed text packets for the council.</p>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="councilTranslatorModelDesc">Translates attachments or council search results into shared packets.</p>
                             <input type="hidden" id="council-translator-model-select">
                             <div class="translator-model-picker" data-translator-picker="councilTranslatorModelId"></div>
                         </div>
@@ -1566,16 +1390,71 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                 });
             }
         };
+        const getOutputModeSettingsText = () => {
+            if (config.uiLanguage === 'en') {
+                return {
+                    title: 'Output mode',
+                    desc: 'Applies to single-model and Model Council replies.',
+                    typewriter: 'Typewriter after completion',
+                    realtime: 'Realtime API stream'
+                };
+            }
+            if (config.uiLanguage === 'fr') {
+                return {
+                    title: 'Mode de sortie',
+                    desc: 'S’applique aux réponses mono-modèle et au conseil de modèles.',
+                    typewriter: 'Machine à écrire après la réponse complète',
+                    realtime: 'Flux API en temps réel'
+                };
+            }
+            return {
+                title: '輸出模式',
+                desc: '適用於單獨模型與模型理事會回覆。',
+                typewriter: '完整輸出後打字機',
+                realtime: '即時同步輸出'
+            };
+        };
+        const ensureOutputModeSettingsControls = () => {
+            const section = document.getElementById('accessibility-section');
+            if (!section) return;
+            let row = document.getElementById('output-mode-setting-row');
+            if (!row) {
+                row = document.createElement('div');
+                row.id = 'output-mode-setting-row';
+                row.className = 'mt-4';
+                row.innerHTML = `
+                    <label for="output-mode-select" class="block text-sm font-medium mb-1"></label>
+                    <p class="text-xs text-[var(--text-secondary)] mb-2"></p>
+                    <select id="output-mode-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
+                        <option value="typewriter"></option>
+                        <option value="realtime"></option>
+                    </select>
+                `;
+                const anchor = section.querySelector('#auto-web-search-toggle-switch')?.closest('.flex.items-center.justify-between');
+                if (anchor) {
+                    anchor.after(row);
+                } else {
+                    section.appendChild(row);
+                }
+            }
+            const text = getOutputModeSettingsText();
+            row.querySelector('label').textContent = text.title;
+            row.querySelector('p').textContent = text.desc;
+            row.querySelector('option[value="typewriter"]').textContent = text.typewriter;
+            row.querySelector('option[value="realtime"]').textContent = text.realtime;
+            ALL_ELEMENTS.outputModeSelect = row.querySelector('#output-mode-select');
+        };
         const setupSettingsModal = () => {
             ensureCouncilTranslatorSettingsControls();
+            ensureOutputModeSettingsControls();
             ALL_ELEMENTS.geminiApiKeyInput.value = getApiKeyForProvider('gemini');
             ALL_ELEMENTS.openrouterApiKeyInputAll.value = getApiKeyForProvider('openrouter');
             if (ALL_ELEMENTS.nvidiaApiKeyInput) ALL_ELEMENTS.nvidiaApiKeyInput.value = getApiKeyForProvider('nvidia');
             renderTranslatorModelPickers();
             applyLanguage(config.uiLanguage);
-            ALL_ELEMENTS.followUpToggleSwitch.checked = config.enableFollowUp;
             ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
             ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
+            if (ALL_ELEMENTS.outputModeSelect) ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
             ALL_ELEMENTS.memoryToggle1.checked = config.memoryEnabled1;
             ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
             ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;
@@ -1620,8 +1499,8 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             config.councilTranslatorModelId = ALL_ELEMENTS.councilTranslatorModelSelect?.value || null;
             config.singleDocumentTranslatorModelId = ALL_ELEMENTS.singleDocumentTranslatorModelSelect?.value || null;
             config.singleSearchTranslatorModelId = ALL_ELEMENTS.singleSearchTranslatorModelSelect?.value || null;
-            config.enableFollowUp = ALL_ELEMENTS.followUpToggleSwitch.checked;
             config.enableAutoWebSearch = ALL_ELEMENTS.autoWebSearchToggleSwitch.checked;
+            config.outputMode = ALL_ELEMENTS.outputModeSelect?.value === 'realtime' ? 'realtime' : 'typewriter';
             config.aiBubbleColor = ALL_ELEMENTS.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default';
             config.userBubbleColor = ALL_ELEMENTS.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default';
             config.autoNaming = ALL_ELEMENTS.autoNamingToggleSwitch.checked;
@@ -1650,7 +1529,6 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             toggleModal(ALL_ELEMENTS.settingsModal, false);
             updateApiKeyWarningBadge();
             updateInputState();
-            updateFollowUpUI();
             showNotification(i18n[config.uiLanguage].settingsSaved || '設定已儲存！');
         };
         const setAiBubbleColor = () => {

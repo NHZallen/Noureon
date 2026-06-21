@@ -243,10 +243,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             sidebarOverlay: document.getElementById('sidebar-overlay'),
             menuToggleBtn: document.getElementById('menu-toggle-btn'),
             sidebarOpenHandle: document.getElementById('sidebar-open-handle'),
-            followUpContainer: document.getElementById('follow-up-container'),
-            followUpHeader: document.getElementById('follow-up-header'),
-            followUpPromptsList: document.getElementById('follow-up-prompts-list'),
-            followUpToggleSwitch: document.getElementById('follow-up-toggle-switch'),
             autoNamingToggleSwitch: document.getElementById('auto-naming-toggle-switch'),
             autoWebSearchToggleSwitch: document.getElementById('auto-web-search-toggle-switch'),
             astrasList: document.getElementById('astras-list'),
@@ -349,7 +345,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             cancelProposalBtn: document.getElementById('cancel-proposal-btn'),
             submitProposalBtn: document.getElementById('submit-proposal-btn'),
             // ✨ 新增互動式計畫編輯器元素
-            showPromptsBtn: document.getElementById('show-prompts-btn'), // 新增這行
             importProgressContainer: document.getElementById('import-progress-container'),
     importProgressBar: document.getElementById('import-progress-bar'),
     importStatusText: document.getElementById('import-status-text'),
@@ -625,14 +620,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     // Gemini Models (Native)
     { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_desc' },
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
-    { id: 'gemma-4-31b-it', name: 'Gemma 4 31B IT', provider: 'gemini', descriptionKey: 'model_gemma_4_31b_it_desc', tier: ['free'] },
-    { id: 'gemma-4-26b-a4b-it', name: 'Gemma 4 26B A4B IT', provider: 'gemini', descriptionKey: 'model_gemma_4_26b_a4b_it_desc', tier: ['free'] },
 
     // NVIDIA Build Free Models
-    { id: 'nvidia/google/gemma-4-31b-it', apiId: 'google/gemma-4-31b-it', name: 'NVIDIA Gemma 4 31B IT', provider: 'nvidia', descriptionKey: 'model_nvidia_gemma_4_31b_it_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/deepseek-ai/deepseek-v4-pro', apiId: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/deepseek-ai/deepseek-v4-flash', apiId: 'deepseek-ai/deepseek-v4-flash', name: 'NVIDIA DeepSeek V4 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/minimaxai/minimax-m3', apiId: 'minimaxai/minimax-m3', name: 'NVIDIA MiniMax M3', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m3_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/qwen/qwen3.5-122b-a10b', apiId: 'qwen/qwen3.5-122b-a10b', name: 'NVIDIA Qwen3.5 122B A10B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_122b_a10b_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/minimaxai/minimax-m2.7', apiId: 'minimaxai/minimax-m2.7', name: 'NVIDIA MiniMax M2.7', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m2_7_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/moonshotai/kimi-k2.6', apiId: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.1', apiId: 'z-ai/glm-5.1', name: 'NVIDIA GLM-5.1', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_1_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/qwen/qwen3.5-397b-a17b', apiId: 'qwen/qwen3.5-397b-a17b', name: 'NVIDIA Qwen3.5 397B A17B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_397b_a17b_desc', tier: ['free'], category: 'general' },
@@ -678,7 +671,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code', provider: 'openrouter', descriptionKey: 'model_kimi_k2_7_code_desc', category: 'coding' },
     { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: 'openrouter', descriptionKey: 'model_kimi_k2_6_desc', category: 'general' },
 ];
-        const CHEAP_MODEL_ID = 'gemma-4-31b-it';
+        const CHEAP_MODEL_ID = 'gemini-3.5-flash';
         const OPENROUTER_VISION_MODELS = [
     'nex-agi/nex-n2-pro:free',
     'openai/gpt-5.5',
@@ -696,8 +689,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     'moonshotai/kimi-k2.6'
 ];
         const NVIDIA_VISION_MODELS = [
-    'google/gemma-4-31b-it',
-    'minimaxai/minimax-m3',
+    'qwen/qwen3.5-122b-a10b',
     'moonshotai/kimi-k2.6',
     'qwen/qwen3.5-397b-a17b',
     'stepfun-ai/step-3.7-flash'
@@ -824,8 +816,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             defaultModel: MODELS[0].id,
             theme: 'light',
             modelSettings: [],
-            enableFollowUp: true,
             enableAutoWebSearch: false,
+            outputMode: 'typewriter',
             aiBubbleColor: 'default',
             userBubbleColor: 'default',
             autoNaming: true,
@@ -976,6 +968,16 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             return candidates.find(model => model.id === config.singleSearchTranslatorModelId) || candidates[0];
         };
         const modelSupportsWebSearch = (model) => Boolean(model && (model.provider === 'gemini' || model.provider === 'openrouter'));
+        const getOutputMode = () => config.outputMode === 'realtime' ? 'realtime' : 'typewriter';
+        const hasSingleDocumentAccess = (model) => Boolean(modelSupportsDocumentUpload(model) || getSingleDocumentTranslatorModel());
+        const hasSingleWebSearchAccess = (model) => Boolean(modelSupportsWebSearch(model) || getSingleSearchTranslatorModel());
+        const getCouncilSearchTranslatorModel = () => {
+            const councilTranslator = getCouncilTranslatorModel();
+            if (modelSupportsWebSearch(councilTranslator)) return councilTranslator;
+            return getSingleSearchTranslatorModel();
+        };
+        const getCouncilSharedSearchModel = (synthesizer) => modelSupportsWebSearch(synthesizer) ? synthesizer : getCouncilSearchTranslatorModel();
+        const hasCouncilWebSearchAccess = (synthesizer) => Boolean(getCouncilSharedSearchModel(synthesizer));
         const getModelTiers = (model) => {
             if (!model || model.isBeta) return [];
             if (Array.isArray(model.tier)) return model.tier;
@@ -1138,7 +1140,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const selectedCouncilModels = [...participants, synthesizer].filter(Boolean);
             const translationNeed = getCouncilAttachmentTranslationNeed(selectedCouncilModels, files);
             const translatorModel = translationNeed.needsAnyPacket ? getCouncilTranslatorModel() : null;
-            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : [])]
+            const needsSearchTranslator = Boolean(conv?.isWebSearchEnabled && synthesizer && !modelSupportsWebSearch(synthesizer));
+            const searchTranslatorModel = needsSearchTranslator ? getCouncilSearchTranslatorModel() : null;
+            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : []), ...(searchTranslatorModel ? [searchTranslatorModel] : [])]
                 .filter((model, index, arr) => arr.findIndex(item => item.id === model.id) === index)
                 .filter(model => !getApiKeyForProvider(model.provider));
             if (missingKeyModels.length > 0) {
@@ -1155,6 +1159,15 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     message: config.uiLanguage === 'en'
                         ? 'Council attachments need a translator model that supports both vision and file upload. Choose one in Settings.'
                         : '理事會附件需要同時支援視覺與文件上傳的轉譯模型，請先到設定中選擇。'
+                };
+            }
+            if (needsSearchTranslator && !searchTranslatorModel) {
+                return {
+                    ok: false,
+                    reason: 'missingCouncilSearchTranslator',
+                    message: config.uiLanguage === 'en'
+                        ? 'Council Search needs a search translator model in Settings.'
+                        : '理事會連網需要在設定中選擇搜索轉譯模型。'
                 };
             }
             if (translationNeed.needsAnyPacket) {
@@ -1560,6 +1573,7 @@ function renderMarkdownWithFormulas(text) {
                 defaultConfig.uiTheme.style = defaultConfig.uiTheme.style || 'single';
                 defaultConfig.uiTheme.adaptivePalette = defaultConfig.uiTheme.adaptivePalette || [];
                 defaultConfig.uiTheme.adaptiveGradient = defaultConfig.uiTheme.adaptiveGradient || '';
+                defaultConfig.outputMode = defaultConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter';
                 config = defaultConfig;
             }
             const allModelIds = new Set(MODELS.map(m => m.id));
@@ -1681,7 +1695,6 @@ function renderMarkdownWithFormulas(text) {
             toggleSidebar(false);
             updateInputState();
             updateApiKeyWarningBadge();
-            renderFollowUpPrompts([]);
         };
         const loadChat = (id) => {
             if (messageObserver) {
@@ -1701,7 +1714,6 @@ function renderMarkdownWithFormulas(text) {
             }
             updateInputState();
             updateApiKeyWarningBadge();
-            renderFollowUpPrompts([]);
             updateFunctionButtonsState();
         };
         const deleteChat = async (id, event) => {
@@ -1846,7 +1858,6 @@ function renderMarkdownWithFormulas(text) {
             renderArchivedChats();
             renderBatchActionBar();
             renderFilePreviews();
-            updateFollowUpUI();
             applyLanguage(config.uiLanguage);
         };
         const renderHistorySidebar = () => {

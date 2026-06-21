@@ -313,10 +313,10 @@
                 : modelSupportsVision(modelInfo);
             const supportsDocumentUpload = councilActive
                 ? true
-                : modelSupportsDocumentUpload(modelInfo);
+                : hasSingleDocumentAccess(modelInfo);
             const supportsWebSearch = councilActive
-                ? modelSupportsWebSearch(synthesizer || modelInfo)
-                : modelSupportsWebSearch(modelInfo);
+                ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
+                : hasSingleWebSearchAccess(modelInfo);
 
 
             // 預設先顯示所有按鈕
@@ -1776,6 +1776,54 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
     return fullText;
 }
 
+const getOpenCouncilDetailKeys = (root) => new Set(
+    Array.from(root?.querySelectorAll('details.council-collapse[open] > summary') || [])
+        .map(summary => summary.textContent.trim())
+        .filter(Boolean)
+);
+
+const restoreOpenCouncilDetails = (root, openKeys) => {
+    if (!root || !openKeys?.size) return;
+    root.querySelectorAll('details.council-collapse > summary').forEach(summary => {
+        if (openKeys.has(summary.textContent.trim())) {
+            summary.parentElement.open = true;
+        }
+    });
+};
+
+const renderIncrementalResponse = (targetElement, text, options = {}) => {
+    const openKeys = options.preserveCouncilDetails ? getOpenCouncilDetailKeys(targetElement) : null;
+    targetElement.innerHTML = options.final
+        ? renderMarkdownWithFormulas(text)
+        : renderMarkdown(`${text}${options.cursor ? '|' : ''}`);
+    restoreOpenCouncilDetails(targetElement, openKeys);
+};
+
+const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
+    targetElement.innerHTML = '';
+    let currentIndex = 0;
+    const typingSpeed = 15;
+    const type = () => {
+        if (currentIndex < fullResponse.length && !signal.aborted) {
+            const currentText = fullResponse.substring(0, currentIndex + 1);
+            renderIncrementalResponse(targetElement, currentText, { cursor: true, preserveCouncilDetails });
+            let step = currentText.includes('```') ? 5 : 1;
+            currentIndex += step;
+            const chatContainer = ALL_ELEMENTS.chatContainer;
+            const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
+            const pauseCouncilAutoScroll = preserveCouncilDetails && isCouncilDeferredSectionVisible(currentText);
+            if (!pauseCouncilAutoScroll && isNearBottom) {
+                chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
+            }
+            setTimeout(type, typingSpeed);
+            return;
+        }
+        renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails });
+        resolve();
+    };
+    type();
+});
+
 
         const handleFormSubmit = async (e) => {
             e.preventDefault();
@@ -1783,7 +1831,6 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
             const userMessage = ALL_ELEMENTS.messageInput.value.trim();
             if (!userMessage && uploadedFiles.length === 0) return;
             
-            renderFollowUpPrompts([]);
             const conv = getActiveConversation();
             if (conv.archived) return;
             abortController = new AbortController();
@@ -1851,6 +1898,7 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
             try {
                 let fullResponse = '';
                 const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
+                let responseRenderedInRealtime = false;
 
 
                 // 1. 先等待 API 回應完全結束，獲取完整文字
@@ -1862,6 +1910,20 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                     const renderCouncilProgressState = (progressState) => {
                         latestCouncilProgress = progressState;
                         contentDiv.innerHTML = renderCouncilProgress(progressState);
+                    };
+                    let realtimeCouncilText = '';
+                    const renderCouncilSynthesisChunk = (chunk) => {
+                        if (getOutputMode() !== 'realtime') return;
+                        if (!responseRenderedInRealtime) {
+                            if (councilProgressTimer) {
+                                clearInterval(councilProgressTimer);
+                                councilProgressTimer = null;
+                            }
+                            contentDiv.innerHTML = '';
+                            responseRenderedInRealtime = true;
+                        }
+                        realtimeCouncilText += chunk || '';
+                        renderIncrementalResponse(contentDiv, realtimeCouncilText, { preserveCouncilDetails: true });
                     };
                     councilProgressTimer = setInterval(() => {
                         if (!latestCouncilProgress) return;
@@ -1876,7 +1938,8 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                     const councilResult = await runModelCouncil(
                         userParts,
                         abortController.signal,
-                        renderCouncilProgressState
+                        renderCouncilProgressState,
+                        renderCouncilSynthesisChunk
                     );
                     clearInterval(councilProgressTimer);
                     councilProgressTimer = null;
@@ -1903,43 +1966,67 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                         };
                         contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
                     };
-                    renderSingleProgressState('preparing', config.uiLanguage === 'en' ? 'Checking model capabilities' : '檢查模型能力');
-                    singleProgressTimer = setInterval(() => {
-                        latestSingleProgress = {
-                            ...latestSingleProgress,
-                            elapsedMs: Date.now() - startedAt
-                        };
-                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                    }, 1000);
-                    const requestParts = await buildSingleModelTranslatedRequestParts(
-                        userParts,
-                        modelInfo,
-                        abortController.signal,
-                        (stage, message) => renderSingleProgressState(stage, message)
-                    );
+                    const hasTranslationInputs = userParts.some(part => part.inlineData) || Boolean(conv.isWebSearchEnabled);
+                    let requestParts = userParts;
+                    if (hasTranslationInputs) {
+                        renderSingleProgressState('preparing', config.uiLanguage === 'en' ? 'Checking model capabilities' : 'Checking model capabilities');
+                        singleProgressTimer = setInterval(() => {
+                            latestSingleProgress = {
+                                ...latestSingleProgress,
+                                elapsedMs: Date.now() - startedAt
+                            };
+                            contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
+                        }, 1000);
+                        requestParts = await buildSingleModelTranslatedRequestParts(
+                            userParts,
+                            modelInfo,
+                            abortController.signal,
+                            (stage, message) => renderSingleProgressState(stage, message)
+                        );
+                    }
                     let receivedChars = 0;
                     let lastSingleProgressAt = 0;
-                    const completeResponse = await streamApiCall(
+                    const updateSingleStreamingProgress = (chunk) => {
+                        receivedChars += String(chunk || '').length;
+                        const now = Date.now();
+                        if (now - lastSingleProgressAt > 700) {
+                            lastSingleProgressAt = now;
+                            renderSingleProgressState(
+                                'streaming',
+                                config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering',
+                                { receivedChars }
+                            );
+                        }
+                    };
+                    const runSingleApiStream = (onChunk) => streamApiCall(
                         requestParts,
-                        (chunk) => {
-                            receivedChars += String(chunk || '').length;
-                            const now = Date.now();
-                            if (now - lastSingleProgressAt > 700) {
-                                lastSingleProgressAt = now;
-                                renderSingleProgressState(
-                                    'streaming',
-                                    config.uiLanguage === 'en' ? 'Model is answering' : '模型正在作答',
-                                    { receivedChars }
-                                );
-                            }
-                        },
+                        onChunk,
                         abortController.signal,
                         false,
                         { modelInfo }
                     );
+                    if (getOutputMode() === 'realtime') {
+                        if (singleProgressTimer) {
+                            clearInterval(singleProgressTimer);
+                            singleProgressTimer = null;
+                        }
+                        fullResponse = await typewriterStream(contentDiv, runSingleApiStream, abortController.signal);
+                        responseRenderedInRealtime = true;
+                    } else {
+                        if (!singleProgressTimer) {
+                            renderSingleProgressState('streaming', config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering');
+                            singleProgressTimer = setInterval(() => {
+                                latestSingleProgress = {
+                                    ...latestSingleProgress,
+                                    elapsedMs: Date.now() - startedAt
+                                };
+                                contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
+                            }, 1000);
+                        }
+                        fullResponse = await runSingleApiStream(updateSingleStreamingProgress);
+                    }
                     clearInterval(singleProgressTimer);
                     singleProgressTimer = null;
-                    fullResponse = completeResponse;
                 }
                 sendConversationToMail(userMessageObject, fullResponse);
 
@@ -1951,53 +2038,15 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
                 await saveAppData();
                 
                 // 3. ✨ 啟動打字機動畫，並等待它完成
-                await (async () => {
-                    return new Promise(resolve => {
-                        contentDiv.innerHTML = ''; // 清空等待樣式
-                        let currentIndex = 0;
-                        const typingSpeed = 15;
-
-
-                        function type() {
-                            if (currentIndex < fullResponse.length && !abortController.signal.aborted) {
-                                const currentText = fullResponse.substring(0, currentIndex + 1);
-                                contentDiv.innerHTML = renderMarkdown(currentText + '▋');
-
-
-                                let step = 1;
-                                if (currentText.includes('```')) {
-                                    step = 5;
-                                }
-                                
-                                currentIndex += step;
-
-
-                                const chatContainer = ALL_ELEMENTS.chatContainer;
-                                const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
-                                const pauseCouncilAutoScroll = finalAiMessage.council && isCouncilDeferredSectionVisible(currentText);
-                                if (!pauseCouncilAutoScroll && isNearBottom) {
-                                    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
-                                }
-
-
-                                setTimeout(type, typingSpeed);
-                            } else {
-                                // 動畫完成或被中止
-                                contentDiv.innerHTML = renderMarkdownWithFormulas(fullResponse); // 最終清理，並渲染公式
-                                resolve(); // ✨ Promise 完成，通知 await
-                            }
-                        }
-                        
-                        type(); // 啟動
-                    });
-                })();
+                if (responseRenderedInRealtime) {
+                    renderIncrementalResponse(contentDiv, fullResponse, { final: true, preserveCouncilDetails: Boolean(finalAiMessage.council) });
+                } else {
+                    await playbackTypewriterResponse(contentDiv, fullResponse, abortController.signal, Boolean(finalAiMessage.council));
+                }
 
 
                 // 4. ✨ 只有在打字機動畫結束後，才執行後續任務
                 if (!abortController.signal.aborted) {
-                    if(config.enableFollowUp && !config.isLearningMode) {
-                        await generateFollowUpPrompts(userMessage, fullResponse);
-                    }
                     if (config.memoryEnabled1 && config.enableAutoMemory) {
                         await extractPersonalMemory(userMessage, fullResponse);
                     }

@@ -232,8 +232,8 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 const modelInfo = normalizeConversationModel(conv);
                 const { synthesizer } = getCouncilSelectedModels(conv);
                 const supportsWebSearch = isCouncilEnabled(conv)
-                    ? modelSupportsWebSearch(synthesizer || modelInfo)
-                    : modelSupportsWebSearch(modelInfo);
+                    ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
+                    : hasSingleWebSearchAccess(modelInfo);
                 if (!conv || !supportsWebSearch || conv.archived) {
                     showNotification(i18n[config.uiLanguage].webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
                     return;
@@ -261,7 +261,6 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             ALL_ELEMENTS.batchMoveBtn.addEventListener('click', handleBatchMove);
             ALL_ELEMENTS.batchMoveCancelBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.batchMoveModal, false));
             ALL_ELEMENTS.batchMoveConfirmBtn.addEventListener('click', () => { /* Logic moved to option clicks */ });
-            ALL_ELEMENTS.followUpHeader.addEventListener('click', toggleFollowUpPrompts);
             ALL_ELEMENTS.messageInput.addEventListener('input', (e) => {
                 sendConfirmed = false;
                 updateInputState();
@@ -595,10 +594,10 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                     : modelSupportsVision(modelInfo);
                 const supportsDocumentUpload = councilActive
                     ? true
-                    : modelSupportsDocumentUpload(modelInfo);
+                    : hasSingleDocumentAccess(modelInfo);
                 const supportsWebSearch = councilActive
-                    ? modelSupportsWebSearch(synthesizer || modelInfo)
-                    : modelSupportsWebSearch(modelInfo);
+                    ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
+                    : hasSingleWebSearchAccess(modelInfo);
 
 
                 const allMenuItems = [

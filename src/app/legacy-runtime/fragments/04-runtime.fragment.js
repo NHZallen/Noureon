@@ -909,7 +909,6 @@
     const updateButtonPosition = () => {
         const { inputBarContainer, scrollToBottomBtn } = ALL_ELEMENTS;
         const inputBarHeight = inputBarContainer.offsetHeight;
-        // 我們不再需要計算 followUpContainer 的高度了
         const totalBottomOffset = inputBarHeight + 16; // 簡化計算
         scrollToBottomBtn.style.bottom = `${totalBottomOffset}px`;
     };
@@ -917,8 +916,6 @@
 
     const resizeObserver = new ResizeObserver(updateButtonPosition);
     resizeObserver.observe(ALL_ELEMENTS.inputBarContainer);
-    // ✨ 我們也不再需要觀察 followUpContainer 的高度變化了
-    // resizeObserver.observe(ALL_ELEMENTS.followUpContainer); 
     updateButtonPosition();
 };
         const showUpdateHistory = () => {

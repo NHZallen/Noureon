@@ -400,11 +400,11 @@
     if (ALL_ELEMENTS.exportSettingsCheck.checked) {
         rawData.settings = {
             defaultModel: config.defaultModel, theme: config.theme, modelSettings: config.modelSettings,
-            enableFollowUp: config.enableFollowUp, aiBubbleColor: config.aiBubbleColor, userBubbleColor: config.userBubbleColor,
+            aiBubbleColor: config.aiBubbleColor, userBubbleColor: config.userBubbleColor,
             autoNaming: config.autoNaming, enableAutoWebSearch: config.enableAutoWebSearch, memoryEnabled1: config.memoryEnabled1,
             enableAutoMemory: config.enableAutoMemory, customWallpaper: config.customWallpaper, wallpaperBrightness: config.wallpaperBrightness,
             uiTheme: config.uiTheme, uiLanguage: config.uiLanguage, aiDefaultLanguage: config.aiDefaultLanguage,
-            isLearningMode: config.isLearningMode
+            isLearningMode: config.isLearningMode, outputMode: getOutputMode()
         };
     }
     if (document.getElementById('export-api-check').checked) { rawData.apiKeys = config.apiKeys; }

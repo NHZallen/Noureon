@@ -12,10 +12,7 @@ body {
     opacity: 0;
     pointer-events: none;
 }
-    #show-prompts-btn.active {
-    color: #fbbf24; /* 這是一個漂亮的黃色 */
-}
-    #selection-mode-btn.active,
+#selection-mode-btn.active,
 #open-search-btn.active {
     color: var(--button-primary-bg);
 }
@@ -1310,48 +1307,6 @@ button:not(.btn-primary):active:not(:disabled) {
         background: var(--button-primary-bg);
         color: var(--button-primary-text);
     }
-    .follow-up-prompt-btn {
-    background-color: var(--hover-bg);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-    font-size: 0.875rem;
-    cursor: pointer;
-    white-space: normal;
-    overflow: hidden;
-    text-overflow: unset;
-    max-width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    word-break: break-word;
-    opacity: 0;
-    transform: translateY(10px);
-    animation: subtleFadeInUp 0.4s ease-out forwards;
-    animation-delay: var(--animation-delay, 0s);
-    -webkit-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-    #follow-up-prompts-list {
-  max-height: 200px;
-  overflow-y: auto;
-  transition: max-height 0.3s ease-out, margin-top 0.3s ease-out;
-}
-#follow-up-prompts-list:not(.collapsed) {
-    margin-top: 0.5rem;
-}
-#follow-up-prompts-list.collapsed {
-    max-height: 0;
-    margin-top: 0;
-    margin-bottom: 0;
-    overflow: hidden;
-}
-    .follow-up-prompt-btn:hover {
-        background-color: var(--active-bg);
-        color: var(--text-primary);
-    }
     .toggle-checkbox:checked {
         right: 0;
         border-color: #3b82f6;
@@ -1890,7 +1845,6 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     .dark .model-message .message-bubble,
     .dark .model-message .message-bubble .prose,
     .dark .model-message .message-bubble .prose *,
-    .dark .follow-up-prompt-btn,
     .dark .color-dropdown-btn span,
     .dark #message-input::placeholder {
         color: #ffffff !important;
@@ -2342,44 +2296,9 @@ body.custom-wallpaper-active .store-category-btn.active {
             display: none;
         }
     }
-    body.custom-wallpaper-active #follow-up-container {
-        background-color: transparent !important;
-        border-color: transparent !important;
-        padding-top: 0 !important;
-        padding-bottom: 0.5rem !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-    body.custom-wallpaper-active #follow-up-content-wrapper {
-        background-color: rgba(255, 255, 255, 0.2) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        padding: 0.75rem;
-        border-radius: 1rem;
-    }
-    body.custom-wallpaper-active .follow-up-prompt-btn {
-        background-color: rgba(255, 255, 255, 0.3) !important;
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        color: var(--text-primary) !important;
-        transition: all 0.2s ease-in-out;
-    }
-    body.custom-wallpaper-active .follow-up-prompt-btn:hover {
-        background-color: rgba(255, 255, 255, 0.5) !important;
-        transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.6);
-    }
-        body.custom-wallpaper-active #follow-up-container #follow-up-header h4 {
-    color: #111827 !important;
-}
 
 
 /* 2. 在深色模式下，強制標題為白色 (主要文字顏色) */
-.dark #follow-up-header h4 {
-    color: var(--text-primary) !important;
-}
 /* --- 新增結束 --- */
 
 
@@ -2530,94 +2449,12 @@ body.custom-wallpaper-active .input-indicator-item {
     visibility: visible;
     opacity: 1;
 }
-#follow-up-container {
-    position: fixed; /* 關鍵！讓它固定在螢幕上 */
-    top: 3.5rem;       /* <-- 保留這個修改，讓它貼齊頂部 */
-    left: 0;
-    right: 0;
-    z-index: 20;       /* 確保它在最上層 */
-    max-width: 48rem;  /* <-- 把這行加回來，限制最大寬度 */
-    margin: 0 auto;    /* <-- 把這行加回來，讓它水平置中 */
-
-
-    /* 動畫效果 */
-    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
-    transform: translateY(-20px);
-    opacity: 0;
-    pointer-events: none; /* 隱藏時不可點擊 */
-}
-    @media (min-width: 768px) {
-    #follow-up-container {
-        /* 覆蓋掉 md:p-4 帶來的上下邊距 */
-        padding-top: 0;
-        padding-bottom: 0;
-        /* 移除你不想看到的左右邊距 */
-        padding-left: 0;
-        padding-right: 0;
-    }
-}
 
 
 /* 顯示時的樣式 */
-#follow-up-container:not(.hidden) {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-}
 
 
 /* 內部容器的毛玻璃效果 */
-#follow-up-content-wrapper {
-    background-color: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 1rem;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-    padding: 0.75rem;
-}
-
-
-.dark #follow-up-content-wrapper {
-    background-color: rgba(30, 30, 30, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-
-/* 手機版的滑動樣式 */
-@media (max-width: 768px) {
-    #follow-up-container {
-         top: 3.3rem; /* 手機版頂部距離可以近一點 */
-    }
-    #follow-up-prompts-list {
-        display: flex;
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        flex-wrap: nowrap; 
-        touch-action: pan-x;
-        padding: 0;
-        margin: 0;
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-    #follow-up-prompts-list::-webkit-scrollbar {
-        display: none;
-    }
-    .follow-up-prompt-btn {
-        flex: 0 0 100%;
-        width: 100%;
-        scroll-snap-align: start; 
-        white-space: normal;
-        word-break: break-word;
-        text-overflow: unset;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem 1rem;
-        border-radius: 0.5rem;
-        min-height: 0;
-    }
-}
         .input-wrapper.rounded-full {
     border-radius: 50px;
 }
@@ -3448,7 +3285,14 @@ body.custom-wallpaper-active .input-indicator-item {
 }
 
 .prose details.council-collapse[open] > summary {
-    margin-bottom: 0.85rem;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    margin: -0.9rem -1rem 0.85rem;
+    padding: 0.85rem 1rem;
+    background: var(--modal-bg);
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0.5rem 0.5rem 0 0;
 }
 
 .prose details.council-collapse .table-scroll-container {
@@ -3457,6 +3301,57 @@ body.custom-wallpaper-active .input-indicator-item {
 
 .prose details.council-collapse > :last-child {
     margin-bottom: 0;
+}
+
+
+.popover,
+#file-options-popover,
+#model-options-popover,
+.model-council-popover,
+.color-dropdown-menu,
+.translator-picker-menu,
+#mobile-context-menu,
+#attachment-menu {
+    background-color: rgba(255, 255, 255, 0.96) !important;
+    border-color: rgba(209, 213, 219, 0.95) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.dark .popover,
+.dark #file-options-popover,
+.dark #model-options-popover,
+.dark .model-council-popover,
+.dark .color-dropdown-menu,
+.dark .translator-picker-menu,
+.dark #mobile-context-menu,
+.dark #attachment-menu {
+    background-color: rgba(31, 41, 55, 0.96) !important;
+    border-color: rgba(75, 85, 99, 0.95) !important;
+}
+
+body.custom-wallpaper-active .popover,
+body.custom-wallpaper-active #file-options-popover,
+body.custom-wallpaper-active #model-options-popover,
+body.custom-wallpaper-active .model-council-popover,
+body.custom-wallpaper-active .color-dropdown-menu,
+body.custom-wallpaper-active .translator-picker-menu,
+body.custom-wallpaper-active #mobile-context-menu,
+body.custom-wallpaper-active #attachment-menu {
+    background-color: rgba(255, 255, 255, 0.94) !important;
+    border-color: rgba(209, 213, 219, 0.9) !important;
+}
+
+body.custom-wallpaper-active.wallpaper-is-dark .popover,
+body.custom-wallpaper-active.wallpaper-is-dark #file-options-popover,
+body.custom-wallpaper-active.wallpaper-is-dark #model-options-popover,
+body.custom-wallpaper-active.wallpaper-is-dark .model-council-popover,
+body.custom-wallpaper-active.wallpaper-is-dark .color-dropdown-menu,
+body.custom-wallpaper-active.wallpaper-is-dark .translator-picker-menu,
+body.custom-wallpaper-active.wallpaper-is-dark #mobile-context-menu,
+body.custom-wallpaper-active.wallpaper-is-dark #attachment-menu {
+    background-color: rgba(31, 41, 55, 0.94) !important;
+    border-color: rgba(75, 85, 99, 0.9) !important;
 }
 
 @keyframes council-pulse {
