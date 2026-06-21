@@ -493,12 +493,15 @@ ${formatCouncilResponses(firstRoundResults).slice(0, 5000)}
 Search the web again with attention to claims, disagreements, dated facts, and missing evidence.
 Do not answer the user directly. Prepare only an updated evidence packet for the discussion round.
 `;
-        const buildCouncilSecondSearchQuery = (parts, firstRoundResults = []) => normalizeSearchQuery(`
-${extractTextFromParts(parts)}
-
-Verify these first-round council claims:
-${formatCouncilResponses(firstRoundResults).slice(0, 2500)}
-`);
+        const buildCouncilSecondSearchQuery = (parts, firstRoundResults = []) => {
+            const firstRoundFocus = formatCouncilResponses(firstRoundResults)
+                .replace(/https?:\/\/\S+/g, ' ')
+                .replace(/[#>*_`~\[\](){}|]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 120);
+            return normalizeSearchQuery(`${extractTextFromParts(parts)} verify latest facts dates evidence disagreements ${firstRoundFocus}`);
+        };
         const getSearchPacketFromModel = async (searchModel, promptOrQuery, signal, options = {}) => {
             if (!searchModel) {
                 throw new Error(config.uiLanguage === 'en' ? 'No search-capable council synthesizer selected.' : '尚未選擇可搜索的理事會統整模型。');
@@ -681,11 +684,15 @@ Output requirements:
 - Do not invent details that are not in the files.
 - End with a compact "Use notes" section explaining how the target model should use this packet without claiming it is user-written.
 `;
+        const TAVILY_QUERY_CHAR_LIMIT = 380;
         const getTavilyApiKey = () => getApiKeyForProvider('tavily');
         const normalizeSearchQuery = (value = '') => String(value || '')
+            .replace(/[\u0000-\u001f\u007f]/g, ' ')
+            .replace(/```[\s\S]*?```/g, ' ')
             .replace(/\s+/g, ' ')
             .trim()
-            .slice(0, 900);
+            .slice(0, TAVILY_QUERY_CHAR_LIMIT)
+            .trim();
         const getSearchQueryFromParts = (parts = []) => normalizeSearchQuery(extractTextFromParts(parts));
         const formatTavilySearchPacket = (data, query, label = 'Web search packet') => {
             const results = Array.isArray(data?.results) ? data.results : [];
