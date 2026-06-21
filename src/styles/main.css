@@ -3209,6 +3209,21 @@ details.council-model-group > summary::-webkit-details-marker {
     margin-bottom: 0.65rem;
 }
 
+.single-progress-panel-error {
+    border-color: color-mix(in srgb, #ef4444 42%, var(--border-color));
+    background: color-mix(in srgb, #ef4444 9%, var(--input-field-bg));
+}
+
+.single-progress-panel-error .council-progress-stage {
+    background: color-mix(in srgb, #ef4444 16%, transparent);
+    color: #dc2626;
+}
+
+.single-progress-panel-error .council-progress-message {
+    color: #dc2626;
+    overflow-wrap: anywhere;
+}
+
 .single-progress-panel .council-progress-orbit {
     margin-bottom: 0.55rem;
 }

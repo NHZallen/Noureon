@@ -1238,6 +1238,27 @@
                 </details>
             `;
         };
+        const renderSingleModelError = (progress = {}, errorMessage = '') => {
+            const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
+            const title = config.uiLanguage === 'en' ? 'Request failed' : '請求失敗';
+            const note = config.uiLanguage === 'en'
+                ? 'The model stopped before returning a usable answer.'
+                : '模型在回傳可用答案前中斷。';
+            return `
+                <details class="single-progress-panel single-progress-panel-error" open>
+                    <summary>
+                        <span>${escapeHTML(progress.modelName || '')}</span>
+                        <span>${elapsedSeconds}s</span>
+                    </summary>
+                    <div class="council-progress-heading">
+                        <span class="council-progress-stage">${escapeHTML(title)}</span>
+                        <span class="council-progress-time">${elapsedSeconds}s</span>
+                    </div>
+                    <div class="council-progress-message">${escapeHTML(errorMessage || title)}</div>
+                    <div class="council-progress-note">${escapeHTML(note)}</div>
+                </details>
+            `;
+        };
         const isCouncilDeferredSectionVisible = (text = '') => /<details\b|共識與差異整理|模型理事會紀錄|Model council record|Compte rendu du conseil/i.test(String(text || ''));
         const renderModelSwitcher = () => {
     const conv = getActiveConversation();
@@ -2231,6 +2252,7 @@ const stopProgressTicker = (ticker) => {
             });
             let councilProgressTimer = null;
             let singleProgressTimer = null;
+            let latestSingleProgressForError = null;
             
             try {
                 let fullResponse = '';
@@ -2317,6 +2339,7 @@ const stopProgressTicker = (ticker) => {
                             elapsedMs: Date.now() - startedAt,
                             ...extra
                         };
+                        latestSingleProgressForError = latestSingleProgress;
                         contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
                     };
                     const hasTranslationInputs = userParts.some(part => part.inlineData) || Boolean(conv.isWebSearchEnabled);
@@ -2328,6 +2351,7 @@ const stopProgressTicker = (ticker) => {
                                 ...latestSingleProgress,
                                 elapsedMs: Date.now() - startedAt
                             };
+                            latestSingleProgressForError = latestSingleProgress;
                             contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
                         });
                         requestParts = await buildSingleModelTranslatedRequestParts(
@@ -2370,12 +2394,14 @@ const stopProgressTicker = (ticker) => {
                             elapsedMs: Date.now() - startedAt
                         };
                         latestSingleProgress = realtimeProgress;
+                        latestSingleProgressForError = latestSingleProgress;
                         contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
                         singleProgressTimer = startProgressTicker(() => {
                             latestSingleProgress = {
                                 ...latestSingleProgress,
                                 elapsedMs: Date.now() - startedAt
                             };
+                            latestSingleProgressForError = latestSingleProgress;
                             contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
                         });
                         fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal, {
@@ -2396,6 +2422,7 @@ const stopProgressTicker = (ticker) => {
                                     ...latestSingleProgress,
                                     elapsedMs: Date.now() - startedAt
                                 };
+                                latestSingleProgressForError = latestSingleProgress;
                                 contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
                             });
                         }
@@ -2403,6 +2430,11 @@ const stopProgressTicker = (ticker) => {
                     }
                     stopProgressTicker(singleProgressTimer);
                     singleProgressTimer = null;
+                }
+                if (!String(fullResponse || '').trim()) {
+                    throw new Error(config.uiLanguage === 'en'
+                        ? 'The request ended without any response text. The provider may have timed out or rejected the payload.'
+                        : '請求已結束，但模型沒有回傳任何文字。服務可能逾時，或拒絕了這次的 payload。');
                 }
                 sendConversationToMail(userMessageObject, fullResponse);
 
@@ -2432,9 +2464,21 @@ const stopProgressTicker = (ticker) => {
 
 
             } catch (error) {
-                if (error.name !== 'AbortError') {
-                    const errorMessage = `${i18n[config.uiLanguage].errorPrefix || '抱歉，發生錯誤：'}${error.message}`;
-                    contentDiv.innerHTML = renderMarkdown(errorMessage);
+                if (error.name !== 'AbortError' || !abortController?.signal?.aborted) {
+                    if (councilProgressTimer) {
+                        stopProgressTicker(councilProgressTimer);
+                        councilProgressTimer = null;
+                    }
+                    if (singleProgressTimer) {
+                        stopProgressTicker(singleProgressTimer);
+                        singleProgressTimer = null;
+                    }
+                    const errorMessage = `${i18n[config.uiLanguage].errorPrefix || '抱歉，發生錯誤：'}${error.message || error.name || 'Unknown error'}`;
+                    const currentProgress = latestSingleProgressForError || {
+                        modelName: normalizeConversationModel(conv)?.name || conv.model,
+                        elapsedMs: 0
+                    };
+                    contentDiv.innerHTML = renderSingleModelError(currentProgress, errorMessage);
                     const finalAiMessage = { role: 'model', parts: [{ text: errorMessage }], createdAt: new Date().toISOString() };
                     conv.messages.push(finalAiMessage);
                     await saveAppData();
