@@ -1824,6 +1824,154 @@ const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserv
     type();
 });
 
+const isChatNearBottom = (threshold = 16) => {
+    const chatContainer = ALL_ELEMENTS.chatContainer;
+    if (!chatContainer) return false;
+    return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight <= threshold;
+};
+
+const keepChatPositionAfterRender = (shouldStick, previousTop) => {
+    const chatContainer = ALL_ELEMENTS.chatContainer;
+    if (!chatContainer) return;
+    if (shouldStick) {
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
+    } else {
+        chatContainer.scrollTop = previousTop;
+    }
+};
+
+const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
+    let fullText = '';
+    let finalizedText = '';
+    let pendingText = '';
+    let isFinalized = false;
+    const preserveCouncilDetails = Boolean(options.preserveCouncilDetails);
+    const root = document.createElement('div');
+    const finalizedNode = document.createElement('div');
+    const currentLineNode = document.createElement('span');
+
+    root.className = 'streaming-markdown-root';
+    finalizedNode.className = 'streaming-markdown-finalized';
+    currentLineNode.className = 'streaming-current-line';
+    root.append(finalizedNode, currentLineNode);
+    targetElement.innerHTML = '';
+    targetElement.classList.remove('typing-cursor');
+    targetElement.classList.add('is-streaming-response');
+    delete targetElement.dataset.streamRendered;
+    targetElement.appendChild(root);
+
+    const renderFinalized = (renderFormulas = false) => {
+        const openKeys = preserveCouncilDetails ? getOpenCouncilDetailKeys(finalizedNode) : null;
+        finalizedNode.innerHTML = renderFormulas
+            ? renderMarkdownWithFormulas(finalizedText)
+            : renderMarkdown(finalizedText);
+        restoreOpenCouncilDetails(finalizedNode, openKeys);
+    };
+
+    const flushPendingLines = (force = false, renderFormulas = false) => {
+        if (isFinalized) return;
+        let flushIndex = pendingText.lastIndexOf('\n');
+        if (force && pendingText.length) {
+            flushIndex = pendingText.length - 1;
+        }
+        const shouldStick = isChatNearBottom();
+        const previousTop = ALL_ELEMENTS.chatContainer?.scrollTop || 0;
+        if (flushIndex >= 0) {
+            finalizedText += pendingText.slice(0, flushIndex + 1);
+            pendingText = pendingText.slice(flushIndex + 1);
+            renderFinalized(renderFormulas);
+        }
+        currentLineNode.textContent = pendingText;
+        keepChatPositionAfterRender(shouldStick, previousTop);
+    };
+
+    return {
+        appendText(chunk = '') {
+            if (isFinalized || !chunk) return;
+            const text = String(chunk);
+            fullText += text;
+            pendingText += text;
+            flushPendingLines(false, false);
+        },
+        finish({ renderFormulas = true } = {}) {
+            if (isFinalized) return fullText;
+            flushPendingLines(true, renderFormulas);
+            if (renderFormulas && finalizedText) {
+                renderFinalized(true);
+            }
+            isFinalized = true;
+            currentLineNode.remove();
+            targetElement.classList.remove('is-streaming-response');
+            targetElement.dataset.streamRendered = 'true';
+            return fullText;
+        },
+        getText() {
+            return fullText;
+        }
+    };
+};
+
+async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, options = {}) {
+    let textQueue = '';
+    let isFrameRequested = false;
+    const renderer = createStreamingMarkdownRenderer(targetElement, options);
+
+    const renderFrame = () => {
+        if (textQueue.length > 0) {
+            const chunkToRender = textQueue;
+            textQueue = '';
+            renderer.appendText(chunkToRender);
+        }
+        isFrameRequested = false;
+    };
+
+    const onChunkReceived = (chunk) => {
+        textQueue += chunk || '';
+        if (!isFrameRequested) {
+            isFrameRequested = true;
+            requestAnimationFrame(renderFrame);
+        }
+    };
+
+    try {
+        await streamApiCallFn(onChunkReceived);
+    } catch (error) {
+        console.error("Stream API call failed:", error);
+        targetElement.classList.remove('is-streaming-response');
+        targetElement.innerHTML = renderMarkdown(`?望?嚗?隤歹?${error.message}`);
+        throw error;
+    } finally {
+        while (isFrameRequested || textQueue.length > 0) {
+            if (!isFrameRequested) {
+                isFrameRequested = true;
+                requestAnimationFrame(renderFrame);
+            }
+            await new Promise(resolve => setTimeout(resolve, 16));
+        }
+        renderer.finish({ renderFormulas: true });
+    }
+
+    return renderer.getText();
+}
+
+const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
+    const renderer = createStreamingMarkdownRenderer(targetElement, { preserveCouncilDetails });
+    let currentIndex = 0;
+    const typingSpeed = 15;
+    const type = () => {
+        if (currentIndex < fullResponse.length && !signal.aborted) {
+            const step = fullResponse.includes('```', Math.max(0, currentIndex - 3)) ? 5 : 1;
+            renderer.appendText(fullResponse.slice(currentIndex, currentIndex + step));
+            currentIndex += step;
+            setTimeout(type, typingSpeed);
+            return;
+        }
+        renderer.finish({ renderFormulas: true });
+        resolve();
+    };
+    type();
+});
+
 
         const handleFormSubmit = async (e) => {
             e.preventDefault();
@@ -1912,6 +2060,7 @@ const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserv
                         contentDiv.innerHTML = renderCouncilProgress(progressState);
                     };
                     let realtimeCouncilText = '';
+                    let realtimeCouncilRenderer = null;
                     const renderCouncilSynthesisChunk = (chunk) => {
                         if (getOutputMode() !== 'realtime') return;
                         if (!responseRenderedInRealtime) {
@@ -1920,10 +2069,11 @@ const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserv
                                 councilProgressTimer = null;
                             }
                             contentDiv.innerHTML = '';
+                            realtimeCouncilRenderer = createStreamingMarkdownRenderer(contentDiv, { preserveCouncilDetails: true });
                             responseRenderedInRealtime = true;
                         }
                         realtimeCouncilText += chunk || '';
-                        renderIncrementalResponse(contentDiv, realtimeCouncilText, { preserveCouncilDetails: true });
+                        realtimeCouncilRenderer?.appendText(chunk || '');
                     };
                     councilProgressTimer = setInterval(() => {
                         if (!latestCouncilProgress) return;
@@ -1944,6 +2094,13 @@ const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserv
                     clearInterval(councilProgressTimer);
                     councilProgressTimer = null;
                     fullResponse = councilResult.text;
+                    if (realtimeCouncilRenderer) {
+                        const remainingCouncilText = fullResponse.slice(realtimeCouncilText.length);
+                        if (remainingCouncilText) {
+                            realtimeCouncilRenderer.appendText(remainingCouncilText);
+                        }
+                        realtimeCouncilRenderer.finish({ renderFormulas: true });
+                    }
                     finalAiMessage.council = councilResult.metadata;
                 } else {
                     const modelInfo = normalizeConversationModel(conv);
@@ -2010,7 +2167,7 @@ const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserv
                             clearInterval(singleProgressTimer);
                             singleProgressTimer = null;
                         }
-                        fullResponse = await typewriterStream(contentDiv, runSingleApiStream, abortController.signal);
+                        fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal);
                         responseRenderedInRealtime = true;
                     } else {
                         if (!singleProgressTimer) {
@@ -2038,10 +2195,12 @@ const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserv
                 await saveAppData();
                 
                 // 3. ✨ 啟動打字機動畫，並等待它完成
-                if (responseRenderedInRealtime) {
+                if (responseRenderedInRealtime && contentDiv.dataset.streamRendered === 'true') {
+                    restoreOpenCouncilDetails(contentDiv, getOpenCouncilDetailKeys(contentDiv));
+                } else if (responseRenderedInRealtime) {
                     renderIncrementalResponse(contentDiv, fullResponse, { final: true, preserveCouncilDetails: Boolean(finalAiMessage.council) });
                 } else {
-                    await playbackTypewriterResponse(contentDiv, fullResponse, abortController.signal, Boolean(finalAiMessage.council));
+                    await playbackStreamingMarkdownResponse(contentDiv, fullResponse, abortController.signal, Boolean(finalAiMessage.council));
                 }
 
 
