@@ -3330,7 +3330,7 @@ body.custom-wallpaper-active .input-indicator-item {
 
 .prose details.council-collapse[open] > summary {
     position: sticky;
-    top: 0.5rem;
+    top: 0;
     z-index: 30;
     margin: -0.9rem -1rem 0.85rem;
     padding: 0.85rem 1rem;

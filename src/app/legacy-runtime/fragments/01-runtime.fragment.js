@@ -1914,13 +1914,25 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
 async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, options = {}) {
     let textQueue = '';
     let isFrameRequested = false;
-    const renderer = createStreamingMarkdownRenderer(targetElement, options);
+    let streamError = null;
+    let renderer = null;
+    if (options.placeholderHTML) {
+        targetElement.innerHTML = options.placeholderHTML;
+        targetElement.classList.remove('typing-cursor');
+        targetElement.classList.add('is-streaming-response');
+    }
+    const ensureRenderer = () => {
+        if (!renderer) {
+            renderer = createStreamingMarkdownRenderer(targetElement, options);
+        }
+        return renderer;
+    };
 
     const renderFrame = () => {
         if (textQueue.length > 0) {
             const chunkToRender = textQueue;
             textQueue = '';
-            renderer.appendText(chunkToRender);
+            ensureRenderer().appendText(chunkToRender);
         }
         isFrameRequested = false;
     };
@@ -1937,9 +1949,12 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
         await streamApiCallFn(onChunkReceived);
     } catch (error) {
         console.error("Stream API call failed:", error);
-        targetElement.classList.remove('is-streaming-response');
-        targetElement.innerHTML = renderMarkdown(`?望?嚗?隤歹?${error.message}`);
-        throw error;
+        streamError = error;
+        if (error.name !== 'AbortError' && !signal?.aborted) {
+            targetElement.classList.remove('is-streaming-response');
+            targetElement.innerHTML = renderMarkdown(`?望?嚗?隤歹?${error.message}`);
+            throw error;
+        }
     } finally {
         while (isFrameRequested || textQueue.length > 0) {
             if (!isFrameRequested) {
@@ -1948,10 +1963,18 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
             }
             await new Promise(resolve => setTimeout(resolve, 16));
         }
-        renderer.finish({ renderFormulas: true });
+        if (renderer) {
+            renderer.finish({ renderFormulas: true });
+        } else {
+            targetElement.classList.remove('is-streaming-response');
+            targetElement.dataset.streamRendered = 'true';
+            if (!streamError || streamError.name === 'AbortError' || signal?.aborted) {
+                targetElement.innerHTML = '';
+            }
+        }
     }
 
-    return renderer.getText();
+    return renderer?.getText() || '';
 }
 
 const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
@@ -2056,6 +2079,7 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
                     renderInputIndicators();
                     let latestCouncilProgress = null;
                     const renderCouncilProgressState = (progressState) => {
+                        if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
                         latestCouncilProgress = progressState;
                         contentDiv.innerHTML = renderCouncilProgress(progressState);
                     };
@@ -2094,7 +2118,12 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
                     clearInterval(councilProgressTimer);
                     councilProgressTimer = null;
                     fullResponse = councilResult.text;
-                    if (realtimeCouncilRenderer) {
+                    if (getOutputMode() === 'realtime') {
+                        if (!realtimeCouncilRenderer) {
+                            contentDiv.innerHTML = '';
+                            realtimeCouncilRenderer = createStreamingMarkdownRenderer(contentDiv, { preserveCouncilDetails: true });
+                            responseRenderedInRealtime = true;
+                        }
                         const remainingCouncilText = fullResponse.slice(realtimeCouncilText.length);
                         if (remainingCouncilText) {
                             realtimeCouncilRenderer.appendText(remainingCouncilText);
@@ -2167,7 +2196,15 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
                             clearInterval(singleProgressTimer);
                             singleProgressTimer = null;
                         }
-                        fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal);
+                        const realtimeProgress = {
+                            ...latestSingleProgress,
+                            stage: 'streaming',
+                            message: config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering',
+                            elapsedMs: Date.now() - startedAt
+                        };
+                        fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal, {
+                            placeholderHTML: renderSingleModelProgress(realtimeProgress)
+                        });
                         responseRenderedInRealtime = true;
                     } else {
                         if (!singleProgressTimer) {
