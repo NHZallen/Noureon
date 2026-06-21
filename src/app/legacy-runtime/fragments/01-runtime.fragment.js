@@ -457,24 +457,27 @@
                 });
             }
             if (isCouncilEnabled(conv)) {
-                const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
+                const { council } = getCouncilSelectedModels(conv);
                 const texts = getCouncilTexts();
                 const validation = getCouncilValidation(conv);
-                const participantSummary = formatCouncilModelSummary(participants, 2);
+                const councilModeLabel = getCouncilModeLabel(council);
                 activeIndicators.set('model-council-indicator', {
                     id: 'model-council-indicator',
                     html: `
                         <span class="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                            <span>${texts.title} · ${council.mode === 'deliberation' ? texts.deliberation : texts.consensus} · ${escapeHTML(participantSummary || `${participants.length}/${COUNCIL_MAX_MODELS}`)}${synthesizer ? ` → ${escapeHTML(synthesizer.name)}` : ''}</span>
+                            <span>${escapeHTML(councilModeLabel)}</span>
                         </span>
                         <button id="close-model-council-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${escapeHTML(validation.message || texts.title)}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                     `,
-                    eventListener: (el) => el.querySelector('#close-model-council-btn-input').addEventListener('click', async () => {
+                    eventListener: (el) => el.querySelector('#close-model-council-btn-input').addEventListener('click', async (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
                         conv.council.enabled = false;
                         await persistCouncilConfig(conv);
+                        renderInputIndicators();
                     })
                 });
             }
@@ -693,6 +696,13 @@
                 updateApiKeyWarningBadge();
             }
         };
+        const getCouncilModeLabel = (council = {}) => {
+            const texts = getCouncilTexts();
+            const modeLabel = council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
+            if (config.uiLanguage === 'en') return `Council ${modeLabel}`;
+            if (config.uiLanguage === 'fr') return `Conseil ${modeLabel}`;
+            return `理事會${modeLabel}`;
+        };
         const getCouncilModelList = (conv) => {
             const visibleModels = getVisibleCouncilModels();
             const selectedIds = new Set([
@@ -719,7 +729,7 @@
                 provider: existingPopover?.querySelector('[data-council-filter="provider"]')?.value || 'all',
                 ability: existingPopover?.querySelector('[data-council-filter="ability"]')?.value || 'all',
                 price: existingPopover?.querySelector('[data-council-filter="price"]')?.value || 'all',
-                sort: existingPopover?.querySelector('[data-council-filter="sort"]')?.value || 'name'
+                sort: existingPopover?.querySelector('[data-council-filter="sort"]')?.value || 'priceLow'
             };
             if (!container) {
                 container = document.createElement('div');
@@ -765,9 +775,9 @@
             const freeLabel = config.uiLanguage === 'en' ? 'Free' : '免費';
             const paidLabel = config.uiLanguage === 'en' ? 'Paid' : '付費';
             const providerCountLabel = config.uiLanguage === 'en' ? 'providers' : '供應商';
-            const sortNameLabel = config.uiLanguage === 'en' ? 'Name' : '名稱';
             const sortProviderLabel = config.uiLanguage === 'en' ? 'Provider count' : '供應商數';
-            const sortPriceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
+            const sortPriceLowLabel = config.uiLanguage === 'en' ? 'Price: low to high' : '價格由低到高';
+            const sortPriceHighLabel = config.uiLanguage === 'en' ? 'Price: high to low' : '價格由高到低';
             const sortCapabilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
             const makeModelTooltip = (model) => {
                 const abilities = [
@@ -836,7 +846,11 @@
                     if (previousFilters.sort === 'provider') {
                         return b.variants.length - a.variants.length || a.name.localeCompare(b.name);
                     }
-                    if (previousFilters.sort === 'price') {
+                    if (previousFilters.sort === 'priceHigh') {
+                        const priceCompare = Math.max(...b.variants.map(getModelPriceRank)) - Math.max(...a.variants.map(getModelPriceRank));
+                        return priceCompare || a.name.localeCompare(b.name);
+                    }
+                    if (previousFilters.sort === 'priceLow') {
                         const priceCompare = Math.min(...a.variants.map(getModelPriceRank)) - Math.min(...b.variants.map(getModelPriceRank));
                         return priceCompare || a.name.localeCompare(b.name);
                     }
@@ -853,8 +867,9 @@
                 const maxed = isParticipant && !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
                 const disabled = isLocked || maxed;
                 const tooltip = makeModelTooltip(model);
+                const searchText = `${model.name} ${getProviderLabel(model.provider)} ${getModelApiId(model)}`.toLowerCase();
                 return `
-                    <label class="council-model-row ${selected ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}">
+                    <label class="council-model-row ${selected ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}" data-council-search-text="${escapeHTML(searchText)}">
                         <input type="${isParticipant ? 'checkbox' : 'radio'}" ${isParticipant ? '' : 'name="council-synthesizer"'} ${isParticipant ? `data-council-participant="${escapeHTML(model.id)}"` : `data-council-synthesizer="${escapeHTML(model.id)}"`} ${selected ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
                         <span>
                             <strong>${escapeHTML(model.name)}</strong>
@@ -864,23 +879,26 @@
                 `;
             };
             const renderCouncilModelGroups = (type) => modelGroups.map(group => {
-                if (group.variants.length === 1) {
-                    return renderSelectableCouncilModelRow(group.variants[0], type);
-                }
                 const providerNames = group.variants.map(model => getProviderLabel(model.provider)).join(' · ');
+                const groupSearchText = `${group.name} ${providerNames}`.toLowerCase();
+                const shouldOpenGroup = Boolean(previousFilters.search.trim()) || group.variants.some(model => (
+                    type === 'participant'
+                        ? conv.council.participantModelIds.includes(model.id)
+                        : conv.council.synthesizerModelId === model.id
+                ));
                 return `
-                    <div class="council-model-group">
-                        <div class="council-model-family-row">
+                    <details class="council-model-group" data-council-group-search-text="${escapeHTML(groupSearchText)}" ${shouldOpenGroup ? 'open' : ''}>
+                        <summary class="council-model-family-row">
                             <span>
                                 <strong>${escapeHTML(group.name)}</strong>
                                 <small>${escapeHTML(String(group.variants.length))} ${escapeHTML(providerCountLabel)}</small>
                             </span>
                             <span class="council-family-provider-list">${escapeHTML(providerNames)}</span>
-                        </div>
+                        </summary>
                         <div class="council-provider-variant-list">
                             ${group.variants.map(model => renderSelectableCouncilModelRow(model, type)).join('')}
                         </div>
-                    </div>
+                    </details>
                 `;
             }).join('');
             const modelRows = renderCouncilModelGroups('participant');
@@ -906,9 +924,9 @@
                         <option value="paid" ${previousFilters.price === 'paid' ? 'selected' : ''}>${escapeHTML(paidLabel)}</option>
                     </select>
                     <select data-council-filter="sort">
-                        <option value="name" ${previousFilters.sort === 'name' ? 'selected' : ''}>${escapeHTML(sortNameLabel)}</option>
                         <option value="provider" ${previousFilters.sort === 'provider' ? 'selected' : ''}>${escapeHTML(sortProviderLabel)}</option>
-                        <option value="price" ${previousFilters.sort === 'price' ? 'selected' : ''}>${escapeHTML(sortPriceLabel)}</option>
+                        <option value="priceLow" ${previousFilters.sort === 'priceLow' ? 'selected' : ''}>${escapeHTML(sortPriceLowLabel)}</option>
+                        <option value="priceHigh" ${previousFilters.sort === 'priceHigh' ? 'selected' : ''}>${escapeHTML(sortPriceHighLabel)}</option>
                         <option value="capability" ${previousFilters.sort === 'capability' ? 'selected' : ''}>${escapeHTML(sortCapabilityLabel)}</option>
                     </select>
                 </div>
@@ -969,6 +987,20 @@
             `;
             const popover = container.querySelector('#model-council-popover');
             const toggleButton = container.querySelector('#model-council-toggle-btn');
+            const applyCouncilSearchFilter = () => {
+                const query = (container.querySelector('[data-council-filter="search"]')?.value || '').trim().toLowerCase();
+                container.querySelectorAll('.council-model-group').forEach(group => {
+                    let visibleCount = 0;
+                    group.querySelectorAll('.council-model-row').forEach(row => {
+                        const haystack = `${group.dataset.councilGroupSearchText || ''} ${row.dataset.councilSearchText || ''}`;
+                        const isVisible = !query || haystack.includes(query);
+                        row.hidden = !isVisible;
+                        if (isVisible) visibleCount += 1;
+                    });
+                    group.hidden = visibleCount === 0;
+                    if (query && visibleCount > 0) group.open = true;
+                });
+            };
             if (wasVisible) {
                 requestAnimationFrame(() => {
                     popover.scrollTop = previousScrollTop;
@@ -994,9 +1026,14 @@
             container.querySelectorAll('[data-council-filter]').forEach(control => {
                 const eventName = control.tagName === 'INPUT' ? 'input' : 'change';
                 control.addEventListener(eventName, () => {
+                    if (control.tagName === 'INPUT') {
+                        applyCouncilSearchFilter();
+                        return;
+                    }
                     renderCouncilControls();
                 });
             });
+            applyCouncilSearchFilter();
             container.querySelector('#model-council-enabled').addEventListener('change', async (event) => {
                 if (isCouncilRunning) {
                     showNotification(runtimeTexts.councilLocked, 'warning');
@@ -1242,15 +1279,15 @@
     const translations = i18n[config.uiLanguage] || i18n['zh-TW'];
 
     if (isCouncilEnabled(conv)) {
-        const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
+        const { council } = getCouncilSelectedModels(conv);
         const texts = getCouncilTexts();
-        const participantSummary = formatCouncilModelSummary(participants, 3);
+        const councilModeLabel = getCouncilModeLabel(council);
         ALL_ELEMENTS.modelSwitcherContainer.innerHTML = `
             <button id="current-model-btn" class="model-switcher-council-btn flex items-center gap-2 text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] px-2 py-1 md:px-3 rounded-md ${isArchived ? 'cursor-not-allowed' : ''}" ${isArchived ? 'disabled' : ''}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
                 <span class="model-switcher-council-copy">
                     <span class="font-semibold text-sm md:text-base text-[var(--text-primary)]">${texts.title}</span>
-                    <small>${council.mode === 'deliberation' ? texts.deliberation : texts.consensus} · ${escapeHTML(participantSummary)}${synthesizer ? ` → ${escapeHTML(synthesizer.name)}` : ''}</small>
+                    <small>${escapeHTML(councilModeLabel)}</small>
                 </span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
@@ -1901,7 +1938,7 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
     const preserveCouncilDetails = Boolean(options.preserveCouncilDetails);
     const root = document.createElement('div');
     const finalizedNode = document.createElement('div');
-    const currentLineNode = document.createElement('span');
+    const currentLineNode = document.createElement('div');
 
     root.className = 'streaming-markdown-root';
     finalizedNode.className = 'streaming-markdown-finalized';
@@ -1915,7 +1952,10 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
 
     const renderFinalized = (renderFormulas = false) => {
         const openKeys = preserveCouncilDetails ? getOpenCouncilDetailKeys(finalizedNode) : null;
-        const renderText = preserveCouncilDetails ? normalizeCouncilComparisonDetails(finalizedText) : finalizedText;
+        let renderText = preserveCouncilDetails ? normalizeCouncilComparisonDetails(finalizedText) : finalizedText;
+        if (preserveCouncilDetails && hasUnclosedCouncilDetails(renderText)) {
+            renderText += '\n\n</details>';
+        }
         finalizedNode.innerHTML = renderFormulas
             ? renderMarkdownWithFormulas(renderText)
             : renderMarkdown(renderText);
@@ -1924,27 +1964,21 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
 
     const updateCurrentLine = (text = '') => {
         const nextText = String(text || '');
-        if (!nextText) {
-            currentLineNode.textContent = '';
+        const renderText = preserveCouncilDetails && hasUnclosedCouncilDetails(nextText)
+            ? `${nextText}\n\n</details>`
+            : nextText;
+        if (!renderText) {
+            currentLineNode.innerHTML = '';
             currentLineText = '';
             return;
         }
-        if (!nextText.startsWith(currentLineText)) {
-            currentLineNode.textContent = '';
-            currentLineText = '';
-        }
-        const addedText = nextText.slice(currentLineText.length);
-        if (addedText) {
-            const fragment = document.createDocumentFragment();
-            for (const char of addedText) {
-                const span = document.createElement('span');
-                span.className = 'streaming-fade-char';
-                span.textContent = char;
-                fragment.appendChild(span);
-            }
-            currentLineNode.appendChild(fragment);
-        }
-        currentLineText = nextText;
+        const nextHTML = renderMarkdown(renderText);
+        if (nextHTML === currentLineText) return;
+        currentLineNode.innerHTML = nextHTML;
+        currentLineNode.querySelectorAll('p, li, blockquote, pre, table, h1, h2, h3, h4, h5, h6').forEach(node => {
+            node.classList.add('streaming-fade-char');
+        });
+        currentLineText = nextHTML;
     };
 
     const flushPendingLines = (force = false, renderFormulas = false) => {
@@ -1957,16 +1991,11 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
         const previousTop = ALL_ELEMENTS.chatContainer?.scrollTop || 0;
         if (flushIndex >= 0) {
             const flushText = pendingText.slice(0, flushIndex + 1);
-            if (!preserveCouncilDetails || force || !hasUnclosedCouncilDetails(finalizedText + flushText)) {
-                finalizedText += flushText;
-                pendingText = pendingText.slice(flushIndex + 1);
-                renderFinalized(renderFormulas);
-            }
+            finalizedText += flushText;
+            pendingText = pendingText.slice(flushIndex + 1);
+            renderFinalized(renderFormulas);
         }
-        const currentVisibleText = preserveCouncilDetails && hasUnclosedCouncilDetails(finalizedText + pendingText)
-            ? ''
-            : pendingText;
-        updateCurrentLine(currentVisibleText);
+        updateCurrentLine(pendingText);
         keepChatPositionAfterRender(shouldStick, previousTop);
     };
 
@@ -1975,6 +2004,15 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
             if (isFinalized || !chunk) return;
             const text = String(chunk);
             fullText += text;
+            if (preserveCouncilDetails) {
+                const shouldStick = isChatNearBottom();
+                const previousTop = ALL_ELEMENTS.chatContainer?.scrollTop || 0;
+                finalizedText += text;
+                renderFinalized(false);
+                updateCurrentLine('');
+                keepChatPositionAfterRender(shouldStick, previousTop);
+                return;
+            }
             pendingText += text;
             flushPendingLines(false, false);
         },
@@ -2001,6 +2039,7 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
     let isFrameRequested = false;
     let streamError = null;
     let renderer = null;
+    let hasReceivedFirstChunk = false;
     if (options.placeholderHTML) {
         targetElement.innerHTML = options.placeholderHTML;
         targetElement.classList.remove('typing-cursor');
@@ -2023,6 +2062,10 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
     };
 
     const onChunkReceived = (chunk) => {
+        if (!hasReceivedFirstChunk) {
+            hasReceivedFirstChunk = true;
+            options.onFirstChunk?.();
+        }
         textQueue += chunk || '';
         if (!isFrameRequested) {
             isFrameRequested = true;
@@ -2079,6 +2122,14 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
     };
     type();
 });
+
+const appendRendererTextGradually = async (renderer, text = '', signal, chunkSize = 18) => {
+    const source = String(text || '');
+    for (let index = 0; index < source.length && !signal?.aborted; index += chunkSize) {
+        renderer.appendText(source.slice(index, index + chunkSize));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+};
 
 
         const handleFormSubmit = async (e) => {
@@ -2185,6 +2236,7 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
                         realtimeCouncilRenderer?.appendText(chunk || '');
                     };
                     councilProgressTimer = setInterval(() => {
+                        if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
                         if (!latestCouncilProgress) return;
                         const startedAt = latestCouncilProgress.startedAt || Date.now();
                         latestCouncilProgress = {
@@ -2211,7 +2263,7 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
                         }
                         const remainingCouncilText = fullResponse.slice(realtimeCouncilText.length);
                         if (remainingCouncilText) {
-                            realtimeCouncilRenderer.appendText(remainingCouncilText);
+                            await appendRendererTextGradually(realtimeCouncilRenderer, remainingCouncilText, abortController.signal);
                         }
                         realtimeCouncilRenderer.finish({ renderFormulas: true });
                     }
@@ -2287,8 +2339,23 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
                             message: config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering',
                             elapsedMs: Date.now() - startedAt
                         };
+                        latestSingleProgress = realtimeProgress;
+                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
+                        singleProgressTimer = setInterval(() => {
+                            latestSingleProgress = {
+                                ...latestSingleProgress,
+                                elapsedMs: Date.now() - startedAt
+                            };
+                            contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
+                        }, 1000);
                         fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal, {
-                            placeholderHTML: renderSingleModelProgress(realtimeProgress)
+                            placeholderHTML: renderSingleModelProgress(realtimeProgress),
+                            onFirstChunk: () => {
+                                if (singleProgressTimer) {
+                                    clearInterval(singleProgressTimer);
+                                    singleProgressTimer = null;
+                                }
+                            }
                         });
                         responseRenderedInRealtime = true;
                     } else {

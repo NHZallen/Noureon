@@ -1112,20 +1112,47 @@ button:not(.btn-primary):active:not(:disabled) {
 }
 
 .streaming-fade-char {
-    display: inline;
     opacity: 0;
-    animation: streamingFadeIn 0.22s ease-out forwards;
+    animation: streamingFadeIn 0.12s ease-out forwards;
 }
 
 @keyframes streamingFadeIn {
     from {
-        opacity: 0;
-        filter: blur(2px);
+        opacity: 0.35;
+        transform: translateY(1px);
     }
     to {
         opacity: 1;
-        filter: blur(0);
+        transform: translateY(0);
     }
+}
+
+.custom-output-mode-select {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+    padding: 0.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.55rem;
+    background: color-mix(in srgb, var(--input-field-bg) 92%, white);
+}
+
+.custom-output-mode-option {
+    min-height: 2.3rem;
+    padding: 0.42rem 0.55rem;
+    border: 1px solid transparent;
+    border-radius: 0.42rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: center;
+}
+
+.custom-output-mode-option.active {
+    border-color: color-mix(in srgb, var(--accent-color, #3b82f6) 55%, var(--border-color));
+    background: var(--active-bg);
+    color: var(--text-primary);
 }
 
 @keyframes blink {
@@ -2800,12 +2827,40 @@ body.custom-wallpaper-active .input-indicator-item {
     background: color-mix(in srgb, var(--input-field-bg) 72%, transparent);
 }
 
+details.council-model-group > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+details.council-model-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.council-model-group[hidden],
+.council-model-row[hidden] {
+    display: none !important;
+}
+
 .council-model-family-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.55rem;
     min-width: 0;
+}
+
+.council-model-family-row::after {
+    content: '›';
+    flex: 0 0 auto;
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    font-weight: 900;
+    line-height: 1.1;
+    transition: transform 0.16s ease;
+}
+
+details.council-model-group[open] > .council-model-family-row::after {
+    transform: rotate(90deg);
 }
 
 .council-model-family-row strong,

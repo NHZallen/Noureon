@@ -1423,14 +1423,6 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                 row = document.createElement('div');
                 row.id = 'output-mode-setting-row';
                 row.className = 'mt-4';
-                row.innerHTML = `
-                    <label for="output-mode-select" class="block text-sm font-medium mb-1"></label>
-                    <p class="text-xs text-[var(--text-secondary)] mb-2"></p>
-                    <select id="output-mode-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
-                        <option value="typewriter"></option>
-                        <option value="realtime"></option>
-                    </select>
-                `;
                 const anchor = section.querySelector('#auto-web-search-toggle-switch')?.closest('.flex.items-center.justify-between');
                 if (anchor) {
                     anchor.after(row);
@@ -1438,12 +1430,40 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                     section.appendChild(row);
                 }
             }
+            if (!row.querySelector('.custom-output-mode-select')) {
+                row.innerHTML = `
+                    <div id="output-mode-label" class="block text-sm font-medium mb-1"></div>
+                    <p class="text-xs text-[var(--text-secondary)] mb-2"></p>
+                    <input type="hidden" id="output-mode-select" value="${escapeHTML(getOutputMode())}">
+                    <div class="custom-output-mode-select" role="radiogroup" aria-labelledby="output-mode-label">
+                        <button type="button" class="custom-output-mode-option" data-output-mode-option="typewriter" role="radio" aria-checked="false"></button>
+                        <button type="button" class="custom-output-mode-option" data-output-mode-option="realtime" role="radio" aria-checked="false"></button>
+                    </div>
+                `;
+            }
             const text = getOutputModeSettingsText();
-            row.querySelector('label').textContent = text.title;
+            row.querySelector('#output-mode-label').textContent = text.title;
             row.querySelector('p').textContent = text.desc;
-            row.querySelector('option[value="typewriter"]').textContent = text.typewriter;
-            row.querySelector('option[value="realtime"]').textContent = text.realtime;
             ALL_ELEMENTS.outputModeSelect = row.querySelector('#output-mode-select');
+            const syncOutputModeButtons = () => {
+                const value = ALL_ELEMENTS.outputModeSelect?.value === 'realtime' ? 'realtime' : 'typewriter';
+                row.querySelectorAll('[data-output-mode-option]').forEach(button => {
+                    const isActive = button.dataset.outputModeOption === value;
+                    button.classList.toggle('active', isActive);
+                    button.setAttribute('aria-checked', String(isActive));
+                });
+            };
+            row.querySelector('[data-output-mode-option="typewriter"]').textContent = text.typewriter;
+            row.querySelector('[data-output-mode-option="realtime"]').textContent = text.realtime;
+            row.querySelectorAll('[data-output-mode-option]').forEach(button => {
+                if (button.dataset.outputModeBound === 'true') return;
+                button.dataset.outputModeBound = 'true';
+                button.addEventListener('click', () => {
+                    ALL_ELEMENTS.outputModeSelect.value = button.dataset.outputModeOption === 'realtime' ? 'realtime' : 'typewriter';
+                    syncOutputModeButtons();
+                });
+            });
+            syncOutputModeButtons();
         };
         const setupSettingsModal = () => {
             ensureCouncilTranslatorSettingsControls();
@@ -1455,7 +1475,14 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             applyLanguage(config.uiLanguage);
             ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
             ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
-            if (ALL_ELEMENTS.outputModeSelect) ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
+            if (ALL_ELEMENTS.outputModeSelect) {
+                ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
+                document.querySelectorAll('#output-mode-setting-row [data-output-mode-option]').forEach(button => {
+                    const isActive = button.dataset.outputModeOption === ALL_ELEMENTS.outputModeSelect.value;
+                    button.classList.toggle('active', isActive);
+                    button.setAttribute('aria-checked', String(isActive));
+                });
+            }
             ALL_ELEMENTS.memoryToggle1.checked = config.memoryEnabled1;
             ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
             ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;

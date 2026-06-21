@@ -625,6 +625,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     { id: 'nvidia/deepseek-ai/deepseek-v4-pro', apiId: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/deepseek-ai/deepseek-v4-flash', apiId: 'deepseek-ai/deepseek-v4-flash', name: 'NVIDIA DeepSeek V4 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/qwen/qwen3.5-122b-a10b', apiId: 'qwen/qwen3.5-122b-a10b', name: 'NVIDIA Qwen3.5 122B A10B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_122b_a10b_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/mistralai/mistral-medium-3.5-128b', apiId: 'mistralai/mistral-medium-3.5-128b', name: 'NVIDIA Mistral Medium 3.5 128B', provider: 'nvidia', descriptionKey: 'model_nvidia_mistral_medium_3_5_128b_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/minimaxai/minimax-m2.7', apiId: 'minimaxai/minimax-m2.7', name: 'NVIDIA MiniMax M2.7', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m2_7_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/moonshotai/kimi-k2.6', apiId: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.1', apiId: 'z-ai/glm-5.1', name: 'NVIDIA GLM-5.1', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_1_desc', tier: ['free'], category: 'general' },
@@ -1089,8 +1090,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             return mimeType.startsWith('image/') || mimeType.startsWith('video/');
         };
         const getUploadedFileKind = (file) => isVisualUploadedFile(file) ? 'visual' : 'document';
-        const getCouncilVisualFiles = (files = uploadedFiles) => (files || []).filter(isVisualUploadedFile);
-        const getCouncilDocumentFiles = (files = uploadedFiles) => (files || []).filter(file => !isVisualUploadedFile(file));
+        const isUploadedAttachmentLike = (file) => Boolean(file?.inlineData || file?.base64 || file?.type || file?.mimeType);
+        const getCouncilVisualFiles = (files = uploadedFiles) => (files || []).filter(file => isUploadedAttachmentLike(file) && isVisualUploadedFile(file));
+        const getCouncilDocumentFiles = (files = uploadedFiles) => (files || []).filter(file => isUploadedAttachmentLike(file) && !isVisualUploadedFile(file));
         const getCouncilAttachmentTranslationNeed = (models = [], files = uploadedFiles) => {
             const selectedModels = (models || []).filter(Boolean);
             const visualFiles = getCouncilVisualFiles(files);
