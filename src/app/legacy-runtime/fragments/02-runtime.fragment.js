@@ -306,10 +306,6 @@
 
 
                 const plugins = [];
-                const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch && conv.isWebSearchEnabled;
-                if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
-                    plugins.push({ id: 'web' });
-                }
                 if (hasOpenRouterFileAttachment) {
                     plugins.push({
                         id: 'file-parser',
@@ -485,6 +481,49 @@ This packet is system-generated council context, not user-provided material.
 
 Do not answer the user directly. Prepare shared context only.
 `;
+        const buildCouncilSecondSearchPrompt = (parts, firstRoundResults = []) => `
+You are preparing a second web research packet before the Model Council discussion round.
+
+User request:
+${extractTextFromParts(parts)}
+
+First-round council claims to verify:
+${formatCouncilResponses(firstRoundResults).slice(0, 5000)}
+
+Search the web again with attention to claims, disagreements, dated facts, and missing evidence.
+Do not answer the user directly. Prepare only an updated evidence packet for the discussion round.
+`;
+        const buildCouncilSecondSearchQuery = (parts, firstRoundResults = []) => normalizeSearchQuery(`
+${extractTextFromParts(parts)}
+
+Verify these first-round council claims:
+${formatCouncilResponses(firstRoundResults).slice(0, 2500)}
+`);
+        const getSearchPacketFromModel = async (searchModel, promptOrQuery, signal, options = {}) => {
+            if (!searchModel) {
+                throw new Error(config.uiLanguage === 'en' ? 'No search-capable council synthesizer selected.' : '尚未選擇可搜索的理事會統整模型。');
+            }
+            if (modelUsesNativeWebSearch(searchModel)) {
+                return await streamCouncilApiCallWithRetry(
+                    [{ text: promptOrQuery }],
+                    options.onChunk || (() => {}),
+                    signal,
+                    false,
+                    {
+                        modelInfo: searchModel,
+                        historyForApi: [],
+                        forceWebSearch: true,
+                        ignoreConversationWebSearch: true,
+                        additionalSystemInstruction: options.systemInstruction || 'Prepare shared web research context. Do not answer the user directly.',
+                        onRetry: options.onRetry
+                    }
+                );
+            }
+            return await fetchTavilySearchPacket(promptOrQuery, signal, {
+                label: options.label || 'Council web search packet',
+                maxResults: options.maxResults || 6
+            });
+        };
         const buildCouncilRequestParts = (parts, sharedSearchPacket = '') => {
             if (!sharedSearchPacket?.trim()) return parts;
             return [
@@ -642,6 +681,87 @@ Output requirements:
 - Do not invent details that are not in the files.
 - End with a compact "Use notes" section explaining how the target model should use this packet without claiming it is user-written.
 `;
+        const getTavilyApiKey = () => getApiKeyForProvider('tavily');
+        const normalizeSearchQuery = (value = '') => String(value || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 900);
+        const getSearchQueryFromParts = (parts = []) => normalizeSearchQuery(extractTextFromParts(parts));
+        const formatTavilySearchPacket = (data, query, label = 'Web search packet') => {
+            const results = Array.isArray(data?.results) ? data.results : [];
+            const lines = [
+                `# ${label}`,
+                '',
+                `Provider: Tavily`,
+                `Query: ${data?.query || query}`,
+                `Retrieved at: ${new Date().toISOString()}`
+            ];
+            if (data?.answer) {
+                lines.push('', '## Tavily answer', String(data.answer).trim());
+            }
+            if (results.length > 0) {
+                lines.push('', '## Sources');
+                results.slice(0, 8).forEach((result, index) => {
+                    lines.push(
+                        '',
+                        `${index + 1}. ${result.title || 'Untitled source'}`,
+                        `URL: ${result.url || ''}`,
+                        `Content: ${String(result.content || result.raw_content || '').trim().slice(0, 1400) || 'No snippet returned.'}`
+                    );
+                    if (typeof result.score === 'number') {
+                        lines.push(`Score: ${result.score.toFixed(3)}`);
+                    }
+                });
+            } else {
+                lines.push('', 'No Tavily results were returned.');
+            }
+            lines.push(
+                '',
+                'Use this as system-generated web context. Do not say or imply that the user wrote this packet. Prefer cited URLs from the Sources section when making current factual claims.'
+            );
+            return lines.join('\n');
+        };
+        const fetchTavilySearchPacket = async (querySource, signal, options = {}) => {
+            const apiKey = getTavilyApiKey();
+            if (!apiKey) {
+                throw new Error(config.uiLanguage === 'en'
+                    ? 'Tavily API key is required for OpenRouter/NVIDIA search. Add it in Settings.'
+                    : 'OpenRouter/NVIDIA 搜索需要 Tavily API 金鑰，請先到設定頁新增。');
+            }
+            const query = normalizeSearchQuery(Array.isArray(querySource)
+                ? getSearchQueryFromParts(querySource)
+                : querySource);
+            if (!query) {
+                throw new Error(config.uiLanguage === 'en' ? 'No searchable text found.' : '找不到可用的搜索文字。');
+            }
+            const response = await fetch('/api/tavily-search', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query,
+                    search_depth: 'basic',
+                    max_results: options.maxResults || 6,
+                    include_answer: false,
+                    include_raw_content: false,
+                    include_images: false,
+                    include_usage: true,
+                    topic: options.topic || 'general'
+                }),
+                signal
+            });
+            if (!response.ok) {
+                const errorBody = await readErrorBody(response);
+                throw new Error(getErrorMessage(errorBody, `Tavily HTTP ${response.status}`));
+            }
+            const data = await response.json();
+            return formatTavilySearchPacket(data, query, options.label || 'Web search packet');
+        };
+        const buildTavilyContextPart = (searchPacket, modelName = '') => ({
+            text: `# System-generated web search context\n${modelName ? `Target model: ${modelName}\n` : ''}This context was retrieved with Tavily. It is not user-written. Use it as current web evidence and cite source URLs when relevant.\n\n${truncateCouncilText(searchPacket, 7000)}\n\n# User request follows`
+        });
         const buildSingleSearchTranslationPrompt = (parts, targetModel) => `
 You are the single-model search translator for Astranos Chat.
 
@@ -693,33 +813,18 @@ Output requirements:
                 translatedSections.push(`# Document translation packet\nThis packet was generated by ${translatorModel.name} for ${modelInfo.name}. It replaces only files the target model cannot read directly.\n\n${truncateCouncilText(documentPacket, 7000)}`);
             }
             const conv = getActiveConversation();
-            if (conv?.isWebSearchEnabled && !modelSupportsWebSearch(modelInfo)) {
-                const translatorModel = getSingleSearchTranslatorModel();
-                if (!translatorModel) {
-                    throw new Error(config.uiLanguage === 'en'
-                        ? 'This model needs a search translator model in Settings.'
-                        : '此模型需要先在設定中指定搜索轉譯模型。');
-                }
-                onProgress?.('searchTranslation', `搜索轉譯：${translatorModel.name}`);
-                const searchPacket = await streamCouncilApiCallWithRetry(
-                    [{ text: buildSingleSearchTranslationPrompt(parts, modelInfo) }],
-                    () => onProgress?.('searchTranslation', `搜索轉譯：${translatorModel.name}`),
-                    signal,
-                    false,
-                    {
-                        modelInfo: translatorModel,
-                        historyForApi: [],
-                        forceWebSearch: true,
-                        ignoreConversationWebSearch: true,
-                        additionalSystemInstruction: 'Prepare a detailed web research packet for another model. Do not answer the user directly.',
-                    }
-                );
-                translatedSections.push(`# Search translation packet\nThis packet was generated by ${translatorModel.name} for ${modelInfo.name}. It replaces web search for a target model without native search.\n\n${truncateCouncilText(searchPacket, 7000)}`);
+            if (conv?.isWebSearchEnabled && modelUsesTavilySearch(modelInfo)) {
+                onProgress?.('searchTranslation', config.uiLanguage === 'en' ? 'Searching with Tavily' : '正在使用 Tavily 搜索');
+                const searchPacket = await fetchTavilySearchPacket(parts, signal, {
+                    label: 'Single-model web search packet'
+                });
+                translatedSections.push(`# Web search packet\nThis packet was retrieved with Tavily for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, 7000)}`);
             }
+
             const requestParts = [];
             if (translatedSections.length > 0) {
                 requestParts.push({
-                    text: `# System-generated translation context\nUse the following packets as supporting context. They were generated by configured translator models and are not user-written. Continue to answer the user's request directly after reading them.\n\n${translatedSections.join('\n\n')}\n\n# User request follows`
+                    text: `# System-generated supporting context\nUse the following packets as supporting context. They are not user-written. Continue to answer the user's request directly after reading them.\n\n${translatedSections.join('\n\n')}\n\n# User request follows`
                 });
             }
             requestParts.push(...filterPartsForModelCapability(parts, modelInfo));
@@ -890,32 +995,28 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
             if (searchState) {
                 const sharedSearchModel = getCouncilSharedSearchModel(synthesizer);
                 searchState.status = 'running';
-                searchState.detail = sharedSearchModel && sharedSearchModel.id !== synthesizer.id
-                    ? `${runtimeTexts.searchRunning}: ${sharedSearchModel.name}`
-                    : runtimeTexts.searchRunning;
+                searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || 'Tavily'}`;
                 progress('search', searchState.detail);
                 try {
                     const searchStreamTracker = createCouncilStageTracker('search', () => runtimeTexts.searchRunning);
-                    sharedSearchPacket = await streamCouncilApiCallWithRetry(
-                        [{ text: buildCouncilSharedSearchPrompt(parts) }],
-                        () => {
-                            searchState.detail = runtimeTexts.running;
-                            searchStreamTracker();
-                        },
+                    sharedSearchPacket = await getSearchPacketFromModel(
+                        sharedSearchModel,
+                        modelUsesNativeWebSearch(sharedSearchModel) ? buildCouncilSharedSearchPrompt(parts) : getSearchQueryFromParts(parts),
                         signal,
-                        false,
                         {
-                            modelInfo: sharedSearchModel || synthesizer,
-                            historyForApi: [],
-                            forceWebSearch: true,
-                            ignoreConversationWebSearch: true,
-                            additionalSystemInstruction: 'Prepare shared web research context for the council. Do not answer the user directly.',
+                            label: 'Shared council web search packet',
+                            systemInstruction: 'Prepare shared web research context for the council. Do not answer the user directly.',
+                            onChunk: () => {
+                                searchState.detail = runtimeTexts.running;
+                                searchStreamTracker();
+                            },
                             onRetry: () => {
                                 searchState.detail = runtimeTexts.retrying;
-                                progress('search', `${runtimeTexts.searchRunning} · ${runtimeTexts.retrying}`);
+                                progress('search', `${runtimeTexts.searchRunning} 繚 ${runtimeTexts.retrying}`);
                             }
                         }
                     );
+
                     searchState.status = 'done';
                     searchState.detail = runtimeTexts.searchDone;
                     progress('search', runtimeTexts.searchDone);
@@ -990,8 +1091,49 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                 throw new Error(`${texts.title}: all participant models failed after one retry.${failureSummary ? ` ${failureSummary}` : ''}`);
             }
 
+            let secondSearchPacket = '';
+            let combinedSearchPacket = sharedSearchPacket;
             let finalRoundResults = firstRoundResults;
             if (mode === 'deliberation' && firstRoundResults.length > 1) {
+                if (searchState) {
+                    const sharedSearchModel = getCouncilSharedSearchModel(synthesizer);
+                    searchState.status = 'running';
+                    searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || 'Tavily'} (discussion)`;
+                    progress('search', searchState.detail);
+                    try {
+                        const searchStreamTracker = createCouncilStageTracker('search', () => searchState.detail);
+                        secondSearchPacket = await getSearchPacketFromModel(
+                            sharedSearchModel,
+                            modelUsesNativeWebSearch(sharedSearchModel)
+                                ? buildCouncilSecondSearchPrompt(parts, firstRoundResults)
+                                : buildCouncilSecondSearchQuery(parts, firstRoundResults),
+                            signal,
+                            {
+                                label: 'Second council discussion web search packet',
+                                systemInstruction: 'Prepare updated web research context before the council discussion round. Do not answer the user directly.',
+                                onChunk: () => {
+                                    searchState.detail = runtimeTexts.running;
+                                    searchStreamTracker();
+                                },
+                                onRetry: () => {
+                                    searchState.detail = runtimeTexts.retrying;
+                                    progress('search', `${runtimeTexts.searchRunning} 繚 ${runtimeTexts.retrying}`);
+                                }
+                            }
+                        );
+                        combinedSearchPacket = [sharedSearchPacket, secondSearchPacket]
+                            .filter(text => text?.trim())
+                            .map((text, index) => `# Council search packet ${index + 1}\n${text}`)
+                            .join('\n\n---\n\n');
+                        searchState.status = 'done';
+                        searchState.detail = runtimeTexts.searchDone;
+                        progress('search', runtimeTexts.searchDone);
+                    } catch (error) {
+                        searchState.status = 'failed';
+                        searchState.detail = `${runtimeTexts.searchFailed}: ${error.message}`;
+                        progress('search', searchState.detail);
+                    }
+                }
                 progress('deliberation', runtimeTexts.deliberation);
                 const secondRoundSettled = await Promise.allSettled(firstRoundResults.map(async (result) => {
                     const modelInfo = MODELS.find(model => model.id === result.modelId);
@@ -1003,7 +1145,7 @@ ${failures.length ? `# 未完成模型\n${failures.map(item => `- ${item.modelNa
                     }
                     const text = await streamCouncilApiCallWithRetry(
                         [{
-                            text: `${buildCouncilDeliberationPrompt(parts, sharedSearchPacket, firstRoundResults, result.modelName)}
+                            text: `${buildCouncilDeliberationPrompt(parts, combinedSearchPacket, firstRoundResults, result.modelName)}
 
 Important anti-conformity rule:
 Do not change your judgment merely because most other models disagree. Only revise your position when another model provides clear evidence or stronger reasoning. If you keep a minority view, state the reason clearly.`
@@ -1050,7 +1192,7 @@ Do not change your judgment merely because most other models disagree. Only revi
             }
 
             progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name}`);
-            const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, sharedSearchPacket, firstRoundResults, finalRoundResults, failures, mode);
+            const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, combinedSearchPacket, firstRoundResults, finalRoundResults, failures, mode);
             const synthesisParts = buildCouncilSynthesisPartsForModel(synthesisPrompt, parts, attachmentTranslation, synthesizer);
             const synthesisInstruction = `You are the council synthesizer.
 Before output, internally compare the core claims from each model using these criteria: correctness, completeness, actionability, fit to the user's question, risk disclosure, and whether a claim is unverified.
@@ -1095,6 +1237,7 @@ Avoid overly brief answers: the final response should be complete enough for the
                     skippedParticipantModelIds: skippedParticipants.map(model => model.id),
                     synthesizerModelId: synthesizer.id,
                     sharedSearchPacket: sharedSearchPacket || null,
+                    secondSearchPacket: secondSearchPacket || null,
                     attachmentTranslation,
                     showComparisonTable: council.showComparisonTable,
                     firstRoundResults,
@@ -1238,7 +1381,10 @@ Avoid overly brief answers: the final response should be complete enough for the
             const modelInfo = normalizeConversationModel(conv);
             const provider = modelInfo?.provider;
             const councilValidation = getCouncilValidation(conv);
-            const hasApiKey = isCouncilEnabled(conv) ? councilValidation.reason !== 'missingApiKey' : !!getApiKeyForProvider(provider);
+            const hasTavilyKey = !conversationNeedsTavilySearch(conv) || !!getApiKeyForProvider('tavily');
+            const hasApiKey = isCouncilEnabled(conv)
+                ? councilValidation.reason !== 'missingApiKey'
+                : (!!getApiKeyForProvider(provider) && hasTavilyKey);
             ALL_ELEMENTS.messageInput.disabled = !hasApiKey;
             ALL_ELEMENTS.messageInput.placeholder = hasApiKey
                 ? (isCouncilEnabled(conv) && !councilValidation.ok ? councilValidation.message : i18n[config.uiLanguage].enterMessagePlaceholder)
@@ -1263,8 +1409,13 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                             <input type="password" id="nvidia-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="nvapi-..." data-lang-key-placeholder="nvidiaApiPlaceholder">
                         </div>
                         <div>
-                            <label for="council-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="councilTranslatorModel">Council translator model</label>
-                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="councilTranslatorModelDesc">Translates attachments or council search results into shared packets.</p>
+                            <label for="tavily-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="tavilyApiKey">Tavily API Key</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="tavilyApiDesc">Used for OpenRouter and NVIDIA web search.</p>
+                            <input type="password" id="tavily-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="tvly-..." data-lang-key-placeholder="tavilyApiPlaceholder">
+                        </div>
+                        <div>
+                            <label for="council-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="councilTranslatorModel">Council document translation</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="councilTranslatorModelDesc">Only translates attachments or documents that council members cannot read directly.</p>
                             <input type="hidden" id="council-translator-model-select">
                             <div class="translator-model-picker" data-translator-picker="councilTranslatorModelId"></div>
                         </div>
@@ -1274,19 +1425,27 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                             <input type="hidden" id="single-document-translator-model-select">
                             <div class="translator-model-picker" data-translator-picker="singleDocumentTranslatorModelId"></div>
                         </div>
+                        
+                    `);
+                }
+            }
+            if (!document.getElementById('tavily-api-key-input')) {
+                const nvidiaInput = document.getElementById('nvidia-api-key-input');
+                const nvidiaBlock = nvidiaInput?.closest('div');
+                if (nvidiaBlock) {
+                    nvidiaBlock.insertAdjacentHTML('afterend', `
                         <div>
-                            <label for="single-search-translator-model-select" class="block text-sm font-medium mb-1" data-lang-key="singleSearchTranslatorModel">單模型搜索轉譯模型</label>
-                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="singleSearchTranslatorModelDesc">提供給不支援搜索的單一模型，先整理一份詳細搜索脈絡。</p>
-                            <input type="hidden" id="single-search-translator-model-select">
-                            <div class="translator-model-picker" data-translator-picker="singleSearchTranslatorModelId"></div>
+                            <label for="tavily-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="tavilyApiKey">Tavily API Key</label>
+                            <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="tavilyApiDesc">Used for OpenRouter and NVIDIA web search.</p>
+                            <input type="password" id="tavily-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="tvly-..." data-lang-key-placeholder="tavilyApiPlaceholder">
                         </div>
                     `);
                 }
             }
             ALL_ELEMENTS.nvidiaApiKeyInput = document.getElementById('nvidia-api-key-input');
+            ALL_ELEMENTS.tavilyApiKeyInput = document.getElementById('tavily-api-key-input');
             ALL_ELEMENTS.councilTranslatorModelSelect = document.getElementById('council-translator-model-select');
             ALL_ELEMENTS.singleDocumentTranslatorModelSelect = document.getElementById('single-document-translator-model-select');
-            ALL_ELEMENTS.singleSearchTranslatorModelSelect = document.getElementById('single-search-translator-model-select');
         };
         const renderTranslatorModelPicker = ({ input, pickerKey, configKey, candidates, emptyText }) => {
             const picker = document.querySelector(`[data-translator-picker="${pickerKey}"]`);
@@ -1311,8 +1470,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             const selectedModel = candidates.find(model => model.id === config[configKey]) || candidates[0];
             const featureLabels = (model) => [
                 modelSupportsVision(model) ? (translations.vision || '視覺') : '',
-                modelSupportsDocumentUpload(model) ? (translations.document || '文件') : '',
-                modelSupportsWebSearch(model) ? (translations.search || '搜索') : ''
+                modelSupportsDocumentUpload(model) ? (translations.document || '文件') : ''
             ].filter(Boolean);
             const optionHTML = candidates.map(model => {
                 const selected = model.id === selectedModel.id;
@@ -1375,13 +1533,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
                 candidates: getSingleTranslatorCandidates(),
                 emptyText: translations.noSingleTranslatorModels || '沒有可用的單模型轉譯模型'
             });
-            renderTranslatorModelPicker({
-                input: ALL_ELEMENTS.singleSearchTranslatorModelSelect,
-                pickerKey: 'singleSearchTranslatorModelId',
-                configKey: 'singleSearchTranslatorModelId',
-                candidates: getSingleTranslatorCandidates(),
-                emptyText: translations.noSingleTranslatorModels || '沒有可用的單模型轉譯模型'
-            });
+
             if (!document.__translatorPickerOutsideHandlerBound) {
                 document.__translatorPickerOutsideHandlerBound = true;
                 document.addEventListener('click', (event) => {
@@ -1471,6 +1623,7 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             ALL_ELEMENTS.geminiApiKeyInput.value = getApiKeyForProvider('gemini');
             ALL_ELEMENTS.openrouterApiKeyInputAll.value = getApiKeyForProvider('openrouter');
             if (ALL_ELEMENTS.nvidiaApiKeyInput) ALL_ELEMENTS.nvidiaApiKeyInput.value = getApiKeyForProvider('nvidia');
+            if (ALL_ELEMENTS.tavilyApiKeyInput) ALL_ELEMENTS.tavilyApiKeyInput.value = getApiKeyForProvider('tavily');
             renderTranslatorModelPickers();
             applyLanguage(config.uiLanguage);
             ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
@@ -1524,9 +1677,9 @@ submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24"
             config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
             config.apiKeys.nvidia = ALL_ELEMENTS.nvidiaApiKeyInput?.value.trim() || '';
+            config.apiKeys.tavily = ALL_ELEMENTS.tavilyApiKeyInput?.value.trim() || '';
             config.councilTranslatorModelId = ALL_ELEMENTS.councilTranslatorModelSelect?.value || null;
             config.singleDocumentTranslatorModelId = ALL_ELEMENTS.singleDocumentTranslatorModelSelect?.value || null;
-            config.singleSearchTranslatorModelId = ALL_ELEMENTS.singleSearchTranslatorModelSelect?.value || null;
             config.enableAutoWebSearch = ALL_ELEMENTS.autoWebSearchToggleSwitch.checked;
             config.outputMode = ALL_ELEMENTS.outputModeSelect?.value === 'realtime' ? 'realtime' : 'typewriter';
             config.aiBubbleColor = ALL_ELEMENTS.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default';

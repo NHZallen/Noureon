@@ -166,9 +166,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             geminiApiKeyInput: document.getElementById('gemini-api-key-input'),
             openrouterApiKeyInputAll: document.getElementById('openrouter-api-key-input-all'),
             nvidiaApiKeyInput: document.getElementById('nvidia-api-key-input'),
+            tavilyApiKeyInput: document.getElementById('tavily-api-key-input'),
             councilTranslatorModelSelect: document.getElementById('council-translator-model-select'),
             singleDocumentTranslatorModelSelect: document.getElementById('single-document-translator-model-select'),
-            singleSearchTranslatorModelSelect: document.getElementById('single-search-translator-model-select'),
             modelManagementList: document.getElementById('model-management-list'),
             openArchivedModalBtn: document.getElementById('open-archived-modal-btn'),
             themeLightBtn: document.getElementById('theme-light-btn'),
@@ -813,7 +813,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let personalMemories = [];
         let activeConversationId = null;
         let config = {
-            apiKeys: { gemini: '', openrouter: '', nvidia: '' },
+            apiKeys: { gemini: '', openrouter: '', nvidia: '', tavily: '' },
             defaultModel: MODELS[0].id,
             theme: 'light',
             modelSettings: [],
@@ -850,7 +850,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             },
             councilTranslatorModelId: null,
             singleDocumentTranslatorModelId: null,
-            singleSearchTranslatorModelId: null,
         };
         const getCouncilTexts = () => COUNCIL_TEXT[config.uiLanguage] || COUNCIL_TEXT['zh-TW'];
         const getDefaultCouncilConfig = () => ({
@@ -914,6 +913,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             if (provider === 'gemini') return 'Gemini';
             if (provider === 'openrouter') return 'OpenRouter';
             if (provider === 'nvidia') return 'NVIDIA';
+            if (provider === 'tavily') return 'Tavily';
             return provider || '';
         };
         const getModelFamilyKey = (model) => {
@@ -963,22 +963,22 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             if (candidates.length === 0) return null;
             return candidates.find(model => model.id === config.singleDocumentTranslatorModelId) || candidates[0];
         };
-        const getSingleSearchTranslatorModel = () => {
-            const candidates = getSingleTranslatorCandidates();
-            if (candidates.length === 0) return null;
-            return candidates.find(model => model.id === config.singleSearchTranslatorModelId) || candidates[0];
-        };
-        const modelSupportsWebSearch = (model) => Boolean(model && (model.provider === 'gemini' || model.provider === 'openrouter'));
+        const modelUsesNativeWebSearch = (model) => Boolean(model && model.provider === 'gemini');
+        const modelUsesTavilySearch = (model) => Boolean(model && (model.provider === 'openrouter' || model.provider === 'nvidia'));
+        const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
         const getOutputMode = () => config.outputMode === 'realtime' ? 'realtime' : 'typewriter';
         const hasSingleDocumentAccess = (model) => Boolean(modelSupportsDocumentUpload(model) || getSingleDocumentTranslatorModel());
-        const hasSingleWebSearchAccess = (model) => Boolean(modelSupportsWebSearch(model) || getSingleSearchTranslatorModel());
-        const getCouncilSearchTranslatorModel = () => {
-            const councilTranslator = getCouncilTranslatorModel();
-            if (modelSupportsWebSearch(councilTranslator)) return councilTranslator;
-            return getSingleSearchTranslatorModel();
-        };
-        const getCouncilSharedSearchModel = (synthesizer) => modelSupportsWebSearch(synthesizer) ? synthesizer : getCouncilSearchTranslatorModel();
+        const hasSingleWebSearchAccess = (model) => Boolean(modelSupportsWebSearch(model));
+        const getCouncilSharedSearchModel = (synthesizer) => modelSupportsWebSearch(synthesizer) ? synthesizer : null;
         const hasCouncilWebSearchAccess = (synthesizer) => Boolean(getCouncilSharedSearchModel(synthesizer));
+        const conversationNeedsTavilySearch = (conv) => {
+            if (!conv?.isWebSearchEnabled) return false;
+            if (isCouncilEnabled(conv)) {
+                const { synthesizer } = getCouncilSelectedModels(conv);
+                return modelUsesTavilySearch(synthesizer);
+            }
+            return modelUsesTavilySearch(normalizeConversationModel(conv));
+        };
         const getModelTiers = (model) => {
             if (!model || model.isBeta) return [];
             if (Array.isArray(model.tier)) return model.tier;
@@ -1142,9 +1142,10 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const selectedCouncilModels = [...participants, synthesizer].filter(Boolean);
             const translationNeed = getCouncilAttachmentTranslationNeed(selectedCouncilModels, files);
             const translatorModel = translationNeed.needsAnyPacket ? getCouncilTranslatorModel() : null;
-            const needsSearchTranslator = Boolean(conv?.isWebSearchEnabled && synthesizer && !modelSupportsWebSearch(synthesizer));
-            const searchTranslatorModel = needsSearchTranslator ? getCouncilSearchTranslatorModel() : null;
-            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : []), ...(searchTranslatorModel ? [searchTranslatorModel] : [])]
+            const tavilySearchModel = conv?.isWebSearchEnabled && modelUsesTavilySearch(synthesizer)
+                ? { id: 'tavily-search', name: 'Tavily Search', provider: 'tavily' }
+                : null;
+            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : []), ...(tavilySearchModel ? [tavilySearchModel] : [])]
                 .filter((model, index, arr) => arr.findIndex(item => item.id === model.id) === index)
                 .filter(model => !getApiKeyForProvider(model.provider));
             if (missingKeyModels.length > 0) {
@@ -1163,15 +1164,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                         : '理事會附件需要同時支援視覺與文件上傳的轉譯模型，請先到設定中選擇。'
                 };
             }
-            if (needsSearchTranslator && !searchTranslatorModel) {
-                return {
-                    ok: false,
-                    reason: 'missingCouncilSearchTranslator',
-                    message: config.uiLanguage === 'en'
-                        ? 'Council Search needs a search translator model in Settings.'
-                        : '理事會連網需要在設定中選擇搜索轉譯模型。'
-                };
-            }
+
             if (translationNeed.needsAnyPacket) {
                 return {
                     ok: true,
@@ -1226,6 +1219,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             }
             if (provider === 'nvidia') {
                 return normalizeApiKeyValue(config.apiKeys?.nvidia);
+            }
+            if (provider === 'tavily') {
+                return normalizeApiKeyValue(config.apiKeys?.tavily);
             }
             return '';
         }
@@ -1556,9 +1552,11 @@ function renderMarkdownWithFormulas(text) {
                 const savedConfig = JSON.parse(saved);
                 let openrouterKey = '';
                 let nvidiaKey = '';
+                let tavilyKey = '';
                 if (savedConfig.apiKeys) {
                     openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter);
                     nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia);
+                    tavilyKey = normalizeApiKeyValue(savedConfig.apiKeys.tavily);
                 }
                 const savedOpenrouterKeys = savedConfig.apiKeys?.openrouter || {};
                 const defaultConfig = {
@@ -1568,7 +1566,8 @@ function renderMarkdownWithFormulas(text) {
                         ...config.apiKeys,
                         ...savedConfig.apiKeys,
                         openrouter: openrouterKey,
-                        nvidia: nvidiaKey
+                        nvidia: nvidiaKey,
+                        tavily: tavilyKey
                     },
                     uiTheme: { ...config.uiTheme, ...(savedConfig.uiTheme || {}) }
                 };
@@ -1609,9 +1608,6 @@ function renderMarkdownWithFormulas(text) {
             }
             if (!getSingleTranslatorCandidates().some(model => model.id === config.singleDocumentTranslatorModelId)) {
                 config.singleDocumentTranslatorModelId = getSingleTranslatorCandidates()[0]?.id || null;
-            }
-            if (!getSingleTranslatorCandidates().some(model => model.id === config.singleSearchTranslatorModelId)) {
-                config.singleSearchTranslatorModelId = getSingleTranslatorCandidates()[0]?.id || null;
             }
         };
         const saveAppData = async () => { if (currentUser) await setItem(getAppDataKey(), JSON.stringify({ conversations, folders, astras, personalMemories })); };

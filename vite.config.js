@@ -46,6 +46,11 @@ export default defineConfig({
         target: 'https://integrate.api.nvidia.com',
         changeOrigin: true,
         rewrite: () => '/v1/chat/completions'
+      },
+      '/api/tavily-search': {
+        target: 'https://api.tavily.com',
+        changeOrigin: true,
+        rewrite: () => '/search'
       }
     }
   },

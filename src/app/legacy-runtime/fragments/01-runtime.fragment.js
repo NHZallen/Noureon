@@ -1195,7 +1195,7 @@
             const stageLabels = {
                 preparing: config.uiLanguage === 'en' ? 'Preparing request' : '準備請求',
                 documentTranslation: config.uiLanguage === 'en' ? 'Document translation' : '文件轉譯',
-                searchTranslation: config.uiLanguage === 'en' ? 'Search translation' : '搜索轉譯',
+                searchTranslation: config.uiLanguage === 'en' ? 'Search' : '搜索',
                 streaming: config.uiLanguage === 'en' ? 'Model answering' : '模型作答',
                 completed: config.uiLanguage === 'en' ? 'Completed' : '完成'
             };
@@ -1207,8 +1207,8 @@
                     ? 'A configured translator is turning unsupported documents into a detailed text packet for this turn only.'
                     : '設定的轉譯模型正在把不支援的文件轉成只供本次請求使用的詳細文字包。',
                 searchTranslation: config.uiLanguage === 'en'
-                    ? 'A configured translator is gathering a web research packet for a model without native search.'
-                    : '設定的轉譯模型正在為不支援搜索的模型整理網頁研究包。',
+                    ? 'Gathering a web research packet for this turn.'
+                    : '正在為這次回覆整理搜索包。',
                 streaming: config.uiLanguage === 'en'
                     ? 'The selected model is streaming the final answer.'
                     : '所選模型正在串流輸出最終回答。',
@@ -1371,7 +1371,6 @@
     const modelVisionLabel = config.uiLanguage === 'zh-TW' ? '視覺' : 'Vision';
     const modelDocumentLabel = config.uiLanguage === 'zh-TW' ? '文件' : 'Documents';
     const translatedDocumentLabel = config.uiLanguage === 'zh-TW' ? '轉譯文件' : 'Translated documents';
-    const translatedSearchLabel = config.uiLanguage === 'zh-TW' ? '轉譯搜索' : 'Translated search';
     const modelSearchLabel = i18n[config.uiLanguage]?.search || '搜尋';
     const createModelRetirementHTML = (model) => {
         const retirementLabel = getModelRetirementLabel(model);
@@ -1393,7 +1392,6 @@
             ${modelSupportsVision(model) ? `<span class="model-capability-pill">${createVisionBadgeHTML(model)}${escapeHTML(modelVisionLabel)}</span>` : ''}
             ${modelSupportsDocumentUpload(model) ? `<span class="model-capability-pill">${escapeHTML(modelDocumentLabel)}</span>` : (getSingleDocumentTranslatorModel() ? `<span class="model-capability-pill">${escapeHTML(translatedDocumentLabel)}</span>` : '')}
             ${modelSupportsWebSearch(model) ? `<span class="model-capability-pill">${escapeHTML(modelSearchLabel)}</span>` : ''}
-            ${!modelSupportsWebSearch(model) && getSingleSearchTranslatorModel() ? `<span class="model-capability-pill">${escapeHTML(translatedSearchLabel)}</span>` : ''}
         </div>
     `;
 

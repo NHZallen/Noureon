@@ -7,7 +7,7 @@ const STATIC_ASSETS = [
   '/icon-512.png'
 ];
 
-const API_HOSTS = ['openrouter.ai', 'googleapis.com'];
+const API_HOSTS = ['openrouter.ai', 'googleapis.com', 'api.tavily.com'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
