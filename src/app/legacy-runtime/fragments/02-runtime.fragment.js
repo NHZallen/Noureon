@@ -98,6 +98,7 @@
         const STEP_PLAN_SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
         const STEP_PLAN_SUPPORTED_VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/x-matroska']);
         const STEP_PLAN_VIDEO_SIZE_LIMIT_BYTES = 128 * 1024 * 1024;
+        const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/v1/chat/completions';
         const STEP_PLAN_MIME_TYPE_BY_EXTENSION = {
             jpg: 'image/jpeg',
             jpeg: 'image/jpeg',
@@ -179,6 +180,7 @@
             const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts: parts };
             const generationConfig = requestOptions.genConfig || conv.genConfig || getDefaultGenConfig();
             let url, payload, headers;
+            let isStepPlanDirectVideoRequest = false;
             let systemInstruction = null;
             let baseInstructionText = '';
             
@@ -299,6 +301,10 @@
                     Array.isArray(message.content) &&
                     message.content.some(part => part?.type === 'video_url')
                 );
+                if (hasStepPlanVideo) {
+                    url = STEP_PLAN_CHAT_COMPLETIONS_URL;
+                    isStepPlanDirectVideoRequest = true;
+                }
 
                 payload = {
                     model: modelId,
@@ -311,7 +317,11 @@
                 if (provider === 'stepfun' && modelInfo.reasoningEffort) {
                     payload.reasoning_effort = modelInfo.reasoningEffort;
                 }
-                headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+                headers = {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    ...(hasStepPlanVideo && { Accept: 'application/json' })
+                };
             } else {
                 url = 'https://openrouter.ai/api/v1/chat/completions';
                 
@@ -402,7 +412,15 @@
                 }
                 headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
             }
-            const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload), signal });
+            let response;
+            try {
+                response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload), signal });
+            } catch (error) {
+                if (isStepPlanDirectVideoRequest) {
+                    throw new Error(`Step video request bypassed the server proxy to avoid Vercel payload limits, but the browser could not reach StepFun directly: ${error?.message || error}`);
+                }
+                throw error;
+            }
             if (!response.ok) {
                 const err = await readErrorBody(response);
                 throw new Error(getErrorMessage(err));
