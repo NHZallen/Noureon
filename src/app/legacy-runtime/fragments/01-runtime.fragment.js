@@ -1716,8 +1716,9 @@
             messageDiv.dataset.messageIndex = index;
             const isUser = msg.role === 'user';
             messageDiv.className = `message-item flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
-            const icon = isUser ? `<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold">${currentUser ? currentUser.username.charAt(0).toUpperCase() : 'Y'}</div>` : `<div class="bg-gray-800 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 15h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>`;
+            const icon = '';
             let contentHTML = '';
+            let mediaGridHTML = '';
             let actionButtons = '';
             let contentPaddingClass = '';
             let previewMediaPartsContent = [];
@@ -1740,7 +1741,7 @@
                 }
                 if (mediaPartsContent.length > 0) {
                     previewMediaPartsContent = [...mediaPartsContent];
-                    contentHTML += renderMediaAttachmentGrid(previewMediaPartsContent);
+                    mediaGridHTML = renderMediaAttachmentGrid(previewMediaPartsContent);
                     mediaPartsContent = [];
                     let mediaHTML = '<div class="mt-2 flex flex-wrap gap-2">';
                     mediaPartsContent.forEach(media => {
@@ -1791,10 +1792,16 @@
                     }
                 }
             }
+            const hasBubbleContent = isLoadingMessage || contentHTML.trim();
             const messageBubble = `
-                <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative ${isUser ? 'text-white' : ''}" >
-                    <div class="prose prose-sm max-w-none ${isUser ? 'text-white' : 'text-[var(--text-primary)]'} ${contentPaddingClass} message-content">${contentHTML}</div>
-                    ${actionButtons}
+                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
+                    ${mediaGridHTML}
+                    ${hasBubbleContent ? `
+                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
+                            <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
+                            ${actionButtons}
+                        </div>
+                    ` : ''}
                 </div>`;
             messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
             bindMediaPreviewButtons(messageDiv, previewMediaPartsContent);

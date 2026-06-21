@@ -357,6 +357,14 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     importStatusTextAuth: document.getElementById('import-status-text-auth'),
     importPercentageAuth: document.getElementById('import-percentage-auth'),
         };
+        const arrangeInputMediaPreview = () => {
+            const wrapper = document.querySelector('.input-wrapper');
+            const preview = ALL_ELEMENTS.filePreviewContainer;
+            if (!wrapper || !preview || preview.parentElement === wrapper) return;
+            preview.className = 'input-media-preview empty:hidden';
+            wrapper.insertBefore(preview, wrapper.firstChild);
+        };
+        arrangeInputMediaPreview();
         const settingsIcon = ALL_ELEMENTS.settingsBtn?.querySelector('svg');
         if (settingsIcon) {
             settingsIcon.setAttribute('viewBox', '0 0 24 24');
@@ -787,28 +795,28 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             blue: '#60a5fa', indigo: '#818cf8', purple: '#a78bfa', pink: '#f472b6',
         };
         const AI_BUBBLE_COLORS = {
-            default: {light: '#f7f7f8', dark: '#1c1c1c'},
+            default: {light: '#f7f7f8', dark: '#1f2937'},
             gray: {light: '#f3f4f6', dark: '#374151'},
-            blue: {light: '#e0f7fa', dark: '#006064'},
-            green: {light: '#e8f5e9', dark: '#1b5e20'},
-            yellow: {light: '#fffde7', dark: '#f57f17'},
-            orange: {light: '#fff3e0', dark: '#ef6c00'},
-            red: {light: '#ffebee', dark: '#b71c1c'},
-            purple: {light: '#f3e5f5', dark: '#6a1b9a'},
-            pink: {light: '#fce4ec', dark: '#ad1457'},
-            teal: {light: '#e0f2f1', dark: '#004d40'},
+            blue: {light: '#eef6ff', dark: '#1e3a5f'},
+            green: {light: '#eef8f1', dark: '#1f4d35'},
+            yellow: {light: '#fff9db', dark: '#5f4b12'},
+            orange: {light: '#fff3e8', dark: '#613a1f'},
+            red: {light: '#fff1f2', dark: '#5f2a2f'},
+            purple: {light: '#f6f0ff', dark: '#44315f'},
+            pink: {light: '#fff0f6', dark: '#5f2a44'},
+            teal: {light: '#ecfdf7', dark: '#1f4f4a'},
         };
         const USER_BUBBLE_COLORS = {
-            default: {light: '#3b82f6', dark: '#2563eb'},
-            gray: {light: '#6b7280', dark: '#4b5563'},
-            blue: {light: '#3b82f6', dark: '#2563eb'},
-            green: {light: '#22c55e', dark: '#15803d'},
-            yellow: {light: '#eab308', dark: '#a16207'},
-            orange: {light: '#f97316', dark: '#c2410c'},
-            red: {light: '#ef4444', dark: '#b91c1c'},
-            purple: {light: '#8b5cf6', dark: '#6d28d9'},
-            pink: {light: '#ec4899', dark: '#be185d'},
-            teal: {light: '#14b8a6', dark: '#0f766e'},
+            default: {light: '#e8f3ff', dark: '#223958'},
+            gray: {light: '#eef0f3', dark: '#374151'},
+            blue: {light: '#e8f3ff', dark: '#223958'},
+            green: {light: '#eaf7ef', dark: '#254936'},
+            yellow: {light: '#fff7d6', dark: '#59491b'},
+            orange: {light: '#fff0e3', dark: '#5b3825'},
+            red: {light: '#ffedf0', dark: '#5c2b32'},
+            purple: {light: '#f2ecff', dark: '#3f315a'},
+            pink: {light: '#ffedf5', dark: '#5a2b43'},
+            teal: {light: '#e7f8f5', dark: '#234a48'},
         };
         const UI_THEME_COLORS = {
             Red: '#ef4444', Orange: '#f97316', Amber: '#f59e0b',
@@ -1801,9 +1809,7 @@ function renderMarkdownWithFormulas(text) {
                     const isUser = msg.role === 'user';
                     const messageDiv = document.createElement('div');
                     messageDiv.className = `flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
-                    const icon = isUser
-                        ? `<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold">${currentUser ? currentUser.username.charAt(0).toUpperCase() : 'Y'}</div>`
-                        : `<div class="bg-gray-800 text-white w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 15h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>`;
+                    const icon = '';
                     let contentHTML = '';
                     const mediaParts = [];
                     msg.parts.forEach(part => {
@@ -1813,10 +1819,15 @@ function renderMarkdownWithFormulas(text) {
                             mediaParts.push(part.inlineData);
                         }
                     });
-                    contentHTML += renderMediaAttachmentGrid(mediaParts);
+                    const mediaGridHTML = renderMediaAttachmentGrid(mediaParts);
                     const messageBubble = `
-                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble">
-                            <div class="prose prose-sm max-w-none message-content ${isUser ? 'text-white' : 'text-[var(--text-primary)]'}">${contentHTML}</div>
+                        <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
+                            ${mediaGridHTML}
+                            ${contentHTML.trim() ? `
+                                <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble">
+                                    <div class="prose prose-sm max-w-none message-content text-[var(--text-primary)]">${contentHTML}</div>
+                                </div>
+                            ` : ''}
                         </div>`;
                     messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
                     bindMediaPreviewButtons(messageDiv, mediaParts);
