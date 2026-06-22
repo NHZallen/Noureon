@@ -22,12 +22,26 @@ test('outlined settings and trash actions use the shared white outline button st
   }
 });
 
-test('attachment menu keeps search and learning items neutral instead of blue active text', () => {
+test('active input modes use the theme color without black outline chrome', () => {
   const css = readSource('src/styles/main.css');
+  const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime05 = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
 
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active/);
-  assert.match(css, /#attachment-menu\s+\.menu-item\.is-active[^{]*\{[^}]*color:\s*#111827\s*!important;/s);
-  assert.match(css, /#file-options-popover\s+#web-search-popover-btn,\s*#file-options-popover\s+#learning-mode-btn[^{]*\{[^}]*color:\s*#111827\s*!important;/s);
+  assert.match(css, /#input-indicator-container\s+\.input-indicator-item[^{]*\{[^}]*border:\s*0\s*!important;[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
+  assert.doesNotMatch(css, /#input-indicator-container\s+\.input-indicator-item[^{]*\{[^}]*border:\s*1px\s+solid\s+#000000\s*!important;/s);
+  assert.doesNotMatch(css, /#attachment-menu\s+\.menu-item\.is-active[^{]*\{[^}]*color:\s*#111827\s*!important;/s);
+  assert.match(css, /#attachment-menu\s+\.menu-item\.is-active,\s*#file-options-popover\s+#web-search-popover-btn\.is-active,\s*#file-options-popover\s+#learning-mode-btn\.is-active,\s*#file-options-popover\s+#model-council-menu-btn\.is-active[^{]*\{[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
+  assert.match(runtime01, /councilMenuButton\.classList\.toggle\('is-active',\s*councilActive\)/);
+  assert.match(runtime05, /item\.id === 'model-council-menu-btn' && councilActive/);
+});
+
+test('chat input indicators sit beside add on desktop and mobile hides message mic', () => {
+  const css = readSource('src/styles/main.css');
+
+  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
+  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s*!important;/s);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {

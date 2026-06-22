@@ -5656,16 +5656,17 @@ body svg {
     justify-content: center !important;
     min-height: 2.35rem !important;
     padding: 0 0.75rem !important;
-    border: 1px solid #000000 !important;
+    border: 0 !important;
     border-radius: 999px !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: transparent !important;
+    color: var(--button-primary-bg) !important;
     box-shadow: none !important;
     line-height: 1 !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
 }
 
 #input-indicator-container .input-indicator-item:hover {
-    background: #f2f2f2 !important;
+    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent) !important;
 }
 
 #input-indicator-container .input-indicator-item button {
@@ -5681,14 +5682,9 @@ body svg {
 }
 
 #search-indicator,
-#learning-mode-indicator {
-    color: var(--button-primary-bg) !important;
-}
-
+#learning-mode-indicator,
 #model-council-indicator {
-    background: #ffffff !important;
-    color: #000000 !important;
-    border-color: #000000 !important;
+    color: var(--button-primary-bg) !important;
 }
 
 #search-indicator svg,
@@ -5701,19 +5697,48 @@ body svg {
     stroke: currentColor !important;
 }
 
-#file-options-popover #web-search-popover-btn,
-#file-options-popover #learning-mode-btn,
-#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"],
-#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] {
-    color: var(--button-primary-bg) !important;
+#input-indicator-container .input-indicator-leading {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 0.9rem !important;
+    height: 0.9rem !important;
+    flex: 0 0 0.9rem !important;
 }
 
-#file-options-popover #web-search-popover-btn svg,
-#file-options-popover #learning-mode-btn svg,
-#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"] svg,
-#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] svg,
-#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"] svg *,
-#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] svg * {
+#input-indicator-container .input-indicator-mode-icon {
+    display: block !important;
+}
+
+#input-indicator-container #close-search-btn-input,
+#input-indicator-container #close-learning-mode-btn-input,
+#input-indicator-container #close-model-council-btn-input {
+    margin-left: 0.25rem !important;
+}
+
+#attachment-menu .menu-item.is-active,
+#file-options-popover #web-search-popover-btn.is-active,
+#file-options-popover #learning-mode-btn.is-active,
+#file-options-popover #model-council-menu-btn.is-active {
+    color: var(--button-primary-bg) !important;
+    background: transparent !important;
+}
+
+#attachment-menu .menu-item.is-active:hover,
+#file-options-popover #web-search-popover-btn.is-active:hover,
+#file-options-popover #learning-mode-btn.is-active:hover,
+#file-options-popover #model-council-menu-btn.is-active:hover {
+    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent) !important;
+}
+
+#attachment-menu .menu-item.is-active svg,
+#attachment-menu .menu-item.is-active svg *,
+#file-options-popover #web-search-popover-btn.is-active svg,
+#file-options-popover #web-search-popover-btn.is-active svg *,
+#file-options-popover #learning-mode-btn.is-active svg,
+#file-options-popover #learning-mode-btn.is-active svg *,
+#file-options-popover #model-council-menu-btn.is-active svg,
+#file-options-popover #model-council-menu-btn.is-active svg * {
     color: inherit !important;
     stroke: currentColor !important;
 }
@@ -5754,29 +5779,6 @@ body svg {
     color: #000000 !important;
 }
 
-#attachment-menu .menu-item.is-active,
-#file-options-popover #web-search-popover-btn,
-#file-options-popover #learning-mode-btn,
-#file-options-popover #web-search-popover-btn.is-active,
-#file-options-popover #learning-mode-btn.is-active,
-#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"],
-#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] {
-    color: #111827 !important;
-    background: transparent !important;
-}
-
-#attachment-menu .menu-item.is-active svg,
-#attachment-menu .menu-item.is-active svg *,
-#file-options-popover #web-search-popover-btn svg,
-#file-options-popover #web-search-popover-btn svg *,
-#file-options-popover #learning-mode-btn svg,
-#file-options-popover #learning-mode-btn svg *,
-#file-options-popover #web-search-popover-btn.is-active svg,
-#file-options-popover #learning-mode-btn.is-active svg {
-    color: inherit !important;
-    stroke: currentColor !important;
-}
-
 #settings-modal .settings-sidebar {
     margin-top: 4.5rem !important;
     height: calc(100% - 4.5rem) !important;
@@ -5785,4 +5787,95 @@ body svg {
 
 .folder-icon {
     color: var(--folder-icon-color, inherit) !important;
+}
+
+@media (min-width: 769px) {
+    #input-bar-container .input-wrapper {
+        display: grid !important;
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            "input input input input input"
+            "file indicators spacer voice submit";
+        align-items: center !important;
+        gap: 0.15rem 0.35rem !important;
+        min-height: 5.9rem !important;
+        padding: 0.65rem 0.7rem !important;
+    }
+
+    #input-bar-container .input-wrapper.has-indicators {
+        padding-top: 0.65rem !important;
+        padding-bottom: 0.65rem !important;
+    }
+
+    #input-bar-container .input-wrapper > .flex.items-end {
+        display: contents !important;
+        width: auto !important;
+        min-height: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    #chat-form {
+        grid-area: input;
+        width: 100%;
+    }
+
+    #file-input-container {
+        grid-area: file;
+        margin-right: 0 !important;
+    }
+
+    #input-indicator-container {
+        grid-area: indicators;
+        position: static !important;
+        top: auto !important;
+        right: auto !important;
+        left: auto !important;
+        display: flex;
+        align-items: center;
+        max-width: min(34rem, 52vw);
+        overflow-x: auto;
+    }
+
+    #voice-input-btn-message {
+        grid-area: voice;
+    }
+
+    #submit-btn {
+        grid-area: submit;
+    }
+
+    #input-indicator-container:empty {
+        display: none !important;
+    }
+
+    #input-indicator-container #close-search-btn-input,
+    #input-indicator-container #close-learning-mode-btn-input,
+    #input-indicator-container #close-model-council-btn-input {
+        display: none !important;
+        margin-left: 0.15rem !important;
+    }
+
+    #input-indicator-container .input-indicator-item:hover .input-indicator-mode-icon,
+    #input-indicator-container .input-indicator-item:focus-within .input-indicator-mode-icon {
+        display: none !important;
+    }
+
+    #input-indicator-container .input-indicator-item:hover #close-search-btn-input,
+    #input-indicator-container .input-indicator-item:hover #close-learning-mode-btn-input,
+    #input-indicator-container .input-indicator-item:hover #close-model-council-btn-input,
+    #input-indicator-container .input-indicator-item:focus-within #close-search-btn-input,
+    #input-indicator-container .input-indicator-item:focus-within #close-learning-mode-btn-input,
+    #input-indicator-container .input-indicator-item:focus-within #close-model-council-btn-input {
+        display: inline-flex !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #voice-input-btn-message {
+        display: none !important;
+    }
+
+    #input-bar-container .input-wrapper.has-indicators {
+        padding-top: 2.25rem !important;
+    }
 }
