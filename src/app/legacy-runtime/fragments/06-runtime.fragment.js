@@ -280,6 +280,12 @@ const FOLDER_TEXT_COLORS = {
     
     const maxHeight = (lineHeight * 8) + paddingTop + paddingBottom;
     const scrollHeight = textarea.scrollHeight;
+    const singleLineHeight = lineHeight + paddingTop + paddingBottom;
+    const isMultiline = scrollHeight > singleLineHeight + 2;
+    const wrapper = textarea.closest('.input-wrapper');
+    if (wrapper) {
+        wrapper.classList.toggle('has-multiline-input', isMultiline);
+    }
 
 
     if (scrollHeight > maxHeight + 2) {

@@ -5792,17 +5792,21 @@ body svg {
 @media (min-width: 769px) {
     #input-bar-container .input-wrapper {
         display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+        grid-template-areas: "file input input voice submit";
+        align-items: center !important;
+        gap: 0.15rem 0.35rem !important;
+        min-height: 3.55rem !important;
+        padding: 0.5rem 0.7rem !important;
+    }
+
+    #input-bar-container .input-wrapper.has-indicators,
+    #input-bar-container .input-wrapper.has-multiline-input {
         grid-template-columns: auto auto minmax(0, 1fr) auto auto;
         grid-template-areas:
             "input input input input input"
             "file indicators spacer voice submit";
-        align-items: center !important;
-        gap: 0.15rem 0.35rem !important;
         min-height: 5.9rem !important;
-        padding: 0.65rem 0.7rem !important;
-    }
-
-    #input-bar-container .input-wrapper.has-indicators {
         padding-top: 0.65rem !important;
         padding-bottom: 0.65rem !important;
     }
@@ -5848,16 +5852,32 @@ body svg {
         display: none !important;
     }
 
+    #input-indicator-container .input-indicator-item {
+        position: relative !important;
+    }
+
+    #input-indicator-container .input-indicator-mode-icon {
+        opacity: 1 !important;
+        transition: opacity 0.12s ease !important;
+    }
+
     #input-indicator-container #close-search-btn-input,
     #input-indicator-container #close-learning-mode-btn-input,
     #input-indicator-container #close-model-council-btn-input {
-        display: none !important;
-        margin-left: 0.15rem !important;
+        position: absolute !important;
+        left: 0.75rem !important;
+        top: 50% !important;
+        display: inline-flex !important;
+        margin-left: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(-50%) !important;
+        transition: opacity 0.12s ease !important;
     }
 
     #input-indicator-container .input-indicator-item:hover .input-indicator-mode-icon,
     #input-indicator-container .input-indicator-item:focus-within .input-indicator-mode-icon {
-        display: none !important;
+        opacity: 0 !important;
     }
 
     #input-indicator-container .input-indicator-item:hover #close-search-btn-input,
@@ -5866,7 +5886,8 @@ body svg {
     #input-indicator-container .input-indicator-item:focus-within #close-search-btn-input,
     #input-indicator-container .input-indicator-item:focus-within #close-learning-mode-btn-input,
     #input-indicator-container .input-indicator-item:focus-within #close-model-council-btn-input {
-        display: inline-flex !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
 }
 
