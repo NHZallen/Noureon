@@ -5733,3 +5733,50 @@ body svg {
 #folder-settings-modal .icon-option svg [fill]:not([fill="none"]) {
     fill: currentColor !important;
 }
+
+.btn-outline-white {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.btn-outline-white:hover:not(:disabled),
+.btn-outline-white:active:not(:disabled) {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.btn-outline-white:disabled {
+    opacity: 0.45 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+#attachment-menu .menu-item.is-active,
+#file-options-popover #web-search-popover-btn.is-active,
+#file-options-popover #learning-mode-btn.is-active,
+#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"],
+#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] {
+    color: #111827 !important;
+    background: transparent !important;
+}
+
+#attachment-menu .menu-item.is-active svg,
+#attachment-menu .menu-item.is-active svg *,
+#file-options-popover #web-search-popover-btn.is-active svg,
+#file-options-popover #learning-mode-btn.is-active svg {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+#settings-modal .settings-sidebar {
+    margin-top: 4.5rem !important;
+    height: calc(100% - 4.5rem) !important;
+    padding-top: 0 !important;
+}
+
+.folder-icon {
+    color: var(--folder-icon-color, inherit) !important;
+}

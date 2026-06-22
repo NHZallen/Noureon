@@ -648,8 +648,10 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                             // 這是用來在視覺上分隔選項的，在手機選單中是透過 CSS 的 border-bottom 實現
                         }
                     } else {
+                        const isActive = (item.id === 'web-search-popover-btn' && getActiveConversation()?.isWebSearchEnabled)
+                            || (item.id === 'learning-mode-btn' && config.isLearningMode);
                         itemsHTML += `
-                            <div class="menu-item" data-trigger-id="${item.id}">
+                            <div class="menu-item${isActive ? ' is-active' : ''}" data-trigger-id="${item.id}">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${item.svg}</svg>
                                 <span ${item.textKey ? `data-lang-key="${item.textKey}"` : ''}>${item.text || i18n[config.uiLanguage][item.textKey] || item.textKey}</span>
                             </div>

@@ -1,5 +1,6 @@
 import { installTouchGuards } from '/src/pwa/touch-guards.js';
 import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
+import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/folder-colors.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;

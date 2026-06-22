@@ -2239,7 +2239,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 swatch.className = `color-swatch w-8 h-8 rounded-full cursor-pointer border-2 border-transparent flex-shrink-0`;
                 swatch.style.backgroundColor = hex;
                 swatch.dataset.color = name;
-                if (folder.color === name) {
+                if (normalizeFolderColorSelection(folder.color, FOLDER_COLORS) === name) {
                     swatch.classList.add('selected');
                     swatch.style.borderColor = '#3b82f6'; 
                 }
@@ -2370,7 +2370,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
             const selectedTextColor = textColorContainer?.querySelector('.selected-text')?.dataset.textColor;
 
 
-            if (selectedColor) folder.color = selectedColor;
+            if (selectedColor) folder.color = normalizeFolderColorSelection(selectedColor, FOLDER_COLORS);
             if (selectedIcon) folder.icon = selectedIcon;
             if (selectedTextColor) folder.textColor = selectedTextColor;
 

@@ -75,7 +75,7 @@
                 // 取得 SVG 路徑，如果找不到就用預設的
                 const svgPath = FOLDER_SVGS[folder.icon] || FOLDER_SVGS['default'];
                 // 取得 SVG 線條顏色 (使用原有的 FOLDER_COLORS)
-                const iconColor = FOLDER_COLORS[folder.color] || FOLDER_COLORS.gray;
+                const iconColor = resolveFolderColor(folder.color, FOLDER_COLORS, FOLDER_COLORS.gray);
                 // 取得文字顏色 (使用新的 FOLDER_TEXT_COLORS)
                 const textColor = FOLDER_TEXT_COLORS[folder.textColor] || FOLDER_TEXT_COLORS.gray;
 
@@ -86,7 +86,7 @@
                             <svg class="folder-arrow flex-shrink-0" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             
                             <!-- 修改：這裡顯示 SVG 圖示，顏色套用在 style 的 color 屬性上 -->
-                            <span class="folder-icon mr-1 flex-shrink-0" style="color: ${iconColor};">
+                            <span class="folder-icon mr-1 flex-shrink-0" style="--folder-icon-color: ${iconColor}; color: ${iconColor};">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="folder-icon-svg">
                                     ${svgPath}
                                 </svg>
@@ -359,6 +359,7 @@
                 .forEach(btn => btn.style.display = 'flex');
             if (webSearchPopoverBtn) {
                 webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
+                webSearchPopoverBtn.classList.toggle('is-active', Boolean(conv.isWebSearchEnabled));
             }
             [cameraBtn, uploadImageBtn]
                 .filter(Boolean)
@@ -368,6 +369,7 @@
             }
             if (learningModeBtn) {
                 learningModeBtn.style.display = councilActive ? 'none' : 'flex';
+                learningModeBtn.classList.toggle('is-active', Boolean(config.isLearningMode));
             }
             const councilMenuButton = ensureCouncilMenuButton();
             if (councilMenuButton) {
