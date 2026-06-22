@@ -4036,3 +4036,229 @@ button:active:not(:disabled),
 .astras-store-card:hover {
     border-color: color-mix(in srgb, var(--button-primary-bg) 45%, var(--border-color)) !important;
 }
+
+#file-input-container {
+    margin-right: -0.35rem !important;
+}
+
+#message-input {
+    padding-left: 0.35rem !important;
+}
+
+:root {
+    --gpt-surface: #ffffff;
+    --gpt-subtle: #f4f4f4;
+    --gpt-subtle-hover: #ececec;
+    --gpt-border: #dedede;
+    --gpt-menu-border: #d7d7d7;
+    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.13);
+    --gpt-primary-action-bg: #111827;
+    --gpt-primary-action-text: #ffffff;
+}
+
+.dark {
+    --gpt-surface: #212121;
+    --gpt-subtle: #2f2f2f;
+    --gpt-subtle-hover: #3a3a3a;
+    --gpt-border: #3f3f3f;
+    --gpt-menu-border: #4a4a4a;
+    --gpt-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+    --gpt-primary-action-bg: #f9fafb;
+    --gpt-primary-action-text: #111827;
+}
+
+#settings-modal > div {
+    border-radius: 1.25rem !important;
+    background: var(--gpt-surface) !important;
+    border: 1px solid var(--gpt-border) !important;
+    box-shadow: var(--gpt-shadow) !important;
+    overflow: hidden !important;
+}
+
+#settings-modal nav {
+    background: var(--gpt-surface) !important;
+    border-right: 1px solid color-mix(in srgb, var(--gpt-border) 70%, transparent) !important;
+}
+
+#settings-modal .settings-section {
+    max-width: 46rem;
+    margin: 0 auto;
+}
+
+#settings-modal .settings-section > h3 {
+    margin-top: 1.35rem !important;
+    margin-bottom: 0.85rem !important;
+    color: var(--text-primary) !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+}
+
+.settings-nav-item {
+    min-height: 2.75rem;
+    padding: 0.7rem 0.95rem !important;
+    border-radius: 0.78rem !important;
+    color: var(--text-primary) !important;
+    font-weight: 400 !important;
+}
+
+.settings-nav-item:hover {
+    background: var(--gpt-subtle) !important;
+}
+
+.settings-nav-item.active {
+    background: var(--gpt-subtle) !important;
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
+}
+
+.popover,
+#file-options-popover,
+#model-options-popover,
+.model-council-popover,
+.color-dropdown-menu,
+.translator-picker-menu,
+#mobile-context-menu,
+#attachment-menu {
+    background: var(--gpt-surface) !important;
+    border: 1px solid var(--gpt-menu-border) !important;
+    border-radius: 1.15rem !important;
+    box-shadow: var(--gpt-shadow) !important;
+    padding: 0.45rem !important;
+}
+
+#file-options-popover {
+    width: 15rem !important;
+}
+
+#mobile-context-menu,
+#attachment-menu {
+    border-radius: 1.35rem 1.35rem 0 0 !important;
+    padding: 0.65rem !important;
+}
+
+#mobile-context-menu .menu-header,
+#attachment-menu .menu-header {
+    background: transparent !important;
+    border-radius: 0.9rem !important;
+    margin-bottom: 0.25rem !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.86rem !important;
+    font-weight: 500 !important;
+}
+
+#file-options-popover button,
+#model-options-popover button,
+.color-option,
+.translator-picker-option,
+#mobile-context-menu .menu-item,
+#attachment-menu .menu-item {
+    min-height: 2.55rem !important;
+    padding: 0.62rem 0.78rem !important;
+    border: 0 !important;
+    border-radius: 0.82rem !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    font-size: 0.95rem !important;
+    font-weight: 400 !important;
+}
+
+#file-options-popover button:hover,
+#model-options-popover button:hover,
+.color-option:hover,
+.translator-picker-option:hover,
+.translator-picker-option.selected,
+#mobile-context-menu .menu-item:hover,
+#attachment-menu .menu-item:hover {
+    background: var(--gpt-subtle) !important;
+}
+
+.color-dropdown-btn,
+.translator-picker-button,
+.council-filter-panel input,
+.council-filter-panel select,
+.modal input,
+.modal select,
+.modal textarea {
+    min-height: 2.65rem;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 0.85rem !important;
+    background: var(--gpt-surface) !important;
+    color: var(--text-primary) !important;
+    box-shadow: none !important;
+}
+
+.color-dropdown-btn:hover,
+.translator-picker-button:hover,
+.modal input:hover,
+.modal select:hover,
+.modal textarea:hover {
+    border-color: color-mix(in srgb, var(--gpt-border) 70%, var(--text-secondary)) !important;
+}
+
+.color-dropdown-menu,
+.translator-picker-menu {
+    top: calc(100% + 0.45rem) !important;
+}
+
+.color-option.selected,
+.translator-picker-option.selected {
+    background: var(--gpt-subtle) !important;
+    outline: none !important;
+}
+
+.store-category-btn,
+.theme-btn,
+.council-mode-tabs button,
+.model-capability-pill,
+.section-add-btn {
+    border-radius: 999px !important;
+    background: transparent !important;
+    border: 1px solid var(--gpt-border) !important;
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
+}
+
+.store-category-btn:hover,
+.theme-btn:hover,
+.council-mode-tabs button:hover,
+.section-add-btn:hover {
+    background: var(--gpt-subtle) !important;
+    border-color: var(--gpt-border) !important;
+}
+
+.store-category-btn.active,
+.theme-btn.active,
+.council-mode-tabs button.active,
+.toggle-checkbox:checked + .toggle-label {
+    background: var(--button-primary-bg) !important;
+    border-color: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+}
+
+.btn-primary:not(#submit-btn),
+.modal .btn-primary:not(#submit-btn),
+#confirm-import-btn,
+.council-done-btn {
+    background: var(--gpt-primary-action-bg) !important;
+    color: var(--gpt-primary-action-text) !important;
+    border-color: transparent !important;
+    border-radius: 999px !important;
+}
+
+.btn-primary:not(#submit-btn):hover,
+.modal .btn-primary:not(#submit-btn):hover,
+#confirm-import-btn:hover,
+.council-done-btn:hover {
+    background: color-mix(in srgb, var(--gpt-primary-action-bg) 88%, var(--gpt-surface)) !important;
+}
+
+#submit-btn,
+#submit-btn:disabled {
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+    border-color: transparent !important;
+}
+
+#submit-btn:disabled {
+    opacity: 0.55 !important;
+}
