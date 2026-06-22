@@ -728,8 +728,8 @@ button:not(.btn-primary):active:not(:disabled) {
 .input-wrapper {
     border-radius: 1.65rem !important;
     background: var(--input-field-bg) !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
+    border-color: color-mix(in srgb, var(--border-color) 86%, transparent) !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
 }
 
 .input-wrapper.has-file-previews {
@@ -2782,7 +2782,7 @@ body.custom-wallpaper-active .store-category-btn.active {
     padding-bottom: 0.5rem;
 }
 #input-bar-container .input-wrapper:focus-within {
-    border-color: transparent !important;
+    border-color: color-mix(in srgb, var(--border-color) 86%, transparent) !important;
     box-shadow: none !important;
     outline: none !important;
 }
@@ -2890,12 +2890,12 @@ body.custom-wallpaper-active .input-indicator-item {
     background: #2563eb !important;
 }
 #submit-btn:disabled {
-    background: #d1d5db !important;
-    color: #ffffff !important;
-    opacity: 1 !important;
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+    opacity: 0.55 !important;
 }
 .dark #submit-btn:disabled {
-    background: #6b7280 !important;
+    background: var(--button-primary-bg) !important;
 }
 #add-file-btn svg,
 #voice-input-btn-message svg,
@@ -3965,4 +3965,74 @@ body.custom-wallpaper-active.wallpaper-is-dark #attachment-menu {
         align-items: stretch;
         flex-direction: column;
     }
+}
+
+button,
+[role="button"],
+.btn-primary,
+.sidebar-item,
+.history-sidebar-item,
+.settings-nav-item,
+.theme-btn,
+.store-category-btn,
+.astras-store-card,
+.section-action-btn,
+.model-option-btn-container,
+.color-option,
+.translator-picker-button,
+.council-done-btn,
+.media-lightbox-action,
+#scroll-to-bottom-btn,
+#file-options-popover button,
+#attachment-menu .menu-item,
+#mobile-context-menu .menu-item {
+    background-image: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+    transform: none !important;
+}
+
+button::before,
+.btn-primary::before {
+    display: none !important;
+}
+
+button:hover:not(:disabled),
+button:active:not(:disabled),
+.btn-primary:hover:not(:disabled),
+.btn-primary:active:not(:disabled),
+.store-category-btn.active,
+.demo-model-selector .selector-btn.active,
+.astras-store-card:hover {
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+}
+
+.btn-primary {
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+    border: 1px solid transparent !important;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--button-primary-hover-bg, var(--button-primary-bg)) !important;
+}
+
+.store-category-btn.active,
+.theme-btn.active,
+.council-done-btn {
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+    border-color: transparent !important;
+}
+
+.astras-store-card {
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+.astras-store-card:hover {
+    border-color: color-mix(in srgb, var(--button-primary-bg) 45%, var(--border-color)) !important;
 }

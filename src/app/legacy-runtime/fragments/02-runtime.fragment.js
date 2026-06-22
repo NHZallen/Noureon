@@ -1475,6 +1475,7 @@ Avoid overly brief answers: the final response should be complete enough for the
             const hasContent = ALL_ELEMENTS.messageInput.value.trim() !== '' || uploadedFiles.length > 0;
             const { submitButton, submitButtonIcon } = ALL_ELEMENTS;
             const sendIconHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>`;
+            const disabledIconHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m5.7 5.7 12.6 12.6"></path></svg>`;
             if (abortController) {
                 submitButton.disabled = false;
                 submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>`;
@@ -1483,7 +1484,7 @@ Avoid overly brief answers: the final response should be complete enough for the
             const conv = getActiveConversation();
             if (!conv) {
                 submitButton.disabled = true;
-                submitButtonIcon.innerHTML = sendIconHTML;
+                submitButtonIcon.innerHTML = disabledIconHTML;
                 return;
             }
             if (conv.archived) {
@@ -1505,7 +1506,7 @@ Avoid overly brief answers: the final response should be complete enough for the
                 : i18n[config.uiLanguage].enterApiKeyPlaceholder;
             if (!hasApiKey || !hasContent || (isCouncilEnabled(conv) && !councilValidation.ok)) {
                 submitButton.disabled = true;
-                submitButtonIcon.innerHTML = sendIconHTML;
+                submitButtonIcon.innerHTML = disabledIconHTML;
             } else {
                 submitButton.disabled = false;
 submitButtonIcon.innerHTML = sendIconHTML;
