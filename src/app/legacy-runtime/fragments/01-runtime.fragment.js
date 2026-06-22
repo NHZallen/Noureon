@@ -1631,7 +1631,6 @@
                     return `
                         <button type="button" class="message-media-thumb" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
                             <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}" loading="lazy">
-                            <span class="message-media-label">${escapeHTML(name)}</span>
                         </button>
                     `;
                 }
@@ -1642,7 +1641,6 @@
                             <span class="message-media-play" aria-hidden="true">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
                             </span>
-                            <span class="message-media-label">${escapeHTML(name)}</span>
                         </button>
                     `;
                 }
@@ -1668,9 +1666,18 @@
                 : `<img src="${escapeHTML(src)}" alt="${escapeHTML(name)}">`;
             overlay.innerHTML = `
                 <button type="button" class="media-lightbox-close" aria-label="${config.uiLanguage === 'en' ? 'Close preview' : '關閉預覽'}">&times;</button>
+                <div class="media-lightbox-toolbar">
+                    <a class="media-lightbox-action media-lightbox-download" href="${escapeHTML(src)}" download="${escapeHTML(name)}" aria-label="${config.uiLanguage === 'en' ? 'Download' : '下載'}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                        <span>${config.uiLanguage === 'en' ? 'Save' : '儲存'}</span>
+                    </a>
+                    <button type="button" class="media-lightbox-action media-lightbox-share" aria-label="${config.uiLanguage === 'en' ? 'Share' : '分享'}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
+                        <span>${config.uiLanguage === 'en' ? 'Share' : '分享'}</span>
+                    </button>
+                </div>
                 <div class="media-lightbox-stage">
                     ${mediaHTML}
-                    <div class="media-lightbox-title">${escapeHTML(name)}</div>
                 </div>
             `;
             const close = () => {
@@ -1686,9 +1693,20 @@
             overlay.addEventListener('click', (event) => {
                 if (event.target === overlay || event.target.closest('.media-lightbox-close')) close();
             });
+            overlay.querySelector('.media-lightbox-share')?.addEventListener('click', async () => {
+                if (!navigator.share) return;
+                try {
+                    const blob = await (await fetch(src)).blob();
+                    const file = new File([blob], name, { type: mimeType });
+                    if (navigator.canShare?.({ files: [file] })) {
+                        await navigator.share({ files: [file], title: name });
+                    }
+                } catch (error) {
+                    console.warn('Media share failed:', error);
+                }
+            });
             document.addEventListener('keydown', onKeyDown);
             document.body.appendChild(overlay);
-            overlay.requestFullscreen?.().catch(() => {});
             overlay.querySelector('video')?.play?.().catch(() => {});
         };
         const bindMediaPreviewButtons = (root, mediaParts = []) => {
@@ -1778,18 +1796,6 @@
                             <span class="text-xs text-gray-400">${timeString}</span></div>
                     `;
                     contentPaddingClass = 'pb-8';
-                } else {
-                    const currentConv = getActiveConversation();
-                    if (currentConv && index + 1 < currentConv.messages.length && currentConv.messages[index + 1].role === 'model') {
-                         actionButtons = `
-                            <div class="absolute bottom-2 left-2 flex items-center">
-                                <button class="delete-message-btn p-1 rounded-md hover:bg-gray-500/20 text-gray-400 hover:text-red-400 opacity-50 hover:opacity-100 transition-all" title="${i18n[config.uiLanguage].deletePair || '刪除此對話與 AI 回覆'}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                </button>
-                            </div>
-                        `;
-                        contentPaddingClass = 'pb-8';
-                    }
                 }
             }
             const hasBubbleContent = isLoadingMessage || contentHTML.trim();

@@ -194,7 +194,6 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             ALL_ELEMENTS.closeDashboardBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.dataDashboardModal, false));
             ALL_ELEMENTS.messageList.addEventListener('click', (e) => {
                 const copyBtn = e.target.closest('.copy-content-btn');
-                const deleteBtn = e.target.closest('.delete-message-btn');
                 if (copyBtn) {
                     const messageItem = copyBtn.closest('.message-item');
                     if (messageItem) {
@@ -210,12 +209,6 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                                     console.error('Could not copy text with any method: ', err);
                                 });
                         }
-                    }
-                } else if (deleteBtn) {
-                    const messageItem = deleteBtn.closest('.message-item');
-                     if (messageItem) {
-                        const messageIndex = parseInt(messageItem.dataset.messageIndex);
-                        handleDeleteMessagePair(messageIndex);
                     }
                 }
             });

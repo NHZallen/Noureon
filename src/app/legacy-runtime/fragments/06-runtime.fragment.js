@@ -158,7 +158,11 @@
                 startQRScanner();
             });
         }
-        const handleDeleteMessagePair = async (index) => {
+        const handleDeleteMessagePair = async () => {
+            return;
+        };
+        /*
+        const handleDeleteMessagePairLegacy = async (index) => {
             const confirmed = await showCustomDialog({
                 title: i18n[config.uiLanguage].deleteConfirmationTitle || '刪除確認',
                 message: i18n[config.uiLanguage].deleteConfirmationMessage || '確定刪除此條對話？',
@@ -178,6 +182,7 @@
                     }
                 }
             };
+        */
             ALL_ELEMENTS.authForm.addEventListener('submit', handleLogin);
             const toggleAuthImportButton = () => {
                 const username = ALL_ELEMENTS.usernameInput.value.trim();

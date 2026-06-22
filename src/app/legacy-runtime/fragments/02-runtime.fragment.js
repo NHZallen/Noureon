@@ -16,22 +16,6 @@
                         bubble.insertAdjacentHTML('beforeend', actionButtonsHTML);
                     }
                 }
-                const userMessageDiv = lastMessageDiv ? lastMessageDiv.previousElementSibling : null;
-                if (userMessageDiv && userMessageDiv.classList.contains('user-message')) {
-                    const bubble = userMessageDiv.querySelector('.message-bubble');
-                    const content = userMessageDiv.querySelector('.message-content');
-                    if (bubble && content && !bubble.querySelector('.delete-message-btn')) {
-                        content.classList.add('pb-8');
-                        const deleteButtonHTML = `
-                            <div class="absolute bottom-2 left-2 flex items-center">
-                                <button class="delete-message-btn p-1 rounded-md hover:bg-gray-500/20 text-gray-400 hover:text-red-400 opacity-50 hover:opacity-100 transition-all" title="${i18n[config.uiLanguage].deletePair || '刪除此對話與 AI 回覆'}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                </button>
-                            </div>
-                        `;
-                        bubble.insertAdjacentHTML('beforeend', deleteButtonHTML);
-                    }
-                }
             }
         };
         function cleanGeminiHistory(history, targetModel = null) {
