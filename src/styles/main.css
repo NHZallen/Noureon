@@ -5287,3 +5287,449 @@ body svg {
     background: #ffffff !important;
     color: #000000 !important;
 }
+
+/* Final UI correction layer: restore legacy model menus, rebuild pill buttons, and keep icon colors intentional. */
+#model-options-popover {
+    padding: 0 !important;
+    overflow: hidden !important;
+    max-height: calc(100vh - 150px) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 0.5rem !important;
+    background: var(--modal-bg) !important;
+    box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform-origin: top right !important;
+}
+
+#model-options-popover.visible {
+    transform: scale(1) translateY(0) !important;
+}
+
+#model-options-popover #model-views-container {
+    width: 500% !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), height 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#model-options-popover .model-view {
+    width: 20% !important;
+    flex-shrink: 0 !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    overflow-y: auto !important;
+}
+
+#model-options-popover button,
+#model-options-popover .model-option-btn-container,
+#model-options-popover .back-btn {
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 0.75rem 1rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    text-align: left !important;
+    font-weight: inherit !important;
+    box-shadow: none !important;
+}
+
+#model-options-popover button:hover,
+#model-options-popover .model-option-btn-container:hover,
+#model-options-popover .back-btn:hover {
+    background: var(--hover-bg) !important;
+}
+
+#model-options-popover .model-option-title,
+#model-options-popover .back-btn {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    min-width: 0 !important;
+}
+
+#model-options-popover .model-name-text {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+#model-options-popover .model-description {
+    margin-top: 0.25rem !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+}
+
+#model-options-popover .model-capability-pill {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0.12rem 0.38rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.68rem !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+}
+
+.model-council-popover {
+    position: fixed !important;
+    left: 50% !important;
+    bottom: 5.75rem !important;
+    width: min(38rem, calc(100vw - 1rem)) !important;
+    max-height: min(70vh, 36rem) !important;
+    overflow-y: auto !important;
+    padding: 0 0.75rem 0.75rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 0.75rem !important;
+    background: var(--modal-bg) !important;
+    box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 35 !important;
+    transform: translateX(-50%) scale(0.95) translateY(12px) !important;
+    transform-origin: bottom center !important;
+}
+
+.model-council-popover.visible {
+    transform: translateX(-50%) scale(1) translateY(0) !important;
+}
+
+.council-popover-sticky-controls {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 8 !important;
+    margin: 0 -0.75rem !important;
+    padding: 0.75rem !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    background: color-mix(in srgb, var(--sidebar-bg) 94%, white) !important;
+}
+
+.council-popover-header,
+.council-mode-tabs,
+.council-enable-row,
+.council-raw-row,
+.council-model-row {
+    display: flex !important;
+    align-items: center !important;
+}
+
+.council-popover-header {
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.council-popover-header.compact {
+    padding-top: 0.75rem !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+.council-mode-tabs {
+    gap: 0.25rem !important;
+    padding: 0.2rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+}
+
+.council-mode-tabs button {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0.3rem 0.65rem !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+}
+
+.council-mode-tabs button.active {
+    background: var(--active-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.council-filter-panel {
+    display: grid !important;
+    grid-template-columns: minmax(9rem, 1.4fr) repeat(3, minmax(7rem, 1fr)) !important;
+    gap: 0.45rem !important;
+    margin-top: 0.7rem !important;
+}
+
+.council-filter-panel input,
+.council-filter-panel select {
+    min-width: 0 !important;
+    height: 2.15rem !important;
+    min-height: 0 !important;
+    padding: 0 0.55rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 0.5rem !important;
+    background: var(--input-field-bg) !important;
+    color: var(--text-primary) !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+}
+
+.council-section-title {
+    position: sticky !important;
+    top: var(--council-sticky-offset, 0) !important;
+    z-index: 6 !important;
+    margin: 0 -0.75rem 0.4rem !important;
+    padding: 0.45rem 0.75rem !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    background: color-mix(in srgb, var(--sidebar-bg) 94%, white) !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.76rem !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+}
+
+.council-model-list {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.4rem !important;
+}
+
+.council-model-row {
+    position: relative !important;
+    gap: 0.55rem !important;
+    min-width: 0 !important;
+    padding: 0.5rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 0.5rem !important;
+    background: color-mix(in srgb, var(--input-field-bg) 86%, transparent) !important;
+    color: var(--text-primary) !important;
+    cursor: pointer !important;
+}
+
+.council-model-row.selected {
+    border-color: var(--accent-color, var(--button-primary-bg)) !important;
+    background: var(--active-bg) !important;
+}
+
+.council-capability-badge,
+.model-council-popover .model-capability-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.18rem !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0.12rem 0.38rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.68rem !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+}
+
+.council-done-btn {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0.45rem 0.9rem !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: var(--accent-color, var(--button-primary-bg)) !important;
+    color: #ffffff !important;
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+}
+
+.theme-btn:not(.active),
+.custom-output-mode-option:not(.active),
+.store-category-btn:not(.active),
+.section-add-btn,
+#trash-batch-select-btn,
+#empty-trash-btn,
+#trash-batch-restore-btn,
+#trash-batch-delete-btn,
+#trash-cancel-selection-btn,
+.trash-item-view-btn,
+.trash-item-restore-btn,
+.trash-item-delete-btn,
+#export-data-btn,
+#import-data-btn,
+#open-archived-modal-btn,
+#upload-wallpaper-btn,
+#restore-wallpaper-btn,
+#archived-chats-modal .view-archived-btn,
+#archived-chats-modal .unarchive-btn,
+#archived-chats-modal .delete-btn,
+#close-view-archived-modal-btn-footer {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 3rem !important;
+    min-height: 3rem !important;
+    padding: 0 1.15rem !important;
+    border: 1px solid #000000 !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+    transform: none !important;
+}
+
+.theme-btn:not(.active):hover,
+.custom-output-mode-option:not(.active):hover,
+.store-category-btn:not(.active):hover,
+.section-add-btn:hover,
+#trash-batch-select-btn:hover,
+#empty-trash-btn:hover,
+#trash-batch-restore-btn:hover,
+#trash-batch-delete-btn:hover,
+#trash-cancel-selection-btn:hover,
+.trash-item-view-btn:hover,
+.trash-item-restore-btn:hover,
+.trash-item-delete-btn:hover,
+#export-data-btn:hover,
+#import-data-btn:hover,
+#open-archived-modal-btn:hover,
+#upload-wallpaper-btn:hover,
+#restore-wallpaper-btn:hover,
+#archived-chats-modal .view-archived-btn:hover,
+#archived-chats-modal .unarchive-btn:hover,
+#archived-chats-modal .delete-btn:hover,
+#close-view-archived-modal-btn-footer:hover {
+    background: #f2f2f2 !important;
+    color: #000000 !important;
+}
+
+.theme-btn:not(.active):active,
+.custom-output-mode-option:not(.active):active,
+.store-category-btn:not(.active):active,
+.section-add-btn:active,
+#trash-batch-select-btn:active,
+#empty-trash-btn:active,
+#trash-batch-restore-btn:active,
+#trash-batch-delete-btn:active,
+#trash-cancel-selection-btn:active,
+.trash-item-view-btn:active,
+.trash-item-restore-btn:active,
+.trash-item-delete-btn:active,
+#export-data-btn:active,
+#import-data-btn:active,
+#open-archived-modal-btn:active,
+#upload-wallpaper-btn:active,
+#restore-wallpaper-btn:active,
+#archived-chats-modal .view-archived-btn:active,
+#archived-chats-modal .unarchive-btn:active,
+#archived-chats-modal .delete-btn:active,
+#close-view-archived-modal-btn-footer:active {
+    background: #eeeeee !important;
+}
+
+.theme-btn.active,
+.custom-output-mode-option.active,
+.store-category-btn.active,
+#settings-modal .theme-btn.active,
+#settings-modal .custom-output-mode-option.active,
+#settings-modal .store-category-btn.active {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 3rem !important;
+    min-height: 3rem !important;
+    padding: 0 1.15rem !important;
+    border: 1px solid var(--button-primary-bg) !important;
+    border-radius: 999px !important;
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+}
+
+#input-indicator-container .input-indicator-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 2.35rem !important;
+    padding: 0 0.75rem !important;
+    border: 1px solid #000000 !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+}
+
+#input-indicator-container .input-indicator-item:hover {
+    background: #f2f2f2 !important;
+}
+
+#input-indicator-container .input-indicator-item button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 1.35rem !important;
+    min-height: 1.35rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: inherit !important;
+}
+
+#search-indicator,
+#learning-mode-indicator {
+    color: var(--button-primary-bg) !important;
+}
+
+#model-council-indicator {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #000000 !important;
+}
+
+#search-indicator svg,
+#learning-mode-indicator svg,
+#model-council-indicator svg,
+#search-indicator svg *,
+#learning-mode-indicator svg *,
+#model-council-indicator svg * {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+#file-options-popover #web-search-popover-btn,
+#file-options-popover #learning-mode-btn,
+#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"],
+#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] {
+    color: var(--button-primary-bg) !important;
+}
+
+#file-options-popover #web-search-popover-btn svg,
+#file-options-popover #learning-mode-btn svg,
+#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"] svg,
+#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] svg,
+#attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"] svg *,
+#attachment-menu .menu-item[data-trigger-id="learning-mode-btn"] svg * {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+.folder-icon,
+.folder-icon *,
+.folder-icon-svg,
+.folder-icon-svg *,
+#folder-settings-modal .icon-option,
+#folder-settings-modal .icon-option svg,
+#folder-settings-modal .icon-option svg * {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+.folder-icon-svg [fill]:not([fill="none"]),
+#folder-settings-modal .icon-option svg [fill]:not([fill="none"]) {
+    fill: currentColor !important;
+}
