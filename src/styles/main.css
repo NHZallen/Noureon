@@ -4640,3 +4640,316 @@ button:active:not(:disabled),
         justify-self: end !important;
     }
 }
+
+/* GPT-like settings modal: centered, instant-save, black/white UI */
+:root {
+    --gpt-primary-action-bg: #000000;
+    --gpt-primary-action-text: #ffffff;
+    --gpt-icon: #000000;
+    --gpt-control-bg: #ffffff;
+    --gpt-control-text: #000000;
+    --gpt-control-border: #000000;
+    --gpt-scrollbar: #d8d8d8;
+}
+
+.dark {
+    --gpt-primary-action-bg: #000000;
+    --gpt-primary-action-text: #ffffff;
+    --gpt-icon: #ffffff;
+    --gpt-control-bg: #000000;
+    --gpt-control-text: #ffffff;
+    --gpt-control-border: #ffffff;
+    --gpt-scrollbar: #d8d8d8;
+}
+
+body svg {
+    color: #000000 !important;
+    stroke: currentColor !important;
+}
+
+.dark body svg,
+.dark svg {
+    color: #ffffff !important;
+    stroke: currentColor !important;
+}
+
+#submit-btn svg {
+    color: var(--button-primary-text) !important;
+}
+
+#settings-modal.visible {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 2rem !important;
+}
+
+#settings-modal > div {
+    position: relative !important;
+    flex: 0 1 58rem !important;
+    width: min(58rem, calc(100vw - 4rem)) !important;
+    height: min(78vh, 52rem) !important;
+    max-width: 58rem !important;
+    max-height: calc(100vh - 4rem) !important;
+    margin: auto !important;
+    border-radius: 1rem !important;
+}
+
+#settings-modal > div > .p-6.border-b {
+    display: none !important;
+}
+
+#settings-modal > div > .p-4.bg-\[var\(--sidebar-bg\)\].border-t {
+    position: absolute !important;
+    top: 1rem !important;
+    left: 1rem !important;
+    z-index: 30 !important;
+    display: block !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+}
+
+#settings-modal #save-settings-btn,
+#settings-modal #logout-btn {
+    display: none !important;
+}
+
+#close-settings-btn {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    min-height: 2.25rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--gpt-icon) !important;
+    font-size: 0 !important;
+}
+
+#close-settings-btn::before {
+    content: "×";
+    font-size: 1.9rem;
+    font-weight: 300;
+    line-height: 1;
+}
+
+#close-settings-btn:hover {
+    background: transparent !important;
+}
+
+#settings-modal .flex.flex-1.overflow-hidden {
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+#settings-modal nav {
+    width: 15.5rem !important;
+    padding-top: 4rem !important;
+    background: var(--gpt-surface) !important;
+}
+
+#settings-modal #settings-nav {
+    padding: 0 0.5rem 1rem 0.5rem !important;
+}
+
+.settings-nav-item {
+    color: var(--gpt-control-text) !important;
+    background: transparent !important;
+    border: 0 !important;
+}
+
+.settings-nav-item.active,
+.settings-nav-item:hover {
+    color: var(--gpt-control-text) !important;
+    background: transparent !important;
+    font-weight: 600 !important;
+}
+
+#settings-modal .flex-1.p-6.overflow-y-auto {
+    position: static !important;
+    padding: 1.1rem 1.5rem 1.5rem 1.35rem !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: var(--gpt-scrollbar) transparent !important;
+}
+
+#settings-modal .flex-1.p-6.overflow-y-auto::-webkit-scrollbar,
+#settings-modal nav::-webkit-scrollbar,
+.scroll-area::-webkit-scrollbar {
+    width: 10px !important;
+}
+
+#settings-modal .flex-1.p-6.overflow-y-auto::-webkit-scrollbar-thumb,
+#settings-modal nav::-webkit-scrollbar-thumb,
+.scroll-area::-webkit-scrollbar-thumb {
+    background: var(--gpt-scrollbar) !important;
+    border: 3px solid transparent !important;
+    background-clip: content-box !important;
+    border-radius: 999px !important;
+}
+
+#settings-modal .settings-section {
+    position: static !important;
+    display: none !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: 40rem !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    animation: none !important;
+    color: var(--gpt-control-text) !important;
+}
+
+#settings-modal .settings-section.active {
+    display: block !important;
+}
+
+#settings-modal .settings-section.active::before {
+    display: block;
+    margin: 0 0 1.7rem 0;
+    padding-bottom: 1.35rem;
+    border-bottom: 1px solid var(--gpt-border);
+    color: var(--gpt-control-text);
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+
+#personalization-section.active::before { content: "個人化"; }
+#memory-section.active::before { content: "記憶管理"; }
+#model-management-section.active::before { content: "模型管理"; }
+#data-management-section.active::before { content: "資料管理"; }
+#accessibility-section.active::before { content: "輔助功能"; }
+#trash-section.active::before { content: "垃圾桶"; }
+#about-section.active::before { content: "關於"; }
+
+#settings-modal,
+#settings-modal *:not(.toggle-label) {
+    color: var(--gpt-control-text) !important;
+}
+
+#settings-modal svg,
+#settings-modal button:not(#submit-btn) svg,
+#settings-modal .model-row-action svg,
+#settings-modal .text-\[var\(--text-secondary\)\] svg {
+    color: var(--gpt-icon) !important;
+    stroke: currentColor !important;
+}
+
+#settings-modal .text-\[var\(--text-secondary\)\],
+#settings-modal .text-xs,
+#settings-modal .model-description,
+#model-management-list .collapsible-summary,
+.model-management-name {
+    color: var(--gpt-control-text) !important;
+}
+
+.theme-btn,
+.custom-output-mode-option,
+.store-category-btn,
+.council-mode-tabs button,
+.section-add-btn,
+#trash-batch-select-btn,
+#empty-trash-btn,
+#trash-batch-restore-btn,
+#trash-batch-delete-btn,
+#trash-cancel-selection-btn,
+.trash-item-view-btn,
+.trash-item-restore-btn,
+.trash-item-delete-btn,
+#export-data-btn,
+#import-data-btn,
+#open-archived-modal-btn,
+#delete-all-data-btn,
+#upload-wallpaper-btn,
+#restore-wallpaper-btn,
+.model-row-action {
+    background: var(--gpt-control-bg) !important;
+    color: var(--gpt-control-text) !important;
+    border-color: var(--gpt-control-border) !important;
+}
+
+.theme-btn:hover,
+.custom-output-mode-option:hover,
+.store-category-btn:hover,
+.council-mode-tabs button:hover,
+.section-add-btn:hover,
+#trash-batch-select-btn:hover,
+#empty-trash-btn:hover,
+#trash-batch-restore-btn:hover,
+#trash-batch-delete-btn:hover,
+#trash-cancel-selection-btn:hover,
+.trash-item-view-btn:hover,
+.trash-item-restore-btn:hover,
+.trash-item-delete-btn:hover,
+#export-data-btn:hover,
+#import-data-btn:hover,
+#open-archived-modal-btn:hover,
+#delete-all-data-btn:hover,
+#upload-wallpaper-btn:hover,
+#restore-wallpaper-btn:hover,
+.model-row-action:hover {
+    background: var(--gpt-control-bg) !important;
+    color: var(--gpt-control-text) !important;
+}
+
+.theme-btn.active,
+.custom-output-mode-option.active,
+.store-category-btn.active,
+.council-mode-tabs button.active {
+    background: var(--button-primary-bg) !important;
+    border-color: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+}
+
+#settings-modal .theme-btn.active,
+#settings-modal .custom-output-mode-option.active,
+#settings-modal .store-category-btn.active,
+#settings-modal .council-mode-tabs button.active {
+    background: var(--button-primary-bg) !important;
+    border-color: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+}
+
+.custom-output-mode-select,
+.theme-button-group {
+    background: transparent !important;
+    border: 0 !important;
+}
+
+.toggle-label {
+    background: #e3e3e3 !important;
+    border: 0 !important;
+}
+
+.dark .toggle-label {
+    background: #e3e3e3 !important;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background: var(--button-primary-bg) !important;
+}
+
+.toggle-checkbox:checked + .toggle-label:before {
+    background: #ffffff !important;
+}
+
+@media (max-width: 768px) {
+    #settings-modal.visible {
+        padding: 0.75rem !important;
+    }
+
+    #settings-modal > div {
+        width: calc(100vw - 1.5rem) !important;
+        height: min(88vh, 48rem) !important;
+        max-height: calc(100vh - 1.5rem) !important;
+    }
+
+    #settings-modal nav {
+        display: none !important;
+    }
+}

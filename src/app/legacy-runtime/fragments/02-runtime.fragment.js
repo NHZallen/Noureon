@@ -1772,6 +1772,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 button.addEventListener('click', () => {
                     ALL_ELEMENTS.outputModeSelect.value = button.dataset.outputModeOption === 'realtime' ? 'realtime' : 'typewriter';
                     syncOutputModeButtons();
+                    ALL_ELEMENTS.outputModeSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 });
             });
             syncOutputModeButtons();
@@ -1834,7 +1835,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 });
             });
         };
-        const saveSettings = async () => {
+        const saveSettings = async ({ close = true, notify = true } = {}) => {
             config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
             config.apiKeys.stepPlan = ALL_ELEMENTS.stepPlanApiKeyInput?.value.trim() || '';
@@ -1870,10 +1871,14 @@ submitButtonIcon.innerHTML = sendIconHTML;
             renderModelSwitcher();
             renderChat();
             renderStore();
-            toggleModal(ALL_ELEMENTS.settingsModal, false);
+            if (close) {
+                toggleModal(ALL_ELEMENTS.settingsModal, false);
+            }
             updateApiKeyWarningBadge();
             updateInputState();
-            showNotification(i18n[config.uiLanguage].settingsSaved || '設定已儲存！');
+            if (notify) {
+                showNotification(i18n[config.uiLanguage].settingsSaved || '設定已儲存！');
+            }
         };
         const setAiBubbleColor = () => {
             const root = document.documentElement;

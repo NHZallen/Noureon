@@ -1047,6 +1047,13 @@
 };
         const renderModelManagementUI = () => {
     const container = ALL_ELEMENTS.modelManagementList;
+    const settingsContent = container.closest('.flex-1.p-6.overflow-y-auto') || container.closest('.scroll-area');
+    const previousScrollTop = settingsContent ? settingsContent.scrollTop : 0;
+    const openSectionKeys = new Set(
+        Array.from(container.querySelectorAll('details[open]'))
+            .map(details => details.querySelector('summary')?.textContent?.trim())
+            .filter(Boolean)
+    );
     container.innerHTML = '';
 
 
@@ -1175,6 +1182,20 @@
             providerContent.appendChild(tierSection);
         }
         container.appendChild(providerSection);
+    }
+
+    if (openSectionKeys.size > 0) {
+        container.querySelectorAll('details').forEach(details => {
+            const key = details.querySelector('summary')?.textContent?.trim();
+            if (key && openSectionKeys.has(key)) {
+                details.open = true;
+            }
+        });
+    }
+    if (settingsContent) {
+        requestAnimationFrame(() => {
+            settingsContent.scrollTop = previousScrollTop;
+        });
     }
     
     // --- 步驟 3: 綁定事件 ---

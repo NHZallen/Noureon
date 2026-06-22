@@ -170,8 +170,30 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
             ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
             ALL_ELEMENTS.settingsBtn.addEventListener('click', () => { setupSettingsModal(); toggleModal(ALL_ELEMENTS.settingsModal, true); });
+            ALL_ELEMENTS.saveSettingsBtn?.remove();
+            const scheduleInstantSettingsSave = (() => {
+                let saveTimer = null;
+                return () => {
+                    clearTimeout(saveTimer);
+                    saveTimer = setTimeout(() => saveSettings({ close: false, notify: false }), 350);
+                };
+            })();
+            ALL_ELEMENTS.settingsModal.addEventListener('change', (event) => {
+                if (event.target.closest('#settings-modal')) {
+                    saveSettings({ close: false, notify: false });
+                }
+            });
+            ALL_ELEMENTS.settingsModal.addEventListener('input', (event) => {
+                if (event.target.matches('input, textarea')) {
+                    scheduleInstantSettingsSave();
+                }
+            });
+            ALL_ELEMENTS.settingsModal.addEventListener('click', (event) => {
+                if (event.target.closest('.color-swatch, .color-option, .translator-picker-option')) {
+                    setTimeout(() => saveSettings({ close: false, notify: false }), 0);
+                }
+            });
             ALL_ELEMENTS.closeSettingsBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.settingsModal, false));
-            ALL_ELEMENTS.saveSettingsBtn.addEventListener('click', saveSettings);
             ALL_ELEMENTS.themeLightBtn.addEventListener('click', () => setTheme('light'));
             ALL_ELEMENTS.themeDarkBtn.addEventListener('click', () => setTheme('dark'));
             ALL_ELEMENTS.openArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, true));
