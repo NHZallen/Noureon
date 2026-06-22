@@ -48,8 +48,8 @@ test('desktop chat input reserves the lower row only for active modes or multili
   assert.match(runtime06, /const\s+wasMultilineLayout\s*=\s*wrapper\?\.classList\.contains\('has-multiline-input'\)\s*\|\|\s*false/);
   assert.match(runtime06, /const\s+firstLineWouldWrap\s*=\s*hasInputText\s*&&\s*isDesktopInput\s*&&\s*!wasMultilineLayout/);
   assert.match(runtime06, /measurementContext\.measureText\(line\)\.width/);
-  assert.match(runtime06, /const\s+useMultilineLayout\s*=\s*hasInputText\s*&&\s*\(\s*wasMultilineLayout/s);
-  assert.match(runtime06, /wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
+  assert.match(runtime06, /const\s+useMultilineLayout\s*=\s*isDesktopInput\s*&&\s*hasInputText\s*&&\s*\(\s*wasMultilineLayout/s);
+  assert.match(runtime06, /if\s*\(wrapper\s*&&\s*isDesktopInput\)\s*\{[\s\S]*wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
 });
 
 test('desktop active mode and Astras pills swap their leading icon to the themed close icon on hover', () => {
@@ -69,6 +69,31 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
   const css = readSource('src/styles/main.css');
 
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s*!important;/s);
+});
+
+test('mobile web search typing does not disable the message input when Tavily is missing', () => {
+  const runtime02 = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const runtime06 = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+
+  assert.match(runtime02, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
+  assert.match(runtime02, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
+  assert.match(runtime02, /ALL_ELEMENTS\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
+  assert.match(runtime06, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
+});
+
+test('model council manager uses compact pills and a bounded scroll area', () => {
+  const css = readSource('src/styles/main.css');
+  const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+
+  assert.match(runtime01, /class="council-mode-cluster"[\s\S]*id="model-council-enabled"[\s\S]*class="council-mode-tabs"/);
+  assert.match(runtime01, /id="model-council-search-toggle"[\s\S]*\$\{escapeHTML\(searchLabel\)\}/);
+  assert.match(runtime01, /conv\.isWebSearchEnabled\s*=\s*!conv\.isWebSearchEnabled/);
+  assert.doesNotMatch(runtime01, /council-filter-panel|data-council-filter|filtersHTML|applyCouncilSearchFilter/);
+  assert.doesNotMatch(runtime01, /<p class="council-search-note[^`]*runtimeTexts\.searchManualNotice/);
+  assert.match(css, /\.model-council-popover[^{]*\{[^}]*overflow:\s*hidden\s*!important;/s);
+  assert.match(css, /\.council-popover-scroll-area[^{]*\{[^}]*overflow-y:\s*auto\s*!important;[^}]*scrollbar-color:\s*var\(--gpt-scrollbar\)\s+transparent\s*!important;/s);
+  assert.match(css, /\.council-popover-scroll-area::-webkit-scrollbar-thumb[^{]*\{[^}]*background:\s*var\(--gpt-scrollbar\)\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-config-row[^{]*\{[^}]*flex-direction:\s*column\s*!important;/s);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {

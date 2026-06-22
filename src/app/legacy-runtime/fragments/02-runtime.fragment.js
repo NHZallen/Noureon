@@ -1497,11 +1497,13 @@ Avoid overly brief answers: the final response should be complete enough for the
             const provider = modelInfo?.provider;
             const councilValidation = getCouncilValidation(conv);
             const hasTavilyKey = !conversationNeedsTavilySearch(conv) || !!getApiKeyForProvider('tavily');
-            const hasApiKey = isCouncilEnabled(conv)
+            const hasModelApiKey = isCouncilEnabled(conv)
                 ? councilValidation.reason !== 'missingApiKey'
-                : (!!getApiKeyForProvider(provider) && hasTavilyKey);
-            ALL_ELEMENTS.messageInput.disabled = !hasApiKey;
-            ALL_ELEMENTS.messageInput.placeholder = hasApiKey
+                : !!getApiKeyForProvider(provider);
+            const canSubmitWithSearch = hasTavilyKey;
+            const hasApiKey = hasModelApiKey && canSubmitWithSearch;
+            ALL_ELEMENTS.messageInput.disabled = !hasModelApiKey;
+            ALL_ELEMENTS.messageInput.placeholder = hasModelApiKey
                 ? (isCouncilEnabled(conv) && !councilValidation.ok ? councilValidation.message : i18n[config.uiLanguage].enterMessagePlaceholder)
                 : i18n[config.uiLanguage].enterApiKeyPlaceholder;
             if (!hasApiKey || !hasContent || (isCouncilEnabled(conv) && !councilValidation.ok)) {

@@ -309,14 +309,16 @@ const FOLDER_TEXT_COLORS = {
             return measurementContext.measureText(line).width + spacingWidth >= contentWidth - 1;
         });
     })();
-    const useMultilineLayout = hasInputText && (
+    const useMultilineLayout = isDesktopInput && hasInputText && (
         wasMultilineLayout ||
         textarea.value.includes('\n') ||
         initialScrollHeight > singleLineHeight + 2 ||
         firstLineWouldWrap
     );
-    if (wrapper) {
+    if (wrapper && isDesktopInput) {
         wrapper.classList.toggle('has-multiline-input', useMultilineLayout);
+    } else if (wrapper) {
+        wrapper.classList.remove('has-multiline-input');
     }
 
     const scrollHeight = textarea.scrollHeight;

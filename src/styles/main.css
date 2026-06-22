@@ -3187,26 +3187,6 @@ body.custom-wallpaper-active .input-indicator-item {
     border-color: color-mix(in srgb, #f59e0b 42%, var(--border-color));
 }
 
-.council-filter-panel {
-    display: grid;
-    grid-template-columns: minmax(9rem, 1.4fr) repeat(3, minmax(7rem, 1fr));
-    gap: 0.45rem;
-    margin-top: 0.7rem;
-}
-
-.council-filter-panel input,
-.council-filter-panel select {
-    min-width: 0;
-    height: 2.15rem;
-    padding: 0 0.55rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    background: var(--input-field-bg);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
 .council-section {
     margin-top: 0.75rem;
 }
@@ -3949,12 +3929,6 @@ body.custom-wallpaper-active.wallpaper-is-dark #attachment-menu {
     .council-model-list {
         grid-template-columns: 1fr;
     }
-    .council-filter-panel {
-        grid-template-columns: 1fr 1fr;
-    }
-    .council-filter-panel input {
-        grid-column: 1 / -1;
-    }
     .council-family-provider-list {
         display: none;
     }
@@ -4174,8 +4148,6 @@ button:active:not(:disabled),
 
 .color-dropdown-btn,
 .translator-picker-button,
-.council-filter-panel input,
-.council-filter-panel select,
 .modal input,
 .modal select,
 .modal textarea {
@@ -5384,7 +5356,9 @@ body svg {
     bottom: 5.75rem !important;
     width: min(38rem, calc(100vw - 1rem)) !important;
     max-height: min(70vh, 36rem) !important;
-    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
     padding: 0 0.75rem 0.75rem !important;
     border: 1px solid var(--border-color) !important;
     border-radius: 0.75rem !important;
@@ -5432,6 +5406,56 @@ body svg {
     border-top: 1px solid var(--border-color) !important;
 }
 
+.council-config-row {
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.6rem !important;
+    min-width: 0 !important;
+}
+
+.council-mode-cluster {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    min-width: 0 !important;
+}
+
+.council-enable-pill,
+.council-search-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.35rem !important;
+    height: 2.15rem !important;
+    min-height: 2.15rem !important;
+    padding: 0 0.85rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+}
+
+.council-enable-pill:hover,
+.council-search-toggle:hover {
+    background: var(--gpt-subtle, var(--hover-bg)) !important;
+}
+
+.council-enable-pill.is-active,
+.council-search-toggle.is-active {
+    border-color: var(--button-primary-bg) !important;
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+}
+
+.council-enable-pill:disabled,
+.council-search-toggle:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.55 !important;
+}
+
 .council-mode-tabs {
     gap: 0.25rem !important;
     padding: 0.2rem !important;
@@ -5455,27 +5479,6 @@ body svg {
 .council-mode-tabs button.active {
     background: var(--active-bg) !important;
     color: var(--text-primary) !important;
-}
-
-.council-filter-panel {
-    display: grid !important;
-    grid-template-columns: minmax(9rem, 1.4fr) repeat(3, minmax(7rem, 1fr)) !important;
-    gap: 0.45rem !important;
-    margin-top: 0.7rem !important;
-}
-
-.council-filter-panel input,
-.council-filter-panel select {
-    min-width: 0 !important;
-    height: 2.15rem !important;
-    min-height: 0 !important;
-    padding: 0 0.55rem !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 0.5rem !important;
-    background: var(--input-field-bg) !important;
-    color: var(--text-primary) !important;
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
 }
 
 .council-section-title {
@@ -5533,6 +5536,37 @@ body svg {
     line-height: 1.2 !important;
 }
 
+.council-popover-scroll-area {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    margin: 0 -0.25rem !important;
+    padding: 0 0.25rem !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: var(--gpt-scrollbar) transparent !important;
+}
+
+.council-popover-scroll-area::-webkit-scrollbar {
+    width: 10px !important;
+}
+
+.council-popover-scroll-area::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.council-popover-scroll-area::-webkit-scrollbar-thumb {
+    background: var(--gpt-scrollbar) !important;
+    border: 3px solid transparent !important;
+    background-clip: content-box !important;
+    border-radius: 999px !important;
+}
+
+.council-popover-bottom {
+    flex: 0 0 auto !important;
+    padding-top: 0.7rem !important;
+}
+
 .council-done-btn {
     height: auto !important;
     min-height: 0 !important;
@@ -5543,6 +5577,50 @@ body svg {
     color: #ffffff !important;
     font-size: 0.82rem !important;
     font-weight: 800 !important;
+}
+
+@media (max-width: 640px) {
+    .model-council-popover {
+        left: 0.5rem !important;
+        right: 0.5rem !important;
+        bottom: 5.25rem !important;
+        width: auto !important;
+        max-height: min(78vh, 34rem) !important;
+        transform: scale(0.95) translateY(12px) !important;
+        transform-origin: bottom center !important;
+    }
+
+    .model-council-popover.visible {
+        transform: scale(1) translateY(0) !important;
+    }
+
+    .council-config-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .council-mode-cluster {
+        width: 100% !important;
+        flex-wrap: wrap !important;
+    }
+
+    .council-enable-pill {
+        flex: 1 1 auto !important;
+    }
+
+    .council-mode-tabs {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    .council-mode-tabs button {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+    }
+
+    .council-search-toggle {
+        width: 100% !important;
+    }
 }
 
 .theme-btn:not(.active),

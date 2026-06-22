@@ -771,12 +771,6 @@
             const existingPopover = container?.querySelector('#model-council-popover');
             const wasVisible = existingPopover?.classList.contains('visible') || false;
             const previousScrollTop = wasVisible ? existingPopover.scrollTop : 0;
-            const previousFilters = {
-                search: existingPopover?.querySelector('[data-council-filter="search"]')?.value || '',
-                provider: existingPopover?.querySelector('[data-council-filter="provider"]')?.value || 'all',
-                ability: existingPopover?.querySelector('[data-council-filter="ability"]')?.value || 'all',
-                sort: existingPopover?.querySelector('[data-council-filter="sort"]')?.value || 'priceLow'
-            };
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'model-council-control';
@@ -809,6 +803,13 @@
                 : texts.disabled;
             const doneText = i18n[config.uiLanguage]?.done || i18n[config.uiLanguage]?.confirm || '完成';
             const dotClass = conv.council.enabled ? (validation.ok ? 'ready' : 'warning') : 'off';
+            const supportsCouncilSearch = hasCouncilWebSearchAccess(synthesizer || normalizeConversationModel(conv));
+            const searchDisabled = isLocked || conv.archived || !supportsCouncilSearch;
+            const searchDisabledAttr = searchDisabled ? 'disabled' : '';
+            const searchActiveClass = conv.isWebSearchEnabled ? 'is-active' : '';
+            const searchTitle = supportsCouncilSearch
+                ? (conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : (i18n[config.uiLanguage]?.search || 'Search'))
+                : (i18n[config.uiLanguage]?.webSearchNotAvailable || 'Web search is not available for this model.');
             const priceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
             const visionLabel = config.uiLanguage === 'en' ? 'Vision' : '視覺';
             const documentLabel = config.uiLanguage === 'en' ? 'Documents' : '文件';
@@ -816,13 +817,7 @@
             const providerLabel = config.uiLanguage === 'en' ? 'Provider' : '供應商';
             const abilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
             const noExtraAbilityLabel = config.uiLanguage === 'en' ? 'Text / file' : '文字 / 文件';
-            const searchPlaceholder = config.uiLanguage === 'en' ? 'Search models' : '搜尋模型';
-            const allLabel = config.uiLanguage === 'en' ? 'All' : '全部';
             const providerCountLabel = config.uiLanguage === 'en' ? 'providers' : '供應商';
-            const sortProviderLabel = config.uiLanguage === 'en' ? 'Provider count' : '供應商數';
-            const sortPriceLowLabel = config.uiLanguage === 'en' ? 'Price: low to high' : '價格由低到高';
-            const sortPriceHighLabel = config.uiLanguage === 'en' ? 'Price: high to low' : '價格由高到低';
-            const sortCapabilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
             const makeModelTooltip = (model) => {
                 const abilities = [
                     noExtraAbilityLabel,
@@ -840,12 +835,6 @@
                 </span>
                 <small>${escapeHTML(getProviderLabel(model.provider))} · ${escapeHTML(priceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</small>
             `;
-            const getModelCapabilityScore = (model) => [
-                modelSupportsVision(model),
-                modelSupportsDocumentUpload(model),
-                modelSupportsWebSearch(model)
-            ].filter(Boolean).length;
-            const getModelPriceRank = (model) => getModelTiers(model).includes('free') ? 0 : 1;
             const buildCouncilModelGroups = (models) => {
                 const groups = new Map();
                 models.forEach(model => {
@@ -867,40 +856,8 @@
                     })
                 }));
             };
-            const matchesCouncilFilters = (model, groupName) => {
-                const query = previousFilters.search.trim().toLowerCase();
-                const searchable = `${groupName} ${model.name} ${getProviderLabel(model.provider)} ${getModelApiId(model)}`.toLowerCase();
-                const providerOk = previousFilters.provider === 'all' || model.provider === previousFilters.provider;
-                const abilityOk = previousFilters.ability === 'all'
-                    || (previousFilters.ability === 'vision' && modelSupportsVision(model))
-                    || (previousFilters.ability === 'document' && modelSupportsDocumentUpload(model))
-                    || (previousFilters.ability === 'search' && modelSupportsWebSearch(model));
-                return (!query || searchable.includes(query)) && providerOk && abilityOk;
-            };
             const modelGroups = buildCouncilModelGroups(modelList)
-                .map(group => ({
-                    ...group,
-                    variants: group.variants.filter(model => matchesCouncilFilters(model, group.name))
-                }))
-                .filter(group => group.variants.length > 0)
-                .sort((a, b) => {
-                    if (previousFilters.sort === 'provider') {
-                        return b.variants.length - a.variants.length || a.name.localeCompare(b.name);
-                    }
-                    if (previousFilters.sort === 'priceHigh') {
-                        const priceCompare = Math.max(...b.variants.map(getModelPriceRank)) - Math.max(...a.variants.map(getModelPriceRank));
-                        return priceCompare || a.name.localeCompare(b.name);
-                    }
-                    if (previousFilters.sort === 'priceLow') {
-                        const priceCompare = Math.min(...a.variants.map(getModelPriceRank)) - Math.min(...b.variants.map(getModelPriceRank));
-                        return priceCompare || a.name.localeCompare(b.name);
-                    }
-                    if (previousFilters.sort === 'capability') {
-                        const capabilityCompare = Math.max(...b.variants.map(getModelCapabilityScore)) - Math.max(...a.variants.map(getModelCapabilityScore));
-                        return capabilityCompare || a.name.localeCompare(b.name);
-                    }
-                    return a.name.localeCompare(b.name);
-                });
+                .sort((a, b) => a.name.localeCompare(b.name));
             const renderSelectableCouncilModelRow = (model, type) => {
                 const isParticipant = type === 'participant';
                 const checked = conv.council.participantModelIds.includes(model.id);
@@ -942,30 +899,6 @@
             }).join('');
             const modelRows = renderCouncilModelGroups('participant');
             const synthesizerRows = renderCouncilModelGroups('synthesizer');
-            const filtersHTML = `
-                <div class="council-filter-panel">
-                    <input type="search" data-council-filter="search" value="${escapeHTML(previousFilters.search)}" placeholder="${escapeHTML(searchPlaceholder)}">
-                    <select data-council-filter="provider">
-                        <option value="all" ${previousFilters.provider === 'all' ? 'selected' : ''}>${escapeHTML(allLabel)} ${escapeHTML(providerLabel)}</option>
-                        <option value="gemini" ${previousFilters.provider === 'gemini' ? 'selected' : ''}>Gemini</option>
-                        <option value="openrouter" ${previousFilters.provider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
-                        <option value="stepfun" ${previousFilters.provider === 'stepfun' ? 'selected' : ''}>Step Plan</option>
-                        <option value="nvidia" ${previousFilters.provider === 'nvidia' ? 'selected' : ''}>NVIDIA</option>
-                    </select>
-                    <select data-council-filter="ability">
-                        <option value="all" ${previousFilters.ability === 'all' ? 'selected' : ''}>${escapeHTML(allLabel)} ${escapeHTML(abilityLabel)}</option>
-                        <option value="vision" ${previousFilters.ability === 'vision' ? 'selected' : ''}>${escapeHTML(visionLabel)}</option>
-                        <option value="document" ${previousFilters.ability === 'document' ? 'selected' : ''}>${escapeHTML(documentLabel)}</option>
-                        <option value="search" ${previousFilters.ability === 'search' ? 'selected' : ''}>${escapeHTML(searchLabel)}</option>
-                    </select>
-                    <select data-council-filter="sort">
-                        <option value="provider" ${previousFilters.sort === 'provider' ? 'selected' : ''}>${escapeHTML(sortProviderLabel)}</option>
-                        <option value="priceLow" ${previousFilters.sort === 'priceLow' ? 'selected' : ''}>${escapeHTML(sortPriceLowLabel)}</option>
-                        <option value="priceHigh" ${previousFilters.sort === 'priceHigh' ? 'selected' : ''}>${escapeHTML(sortPriceHighLabel)}</option>
-                        <option value="capability" ${previousFilters.sort === 'capability' ? 'selected' : ''}>${escapeHTML(sortCapabilityLabel)}</option>
-                    </select>
-                </div>
-            `;
             container.innerHTML = `
                 <div class="model-council-bar ${enabledClass} ${isLocked ? 'is-locked' : ''}">
                     <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
@@ -985,20 +918,24 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
-                        <div class="council-popover-header compact">
-                            <label class="council-enable-row">
-                                <input type="checkbox" id="model-council-enabled" ${conv.council.enabled ? 'checked' : ''} ${lockAttr}>
-                                <span>${texts.enable}</span>
-                            </label>
-                            <div class="council-mode-tabs">
-                                <button type="button" class="${conv.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus" ${lockAttr}>${texts.consensus}</button>
-                                <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${lockAttr}>${texts.deliberation}</button>
+                        <div class="council-popover-header compact council-config-row">
+                            <div class="council-mode-cluster">
+                                <button type="button" id="model-council-enabled" class="council-enable-pill ${conv.council.enabled ? 'is-active' : ''}" aria-pressed="${conv.council.enabled ? 'true' : 'false'}" ${lockAttr}>
+                                    ${texts.enable}
+                                </button>
+                                <div class="council-mode-tabs">
+                                    <button type="button" class="${conv.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus" ${lockAttr}>${texts.consensus}</button>
+                                    <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${lockAttr}>${texts.deliberation}</button>
+                                </div>
                             </div>
+                            <button type="button" id="model-council-search-toggle" class="council-search-toggle ${searchActiveClass}" aria-pressed="${conv.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabledAttr}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                <span>${escapeHTML(searchLabel)}</span>
+                            </button>
                         </div>
-                            <p class="council-search-note ${conv.isWebSearchEnabled ? 'is-on' : 'is-off'}">${escapeHTML(conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : runtimeTexts.searchManualNotice)}</p>
                             ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
-                            ${filtersHTML}
                         </div>
+                        <div class="council-popover-scroll-area">
                         <div class="council-section">
                             <div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${COUNCIL_MAX_MODELS})</div>
                             <div class="council-model-list">${modelRows}</div>
@@ -1007,6 +944,8 @@
                             <div class="council-section-title">${texts.synthesizer}</div>
                             <div class="council-model-list">${synthesizerRows}</div>
                         </div>
+                        </div>
+                        <div class="council-popover-bottom">
                         <label class="council-raw-row">
                             <input type="checkbox" id="model-council-show-raw" ${conv.council.showRawResponses ? 'checked' : ''} ${lockAttr}>
                             <span>${texts.rawNotes}</span>
@@ -1019,6 +958,7 @@
                         <div class="council-popover-footer">
                             <button type="button" id="model-council-done-btn" class="council-done-btn">${escapeHTML(doneText)}</button>
                         </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1027,23 +967,6 @@
             const updateCouncilStickyOffset = () => {
                 const stickyControls = popover.querySelector('.council-popover-sticky-controls');
                 popover.style.setProperty('--council-sticky-offset', `${stickyControls?.offsetHeight || 0}px`);
-            };
-            const applyCouncilSearchFilter = () => {
-                const query = (container.querySelector('[data-council-filter="search"]')?.value || '').trim().toLowerCase();
-                container.querySelectorAll('.council-model-group').forEach(group => {
-                    let visibleCount = 0;
-                    group.querySelectorAll('.council-model-row').forEach(row => {
-                        const haystack = `${group.dataset.councilGroupSearchText || ''} ${row.dataset.councilSearchText || ''}`;
-                        const isVisible = !query || haystack.includes(query);
-                        row.hidden = !isVisible;
-                        if (isVisible) visibleCount += 1;
-                    });
-                    group.hidden = visibleCount === 0;
-                });
-                container.querySelectorAll('.council-model-list > .council-model-row').forEach(row => {
-                    const haystack = row.dataset.councilSearchText || '';
-                    row.hidden = Boolean(query) && !haystack.includes(query);
-                });
             };
             requestAnimationFrame(updateCouncilStickyOffset);
             if (wasVisible) {
@@ -1069,29 +992,33 @@
             });
             container.querySelector('#model-council-close-btn').addEventListener('click', closeCouncilPopover);
             container.querySelector('#model-council-done-btn').addEventListener('click', closeCouncilPopover);
-            container.querySelectorAll('[data-council-filter]').forEach(control => {
-                const eventName = control.tagName === 'INPUT' ? 'input' : 'change';
-                control.addEventListener(eventName, () => {
-                    if (control.tagName === 'INPUT') {
-                        applyCouncilSearchFilter();
-                        return;
-                    }
-                    renderCouncilControls();
-                });
-            });
-            applyCouncilSearchFilter();
-            container.querySelector('#model-council-enabled').addEventListener('change', async (event) => {
+            container.querySelector('#model-council-enabled').addEventListener('click', async () => {
                 if (isCouncilRunning) {
                     showNotification(runtimeTexts.councilLocked, 'warning');
                     renderCouncilControls();
                     return;
                 }
-                conv.council.enabled = event.target.checked;
+                conv.council.enabled = !conv.council.enabled;
                 if (conv.council.enabled) seedCouncilParticipants(conv);
                 await persistCouncilConfig(conv);
                 if (conv.council.enabled && !conv.isWebSearchEnabled) {
                     showNotification(runtimeTexts.searchManualNotice, 'warning');
                 }
+            });
+            container.querySelector('#model-council-search-toggle')?.addEventListener('click', async () => {
+                if (isCouncilRunning) {
+                    showNotification(runtimeTexts.councilLocked, 'warning');
+                    renderCouncilControls();
+                    return;
+                }
+                if (!supportsCouncilSearch || conv.archived) {
+                    showNotification(i18n[config.uiLanguage]?.webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
+                    return;
+                }
+                conv.isWebSearchEnabled = !conv.isWebSearchEnabled;
+                await saveAppData();
+                renderCouncilControls();
+                renderInputIndicators();
             });
             container.querySelectorAll('[data-council-mode]').forEach(button => {
                 button.addEventListener('click', async () => {
