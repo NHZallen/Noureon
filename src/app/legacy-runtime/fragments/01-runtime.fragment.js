@@ -1651,7 +1651,8 @@
                     </div>
                 `;
             }).join('');
-            return `<div class="message-media-grid">${mediaItems}</div>`;
+            const singleVisual = mediaParts.length === 1 && (mediaParts[0].mimeType || '').match(/^(image|video)\//);
+            return `<div class="message-media-grid ${singleVisual ? 'message-media-grid-single' : ''}">${mediaItems}</div>`;
         };
         const openMediaPreview = (media) => {
             if (!media) return;

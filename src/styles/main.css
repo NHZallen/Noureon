@@ -1520,6 +1520,18 @@ button:not(.btn-primary):active:not(:disabled) {
     .user-message .message-bubble::before {
         border-radius: 1.5rem;
     }
+    .user-message .message-bubble::after {
+        content: '';
+        position: absolute;
+        top: -0.08rem;
+        right: 0.15rem;
+        width: 1.05rem;
+        height: 0.42rem;
+        border-radius: 999px;
+        background: var(--user-bubble-bg);
+        transform: rotate(11deg);
+        z-index: -1;
+    }
     .message-item {
         gap: 0 !important;
     }
@@ -1539,9 +1551,12 @@ button:not(.btn-primary):active:not(:disabled) {
     }
     .user-message .message-bubble {
         color: var(--text-primary) !important;
+        padding: 0.68rem 1rem !important;
+        max-width: min(34rem, 78vw);
     }
     .user-message .message-content {
         color: var(--text-primary) !important;
+        line-height: 1.55;
     }
     .model-message .message-bubble {
         max-width: min(44rem, 92vw);
@@ -1555,9 +1570,15 @@ button:not(.btn-primary):active:not(:disabled) {
     }
     .message-stack-user .message-media-grid {
         justify-content: end;
+        align-self: flex-end;
+        direction: rtl;
     }
     .message-stack-model .message-media-grid {
         justify-content: start;
+    }
+    .message-stack-user .message-media-thumb,
+    .message-stack-user .message-file-chip {
+        direction: ltr;
     }
     .message-media-thumb {
         position: relative;
@@ -1570,11 +1591,40 @@ button:not(.btn-primary):active:not(:disabled) {
         background: var(--hover-bg);
         cursor: pointer;
     }
+    .message-media-grid-single {
+        display: flex;
+        width: auto;
+        max-width: min(32rem, 82vw);
+    }
+    .message-media-grid-single .message-media-thumb {
+        aspect-ratio: auto;
+        width: auto;
+        max-width: min(32rem, 82vw);
+        max-height: min(30rem, 58vh);
+        border-radius: 1.35rem;
+    }
+    .message-media-grid-single .message-media-thumb img,
+    .message-media-grid-single .message-media-thumb video {
+        width: auto;
+        height: auto;
+        max-width: min(32rem, 82vw);
+        max-height: min(30rem, 58vh);
+        object-fit: contain;
+    }
     @media (max-width: 640px) {
         .message-media-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.45rem;
             width: min(100%, 20rem);
+        }
+        .message-media-grid-single {
+            max-width: min(21rem, 82vw);
+        }
+        .message-media-grid-single .message-media-thumb,
+        .message-media-grid-single .message-media-thumb img,
+        .message-media-grid-single .message-media-thumb video {
+            max-width: min(21rem, 82vw);
+            max-height: min(30rem, 52vh);
         }
     }
     .message-media-thumb img,
