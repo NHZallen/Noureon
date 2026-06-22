@@ -249,17 +249,17 @@
             }
             archived.forEach(conv => {
                 const item = document.createElement('div');
-                item.className = 'p-3 bg-[var(--sidebar-bg)] rounded-md border border-[var(--border-color)]';
+                item.className = 'archived-chat-item';
                 item.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <span class="truncate pr-2 font-medium">${conv.title}</span>
-                        <div class="flex gap-2 flex-shrink-0">
+                    <div class="archived-chat-row">
+                        <span class="archived-chat-title">${conv.title}</span>
+                        <div class="archived-chat-actions">
                             <button data-id="${conv.id}" class="view-archived-btn text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200">${i18n[config.uiLanguage].view || '檢視'}</button>
                             <button data-id="${conv.id}" class="unarchive-btn text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">${i18n[config.uiLanguage].restore || '還原'}</button>
                             <button data-id="${conv.id}" class="delete-btn text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200">${i18n[config.uiLanguage].delete || '刪除'}</button>
                         </div>
                     </div>
-                    ${conv.summary ? `<p class="text-xs text-[var(--text-secondary)] mt-2">${conv.summary}</p>` : ''}
+                    ${conv.summary ? `<p class="archived-chat-summary">${conv.summary}</p>` : ''}
                 `;
                 ALL_ELEMENTS.archivedChatsContainer.appendChild(item);
             });

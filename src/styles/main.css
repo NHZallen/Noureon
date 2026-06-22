@@ -4953,3 +4953,337 @@ body svg {
         display: none !important;
     }
 }
+
+/* Final button alignment and modal cleanup pass */
+#close-settings-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#close-settings-btn::before {
+    content: "\00d7" !important;
+    display: block !important;
+    color: var(--gpt-icon) !important;
+    font-size: 1.9rem !important;
+    font-weight: 300 !important;
+    line-height: 1 !important;
+}
+
+#settings-modal nav {
+    padding-top: 3rem !important;
+}
+
+#settings-modal #settings-nav {
+    padding-top: 0.25rem !important;
+}
+
+#settings-modal .settings-nav-item {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 2.35rem !important;
+    padding: 0.45rem 1rem !important;
+    line-height: 1.15 !important;
+}
+
+.theme-btn,
+.custom-output-mode-option,
+.store-category-btn,
+.council-mode-tabs button,
+.section-add-btn,
+#trash-batch-select-btn,
+#empty-trash-btn,
+#trash-batch-restore-btn,
+#trash-batch-delete-btn,
+#trash-cancel-selection-btn,
+.trash-item-view-btn,
+.trash-item-restore-btn,
+.trash-item-delete-btn,
+#export-data-btn,
+#import-data-btn,
+#open-archived-modal-btn,
+#upload-wallpaper-btn,
+#restore-wallpaper-btn,
+#archived-chats-modal .view-archived-btn,
+#archived-chats-modal .unarchive-btn,
+#archived-chats-modal .delete-btn,
+#close-view-archived-modal-btn-footer,
+.model-row-action {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    box-shadow: none !important;
+}
+
+.theme-btn,
+.custom-output-mode-option,
+.store-category-btn,
+.council-mode-tabs button,
+.section-add-btn,
+#trash-batch-select-btn,
+#empty-trash-btn,
+#trash-batch-restore-btn,
+#trash-batch-delete-btn,
+#trash-cancel-selection-btn,
+.trash-item-view-btn,
+.trash-item-restore-btn,
+.trash-item-delete-btn,
+#export-data-btn,
+#import-data-btn,
+#open-archived-modal-btn,
+#upload-wallpaper-btn,
+#restore-wallpaper-btn,
+#archived-chats-modal .view-archived-btn,
+#archived-chats-modal .unarchive-btn,
+#archived-chats-modal .delete-btn,
+#close-view-archived-modal-btn-footer {
+    height: 3rem !important;
+    min-height: 3rem !important;
+    padding: 0 1.15rem !important;
+    border-radius: 999px !important;
+}
+
+.model-row-action {
+    width: 2.45rem !important;
+    height: 2.45rem !important;
+    min-height: 2.45rem !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+}
+
+.theme-btn:not(.active):hover,
+.custom-output-mode-option:not(.active):hover,
+.store-category-btn:not(.active):hover,
+.council-mode-tabs button:not(.active):hover,
+.section-add-btn:hover,
+#trash-batch-select-btn:hover,
+#empty-trash-btn:hover,
+#trash-batch-restore-btn:hover,
+#trash-batch-delete-btn:hover,
+#trash-cancel-selection-btn:hover,
+.trash-item-view-btn:hover,
+.trash-item-restore-btn:hover,
+.trash-item-delete-btn:hover,
+#export-data-btn:hover,
+#import-data-btn:hover,
+#open-archived-modal-btn:hover,
+#upload-wallpaper-btn:hover,
+#restore-wallpaper-btn:hover,
+#archived-chats-modal .view-archived-btn:hover,
+#archived-chats-modal .unarchive-btn:hover,
+#archived-chats-modal .delete-btn:hover,
+#close-view-archived-modal-btn-footer:hover,
+.model-row-action:hover {
+    background: #f2f2f2 !important;
+    color: #000000 !important;
+}
+
+.theme-btn:not(.active):active,
+.custom-output-mode-option:not(.active):active,
+.store-category-btn:not(.active):active,
+.council-mode-tabs button:not(.active):active,
+.section-add-btn:active,
+#trash-batch-select-btn:active,
+#empty-trash-btn:active,
+#trash-batch-restore-btn:active,
+#trash-batch-delete-btn:active,
+#trash-cancel-selection-btn:active,
+.trash-item-view-btn:active,
+.trash-item-restore-btn:active,
+.trash-item-delete-btn:active,
+#export-data-btn:active,
+#import-data-btn:active,
+#open-archived-modal-btn:active,
+#upload-wallpaper-btn:active,
+#restore-wallpaper-btn:active,
+#archived-chats-modal .view-archived-btn:active,
+#archived-chats-modal .unarchive-btn:active,
+#archived-chats-modal .delete-btn:active,
+#close-view-archived-modal-btn-footer:active,
+.model-row-action:active {
+    background: #eeeeee !important;
+}
+
+.theme-btn.active,
+.custom-output-mode-option.active,
+.store-category-btn.active,
+.council-mode-tabs button.active,
+#settings-modal .theme-btn.active,
+#settings-modal .custom-output-mode-option.active,
+#settings-modal .store-category-btn.active,
+#settings-modal .council-mode-tabs button.active {
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+}
+
+#settings-modal #delete-all-data-btn {
+    height: 3rem !important;
+    min-height: 3rem !important;
+    padding: 0 1.15rem !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: #ff0000 !important;
+    color: #ffffff !important;
+}
+
+#settings-modal #delete-all-data-btn:hover {
+    background: #e60000 !important;
+    color: #ffffff !important;
+}
+
+#settings-modal #delete-all-data-btn:active {
+    background: #cc0000 !important;
+}
+
+#settings-modal #delete-all-data-btn * {
+    color: #ffffff !important;
+}
+
+#archived-chats-modal > div,
+#view-archived-chat-modal > div {
+    width: min(42rem, calc(100vw - 2rem)) !important;
+    border-radius: 1rem !important;
+}
+
+#archived-chats-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+}
+
+.archived-chat-item {
+    min-width: 0 !important;
+    padding: 0.85rem 0 !important;
+    border-bottom: 1px solid var(--gpt-border) !important;
+    background: transparent !important;
+}
+
+.archived-chat-item:last-child {
+    border-bottom: 0 !important;
+}
+
+.archived-chat-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    min-width: 0 !important;
+    flex-wrap: wrap !important;
+}
+
+.archived-chat-title {
+    flex: 1 1 14rem !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: var(--text-primary) !important;
+    line-height: 1.35 !important;
+}
+
+.archived-chat-actions {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.45rem !important;
+}
+
+.archived-chat-summary {
+    margin-top: 0.45rem !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.82rem !important;
+    line-height: 1.45 !important;
+    overflow-wrap: anywhere !important;
+}
+
+.folder-icon,
+.folder-icon svg,
+.folder-icon-svg,
+#folder-settings-modal .icon-option,
+#folder-settings-modal .icon-option svg {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+#folder-settings-modal .icon-option.selected {
+    color: var(--button-primary-bg) !important;
+    background: #ffffff !important;
+    border-color: transparent !important;
+}
+
+#folder-settings-modal .icon-option:hover {
+    background: #f2f2f2 !important;
+}
+
+/* Model list icon controls are plain icons, not pill buttons. */
+.model-management-item .model-row-action,
+#settings-modal .model-management-item .model-row-action {
+    width: 1.85rem !important;
+    height: 1.85rem !important;
+    min-height: 1.85rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0.4rem !important;
+    background: transparent !important;
+    color: var(--gpt-icon) !important;
+    box-shadow: none !important;
+}
+
+.model-management-item .model-row-action:hover,
+#settings-modal .model-management-item .model-row-action:hover {
+    background: #f2f2f2 !important;
+    color: #000000 !important;
+}
+
+.dark .model-management-item .model-row-action:hover,
+.dark #settings-modal .model-management-item .model-row-action:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.model-management-item .model-row-action:active,
+#settings-modal .model-management-item .model-row-action:active {
+    background: #eeeeee !important;
+}
+
+.dark .model-management-item .model-row-action:active,
+.dark #settings-modal .model-management-item .model-row-action:active {
+    background: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Restore pill outlines for normal buttons; only model row icon controls stay frameless. */
+.theme-btn:not(.active),
+.custom-output-mode-option:not(.active),
+.store-category-btn:not(.active),
+.council-mode-tabs button:not(.active),
+.section-add-btn,
+#trash-batch-select-btn,
+#empty-trash-btn,
+#trash-batch-restore-btn,
+#trash-batch-delete-btn,
+#trash-cancel-selection-btn,
+.trash-item-view-btn,
+.trash-item-restore-btn,
+.trash-item-delete-btn,
+#export-data-btn,
+#import-data-btn,
+#open-archived-modal-btn,
+#upload-wallpaper-btn,
+#restore-wallpaper-btn,
+#archived-chats-modal .view-archived-btn,
+#archived-chats-modal .unarchive-btn,
+#archived-chats-modal .delete-btn,
+#close-view-archived-modal-btn-footer {
+    border: 1px solid #000000 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+}

@@ -194,6 +194,11 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 }
             });
             ALL_ELEMENTS.closeSettingsBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.settingsModal, false));
+            ALL_ELEMENTS.settingsModal.addEventListener('click', (event) => {
+                if (event.target === ALL_ELEMENTS.settingsModal) {
+                    toggleModal(ALL_ELEMENTS.settingsModal, false);
+                }
+            });
             ALL_ELEMENTS.themeLightBtn.addEventListener('click', () => setTheme('light'));
             ALL_ELEMENTS.themeDarkBtn.addEventListener('click', () => setTheme('dark'));
             ALL_ELEMENTS.openArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, true));
