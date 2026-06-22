@@ -274,14 +274,52 @@ const FOLDER_TEXT_COLORS = {
     textarea.style.height = 'auto';
 
 
-    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
-    const paddingTop = parseFloat(getComputedStyle(textarea).paddingTop);
-    const paddingBottom = parseFloat(getComputedStyle(textarea).paddingBottom);
-    
-    const maxHeight = (lineHeight * 8) + paddingTop + paddingBottom;
-    const scrollHeight = textarea.scrollHeight;
-    const singleLineHeight = lineHeight + paddingTop + paddingBottom;
+    const computedStyle = getComputedStyle(textarea);
+    const fontSize = parseFloat(computedStyle.fontSize) || 16;
+    const lineHeight = parseFloat(computedStyle.lineHeight) || fontSize * 1.5;
+    const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+    const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
     const wrapper = textarea.closest('.input-wrapper');
+    const singleLineHeight = lineHeight + paddingTop + paddingBottom;
+    const maxHeight = (lineHeight * 8) + paddingTop + paddingBottom;
+    const initialScrollHeight = textarea.scrollHeight;
+    const hasInputText = textarea.value.length > 0;
+    const wasMultilineLayout = wrapper?.classList.contains('has-multiline-input') || false;
+    const isDesktopInput = window.matchMedia('(min-width: 769px)').matches;
+    const firstLineWouldWrap = hasInputText && isDesktopInput && !wasMultilineLayout && (() => {
+        const contentWidth = textarea.clientWidth - paddingLeft - paddingRight;
+        if (contentWidth <= 0) return false;
+
+        const measurementCanvas = adjustTextareaHeight.measurementCanvas || (adjustTextareaHeight.measurementCanvas = document.createElement('canvas'));
+        const measurementContext = measurementCanvas.getContext('2d');
+        measurementContext.font = [
+            computedStyle.fontStyle,
+            computedStyle.fontVariant,
+            computedStyle.fontWeight,
+            computedStyle.fontSize,
+            computedStyle.fontFamily
+        ].join(' ');
+        const letterSpacing = parseFloat(computedStyle.letterSpacing) || 0;
+
+        return textarea.value.split('\n').some(line => {
+            if (!line) return false;
+            const spacingWidth = Math.max(0, line.length - 1) * letterSpacing;
+            return measurementContext.measureText(line).width + spacingWidth >= contentWidth - 1;
+        });
+    })();
+    const useMultilineLayout = hasInputText && (
+        wasMultilineLayout ||
+        textarea.value.includes('\n') ||
+        initialScrollHeight > singleLineHeight + 2 ||
+        firstLineWouldWrap
+    );
+    if (wrapper) {
+        wrapper.classList.toggle('has-multiline-input', useMultilineLayout);
+    }
+
+    const scrollHeight = textarea.scrollHeight;
 
 
     if (scrollHeight > maxHeight + 2) {
@@ -301,11 +339,6 @@ const FOLDER_TEXT_COLORS = {
         textarea.style.height = `${scrollHeight}px`;
     } else {
         textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
-    }
-    const currentHeight = textarea.getBoundingClientRect().height;
-    const isMultiline = currentHeight > singleLineHeight + 2 || textarea.value.includes('\n');
-    if (wrapper) {
-        wrapper.classList.toggle('has-multiline-input', isMultiline);
     }
 };
             ALL_ELEMENTS.loginLangBtn.addEventListener('click', (e) => {

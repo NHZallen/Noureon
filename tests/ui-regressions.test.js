@@ -45,8 +45,11 @@ test('desktop chat input reserves the lower row only for active modes or multili
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s*!important;/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*min-height\s+0\.24s[^}]*padding\s+0\.24s/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.flex\.items-end[^{]*\{[^}]*transition:[^}]*transform\s+0\.24s/s);
-  assert.match(runtime06, /currentHeight\s*=\s*textarea\.getBoundingClientRect\(\)\.height/);
-  assert.match(runtime06, /wrapper\.classList\.toggle\('has-multiline-input',\s*isMultiline\)/);
+  assert.match(runtime06, /const\s+wasMultilineLayout\s*=\s*wrapper\?\.classList\.contains\('has-multiline-input'\)\s*\|\|\s*false/);
+  assert.match(runtime06, /const\s+firstLineWouldWrap\s*=\s*hasInputText\s*&&\s*isDesktopInput\s*&&\s*!wasMultilineLayout/);
+  assert.match(runtime06, /measurementContext\.measureText\(line\)\.width/);
+  assert.match(runtime06, /const\s+useMultilineLayout\s*=\s*hasInputText\s*&&\s*\(\s*wasMultilineLayout/s);
+  assert.match(runtime06, /wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
 });
 
 test('desktop active mode and Astras pills swap their leading icon to the themed close icon on hover', () => {
@@ -55,7 +58,8 @@ test('desktop active mode and Astras pills swap their leading icon to the themed
 
   assert.match(runtime01, /id: 'astras-input-indicator'[\s\S]*input-indicator-leading[\s\S]*input-indicator-mode-icon[\s\S]*close-astras-btn-input/);
   assert.match(css, /#astras-input-indicator[^{]*\{[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
-  assert.match(css, /#input-indicator-container\s+#close-astras-btn-input[^{]*\{[^}]*color:\s*inherit\s*!important;/s);
+  assert.match(css, /#input-indicator-container\s+\.input-indicator-item\s+svg,\s*#input-indicator-container\s+\.input-indicator-item\s+svg\s+\*[^{]*\{[^}]*color:\s*inherit\s*!important;[^}]*stroke:\s*currentColor\s*!important;/s);
+  assert.match(css, /#astras-input-indicator\s+svg[\s\S]*#astras-input-indicator\s+svg\s+\*[^{]*\{[^}]*color:\s*inherit\s*!important;[^}]*stroke:\s*currentColor\s*!important;/s);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container\s+#close-search-btn-input,\s*#input-indicator-container\s+#close-learning-mode-btn-input,\s*#input-indicator-container\s+#close-model-council-btn-input,\s*#input-indicator-container\s+#close-astras-btn-input[^{]*\{[^}]*position:\s*absolute\s*!important;/s);
   assert.match(css, /#input-indicator-container\s+\.input-indicator-item:hover\s+\.input-indicator-mode-icon[^{]*\{[^}]*opacity:\s*0\s*!important;/s);
   assert.match(css, /#input-indicator-container\s+\.input-indicator-item:hover\s+#close-search-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-learning-mode-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-model-council-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-astras-btn-input[^{]*\{[^}]*opacity:\s*1\s*!important;/s);

@@ -5688,12 +5688,16 @@ body svg {
     color: var(--button-primary-bg) !important;
 }
 
+#input-indicator-container .input-indicator-item svg,
+#input-indicator-container .input-indicator-item svg *,
 #search-indicator svg,
 #learning-mode-indicator svg,
 #model-council-indicator svg,
+#astras-input-indicator svg,
 #search-indicator svg *,
 #learning-mode-indicator svg *,
-#model-council-indicator svg * {
+#model-council-indicator svg *,
+#astras-input-indicator svg * {
     color: inherit !important;
     stroke: currentColor !important;
 }
