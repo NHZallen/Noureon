@@ -5417,12 +5417,13 @@ body svg {
 .council-mode-cluster {
     display: inline-flex !important;
     align-items: center !important;
+    flex: 0 0 auto !important;
     gap: 0.45rem !important;
     min-width: 0 !important;
 }
 
 .council-action-cluster {
-    flex: 0 1 auto !important;
+    flex: 1 1 auto !important;
     justify-content: flex-start !important;
     gap: 0.45rem !important;
     margin-left: 0 !important;
@@ -5494,8 +5495,8 @@ body svg {
 }
 
 .council-model-search-field {
-    flex: 0 1 12rem !important;
-    width: min(12rem, 28vw) !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
     color: var(--text-secondary) !important;
 }
 

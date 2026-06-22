@@ -96,7 +96,8 @@ test('model council manager uses compact pills and a bounded scroll area', () =>
   assert.match(runtime01, /<div class="council-popover-scroll-area">[\s\S]*<div class="council-popover-bottom">/);
   assert.match(css, /\.model-council-popover[^{]*\{[^}]*overflow:\s*hidden\s*!important;/s);
   assert.match(css, /\.council-config-row[^{]*\{[^}]*justify-content:\s*flex-start\s*!important;/s);
-  assert.match(css, /\.council-action-cluster[^{]*\{[^}]*margin-left:\s*0\s*!important;/s);
+  assert.match(css, /\.council-action-cluster[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s*!important;[^}]*margin-left:\s*0\s*!important;/s);
+  assert.match(css, /\.council-model-search-field[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s*!important;[^}]*width:\s*auto\s*!important;/s);
   assert.match(css, /\.council-popover-scroll-area[^{]*\{[^}]*overflow-y:\s*auto\s*!important;[^}]*-webkit-overflow-scrolling:\s*touch\s*!important;[^}]*scrollbar-color:\s*var\(--gpt-scrollbar\)\s+transparent\s*!important;/s);
   assert.match(css, /\.council-popover-scroll-area::-webkit-scrollbar-thumb[^{]*\{[^}]*background:\s*var\(--gpt-scrollbar\)\s*!important;/s);
   assert.match(css, /\.council-search-toggle\.is-active[^{]*\{[^}]*background:\s*#ffffff\s*!important;[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
