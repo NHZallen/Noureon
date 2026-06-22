@@ -5409,7 +5409,7 @@ body svg {
 
 .council-config-row {
     align-items: center !important;
-    justify-content: space-between !important;
+    justify-content: flex-start !important;
     gap: 0.6rem !important;
     min-width: 0 !important;
 }
@@ -5423,9 +5423,9 @@ body svg {
 
 .council-action-cluster {
     flex: 0 1 auto !important;
-    justify-content: flex-end !important;
+    justify-content: flex-start !important;
     gap: 0.45rem !important;
-    margin-left: auto !important;
+    margin-left: 0 !important;
     min-width: 0 !important;
 }
 
@@ -5542,6 +5542,14 @@ body svg {
     color: var(--text-secondary) !important;
     font-size: 0.78rem !important;
     font-weight: 700 !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+}
+
+.model-council-popover .council-mode-tabs button:not(.active) {
+    border-color: transparent !important;
+    background: transparent !important;
+    color: var(--text-secondary) !important;
 }
 
 .council-mode-tabs button.active {
@@ -5565,11 +5573,13 @@ body svg {
 }
 
 .council-section-title {
-    position: static !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 6 !important;
     margin: 0 0 0.35rem !important;
-    padding: 0.05rem 0.05rem !important;
-    border-bottom: 0 !important;
-    background: transparent !important;
+    padding: 0.35rem 0.05rem !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    background: var(--modal-bg) !important;
     color: var(--text-secondary) !important;
     font-size: 0.76rem !important;
     font-weight: 800 !important;

@@ -1031,6 +1031,7 @@
                 conv.council.enabled = !conv.council.enabled;
                 if (conv.council.enabled) seedCouncilParticipants(conv);
                 await persistCouncilConfig(conv);
+                renderCouncilControls();
                 if (conv.council.enabled && !conv.isWebSearchEnabled) {
                     showNotification(runtimeTexts.searchManualNotice, 'warning');
                 }
@@ -1058,6 +1059,7 @@
                     }
                     conv.council.mode = button.dataset.councilMode;
                     await persistCouncilConfig(conv);
+                    renderCouncilControls();
                 });
             });
             container.querySelectorAll('[data-council-participant]').forEach(input => {
