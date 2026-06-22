@@ -598,6 +598,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                     { id: 'upload-image-btn', svg: `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>`, textKey: 'image', originalElement: ALL_ELEMENTS.uploadImageBtn },
                     { id: 'upload-file-btn', svg: `<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline>`, textKey: 'file', originalElement: ALL_ELEMENTS.uploadFileBtn },
                     { type: 'divider' },
+                    { id: 'model-council-menu-btn', svg: `<path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path>`, text: getCouncilTexts().title },
                     { id: 'web-search-popover-btn', svg: `<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>`, textKey: 'search', originalElement: ALL_ELEMENTS.webSearchPopoverBtn },
                     { id: 'learning-mode-btn', svg: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"/>`, textKey: 'learning', originalElement: ALL_ELEMENTS.learningModeBtn }
                 ];
@@ -607,6 +608,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                     if (item.type === 'divider') return true;
                     if (item.id === 'camera-btn' || item.id === 'upload-image-btn') return supportsVision;
                     if (item.id === 'upload-file-btn') return supportsDocumentUpload;
+                    if (item.id === 'model-council-menu-btn') return !config.isLearningMode || councilActive;
                     if (item.id === 'web-search-popover-btn') return supportsWebSearch;
                     if (item.id === 'learning-mode-btn') return !councilActive;
                     return true;
@@ -622,7 +624,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                         itemsHTML += `
                             <div class="menu-item" data-trigger-id="${item.id}">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${item.svg}</svg>
-                                <span data-lang-key="${item.textKey}">${i18n[config.uiLanguage][item.textKey] || item.textKey}</span>
+                                <span ${item.textKey ? `data-lang-key="${item.textKey}"` : ''}>${item.text || i18n[config.uiLanguage][item.textKey] || item.textKey}</span>
                             </div>
                         `;
                     }
@@ -656,6 +658,11 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 menu.querySelectorAll('.menu-item').forEach(menuItem => {
                     menuItem.addEventListener('click', () => {
                         const triggerId = menuItem.dataset.triggerId;
+                        if (triggerId === 'model-council-menu-btn') {
+                            closeMenu();
+                            window.setTimeout(openCouncilPopoverFromAttachmentMenu, 180);
+                            return;
+                        }
                         const originalElement = allMenuItems.find(i => i.id === triggerId)?.originalElement;
                         if (originalElement) {
                             originalElement.click();

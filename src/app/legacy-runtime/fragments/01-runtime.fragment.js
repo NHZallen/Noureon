@@ -298,6 +298,38 @@
             updateInputState();
         };
         
+        const openCouncilPopoverFromAttachmentMenu = () => {
+            renderCouncilControls();
+            const toggleButton = document.getElementById('model-council-toggle-btn');
+            if (!toggleButton) {
+                showNotification(config.uiLanguage === 'en' ? 'Model Council is unavailable while Learning Mode is enabled.' : '學習模式開啟時無法使用模型理事會。', 'warning');
+                return;
+            }
+            closeAllPopovers();
+            toggleButton.click();
+        };
+
+        const ensureCouncilMenuButton = () => {
+            const popover = ALL_ELEMENTS.fileOptionsPopover;
+            if (!popover) return null;
+            let button = document.getElementById('model-council-menu-btn');
+            if (!button) {
+                button = document.createElement('button');
+                button.id = 'model-council-menu-btn';
+                button.type = 'button';
+                button.className = 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3';
+                button.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
+                    <span></span>
+                `;
+                button.addEventListener('click', openCouncilPopoverFromAttachmentMenu);
+                const learningButton = document.getElementById('learning-mode-btn');
+                popover.insertBefore(button, learningButton || null);
+            }
+            button.querySelector('span').textContent = getCouncilTexts().title;
+            return button;
+        };
+
         const updateFunctionButtonsState = () => {
             const { cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn } = ALL_ELEMENTS;
             const conv = getActiveConversation();
@@ -336,6 +368,10 @@
             }
             if (learningModeBtn) {
                 learningModeBtn.style.display = councilActive ? 'none' : 'flex';
+            }
+            const councilMenuButton = ensureCouncilMenuButton();
+            if (councilMenuButton) {
+                councilMenuButton.style.display = (config.isLearningMode && !councilActive) ? 'none' : 'flex';
             }
             
             if (!councilActive && provider === 'openrouter') {
