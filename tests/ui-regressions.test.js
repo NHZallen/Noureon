@@ -27,6 +27,7 @@ test('attachment menu keeps search and learning items neutral instead of blue ac
 
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active/);
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active[^{]*\{[^}]*color:\s*#111827\s*!important;/s);
+  assert.match(css, /#file-options-popover\s+#web-search-popover-btn,\s*#file-options-popover\s+#learning-mode-btn[^{]*\{[^}]*color:\s*#111827\s*!important;/s);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {

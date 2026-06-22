@@ -5755,6 +5755,8 @@ body svg {
 }
 
 #attachment-menu .menu-item.is-active,
+#file-options-popover #web-search-popover-btn,
+#file-options-popover #learning-mode-btn,
 #file-options-popover #web-search-popover-btn.is-active,
 #file-options-popover #learning-mode-btn.is-active,
 #attachment-menu .menu-item[data-trigger-id="web-search-popover-btn"],
@@ -5765,6 +5767,10 @@ body svg {
 
 #attachment-menu .menu-item.is-active svg,
 #attachment-menu .menu-item.is-active svg *,
+#file-options-popover #web-search-popover-btn svg,
+#file-options-popover #web-search-popover-btn svg *,
+#file-options-popover #learning-mode-btn svg,
+#file-options-popover #learning-mode-btn svg *,
 #file-options-popover #web-search-popover-btn.is-active svg,
 #file-options-popover #learning-mode-btn.is-active svg {
     color: inherit !important;
