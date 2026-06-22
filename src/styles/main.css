@@ -1520,18 +1520,6 @@ button:not(.btn-primary):active:not(:disabled) {
     .user-message .message-bubble::before {
         border-radius: 1.5rem;
     }
-    .user-message .message-bubble::after {
-        content: '';
-        position: absolute;
-        top: -0.08rem;
-        right: 0.15rem;
-        width: 1.05rem;
-        height: 0.42rem;
-        border-radius: 999px;
-        background: var(--user-bubble-bg);
-        transform: rotate(11deg);
-        z-index: -1;
-    }
     .message-item {
         gap: 0 !important;
     }
@@ -1551,7 +1539,8 @@ button:not(.btn-primary):active:not(:disabled) {
     }
     .user-message .message-bubble {
         color: var(--text-primary) !important;
-        padding: 0.68rem 1rem !important;
+        width: fit-content;
+        padding: 0.72rem 1.05rem !important;
         max-width: min(34rem, 78vw);
     }
     .user-message .message-content {
