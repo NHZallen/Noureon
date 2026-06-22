@@ -281,11 +281,7 @@ const FOLDER_TEXT_COLORS = {
     const maxHeight = (lineHeight * 8) + paddingTop + paddingBottom;
     const scrollHeight = textarea.scrollHeight;
     const singleLineHeight = lineHeight + paddingTop + paddingBottom;
-    const isMultiline = scrollHeight > singleLineHeight + 2;
     const wrapper = textarea.closest('.input-wrapper');
-    if (wrapper) {
-        wrapper.classList.toggle('has-multiline-input', isMultiline);
-    }
 
 
     if (scrollHeight > maxHeight + 2) {
@@ -305,6 +301,11 @@ const FOLDER_TEXT_COLORS = {
         textarea.style.height = `${scrollHeight}px`;
     } else {
         textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    }
+    const currentHeight = textarea.getBoundingClientRect().height;
+    const isMultiline = currentHeight > singleLineHeight + 2 || textarea.value.includes('\n');
+    if (wrapper) {
+        wrapper.classList.toggle('has-multiline-input', isMultiline);
     }
 };
             ALL_ELEMENTS.loginLangBtn.addEventListener('click', (e) => {

@@ -463,9 +463,11 @@
                     activeIndicators.set('astras-input-indicator', {
                         id: 'astras-input-indicator',
                         html: `
-                            <span class="flex items-center gap-1">
-                                <span class="astras-sidebar-avatar" style="width: 18px; height: 18px; font-size: 0.7rem; margin-right: 4px;">
+                            <span class="input-indicator-content flex items-center gap-2">
+                                <span class="input-indicator-leading">
+                                    <span class="astras-sidebar-avatar input-indicator-mode-icon" style="width: 18px; height: 18px; font-size: 0.7rem;">
                                     ${ast.avatarUrl ? `<img src="${ast.avatarUrl}" class="w-full h-full object-cover rounded-full">` : ast.name.charAt(0)}
+                                </span>
                                 </span>
                                 <span>${ast.name} ${i18n[config.uiLanguage].astrasActive || '使用中'}</span>
                             </span>

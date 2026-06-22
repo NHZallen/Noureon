@@ -43,15 +43,22 @@ test('desktop chat input reserves the lower row only for active modes or multili
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s*!important;/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*min-height\s+0\.24s[^}]*padding\s+0\.24s/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.flex\.items-end[^{]*\{[^}]*transition:[^}]*transform\s+0\.24s/s);
+  assert.match(runtime06, /currentHeight\s*=\s*textarea\.getBoundingClientRect\(\)\.height/);
   assert.match(runtime06, /wrapper\.classList\.toggle\('has-multiline-input',\s*isMultiline\)/);
 });
 
-test('desktop active mode pills swap their leading icon to the close icon on hover', () => {
+test('desktop active mode and Astras pills swap their leading icon to the themed close icon on hover', () => {
   const css = readSource('src/styles/main.css');
+  const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
 
-  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container\s+#close-search-btn-input,\s*#input-indicator-container\s+#close-learning-mode-btn-input,\s*#input-indicator-container\s+#close-model-council-btn-input[^{]*\{[^}]*position:\s*absolute\s*!important;/s);
+  assert.match(runtime01, /id: 'astras-input-indicator'[\s\S]*input-indicator-leading[\s\S]*input-indicator-mode-icon[\s\S]*close-astras-btn-input/);
+  assert.match(css, /#astras-input-indicator[^{]*\{[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
+  assert.match(css, /#input-indicator-container\s+#close-astras-btn-input[^{]*\{[^}]*color:\s*inherit\s*!important;/s);
+  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container\s+#close-search-btn-input,\s*#input-indicator-container\s+#close-learning-mode-btn-input,\s*#input-indicator-container\s+#close-model-council-btn-input,\s*#input-indicator-container\s+#close-astras-btn-input[^{]*\{[^}]*position:\s*absolute\s*!important;/s);
   assert.match(css, /#input-indicator-container\s+\.input-indicator-item:hover\s+\.input-indicator-mode-icon[^{]*\{[^}]*opacity:\s*0\s*!important;/s);
-  assert.match(css, /#input-indicator-container\s+\.input-indicator-item:hover\s+#close-search-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-learning-mode-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-model-council-btn-input[^{]*\{[^}]*opacity:\s*1\s*!important;/s);
+  assert.match(css, /#input-indicator-container\s+\.input-indicator-item:hover\s+#close-search-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-learning-mode-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-model-council-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-astras-btn-input[^{]*\{[^}]*opacity:\s*1\s*!important;/s);
 });
 
 test('mobile keeps the existing stacked indicator layout and hides message mic', () => {

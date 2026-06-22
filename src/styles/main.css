@@ -5683,7 +5683,8 @@ body svg {
 
 #search-indicator,
 #learning-mode-indicator,
-#model-council-indicator {
+#model-council-indicator,
+#astras-input-indicator {
     color: var(--button-primary-bg) !important;
 }
 
@@ -5714,6 +5715,10 @@ body svg {
 #input-indicator-container #close-learning-mode-btn-input,
 #input-indicator-container #close-model-council-btn-input {
     margin-left: 0.25rem !important;
+}
+
+#input-indicator-container #close-astras-btn-input {
+    color: inherit !important;
 }
 
 #attachment-menu .menu-item.is-active,
@@ -5798,6 +5803,7 @@ body svg {
         gap: 0.15rem 0.35rem !important;
         min-height: 3.55rem !important;
         padding: 0.5rem 0.7rem !important;
+        transition: min-height 0.24s ease, padding 0.24s ease, border-radius 0.24s ease !important;
     }
 
     #input-bar-container .input-wrapper.has-indicators,
@@ -5816,6 +5822,7 @@ body svg {
         width: auto !important;
         min-height: 0 !important;
         margin-top: 0 !important;
+        transition: transform 0.24s ease, opacity 0.24s ease !important;
     }
 
     #chat-form {
@@ -5863,7 +5870,8 @@ body svg {
 
     #input-indicator-container #close-search-btn-input,
     #input-indicator-container #close-learning-mode-btn-input,
-    #input-indicator-container #close-model-council-btn-input {
+    #input-indicator-container #close-model-council-btn-input,
+    #input-indicator-container #close-astras-btn-input {
         position: absolute !important;
         left: 0.75rem !important;
         top: 50% !important;
@@ -5883,9 +5891,11 @@ body svg {
     #input-indicator-container .input-indicator-item:hover #close-search-btn-input,
     #input-indicator-container .input-indicator-item:hover #close-learning-mode-btn-input,
     #input-indicator-container .input-indicator-item:hover #close-model-council-btn-input,
+    #input-indicator-container .input-indicator-item:hover #close-astras-btn-input,
     #input-indicator-container .input-indicator-item:focus-within #close-search-btn-input,
     #input-indicator-container .input-indicator-item:focus-within #close-learning-mode-btn-input,
-    #input-indicator-container .input-indicator-item:focus-within #close-model-council-btn-input {
+    #input-indicator-container .input-indicator-item:focus-within #close-model-council-btn-input,
+    #input-indicator-container .input-indicator-item:focus-within #close-astras-btn-input {
         opacity: 1 !important;
         pointer-events: auto !important;
     }
