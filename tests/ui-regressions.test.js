@@ -86,14 +86,21 @@ test('model council manager uses compact pills and a bounded scroll area', () =>
   const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
 
   assert.match(runtime01, /class="council-mode-cluster"[\s\S]*id="model-council-enabled"[\s\S]*class="council-mode-tabs"/);
-  assert.match(runtime01, /id="model-council-search-toggle"[\s\S]*\$\{escapeHTML\(searchLabel\)\}/);
+  assert.match(runtime01, /class="council-action-cluster"[\s\S]*id="model-council-search-toggle"[\s\S]*data-council-model-search/);
+  assert.match(runtime01, /const\s+previousModelSearch\s*=[\s\S]*data-council-model-search/);
+  assert.match(runtime01, /const\s+applyCouncilModelSearch\s*=\s*\(\)\s*=>[\s\S]*council-model-group[\s\S]*group\.hidden/);
   assert.match(runtime01, /conv\.isWebSearchEnabled\s*=\s*!conv\.isWebSearchEnabled/);
   assert.doesNotMatch(runtime01, /council-filter-panel|data-council-filter|filtersHTML|applyCouncilSearchFilter/);
   assert.doesNotMatch(runtime01, /<p class="council-search-note[^`]*runtimeTexts\.searchManualNotice/);
+  assert.match(runtime01, /<div class="council-popover-scroll-area">[\s\S]*<div class="council-popover-bottom">/);
   assert.match(css, /\.model-council-popover[^{]*\{[^}]*overflow:\s*hidden\s*!important;/s);
-  assert.match(css, /\.council-popover-scroll-area[^{]*\{[^}]*overflow-y:\s*auto\s*!important;[^}]*scrollbar-color:\s*var\(--gpt-scrollbar\)\s+transparent\s*!important;/s);
+  assert.match(css, /\.council-popover-scroll-area[^{]*\{[^}]*overflow-y:\s*auto\s*!important;[^}]*-webkit-overflow-scrolling:\s*touch\s*!important;[^}]*scrollbar-color:\s*var\(--gpt-scrollbar\)\s+transparent\s*!important;/s);
   assert.match(css, /\.council-popover-scroll-area::-webkit-scrollbar-thumb[^{]*\{[^}]*background:\s*var\(--gpt-scrollbar\)\s*!important;/s);
+  assert.match(css, /\.council-search-toggle\.is-active[^{]*\{[^}]*background:\s*#ffffff\s*!important;[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
+  assert.match(css, /\.council-mode-tabs button\.active[^{]*\{[^}]*border-color:\s*#000000\s*!important;[^}]*background:\s*#ffffff\s*!important;/s);
+  assert.match(css, /\.council-section-title[^{]*\{[^}]*position:\s*static\s*!important;[^}]*text-transform:\s*none\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-config-row[^{]*\{[^}]*flex-direction:\s*column\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-action-cluster[^{]*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)\s*!important;/s);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {

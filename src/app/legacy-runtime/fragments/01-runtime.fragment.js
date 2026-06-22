@@ -770,7 +770,9 @@
             let container = document.getElementById('model-council-control');
             const existingPopover = container?.querySelector('#model-council-popover');
             const wasVisible = existingPopover?.classList.contains('visible') || false;
-            const previousScrollTop = wasVisible ? existingPopover.scrollTop : 0;
+            const existingScrollArea = existingPopover?.querySelector('.council-popover-scroll-area');
+            const previousScrollTop = wasVisible ? (existingScrollArea?.scrollTop || 0) : 0;
+            const previousModelSearch = wasVisible ? (existingPopover?.querySelector('[data-council-model-search]')?.value || '') : '';
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'model-council-control';
@@ -814,6 +816,7 @@
             const visionLabel = config.uiLanguage === 'en' ? 'Vision' : '視覺';
             const documentLabel = config.uiLanguage === 'en' ? 'Documents' : '文件';
             const searchLabel = i18n[config.uiLanguage]?.search || '搜尋';
+            const modelSearchPlaceholder = config.uiLanguage === 'en' ? 'Search models' : '\u641c\u5c0b\u6a21\u578b';
             const providerLabel = config.uiLanguage === 'en' ? 'Provider' : '供應商';
             const abilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
             const noExtraAbilityLabel = config.uiLanguage === 'en' ? 'Text / file' : '文字 / 文件';
@@ -928,10 +931,16 @@
                                     <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${lockAttr}>${texts.deliberation}</button>
                                 </div>
                             </div>
-                            <button type="button" id="model-council-search-toggle" class="council-search-toggle ${searchActiveClass}" aria-pressed="${conv.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabledAttr}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                                <span>${escapeHTML(searchLabel)}</span>
-                            </button>
+                            <div class="council-action-cluster">
+                                <button type="button" id="model-council-search-toggle" class="council-search-toggle ${searchActiveClass}" aria-pressed="${conv.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabledAttr}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                    <span>${escapeHTML(searchLabel)}</span>
+                                </button>
+                                <label class="council-model-search-field" title="${escapeHTML(modelSearchPlaceholder)}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+                                    <input type="search" data-council-model-search value="${escapeHTML(previousModelSearch)}" placeholder="${escapeHTML(modelSearchPlaceholder)}" aria-label="${escapeHTML(modelSearchPlaceholder)}" autocomplete="off">
+                                </label>
+                            </div>
                         </div>
                             ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
                         </div>
@@ -943,7 +952,6 @@
                         <div class="council-section">
                             <div class="council-section-title">${texts.synthesizer}</div>
                             <div class="council-model-list">${synthesizerRows}</div>
-                        </div>
                         </div>
                         <div class="council-popover-bottom">
                         <label class="council-raw-row">
@@ -959,10 +967,12 @@
                             <button type="button" id="model-council-done-btn" class="council-done-btn">${escapeHTML(doneText)}</button>
                         </div>
                         </div>
+                        </div>
                     </div>
                 </div>
             `;
             const popover = container.querySelector('#model-council-popover');
+            const scrollArea = container.querySelector('.council-popover-scroll-area');
             const toggleButton = container.querySelector('#model-council-toggle-btn');
             const updateCouncilStickyOffset = () => {
                 const stickyControls = popover.querySelector('.council-popover-sticky-controls');
@@ -971,7 +981,7 @@
             requestAnimationFrame(updateCouncilStickyOffset);
             if (wasVisible) {
                 requestAnimationFrame(() => {
-                    popover.scrollTop = previousScrollTop;
+                    if (scrollArea) scrollArea.scrollTop = previousScrollTop;
                     updateCouncilStickyOffset();
                 });
             }
@@ -979,13 +989,33 @@
                 popover.classList.remove('visible');
                 toggleButton.setAttribute('aria-expanded', 'false');
             };
+            const modelSearchInput = container.querySelector('[data-council-model-search]');
+            const applyCouncilModelSearch = () => {
+                const query = (modelSearchInput?.value || '').trim().toLowerCase();
+                container.querySelectorAll('.council-model-list > .council-model-row[data-council-search-text]').forEach(row => {
+                    const matches = !query || (row.dataset.councilSearchText || '').includes(query);
+                    row.hidden = !matches;
+                });
+                container.querySelectorAll('.council-model-group').forEach(group => {
+                    const groupMatches = !!query && (group.dataset.councilGroupSearchText || '').includes(query);
+                    let hasVisibleVariant = false;
+                    group.querySelectorAll('.council-model-row[data-council-search-text]').forEach(row => {
+                        const matches = !query || groupMatches || (row.dataset.councilSearchText || '').includes(query);
+                        row.hidden = !matches;
+                        hasVisibleVariant = hasVisibleVariant || matches;
+                    });
+                    group.hidden = !!query && !groupMatches && !hasVisibleVariant;
+                });
+            };
+            modelSearchInput?.addEventListener('input', applyCouncilModelSearch);
+            applyCouncilModelSearch();
             toggleButton.addEventListener('click', () => {
                 const wasVisibleNow = popover.classList.contains('visible');
                 closeAllPopovers();
                 popover.classList.toggle('visible', !wasVisibleNow);
                 if (!wasVisibleNow) {
                     requestAnimationFrame(() => {
-                        popover.scrollTop = 0;
+                        if (scrollArea) scrollArea.scrollTop = 0;
                     });
                 }
                 toggleButton.setAttribute('aria-expanded', String(!wasVisibleNow));
