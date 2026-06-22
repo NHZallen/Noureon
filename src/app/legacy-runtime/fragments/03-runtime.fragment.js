@@ -1109,18 +1109,23 @@
     // --- 步驟 2: 根據分類後的結構動態產生 HTML ---
     
     // 輔助函式：產生單個可排序的模型項目
+    const modelEyeIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2.06 12.35a1 1 0 0 1 0-.7C3.46 8.18 7.36 5.5 12 5.5s8.54 2.68 9.94 6.15a1 1 0 0 1 0 .7C20.54 15.82 16.64 18.5 12 18.5s-8.54-2.68-9.94-6.15Z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const modelEyeOffIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18"/><path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"/><path d="M9.88 5.72A10.77 10.77 0 0 1 12 5.5c4.64 0 8.54 2.68 9.94 6.15a1 1 0 0 1 0 .7 10.05 10.05 0 0 1-3.17 4.12"/><path d="M6.23 6.75a10.07 10.07 0 0 0-4.17 4.9 1 1 0 0 0 0 .7C3.46 15.82 7.36 18.5 12 18.5c.74 0 1.45-.07 2.13-.2"/></svg>';
+    const modelMoveUpIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
+    const modelMoveDownIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
     const createModelItemHTML = (item, index, total) => {
         const { setting, info } = item;
         return `
-            <div class="model-management-item flex items-center p-2 bg-[var(--input-field-bg)] rounded-lg mb-1" data-model-id="${info.id}">
-                <span class="flex-1 font-medium">${info.name}</span>
-                <input type="radio" name="default-model-radio" class="w-4 h-4 mr-4 text-blue-600" ${config.defaultModel === info.id ? 'checked' : ''}>
-                <button class="toggle-visibility-btn p-1 rounded-full hover:bg-[var(--hover-bg)]" title="${setting.hidden ? '顯示' : '隱藏'}">
-                    ${setting.hidden ? '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243l-4.243-4.243" /></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.432 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573 3.007-9.963 7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>'}
+            <div class="model-management-item" data-model-id="${info.id}">
+                <span class="model-management-name">${info.name}</span>
+                <input type="radio" name="default-model-radio" class="model-default-radio" ${config.defaultModel === info.id ? 'checked' : ''} aria-label="設為預設模型">
+                <button class="toggle-visibility-btn model-row-action" title="${setting.hidden ? '顯示' : '隱藏'}" aria-label="${setting.hidden ? '顯示模型' : '隱藏模型'}">
+                    ${setting.hidden ? modelEyeOffIcon : modelEyeIcon}
                 </button>
-                <div class="flex gap-1 ml-2">
-                    <button class="move-up-btn p-1 rounded hover:bg-[var(--hover-bg)] disabled:opacity-50" ${index === 0 ? 'disabled' : ''}>↑</button>
-                    <button class="move-down-btn p-1 rounded hover:bg-[var(--hover-bg)] disabled:opacity-50" ${index === total - 1 ? 'disabled' : ''}>↓</button>
+                <div class="model-order-controls">
+                    <button class="move-up-btn model-row-action" title="上移" aria-label="上移模型" ${index === 0 ? 'disabled' : ''}>${modelMoveUpIcon}</button>
+                    <button class="move-down-btn model-row-action" title="下移" aria-label="下移模型" ${index === total - 1 ? 'disabled' : ''}>${modelMoveDownIcon}</button>
                 </div>
             </div>
         `;

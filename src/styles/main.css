@@ -4262,3 +4262,381 @@ button:active:not(:disabled),
 #submit-btn:disabled {
     opacity: 0.55 !important;
 }
+
+/* Minimal GPT-style settings polish */
+#settings-modal,
+#search-modal,
+#trash-view-modal,
+#search-view-modal,
+#export-data-modal,
+#import-data-modal,
+#custom-dialog-modal {
+    background: rgba(255, 255, 255, 0.72) !important;
+    backdrop-filter: blur(10px) saturate(1.02) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.02) !important;
+}
+
+.dark #settings-modal,
+.dark #search-modal,
+.dark #trash-view-modal,
+.dark #search-view-modal,
+.dark #export-data-modal,
+.dark #import-data-modal,
+.dark #custom-dialog-modal {
+    background: rgba(18, 18, 18, 0.72) !important;
+}
+
+#settings-modal > div {
+    width: min(58rem, calc(100vw - 2rem)) !important;
+    height: min(76vh, 52rem) !important;
+    max-width: 58rem !important;
+    max-height: calc(100vh - 2.5rem) !important;
+    border-radius: 1rem !important;
+}
+
+#settings-modal .flex.flex-1.overflow-hidden {
+    min-height: 0 !important;
+}
+
+#settings-modal .flex-1.p-6.overflow-y-auto {
+    padding: 1.5rem !important;
+}
+
+#settings-modal .settings-section {
+    max-width: 40rem !important;
+    margin: 0 !important;
+}
+
+#settings-modal .settings-section > h3,
+#settings-modal [data-lang-key="dangerZone"] {
+    color: var(--text-primary) !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+}
+
+#settings-modal .border-red-500\/30,
+#settings-modal .border-red-500,
+#settings-modal .border-blue-500,
+#settings-modal .border-green-500 {
+    border-color: var(--gpt-border) !important;
+}
+
+#settings-modal .text-red-600,
+#settings-modal .text-red-500,
+#settings-modal .text-blue-600,
+#settings-modal .text-blue-700,
+#settings-modal .text-blue-800,
+#settings-modal .text-green-700,
+#settings-modal .text-green-800 {
+    color: var(--text-primary) !important;
+}
+
+#settings-modal .bg-red-100,
+#settings-modal .bg-red-200,
+#settings-modal .bg-red-500,
+#settings-modal .bg-blue-100,
+#settings-modal .bg-blue-200,
+#settings-modal .bg-blue-500,
+#settings-modal .bg-green-100,
+#settings-modal .bg-green-200,
+#settings-modal .bg-green-500,
+#settings-modal .dark\:bg-red-900,
+#settings-modal .dark\:bg-blue-900,
+#settings-modal .dark\:bg-green-900 {
+    background: var(--gpt-subtle) !important;
+}
+
+.theme-button-group {
+    gap: 0.5rem !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+.theme-btn,
+.custom-output-mode-option,
+.store-category-btn,
+.council-mode-tabs button,
+.section-add-btn,
+#trash-batch-select-btn,
+#empty-trash-btn,
+#trash-batch-restore-btn,
+#trash-batch-delete-btn,
+#trash-cancel-selection-btn,
+.trash-item-view-btn,
+.trash-item-restore-btn,
+.trash-item-delete-btn,
+#export-data-btn,
+#import-data-btn,
+#open-archived-modal-btn,
+#delete-all-data-btn,
+#upload-wallpaper-btn,
+#restore-wallpaper-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 2.45rem !important;
+    padding: 0.55rem 0.95rem !important;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    font-size: 0.92rem !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+}
+
+.theme-btn:hover,
+.custom-output-mode-option:hover,
+.store-category-btn:hover,
+.council-mode-tabs button:hover,
+.section-add-btn:hover,
+#trash-batch-select-btn:hover,
+#empty-trash-btn:hover,
+#trash-batch-restore-btn:hover,
+#trash-batch-delete-btn:hover,
+#trash-cancel-selection-btn:hover,
+.trash-item-view-btn:hover,
+.trash-item-restore-btn:hover,
+.trash-item-delete-btn:hover,
+#export-data-btn:hover,
+#import-data-btn:hover,
+#open-archived-modal-btn:hover,
+#delete-all-data-btn:hover,
+#upload-wallpaper-btn:hover,
+#restore-wallpaper-btn:hover {
+    background: var(--gpt-subtle) !important;
+    border-color: var(--gpt-border) !important;
+}
+
+.theme-btn.active,
+.custom-output-mode-option.active,
+.store-category-btn.active,
+.council-mode-tabs button.active {
+    background: var(--gpt-primary-action-bg) !important;
+    border-color: var(--gpt-primary-action-bg) !important;
+    color: var(--gpt-primary-action-text) !important;
+}
+
+.custom-output-mode-select {
+    gap: 0.25rem !important;
+    padding: 0.25rem !important;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 999px !important;
+    background: var(--gpt-subtle) !important;
+}
+
+.custom-output-mode-option {
+    min-height: 2.35rem !important;
+    border-color: transparent !important;
+    white-space: nowrap !important;
+}
+
+#trash-section .flex.justify-between.items-center.mb-4,
+#trash-batch-action-bar,
+.trash-item,
+#data-management-section .mt-6.pt-4 {
+    background: transparent !important;
+    border-color: var(--gpt-border) !important;
+}
+
+.trash-item {
+    min-height: 4.25rem !important;
+    padding: 0.75rem 0 !important;
+    border-width: 0 0 1px 0 !important;
+    border-radius: 0 !important;
+}
+
+#trash-list-container .trash-item:last-child {
+    border-bottom: 0 !important;
+}
+
+#trash-batch-action-bar {
+    padding: 0.75rem 0 !important;
+    border-width: 1px 0 !important;
+    border-radius: 0 !important;
+}
+
+#trash-section .flex.gap-2.flex-shrink-0.ml-2 {
+    gap: 0.4rem !important;
+}
+
+#export-data-btn,
+#import-data-btn,
+#delete-all-data-btn {
+    width: 100% !important;
+}
+
+#open-archived-modal-btn {
+    justify-content: flex-start !important;
+    width: 100% !important;
+    border-color: transparent !important;
+    border-radius: 0.75rem !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+#import-progress-bar,
+#p2p-progress-bar {
+    background: var(--text-primary) !important;
+}
+
+#import-warning-text,
+#p2p-share-code {
+    color: var(--text-secondary) !important;
+}
+
+.toggle-checkbox {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 44px !important;
+    height: 24px !important;
+    opacity: 0 !important;
+    border: 0 !important;
+    cursor: pointer !important;
+}
+
+.toggle-label {
+    position: relative !important;
+    display: block !important;
+    width: 44px !important;
+    height: 24px !important;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 999px !important;
+    background: #d9d9d9 !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+}
+
+.dark .toggle-label {
+    background: #4a4a4a !important;
+}
+
+.toggle-label:before {
+    top: 2px !important;
+    left: 2px !important;
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    transform: translateX(0) !important;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background: var(--gpt-primary-action-bg) !important;
+    border-color: var(--gpt-primary-action-bg) !important;
+}
+
+.toggle-checkbox:checked + .toggle-label:before {
+    transform: translateX(20px) !important;
+}
+
+.toggle-checkbox:focus + .toggle-label {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-primary) 12%, transparent) !important;
+}
+
+#model-management-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.35rem !important;
+}
+
+#model-management-list .collapsible-section {
+    margin-left: 0 !important;
+}
+
+#model-management-list .collapsible-summary {
+    border-radius: 0.75rem !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.86rem !important;
+    font-weight: 500 !important;
+}
+
+#model-management-list .collapsible-content {
+    padding-left: 0.5rem !important;
+    border-left: 1px solid var(--gpt-border) !important;
+}
+
+.model-management-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto auto auto !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
+    min-height: 3rem !important;
+    padding: 0.45rem 0.55rem !important;
+    border: 1px solid transparent !important;
+    border-radius: 0.75rem !important;
+    background: transparent !important;
+}
+
+.model-management-item:hover {
+    background: var(--gpt-subtle) !important;
+}
+
+.model-management-name {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: var(--text-primary) !important;
+    font-size: 0.93rem !important;
+    font-weight: 500 !important;
+}
+
+.model-default-radio,
+#settings-modal input[type="radio"],
+#settings-modal input[type="checkbox"] {
+    accent-color: var(--gpt-primary-action-bg) !important;
+}
+
+.model-row-action {
+    width: 2rem !important;
+    height: 2rem !important;
+    min-height: 2rem !important;
+    padding: 0 !important;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 999px !important;
+    background: var(--gpt-surface) !important;
+    color: var(--text-secondary) !important;
+}
+
+.model-row-action:hover {
+    background: var(--gpt-subtle) !important;
+    color: var(--text-primary) !important;
+}
+
+.model-row-action:disabled {
+    opacity: 0.35 !important;
+    cursor: default !important;
+}
+
+.model-order-controls {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+}
+
+@media (max-width: 768px) {
+    #settings-modal > div {
+        width: calc(100vw - 1rem) !important;
+        height: min(88vh, 46rem) !important;
+        max-height: calc(100vh - 1rem) !important;
+    }
+
+    #settings-modal .flex-1.p-6.overflow-y-auto {
+        padding: 1rem !important;
+    }
+
+    .model-management-item {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        gap: 0.4rem !important;
+    }
+
+    .model-order-controls {
+        grid-column: 1 / -1 !important;
+        justify-self: end !important;
+    }
+}
