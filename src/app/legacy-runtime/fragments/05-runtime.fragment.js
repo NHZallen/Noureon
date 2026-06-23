@@ -137,6 +137,10 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
                 setupSettingsModal();
                 toggleModal(ALL_ELEMENTS.settingsModal, true);
+                if (isMobileSettingsViewport()) {
+                    openSettingsMobileSection('model-management');
+                    return;
+                }
                 const navItems = ALL_ELEMENTS.settingsNav.querySelectorAll('.settings-nav-item');
                 navItems.forEach(i => i.classList.remove('active'));
                 document.querySelector('.settings-nav-item[data-section="model-management"]').classList.add('active');

@@ -126,6 +126,31 @@ test('settings navigation starts below the modal header divider on desktop', () 
   assert.match(css, /#settings-modal\s+\.settings-sidebar\s*\{[^}]*height:\s*calc\(100%\s*-\s*4\.5rem\)(?:\s*!important)?;/s);
 });
 
+test('mobile settings open to a GPT-style category list before drilling into details', () => {
+  const runtime02 = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const css = readSource('src/styles/main.css');
+
+  assert.match(runtime02, /const\s+isMobileSettingsViewport\s*=\s*\(\)\s*=>\s*window\.matchMedia\('\(max-width:\s*768px\)'\)\.matches/);
+  assert.match(runtime02, /mobileHeader\.id\s*=\s*'settings-mobile-header'/);
+  assert.match(runtime02, /mobileList\.id\s*=\s*'settings-mobile-list'/);
+  assert.match(runtime02, /class="settings-mobile-list-item settings-nav-item"/);
+  assert.match(runtime02, /id="settings-mobile-back-btn"/);
+  assert.match(runtime02, /const\s+showSettingsMobileList\s*=\s*\(\)\s*=>/);
+  assert.match(runtime02, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
+  assert.match(runtime02, /ALL_ELEMENTS\.settingsModal\.classList\.add\('settings-mobile-detail-open'\)/);
+  assert.match(runtime02, /settings-mobile-list-item/);
+  assert.match(runtime02, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
+  assert.doesNotMatch(runtime02, /const\s+setSettingsSection\s*=/);
+  assert.doesNotMatch(runtime02, /accessibility:\s*'<svg[^']*m8 21 4-9 4 9/);
+
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-header[^{]*\{[^}]*display:\s*flex\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\.visible[^{]*\{[^}]*align-items:\s*flex-end\s*!important;[^}]*padding:\s*0\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s*>\s*div[^{]*\{[^}]*width:\s*100vw\s*!important;[^}]*margin:\s*0\s*!important;[^}]*border-radius:\s*2rem\s+2rem\s+0\s+0\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*display:\s*block\s*!important;/s);
+  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-list[^{]*\{[^}]*display:\s*none\s*!important;/s);
+  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active[^{]*\{[^}]*display:\s*block\s*!important;/s);
+});
+
 test('folder color rendering supports saved css color values without falling back', () => {
   const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const runtime02 = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
