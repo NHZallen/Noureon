@@ -8,6 +8,7 @@ import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuM
 import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails, isCouncilComparisonSummary, normalizeCouncilComparisonDetails, hasUnclosedCouncilDetails } from '/src/app/legacy-runtime/features/streaming-council-details.js';
 import { createStreamingMarkdownRenderState } from '/src/app/legacy-runtime/features/streaming-markdown-render-state.js';
 import { createStreamingTextFrameQueue } from '/src/app/legacy-runtime/features/streaming-text-frame-queue.js';
+import { createTypewriterPlaybackController } from '/src/app/legacy-runtime/features/typewriter-playback-controller.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;

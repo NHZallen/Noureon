@@ -1919,27 +1919,25 @@ const renderIncrementalResponse = (targetElement, text, options = {}) => {
 
 const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
     targetElement.innerHTML = '';
-    let currentIndex = 0;
-    const typingSpeed = 15;
-    const type = () => {
-        if (currentIndex < fullResponse.length && !signal.aborted) {
-            const currentText = fullResponse.substring(0, currentIndex + 1);
+    const playbackController = createTypewriterPlaybackController({
+        text: fullResponse,
+        signal,
+        schedule: (callback, delay) => setTimeout(callback, delay),
+        onStep: ({ currentText }) => {
             renderIncrementalResponse(targetElement, currentText, { cursor: true, preserveCouncilDetails });
-            let step = currentText.includes('```') ? 5 : 1;
-            currentIndex += step;
             const chatContainer = ALL_ELEMENTS.chatContainer;
             const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
             const pauseCouncilAutoScroll = preserveCouncilDetails && isCouncilDeferredSectionVisible(currentText);
             if (!pauseCouncilAutoScroll && isNearBottom) {
                 chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
             }
-            setTimeout(type, typingSpeed);
-            return;
+        },
+        onFinish: () => {
+            renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails });
+            resolve();
         }
-        renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails });
-        resolve();
-    };
-    type();
+    });
+    playbackController.start();
 });
 
 const isChatNearBottom = (threshold = 16) => {
@@ -2099,20 +2097,20 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
 
 const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
     const renderer = createStreamingMarkdownRenderer(targetElement, { preserveCouncilDetails });
-    let currentIndex = 0;
-    const typingSpeed = 15;
-    const type = () => {
-        if (currentIndex < fullResponse.length && !signal.aborted) {
-            const step = fullResponse.includes('```', Math.max(0, currentIndex - 3)) ? 5 : 1;
-            renderer.appendText(fullResponse.slice(currentIndex, currentIndex + step));
-            currentIndex += step;
-            setTimeout(type, typingSpeed);
-            return;
+    const playbackController = createTypewriterPlaybackController({
+        text: fullResponse,
+        signal,
+        schedule: (callback, delay) => setTimeout(callback, delay),
+        getStep: ({ source, currentIndex }) => source.includes('```', Math.max(0, currentIndex - 3)) ? 5 : 1,
+        onStep: ({ chunk }) => {
+            renderer.appendText(chunk);
+        },
+        onFinish: () => {
+            renderer.finish({ renderFormulas: true });
+            resolve();
         }
-        renderer.finish({ renderFormulas: true });
-        resolve();
-    };
-    type();
+    });
+    playbackController.start();
 });
 
 const appendRendererTextGradually = async (renderer, text = '', signal, chunkSize = 18) => {

@@ -387,7 +387,7 @@ test('streaming markdown render state helper is isolated from the 01 runtime ren
   assert.match(fragment01Source, /isChatNearBottom\(\)/);
   assert.match(fragment01Source, /keepChatPositionAfterRender\(shouldStick,\s*previousTop\)/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
-  assert.match(fragment01Source, /setTimeout\(type,\s*typingSpeed\)/);
+  assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
@@ -455,6 +455,48 @@ test('typewriter stream uses the shared streaming text frame queue boundary', as
   assert.match(typewriterStreamSource, /targetElement\.appendChild\(fragment\)/);
   assert.match(typewriterStreamSource, /targetElement\.innerHTML\s*=\s*renderMarkdownWithFormulas\(fullText\)/);
   assert.match(typewriterStreamSource, /renderMarkdown\(`[^`]*\$\{error\.message\}`\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('typewriter playback controller is isolated from the 01 runtime playback loops', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/typewriter-playback-controller.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/typewriter-playback-controller.js'));
+  const playbackTypewriterSource = fragment01Source.slice(
+    fragment01Source.indexOf('const playbackTypewriterResponse'),
+    fragment01Source.indexOf('const isChatNearBottom')
+  );
+  const playbackStreamingSource = fragment01Source.slice(
+    fragment01Source.indexOf('const playbackStreamingMarkdownResponse'),
+    fragment01Source.indexOf('const appendRendererTextGradually')
+  );
+
+  assert.equal(typeof helpers.createTypewriterPlaybackController, 'function');
+  assert.match(helperSource, /export\s+function\s+createTypewriterPlaybackController\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateTypewriterPlaybackController\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/typewriter-playback-controller\.js';/
+  );
+  assert.match(playbackTypewriterSource, /const\s+playbackController\s*=\s*createTypewriterPlaybackController\(\{/);
+  assert.match(playbackStreamingSource, /const\s+playbackController\s*=\s*createTypewriterPlaybackController\(\{/);
+  assert.match(playbackTypewriterSource, /renderIncrementalResponse\(targetElement,\s*currentText,\s*\{\s*cursor:\s*true,\s*preserveCouncilDetails\s*\}\)/);
+  assert.match(playbackTypewriterSource, /renderIncrementalResponse\(targetElement,\s*fullResponse,\s*\{\s*final:\s*true,\s*preserveCouncilDetails\s*\}\)/);
+  assert.match(playbackStreamingSource, /renderer\.appendText\(chunk\)/);
+  assert.match(playbackStreamingSource, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.match(playbackTypewriterSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*setTimeout\(callback,\s*delay\)/);
+  assert.match(playbackStreamingSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*setTimeout\(callback,\s*delay\)/);
+  assert.doesNotMatch(playbackTypewriterSource, /\blet\s+currentIndex\s*=/);
+  assert.doesNotMatch(playbackTypewriterSource, /\bconst\s+type\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(playbackTypewriterSource, /setTimeout\(type,\s*typingSpeed\)/);
+  assert.doesNotMatch(playbackStreamingSource, /\blet\s+currentIndex\s*=/);
+  assert.doesNotMatch(playbackStreamingSource, /\bconst\s+type\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(playbackStreamingSource, /setTimeout\(type,\s*typingSpeed\)/);
+  assert.match(fragment01Source, /const\s+renderIncrementalResponse\s*=/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.match(fragment01Source, /isCouncilDeferredSectionVisible\(currentText\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
