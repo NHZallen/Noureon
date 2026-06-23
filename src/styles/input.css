@@ -1,0 +1,147 @@
+    #attachment-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+
+#attachment-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--modal-bg);
+    border-top-left-radius: 1.5rem;
+    border-top-right-radius: 1.5rem;
+    z-index: 100;
+    padding: 1rem;
+    transform: translateY(100%);
+    transition: transform 0.3s ease-out;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    touch-action: none;
+}
+
+
+#attachment-menu.visible {
+    transform: translateY(0);
+}
+
+
+#attachment-menu-overlay.visible {
+    opacity: 1;
+}
+
+
+#attachment-menu .menu-header {
+    padding: 0.5rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-primary);
+    background-color: var(--sidebar-bg);
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+    user-select: none;
+}
+
+
+#attachment-menu .menu-options {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+
+#attachment-menu .menu-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+
+#attachment-menu .menu-item:last-child {
+    border-bottom: none;
+}
+
+
+#attachment-menu .menu-item:hover {
+    background-color: var(--hover-bg);
+}
+
+
+#attachment-menu .menu-item svg {
+    width: 24px;
+    height: 24px;
+    color: var(--text-secondary);
+}
+
+
+/* 針對暗黑模式和自訂桌布的適配 */
+.dark #attachment-menu .menu-header,
+.dark #attachment-menu .menu-item {
+    color: var(--text-primary);
+}
+.dark #attachment-menu .menu-item svg {
+    color: var(--text-secondary);
+}
+body.custom-wallpaper-active #attachment-menu {
+    color: #111827 !important;
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-color: rgba(200, 200, 200, 0.5) !important;
+}
+body.custom-wallpaper-active #attachment-menu .menu-header,
+body.custom-wallpaper-active #attachment-menu .menu-item {
+     color: #111827 !important;
+}
+body.custom-wallpaper-active #attachment-menu .menu-item svg {
+    color: #6b7280 !important;
+}
+    @keyframes indicator-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+  
+@keyframes indicator-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+.input-indicator-item {
+}
+
+
+
+
+.input-indicator-item.enter {
+    animation: indicator-enter 0.3s ease-out forwards;
+}
+
+
+
+
+.input-indicator-item.exit {
+    animation: indicator-exit 0.3s ease-out forwards;
+}

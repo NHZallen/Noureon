@@ -11,68 +11,24 @@ import katex from 'katex/dist/katex.min.js';
 import Peer from 'peerjs';
 import QRCodeGenerator from 'qrcode';
 import { Html5Qrcode } from 'html5-qrcode';
+import { installVendorBridge } from './app/bootstrap/vendor-bridge.js';
+import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
+import { mountAppShell } from './app/bootstrap/mount-shell.js';
 import appShell from './templates/app-shell.js';
 
-class QRCodeCompat {
-  constructor(container, options = {}) {
-    const canvas = document.createElement('canvas');
-    const width = options.width || 256;
-    canvas.width = width;
-    canvas.height = options.height || width;
-    container.appendChild(canvas);
-
-    QRCodeGenerator.toCanvas(canvas, options.text || '', {
-      width,
-      margin: 1,
-      color: {
-        dark: options.colorDark || '#000000',
-        light: options.colorLight || '#ffffff'
-      }
-    }).catch((error) => {
-      console.error('Failed to render QR code:', error);
-    });
-  }
-}
-
-globalThis.marked = marked;
-globalThis.DOMPurify = DOMPurify;
-globalThis.Chart = Chart;
-globalThis.JSZip = JSZip;
-globalThis.Cropper = Cropper;
-globalThis.katex = katex;
-globalThis.Peer = Peer;
-globalThis.QRCode = QRCodeCompat;
-globalThis.Html5Qrcode = Html5Qrcode;
-
-function loadVendorScript(src) {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) {
-      existing.addEventListener('load', resolve, { once: true });
-      existing.addEventListener('error', reject, { once: true });
-      if (existing.dataset.loaded === 'true') resolve();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = src;
-    script.defer = true;
-    script.onload = () => {
-      script.dataset.loaded = 'true';
-      resolve();
-    };
-    script.onerror = () => reject(new Error(`Failed to load ${src}`));
-    document.head.appendChild(script);
-  });
-}
-
 async function bootstrap() {
-  const app = document.querySelector('#app');
-  if (!app) {
-    throw new Error('Missing #app mount node.');
-  }
-
-  app.innerHTML = appShell;
+  installVendorBridge({
+    marked,
+    DOMPurify,
+    Chart,
+    JSZip,
+    Cropper,
+    katex,
+    Peer,
+    QRCodeGenerator,
+    Html5Qrcode
+  });
+  mountAppShell(appShell);
 
   await import('./data/i18n.js');
   await import('./data/demo-conversations.js');

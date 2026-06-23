@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    touch-action: manipulation;
+}
+    #import-progress-bar {
+    transition: width 0.2s ease-in-out;
+}
+    #history-sidebar.visible ~ #scroll-to-bottom-btn {
+    opacity: 0;
+    pointer-events: none;
+}
+#selection-mode-btn.active,
+#open-search-btn.active {
+    color: var(--button-primary-bg);
+}
+    main.flex-1 {
+    /* 強制隱藏所有超出寬度的內容 */
+    overflow-x: hidden;
+}
+    #history-sidebar .history-sidebar-item {
+    /* 這是為了讓指示條可以相對於它定位，非常重要！ */
+    position: relative; 
+}
+
+
+#history-sidebar .history-sidebar-item.active {
+    background-color: var(--hover-bg); 
+    color: var(--text-primary) !important; 
+    font-weight: 600; 
+    /* 增加左邊距，為指示條留出空間 */
+    padding-left: 1.25rem; 
+}
+
+
+#history-sidebar .history-sidebar-item.active::before {
+    content: ''; 
+    position: absolute; 
+    left: 6px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+    width: 4px; 
+    height: 60%; 
+    background-color: var(--button-primary-bg);
+    border-radius: 9999px; 
+    animation: indicator-pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+    #history-sidebar-overlay {
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+body.custom-wallpaper-active #history-sidebar {
+    backdrop-filter: blur(20px); /* 套用背景模糊濾鏡 */
+    -webkit-backdrop-filter: blur(20px); /* 兼容 Safari */
+    
+    /* 強制使用淺色的半透明背景，無論桌布是深是淺 */
+    background-color: rgba(255, 255, 255, 0.55) !important; 
+    
+    border-left: 1px solid rgba(255, 255, 255, 0.6) !important; /* 設定半透明亮色邊框 */
+    box-shadow: -4px 0px 15px rgba(0, 0, 0, 0.05); /* 加上陰影 */
+    
+    /* 確保側邊欄內的文字顏色是深色，以便在淺色背景上閱讀 */
+    color: #000000 !important; 
+}
+
+
+/* 同時，也需要強制覆蓋標題的顏色，確保可讀性 */
+body.custom-wallpaper-active #history-sidebar h3 {
+    color: #000000 !important;
+}
+#history-sidebar-overlay.visible {
+    display: block; /* 讓它可以被看見 */
+    opacity: 1;   /* 讓它從透明變為半透明 */
+}
+    #history-sidebar {
+    /* 預設將側邊欄向右移出畫面外 */
+    transform: translateX(100%); 
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-user-select: none; /* 防止在滑動時選取文字 */
+    user-select: none;
+}
+
+
+#history-sidebar.visible {
+    /* 當有 .visible class 時，將側邊欄移回畫面內 */
+    transform: translateX(0); 
+}
+
+
+/* 側邊欄內的每個訊息項目樣式 */
+.history-sidebar-item {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* 當文字太長時，顯示 ... */
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+
+.history-sidebar-item:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+
+/* 當訊息被跳轉到時的短暫高亮效果 */
+.message-highlight {
+    /* 使用 animation 來實現閃爍效果 */
+    animation: highlight-fade 1.5s ease-out;
+}
+
+
+@keyframes highlight-fade {
+    0% { background-color: rgba(250, 204, 21, 0.7); } /* 黃色的高亮 */
+    100% { background-color: transparent; }
+}
+    .sidebar-item {
+    position: relative; /* 這是為了讓指示條可以相對於它定位，非常重要！ */
+    border-radius: 0.5rem;
+    transition: all 0.2s ease-in-out; /* 保留平滑動畫 */
+    padding-left: 1.25rem; /* 稍微增加左邊距，為指示條留出空間 */
+}
+.dark .sidebar-item.active,
+.sidebar .sidebar-item.active {
+    background-color: var(--hover-bg); 
+    color: var(--text-primary) !important; 
+    font-weight: 600; 
+}
+.sidebar-item.active::before {
+    content: ''; /* 偽元素必須要有 content 屬性 */
+    position: absolute; /* 絕對定位，相對於 .sidebar-item */
+    left: 6px; /* 離左邊邊緣的距離 */
+    top: 50%; /* 定位在垂直置中的位置 */
+    transform: translateY(-50%); /* 透過 transform 精準置中 */
+    width: 4px; /* 指示條的寬度 */
+    height: 60%; /* 指示條的高度，佔父元素的 60% */
+    background-color: var(--button-primary-bg);
+    
+    border-radius: 9999px; /* 讓指示條兩端變圓滑 */
+    animation: indicator-pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes indicator-pop-in {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+}
+
+
+    .sidebar-section {
+    background-color: transparent; 
+    border-radius: 0;          
+    margin-bottom: 0.25rem;    /* <--- 變小了 */
+    padding-bottom: 0.25rem;   /* <--- 變小了 */
+    border: 0;                 
+}
