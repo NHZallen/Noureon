@@ -176,3 +176,22 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
   assert.match(fragmentSource, /appendStepPlanAttachmentContentBase\(content,\s*inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
 });
+
+test('settings mobile metadata helpers are isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/settings-mobile-metadata.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/settings-mobile-metadata.js'));
+
+  assert.equal(typeof helpers.getSettingsMobileGroups, 'function');
+  assert.equal(typeof helpers.SETTINGS_MOBILE_ICON_MAP, 'object');
+  assert.match(helperSource, /export\s+const\s+SETTINGS_MOBILE_ICON_MAP\b/);
+  assert.match(helperSource, /export\s+const\s+getSettingsMobileGroups\b/);
+
+  assert.match(
+    fragmentSource,
+    /import\s*\{[\s\S]*\bSETTINGS_MOBILE_ICON_MAP\b[\s\S]*\bgetSettingsMobileGroups\s+as\s+getSettingsMobileGroupsBase\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/settings-mobile-metadata\.js';/
+  );
+  assert.match(fragmentSource, /getSettingsMobileGroupsBase\(\s*getSettingsText\s*\)/);
+  assert.doesNotMatch(fragmentSource, /const\s+SETTINGS_MOBILE_ICON_MAP\s*=/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
+});
