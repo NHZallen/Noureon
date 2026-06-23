@@ -2,6 +2,7 @@ import { installTouchGuards } from '/src/pwa/touch-guards.js';
 import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
 import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/folder-colors.js';
 import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
+import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-formatting.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
@@ -1369,16 +1370,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const g = parseInt(result[2], 16);
             const b = parseInt(result[3], 16);
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        };
-        const formatFullTimestamp = (isoString) => {
-            if (!isoString) return '';
-            const date = new Date(isoString);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${year}-${month}-${day} ${hours}:${minutes}`;
         };
         const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`;
         const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;

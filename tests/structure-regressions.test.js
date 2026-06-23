@@ -242,6 +242,27 @@ test('message type icon helper is isolated from the 00 runtime fragment', async 
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('date formatting helper is isolated from the 00 runtime fragment and remains available to timestamp call sites', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/date-formatting.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/date-formatting.js'));
+
+  assert.equal(typeof helpers.formatFullTimestamp, 'function');
+  assert.match(helperSource, /export\s+const\s+formatFullTimestamp\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bformatFullTimestamp\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/date-formatting\.js';/
+  );
+  assert.doesNotMatch(fragment00Source, /\bconst\s+formatFullTimestamp\s*=/);
+  assert.match(fragment01Source, /formatFullTimestamp\(msg\.createdAt\)/);
+  assert.match(fragment02Source, /formatFullTimestamp\(aiMessageObject\.createdAt\)/);
+  assert.match(fragment04Source, /formatFullTimestamp\(conv\.deletedAt\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
