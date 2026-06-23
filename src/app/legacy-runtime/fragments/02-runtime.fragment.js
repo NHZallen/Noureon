@@ -1779,7 +1779,113 @@ submitButtonIcon.innerHTML = sendIconHTML;
             });
             syncOutputModeButtons();
         };
+        const isMobileSettingsViewport = () => window.matchMedia('(max-width: 768px)').matches;
+        const getSettingsText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
+        const SETTINGS_MOBILE_ICON_MAP = {
+            personalization: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 13s1.5 2 4 2 4-2 4-2"></path><path d="M9 9h.01"></path><path d="M15 9h.01"></path></svg>',
+            memory: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path></svg>',
+            'model-management': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>',
+            'data-management': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7c0-2 3.6-3.5 8-3.5s8 1.5 8 3.5-3.6 3.5-8 3.5S4 9 4 7z"></path><path d="M4 7v5c0 2 3.6 3.5 8 3.5s8-1.5 8-3.5V7"></path><path d="M4 12v5c0 2 3.6 3.5 8 3.5s8-1.5 8-3.5v-5"></path></svg>',
+            accessibility: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10"></path><path d="M18 7h2"></path><circle cx="16" cy="7" r="2"></circle><path d="M4 17h2"></path><path d="M10 17h10"></path><circle cx="8" cy="17" r="2"></circle></svg>',
+            trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 15H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>',
+            about: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>'
+        };
+        const getSettingsMobileGroups = () => ([
+            {
+                title: '自訂 ASTRA',
+                items: [
+                    { section: 'personalization', label: getSettingsText('personalization', '個人化') },
+                    { section: 'memory', label: getSettingsText('memoryManagement', '記憶管理') },
+                    { section: 'model-management', label: getSettingsText('modelManagement', '模型管理') }
+                ]
+            },
+            {
+                title: getSettingsText('appSettings', '應用程式設定'),
+                items: [
+                    { section: 'data-management', label: getSettingsText('dataManagement', '資料管理') },
+                    { section: 'accessibility', label: getSettingsText('accessibility', '輔助功能') },
+                    { section: 'trash', label: getSettingsText('trash', '垃圾桶') }
+                ]
+            },
+            {
+                title: '取得協助',
+                items: [
+                    { section: 'about', label: getSettingsText('about', '關於') }
+                ]
+            }
+        ]);
+        const renderSettingsMobileList = () => {
+            const settingsMobileList = document.getElementById('settings-mobile-list');
+            if (!settingsMobileList) return;
+            settingsMobileList.innerHTML = getSettingsMobileGroups().map(group => `
+                <section class="settings-mobile-group">
+                    <h3 class="settings-mobile-group-title">${escapeHTML(group.title)}</h3>
+                    <div class="settings-mobile-card">
+                        ${group.items.map(item => `
+                            <button type="button" class="settings-mobile-list-item settings-nav-item" data-section="${escapeHTML(item.section)}" data-mobile-title="${escapeHTML(item.label)}">
+                                <span class="settings-mobile-row-icon">${SETTINGS_MOBILE_ICON_MAP[item.section] || SETTINGS_MOBILE_ICON_MAP.about}</span>
+                                <span class="settings-mobile-row-label">${escapeHTML(item.label)}</span>
+                                <span class="settings-mobile-chevron" aria-hidden="true">&rsaquo;</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </section>
+            `).join('') + `
+                <section class="settings-mobile-group settings-mobile-logout-group">
+                    <div class="settings-mobile-card">
+                        <button type="button" id="settings-mobile-logout-btn" class="settings-mobile-list-item settings-mobile-list-item-danger">
+                            <span class="settings-mobile-row-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
+                            </span>
+                            <span class="settings-mobile-row-label">${escapeHTML(getSettingsText('logout', '登出'))}</span>
+                        </button>
+                    </div>
+                </section>
+            `;
+            settingsMobileList.querySelector('#settings-mobile-logout-btn')?.addEventListener('click', handleLogout);
+        };
+        const ensureSettingsMobileShell = () => {
+            const settingsBody = ALL_ELEMENTS.settingsModal?.querySelector('.flex.flex-1.overflow-hidden');
+            if (!settingsBody || document.getElementById('settings-mobile-header')) return;
+            const mobileHeader = document.createElement('div');
+            mobileHeader.id = 'settings-mobile-header';
+            mobileHeader.innerHTML = `
+                <button type="button" id="settings-mobile-back-btn" aria-label="返回">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+                </button>
+                <h2 id="settings-mobile-title">${escapeHTML(getSettingsText('settings', '設定'))}</h2>
+            `;
+            const mobileList = document.createElement('div');
+            mobileList.id = 'settings-mobile-list';
+            settingsBody.prepend(mobileList);
+            settingsBody.prepend(mobileHeader);
+            const settingsMobileBackBtn = document.getElementById('settings-mobile-back-btn');
+            settingsMobileBackBtn.addEventListener('click', () => showSettingsMobileList());
+            mobileList.addEventListener('click', (event) => {
+                const item = event.target.closest('.settings-mobile-list-item');
+                if (!item?.dataset.section) return;
+                openSettingsMobileSection(item.dataset.section);
+            });
+        };
+        const showSettingsMobileList = () => {
+            ensureSettingsMobileShell();
+            renderSettingsMobileList();
+            ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-detail-open');
+            document.getElementById('settings-mobile-title').textContent = getSettingsText('settings', '設定');
+            document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
+        };
+        const openSettingsMobileSection = (sectionName) => {
+            ensureSettingsMobileShell();
+            const targetSection = document.getElementById(`${sectionName}-section`);
+            if (!targetSection) return;
+            document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
+            targetSection.classList.add('active');
+            const listItem = Array.from(document.querySelectorAll('#settings-mobile-list [data-section]')).find(item => item.dataset.section === sectionName);
+            document.getElementById('settings-mobile-title').textContent = listItem?.dataset.mobileTitle || sectionName;
+            ALL_ELEMENTS.settingsModal.classList.add('settings-mobile-detail-open');
+        };
         const setupSettingsModal = () => {
+            ensureSettingsMobileShell();
             ensureCouncilTranslatorSettingsControls();
             ensureOutputModeSettingsControls();
             ALL_ELEMENTS.geminiApiKeyInput.value = getApiKeyForProvider('gemini');
@@ -1826,8 +1932,11 @@ submitButtonIcon.innerHTML = sendIconHTML;
             renderUserBubbleColorDropdown();
             renderUiColorOptions();
             renderTrash();
+            renderSettingsMobileList();
             const navItems = ALL_ELEMENTS.settingsNav.querySelectorAll('.settings-nav-item');
             navItems.forEach(item => {
+                if (item.dataset.settingsDesktopBound === 'true') return;
+                item.dataset.settingsDesktopBound = 'true';
                 item.addEventListener('click', () => {
                     navItems.forEach(i => i.classList.remove('active'));
                     item.classList.add('active');
@@ -1836,6 +1945,17 @@ submitButtonIcon.innerHTML = sendIconHTML;
                     document.getElementById(sectionId).classList.add('active');
                 });
             });
+            if (isMobileSettingsViewport()) {
+                showSettingsMobileList();
+            } else {
+                ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-detail-open');
+                const activeNavItem = ALL_ELEMENTS.settingsNav.querySelector('.settings-nav-item.active') || ALL_ELEMENTS.settingsNav.querySelector('.settings-nav-item');
+                if (activeNavItem) {
+                    navItems.forEach(i => i.classList.toggle('active', i === activeNavItem));
+                    document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
+                    document.getElementById(`${activeNavItem.dataset.section}-section`)?.classList.add('active');
+                }
+            }
         };
         const saveSettings = async ({ close = true, notify = true } = {}) => {
             config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
