@@ -287,6 +287,37 @@ test('time distribution chart data helper is isolated from the 04 runtime fragme
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('mobile context menu markup helpers are isolated from the 04 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/mobile-context-menu-markup.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/mobile-context-menu-markup.js'));
+
+  assert.equal(typeof helpers.buildConversationMobileContextMenuMarkup, 'function');
+  assert.equal(typeof helpers.buildFolderMobileContextMenuMarkup, 'function');
+  assert.equal(typeof helpers.buildAstraMobileContextMenuMarkup, 'function');
+  assert.match(helperSource, /export\s+function\s+buildConversationMobileContextMenuMarkup\b/);
+  assert.match(helperSource, /export\s+function\s+buildFolderMobileContextMenuMarkup\b/);
+  assert.match(helperSource, /export\s+function\s+buildAstraMobileContextMenuMarkup\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bbuildConversationMobileContextMenuMarkup\b[\s\S]*\bbuildFolderMobileContextMenuMarkup\b[\s\S]*\bbuildAstraMobileContextMenuMarkup\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/mobile-context-menu-markup\.js';/
+  );
+  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildConversationMobileContextMenuMarkup\(\{/);
+  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildFolderMobileContextMenuMarkup\(\{/);
+  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildAstraMobileContextMenuMarkup\(\{/);
+  assert.doesNotMatch(fragment04Source, /const\s+menuHeader\s*=/);
+  assert.doesNotMatch(fragment04Source, /let\s+menuOptions\s*=/);
+  assert.doesNotMatch(fragment04Source, /const\s+moveOptionsHTML\s*=/);
+  assert.match(fragment04Source, /document\.createElement\('div'\)/);
+  assert.match(fragment04Source, /document\.body\.appendChild\(menuWrapper\)/);
+  assert.match(fragment04Source, /menu\.addEventListener\('click'/);
+  assert.match(fragment04Source, /showRenameModal\(convId,\s*'conversation',\s*e\)/);
+  assert.match(fragment04Source, /showFolderSettingsModal\(folderId,\s*e\)/);
+  assert.match(fragment04Source, /openAvatarEditor\(astrasId\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');

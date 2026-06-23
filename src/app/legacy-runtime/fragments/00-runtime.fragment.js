@@ -4,6 +4,7 @@ import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/fo
 import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
 import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-formatting.js';
 import { buildTimeDistributionChartData } from '/src/app/legacy-runtime/features/time-distribution-chart-data.js';
+import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '/src/app/legacy-runtime/features/mobile-context-menu-markup.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
