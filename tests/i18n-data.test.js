@@ -26,10 +26,42 @@ const stableStringify = (value) => {
 
 const hashValue = (value) => createHash('sha256').update(stableStringify(value)).digest('hex');
 
+const GLOBAL_KEYS_TO_RESTORE = ['window', 'i18n'];
+
+const snapshotGlobals = () => new Map(GLOBAL_KEYS_TO_RESTORE.map((key) => [
+  key,
+  {
+    exists: Object.prototype.hasOwnProperty.call(globalThis, key),
+    value: globalThis[key]
+  }
+]));
+
+const restoreGlobals = (snapshot) => {
+  for (const [key, state] of snapshot.entries()) {
+    if (state.exists) {
+      globalThis[key] = state.value;
+    } else {
+      delete globalThis[key];
+    }
+  }
+};
+
 const importI18n = async (tag) => {
-  delete globalThis.i18n;
-  globalThis.window = globalThis;
-  return import(projectFile(`src/data/i18n.js?${tag}=${Date.now()}`));
+  const snapshot = snapshotGlobals();
+
+  try {
+    delete globalThis.i18n;
+    globalThis.window = {};
+
+    const module = await import(projectFile(`src/data/i18n.js?${tag}=${Date.now()}`));
+    return {
+      ...module,
+      globalI18n: globalThis.i18n,
+      windowI18n: globalThis.window.i18n
+    };
+  } finally {
+    restoreGlobals(snapshot);
+  }
 };
 
 const getShellLangKeys = () => {
@@ -53,8 +85,8 @@ test('i18n compatibility entry preserves exports and global side effects', async
 
   assert.ok(exportedI18n);
   assert.equal(module.i18n, exportedI18n);
-  assert.equal(globalThis.i18n, exportedI18n);
-  assert.equal(globalThis.window.i18n, exportedI18n);
+  assert.equal(module.globalI18n, exportedI18n);
+  assert.equal(module.windowI18n, exportedI18n);
 });
 
 test('i18n locales keep the expected list and identical key coverage', async () => {
