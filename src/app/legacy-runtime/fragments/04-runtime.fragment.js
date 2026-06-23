@@ -95,50 +95,9 @@
             const year = ALL_ELEMENTS.timeAnalysisYearSelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisYearSelect.value) : null;
             const month = ALL_ELEMENTS.timeAnalysisMonthSelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisMonthSelect.value) : null;
             const day = ALL_ELEMENTS.timeAnalysisDaySelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisDaySelect.value) : null;
-            let labels, data, chartType, label;
             const allMessages = conversations.flatMap(c => c.messages);
             const lang = config.uiLanguage;
-            if (year && month && day) {
-                chartType = 'line';
-                label = `${year}${i18n[lang].yearSuffix || '年'}${month}${i18n[lang].monthSuffix || '月'}${day}${i18n[lang].daySuffix || '日'} ${i18n[lang].hourlyMessageCount || '每小時訊息數'}`;
-                labels = Array.from({length: 24}, (_, i) => `${i}:00`);
-                data = Array(24).fill(0);
-                allMessages.forEach(msg => {
-                    const msgDate = new Date(msg.createdAt);
-                    if (msgDate.getFullYear() === year && msgDate.getMonth() + 1 === month && msgDate.getDate() === day) {
-                        data[msgDate.getHours()]++;
-                    }
-                });
-            } else if (year && month) {
-                chartType = 'bar';
-                label = `${year}${i18n[lang].yearSuffix || '年'}${month}${i18n[lang].monthSuffix || '月'} ${i18n[lang].dailyMessageCount || '每日訊息數'}`;
-                const daysInMonth = new Date(year, month, 0).getDate();
-                labels = Array.from({length: daysInMonth}, (_, i) => `${i + 1}${i18n[lang].daySuffix || '日'}`);
-                data = Array(daysInMonth).fill(0);
-                allMessages.forEach(msg => {
-                    const msgDate = new Date(msg.createdAt);
-                    if (msgDate.getFullYear() === year && msgDate.getMonth() + 1 === month) {
-                        data[msgDate.getDate() - 1]++;
-                    }
-                });
-            } else if (year) {
-                chartType = 'line';
-                label = `${year}${i18n[lang].yearSuffix || '年'} ${i18n[lang].monthlyMessageCount || '每月訊息數'}`;
-                labels = i18n[lang].months || ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-                data = Array(12).fill(0);
-                allMessages.forEach(msg => {
-                    const msgDate = new Date(msg.createdAt);
-                    if (msgDate.getFullYear() === year) {
-                        data[msgDate.getMonth()]++;
-                    }
-                });
-            } else {
-                chartType = 'bar';
-                label = i18n[lang].yearlyMessageCount || '每年訊息數';
-                const years = [...new Set(allMessages.map(d => new Date(d.createdAt).getFullYear()))].sort();
-                labels = years.map(String);
-                data = years.map(y => allMessages.filter(m => new Date(m.createdAt).getFullYear() === y).length);
-            }
+            const { chartType, label, labels, data } = buildTimeDistributionChartData({ messages: allMessages, year, month, day, text: i18n[lang] });
             const ctx = document.getElementById('time-distribution-chart').getContext('2d');
             if (timeDistChart) {
                 timeDistChart.destroy();

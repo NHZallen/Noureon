@@ -3,6 +3,7 @@ import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
 import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/folder-colors.js';
 import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
 import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-formatting.js';
+import { buildTimeDistributionChartData } from '/src/app/legacy-runtime/features/time-distribution-chart-data.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
