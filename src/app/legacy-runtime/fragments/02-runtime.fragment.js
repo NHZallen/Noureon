@@ -28,6 +28,7 @@
             SETTINGS_MOBILE_ICON_MAP,
             getSettingsMobileGroups as getSettingsMobileGroupsBase
         } from '/src/app/legacy-runtime/features/settings-mobile-metadata.js';
+        import { getOutputModeSettingsText } from '/src/app/legacy-runtime/features/output-mode-settings-text.js';
         function cleanGeminiHistory(history, targetModel = null) {
             const cleaned = []; 
             let lastRole = null;
@@ -1598,30 +1599,6 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 });
             }
         };
-        const getOutputModeSettingsText = () => {
-            if (config.uiLanguage === 'en') {
-                return {
-                    title: 'Output mode',
-                    desc: 'Applies to single-model and Model Council replies.',
-                    typewriter: 'Typewriter after completion',
-                    realtime: 'Realtime API stream'
-                };
-            }
-            if (config.uiLanguage === 'fr') {
-                return {
-                    title: 'Mode de sortie',
-                    desc: 'S’applique aux réponses mono-modèle et au conseil de modèles.',
-                    typewriter: 'Machine à écrire après la réponse complète',
-                    realtime: 'Flux API en temps réel'
-                };
-            }
-            return {
-                title: '輸出模式',
-                desc: '適用於單獨模型與模型理事會回覆。',
-                typewriter: '完整輸出後打字機',
-                realtime: '即時同步輸出'
-            };
-        };
         const ensureOutputModeSettingsControls = () => {
             const section = document.getElementById('accessibility-section');
             if (!section) return;
@@ -1648,7 +1625,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
                     </div>
                 `;
             }
-            const text = getOutputModeSettingsText();
+            const text = getOutputModeSettingsText(config.uiLanguage);
             row.querySelector('#output-mode-label').textContent = text.title;
             row.querySelector('p').textContent = text.desc;
             ALL_ELEMENTS.outputModeSelect = row.querySelector('#output-mode-select');
