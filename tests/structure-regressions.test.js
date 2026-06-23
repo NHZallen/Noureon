@@ -156,3 +156,22 @@ test('main css is an ordered split manifest with every imported file under the s
 
   assert.ok(statSync(projectFile('src/styles/main.css')).size < 150 * 1024);
 });
+
+test('legacy provider request formatting helpers are isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/model-request-formatting.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/model-request-formatting.js'));
+
+  for (const exportName of [
+    'appendStepPlanAttachmentContent',
+    'buildTavilySearchQuery',
+    'formatTavilySearchPacket'
+  ]) {
+    assert.equal(typeof helpers[exportName], 'function', `${exportName} should be exported`);
+    assert.match(helperSource, new RegExp(`export\\s+const\\s+${exportName}\\b`));
+  }
+
+  assert.match(fragmentSource, /from\s+'\/src\/app\/legacy-runtime\/features\/model-request-formatting\.js';/);
+  assert.match(fragmentSource, /appendStepPlanAttachmentContentBase\(content,\s*inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
+});
