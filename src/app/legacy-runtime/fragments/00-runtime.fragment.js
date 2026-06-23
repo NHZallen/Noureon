@@ -1,6 +1,7 @@
 import { installTouchGuards } from '/src/pwa/touch-guards.js';
 import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
 import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/folder-colors.js';
+import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
@@ -393,22 +394,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         }, { once: true });
     }
 }
-
-
-    // 根據訊息內容，判斷是否顯示圖示
-    function getMessageTypeIcon(message) {
-        if (!message.parts || message.parts.length === 0) {
-            return '';
-        }
-        const hasImage = message.parts.some(p => p.inlineData && p.inlineData.mimeType.startsWith('image/'));
-        const hasFile = message.parts.some(p => p.inlineData && !p.inlineData.mimeType.startsWith('image/'));
-
-
-        if (hasImage) return '📷 ';
-        if (hasFile) return '📎 ';
-        return '';
-    }
-
 
     // 渲染歷史訊息側邊欄的內容
     function renderHistorySidebarContent() {
