@@ -427,6 +427,37 @@ test('streaming text frame queue helper is isolated from the 01 runtime stream r
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('typewriter stream uses the shared streaming text frame queue boundary', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
+  const typewriterStreamSource = fragment01Source.slice(
+    fragment01Source.indexOf('async function typewriterStream'),
+    fragment01Source.indexOf('const renderIncrementalResponse')
+  );
+
+  assert.equal(typeof helpers.createStreamingTextFrameQueue, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamingTextFrameQueue\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateStreamingTextFrameQueue\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-text-frame-queue\.js';/
+  );
+  assert.match(typewriterStreamSource, /const\s+typewriterFrameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.match(typewriterStreamSource, /drainText:\s*\(chunkToRender\)\s*=>\s*\{/);
+  assert.match(typewriterStreamSource, /typewriterFrameQueue\.enqueue\(chunk\)/);
+  assert.match(typewriterStreamSource, /await\s+typewriterFrameQueue\.flushUntilIdle\(\)/);
+  assert.doesNotMatch(typewriterStreamSource, /\blet\s+textQueue\s*=/);
+  assert.doesNotMatch(typewriterStreamSource, /\blet\s+isFrameRequested\s*=/);
+  assert.doesNotMatch(typewriterStreamSource, /\bconst\s+renderFrame\s*=/);
+  assert.match(typewriterStreamSource, /requestAnimationFrame\(/);
+  assert.match(typewriterStreamSource, /setTimeout\(resolve,\s*16\)/);
+  assert.match(typewriterStreamSource, /targetElement\.appendChild\(fragment\)/);
+  assert.match(typewriterStreamSource, /targetElement\.innerHTML\s*=\s*renderMarkdownWithFormulas\(fullText\)/);
+  assert.match(typewriterStreamSource, /renderMarkdown\(`[^`]*\$\{error\.message\}`\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');

@@ -1839,28 +1839,20 @@
  */
 async function typewriterStream(targetElement, streamApiCallFn, signal) {
     let fullText = '';
-    let textQueue = ''; // 用於暫存兩次渲染幀之間收到的文字
     let isStreaming = true;
-    let isFrameRequested = false; // 標記是否已經預約了下一幀的渲染
 
 
     targetElement.innerHTML = '';
     targetElement.classList.add('typing-cursor');
 
 
-    // 這是渲染單一幀畫面的核心函式
-    const renderFrame = () => {
-        // 如果佇列裡有文字，就全部渲染出來
-        if (textQueue.length > 0) {
-            const chunkToRender = textQueue;
-            textQueue = ''; // 清空佇列
+    const typewriterFrameQueue = createStreamingTextFrameQueue({
+        drainText: (chunkToRender) => {
             fullText += chunkToRender;
-
 
             const fragment = document.createDocumentFragment();
             for (const char of chunkToRender) {
                 const span = document.createElement('span');
-                // 這裡不再隱藏 Markdown 字元，直接輸出，讓 Markdown 渲染器處理
                 span.className = 'fade-in-char'; 
                 if (char === '\n') {
                     fragment.appendChild(document.createElement('br'));
@@ -1871,28 +1863,20 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
             }
             targetElement.appendChild(fragment);
 
-
-            // 保持捲動到底部
             const chatContainer = ALL_ELEMENTS.chatContainer;
             const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
             if (isNearBottom) {
                 chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
             }
-        }
-        
-        // 渲染完成後，將標記重設為 false，允許下一次的資料觸發新的渲染
-        isFrameRequested = false;
-    };
+        },
+        scheduleFrame: (callback) => requestAnimationFrame(callback),
+        waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16))
+    });
 
 
     // 當 API 收到新資料時呼叫此函式
     const onChunkReceived = (chunk) => {
-        textQueue += chunk;
-        // 如果目前沒有正在等待的渲染幀，就預約下一幀
-        if (!isFrameRequested) {
-            isFrameRequested = true;
-            requestAnimationFrame(renderFrame);
-        }
+        typewriterFrameQueue.enqueue(chunk);
     };
 
 
@@ -1912,20 +1896,7 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
         isStreaming = false;
 
 
-        // 等待最後一幀的渲染完成 (如果有的話)
-        // 這是為了處理這種情況：串流結束了，但最後一點文字還在佇列裡，等待下一幀渲染
-        const waitForLastFrame = async () => {
-            while (isFrameRequested || textQueue.length > 0) {
-                // 如果還有佇列或正在等待的幀，就再預約一幀並等待
-                if (!isFrameRequested) {
-                    requestAnimationFrame(renderFrame);
-                }
-                await new Promise(resolve => setTimeout(resolve, 16)); // 等待一小段時間
-            }
-        };
-
-
-        await waitForLastFrame();
+        await typewriterFrameQueue.flushUntilIdle();
         
         // 所有工作都完成了，進行最終清理
         targetElement.classList.remove('typing-cursor');

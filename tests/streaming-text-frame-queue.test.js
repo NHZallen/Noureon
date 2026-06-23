@@ -144,6 +144,57 @@ test('ignores empty chunks without scheduling frames', () => {
   assert.deepEqual(drained, []);
 });
 
+test('supports typewriter-style accumulated render sequence without changing chunk order', async () => {
+  const scheduler = createManualFrameScheduler();
+  const renderedSnapshots = [];
+  let renderedText = '';
+  const queue = createStreamingTextFrameQueue({
+    scheduleFrame: scheduler.scheduleFrame,
+    drainText: (text) => {
+      renderedText += text;
+      renderedSnapshots.push(renderedText);
+    },
+    waitForFrame: async () => {
+      scheduler.flushNext();
+    }
+  });
+
+  queue.enqueue('Hel');
+  queue.enqueue('lo');
+  assert.equal(scheduler.pendingFrames, 1);
+
+  await queue.flushUntilIdle();
+  queue.enqueue(' Astra');
+  await queue.flushUntilIdle();
+
+  assert.deepEqual(renderedSnapshots, ['Hello', 'Hello Astra']);
+  assert.equal(renderedText, 'Hello Astra');
+});
+
+test('flushUntilIdle drains pending typewriter text before completion', async () => {
+  const scheduler = createManualFrameScheduler();
+  let renderedText = '';
+  const queue = createStreamingTextFrameQueue({
+    scheduleFrame: scheduler.scheduleFrame,
+    drainText: (text) => {
+      renderedText += text;
+    },
+    waitForFrame: async () => {
+      scheduler.flushNext();
+    }
+  });
+
+  queue.enqueue('A');
+  queue.enqueue('stra');
+
+  assert.equal(renderedText, '');
+  await queue.flushUntilIdle();
+
+  assert.equal(renderedText, 'Astra');
+  assert.equal(queue.getSnapshot().queuedText, '');
+  assert.equal(queue.getSnapshot().isFrameRequested, false);
+});
+
 test('streaming text frame queue helper stays isolated from runtime side effects', () => {
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
 
