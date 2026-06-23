@@ -2113,14 +2113,6 @@ const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, 
     playbackController.start();
 });
 
-const appendRendererTextGradually = async (renderer, text = '', signal, chunkSize = 18) => {
-    const source = String(text || '');
-    for (let index = 0; index < source.length && !signal?.aborted; index += chunkSize) {
-        renderer.appendText(source.slice(index, index + chunkSize));
-        await new Promise(resolve => requestAnimationFrame(resolve));
-    }
-};
-
 const startProgressTicker = (tick, intervalMs = 250) => {
     let stopped = false;
     let timerId = null;
@@ -2282,7 +2274,7 @@ const stopProgressTicker = (ticker) => {
                         }
                         const remainingCouncilText = fullResponse.slice(realtimeCouncilText.length);
                         if (remainingCouncilText) {
-                            await appendRendererTextGradually(realtimeCouncilRenderer, remainingCouncilText, abortController.signal);
+                            await appendRendererTextGradually(realtimeCouncilRenderer, remainingCouncilText, abortController.signal, 18, (callback) => requestAnimationFrame(callback));
                         }
                         realtimeCouncilRenderer.finish({ renderFormulas: true });
                     }

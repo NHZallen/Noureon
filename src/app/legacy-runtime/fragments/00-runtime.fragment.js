@@ -9,6 +9,7 @@ import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails, isCouncilCompariso
 import { createStreamingMarkdownRenderState } from '/src/app/legacy-runtime/features/streaming-markdown-render-state.js';
 import { createStreamingTextFrameQueue } from '/src/app/legacy-runtime/features/streaming-text-frame-queue.js';
 import { createTypewriterPlaybackController } from '/src/app/legacy-runtime/features/typewriter-playback-controller.js';
+import { appendRendererTextGradually } from '/src/app/legacy-runtime/features/renderer-gradual-append-controller.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;

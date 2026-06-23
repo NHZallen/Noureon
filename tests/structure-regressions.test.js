@@ -500,6 +500,34 @@ test('typewriter playback controller is isolated from the 01 runtime playback lo
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('renderer gradual append controller is isolated from the 01 runtime RAF append loop', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/renderer-gradual-append-controller.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/renderer-gradual-append-controller.js'));
+  const submitFlowSource = fragment01Source.slice(
+    fragment01Source.indexOf('const appendRendererTextGradually'),
+    fragment01Source.indexOf('const startProgressTicker')
+  );
+
+  assert.equal(typeof helpers.appendRendererTextGradually, 'function');
+  assert.match(helperSource, /export\s+async\s+function\s+appendRendererTextGradually\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bappendRendererTextGradually\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/renderer-gradual-append-controller\.js';/
+  );
+  assert.match(fragment01Source, /appendRendererTextGradually\(\s*realtimeCouncilRenderer,\s*remainingCouncilText,\s*abortController\.signal,\s*18,\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)\s*\)/);
+  assert.doesNotMatch(fragment01Source, /const\s+appendRendererTextGradually\s*=\s*async/);
+  assert.doesNotMatch(submitFlowSource, /for\s*\(\s*let\s+index\s*=\s*0;\s*index\s*<\s*source\.length[\s\S]*renderer\.appendText\(source\.slice\(index,\s*index\s*\+\s*chunkSize\)\)[\s\S]*requestAnimationFrame\(resolve\)/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /renderer\.appendText\(chunk\)/);
+  assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.match(fragment01Source, /requestAnimationFrame\(/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
