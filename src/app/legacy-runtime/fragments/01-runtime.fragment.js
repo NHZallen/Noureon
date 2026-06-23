@@ -2075,11 +2075,8 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
 };
 
 async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, options = {}) {
-    let textQueue = '';
-    let isFrameRequested = false;
     let streamError = null;
     let renderer = null;
-    let hasReceivedFirstChunk = false;
     if (options.placeholderHTML) {
         targetElement.innerHTML = options.placeholderHTML;
         targetElement.classList.remove('typing-cursor');
@@ -2092,27 +2089,15 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
         return renderer;
     };
 
-    const renderFrame = () => {
-        if (textQueue.length > 0) {
-            const chunkToRender = textQueue;
-            textQueue = '';
-            ensureRenderer().appendText(chunkToRender);
-        }
-        isFrameRequested = false;
-    };
+    const frameQueue = createStreamingTextFrameQueue({
+        drainText: (chunkToRender) => ensureRenderer().appendText(chunkToRender),
+        onFirstChunk: () => options.onFirstChunk?.(),
+        scheduleFrame: (callback) => requestAnimationFrame(callback),
+        waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16))
+    });
 
     const onChunkReceived = (chunk) => {
-        const nextChunk = String(chunk || '');
-        if (!nextChunk) return;
-        if (!hasReceivedFirstChunk) {
-            hasReceivedFirstChunk = true;
-            options.onFirstChunk?.();
-        }
-        textQueue += nextChunk;
-        if (!isFrameRequested) {
-            isFrameRequested = true;
-            requestAnimationFrame(renderFrame);
-        }
+        frameQueue.enqueue(chunk);
     };
 
     try {
@@ -2126,13 +2111,7 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
             throw error;
         }
     } finally {
-        while (isFrameRequested || textQueue.length > 0) {
-            if (!isFrameRequested) {
-                isFrameRequested = true;
-                requestAnimationFrame(renderFrame);
-            }
-            await new Promise(resolve => setTimeout(resolve, 16));
-        }
+        await frameQueue.flushUntilIdle();
         if (renderer) {
             renderer.finish({ renderFormulas: true });
         } else {

@@ -391,6 +391,42 @@ test('streaming markdown render state helper is isolated from the 01 runtime ren
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
+  const streamResponseSource = fragment01Source.slice(
+    fragment01Source.indexOf('async function streamMarkdownResponse'),
+    fragment01Source.indexOf('const playbackStreamingMarkdownResponse')
+  );
+
+  assert.equal(typeof helpers.createStreamingTextFrameQueue, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamingTextFrameQueue\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateStreamingTextFrameQueue\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-text-frame-queue\.js';/
+  );
+  assert.match(fragment01Source, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.match(fragment01Source, /drainText:\s*\(chunkToRender\)\s*=>\s*ensureRenderer\(\)\.appendText\(chunkToRender\)/);
+  assert.match(fragment01Source, /onFirstChunk:\s*\(\)\s*=>\s*options\.onFirstChunk\?\.\(\)/);
+  assert.match(fragment01Source, /scheduleFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
+  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(resolve\s*=>\s*setTimeout\(resolve,\s*16\)\)/);
+  assert.match(fragment01Source, /frameQueue\.enqueue\(chunk\)/);
+  assert.match(fragment01Source, /await\s+frameQueue\.flushUntilIdle\(\)/);
+  assert.doesNotMatch(streamResponseSource, /\blet\s+textQueue\s*=/);
+  assert.doesNotMatch(streamResponseSource, /\blet\s+isFrameRequested\s*=/);
+  assert.doesNotMatch(streamResponseSource, /\blet\s+hasReceivedFirstChunk\s*=/);
+  assert.doesNotMatch(streamResponseSource, /\bconst\s+renderFrame\s*=/);
+  assert.match(fragment01Source, /await\s+streamApiCallFn\(onChunkReceived\)/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*options\.placeholderHTML/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*renderMarkdown\(/);
+  assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
