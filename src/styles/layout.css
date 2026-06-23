@@ -1,0 +1,81 @@
+    :root {
+        --chat-bg: #ffffff;
+        --sidebar-bg: #f7f7f8;
+        --input-bar-bg: #ffffff;
+        --input-field-bg: #f9fafb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --border-color: #e5e7eb;
+        --hover-bg: #f3f4f6;
+        --active-bg: #e5e7eb;
+        --modal-bg: #ffffff;
+        --shadow-color: rgba(0, 0, 0, 0.1);
+        --ai-bubble-bg: transparent;
+        --user-bubble-bg: #e8f3ff;
+        --button-primary-bg: #4f8df7;
+        --button-primary-hover-bg: #3f7ee6;
+        --button-primary-text: #ffffff;
+    }
+    .dark {
+        --chat-bg: #111111;
+        --sidebar-bg: #1c1c1c;
+        --input-bar-bg: #1c1c1c;
+        --input-field-bg: #2d2d2d;
+        --text-primary: #f9fafb;
+        --text-secondary: #9ca3af;
+        --border-color: #374151;
+        --hover-bg: #374151;
+        --active-bg: #4b5563;
+        --modal-bg: #1f2937;
+        --shadow-color: rgba(0, 0, 0, 0.4);
+        --ai-bubble-bg: transparent;
+        --user-bubble-bg: #223958;
+    }
+    @keyframes subtleFadeInUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes subtleScaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    button, .sidebar-item, .settings-nav-item, .theme-btn, .voice-input-btn, .model-option-btn-container, .color-option {
+        transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    }
+button:not(.btn-primary):hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(95%);
+}
+button:not(.btn-primary):active:not(:disabled) {
+    transform: translateY(0px);
+    box-shadow: none;
+    filter: brightness(90%);
+}
+    body { background-color: var(--chat-bg); color: var(--text-primary); }
+    .scroll-area {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+    body.modal-open {
+        overflow: hidden;
+    }
+    .sidebar {
+        background-color: var(--sidebar-bg);
+        border-right: 1px solid var(--border-color);
+        transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    }
+    .scroll-area::-webkit-scrollbar { width: 8px; }
+    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .scroll-area::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    .scroll-area::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    .modal {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+    }
+    .modal.visible { opacity: 1; visibility: visible; }
+    .modal > div {
+        transform: scale(0.95);
+        transition: transform 0.2s ease-in-out;
+    }
+    .modal.visible > div { transform: scale(1); }

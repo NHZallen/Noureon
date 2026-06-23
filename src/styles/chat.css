@@ -1,0 +1,710 @@
+    #auth-container {
+        transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+    }
+    #auth-container.fade-out {
+        opacity: 0;
+        transform: scale(0.95);
+        pointer-events: none;
+    }
+    #app-container, #store-container {
+        opacity: 0;
+        transform: scale(1.05);
+        transition: opacity 0.4s ease-in 0.2s, transform 0.4s ease-in 0.2s;
+    }
+    #app-container.visible, #store-container.visible {
+        opacity: 1;
+        transform: scale(1);
+    }
+    @keyframes chatFadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .chat-view-transition {
+        animation: chatFadeIn 0.3s ease-out forwards;
+    }
+    .folder-item > .folder-content-container {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+/* 為了讓 grid 動畫正常運作，需要設定內容的 overflow */
+.folder-item > .folder-content-container > div {
+    overflow: hidden;
+}
+
+
+.folder-item[data-open="true"] > .folder-content-container {
+    grid-template-rows: 1fr;
+}
+    @keyframes pulse-glow {
+        from {
+            box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.4);
+            border-color: rgba(59, 130, 246, 0.8);
+        }
+        to   {
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+            border-color: var(--border-color);
+        }
+    }
+    .input-wrapper {
+    transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out, padding-top 0.3s ease-in-out; /* 新增 padding-top 的過渡效果 */
+    position: relative;
+    flex-direction: column;
+    padding-top: 0; /* ✨ 新增：預設沒有上方內邊距 */
+}
+    #message-input {
+    line-height: 1.5rem; /* 設定行高，這對於計算高度很重要 */
+    max-height: calc(1.5rem * 8 + 1rem); /* 8行的高度 (8 * 行高) + 上下 padding (p-2 = 0.5rem * 2) */
+    transition: height 0.2s ease-out; /* 讓高度變化有平滑的動畫效果 */
+    overflow-y: auto; /* 當內容超出最大高度時，顯示滾動條 */
+    -webkit-overflow-scrolling: touch; /* ---> 新增：在 iOS 等裝置上啟用慣性滾動 <--- */
+    scrollbar-width: thin; /* ---> 新增：讓滾動條變細一些 (適用於 Firefox) <--- */
+    scrollbar-color: var(--border-color) transparent; /* ---> 新增：設定滾動條顏色 <--- */
+}
+#message-input::-webkit-scrollbar {
+    width: 6px;
+}
+#message-input::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 3px;
+}
+#message-input::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+
+
+
+#message-input.expanded {
+    max-height: 50vh; /* 展開後的最大高度，設定為視窗高度的一半 */
+}
+
+
+
+
+#expand-input-btn.rotated {
+    transform: rotate(180deg); /* 讓箭頭旋轉180度，表示可收合 */
+}
+    #input-bar-container .input-wrapper.has-indicators > .flex.items-end {
+    margin-top: 0.9rem; /* 8px 的間距，您可以依喜好調整這個數值 */
+}
+    .input-wrapper.has-indicators {
+    padding-top: 2.25rem; /* 36px，為指示器留出空間，可微調 */
+}
+
+
+
+
+#input-indicator-container {
+    position: absolute;
+    top: 0.5rem; /* 距離頂部 8px */
+    left: 0.5rem; /* 距離左側 8px */
+    right: 0.5rem; /* 距離右側 8px */
+    
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none;   /* Firefox */
+    -webkit-overflow-scrolling: touch;
+}
+
+
+
+
+#input-indicator-container::-webkit-scrollbar {
+    display: none; /* 隱藏滾動條 */
+}
+
+.input-wrapper {
+    border-radius: 1.65rem !important;
+    background: var(--input-field-bg) !important;
+    border-color: color-mix(in srgb, var(--border-color) 86%, transparent) !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+
+.input-wrapper.has-file-previews {
+    align-items: stretch !important;
+    gap: 0.35rem !important;
+    border-radius: 1.35rem !important;
+}
+
+.input-media-preview {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 100%;
+    padding: 0.1rem 0.15rem 0.35rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.input-media-preview:empty {
+    display: none;
+}
+
+.input-media-preview::-webkit-scrollbar {
+    display: none;
+}
+
+.input-media-preview .file-preview-item {
+    flex: 0 0 auto;
+    width: 4.75rem;
+    height: 4.75rem;
+    border-radius: 0.8rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
+    background: var(--hover-bg);
+}
+
+
+
+
+#input-indicator-container .input-indicator-item {
+    flex-shrink: 0; /* 防止項目被壓縮 */
+}
+    .input-wrapper.pulse-glow {
+        animation: pulse-glow 0.7s ease-out;
+    }
+    #auth-container .auth-form-container {
+        animation: subtleFadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+    .sidebar {
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        background-color: rgba(255, 255, 255, 0.55);
+        border-right: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 4px 0px 15px rgba(0, 0, 0, 0.05);
+        --border-color: rgba(0, 0, 0, 0.1);
+    }
+    .dark .sidebar {
+        background-color: rgba(30, 30, 30, 0.5);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 4px 0px 20px rgba(0, 0, 0, 0.2);
+        --border-color: rgba(255, 255, 255, 0.1);
+    }
+    .popover {
+        box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color);
+        background-color: var(--modal-bg);
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(0.95) translateY(-20px);
+        transition: opacity 0.15s ease-out, transform 0.15s ease-out, visibility 0.15s;
+        transform-origin: top;
+    }
+    .popover.visible {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1) translateY(0);
+    }
+    #model-options-popover { transform-origin: top right; }
+    #model-options-popover {
+    /* 移除內邊距，交給子元素處理 */
+    padding: 0;
+    /* 隱藏從側面滑入的內容 */
+    overflow: hidden;
+    /* 動態高度變化時有過渡效果，這是讓高度變化平滑的關鍵 */
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out, visibility 0.15s, height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+/* 建立一個 flex 容器來水平排列兩個視圖 */
+#model-views-container {
+    display: flex;
+    /* 寬度為父容器的兩倍，因為有兩個視圖 */
+    width: 200%;
+    /* 核心動畫：當 transform 改變時，產生滑動效果 */
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+/* 當切換到「其他模型」時，整個容器向左滑動 50% (即一個視圖的寬度) */
+#model-views-container.show-other-models {
+    transform: translateX(-50%);
+}
+
+
+/* 每個獨立的視圖 (Gemini / 其他模型) 的樣式 */
+.model-view {
+    /* 每個視圖佔據容器寬度的一半 */
+    width: 50%;
+    flex-shrink: 0;
+    /* 將原本在父容器的內邊距移到這裡 */
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    
+    /* ▼▼▼ 新增的程式碼 ▼▼▼ */
+    max-height: 100%; /* 確保視圖不會超過父容器的高度 */
+    overflow-y: auto;  /* 如果內容超出，讓這個視圖自己滾動 */
+    /* ▲▲▲ 新增的程式碼 ▲▲▲ */
+}
+    .model-view::-webkit-scrollbar {
+    width: 6px; /* 滾動條寬度 */
+}
+
+
+.model-view::-webkit-scrollbar-track {
+    background: transparent; /* 滾動條軌道背景透明 */
+}
+
+
+.model-view::-webkit-scrollbar-thumb {
+    background-color: var(--border-color); /* 滾動條滑塊顏色 */
+    border-radius: 3px; /* 滑塊圓角 */
+}
+
+
+.model-view::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-secondary); /* 鼠標懸停時的滑塊顏色 */
+}
+
+
+/* 適用於 Firefox */
+.model-view {
+    scrollbar-width: thin; /* 讓滾動條變細 */
+    scrollbar-color: var(--border-color) transparent; /* 滑塊顏色 軌道顏色 */
+}
+#file-options-popover {
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0.5rem;
+    transform-origin: bottom left;
+    transform: scale(0.95) translateY(10px);
+}
+.dark #file-options-popover {
+    background-color: rgba(30, 30, 30, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+#file-options-popover.visible {
+    transform: scale(1) translateY(0);
+}
+#file-options-popover button {
+    color: #111827;
+}
+.dark #file-options-popover button {
+    color: #f9fafb;
+}
+#file-options-popover button svg {
+    color: inherit;
+    opacity: 0.7;
+}
+#file-options-popover button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+.dark #file-options-popover button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+    .folder-summary .folder-arrow {
+        transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        transform: rotate(-90deg); /* 預設向右指 */
+    }
+    .folder-icon-svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+    fill: none;
+    stroke: currentColor; /* 這讓 SVG 線條顏色跟隨文字顏色設定 */
+    transition: stroke 0.3s ease;
+}
+    .folder-item[data-open="true"] .folder-summary .folder-arrow {
+        transform: rotate(0deg); /* 展開時轉回向下指 */
+    }
+    #batch-action-bar {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        transform: translateY(0);
+        opacity: 1;
+    }
+    #batch-action-bar.hidden {
+        opacity: 0;
+        transform: translateY(20px);
+        pointer-events: none;
+    }
+    #sidebar-overlay {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), visibility 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    }
+    #sidebar-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+    #settings-modal .flex-1.p-6.overflow-y-auto {
+    position: relative; /* 這是為了讓子元素可以相對於它定位，非常重要！ */
+    padding: 0; /* 移除舊的內邊距，我們把它移到子元素上 */
+    overflow-y: hidden; /* <-- ✨ 就是加上這一行！ */
+}
+
+
+/* --- ✨ 修改：設定所有區塊的基礎樣式 --- */
+.settings-section {
+    /* 讓所有區塊都疊在同一個位置 */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+
+    /* 預設都透明且不可點擊 */
+    opacity: 0;
+    pointer-events: none;
+    
+    /* 讓區塊內部可以滾動 */
+    overflow-y: auto; 
+    
+    /* 將原本父容器的內邊距加到這裡，讓每個區塊都有自己的邊距 */
+    padding: 1.5rem; /* 1.5rem 等於 Tailwind CSS 的 p-6 */
+    
+    /* 過渡動畫：從 display 改為 opacity，效果更平滑 */
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+    visibility: hidden;
+
+
+    /* 保留您原本漂亮的入場動畫 */
+    animation: subtleFadeInUp 0.4s ease-out;
+}
+
+
+/* --- ✨ 修改：設定作用中區塊的樣式 --- */
+.settings-section.active {
+    /* 不再使用 display: block，而是讓它變得可見且可互動 */
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+
+/* --- ✨ 新增：針對手機版佈局的特殊處理 --- */
+@media (max-width: 768px) {
+    /* 在手機上，我們恢復原本的佈局方式，而不是疊在一起 */
+    #settings-modal .flex-1.p-6.overflow-y-auto {
+    position: static; 
+    padding: 1.5rem; 
+    overflow-y: auto; /* <--- 就是加上這一行！ */
+}
+    .settings-section {
+        position: static; /* 恢復靜態定位 */
+        height: auto;     /* 高度自動 */
+        opacity: 1;
+        pointer-events: auto;
+        visibility: visible;
+        overflow-y: visible; /* 不需要內部滾動 */
+        padding: 0; /* 移除內邊距 */
+        
+        /* 恢復您原本為手機版設計的樣式 */
+        display: block !important;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .settings-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    /* 在手機上，我們不需要 .active 來切換可見度，所以把它重置 */
+    .settings-section.active {
+       /* 不需要額外樣式 */
+    }
+}
+    :root {
+        --chat-bg: #ffffff;
+        --sidebar-bg: #f7f7f8;
+        --input-bar-bg: #ffffff;
+        --input-field-bg: #f9fafb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --border-color: #e5e7eb;
+        --hover-bg: #f3f4f6;
+        --active-bg: #e5e7eb;
+        --modal-bg: #ffffff;
+        --shadow-color: rgba(0, 0, 0, 0.1);
+        --ai-bubble-bg: transparent;
+        --user-bubble-bg: #e8f3ff;
+        --button-primary-bg: #4f8df7;
+        --button-primary-hover-bg: #3f7ee6;
+        --button-primary-text: #ffffff;
+    }
+    .dark {
+        --chat-bg: #111111;
+        --sidebar-bg: #1c1c1c;
+        --input-bar-bg: #1c1c1c;
+        --input-field-bg: #2d2d2d;
+        --text-primary: #f9fafb;
+        --text-secondary: #9ca3af;
+        --border-color: #374151;
+        --hover-bg: #374151;
+        --active-bg: #4b5563;
+        --modal-bg: #1f2937;
+        --shadow-color: rgba(0, 0, 0, 0.4);
+        --user-bubble-bg: #223958;
+    }
+        .model-message .message-bubble {
+        box-shadow: none;
+    }
+    body { background-color: var(--chat-bg); color: var(--text-primary); }
+    .scroll-area {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+    body.modal-open {
+        overflow: hidden;
+    }
+    .scroll-area::-webkit-scrollbar { width: 8px; }
+    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .scroll-area::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    .scroll-area::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    #notification-container {
+        position: fixed;
+        top: 1.5rem;
+        right: 1.5rem;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .notification {
+        padding: 1rem 1.5rem;
+        border-radius: 1rem;
+        font-weight: 500;
+        animation: fadeInRight 0.3s ease, fadeOutRight 0.3s ease 2.7s forwards;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        color: var(--text-primary);
+    }
+    .dark .notification {
+        background-color: rgba(20, 20, 20, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+    .notification.success { color: #22c55e; }
+    .notification.error { color: #ef4444; }
+    .notification.warning { color: #f97316; }
+    .message-item { animation: slideInUp 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes fadeOutRight { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+    @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInChar {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+.fade-in-char {
+    display: inline-block; /* 讓 transform 生效 */
+    animation: fadeInChar 0.25s ease-out forwards;
+}
+
+
+/* ✨ 新增：打字機游標效果 (可選) */
+.typing-cursor::after {
+    content: '▋';
+    display: inline-block;
+    animation: blink 0.7s infinite;
+}
+
+
+.message-content.is-streaming-response {
+    overflow: visible !important;
+    scrollbar-width: none;
+}
+
+.message-content.is-streaming-response::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.message-content.is-streaming-response::after {
+    content: none !important;
+}
+
+.streaming-markdown-root,
+.streaming-markdown-finalized {
+    min-height: 1.35rem;
+    overflow: visible;
+}
+
+.streaming-current-line {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.streaming-fade-char {
+    opacity: 0;
+    animation: streamingFadeIn 0.22s ease-out forwards;
+}
+
+@keyframes streamingFadeIn {
+    from {
+        opacity: 0;
+        filter: blur(2px);
+    }
+    to {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
+.custom-output-mode-select {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+    padding: 0.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.55rem;
+    background: color-mix(in srgb, var(--input-field-bg) 92%, white);
+}
+
+.custom-output-mode-option {
+    min-height: 2.3rem;
+    padding: 0.42rem 0.55rem;
+    border: 1px solid transparent;
+    border-radius: 0.42rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: center;
+}
+
+.custom-output-mode-option.active {
+    border-color: color-mix(in srgb, var(--accent-color, #3b82f6) 55%, var(--border-color));
+    background: var(--active-bg);
+    color: var(--text-primary);
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+    .loading-dots { display: flex; align-items: center; justify-content: center; height: 1.25rem; }
+    .loading-dots span { display: inline-block; width: 8px; height: 8px; margin: 0 2px; background-color: var(--text-secondary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    .prose code:not(pre *) { background-color: var(--hover-bg); padding: 0.2em 0.4em; margin: 0; font-size: 85%; border-radius: 6px; color: var(--text-primary); border: 1px solid var(--border-color); }
+    .prose pre {
+    background-color: #111827;
+    color: #f3f4f6;
+    padding: 1em;
+    border-radius: 0.5em;
+    overflow-x: auto;
+    white-space: pre-wrap; /* ---> 新增：允許程式碼在保留格式的情況下自動換行 <--- */
+    word-break: break-all;  /* ---> 新增：強制過長的單詞(如URL)也能被斷開 <--- */
+}
+    .prose pre code { background-color: transparent; padding: 0; color: inherit; border: none; }
+    .prose h1, .prose h2, .prose h3 { margin-top: 1.5em; margin-bottom: 0.5em; font-weight: bold; }
+    .prose h1 { font-size: 1.875rem; }
+    .prose h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+    .prose h3 { font-size: 1.25rem; }
+    .prose p { margin-bottom: 1em; }
+    .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0; /* 邊距交給外層容器 */
+    max-width: none;  /* 允許表格寬度超過父容器 */
+    word-break: normal; /* 防止文字被暴力切斷 */
+    table-layout: auto; /* 讓內容決定寬度，這是防止擠壓的關鍵 */
+}
+
+
+/* 讓表頭文字不換行，保持整齊 */
+.prose th {
+    white-space: nowrap; 
+    background-color: var(--hover-bg);
+}
+
+
+/* 新增：表格專用的滾動容器樣式 */
+.table-scroll-container {
+    overflow-x: auto; /* 關鍵：內容超出時顯示水平卷軸 */
+    -webkit-overflow-scrolling: touch; /* 讓手機滑動更順暢 */
+    margin-bottom: 1em;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--modal-bg); /* 確保背景色正確 */
+}
+
+
+/* 自訂滾動條樣式，讓它在電腦上比較美觀 */
+.table-scroll-container::-webkit-scrollbar {
+    height: 8px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
+}
+    .prose table th, .prose table td { border: 1px solid var(--border-color); padding: 0.75rem; text-align: left; }
+    .prose table thead { background-color: var(--hover-bg); }
+    .prose table tr:nth-child(even) { background-color: var(--hover-bg); }
+    .prose ul, .prose ol { margin-bottom: 1em; padding-left: 1.5em; }
+    .prose ul, .prose ol, .prose li {
+    color: var(--text-primary);
+}
+.prose strong, .prose b {
+    color: var(--text-primary); /* 確保粗體字也是深色 */
+}
+    .prose ul li, .prose ol li { margin-bottom: 0.5em; }
+    /* --- 1. 淺色模式 (Light Mode) --- */
+    
+    /* 針對所有標題 (h1-h6)、段落 (p)、列表 (ul, ol, li)、粗體 (strong, b) */
+    /* 全部強制設定為純黑色 #000000 */
+    .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6,
+    .prose p, 
+    .prose ul, .prose ol, .prose li, 
+    .prose strong, .prose b {
+        color: #000000 !important;
+    }
+
+
+    /* 特別針對：列表前面的「圓點」或「數字」 */
+    .prose li::marker {
+        color: #000000 !important; 
+    }
+
+
+    /* --- 2. 深色模式 (Dark Mode) --- */
+
+
+    /* 針對所有標題、段落、列表、粗體 */
+    /* 全部強制設定為純白色 #ffffff */
+    .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4, 
+    .dark .prose h5, .dark .prose h6,
+    .dark .prose p, 
+    .dark .prose ul, .dark .prose ol, .dark .prose li, 
+    .dark .prose strong, .dark .prose b {
+        color: #ffffff !important;
+    }
+
+
+    /* 特別針對：列表前面的「圓點」或「數字」 */
+    .dark .prose li::marker {
+        color: #ffffff !important;
+    }
+    .folder-summary {
+        cursor: pointer;
+    }
+    .color-swatch, .icon-option { transition: transform 0.2s; border: 2px solid transparent; }
+    .color-swatch:hover, .icon-option:hover { transform: scale(1.1); }
+    .color-swatch.selected { border-color: #3b82f6; }
+    .icon-option.selected { background-color: var(--active-bg); border-color: #3b82f6; }
+    #sidebar.open {
+        transform: translateX(0);
+    }

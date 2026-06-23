@@ -1,0 +1,244 @@
+
+
+.spotlight-effect {
+    position: relative;
+}
+.spotlight-effect::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 1rem;
+    background-image: radial-gradient(
+        circle 150px at var(--spotlight-x) var(--spotlight-y),
+        rgba(255, 255, 255, 0.15) 0%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+    pointer-events: none;
+}
+.spotlight-effect:hover::before {
+    opacity: 1;
+}
+.dark .spotlight-effect::before {
+    background-image: radial-gradient(
+        circle 150px at var(--spotlight-x) var(--spotlight-y),
+        rgba(255, 255, 255, 0.2) 0%,
+        rgba(255, 255, 255, 0) 100%
+    );
+}
+.spotlight-effect:hover::before {
+    opacity: 1;
+}
+.dark .spotlight-effect::before {
+    background-image: radial-gradient(
+        circle 200px at var(--spotlight-x) var(--spotlight-y),
+        rgba(255, 255, 255, 0.12) 0%,
+        rgba(255, 255, 255, 0) 100%
+    );
+}
+.input-wrapper {
+    flex-direction: column;
+    gap: 0.25rem;
+}
+#input-bar-container .input-wrapper {
+    min-height: 3.5rem;
+    justify-content: center;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+#input-bar-container .input-wrapper:focus-within {
+    border-color: color-mix(in srgb, var(--border-color) 86%, transparent) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+.input-wrapper.spotlight-effect::before {
+    display: none !important;
+}
+#input-bar-container .input-wrapper.has-indicators {
+    padding-top: 2.25rem;
+    padding-bottom: 0.5rem;
+}
+.input-indicator-item {
+    color: var(--button-primary-bg);
+    background-color: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    align-self: flex-start;
+    -webkit-user-select: none; /* 適用於 Chrome, Safari, Opera */
+    -moz-user-select: none;    /* 適用於 Firefox */
+    -ms-user-select: none;     /* 適用於 Internet Explorer/Edge */
+    user-select: none;         /* 標準語法 */
+}
+.dark .input-indicator-item {
+    background-color: var(--hover-bg);
+    border: 1px solid var(--border-color);
+}
+body.custom-wallpaper-active .input-indicator-item {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    color: var(--button-primary-bg) !important;
+}
+#input-bar-container .input-wrapper > .flex.items-end {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.5rem;
+    align-items: center !important;
+}
+#chat-form {
+    min-width: 0;
+    min-height: 2.5rem;
+    align-items: center !important;
+}
+#message-input {
+    min-width: 0;
+    min-height: 2.5rem;
+    line-height: 1.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    align-self: center;
+    display: block;
+    margin: 0;
+}
+#file-input-container,
+#voice-input-btn-message,
+#submit-btn {
+    flex: 0 0 auto;
+}
+#file-input-container {
+    display: flex;
+    align-items: center;
+}
+#add-file-btn,
+#voice-input-btn-message,
+#submit-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    align-self: center;
+}
+#add-file-btn,
+#voice-input-btn-message {
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+}
+#add-file-btn:hover,
+#voice-input-btn-message:hover {
+    background: transparent !important;
+    color: #111827 !important;
+}
+.dark #add-file-btn,
+.dark #voice-input-btn-message {
+    color: var(--text-secondary) !important;
+}
+.dark #add-file-btn:hover,
+.dark #voice-input-btn-message:hover {
+    color: var(--text-primary) !important;
+}
+#submit-btn {
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+#submit-btn:hover {
+    background: #2563eb !important;
+}
+#submit-btn:disabled {
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+    opacity: 0.55 !important;
+}
+.dark #submit-btn:disabled {
+    background: var(--button-primary-bg) !important;
+}
+#add-file-btn svg,
+#voice-input-btn-message svg,
+#submit-btn svg,
+#submit-btn-icon {
+    flex: 0 0 auto;
+}
+#submit-btn-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#message-input {
+    outline: none !important;
+    box-shadow: none !important;
+}
+#message-input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+}
+/* --- ✨ 這是切換的關鍵！ END --- */
+
+
+#auth-container {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.5s ease-in;
+}
+
+
+#auth-container.visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+
+/* 顯示時的樣式 */
+
+
+/* 內部容器的毛玻璃效果 */
+        .input-wrapper.rounded-full {
+    border-radius: 50px;
+}
+.input-wrapper.rounded-full.has-indicators {
+    border-radius: 1.5rem; /* 24px */
+}
+.input-wrapper {
+    transition: border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                padding-top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+        @media (max-width: 768px) {
+  .chat-greeting-message {
+    display: none; /* 將它完全隱藏起來，不佔據任何空間 */
+  }
+}
+        #p2p-qrcode-container img {
+        display: block;
+        margin: 0 auto;
+    }
+    .p2p-select-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+        cursor: pointer;
+    }
+    .p2p-select-item:last-child {
+        border-bottom: none;
+    }
+    .p2p-select-item:hover {
+        background-color: var(--hover-bg);
+    }
+

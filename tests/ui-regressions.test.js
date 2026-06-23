@@ -1,13 +1,34 @@
 import assert from 'node:assert/strict';
+import { dirname } from 'node:path';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+const readCssSource = (path, seen = new Set()) => {
+  const fileUrl = new URL(`../${path}`, import.meta.url);
+  const fileKey = fileUrl.href;
+  if (seen.has(fileKey)) return '';
+  seen.add(fileKey);
+
+  const source = readFileSync(fileUrl, 'utf8');
+  const baseDir = dirname(path).replaceAll('\\', '/');
+
+  return source.replace(/@import\s+['"](.+?)['"];\s*/g, (_match, importPath) => {
+    const nextPath = importPath.startsWith('.')
+      ? new URL(importPath, new URL(`../${baseDir}/`, import.meta.url)).pathname
+      : importPath;
+    const normalizedPath = nextPath.startsWith('/')
+      ? nextPath.replace(/^\/[A-Za-z]:\//, '').replace(/^.*?astranos-chatbot-main\//, '')
+      : nextPath;
+    return readCssSource(normalizedPath, seen);
+  });
+};
+const readUiSource = (path) => (path === 'src/styles/main.css' ? readCssSource(path) : readSource(path));
 
 test('outlined settings and trash actions use the shared white outline button style', () => {
-  const shell03 = readSource('src/templates/fragments/03-shell.fragment.js');
-  const shell04 = readSource('src/templates/fragments/04-shell.fragment.js');
-  const runtime04 = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const shell03 = readUiSource('src/templates/fragments/03-shell.fragment.js');
+  const shell04 = readUiSource('src/templates/fragments/04-shell.fragment.js');
+  const runtime04 = readUiSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
 
   for (const id of ['upload-wallpaper-btn', 'restore-wallpaper-btn', 'export-data-btn', 'import-data-btn', 'open-archived-modal-btn']) {
     assert.match(shell03, new RegExp(`id=\\\\"${id}\\\\"[^"]*class=\\\\"[^"]*btn-outline-white`));
@@ -23,9 +44,9 @@ test('outlined settings and trash actions use the shared white outline button st
 });
 
 test('active input modes use the theme color without black outline chrome', () => {
-  const css = readSource('src/styles/main.css');
-  const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const runtime05 = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const css = readUiSource('src/styles/main.css');
+  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime05 = readUiSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
 
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active/);
   assert.match(css, /#input-indicator-container\s+\.input-indicator-item[^{]*\{[^}]*border:\s*0\s*!important;[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
@@ -37,8 +58,8 @@ test('active input modes use the theme color without black outline chrome', () =
 });
 
 test('desktop chat input reserves the lower row only for active modes or multiline text', () => {
-  const css = readSource('src/styles/main.css');
-  const runtime06 = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const css = readUiSource('src/styles/main.css');
+  const runtime06 = readUiSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
 
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
@@ -53,8 +74,8 @@ test('desktop chat input reserves the lower row only for active modes or multili
 });
 
 test('desktop active mode and Astras pills swap their leading icon to the themed close icon on hover', () => {
-  const css = readSource('src/styles/main.css');
-  const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const css = readUiSource('src/styles/main.css');
+  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
 
   assert.match(runtime01, /id: 'astras-input-indicator'[\s\S]*input-indicator-leading[\s\S]*input-indicator-mode-icon[\s\S]*close-astras-btn-input/);
   assert.match(css, /#astras-input-indicator[^{]*\{[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
@@ -66,7 +87,7 @@ test('desktop active mode and Astras pills swap their leading icon to the themed
 });
 
 test('media preview download and share icons stay white over dark media', () => {
-  const css = readSource('src/styles/main.css');
+  const css = readUiSource('src/styles/main.css');
 
   assert.match(css, /\.media-lightbox-action,\s*\.media-lightbox-action\s+svg,\s*\.media-lightbox-action\s+svg\s+\*[^{]*\{[^}]*color:\s*#ffffff\s*!important;[^}]*stroke:\s*#ffffff\s*!important;/s);
   assert.match(css, /\.media-lightbox-action\s+svg\s*\{[^}]*fill:\s*none\s*!important;/s);
@@ -74,14 +95,14 @@ test('media preview download and share icons stay white over dark media', () => 
 });
 
 test('mobile keeps the existing stacked indicator layout and hides message mic', () => {
-  const css = readSource('src/styles/main.css');
+  const css = readUiSource('src/styles/main.css');
 
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s*!important;/s);
 });
 
 test('mobile web search typing does not disable the message input when Tavily is missing', () => {
-  const runtime02 = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
-  const runtime06 = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const runtime06 = readUiSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
 
   assert.match(runtime02, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
   assert.match(runtime02, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
@@ -90,8 +111,8 @@ test('mobile web search typing does not disable the message input when Tavily is
 });
 
 test('model council manager uses compact pills and a bounded scroll area', () => {
-  const css = readSource('src/styles/main.css');
-  const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const css = readUiSource('src/styles/main.css');
+  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
 
   assert.match(runtime01, /class="council-mode-cluster"[\s\S]*id="model-council-enabled"[\s\S]*class="council-mode-tabs"/);
   assert.match(runtime01, /class="council-action-cluster"[\s\S]*id="model-council-search-toggle"[\s\S]*data-council-model-search/);
@@ -120,7 +141,7 @@ test('model council manager uses compact pills and a bounded scroll area', () =>
 });
 
 test('sidebar search and history model pills use solid white surfaces', () => {
-  const css = readSource('src/styles/main.css');
+  const css = readUiSource('src/styles/main.css');
 
   assert.match(css, /#open-search-btn[^{]*\{[^}]*background:\s*#ffffff\s*!important;/s);
   assert.match(css, /\.model-suffix[^{]*\{[^}]*background-color:\s*#ffffff;/s);
@@ -128,15 +149,15 @@ test('sidebar search and history model pills use solid white surfaces', () => {
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {
-  const css = readSource('src/styles/main.css');
+  const css = readUiSource('src/styles/main.css');
 
   assert.match(css, /#settings-modal\s+\.settings-sidebar\s*\{[^}]*margin-top:\s*4\.5rem(?:\s*!important)?;/s);
   assert.match(css, /#settings-modal\s+\.settings-sidebar\s*\{[^}]*height:\s*calc\(100%\s*-\s*4\.5rem\)(?:\s*!important)?;/s);
 });
 
 test('mobile settings open to a GPT-style category list before drilling into details', () => {
-  const runtime02 = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
-  const css = readSource('src/styles/main.css');
+  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const css = readUiSource('src/styles/main.css');
 
   assert.match(runtime02, /const\s+isMobileSettingsViewport\s*=\s*\(\)\s*=>\s*window\.matchMedia\('\(max-width:\s*768px\)'\)\.matches/);
   assert.match(runtime02, /mobileHeader\.id\s*=\s*'settings-mobile-header'/);
@@ -175,7 +196,7 @@ test('mobile settings open to a GPT-style category list before drilling into det
 });
 
 test('app typography uses restrained GPT-like system weights and mobile settings sheet motion', () => {
-  const css = readSource('src/styles/main.css');
+  const css = readUiSource('src/styles/main.css');
 
   assert.match(css, /--astra-ui-font:\s*ui-sans-serif,\s*-apple-system,\s*BlinkMacSystemFont,\s*"Segoe UI",\s*system-ui,\s*sans-serif;/);
   assert.match(css, /html,\s*body,\s*button,\s*input,\s*textarea,\s*select[^{]*\{[^}]*font-family:\s*var\(--astra-ui-font\)\s*!important;/s);
@@ -196,10 +217,10 @@ test('app typography uses restrained GPT-like system weights and mobile settings
 });
 
 test('folder color rendering supports saved css color values without falling back', () => {
-  const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const runtime02 = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
-  const runtime00 = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const css = readSource('src/styles/main.css');
+  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const runtime00 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const css = readUiSource('src/styles/main.css');
 
   assert.match(runtime00, /resolveFolderColor/);
   assert.match(runtime01, /resolveFolderColor\(folder\.color,\s*FOLDER_COLORS,\s*FOLDER_COLORS\.gray\)/);
