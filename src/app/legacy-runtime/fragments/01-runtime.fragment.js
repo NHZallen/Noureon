@@ -1988,11 +1988,7 @@ const keepChatPositionAfterRender = (shouldStick, previousTop) => {
 };
 
 const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
-    let fullText = '';
-    let finalizedText = '';
-    let pendingText = '';
-    let currentLineText = '';
-    let isFinalized = false;
+    const renderState = createStreamingMarkdownRenderState();
     const preserveCouncilDetails = Boolean(options.preserveCouncilDetails);
     const root = document.createElement('div');
     const finalizedNode = document.createElement('div');
@@ -2010,6 +2006,7 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
 
     const renderFinalized = (renderFormulas = false) => {
         const openKeys = preserveCouncilDetails ? getOpenCouncilDetailKeys(finalizedNode) : null;
+        const finalizedText = renderState.getFinalizedText();
         let renderText = preserveCouncilDetails ? normalizeCouncilComparisonDetails(finalizedText) : finalizedText;
         if (preserveCouncilDetails && hasUnclosedCouncilDetails(renderText)) {
             renderText += '\n\n</details>';
@@ -2033,61 +2030,46 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
         currentLineNode.appendChild(fragment);
     };
 
-    const updateCurrentLine = (text = '') => {
-        const nextText = String(text || '');
-        if (!nextText) {
+    const updateCurrentLine = () => {
+        const patch = renderState.syncCurrentLine();
+        if (patch.reset) {
             currentLineNode.innerHTML = '';
-            currentLineText = '';
-            return;
         }
-        if (!nextText.startsWith(currentLineText)) {
-            currentLineNode.innerHTML = '';
-            currentLineText = '';
-        }
-        appendFadedText(nextText.slice(currentLineText.length));
-        currentLineText = nextText;
+        appendFadedText(patch.appendText);
     };
 
     const flushPendingLines = (force = false, renderFormulas = false) => {
-        if (isFinalized) return;
-        let flushIndex = pendingText.lastIndexOf('\n');
-        if (force && pendingText.length) {
-            flushIndex = pendingText.length - 1;
-        }
+        if (renderState.isFinalized()) return;
         const shouldStick = isChatNearBottom();
         const previousTop = ALL_ELEMENTS.chatContainer?.scrollTop || 0;
-        if (flushIndex >= 0) {
-            const flushText = pendingText.slice(0, flushIndex + 1);
-            finalizedText += flushText;
-            pendingText = pendingText.slice(flushIndex + 1);
+        const flushResult = renderState.flushPending({ force });
+        if (flushResult.didFlush) {
             renderFinalized(renderFormulas);
         }
-        updateCurrentLine(pendingText);
+        updateCurrentLine();
         keepChatPositionAfterRender(shouldStick, previousTop);
     };
 
     return {
         appendText(chunk = '') {
-            if (isFinalized || !chunk) return;
-            const text = String(chunk);
-            fullText += text;
-            pendingText += text;
+            const appendResult = renderState.appendText(chunk);
+            if (appendResult.ignored) return;
             flushPendingLines(false, false);
         },
         finish({ renderFormulas = true } = {}) {
-            if (isFinalized) return fullText;
+            if (renderState.isFinalized()) return renderState.getText();
             flushPendingLines(true, renderFormulas);
-            if (renderFormulas && finalizedText) {
+            if (renderFormulas && renderState.getFinalizedText()) {
                 renderFinalized(true);
             }
-            isFinalized = true;
+            renderState.finalize();
             currentLineNode.remove();
             targetElement.classList.remove('is-streaming-response');
             targetElement.dataset.streamRendered = 'true';
-            return fullText;
+            return renderState.getText();
         },
         getText() {
-            return fullText;
+            return renderState.getText();
         }
     };
 };

@@ -356,6 +356,41 @@ test('streaming council details helpers are isolated from the 01 runtime fragmen
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('streaming markdown render state helper is isolated from the 01 runtime renderer', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-markdown-render-state.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-render-state.js'));
+
+  assert.equal(typeof helpers.createStreamingMarkdownRenderState, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamingMarkdownRenderState\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateStreamingMarkdownRenderState\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-markdown-render-state\.js';/
+  );
+  assert.match(fragment01Source, /const\s+renderState\s*=\s*createStreamingMarkdownRenderState\(\);/);
+  assert.match(fragment01Source, /renderState\.appendText\(chunk\)/);
+  assert.match(fragment01Source, /renderState\.flushPending\(\{\s*force\s*\}\)/);
+  assert.match(fragment01Source, /renderState\.syncCurrentLine\(\)/);
+  assert.match(fragment01Source, /renderState\.finalize\(\)/);
+  assert.match(fragment01Source, /renderState\.getText\(\)/);
+  assert.doesNotMatch(
+    fragment01Source,
+    /let\s+fullText\s*=\s*'';\s*let\s+finalizedText\s*=\s*'';\s*let\s+pendingText\s*=\s*'';\s*let\s+currentLineText\s*=\s*'';\s*let\s+isFinalized\s*=\s*false;/s
+  );
+  assert.match(fragment01Source, /document\.createElement\('div'\)/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*''/);
+  assert.match(fragment01Source, /currentLineNode\.innerHTML\s*=\s*''/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.match(fragment01Source, /renderMarkdown\(/);
+  assert.match(fragment01Source, /targetElement\.classList\.add\('is-streaming-response'\)/);
+  assert.match(fragment01Source, /isChatNearBottom\(\)/);
+  assert.match(fragment01Source, /keepChatPositionAfterRender\(shouldStick,\s*previousTop\)/);
+  assert.match(fragment01Source, /requestAnimationFrame\(/);
+  assert.match(fragment01Source, /setTimeout\(type,\s*typingSpeed\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
