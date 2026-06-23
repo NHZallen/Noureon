@@ -1,18 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const createSseStream = (chunks) => {
-  const encoder = new TextEncoder();
-
-  return new ReadableStream({
-    start(controller) {
-      chunks.forEach((chunk) => {
-        controller.enqueue(encoder.encode(chunk));
-      });
-      controller.close();
-    }
-  });
-};
+import { createSseStream } from './helpers/openai-sse-fixtures.js';
 
 const consumeOpenAiCompatibleSse = async (stream, onChunk, options = {}) => {
   const reader = stream.getReader();
