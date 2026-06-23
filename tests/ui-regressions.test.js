@@ -151,6 +151,27 @@ test('mobile settings open to a GPT-style category list before drilling into det
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active[^{]*\{[^}]*display:\s*block\s*!important;/s);
 });
 
+test('app typography uses restrained GPT-like system weights and mobile settings sheet motion', () => {
+  const css = readSource('src/styles/main.css');
+
+  assert.match(css, /--astra-ui-font:\s*ui-sans-serif,\s*-apple-system,\s*BlinkMacSystemFont,\s*"Segoe UI",\s*system-ui,\s*sans-serif;/);
+  assert.match(css, /html,\s*body,\s*button,\s*input,\s*textarea,\s*select[^{]*\{[^}]*font-family:\s*var\(--astra-ui-font\)\s*!important;/s);
+  assert.match(css, /\.font-bold,\s*\.font-semibold,\s*strong,\s*b[^{]*\{[^}]*font-weight:\s*var\(--astra-font-semibold\)\s*!important;/s);
+  assert.match(css, /#settings-modal\s+\.settings-mobile-group-title[^{]*\{[^}]*font-weight:\s*var\(--astra-font-medium\)\s*!important;/s);
+  assert.match(css, /#settings-mobile-list\s+\.settings-mobile-group:first-child\s+\.settings-mobile-group-title[^{]*\{[^}]*font-weight:\s*var\(--astra-font-regular\)\s*!important;/s);
+  assert.match(css, /#settings-modal\s+\.settings-mobile-list-item,\s*#settings-modal\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*font-weight:\s*var\(--astra-font-regular\)\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-group-title[^{]*\{[^}]*font-size:\s*0\.95rem\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-list-item,\s*#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*font-size:\s*1\.06rem\s*!important;[^}]*min-height:\s*3\.85rem\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-row-icon[^{]*\{[^}]*width:\s*2\.05rem\s*!important;[^}]*height:\s*2\.05rem\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-row-icon\s+svg,\s*#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-row-icon\s+svg\s+\*[^{]*\{[^}]*width:\s*1\.42rem\s*!important;[^}]*height:\s*1\.42rem\s*!important;/s);
+  assert.match(css, /#settings-mobile-title[^{]*\{[^}]*font-weight:\s*var\(--astra-font-semibold\)\s*!important;/s);
+  assert.match(css, /\.settings-mobile-row-icon\s+svg,\s*\.settings-mobile-row-icon\s+svg\s+\*[^{]*\{[^}]*stroke-width:\s*1\.65\s*!important;/s);
+  assert.match(css, /#settings-mobile-back-btn\s+svg,\s*#settings-mobile-back-btn\s+svg\s+\*[^{]*\{[^}]*stroke-width:\s*2\s*!important;/s);
+  assert.match(css, /#settings-modal\s*>\s*div[^{]*\{[^}]*transition:\s*transform\s+0\.32s\s+cubic-bezier\(0\.22,\s*1,\s*0\.36,\s*1\)/s);
+  assert.match(css, /#settings-modal:not\(\.visible\)\s*>\s*div[^{]*\{[^}]*transform:\s*translateY\(100%\)\s*!important;/s);
+  assert.match(css, /#settings-modal\.visible\s*>\s*div[^{]*\{[^}]*transform:\s*translateY\(0\)\s*!important;/s);
+});
+
 test('folder color rendering supports saved css color values without falling back', () => {
   const runtime01 = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const runtime02 = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
