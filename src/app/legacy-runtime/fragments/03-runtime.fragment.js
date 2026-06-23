@@ -103,17 +103,7 @@
             }
             showNotification(`${i18n[config.uiLanguage].moved || '已移動'} ${count} ${i18n[config.uiLanguage].conversations || '個對話。'}`);
         };
-        const highlightText = (text, query) => {
-            if (!query || !text) return text;
-            try {
-                const safeQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                const regex = new RegExp(`(${safeQuery})`, 'gi');
-                return text.replace(regex, '<mark class="bg-yellow-300 dark:bg-yellow-500 rounded px-1">$1</mark>');
-            } catch (e) {
-                console.error("Highlight regex error:", e);
-                return text;
-            }
-        };
+        import { highlightText } from '/src/app/legacy-runtime/features/search-text-formatting.js';
         const performSearchAndRenderResults = async () => {
             const query = ALL_ELEMENTS.modalSearchInput.value.trim();
             const scope = ALL_ELEMENTS.modalSearchScopeSelect.value;

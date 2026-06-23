@@ -211,3 +211,18 @@ test('output mode settings text helper is isolated from the 02 runtime fragment'
   assert.doesNotMatch(fragmentSource, /const\s+getOutputModeSettingsText\s*=\s*\(\)\s*=>/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
 });
+
+test('search text formatting helper is isolated from the 03 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/search-text-formatting.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/search-text-formatting.js'));
+
+  assert.equal(typeof helpers.highlightText, 'function');
+  assert.match(helperSource, /export\s+const\s+highlightText\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{[\s\S]*\bhighlightText\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/search-text-formatting\.js';/
+  );
+  assert.doesNotMatch(fragmentSource, /\b(?:const|function)\s+highlightText\b/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/03-runtime.fragment.js')).size < 150 * 1024);
+});
