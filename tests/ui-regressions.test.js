@@ -135,9 +135,13 @@ test('mobile settings open to a GPT-style category list before drilling into det
   assert.match(runtime02, /mobileList\.id\s*=\s*'settings-mobile-list'/);
   assert.match(runtime02, /class="settings-mobile-list-item settings-nav-item"/);
   assert.match(runtime02, /id="settings-mobile-back-btn"/);
-  assert.match(runtime02, /const\s+showSettingsMobileList\s*=\s*\(\)\s*=>/);
+  assert.match(runtime02, /const\s+SETTINGS_MOBILE_VIEW_TRANSITION_MS\s*=\s*280/);
+  assert.match(runtime02, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
   assert.match(runtime02, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
   assert.match(runtime02, /ALL_ELEMENTS\.settingsModal\.classList\.add\('settings-mobile-detail-open'\)/);
+  assert.match(runtime02, /settingsModal\.classList\.add\('settings-mobile-returning'\)/);
+  assert.match(runtime02, /setTimeout\(finishReturn,\s*SETTINGS_MOBILE_VIEW_TRANSITION_MS\)/);
+  assert.match(runtime02, /showSettingsMobileList\(\{\s*animate:\s*false\s*\}\)/);
   assert.match(runtime02, /settings-mobile-list-item/);
   assert.match(runtime02, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
   assert.doesNotMatch(runtime02, /const\s+setSettingsSection\s*=/);
@@ -147,8 +151,12 @@ test('mobile settings open to a GPT-style category list before drilling into det
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\.visible[^{]*\{[^}]*align-items:\s*flex-end\s*!important;[^}]*padding:\s*0\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s*>\s*div[^{]*\{[^}]*width:\s*100vw\s*!important;[^}]*margin:\s*0\s*!important;[^}]*border-radius:\s*2rem\s+2rem\s+0\s+0\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*display:\s*block\s*!important;/s);
-  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-list[^{]*\{[^}]*display:\s*none\s*!important;/s);
+  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-list[^{]*\{[^}]*transform:\s*translateX\(-100%\)\s*!important;/s);
+  assert.match(css, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(100%\)\s*!important;/s);
+  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(0\)\s*!important;/s);
+  assert.match(css, /#settings-modal\.settings-mobile-returning\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(100%\)\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active[^{]*\{[^}]*display:\s*block\s*!important;/s);
+  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active\s*>\s*h3[^{]*\{[^}]*margin-left:\s*0\s*!important;[^}]*width:\s*100%\s*!important;[^}]*text-align:\s*left\s*!important;/s);
 });
 
 test('app typography uses restrained GPT-like system weights and mobile settings sheet motion', () => {

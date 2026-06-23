@@ -1780,6 +1780,8 @@ submitButtonIcon.innerHTML = sendIconHTML;
             syncOutputModeButtons();
         };
         const isMobileSettingsViewport = () => window.matchMedia('(max-width: 768px)').matches;
+        const SETTINGS_MOBILE_VIEW_TRANSITION_MS = 280;
+        let settingsMobileViewTransitionTimer = null;
         const getSettingsText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
         const SETTINGS_MOBILE_ICON_MAP = {
             personalization: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 13s1.5 2 4 2 4-2 4-2"></path><path d="M9 9h.01"></path><path d="M15 9h.01"></path></svg>',
@@ -1867,17 +1869,38 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 openSettingsMobileSection(item.dataset.section);
             });
         };
-        const showSettingsMobileList = () => {
+        const clearSettingsMobileViewTransition = () => {
+            if (!settingsMobileViewTransitionTimer) return;
+            clearTimeout(settingsMobileViewTransitionTimer);
+            settingsMobileViewTransitionTimer = null;
+        };
+        const showSettingsMobileList = ({ animate = true } = {}) => {
             ensureSettingsMobileShell();
             renderSettingsMobileList();
-            ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-detail-open');
+            const settingsModal = ALL_ELEMENTS.settingsModal;
+            const finishReturn = () => {
+                settingsModal.classList.remove('settings-mobile-detail-open', 'settings-mobile-returning');
+                document.getElementById('settings-mobile-title').textContent = getSettingsText('settings', '閮剖?');
+                document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
+                settingsMobileViewTransitionTimer = null;
+            };
+            clearSettingsMobileViewTransition();
+            if (animate && isMobileSettingsViewport() && settingsModal.classList.contains('settings-mobile-detail-open')) {
+                settingsModal.classList.add('settings-mobile-returning');
+                document.getElementById('settings-mobile-title').textContent = getSettingsText('settings', '閮剖?');
+                settingsMobileViewTransitionTimer = setTimeout(finishReturn, SETTINGS_MOBILE_VIEW_TRANSITION_MS);
+                return;
+            }
+            finishReturn();
             document.getElementById('settings-mobile-title').textContent = getSettingsText('settings', '設定');
             document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
         };
         const openSettingsMobileSection = (sectionName) => {
             ensureSettingsMobileShell();
+            clearSettingsMobileViewTransition();
             const targetSection = document.getElementById(`${sectionName}-section`);
             if (!targetSection) return;
+            ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-returning');
             document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
             targetSection.classList.add('active');
             const listItem = Array.from(document.querySelectorAll('#settings-mobile-list [data-section]')).find(item => item.dataset.section === sectionName);
@@ -1946,9 +1969,10 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 });
             });
             if (isMobileSettingsViewport()) {
-                showSettingsMobileList();
+                showSettingsMobileList({ animate: false });
             } else {
-                ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-detail-open');
+                clearSettingsMobileViewTransition();
+                ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-detail-open', 'settings-mobile-returning');
                 const activeNavItem = ALL_ELEMENTS.settingsNav.querySelector('.settings-nav-item.active') || ALL_ELEMENTS.settingsNav.querySelector('.settings-nav-item');
                 if (activeNavItem) {
                     navItems.forEach(i => i.classList.toggle('active', i === activeNavItem));

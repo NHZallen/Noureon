@@ -6575,4 +6575,63 @@ samp,
     #settings-modal #settings-mobile-list .settings-mobile-chevron {
         font-size: 1.65rem !important;
     }
+
+    #settings-modal .flex.flex-1.overflow-hidden {
+        position: relative !important;
+    }
+
+    #settings-modal #settings-mobile-list,
+    #settings-modal .flex-1.p-6.overflow-y-auto {
+        position: absolute !important;
+        inset: 6.7rem 0 0 !important;
+        display: block !important;
+        min-height: 0 !important;
+        transition:
+            transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+            opacity 0.2s ease !important;
+        will-change: transform;
+    }
+
+    #settings-modal #settings-mobile-list {
+        transform: translateX(0) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    #settings-modal .flex-1.p-6.overflow-y-auto {
+        transform: translateX(100%) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    #settings-modal.settings-mobile-detail-open #settings-mobile-list {
+        display: block !important;
+        transform: translateX(-100%) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    #settings-modal.settings-mobile-detail-open .flex-1.p-6.overflow-y-auto {
+        transform: translateX(0) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    #settings-modal.settings-mobile-returning #settings-mobile-list {
+        transform: translateX(0) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    #settings-modal.settings-mobile-returning .flex-1.p-6.overflow-y-auto {
+        transform: translateX(100%) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    #settings-modal.settings-mobile-detail-open .settings-section.active > h3 {
+        margin-left: 0 !important;
+        width: 100% !important;
+        text-align: left !important;
+    }
 }
