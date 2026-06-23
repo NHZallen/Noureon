@@ -1839,28 +1839,20 @@
  */
 async function typewriterStream(targetElement, streamApiCallFn, signal) {
     let fullText = '';
-    let textQueue = ''; // 用於暫存兩次渲染幀之間收到的文字
     let isStreaming = true;
-    let isFrameRequested = false; // 標記是否已經預約了下一幀的渲染
 
 
     targetElement.innerHTML = '';
     targetElement.classList.add('typing-cursor');
 
 
-    // 這是渲染單一幀畫面的核心函式
-    const renderFrame = () => {
-        // 如果佇列裡有文字，就全部渲染出來
-        if (textQueue.length > 0) {
-            const chunkToRender = textQueue;
-            textQueue = ''; // 清空佇列
+    const typewriterFrameQueue = createStreamingTextFrameQueue({
+        drainText: (chunkToRender) => {
             fullText += chunkToRender;
-
 
             const fragment = document.createDocumentFragment();
             for (const char of chunkToRender) {
                 const span = document.createElement('span');
-                // 這裡不再隱藏 Markdown 字元，直接輸出，讓 Markdown 渲染器處理
                 span.className = 'fade-in-char'; 
                 if (char === '\n') {
                     fragment.appendChild(document.createElement('br'));
@@ -1871,28 +1863,20 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
             }
             targetElement.appendChild(fragment);
 
-
-            // 保持捲動到底部
             const chatContainer = ALL_ELEMENTS.chatContainer;
             const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
             if (isNearBottom) {
                 chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
             }
-        }
-        
-        // 渲染完成後，將標記重設為 false，允許下一次的資料觸發新的渲染
-        isFrameRequested = false;
-    };
+        },
+        scheduleFrame: (callback) => requestAnimationFrame(callback),
+        waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16))
+    });
 
 
     // 當 API 收到新資料時呼叫此函式
     const onChunkReceived = (chunk) => {
-        textQueue += chunk;
-        // 如果目前沒有正在等待的渲染幀，就預約下一幀
-        if (!isFrameRequested) {
-            isFrameRequested = true;
-            requestAnimationFrame(renderFrame);
-        }
+        typewriterFrameQueue.enqueue(chunk);
     };
 
 
@@ -1912,20 +1896,7 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
         isStreaming = false;
 
 
-        // 等待最後一幀的渲染完成 (如果有的話)
-        // 這是為了處理這種情況：串流結束了，但最後一點文字還在佇列裡，等待下一幀渲染
-        const waitForLastFrame = async () => {
-            while (isFrameRequested || textQueue.length > 0) {
-                // 如果還有佇列或正在等待的幀，就再預約一幀並等待
-                if (!isFrameRequested) {
-                    requestAnimationFrame(renderFrame);
-                }
-                await new Promise(resolve => setTimeout(resolve, 16)); // 等待一小段時間
-            }
-        };
-
-
-        await waitForLastFrame();
+        await typewriterFrameQueue.flushUntilIdle();
         
         // 所有工作都完成了，進行最終清理
         targetElement.classList.remove('typing-cursor');
@@ -1938,21 +1909,6 @@ async function typewriterStream(targetElement, streamApiCallFn, signal) {
     return fullText;
 }
 
-const getOpenCouncilDetailKeys = (root) => new Set(
-    Array.from(root?.querySelectorAll('details.council-collapse[open] > summary') || [])
-        .map(summary => summary.textContent.trim())
-        .filter(Boolean)
-);
-
-const restoreOpenCouncilDetails = (root, openKeys) => {
-    if (!root || !openKeys?.size) return;
-    root.querySelectorAll('details.council-collapse > summary').forEach(summary => {
-        if (openKeys.has(summary.textContent.trim())) {
-            summary.parentElement.open = true;
-        }
-    });
-};
-
 const renderIncrementalResponse = (targetElement, text, options = {}) => {
     const openKeys = options.preserveCouncilDetails ? getOpenCouncilDetailKeys(targetElement) : null;
     targetElement.innerHTML = options.final
@@ -1961,81 +1917,27 @@ const renderIncrementalResponse = (targetElement, text, options = {}) => {
     restoreOpenCouncilDetails(targetElement, openKeys);
 };
 
-const isCouncilComparisonSummary = (summaryText = '') => /共識與差異整理|Consensus|Differences|差異/i.test(summaryText);
-
-const normalizeCouncilComparisonDetails = (text = '') => {
-    const source = String(text || '');
-    const detailPattern = /(<details\b[^>]*class=["'][^"']*\bcouncil-collapse\b[^"']*["'][^>]*>\s*<summary>([^<]*)<\/summary>)([\s\S]*?)(<\/details>)/i;
-    const match = detailPattern.exec(source);
-    if (!match || !isCouncilComparisonSummary(match[2])) return source;
-
-    const afterStart = match.index + match[0].length;
-    const after = source.slice(afterStart);
-    const nextSectionMatch = /\n\s*<details\b[^>]*class=["'][^"']*\bcouncil-collapse\b/i.exec(after);
-    const scanLimit = nextSectionMatch ? nextSectionMatch.index : after.length;
-    const scanText = after.slice(0, scanLimit);
-    const lines = scanText.split('\n');
-    const strayLines = [];
-    let consumedLength = 0;
-    let started = false;
-
-    for (const line of lines) {
-        const rawLineLength = line.length + 1;
-        const trimmed = line.trim();
-        const isTableish = /^\|/.test(trimmed) || /^\*\*[^*]+\*\*\s*\|/.test(trimmed) || /^[-*]\s+/.test(trimmed);
-        const isBlank = trimmed === '';
-        if (!started && isBlank) {
-            consumedLength += rawLineLength;
-            continue;
-        }
-        if (isTableish || (started && isBlank)) {
-            started = true;
-            strayLines.push(line);
-            consumedLength += rawLineLength;
-            continue;
-        }
-        break;
-    }
-
-    const strayText = strayLines.join('\n').trim();
-    if (!strayText) return source;
-
-    const before = source.slice(0, match.index);
-    const fixedDetails = `${match[1]}${match[3].trimEnd()}\n\n${strayText}\n${match[4]}`;
-    const rest = after.slice(consumedLength);
-    return `${before}${fixedDetails}${rest}`;
-};
-
-const hasUnclosedCouncilDetails = (text = '') => {
-    const source = String(text || '');
-    const opens = (source.match(/<details\b[^>]*class=["'][^"']*\bcouncil-collapse\b[^"']*["'][^>]*>/gi) || []).length;
-    const closes = (source.match(/<\/details>/gi) || []).length;
-    return opens > closes;
-};
-
 const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
     targetElement.innerHTML = '';
-    let currentIndex = 0;
-    const typingSpeed = 15;
-    const type = () => {
-        if (currentIndex < fullResponse.length && !signal.aborted) {
-            const currentText = fullResponse.substring(0, currentIndex + 1);
+    const playbackController = createTypewriterPlaybackController({
+        text: fullResponse,
+        signal,
+        schedule: (callback, delay) => setTimeout(callback, delay),
+        onStep: ({ currentText }) => {
             renderIncrementalResponse(targetElement, currentText, { cursor: true, preserveCouncilDetails });
-            let step = currentText.includes('```') ? 5 : 1;
-            currentIndex += step;
             const chatContainer = ALL_ELEMENTS.chatContainer;
             const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
             const pauseCouncilAutoScroll = preserveCouncilDetails && isCouncilDeferredSectionVisible(currentText);
             if (!pauseCouncilAutoScroll && isNearBottom) {
                 chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
             }
-            setTimeout(type, typingSpeed);
-            return;
+        },
+        onFinish: () => {
+            renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails });
+            resolve();
         }
-        renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails });
-        resolve();
-    };
-    type();
+    });
+    playbackController.start();
 });
 
 const isChatNearBottom = (threshold = 16) => {
@@ -2055,11 +1957,7 @@ const keepChatPositionAfterRender = (shouldStick, previousTop) => {
 };
 
 const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
-    let fullText = '';
-    let finalizedText = '';
-    let pendingText = '';
-    let currentLineText = '';
-    let isFinalized = false;
+    const renderState = createStreamingMarkdownRenderState();
     const preserveCouncilDetails = Boolean(options.preserveCouncilDetails);
     const root = document.createElement('div');
     const finalizedNode = document.createElement('div');
@@ -2077,6 +1975,7 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
 
     const renderFinalized = (renderFormulas = false) => {
         const openKeys = preserveCouncilDetails ? getOpenCouncilDetailKeys(finalizedNode) : null;
+        const finalizedText = renderState.getFinalizedText();
         let renderText = preserveCouncilDetails ? normalizeCouncilComparisonDetails(finalizedText) : finalizedText;
         if (preserveCouncilDetails && hasUnclosedCouncilDetails(renderText)) {
             renderText += '\n\n</details>';
@@ -2100,71 +1999,53 @@ const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
         currentLineNode.appendChild(fragment);
     };
 
-    const updateCurrentLine = (text = '') => {
-        const nextText = String(text || '');
-        if (!nextText) {
+    const updateCurrentLine = () => {
+        const patch = renderState.syncCurrentLine();
+        if (patch.reset) {
             currentLineNode.innerHTML = '';
-            currentLineText = '';
-            return;
         }
-        if (!nextText.startsWith(currentLineText)) {
-            currentLineNode.innerHTML = '';
-            currentLineText = '';
-        }
-        appendFadedText(nextText.slice(currentLineText.length));
-        currentLineText = nextText;
+        appendFadedText(patch.appendText);
     };
 
     const flushPendingLines = (force = false, renderFormulas = false) => {
-        if (isFinalized) return;
-        let flushIndex = pendingText.lastIndexOf('\n');
-        if (force && pendingText.length) {
-            flushIndex = pendingText.length - 1;
-        }
+        if (renderState.isFinalized()) return;
         const shouldStick = isChatNearBottom();
         const previousTop = ALL_ELEMENTS.chatContainer?.scrollTop || 0;
-        if (flushIndex >= 0) {
-            const flushText = pendingText.slice(0, flushIndex + 1);
-            finalizedText += flushText;
-            pendingText = pendingText.slice(flushIndex + 1);
+        const flushResult = renderState.flushPending({ force });
+        if (flushResult.didFlush) {
             renderFinalized(renderFormulas);
         }
-        updateCurrentLine(pendingText);
+        updateCurrentLine();
         keepChatPositionAfterRender(shouldStick, previousTop);
     };
 
     return {
         appendText(chunk = '') {
-            if (isFinalized || !chunk) return;
-            const text = String(chunk);
-            fullText += text;
-            pendingText += text;
+            const appendResult = renderState.appendText(chunk);
+            if (appendResult.ignored) return;
             flushPendingLines(false, false);
         },
         finish({ renderFormulas = true } = {}) {
-            if (isFinalized) return fullText;
+            if (renderState.isFinalized()) return renderState.getText();
             flushPendingLines(true, renderFormulas);
-            if (renderFormulas && finalizedText) {
+            if (renderFormulas && renderState.getFinalizedText()) {
                 renderFinalized(true);
             }
-            isFinalized = true;
+            renderState.finalize();
             currentLineNode.remove();
             targetElement.classList.remove('is-streaming-response');
             targetElement.dataset.streamRendered = 'true';
-            return fullText;
+            return renderState.getText();
         },
         getText() {
-            return fullText;
+            return renderState.getText();
         }
     };
 };
 
 async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, options = {}) {
-    let textQueue = '';
-    let isFrameRequested = false;
     let streamError = null;
     let renderer = null;
-    let hasReceivedFirstChunk = false;
     if (options.placeholderHTML) {
         targetElement.innerHTML = options.placeholderHTML;
         targetElement.classList.remove('typing-cursor');
@@ -2177,27 +2058,15 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
         return renderer;
     };
 
-    const renderFrame = () => {
-        if (textQueue.length > 0) {
-            const chunkToRender = textQueue;
-            textQueue = '';
-            ensureRenderer().appendText(chunkToRender);
-        }
-        isFrameRequested = false;
-    };
+    const frameQueue = createStreamingTextFrameQueue({
+        drainText: (chunkToRender) => ensureRenderer().appendText(chunkToRender),
+        onFirstChunk: () => options.onFirstChunk?.(),
+        scheduleFrame: (callback) => requestAnimationFrame(callback),
+        waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16))
+    });
 
     const onChunkReceived = (chunk) => {
-        const nextChunk = String(chunk || '');
-        if (!nextChunk) return;
-        if (!hasReceivedFirstChunk) {
-            hasReceivedFirstChunk = true;
-            options.onFirstChunk?.();
-        }
-        textQueue += nextChunk;
-        if (!isFrameRequested) {
-            isFrameRequested = true;
-            requestAnimationFrame(renderFrame);
-        }
+        frameQueue.enqueue(chunk);
     };
 
     try {
@@ -2211,13 +2080,7 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
             throw error;
         }
     } finally {
-        while (isFrameRequested || textQueue.length > 0) {
-            if (!isFrameRequested) {
-                isFrameRequested = true;
-                requestAnimationFrame(renderFrame);
-            }
-            await new Promise(resolve => setTimeout(resolve, 16));
-        }
+        await frameQueue.flushUntilIdle();
         if (renderer) {
             renderer.finish({ renderFormulas: true });
         } else {
@@ -2234,29 +2097,21 @@ async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, op
 
 const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
     const renderer = createStreamingMarkdownRenderer(targetElement, { preserveCouncilDetails });
-    let currentIndex = 0;
-    const typingSpeed = 15;
-    const type = () => {
-        if (currentIndex < fullResponse.length && !signal.aborted) {
-            const step = fullResponse.includes('```', Math.max(0, currentIndex - 3)) ? 5 : 1;
-            renderer.appendText(fullResponse.slice(currentIndex, currentIndex + step));
-            currentIndex += step;
-            setTimeout(type, typingSpeed);
-            return;
+    const playbackController = createTypewriterPlaybackController({
+        text: fullResponse,
+        signal,
+        schedule: (callback, delay) => setTimeout(callback, delay),
+        getStep: ({ source, currentIndex }) => source.includes('```', Math.max(0, currentIndex - 3)) ? 5 : 1,
+        onStep: ({ chunk }) => {
+            renderer.appendText(chunk);
+        },
+        onFinish: () => {
+            renderer.finish({ renderFormulas: true });
+            resolve();
         }
-        renderer.finish({ renderFormulas: true });
-        resolve();
-    };
-    type();
+    });
+    playbackController.start();
 });
-
-const appendRendererTextGradually = async (renderer, text = '', signal, chunkSize = 18) => {
-    const source = String(text || '');
-    for (let index = 0; index < source.length && !signal?.aborted; index += chunkSize) {
-        renderer.appendText(source.slice(index, index + chunkSize));
-        await new Promise(resolve => requestAnimationFrame(resolve));
-    }
-};
 
 const startProgressTicker = (tick, intervalMs = 250) => {
     let stopped = false;
@@ -2419,7 +2274,7 @@ const stopProgressTicker = (ticker) => {
                         }
                         const remainingCouncilText = fullResponse.slice(realtimeCouncilText.length);
                         if (remainingCouncilText) {
-                            await appendRendererTextGradually(realtimeCouncilRenderer, remainingCouncilText, abortController.signal);
+                            await appendRendererTextGradually(realtimeCouncilRenderer, remainingCouncilText, abortController.signal, 18, (callback) => requestAnimationFrame(callback));
                         }
                         realtimeCouncilRenderer.finish({ renderFormulas: true });
                     }

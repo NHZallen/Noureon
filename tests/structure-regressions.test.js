@@ -318,6 +318,216 @@ test('mobile context menu markup helpers are isolated from the 04 runtime fragme
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('streaming council details helpers are isolated from the 01 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-council-details.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-council-details.js'));
+
+  for (const exportName of [
+    'getOpenCouncilDetailKeys',
+    'restoreOpenCouncilDetails',
+    'isCouncilComparisonSummary',
+    'normalizeCouncilComparisonDetails',
+    'hasUnclosedCouncilDetails'
+  ]) {
+    assert.equal(typeof helpers[exportName], 'function', `${exportName} should be exported`);
+    assert.match(helperSource, new RegExp(`export\\s+const\\s+${exportName}\\b`));
+  }
+
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bgetOpenCouncilDetailKeys\b[\s\S]*\brestoreOpenCouncilDetails\b[\s\S]*\bisCouncilComparisonSummary\b[\s\S]*\bnormalizeCouncilComparisonDetails\b[\s\S]*\bhasUnclosedCouncilDetails\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-council-details\.js';/
+  );
+  assert.match(fragment01Source, /getOpenCouncilDetailKeys\(targetElement\)/);
+  assert.match(fragment01Source, /restoreOpenCouncilDetails\(targetElement,\s*openKeys\)/);
+  assert.match(fragment01Source, /normalizeCouncilComparisonDetails\(finalizedText\)/);
+  assert.match(fragment01Source, /hasUnclosedCouncilDetails\(renderText\)/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+getOpenCouncilDetailKeys\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+restoreOpenCouncilDetails\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+isCouncilComparisonSummary\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+normalizeCouncilComparisonDetails\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+hasUnclosedCouncilDetails\s*=/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.match(fragment01Source, /requestAnimationFrame\(/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('streaming markdown render state helper is isolated from the 01 runtime renderer', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-markdown-render-state.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-render-state.js'));
+
+  assert.equal(typeof helpers.createStreamingMarkdownRenderState, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamingMarkdownRenderState\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateStreamingMarkdownRenderState\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-markdown-render-state\.js';/
+  );
+  assert.match(fragment01Source, /const\s+renderState\s*=\s*createStreamingMarkdownRenderState\(\);/);
+  assert.match(fragment01Source, /renderState\.appendText\(chunk\)/);
+  assert.match(fragment01Source, /renderState\.flushPending\(\{\s*force\s*\}\)/);
+  assert.match(fragment01Source, /renderState\.syncCurrentLine\(\)/);
+  assert.match(fragment01Source, /renderState\.finalize\(\)/);
+  assert.match(fragment01Source, /renderState\.getText\(\)/);
+  assert.doesNotMatch(
+    fragment01Source,
+    /let\s+fullText\s*=\s*'';\s*let\s+finalizedText\s*=\s*'';\s*let\s+pendingText\s*=\s*'';\s*let\s+currentLineText\s*=\s*'';\s*let\s+isFinalized\s*=\s*false;/s
+  );
+  assert.match(fragment01Source, /document\.createElement\('div'\)/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*''/);
+  assert.match(fragment01Source, /currentLineNode\.innerHTML\s*=\s*''/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.match(fragment01Source, /renderMarkdown\(/);
+  assert.match(fragment01Source, /targetElement\.classList\.add\('is-streaming-response'\)/);
+  assert.match(fragment01Source, /isChatNearBottom\(\)/);
+  assert.match(fragment01Source, /keepChatPositionAfterRender\(shouldStick,\s*previousTop\)/);
+  assert.match(fragment01Source, /requestAnimationFrame\(/);
+  assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
+  const streamResponseSource = fragment01Source.slice(
+    fragment01Source.indexOf('async function streamMarkdownResponse'),
+    fragment01Source.indexOf('const playbackStreamingMarkdownResponse')
+  );
+
+  assert.equal(typeof helpers.createStreamingTextFrameQueue, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamingTextFrameQueue\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateStreamingTextFrameQueue\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-text-frame-queue\.js';/
+  );
+  assert.match(fragment01Source, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.match(fragment01Source, /drainText:\s*\(chunkToRender\)\s*=>\s*ensureRenderer\(\)\.appendText\(chunkToRender\)/);
+  assert.match(fragment01Source, /onFirstChunk:\s*\(\)\s*=>\s*options\.onFirstChunk\?\.\(\)/);
+  assert.match(fragment01Source, /scheduleFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
+  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(resolve\s*=>\s*setTimeout\(resolve,\s*16\)\)/);
+  assert.match(fragment01Source, /frameQueue\.enqueue\(chunk\)/);
+  assert.match(fragment01Source, /await\s+frameQueue\.flushUntilIdle\(\)/);
+  assert.doesNotMatch(streamResponseSource, /\blet\s+textQueue\s*=/);
+  assert.doesNotMatch(streamResponseSource, /\blet\s+isFrameRequested\s*=/);
+  assert.doesNotMatch(streamResponseSource, /\blet\s+hasReceivedFirstChunk\s*=/);
+  assert.doesNotMatch(streamResponseSource, /\bconst\s+renderFrame\s*=/);
+  assert.match(fragment01Source, /await\s+streamApiCallFn\(onChunkReceived\)/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*options\.placeholderHTML/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*renderMarkdown\(/);
+  assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('typewriter stream uses the shared streaming text frame queue boundary', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
+  const typewriterStreamSource = fragment01Source.slice(
+    fragment01Source.indexOf('async function typewriterStream'),
+    fragment01Source.indexOf('const renderIncrementalResponse')
+  );
+
+  assert.equal(typeof helpers.createStreamingTextFrameQueue, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamingTextFrameQueue\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateStreamingTextFrameQueue\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-text-frame-queue\.js';/
+  );
+  assert.match(typewriterStreamSource, /const\s+typewriterFrameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.match(typewriterStreamSource, /drainText:\s*\(chunkToRender\)\s*=>\s*\{/);
+  assert.match(typewriterStreamSource, /typewriterFrameQueue\.enqueue\(chunk\)/);
+  assert.match(typewriterStreamSource, /await\s+typewriterFrameQueue\.flushUntilIdle\(\)/);
+  assert.doesNotMatch(typewriterStreamSource, /\blet\s+textQueue\s*=/);
+  assert.doesNotMatch(typewriterStreamSource, /\blet\s+isFrameRequested\s*=/);
+  assert.doesNotMatch(typewriterStreamSource, /\bconst\s+renderFrame\s*=/);
+  assert.match(typewriterStreamSource, /requestAnimationFrame\(/);
+  assert.match(typewriterStreamSource, /setTimeout\(resolve,\s*16\)/);
+  assert.match(typewriterStreamSource, /targetElement\.appendChild\(fragment\)/);
+  assert.match(typewriterStreamSource, /targetElement\.innerHTML\s*=\s*renderMarkdownWithFormulas\(fullText\)/);
+  assert.match(typewriterStreamSource, /renderMarkdown\(`[^`]*\$\{error\.message\}`\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('typewriter playback controller is isolated from the 01 runtime playback loops', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/typewriter-playback-controller.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/typewriter-playback-controller.js'));
+  const playbackTypewriterSource = fragment01Source.slice(
+    fragment01Source.indexOf('const playbackTypewriterResponse'),
+    fragment01Source.indexOf('const isChatNearBottom')
+  );
+  const playbackStreamingSource = fragment01Source.slice(
+    fragment01Source.indexOf('const playbackStreamingMarkdownResponse'),
+    fragment01Source.indexOf('const appendRendererTextGradually')
+  );
+
+  assert.equal(typeof helpers.createTypewriterPlaybackController, 'function');
+  assert.match(helperSource, /export\s+function\s+createTypewriterPlaybackController\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcreateTypewriterPlaybackController\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/typewriter-playback-controller\.js';/
+  );
+  assert.match(playbackTypewriterSource, /const\s+playbackController\s*=\s*createTypewriterPlaybackController\(\{/);
+  assert.match(playbackStreamingSource, /const\s+playbackController\s*=\s*createTypewriterPlaybackController\(\{/);
+  assert.match(playbackTypewriterSource, /renderIncrementalResponse\(targetElement,\s*currentText,\s*\{\s*cursor:\s*true,\s*preserveCouncilDetails\s*\}\)/);
+  assert.match(playbackTypewriterSource, /renderIncrementalResponse\(targetElement,\s*fullResponse,\s*\{\s*final:\s*true,\s*preserveCouncilDetails\s*\}\)/);
+  assert.match(playbackStreamingSource, /renderer\.appendText\(chunk\)/);
+  assert.match(playbackStreamingSource, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.match(playbackTypewriterSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*setTimeout\(callback,\s*delay\)/);
+  assert.match(playbackStreamingSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*setTimeout\(callback,\s*delay\)/);
+  assert.doesNotMatch(playbackTypewriterSource, /\blet\s+currentIndex\s*=/);
+  assert.doesNotMatch(playbackTypewriterSource, /\bconst\s+type\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(playbackTypewriterSource, /setTimeout\(type,\s*typingSpeed\)/);
+  assert.doesNotMatch(playbackStreamingSource, /\blet\s+currentIndex\s*=/);
+  assert.doesNotMatch(playbackStreamingSource, /\bconst\s+type\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(playbackStreamingSource, /setTimeout\(type,\s*typingSpeed\)/);
+  assert.match(fragment01Source, /const\s+renderIncrementalResponse\s*=/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.match(fragment01Source, /isCouncilDeferredSectionVisible\(currentText\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('renderer gradual append controller is isolated from the 01 runtime RAF append loop', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/renderer-gradual-append-controller.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/renderer-gradual-append-controller.js'));
+  const submitFlowSource = fragment01Source.slice(
+    fragment01Source.indexOf('const appendRendererTextGradually'),
+    fragment01Source.indexOf('const startProgressTicker')
+  );
+
+  assert.equal(typeof helpers.appendRendererTextGradually, 'function');
+  assert.match(helperSource, /export\s+async\s+function\s+appendRendererTextGradually\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bappendRendererTextGradually\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/renderer-gradual-append-controller\.js';/
+  );
+  assert.match(fragment01Source, /appendRendererTextGradually\(\s*realtimeCouncilRenderer,\s*remainingCouncilText,\s*abortController\.signal,\s*18,\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)\s*\)/);
+  assert.doesNotMatch(fragment01Source, /const\s+appendRendererTextGradually\s*=\s*async/);
+  assert.doesNotMatch(submitFlowSource, /for\s*\(\s*let\s+index\s*=\s*0;\s*index\s*<\s*source\.length[\s\S]*renderer\.appendText\(source\.slice\(index,\s*index\s*\+\s*chunkSize\)\)[\s\S]*requestAnimationFrame\(resolve\)/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /renderer\.appendText\(chunk\)/);
+  assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.match(fragment01Source, /requestAnimationFrame\(/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
