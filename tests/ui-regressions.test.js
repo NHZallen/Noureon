@@ -65,6 +65,14 @@ test('desktop active mode and Astras pills swap their leading icon to the themed
   assert.match(css, /#input-indicator-container\s+\.input-indicator-item:hover\s+#close-search-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-learning-mode-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-model-council-btn-input,\s*#input-indicator-container\s+\.input-indicator-item:hover\s+#close-astras-btn-input[^{]*\{[^}]*opacity:\s*1\s*!important;/s);
 });
 
+test('media preview download and share icons stay white over dark media', () => {
+  const css = readSource('src/styles/main.css');
+
+  assert.match(css, /\.media-lightbox-action,\s*\.media-lightbox-action\s+svg,\s*\.media-lightbox-action\s+svg\s+\*[^{]*\{[^}]*color:\s*#ffffff\s*!important;[^}]*stroke:\s*#ffffff\s*!important;/s);
+  assert.match(css, /\.media-lightbox-action\s+svg\s*\{[^}]*fill:\s*none\s*!important;/s);
+  assert.match(css, /\.media-lightbox-action\s+svg\s+\[fill\]:not\(\[fill="none"\]\)[^{]*\{[^}]*fill:\s*#ffffff\s*!important;/s);
+});
+
 test('mobile keeps the existing stacked indicator layout and hides message mic', () => {
   const css = readSource('src/styles/main.css');
 
@@ -155,6 +163,13 @@ test('mobile settings open to a GPT-style category list before drilling into det
   assert.match(css, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(100%\)\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(0\)\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-returning\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(100%\)\s*!important;/s);
+  assert.match(css, /#settings-modal\s*>\s*div\s*>\s*\.p-4\.bg-\\\[var\\\(--sidebar-bg\\\)\\\]\.border-t[^{]*\{[^}]*transition:[^}]*opacity\s+0\.34s\s+ease-in-out[^}]*transform\s+0\.34s\s+ease-in-out/s);
+  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s*>\s*div\s*>\s*\.p-4\.bg-\\\[var\\\(--sidebar-bg\\\)\\\]\.border-t[^{]*\{[^}]*opacity:\s*0;[^}]*transform:\s*translateY\(-0\.35rem\)\s+scale\(0\.96\);/s);
+  assert.match(css, /#settings-modal\.settings-mobile-returning\s*>\s*div\s*>\s*\.p-4\.bg-\\\[var\\\(--sidebar-bg\\\)\\\]\.border-t[^{]*\{(?:(?!opacity:|transform:)[^}])*animation:\s*settingsCloseReturnIn\s+0\.34s\s+ease-in-out/s);
+  assert.match(css, /#settings-mobile-back-btn[^{]*\{[^}]*transform:\s*translateX\(-0\.35rem\)\s+scale\(0\.96\);[^}]*transition:[^}]*opacity\s+0\.34s\s+ease-in-out[^}]*transform\s+0\.34s\s+ease-in-out/s);
+  assert.match(css, /#settings-modal\.settings-mobile-returning\s+#settings-mobile-back-btn[^{]*\{(?:(?!opacity:|transform:)[^}])*animation:\s*settingsBackReturnOut\s+0\.34s\s+ease-in-out/s);
+  assert.match(css, /@keyframes\s+settingsCloseReturnIn\s*\{[\s\S]*from\s*\{[^}]*opacity:\s*0;[^}]*transform:\s*translateY\(-0\.35rem\)\s+scale\(0\.96\);[^}]*\}[\s\S]*to\s*\{[^}]*opacity:\s*1;[^}]*transform:\s*translateY\(0\)\s+scale\(1\);/s);
+  assert.match(css, /@keyframes\s+settingsBackReturnOut\s*\{[\s\S]*from\s*\{[^}]*opacity:\s*1;[^}]*transform:\s*translateX\(0\)\s+scale\(1\);[^}]*\}[\s\S]*to\s*\{[^}]*opacity:\s*0;[^}]*transform:\s*translateX\(-0\.35rem\)\s+scale\(0\.96\);/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active[^{]*\{[^}]*display:\s*block\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active\s*>\s*h3[^{]*\{[^}]*margin-left:\s*0\s*!important;[^}]*width:\s*100%\s*!important;[^}]*text-align:\s*left\s*!important;/s);
 });

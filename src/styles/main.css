@@ -1791,6 +1791,18 @@ button:not(.btn-primary):active:not(:disabled) {
     .media-lightbox-action:hover {
         opacity: 1;
     }
+    .media-lightbox-action,
+    .media-lightbox-action svg,
+    .media-lightbox-action svg * {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+    }
+    .media-lightbox-action svg {
+        fill: none !important;
+    }
+    .media-lightbox-action svg [fill]:not([fill="none"]) {
+        fill: #ffffff !important;
+    }
     @media (max-width: 640px) {
         .media-lightbox {
             padding: 4rem 0 6.6rem;
@@ -6176,10 +6188,23 @@ body svg {
         right: 1.1rem !important;
         left: auto !important;
         z-index: 45 !important;
+        opacity: 1;
+        pointer-events: auto !important;
+        transform: translateY(0) scale(1);
+        transition:
+            opacity 0.34s ease-in-out,
+            transform 0.34s ease-in-out !important;
     }
 
     #settings-modal.settings-mobile-detail-open > div > .p-4.bg-\[var\(--sidebar-bg\)\].border-t {
-        display: none !important;
+        opacity: 0;
+        pointer-events: none !important;
+        transform: translateY(-0.35rem) scale(0.96);
+    }
+
+    #settings-modal.settings-mobile-returning > div > .p-4.bg-\[var\(--sidebar-bg\)\].border-t {
+        pointer-events: auto !important;
+        animation: settingsCloseReturnIn 0.34s ease-in-out both !important;
     }
 
     #close-settings-btn {
@@ -6246,8 +6271,12 @@ body svg {
         border-radius: 999px !important;
         background: #ffffff !important;
         color: #000000 !important;
-        opacity: 0 !important;
+        opacity: 0;
         pointer-events: none !important;
+        transform: translateX(-0.35rem) scale(0.96);
+        transition:
+            opacity 0.34s ease-in-out,
+            transform 0.34s ease-in-out !important;
         box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
     }
 
@@ -6260,8 +6289,36 @@ body svg {
     }
 
     #settings-modal.settings-mobile-detail-open #settings-mobile-back-btn {
-        opacity: 1 !important;
+        opacity: 1;
         pointer-events: auto !important;
+        transform: translateX(0) scale(1);
+    }
+
+    #settings-modal.settings-mobile-returning #settings-mobile-back-btn {
+        pointer-events: none !important;
+        animation: settingsBackReturnOut 0.34s ease-in-out both !important;
+    }
+
+    @keyframes settingsCloseReturnIn {
+        from {
+            opacity: 0;
+            transform: translateY(-0.35rem) scale(0.96);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes settingsBackReturnOut {
+        from {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(-0.35rem) scale(0.96);
+        }
     }
 
     #settings-modal #settings-mobile-list {
