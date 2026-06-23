@@ -176,3 +176,163 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
   assert.match(fragmentSource, /appendStepPlanAttachmentContentBase\(content,\s*inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
 });
+
+test('settings mobile metadata helpers are isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/settings-mobile-metadata.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/settings-mobile-metadata.js'));
+
+  assert.equal(typeof helpers.getSettingsMobileGroups, 'function');
+  assert.equal(typeof helpers.SETTINGS_MOBILE_ICON_MAP, 'object');
+  assert.match(helperSource, /export\s+const\s+SETTINGS_MOBILE_ICON_MAP\b/);
+  assert.match(helperSource, /export\s+const\s+getSettingsMobileGroups\b/);
+
+  assert.match(
+    fragmentSource,
+    /import\s*\{[\s\S]*\bSETTINGS_MOBILE_ICON_MAP\b[\s\S]*\bgetSettingsMobileGroups\s+as\s+getSettingsMobileGroupsBase\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/settings-mobile-metadata\.js';/
+  );
+  assert.match(fragmentSource, /getSettingsMobileGroupsBase\(\s*getSettingsText\s*\)/);
+  assert.doesNotMatch(fragmentSource, /const\s+SETTINGS_MOBILE_ICON_MAP\s*=/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('output mode settings text helper is isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/output-mode-settings-text.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/output-mode-settings-text.js'));
+
+  assert.equal(typeof helpers.getOutputModeSettingsText, 'function');
+  assert.match(helperSource, /export\s+const\s+getOutputModeSettingsText\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{[\s\S]*\bgetOutputModeSettingsText\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/output-mode-settings-text\.js';/
+  );
+  assert.match(fragmentSource, /getOutputModeSettingsText\(\s*config\.uiLanguage\s*\)/);
+  assert.doesNotMatch(fragmentSource, /const\s+getOutputModeSettingsText\s*=\s*\(\)\s*=>/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('search text formatting helper is isolated from the 03 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/search-text-formatting.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/search-text-formatting.js'));
+
+  assert.equal(typeof helpers.highlightText, 'function');
+  assert.match(helperSource, /export\s+const\s+highlightText\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{[\s\S]*\bhighlightText\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/search-text-formatting\.js';/
+  );
+  assert.doesNotMatch(fragmentSource, /\b(?:const|function)\s+highlightText\b/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/03-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('message type icon helper is isolated from the 00 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/message-type-icon.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/message-type-icon.js'));
+
+  assert.equal(typeof helpers.getMessageTypeIcon, 'function');
+  assert.match(helperSource, /export\s+function\s+getMessageTypeIcon\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{[\s\S]*\bgetMessageTypeIcon\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-type-icon\.js';/
+  );
+  assert.doesNotMatch(fragmentSource, /\b(?:const|function)\s+getMessageTypeIcon\b/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('date formatting helper is isolated from the 00 runtime fragment and remains available to timestamp call sites', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/date-formatting.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/date-formatting.js'));
+
+  assert.equal(typeof helpers.formatFullTimestamp, 'function');
+  assert.match(helperSource, /export\s+const\s+formatFullTimestamp\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bformatFullTimestamp\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/date-formatting\.js';/
+  );
+  assert.doesNotMatch(fragment00Source, /\bconst\s+formatFullTimestamp\s*=/);
+  assert.match(fragment01Source, /formatFullTimestamp\(msg\.createdAt\)/);
+  assert.match(fragment02Source, /formatFullTimestamp\(aiMessageObject\.createdAt\)/);
+  assert.match(fragment04Source, /formatFullTimestamp\(conv\.deletedAt\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('time distribution chart data helper is isolated from the 04 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/time-distribution-chart-data.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/time-distribution-chart-data.js'));
+
+  assert.equal(typeof helpers.buildTimeDistributionChartData, 'function');
+  assert.match(helperSource, /export\s+function\s+buildTimeDistributionChartData\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bbuildTimeDistributionChartData\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/time-distribution-chart-data\.js';/
+  );
+  assert.doesNotMatch(fragment04Source, /import\('\/src\/app\/legacy-runtime\/features\/time-distribution-chart-data\.js'\)/);
+  assert.doesNotMatch(fragment04Source, /timeDistributionChartDataModulePromise/);
+  assert.doesNotMatch(fragment04Source, /\blet\s+labels,\s*data,\s*chartType,\s*label\b/);
+  assert.doesNotMatch(fragment04Source, /data\s*=\s*years\.map\(y\s*=>\s*allMessages\.filter/);
+  assert.match(fragment04Source, /const\s+updateTimeDistributionChart\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(fragment04Source, /const\s+updateTimeDistributionChart\s*=\s*async\s*\(\)\s*=>/);
+  assert.match(fragment04Source, /buildTimeDistributionChartData\(\{\s*messages:\s*allMessages,\s*year,\s*month,\s*day,\s*text:\s*i18n\[lang\]\s*\}\)/);
+  assert.match(fragment04Source, /document\.getElementById\('time-distribution-chart'\)\.getContext\('2d'\)/);
+  assert.match(fragment04Source, /timeDistChart\s*=\s*new Chart\(ctx,/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('mobile context menu markup helpers are isolated from the 04 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/mobile-context-menu-markup.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/mobile-context-menu-markup.js'));
+
+  assert.equal(typeof helpers.buildConversationMobileContextMenuMarkup, 'function');
+  assert.equal(typeof helpers.buildFolderMobileContextMenuMarkup, 'function');
+  assert.equal(typeof helpers.buildAstraMobileContextMenuMarkup, 'function');
+  assert.match(helperSource, /export\s+function\s+buildConversationMobileContextMenuMarkup\b/);
+  assert.match(helperSource, /export\s+function\s+buildFolderMobileContextMenuMarkup\b/);
+  assert.match(helperSource, /export\s+function\s+buildAstraMobileContextMenuMarkup\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bbuildConversationMobileContextMenuMarkup\b[\s\S]*\bbuildFolderMobileContextMenuMarkup\b[\s\S]*\bbuildAstraMobileContextMenuMarkup\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/mobile-context-menu-markup\.js';/
+  );
+  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildConversationMobileContextMenuMarkup\(\{/);
+  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildFolderMobileContextMenuMarkup\(\{/);
+  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildAstraMobileContextMenuMarkup\(\{/);
+  assert.doesNotMatch(fragment04Source, /const\s+menuHeader\s*=/);
+  assert.doesNotMatch(fragment04Source, /let\s+menuOptions\s*=/);
+  assert.doesNotMatch(fragment04Source, /const\s+moveOptionsHTML\s*=/);
+  assert.match(fragment04Source, /document\.createElement\('div'\)/);
+  assert.match(fragment04Source, /document\.body\.appendChild\(menuWrapper\)/);
+  assert.match(fragment04Source, /menu\.addEventListener\('click'/);
+  assert.match(fragment04Source, /showRenameModal\(convId,\s*'conversation',\s*e\)/);
+  assert.match(fragment04Source, /showFolderSettingsModal\(folderId,\s*e\)/);
+  assert.match(fragment04Source, /openAvatarEditor\(astrasId\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/version-compare.js'));
+
+  assert.equal(typeof helpers.compareVersions, 'function');
+  assert.match(helperSource, /export\s+const\s+compareVersions\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcompareVersions\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/version-compare\.js';/
+  );
+  assert.doesNotMatch(fragment00Source, /\b(?:const|function)\s+compareVersions\b/);
+  assert.match(fragment04Source, /compareVersions\(log\.version,\s*lastSeenVersion\)/);
+  assert.match(fragment04Source, /compareVersions\(b\.version,\s*a\.version\)/);
+  assert.match(fragment04Source, /compareVersions\(log\.version,\s*max\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
+});

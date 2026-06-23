@@ -1,6 +1,10 @@
 import { installTouchGuards } from '/src/pwa/touch-guards.js';
 import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
 import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/folder-colors.js';
+import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
+import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-formatting.js';
+import { buildTimeDistributionChartData } from '/src/app/legacy-runtime/features/time-distribution-chart-data.js';
+import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '/src/app/legacy-runtime/features/mobile-context-menu-markup.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
@@ -394,22 +398,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     }
 }
 
-
-    // 根據訊息內容，判斷是否顯示圖示
-    function getMessageTypeIcon(message) {
-        if (!message.parts || message.parts.length === 0) {
-            return '';
-        }
-        const hasImage = message.parts.some(p => p.inlineData && p.inlineData.mimeType.startsWith('image/'));
-        const hasFile = message.parts.some(p => p.inlineData && !p.inlineData.mimeType.startsWith('image/'));
-
-
-        if (hasImage) return '📷 ';
-        if (hasFile) return '📎 ';
-        return '';
-    }
-
-
     // 渲染歷史訊息側邊欄的內容
     function renderHistorySidebarContent() {
     const { historySidebarList } = ALL_ELEMENTS;
@@ -614,19 +602,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         }
     }, { passive: true });
 }
-        const compareVersions = (v1, v2) => {
-            if (!v2) return 1;
-            const parts1 = v1.split('.').map(Number);
-            const parts2 = v2.split('.').map(Number);
-            const len = Math.max(parts1.length, parts2.length);
-            for (let i = 0; i < len; i++) {
-                const p1 = parts1[i] || 0;
-                const p2 = parts2[i] || 0;
-                if (p1 > p2) return 1;
-                if (p1 < p2) return -1;
-            }
-            return 0;
-        };
+        import { compareVersions } from '/src/app/legacy-runtime/features/version-compare.js';
         const MODELS = [
     // Gemini Models (Native)
     { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_desc' },
@@ -1396,16 +1372,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const g = parseInt(result[2], 16);
             const b = parseInt(result[3], 16);
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        };
-        const formatFullTimestamp = (isoString) => {
-            if (!isoString) return '';
-            const date = new Date(isoString);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${year}-${month}-${day} ${hours}:${minutes}`;
         };
         const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`;
         const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;
