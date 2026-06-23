@@ -226,3 +226,22 @@ test('search text formatting helper is isolated from the 03 runtime fragment', a
   assert.doesNotMatch(fragmentSource, /\b(?:const|function)\s+highlightText\b/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/03-runtime.fragment.js')).size < 150 * 1024);
 });
+
+test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/version-compare.js'));
+
+  assert.equal(typeof helpers.compareVersions, 'function');
+  assert.match(helperSource, /export\s+const\s+compareVersions\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bcompareVersions\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/version-compare\.js';/
+  );
+  assert.doesNotMatch(fragment00Source, /\b(?:const|function)\s+compareVersions\b/);
+  assert.match(fragment04Source, /compareVersions\(log\.version,\s*lastSeenVersion\)/);
+  assert.match(fragment04Source, /compareVersions\(b\.version,\s*a\.version\)/);
+  assert.match(fragment04Source, /compareVersions\(log\.version,\s*max\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
+});
