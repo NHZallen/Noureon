@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -13,6 +14,8 @@ import {
 
 const supportsVision = { modelSupportsVision: () => true };
 const noVision = { modelSupportsVision: () => false };
+const projectFile = (path) => new URL(`../${path}`, import.meta.url);
+const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 test('getSearchCurrentDate returns a stable prompt-safe date string', () => {
   const value = getSearchCurrentDate();
@@ -149,4 +152,26 @@ test('Tavily search packet formatting keeps the no-results fallback', () => {
 
   assert.match(packet, /Query: fallback query/);
   assert.match(packet, /No Tavily results were returned\./);
+});
+
+test('model request formatting helper remains isolated from runtime side effects', () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/model-request-formatting.js');
+
+  for (const forbidden of [
+    'document',
+    'window',
+    'globalThis',
+    'localStorage',
+    'sessionStorage',
+    'indexedDB',
+    'fetch',
+    'addEventListener',
+    'removeEventListener',
+    'querySelector',
+    'getElementById',
+    'innerHTML',
+    'classList'
+  ]) {
+    assert.doesNotMatch(helperSource, new RegExp(`\\b${forbidden}\\b`));
+  }
 });
