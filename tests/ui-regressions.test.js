@@ -100,12 +100,23 @@ test('model council manager uses compact pills and a bounded scroll area', () =>
   assert.match(css, /\.council-model-search-field[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s*!important;[^}]*width:\s*auto\s*!important;/s);
   assert.match(css, /\.council-popover-scroll-area[^{]*\{[^}]*overflow-y:\s*auto\s*!important;[^}]*-webkit-overflow-scrolling:\s*touch\s*!important;[^}]*scrollbar-color:\s*var\(--gpt-scrollbar\)\s+transparent\s*!important;/s);
   assert.match(css, /\.council-popover-scroll-area::-webkit-scrollbar-thumb[^{]*\{[^}]*background:\s*var\(--gpt-scrollbar\)\s*!important;/s);
+  assert.match(css, /\.model-council-popover[^{]*\{[^}]*opacity:\s*0\s*!important;[^}]*transition:\s*opacity\s+0\.22s\s+ease[^}]*transform\s+0\.22s/s);
+  assert.match(css, /\.model-council-popover\.visible[^{]*\{[^}]*opacity:\s*1\s*!important;[^}]*visibility:\s*visible\s*!important;/s);
+  assert.match(css, /\.council-enable-pill\.is-active[^{]*\{[^}]*background:\s*#ffffff\s*!important;[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
   assert.match(css, /\.council-search-toggle\.is-active[^{]*\{[^}]*background:\s*#ffffff\s*!important;[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
   assert.match(css, /\.model-council-popover\s+\.council-mode-tabs button:not\(\.active\)[^{]*\{[^}]*border-color:\s*transparent\s*!important;[^}]*background:\s*transparent\s*!important;/s);
   assert.match(css, /\.council-mode-tabs button\.active[^{]*\{[^}]*border-color:\s*#000000\s*!important;[^}]*background:\s*#ffffff\s*!important;/s);
   assert.match(css, /\.council-section-title[^{]*\{[^}]*position:\s*sticky\s*!important;[^}]*top:\s*0\s*!important;[^}]*text-transform:\s*none\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-config-row[^{]*\{[^}]*flex-direction:\s*column\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-action-cluster[^{]*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)\s*!important;/s);
+});
+
+test('sidebar search and history model pills use solid white surfaces', () => {
+  const css = readSource('src/styles/main.css');
+
+  assert.match(css, /#open-search-btn[^{]*\{[^}]*background:\s*#ffffff\s*!important;/s);
+  assert.match(css, /\.model-suffix[^{]*\{[^}]*background-color:\s*#ffffff;/s);
+  assert.match(css, /\.dark\s+\.model-suffix[^{]*\{[^}]*background-color:\s*var\(--input-field-bg\)(?:\s*!important)?;/s);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {

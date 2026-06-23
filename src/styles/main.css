@@ -323,6 +323,7 @@ body.custom-wallpaper-active #history-sidebar h3 {
 #open-search-btn {
     min-height: 2.75rem;
     align-items: center;
+    background: #ffffff !important;
 }
 #selection-mode-btn,
 #new-chat-btn {
@@ -2226,7 +2227,7 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
         border-radius: 9999px;
         flex-shrink: 0;
         margin-left: 4px;
-        background-color: rgba(0, 0, 0, 0.05);
+        background-color: #ffffff;
         backdrop-filter: blur(5px);
         -webkit-backdrop-filter: blur(5px);
         border: 1px solid rgba(0, 0, 0, 0.08);
@@ -2234,7 +2235,7 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
         color: var(--text-secondary);
     }
     .dark .model-suffix {
-        background-color: rgba(255, 255, 255, 0.08);
+        background-color: var(--input-field-bg);
         border-color: rgba(255, 255, 255, 0.15);
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
     }
@@ -2304,7 +2305,7 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     }
     .dark .model-suffix {
         color: #ffffff !important;
-        background-color: rgba(255, 255, 255, 0.15) !important;
+        background-color: var(--input-field-bg) !important;
         border-color: rgba(255, 255, 255, 0.25) !important;
     }
     .demo-model-selector .selector-btn {
@@ -5367,11 +5368,16 @@ body svg {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     z-index: 35 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
     transform: translateX(-50%) scale(0.95) translateY(12px) !important;
     transform-origin: bottom center !important;
+    transition: opacity 0.22s ease, visibility 0.22s ease, transform 0.22s cubic-bezier(0.2, 0.85, 0.25, 1) !important;
 }
 
 .model-council-popover.visible {
+    opacity: 1 !important;
+    visibility: visible !important;
     transform: translateX(-50%) scale(1) translateY(0) !important;
 }
 
@@ -5447,13 +5453,16 @@ body svg {
     font-size: 0.8rem !important;
     font-weight: 800 !important;
     white-space: nowrap !important;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease !important;
 }
 
+.council-enable-pill,
 .council-search-toggle,
 .council-model-search-field {
     background: #ffffff !important;
 }
 
+.dark .council-enable-pill,
 .dark .council-search-toggle,
 .dark .council-model-search-field {
     background: var(--input-field-bg) !important;
@@ -5466,9 +5475,20 @@ body svg {
 }
 
 .council-enable-pill.is-active {
-    border-color: var(--button-primary-bg) !important;
-    background: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
+    border-color: var(--border-color) !important;
+    background: #ffffff !important;
+    color: var(--button-primary-bg) !important;
+}
+
+.dark .council-enable-pill.is-active {
+    background: var(--input-field-bg) !important;
+}
+
+.council-enable-pill.is-active svg,
+.council-enable-pill.is-active svg *,
+.council-enable-pill.is-active span {
+    color: var(--button-primary-bg) !important;
+    stroke: currentColor !important;
 }
 
 .council-search-toggle.is-active {
