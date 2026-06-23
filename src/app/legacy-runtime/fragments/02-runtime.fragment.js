@@ -21,7 +21,8 @@
         import {
             appendStepPlanAttachmentContent as appendStepPlanAttachmentContentBase,
             buildTavilySearchQuery,
-            formatTavilySearchPacket
+            formatTavilySearchPacket,
+            getSearchCurrentDate
         } from '/src/app/legacy-runtime/features/model-request-formatting.js';
         function cleanGeminiHistory(history, targetModel = null) {
             const cleaned = []; 

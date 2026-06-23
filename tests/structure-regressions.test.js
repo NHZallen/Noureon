@@ -165,13 +165,14 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
   for (const exportName of [
     'appendStepPlanAttachmentContent',
     'buildTavilySearchQuery',
-    'formatTavilySearchPacket'
+    'formatTavilySearchPacket',
+    'getSearchCurrentDate'
   ]) {
     assert.equal(typeof helpers[exportName], 'function', `${exportName} should be exported`);
     assert.match(helperSource, new RegExp(`export\\s+const\\s+${exportName}\\b`));
   }
 
-  assert.match(fragmentSource, /from\s+'\/src\/app\/legacy-runtime\/features\/model-request-formatting\.js';/);
+  assert.match(fragmentSource, /import\s*\{[\s\S]*\bgetSearchCurrentDate\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-request-formatting\.js';/);
   assert.match(fragmentSource, /appendStepPlanAttachmentContentBase\(content,\s*inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
 });
