@@ -318,6 +318,44 @@ test('mobile context menu markup helpers are isolated from the 04 runtime fragme
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
 });
 
+test('streaming council details helpers are isolated from the 01 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/streaming-council-details.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-council-details.js'));
+
+  for (const exportName of [
+    'getOpenCouncilDetailKeys',
+    'restoreOpenCouncilDetails',
+    'isCouncilComparisonSummary',
+    'normalizeCouncilComparisonDetails',
+    'hasUnclosedCouncilDetails'
+  ]) {
+    assert.equal(typeof helpers[exportName], 'function', `${exportName} should be exported`);
+    assert.match(helperSource, new RegExp(`export\\s+const\\s+${exportName}\\b`));
+  }
+
+  assert.match(
+    fragment00Source,
+    /import\s*\{[\s\S]*\bgetOpenCouncilDetailKeys\b[\s\S]*\brestoreOpenCouncilDetails\b[\s\S]*\bisCouncilComparisonSummary\b[\s\S]*\bnormalizeCouncilComparisonDetails\b[\s\S]*\bhasUnclosedCouncilDetails\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-council-details\.js';/
+  );
+  assert.match(fragment01Source, /getOpenCouncilDetailKeys\(targetElement\)/);
+  assert.match(fragment01Source, /restoreOpenCouncilDetails\(targetElement,\s*openKeys\)/);
+  assert.match(fragment01Source, /normalizeCouncilComparisonDetails\(finalizedText\)/);
+  assert.match(fragment01Source, /hasUnclosedCouncilDetails\(renderText\)/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+getOpenCouncilDetailKeys\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+restoreOpenCouncilDetails\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+isCouncilComparisonSummary\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+normalizeCouncilComparisonDetails\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+hasUnclosedCouncilDetails\s*=/);
+  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
+  assert.match(fragment01Source, /requestAnimationFrame\(/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
