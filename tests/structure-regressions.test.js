@@ -419,10 +419,14 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
 test('runtime dialog coordinator owns selected notification call sites without replacing modal helpers', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+  const handleBatchArchiveBody = getConstFunctionBody(fragment03Source, 'handleBatchArchive');
+  const handleRestoreTrashItemBody = getConstFunctionBody(fragment04Source, 'handleRestoreTrashItem');
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeDialogCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeDialogCoordinator\s*\}/);
@@ -434,7 +438,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(fragment00Source, /const\s+showCustomConfirm\s*=\s*\(message,\s*title\s*=\s*'請確認'\)\s*=>\s*showCustomDialog\(/);
   assert.match(fragment00Source, /const\s+showCustomPrompt\s*=\s*\(message,\s*title\s*=\s*'請輸入',\s*inputType\s*=\s*'text'\)\s*=>\s*showCustomDialog\(/);
 
-  for (const body of [deleteChatBody, deactivateAstrasBody, deleteAstrasBody]) {
+  for (const body of [deleteChatBody, deactivateAstrasBody, deleteAstrasBody, handleBatchArchiveBody, handleRestoreTrashItemBody]) {
     assert.match(body, /runtimeDialogCoordinator\.showNotification\(/);
     assert.doesNotMatch(body, /(^|[^\w.])showNotification\(/);
   }
@@ -442,6 +446,8 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderAll\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[config\.uiLanguage\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
   assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderTrash\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {

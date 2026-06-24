@@ -32,7 +32,7 @@
             }
             await saveAppData();
             toggleSelectionMode();
-            showNotification(`${i18n[config.uiLanguage].batchArchiveSuccess || '已成功封存'} ${count} ${i18n[config.uiLanguage].conversations || '個對話。'}`, 'success');
+            runtimeDialogCoordinator.showNotification(`${i18n[config.uiLanguage].batchArchiveSuccess || '已成功封存'} ${count} ${i18n[config.uiLanguage].conversations || '個對話。'}`, 'success');
         };
         const handleBatchMove = () => {
             if (selectedConversationIds.size === 0) return;

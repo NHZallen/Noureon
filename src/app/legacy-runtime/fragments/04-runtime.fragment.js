@@ -982,7 +982,7 @@ function setupMessageIntersectionObserver() {
                 conv.deletedAt = null;
                 await saveAppData();
                 renderTrash();
-                showNotification(i18n[config.uiLanguage].itemRestored || '項目已還原。', 'success');
+                runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].itemRestored || '項目已還原。', 'success');
             }
         };
         const handleDeleteTrashItemPermanently = async (convId) => {
