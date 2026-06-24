@@ -1,15 +1,3 @@
-                userControls.classList.add('hidden');
-                const count = selectedConversationIds.size;
-                selectionCount.textContent = `${i18n[config.uiLanguage].selected || '已選取'} ${count} ${i18n[config.uiLanguage].items || '個項目'}`;
-                const hasSelection = count > 0;
-                batchDeleteBtn.disabled = !hasSelection;
-                batchArchiveBtn.disabled = !hasSelection;
-                batchMoveBtn.disabled = !hasSelection;
-            } else {
-                batchActionBar.classList.add('hidden');
-                userControls.classList.remove('hidden');
-            }
-        };
         const handleBatchDelete = async () => {
             const count = selectedConversationIds.size;
             if (count === 0) return;
@@ -375,6 +363,8 @@
             };
             img.src = dataUrl;
         });
+        const resolveUploadUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+        const resolveSearchSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
         const {
             renderFilePreviews,
             removeFile
@@ -387,7 +377,7 @@
             getContainer: () => ALL_ELEMENTS.filePreviewContainer,
             getInputWrapper: () => document.querySelector('.input-wrapper'),
             openMediaPreview: openSearchMediaPreview,
-            updateInputState
+            updateInputState: resolveUploadUpdateInputState
         });
         const handleFileSelection = (event) => {
             const files = event.target.files;
@@ -794,7 +784,7 @@
         setAiBubbleColor();
         setUserBubbleColor();
         applyLanguage(config.uiLanguage);
-        setupSettingsModal();
+        resolveSearchSetupSettingsModal();
         
         const firstConv = conversations.find(c => !c.archived && !c.deletedAt);
         if (firstConv) loadChat(firstConv.id);
@@ -1354,7 +1344,7 @@
                 if (target === 'search') {
                     performSearchAndRenderResults();
                 }
-                updateInputState();
+                resolveUploadUpdateInputState();
             };
             currentSpeechRecognition.onend = () => {
                 currentSpeechRecognition = null;
@@ -1634,4 +1624,14 @@ ${JSON.stringify(potentialMemories, null, 2)}
             const mostUsedModel = Object.keys(modelCounts).reduce((a, b) => modelCounts[a] > modelCounts[b] ? a : b, 'N/A');
             ALL_ELEMENTS.mostUsedModelStat.textContent = mostUsedModel;
         };
-        const renderModelUsageChart = () => {
+        const modelUsageChartLifecycle = createModelUsageChartLifecycle({
+            Chart,
+            document,
+            getConversations: () => conversations,
+            getI18n: () => i18n,
+            getModelPieChart: () => modelPieChart,
+            getModels: () => MODELS,
+            getUiLanguage: () => config.uiLanguage,
+            setModelPieChart: (chart) => { modelPieChart = chart; }
+        });
+        const renderModelUsageChart = (...args) => modelUsageChartLifecycle.renderModelUsageChart(...args);

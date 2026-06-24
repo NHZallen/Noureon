@@ -11,6 +11,7 @@
             getSettingsMobileGroups as getSettingsMobileGroupsBase
         } from '/src/app/legacy-runtime/features/settings-mobile-metadata.js';
         import { getOutputModeSettingsText } from '/src/app/legacy-runtime/features/output-mode-settings-text.js';
+        import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
         function calculateRelevanceScore(summary, keywords) {
             if (!summary || !keywords || keywords.length === 0) {
                 return 0;
@@ -651,6 +652,8 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 }
             }
         };
+        legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
+        legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
         const saveSettings = async ({ close = true, notify = true } = {}) => {
             config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
@@ -1240,7 +1243,11 @@ submitButtonIcon.innerHTML = sendIconHTML;
 
     renderAll();
 };
-        const renderBatchActionBar = () => {
-            const { batchActionBar, userControls, selectionCount, batchDeleteBtn, batchArchiveBtn, batchMoveBtn } = ALL_ELEMENTS;
-            if (isSelectionMode) {
-                batchActionBar.classList.remove('hidden');
+        const batchActionBarLifecycle = createBatchActionBarLifecycle({
+            elements: ALL_ELEMENTS,
+            getI18n: () => i18n,
+            getIsSelectionMode: () => isSelectionMode,
+            getSelectedConversationIds: () => selectedConversationIds,
+            getUiLanguage: () => config.uiLanguage
+        });
+        const renderBatchActionBar = (...args) => batchActionBarLifecycle.renderBatchActionBar(...args);

@@ -19,7 +19,12 @@ import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
+import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
+import { createModelUsageChartLifecycle } from '/src/app/legacy-runtime/features/model-usage-chart-lifecycle.js';
+import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 
+const legacyRuntimeContext = createLegacyRuntimeContext();
+const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
 const demoConversations = globalThis.demoConversations;
@@ -1703,7 +1708,7 @@ function renderMarkdownWithFormulas(text) {
             ALL_ELEMENTS.messageInput.value = '';
             setTimeout(adjustTextareaHeight, 0);
             toggleSidebar(false);
-            updateInputState();
+            resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
         };
         const loadChat = (id) => {
@@ -1722,7 +1727,7 @@ function renderMarkdownWithFormulas(text) {
                 ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
                 setTimeout(adjustTextareaHeight, 0);
             }
-            updateInputState();
+            resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
             updateFunctionButtonsState();
         };
@@ -1899,5 +1904,17 @@ function renderMarkdownWithFormulas(text) {
                 ALL_ELEMENTS.historyList.appendChild(createConversationElement(conv));
             });
         };
-        const renderAstras = () => {
-            ALL_ELEMENTS.astrasList.innerHTML = '';
+        const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
+            elements: ALL_ELEMENTS,
+            getAstras: () => astras,
+            getActiveAstrasId: () => getActiveAstrasId(),
+            getIsSelectionMode: () => isSelectionMode,
+            setAstrasForConversation: (...args) => setAstrasForConversation(...args),
+            toggleSidebar: (...args) => toggleSidebar(...args),
+            createAstrasMenu: (...args) => createAstrasMenu(...args),
+            showMobileContextMenuForAstras: (...args) => showMobileContextMenuForAstras(...args),
+            setTimeoutFn: (...args) => setTimeout(...args),
+            clearTimeoutFn: (...args) => clearTimeout(...args),
+            window
+        });
+        const renderAstras = (...args) => sidebarAstrasLifecycle.renderAstras(...args);

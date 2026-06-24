@@ -79,6 +79,21 @@ test('settings modal source keeps Tavily depth fallback local to setupSettingsMo
   );
   assert.match(
     fragment05Source,
-    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*setupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
+    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*resolveEventsSetupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
   );
+});
+
+test('settings modal opener uses lazy context resolution instead of direct cross-fragment setup access', () => {
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+
+  assert.match(
+    fragment02Source,
+    /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/
+  );
+  assert.match(
+    fragment05Source,
+    /const\s+resolveEventsSetupSettingsModal\s*=\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\);/
+  );
+  assert.doesNotMatch(fragment05Source, /setupSettingsModal\(\)/);
 });

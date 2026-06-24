@@ -1,3 +1,6 @@
+        import { createReceivedDataLifecycle } from '/src/app/legacy-runtime/features/received-data-lifecycle.js';
+        const resolveEventsUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+        const resolveEventsSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
 async function sendConversationToMail(userMessageObject, aiResponseText) {
     // 確認這裡是你從 Google Apps Script 複製的、以 /exec 結尾的正確網址
     const FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
@@ -117,7 +120,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             if (!conversations.find(c => !c.archived && !c.deletedAt)) startNewChat();
             renderAll();
             updateFunctionButtonsState();
-            updateInputState();
+            resolveEventsUpdateInputState();
             setupVoiceInput();
             setupScrollToBottomButton();
             updateDisplayedVersion();
@@ -135,7 +138,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 setTimeout(() => ALL_ELEMENTS.modalSearchInput.focus(), 50);
             });
             ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
-                setupSettingsModal();
+                resolveEventsSetupSettingsModal();
                 toggleModal(ALL_ELEMENTS.settingsModal, true);
                 if (isMobileSettingsViewport()) {
                     openSettingsMobileSection('model-management');
@@ -173,7 +176,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             const closeTrashView = () => toggleModal(ALL_ELEMENTS.trashViewModal, false);
             ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
             ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
-            ALL_ELEMENTS.settingsBtn.addEventListener('click', () => { setupSettingsModal(); toggleModal(ALL_ELEMENTS.settingsModal, true); });
+            ALL_ELEMENTS.settingsBtn.addEventListener('click', () => { resolveEventsSetupSettingsModal(); toggleModal(ALL_ELEMENTS.settingsModal, true); });
             ALL_ELEMENTS.saveSettingsBtn?.remove();
             const scheduleInstantSettingsSave = (() => {
                 let saveTimer = null;
@@ -287,7 +290,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             ALL_ELEMENTS.batchMoveConfirmBtn.addEventListener('click', () => { /* Logic moved to option clicks */ });
             ALL_ELEMENTS.messageInput.addEventListener('input', (e) => {
                 sendConfirmed = false;
-                updateInputState();
+                resolveEventsUpdateInputState();
                 const wrapper = e.target.closest('.input-wrapper');
                 if (wrapper) {
                     wrapper.classList.remove('pulse-glow');
@@ -1012,28 +1015,67 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
         });
     }
 
-    async function processReceivedData(buffers, type) {
-        try {
-            const blob = new Blob(buffers);
-            const zip = await JSZip.loadAsync(blob);
+    const receivedDataLifecycle = createReceivedDataLifecycle({
+        BlobCtor: Blob,
+        JSZip,
+        getAstras: () => astras,
+        getConversations: () => conversations,
+        getFolders: () => folders,
+        getDefaultFolder,
+        randomUUID: () => crypto.randomUUID(),
+        saveAppData,
+        renderAll,
+        showNotification,
+        toggleModal,
+        getP2pShareModal: () => document.getElementById('p2p-share-modal'),
+        scheduleTimeout: setTimeout,
+        logger: console
+    });
+    const processReceivedData = (...args) => receivedDataLifecycle.processReceivedData(...args);
+            setupHistorySidebarInteractions();
+    setupHistorySidebarTriggers();
+            ALL_ELEMENTS.shareAstrasBtn = document.getElementById('share-astras-btn');
+            ALL_ELEMENTS.shareFoldersBtn = document.getElementById('share-folders-btn');
             
-            if (type === 'astras') {
-                let count = 0;
-                const files = Object.keys(zip.files);
-                for (const filename of files) {
-                    if (filename.startsWith('astra_') && filename.endsWith('.json')) {
-                        const content = await zip.file(filename).async("string");
-                        const astraData = JSON.parse(content);
-                        
-                        // 檢查重複：如果 id 已存在，生成新 id
-                        if (astras.some(a => a.id === astraData.id)) {
-                            astraData.id = crypto.randomUUID();
-                            astraData.name += " (匯入)";
-                        }
-                        // 確保它是自訂的
-                        astraData.officialId = null;
-                        
-                        astras.unshift(astraData);
-                        count++;
-                    }
+            ALL_ELEMENTS.shareAstrasBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                initP2P('astras');
+            });
+            
+            ALL_ELEMENTS.shareFoldersBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                initP2P('folders');
+            });
+
+            document.getElementById('close-p2p-modal-btn').addEventListener('click', () => {
+                toggleModal(document.getElementById('p2p-share-modal'), false);
+                resetP2PUI();
+            });
+
+            document.getElementById('p2p-role-sender').addEventListener('click', () => {
+                p2pMode = 'sender';
+                showP2PSelection();
+            });
+
+            document.getElementById('p2p-role-receiver').addEventListener('click', () => {
+                p2pMode = 'receiver';
+                startP2PReceiverUI();
+            });
+
+            document.getElementById('p2p-confirm-selection-btn').addEventListener('click', () => {
+                startP2PSender();
+            });
+
+            document.getElementById('p2p-connect-btn').addEventListener('click', () => {
+                const code = document.getElementById('p2p-code-input').value.trim();
+                if (code.length !== 5) {
+                    showNotification("請輸入正確的 5 碼代碼", "warning");
+                    return;
                 }
+                connectToSender(code);
+            });
+
+            document.getElementById('p2p-start-scan-btn').addEventListener('click', () => {
+                startQRScanner();
+            });
+        }

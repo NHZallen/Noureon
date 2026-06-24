@@ -1,44 +1,3 @@
-            const ctx = document.getElementById('model-usage-pie-chart').getContext('2d');
-            const modelCounts = conversations.reduce((acc, conv) => {
-                const modelName = MODELS.find(m => m.id === conv.model)?.name || '未知模型';
-                acc[modelName] = (acc[modelName] || 0) + 1;
-                return acc;
-            }, {});
-            const labels = Object.keys(modelCounts);
-            const data = Object.values(modelCounts);
-            if(modelPieChart) {
-                modelPieChart.destroy();
-            }
-            modelPieChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: i18n[config.uiLanguage].modelUsageCount || '模型使用次數',
-                        data: data,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.7)',
-                            'rgba(54, 162, 235, 0.7)',
-                            'rgba(255, 206, 86, 0.7)',
-                            'rgba(75, 192, 192, 0.7)',
-                            'rgba(153, 102, 255, 0.7)',
-                            'rgba(255, 159, 64, 0.7)'
-                        ],
-                        borderColor: 'rgba(255, 255, 255, 0.8)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            });
-        };
         const setupTimeAnalysis = () => {
             const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
             const allMessages = conversations.flatMap(c => c.messages.map(m => new Date(m.createdAt)));
@@ -556,7 +515,7 @@
             if(ALL_ELEMENTS.loginLangLabel) {
                 ALL_ELEMENTS.loginLangLabel.textContent = translations.currentLanguageName || '繁體中文';
             }
-            updateInputState();
+            legacyRuntimeContext.resolveBinding('input.updateInputState')();
             document.documentElement.lang = lang;
         };
         const showMobileContextMenu = (convId) => {

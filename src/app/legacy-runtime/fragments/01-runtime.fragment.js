@@ -1,60 +1,3 @@
-            astras.forEach(ast => {
-                const item = document.createElement('div');
-                item.className = `sidebar-item w-full text-left p-2.5 rounded-lg flex items-center justify-between cursor-pointer ${ast.id === getActiveAstrasId() && !isSelectionMode ? 'active' : ''}`;
-                item.dataset.id = ast.id;
-                const avatarUrl = ast.avatarUrl;
-                const initials = ast.name.charAt(0);
-                const avatarElement = `
-                    <div class="astras-sidebar-avatar">
-                        ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover rounded-full">` : initials}
-                    </div>`;
-                item.innerHTML = `
-                    <div class="flex items-center truncate flex-1">
-                        ${avatarElement}
-                        <span class="truncate pr-2 text-sm">${ast.name}</span>
-                    </div>
-                    <button class="astras-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--hover-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
-                    </button>
-                `;
-                let pressTimer = null;
-                let touchMoved = false;
-                const startPress = (e) => {
-                    if (window.innerWidth >= 768 || isSelectionMode) return;
-                    touchMoved = false;
-                    pressTimer = setTimeout(() => {
-                        e.preventDefault();
-                        showMobileContextMenuForAstras(ast.id);
-                        pressTimer = null;
-                    }, 500);
-                };
-                const cancelPress = () => {
-                    clearTimeout(pressTimer);
-                    pressTimer = null;
-                };
-                const handleClick = () => {
-                    if (pressTimer || !touchMoved) {
-                        cancelPress();
-                        if (isSelectionMode) return;
-                        setAstrasForConversation(ast.id);
-                        toggleSidebar(false);
-                    }
-                };
-                item.addEventListener('touchstart', startPress, { passive: true });
-                item.addEventListener('touchend', cancelPress);
-                item.addEventListener('touchmove', () => { touchMoved = true; cancelPress(); }, { passive: true });
-                item.addEventListener('mousedown', startPress);
-                item.addEventListener('mouseup', cancelPress);
-                item.addEventListener('mouseleave', cancelPress);
-                item.addEventListener('click', handleClick);
-                const optionsBtn = item.querySelector('.astras-options-btn');
-                optionsBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    createAstrasMenu(ast.id, optionsBtn);
-                });
-                ALL_ELEMENTS.astrasList.appendChild(item);
-            });
-        };
         const renderFolders = () => {
             ALL_ELEMENTS.folderList.innerHTML = '';
             folders.forEach(folder => {
@@ -545,7 +488,7 @@
                 conv.astrasId = astrasId;
                 await saveAppData();
                 renderAll();
-                updateInputState();
+                legacyRuntimeContext.resolveBinding('input.updateInputState')();
             }
         };
         const deactivateAstras = async () => {
@@ -554,7 +497,7 @@
                 conv.astrasId = null;
                 await saveAppData();
                 renderAll();
-                updateInputState();
+                legacyRuntimeContext.resolveBinding('input.updateInputState')();
                 showNotification(i18n[config.uiLanguage].astrasDeactivated || '已關閉 Astras。', 'success');
             }
         };
@@ -708,7 +651,7 @@
                 renderModelSwitcher();
                 renderCouncilControls();
                 renderInputIndicators();
-                updateInputState();
+                legacyRuntimeContext.resolveBinding('input.updateInputState')();
                 updateApiKeyWarningBadge();
             }
         };
@@ -857,7 +800,7 @@
             renderInputIndicators,
             renderCouncilControls,
             setupMessageIntersectionObserver,
-            updateInputState: () => updateInputState(),
+            updateInputState: () => legacyRuntimeContext.resolveBinding('input.updateInputState')(),
             scheduleFrame: (callback) => requestAnimationFrame(callback),
             isAutoScrolling: () => isAutoScrolling
         });
@@ -1064,6 +1007,11 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
 });
 
         import { createSubmitInputPreparationLifecycle } from '/src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
+        legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
+        legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
+        legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
+        legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => adjustTextareaHeight);
+        legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({
             elements: {
                 messageInput: ALL_ELEMENTS.messageInput
@@ -1074,7 +1022,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             getUploadedFiles: () => uploadedFiles,
             setUploadedFiles: (files) => { uploadedFiles = files; },
             getActiveConversation,
-            updateSubmitButtonState: (...args) => updateSubmitButtonState(...args),
+            updateSubmitButtonState: (...args) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(...args),
             getCouncilValidation,
             showNotification,
             renderCouncilControls,
@@ -1083,14 +1031,14 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             addMessageToUI,
             renderHistorySidebar,
             getAutoNaming: () => config.autoNaming,
-            generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
+            generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
             saveAppData,
             getAutoWebSearchEnabled: () => config.enableAutoWebSearch,
-            shouldPerformWebSearch: (...args) => shouldPerformWebSearch(...args),
+            shouldPerformWebSearch: (...args) => legacyRuntimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
             getAutoSearchNotice: () => i18n[config.uiLanguage].autoSearchNotice || '偵測到問題需要連網搜索，已自動開啟。',
             renderInputIndicators,
-            adjustTextareaHeight: (...args) => adjustTextareaHeight(...args),
-            renderFilePreviews: (...args) => renderFilePreviews(...args),
+            adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
+            renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
             requestFrame: (callback) => requestAnimationFrame(callback)
         });
 
@@ -1189,7 +1137,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                 const lastMessageElement = runSubmitFinalCleanupLifecycle(
                     () => singleModelResponseLifecycle.stop(),
                     () => { isCouncilRunning = false; abortController = null; },
-                    updateSubmitButtonState, updateInputState, renderCouncilControls, renderInputIndicators,
+                    updateSubmitButtonState, (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args), renderCouncilControls, renderInputIndicators,
                     () => ALL_ELEMENTS.messageList.lastElementChild
                 );
                 applyModelMessagePostResponseActions({

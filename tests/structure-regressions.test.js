@@ -5,6 +5,144 @@ import test from 'node:test';
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
+const findMatchingBrace = (source, openIndex) => {
+  let state = 'code';
+  let depth = 0;
+  for (let index = openIndex; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    const previous = source[index - 1];
+    if (state === 'code') {
+      if (char === '/' && next === '/') {
+        state = 'line-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '/' && next === '*') {
+        state = 'block-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        state = 'double-quote';
+        continue;
+      }
+      if (char === "'") {
+        state = 'single-quote';
+        continue;
+      }
+      if (char === '`') {
+        state = 'template';
+        continue;
+      }
+      if (char === '{') {
+        depth += 1;
+      } else if (char === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          return index;
+        }
+      }
+    } else if (state === 'line-comment') {
+      if (char === '\n') state = 'code';
+    } else if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        state = 'code';
+        index += 1;
+      }
+    } else if (state === 'double-quote') {
+      if (char === '"' && previous !== '\\') state = 'code';
+    } else if (state === 'single-quote') {
+      if (char === "'" && previous !== '\\') state = 'code';
+    } else if (state === 'template') {
+      if (char === '`' && previous !== '\\') state = 'code';
+    }
+  }
+  return -1;
+};
+
+const findCrossFragmentBracePairs = (fragments) => {
+  const offsets = [];
+  let combined = '';
+  for (const fragment of fragments) {
+    offsets.push(combined.length);
+    combined += `${fragment.source}\n`;
+  }
+  const findFragmentAt = (index) => {
+    let fragmentIndex = 0;
+    for (let cursor = 0; cursor < offsets.length; cursor += 1) {
+      if (index >= offsets[cursor]) fragmentIndex = cursor;
+    }
+    const fragment = fragments[fragmentIndex];
+    const relativeIndex = index - offsets[fragmentIndex];
+    return {
+      name: fragment.name,
+      index: fragmentIndex,
+      line: fragment.source.slice(0, relativeIndex).split(/\r?\n/).length
+    };
+  };
+
+  const stack = [];
+  const pairs = [];
+  let state = 'code';
+  for (let index = 0; index < combined.length; index += 1) {
+    const char = combined[index];
+    const next = combined[index + 1];
+    const previous = combined[index - 1];
+    if (state === 'code') {
+      if (char === '/' && next === '/') {
+        state = 'line-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '/' && next === '*') {
+        state = 'block-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        state = 'double-quote';
+        continue;
+      }
+      if (char === "'") {
+        state = 'single-quote';
+        continue;
+      }
+      if (char === '`') {
+        state = 'template';
+        continue;
+      }
+      if (char === '{') {
+        stack.push(index);
+      } else if (char === '}') {
+        const openIndex = stack.pop();
+        if (openIndex !== undefined) {
+          const open = findFragmentAt(openIndex);
+          const close = findFragmentAt(index);
+          if (open.index !== close.index) {
+            pairs.push({ open, close });
+          }
+        }
+      }
+    } else if (state === 'line-comment') {
+      if (char === '\n') state = 'code';
+    } else if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        state = 'code';
+        index += 1;
+      }
+    } else if (state === 'double-quote') {
+      if (char === '"' && previous !== '\\') state = 'code';
+    } else if (state === 'single-quote') {
+      if (char === "'" && previous !== '\\') state = 'code';
+    } else if (state === 'template') {
+      if (char === '`' && previous !== '\\') state = 'code';
+    }
+  }
+
+  return pairs;
+};
+
 test('legacy runtime fragments keep the numeric filename ordering contract', () => {
   const fragmentNames = readdirSync(projectFile('src/app/legacy-runtime/fragments'))
     .filter((name) => name.endsWith('.fragment.js'))
@@ -37,6 +175,156 @@ test('legacy runtime fragments exist and are not empty', () => {
   }
 });
 
+test('legacy runtime adjacent fragments do not contain cross-fragment brace continuations', () => {
+  const fragments = [
+    '00-runtime.fragment.js',
+    '01-runtime.fragment.js',
+    '02-runtime.fragment.js',
+    '03-runtime.fragment.js',
+    '04-runtime.fragment.js',
+    '05-runtime.fragment.js',
+    '06-runtime.fragment.js'
+  ].map((name) => ({
+    name,
+    source: readSource(`src/app/legacy-runtime/fragments/${name}`)
+  }));
+
+  const crossFragmentPairs = findCrossFragmentBracePairs(fragments);
+  assert.deepEqual(
+    crossFragmentPairs,
+    [],
+    `cross-fragment brace continuations remain: ${crossFragmentPairs.map(({ open, close }) => `${open.name}:${open.line}->${close.name}:${close.line}`).join(', ')}`
+  );
+});
+
+test('sidebar Astras lifecycle breaks the 00 to 01 renderAstras continuation boundary', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarAstrasSource = readSource('src/app/legacy-runtime/features/sidebar-astras-lifecycle.js');
+
+  assert.match(sidebarAstrasSource, /export\s+function\s+createSidebarAstrasLifecycle/);
+  assert.match(fragment00Source, /createSidebarAstrasLifecycle\(\{/);
+  assert.match(fragment00Source, /const\s+renderAstras\s*=\s*\(\.\.\.args\)\s*=>\s*sidebarAstrasLifecycle\.renderAstras\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment00Source, /astras\.forEach\(ast\s*=>/);
+  assert.doesNotMatch(fragment01Source, /^\s*astras\.forEach\(ast\s*=>/);
+
+  const renderAstrasStart = fragment00Source.indexOf('const renderAstras =');
+  assert.notEqual(renderAstrasStart, -1, '00 should still expose a renderAstras binding');
+  const renderAstrasStatementEnd = fragment00Source.indexOf(';', renderAstrasStart);
+  assert.notEqual(renderAstrasStatementEnd, -1, 'renderAstras binding should end inside 00');
+  assert.ok(
+    renderAstrasStatementEnd < fragment00Source.length,
+    'renderAstras binding should not need 01 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment00Source.slice(renderAstrasStart, renderAstrasStatementEnd),
+    /=>\s*\{/,
+    'renderAstras should not reopen an inline body in 00'
+  );
+
+  const combinedStart = `${fragment00Source}\n`.length;
+  const concatenated = `${fragment00Source}\n${fragment01Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', renderAstrasStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderAstrasStatementEnd);
+});
+
+test('model usage chart lifecycle breaks the 03 to 04 renderModelUsageChart continuation boundary', () => {
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const chartLifecycleSource = readSource('src/app/legacy-runtime/features/model-usage-chart-lifecycle.js');
+
+  assert.match(chartLifecycleSource, /export\s+function\s+createModelUsageChartLifecycle/);
+  assert.match(fragment03Source, /createModelUsageChartLifecycle\(\{/);
+  assert.match(fragment03Source, /const\s+renderModelUsageChart\s*=\s*\(\.\.\.args\)\s*=>\s*modelUsageChartLifecycle\.renderModelUsageChart\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment03Source, /modelPieChart\s*=\s*new Chart\(ctx,/);
+  assert.doesNotMatch(fragment04Source, /^\s*const\s+ctx\s*=\s*document\.getElementById\('model-usage-pie-chart'\)\.getContext\('2d'\);/);
+
+  const renderChartStart = fragment03Source.indexOf('const renderModelUsageChart =');
+  assert.notEqual(renderChartStart, -1, '03 should still expose a renderModelUsageChart binding');
+  const renderChartStatementEnd = fragment03Source.indexOf(';', renderChartStart);
+  assert.notEqual(renderChartStatementEnd, -1, 'renderModelUsageChart binding should end inside 03');
+  assert.ok(
+    renderChartStatementEnd < fragment03Source.length,
+    'renderModelUsageChart binding should not need 04 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment03Source.slice(renderChartStart, renderChartStatementEnd),
+    /=>\s*\{/,
+    'renderModelUsageChart should not reopen an inline body in 03'
+  );
+
+  const combinedStart = `${fragment03Source}\n`.length;
+  const concatenated = `${fragment03Source}\n${fragment04Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', renderChartStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderChartStatementEnd);
+});
+
+test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary', () => {
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const batchActionBarSource = readSource('src/app/legacy-runtime/features/batch-action-bar-lifecycle.js');
+
+  assert.match(batchActionBarSource, /export\s+function\s+createBatchActionBarLifecycle/);
+  assert.match(fragment02Source, /createBatchActionBarLifecycle\(\{/);
+  assert.match(fragment02Source, /const\s+renderBatchActionBar\s*=\s*\(\.\.\.args\)\s*=>\s*batchActionBarLifecycle\.renderBatchActionBar\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment02Source, /const\s+\{\s*batchActionBar,\s*userControls,\s*selectionCount,\s*batchDeleteBtn,\s*batchArchiveBtn,\s*batchMoveBtn\s*\}\s*=\s*ALL_ELEMENTS;/);
+  assert.doesNotMatch(fragment03Source, /^\s*userControls\.classList\.add\('hidden'\);/);
+
+  const renderBatchStart = fragment02Source.indexOf('const renderBatchActionBar =');
+  assert.notEqual(renderBatchStart, -1, '02 should still expose a renderBatchActionBar binding');
+  const renderBatchStatementEnd = fragment02Source.indexOf(';', renderBatchStart);
+  assert.notEqual(renderBatchStatementEnd, -1, 'renderBatchActionBar binding should end inside 02');
+  assert.ok(
+    renderBatchStatementEnd < fragment02Source.length,
+    'renderBatchActionBar binding should not need 03 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment02Source.slice(renderBatchStart, renderBatchStatementEnd),
+    /=>\s*\{/,
+    'renderBatchActionBar should not reopen an inline body in 02'
+  );
+
+  const combinedStart = `${fragment02Source}\n`.length;
+  const concatenated = `${fragment02Source}\n${fragment03Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', renderBatchStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderBatchStatementEnd);
+});
+
+test('received data lifecycle breaks the 05 to 06 processReceivedData continuation boundary', () => {
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const receivedDataSource = readSource('src/app/legacy-runtime/features/received-data-lifecycle.js');
+
+  assert.match(receivedDataSource, /export\s+function\s+createReceivedDataLifecycle/);
+  assert.match(fragment05Source, /createReceivedDataLifecycle\(\{/);
+  assert.match(fragment05Source, /const\s+processReceivedData\s*=\s*\(\.\.\.args\)\s*=>\s*receivedDataLifecycle\.processReceivedData\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment05Source, /const\s+zip\s*=\s*await\s+JSZip\.loadAsync\(blob\);/);
+  assert.doesNotMatch(fragment06Source, /^\s*showNotification\(`成功接收 \$\{count\} 個 Astras！`, 'success'\);/);
+
+  const processStart = fragment05Source.indexOf('const processReceivedData =');
+  assert.notEqual(processStart, -1, '05 should still expose a processReceivedData binding');
+  const processStatementEnd = fragment05Source.indexOf(';', processStart);
+  assert.notEqual(processStatementEnd, -1, 'processReceivedData binding should end inside 05');
+  assert.ok(
+    processStatementEnd < fragment05Source.length,
+    'processReceivedData binding should not need 06 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment05Source.slice(processStart, processStatementEnd),
+    /=>\s*\{/,
+    'processReceivedData should not reopen an inline body in 05'
+  );
+
+  const combinedStart = `${fragment05Source}\n`.length;
+  const concatenated = `${fragment05Source}\n${fragment06Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', processStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > processStatementEnd);
+});
+
 test('app shell imports and preserves critical DOM IDs', async () => {
   const { default: appShell } = await import(projectFile('src/templates/app-shell.js'));
 
@@ -63,20 +351,42 @@ test('app shell imports and preserves critical DOM IDs', async () => {
 });
 
 test('settings sidebar button remains wired to initialize and open the settings modal', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
 
   assert.match(fragment02Source, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(fragment02Source, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(fragment02Source, /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/);
+  assert.match(fragment02Source, /legacyRuntimeContext\.registerLazyBinding\('input\.updateInputState',\s*\(\)\s*=>\s*updateInputState\);/);
   assert.match(fragment02Source, /const\s+getTavilySearchDepth\s*=\s*\(\)\s*=>\s*config\.tavilySearchDepth\s*===\s*'advanced'\s*\?\s*'advanced'\s*:\s*'basic';/);
   assert.match(fragment02Source, /ALL_ELEMENTS\.tavilySearchDepthSelect\.value\s*=\s*getTavilySearchDepth\(\);/);
+  assert.match(fragment03Source, /const\s+resolveSearchSetupSettingsModal\s*=\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\);/);
+  assert.match(fragment05Source, /const\s+resolveEventsSetupSettingsModal\s*=\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\);/);
+  for (const [source, fragmentLabel, resolverName] of [
+    [fragment00Source, '00', 'resolveFoundationUpdateInputState'],
+    [fragment03Source, '03', 'resolveUploadUpdateInputState'],
+    [fragment05Source, '05', 'resolveEventsUpdateInputState']
+  ]) {
+    assert.match(
+      source,
+      new RegExp(`const\\s+${resolverName}\\s*=\\s*\\(\\.\\.\\.args\\)\\s*=>\\s*legacyRuntimeContext\\.resolveBinding\\('input\\.updateInputState'\\)\\(\\.\\.\\.args\\);`),
+      `${fragmentLabel} should resolve updateInputState lazily`
+    );
+  }
+  assert.doesNotMatch(fragment01Source, /const\s+resolveMainUpdateInputState\b/);
+  assert.doesNotMatch(fragment04Source, /const\s+resolveTrashUpdateInputState\b/);
+  assert.match(fragment01Source, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
+  assert.match(fragment04Source, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
   assert.match(
     fragment05Source,
-    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*setupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
+    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*resolveEventsSetupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
   );
   assert.match(fragment05Source, /ALL_ELEMENTS\.closeSettingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*false\)\);/);
-  assert.match(fragment01Source, /updateInputState:\s*\(\)\s*=>\s*updateInputState\(\)/);
+  assert.match(fragment01Source, /updateInputState:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\)/);
   assert.doesNotMatch(fragment01Source, /createMessageListLifecycle\(\{[\s\S]*\n\s*updateInputState,\s*\n[\s\S]*\}\);/);
 });
 
@@ -624,14 +934,24 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
 });
 
 test('response progress renderers and submit preparation are isolated from the 01 runtime shell', async () => {
+  const runtimeContextSource = readSource('src/app/legacy-runtime/runtime/legacy-runtime-context.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const progressSource = readSource('src/app/legacy-runtime/features/response-progress-renderers.js');
   const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtimeContextHelpers = await import(projectFile('src/app/legacy-runtime/runtime/legacy-runtime-context.js'));
   const progressHelpers = await import(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js'));
   const submitPrepHelpers = await import(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js'));
 
+  assert.equal(typeof runtimeContextHelpers.createLegacyRuntimeContext, 'function');
   assert.equal(typeof progressHelpers.createResponseProgressRenderers, 'function');
   assert.equal(typeof submitPrepHelpers.createSubmitInputPreparationLifecycle, 'function');
+  assert.match(runtimeContextSource, /export\s+function\s+createLegacyRuntimeContext\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*createLegacyRuntimeContext\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/runtime\/legacy-runtime-context\.js';/
+  );
+  assert.match(fragment00Source, /const\s+legacyRuntimeContext\s*=\s*createLegacyRuntimeContext\(\);/);
   assert.match(progressSource, /export\s+function\s+createResponseProgressRenderers\b/);
   assert.match(submitPrepSource, /export\s+function\s+createSubmitInputPreparationLifecycle\b/);
   assert.match(
@@ -646,11 +966,26 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.match(fragment01Source, /submitInputPreparationLifecycle\s*=\s*createSubmitInputPreparationLifecycle\(\{/);
   assert.match(fragment01Source, /const\s+preparedSubmit\s*=\s*await\s+submitInputPreparationLifecycle\.prepareSubmitResponse\(\);/);
   assert.match(fragment01Source, /if\s*\(!preparedSubmit\.shouldContinue\)\s*return;/);
-  assert.match(fragment01Source, /updateSubmitButtonState:\s*\(\.\.\.args\)\s*=>\s*updateSubmitButtonState\(\.\.\.args\)/);
-  assert.match(fragment01Source, /generateTitleAndSummary:\s*\(\.\.\.args\)\s*=>\s*generateTitleAndSummary\(\.\.\.args\)/);
-  assert.match(fragment01Source, /shouldPerformWebSearch:\s*\(\.\.\.args\)\s*=>\s*shouldPerformWebSearch\(\.\.\.args\)/);
-  assert.match(fragment01Source, /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*adjustTextareaHeight\(\.\.\.args\)/);
-  assert.match(fragment01Source, /renderFilePreviews:\s*\(\.\.\.args\)\s*=>\s*renderFilePreviews\(\.\.\.args\)/);
+  for (const bindingName of [
+    'updateSubmitButtonState',
+    'generateTitleAndSummary',
+    'shouldPerformWebSearch',
+    'adjustTextareaHeight',
+    'renderFilePreviews'
+  ]) {
+    assert.match(
+      fragment01Source,
+      new RegExp(`registerLazyBinding\\('submit\\.${bindingName}',\\s*\\(\\)\\s*=>\\s*${bindingName}\\)`)
+    );
+    assert.match(
+      fragment01Source,
+      new RegExp(`${bindingName}:\\s*\\(\\.\\.\\.args\\)\\s*=>\\s*legacyRuntimeContext\\.resolveBinding\\('submit\\.${bindingName}'\\)\\(\\.\\.\\.args\\)`)
+    );
+    assert.doesNotMatch(
+      fragment01Source,
+      new RegExp(`\\n\\s*${bindingName},\\s*\\n`)
+    );
+  }
   assert.match(fragment01Source, /if\s*\(responseUsesCouncil\)\s*\{[\s\S]*runCouncilResponseRenderLifecycle\(\{/);
   assert.match(fragment01Source, /\}\s*else\s*\{[\s\S]*singleModelResponseLifecycle\.run\(\{/);
 
@@ -674,7 +1009,8 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.doesNotMatch(`${progressSource}\n${submitPrepSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 116 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 80 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
 });
 
 test('model switcher preparation and lifecycle are isolated from the 01 runtime shell', async () => {
@@ -809,7 +1145,7 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
   );
   assert.match(fragment01Source, /const\s+lastMessageElement\s*=\s*runSubmitFinalCleanupLifecycle\(\s*\(\)\s*=>\s*singleModelResponseLifecycle\.stop\(\),/);
   assert.match(fragment01Source, /\(\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*\},/);
-  assert.match(fragment01Source, /updateSubmitButtonState,\s*updateInputState,\s*renderCouncilControls,\s*renderInputIndicators,/);
+  assert.match(fragment01Source, /updateSubmitButtonState,\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\.\.\.args\),\s*renderCouncilControls,\s*renderInputIndicators,/);
   assert.match(fragment01Source, /\(\)\s*=>\s*ALL_ELEMENTS\.messageList\.lastElementChild/);
   assert.doesNotMatch(
     fragment01Source,
