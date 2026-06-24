@@ -381,15 +381,16 @@ test('streaming council details helpers are isolated from the 01 runtime fragmen
   );
   assert.match(fragment01Source, /getOpenCouncilDetailKeys\(targetElement\)/);
   assert.match(fragment01Source, /restoreOpenCouncilDetails\(targetElement,\s*openKeys\)/);
-  assert.match(fragment01Source, /normalizeCouncilComparisonDetails\(finalizedText\)/);
-  assert.match(fragment01Source, /hasUnclosedCouncilDetails\(renderText\)/);
+  assert.match(helperSource, /normalizeCouncilComparisonDetails\b/);
+  assert.match(helperSource, /hasUnclosedCouncilDetails\b/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+getOpenCouncilDetailKeys\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+restoreOpenCouncilDetails\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+isCouncilComparisonSummary\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+normalizeCouncilComparisonDetails\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+hasUnclosedCouncilDetails\s*=/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
-  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.match(fragment01Source, /createStreamingMarkdownFeature\(\{/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
+  assert.doesNotMatch(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
   assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
   assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
@@ -400,46 +401,83 @@ test('streaming markdown render state helper is isolated from the 01 runtime ren
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-markdown-render-state.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-render-state.js'));
 
   assert.equal(typeof helpers.createStreamingMarkdownRenderState, 'function');
   assert.match(helperSource, /export\s+function\s+createStreamingMarkdownRenderState\b/);
   assert.match(
-    fragment00Source,
-    /import\s*\{[\s\S]*\bcreateStreamingMarkdownRenderState\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-markdown-render-state\.js';/
+    rendererSource,
+    /import\s*\{\s*createStreamingMarkdownRenderState\s*\}\s*from\s+'\.\/streaming-markdown-render-state\.js';/
   );
-  assert.match(fragment01Source, /const\s+renderState\s*=\s*createStreamingMarkdownRenderState\(\);/);
-  assert.match(fragment01Source, /renderState\.appendText\(chunk\)/);
-  assert.match(fragment01Source, /renderState\.flushPending\(\{\s*force\s*\}\)/);
-  assert.match(fragment01Source, /renderState\.syncCurrentLine\(\)/);
-  assert.match(fragment01Source, /renderState\.finalize\(\)/);
-  assert.match(fragment01Source, /renderState\.getText\(\)/);
+  assert.doesNotMatch(fragment00Source, /import\s*\{[^}]*\bcreateStreamingMarkdownRenderState\b/);
+  assert.match(rendererSource, /const\s+renderState\s*=\s*createStreamingMarkdownRenderState\(\);/);
+  assert.match(rendererSource, /renderState\.appendText\(chunk\)/);
+  assert.match(rendererSource, /renderState\.flushPending\(\{\s*force\s*\}\)/);
+  assert.match(rendererSource, /renderState\.syncCurrentLine\(\)/);
+  assert.match(rendererSource, /renderState\.finalize\(\)/);
+  assert.match(rendererSource, /renderState\.getText\(\)/);
   assert.doesNotMatch(
     fragment01Source,
     /let\s+fullText\s*=\s*'';\s*let\s+finalizedText\s*=\s*'';\s*let\s+pendingText\s*=\s*'';\s*let\s+currentLineText\s*=\s*'';\s*let\s+isFinalized\s*=\s*false;/s
   );
-  assert.match(fragment01Source, /document\.createElement\('div'\)/);
-  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*''/);
-  assert.match(fragment01Source, /currentLineNode\.innerHTML\s*=\s*''/);
-  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
-  assert.match(fragment01Source, /renderMarkdown\(/);
-  assert.match(fragment01Source, /targetElement\.classList\.add\('is-streaming-response'\)/);
-  assert.match(fragment01Source, /isChatNearBottom\(\)/);
-  assert.match(fragment01Source, /keepChatPositionAfterRender\(shouldStick,\s*previousTop\)/);
+  assert.doesNotMatch(fragment01Source, /currentLineNode\.innerHTML\s*=\s*''/);
+  assert.doesNotMatch(fragment01Source, /streaming-markdown-root/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas,/);
+  assert.match(fragment01Source, /renderMarkdown,/);
+  assert.match(fragment01Source, /\bisChatNearBottom,/);
+  assert.match(fragment01Source, /\bkeepChatPositionAfterRender,/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
   assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('streaming markdown renderer and response core is isolated from the 01 runtime fragment', async () => {
+  const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js'));
+
+  assert.equal(typeof helpers.createStreamingMarkdownFeature, 'function');
+  assert.match(rendererSource, /export\s+function\s+createStreamingMarkdownFeature\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*createStreamingMarkdownFeature\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-markdown-renderer\.js';/
+  );
+  assert.match(fragment01Source, /}\s*=\s*createStreamingMarkdownFeature\(\{/);
+  assert.match(fragment01Source, /\bdocument,/);
+  assert.match(fragment01Source, /\brenderMarkdown,/);
+  assert.match(fragment01Source, /\brenderMarkdownWithFormulas,/);
+  assert.match(fragment01Source, /\bisChatNearBottom,/);
+  assert.match(fragment01Source, /\bkeepChatPositionAfterRender,/);
+  assert.match(fragment01Source, /scheduleFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
+  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(resolve\s*=>\s*setTimeout\(resolve,\s*16\)\)/);
+  assert.match(fragment01Source, /getStreamErrorText:\s*\(error\)\s*=>/);
+
+  assert.doesNotMatch(fragment01Source, /const\s+renderFinalized\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+appendFadedText\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+flushPendingLines\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+ensureRenderer\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.doesNotMatch(fragment01Source, /targetElement\.dataset\.streamRendered\s*=\s*'true'/);
+  assert.doesNotMatch(fragment01Source, /streaming-markdown-finalized/);
+  assert.doesNotMatch(fragment01Source, /streaming-current-line/);
+
+  assert.match(fragment01Source, /const\s+playbackStreamingMarkdownResponse\s*=/);
+  assert.match(fragment01Source, /createStreamingMarkdownRenderer\(targetElement,\s*\{\s*preserveCouncilDetails\s*\}\)/);
+  assert.match(fragment01Source, /fullResponse\s*=\s*await\s+streamMarkdownResponse\(/);
+  assert.match(fragment01Source, /renderIncrementalResponse\(contentDiv,\s*fullResponse,/);
+  assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 140 * 1024);
 });
 
 test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
-  const streamResponseSource = fragment01Source.slice(
-    fragment01Source.indexOf('async function streamMarkdownResponse'),
-    fragment01Source.indexOf('const playbackStreamingMarkdownResponse')
-  );
 
   assert.equal(typeof helpers.createStreamingTextFrameQueue, 'function');
   assert.match(helperSource, /export\s+function\s+createStreamingTextFrameQueue\b/);
@@ -447,23 +485,23 @@ test('streaming text frame queue helper is isolated from the 01 runtime stream r
     fragment00Source,
     /import\s*\{[\s\S]*\bcreateStreamingTextFrameQueue\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-text-frame-queue\.js';/
   );
-  assert.match(fragment01Source, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
-  assert.match(fragment01Source, /drainText:\s*\(chunkToRender\)\s*=>\s*ensureRenderer\(\)\.appendText\(chunkToRender\)/);
-  assert.match(fragment01Source, /onFirstChunk:\s*\(\)\s*=>\s*options\.onFirstChunk\?\.\(\)/);
-  assert.match(fragment01Source, /scheduleFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
-  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(resolve\s*=>\s*setTimeout\(resolve,\s*16\)\)/);
-  assert.match(fragment01Source, /frameQueue\.enqueue\(chunk\)/);
-  assert.match(fragment01Source, /await\s+frameQueue\.flushUntilIdle\(\)/);
-  assert.doesNotMatch(streamResponseSource, /\blet\s+textQueue\s*=/);
-  assert.doesNotMatch(streamResponseSource, /\blet\s+isFrameRequested\s*=/);
-  assert.doesNotMatch(streamResponseSource, /\blet\s+hasReceivedFirstChunk\s*=/);
-  assert.doesNotMatch(streamResponseSource, /\bconst\s+renderFrame\s*=/);
-  assert.match(fragment01Source, /await\s+streamApiCallFn\(onChunkReceived\)/);
-  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*options\.placeholderHTML/);
-  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*renderMarkdown\(/);
-  assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
-  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(rendererSource, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.match(rendererSource, /drainText:\s*\(chunkToRender\)\s*=>\s*ensureRenderer\(\)\.appendText\(chunkToRender\)/);
+  assert.match(rendererSource, /onFirstChunk:\s*\(\)\s*=>\s*options\.onFirstChunk\?\.\(\)/);
+  assert.match(rendererSource, /scheduleFrame,/);
+  assert.match(rendererSource, /waitForFrame/);
+  assert.match(rendererSource, /frameQueue\.enqueue\(chunk\)/);
+  assert.match(rendererSource, /await\s+frameQueue\.flushUntilIdle\(\)/);
+  assert.doesNotMatch(rendererSource, /\blet\s+textQueue\s*=/);
+  assert.doesNotMatch(rendererSource, /\blet\s+isFrameRequested\s*=/);
+  assert.doesNotMatch(rendererSource, /\blet\s+hasReceivedFirstChunk\s*=/);
+  assert.doesNotMatch(rendererSource, /\bconst\s+renderFrame\s*=/);
+  assert.match(rendererSource, /await\s+streamApiCallFn\(\(chunk\)\s*=>\s*\{/);
+  assert.match(rendererSource, /targetElement\.innerHTML\s*=\s*options\.placeholderHTML/);
+  assert.match(rendererSource, /targetElement\.innerHTML\s*=\s*renderMarkdown\(/);
+  assert.match(rendererSource, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.doesNotMatch(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
@@ -533,7 +571,8 @@ test('typewriter playback controller is isolated from the 01 runtime playback lo
   assert.doesNotMatch(playbackStreamingSource, /\bconst\s+type\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(playbackStreamingSource, /setTimeout\(type,\s*typingSpeed\)/);
   assert.match(fragment01Source, /const\s+renderIncrementalResponse\s*=/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /createStreamingMarkdownRenderer,\s*\n\s*streamMarkdownResponse/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
   assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
   assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
   assert.match(fragment01Source, /isCouncilDeferredSectionVisible\(currentText\)/);
@@ -559,7 +598,8 @@ test('renderer gradual append controller is isolated from the 01 runtime RAF app
   assert.match(fragment01Source, /appendRendererTextGradually\(\s*realtimeCouncilRenderer,\s*remainingCouncilText,\s*abortController\.signal,\s*18,\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)\s*\)/);
   assert.doesNotMatch(fragment01Source, /const\s+appendRendererTextGradually\s*=\s*async/);
   assert.doesNotMatch(submitFlowSource, /for\s*\(\s*let\s+index\s*=\s*0;\s*index\s*<\s*source\.length[\s\S]*renderer\.appendText\(source\.slice\(index,\s*index\s*\+\s*chunkSize\)\)[\s\S]*requestAnimationFrame\(resolve\)/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /createStreamingMarkdownRenderer,\s*\n\s*streamMarkdownResponse/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
   assert.match(fragment01Source, /renderer\.appendText\(chunk\)/);
   assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
