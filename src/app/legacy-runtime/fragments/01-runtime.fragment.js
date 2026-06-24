@@ -1064,6 +1064,11 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
 });
 
         import { createSubmitInputPreparationLifecycle } from '/src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
+        legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
+        legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
+        legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
+        legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => adjustTextareaHeight);
+        legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({
             elements: {
                 messageInput: ALL_ELEMENTS.messageInput
@@ -1074,7 +1079,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             getUploadedFiles: () => uploadedFiles,
             setUploadedFiles: (files) => { uploadedFiles = files; },
             getActiveConversation,
-            updateSubmitButtonState: (...args) => updateSubmitButtonState(...args),
+            updateSubmitButtonState: (...args) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(...args),
             getCouncilValidation,
             showNotification,
             renderCouncilControls,
@@ -1083,14 +1088,14 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             addMessageToUI,
             renderHistorySidebar,
             getAutoNaming: () => config.autoNaming,
-            generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
+            generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
             saveAppData,
             getAutoWebSearchEnabled: () => config.enableAutoWebSearch,
-            shouldPerformWebSearch: (...args) => shouldPerformWebSearch(...args),
+            shouldPerformWebSearch: (...args) => legacyRuntimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
             getAutoSearchNotice: () => i18n[config.uiLanguage].autoSearchNotice || '偵測到問題需要連網搜索，已自動開啟。',
             renderInputIndicators,
-            adjustTextareaHeight: (...args) => adjustTextareaHeight(...args),
-            renderFilePreviews: (...args) => renderFilePreviews(...args),
+            adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
+            renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
             requestFrame: (callback) => requestAnimationFrame(callback)
         });
 

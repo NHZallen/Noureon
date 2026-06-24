@@ -624,14 +624,24 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
 });
 
 test('response progress renderers and submit preparation are isolated from the 01 runtime shell', async () => {
+  const runtimeContextSource = readSource('src/app/legacy-runtime/runtime/legacy-runtime-context.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const progressSource = readSource('src/app/legacy-runtime/features/response-progress-renderers.js');
   const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtimeContextHelpers = await import(projectFile('src/app/legacy-runtime/runtime/legacy-runtime-context.js'));
   const progressHelpers = await import(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js'));
   const submitPrepHelpers = await import(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js'));
 
+  assert.equal(typeof runtimeContextHelpers.createLegacyRuntimeContext, 'function');
   assert.equal(typeof progressHelpers.createResponseProgressRenderers, 'function');
   assert.equal(typeof submitPrepHelpers.createSubmitInputPreparationLifecycle, 'function');
+  assert.match(runtimeContextSource, /export\s+function\s+createLegacyRuntimeContext\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*createLegacyRuntimeContext\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/runtime\/legacy-runtime-context\.js';/
+  );
+  assert.match(fragment00Source, /const\s+legacyRuntimeContext\s*=\s*createLegacyRuntimeContext\(\);/);
   assert.match(progressSource, /export\s+function\s+createResponseProgressRenderers\b/);
   assert.match(submitPrepSource, /export\s+function\s+createSubmitInputPreparationLifecycle\b/);
   assert.match(
@@ -646,11 +656,26 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.match(fragment01Source, /submitInputPreparationLifecycle\s*=\s*createSubmitInputPreparationLifecycle\(\{/);
   assert.match(fragment01Source, /const\s+preparedSubmit\s*=\s*await\s+submitInputPreparationLifecycle\.prepareSubmitResponse\(\);/);
   assert.match(fragment01Source, /if\s*\(!preparedSubmit\.shouldContinue\)\s*return;/);
-  assert.match(fragment01Source, /updateSubmitButtonState:\s*\(\.\.\.args\)\s*=>\s*updateSubmitButtonState\(\.\.\.args\)/);
-  assert.match(fragment01Source, /generateTitleAndSummary:\s*\(\.\.\.args\)\s*=>\s*generateTitleAndSummary\(\.\.\.args\)/);
-  assert.match(fragment01Source, /shouldPerformWebSearch:\s*\(\.\.\.args\)\s*=>\s*shouldPerformWebSearch\(\.\.\.args\)/);
-  assert.match(fragment01Source, /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*adjustTextareaHeight\(\.\.\.args\)/);
-  assert.match(fragment01Source, /renderFilePreviews:\s*\(\.\.\.args\)\s*=>\s*renderFilePreviews\(\.\.\.args\)/);
+  for (const bindingName of [
+    'updateSubmitButtonState',
+    'generateTitleAndSummary',
+    'shouldPerformWebSearch',
+    'adjustTextareaHeight',
+    'renderFilePreviews'
+  ]) {
+    assert.match(
+      fragment01Source,
+      new RegExp(`registerLazyBinding\\('submit\\.${bindingName}',\\s*\\(\\)\\s*=>\\s*${bindingName}\\)`)
+    );
+    assert.match(
+      fragment01Source,
+      new RegExp(`${bindingName}:\\s*\\(\\.\\.\\.args\\)\\s*=>\\s*legacyRuntimeContext\\.resolveBinding\\('submit\\.${bindingName}'\\)\\(\\.\\.\\.args\\)`)
+    );
+    assert.doesNotMatch(
+      fragment01Source,
+      new RegExp(`\\n\\s*${bindingName},\\s*\\n`)
+    );
+  }
   assert.match(fragment01Source, /if\s*\(responseUsesCouncil\)\s*\{[\s\S]*runCouncilResponseRenderLifecycle\(\{/);
   assert.match(fragment01Source, /\}\s*else\s*\{[\s\S]*singleModelResponseLifecycle\.run\(\{/);
 
@@ -674,7 +699,8 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.doesNotMatch(`${progressSource}\n${submitPrepSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 116 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 80 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
 });
 
 test('model switcher preparation and lifecycle are isolated from the 01 runtime shell', async () => {

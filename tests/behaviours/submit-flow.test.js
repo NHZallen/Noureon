@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createLegacyRuntimeContext } from '../../src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 import { createSubmitInputPreparationLifecycle } from '../../src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
 
 const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } = {}) => {
@@ -22,6 +23,13 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } 
   let shouldPerformWebSearch;
   let adjustTextareaHeight;
   let renderFilePreviews;
+  const runtimeContext = createLegacyRuntimeContext();
+
+  runtimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
+  runtimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
+  runtimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
+  runtimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => adjustTextareaHeight);
+  runtimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
 
   const preparation = createSubmitInputPreparationLifecycle({
     elements,
@@ -34,7 +42,7 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } 
     getUploadedFiles: () => [],
     setUploadedFiles: () => calls.push(['setUploadedFiles']),
     getActiveConversation: () => conversation,
-    updateSubmitButtonState: (...args) => updateSubmitButtonState(...args),
+    updateSubmitButtonState: (...args) => runtimeContext.resolveBinding('submit.updateSubmitButtonState')(...args),
     getCouncilValidation: () => ({ ok: true }),
     showNotification: () => {},
     renderCouncilControls: () => {},
@@ -50,14 +58,14 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } 
     },
     renderHistorySidebar: () => {},
     getAutoNaming: () => false,
-    generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
+    generateTitleAndSummary: (...args) => runtimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
     saveAppData: async () => {},
     getAutoWebSearchEnabled: () => false,
-    shouldPerformWebSearch: (...args) => shouldPerformWebSearch(...args),
+    shouldPerformWebSearch: (...args) => runtimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
     getAutoSearchNotice: () => 'auto search',
     renderInputIndicators: () => {},
-    adjustTextareaHeight: (...args) => adjustTextareaHeight(...args),
-    renderFilePreviews: (...args) => renderFilePreviews(...args),
+    adjustTextareaHeight: (...args) => runtimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
+    renderFilePreviews: (...args) => runtimeContext.resolveBinding('submit.renderFilePreviews')(...args),
     requestFrame: (callback) => callback()
   });
 
