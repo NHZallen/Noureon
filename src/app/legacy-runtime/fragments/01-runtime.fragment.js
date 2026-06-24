@@ -499,7 +499,7 @@
                 await saveAppData();
                 runtimeRenderCoordinator.renderAll();
                 legacyRuntimeContext.resolveBinding('input.updateInputState')();
-                showNotification(i18n[config.uiLanguage].astrasDeactivated || '已關閉 Astras。', 'success');
+                runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].astrasDeactivated || '已關閉 Astras。', 'success');
             }
         };
         const createAstras = async () => {
@@ -555,7 +555,7 @@
             });
             await saveAppData();
             runtimeRenderCoordinator.renderAll();
-            showNotification(i18n[config.uiLanguage].astrasDeleted || 'Astras 已刪除');
+            runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].astrasDeleted || 'Astras 已刪除');
         };
         const createAstrasMenu = (astrasId, targetButton) => {
             const existingPopover = document.getElementById('history-popover');

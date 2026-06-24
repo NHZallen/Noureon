@@ -416,6 +416,34 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   assert.match(deleteFolderBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderAll\(\);\s*showNotification\(i18n\[config\.uiLanguage\]\.folderDeleted,\s*'success'\);/);
 });
 
+test('runtime dialog coordinator owns selected notification call sites without replacing modal helpers', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
+  const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
+  const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
+  const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+
+  assert.match(coordinatorSource, /export\s+function\s+createRuntimeDialogCoordinator/);
+  assert.match(fragment00Source, /import\s+\{\s*createRuntimeDialogCoordinator\s*\}/);
+  assert.equal((fragment00Source.match(/createRuntimeDialogCoordinator\(\{/g) || []).length, 1);
+  assert.match(fragment00Source, /const\s+runtimeDialogCoordinator\s*=\s*createRuntimeDialogCoordinator\(\{/);
+  assert.match(fragment00Source, /showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/);
+  assert.match(fragment00Source, /const\s+showNotification\s*=\s*\(message,\s*type\s*=\s*'success'\)\s*=>\s*\{/);
+  assert.match(fragment00Source, /const\s+toggleModal\s*=\s*\(modalElement,\s*show\)\s*=>\s*\{/);
+  assert.match(fragment00Source, /const\s+showCustomConfirm\s*=\s*\(message,\s*title\s*=\s*'請確認'\)\s*=>\s*showCustomDialog\(/);
+  assert.match(fragment00Source, /const\s+showCustomPrompt\s*=\s*\(message,\s*title\s*=\s*'請輸入',\s*inputType\s*=\s*'text'\)\s*=>\s*showCustomDialog\(/);
+
+  for (const body of [deleteChatBody, deactivateAstrasBody, deleteAstrasBody]) {
+    assert.match(body, /runtimeDialogCoordinator\.showNotification\(/);
+    assert.doesNotMatch(body, /(^|[^\w.])showNotification\(/);
+  }
+
+  assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderAll\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[config\.uiLanguage\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
+  assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+});
+
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');

@@ -24,6 +24,7 @@ import { createModelUsageChartLifecycle } from '/src/app/legacy-runtime/features
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 import { createConversationStateAccess } from '/src/app/legacy-runtime/runtime/conversation-state-access.js';
 import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/runtime-render-coordinator.js';
+import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -1409,6 +1410,10 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             ALL_ELEMENTS.notificationContainer.appendChild(notification);
             setTimeout(() => { notification.remove(); }, 3000);
         };
+        const runtimeDialogCoordinator = createRuntimeDialogCoordinator({
+            showNotification: (...args) => showNotification(...args),
+            logger: console
+        });
         const toggleModal = (modalElement, show) => {
             if (!modalElement) return;
             const closeTimers = toggleModal.closeTimers || (toggleModal.closeTimers = new WeakMap());
@@ -1764,7 +1769,7 @@ function renderMarkdownWithFormulas(text) {
         else {
             runtimeRenderCoordinator.renderAll();
         }
-        showNotification(i18n[config.uiLanguage].chatMovedToTrash || '對話已移至垃圾桶。', 'success');
+        runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].chatMovedToTrash || '對話已移至垃圾桶。', 'success');
     }
 };
         const archiveChat = async (id, event) => {
