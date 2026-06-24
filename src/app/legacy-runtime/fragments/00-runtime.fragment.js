@@ -23,6 +23,7 @@ import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/s
 import { createModelUsageChartLifecycle } from '/src/app/legacy-runtime/features/model-usage-chart-lifecycle.js';
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 import { createConversationStateAccess } from '/src/app/legacy-runtime/runtime/conversation-state-access.js';
+import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/runtime-render-coordinator.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -1869,16 +1870,18 @@ function renderMarkdownWithFormulas(text) {
             if (conv) normalizeConversationModel(conv);
             return conv;
         };
-        const renderAll = () => {
-            renderHistorySidebar();
-            renderFolders();
-            renderAstras();
-            renderChat();
-            renderArchivedChats();
-            renderBatchActionBar();
-            renderFilePreviews();
-            applyLanguage(config.uiLanguage);
-        };
+        const runtimeRenderCoordinator = createRuntimeRenderCoordinator({
+            renderHistorySidebar: () => renderHistorySidebar(),
+            renderFolders: () => renderFolders(),
+            renderAstras: () => renderAstras(),
+            renderChat: () => renderChat(),
+            renderArchivedChats: () => renderArchivedChats(),
+            renderBatchActionBar: () => renderBatchActionBar(),
+            renderFilePreviews: () => renderFilePreviews(),
+            applyLanguage: () => applyLanguage(config.uiLanguage),
+            logger: console
+        });
+        const renderAll = (...args) => runtimeRenderCoordinator.renderAll(...args);
         const renderHistorySidebar = () => {
             ALL_ELEMENTS.historyList.innerHTML = '';
             const sortedConversations = conversations

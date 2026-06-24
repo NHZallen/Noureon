@@ -488,7 +488,7 @@
             if (conv) {
                 conv.astrasId = astrasId;
                 await saveAppData();
-                renderAll();
+                runtimeRenderCoordinator.renderAll();
                 legacyRuntimeContext.resolveBinding('input.updateInputState')();
             }
         };
@@ -497,7 +497,7 @@
             if (conv) {
                 conv.astrasId = null;
                 await saveAppData();
-                renderAll();
+                runtimeRenderCoordinator.renderAll();
                 legacyRuntimeContext.resolveBinding('input.updateInputState')();
                 showNotification(i18n[config.uiLanguage].astrasDeactivated || '已關閉 Astras。', 'success');
             }
@@ -554,7 +554,7 @@
                 if (c.astrasId === id) c.astrasId = null;
             });
             await saveAppData();
-            renderAll();
+            runtimeRenderCoordinator.renderAll();
             showNotification(i18n[config.uiLanguage].astrasDeleted || 'Astras 已刪除');
         };
         const createAstrasMenu = (astrasId, targetButton) => {

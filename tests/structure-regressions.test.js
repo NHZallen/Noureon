@@ -366,6 +366,34 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });
 
+test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-render-coordinator.js');
+  const setAstrasBody = getConstFunctionBody(fragment01Source, 'setAstrasForConversation');
+  const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
+  const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+
+  assert.match(coordinatorSource, /export\s+function\s+createRuntimeRenderCoordinator/);
+  assert.match(fragment00Source, /import\s+\{\s*createRuntimeRenderCoordinator\s*\}/);
+  assert.equal((fragment00Source.match(/createRuntimeRenderCoordinator\(\{/g) || []).length, 1);
+  assert.match(fragment00Source, /const\s+runtimeRenderCoordinator\s*=\s*createRuntimeRenderCoordinator\(\{/);
+  assert.match(fragment00Source, /renderHistorySidebar:\s*\(\)\s*=>\s*renderHistorySidebar\(\)/);
+  assert.match(fragment00Source, /renderFolders:\s*\(\)\s*=>\s*renderFolders\(\)/);
+  assert.match(fragment00Source, /renderAstras:\s*\(\)\s*=>\s*renderAstras\(\)/);
+  assert.match(fragment00Source, /renderChat:\s*\(\)\s*=>\s*renderChat\(\)/);
+  assert.match(fragment00Source, /renderArchivedChats:\s*\(\)\s*=>\s*renderArchivedChats\(\)/);
+  assert.match(fragment00Source, /renderBatchActionBar:\s*\(\)\s*=>\s*renderBatchActionBar\(\)/);
+  assert.match(fragment00Source, /renderFilePreviews:\s*\(\)\s*=>\s*renderFilePreviews\(\)/);
+  assert.match(fragment00Source, /applyLanguage:\s*\(\)\s*=>\s*applyLanguage\(config\.uiLanguage\)/);
+  assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
+
+  for (const body of [setAstrasBody, deactivateAstrasBody, deleteAstrasBody]) {
+    assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
+    assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
+  }
+});
+
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
