@@ -1033,6 +1033,23 @@ function setupMessageIntersectionObserver() {
             renderTrash();
             showNotification(i18n[config.uiLanguage].itemPermanentlyDeleted || '項目已永久刪除。', 'success');
         };
+        import { createMediaAttachmentRenderer as createTrashMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
+        import { createMediaPreviewLifecycle as createTrashMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        const {
+            getInlineMediaSrc: getTrashInlineMediaSrc,
+            renderMediaAttachmentGrid: renderTrashMediaAttachmentGrid
+        } = createTrashMediaAttachmentRenderer({ escapeHTML });
+        const {
+            bindMediaPreviewButtons: bindTrashMediaPreviewButtons
+        } = createTrashMediaPreviewLifecycle({
+            document,
+            navigator,
+            fetch,
+            File,
+            escapeHTML,
+            getInlineMediaSrc: getTrashInlineMediaSrc,
+            getUiLanguage: () => config.uiLanguage
+        });
         const showTrashItemInViewModal = (convId) => {
             const conv = conversations.find(c => c.id === convId);
             if (!conv) return;
@@ -1048,12 +1065,12 @@ function setupMessageIntersectionObserver() {
                     messageDiv.className = `flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
                     const mediaParts = msg.parts.filter(p => p.inlineData || p.fileData || p.video_url || p.image_url || p.file);
                     let contentHTML = msg.parts.map(p => p.text ? (isUser ? renderUserText(p.text) : renderMarkdownWithFormulas(p.text)) : '').join('');
-                    const mediaGridHTML = typeof renderMediaAttachmentGrid === 'function' ? renderMediaAttachmentGrid(mediaParts) : '';
+                    const mediaGridHTML = renderTrashMediaAttachmentGrid(mediaParts);
                     const messageBubble = contentHTML.trim()
                         ? `<div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble"><div class="prose prose-sm max-w-none message-content text-[var(--text-primary)]">${contentHTML}</div></div>`
                         : '';
                     messageDiv.innerHTML = `<div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">${mediaGridHTML}${messageBubble}</div>`;
-                    if (typeof bindMediaPreviewButtons === 'function') bindMediaPreviewButtons(messageDiv, mediaParts);
+                    bindTrashMediaPreviewButtons(messageDiv, mediaParts);
                     contentContainer.appendChild(messageDiv);
                 });
             }

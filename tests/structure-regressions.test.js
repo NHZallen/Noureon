@@ -159,6 +159,7 @@ test('main css is an ordered split manifest with every imported file under the s
 
 test('legacy provider request formatting helpers are isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/model-request-formatting.js');
+  const streamApiSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
   const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/model-request-formatting.js'));
 
@@ -173,8 +174,126 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
   }
 
   assert.match(fragmentSource, /import\s*\{[\s\S]*\bgetSearchCurrentDate\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-request-formatting\.js';/);
-  assert.match(fragmentSource, /appendStepPlanAttachmentContentBase\(content,\s*inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}\)/);
+  assert.doesNotMatch(fragmentSource, /appendStepPlanAttachmentContentBase/);
+  assert.match(
+    streamApiSource,
+    /import\s*\{\s*appendStepPlanAttachmentContent\s*\}\s*from\s+'\.\/model-request-formatting\.js';/
+  );
+  assert.match(streamApiSource, /appendStepPlanAttachmentContent\(\s*content,\s*part\.inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('stream API provider request and parser core is isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/stream-api-call.js'));
+
+  assert.equal(typeof helpers.createStreamApiCall, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamApiCall\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{\s*createStreamApiCall\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/stream-api-call\.js';/
+  );
+  assert.match(fragmentSource, /const\s+streamApiCall\s*=\s*createStreamApiCall\(\{/);
+  assert.match(fragmentSource, /\bgetActiveConversation,\s*\n\s*normalizeConversationModel,/);
+  assert.match(fragmentSource, /getConfig:\s*\(\)\s*=>\s*config/);
+  assert.match(fragmentSource, /getPersonalMemories:\s*\(\)\s*=>\s*personalMemories/);
+
+  assert.doesNotMatch(fragmentSource, /async\s+function\s+streamApiCall\b/);
+  assert.doesNotMatch(fragmentSource, /function\s+cleanGeminiHistory\b/);
+  assert.doesNotMatch(fragmentSource, /STEP_PLAN_CHAT_COMPLETIONS_URL/);
+  assert.doesNotMatch(fragmentSource, /openrouter\.ai\/api\/v1\/chat\/completions/);
+  assert.doesNotMatch(fragmentSource, /:streamGenerateContent\?key=/);
+  assert.doesNotMatch(fragmentSource, /\/api\/(?:step-plan|nvidia)-chat/);
+  assert.doesNotMatch(fragmentSource, /response\.body\.getReader\(\)/);
+  assert.doesNotMatch(fragmentSource, /new\s+TextDecoder\(\)/);
+  assert.doesNotMatch(fragmentSource, /line\.startsWith\('data: '\)/);
+  assert.doesNotMatch(fragmentSource, /parsed\?\.candidates\?\.\[0\]\?\.content\?\.parts\?\.\[0\]\?\.text/);
+
+  assert.match(fragmentSource, /function\s+calculateRelevanceScore\b/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/stream-api-call.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 130 * 1024);
+});
+
+test('provider request support helpers are isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/provider-request-support.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/provider-request-support.js'));
+
+  assert.equal(typeof helpers.createProviderRequestSupport, 'function');
+  assert.match(helperSource, /export\s+function\s+createProviderRequestSupport\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{\s*createProviderRequestSupport\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/provider-request-support\.js';/
+  );
+  assert.match(fragmentSource, /const\s+providerRequestSupport\s*=\s*createProviderRequestSupport\(\{/);
+  assert.match(fragmentSource, /buildTavilySearchQuery,/);
+  assert.match(fragmentSource, /formatTavilySearchPacket,/);
+  assert.match(fragmentSource, /streamApiCall,/);
+  assert.match(fragmentSource, /councilRetryDelayMs:\s*COUNCIL_RETRY_DELAY_MS/);
+  assert.match(fragmentSource, /buildSingleModelTranslatedRequestParts,[\s\S]*streamCouncilApiCallWithRetry,[\s\S]*truncateCouncilText[\s\S]*=\s*providerRequestSupport/);
+
+  for (const removedSupportCore of [
+    /const\s+waitCouncilRetryDelay\s*=/,
+    /const\s+streamCouncilApiCallWithRetry\s*=\s*async/,
+    /const\s+getUnsupportedSingleDocumentParts\s*=/,
+    /const\s+buildSingleDocumentTranslationPrompt\s*=/,
+    /const\s+getTavilyApiKey\s*=/,
+    /const\s+fetchTavilySearchPacket\s*=\s*async/,
+    /const\s+buildTavilyContextPart\s*=/,
+    /const\s+buildSingleSearchTranslationPrompt\s*=/,
+    /const\s+buildSingleModelTranslatedRequestParts\s*=\s*async/
+  ]) {
+    assert.doesNotMatch(fragmentSource, removedSupportCore);
+  }
+
+  assert.match(helperSource, /const\s+streamCouncilApiCallWithRetry\s*=\s*async/);
+  assert.match(helperSource, /const\s+fetchTavilySearchPacket\s*=\s*async/);
+  assert.match(helperSource, /const\s+buildSingleModelTranslatedRequestParts\s*=\s*async/);
+  assert.doesNotMatch(helperSource, /document\.|window\.|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/provider-request-support.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
+});
+
+test('council response lifecycle core is isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/council-response-lifecycle.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/council-response-lifecycle.js'));
+
+  assert.equal(typeof helpers.createCouncilResponseLifecycle, 'function');
+  assert.match(helperSource, /export\s+function\s+createCouncilResponseLifecycle\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{\s*createCouncilResponseLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-response-lifecycle\.js';/
+  );
+  assert.match(fragmentSource, /const\s+councilResponseLifecycle\s*=\s*createCouncilResponseLifecycle\(\{/);
+  assert.match(fragmentSource, /const\s+runModelCouncil\s*=\s*\(\.\.\.args\)\s*=>\s*councilResponseLifecycle\.runModelCouncil\(\.\.\.args\)/);
+
+  for (const removedCouncilCore of [
+    /async\s+function\s+runModelCouncil\b/,
+    /const\s+formatCouncilResponses\s*=/,
+    /const\s+buildCouncilSharedSearchPrompt\s*=/,
+    /const\s+buildCouncilSecondSearchPrompt\s*=/,
+    /const\s+buildCouncilAttachmentTranslationPackets\s*=/,
+    /const\s+buildCouncilMemberInstruction\s*=/,
+    /const\s+buildCouncilDeliberationPrompt\s*=/,
+    /const\s+buildCouncilSynthesisPrompt\s*=/,
+    /const\s+buildCouncilAppendix\s*=/
+  ]) {
+    assert.doesNotMatch(fragmentSource, removedCouncilCore);
+  }
+
+  assert.match(fragmentSource, /streamCouncilApiCallWithRetry,/);
+  assert.match(fragmentSource, /buildSingleModelTranslatedRequestParts,/);
+  assert.match(fragmentSource, /async\s+function\s+callApiWithSchema\b/);
+  assert.match(helperSource, /const\s+firstRoundSettled\s*=\s*await\s+Promise\.allSettled/);
+  assert.match(helperSource, /const\s+secondRoundSettled\s*=\s*await\s+Promise\.allSettled/);
+  assert.match(helperSource, /const\s+synthesisPrompt\s*=\s*buildCouncilSynthesisPrompt/);
+  assert.doesNotMatch(helperSource, /document\.|window\.|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body\.getReader\(\)|virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-response-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
 });
 
 test('settings mobile metadata helpers are isolated from the 02 runtime fragment', async () => {
@@ -244,9 +363,10 @@ test('message type icon helper is isolated from the 00 runtime fragment', async 
 
 test('date formatting helper is isolated from the 00 runtime fragment and remains available to timestamp call sites', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/date-formatting.js');
+  const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/date-formatting.js'));
 
@@ -257,8 +377,9 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
     /import\s*\{[\s\S]*\bformatFullTimestamp\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/date-formatting\.js';/
   );
   assert.doesNotMatch(fragment00Source, /\bconst\s+formatFullTimestamp\s*=/);
-  assert.match(fragment01Source, /formatFullTimestamp\(msg\.createdAt\)/);
-  assert.match(fragment02Source, /formatFullTimestamp\(aiMessageObject\.createdAt\)/);
+  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp/);
+  assert.match(messageMarkupSource, /formatTimestamp\(message\.createdAt\)/);
+  assert.match(postResponseActionsSource, /formatTimestamp\(aiMessageObject\.createdAt\)/);
   assert.match(fragment04Source, /formatFullTimestamp\(conv\.deletedAt\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
@@ -341,15 +462,16 @@ test('streaming council details helpers are isolated from the 01 runtime fragmen
   );
   assert.match(fragment01Source, /getOpenCouncilDetailKeys\(targetElement\)/);
   assert.match(fragment01Source, /restoreOpenCouncilDetails\(targetElement,\s*openKeys\)/);
-  assert.match(fragment01Source, /normalizeCouncilComparisonDetails\(finalizedText\)/);
-  assert.match(fragment01Source, /hasUnclosedCouncilDetails\(renderText\)/);
+  assert.match(helperSource, /normalizeCouncilComparisonDetails\b/);
+  assert.match(helperSource, /hasUnclosedCouncilDetails\b/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+getOpenCouncilDetailKeys\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+restoreOpenCouncilDetails\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+isCouncilComparisonSummary\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+normalizeCouncilComparisonDetails\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+hasUnclosedCouncilDetails\s*=/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
-  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.match(fragment01Source, /createStreamingMarkdownFeature\(\{/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
+  assert.doesNotMatch(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
   assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
   assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
@@ -360,46 +482,400 @@ test('streaming markdown render state helper is isolated from the 01 runtime ren
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-markdown-render-state.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-render-state.js'));
 
   assert.equal(typeof helpers.createStreamingMarkdownRenderState, 'function');
   assert.match(helperSource, /export\s+function\s+createStreamingMarkdownRenderState\b/);
   assert.match(
-    fragment00Source,
-    /import\s*\{[\s\S]*\bcreateStreamingMarkdownRenderState\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-markdown-render-state\.js';/
+    rendererSource,
+    /import\s*\{\s*createStreamingMarkdownRenderState\s*\}\s*from\s+'\.\/streaming-markdown-render-state\.js';/
   );
-  assert.match(fragment01Source, /const\s+renderState\s*=\s*createStreamingMarkdownRenderState\(\);/);
-  assert.match(fragment01Source, /renderState\.appendText\(chunk\)/);
-  assert.match(fragment01Source, /renderState\.flushPending\(\{\s*force\s*\}\)/);
-  assert.match(fragment01Source, /renderState\.syncCurrentLine\(\)/);
-  assert.match(fragment01Source, /renderState\.finalize\(\)/);
-  assert.match(fragment01Source, /renderState\.getText\(\)/);
+  assert.doesNotMatch(fragment00Source, /import\s*\{[^}]*\bcreateStreamingMarkdownRenderState\b/);
+  assert.match(rendererSource, /const\s+renderState\s*=\s*createStreamingMarkdownRenderState\(\);/);
+  assert.match(rendererSource, /renderState\.appendText\(chunk\)/);
+  assert.match(rendererSource, /renderState\.flushPending\(\{\s*force\s*\}\)/);
+  assert.match(rendererSource, /renderState\.syncCurrentLine\(\)/);
+  assert.match(rendererSource, /renderState\.finalize\(\)/);
+  assert.match(rendererSource, /renderState\.getText\(\)/);
   assert.doesNotMatch(
     fragment01Source,
     /let\s+fullText\s*=\s*'';\s*let\s+finalizedText\s*=\s*'';\s*let\s+pendingText\s*=\s*'';\s*let\s+currentLineText\s*=\s*'';\s*let\s+isFinalized\s*=\s*false;/s
   );
-  assert.match(fragment01Source, /document\.createElement\('div'\)/);
-  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*''/);
-  assert.match(fragment01Source, /currentLineNode\.innerHTML\s*=\s*''/);
-  assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
-  assert.match(fragment01Source, /renderMarkdown\(/);
-  assert.match(fragment01Source, /targetElement\.classList\.add\('is-streaming-response'\)/);
-  assert.match(fragment01Source, /isChatNearBottom\(\)/);
-  assert.match(fragment01Source, /keepChatPositionAfterRender\(shouldStick,\s*previousTop\)/);
+  assert.doesNotMatch(fragment01Source, /currentLineNode\.innerHTML\s*=\s*''/);
+  assert.doesNotMatch(fragment01Source, /streaming-markdown-root/);
+  assert.match(fragment01Source, /renderMarkdownWithFormulas,/);
+  assert.match(fragment01Source, /renderMarkdown,/);
+  assert.match(fragment01Source, /\bisChatNearBottom,/);
+  assert.match(fragment01Source, /\bkeepChatPositionAfterRender,/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
   assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('streaming markdown renderer and response core is isolated from the 01 runtime fragment', async () => {
+  const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
+  const lifecycleSource = readSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js'));
+
+  assert.equal(typeof helpers.createStreamingMarkdownFeature, 'function');
+  assert.match(rendererSource, /export\s+function\s+createStreamingMarkdownFeature\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*createStreamingMarkdownFeature\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-markdown-renderer\.js';/
+  );
+  assert.match(fragment01Source, /}\s*=\s*createStreamingMarkdownFeature\(\{/);
+  assert.match(fragment01Source, /\bdocument,/);
+  assert.match(fragment01Source, /\brenderMarkdown,/);
+  assert.match(fragment01Source, /\brenderMarkdownWithFormulas,/);
+  assert.match(fragment01Source, /\bisChatNearBottom,/);
+  assert.match(fragment01Source, /\bkeepChatPositionAfterRender,/);
+  assert.match(fragment01Source, /scheduleFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
+  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(resolve\s*=>\s*setTimeout\(resolve,\s*16\)\)/);
+  assert.match(fragment01Source, /getStreamErrorText:\s*\(error\)\s*=>/);
+
+  assert.doesNotMatch(fragment01Source, /const\s+renderFinalized\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+appendFadedText\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+flushPendingLines\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+ensureRenderer\s*=/);
+  assert.doesNotMatch(fragment01Source, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.doesNotMatch(fragment01Source, /targetElement\.dataset\.streamRendered\s*=\s*'true'/);
+  assert.doesNotMatch(fragment01Source, /streaming-markdown-finalized/);
+  assert.doesNotMatch(fragment01Source, /streaming-current-line/);
+
+  assert.match(fragment01Source, /const\s+playbackStreamingMarkdownResponse\s*=/);
+  assert.match(fragment01Source, /createStreamingMarkdownRenderer\(targetElement,\s*\{\s*preserveCouncilDetails\s*\}\)/);
+  assert.match(lifecycleSource, /fullResponse\s*=\s*await\s+streamMarkdownResponse\(/);
+  assert.match(
+    fragment01Source,
+    /renderRealtimeCouncilFinal:\s*\(\{\s*targetElement,\s*fullResponse\s*\}\)\s*=>\s*renderIncrementalResponse\(targetElement,\s*fullResponse,/
+  );
+  assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 140 * 1024);
+});
+
+test('single-model response lifecycle is isolated from the 01 runtime submit flow', async () => {
+  const lifecycleSource = readSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js'));
+
+  assert.equal(typeof helpers.createSingleModelResponseLifecycle, 'function');
+  assert.match(lifecycleSource, /export\s+function\s+createSingleModelResponseLifecycle\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*createSingleModelResponseLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/single-model-response-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /const\s+singleModelResponseLifecycle\s*=\s*createSingleModelResponseLifecycle\(\{/);
+  assert.match(fragment01Source, /buildSingleModelTranslatedRequestParts:\s*\(\.\.\.args\)\s*=>\s*buildSingleModelTranslatedRequestParts\(\.\.\.args\)/);
+  assert.match(fragment01Source, /streamApiCall:\s*\(\.\.\.args\)\s*=>\s*streamApiCall\(\.\.\.args\)/);
+  assert.match(fragment01Source, /const\s+singleResult\s*=\s*await\s+singleModelResponseLifecycle\.run\(\{/);
+  assert.match(fragment01Source, /completeSingleModelView:\s*\(options\)\s*=>\s*singleModelResponseLifecycle\.completeView\(options\)/);
+  assert.match(fragment01Source, /singleModelResponseLifecycle\.stop\(\)/);
+  assert.match(fragment01Source, /singleModelResponseLifecycle\.getLatestProgress\(\)/);
+
+  for (const removedCore of [
+    /let\s+latestSingleProgress\s*=/,
+    /const\s+renderSingleProgressState\s*=/,
+    /const\s+updateSingleStreamingProgress\s*=/,
+    /const\s+runSingleApiStream\s*=/,
+    /const\s+hasTranslationInputs\s*=/,
+    /let\s+requestParts\s*=\s*userParts/,
+    /let\s+receivedChars\s*=\s*0/,
+    /let\s+lastSingleProgressAt\s*=\s*0/,
+    /let\s+singleProgressTimer\s*=\s*null/
+  ]) {
+    assert.doesNotMatch(fragment01Source, removedCore);
+  }
+
+  assert.doesNotMatch(lifecycleSource, /runModelCouncil\b/);
+  assert.doesNotMatch(lifecycleSource, /saveAppData\b/);
+  assert.doesNotMatch(lifecycleSource, /fetch\s*\(/);
+  assert.doesNotMatch(lifecycleSource, /TextDecoder\b/);
+  assert.doesNotMatch(lifecycleSource, /indexedDB\b/);
+
+  assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runCouncilResponseRenderLifecycle\(\{/);
+  assert.match(fragment01Source, /await\s+finalizeAssistantResponse\(\{/);
+  assert.match(fragment01Source, /await\s+persistAssistantResponseError\(\{/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 135 * 1024);
+});
+
+test('assistant response finalization is isolated from the 01 runtime submit flow', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js'));
+  const submitFlowSource = fragment01Source.slice(fragment01Source.indexOf('const handleFormSubmit'));
+
+  assert.equal(typeof helpers.finalizeAssistantResponse, 'function');
+  assert.equal(typeof helpers.persistAssistantResponseError, 'function');
+  assert.match(helperSource, /export\s+async\s+function\s+finalizeAssistantResponse\b/);
+  assert.match(helperSource, /export\s+async\s+function\s+persistAssistantResponseError\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*finalizeAssistantResponse,\s*persistAssistantResponseError\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/assistant-response-finalization\.js';/
+  );
+  assert.match(fragment01Source, /await\s+finalizeAssistantResponse\(\{/);
+  assert.match(fragment01Source, /await\s+persistAssistantResponseError\(\{/);
+  assert.match(fragment01Source, /completeSingleModelView:\s*\(options\)\s*=>\s*singleModelResponseLifecycle\.completeView\(options\)/);
+  assert.match(fragment01Source, /persistAppData:\s*saveAppData/);
+  assert.match(fragment01Source, /renderError:\s*renderSingleModelError/);
+
+  for (const removedFinalizationCore of [
+    /if\s*\(!String\(fullResponse\s*\|\|\s*''\)\.trim\(\)\)\s*\{/,
+    /sendConversationToMail\(userMessageObject,\s*fullResponse\)/,
+    /finalAiMessage\.parts\s*=\s*\[\{\s*text:\s*fullResponse\s*\}\]/,
+    /conv\.messages\.push\(finalAiMessage\)/,
+    /const\s+errorMessage\s*=/,
+    /const\s+currentProgress\s*=/,
+    /contentDiv\.innerHTML\s*=\s*renderSingleModelError\(/,
+    /const\s+finalAiMessage\s*=\s*\{\s*role:\s*'model',\s*parts:\s*\[\{\s*text:\s*errorMessage\s*\}\]/,
+    /await\s+extractPersonalMemory\(userMessage,\s*fullResponse\)/
+  ]) {
+    assert.doesNotMatch(submitFlowSource, removedFinalizationCore);
+  }
+
+  assert.match(helperSource, /sendConversationToMail\(userMessageObject,\s*fullResponse\)/);
+  assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
+  assert.match(helperSource, /await\s+extractPersonalMemory\(userMessageText,\s*fullResponse\)/);
+  assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
+  assert.match(helperSource, /targetElement\.innerHTML\s*=\s*renderError\(currentProgress,\s*errorMessage\)/);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.match(fragment01Source, /updateSubmitButtonState\(false\)/);
+  assert.match(fragment01Source, /renderCouncilControls\(\)/);
+  assert.match(fragment01Source, /renderInputIndicators\(\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+});
+
+test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js'));
+
+  assert.equal(typeof helpers.runSubmitFinalCleanupLifecycle, 'function');
+  assert.match(helperSource, /export\s+function\s+runSubmitFinalCleanupLifecycle\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*runSubmitFinalCleanupLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/submit-final-cleanup-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /const\s+lastMessageElement\s*=\s*runSubmitFinalCleanupLifecycle\(\s*\(\)\s*=>\s*singleModelResponseLifecycle\.stop\(\),/);
+  assert.match(fragment01Source, /\(\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*\},/);
+  assert.match(fragment01Source, /updateSubmitButtonState,\s*updateInputState,\s*renderCouncilControls,\s*renderInputIndicators,/);
+  assert.match(fragment01Source, /\(\)\s*=>\s*ALL_ELEMENTS\.messageList\.lastElementChild/);
+  assert.doesNotMatch(
+    fragment01Source,
+    /singleModelResponseLifecycle\.stop\(\);\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*updateSubmitButtonState\(false\);\s*updateInputState\(\);\s*renderCouncilControls\(\);\s*renderInputIndicators\(\);/s
+  );
+  assert.match(helperSource, /stopSingleModelLifecycle\(\);\s*resetSubmitState\(\);\s*updateSubmitButtonState\(false\);\s*updateInputState\(\);\s*renderCouncilControls\(\);\s*renderInputIndicators\(\);/s);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+});
+
+test('model message post-response actions remove the 01 to 02 last message lexical continuation', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js'));
+
+  assert.equal(typeof helpers.applyModelMessagePostResponseActions, 'function');
+  assert.match(helperSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*applyModelMessagePostResponseActions\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-message-post-response-actions\.js';/
+  );
+  assert.match(fragment01Source, /const\s+lastMessageElement\s*=\s*runSubmitFinalCleanupLifecycle\(/);
+  assert.match(fragment01Source, /applyModelMessagePostResponseActions\(\{\s*lastMessageElement,/);
+  assert.match(fragment01Source, /conversation:\s*conv,/);
+  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp/);
+  assert.doesNotMatch(fragment01Source, /\blastMessageDiv\b/);
+
+  assert.doesNotMatch(fragment02Source, /\blastMessageDiv\b/);
+  assert.doesNotMatch(fragment02Source, /copy-content-btn[\s\S]*insertAdjacentHTML\('beforeend'/);
+  assert.doesNotMatch(fragment02Source, /classList\.contains\('model-message'\)/);
+
+  assert.match(helperSource, /lastMessageElement\.classList\.contains\('model-message'\)/);
+  assert.match(helperSource, /bubble\.insertAdjacentHTML\('beforeend',\s*actionButtonsHTML\)/);
+  assert.match(helperSource, /content\.classList\.add\('pb-8'\)/);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
+});
+
+test('general message markup rendering is isolated from the 01 runtime DOM shell', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const streamingRendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
+  const finalizationSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js'));
+
+  assert.equal(typeof helpers.buildMessageRenderView, 'function');
+  assert.match(helperSource, /export\s+function\s+buildMessageRenderView\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*buildMessageRenderView\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-markup-renderer\.js';/
+  );
+  assert.match(fragment01Source, /const\s+messageView\s*=\s*buildMessageRenderView\(\{\s*message:\s*msg,/);
+  assert.match(fragment01Source, /renderUserText,\s*renderMarkdownWithFormulas,\s*buildMediaAttachmentView:\s*buildMessageMediaAttachmentView,/);
+  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp,/);
+  assert.match(fragment01Source, /messageDiv\.className\s*=\s*messageView\.messageClassName/);
+  assert.match(fragment01Source, /messageDiv\.innerHTML\s*=\s*messageView\.messageHTML/);
+  assert.match(fragment01Source, /bindMessageMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
+
+  assert.doesNotMatch(fragment01Source, /const\s+isUser\s*=\s*msg\.role\s*===\s*'user'/);
+  assert.doesNotMatch(fragment01Source, /const\s+isLoadingMessage\s*=\s*!isUser/);
+  assert.doesNotMatch(fragment01Source, /let\s+textPartsContent\s*=\s*\[\]/);
+  assert.doesNotMatch(fragment01Source, /const\s+messageBubble\s*=\s*`/);
+  assert.doesNotMatch(fragment01Source, /copy-content-btn[\s\S]*contentPaddingClass\s*=\s*'pb-8'/);
+
+  assert.match(fragment01Source, /const\s+addMessageToUI\s*=\s*\(msg,\s*index,\s*shouldSave\s*=\s*true,\s*shouldScroll\s*=\s*true\)/);
+  assert.match(fragment01Source, /conv\.messages\.push\(msg\)/);
+  assert.match(fragment01Source, /document\.createElement\('div'\)/);
+  assert.match(fragment01Source, /ALL_ELEMENTS\.messageList\.appendChild\(messageDiv\)/);
+  assert.match(fragment01Source, /ALL_ELEMENTS\.chatContainer\.scrollTo/);
+  assert.match(fragment05Source, /e\.target\.closest\('\.copy-content-btn'\)/);
+
+  assert.match(postResponseActionsSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
+  assert.match(streamingRendererSource, /export\s+function\s+createStreamingMarkdownFeature\b/);
+  assert.match(finalizationSource, /export\s+async\s+function\s+finalizeAssistantResponse\b/);
+  assert.doesNotMatch(helperSource, /document|window|globalThis|addEventListener|fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 125 * 1024);
+});
+
+test('media renderer and preview lifecycle replace fragment-local and hidden lexical media helpers', async () => {
+  const rendererSource = readSource('src/app/legacy-runtime/features/media-attachment-renderer.js');
+  const previewSource = readSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+  const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const rendererHelpers = await import(projectFile('src/app/legacy-runtime/features/media-attachment-renderer.js'));
+  const previewHelpers = await import(projectFile('src/app/legacy-runtime/features/media-preview-lifecycle.js'));
+
+  assert.equal(typeof rendererHelpers.createMediaAttachmentRenderer, 'function');
+  assert.equal(typeof previewHelpers.createMediaPreviewLifecycle, 'function');
+  assert.match(rendererSource, /export\s+function\s+createMediaAttachmentRenderer\b/);
+  assert.match(previewSource, /export\s+function\s+createMediaPreviewLifecycle\b/);
+
+  assert.match(fragment00Source, /createMediaAttachmentRenderer\s+as\s+createArchivedMediaAttachmentRenderer/);
+  assert.match(fragment00Source, /createMediaPreviewLifecycle\s+as\s+createArchivedMediaPreviewLifecycle/);
+  assert.match(fragment01Source, /createMediaAttachmentRenderer\s+as\s+createMessageMediaAttachmentRenderer/);
+  assert.match(fragment01Source, /createMediaPreviewLifecycle\s+as\s+createMessageMediaPreviewLifecycle/);
+  assert.match(fragment03Source, /createMediaAttachmentRenderer\s+as\s+createSearchMediaAttachmentRenderer/);
+  assert.match(fragment03Source, /createMediaPreviewLifecycle\s+as\s+createSearchMediaPreviewLifecycle/);
+  assert.match(fragment04Source, /createMediaAttachmentRenderer\s+as\s+createTrashMediaAttachmentRenderer/);
+  assert.match(fragment04Source, /createMediaPreviewLifecycle\s+as\s+createTrashMediaPreviewLifecycle/);
+
+  assert.match(fragment00Source, /renderArchivedMediaAttachmentGrid\(mediaParts\)/);
+  assert.match(fragment00Source, /bindArchivedMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+  assert.match(fragment01Source, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
+  assert.match(fragment01Source, /bindMessageMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
+  assert.match(fragment03Source, /renderSearchMediaAttachmentGrid\(mediaParts\)/);
+  assert.match(fragment03Source, /bindSearchMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+  assert.match(fragment03Source, /openSearchMediaPreview\(\{/);
+  assert.match(fragment04Source, /renderTrashMediaAttachmentGrid\(mediaParts\)/);
+  assert.match(fragment04Source, /bindTrashMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+
+  assert.doesNotMatch(fragment01Source, /\bconst\s+getInlineMediaSrc\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+renderMediaAttachmentGrid\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+openMediaPreview\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+bindMediaPreviewButtons\s*=/);
+  assert.doesNotMatch(fragment03Source, /typeof\s+renderMediaAttachmentGrid/);
+  assert.doesNotMatch(fragment03Source, /typeof\s+bindMediaPreviewButtons/);
+  assert.doesNotMatch(fragment03Source, /\bopenMediaPreview\(/);
+  assert.doesNotMatch(fragment04Source, /typeof\s+renderMediaAttachmentGrid/);
+  assert.doesNotMatch(fragment04Source, /typeof\s+bindMediaPreviewButtons/);
+
+  assert.match(messageMarkupSource, /const\s+mediaView\s*=\s*buildMediaAttachmentView\(mediaParts\)/);
+  assert.match(messageMarkupSource, /previewMediaParts\s*=\s*mediaView\.previewMediaParts/);
+  assert.match(postResponseActionsSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
+  assert.match(fragment05Source, /e\.target\.closest\('\.copy-content-btn'\)/);
+  assert.doesNotMatch(rendererSource, /document|window|globalThis|addEventListener|fetch\s*\(/);
+  assert.doesNotMatch(rendererSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(previewSource, /indexedDB|localStorage|sessionStorage|streamApiCall/);
+  assert.doesNotMatch(`${rendererSource}\n${previewSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/media-attachment-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/media-preview-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 120 * 1024);
+});
+
+test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/council-response-render-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/council-response-render-lifecycle.js'));
+
+  assert.equal(typeof helpers.runCouncilResponseRenderLifecycle, 'function');
+  assert.match(helperSource, /export\s+async\s+function\s+runCouncilResponseRenderLifecycle\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*runCouncilResponseRenderLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-response-render-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runCouncilResponseRenderLifecycle\(\{/);
+  assert.match(fragment01Source, /setCouncilRunning:\s*\(value\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*value;\s*\}/);
+  assert.match(fragment01Source, /requestFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
+
+  for (const removedCouncilRenderCore of [
+    /let\s+latestCouncilProgress\s*=/,
+    /let\s+realtimeCouncilText\s*=/,
+    /let\s+realtimeCouncilRenderer\s*=/,
+    /const\s+renderCouncilProgressState\s*=/,
+    /const\s+renderCouncilSynthesisChunk\s*=/,
+    /let\s+councilProgressTimer\s*=/,
+    /const\s+remainingCouncilText\s*=/
+  ]) {
+    assert.doesNotMatch(fragment01Source, removedCouncilRenderCore);
+  }
+
+  assert.match(helperSource, /const\s+renderCouncilProgressState\s*=/);
+  assert.match(helperSource, /const\s+renderCouncilSynthesisChunk\s*=/);
+  assert.match(helperSource, /await\s+runModelCouncil\(/);
+  assert.match(helperSource, /await\s+appendRendererTextGradually\(/);
+  assert.match(helperSource, /realtimeCouncilRenderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /saveAppData\b|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.match(fragment01Source, /await\s+finalizeAssistantResponse\(\{/);
+  assert.match(fragment01Source, /await\s+persistAssistantResponseError\(\{/);
+  assert.match(fragment01Source, /persistAppData:\s*saveAppData/);
+  assert.match(fragment01Source, /renderError:\s*renderSingleModelError/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-response-render-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
 });
 
 test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
-  const streamResponseSource = fragment01Source.slice(
-    fragment01Source.indexOf('async function streamMarkdownResponse'),
-    fragment01Source.indexOf('const playbackStreamingMarkdownResponse')
-  );
 
   assert.equal(typeof helpers.createStreamingTextFrameQueue, 'function');
   assert.match(helperSource, /export\s+function\s+createStreamingTextFrameQueue\b/);
@@ -407,23 +883,23 @@ test('streaming text frame queue helper is isolated from the 01 runtime stream r
     fragment00Source,
     /import\s*\{[\s\S]*\bcreateStreamingTextFrameQueue\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/streaming-text-frame-queue\.js';/
   );
-  assert.match(fragment01Source, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
-  assert.match(fragment01Source, /drainText:\s*\(chunkToRender\)\s*=>\s*ensureRenderer\(\)\.appendText\(chunkToRender\)/);
-  assert.match(fragment01Source, /onFirstChunk:\s*\(\)\s*=>\s*options\.onFirstChunk\?\.\(\)/);
-  assert.match(fragment01Source, /scheduleFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
-  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(resolve\s*=>\s*setTimeout\(resolve,\s*16\)\)/);
-  assert.match(fragment01Source, /frameQueue\.enqueue\(chunk\)/);
-  assert.match(fragment01Source, /await\s+frameQueue\.flushUntilIdle\(\)/);
-  assert.doesNotMatch(streamResponseSource, /\blet\s+textQueue\s*=/);
-  assert.doesNotMatch(streamResponseSource, /\blet\s+isFrameRequested\s*=/);
-  assert.doesNotMatch(streamResponseSource, /\blet\s+hasReceivedFirstChunk\s*=/);
-  assert.doesNotMatch(streamResponseSource, /\bconst\s+renderFrame\s*=/);
-  assert.match(fragment01Source, /await\s+streamApiCallFn\(onChunkReceived\)/);
-  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*options\.placeholderHTML/);
-  assert.match(fragment01Source, /targetElement\.innerHTML\s*=\s*renderMarkdown\(/);
-  assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
-  assert.match(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(rendererSource, /const\s+frameQueue\s*=\s*createStreamingTextFrameQueue\(\{/);
+  assert.match(rendererSource, /drainText:\s*\(chunkToRender\)\s*=>\s*ensureRenderer\(\)\.appendText\(chunkToRender\)/);
+  assert.match(rendererSource, /onFirstChunk:\s*\(\)\s*=>\s*options\.onFirstChunk\?\.\(\)/);
+  assert.match(rendererSource, /scheduleFrame,/);
+  assert.match(rendererSource, /waitForFrame/);
+  assert.match(rendererSource, /frameQueue\.enqueue\(chunk\)/);
+  assert.match(rendererSource, /await\s+frameQueue\.flushUntilIdle\(\)/);
+  assert.doesNotMatch(rendererSource, /\blet\s+textQueue\s*=/);
+  assert.doesNotMatch(rendererSource, /\blet\s+isFrameRequested\s*=/);
+  assert.doesNotMatch(rendererSource, /\blet\s+hasReceivedFirstChunk\s*=/);
+  assert.doesNotMatch(rendererSource, /\bconst\s+renderFrame\s*=/);
+  assert.match(rendererSource, /await\s+streamApiCallFn\(\(chunk\)\s*=>\s*\{/);
+  assert.match(rendererSource, /targetElement\.innerHTML\s*=\s*options\.placeholderHTML/);
+  assert.match(rendererSource, /targetElement\.innerHTML\s*=\s*renderMarkdown\(/);
+  assert.match(rendererSource, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.doesNotMatch(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
 });
 
@@ -493,7 +969,8 @@ test('typewriter playback controller is isolated from the 01 runtime playback lo
   assert.doesNotMatch(playbackStreamingSource, /\bconst\s+type\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(playbackStreamingSource, /setTimeout\(type,\s*typingSpeed\)/);
   assert.match(fragment01Source, /const\s+renderIncrementalResponse\s*=/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /createStreamingMarkdownRenderer,\s*\n\s*streamMarkdownResponse/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
   assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
   assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
   assert.match(fragment01Source, /isCouncilDeferredSectionVisible\(currentText\)/);
@@ -502,6 +979,7 @@ test('typewriter playback controller is isolated from the 01 runtime playback lo
 
 test('renderer gradual append controller is isolated from the 01 runtime RAF append loop', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/renderer-gradual-append-controller.js');
+  const councilRenderSource = readSource('src/app/legacy-runtime/features/council-response-render-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/renderer-gradual-append-controller.js'));
@@ -516,10 +994,12 @@ test('renderer gradual append controller is isolated from the 01 runtime RAF app
     fragment00Source,
     /import\s*\{[\s\S]*\bappendRendererTextGradually\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/renderer-gradual-append-controller\.js';/
   );
-  assert.match(fragment01Source, /appendRendererTextGradually\(\s*realtimeCouncilRenderer,\s*remainingCouncilText,\s*abortController\.signal,\s*18,\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)\s*\)/);
+  assert.match(fragment01Source, /appendRendererTextGradually,/);
+  assert.match(councilRenderSource, /appendRendererTextGradually\(\s*realtimeCouncilRenderer,\s*remainingCouncilText,\s*signal,\s*18,\s*requestFrame\s*\)/);
   assert.doesNotMatch(fragment01Source, /const\s+appendRendererTextGradually\s*=\s*async/);
   assert.doesNotMatch(submitFlowSource, /for\s*\(\s*let\s+index\s*=\s*0;\s*index\s*<\s*source\.length[\s\S]*renderer\.appendText\(source\.slice\(index,\s*index\s*\+\s*chunkSize\)\)[\s\S]*requestAnimationFrame\(resolve\)/);
-  assert.match(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=/);
+  assert.match(fragment01Source, /createStreamingMarkdownRenderer,\s*\n\s*streamMarkdownResponse/);
+  assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
   assert.match(fragment01Source, /renderer\.appendText\(chunk\)/);
   assert.match(fragment01Source, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);

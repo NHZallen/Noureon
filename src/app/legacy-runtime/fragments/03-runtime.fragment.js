@@ -104,6 +104,24 @@
             showNotification(`${i18n[config.uiLanguage].moved || '已移動'} ${count} ${i18n[config.uiLanguage].conversations || '個對話。'}`);
         };
         import { highlightText } from '/src/app/legacy-runtime/features/search-text-formatting.js';
+        import { createMediaAttachmentRenderer as createSearchMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
+        import { createMediaPreviewLifecycle as createSearchMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        const {
+            getInlineMediaSrc: getSearchInlineMediaSrc,
+            renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid
+        } = createSearchMediaAttachmentRenderer({ escapeHTML });
+        const {
+            openMediaPreview: openSearchMediaPreview,
+            bindMediaPreviewButtons: bindSearchMediaPreviewButtons
+        } = createSearchMediaPreviewLifecycle({
+            document,
+            navigator,
+            fetch,
+            File,
+            escapeHTML,
+            getInlineMediaSrc: getSearchInlineMediaSrc,
+            getUiLanguage: () => config.uiLanguage
+        });
         const performSearchAndRenderResults = async () => {
             const query = ALL_ELEMENTS.modalSearchInput.value.trim();
             const scope = ALL_ELEMENTS.modalSearchScopeSelect.value;
@@ -231,12 +249,12 @@
                     messageDiv.className = `flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
                     const mediaParts = msg.parts.filter(p => p.inlineData || p.fileData || p.video_url || p.image_url || p.file);
                     let contentHTML = msg.parts.map(p => p.text ? (isUser ? renderUserText(p.text) : renderMarkdownWithFormulas(p.text)) : '').join('');
-                    const mediaGridHTML = typeof renderMediaAttachmentGrid === 'function' ? renderMediaAttachmentGrid(mediaParts) : '';
+                    const mediaGridHTML = renderSearchMediaAttachmentGrid(mediaParts);
                     const messageBubble = contentHTML.trim()
                         ? `<div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble"><div class="prose prose-sm max-w-none message-content text-[var(--text-primary)]">${contentHTML}</div></div>`
                         : '';
                     messageDiv.innerHTML = `<div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">${mediaGridHTML}${messageBubble}</div>`;
-                    if (typeof bindMediaPreviewButtons === 'function') bindMediaPreviewButtons(messageDiv, mediaParts);
+                    bindSearchMediaPreviewButtons(messageDiv, mediaParts);
                     contentContainer.appendChild(messageDiv);
                 });
             }
@@ -372,7 +390,7 @@
                 previewEl.className = 'relative w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden file-preview-item';
                 if (file.type.startsWith('image/')) {
                     previewEl.innerHTML = `<img src="${file.base64}" class="w-full h-full object-cover">`;
-                    previewEl.onclick = () => openMediaPreview({
+                    previewEl.onclick = () => openSearchMediaPreview({
                         mimeType: file.type,
                         data: file.base64.split(',')[1],
                         name: file.name
@@ -384,7 +402,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
                         </span>
                     `;
-                    previewEl.onclick = () => openMediaPreview({
+                    previewEl.onclick = () => openSearchMediaPreview({
                         mimeType: file.type,
                         data: file.base64.split(',')[1],
                         name: file.name

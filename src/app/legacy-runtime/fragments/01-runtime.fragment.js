@@ -1626,104 +1626,23 @@
         }
     });
 };
-        const getInlineMediaSrc = (media) => `data:${media.mimeType || 'application/octet-stream'};base64,${media.data}`;
-        const renderMediaAttachmentGrid = (mediaParts = []) => {
-            if (!mediaParts.length) return '';
-            const mediaItems = mediaParts.map((media, mediaIndex) => {
-                const mimeType = media.mimeType || 'application/octet-stream';
-                const src = getInlineMediaSrc(media);
-                const name = media.name || mimeType || 'attachment';
-                if (mimeType.startsWith('image/')) {
-                    return `
-                        <button type="button" class="message-media-thumb" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
-                            <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}" loading="lazy">
-                        </button>
-                    `;
-                }
-                if (mimeType.startsWith('video/')) {
-                    return `
-                        <button type="button" class="message-media-thumb message-media-video" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
-                            <video src="${escapeHTML(src)}" preload="metadata" muted playsinline></video>
-                            <span class="message-media-play" aria-hidden="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
-                            </span>
-                        </button>
-                    `;
-                }
-                return `
-                    <div class="message-file-chip" title="${escapeHTML(name)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                        <span>${escapeHTML(name)}</span>
-                    </div>
-                `;
-            }).join('');
-            const singleVisual = mediaParts.length === 1 && (mediaParts[0].mimeType || '').match(/^(image|video)\//);
-            return `<div class="message-media-grid ${singleVisual ? 'message-media-grid-single' : ''}">${mediaItems}</div>`;
-        };
-        const openMediaPreview = (media) => {
-            if (!media) return;
-            document.querySelector('.media-lightbox')?.remove();
-            const mimeType = media.mimeType || 'application/octet-stream';
-            const src = getInlineMediaSrc(media);
-            const name = media.name || mimeType || 'attachment';
-            const overlay = document.createElement('div');
-            overlay.className = 'media-lightbox';
-            const mediaHTML = mimeType.startsWith('video/')
-                ? `<video src="${escapeHTML(src)}" controls autoplay playsinline></video>`
-                : `<img src="${escapeHTML(src)}" alt="${escapeHTML(name)}">`;
-            overlay.innerHTML = `
-                <button type="button" class="media-lightbox-close" aria-label="${config.uiLanguage === 'en' ? 'Close preview' : '關閉預覽'}">&times;</button>
-                <div class="media-lightbox-toolbar">
-                    <a class="media-lightbox-action media-lightbox-download" href="${escapeHTML(src)}" download="${escapeHTML(name)}" aria-label="${config.uiLanguage === 'en' ? 'Download' : '下載'}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                        <span>${config.uiLanguage === 'en' ? 'Save' : '儲存'}</span>
-                    </a>
-                    <button type="button" class="media-lightbox-action media-lightbox-share" aria-label="${config.uiLanguage === 'en' ? 'Share' : '分享'}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
-                        <span>${config.uiLanguage === 'en' ? 'Share' : '分享'}</span>
-                    </button>
-                </div>
-                <div class="media-lightbox-stage">
-                    ${mediaHTML}
-                </div>
-            `;
-            const close = () => {
-                if (document.fullscreenElement === overlay) {
-                    document.exitFullscreen?.().catch(() => {});
-                }
-                overlay.remove();
-                document.removeEventListener('keydown', onKeyDown);
-            };
-            const onKeyDown = (event) => {
-                if (event.key === 'Escape') close();
-            };
-            overlay.addEventListener('click', (event) => {
-                if (event.target === overlay || event.target.closest('.media-lightbox-close')) close();
-            });
-            overlay.querySelector('.media-lightbox-share')?.addEventListener('click', async () => {
-                if (!navigator.share) return;
-                try {
-                    const blob = await (await fetch(src)).blob();
-                    const file = new File([blob], name, { type: mimeType });
-                    if (navigator.canShare?.({ files: [file] })) {
-                        await navigator.share({ files: [file], title: name });
-                    }
-                } catch (error) {
-                    console.warn('Media share failed:', error);
-                }
-            });
-            document.addEventListener('keydown', onKeyDown);
-            document.body.appendChild(overlay);
-            overlay.querySelector('video')?.play?.().catch(() => {});
-        };
-        const bindMediaPreviewButtons = (root, mediaParts = []) => {
-            root.querySelectorAll('.message-media-thumb').forEach(button => {
-                button.addEventListener('click', () => {
-                    const mediaIndex = Number(button.dataset.mediaIndex);
-                    openMediaPreview(mediaParts[mediaIndex]);
-                });
-            });
-        };
+        import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
+        import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        const {
+            buildMediaAttachmentView: buildMessageMediaAttachmentView,
+            getInlineMediaSrc: getMessageInlineMediaSrc
+        } = createMessageMediaAttachmentRenderer({ escapeHTML });
+        const {
+            bindMediaPreviewButtons: bindMessageMediaPreviewButtons
+        } = createMessageMediaPreviewLifecycle({
+            document,
+            navigator,
+            fetch,
+            File,
+            escapeHTML,
+            getInlineMediaSrc: getMessageInlineMediaSrc,
+            getUiLanguage: () => config.uiLanguage
+        });
         const addMessageToUI = (msg, index, shouldSave = true, shouldScroll = true) => {
             const conv = getActiveConversation();
             if (shouldSave) {
@@ -1739,85 +1658,17 @@
             }
             const messageDiv = document.createElement('div');
             messageDiv.dataset.messageIndex = index;
-            const isUser = msg.role === 'user';
-            messageDiv.className = `message-item flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
-            const icon = '';
-            let contentHTML = '';
-            let mediaGridHTML = '';
-            let actionButtons = '';
-            let contentPaddingClass = '';
-            let previewMediaPartsContent = [];
-            const isLoadingMessage = !isUser && msg.parts.length === 1 && msg.parts[0].text === '...';
-            if (isLoadingMessage) {
-            contentHTML = `<div class="typing-cursor">&nbsp;</div>`;
-        } else {
-                let textPartsContent = [];
-                let mediaPartsContent = [];
-                msg.parts.forEach(part => {
-                    if (part.text) {
-                        textPartsContent.push(part.text);
-                    } else if (part.inlineData) {
-                        mediaPartsContent.push(part.inlineData);
-                    }
-                });
-                if (textPartsContent.length > 0) {
-                    const combinedText = textPartsContent.join('\n');
-                    contentHTML += `<div>${isUser ? renderUserText(combinedText) : renderMarkdownWithFormulas(combinedText)}</div>`;
-                }
-                if (mediaPartsContent.length > 0) {
-                    previewMediaPartsContent = [...mediaPartsContent];
-                    mediaGridHTML = renderMediaAttachmentGrid(previewMediaPartsContent);
-                    mediaPartsContent = [];
-                    let mediaHTML = '<div class="mt-2 flex flex-wrap gap-2">';
-                    mediaPartsContent.forEach(media => {
-                        const mimeType = escapeHTML(media.mimeType || 'application/octet-stream');
-                        const src = `data:${mimeType};base64,${media.data}`;
-                        if ((media.mimeType || '').startsWith('image/')) {
-                            mediaHTML += `<img src="${src}" class="max-w-xs max-h-48 rounded-lg object-cover border border-[var(--border-color)]">`;
-                        } else {
-                            // ✨ 修改開始：處理檔名顯示邏輯
-                            let displayName = media.name || '檔案';
-                            // 如果檔名超過 5 個字，截取前 5 個字並加上 ...
-                            if (displayName.length > 5) {
-                                displayName = displayName.substring(0, 5) + '...';
-                            }
-                            // ✨ 修改結束
-
-
-                            mediaHTML += `<div class="p-2 bg-[var(--hover-bg)] rounded-lg text-sm flex items-center gap-2 border border-[var(--border-color)]" title="${escapeHTML(media.name || '檔案')}"> <!-- 加上 title 屬性，滑鼠懸停可見完整名稱 -->
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                <span>${escapeHTML(displayName)}</span>
-                            </div>`;
-                        }
-                    });
-                    mediaHTML += '</div>';
-                    contentHTML += '';
-                }
-                if (!isUser) {
-                    const timeString = formatFullTimestamp(msg.createdAt);
-                    actionButtons = `
-                        <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-                            <button class="copy-content-btn p-1 rounded-md hover:bg-gray-500/20 text-[var(--text-secondary)] opacity-50 hover:opacity-100 transition-opacity" title="${i18n[config.uiLanguage].copyContent || '複製內容'}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                            <span class="text-xs text-gray-400">${timeString}</span></div>
-                    `;
-                    contentPaddingClass = 'pb-8';
-                }
-            }
-            const hasBubbleContent = isLoadingMessage || contentHTML.trim();
-            const messageBubble = `
-                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
-                    ${mediaGridHTML}
-                    ${hasBubbleContent ? `
-                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
-                            <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
-                            ${actionButtons}
-                        </div>
-                    ` : ''}
-                </div>`;
-            messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
-            bindMediaPreviewButtons(messageDiv, previewMediaPartsContent);
+            const messageView = buildMessageRenderView({
+                message: msg,
+                renderUserText,
+                renderMarkdownWithFormulas,
+                buildMediaAttachmentView: buildMessageMediaAttachmentView,
+                formatTimestamp: formatFullTimestamp,
+                copyTitle: i18n[config.uiLanguage].copyContent || '複製內容'
+            });
+            messageDiv.className = messageView.messageClassName;
+            messageDiv.innerHTML = messageView.messageHTML;
+            bindMessageMediaPreviewButtons(messageDiv, messageView.previewMediaParts);
             if (ALL_ELEMENTS.messageList.querySelector('.text-center')) ALL_ELEMENTS.messageList.innerHTML = '';
             ALL_ELEMENTS.messageList.appendChild(messageDiv);
             if (shouldScroll) {
@@ -1956,144 +1807,21 @@ const keepChatPositionAfterRender = (shouldStick, previousTop) => {
     }
 };
 
-const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
-    const renderState = createStreamingMarkdownRenderState();
-    const preserveCouncilDetails = Boolean(options.preserveCouncilDetails);
-    const root = document.createElement('div');
-    const finalizedNode = document.createElement('div');
-    const currentLineNode = document.createElement('div');
-
-    root.className = 'streaming-markdown-root';
-    finalizedNode.className = 'streaming-markdown-finalized';
-    currentLineNode.className = 'streaming-current-line';
-    root.append(finalizedNode, currentLineNode);
-    targetElement.innerHTML = '';
-    targetElement.classList.remove('typing-cursor');
-    targetElement.classList.add('is-streaming-response');
-    delete targetElement.dataset.streamRendered;
-    targetElement.appendChild(root);
-
-    const renderFinalized = (renderFormulas = false) => {
-        const openKeys = preserveCouncilDetails ? getOpenCouncilDetailKeys(finalizedNode) : null;
-        const finalizedText = renderState.getFinalizedText();
-        let renderText = preserveCouncilDetails ? normalizeCouncilComparisonDetails(finalizedText) : finalizedText;
-        if (preserveCouncilDetails && hasUnclosedCouncilDetails(renderText)) {
-            renderText += '\n\n</details>';
-        }
-        finalizedNode.innerHTML = renderFormulas
-            ? renderMarkdownWithFormulas(renderText)
-            : renderMarkdown(renderText);
-        restoreOpenCouncilDetails(finalizedNode, openKeys);
-    };
-
-    const appendFadedText = (text = '') => {
-        if (!text) return;
-        const fragment = document.createDocumentFragment();
-        Array.from(text).forEach((char, index) => {
-            const span = document.createElement('span');
-            span.className = 'streaming-fade-char';
-            span.style.animationDelay = `${Math.min(index * 8, 96)}ms`;
-            span.textContent = char;
-            fragment.appendChild(span);
-        });
-        currentLineNode.appendChild(fragment);
-    };
-
-    const updateCurrentLine = () => {
-        const patch = renderState.syncCurrentLine();
-        if (patch.reset) {
-            currentLineNode.innerHTML = '';
-        }
-        appendFadedText(patch.appendText);
-    };
-
-    const flushPendingLines = (force = false, renderFormulas = false) => {
-        if (renderState.isFinalized()) return;
-        const shouldStick = isChatNearBottom();
-        const previousTop = ALL_ELEMENTS.chatContainer?.scrollTop || 0;
-        const flushResult = renderState.flushPending({ force });
-        if (flushResult.didFlush) {
-            renderFinalized(renderFormulas);
-        }
-        updateCurrentLine();
-        keepChatPositionAfterRender(shouldStick, previousTop);
-    };
-
-    return {
-        appendText(chunk = '') {
-            const appendResult = renderState.appendText(chunk);
-            if (appendResult.ignored) return;
-            flushPendingLines(false, false);
-        },
-        finish({ renderFormulas = true } = {}) {
-            if (renderState.isFinalized()) return renderState.getText();
-            flushPendingLines(true, renderFormulas);
-            if (renderFormulas && renderState.getFinalizedText()) {
-                renderFinalized(true);
-            }
-            renderState.finalize();
-            currentLineNode.remove();
-            targetElement.classList.remove('is-streaming-response');
-            targetElement.dataset.streamRendered = 'true';
-            return renderState.getText();
-        },
-        getText() {
-            return renderState.getText();
-        }
-    };
-};
-
-async function streamMarkdownResponse(targetElement, streamApiCallFn, signal, options = {}) {
-    let streamError = null;
-    let renderer = null;
-    if (options.placeholderHTML) {
-        targetElement.innerHTML = options.placeholderHTML;
-        targetElement.classList.remove('typing-cursor');
-        targetElement.classList.add('is-streaming-response');
-    }
-    const ensureRenderer = () => {
-        if (!renderer) {
-            renderer = createStreamingMarkdownRenderer(targetElement, options);
-        }
-        return renderer;
-    };
-
-    const frameQueue = createStreamingTextFrameQueue({
-        drainText: (chunkToRender) => ensureRenderer().appendText(chunkToRender),
-        onFirstChunk: () => options.onFirstChunk?.(),
-        scheduleFrame: (callback) => requestAnimationFrame(callback),
-        waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16))
-    });
-
-    const onChunkReceived = (chunk) => {
-        frameQueue.enqueue(chunk);
-    };
-
-    try {
-        await streamApiCallFn(onChunkReceived);
-    } catch (error) {
-        console.error("Stream API call failed:", error);
-        streamError = error;
-        if (error.name !== 'AbortError' && !signal?.aborted) {
-            targetElement.classList.remove('is-streaming-response');
-            targetElement.innerHTML = renderMarkdown(`?望?嚗?隤歹?${error.message}`);
-            throw error;
-        }
-    } finally {
-        await frameQueue.flushUntilIdle();
-        if (renderer) {
-            renderer.finish({ renderFormulas: true });
-        } else {
-            targetElement.classList.remove('is-streaming-response');
-            targetElement.dataset.streamRendered = 'true';
-            if (!streamError || streamError.name === 'AbortError' || signal?.aborted) {
-                targetElement.innerHTML = '';
-            }
-        }
-    }
-
-    return renderer?.getText() || '';
-}
+const {
+    createStreamingMarkdownRenderer,
+    streamMarkdownResponse
+} = createStreamingMarkdownFeature({
+    document,
+    renderMarkdown,
+    renderMarkdownWithFormulas,
+    isChatNearBottom,
+    getChatScrollTop: () => ALL_ELEMENTS.chatContainer?.scrollTop || 0,
+    keepChatPositionAfterRender,
+    scheduleFrame: (callback) => requestAnimationFrame(callback),
+    waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16)),
+    getStreamErrorText: (error) => `?望?嚗?隤歹?${error.message}`,
+    logError: (...args) => console.error(...args)
+});
 
 const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
     const renderer = createStreamingMarkdownRenderer(targetElement, { preserveCouncilDetails });
@@ -2137,6 +1865,20 @@ const stopProgressTicker = (ticker) => {
     }
 };
 
+const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
+    now: () => Date.now(),
+    getOutputMode,
+    renderSingleModelProgress,
+    startProgressTicker,
+    stopProgressTicker,
+    buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
+    streamApiCall: (...args) => streamApiCall(...args),
+    streamMarkdownResponse,
+    playbackStreamingMarkdownResponse,
+    renderIncrementalResponse,
+    getOpenCouncilDetailKeys,
+    restoreOpenCouncilDetails
+});
 
         const handleFormSubmit = async (e) => {
             e.preventDefault();
@@ -2209,251 +1951,98 @@ const stopProgressTicker = (ticker) => {
             requestAnimationFrame(() => {
                 loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
             });
-            let councilProgressTimer = null;
-            let singleProgressTimer = null;
-            let latestSingleProgressForError = null;
+            const responseUsesCouncil = isCouncilEnabled(conv);
             
             try {
                 let fullResponse = '';
                 const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
+                let councilMetadata = null;
                 let responseRenderedInRealtime = false;
 
 
                 // 1. 先等待 API 回應完全結束，獲取完整文字
-                if (isCouncilEnabled(conv)) {
-                    isCouncilRunning = true;
-                    renderCouncilControls();
-                    renderInputIndicators();
-                    let latestCouncilProgress = null;
-                    const renderCouncilProgressState = (progressState) => {
-                        if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
-                        latestCouncilProgress = progressState;
-                        contentDiv.innerHTML = renderCouncilProgress(progressState);
-                    };
-                    let realtimeCouncilText = '';
-                    let realtimeCouncilRenderer = null;
-                    const renderCouncilSynthesisChunk = (chunk) => {
-                        if (getOutputMode() !== 'realtime') return;
-                        if (!responseRenderedInRealtime) {
-                            if (councilProgressTimer) {
-                                stopProgressTicker(councilProgressTimer);
-                                councilProgressTimer = null;
-                            }
-                            contentDiv.innerHTML = '';
-                            realtimeCouncilRenderer = createStreamingMarkdownRenderer(contentDiv, { preserveCouncilDetails: true });
-                            responseRenderedInRealtime = true;
-                        }
-                        realtimeCouncilText += chunk || '';
-                        realtimeCouncilRenderer?.appendText(chunk || '');
-                    };
-                    councilProgressTimer = startProgressTicker(() => {
-                        if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
-                        if (!latestCouncilProgress) return;
-                        const startedAt = latestCouncilProgress.startedAt || Date.now();
-                        latestCouncilProgress = {
-                            ...latestCouncilProgress,
-                            tick: (latestCouncilProgress.tick || 0) + 1,
-                            elapsedMs: Date.now() - startedAt
-                        };
-                        contentDiv.innerHTML = renderCouncilProgress(latestCouncilProgress);
-                    });
-                    const councilResult = await runModelCouncil(
+                if (responseUsesCouncil) {
+                    const councilResult = await runCouncilResponseRenderLifecycle({
+                        contentDiv,
                         userParts,
-                        abortController.signal,
-                        renderCouncilProgressState,
-                        renderCouncilSynthesisChunk
-                    );
-                    stopProgressTicker(councilProgressTimer);
-                    councilProgressTimer = null;
-                    fullResponse = councilResult.text;
-                    if (getOutputMode() === 'realtime') {
-                        if (!realtimeCouncilRenderer) {
-                            contentDiv.innerHTML = '';
-                            realtimeCouncilRenderer = createStreamingMarkdownRenderer(contentDiv, { preserveCouncilDetails: true });
-                            responseRenderedInRealtime = true;
-                        }
-                        const remainingCouncilText = fullResponse.slice(realtimeCouncilText.length);
-                        if (remainingCouncilText) {
-                            await appendRendererTextGradually(realtimeCouncilRenderer, remainingCouncilText, abortController.signal, 18, (callback) => requestAnimationFrame(callback));
-                        }
-                        realtimeCouncilRenderer.finish({ renderFormulas: true });
-                    }
-                    finalAiMessage.council = councilResult.metadata;
+                        signal: abortController.signal,
+                        getOutputMode,
+                        runModelCouncil,
+                        renderCouncilProgress,
+                        createStreamingMarkdownRenderer,
+                        appendRendererTextGradually,
+                        startProgressTicker,
+                        stopProgressTicker,
+                        setCouncilRunning: (value) => { isCouncilRunning = value; },
+                        renderCouncilControls,
+                        renderInputIndicators,
+                        requestFrame: (callback) => requestAnimationFrame(callback)
+                    });
+                    fullResponse = councilResult.fullResponse;
+                    responseRenderedInRealtime = councilResult.responseRenderedInRealtime;
+                    councilMetadata = councilResult.metadata;
                 } else {
                     const modelInfo = normalizeConversationModel(conv);
-                    const startedAt = Date.now();
-                    let latestSingleProgress = {
-                        stage: 'preparing',
-                        message: config.uiLanguage === 'en' ? 'Preparing request' : '準備請求',
-                        modelName: modelInfo?.name || conv.model,
-                        startedAt,
-                        elapsedMs: 0,
-                        receivedChars: 0
-                    };
-                    const renderSingleProgressState = (stage, message, extra = {}) => {
-                        latestSingleProgress = {
-                            ...latestSingleProgress,
-                            stage,
-                            message,
-                            elapsedMs: Date.now() - startedAt,
-                            ...extra
-                        };
-                        latestSingleProgressForError = latestSingleProgress;
-                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                    };
-                    const hasTranslationInputs = userParts.some(part => part.inlineData) || Boolean(conv.isWebSearchEnabled);
-                    let requestParts = userParts;
-                    if (hasTranslationInputs) {
-                        renderSingleProgressState('preparing', config.uiLanguage === 'en' ? 'Checking model capabilities' : 'Checking model capabilities');
-                        singleProgressTimer = startProgressTicker(() => {
-                            latestSingleProgress = {
-                                ...latestSingleProgress,
-                                elapsedMs: Date.now() - startedAt
-                            };
-                            latestSingleProgressForError = latestSingleProgress;
-                            contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        });
-                        requestParts = await buildSingleModelTranslatedRequestParts(
-                            userParts,
-                            modelInfo,
-                            abortController.signal,
-                            (stage, message) => renderSingleProgressState(stage, message)
-                        );
-                    }
-                    let receivedChars = 0;
-                    let lastSingleProgressAt = 0;
-                    const updateSingleStreamingProgress = (chunk) => {
-                        receivedChars += String(chunk || '').length;
-                        const now = Date.now();
-                        if (now - lastSingleProgressAt > 700) {
-                            lastSingleProgressAt = now;
-                            renderSingleProgressState(
-                                'streaming',
-                                config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering',
-                                { receivedChars }
-                            );
-                        }
-                    };
-                    const runSingleApiStream = (onChunk) => streamApiCall(
-                        requestParts,
-                        onChunk,
-                        abortController.signal,
-                        false,
-                        { modelInfo }
-                    );
-                    if (getOutputMode() === 'realtime') {
-                        if (singleProgressTimer) {
-                            stopProgressTicker(singleProgressTimer);
-                            singleProgressTimer = null;
-                        }
-                        const realtimeProgress = {
-                            ...latestSingleProgress,
-                            stage: 'streaming',
-                            message: config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering',
-                            elapsedMs: Date.now() - startedAt
-                        };
-                        latestSingleProgress = realtimeProgress;
-                        latestSingleProgressForError = latestSingleProgress;
-                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        singleProgressTimer = startProgressTicker(() => {
-                            latestSingleProgress = {
-                                ...latestSingleProgress,
-                                elapsedMs: Date.now() - startedAt
-                            };
-                            latestSingleProgressForError = latestSingleProgress;
-                            contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        });
-                        fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal, {
-                            placeholderHTML: renderSingleModelProgress(realtimeProgress),
-                            onFirstChunk: () => {
-                                if (singleProgressTimer) {
-                                    stopProgressTicker(singleProgressTimer);
-                                    singleProgressTimer = null;
-                                }
-                            }
-                        });
-                        responseRenderedInRealtime = true;
-                    } else {
-                        if (!singleProgressTimer) {
-                            renderSingleProgressState('streaming', config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering');
-                            singleProgressTimer = startProgressTicker(() => {
-                                latestSingleProgress = {
-                                    ...latestSingleProgress,
-                                    elapsedMs: Date.now() - startedAt
-                                };
-                                latestSingleProgressForError = latestSingleProgress;
-                                contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                            });
-                        }
-                        fullResponse = await runSingleApiStream(updateSingleStreamingProgress);
-                    }
-                    stopProgressTicker(singleProgressTimer);
-                    singleProgressTimer = null;
+                    const singleResult = await singleModelResponseLifecycle.run({
+                        targetElement: contentDiv,
+                        userParts,
+                        modelInfo,
+                        conversation: conv,
+                        signal: abortController.signal,
+                        uiLanguage: config.uiLanguage
+                    });
+                    fullResponse = singleResult.fullResponse;
+                    responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
                 }
-                if (!String(fullResponse || '').trim()) {
-                    throw new Error(config.uiLanguage === 'en'
-                        ? 'The request ended without any response text. The provider may have timed out or rejected the payload.'
-                        : '請求已結束，但模型沒有回傳任何文字。服務可能逾時，或拒絕了這次的 payload。');
-                }
-                sendConversationToMail(userMessageObject, fullResponse);
-
-
-                // 2. 將完整的最終訊息保存到對話紀錄中
-                finalAiMessage.parts = [{ text: fullResponse }];
-                conv.messages.push(finalAiMessage);
-                conv.lastUpdatedAt = new Date().toISOString();
-                await saveAppData();
-                
-                // 3. ✨ 啟動打字機動畫，並等待它完成
-                if (responseRenderedInRealtime && contentDiv.dataset.streamRendered === 'true') {
-                    restoreOpenCouncilDetails(contentDiv, getOpenCouncilDetailKeys(contentDiv));
-                } else if (responseRenderedInRealtime) {
-                    renderIncrementalResponse(contentDiv, fullResponse, { final: true, preserveCouncilDetails: Boolean(finalAiMessage.council) });
-                } else {
-                    await playbackStreamingMarkdownResponse(contentDiv, fullResponse, abortController.signal, Boolean(finalAiMessage.council));
-                }
-
-
-                // 4. ✨ 只有在打字機動畫結束後，才執行後續任務
-                if (!abortController.signal.aborted) {
-                    if (config.memoryEnabled1 && config.enableAutoMemory) {
-                        await extractPersonalMemory(userMessage, fullResponse);
-                    }
-                }
-
-
+                await finalizeAssistantResponse({
+                    fullResponse,
+                    finalAiMessage,
+                    councilMetadata,
+                    includeCouncilMetadata: responseUsesCouncil,
+                    conversation: conv,
+                    userMessageObject,
+                    userMessageText: userMessage,
+                    signal: abortController.signal,
+                    responseUsesCouncil,
+                    responseRenderedInRealtime,
+                    targetElement: contentDiv,
+                    uiLanguage: config.uiLanguage,
+                    memoryEnabled: config.memoryEnabled1,
+                    autoMemoryEnabled: config.enableAutoMemory,
+                    sendConversationToMail,
+                    persistAppData: saveAppData,
+                    completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
+                    restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
+                    renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
+                    playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
+                    extractPersonalMemory
+                });
             } catch (error) {
-                if (error.name !== 'AbortError' || !abortController?.signal?.aborted) {
-                    if (councilProgressTimer) {
-                        stopProgressTicker(councilProgressTimer);
-                        councilProgressTimer = null;
-                    }
-                    if (singleProgressTimer) {
-                        stopProgressTicker(singleProgressTimer);
-                        singleProgressTimer = null;
-                    }
-                    const errorMessage = `${i18n[config.uiLanguage].errorPrefix || '抱歉，發生錯誤：'}${error.message || error.name || 'Unknown error'}`;
-                    const currentProgress = latestSingleProgressForError || {
-                        modelName: normalizeConversationModel(conv)?.name || conv.model,
-                        elapsedMs: 0
-                    };
-                    contentDiv.innerHTML = renderSingleModelError(currentProgress, errorMessage);
-                    const finalAiMessage = { role: 'model', parts: [{ text: errorMessage }], createdAt: new Date().toISOString() };
-                    conv.messages.push(finalAiMessage);
-                    await saveAppData();
-                }
+                await persistAssistantResponseError({
+                    error,
+                    signal: abortController?.signal,
+                    conversation: conv,
+                    targetElement: contentDiv,
+                    errorPrefix: i18n[config.uiLanguage].errorPrefix,
+                    fallbackModelName: normalizeConversationModel(conv)?.name || conv.model,
+                    getLatestProgress: () => (!responseUsesCouncil && singleModelResponseLifecycle.getLatestProgress()),
+                    stopSingleModelLifecycle: () => singleModelResponseLifecycle.stop(),
+                    renderError: renderSingleModelError,
+                    persistAppData: saveAppData
+                });
             } finally {
-                // ... finally 區塊的程式碼保持不變 ...
-                if (councilProgressTimer) {
-                    stopProgressTicker(councilProgressTimer);
-                }
-                if (singleProgressTimer) {
-                    stopProgressTicker(singleProgressTimer);
-                }
-                isCouncilRunning = false;
-                abortController = null;
-                updateSubmitButtonState(false);
-                updateInputState();
-                renderCouncilControls();
-                renderInputIndicators();
-                const lastMessageDiv = ALL_ELEMENTS.messageList.lastElementChild;
+                const lastMessageElement = runSubmitFinalCleanupLifecycle(
+                    () => singleModelResponseLifecycle.stop(),
+                    () => { isCouncilRunning = false; abortController = null; },
+                    updateSubmitButtonState, updateInputState, renderCouncilControls, renderInputIndicators,
+                    () => ALL_ELEMENTS.messageList.lastElementChild
+                );
+                applyModelMessagePostResponseActions({
+                    lastMessageElement,
+                    conversation: conv,
+                    i18n,
+                    uiLanguage: config.uiLanguage,
+                    formatTimestamp: formatFullTimestamp
+                });
+            }
+        };

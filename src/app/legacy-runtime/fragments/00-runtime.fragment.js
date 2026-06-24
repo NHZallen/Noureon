@@ -6,10 +6,18 @@ import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-forma
 import { buildTimeDistributionChartData } from '/src/app/legacy-runtime/features/time-distribution-chart-data.js';
 import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '/src/app/legacy-runtime/features/mobile-context-menu-markup.js';
 import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails, isCouncilComparisonSummary, normalizeCouncilComparisonDetails, hasUnclosedCouncilDetails } from '/src/app/legacy-runtime/features/streaming-council-details.js';
-import { createStreamingMarkdownRenderState } from '/src/app/legacy-runtime/features/streaming-markdown-render-state.js';
 import { createStreamingTextFrameQueue } from '/src/app/legacy-runtime/features/streaming-text-frame-queue.js';
 import { createTypewriterPlaybackController } from '/src/app/legacy-runtime/features/typewriter-playback-controller.js';
 import { appendRendererTextGradually } from '/src/app/legacy-runtime/features/renderer-gradual-append-controller.js';
+import { createStreamingMarkdownFeature } from '/src/app/legacy-runtime/features/streaming-markdown-renderer.js';
+import { createSingleModelResponseLifecycle } from '/src/app/legacy-runtime/features/single-model-response-lifecycle.js';
+import { runCouncilResponseRenderLifecycle } from '/src/app/legacy-runtime/features/council-response-render-lifecycle.js';
+import { finalizeAssistantResponse, persistAssistantResponseError } from '/src/app/legacy-runtime/features/assistant-response-finalization.js';
+import { runSubmitFinalCleanupLifecycle } from '/src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js';
+import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/features/model-message-post-response-actions.js';
+import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
+import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
+import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
@@ -1767,6 +1775,21 @@ function renderMarkdownWithFormulas(text) {
             await saveAppData();
             renderAll();
         };
+        const {
+            getInlineMediaSrc: getArchivedInlineMediaSrc,
+            renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid
+        } = createArchivedMediaAttachmentRenderer({ escapeHTML });
+        const {
+            bindMediaPreviewButtons: bindArchivedMediaPreviewButtons
+        } = createArchivedMediaPreviewLifecycle({
+            document,
+            navigator,
+            fetch,
+            File,
+            escapeHTML,
+            getInlineMediaSrc: getArchivedInlineMediaSrc,
+            getUiLanguage: () => config.uiLanguage
+        });
         const showArchivedChatPreview = (id, event) => {
             event?.stopPropagation();
             const conv = conversations.find(c => c.id === id);
@@ -1791,7 +1814,7 @@ function renderMarkdownWithFormulas(text) {
                             mediaParts.push(part.inlineData);
                         }
                     });
-                    const mediaGridHTML = renderMediaAttachmentGrid(mediaParts);
+                    const mediaGridHTML = renderArchivedMediaAttachmentGrid(mediaParts);
                     const messageBubble = `
                         <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
                             ${mediaGridHTML}
@@ -1802,7 +1825,7 @@ function renderMarkdownWithFormulas(text) {
                             ` : ''}
                         </div>`;
                     messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
-                    bindMediaPreviewButtons(messageDiv, mediaParts);
+                    bindArchivedMediaPreviewButtons(messageDiv, mediaParts);
                     contentContainer.appendChild(messageDiv);
                 });
             }
