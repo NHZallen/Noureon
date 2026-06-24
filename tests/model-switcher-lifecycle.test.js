@@ -1,0 +1,211 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+
+import { createDom } from './behaviours/helpers/create-dom.js';
+import {
+  createModelSwitcherLifecycle,
+  prepareModelSwitcherModels
+} from '../src/app/legacy-runtime/features/model-switcher-lifecycle.js';
+
+const projectFile = (path) => new URL(`../${path}`, import.meta.url);
+const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+
+const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+}[char]));
+
+const MODELS = [
+  {
+    id: 'gemini-pro',
+    name: 'Gemini Pro',
+    provider: 'gemini',
+    descriptionKey: 'geminiPro',
+    tier: ['paid']
+  },
+  {
+    id: 'stepfun/model-a',
+    name: 'Step A',
+    provider: 'stepfun',
+    descriptionKey: 'stepA',
+    tier: ['free']
+  },
+  {
+    id: 'openai/beta',
+    name: 'OpenAI Beta',
+    provider: 'openrouter',
+    descriptionKey: 'betaModel',
+    isBeta: true,
+    tier: ['paid']
+  }
+];
+
+const createHarness = (overrides = {}) => {
+  const { document, window, cleanup } = createDom(`
+    <div id="model-switcher-container"></div>
+    <div id="model-council-popover" class="popover"></div>
+    <button id="model-council-toggle-btn" aria-expanded="false"></button>
+  `);
+  const calls = [];
+  const conversation = overrides.conversation ?? {
+    archived: false,
+    council: { enabled: false },
+    model: 'stepfun/model-a',
+    provider: 'stepfun'
+  };
+  const config = {
+    lastUsedModel: 'stepfun/model-a',
+    modelSettings: [
+      { hidden: false, id: 'stepfun/model-a', order: 1 },
+      { hidden: false, id: 'gemini-pro', order: 2 },
+      { hidden: false, id: 'openai/beta', order: 3 }
+    ],
+    uiLanguage: 'en'
+  };
+  const i18n = {
+    en: {
+      back: 'Back',
+      betaModels: 'Beta models',
+      betaModelsDesc: 'Preview models',
+      categoryGeneral: 'General',
+      freeModels: 'Free models',
+      paidModels: 'Paid models',
+      search: 'Search',
+      stepA_tier_free: 'Fast free model'
+    },
+    'zh-TW': {}
+  };
+  const lifecycle = createModelSwitcherLifecycle({
+    closeAllPopovers: () => calls.push(['closeAllPopovers']),
+    document,
+    elements: {
+      modelSwitcherContainer: document.querySelector('#model-switcher-container')
+    },
+    escapeHTML,
+    getActiveConversation: () => conversation,
+    getConfig: () => config,
+    getCouncilModeLabel: () => 'Consensus',
+    getCouncilSelectedModels: () => ({ council: conversation.council }),
+    getCouncilTexts: () => ({ title: 'Council' }),
+    getI18n: () => i18n,
+    getModelApiId: (model) => model.id,
+    getModelRetirementLabel: (model) => model.retirement || '',
+    getModelTiers: (model) => model.tier || [],
+    getSingleDocumentTranslatorModel: () => null,
+    isCouncilEnabled: (conv) => !!conv.council?.enabled,
+    modelSupportsDocumentUpload: (model) => model.id === 'gemini-pro',
+    modelSupportsVision: (model) => model.id === 'gemini-pro',
+    modelSupportsWebSearch: (model) => model.provider === 'stepfun',
+    models: MODELS,
+    renderAll: () => calls.push(['renderAll']),
+    renderCouncilControls: () => calls.push(['renderCouncilControls']),
+    requestFrame: (callback) => {
+      calls.push(['requestFrame']);
+      callback();
+    },
+    saveAppData: async () => calls.push(['saveAppData']),
+    saveConfig: async () => calls.push(['saveConfig']),
+    window
+  });
+
+  return { calls, cleanup, config, conversation, document, lifecycle };
+};
+
+test('prepares visible models with provider-specific company and tier metadata', () => {
+  const result = prepareModelSwitcherModels({
+    currentModelId: 'stepfun/model-a',
+    getModelApiId: (model) => model.id,
+    getModelTiers: (model) => model.tier || [],
+    modelSettings: [
+      { hidden: false, id: 'stepfun/model-a', order: 2 },
+      { hidden: false, id: 'gemini-pro', order: 1 },
+      { hidden: true, id: 'openai/beta', order: 3 }
+    ],
+    models: MODELS
+  });
+
+  assert.equal(result.currentModel.id, 'stepfun/model-a');
+  assert.deepEqual(result.visibleModels.map((model) => model.id), ['gemini-pro', 'stepfun/model-a']);
+  assert.equal(result.processedModels.find((model) => model.id === 'gemini-pro').company, 'google');
+  assert.equal(result.processedModels.find((model) => model.id === 'stepfun/model-a').company, 'stepfun');
+  assert.deepEqual(result.betaModels.map((model) => model.id), ['openai/beta']);
+});
+
+test('renders model switcher navigation and persists selected model', async () => {
+  const { calls, cleanup, config, conversation, document, lifecycle } = createHarness();
+  try {
+    lifecycle.renderModelSwitcher();
+
+    assert.match(document.querySelector('#current-model-btn').textContent, /Step A/);
+    document.querySelector('#current-model-btn').click();
+    assert.ok(document.querySelector('#model-options-popover').classList.contains('visible'));
+
+    document.querySelector('[data-provider="gemini"]').click();
+    document.querySelector('[data-tier="paid"]').click();
+    document.querySelector('[data-model-id="gemini-pro"]').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(conversation.model, 'gemini-pro');
+    assert.equal(conversation.provider, 'gemini');
+    assert.equal(config.lastUsedModel, 'gemini-pro');
+    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderAll'].includes(name)), [
+      ['saveAppData'],
+      ['saveConfig'],
+      ['renderAll']
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
+test('council mode switcher button delegates to council controls without duplicating council rendering', () => {
+  const { calls, cleanup, conversation, document, lifecycle } = createHarness({
+    conversation: {
+      archived: false,
+      council: { enabled: true, mode: 'consensus' },
+      model: 'stepfun/model-a',
+      provider: 'stepfun'
+    }
+  });
+  try {
+    lifecycle.renderModelSwitcher();
+
+    assert.match(document.querySelector('#current-model-btn').textContent, /Council/);
+    document.querySelector('#current-model-btn').click();
+
+    assert.deepEqual(calls.slice(0, 3), [
+      ['renderCouncilControls'],
+      ['closeAllPopovers'],
+      ['requestFrame']
+    ]);
+    assert.ok(document.querySelector('#model-council-popover').classList.contains('visible'));
+    assert.equal(document.querySelector('#model-council-toggle-btn').getAttribute('aria-expanded'), 'true');
+    assert.equal(conversation.model, 'stepfun/model-a');
+  } finally {
+    cleanup();
+  }
+});
+
+test('model switcher lifecycle source avoids provider parser, storage schema, package, and Vite coupling', () => {
+  const source = readSource('src/app/legacy-runtime/features/model-switcher-lifecycle.js');
+
+  for (const forbidden of [
+    'TextDecoder',
+    'response.body',
+    'streamApiCall',
+    'indexedDB',
+    'localStorage',
+    'sessionStorage',
+    'virtual:legacy-app-runtime',
+    'vite.config',
+    'package.json',
+    'REFACTOR_PLAN'
+  ]) {
+    assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
+  }
+});

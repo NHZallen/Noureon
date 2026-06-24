@@ -670,6 +670,40 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 116 * 1024);
 });
 
+test('model switcher preparation and lifecycle are isolated from the 01 runtime shell', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/model-switcher-lifecycle.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/model-switcher-lifecycle.js'));
+
+  assert.equal(typeof helpers.prepareModelSwitcherModels, 'function');
+  assert.equal(typeof helpers.createModelSwitcherLifecycle, 'function');
+  assert.match(helperSource, /export\s+function\s+prepareModelSwitcherModels\b/);
+  assert.match(helperSource, /export\s+function\s+createModelSwitcherLifecycle\b/);
+  assert.match(
+    fragment01Source,
+    /import\s*\{\s*createModelSwitcherLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-switcher-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /\{\s*renderModelSwitcher\s*\}\s*=\s*createModelSwitcherLifecycle\(\{/);
+
+  assert.doesNotMatch(fragment01Source, /const\s+renderModelSwitcher\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(fragment01Source, /const\s+processedModels\s*=\s*MODELS\.map\(model\s*=>/);
+  assert.doesNotMatch(fragment01Source, /const\s+popoverHTML\s*=\s*`/);
+  assert.doesNotMatch(fragment01Source, /providerView\.innerHTML\s*=/);
+  assert.doesNotMatch(fragment01Source, /modelListView\.addEventListener\('click'/);
+
+  assert.match(helperSource, /const\s+renderModelSwitcher\s*=\s*\(\)\s*=>/);
+  assert.match(helperSource, /providerView\.innerHTML\s*=/);
+  assert.match(helperSource, /modelListView\.addEventListener\('click'/);
+  assert.match(fragment01Source, /renderModelSwitcher,/);
+  assert.match(fragment01Source, /renderCouncilControls,/);
+
+  assert.doesNotMatch(helperSource, /TextDecoder|response\.body|streamApiCall/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/model-switcher-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 100 * 1024);
+});
+
 test('assistant response finalization is isolated from the 01 runtime submit flow', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
   const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
