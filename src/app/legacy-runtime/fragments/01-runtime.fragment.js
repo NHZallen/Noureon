@@ -733,358 +733,42 @@
             });
             return visibleModels;
         };
-        const renderCouncilControls = () => {
-            const inputControls = ALL_ELEMENTS.fileInputContainer?.parentElement;
-            if (!inputControls) return;
-            let container = document.getElementById('model-council-control');
-            const existingPopover = container?.querySelector('#model-council-popover');
-            const wasVisible = existingPopover?.classList.contains('visible') || false;
-            const existingScrollArea = existingPopover?.querySelector('.council-popover-scroll-area');
-            const previousScrollTop = wasVisible ? (existingScrollArea?.scrollTop || 0) : 0;
-            const previousModelSearch = wasVisible ? (existingPopover?.querySelector('[data-council-model-search]')?.value || '') : '';
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'model-council-control';
-            }
-            if (container.parentElement !== inputControls || container.previousElementSibling !== ALL_ELEMENTS.fileInputContainer) {
-                ALL_ELEMENTS.fileInputContainer.insertAdjacentElement('afterend', container);
-            }
-            const conv = getActiveConversation();
-            if (!conv) {
-                container.innerHTML = '';
-                return;
-            }
-            conv.council = normalizeCouncilConfig(conv.council);
-            if (config.isLearningMode && !conv.council.enabled) {
-                container.innerHTML = '';
-                return;
-            }
-            const texts = getCouncilTexts();
-            const runtimeTexts = getCouncilRuntimeTexts();
-            const validation = getCouncilValidation(conv);
-            const modelList = getCouncilModelList(conv);
-            const selectedParticipants = getModelsByIds(conv.council.participantModelIds);
-            const synthesizer = MODELS.find(model => model.id === conv.council.synthesizerModelId);
-            const participantSummary = formatCouncilModelSummary(selectedParticipants, 2);
-            const isLocked = isCouncilRunning && conv.council.enabled;
-            const lockAttr = isLocked ? 'disabled' : '';
-            const enabledClass = conv.council.enabled ? 'is-enabled' : '';
-            const statusText = conv.council.enabled
-                ? (validation.ok ? `${texts.ready} · ${selectedParticipants.length} · ${synthesizer?.name || texts.selectSynthesizer}` : validation.message)
-                : texts.disabled;
-            const doneText = i18n[config.uiLanguage]?.done || i18n[config.uiLanguage]?.confirm || '完成';
-            const dotClass = conv.council.enabled ? (validation.ok ? 'ready' : 'warning') : 'off';
-            const supportsCouncilSearch = hasCouncilWebSearchAccess(synthesizer || normalizeConversationModel(conv));
-            const searchDisabled = isLocked || conv.archived || !supportsCouncilSearch;
-            const searchDisabledAttr = searchDisabled ? 'disabled' : '';
-            const searchActiveClass = conv.isWebSearchEnabled ? 'is-active' : '';
-            const searchTitle = supportsCouncilSearch
-                ? (conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : (i18n[config.uiLanguage]?.search || 'Search'))
-                : (i18n[config.uiLanguage]?.webSearchNotAvailable || 'Web search is not available for this model.');
-            const priceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
-            const visionLabel = config.uiLanguage === 'en' ? 'Vision' : '視覺';
-            const documentLabel = config.uiLanguage === 'en' ? 'Documents' : '文件';
-            const searchLabel = i18n[config.uiLanguage]?.search || '搜尋';
-            const modelSearchPlaceholder = config.uiLanguage === 'en' ? 'Search models' : '\u641c\u5c0b\u6a21\u578b';
-            const providerLabel = config.uiLanguage === 'en' ? 'Provider' : '供應商';
-            const abilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
-            const noExtraAbilityLabel = config.uiLanguage === 'en' ? 'Text / file' : '文字 / 文件';
-            const providerCountLabel = config.uiLanguage === 'en' ? 'providers' : '供應商';
-            const makeModelTooltip = (model) => {
-                const abilities = [
-                    noExtraAbilityLabel,
-                    modelSupportsVision(model) ? visionLabel : '',
-                    modelSupportsDocumentUpload(model) ? documentLabel : '',
-                    modelSupportsWebSearch(model) ? searchLabel : ''
-                ].filter(Boolean).join(' · ');
-                return `${model.name}\n${providerLabel}: ${getProviderLabel(model.provider)}\n${abilityLabel}: ${abilities}\n${priceLabel}: ${getModelPriceLabel(model)}`;
-            };
-            const createCouncilModelMetaHTML = (model) => `
-                <span class="council-model-badges">
-                    ${modelSupportsVision(model) ? `<span class="council-capability-badge" title="${escapeHTML(visionLabel)}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>${escapeHTML(visionLabel)}</span>` : ''}
-                    ${modelSupportsDocumentUpload(model) ? `<span class="council-capability-badge">${escapeHTML(documentLabel)}</span>` : ''}
-                    ${modelSupportsWebSearch(model) ? `<span class="council-capability-badge">${escapeHTML(searchLabel)}</span>` : ''}
-                </span>
-                <small>${escapeHTML(getProviderLabel(model.provider))} · ${escapeHTML(priceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</small>
-            `;
-            const buildCouncilModelGroups = (models) => {
-                const groups = new Map();
-                models.forEach(model => {
-                    const key = getModelFamilyKey(model);
-                    if (!groups.has(key)) {
-                        groups.set(key, {
-                            key,
-                            name: getModelFamilyName(model) || model.name,
-                            variants: []
-                        });
-                    }
-                    groups.get(key).variants.push(model);
-                });
-                return Array.from(groups.values()).map(group => ({
-                    ...group,
-                    variants: group.variants.sort((a, b) => {
-                        const providerCompare = getProviderLabel(a.provider).localeCompare(getProviderLabel(b.provider));
-                        return providerCompare || a.name.localeCompare(b.name);
-                    })
-                }));
-            };
-            const modelGroups = buildCouncilModelGroups(modelList)
-                .sort((a, b) => a.name.localeCompare(b.name));
-            const renderSelectableCouncilModelRow = (model, type) => {
-                const isParticipant = type === 'participant';
-                const checked = conv.council.participantModelIds.includes(model.id);
-                const selected = isParticipant ? checked : conv.council.synthesizerModelId === model.id;
-                const maxed = isParticipant && !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
-                const disabled = isLocked || maxed;
-                const tooltip = makeModelTooltip(model);
-                const searchText = `${model.name} ${getProviderLabel(model.provider)} ${getModelApiId(model)}`.toLowerCase();
-                return `
-                    <label class="council-model-row ${selected ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}" data-council-search-text="${escapeHTML(searchText)}">
-                        <input type="${isParticipant ? 'checkbox' : 'radio'}" ${isParticipant ? '' : 'name="council-synthesizer"'} ${isParticipant ? `data-council-participant="${escapeHTML(model.id)}"` : `data-council-synthesizer="${escapeHTML(model.id)}"`} ${selected ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
-                        <span>
-                            <strong>${escapeHTML(model.name)}</strong>
-                            ${createCouncilModelMetaHTML(model)}
-                        </span>
-                    </label>
-                `;
-            };
-            const renderCouncilModelGroups = (type) => modelGroups.map(group => {
-                if (group.variants.length === 1) {
-                    return renderSelectableCouncilModelRow(group.variants[0], type);
-                }
-                const providerNames = group.variants.map(model => getProviderLabel(model.provider)).join(' · ');
-                const groupSearchText = `${group.name} ${providerNames}`.toLowerCase();
-                return `
-                    <div class="council-model-group" data-council-group-search-text="${escapeHTML(groupSearchText)}">
-                        <div class="council-model-family-row">
-                            <span>
-                                <strong>${escapeHTML(group.name)}</strong>
-                                <small>${escapeHTML(String(group.variants.length))} ${escapeHTML(providerCountLabel)}</small>
-                            </span>
-                            <span class="council-family-provider-list">${escapeHTML(providerNames)}</span>
-                        </div>
-                        <div class="council-provider-variant-list">
-                            ${group.variants.map(model => renderSelectableCouncilModelRow(model, type)).join('')}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            const modelRows = renderCouncilModelGroups('participant');
-            const synthesizerRows = renderCouncilModelGroups('synthesizer');
-            container.innerHTML = `
-                <div class="model-council-bar ${enabledClass} ${isLocked ? 'is-locked' : ''}">
-                    <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                        <span class="council-toggle-label">${texts.title}</span>
-                        ${participantSummary ? `<span class="council-toggle-models">${escapeHTML(participantSummary)}</span>` : ''}
-                        <span class="model-council-dot ${dotClass}" aria-hidden="true"></span>
-                    </button>
-                    <div id="model-council-popover" class="popover model-council-popover ${wasVisible ? 'visible' : ''}">
-                        <div class="council-popover-sticky-controls">
-                        <div class="council-popover-header">
-                            <div>
-                                <h3 class="council-popover-title">${texts.title}</h3>
-                                <p class="model-council-status ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(statusText)}</p>
-                            </div>
-                            <button type="button" id="model-council-close-btn" class="council-popover-close" title="${escapeHTML(doneText)}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        </div>
-                        <div class="council-popover-header compact council-config-row">
-                            <div class="council-mode-cluster">
-                                <button type="button" id="model-council-enabled" class="council-enable-pill ${conv.council.enabled ? 'is-active' : ''}" aria-pressed="${conv.council.enabled ? 'true' : 'false'}" ${lockAttr}>
-                                    ${texts.enable}
-                                </button>
-                                <div class="council-mode-tabs">
-                                    <button type="button" class="${conv.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus" ${lockAttr}>${texts.consensus}</button>
-                                    <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${lockAttr}>${texts.deliberation}</button>
-                                </div>
-                            </div>
-                            <div class="council-action-cluster">
-                                <button type="button" id="model-council-search-toggle" class="council-search-toggle ${searchActiveClass}" aria-pressed="${conv.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabledAttr}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                                    <span>${escapeHTML(searchLabel)}</span>
-                                </button>
-                                <label class="council-model-search-field" title="${escapeHTML(modelSearchPlaceholder)}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-                                    <input type="search" data-council-model-search value="${escapeHTML(previousModelSearch)}" placeholder="${escapeHTML(modelSearchPlaceholder)}" aria-label="${escapeHTML(modelSearchPlaceholder)}" autocomplete="off">
-                                </label>
-                            </div>
-                        </div>
-                            ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
-                        </div>
-                        <div class="council-popover-scroll-area">
-                        <div class="council-section">
-                            <div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${COUNCIL_MAX_MODELS})</div>
-                            <div class="council-model-list">${modelRows}</div>
-                        </div>
-                        <div class="council-section">
-                            <div class="council-section-title">${texts.synthesizer}</div>
-                            <div class="council-model-list">${synthesizerRows}</div>
-                        </div>
-                        <div class="council-popover-bottom">
-                        <label class="council-raw-row">
-                            <input type="checkbox" id="model-council-show-raw" ${conv.council.showRawResponses ? 'checked' : ''} ${lockAttr}>
-                            <span>${texts.rawNotes}</span>
-                        </label>
-                        <label class="council-raw-row">
-                            <input type="checkbox" id="model-council-show-comparison" ${conv.council.showComparisonTable ? 'checked' : ''} ${lockAttr}>
-                            <span>${runtimeTexts.comparisonToggle}</span>
-                        </label>
-                        <p class="council-validation ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(conv.council.enabled ? validation.message : texts.required)}</p>
-                        <div class="council-popover-footer">
-                            <button type="button" id="model-council-done-btn" class="council-done-btn">${escapeHTML(doneText)}</button>
-                        </div>
-                        </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            const popover = container.querySelector('#model-council-popover');
-            const scrollArea = container.querySelector('.council-popover-scroll-area');
-            const toggleButton = container.querySelector('#model-council-toggle-btn');
-            const updateCouncilStickyOffset = () => {
-                const stickyControls = popover.querySelector('.council-popover-sticky-controls');
-                popover.style.setProperty('--council-sticky-offset', `${stickyControls?.offsetHeight || 0}px`);
-            };
-            requestAnimationFrame(updateCouncilStickyOffset);
-            if (wasVisible) {
-                requestAnimationFrame(() => {
-                    if (scrollArea) scrollArea.scrollTop = previousScrollTop;
-                    updateCouncilStickyOffset();
-                });
-            }
-            const closeCouncilPopover = () => {
-                popover.classList.remove('visible');
-                toggleButton.setAttribute('aria-expanded', 'false');
-            };
-            const modelSearchInput = container.querySelector('[data-council-model-search]');
-            const applyCouncilModelSearch = () => {
-                const query = (modelSearchInput?.value || '').trim().toLowerCase();
-                container.querySelectorAll('.council-model-list > .council-model-row[data-council-search-text]').forEach(row => {
-                    const matches = !query || (row.dataset.councilSearchText || '').includes(query);
-                    row.hidden = !matches;
-                });
-                container.querySelectorAll('.council-model-group').forEach(group => {
-                    const groupMatches = !!query && (group.dataset.councilGroupSearchText || '').includes(query);
-                    let hasVisibleVariant = false;
-                    group.querySelectorAll('.council-model-row[data-council-search-text]').forEach(row => {
-                        const matches = !query || groupMatches || (row.dataset.councilSearchText || '').includes(query);
-                        row.hidden = !matches;
-                        hasVisibleVariant = hasVisibleVariant || matches;
-                    });
-                    group.hidden = !!query && !groupMatches && !hasVisibleVariant;
-                });
-            };
-            modelSearchInput?.addEventListener('input', applyCouncilModelSearch);
-            applyCouncilModelSearch();
-            toggleButton.addEventListener('click', () => {
-                const wasVisibleNow = popover.classList.contains('visible');
-                closeAllPopovers();
-                popover.classList.toggle('visible', !wasVisibleNow);
-                if (!wasVisibleNow) {
-                    requestAnimationFrame(() => {
-                        if (scrollArea) scrollArea.scrollTop = 0;
-                    });
-                }
-                toggleButton.setAttribute('aria-expanded', String(!wasVisibleNow));
-            });
-            container.querySelector('#model-council-close-btn').addEventListener('click', closeCouncilPopover);
-            container.querySelector('#model-council-done-btn').addEventListener('click', closeCouncilPopover);
-            container.querySelector('#model-council-enabled').addEventListener('click', async () => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                conv.council.enabled = !conv.council.enabled;
-                if (conv.council.enabled) seedCouncilParticipants(conv);
-                await persistCouncilConfig(conv);
-                renderCouncilControls();
-                if (conv.council.enabled && !conv.isWebSearchEnabled) {
-                    showNotification(runtimeTexts.searchManualNotice, 'warning');
-                }
-            });
-            container.querySelector('#model-council-search-toggle')?.addEventListener('click', async () => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                if (!supportsCouncilSearch || conv.archived) {
-                    showNotification(i18n[config.uiLanguage]?.webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
-                    return;
-                }
-                conv.isWebSearchEnabled = !conv.isWebSearchEnabled;
-                await saveAppData();
-                renderCouncilControls();
-                renderInputIndicators();
-            });
-            container.querySelectorAll('[data-council-mode]').forEach(button => {
-                button.addEventListener('click', async () => {
-                    if (isCouncilRunning) {
-                        showNotification(runtimeTexts.councilLocked, 'warning');
-                        return;
-                    }
-                    conv.council.mode = button.dataset.councilMode;
-                    await persistCouncilConfig(conv);
-                    renderCouncilControls();
-                });
-            });
-            container.querySelectorAll('[data-council-participant]').forEach(input => {
-                input.addEventListener('change', async () => {
-                    if (isCouncilRunning) {
-                        showNotification(runtimeTexts.councilLocked, 'warning');
-                        renderCouncilControls();
-                        return;
-                    }
-                    const modelId = input.dataset.councilParticipant;
-                    const nextIds = new Set(conv.council.participantModelIds);
-                    if (input.checked) {
-                        if (nextIds.size >= COUNCIL_MAX_MODELS) {
-                            showNotification(texts.tooMany, 'warning');
-                            renderCouncilControls();
-                            return;
-                        }
-                        nextIds.add(modelId);
-                    } else {
-                        nextIds.delete(modelId);
-                    }
-                    conv.council.participantModelIds = Array.from(nextIds);
-                    await persistCouncilConfig(conv);
-                });
-            });
-            container.querySelectorAll('[data-council-synthesizer]').forEach(input => {
-                input.addEventListener('change', async () => {
-                    if (isCouncilRunning) {
-                        showNotification(runtimeTexts.councilLocked, 'warning');
-                        renderCouncilControls();
-                        return;
-                    }
-                    if (!input.checked) return;
-                    conv.council.synthesizerModelId = input.dataset.councilSynthesizer;
-                    await persistCouncilConfig(conv);
-                });
-            });
-            container.querySelector('#model-council-show-raw').addEventListener('change', async (event) => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                conv.council.showRawResponses = event.target.checked;
-                await persistCouncilConfig(conv);
-            });
-            container.querySelector('#model-council-show-comparison').addEventListener('change', async (event) => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                conv.council.showComparisonTable = event.target.checked;
-                await persistCouncilConfig(conv);
-            });
-        };
+        import { createCouncilControlsLifecycle } from '/src/app/legacy-runtime/features/council-controls-lifecycle.js';
+        const { renderCouncilControls } = createCouncilControlsLifecycle({
+            closeAllPopovers,
+            councilMaxModels: COUNCIL_MAX_MODELS,
+            document,
+            elements: ALL_ELEMENTS,
+            escapeHTML,
+            formatCouncilModelSummary,
+            getActiveConversation,
+            getConfig: () => config,
+            getCouncilModelList,
+            getCouncilRuntimeTexts,
+            getCouncilTexts,
+            getCouncilValidation,
+            getI18n: () => i18n,
+            getIsCouncilRunning: () => isCouncilRunning,
+            getModelApiId,
+            getModelFamilyKey,
+            getModelFamilyName,
+            getModelPriceLabel,
+            getModelsByIds,
+            getProviderLabel,
+            hasCouncilWebSearchAccess,
+            modelSupportsDocumentUpload,
+            modelSupportsVision,
+            modelSupportsWebSearch,
+            models: MODELS,
+            normalizeConversationModel,
+            normalizeCouncilConfig,
+            persistCouncilConfig,
+            renderInputIndicators,
+            requestFrame: requestAnimationFrame,
+            saveAppData,
+            seedCouncilParticipants,
+            showNotification
+        });
         import { createResponseProgressRenderers } from '/src/app/legacy-runtime/features/response-progress-renderers.js';
         const {
             renderCouncilProgress,

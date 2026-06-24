@@ -704,6 +704,37 @@ test('model switcher preparation and lifecycle are isolated from the 01 runtime 
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 100 * 1024);
 });
 
+test('council controls lifecycle is isolated from the 01 runtime shell', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/council-controls-lifecycle.js'));
+
+  assert.equal(typeof helpers.createCouncilControlsLifecycle, 'function');
+  assert.match(helperSource, /export\s+function\s+createCouncilControlsLifecycle\b/);
+  assert.match(
+    fragment01Source,
+    /import\s*\{\s*createCouncilControlsLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-controls-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /\{\s*renderCouncilControls\s*\}\s*=\s*createCouncilControlsLifecycle\(\{/);
+
+  assert.doesNotMatch(fragment01Source, /const\s+renderCouncilControls\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(fragment01Source, /id="model-council-enabled"/);
+  assert.doesNotMatch(fragment01Source, /data-council-participant=/);
+  assert.doesNotMatch(fragment01Source, /const\s+applyCouncilModelSearch\s*=/);
+  assert.match(helperSource, /const\s+renderCouncilControls\s*=\s*\(\)\s*=>/);
+  assert.match(helperSource, /id="model-council-enabled"/);
+  assert.match(helperSource, /data-council-participant=/);
+  assert.match(fragment01Source, /persistCouncilConfig,/);
+  assert.match(fragment01Source, /seedCouncilParticipants,/);
+  assert.match(fragment01Source, /renderCouncilControls,/);
+
+  assert.doesNotMatch(helperSource, /TextDecoder|response\.body|streamApiCall/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-controls-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 80 * 1024);
+});
+
 test('assistant response finalization is isolated from the 01 runtime submit flow', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
   const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
