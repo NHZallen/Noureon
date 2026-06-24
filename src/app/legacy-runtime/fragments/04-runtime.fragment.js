@@ -1035,6 +1035,7 @@ function setupMessageIntersectionObserver() {
         };
         import { createMediaAttachmentRenderer as createTrashMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
         import { createMediaPreviewLifecycle as createTrashMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        import { createConversationViewRenderer as createTrashConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
         const {
             getInlineMediaSrc: getTrashInlineMediaSrc,
             renderMediaAttachmentGrid: renderTrashMediaAttachmentGrid
@@ -1050,30 +1051,23 @@ function setupMessageIntersectionObserver() {
             getInlineMediaSrc: getTrashInlineMediaSrc,
             getUiLanguage: () => config.uiLanguage
         });
+        const trashConversationViewRenderer = createTrashConversationViewRenderer({
+            document,
+            renderUserText,
+            renderModelText: renderMarkdownWithFormulas,
+            renderMediaAttachmentGrid: renderTrashMediaAttachmentGrid,
+            bindMediaPreviewButtons: bindTrashMediaPreviewButtons
+        });
         const showTrashItemInViewModal = (convId) => {
             const conv = conversations.find(c => c.id === convId);
             if (!conv) return;
             ALL_ELEMENTS.trashViewTitle.textContent = conv.title;
             const contentContainer = ALL_ELEMENTS.trashViewContent;
-            contentContainer.innerHTML = '';
-            if (conv.messages.length === 0) {
-                contentContainer.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].noMessages || '此對話沒有訊息。'}</p>`;
-            } else {
-                 conv.messages.forEach(msg => {
-                    const isUser = msg.role === 'user';
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
-                    const mediaParts = msg.parts.filter(p => p.inlineData || p.fileData || p.video_url || p.image_url || p.file);
-                    let contentHTML = msg.parts.map(p => p.text ? (isUser ? renderUserText(p.text) : renderMarkdownWithFormulas(p.text)) : '').join('');
-                    const mediaGridHTML = renderTrashMediaAttachmentGrid(mediaParts);
-                    const messageBubble = contentHTML.trim()
-                        ? `<div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble"><div class="prose prose-sm max-w-none message-content text-[var(--text-primary)]">${contentHTML}</div></div>`
-                        : '';
-                    messageDiv.innerHTML = `<div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">${mediaGridHTML}${messageBubble}</div>`;
-                    bindTrashMediaPreviewButtons(messageDiv, mediaParts);
-                    contentContainer.appendChild(messageDiv);
-                });
-            }
+            trashConversationViewRenderer.renderConversationMessages({
+                conversation: conv,
+                contentContainer,
+                emptyHTML: `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].noMessages || '此對話沒有訊息。'}</p>`
+            });
             toggleModal(ALL_ELEMENTS.trashViewModal, true);
         };
         const toggleTrashSelectionMode = () => {

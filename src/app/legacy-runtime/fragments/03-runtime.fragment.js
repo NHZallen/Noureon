@@ -106,6 +106,8 @@
         import { highlightText } from '/src/app/legacy-runtime/features/search-text-formatting.js';
         import { createMediaAttachmentRenderer as createSearchMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
         import { createMediaPreviewLifecycle as createSearchMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        import { createConversationViewRenderer as createSearchConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
+        import { createUploadedFilePreviewLifecycle } from '/src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js';
         const {
             getInlineMediaSrc: getSearchInlineMediaSrc,
             renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid
@@ -121,6 +123,13 @@
             escapeHTML,
             getInlineMediaSrc: getSearchInlineMediaSrc,
             getUiLanguage: () => config.uiLanguage
+        });
+        const searchConversationViewRenderer = createSearchConversationViewRenderer({
+            document,
+            renderUserText,
+            renderModelText: renderMarkdownWithFormulas,
+            renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid,
+            bindMediaPreviewButtons: bindSearchMediaPreviewButtons
         });
         const performSearchAndRenderResults = async () => {
             const query = ALL_ELEMENTS.modalSearchInput.value.trim();
@@ -239,25 +248,11 @@
             if (!conv) return;
             ALL_ELEMENTS.searchViewTitle.textContent = conv.title;
             const contentContainer = ALL_ELEMENTS.searchViewContent;
-            contentContainer.innerHTML = '';
-            if (conv.messages.length === 0) {
-                contentContainer.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].noMessages || '此對話沒有訊息。'}</p>`;
-            } else {
-                 conv.messages.forEach(msg => {
-                    const isUser = msg.role === 'user';
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
-                    const mediaParts = msg.parts.filter(p => p.inlineData || p.fileData || p.video_url || p.image_url || p.file);
-                    let contentHTML = msg.parts.map(p => p.text ? (isUser ? renderUserText(p.text) : renderMarkdownWithFormulas(p.text)) : '').join('');
-                    const mediaGridHTML = renderSearchMediaAttachmentGrid(mediaParts);
-                    const messageBubble = contentHTML.trim()
-                        ? `<div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble"><div class="prose prose-sm max-w-none message-content text-[var(--text-primary)]">${contentHTML}</div></div>`
-                        : '';
-                    messageDiv.innerHTML = `<div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">${mediaGridHTML}${messageBubble}</div>`;
-                    bindSearchMediaPreviewButtons(messageDiv, mediaParts);
-                    contentContainer.appendChild(messageDiv);
-                });
-            }
+            searchConversationViewRenderer.renderConversationMessages({
+                conversation: conv,
+                contentContainer,
+                emptyHTML: `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].noMessages || '此對話沒有訊息。'}</p>`
+            });
             ALL_ELEMENTS.searchViewConfirmBtn.dataset.id = convId;
             toggleModal(ALL_ELEMENTS.searchViewModal, true);
         };
@@ -380,50 +375,20 @@
             };
             img.src = dataUrl;
         });
-        const renderFilePreviews = () => {
-            const { filePreviewContainer } = ALL_ELEMENTS;
-            filePreviewContainer.innerHTML = '';
-            document.querySelector('.input-wrapper')?.classList.toggle('has-file-previews', uploadedFiles.length > 0);
-            filePreviewContainer.classList.toggle('has-files', uploadedFiles.length > 0);
-            uploadedFiles.forEach(file => {
-                const previewEl = document.createElement('div');
-                previewEl.className = 'relative w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden file-preview-item';
-                if (file.type.startsWith('image/')) {
-                    previewEl.innerHTML = `<img src="${file.base64}" class="w-full h-full object-cover">`;
-                    previewEl.onclick = () => openSearchMediaPreview({
-                        mimeType: file.type,
-                        data: file.base64.split(',')[1],
-                        name: file.name
-                    });
-                } else if (file.type.startsWith('video/')) {
-                    previewEl.innerHTML = `
-                        <video src="${file.base64}" class="w-full h-full object-cover" preload="metadata" muted playsinline></video>
-                        <span class="message-media-play file-preview-play" aria-hidden="true">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
-                        </span>
-                    `;
-                    previewEl.onclick = () => openSearchMediaPreview({
-                        mimeType: file.type,
-                        data: file.base64.split(',')[1],
-                        name: file.name
-                    });
-                } else {
-                    previewEl.innerHTML = `<div class="w-full h-full flex items-center justify-center">
-                       <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                    </div>`;
-                }
-                const removeBtn = document.createElement('button');
-                removeBtn.className = 'absolute top-0 right-0 m-1 w-5 h-5 bg-black bg-opacity-50 text-white rounded-full flex items-center justify-center text-xs';
-                removeBtn.innerHTML = '&times;';
-                removeBtn.onclick = (event) => {
-                    event.stopPropagation();
-                    removeFile(file.id);
-                };
-                previewEl.appendChild(removeBtn);
-                filePreviewContainer.appendChild(previewEl);
-            });
-            updateInputState();
-        };
+        const {
+            renderFilePreviews,
+            removeFile
+        } = createUploadedFilePreviewLifecycle({
+            document,
+            getFiles: () => uploadedFiles,
+            setFiles: (files) => {
+                uploadedFiles = files;
+            },
+            getContainer: () => ALL_ELEMENTS.filePreviewContainer,
+            getInputWrapper: () => document.querySelector('.input-wrapper'),
+            openMediaPreview: openSearchMediaPreview,
+            updateInputState
+        });
         const handleFileSelection = (event) => {
             const files = event.target.files;
             if (!files) return;
@@ -444,10 +409,6 @@
                 reader.readAsDataURL(file);
             });
             event.target.value = '';
-        };
-        const removeFile = (fileId) => {
-            uploadedFiles = uploadedFiles.filter(f => f.id !== fileId);
-            renderFilePreviews();
         };
         const handleExport = async () => {
     const dataToExport = {
