@@ -434,6 +434,7 @@ test('streaming markdown render state helper is isolated from the 01 runtime ren
 
 test('streaming markdown renderer and response core is isolated from the 01 runtime fragment', async () => {
   const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
+  const lifecycleSource = readSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js'));
@@ -465,11 +466,61 @@ test('streaming markdown renderer and response core is isolated from the 01 runt
 
   assert.match(fragment01Source, /const\s+playbackStreamingMarkdownResponse\s*=/);
   assert.match(fragment01Source, /createStreamingMarkdownRenderer\(targetElement,\s*\{\s*preserveCouncilDetails\s*\}\)/);
-  assert.match(fragment01Source, /fullResponse\s*=\s*await\s+streamMarkdownResponse\(/);
+  assert.match(lifecycleSource, /fullResponse\s*=\s*await\s+streamMarkdownResponse\(/);
   assert.match(fragment01Source, /renderIncrementalResponse\(contentDiv,\s*fullResponse,/);
   assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 140 * 1024);
+});
+
+test('single-model response lifecycle is isolated from the 01 runtime submit flow', async () => {
+  const lifecycleSource = readSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js'));
+
+  assert.equal(typeof helpers.createSingleModelResponseLifecycle, 'function');
+  assert.match(lifecycleSource, /export\s+function\s+createSingleModelResponseLifecycle\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*createSingleModelResponseLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/single-model-response-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /const\s+singleModelResponseLifecycle\s*=\s*createSingleModelResponseLifecycle\(\{/);
+  assert.match(fragment01Source, /buildSingleModelTranslatedRequestParts:\s*\(\.\.\.args\)\s*=>\s*buildSingleModelTranslatedRequestParts\(\.\.\.args\)/);
+  assert.match(fragment01Source, /streamApiCall:\s*\(\.\.\.args\)\s*=>\s*streamApiCall\(\.\.\.args\)/);
+  assert.match(fragment01Source, /const\s+singleResult\s*=\s*await\s+singleModelResponseLifecycle\.run\(\{/);
+  assert.match(fragment01Source, /await\s+singleModelResponseLifecycle\.completeView\(\{/);
+  assert.match(fragment01Source, /singleModelResponseLifecycle\.stop\(\)/);
+  assert.match(fragment01Source, /singleModelResponseLifecycle\.getLatestProgress\(\)/);
+
+  for (const removedCore of [
+    /let\s+latestSingleProgress\s*=/,
+    /const\s+renderSingleProgressState\s*=/,
+    /const\s+updateSingleStreamingProgress\s*=/,
+    /const\s+runSingleApiStream\s*=/,
+    /const\s+hasTranslationInputs\s*=/,
+    /let\s+requestParts\s*=\s*userParts/,
+    /let\s+receivedChars\s*=\s*0/,
+    /let\s+lastSingleProgressAt\s*=\s*0/,
+    /let\s+singleProgressTimer\s*=\s*null/
+  ]) {
+    assert.doesNotMatch(fragment01Source, removedCore);
+  }
+
+  assert.doesNotMatch(lifecycleSource, /runModelCouncil\b/);
+  assert.doesNotMatch(lifecycleSource, /saveAppData\b/);
+  assert.doesNotMatch(lifecycleSource, /fetch\s*\(/);
+  assert.doesNotMatch(lifecycleSource, /TextDecoder\b/);
+  assert.doesNotMatch(lifecycleSource, /indexedDB\b/);
+
+  assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runModelCouncil\(/);
+  assert.match(fragment01Source, /conv\.messages\.push\(finalAiMessage\)/);
+  assert.match(fragment01Source, /await\s+saveAppData\(\)/);
+  assert.match(fragment01Source, /sendConversationToMail\(userMessageObject,\s*fullResponse\)/);
+  assert.match(fragment01Source, /contentDiv\.innerHTML\s*=\s*renderSingleModelError\(/);
+  assert.match(fragment01Source, /await\s+extractPersonalMemory\(userMessage,\s*fullResponse\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 135 * 1024);
 });
 
 test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {

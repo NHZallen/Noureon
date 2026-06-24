@@ -2014,6 +2014,20 @@ const stopProgressTicker = (ticker) => {
     }
 };
 
+const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
+    now: () => Date.now(),
+    getOutputMode,
+    renderSingleModelProgress,
+    startProgressTicker,
+    stopProgressTicker,
+    buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
+    streamApiCall: (...args) => streamApiCall(...args),
+    streamMarkdownResponse,
+    playbackStreamingMarkdownResponse,
+    renderIncrementalResponse,
+    getOpenCouncilDetailKeys,
+    restoreOpenCouncilDetails
+});
 
         const handleFormSubmit = async (e) => {
             e.preventDefault();
@@ -2087,8 +2101,7 @@ const stopProgressTicker = (ticker) => {
                 loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
             });
             let councilProgressTimer = null;
-            let singleProgressTimer = null;
-            let latestSingleProgressForError = null;
+            const responseUsesCouncil = isCouncilEnabled(conv);
             
             try {
                 let fullResponse = '';
@@ -2097,7 +2110,7 @@ const stopProgressTicker = (ticker) => {
 
 
                 // 1. 先等待 API 回應完全結束，獲取完整文字
-                if (isCouncilEnabled(conv)) {
+                if (responseUsesCouncil) {
                     isCouncilRunning = true;
                     renderCouncilControls();
                     renderInputIndicators();
@@ -2158,114 +2171,16 @@ const stopProgressTicker = (ticker) => {
                     finalAiMessage.council = councilResult.metadata;
                 } else {
                     const modelInfo = normalizeConversationModel(conv);
-                    const startedAt = Date.now();
-                    let latestSingleProgress = {
-                        stage: 'preparing',
-                        message: config.uiLanguage === 'en' ? 'Preparing request' : '準備請求',
-                        modelName: modelInfo?.name || conv.model,
-                        startedAt,
-                        elapsedMs: 0,
-                        receivedChars: 0
-                    };
-                    const renderSingleProgressState = (stage, message, extra = {}) => {
-                        latestSingleProgress = {
-                            ...latestSingleProgress,
-                            stage,
-                            message,
-                            elapsedMs: Date.now() - startedAt,
-                            ...extra
-                        };
-                        latestSingleProgressForError = latestSingleProgress;
-                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                    };
-                    const hasTranslationInputs = userParts.some(part => part.inlineData) || Boolean(conv.isWebSearchEnabled);
-                    let requestParts = userParts;
-                    if (hasTranslationInputs) {
-                        renderSingleProgressState('preparing', config.uiLanguage === 'en' ? 'Checking model capabilities' : 'Checking model capabilities');
-                        singleProgressTimer = startProgressTicker(() => {
-                            latestSingleProgress = {
-                                ...latestSingleProgress,
-                                elapsedMs: Date.now() - startedAt
-                            };
-                            latestSingleProgressForError = latestSingleProgress;
-                            contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        });
-                        requestParts = await buildSingleModelTranslatedRequestParts(
-                            userParts,
-                            modelInfo,
-                            abortController.signal,
-                            (stage, message) => renderSingleProgressState(stage, message)
-                        );
-                    }
-                    let receivedChars = 0;
-                    let lastSingleProgressAt = 0;
-                    const updateSingleStreamingProgress = (chunk) => {
-                        receivedChars += String(chunk || '').length;
-                        const now = Date.now();
-                        if (now - lastSingleProgressAt > 700) {
-                            lastSingleProgressAt = now;
-                            renderSingleProgressState(
-                                'streaming',
-                                config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering',
-                                { receivedChars }
-                            );
-                        }
-                    };
-                    const runSingleApiStream = (onChunk) => streamApiCall(
-                        requestParts,
-                        onChunk,
-                        abortController.signal,
-                        false,
-                        { modelInfo }
-                    );
-                    if (getOutputMode() === 'realtime') {
-                        if (singleProgressTimer) {
-                            stopProgressTicker(singleProgressTimer);
-                            singleProgressTimer = null;
-                        }
-                        const realtimeProgress = {
-                            ...latestSingleProgress,
-                            stage: 'streaming',
-                            message: config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering',
-                            elapsedMs: Date.now() - startedAt
-                        };
-                        latestSingleProgress = realtimeProgress;
-                        latestSingleProgressForError = latestSingleProgress;
-                        contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        singleProgressTimer = startProgressTicker(() => {
-                            latestSingleProgress = {
-                                ...latestSingleProgress,
-                                elapsedMs: Date.now() - startedAt
-                            };
-                            latestSingleProgressForError = latestSingleProgress;
-                            contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                        });
-                        fullResponse = await streamMarkdownResponse(contentDiv, runSingleApiStream, abortController.signal, {
-                            placeholderHTML: renderSingleModelProgress(realtimeProgress),
-                            onFirstChunk: () => {
-                                if (singleProgressTimer) {
-                                    stopProgressTicker(singleProgressTimer);
-                                    singleProgressTimer = null;
-                                }
-                            }
-                        });
-                        responseRenderedInRealtime = true;
-                    } else {
-                        if (!singleProgressTimer) {
-                            renderSingleProgressState('streaming', config.uiLanguage === 'en' ? 'Model is answering' : 'Model is answering');
-                            singleProgressTimer = startProgressTicker(() => {
-                                latestSingleProgress = {
-                                    ...latestSingleProgress,
-                                    elapsedMs: Date.now() - startedAt
-                                };
-                                latestSingleProgressForError = latestSingleProgress;
-                                contentDiv.innerHTML = renderSingleModelProgress(latestSingleProgress);
-                            });
-                        }
-                        fullResponse = await runSingleApiStream(updateSingleStreamingProgress);
-                    }
-                    stopProgressTicker(singleProgressTimer);
-                    singleProgressTimer = null;
+                    const singleResult = await singleModelResponseLifecycle.run({
+                        targetElement: contentDiv,
+                        userParts,
+                        modelInfo,
+                        conversation: conv,
+                        signal: abortController.signal,
+                        uiLanguage: config.uiLanguage
+                    });
+                    fullResponse = singleResult.fullResponse;
+                    responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
                 }
                 if (!String(fullResponse || '').trim()) {
                     throw new Error(config.uiLanguage === 'en'
@@ -2282,12 +2197,19 @@ const stopProgressTicker = (ticker) => {
                 await saveAppData();
                 
                 // 3. ✨ 啟動打字機動畫，並等待它完成
-                if (responseRenderedInRealtime && contentDiv.dataset.streamRendered === 'true') {
+                if (!responseUsesCouncil) {
+                    await singleModelResponseLifecycle.completeView({
+                        targetElement: contentDiv,
+                        fullResponse,
+                        signal: abortController.signal,
+                        responseRenderedInRealtime
+                    });
+                } else if (responseRenderedInRealtime && contentDiv.dataset.streamRendered === 'true') {
                     restoreOpenCouncilDetails(contentDiv, getOpenCouncilDetailKeys(contentDiv));
                 } else if (responseRenderedInRealtime) {
-                    renderIncrementalResponse(contentDiv, fullResponse, { final: true, preserveCouncilDetails: Boolean(finalAiMessage.council) });
+                    renderIncrementalResponse(contentDiv, fullResponse, { final: true, preserveCouncilDetails: true });
                 } else {
-                    await playbackStreamingMarkdownResponse(contentDiv, fullResponse, abortController.signal, Boolean(finalAiMessage.council));
+                    await playbackStreamingMarkdownResponse(contentDiv, fullResponse, abortController.signal, true);
                 }
 
 
@@ -2305,12 +2227,9 @@ const stopProgressTicker = (ticker) => {
                         stopProgressTicker(councilProgressTimer);
                         councilProgressTimer = null;
                     }
-                    if (singleProgressTimer) {
-                        stopProgressTicker(singleProgressTimer);
-                        singleProgressTimer = null;
-                    }
+                    singleModelResponseLifecycle.stop();
                     const errorMessage = `${i18n[config.uiLanguage].errorPrefix || '抱歉，發生錯誤：'}${error.message || error.name || 'Unknown error'}`;
-                    const currentProgress = latestSingleProgressForError || {
+                    const currentProgress = (!responseUsesCouncil && singleModelResponseLifecycle.getLatestProgress()) || {
                         modelName: normalizeConversationModel(conv)?.name || conv.model,
                         elapsedMs: 0
                     };
@@ -2324,9 +2243,7 @@ const stopProgressTicker = (ticker) => {
                 if (councilProgressTimer) {
                     stopProgressTicker(councilProgressTimer);
                 }
-                if (singleProgressTimer) {
-                    stopProgressTicker(singleProgressTimer);
-                }
+                singleModelResponseLifecycle.stop();
                 isCouncilRunning = false;
                 abortController = null;
                 updateSubmitButtonState(false);
