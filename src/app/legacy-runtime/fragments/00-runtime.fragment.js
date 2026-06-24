@@ -1755,7 +1755,7 @@ function renderMarkdownWithFormulas(text) {
 
 
         // ↓↓↓↓↓↓ 就是這裡被修改了 ↓↓↓↓↓↓
-        if (activeConversationId === id) {
+        if (conversationStateAccess.getCurrentConversationId() === id) {
             startNewChat();
         } 
         // ↑↑↑↑↑↑ 就是這裡被修改了 ↑↑↑↑↑↑
@@ -1771,11 +1771,11 @@ function renderMarkdownWithFormulas(text) {
             const conv = conversations.find(c => c.id === id);
             if(conv) conv.archived = true;
             await saveAppData();
-            if (activeConversationId === id) {
+            if (conversationStateAccess.getCurrentConversationId() === id) {
                 const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
-                activeConversationId = nextConv ? nextConv.id : null;
-                if (!activeConversationId) startNewChat();
-                else loadChat(activeConversationId);
+                conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
+                if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
+                else loadChat(conversationStateAccess.getCurrentConversationId());
             } else {
                 renderAll();
             }

@@ -50,6 +50,24 @@ test('sets the current conversation id through the backing state setter', () => 
   assert.equal(harness.access.getCurrentConversation().title, 'Second');
 });
 
+test('active id transitions keep reading the latest backing conversations', () => {
+  const harness = createHarness();
+
+  harness.replaceConversations([
+    { id: 'third', title: 'Third' },
+    { id: 'fourth', title: 'Fourth' }
+  ]);
+
+  harness.access.setCurrentConversationId('fourth');
+
+  assert.equal(harness.getBackingId(), 'fourth');
+  assert.equal(harness.access.getCurrentConversation().title, 'Fourth');
+
+  harness.replaceConversations([{ id: 'fourth', title: 'Fourth Updated' }]);
+
+  assert.equal(harness.access.getCurrentConversation().title, 'Fourth Updated');
+});
+
 test('looks up conversations by id and preserves missing boundaries', () => {
   const harness = createHarness();
 

@@ -8,10 +8,10 @@
                     conv.deletedAt = new Date().toISOString();
                 }
             });
-            if (selectedConversationIds.has(activeConversationId)) {
+            if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
                 const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
-                activeConversationId = nextConv ? nextConv.id : null;
-                if (!activeConversationId) startNewChat();
+                conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
+                if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
             }
             await saveAppData();
             toggleSelectionMode();
@@ -25,10 +25,10 @@
                     c.archived = true;
                 }
             });
-            if (selectedConversationIds.has(activeConversationId)) {
+            if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
                 const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
-                activeConversationId = nextConv ? nextConv.id : null;
-                if (!activeConversationId) startNewChat();
+                conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
+                if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
             }
             await saveAppData();
             toggleSelectionMode();

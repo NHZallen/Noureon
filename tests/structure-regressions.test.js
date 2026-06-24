@@ -61,6 +61,15 @@ const findMatchingBrace = (source, openIndex) => {
   return -1;
 };
 
+const getConstFunctionBody = (source, name) => {
+  const match = new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*\\{`).exec(source);
+  assert.ok(match, `Expected to find ${name}`);
+  const openIndex = source.indexOf('{', match.index);
+  const closeIndex = findMatchingBrace(source, openIndex);
+  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
+  return source.slice(match.index, closeIndex + 1);
+};
+
 const findCrossFragmentBracePairs = (fragments) => {
   const offsets = [];
   let combined = '';
@@ -360,7 +369,12 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/conversation-state-access.js');
+  const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
+  const archiveChatBody = getConstFunctionBody(fragment00Source, 'archiveChat');
+  const batchDeleteBody = getConstFunctionBody(fragment03Source, 'handleBatchDelete');
+  const batchArchiveBody = getConstFunctionBody(fragment03Source, 'handleBatchArchive');
 
   assert.match(accessSource, /export\s+function\s+createConversationStateAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createConversationStateAccess\s*\}/);
@@ -374,6 +388,20 @@ test('conversation state access owns selected active conversation lookups withou
   assert.match(fragment00Source, /if\s*\(id\s*!==\s*conversationStateAccess\.getCurrentConversationId\(\)\)/);
   assert.match(fragment00Source, /conversationStateAccess\.setCurrentConversationId\(id\);/);
   assert.match(fragment02Source, /conv\.id\s*===\s*conversationStateAccess\.getCurrentConversationId\(\)/);
+
+  assert.match(deleteChatBody, /conversationStateAccess\.getCurrentConversationId\(\)\s*===\s*id/);
+  assert.doesNotMatch(deleteChatBody, /\bactiveConversationId\b/);
+
+  assert.match(archiveChatBody, /conversationStateAccess\.getCurrentConversationId\(\)\s*===\s*id/);
+  assert.match(archiveChatBody, /conversationStateAccess\.setCurrentConversationId\(nextConv\s*\?\s*nextConv\.id\s*:\s*null\)/);
+  assert.match(archiveChatBody, /loadChat\(conversationStateAccess\.getCurrentConversationId\(\)\)/);
+  assert.doesNotMatch(archiveChatBody, /\bactiveConversationId\b/);
+
+  for (const batchBody of [batchDeleteBody, batchArchiveBody]) {
+    assert.match(batchBody, /selectedConversationIds\.has\(conversationStateAccess\.getCurrentConversationId\(\)\)/);
+    assert.match(batchBody, /conversationStateAccess\.setCurrentConversationId\(nextConv\s*\?\s*nextConv\.id\s*:\s*null\)/);
+    assert.doesNotMatch(batchBody, /\bactiveConversationId\b/);
+  }
 
   assert.doesNotMatch(fragment00Source, /const\s+getActiveConversation\s*=\s*\(\)\s*=>\s*\{\s*const\s+conv\s*=\s*conversations\.find\(c\s*=>\s*c\.id\s*===\s*activeConversationId\)/);
   assert.doesNotMatch(fragment02Source, /conv\.id\s*===\s*activeConversationId/);
