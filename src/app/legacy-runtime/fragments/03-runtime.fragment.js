@@ -1636,4 +1636,14 @@ ${JSON.stringify(potentialMemories, null, 2)}
             const mostUsedModel = Object.keys(modelCounts).reduce((a, b) => modelCounts[a] > modelCounts[b] ? a : b, 'N/A');
             ALL_ELEMENTS.mostUsedModelStat.textContent = mostUsedModel;
         };
-        const renderModelUsageChart = () => {
+        const modelUsageChartLifecycle = createModelUsageChartLifecycle({
+            Chart,
+            document,
+            getConversations: () => conversations,
+            getI18n: () => i18n,
+            getModelPieChart: () => modelPieChart,
+            getModels: () => MODELS,
+            getUiLanguage: () => config.uiLanguage,
+            setModelPieChart: (chart) => { modelPieChart = chart; }
+        });
+        const renderModelUsageChart = (...args) => modelUsageChartLifecycle.renderModelUsageChart(...args);

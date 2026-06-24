@@ -20,6 +20,7 @@ import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer 
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
 import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
+import { createModelUsageChartLifecycle } from '/src/app/legacy-runtime/features/model-usage-chart-lifecycle.js';
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();

@@ -125,6 +125,38 @@ test('sidebar Astras lifecycle breaks the 00 to 01 renderAstras continuation bou
   assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderAstrasStatementEnd);
 });
 
+test('model usage chart lifecycle breaks the 03 to 04 renderModelUsageChart continuation boundary', () => {
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const chartLifecycleSource = readSource('src/app/legacy-runtime/features/model-usage-chart-lifecycle.js');
+
+  assert.match(chartLifecycleSource, /export\s+function\s+createModelUsageChartLifecycle/);
+  assert.match(fragment03Source, /createModelUsageChartLifecycle\(\{/);
+  assert.match(fragment03Source, /const\s+renderModelUsageChart\s*=\s*\(\.\.\.args\)\s*=>\s*modelUsageChartLifecycle\.renderModelUsageChart\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment03Source, /modelPieChart\s*=\s*new Chart\(ctx,/);
+  assert.doesNotMatch(fragment04Source, /^\s*const\s+ctx\s*=\s*document\.getElementById\('model-usage-pie-chart'\)\.getContext\('2d'\);/);
+
+  const renderChartStart = fragment03Source.indexOf('const renderModelUsageChart =');
+  assert.notEqual(renderChartStart, -1, '03 should still expose a renderModelUsageChart binding');
+  const renderChartStatementEnd = fragment03Source.indexOf(';', renderChartStart);
+  assert.notEqual(renderChartStatementEnd, -1, 'renderModelUsageChart binding should end inside 03');
+  assert.ok(
+    renderChartStatementEnd < fragment03Source.length,
+    'renderModelUsageChart binding should not need 04 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment03Source.slice(renderChartStart, renderChartStatementEnd),
+    /=>\s*\{/,
+    'renderModelUsageChart should not reopen an inline body in 03'
+  );
+
+  const combinedStart = `${fragment03Source}\n`.length;
+  const concatenated = `${fragment03Source}\n${fragment04Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', renderChartStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderChartStatementEnd);
+});
+
 test('app shell imports and preserves critical DOM IDs', async () => {
   const { default: appShell } = await import(projectFile('src/templates/app-shell.js'));
 
