@@ -82,11 +82,14 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
     cursor = next;
   }
 
-  assert.match(fragment06Source, /^\s*function\s+updateP2PProgress\b/);
+  assert.match(fragment05Source, /createP2PScannerLifecycle\(\{/);
+  assert.match(initBody, /const\s+updateP2PProgress\s*=\s*\(\.\.\.args\)\s*=>\s*p2pScannerLifecycle\.updateP2PProgress\(\.\.\.args\);/);
+  assert.match(initBody, /const\s+startQRScanner\s*=\s*\(\.\.\.args\)\s*=>\s*p2pScannerLifecycle\.startQRScanner\(\.\.\.args\);/);
   assert.doesNotMatch(fragment06Source, /^\s*setupHistorySidebarInteractions\(\);/);
+  assert.doesNotMatch(fragment06Source, /function\s+updateP2PProgress\b/);
+  assert.doesNotMatch(fragment06Source, /function\s+startQRScanner\b/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
   assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
-  assert.match(fragment05Source.slice(0, initStart), /let\s+html5QrcodeScanner\s*=\s*null;/);
-  assert.doesNotMatch(initBody, /let\s+html5QrcodeScanner\s*=/);
-  assert.match(fragment06Source, /function\s+startQRScanner\(\)[\s\S]*html5QrcodeScanner\s*=\s*new\s+Html5Qrcode/);
+  assert.doesNotMatch(fragment05Source, /\bhtml5QrcodeScanner\b/);
+  assert.doesNotMatch(fragment06Source, /\bhtml5QrcodeScanner\b/);
 });

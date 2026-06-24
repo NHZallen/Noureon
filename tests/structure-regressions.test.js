@@ -327,9 +327,13 @@ test('received data lifecycle breaks the 05 to 06 processReceivedData continuati
 
 test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
   const compositionSource = readSource('src/app/legacy-runtime/features/app-bootstrap-composition.js');
+  const scannerLifecycleSource = readSource('src/app/legacy-runtime/features/p2p-scanner-lifecycle.js');
 
   assert.match(compositionSource, /export\s+function\s+createAppBootstrapComposition/);
+  assert.match(scannerLifecycleSource, /export\s+function\s+createP2PScannerLifecycle/);
+  assert.match(fragment05Source, /createP2PScannerLifecycle\(\{/);
   assert.match(fragment05Source, /createAppBootstrapComposition\(\{/);
   assert.match(fragment05Source, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
 
@@ -341,10 +345,14 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   const initBody = fragment05Source.slice(initStart, initClose);
 
   assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+  assert.match(initBody, /p2pScannerLifecycle\.updateP2PProgress\(\.\.\.args\)/);
+  assert.match(initBody, /p2pScannerLifecycle\.startQRScanner\(\.\.\.args\)/);
+  assert.match(initBody, /p2pScannerLifecycle\.stopScannerIfActive\(\)/);
   assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
   assert.doesNotMatch(initBody, /^\s*startQRScanner\s*[,}]/m);
-  assert.match(fragment05Source.slice(0, initStart), /let\s+html5QrcodeScanner\s*=\s*null;/);
-  assert.doesNotMatch(initBody, /let\s+html5QrcodeScanner\s*=/);
+  assert.doesNotMatch(fragment05Source, /\bhtml5QrcodeScanner\b/);
+  assert.doesNotMatch(fragment06Source, /\bhtml5QrcodeScanner\b/);
+  assert.doesNotMatch(fragment06Source, /function\s+(?:updateP2PProgress|startQRScanner)\b/);
   assert.doesNotMatch(initBody, /setupHistorySidebarInteractions\(\);\s*setupHistorySidebarTriggers\(\);/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });

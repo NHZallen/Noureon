@@ -1,34 +1,3 @@
-    function updateP2PProgress(percent, text) {
-        document.getElementById('p2p-progress-bar').style.width = `${percent}%`;
-        document.getElementById('p2p-percentage').textContent = `${Math.round(percent)}%`;
-        if (text) document.getElementById('p2p-status-text').textContent = text;
-    }
-
-    // 啟動 QR Code 掃描器
-    function startQRScanner() {
-        const readerElem = document.getElementById('p2p-reader');
-        readerElem.classList.remove('hidden');
-        
-        html5QrcodeScanner = new Html5Qrcode("p2p-reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        
-        html5QrcodeScanner.start({ facingMode: "environment" }, config, (decodedText) => {
-            // 掃描成功
-            // 假設 QR code 內容就是 5 碼代碼
-            // 簡單過濾：只取最後 5 碼 (如果使用者不小心加入前綴)
-            let code = decodedText.trim();
-            if (code.length > 5) code = code.slice(-5);
-            
-            document.getElementById('p2p-code-input').value = code;
-            html5QrcodeScanner.stop().then(() => {
-                readerElem.classList.add('hidden');
-                connectToSender(code);
-            });
-        }).catch(err => {
-            console.error(err);
-            showNotification("無法啟動相機", "error");
-        });
-    }
         const handleDeleteMessagePair = async () => {
             return;
         };

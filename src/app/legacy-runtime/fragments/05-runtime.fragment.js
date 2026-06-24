@@ -1,8 +1,8 @@
         import { createAppBootstrapComposition } from '/src/app/legacy-runtime/features/app-bootstrap-composition.js';
+        import { createP2PScannerLifecycle } from '/src/app/legacy-runtime/features/p2p-scanner-lifecycle.js';
         import { createReceivedDataLifecycle } from '/src/app/legacy-runtime/features/received-data-lifecycle.js';
         const resolveEventsUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
         const resolveEventsSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
-let html5QrcodeScanner = null;
 async function sendConversationToMail(userMessageObject, aiResponseText) {
     // 確認這裡是你從 Google Apps Script 複製的、以 /exec 結尾的正確網址
     const FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
@@ -759,10 +759,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
         document.getElementById('p2p-step-progress').classList.add('hidden');
         document.getElementById('p2p-reader').classList.add('hidden'); // 隱藏掃描器
         
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop().catch(err => console.error("Failed to stop scanner", err));
-            html5QrcodeScanner = null;
-        }
+        p2pScannerLifecycle.stopScannerIfActive();
         if (p2pPeer) {
             p2pPeer.destroy();
             p2pPeer = null;
@@ -1032,6 +1029,15 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
         logger: console
     });
     const processReceivedData = (...args) => receivedDataLifecycle.processReceivedData(...args);
+    const p2pScannerLifecycle = createP2PScannerLifecycle({
+        getElementById: (id) => document.getElementById(id),
+        createScanner: (elementId) => new Html5Qrcode(elementId),
+        connectToSender,
+        showNotification,
+        logger: console
+    });
+    const updateP2PProgress = (...args) => p2pScannerLifecycle.updateP2PProgress(...args);
+    const startQRScanner = (...args) => p2pScannerLifecycle.startQRScanner(...args);
     const appBootstrapComposition = createAppBootstrapComposition({
         allElements: ALL_ELEMENTS,
         getElementById: (id) => document.getElementById(id),
