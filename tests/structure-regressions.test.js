@@ -546,7 +546,10 @@ test('streaming markdown renderer and response core is isolated from the 01 runt
   assert.match(fragment01Source, /const\s+playbackStreamingMarkdownResponse\s*=/);
   assert.match(fragment01Source, /createStreamingMarkdownRenderer\(targetElement,\s*\{\s*preserveCouncilDetails\s*\}\)/);
   assert.match(lifecycleSource, /fullResponse\s*=\s*await\s+streamMarkdownResponse\(/);
-  assert.match(fragment01Source, /renderIncrementalResponse\(contentDiv,\s*fullResponse,/);
+  assert.match(
+    fragment01Source,
+    /renderRealtimeCouncilFinal:\s*\(\{\s*targetElement,\s*fullResponse\s*\}\)\s*=>\s*renderIncrementalResponse\(targetElement,\s*fullResponse,/
+  );
   assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 140 * 1024);
@@ -568,7 +571,7 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
   assert.match(fragment01Source, /buildSingleModelTranslatedRequestParts:\s*\(\.\.\.args\)\s*=>\s*buildSingleModelTranslatedRequestParts\(\.\.\.args\)/);
   assert.match(fragment01Source, /streamApiCall:\s*\(\.\.\.args\)\s*=>\s*streamApiCall\(\.\.\.args\)/);
   assert.match(fragment01Source, /const\s+singleResult\s*=\s*await\s+singleModelResponseLifecycle\.run\(\{/);
-  assert.match(fragment01Source, /await\s+singleModelResponseLifecycle\.completeView\(\{/);
+  assert.match(fragment01Source, /completeSingleModelView:\s*\(options\)\s*=>\s*singleModelResponseLifecycle\.completeView\(options\)/);
   assert.match(fragment01Source, /singleModelResponseLifecycle\.stop\(\)/);
   assert.match(fragment01Source, /singleModelResponseLifecycle\.getLatestProgress\(\)/);
 
@@ -593,13 +596,61 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
   assert.doesNotMatch(lifecycleSource, /indexedDB\b/);
 
   assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runCouncilResponseRenderLifecycle\(\{/);
-  assert.match(fragment01Source, /conv\.messages\.push\(finalAiMessage\)/);
-  assert.match(fragment01Source, /await\s+saveAppData\(\)/);
-  assert.match(fragment01Source, /sendConversationToMail\(userMessageObject,\s*fullResponse\)/);
-  assert.match(fragment01Source, /contentDiv\.innerHTML\s*=\s*renderSingleModelError\(/);
-  assert.match(fragment01Source, /await\s+extractPersonalMemory\(userMessage,\s*fullResponse\)/);
+  assert.match(fragment01Source, /await\s+finalizeAssistantResponse\(\{/);
+  assert.match(fragment01Source, /await\s+persistAssistantResponseError\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 135 * 1024);
+});
+
+test('assistant response finalization is isolated from the 01 runtime submit flow', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js'));
+  const submitFlowSource = fragment01Source.slice(fragment01Source.indexOf('const handleFormSubmit'));
+
+  assert.equal(typeof helpers.finalizeAssistantResponse, 'function');
+  assert.equal(typeof helpers.persistAssistantResponseError, 'function');
+  assert.match(helperSource, /export\s+async\s+function\s+finalizeAssistantResponse\b/);
+  assert.match(helperSource, /export\s+async\s+function\s+persistAssistantResponseError\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*finalizeAssistantResponse,\s*persistAssistantResponseError\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/assistant-response-finalization\.js';/
+  );
+  assert.match(fragment01Source, /await\s+finalizeAssistantResponse\(\{/);
+  assert.match(fragment01Source, /await\s+persistAssistantResponseError\(\{/);
+  assert.match(fragment01Source, /completeSingleModelView:\s*\(options\)\s*=>\s*singleModelResponseLifecycle\.completeView\(options\)/);
+  assert.match(fragment01Source, /persistAppData:\s*saveAppData/);
+  assert.match(fragment01Source, /renderError:\s*renderSingleModelError/);
+
+  for (const removedFinalizationCore of [
+    /if\s*\(!String\(fullResponse\s*\|\|\s*''\)\.trim\(\)\)\s*\{/,
+    /sendConversationToMail\(userMessageObject,\s*fullResponse\)/,
+    /finalAiMessage\.parts\s*=\s*\[\{\s*text:\s*fullResponse\s*\}\]/,
+    /conv\.messages\.push\(finalAiMessage\)/,
+    /const\s+errorMessage\s*=/,
+    /const\s+currentProgress\s*=/,
+    /contentDiv\.innerHTML\s*=\s*renderSingleModelError\(/,
+    /const\s+finalAiMessage\s*=\s*\{\s*role:\s*'model',\s*parts:\s*\[\{\s*text:\s*errorMessage\s*\}\]/,
+    /await\s+extractPersonalMemory\(userMessage,\s*fullResponse\)/
+  ]) {
+    assert.doesNotMatch(submitFlowSource, removedFinalizationCore);
+  }
+
+  assert.match(helperSource, /sendConversationToMail\(userMessageObject,\s*fullResponse\)/);
+  assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
+  assert.match(helperSource, /await\s+extractPersonalMemory\(userMessageText,\s*fullResponse\)/);
+  assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
+  assert.match(helperSource, /targetElement\.innerHTML\s*=\s*renderError\(currentProgress,\s*errorMessage\)/);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.match(fragment01Source, /updateSubmitButtonState\(false\)/);
+  assert.match(fragment01Source, /renderCouncilControls\(\)/);
+  assert.match(fragment01Source, /renderInputIndicators\(\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 128 * 1024);
 });
 
 test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {
@@ -639,9 +690,10 @@ test('council response render lifecycle is isolated from the 01 runtime submit f
   assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
   assert.doesNotMatch(helperSource, /saveAppData\b|indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
-  assert.match(fragment01Source, /conv\.messages\.push\(finalAiMessage\)/);
-  assert.match(fragment01Source, /await\s+saveAppData\(\)/);
-  assert.match(fragment01Source, /contentDiv\.innerHTML\s*=\s*renderSingleModelError\(/);
+  assert.match(fragment01Source, /await\s+finalizeAssistantResponse\(\{/);
+  assert.match(fragment01Source, /await\s+persistAssistantResponseError\(\{/);
+  assert.match(fragment01Source, /persistAppData:\s*saveAppData/);
+  assert.match(fragment01Source, /renderError:\s*renderSingleModelError/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-response-render-lifecycle.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
 });

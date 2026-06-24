@@ -2105,6 +2105,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             try {
                 let fullResponse = '';
                 const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
+                let councilMetadata = null;
                 let responseRenderedInRealtime = false;
 
 
@@ -2128,7 +2129,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                     });
                     fullResponse = councilResult.fullResponse;
                     responseRenderedInRealtime = councilResult.responseRenderedInRealtime;
-                    finalAiMessage.council = councilResult.metadata;
+                    councilMetadata = councilResult.metadata;
                 } else {
                     const modelInfo = normalizeConversationModel(conv);
                     const singleResult = await singleModelResponseLifecycle.run({
@@ -2142,58 +2143,42 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                     fullResponse = singleResult.fullResponse;
                     responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
                 }
-                if (!String(fullResponse || '').trim()) {
-                    throw new Error(config.uiLanguage === 'en'
-                        ? 'The request ended without any response text. The provider may have timed out or rejected the payload.'
-                        : '請求已結束，但模型沒有回傳任何文字。服務可能逾時，或拒絕了這次的 payload。');
-                }
-                sendConversationToMail(userMessageObject, fullResponse);
-
-
-                // 2. 將完整的最終訊息保存到對話紀錄中
-                finalAiMessage.parts = [{ text: fullResponse }];
-                conv.messages.push(finalAiMessage);
-                conv.lastUpdatedAt = new Date().toISOString();
-                await saveAppData();
-                
-                // 3. ✨ 啟動打字機動畫，並等待它完成
-                if (!responseUsesCouncil) {
-                    await singleModelResponseLifecycle.completeView({
-                        targetElement: contentDiv,
-                        fullResponse,
-                        signal: abortController.signal,
-                        responseRenderedInRealtime
-                    });
-                } else if (responseRenderedInRealtime && contentDiv.dataset.streamRendered === 'true') {
-                    restoreOpenCouncilDetails(contentDiv, getOpenCouncilDetailKeys(contentDiv));
-                } else if (responseRenderedInRealtime) {
-                    renderIncrementalResponse(contentDiv, fullResponse, { final: true, preserveCouncilDetails: true });
-                } else {
-                    await playbackStreamingMarkdownResponse(contentDiv, fullResponse, abortController.signal, true);
-                }
-
-
-                // 4. ✨ 只有在打字機動畫結束後，才執行後續任務
-                if (!abortController.signal.aborted) {
-                    if (config.memoryEnabled1 && config.enableAutoMemory) {
-                        await extractPersonalMemory(userMessage, fullResponse);
-                    }
-                }
-
-
+                await finalizeAssistantResponse({
+                    fullResponse,
+                    finalAiMessage,
+                    councilMetadata,
+                    includeCouncilMetadata: responseUsesCouncil,
+                    conversation: conv,
+                    userMessageObject,
+                    userMessageText: userMessage,
+                    signal: abortController.signal,
+                    responseUsesCouncil,
+                    responseRenderedInRealtime,
+                    targetElement: contentDiv,
+                    uiLanguage: config.uiLanguage,
+                    memoryEnabled: config.memoryEnabled1,
+                    autoMemoryEnabled: config.enableAutoMemory,
+                    sendConversationToMail,
+                    persistAppData: saveAppData,
+                    completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
+                    restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
+                    renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
+                    playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
+                    extractPersonalMemory
+                });
             } catch (error) {
-                if (error.name !== 'AbortError' || !abortController?.signal?.aborted) {
-                    singleModelResponseLifecycle.stop();
-                    const errorMessage = `${i18n[config.uiLanguage].errorPrefix || '抱歉，發生錯誤：'}${error.message || error.name || 'Unknown error'}`;
-                    const currentProgress = (!responseUsesCouncil && singleModelResponseLifecycle.getLatestProgress()) || {
-                        modelName: normalizeConversationModel(conv)?.name || conv.model,
-                        elapsedMs: 0
-                    };
-                    contentDiv.innerHTML = renderSingleModelError(currentProgress, errorMessage);
-                    const finalAiMessage = { role: 'model', parts: [{ text: errorMessage }], createdAt: new Date().toISOString() };
-                    conv.messages.push(finalAiMessage);
-                    await saveAppData();
-                }
+                await persistAssistantResponseError({
+                    error,
+                    signal: abortController?.signal,
+                    conversation: conv,
+                    targetElement: contentDiv,
+                    errorPrefix: i18n[config.uiLanguage].errorPrefix,
+                    fallbackModelName: normalizeConversationModel(conv)?.name || conv.model,
+                    getLatestProgress: () => (!responseUsesCouncil && singleModelResponseLifecycle.getLatestProgress()),
+                    stopSingleModelLifecycle: () => singleModelResponseLifecycle.stop(),
+                    renderError: renderSingleModelError,
+                    persistAppData: saveAppData
+                });
             } finally {
                 // ... finally 區塊的程式碼保持不變 ...
                 singleModelResponseLifecycle.stop();
