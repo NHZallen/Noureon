@@ -32,6 +32,21 @@ test('value bindings preserve function values without invoking them', () => {
   assert.equal(context.resolveBinding('example.callback')(), 'called');
 });
 
+test('settings and input lazy bindings resolve the latest registered function value', () => {
+  const context = createLegacyRuntimeContext();
+  let setupSettingsModal = () => 'initial settings';
+  let updateInputState = () => 'initial input';
+
+  context.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
+  context.registerLazyBinding('input.updateInputState', () => updateInputState);
+
+  setupSettingsModal = () => 'latest settings';
+  updateInputState = () => 'latest input';
+
+  assert.equal(context.resolveBinding('settings.setupSettingsModal')(), 'latest settings');
+  assert.equal(context.resolveBinding('input.updateInputState')(), 'latest input');
+});
+
 test('missing required and optional bindings have explicit behavior', () => {
   const context = createLegacyRuntimeContext();
 

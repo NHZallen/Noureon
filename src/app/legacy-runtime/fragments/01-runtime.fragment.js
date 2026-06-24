@@ -545,7 +545,7 @@
                 conv.astrasId = astrasId;
                 await saveAppData();
                 renderAll();
-                updateInputState();
+                legacyRuntimeContext.resolveBinding('input.updateInputState')();
             }
         };
         const deactivateAstras = async () => {
@@ -554,7 +554,7 @@
                 conv.astrasId = null;
                 await saveAppData();
                 renderAll();
-                updateInputState();
+                legacyRuntimeContext.resolveBinding('input.updateInputState')();
                 showNotification(i18n[config.uiLanguage].astrasDeactivated || '已關閉 Astras。', 'success');
             }
         };
@@ -708,7 +708,7 @@
                 renderModelSwitcher();
                 renderCouncilControls();
                 renderInputIndicators();
-                updateInputState();
+                legacyRuntimeContext.resolveBinding('input.updateInputState')();
                 updateApiKeyWarningBadge();
             }
         };
@@ -857,7 +857,7 @@
             renderInputIndicators,
             renderCouncilControls,
             setupMessageIntersectionObserver,
-            updateInputState: () => updateInputState(),
+            updateInputState: () => legacyRuntimeContext.resolveBinding('input.updateInputState')(),
             scheduleFrame: (callback) => requestAnimationFrame(callback),
             isAutoScrolling: () => isAutoScrolling
         });
@@ -1194,7 +1194,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                 const lastMessageElement = runSubmitFinalCleanupLifecycle(
                     () => singleModelResponseLifecycle.stop(),
                     () => { isCouncilRunning = false; abortController = null; },
-                    updateSubmitButtonState, updateInputState, renderCouncilControls, renderInputIndicators,
+                    updateSubmitButtonState, (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args), renderCouncilControls, renderInputIndicators,
                     () => ALL_ELEMENTS.messageList.lastElementChild
                 );
                 applyModelMessagePostResponseActions({

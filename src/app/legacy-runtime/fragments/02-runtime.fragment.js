@@ -651,6 +651,8 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 }
             }
         };
+        legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
+        legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
         const saveSettings = async ({ close = true, notify = true } = {}) => {
             config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
             config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();

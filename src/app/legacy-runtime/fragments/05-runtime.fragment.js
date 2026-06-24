@@ -1,3 +1,5 @@
+        const resolveEventsUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+        const resolveEventsSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
 async function sendConversationToMail(userMessageObject, aiResponseText) {
     // 確認這裡是你從 Google Apps Script 複製的、以 /exec 結尾的正確網址
     const FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
@@ -117,7 +119,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             if (!conversations.find(c => !c.archived && !c.deletedAt)) startNewChat();
             renderAll();
             updateFunctionButtonsState();
-            updateInputState();
+            resolveEventsUpdateInputState();
             setupVoiceInput();
             setupScrollToBottomButton();
             updateDisplayedVersion();
@@ -135,7 +137,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 setTimeout(() => ALL_ELEMENTS.modalSearchInput.focus(), 50);
             });
             ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
-                setupSettingsModal();
+                resolveEventsSetupSettingsModal();
                 toggleModal(ALL_ELEMENTS.settingsModal, true);
                 if (isMobileSettingsViewport()) {
                     openSettingsMobileSection('model-management');
@@ -173,7 +175,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             const closeTrashView = () => toggleModal(ALL_ELEMENTS.trashViewModal, false);
             ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
             ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
-            ALL_ELEMENTS.settingsBtn.addEventListener('click', () => { setupSettingsModal(); toggleModal(ALL_ELEMENTS.settingsModal, true); });
+            ALL_ELEMENTS.settingsBtn.addEventListener('click', () => { resolveEventsSetupSettingsModal(); toggleModal(ALL_ELEMENTS.settingsModal, true); });
             ALL_ELEMENTS.saveSettingsBtn?.remove();
             const scheduleInstantSettingsSave = (() => {
                 let saveTimer = null;
@@ -287,7 +289,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             ALL_ELEMENTS.batchMoveConfirmBtn.addEventListener('click', () => { /* Logic moved to option clicks */ });
             ALL_ELEMENTS.messageInput.addEventListener('input', (e) => {
                 sendConfirmed = false;
-                updateInputState();
+                resolveEventsUpdateInputState();
                 const wrapper = e.target.closest('.input-wrapper');
                 if (wrapper) {
                     wrapper.classList.remove('pulse-glow');

@@ -375,6 +375,8 @@
             };
             img.src = dataUrl;
         });
+        const resolveUploadUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+        const resolveSearchSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
         const {
             renderFilePreviews,
             removeFile
@@ -387,7 +389,7 @@
             getContainer: () => ALL_ELEMENTS.filePreviewContainer,
             getInputWrapper: () => document.querySelector('.input-wrapper'),
             openMediaPreview: openSearchMediaPreview,
-            updateInputState
+            updateInputState: resolveUploadUpdateInputState
         });
         const handleFileSelection = (event) => {
             const files = event.target.files;
@@ -794,7 +796,7 @@
         setAiBubbleColor();
         setUserBubbleColor();
         applyLanguage(config.uiLanguage);
-        setupSettingsModal();
+        resolveSearchSetupSettingsModal();
         
         const firstConv = conversations.find(c => !c.archived && !c.deletedAt);
         if (firstConv) loadChat(firstConv.id);
@@ -1354,7 +1356,7 @@
                 if (target === 'search') {
                     performSearchAndRenderResults();
                 }
-                updateInputState();
+                resolveUploadUpdateInputState();
             };
             currentSpeechRecognition.onend = () => {
                 currentSpeechRecognition = null;

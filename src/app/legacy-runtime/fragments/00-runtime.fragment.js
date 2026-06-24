@@ -22,6 +22,7 @@ import { createConversationViewRenderer as createArchivedConversationViewRendere
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
+const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
 const demoConversations = globalThis.demoConversations;
@@ -1705,7 +1706,7 @@ function renderMarkdownWithFormulas(text) {
             ALL_ELEMENTS.messageInput.value = '';
             setTimeout(adjustTextareaHeight, 0);
             toggleSidebar(false);
-            updateInputState();
+            resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
         };
         const loadChat = (id) => {
@@ -1724,7 +1725,7 @@ function renderMarkdownWithFormulas(text) {
                 ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
                 setTimeout(adjustTextareaHeight, 0);
             }
-            updateInputState();
+            resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
             updateFunctionButtonsState();
         };
