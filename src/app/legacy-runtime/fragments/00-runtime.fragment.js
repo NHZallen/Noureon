@@ -1861,7 +1861,7 @@ function renderMarkdownWithFormulas(text) {
                 if (folder) { folder.name = newTitle; }
             }
             await saveAppData();
-            renderAll();
+            runtimeRenderCoordinator.renderAll();
             toggleModal(ALL_ELEMENTS.renameModal, false);
             itemToRename = { id: null, type: null };
         };

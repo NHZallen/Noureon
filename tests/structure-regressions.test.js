@@ -377,6 +377,7 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   const archiveChatBody = getConstFunctionBody(fragment00Source, 'archiveChat');
   const unarchiveChatBody = getConstFunctionBody(fragment00Source, 'unarchiveChat');
   const togglePinChatBody = getConstFunctionBody(fragment00Source, 'togglePinChat');
+  const handleRenameBody = getConstFunctionBody(fragment00Source, 'handleRename');
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeRenderCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeRenderCoordinator\s*\}/);
@@ -397,10 +398,12 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
     assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
   }
 
-  for (const body of [deleteChatBody, archiveChatBody, unarchiveChatBody, togglePinChatBody]) {
+  for (const body of [deleteChatBody, archiveChatBody, unarchiveChatBody, togglePinChatBody, handleRenameBody]) {
     assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
     assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
   }
+
+  assert.match(handleRenameBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderAll\(\);\s*toggleModal\(ALL_ELEMENTS\.renameModal,\s*false\);\s*itemToRename\s*=\s*\{\s*id:\s*null,\s*type:\s*null\s*\};/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
