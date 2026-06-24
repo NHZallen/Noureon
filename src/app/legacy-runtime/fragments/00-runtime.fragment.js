@@ -1762,7 +1762,7 @@ function renderMarkdownWithFormulas(text) {
         // ↑↑↑↑↑↑ 就是這裡被修改了 ↑↑↑↑↑↑
         
         else {
-            renderAll();
+            runtimeRenderCoordinator.renderAll();
         }
         showNotification(i18n[config.uiLanguage].chatMovedToTrash || '對話已移至垃圾桶。', 'success');
     }
@@ -1778,7 +1778,7 @@ function renderMarkdownWithFormulas(text) {
                 if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
                 else loadChat(conversationStateAccess.getCurrentConversationId());
             } else {
-                renderAll();
+                runtimeRenderCoordinator.renderAll();
             }
         };
         const unarchiveChat = async (id, event) => {
@@ -1786,7 +1786,7 @@ function renderMarkdownWithFormulas(text) {
             const conv = conversations.find(c => c.id === id);
             if(conv) conv.archived = false;
             await saveAppData();
-            renderAll();
+            runtimeRenderCoordinator.renderAll();
         };
         const {
             getInlineMediaSrc: getArchivedInlineMediaSrc,
@@ -1831,7 +1831,7 @@ function renderMarkdownWithFormulas(text) {
             if (conv) {
                 conv.pinned = !conv.pinned;
                 await saveAppData();
-                renderAll();
+                runtimeRenderCoordinator.renderAll();
             }
         };
         const showRenameModal = (id, type, event) => {

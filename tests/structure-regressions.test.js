@@ -373,6 +373,10 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   const setAstrasBody = getConstFunctionBody(fragment01Source, 'setAstrasForConversation');
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+  const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
+  const archiveChatBody = getConstFunctionBody(fragment00Source, 'archiveChat');
+  const unarchiveChatBody = getConstFunctionBody(fragment00Source, 'unarchiveChat');
+  const togglePinChatBody = getConstFunctionBody(fragment00Source, 'togglePinChat');
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeRenderCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeRenderCoordinator\s*\}/);
@@ -389,6 +393,11 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
 
   for (const body of [setAstrasBody, deactivateAstrasBody, deleteAstrasBody]) {
+    assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
+    assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
+  }
+
+  for (const body of [deleteChatBody, archiveChatBody, unarchiveChatBody, togglePinChatBody]) {
     assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
     assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
   }
