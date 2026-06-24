@@ -10,9 +10,12 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 const dependencies = {
   renderUserText: (text) => `USER:${text}`,
   renderMarkdownWithFormulas: (text) => `MODEL:${text}`,
-  renderMediaAttachmentGrid: (mediaParts) => (
-    mediaParts.length ? `<div class="media-grid">${mediaParts.map((part) => part.name).join(',')}</div>` : ''
-  ),
+  buildMediaAttachmentView: (mediaParts) => ({
+    html: mediaParts.length
+      ? `<div class="media-grid">${mediaParts.map((part) => part.name).join(',')}</div>`
+      : '',
+    previewMediaParts: [...mediaParts]
+  }),
   formatTimestamp: () => '2026-06-24 10:30',
   copyTitle: 'Copy content'
 };

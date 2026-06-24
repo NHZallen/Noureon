@@ -2,7 +2,7 @@ export function buildMessageRenderView({
     message,
     renderUserText,
     renderMarkdownWithFormulas,
-    renderMediaAttachmentGrid,
+    buildMediaAttachmentView,
     formatTimestamp,
     copyTitle
 }) {
@@ -33,8 +33,9 @@ export function buildMessageRenderView({
             contentHTML = `<div>${isUser ? renderUserText(combinedText) : renderMarkdownWithFormulas(combinedText)}</div>`;
         }
         if (mediaParts.length > 0) {
-            previewMediaParts = [...mediaParts];
-            mediaGridHTML = renderMediaAttachmentGrid(previewMediaParts);
+            const mediaView = buildMediaAttachmentView(mediaParts);
+            previewMediaParts = mediaView.previewMediaParts;
+            mediaGridHTML = mediaView.html;
         }
         if (!isUser) {
             const timeString = formatTimestamp(message.createdAt);
