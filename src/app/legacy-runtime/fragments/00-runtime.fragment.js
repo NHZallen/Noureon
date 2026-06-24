@@ -18,6 +18,7 @@ import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/fe
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
@@ -1790,45 +1791,26 @@ function renderMarkdownWithFormulas(text) {
             getInlineMediaSrc: getArchivedInlineMediaSrc,
             getUiLanguage: () => config.uiLanguage
         });
+        const archivedConversationViewRenderer = createArchivedConversationViewRenderer({
+            document,
+            renderUserText,
+            renderModelText: renderMarkdown,
+            renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid,
+            bindMediaPreviewButtons: bindArchivedMediaPreviewButtons,
+            mediaMode: 'inlineData',
+            wrapTextParts: true
+        });
         const showArchivedChatPreview = (id, event) => {
             event?.stopPropagation();
             const conv = conversations.find(c => c.id === id);
             if (!conv) return;
             ALL_ELEMENTS.viewArchivedTitle.textContent = conv.title;
             const contentContainer = ALL_ELEMENTS.viewArchivedContent;
-            contentContainer.innerHTML = '';
-            if (conv.messages.length === 0) {
-                contentContainer.innerHTML = '<p class="text-center text-[var(--text-secondary)]">此對話沒有訊息。</p>';
-            } else {
-                conv.messages.forEach(msg => {
-                    const isUser = msg.role === 'user';
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
-                    const icon = '';
-                    let contentHTML = '';
-                    const mediaParts = [];
-                    msg.parts.forEach(part => {
-                        if (part.text) {
-                             contentHTML += `<div>${isUser ? renderUserText(part.text) : renderMarkdown(part.text)}</div>`;
-                        } else if (part.inlineData) {
-                            mediaParts.push(part.inlineData);
-                        }
-                    });
-                    const mediaGridHTML = renderArchivedMediaAttachmentGrid(mediaParts);
-                    const messageBubble = `
-                        <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
-                            ${mediaGridHTML}
-                            ${contentHTML.trim() ? `
-                                <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble">
-                                    <div class="prose prose-sm max-w-none message-content text-[var(--text-primary)]">${contentHTML}</div>
-                                </div>
-                            ` : ''}
-                        </div>`;
-                    messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
-                    bindArchivedMediaPreviewButtons(messageDiv, mediaParts);
-                    contentContainer.appendChild(messageDiv);
-                });
-            }
+            archivedConversationViewRenderer.renderConversationMessages({
+                conversation: conv,
+                contentContainer,
+                emptyHTML: '<p class="text-center text-[var(--text-secondary)]">此對話沒有訊息。</p>'
+            });
             toggleModal(ALL_ELEMENTS.viewArchivedChatModal, true);
         };
         const togglePinChat = async (id, event) => {

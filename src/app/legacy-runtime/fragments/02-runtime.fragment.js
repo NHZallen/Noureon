@@ -239,6 +239,7 @@
 submitButtonIcon.innerHTML = sendIconHTML;
             }
         };
+        const getTavilySearchDepth = () => config.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
         const ensureCouncilTranslatorSettingsControls = () => {
             if (!document.getElementById('nvidia-api-key-input')) {
                 const openrouterInput = document.getElementById('openrouter-api-key-input-all');

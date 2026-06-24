@@ -112,14 +112,14 @@ test('mobile web search typing does not disable the message input when Tavily is
 
 test('model council manager uses compact pills and a bounded scroll area', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime01 = readUiSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
 
   assert.match(runtime01, /class="council-mode-cluster"[\s\S]*id="model-council-enabled"[\s\S]*class="council-mode-tabs"/);
   assert.match(runtime01, /class="council-action-cluster"[\s\S]*id="model-council-search-toggle"[\s\S]*data-council-model-search/);
   assert.match(runtime01, /const\s+previousModelSearch\s*=[\s\S]*data-council-model-search/);
-  assert.match(runtime01, /const\s+applyCouncilModelSearch\s*=\s*\(\)\s*=>[\s\S]*council-model-group[\s\S]*group\.hidden/);
-  assert.match(runtime01, /conv\.council\.mode\s*=\s*button\.dataset\.councilMode;[\s\S]*await\s+persistCouncilConfig\(conv\);[\s\S]*renderCouncilControls\(\);/);
-  assert.match(runtime01, /conv\.isWebSearchEnabled\s*=\s*!conv\.isWebSearchEnabled/);
+  assert.match(runtime01, /const\s+applySearch\s*=\s*\(\)\s*=>[\s\S]*council-model-group[\s\S]*group\.hidden/);
+  assert.match(runtime01, /conversation\.council\.mode\s*=\s*button\.dataset\.councilMode;[\s\S]*await\s+persistCouncilConfig\(conversation\);[\s\S]*renderCouncilControls\(\);/);
+  assert.match(runtime01, /conversation\.isWebSearchEnabled\s*=\s*!conversation\.isWebSearchEnabled/);
   assert.doesNotMatch(runtime01, /council-filter-panel|data-council-filter|filtersHTML|applyCouncilSearchFilter/);
   assert.doesNotMatch(runtime01, /<p class="council-search-note[^`]*runtimeTexts\.searchManualNotice/);
   assert.match(runtime01, /<div class="council-popover-scroll-area">[\s\S]*<div class="council-popover-bottom">/);

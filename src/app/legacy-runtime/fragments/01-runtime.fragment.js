@@ -267,37 +267,6 @@
             ALL_ELEMENTS.archivedChatsContainer.querySelectorAll('.unarchive-btn').forEach(btn => btn.addEventListener('click', (e) => unarchiveChat(e.target.dataset.id, e)));
             ALL_ELEMENTS.archivedChatsContainer.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => deleteChat(e.target.dataset.id, e)));
         };
-        const renderChat = () => {
-            const conv = getActiveConversation();
-            const messageList = ALL_ELEMENTS.messageList;
-            messageList.classList.remove('chat-view-transition');
-            if (!conv) {
-                messageList.innerHTML = '';
-                ALL_ELEMENTS.headerTitle.textContent = i18n[config.uiLanguage].newChat;
-                ALL_ELEMENTS.modelSwitcherContainer.innerHTML = '';
-                renderInputIndicators();
-                renderCouncilControls();
-                return;
-            }
-            ALL_ELEMENTS.headerTitle.textContent = conv.archived ? `(${i18n[config.uiLanguage].archived || '已封存'}) ${conv.title}` : conv.title;
-            renderModelSwitcher();
-            renderInputIndicators();
-            renderCouncilControls();
-            messageList.innerHTML = '';
-            if (conv.messages.length === 0) {
-    const greeting = `${currentUser.username}, ${i18n[config.uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？'}`;
-    messageList.innerHTML = `<div class="text-center text-[var(--text-primary)] mt-16 chat-greeting-message"><p class="text-2xl font-semibold">${greeting}</p></div>`;
-} else {
-                conv.messages.forEach((msg, index) => addMessageToUI(msg, index, false, false));
-            }
-            requestAnimationFrame(() => {
-    setupMessageIntersectionObserver();
-});
-            void messageList.offsetWidth;
-            messageList.classList.add('chat-view-transition');
-            updateInputState();
-        };
-        
         const openCouncilPopoverFromAttachmentMenu = () => {
             renderCouncilControls();
             const toggleButton = document.getElementById('model-council-toggle-btn');
@@ -764,870 +733,84 @@
             });
             return visibleModels;
         };
-        const renderCouncilControls = () => {
-            const inputControls = ALL_ELEMENTS.fileInputContainer?.parentElement;
-            if (!inputControls) return;
-            let container = document.getElementById('model-council-control');
-            const existingPopover = container?.querySelector('#model-council-popover');
-            const wasVisible = existingPopover?.classList.contains('visible') || false;
-            const existingScrollArea = existingPopover?.querySelector('.council-popover-scroll-area');
-            const previousScrollTop = wasVisible ? (existingScrollArea?.scrollTop || 0) : 0;
-            const previousModelSearch = wasVisible ? (existingPopover?.querySelector('[data-council-model-search]')?.value || '') : '';
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'model-council-control';
-            }
-            if (container.parentElement !== inputControls || container.previousElementSibling !== ALL_ELEMENTS.fileInputContainer) {
-                ALL_ELEMENTS.fileInputContainer.insertAdjacentElement('afterend', container);
-            }
-            const conv = getActiveConversation();
-            if (!conv) {
-                container.innerHTML = '';
-                return;
-            }
-            conv.council = normalizeCouncilConfig(conv.council);
-            if (config.isLearningMode && !conv.council.enabled) {
-                container.innerHTML = '';
-                return;
-            }
-            const texts = getCouncilTexts();
-            const runtimeTexts = getCouncilRuntimeTexts();
-            const validation = getCouncilValidation(conv);
-            const modelList = getCouncilModelList(conv);
-            const selectedParticipants = getModelsByIds(conv.council.participantModelIds);
-            const synthesizer = MODELS.find(model => model.id === conv.council.synthesizerModelId);
-            const participantSummary = formatCouncilModelSummary(selectedParticipants, 2);
-            const isLocked = isCouncilRunning && conv.council.enabled;
-            const lockAttr = isLocked ? 'disabled' : '';
-            const enabledClass = conv.council.enabled ? 'is-enabled' : '';
-            const statusText = conv.council.enabled
-                ? (validation.ok ? `${texts.ready} · ${selectedParticipants.length} · ${synthesizer?.name || texts.selectSynthesizer}` : validation.message)
-                : texts.disabled;
-            const doneText = i18n[config.uiLanguage]?.done || i18n[config.uiLanguage]?.confirm || '完成';
-            const dotClass = conv.council.enabled ? (validation.ok ? 'ready' : 'warning') : 'off';
-            const supportsCouncilSearch = hasCouncilWebSearchAccess(synthesizer || normalizeConversationModel(conv));
-            const searchDisabled = isLocked || conv.archived || !supportsCouncilSearch;
-            const searchDisabledAttr = searchDisabled ? 'disabled' : '';
-            const searchActiveClass = conv.isWebSearchEnabled ? 'is-active' : '';
-            const searchTitle = supportsCouncilSearch
-                ? (conv.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : (i18n[config.uiLanguage]?.search || 'Search'))
-                : (i18n[config.uiLanguage]?.webSearchNotAvailable || 'Web search is not available for this model.');
-            const priceLabel = config.uiLanguage === 'en' ? 'Price' : '價格';
-            const visionLabel = config.uiLanguage === 'en' ? 'Vision' : '視覺';
-            const documentLabel = config.uiLanguage === 'en' ? 'Documents' : '文件';
-            const searchLabel = i18n[config.uiLanguage]?.search || '搜尋';
-            const modelSearchPlaceholder = config.uiLanguage === 'en' ? 'Search models' : '\u641c\u5c0b\u6a21\u578b';
-            const providerLabel = config.uiLanguage === 'en' ? 'Provider' : '供應商';
-            const abilityLabel = config.uiLanguage === 'en' ? 'Capabilities' : '能力';
-            const noExtraAbilityLabel = config.uiLanguage === 'en' ? 'Text / file' : '文字 / 文件';
-            const providerCountLabel = config.uiLanguage === 'en' ? 'providers' : '供應商';
-            const makeModelTooltip = (model) => {
-                const abilities = [
-                    noExtraAbilityLabel,
-                    modelSupportsVision(model) ? visionLabel : '',
-                    modelSupportsDocumentUpload(model) ? documentLabel : '',
-                    modelSupportsWebSearch(model) ? searchLabel : ''
-                ].filter(Boolean).join(' · ');
-                return `${model.name}\n${providerLabel}: ${getProviderLabel(model.provider)}\n${abilityLabel}: ${abilities}\n${priceLabel}: ${getModelPriceLabel(model)}`;
-            };
-            const createCouncilModelMetaHTML = (model) => `
-                <span class="council-model-badges">
-                    ${modelSupportsVision(model) ? `<span class="council-capability-badge" title="${escapeHTML(visionLabel)}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>${escapeHTML(visionLabel)}</span>` : ''}
-                    ${modelSupportsDocumentUpload(model) ? `<span class="council-capability-badge">${escapeHTML(documentLabel)}</span>` : ''}
-                    ${modelSupportsWebSearch(model) ? `<span class="council-capability-badge">${escapeHTML(searchLabel)}</span>` : ''}
-                </span>
-                <small>${escapeHTML(getProviderLabel(model.provider))} · ${escapeHTML(priceLabel)}: ${escapeHTML(getModelPriceLabel(model))}</small>
-            `;
-            const buildCouncilModelGroups = (models) => {
-                const groups = new Map();
-                models.forEach(model => {
-                    const key = getModelFamilyKey(model);
-                    if (!groups.has(key)) {
-                        groups.set(key, {
-                            key,
-                            name: getModelFamilyName(model) || model.name,
-                            variants: []
-                        });
-                    }
-                    groups.get(key).variants.push(model);
-                });
-                return Array.from(groups.values()).map(group => ({
-                    ...group,
-                    variants: group.variants.sort((a, b) => {
-                        const providerCompare = getProviderLabel(a.provider).localeCompare(getProviderLabel(b.provider));
-                        return providerCompare || a.name.localeCompare(b.name);
-                    })
-                }));
-            };
-            const modelGroups = buildCouncilModelGroups(modelList)
-                .sort((a, b) => a.name.localeCompare(b.name));
-            const renderSelectableCouncilModelRow = (model, type) => {
-                const isParticipant = type === 'participant';
-                const checked = conv.council.participantModelIds.includes(model.id);
-                const selected = isParticipant ? checked : conv.council.synthesizerModelId === model.id;
-                const maxed = isParticipant && !checked && conv.council.participantModelIds.length >= COUNCIL_MAX_MODELS;
-                const disabled = isLocked || maxed;
-                const tooltip = makeModelTooltip(model);
-                const searchText = `${model.name} ${getProviderLabel(model.provider)} ${getModelApiId(model)}`.toLowerCase();
-                return `
-                    <label class="council-model-row ${selected ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(tooltip)}" data-council-search-text="${escapeHTML(searchText)}">
-                        <input type="${isParticipant ? 'checkbox' : 'radio'}" ${isParticipant ? '' : 'name="council-synthesizer"'} ${isParticipant ? `data-council-participant="${escapeHTML(model.id)}"` : `data-council-synthesizer="${escapeHTML(model.id)}"`} ${selected ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
-                        <span>
-                            <strong>${escapeHTML(model.name)}</strong>
-                            ${createCouncilModelMetaHTML(model)}
-                        </span>
-                    </label>
-                `;
-            };
-            const renderCouncilModelGroups = (type) => modelGroups.map(group => {
-                if (group.variants.length === 1) {
-                    return renderSelectableCouncilModelRow(group.variants[0], type);
-                }
-                const providerNames = group.variants.map(model => getProviderLabel(model.provider)).join(' · ');
-                const groupSearchText = `${group.name} ${providerNames}`.toLowerCase();
-                return `
-                    <div class="council-model-group" data-council-group-search-text="${escapeHTML(groupSearchText)}">
-                        <div class="council-model-family-row">
-                            <span>
-                                <strong>${escapeHTML(group.name)}</strong>
-                                <small>${escapeHTML(String(group.variants.length))} ${escapeHTML(providerCountLabel)}</small>
-                            </span>
-                            <span class="council-family-provider-list">${escapeHTML(providerNames)}</span>
-                        </div>
-                        <div class="council-provider-variant-list">
-                            ${group.variants.map(model => renderSelectableCouncilModelRow(model, type)).join('')}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            const modelRows = renderCouncilModelGroups('participant');
-            const synthesizerRows = renderCouncilModelGroups('synthesizer');
-            container.innerHTML = `
-                <div class="model-council-bar ${enabledClass} ${isLocked ? 'is-locked' : ''}">
-                    <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                        <span class="council-toggle-label">${texts.title}</span>
-                        ${participantSummary ? `<span class="council-toggle-models">${escapeHTML(participantSummary)}</span>` : ''}
-                        <span class="model-council-dot ${dotClass}" aria-hidden="true"></span>
-                    </button>
-                    <div id="model-council-popover" class="popover model-council-popover ${wasVisible ? 'visible' : ''}">
-                        <div class="council-popover-sticky-controls">
-                        <div class="council-popover-header">
-                            <div>
-                                <h3 class="council-popover-title">${texts.title}</h3>
-                                <p class="model-council-status ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(statusText)}</p>
-                            </div>
-                            <button type="button" id="model-council-close-btn" class="council-popover-close" title="${escapeHTML(doneText)}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        </div>
-                        <div class="council-popover-header compact council-config-row">
-                            <div class="council-mode-cluster">
-                                <button type="button" id="model-council-enabled" class="council-enable-pill ${conv.council.enabled ? 'is-active' : ''}" aria-pressed="${conv.council.enabled ? 'true' : 'false'}" ${lockAttr}>
-                                    ${texts.enable}
-                                </button>
-                                <div class="council-mode-tabs">
-                                    <button type="button" class="${conv.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus" ${lockAttr}>${texts.consensus}</button>
-                                    <button type="button" class="${conv.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${lockAttr}>${texts.deliberation}</button>
-                                </div>
-                            </div>
-                            <div class="council-action-cluster">
-                                <button type="button" id="model-council-search-toggle" class="council-search-toggle ${searchActiveClass}" aria-pressed="${conv.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabledAttr}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                                    <span>${escapeHTML(searchLabel)}</span>
-                                </button>
-                                <label class="council-model-search-field" title="${escapeHTML(modelSearchPlaceholder)}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-                                    <input type="search" data-council-model-search value="${escapeHTML(previousModelSearch)}" placeholder="${escapeHTML(modelSearchPlaceholder)}" aria-label="${escapeHTML(modelSearchPlaceholder)}" autocomplete="off">
-                                </label>
-                            </div>
-                        </div>
-                            ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
-                        </div>
-                        <div class="council-popover-scroll-area">
-                        <div class="council-section">
-                            <div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${COUNCIL_MAX_MODELS})</div>
-                            <div class="council-model-list">${modelRows}</div>
-                        </div>
-                        <div class="council-section">
-                            <div class="council-section-title">${texts.synthesizer}</div>
-                            <div class="council-model-list">${synthesizerRows}</div>
-                        </div>
-                        <div class="council-popover-bottom">
-                        <label class="council-raw-row">
-                            <input type="checkbox" id="model-council-show-raw" ${conv.council.showRawResponses ? 'checked' : ''} ${lockAttr}>
-                            <span>${texts.rawNotes}</span>
-                        </label>
-                        <label class="council-raw-row">
-                            <input type="checkbox" id="model-council-show-comparison" ${conv.council.showComparisonTable ? 'checked' : ''} ${lockAttr}>
-                            <span>${runtimeTexts.comparisonToggle}</span>
-                        </label>
-                        <p class="council-validation ${validation.ok || !conv.council.enabled ? '' : 'warning'}">${escapeHTML(conv.council.enabled ? validation.message : texts.required)}</p>
-                        <div class="council-popover-footer">
-                            <button type="button" id="model-council-done-btn" class="council-done-btn">${escapeHTML(doneText)}</button>
-                        </div>
-                        </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            const popover = container.querySelector('#model-council-popover');
-            const scrollArea = container.querySelector('.council-popover-scroll-area');
-            const toggleButton = container.querySelector('#model-council-toggle-btn');
-            const updateCouncilStickyOffset = () => {
-                const stickyControls = popover.querySelector('.council-popover-sticky-controls');
-                popover.style.setProperty('--council-sticky-offset', `${stickyControls?.offsetHeight || 0}px`);
-            };
-            requestAnimationFrame(updateCouncilStickyOffset);
-            if (wasVisible) {
-                requestAnimationFrame(() => {
-                    if (scrollArea) scrollArea.scrollTop = previousScrollTop;
-                    updateCouncilStickyOffset();
-                });
-            }
-            const closeCouncilPopover = () => {
-                popover.classList.remove('visible');
-                toggleButton.setAttribute('aria-expanded', 'false');
-            };
-            const modelSearchInput = container.querySelector('[data-council-model-search]');
-            const applyCouncilModelSearch = () => {
-                const query = (modelSearchInput?.value || '').trim().toLowerCase();
-                container.querySelectorAll('.council-model-list > .council-model-row[data-council-search-text]').forEach(row => {
-                    const matches = !query || (row.dataset.councilSearchText || '').includes(query);
-                    row.hidden = !matches;
-                });
-                container.querySelectorAll('.council-model-group').forEach(group => {
-                    const groupMatches = !!query && (group.dataset.councilGroupSearchText || '').includes(query);
-                    let hasVisibleVariant = false;
-                    group.querySelectorAll('.council-model-row[data-council-search-text]').forEach(row => {
-                        const matches = !query || groupMatches || (row.dataset.councilSearchText || '').includes(query);
-                        row.hidden = !matches;
-                        hasVisibleVariant = hasVisibleVariant || matches;
-                    });
-                    group.hidden = !!query && !groupMatches && !hasVisibleVariant;
-                });
-            };
-            modelSearchInput?.addEventListener('input', applyCouncilModelSearch);
-            applyCouncilModelSearch();
-            toggleButton.addEventListener('click', () => {
-                const wasVisibleNow = popover.classList.contains('visible');
-                closeAllPopovers();
-                popover.classList.toggle('visible', !wasVisibleNow);
-                if (!wasVisibleNow) {
-                    requestAnimationFrame(() => {
-                        if (scrollArea) scrollArea.scrollTop = 0;
-                    });
-                }
-                toggleButton.setAttribute('aria-expanded', String(!wasVisibleNow));
-            });
-            container.querySelector('#model-council-close-btn').addEventListener('click', closeCouncilPopover);
-            container.querySelector('#model-council-done-btn').addEventListener('click', closeCouncilPopover);
-            container.querySelector('#model-council-enabled').addEventListener('click', async () => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                conv.council.enabled = !conv.council.enabled;
-                if (conv.council.enabled) seedCouncilParticipants(conv);
-                await persistCouncilConfig(conv);
-                renderCouncilControls();
-                if (conv.council.enabled && !conv.isWebSearchEnabled) {
-                    showNotification(runtimeTexts.searchManualNotice, 'warning');
-                }
-            });
-            container.querySelector('#model-council-search-toggle')?.addEventListener('click', async () => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                if (!supportsCouncilSearch || conv.archived) {
-                    showNotification(i18n[config.uiLanguage]?.webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
-                    return;
-                }
-                conv.isWebSearchEnabled = !conv.isWebSearchEnabled;
-                await saveAppData();
-                renderCouncilControls();
-                renderInputIndicators();
-            });
-            container.querySelectorAll('[data-council-mode]').forEach(button => {
-                button.addEventListener('click', async () => {
-                    if (isCouncilRunning) {
-                        showNotification(runtimeTexts.councilLocked, 'warning');
-                        return;
-                    }
-                    conv.council.mode = button.dataset.councilMode;
-                    await persistCouncilConfig(conv);
-                    renderCouncilControls();
-                });
-            });
-            container.querySelectorAll('[data-council-participant]').forEach(input => {
-                input.addEventListener('change', async () => {
-                    if (isCouncilRunning) {
-                        showNotification(runtimeTexts.councilLocked, 'warning');
-                        renderCouncilControls();
-                        return;
-                    }
-                    const modelId = input.dataset.councilParticipant;
-                    const nextIds = new Set(conv.council.participantModelIds);
-                    if (input.checked) {
-                        if (nextIds.size >= COUNCIL_MAX_MODELS) {
-                            showNotification(texts.tooMany, 'warning');
-                            renderCouncilControls();
-                            return;
-                        }
-                        nextIds.add(modelId);
-                    } else {
-                        nextIds.delete(modelId);
-                    }
-                    conv.council.participantModelIds = Array.from(nextIds);
-                    await persistCouncilConfig(conv);
-                });
-            });
-            container.querySelectorAll('[data-council-synthesizer]').forEach(input => {
-                input.addEventListener('change', async () => {
-                    if (isCouncilRunning) {
-                        showNotification(runtimeTexts.councilLocked, 'warning');
-                        renderCouncilControls();
-                        return;
-                    }
-                    if (!input.checked) return;
-                    conv.council.synthesizerModelId = input.dataset.councilSynthesizer;
-                    await persistCouncilConfig(conv);
-                });
-            });
-            container.querySelector('#model-council-show-raw').addEventListener('change', async (event) => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                conv.council.showRawResponses = event.target.checked;
-                await persistCouncilConfig(conv);
-            });
-            container.querySelector('#model-council-show-comparison').addEventListener('change', async (event) => {
-                if (isCouncilRunning) {
-                    showNotification(runtimeTexts.councilLocked, 'warning');
-                    renderCouncilControls();
-                    return;
-                }
-                conv.council.showComparisonTable = event.target.checked;
-                await persistCouncilConfig(conv);
-            });
-        };
-        const renderCouncilProgress = (progress) => {
-            if (typeof progress === 'string') {
-                return `<div class="council-progress-panel"><div class="council-progress-heading">${escapeHTML(progress)}</div></div>`;
-            }
-            const runtimeTexts = getCouncilRuntimeTexts();
-            const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
-            const stageLabels = {
-                search: runtimeTexts.sharedSearch,
-                translation: config.uiLanguage === 'en' ? 'Attachment translation' : '附件轉譯',
-                firstRound: config.uiLanguage === 'en' ? 'Independent round' : '第一輪獨立回答',
-                deliberation: config.uiLanguage === 'en' ? 'Second-round discussion' : '第二輪討論',
-                synthesis: config.uiLanguage === 'en' ? 'Synthesis' : '統整結論',
-                completed: runtimeTexts.completed
-            };
-            const stageNotes = {
-                translation: config.uiLanguage === 'en'
-                    ? 'Preparing detailed text packets for models that cannot read some attachment types directly.'
-                    : '正在為無法直接讀取部分附件類型的模型準備詳細轉譯包。',
-                search: config.uiLanguage === 'en'
-                    ? 'Gathering one shared research packet so every member sees the same evidence.'
-                    : '正在建立同一份共同搜尋資料，讓所有理事看同樣的依據。',
-                firstRound: config.uiLanguage === 'en'
-                    ? 'Members are answering independently. The page is alive; slower models may still be thinking.'
-                    : '各模型正在獨立作答，畫面沒有卡住，較慢的模型可能還在思考。',
-                deliberation: config.uiLanguage === 'en'
-                    ? 'Members are comparing reasons without blindly following the majority.'
-                    : '理事正在比較理由，並避免只因多數意見就從眾。',
-                synthesis: config.uiLanguage === 'en'
-                    ? 'The synthesizer is checking claims and turning the council into one useful answer.'
-                    : '統整模型正在檢查主張，把理事會結果整理成可用答案。',
-                completed: config.uiLanguage === 'en' ? 'Council finished.' : '理事會完成。'
-            };
-            const modelCountLabel = config.uiLanguage === 'en' ? 'models' : '模型';
-            const doneCountLabel = config.uiLanguage === 'en' ? 'done' : '完成';
-            const runningCountLabel = config.uiLanguage === 'en' ? 'running' : '進行中';
-            const statusText = {
-                pending: runtimeTexts.pending,
-                running: runtimeTexts.running,
-                done: runtimeTexts.done,
-                failed: runtimeTexts.failed,
-                skipped: runtimeTexts.skippedStatus
-            };
-            const searchHTML = progress.search ? `
-                <div class="council-progress-search ${escapeHTML(progress.search.status)}">
-                    <span class="council-progress-dot ${escapeHTML(progress.search.status)}"></span>
-                    <span><strong>${escapeHTML(progress.search.label)}</strong> · ${escapeHTML(progress.search.detail)}</span>
-                </div>
-            ` : '';
-            const modelRows = (progress.modelStates || []).map(model => `
-                <div class="council-progress-model ${escapeHTML(model.status)}">
-                    <span class="council-progress-dot ${escapeHTML(model.status)}"></span>
-                    <span class="council-progress-model-copy">
-                        <span class="council-progress-model-name">${escapeHTML(model.modelName)}</span>
-                        <span class="council-progress-model-detail">${escapeHTML(model.detail || statusText[model.status] || model.status)}</span>
-                    </span>
-                    <span class="council-progress-model-status">${escapeHTML(statusText[model.status] || model.status)}</span>
-                </div>
-            `).join('');
-            const doneCount = (progress.modelStates || []).filter(model => model.status === 'done').length;
-            const runningCount = (progress.modelStates || []).filter(model => model.status === 'running').length;
-            return `
-                <div class="council-progress-panel">
-                    <div class="council-progress-orbit" aria-hidden="true">
-                        <span></span><span></span><span></span>
-                    </div>
-                    <div class="council-progress-heading">
-                        <span class="council-progress-stage">${escapeHTML(stageLabels[progress.stage] || runtimeTexts.running)}</span>
-                        <span class="council-progress-time">${elapsedSeconds}s</span>
-                    </div>
-                    <div class="council-progress-message">${escapeHTML(progress.message || runtimeTexts.running)}</div>
-                    <div class="council-progress-note">${escapeHTML(stageNotes[progress.stage] || stageNotes.firstRound)}</div>
-                    <div class="council-progress-stats">
-                        <span>${escapeHTML(String(progress.activeParticipants || 0))}/${escapeHTML(String(progress.totalParticipants || 0))} ${modelCountLabel}</span>
-                        <span>${escapeHTML(String(doneCount))} ${doneCountLabel}</span>
-                        <span>${escapeHTML(String(runningCount))} ${runningCountLabel}</span>
-                    </div>
-                    ${searchHTML}
-                    <div class="council-progress-models">${modelRows}</div>
-                </div>
-            `;
-        };
-        const renderSingleModelProgress = (progress) => {
-            const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
-            const stageLabels = {
-                preparing: config.uiLanguage === 'en' ? 'Preparing request' : '準備請求',
-                documentTranslation: config.uiLanguage === 'en' ? 'Document translation' : '文件轉譯',
-                searchTranslation: config.uiLanguage === 'en' ? 'Search' : '搜索',
-                streaming: config.uiLanguage === 'en' ? 'Model answering' : '模型作答',
-                completed: config.uiLanguage === 'en' ? 'Completed' : '完成'
-            };
-            const stageNotes = {
-                preparing: config.uiLanguage === 'en'
-                    ? 'Checking the target model capabilities before sending the request.'
-                    : '正在檢查目標模型的原生能力，決定是否需要轉譯包。',
-                documentTranslation: config.uiLanguage === 'en'
-                    ? 'A configured translator is turning unsupported documents into a detailed text packet for this turn only.'
-                    : '設定的轉譯模型正在把不支援的文件轉成只供本次請求使用的詳細文字包。',
-                searchTranslation: config.uiLanguage === 'en'
-                    ? 'Gathering a web research packet for this turn.'
-                    : '正在為這次回覆整理搜索包。',
-                streaming: config.uiLanguage === 'en'
-                    ? 'The selected model is streaming the final answer.'
-                    : '所選模型正在串流輸出最終回答。',
-                completed: config.uiLanguage === 'en' ? 'The response is ready.' : '回應已完成。'
-            };
-            const receivedLabel = config.uiLanguage === 'en' ? 'received characters' : '已接收字元';
-            return `
-                <details class="single-progress-panel" open>
-                    <summary>
-                        <span>${escapeHTML(progress.modelName || '')}</span>
-                        <span>${elapsedSeconds}s</span>
-                    </summary>
-                    <div class="council-progress-orbit" aria-hidden="true">
-                        <span></span><span></span><span></span>
-                    </div>
-                    <div class="council-progress-heading">
-                        <span class="council-progress-stage">${escapeHTML(stageLabels[progress.stage] || stageLabels.preparing)}</span>
-                        <span class="council-progress-time">${elapsedSeconds}s</span>
-                    </div>
-                    <div class="council-progress-message">${escapeHTML(progress.message || stageLabels[progress.stage] || stageLabels.preparing)}</div>
-                    <div class="council-progress-note">${escapeHTML(stageNotes[progress.stage] || stageNotes.preparing)}</div>
-                    <div class="council-progress-stats">
-                        <span>${escapeHTML(receivedLabel)}: ${escapeHTML(String(progress.receivedChars || 0))}</span>
-                        ${progress.translatorName ? `<span>${escapeHTML(progress.translatorName)}</span>` : ''}
-                    </div>
-                </details>
-            `;
-        };
-        const renderSingleModelError = (progress = {}, errorMessage = '') => {
-            const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
-            const title = config.uiLanguage === 'en' ? 'Request failed' : '請求失敗';
-            const note = config.uiLanguage === 'en'
-                ? 'The model stopped before returning a usable answer.'
-                : '模型在回傳可用答案前中斷。';
-            return `
-                <details class="single-progress-panel single-progress-panel-error" open>
-                    <summary>
-                        <span>${escapeHTML(progress.modelName || '')}</span>
-                        <span>${elapsedSeconds}s</span>
-                    </summary>
-                    <div class="council-progress-heading">
-                        <span class="council-progress-stage">${escapeHTML(title)}</span>
-                        <span class="council-progress-time">${elapsedSeconds}s</span>
-                    </div>
-                    <div class="council-progress-message">${escapeHTML(errorMessage || title)}</div>
-                    <div class="council-progress-note">${escapeHTML(note)}</div>
-                </details>
-            `;
-        };
+        import { createCouncilControlsLifecycle } from '/src/app/legacy-runtime/features/council-controls-lifecycle.js';
+        const { renderCouncilControls } = createCouncilControlsLifecycle({
+            closeAllPopovers,
+            councilMaxModels: COUNCIL_MAX_MODELS,
+            document,
+            elements: ALL_ELEMENTS,
+            escapeHTML,
+            formatCouncilModelSummary,
+            getActiveConversation,
+            getConfig: () => config,
+            getCouncilModelList,
+            getCouncilRuntimeTexts,
+            getCouncilTexts,
+            getCouncilValidation,
+            getI18n: () => i18n,
+            getIsCouncilRunning: () => isCouncilRunning,
+            getModelApiId,
+            getModelFamilyKey,
+            getModelFamilyName,
+            getModelPriceLabel,
+            getModelsByIds,
+            getProviderLabel,
+            hasCouncilWebSearchAccess,
+            modelSupportsDocumentUpload,
+            modelSupportsVision,
+            modelSupportsWebSearch,
+            models: MODELS,
+            normalizeConversationModel,
+            normalizeCouncilConfig,
+            persistCouncilConfig,
+            renderInputIndicators,
+            requestFrame: requestAnimationFrame,
+            saveAppData,
+            seedCouncilParticipants,
+            showNotification
+        });
+        import { createResponseProgressRenderers } from '/src/app/legacy-runtime/features/response-progress-renderers.js';
+        const {
+            renderCouncilProgress,
+            renderSingleModelError,
+            renderSingleModelProgress
+        } = createResponseProgressRenderers({
+            escapeHTML,
+            getUiLanguage: () => config.uiLanguage,
+            getCouncilRuntimeTexts
+        });
         const isCouncilDeferredSectionVisible = (text = '') => /<details\b|共識與差異整理|模型理事會紀錄|Model council record|Compte rendu du conseil/i.test(String(text || ''));
-        const renderModelSwitcher = () => {
-    const conv = getActiveConversation();
-    ALL_ELEMENTS.modelSwitcherContainer.innerHTML = '';
-    if (!conv) return;
-
-
-    const processedModels = MODELS.map(model => {
-        const provider = model.provider;
-        let tier = [];
-        let company = null;
-        if (provider === 'gemini') {
-            // 目前保留的 Gemini 模型 (3 Pro Preview, 3 Flash Preview) 均為付費模型
-            tier = getModelTiers(model);
-            company = 'google'; 
-        } else if (provider === 'openrouter') {
-            tier = getModelTiers(model);
-            company = model.id.split('/')[0];
-        } else if (provider === 'stepfun') {
-            tier = getModelTiers(model);
-            company = 'stepfun';
-        } else if (provider === 'nvidia') {
-            tier = getModelTiers(model);
-            company = getModelApiId(model).split('/')[0];
-        }
-        return { ...model, tier, company };
-    });
-    const betaModels = processedModels.filter(m => m.isBeta);
-    const standardModels = processedModels.filter(m => !m.isBeta);
-
-
-    const visibleModels = config.modelSettings
-        .filter(s => !s.hidden)
-        .sort((a, b) => a.order - b.order)
-        .map(s => processedModels.find(m => m.id === s.id))
-        .filter(Boolean);
-
-
-    const currentModel = processedModels.find(m => m.id === conv.model) || processedModels[0];
-    const isArchived = conv.archived;
-    const translations = i18n[config.uiLanguage] || i18n['zh-TW'];
-
-    if (isCouncilEnabled(conv)) {
-        const { council } = getCouncilSelectedModels(conv);
-        const texts = getCouncilTexts();
-        const councilModeLabel = getCouncilModeLabel(council);
-        ALL_ELEMENTS.modelSwitcherContainer.innerHTML = `
-            <button id="current-model-btn" class="model-switcher-council-btn flex items-center gap-2 text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] px-2 py-1 md:px-3 rounded-md ${isArchived ? 'cursor-not-allowed' : ''}" ${isArchived ? 'disabled' : ''}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                <span class="model-switcher-council-copy">
-                    <span class="font-semibold text-sm md:text-base text-[var(--text-primary)]">${texts.title}</span>
-                    <small>${escapeHTML(councilModeLabel)}</small>
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-        `;
-        document.getElementById('current-model-btn')?.addEventListener('click', () => {
-            if (isArchived) return;
-            renderCouncilControls();
-            const popover = document.getElementById('model-council-popover');
-            const toggleButton = document.getElementById('model-council-toggle-btn');
-            if (!popover || !toggleButton) return;
-            closeAllPopovers();
-            popover.classList.add('visible');
-            toggleButton.setAttribute('aria-expanded', 'true');
-            requestAnimationFrame(() => {
-                popover.scrollTop = 0;
-            });
+        import { createModelSwitcherLifecycle } from '/src/app/legacy-runtime/features/model-switcher-lifecycle.js';
+        const { renderModelSwitcher } = createModelSwitcherLifecycle({
+            closeAllPopovers,
+            document,
+            elements: ALL_ELEMENTS,
+            escapeHTML,
+            getActiveConversation,
+            getConfig: () => config,
+            getCouncilModeLabel,
+            getCouncilSelectedModels,
+            getCouncilTexts,
+            getI18n: () => i18n,
+            getModelApiId,
+            getModelRetirementLabel,
+            getModelTiers,
+            getSingleDocumentTranslatorModel,
+            isCouncilEnabled,
+            modelSupportsDocumentUpload,
+            modelSupportsVision,
+            modelSupportsWebSearch,
+            models: MODELS,
+            renderAll,
+            renderCouncilControls,
+            requestFrame: requestAnimationFrame,
+            saveAppData,
+            saveConfig,
+            window
         });
-        return;
-    }
-
-
-    const popoverHTML = `
-        <button id="current-model-btn" class="flex items-center gap-2 text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] px-2 py-1 md:px-3 rounded-md ${isArchived ? 'cursor-not-allowed' : ''}" ${isArchived ? 'disabled' : ''}>
-            <span class="font-semibold text-sm md:text-base text-[var(--text-primary)]">${currentModel.name}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </button>
-        
-        <!-- ▼▼▼ 就是這一行被修改了！我們把 left-0 改成了 left-2 md:left-3 ▼▼▼ -->
-        <div id="model-options-popover" class="popover absolute left-2 md:left-3 mt-6 w-72 md:w-80 rounded-lg border border-[var(--border-color)] z-50">
-            <div id="model-views-container" style="width: 500%; display: flex; transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); align-items: flex-start;">
-                <div id="provider-view" class="model-view" style="width: 20%; flex-shrink: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;"></div>
-                <div id="tier-view" class="model-view" style="width: 20%; flex-shrink: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;"></div>
-                <div id="company-view" class="model-view" style="width: 20%; flex-shrink: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;"></div>
-                <div id="category-view" class="model-view" style="width: 20%; flex-shrink: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;"></div>
-                <div id="model-list-view" class="model-view" style="width: 20%; flex-shrink: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;"></div>
-            </div>
-        </div>
-    `;
-    ALL_ELEMENTS.modelSwitcherContainer.innerHTML = popoverHTML;
-
-
-    const popover = document.getElementById('model-options-popover');
-    const viewsContainer = document.getElementById('model-views-container');
-    const providerView = document.getElementById('provider-view');
-    const tierView = document.getElementById('tier-view');
-    const companyView = document.getElementById('company-view');
-    const categoryView = document.getElementById('category-view');
-    const modelListView = document.getElementById('model-list-view');
-
-
-    // ✨✨✨ 核心修正 1：修改 adjustPopoverHeight 函式 ✨✨✨
-    const adjustPopoverHeight = (targetView) => {
-        requestAnimationFrame(() => {
-            // 從 CSS 中讀取我們設定的最大高度，例如 "calc(100vh - 150px)"
-            const maxHeightStyle = window.getComputedStyle(popover).maxHeight;
-            
-            // 將 CSS 值轉換成數字（像素）
-            // 這裡做一個簡化處理，直接用 vh 計算，在大多數情況下是準確的
-            const maxHeightInPixels = window.innerHeight - 150; 
-            
-            // 取得當前內容實際需要的高度
-            const contentHeight = targetView.scrollHeight;
-            
-            // 比較「需要的高度」和「允許的最大高度」，取較小者
-            const newHeight = Math.min(contentHeight, maxHeightInPixels);
-
-
-            // 只設定最外層彈窗的高度，內部容器會自動適應
-            popover.style.height = `${newHeight}px`;
-            viewsContainer.style.height = `${newHeight}px`; 
-            // 我們不再需要手動設定 viewsContainer 的高度了
-        });
-    };
-
-
-    const navigateToView = (viewIndex) => {
-        viewsContainer.style.transform = `translateX(-${viewIndex * 20}%)`;
-        const targetView = viewsContainer.children[viewIndex];
-        adjustPopoverHeight(targetView);
-    };
-
-
-    const modelVisionLabel = config.uiLanguage === 'zh-TW' ? '視覺' : 'Vision';
-    const modelDocumentLabel = config.uiLanguage === 'zh-TW' ? '文件' : 'Documents';
-    const translatedDocumentLabel = config.uiLanguage === 'zh-TW' ? '轉譯文件' : 'Translated documents';
-    const modelSearchLabel = i18n[config.uiLanguage]?.search || '搜尋';
-    const createModelRetirementHTML = (model) => {
-        const retirementLabel = getModelRetirementLabel(model);
-        return retirementLabel ? `<span class="model-retirement-date">${escapeHTML(retirementLabel)}</span>` : '';
-    };
-    const createVisionBadgeHTML = (model) => {
-        if (!modelSupportsVision(model)) return '';
-        return `
-            <span class="model-vision-badge" title="${escapeHTML(modelVisionLabel)}" aria-label="${escapeHTML(modelVisionLabel)}">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-            </span>
-        `;
-    };
-    const createModelBadgesHTML = (model) => `
-        <div class="model-option-meta-row">
-            ${modelSupportsVision(model) ? `<span class="model-capability-pill">${createVisionBadgeHTML(model)}${escapeHTML(modelVisionLabel)}</span>` : ''}
-            ${modelSupportsDocumentUpload(model) ? `<span class="model-capability-pill">${escapeHTML(modelDocumentLabel)}</span>` : (getSingleDocumentTranslatorModel() ? `<span class="model-capability-pill">${escapeHTML(translatedDocumentLabel)}</span>` : '')}
-            ${modelSupportsWebSearch(model) ? `<span class="model-capability-pill">${escapeHTML(modelSearchLabel)}</span>` : ''}
-        </div>
-    `;
-
-    const createModelOptionHTML = (model, descriptionText) => {
-        return `
-            <div data-model-id="${model.id}" class="model-option-btn-container ${isArchived ? 'cursor-not-allowed opacity-50' : ''}">
-                <h4 class="font-semibold model-option-title"><span class="model-name-text">${model.name}</span>${createModelRetirementHTML(model)}</h4>
-                ${createModelBadgesHTML(model)}
-                <p class="model-description">${descriptionText}</p>
-            </div>
-        `;
-    };
-    
-    const createBackButtonHTML = (textKey, targetViewIndex) => {
-        return `
-            <button class="back-btn w-full flex items-center gap-2 text-left px-4 py-3 hover:bg-[var(--hover-bg)] text-sm font-semibold text-blue-600" data-target-view="${targetViewIndex}">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                ${translations[textKey] || '返回'}
-            </button>
-            <div class="border-t border-[var(--border-color)] my-1 mx-2"></div>
-        `;
-    };
-
-
-    const providers = [...new Set(standardModels.map(m => m.provider))];
-    providerView.innerHTML = `
-        <!-- ✨ 新增的測試版模型按鈕 -->
-        ${betaModels.length > 0 ? `
-        <button class="model-option-btn-container beta-btn" data-view-target="beta">
-            <h4 class="font-semibold">${translations.betaModels || '測試版模型'}</h4>
-            <p class="model-description">${translations.betaModelsDesc || '體驗最新功能與技術預覽'}</p>
-        </button>
-        <div class="border-t border-[var(--border-color)] my-1 mx-2"></div>
-        ` : ''}
-
-
-        <!-- 原有的提供商按鈕 -->
-        ${providers.map(provider => `
-            <button class="model-option-btn-container provider-btn" data-provider="${provider}">
-                <h4 class="font-semibold capitalize">${provider}</h4>
-            </button>
-        `).join('')}
-    `;
-
-
-    if (betaModels.length > 0) {
-        providerView.querySelector('.beta-btn').addEventListener('click', () => {
-            // 直接跳轉到模型清單視圖 (View 4)
-            modelListView.innerHTML = createBackButtonHTML('back', 0); // 返回按鈕
-            modelListView.innerHTML += betaModels.map(model => {
-                const descriptionText = translations[model.descriptionKey] || '';
-                // 測試版模型不分付費與免費，所以 descriptionText 不需要 _tier_ 的後綴
-                return createModelOptionHTML(model, descriptionText);
-            }).join('');
-            navigateToView(4);
-        });
-    }
-    providerView.querySelectorAll('.provider-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const provider = btn.dataset.provider;
-            tierView.innerHTML = createBackButtonHTML('back', 0);
-            const tiers = [...new Set(visibleModels
-                .filter(model => model.provider === provider)
-                .flatMap(model => model.tier || []))]
-                .sort((a, b) => (a === 'free' ? -1 : 1) - (b === 'free' ? -1 : 1));
-            tierView.innerHTML += tiers.map(tier => `
-                <div class="model-option-btn-container tier-btn" data-provider="${provider}" data-tier="${tier}">
-                    <h4 class="font-semibold capitalize">${tier === 'free' ? (translations.freeModels || '免費模型') : (translations.paidModels || '付費模型')}</h4>
-                </div>
-            `).join('');
-
-
-            tierView.querySelectorAll('.tier-btn').forEach(tierBtn => {
-                tierBtn.addEventListener('click', () => {
-                    const selectedProvider = tierBtn.dataset.provider;
-                    const selectedTier = tierBtn.dataset.tier;
-                    
-                    if (selectedProvider === 'gemini') {
-                        const filteredModels = visibleModels.filter(m => m.provider === selectedProvider && m.tier.includes(selectedTier));
-                        modelListView.innerHTML = createBackButtonHTML('back', 1);
-                        modelListView.innerHTML += filteredModels.map(model => {
-                            const baseKey = model.descriptionKey;
-                            const tierKey = `${baseKey}_tier_${selectedTier}`;
-                            const descriptionText = translations[tierKey] || '';
-                            return createModelOptionHTML(model, descriptionText);
-                        }).join('');
-                        navigateToView(4);
-                    } else { 
-                        const companies = [...new Set(visibleModels
-                            .filter(m => m.provider === selectedProvider && m.tier.includes(selectedTier))
-                            .map(m => m.company)
-                        )];
-                        companyView.innerHTML = createBackButtonHTML('back', 1);
-                        companyView.innerHTML += companies.map(company => `
-                            <div class="model-option-btn-container company-btn" data-provider="${selectedProvider}" data-tier="${selectedTier}" data-company="${company}">
-                                <h4 class="font-semibold capitalize">${company}</h4>
-                            </div>
-                        `).join('');
-                        if (companies.length === 0) {
-                            companyView.innerHTML += `<p class="p-4 text-center text-sm text-[var(--text-secondary)]">${translations.noModelsInTier || '此類別中沒有可用模型。'}</p>`;
-                        }
-                        
-                        companyView.querySelectorAll('.company-btn').forEach(companyBtn => {
-                            companyBtn.addEventListener('click', () => {
-                                const finalProvider = companyBtn.dataset.provider;
-                                const finalTier = companyBtn.dataset.tier;
-                                const finalCompany = companyBtn.dataset.company;
-                                const companyModels = visibleModels.filter(m => m.provider === finalProvider && m.tier.includes(finalTier) && m.company === finalCompany);
-                                const hasCategories = finalCompany === 'openai' || finalCompany === 'x-ai' || finalCompany === 'qwen';
-
-
-                                if (hasCategories) {
-                                    const categories = [...new Set(companyModels.map(m => m.category || 'general'))];
-                                    categoryView.innerHTML = createBackButtonHTML('back', 2);
-                                    
-                                    const categoryOrder = ['general', 'image', 'image_generation', 'thinking', 'coding'];
-                                    categories.sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b));
-
-
-                                    categoryView.innerHTML += categories.map(cat => {
-                                        const categoryNameKey = `category${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
-                                        const categoryName = translations[categoryNameKey] || cat;
-                                        return `<div class="model-option-btn-container category-btn" data-category="${cat}">
-                                                    <h4 class="font-semibold">${categoryName}</h4>
-                                                </div>`;
-                                    }).join('');
-
-
-                                    categoryView.querySelectorAll('.category-btn').forEach(catBtn => {
-                                        catBtn.addEventListener('click', () => {
-                                            const selectedCategory = catBtn.dataset.category;
-                                            const finalModels = companyModels.filter(m => (m.category || 'general') === selectedCategory);
-                                            
-                                            modelListView.innerHTML = createBackButtonHTML('back', 3);
-                                            modelListView.innerHTML += finalModels.map(model => {
-                                                const baseKey = model.descriptionKey;
-                                                const tierKey = `${baseKey}_tier_${finalTier}`;
-                                                const descriptionText = translations[tierKey] || '';
-                                                return createModelOptionHTML(model, descriptionText);
-                                            }).join('');
-                                            navigateToView(4);
-                                        });
-                                    });
-                                    navigateToView(3);
-                                } else {
-                                    modelListView.innerHTML = createBackButtonHTML('back', 2);
-                                    modelListView.innerHTML += companyModels.map(model => {
-                                        const baseKey = model.descriptionKey;
-                                        const tierKey = `${baseKey}_tier_${finalTier}`;
-                                        const descriptionText = translations[tierKey] || '';
-                                        return createModelOptionHTML(model, descriptionText);
-                                    }).join('');
-                                    navigateToView(4);
-                                }
-                            });
-                        });
-                        navigateToView(2);
-                    }
-                });
-            });
-            navigateToView(1);
-        });
-    });
-
-
-    viewsContainer.addEventListener('click', (e) => {
-        const backBtn = e.target.closest('.back-btn');
-        if (backBtn) {
-            const targetViewIndex = parseInt(backBtn.dataset.targetView, 10);
-            navigateToView(targetViewIndex);
-        }
-    });
-
-
-    modelListView.addEventListener('click', async (e) => {
-        const modelBtn = e.target.closest('.model-option-btn-container');
-        if (!modelBtn || !modelBtn.dataset.modelId) return;
-        if (isArchived) return;
-        const newModelId = modelBtn.dataset.modelId;
-        const newModelInfo = MODELS.find(m => m.id === newModelId);
-        if (newModelInfo) {
-            conv.model = newModelInfo.id;
-            conv.provider = newModelInfo.provider;
-            config.lastUsedModel = newModelId;
-            await saveAppData();
-            await saveConfig();
-            renderAll();
-        }
-        popover.classList.remove('visible');
-    });
-
-
-    document.getElementById('current-model-btn').addEventListener('click', () => {
-        const isVisible = popover.classList.toggle('visible');
-        if (isVisible) {
-            navigateToView(0);
-        } else {
-            // ✨✨✨ 核心修正 2：關閉時，同時重置內外兩個容器的高度 ✨✨✨
-            popover.style.height = ''; 
-            viewsContainer.style.height = '';
-        }
-    });
-};
         import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
         import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        import { createMessageListLifecycle } from '/src/app/legacy-runtime/features/message-list-lifecycle.js';
         const {
             buildMediaAttachmentView: buildMessageMediaAttachmentView,
             getInlineMediaSrc: getMessageInlineMediaSrc
@@ -1643,41 +826,41 @@
             getInlineMediaSrc: getMessageInlineMediaSrc,
             getUiLanguage: () => config.uiLanguage
         });
-        const addMessageToUI = (msg, index, shouldSave = true, shouldScroll = true) => {
-            const conv = getActiveConversation();
-            if (shouldSave) {
-                 conv.messages.push(msg);
-                if (conv.messages.length === 1 && msg.role === 'user' && conv.isTemporary && !conv.isRenamed && config.autoNaming) {
-                    const textPart = msg.parts.find(p => p.text);
-                    if (textPart) {
-                        conv.title = textPart.text.substring(0, 30) || i18n[config.uiLanguage].newChat || '新對話';
-                        ALL_ELEMENTS.headerTitle.textContent = conv.title;
-                    }
-                }
-                void saveAppData().catch(error => console.error('Failed to save message state:', error));
-            }
-            const messageDiv = document.createElement('div');
-            messageDiv.dataset.messageIndex = index;
-            const messageView = buildMessageRenderView({
-                message: msg,
-                renderUserText,
-                renderMarkdownWithFormulas,
-                buildMediaAttachmentView: buildMessageMediaAttachmentView,
-                formatTimestamp: formatFullTimestamp,
-                copyTitle: i18n[config.uiLanguage].copyContent || '複製內容'
-            });
-            messageDiv.className = messageView.messageClassName;
-            messageDiv.innerHTML = messageView.messageHTML;
-            bindMessageMediaPreviewButtons(messageDiv, messageView.previewMediaParts);
-            if (ALL_ELEMENTS.messageList.querySelector('.text-center')) ALL_ELEMENTS.messageList.innerHTML = '';
-            ALL_ELEMENTS.messageList.appendChild(messageDiv);
-            if (shouldScroll) {
-                if (isAutoScrolling) {
-                    ALL_ELEMENTS.chatContainer.scrollTo({ top: ALL_ELEMENTS.chatContainer.scrollHeight, behavior: 'smooth' });
-                }
-            }
-            return messageDiv;
-        };
+        const {
+            addMessageToUI,
+            renderChat
+        } = createMessageListLifecycle({
+            document,
+            elements: {
+                headerTitle: ALL_ELEMENTS.headerTitle,
+                modelSwitcherContainer: ALL_ELEMENTS.modelSwitcherContainer,
+                messageList: ALL_ELEMENTS.messageList,
+                chatContainer: ALL_ELEMENTS.chatContainer
+            },
+            getActiveConversation,
+            getAutoNaming: () => config.autoNaming,
+            getCurrentUserName: () => currentUser.username,
+            getText: (key) => ({
+                newChat: i18n[config.uiLanguage].newChat,
+                archived: i18n[config.uiLanguage].archived || '已封存',
+                howCanIHelp: i18n[config.uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？',
+                copyContent: i18n[config.uiLanguage].copyContent || '複製內容'
+            }[key]),
+            buildMessageRenderView,
+            buildMediaAttachmentView: buildMessageMediaAttachmentView,
+            renderUserText,
+            renderMarkdownWithFormulas,
+            formatTimestamp: formatFullTimestamp,
+            bindMediaPreviewButtons: bindMessageMediaPreviewButtons,
+            saveAppData,
+            renderModelSwitcher,
+            renderInputIndicators,
+            renderCouncilControls,
+            setupMessageIntersectionObserver,
+            updateInputState: () => updateInputState(),
+            scheduleFrame: (callback) => requestAnimationFrame(callback),
+            isAutoScrolling: () => isAutoScrolling
+        });
 /**
  * ✨ 最終優化版：幀同步直接渲染打字機 (V5)
  *    - 徹底解決 UI 渲染延遲，真實反映模型輸出速度。
@@ -1880,78 +1063,50 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
     restoreOpenCouncilDetails
 });
 
+        import { createSubmitInputPreparationLifecycle } from '/src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
+        const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({
+            elements: {
+                messageInput: ALL_ELEMENTS.messageInput
+            },
+            getAbortController: () => abortController,
+            setAbortController: (value) => { abortController = value; },
+            createAbortController: () => new AbortController(),
+            getUploadedFiles: () => uploadedFiles,
+            setUploadedFiles: (files) => { uploadedFiles = files; },
+            getActiveConversation,
+            updateSubmitButtonState,
+            getCouncilValidation,
+            showNotification,
+            renderCouncilControls,
+            isCouncilEnabled,
+            getCouncilRuntimeTexts,
+            addMessageToUI,
+            renderHistorySidebar,
+            getAutoNaming: () => config.autoNaming,
+            generateTitleAndSummary,
+            saveAppData,
+            getAutoWebSearchEnabled: () => config.enableAutoWebSearch,
+            shouldPerformWebSearch,
+            getAutoSearchNotice: () => i18n[config.uiLanguage].autoSearchNotice || '偵測到問題需要連網搜索，已自動開啟。',
+            renderInputIndicators,
+            adjustTextareaHeight,
+            renderFilePreviews,
+            requestFrame: (callback) => requestAnimationFrame(callback)
+        });
+
         const handleFormSubmit = async (e) => {
             e.preventDefault();
-            if (abortController) return;
-            const userMessage = ALL_ELEMENTS.messageInput.value.trim();
-            if (!userMessage && uploadedFiles.length === 0) return;
-            
-            const conv = getActiveConversation();
-            if (conv.archived) return;
-            abortController = new AbortController();
-            updateSubmitButtonState(true);
-            const userParts = [];
-            if (userMessage) {
-                userParts.push({ text: userMessage });
-            }
-            uploadedFiles.forEach(file => {
-    userParts.push({
-        inlineData: {
-            mimeType: file.type,
-            data: file.base64.split(',')[1],
-            size: file.size,
-            name: file.name // ✨ 新增這一行：保存檔名
-        }
-    });
-});
-            const councilValidation = getCouncilValidation(conv, uploadedFiles);
-            if (!councilValidation.ok) {
-                showNotification(councilValidation.message, 'warning');
-                abortController = null;
-                updateSubmitButtonState(false);
-                renderCouncilControls();
-                return;
-            }
-            if (isCouncilEnabled(conv) && !conv.isWebSearchEnabled) {
-                showNotification(getCouncilRuntimeTexts().searchManualNotice, 'warning');
-            }
-            const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
-            addMessageToUI(userMessageObject, conv.messages.length, true);
-            conv.lastUpdatedAt = new Date().toISOString();
-            conv.unsentMessage = '';
-            if (conv.isTemporary) {
-                conv.isTemporary = false;
-                conv.isNaming = true;
-                renderHistorySidebar();
-                if (config.autoNaming) {
-                    generateTitleAndSummary(conv);
-                } else {
-                    conv.isNaming = false;
-                }
-                await saveAppData();
-            }
-            if (!isCouncilEnabled(conv) && config.enableAutoWebSearch && conv.provider === 'gemini' && !conv.isWebSearchEnabled) {
-                try {
-                    const needsSearch = await shouldPerformWebSearch(userMessage);
-                    if (needsSearch) {
-                        conv.isWebSearchEnabled = true;
-                        showNotification(i18n[config.uiLanguage].autoSearchNotice || '偵測到問題需要連網搜索，已自動開啟。', 'warning');
-                    }
-                    renderInputIndicators();
-                } catch(err) {
-                    console.error("Auto web search check failed:", err);
-                }
-            }
-            ALL_ELEMENTS.messageInput.value = '';
-            uploadedFiles = [];
-            adjustTextareaHeight();
-            renderFilePreviews();
-            const loadingMessageDiv = addMessageToUI({ role: 'model', parts: [{ text: '...' }], createdAt: new Date().toISOString() }, conv.messages.length, false);
-            const contentDiv = loadingMessageDiv.querySelector('.message-content');
-            requestAnimationFrame(() => {
-                loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            });
-            const responseUsesCouncil = isCouncilEnabled(conv);
+            const preparedSubmit = await submitInputPreparationLifecycle.prepareSubmitResponse();
+            if (!preparedSubmit.shouldContinue) return;
+            const {
+                abortController: submitAbortController,
+                contentDiv,
+                conversation: conv,
+                responseUsesCouncil,
+                userMessage,
+                userMessageObject,
+                userParts
+            } = preparedSubmit;
             
             try {
                 let fullResponse = '';
@@ -1965,7 +1120,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                     const councilResult = await runCouncilResponseRenderLifecycle({
                         contentDiv,
                         userParts,
-                        signal: abortController.signal,
+                        signal: submitAbortController.signal,
                         getOutputMode,
                         runModelCouncil,
                         renderCouncilProgress,
@@ -1988,7 +1143,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                         userParts,
                         modelInfo,
                         conversation: conv,
-                        signal: abortController.signal,
+                        signal: submitAbortController.signal,
                         uiLanguage: config.uiLanguage
                     });
                     fullResponse = singleResult.fullResponse;
@@ -2002,7 +1157,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                     conversation: conv,
                     userMessageObject,
                     userMessageText: userMessage,
-                    signal: abortController.signal,
+                    signal: submitAbortController.signal,
                     responseUsesCouncil,
                     responseRenderedInRealtime,
                     targetElement: contentDiv,
@@ -2020,7 +1175,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             } catch (error) {
                 await persistAssistantResponseError({
                     error,
-                    signal: abortController?.signal,
+                    signal: submitAbortController?.signal,
                     conversation: conv,
                     targetElement: contentDiv,
                     errorPrefix: i18n[config.uiLanguage].errorPrefix,
