@@ -1,3 +1,4 @@
+        import { createReceivedDataLifecycle } from '/src/app/legacy-runtime/features/received-data-lifecycle.js';
         const resolveEventsUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
         const resolveEventsSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
 async function sendConversationToMail(userMessageObject, aiResponseText) {
@@ -1014,28 +1015,20 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
         });
     }
 
-    async function processReceivedData(buffers, type) {
-        try {
-            const blob = new Blob(buffers);
-            const zip = await JSZip.loadAsync(blob);
-            
-            if (type === 'astras') {
-                let count = 0;
-                const files = Object.keys(zip.files);
-                for (const filename of files) {
-                    if (filename.startsWith('astra_') && filename.endsWith('.json')) {
-                        const content = await zip.file(filename).async("string");
-                        const astraData = JSON.parse(content);
-                        
-                        // 檢查重複：如果 id 已存在，生成新 id
-                        if (astras.some(a => a.id === astraData.id)) {
-                            astraData.id = crypto.randomUUID();
-                            astraData.name += " (匯入)";
-                        }
-                        // 確保它是自訂的
-                        astraData.officialId = null;
-                        
-                        astras.unshift(astraData);
-                        count++;
-                    }
-                }
+    const receivedDataLifecycle = createReceivedDataLifecycle({
+        BlobCtor: Blob,
+        JSZip,
+        getAstras: () => astras,
+        getConversations: () => conversations,
+        getFolders: () => folders,
+        getDefaultFolder,
+        randomUUID: () => crypto.randomUUID(),
+        saveAppData,
+        renderAll,
+        showNotification,
+        toggleModal,
+        getP2pShareModal: () => document.getElementById('p2p-share-modal'),
+        scheduleTimeout: setTimeout,
+        logger: console
+    });
+    const processReceivedData = (...args) => receivedDataLifecycle.processReceivedData(...args);

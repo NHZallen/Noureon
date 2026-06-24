@@ -189,6 +189,38 @@ test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar contin
   assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderBatchStatementEnd);
 });
 
+test('received data lifecycle breaks the 05 to 06 processReceivedData continuation boundary', () => {
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const receivedDataSource = readSource('src/app/legacy-runtime/features/received-data-lifecycle.js');
+
+  assert.match(receivedDataSource, /export\s+function\s+createReceivedDataLifecycle/);
+  assert.match(fragment05Source, /createReceivedDataLifecycle\(\{/);
+  assert.match(fragment05Source, /const\s+processReceivedData\s*=\s*\(\.\.\.args\)\s*=>\s*receivedDataLifecycle\.processReceivedData\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment05Source, /const\s+zip\s*=\s*await\s+JSZip\.loadAsync\(blob\);/);
+  assert.doesNotMatch(fragment06Source, /^\s*showNotification\(`成功接收 \$\{count\} 個 Astras！`, 'success'\);/);
+
+  const processStart = fragment05Source.indexOf('const processReceivedData =');
+  assert.notEqual(processStart, -1, '05 should still expose a processReceivedData binding');
+  const processStatementEnd = fragment05Source.indexOf(';', processStart);
+  assert.notEqual(processStatementEnd, -1, 'processReceivedData binding should end inside 05');
+  assert.ok(
+    processStatementEnd < fragment05Source.length,
+    'processReceivedData binding should not need 06 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment05Source.slice(processStart, processStatementEnd),
+    /=>\s*\{/,
+    'processReceivedData should not reopen an inline body in 05'
+  );
+
+  const combinedStart = `${fragment05Source}\n`.length;
+  const concatenated = `${fragment05Source}\n${fragment06Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', processStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > processStatementEnd);
+});
+
 test('app shell imports and preserves critical DOM IDs', async () => {
   const { default: appShell } = await import(projectFile('src/templates/app-shell.js'));
 
