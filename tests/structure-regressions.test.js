@@ -5,6 +5,62 @@ import test from 'node:test';
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
+const findMatchingBrace = (source, openIndex) => {
+  let state = 'code';
+  let depth = 0;
+  for (let index = openIndex; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    const previous = source[index - 1];
+    if (state === 'code') {
+      if (char === '/' && next === '/') {
+        state = 'line-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '/' && next === '*') {
+        state = 'block-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        state = 'double-quote';
+        continue;
+      }
+      if (char === "'") {
+        state = 'single-quote';
+        continue;
+      }
+      if (char === '`') {
+        state = 'template';
+        continue;
+      }
+      if (char === '{') {
+        depth += 1;
+      } else if (char === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          return index;
+        }
+      }
+    } else if (state === 'line-comment') {
+      if (char === '\n') state = 'code';
+    } else if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        state = 'code';
+        index += 1;
+      }
+    } else if (state === 'double-quote') {
+      if (char === '"' && previous !== '\\') state = 'code';
+    } else if (state === 'single-quote') {
+      if (char === "'" && previous !== '\\') state = 'code';
+    } else if (state === 'template') {
+      if (char === '`' && previous !== '\\') state = 'code';
+    }
+  }
+  return -1;
+};
+
 test('legacy runtime fragments keep the numeric filename ordering contract', () => {
   const fragmentNames = readdirSync(projectFile('src/app/legacy-runtime/fragments'))
     .filter((name) => name.endsWith('.fragment.js'))
@@ -35,6 +91,38 @@ test('legacy runtime fragments exist and are not empty', () => {
     assert.ok(statSync(projectFile(path)).isFile(), `${path} should exist`);
     assert.ok(readSource(path).trim().length > 0, `${path} should not be empty`);
   }
+});
+
+test('sidebar Astras lifecycle breaks the 00 to 01 renderAstras continuation boundary', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarAstrasSource = readSource('src/app/legacy-runtime/features/sidebar-astras-lifecycle.js');
+
+  assert.match(sidebarAstrasSource, /export\s+function\s+createSidebarAstrasLifecycle/);
+  assert.match(fragment00Source, /createSidebarAstrasLifecycle\(\{/);
+  assert.match(fragment00Source, /const\s+renderAstras\s*=\s*\(\.\.\.args\)\s*=>\s*sidebarAstrasLifecycle\.renderAstras\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment00Source, /astras\.forEach\(ast\s*=>/);
+  assert.doesNotMatch(fragment01Source, /^\s*astras\.forEach\(ast\s*=>/);
+
+  const renderAstrasStart = fragment00Source.indexOf('const renderAstras =');
+  assert.notEqual(renderAstrasStart, -1, '00 should still expose a renderAstras binding');
+  const renderAstrasStatementEnd = fragment00Source.indexOf(';', renderAstrasStart);
+  assert.notEqual(renderAstrasStatementEnd, -1, 'renderAstras binding should end inside 00');
+  assert.ok(
+    renderAstrasStatementEnd < fragment00Source.length,
+    'renderAstras binding should not need 01 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment00Source.slice(renderAstrasStart, renderAstrasStatementEnd),
+    /=>\s*\{/,
+    'renderAstras should not reopen an inline body in 00'
+  );
+
+  const combinedStart = `${fragment00Source}\n`.length;
+  const concatenated = `${fragment00Source}\n${fragment01Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', renderAstrasStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderAstrasStatementEnd);
 });
 
 test('app shell imports and preserves critical DOM IDs', async () => {

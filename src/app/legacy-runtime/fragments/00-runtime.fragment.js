@@ -19,6 +19,7 @@ import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
+import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
@@ -1902,5 +1903,17 @@ function renderMarkdownWithFormulas(text) {
                 ALL_ELEMENTS.historyList.appendChild(createConversationElement(conv));
             });
         };
-        const renderAstras = () => {
-            ALL_ELEMENTS.astrasList.innerHTML = '';
+        const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
+            elements: ALL_ELEMENTS,
+            getAstras: () => astras,
+            getActiveAstrasId: () => getActiveAstrasId(),
+            getIsSelectionMode: () => isSelectionMode,
+            setAstrasForConversation: (...args) => setAstrasForConversation(...args),
+            toggleSidebar: (...args) => toggleSidebar(...args),
+            createAstrasMenu: (...args) => createAstrasMenu(...args),
+            showMobileContextMenuForAstras: (...args) => showMobileContextMenuForAstras(...args),
+            setTimeoutFn: (...args) => setTimeout(...args),
+            clearTimeoutFn: (...args) => clearTimeout(...args),
+            window
+        });
+        const renderAstras = (...args) => sidebarAstrasLifecycle.renderAstras(...args);
