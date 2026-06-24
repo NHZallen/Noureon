@@ -364,6 +364,7 @@ test('message type icon helper is isolated from the 00 runtime fragment', async 
 test('date formatting helper is isolated from the 00 runtime fragment and remains available to timestamp call sites', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/date-formatting.js');
   const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
@@ -376,8 +377,8 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
     /import\s*\{[\s\S]*\bformatFullTimestamp\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/date-formatting\.js';/
   );
   assert.doesNotMatch(fragment00Source, /\bconst\s+formatFullTimestamp\s*=/);
-  assert.match(fragment01Source, /formatFullTimestamp\(msg\.createdAt\)/);
   assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp/);
+  assert.match(messageMarkupSource, /formatTimestamp\(message\.createdAt\)/);
   assert.match(postResponseActionsSource, /formatTimestamp\(aiMessageObject\.createdAt\)/);
   assert.match(fragment04Source, /formatFullTimestamp\(conv\.deletedAt\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
@@ -716,6 +717,52 @@ test('model message post-response actions remove the 01 to 02 last message lexic
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
+});
+
+test('general message markup rendering is isolated from the 01 runtime DOM shell', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const streamingRendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
+  const finalizationSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js'));
+
+  assert.equal(typeof helpers.buildMessageRenderView, 'function');
+  assert.match(helperSource, /export\s+function\s+buildMessageRenderView\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*buildMessageRenderView\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-markup-renderer\.js';/
+  );
+  assert.match(fragment01Source, /const\s+messageView\s*=\s*buildMessageRenderView\(\{\s*message:\s*msg,/);
+  assert.match(fragment01Source, /renderUserText,\s*renderMarkdownWithFormulas,\s*renderMediaAttachmentGrid,/);
+  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp,/);
+  assert.match(fragment01Source, /messageDiv\.className\s*=\s*messageView\.messageClassName/);
+  assert.match(fragment01Source, /messageDiv\.innerHTML\s*=\s*messageView\.messageHTML/);
+  assert.match(fragment01Source, /bindMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
+
+  assert.doesNotMatch(fragment01Source, /const\s+isUser\s*=\s*msg\.role\s*===\s*'user'/);
+  assert.doesNotMatch(fragment01Source, /const\s+isLoadingMessage\s*=\s*!isUser/);
+  assert.doesNotMatch(fragment01Source, /let\s+textPartsContent\s*=\s*\[\]/);
+  assert.doesNotMatch(fragment01Source, /const\s+messageBubble\s*=\s*`/);
+  assert.doesNotMatch(fragment01Source, /copy-content-btn[\s\S]*contentPaddingClass\s*=\s*'pb-8'/);
+
+  assert.match(fragment01Source, /const\s+addMessageToUI\s*=\s*\(msg,\s*index,\s*shouldSave\s*=\s*true,\s*shouldScroll\s*=\s*true\)/);
+  assert.match(fragment01Source, /conv\.messages\.push\(msg\)/);
+  assert.match(fragment01Source, /document\.createElement\('div'\)/);
+  assert.match(fragment01Source, /ALL_ELEMENTS\.messageList\.appendChild\(messageDiv\)/);
+  assert.match(fragment01Source, /ALL_ELEMENTS\.chatContainer\.scrollTo/);
+  assert.match(fragment05Source, /e\.target\.closest\('\.copy-content-btn'\)/);
+
+  assert.match(postResponseActionsSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
+  assert.match(streamingRendererSource, /export\s+function\s+createStreamingMarkdownFeature\b/);
+  assert.match(finalizationSource, /export\s+async\s+function\s+finalizeAssistantResponse\b/);
+  assert.doesNotMatch(helperSource, /document|window|globalThis|addEventListener|fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 125 * 1024);
 });
 
 test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {

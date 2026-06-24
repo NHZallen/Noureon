@@ -1739,85 +1739,17 @@
             }
             const messageDiv = document.createElement('div');
             messageDiv.dataset.messageIndex = index;
-            const isUser = msg.role === 'user';
-            messageDiv.className = `message-item flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
-            const icon = '';
-            let contentHTML = '';
-            let mediaGridHTML = '';
-            let actionButtons = '';
-            let contentPaddingClass = '';
-            let previewMediaPartsContent = [];
-            const isLoadingMessage = !isUser && msg.parts.length === 1 && msg.parts[0].text === '...';
-            if (isLoadingMessage) {
-            contentHTML = `<div class="typing-cursor">&nbsp;</div>`;
-        } else {
-                let textPartsContent = [];
-                let mediaPartsContent = [];
-                msg.parts.forEach(part => {
-                    if (part.text) {
-                        textPartsContent.push(part.text);
-                    } else if (part.inlineData) {
-                        mediaPartsContent.push(part.inlineData);
-                    }
-                });
-                if (textPartsContent.length > 0) {
-                    const combinedText = textPartsContent.join('\n');
-                    contentHTML += `<div>${isUser ? renderUserText(combinedText) : renderMarkdownWithFormulas(combinedText)}</div>`;
-                }
-                if (mediaPartsContent.length > 0) {
-                    previewMediaPartsContent = [...mediaPartsContent];
-                    mediaGridHTML = renderMediaAttachmentGrid(previewMediaPartsContent);
-                    mediaPartsContent = [];
-                    let mediaHTML = '<div class="mt-2 flex flex-wrap gap-2">';
-                    mediaPartsContent.forEach(media => {
-                        const mimeType = escapeHTML(media.mimeType || 'application/octet-stream');
-                        const src = `data:${mimeType};base64,${media.data}`;
-                        if ((media.mimeType || '').startsWith('image/')) {
-                            mediaHTML += `<img src="${src}" class="max-w-xs max-h-48 rounded-lg object-cover border border-[var(--border-color)]">`;
-                        } else {
-                            // ✨ 修改開始：處理檔名顯示邏輯
-                            let displayName = media.name || '檔案';
-                            // 如果檔名超過 5 個字，截取前 5 個字並加上 ...
-                            if (displayName.length > 5) {
-                                displayName = displayName.substring(0, 5) + '...';
-                            }
-                            // ✨ 修改結束
-
-
-                            mediaHTML += `<div class="p-2 bg-[var(--hover-bg)] rounded-lg text-sm flex items-center gap-2 border border-[var(--border-color)]" title="${escapeHTML(media.name || '檔案')}"> <!-- 加上 title 屬性，滑鼠懸停可見完整名稱 -->
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                <span>${escapeHTML(displayName)}</span>
-                            </div>`;
-                        }
-                    });
-                    mediaHTML += '</div>';
-                    contentHTML += '';
-                }
-                if (!isUser) {
-                    const timeString = formatFullTimestamp(msg.createdAt);
-                    actionButtons = `
-                        <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-                            <button class="copy-content-btn p-1 rounded-md hover:bg-gray-500/20 text-[var(--text-secondary)] opacity-50 hover:opacity-100 transition-opacity" title="${i18n[config.uiLanguage].copyContent || '複製內容'}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                            <span class="text-xs text-gray-400">${timeString}</span></div>
-                    `;
-                    contentPaddingClass = 'pb-8';
-                }
-            }
-            const hasBubbleContent = isLoadingMessage || contentHTML.trim();
-            const messageBubble = `
-                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
-                    ${mediaGridHTML}
-                    ${hasBubbleContent ? `
-                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
-                            <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
-                            ${actionButtons}
-                        </div>
-                    ` : ''}
-                </div>`;
-            messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
-            bindMediaPreviewButtons(messageDiv, previewMediaPartsContent);
+            const messageView = buildMessageRenderView({
+                message: msg,
+                renderUserText,
+                renderMarkdownWithFormulas,
+                renderMediaAttachmentGrid,
+                formatTimestamp: formatFullTimestamp,
+                copyTitle: i18n[config.uiLanguage].copyContent || '複製內容'
+            });
+            messageDiv.className = messageView.messageClassName;
+            messageDiv.innerHTML = messageView.messageHTML;
+            bindMediaPreviewButtons(messageDiv, messageView.previewMediaParts);
             if (ALL_ELEMENTS.messageList.querySelector('.text-center')) ALL_ELEMENTS.messageList.innerHTML = '';
             ALL_ELEMENTS.messageList.appendChild(messageDiv);
             if (shouldScroll) {
