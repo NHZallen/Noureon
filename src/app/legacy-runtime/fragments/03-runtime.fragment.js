@@ -1,15 +1,3 @@
-                userControls.classList.add('hidden');
-                const count = selectedConversationIds.size;
-                selectionCount.textContent = `${i18n[config.uiLanguage].selected || '已選取'} ${count} ${i18n[config.uiLanguage].items || '個項目'}`;
-                const hasSelection = count > 0;
-                batchDeleteBtn.disabled = !hasSelection;
-                batchArchiveBtn.disabled = !hasSelection;
-                batchMoveBtn.disabled = !hasSelection;
-            } else {
-                batchActionBar.classList.add('hidden');
-                userControls.classList.remove('hidden');
-            }
-        };
         const handleBatchDelete = async () => {
             const count = selectedConversationIds.size;
             if (count === 0) return;

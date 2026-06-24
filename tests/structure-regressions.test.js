@@ -157,6 +157,38 @@ test('model usage chart lifecycle breaks the 03 to 04 renderModelUsageChart cont
   assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderChartStatementEnd);
 });
 
+test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary', () => {
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const batchActionBarSource = readSource('src/app/legacy-runtime/features/batch-action-bar-lifecycle.js');
+
+  assert.match(batchActionBarSource, /export\s+function\s+createBatchActionBarLifecycle/);
+  assert.match(fragment02Source, /createBatchActionBarLifecycle\(\{/);
+  assert.match(fragment02Source, /const\s+renderBatchActionBar\s*=\s*\(\.\.\.args\)\s*=>\s*batchActionBarLifecycle\.renderBatchActionBar\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment02Source, /const\s+\{\s*batchActionBar,\s*userControls,\s*selectionCount,\s*batchDeleteBtn,\s*batchArchiveBtn,\s*batchMoveBtn\s*\}\s*=\s*ALL_ELEMENTS;/);
+  assert.doesNotMatch(fragment03Source, /^\s*userControls\.classList\.add\('hidden'\);/);
+
+  const renderBatchStart = fragment02Source.indexOf('const renderBatchActionBar =');
+  assert.notEqual(renderBatchStart, -1, '02 should still expose a renderBatchActionBar binding');
+  const renderBatchStatementEnd = fragment02Source.indexOf(';', renderBatchStart);
+  assert.notEqual(renderBatchStatementEnd, -1, 'renderBatchActionBar binding should end inside 02');
+  assert.ok(
+    renderBatchStatementEnd < fragment02Source.length,
+    'renderBatchActionBar binding should not need 03 to finish its statement'
+  );
+  assert.doesNotMatch(
+    fragment02Source.slice(renderBatchStart, renderBatchStatementEnd),
+    /=>\s*\{/,
+    'renderBatchActionBar should not reopen an inline body in 02'
+  );
+
+  const combinedStart = `${fragment02Source}\n`.length;
+  const concatenated = `${fragment02Source}\n${fragment03Source}`;
+  const nextOpenBrace = concatenated.indexOf('{', renderBatchStart);
+  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
+  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderBatchStatementEnd);
+});
+
 test('app shell imports and preserves critical DOM IDs', async () => {
   const { default: appShell } = await import(projectFile('src/templates/app-shell.js'));
 
