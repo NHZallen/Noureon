@@ -267,37 +267,6 @@
             ALL_ELEMENTS.archivedChatsContainer.querySelectorAll('.unarchive-btn').forEach(btn => btn.addEventListener('click', (e) => unarchiveChat(e.target.dataset.id, e)));
             ALL_ELEMENTS.archivedChatsContainer.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => deleteChat(e.target.dataset.id, e)));
         };
-        const renderChat = () => {
-            const conv = getActiveConversation();
-            const messageList = ALL_ELEMENTS.messageList;
-            messageList.classList.remove('chat-view-transition');
-            if (!conv) {
-                messageList.innerHTML = '';
-                ALL_ELEMENTS.headerTitle.textContent = i18n[config.uiLanguage].newChat;
-                ALL_ELEMENTS.modelSwitcherContainer.innerHTML = '';
-                renderInputIndicators();
-                renderCouncilControls();
-                return;
-            }
-            ALL_ELEMENTS.headerTitle.textContent = conv.archived ? `(${i18n[config.uiLanguage].archived || '已封存'}) ${conv.title}` : conv.title;
-            renderModelSwitcher();
-            renderInputIndicators();
-            renderCouncilControls();
-            messageList.innerHTML = '';
-            if (conv.messages.length === 0) {
-    const greeting = `${currentUser.username}, ${i18n[config.uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？'}`;
-    messageList.innerHTML = `<div class="text-center text-[var(--text-primary)] mt-16 chat-greeting-message"><p class="text-2xl font-semibold">${greeting}</p></div>`;
-} else {
-                conv.messages.forEach((msg, index) => addMessageToUI(msg, index, false, false));
-            }
-            requestAnimationFrame(() => {
-    setupMessageIntersectionObserver();
-});
-            void messageList.offsetWidth;
-            messageList.classList.add('chat-view-transition');
-            updateInputState();
-        };
-        
         const openCouncilPopoverFromAttachmentMenu = () => {
             renderCouncilControls();
             const toggleButton = document.getElementById('model-council-toggle-btn');
@@ -1628,6 +1597,7 @@
 };
         import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
         import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        import { createMessageListLifecycle } from '/src/app/legacy-runtime/features/message-list-lifecycle.js';
         const {
             buildMediaAttachmentView: buildMessageMediaAttachmentView,
             getInlineMediaSrc: getMessageInlineMediaSrc
@@ -1643,41 +1613,41 @@
             getInlineMediaSrc: getMessageInlineMediaSrc,
             getUiLanguage: () => config.uiLanguage
         });
-        const addMessageToUI = (msg, index, shouldSave = true, shouldScroll = true) => {
-            const conv = getActiveConversation();
-            if (shouldSave) {
-                 conv.messages.push(msg);
-                if (conv.messages.length === 1 && msg.role === 'user' && conv.isTemporary && !conv.isRenamed && config.autoNaming) {
-                    const textPart = msg.parts.find(p => p.text);
-                    if (textPart) {
-                        conv.title = textPart.text.substring(0, 30) || i18n[config.uiLanguage].newChat || '新對話';
-                        ALL_ELEMENTS.headerTitle.textContent = conv.title;
-                    }
-                }
-                void saveAppData().catch(error => console.error('Failed to save message state:', error));
-            }
-            const messageDiv = document.createElement('div');
-            messageDiv.dataset.messageIndex = index;
-            const messageView = buildMessageRenderView({
-                message: msg,
-                renderUserText,
-                renderMarkdownWithFormulas,
-                buildMediaAttachmentView: buildMessageMediaAttachmentView,
-                formatTimestamp: formatFullTimestamp,
-                copyTitle: i18n[config.uiLanguage].copyContent || '複製內容'
-            });
-            messageDiv.className = messageView.messageClassName;
-            messageDiv.innerHTML = messageView.messageHTML;
-            bindMessageMediaPreviewButtons(messageDiv, messageView.previewMediaParts);
-            if (ALL_ELEMENTS.messageList.querySelector('.text-center')) ALL_ELEMENTS.messageList.innerHTML = '';
-            ALL_ELEMENTS.messageList.appendChild(messageDiv);
-            if (shouldScroll) {
-                if (isAutoScrolling) {
-                    ALL_ELEMENTS.chatContainer.scrollTo({ top: ALL_ELEMENTS.chatContainer.scrollHeight, behavior: 'smooth' });
-                }
-            }
-            return messageDiv;
-        };
+        const {
+            addMessageToUI,
+            renderChat
+        } = createMessageListLifecycle({
+            document,
+            elements: {
+                headerTitle: ALL_ELEMENTS.headerTitle,
+                modelSwitcherContainer: ALL_ELEMENTS.modelSwitcherContainer,
+                messageList: ALL_ELEMENTS.messageList,
+                chatContainer: ALL_ELEMENTS.chatContainer
+            },
+            getActiveConversation,
+            getAutoNaming: () => config.autoNaming,
+            getCurrentUserName: () => currentUser.username,
+            getText: (key) => ({
+                newChat: i18n[config.uiLanguage].newChat,
+                archived: i18n[config.uiLanguage].archived || '已封存',
+                howCanIHelp: i18n[config.uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？',
+                copyContent: i18n[config.uiLanguage].copyContent || '複製內容'
+            }[key]),
+            buildMessageRenderView,
+            buildMediaAttachmentView: buildMessageMediaAttachmentView,
+            renderUserText,
+            renderMarkdownWithFormulas,
+            formatTimestamp: formatFullTimestamp,
+            bindMediaPreviewButtons: bindMessageMediaPreviewButtons,
+            saveAppData,
+            renderModelSwitcher,
+            renderInputIndicators,
+            renderCouncilControls,
+            setupMessageIntersectionObserver,
+            updateInputState: () => updateInputState(),
+            scheduleFrame: (callback) => requestAnimationFrame(callback),
+            isAutoScrolling: () => isAutoScrolling
+        });
 /**
  * ✨ 最終優化版：幀同步直接渲染打字機 (V5)
  *    - 徹底解決 UI 渲染延遲，真實反映模型輸出速度。

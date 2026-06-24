@@ -50,6 +50,7 @@ test('app shell imports and preserves critical DOM IDs', async () => {
     'message-list',
     'chat-form',
     'message-input',
+    'settings-btn',
     'settings-modal',
     'model-switcher-container',
     'file-options-popover',
@@ -59,6 +60,24 @@ test('app shell imports and preserves critical DOM IDs', async () => {
   ]) {
     assert.match(appShell, new RegExp(`id="${id}"`), `app shell should include #${id}`);
   }
+});
+
+test('settings sidebar button remains wired to initialize and open the settings modal', () => {
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+
+  assert.match(fragment02Source, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(fragment02Source, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(fragment02Source, /const\s+getTavilySearchDepth\s*=\s*\(\)\s*=>\s*config\.tavilySearchDepth\s*===\s*'advanced'\s*\?\s*'advanced'\s*:\s*'basic';/);
+  assert.match(fragment02Source, /ALL_ELEMENTS\.tavilySearchDepthSelect\.value\s*=\s*getTavilySearchDepth\(\);/);
+  assert.match(
+    fragment05Source,
+    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*setupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
+  );
+  assert.match(fragment05Source, /ALL_ELEMENTS\.closeSettingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*false\)\);/);
+  assert.match(fragment01Source, /updateInputState:\s*\(\)\s*=>\s*updateInputState\(\)/);
+  assert.doesNotMatch(fragment01Source, /createMessageListLifecycle\(\{[\s\S]*\n\s*updateInputState,\s*\n[\s\S]*\}\);/);
 });
 
 test('main bootstrap delegates vendor bridge, shell mount, and vendor script loading in order', () => {
@@ -721,6 +740,7 @@ test('model message post-response actions remove the 01 to 02 last message lexic
 
 test('general message markup rendering is isolated from the 01 runtime DOM shell', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+  const messageListSource = readSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
@@ -728,19 +748,27 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   const streamingRendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const finalizationSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js'));
+  const messageListHelpers = await import(projectFile('src/app/legacy-runtime/features/message-list-lifecycle.js'));
 
   assert.equal(typeof helpers.buildMessageRenderView, 'function');
+  assert.equal(typeof messageListHelpers.createMessageListLifecycle, 'function');
   assert.match(helperSource, /export\s+function\s+buildMessageRenderView\b/);
+  assert.match(messageListSource, /export\s+function\s+createMessageListLifecycle\b/);
   assert.match(
     fragment00Source,
     /import\s*\{\s*buildMessageRenderView\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-markup-renderer\.js';/
   );
-  assert.match(fragment01Source, /const\s+messageView\s*=\s*buildMessageRenderView\(\{\s*message:\s*msg,/);
-  assert.match(fragment01Source, /renderUserText,\s*renderMarkdownWithFormulas,\s*buildMediaAttachmentView:\s*buildMessageMediaAttachmentView,/);
-  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp,/);
-  assert.match(fragment01Source, /messageDiv\.className\s*=\s*messageView\.messageClassName/);
-  assert.match(fragment01Source, /messageDiv\.innerHTML\s*=\s*messageView\.messageHTML/);
-  assert.match(fragment01Source, /bindMessageMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
+  assert.match(
+    fragment01Source,
+    /import\s*\{\s*createMessageListLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-list-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /\{\s*addMessageToUI,\s*renderChat\s*\}\s*=\s*createMessageListLifecycle\(\{/);
+  assert.match(fragment01Source, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
+  assert.match(fragment01Source, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
+  assert.match(messageListSource, /const\s+messageView\s*=\s*buildMessageRenderView\(\{\s*message,/);
+  assert.match(messageListSource, /messageElement\.className\s*=\s*messageView\.messageClassName/);
+  assert.match(messageListSource, /messageElement\.innerHTML\s*=\s*messageView\.messageHTML/);
+  assert.match(messageListSource, /bindMediaPreviewButtons\(messageElement,\s*messageView\.previewMediaParts\)/);
 
   assert.doesNotMatch(fragment01Source, /const\s+isUser\s*=\s*msg\.role\s*===\s*'user'/);
   assert.doesNotMatch(fragment01Source, /const\s+isLoadingMessage\s*=\s*!isUser/);
@@ -748,20 +776,23 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   assert.doesNotMatch(fragment01Source, /const\s+messageBubble\s*=\s*`/);
   assert.doesNotMatch(fragment01Source, /copy-content-btn[\s\S]*contentPaddingClass\s*=\s*'pb-8'/);
 
-  assert.match(fragment01Source, /const\s+addMessageToUI\s*=\s*\(msg,\s*index,\s*shouldSave\s*=\s*true,\s*shouldScroll\s*=\s*true\)/);
-  assert.match(fragment01Source, /conv\.messages\.push\(msg\)/);
-  assert.match(fragment01Source, /document\.createElement\('div'\)/);
-  assert.match(fragment01Source, /ALL_ELEMENTS\.messageList\.appendChild\(messageDiv\)/);
-  assert.match(fragment01Source, /ALL_ELEMENTS\.chatContainer\.scrollTo/);
+  assert.doesNotMatch(fragment01Source, /const\s+addMessageToUI\s*=\s*\(msg,\s*index,/);
+  assert.doesNotMatch(fragment01Source, /const\s+renderChat\s*=\s*\(\)\s*=>/);
+  assert.match(messageListSource, /conversation\.messages\.push\(message\)/);
+  assert.match(messageListSource, /document\.createElement\('div'\)/);
+  assert.match(messageListSource, /elements\.messageList\.appendChild\(messageElement\)/);
+  assert.match(messageListSource, /elements\.chatContainer\.scrollTo/);
+  assert.match(messageListSource, /scheduleFrame\(\(\)\s*=>\s*setupMessageIntersectionObserver\(\)\)/);
   assert.match(fragment05Source, /e\.target\.closest\('\.copy-content-btn'\)/);
 
   assert.match(postResponseActionsSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
   assert.match(streamingRendererSource, /export\s+function\s+createStreamingMarkdownFeature\b/);
   assert.match(finalizationSource, /export\s+async\s+function\s+finalizeAssistantResponse\b/);
   assert.doesNotMatch(helperSource, /document|window|globalThis|addEventListener|fetch\s*\(/);
-  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
-  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.doesNotMatch(`${helperSource}\n${messageListSource}`, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(`${helperSource}\n${messageListSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/message-list-lifecycle.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 125 * 1024);
 });
 
@@ -775,13 +806,21 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const conversationViewSource = readSource('src/app/legacy-runtime/features/conversation-view-renderer.js');
+  const uploadedPreviewSource = readSource('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js');
   const rendererHelpers = await import(projectFile('src/app/legacy-runtime/features/media-attachment-renderer.js'));
   const previewHelpers = await import(projectFile('src/app/legacy-runtime/features/media-preview-lifecycle.js'));
+  const conversationViewHelpers = await import(projectFile('src/app/legacy-runtime/features/conversation-view-renderer.js'));
+  const uploadedPreviewHelpers = await import(projectFile('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js'));
 
   assert.equal(typeof rendererHelpers.createMediaAttachmentRenderer, 'function');
   assert.equal(typeof previewHelpers.createMediaPreviewLifecycle, 'function');
+  assert.equal(typeof conversationViewHelpers.createConversationViewRenderer, 'function');
+  assert.equal(typeof uploadedPreviewHelpers.createUploadedFilePreviewLifecycle, 'function');
   assert.match(rendererSource, /export\s+function\s+createMediaAttachmentRenderer\b/);
   assert.match(previewSource, /export\s+function\s+createMediaPreviewLifecycle\b/);
+  assert.match(conversationViewSource, /export\s+function\s+createConversationViewRenderer\b/);
+  assert.match(uploadedPreviewSource, /export\s+function\s+createUploadedFilePreviewLifecycle\b/);
 
   assert.match(fragment00Source, /createMediaAttachmentRenderer\s+as\s+createArchivedMediaAttachmentRenderer/);
   assert.match(fragment00Source, /createMediaPreviewLifecycle\s+as\s+createArchivedMediaPreviewLifecycle/);
@@ -792,15 +831,22 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(fragment04Source, /createMediaAttachmentRenderer\s+as\s+createTrashMediaAttachmentRenderer/);
   assert.match(fragment04Source, /createMediaPreviewLifecycle\s+as\s+createTrashMediaPreviewLifecycle/);
 
-  assert.match(fragment00Source, /renderArchivedMediaAttachmentGrid\(mediaParts\)/);
-  assert.match(fragment00Source, /bindArchivedMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+  assert.match(fragment00Source, /createConversationViewRenderer\s+as\s+createArchivedConversationViewRenderer/);
+  assert.match(fragment00Source, /archivedConversationViewRenderer\.renderConversationMessages\(\{/);
+  assert.match(fragment00Source, /renderMediaAttachmentGrid:\s*renderArchivedMediaAttachmentGrid/);
+  assert.match(fragment00Source, /bindMediaPreviewButtons:\s*bindArchivedMediaPreviewButtons/);
   assert.match(fragment01Source, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
-  assert.match(fragment01Source, /bindMessageMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
-  assert.match(fragment03Source, /renderSearchMediaAttachmentGrid\(mediaParts\)/);
-  assert.match(fragment03Source, /bindSearchMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
-  assert.match(fragment03Source, /openSearchMediaPreview\(\{/);
-  assert.match(fragment04Source, /renderTrashMediaAttachmentGrid\(mediaParts\)/);
-  assert.match(fragment04Source, /bindTrashMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+  assert.match(fragment01Source, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
+  assert.match(fragment03Source, /createConversationViewRenderer\s+as\s+createSearchConversationViewRenderer/);
+  assert.match(fragment03Source, /searchConversationViewRenderer\.renderConversationMessages\(\{/);
+  assert.match(fragment03Source, /renderMediaAttachmentGrid:\s*renderSearchMediaAttachmentGrid/);
+  assert.match(fragment03Source, /bindMediaPreviewButtons:\s*bindSearchMediaPreviewButtons/);
+  assert.match(fragment03Source, /createUploadedFilePreviewLifecycle\(\{/);
+  assert.match(fragment03Source, /openMediaPreview:\s*openSearchMediaPreview/);
+  assert.match(fragment04Source, /createConversationViewRenderer\s+as\s+createTrashConversationViewRenderer/);
+  assert.match(fragment04Source, /trashConversationViewRenderer\.renderConversationMessages\(\{/);
+  assert.match(fragment04Source, /renderMediaAttachmentGrid:\s*renderTrashMediaAttachmentGrid/);
+  assert.match(fragment04Source, /bindMediaPreviewButtons:\s*bindTrashMediaPreviewButtons/);
 
   assert.doesNotMatch(fragment01Source, /\bconst\s+getInlineMediaSrc\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+renderMediaAttachmentGrid\s*=/);
@@ -809,8 +855,13 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.doesNotMatch(fragment03Source, /typeof\s+renderMediaAttachmentGrid/);
   assert.doesNotMatch(fragment03Source, /typeof\s+bindMediaPreviewButtons/);
   assert.doesNotMatch(fragment03Source, /\bopenMediaPreview\(/);
+  assert.doesNotMatch(fragment03Source, /const\s+renderFilePreviews\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(fragment03Source, /const\s+removeFile\s*=\s*\(fileId\)\s*=>/);
   assert.doesNotMatch(fragment04Source, /typeof\s+renderMediaAttachmentGrid/);
   assert.doesNotMatch(fragment04Source, /typeof\s+bindMediaPreviewButtons/);
+  assert.doesNotMatch(fragment00Source, /conv\.messages\.forEach\(msg\s*=>/);
+  assert.doesNotMatch(fragment03Source, /conv\.messages\.forEach\(msg\s*=>/);
+  assert.doesNotMatch(fragment04Source, /conv\.messages\.forEach\(msg\s*=>/);
 
   assert.match(messageMarkupSource, /const\s+mediaView\s*=\s*buildMediaAttachmentView\(mediaParts\)/);
   assert.match(messageMarkupSource, /previewMediaParts\s*=\s*mediaView\.previewMediaParts/);
@@ -819,9 +870,14 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.doesNotMatch(rendererSource, /document|window|globalThis|addEventListener|fetch\s*\(/);
   assert.doesNotMatch(rendererSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(previewSource, /indexedDB|localStorage|sessionStorage|streamApiCall/);
-  assert.doesNotMatch(`${rendererSource}\n${previewSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.doesNotMatch(
+    `${rendererSource}\n${previewSource}\n${conversationViewSource}\n${uploadedPreviewSource}`,
+    /virtual:legacy-app-runtime|vite\.config|package\.json/
+  );
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/media-attachment-renderer.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/media-preview-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/conversation-view-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 120 * 1024);
 });
 
