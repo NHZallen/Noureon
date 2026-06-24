@@ -623,8 +623,56 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 135 * 1024);
 });
 
+test('response progress renderers and submit preparation are isolated from the 01 runtime shell', async () => {
+  const progressSource = readSource('src/app/legacy-runtime/features/response-progress-renderers.js');
+  const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const progressHelpers = await import(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js'));
+  const submitPrepHelpers = await import(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js'));
+
+  assert.equal(typeof progressHelpers.createResponseProgressRenderers, 'function');
+  assert.equal(typeof submitPrepHelpers.createSubmitInputPreparationLifecycle, 'function');
+  assert.match(progressSource, /export\s+function\s+createResponseProgressRenderers\b/);
+  assert.match(submitPrepSource, /export\s+function\s+createSubmitInputPreparationLifecycle\b/);
+  assert.match(
+    fragment01Source,
+    /import\s*\{\s*createResponseProgressRenderers\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/response-progress-renderers\.js';/
+  );
+  assert.match(
+    fragment01Source,
+    /import\s*\{\s*createSubmitInputPreparationLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/submit-input-preparation-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /\{\s*renderCouncilProgress,\s*renderSingleModelError,\s*renderSingleModelProgress\s*\}\s*=\s*createResponseProgressRenderers\(\{/);
+  assert.match(fragment01Source, /submitInputPreparationLifecycle\s*=\s*createSubmitInputPreparationLifecycle\(\{/);
+  assert.match(fragment01Source, /const\s+preparedSubmit\s*=\s*await\s+submitInputPreparationLifecycle\.prepareSubmitResponse\(\);/);
+  assert.match(fragment01Source, /if\s*\(!preparedSubmit\.shouldContinue\)\s*return;/);
+
+  assert.doesNotMatch(fragment01Source, /const\s+renderCouncilProgress\s*=\s*\(progress\)\s*=>/);
+  assert.doesNotMatch(fragment01Source, /const\s+renderSingleModelProgress\s*=\s*\(progress\)\s*=>/);
+  assert.doesNotMatch(fragment01Source, /const\s+renderSingleModelError\s*=\s*\(progress\s*=\s*\{\},\s*errorMessage\s*=\s*''\)\s*=>/);
+  assert.doesNotMatch(fragment01Source, /const\s+userParts\s*=\s*\[\];/);
+  assert.doesNotMatch(fragment01Source, /uploadedFiles\.forEach\(file\s*=>\s*\{\s*userParts\.push/s);
+  assert.doesNotMatch(fragment01Source, /const\s+councilValidation\s*=\s*getCouncilValidation\(conv,\s*uploadedFiles\);/);
+  assert.doesNotMatch(fragment01Source, /ALL_ELEMENTS\.messageInput\.value\s*=\s*'';\s*uploadedFiles\s*=\s*\[\];/s);
+
+  assert.match(fragment01Source, /renderCouncilProgress,/);
+  assert.match(fragment01Source, /renderError:\s*renderSingleModelError/);
+  assert.match(fragment01Source, /runCouncilResponseRenderLifecycle\(\{/);
+  assert.match(fragment01Source, /singleModelResponseLifecycle\.run\(\{/);
+  assert.match(fragment01Source, /finalizeAssistantResponse\(\{/);
+  assert.match(fragment01Source, /runSubmitFinalCleanupLifecycle\(/);
+
+  assert.doesNotMatch(`${progressSource}\n${submitPrepSource}`, /TextDecoder|response\.body|streamApiCall/);
+  assert.doesNotMatch(`${progressSource}\n${submitPrepSource}`, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(`${progressSource}\n${submitPrepSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 116 * 1024);
+});
+
 test('assistant response finalization is isolated from the 01 runtime submit flow', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js'));
@@ -667,7 +715,8 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
   assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
   assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
-  assert.match(fragment01Source, /updateSubmitButtonState\(false\)/);
+  assert.match(fragment01Source, /updateSubmitButtonState,/);
+  assert.match(submitPrepSource, /updateSubmitButtonState\(false\)/);
   assert.match(fragment01Source, /renderCouncilControls\(\)/);
   assert.match(fragment01Source, /renderInputIndicators\(\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js')).size < 150 * 1024);
