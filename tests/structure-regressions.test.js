@@ -736,11 +736,11 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
     /import\s*\{\s*buildMessageRenderView\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-markup-renderer\.js';/
   );
   assert.match(fragment01Source, /const\s+messageView\s*=\s*buildMessageRenderView\(\{\s*message:\s*msg,/);
-  assert.match(fragment01Source, /renderUserText,\s*renderMarkdownWithFormulas,\s*renderMediaAttachmentGrid,/);
+  assert.match(fragment01Source, /renderUserText,\s*renderMarkdownWithFormulas,\s*buildMediaAttachmentView:\s*buildMessageMediaAttachmentView,/);
   assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp,/);
   assert.match(fragment01Source, /messageDiv\.className\s*=\s*messageView\.messageClassName/);
   assert.match(fragment01Source, /messageDiv\.innerHTML\s*=\s*messageView\.messageHTML/);
-  assert.match(fragment01Source, /bindMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
+  assert.match(fragment01Source, /bindMessageMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
 
   assert.doesNotMatch(fragment01Source, /const\s+isUser\s*=\s*msg\.role\s*===\s*'user'/);
   assert.doesNotMatch(fragment01Source, /const\s+isLoadingMessage\s*=\s*!isUser/);
@@ -763,6 +763,66 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 125 * 1024);
+});
+
+test('media renderer and preview lifecycle replace fragment-local and hidden lexical media helpers', async () => {
+  const rendererSource = readSource('src/app/legacy-runtime/features/media-attachment-renderer.js');
+  const previewSource = readSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+  const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const rendererHelpers = await import(projectFile('src/app/legacy-runtime/features/media-attachment-renderer.js'));
+  const previewHelpers = await import(projectFile('src/app/legacy-runtime/features/media-preview-lifecycle.js'));
+
+  assert.equal(typeof rendererHelpers.createMediaAttachmentRenderer, 'function');
+  assert.equal(typeof previewHelpers.createMediaPreviewLifecycle, 'function');
+  assert.match(rendererSource, /export\s+function\s+createMediaAttachmentRenderer\b/);
+  assert.match(previewSource, /export\s+function\s+createMediaPreviewLifecycle\b/);
+
+  assert.match(fragment00Source, /createMediaAttachmentRenderer\s+as\s+createArchivedMediaAttachmentRenderer/);
+  assert.match(fragment00Source, /createMediaPreviewLifecycle\s+as\s+createArchivedMediaPreviewLifecycle/);
+  assert.match(fragment01Source, /createMediaAttachmentRenderer\s+as\s+createMessageMediaAttachmentRenderer/);
+  assert.match(fragment01Source, /createMediaPreviewLifecycle\s+as\s+createMessageMediaPreviewLifecycle/);
+  assert.match(fragment03Source, /createMediaAttachmentRenderer\s+as\s+createSearchMediaAttachmentRenderer/);
+  assert.match(fragment03Source, /createMediaPreviewLifecycle\s+as\s+createSearchMediaPreviewLifecycle/);
+  assert.match(fragment04Source, /createMediaAttachmentRenderer\s+as\s+createTrashMediaAttachmentRenderer/);
+  assert.match(fragment04Source, /createMediaPreviewLifecycle\s+as\s+createTrashMediaPreviewLifecycle/);
+
+  assert.match(fragment00Source, /renderArchivedMediaAttachmentGrid\(mediaParts\)/);
+  assert.match(fragment00Source, /bindArchivedMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+  assert.match(fragment01Source, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
+  assert.match(fragment01Source, /bindMessageMediaPreviewButtons\(messageDiv,\s*messageView\.previewMediaParts\)/);
+  assert.match(fragment03Source, /renderSearchMediaAttachmentGrid\(mediaParts\)/);
+  assert.match(fragment03Source, /bindSearchMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+  assert.match(fragment03Source, /openSearchMediaPreview\(\{/);
+  assert.match(fragment04Source, /renderTrashMediaAttachmentGrid\(mediaParts\)/);
+  assert.match(fragment04Source, /bindTrashMediaPreviewButtons\(messageDiv,\s*mediaParts\)/);
+
+  assert.doesNotMatch(fragment01Source, /\bconst\s+getInlineMediaSrc\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+renderMediaAttachmentGrid\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+openMediaPreview\s*=/);
+  assert.doesNotMatch(fragment01Source, /\bconst\s+bindMediaPreviewButtons\s*=/);
+  assert.doesNotMatch(fragment03Source, /typeof\s+renderMediaAttachmentGrid/);
+  assert.doesNotMatch(fragment03Source, /typeof\s+bindMediaPreviewButtons/);
+  assert.doesNotMatch(fragment03Source, /\bopenMediaPreview\(/);
+  assert.doesNotMatch(fragment04Source, /typeof\s+renderMediaAttachmentGrid/);
+  assert.doesNotMatch(fragment04Source, /typeof\s+bindMediaPreviewButtons/);
+
+  assert.match(messageMarkupSource, /const\s+mediaView\s*=\s*buildMediaAttachmentView\(mediaParts\)/);
+  assert.match(messageMarkupSource, /previewMediaParts\s*=\s*mediaView\.previewMediaParts/);
+  assert.match(postResponseActionsSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
+  assert.match(fragment05Source, /e\.target\.closest\('\.copy-content-btn'\)/);
+  assert.doesNotMatch(rendererSource, /document|window|globalThis|addEventListener|fetch\s*\(/);
+  assert.doesNotMatch(rendererSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(previewSource, /indexedDB|localStorage|sessionStorage|streamApiCall/);
+  assert.doesNotMatch(`${rendererSource}\n${previewSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/media-attachment-renderer.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/media-preview-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 120 * 1024);
 });
 
 test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {

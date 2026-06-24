@@ -16,6 +16,8 @@ import { finalizeAssistantResponse, persistAssistantResponseError } from '/src/a
 import { runSubmitFinalCleanupLifecycle } from '/src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js';
 import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/features/model-message-post-response-actions.js';
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
+import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
+import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
 
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
@@ -1773,6 +1775,21 @@ function renderMarkdownWithFormulas(text) {
             await saveAppData();
             renderAll();
         };
+        const {
+            getInlineMediaSrc: getArchivedInlineMediaSrc,
+            renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid
+        } = createArchivedMediaAttachmentRenderer({ escapeHTML });
+        const {
+            bindMediaPreviewButtons: bindArchivedMediaPreviewButtons
+        } = createArchivedMediaPreviewLifecycle({
+            document,
+            navigator,
+            fetch,
+            File,
+            escapeHTML,
+            getInlineMediaSrc: getArchivedInlineMediaSrc,
+            getUiLanguage: () => config.uiLanguage
+        });
         const showArchivedChatPreview = (id, event) => {
             event?.stopPropagation();
             const conv = conversations.find(c => c.id === id);
@@ -1797,7 +1814,7 @@ function renderMarkdownWithFormulas(text) {
                             mediaParts.push(part.inlineData);
                         }
                     });
-                    const mediaGridHTML = renderMediaAttachmentGrid(mediaParts);
+                    const mediaGridHTML = renderArchivedMediaAttachmentGrid(mediaParts);
                     const messageBubble = `
                         <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
                             ${mediaGridHTML}
@@ -1808,7 +1825,7 @@ function renderMarkdownWithFormulas(text) {
                             ` : ''}
                         </div>`;
                     messageDiv.innerHTML = isUser ? `${messageBubble}${icon}` : `${icon}${messageBubble}`;
-                    bindMediaPreviewButtons(messageDiv, mediaParts);
+                    bindArchivedMediaPreviewButtons(messageDiv, mediaParts);
                     contentContainer.appendChild(messageDiv);
                 });
             }

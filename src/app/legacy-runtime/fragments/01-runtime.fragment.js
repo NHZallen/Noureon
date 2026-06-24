@@ -1626,104 +1626,23 @@
         }
     });
 };
-        const getInlineMediaSrc = (media) => `data:${media.mimeType || 'application/octet-stream'};base64,${media.data}`;
-        const renderMediaAttachmentGrid = (mediaParts = []) => {
-            if (!mediaParts.length) return '';
-            const mediaItems = mediaParts.map((media, mediaIndex) => {
-                const mimeType = media.mimeType || 'application/octet-stream';
-                const src = getInlineMediaSrc(media);
-                const name = media.name || mimeType || 'attachment';
-                if (mimeType.startsWith('image/')) {
-                    return `
-                        <button type="button" class="message-media-thumb" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
-                            <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}" loading="lazy">
-                        </button>
-                    `;
-                }
-                if (mimeType.startsWith('video/')) {
-                    return `
-                        <button type="button" class="message-media-thumb message-media-video" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
-                            <video src="${escapeHTML(src)}" preload="metadata" muted playsinline></video>
-                            <span class="message-media-play" aria-hidden="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
-                            </span>
-                        </button>
-                    `;
-                }
-                return `
-                    <div class="message-file-chip" title="${escapeHTML(name)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                        <span>${escapeHTML(name)}</span>
-                    </div>
-                `;
-            }).join('');
-            const singleVisual = mediaParts.length === 1 && (mediaParts[0].mimeType || '').match(/^(image|video)\//);
-            return `<div class="message-media-grid ${singleVisual ? 'message-media-grid-single' : ''}">${mediaItems}</div>`;
-        };
-        const openMediaPreview = (media) => {
-            if (!media) return;
-            document.querySelector('.media-lightbox')?.remove();
-            const mimeType = media.mimeType || 'application/octet-stream';
-            const src = getInlineMediaSrc(media);
-            const name = media.name || mimeType || 'attachment';
-            const overlay = document.createElement('div');
-            overlay.className = 'media-lightbox';
-            const mediaHTML = mimeType.startsWith('video/')
-                ? `<video src="${escapeHTML(src)}" controls autoplay playsinline></video>`
-                : `<img src="${escapeHTML(src)}" alt="${escapeHTML(name)}">`;
-            overlay.innerHTML = `
-                <button type="button" class="media-lightbox-close" aria-label="${config.uiLanguage === 'en' ? 'Close preview' : '關閉預覽'}">&times;</button>
-                <div class="media-lightbox-toolbar">
-                    <a class="media-lightbox-action media-lightbox-download" href="${escapeHTML(src)}" download="${escapeHTML(name)}" aria-label="${config.uiLanguage === 'en' ? 'Download' : '下載'}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                        <span>${config.uiLanguage === 'en' ? 'Save' : '儲存'}</span>
-                    </a>
-                    <button type="button" class="media-lightbox-action media-lightbox-share" aria-label="${config.uiLanguage === 'en' ? 'Share' : '分享'}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
-                        <span>${config.uiLanguage === 'en' ? 'Share' : '分享'}</span>
-                    </button>
-                </div>
-                <div class="media-lightbox-stage">
-                    ${mediaHTML}
-                </div>
-            `;
-            const close = () => {
-                if (document.fullscreenElement === overlay) {
-                    document.exitFullscreen?.().catch(() => {});
-                }
-                overlay.remove();
-                document.removeEventListener('keydown', onKeyDown);
-            };
-            const onKeyDown = (event) => {
-                if (event.key === 'Escape') close();
-            };
-            overlay.addEventListener('click', (event) => {
-                if (event.target === overlay || event.target.closest('.media-lightbox-close')) close();
-            });
-            overlay.querySelector('.media-lightbox-share')?.addEventListener('click', async () => {
-                if (!navigator.share) return;
-                try {
-                    const blob = await (await fetch(src)).blob();
-                    const file = new File([blob], name, { type: mimeType });
-                    if (navigator.canShare?.({ files: [file] })) {
-                        await navigator.share({ files: [file], title: name });
-                    }
-                } catch (error) {
-                    console.warn('Media share failed:', error);
-                }
-            });
-            document.addEventListener('keydown', onKeyDown);
-            document.body.appendChild(overlay);
-            overlay.querySelector('video')?.play?.().catch(() => {});
-        };
-        const bindMediaPreviewButtons = (root, mediaParts = []) => {
-            root.querySelectorAll('.message-media-thumb').forEach(button => {
-                button.addEventListener('click', () => {
-                    const mediaIndex = Number(button.dataset.mediaIndex);
-                    openMediaPreview(mediaParts[mediaIndex]);
-                });
-            });
-        };
+        import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
+        import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
+        const {
+            buildMediaAttachmentView: buildMessageMediaAttachmentView,
+            getInlineMediaSrc: getMessageInlineMediaSrc
+        } = createMessageMediaAttachmentRenderer({ escapeHTML });
+        const {
+            bindMediaPreviewButtons: bindMessageMediaPreviewButtons
+        } = createMessageMediaPreviewLifecycle({
+            document,
+            navigator,
+            fetch,
+            File,
+            escapeHTML,
+            getInlineMediaSrc: getMessageInlineMediaSrc,
+            getUiLanguage: () => config.uiLanguage
+        });
         const addMessageToUI = (msg, index, shouldSave = true, shouldScroll = true) => {
             const conv = getActiveConversation();
             if (shouldSave) {
@@ -1743,13 +1662,13 @@
                 message: msg,
                 renderUserText,
                 renderMarkdownWithFormulas,
-                renderMediaAttachmentGrid,
+                buildMediaAttachmentView: buildMessageMediaAttachmentView,
                 formatTimestamp: formatFullTimestamp,
                 copyTitle: i18n[config.uiLanguage].copyContent || '複製內容'
             });
             messageDiv.className = messageView.messageClassName;
             messageDiv.innerHTML = messageView.messageHTML;
-            bindMediaPreviewButtons(messageDiv, messageView.previewMediaParts);
+            bindMessageMediaPreviewButtons(messageDiv, messageView.previewMediaParts);
             if (ALL_ELEMENTS.messageList.querySelector('.text-center')) ALL_ELEMENTS.messageList.innerHTML = '';
             ALL_ELEMENTS.messageList.appendChild(messageDiv);
             if (shouldScroll) {
