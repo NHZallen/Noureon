@@ -646,6 +646,13 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.match(fragment01Source, /submitInputPreparationLifecycle\s*=\s*createSubmitInputPreparationLifecycle\(\{/);
   assert.match(fragment01Source, /const\s+preparedSubmit\s*=\s*await\s+submitInputPreparationLifecycle\.prepareSubmitResponse\(\);/);
   assert.match(fragment01Source, /if\s*\(!preparedSubmit\.shouldContinue\)\s*return;/);
+  assert.match(fragment01Source, /updateSubmitButtonState:\s*\(\.\.\.args\)\s*=>\s*updateSubmitButtonState\(\.\.\.args\)/);
+  assert.match(fragment01Source, /generateTitleAndSummary:\s*\(\.\.\.args\)\s*=>\s*generateTitleAndSummary\(\.\.\.args\)/);
+  assert.match(fragment01Source, /shouldPerformWebSearch:\s*\(\.\.\.args\)\s*=>\s*shouldPerformWebSearch\(\.\.\.args\)/);
+  assert.match(fragment01Source, /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*adjustTextareaHeight\(\.\.\.args\)/);
+  assert.match(fragment01Source, /renderFilePreviews:\s*\(\.\.\.args\)\s*=>\s*renderFilePreviews\(\.\.\.args\)/);
+  assert.match(fragment01Source, /if\s*\(responseUsesCouncil\)\s*\{[\s\S]*runCouncilResponseRenderLifecycle\(\{/);
+  assert.match(fragment01Source, /\}\s*else\s*\{[\s\S]*singleModelResponseLifecycle\.run\(\{/);
 
   assert.doesNotMatch(fragment01Source, /const\s+renderCouncilProgress\s*=\s*\(progress\)\s*=>/);
   assert.doesNotMatch(fragment01Source, /const\s+renderSingleModelProgress\s*=\s*\(progress\)\s*=>/);
