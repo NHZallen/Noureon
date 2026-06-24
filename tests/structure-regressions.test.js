@@ -369,6 +369,7 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-render-coordinator.js');
   const setAstrasBody = getConstFunctionBody(fragment01Source, 'setAstrasForConversation');
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
@@ -378,6 +379,8 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   const unarchiveChatBody = getConstFunctionBody(fragment00Source, 'unarchiveChat');
   const togglePinChatBody = getConstFunctionBody(fragment00Source, 'togglePinChat');
   const handleRenameBody = getConstFunctionBody(fragment00Source, 'handleRename');
+  const moveConversationToFolderBody = getConstFunctionBody(fragment02Source, 'moveConversationToFolder');
+  const deleteFolderBody = getConstFunctionBody(fragment02Source, 'deleteFolder');
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeRenderCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeRenderCoordinator\s*\}/);
@@ -404,6 +407,13 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   }
 
   assert.match(handleRenameBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderAll\(\);\s*toggleModal\(ALL_ELEMENTS\.renameModal,\s*false\);\s*itemToRename\s*=\s*\{\s*id:\s*null,\s*type:\s*null\s*\};/);
+
+  for (const body of [moveConversationToFolderBody, deleteFolderBody]) {
+    assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
+    assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
+  }
+
+  assert.match(deleteFolderBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderAll\(\);\s*showNotification\(i18n\[config\.uiLanguage\]\.folderDeleted,\s*'success'\);/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {

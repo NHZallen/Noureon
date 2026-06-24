@@ -1019,7 +1019,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 }
             }
             await saveAppData();
-            renderAll();
+            runtimeRenderCoordinator.renderAll();
         };
         const deleteFolder = async (id, event) => {
             event?.stopPropagation();
@@ -1036,7 +1036,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
             });
             folders = folders.filter(f => f.id !== id);
             await saveAppData();
-            renderAll();
+            runtimeRenderCoordinator.renderAll();
             showNotification(i18n[config.uiLanguage].folderDeleted, 'success');
         };
         const showFolderSettingsModal = (id, event) => {
