@@ -325,6 +325,26 @@ test('received data lifecycle breaks the 05 to 06 processReceivedData continuati
   assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > processStatementEnd);
 });
 
+test('app bootstrap composition owns late bootstrap event-binding tail', () => {
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const compositionSource = readSource('src/app/legacy-runtime/features/app-bootstrap-composition.js');
+
+  assert.match(compositionSource, /export\s+function\s+createAppBootstrapComposition/);
+  assert.match(fragment05Source, /createAppBootstrapComposition\(\{/);
+  assert.match(fragment05Source, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+
+  const initStart = fragment05Source.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, '05 should define initChatApp');
+  const initOpen = fragment05Source.indexOf('{', initStart);
+  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
+  const initBody = fragment05Source.slice(initStart, initClose);
+
+  assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+  assert.doesNotMatch(initBody, /setupHistorySidebarInteractions\(\);\s*setupHistorySidebarTriggers\(\);/);
+  assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
+});
+
 test('app shell imports and preserves critical DOM IDs', async () => {
   const { default: appShell } = await import(projectFile('src/templates/app-shell.js'));
 

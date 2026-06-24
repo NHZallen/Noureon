@@ -70,10 +70,10 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
 
   const initBody = fragment05Source.slice(initStart, initClose);
   const expectedOrder = [
-    'setupHistorySidebarInteractions();',
-    'setupHistorySidebarTriggers();',
-    "ALL_ELEMENTS.shareAstrasBtn = document.getElementById('share-astras-btn');",
-    "document.getElementById('p2p-start-scan-btn').addEventListener('click'"
+    'const receivedDataLifecycle = createReceivedDataLifecycle({',
+    'const processReceivedData = (...args) => receivedDataLifecycle.processReceivedData(...args);',
+    'const appBootstrapComposition = createAppBootstrapComposition({',
+    'appBootstrapComposition.runLateBootstrapBindings();'
   ];
   let cursor = -1;
   for (const marker of expectedOrder) {
@@ -84,4 +84,5 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
 
   assert.match(fragment06Source, /^\s*function\s+updateP2PProgress\b/);
   assert.doesNotMatch(fragment06Source, /^\s*setupHistorySidebarInteractions\(\);/);
+  assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });
