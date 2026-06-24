@@ -363,9 +363,9 @@ test('message type icon helper is isolated from the 00 runtime fragment', async 
 
 test('date formatting helper is isolated from the 00 runtime fragment and remains available to timestamp call sites', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/date-formatting.js');
+  const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/date-formatting.js'));
 
@@ -377,7 +377,8 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
   );
   assert.doesNotMatch(fragment00Source, /\bconst\s+formatFullTimestamp\s*=/);
   assert.match(fragment01Source, /formatFullTimestamp\(msg\.createdAt\)/);
-  assert.match(fragment02Source, /formatFullTimestamp\(aiMessageObject\.createdAt\)/);
+  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp/);
+  assert.match(postResponseActionsSource, /formatTimestamp\(aiMessageObject\.createdAt\)/);
   assert.match(fragment04Source, /formatFullTimestamp\(conv\.deletedAt\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
@@ -657,7 +658,6 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
   const helperSource = readSource('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js'));
 
   assert.equal(typeof helpers.runSubmitFinalCleanupLifecycle, 'function');
@@ -666,7 +666,7 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
     fragment00Source,
     /import\s*\{\s*runSubmitFinalCleanupLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/submit-final-cleanup-lifecycle\.js';/
   );
-  assert.match(fragment01Source, /const\s+lastMessageDiv\s*=\s*runSubmitFinalCleanupLifecycle\(\s*\(\)\s*=>\s*singleModelResponseLifecycle\.stop\(\),/);
+  assert.match(fragment01Source, /const\s+lastMessageElement\s*=\s*runSubmitFinalCleanupLifecycle\(\s*\(\)\s*=>\s*singleModelResponseLifecycle\.stop\(\),/);
   assert.match(fragment01Source, /\(\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*\},/);
   assert.match(fragment01Source, /updateSubmitButtonState,\s*updateInputState,\s*renderCouncilControls,\s*renderInputIndicators,/);
   assert.match(fragment01Source, /\(\)\s*=>\s*ALL_ELEMENTS\.messageList\.lastElementChild/);
@@ -679,9 +679,43 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
   assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
   assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
-  assert.match(fragment02Source, /if\s*\(lastMessageDiv\s*&&\s*lastMessageDiv\.classList\.contains\('model-message'\)\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+});
+
+test('model message post-response actions remove the 01 to 02 last message lexical continuation', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js'));
+
+  assert.equal(typeof helpers.applyModelMessagePostResponseActions, 'function');
+  assert.match(helperSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*applyModelMessagePostResponseActions\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-message-post-response-actions\.js';/
+  );
+  assert.match(fragment01Source, /const\s+lastMessageElement\s*=\s*runSubmitFinalCleanupLifecycle\(/);
+  assert.match(fragment01Source, /applyModelMessagePostResponseActions\(\{\s*lastMessageElement,/);
+  assert.match(fragment01Source, /conversation:\s*conv,/);
+  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp/);
+  assert.doesNotMatch(fragment01Source, /\blastMessageDiv\b/);
+
+  assert.doesNotMatch(fragment02Source, /\blastMessageDiv\b/);
+  assert.doesNotMatch(fragment02Source, /copy-content-btn[\s\S]*insertAdjacentHTML\('beforeend'/);
+  assert.doesNotMatch(fragment02Source, /classList\.contains\('model-message'\)/);
+
+  assert.match(helperSource, /lastMessageElement\.classList\.contains\('model-message'\)/);
+  assert.match(helperSource, /bubble\.insertAdjacentHTML\('beforeend',\s*actionButtonsHTML\)/);
+  assert.match(helperSource, /content\.classList\.add\('pb-8'\)/);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
 });
 
 test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {

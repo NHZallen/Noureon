@@ -2180,9 +2180,18 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                     persistAppData: saveAppData
                 });
             } finally {
-                const lastMessageDiv = runSubmitFinalCleanupLifecycle(
+                const lastMessageElement = runSubmitFinalCleanupLifecycle(
                     () => singleModelResponseLifecycle.stop(),
                     () => { isCouncilRunning = false; abortController = null; },
                     updateSubmitButtonState, updateInputState, renderCouncilControls, renderInputIndicators,
                     () => ALL_ELEMENTS.messageList.lastElementChild
                 );
+                applyModelMessagePostResponseActions({
+                    lastMessageElement,
+                    conversation: conv,
+                    i18n,
+                    uiLanguage: config.uiLanguage,
+                    formatTimestamp: formatFullTimestamp
+                });
+            }
+        };
