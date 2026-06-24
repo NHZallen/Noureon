@@ -2180,12 +2180,9 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                     persistAppData: saveAppData
                 });
             } finally {
-                // ... finally 區塊的程式碼保持不變 ...
-                singleModelResponseLifecycle.stop();
-                isCouncilRunning = false;
-                abortController = null;
-                updateSubmitButtonState(false);
-                updateInputState();
-                renderCouncilControls();
-                renderInputIndicators();
-                const lastMessageDiv = ALL_ELEMENTS.messageList.lastElementChild;
+                const lastMessageDiv = runSubmitFinalCleanupLifecycle(
+                    () => singleModelResponseLifecycle.stop(),
+                    () => { isCouncilRunning = false; abortController = null; },
+                    updateSubmitButtonState, updateInputState, renderCouncilControls, renderInputIndicators,
+                    () => ALL_ELEMENTS.messageList.lastElementChild
+                );

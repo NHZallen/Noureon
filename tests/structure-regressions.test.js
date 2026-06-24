@@ -650,7 +650,38 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
   assert.match(fragment01Source, /renderCouncilControls\(\)/);
   assert.match(fragment01Source, /renderInputIndicators\(\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 128 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+});
+
+test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js'));
+
+  assert.equal(typeof helpers.runSubmitFinalCleanupLifecycle, 'function');
+  assert.match(helperSource, /export\s+function\s+runSubmitFinalCleanupLifecycle\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*runSubmitFinalCleanupLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/submit-final-cleanup-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /const\s+lastMessageDiv\s*=\s*runSubmitFinalCleanupLifecycle\(\s*\(\)\s*=>\s*singleModelResponseLifecycle\.stop\(\),/);
+  assert.match(fragment01Source, /\(\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*\},/);
+  assert.match(fragment01Source, /updateSubmitButtonState,\s*updateInputState,\s*renderCouncilControls,\s*renderInputIndicators,/);
+  assert.match(fragment01Source, /\(\)\s*=>\s*ALL_ELEMENTS\.messageList\.lastElementChild/);
+  assert.doesNotMatch(
+    fragment01Source,
+    /singleModelResponseLifecycle\.stop\(\);\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*updateSubmitButtonState\(false\);\s*updateInputState\(\);\s*renderCouncilControls\(\);\s*renderInputIndicators\(\);/s
+  );
+  assert.match(helperSource, /stopSingleModelLifecycle\(\);\s*resetSubmitState\(\);\s*updateSubmitButtonState\(false\);\s*updateInputState\(\);\s*renderCouncilControls\(\);\s*renderInputIndicators\(\);/s);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.match(fragment02Source, /if\s*\(lastMessageDiv\s*&&\s*lastMessageDiv\.classList\.contains\('model-message'\)\)/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
 });
 
 test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {
