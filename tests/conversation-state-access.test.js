@@ -68,6 +68,21 @@ test('active id transitions keep reading the latest backing conversations', () =
   assert.equal(harness.access.getCurrentConversation().title, 'Fourth Updated');
 });
 
+test('render-time active id reads see changes between render calls', () => {
+  const harness = createHarness();
+  const isActive = (conversationId) => (
+    conversationId === harness.access.getCurrentConversationId()
+  );
+
+  assert.equal(isActive('first'), true);
+  assert.equal(isActive('second'), false);
+
+  harness.access.setCurrentConversationId('second');
+
+  assert.equal(isActive('first'), false);
+  assert.equal(isActive('second'), true);
+});
+
 test('looks up conversations by id and preserves missing boundaries', () => {
   const harness = createHarness();
 

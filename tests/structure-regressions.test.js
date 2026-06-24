@@ -368,9 +368,11 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/conversation-state-access.js');
+  const createConversationElementBody = getConstFunctionBody(fragment01Source, 'createConversationElement');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const archiveChatBody = getConstFunctionBody(fragment00Source, 'archiveChat');
   const batchDeleteBody = getConstFunctionBody(fragment03Source, 'handleBatchDelete');
@@ -388,6 +390,10 @@ test('conversation state access owns selected active conversation lookups withou
   assert.match(fragment00Source, /if\s*\(id\s*!==\s*conversationStateAccess\.getCurrentConversationId\(\)\)/);
   assert.match(fragment00Source, /conversationStateAccess\.setCurrentConversationId\(id\);/);
   assert.match(fragment02Source, /conv\.id\s*===\s*conversationStateAccess\.getCurrentConversationId\(\)/);
+
+  assert.match(createConversationElementBody, /const\s+currentConversationId\s*=\s*conversationStateAccess\.getCurrentConversationId\(\);/);
+  assert.match(createConversationElementBody, /conv\.id\s*===\s*currentConversationId\s*&&\s*!isSelectionMode\s*\?\s*'active'/);
+  assert.doesNotMatch(createConversationElementBody, /conv\.id\s*===\s*activeConversationId/);
 
   assert.match(deleteChatBody, /conversationStateAccess\.getCurrentConversationId\(\)\s*===\s*id/);
   assert.doesNotMatch(deleteChatBody, /\bactiveConversationId\b/);

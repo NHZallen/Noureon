@@ -100,7 +100,8 @@
         };
         const createConversationElement = (conv) => {
             const item = document.createElement('div');
-            item.className = `sidebar-item w-full text-left p-3 rounded-lg flex items-center justify-between cursor-pointer ${conv.id === activeConversationId && !isSelectionMode ? 'active' : ''}`;
+            const currentConversationId = conversationStateAccess.getCurrentConversationId();
+            item.className = `sidebar-item w-full text-left p-3 rounded-lg flex items-center justify-between cursor-pointer ${conv.id === currentConversationId && !isSelectionMode ? 'active' : ''}`;
             item.dataset.id = conv.id;
             const modelInfo = normalizeConversationModel(conv);
             const modelCodename = isCouncilEnabled(conv) ? getCouncilTexts().title : (modelInfo ? modelInfo.name.split(' (')[0] : '');
