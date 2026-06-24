@@ -159,6 +159,7 @@ test('main css is an ordered split manifest with every imported file under the s
 
 test('legacy provider request formatting helpers are isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/model-request-formatting.js');
+  const streamApiSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
   const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/model-request-formatting.js'));
 
@@ -173,8 +174,47 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
   }
 
   assert.match(fragmentSource, /import\s*\{[\s\S]*\bgetSearchCurrentDate\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-request-formatting\.js';/);
-  assert.match(fragmentSource, /appendStepPlanAttachmentContentBase\(content,\s*inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}\)/);
+  assert.doesNotMatch(fragmentSource, /appendStepPlanAttachmentContentBase/);
+  assert.match(
+    streamApiSource,
+    /import\s*\{\s*appendStepPlanAttachmentContent\s*\}\s*from\s+'\.\/model-request-formatting\.js';/
+  );
+  assert.match(streamApiSource, /appendStepPlanAttachmentContent\(\s*content,\s*part\.inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 150 * 1024);
+});
+
+test('stream API provider request and parser core is isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/stream-api-call.js'));
+
+  assert.equal(typeof helpers.createStreamApiCall, 'function');
+  assert.match(helperSource, /export\s+function\s+createStreamApiCall\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{\s*createStreamApiCall\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/stream-api-call\.js';/
+  );
+  assert.match(fragmentSource, /const\s+streamApiCall\s*=\s*createStreamApiCall\(\{/);
+  assert.match(fragmentSource, /\bgetActiveConversation,\s*\n\s*normalizeConversationModel,/);
+  assert.match(fragmentSource, /getConfig:\s*\(\)\s*=>\s*config/);
+  assert.match(fragmentSource, /getPersonalMemories:\s*\(\)\s*=>\s*personalMemories/);
+
+  assert.doesNotMatch(fragmentSource, /async\s+function\s+streamApiCall\b/);
+  assert.doesNotMatch(fragmentSource, /function\s+cleanGeminiHistory\b/);
+  assert.doesNotMatch(fragmentSource, /STEP_PLAN_CHAT_COMPLETIONS_URL/);
+  assert.doesNotMatch(fragmentSource, /openrouter\.ai\/api\/v1\/chat\/completions/);
+  assert.doesNotMatch(fragmentSource, /:streamGenerateContent\?key=/);
+  assert.doesNotMatch(fragmentSource, /\/api\/(?:step-plan|nvidia)-chat/);
+  assert.doesNotMatch(fragmentSource, /response\.body\.getReader\(\)/);
+  assert.doesNotMatch(fragmentSource, /new\s+TextDecoder\(\)/);
+  assert.doesNotMatch(fragmentSource, /line\.startsWith\('data: '\)/);
+  assert.doesNotMatch(fragmentSource, /parsed\?\.candidates\?\.\[0\]\?\.content\?\.parts\?\.\[0\]\?\.text/);
+
+  assert.match(fragmentSource, /const\s+streamCouncilApiCallWithRetry\s*=/);
+  assert.match(fragmentSource, /return\s+await\s+streamApiCall\(parts,\s*onChunk,\s*signal,\s*isWebSearchForced,\s*streamOptions\)/);
+  assert.match(fragmentSource, /function\s+calculateRelevanceScore\b/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/stream-api-call.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 130 * 1024);
 });
 
 test('settings mobile metadata helpers are isolated from the 02 runtime fragment', async () => {
