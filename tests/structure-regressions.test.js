@@ -592,7 +592,7 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
   assert.doesNotMatch(lifecycleSource, /TextDecoder\b/);
   assert.doesNotMatch(lifecycleSource, /indexedDB\b/);
 
-  assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runModelCouncil\(/);
+  assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runCouncilResponseRenderLifecycle\(\{/);
   assert.match(fragment01Source, /conv\.messages\.push\(finalAiMessage\)/);
   assert.match(fragment01Source, /await\s+saveAppData\(\)/);
   assert.match(fragment01Source, /sendConversationToMail\(userMessageObject,\s*fullResponse\)/);
@@ -600,6 +600,50 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
   assert.match(fragment01Source, /await\s+extractPersonalMemory\(userMessage,\s*fullResponse\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 135 * 1024);
+});
+
+test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/council-response-render-lifecycle.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/council-response-render-lifecycle.js'));
+
+  assert.equal(typeof helpers.runCouncilResponseRenderLifecycle, 'function');
+  assert.match(helperSource, /export\s+async\s+function\s+runCouncilResponseRenderLifecycle\b/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*runCouncilResponseRenderLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-response-render-lifecycle\.js';/
+  );
+  assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runCouncilResponseRenderLifecycle\(\{/);
+  assert.match(fragment01Source, /setCouncilRunning:\s*\(value\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*value;\s*\}/);
+  assert.match(fragment01Source, /requestFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
+
+  for (const removedCouncilRenderCore of [
+    /let\s+latestCouncilProgress\s*=/,
+    /let\s+realtimeCouncilText\s*=/,
+    /let\s+realtimeCouncilRenderer\s*=/,
+    /const\s+renderCouncilProgressState\s*=/,
+    /const\s+renderCouncilSynthesisChunk\s*=/,
+    /let\s+councilProgressTimer\s*=/,
+    /const\s+remainingCouncilText\s*=/
+  ]) {
+    assert.doesNotMatch(fragment01Source, removedCouncilRenderCore);
+  }
+
+  assert.match(helperSource, /const\s+renderCouncilProgressState\s*=/);
+  assert.match(helperSource, /const\s+renderCouncilSynthesisChunk\s*=/);
+  assert.match(helperSource, /await\s+runModelCouncil\(/);
+  assert.match(helperSource, /await\s+appendRendererTextGradually\(/);
+  assert.match(helperSource, /realtimeCouncilRenderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
+  assert.doesNotMatch(helperSource, /fetch\s*\(/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
+  assert.doesNotMatch(helperSource, /saveAppData\b|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.match(fragment01Source, /conv\.messages\.push\(finalAiMessage\)/);
+  assert.match(fragment01Source, /await\s+saveAppData\(\)/);
+  assert.match(fragment01Source, /contentDiv\.innerHTML\s*=\s*renderSingleModelError\(/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-response-render-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
 });
 
 test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {
@@ -711,6 +755,7 @@ test('typewriter playback controller is isolated from the 01 runtime playback lo
 
 test('renderer gradual append controller is isolated from the 01 runtime RAF append loop', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/renderer-gradual-append-controller.js');
+  const councilRenderSource = readSource('src/app/legacy-runtime/features/council-response-render-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/renderer-gradual-append-controller.js'));
@@ -725,7 +770,8 @@ test('renderer gradual append controller is isolated from the 01 runtime RAF app
     fragment00Source,
     /import\s*\{[\s\S]*\bappendRendererTextGradually\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/renderer-gradual-append-controller\.js';/
   );
-  assert.match(fragment01Source, /appendRendererTextGradually\(\s*realtimeCouncilRenderer,\s*remainingCouncilText,\s*abortController\.signal,\s*18,\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)\s*\)/);
+  assert.match(fragment01Source, /appendRendererTextGradually,/);
+  assert.match(councilRenderSource, /appendRendererTextGradually\(\s*realtimeCouncilRenderer,\s*remainingCouncilText,\s*signal,\s*18,\s*requestFrame\s*\)/);
   assert.doesNotMatch(fragment01Source, /const\s+appendRendererTextGradually\s*=\s*async/);
   assert.doesNotMatch(submitFlowSource, /for\s*\(\s*let\s+index\s*=\s*0;\s*index\s*<\s*source\.length[\s\S]*renderer\.appendText\(source\.slice\(index,\s*index\s*\+\s*chunkSize\)\)[\s\S]*requestAnimationFrame\(resolve\)/);
   assert.match(fragment01Source, /createStreamingMarkdownRenderer,\s*\n\s*streamMarkdownResponse/);

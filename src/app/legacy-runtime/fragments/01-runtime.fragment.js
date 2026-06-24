@@ -2100,7 +2100,6 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             requestAnimationFrame(() => {
                 loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
             });
-            let councilProgressTimer = null;
             const responseUsesCouncil = isCouncilEnabled(conv);
             
             try {
@@ -2111,63 +2110,24 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
 
                 // 1. 先等待 API 回應完全結束，獲取完整文字
                 if (responseUsesCouncil) {
-                    isCouncilRunning = true;
-                    renderCouncilControls();
-                    renderInputIndicators();
-                    let latestCouncilProgress = null;
-                    const renderCouncilProgressState = (progressState) => {
-                        if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
-                        latestCouncilProgress = progressState;
-                        contentDiv.innerHTML = renderCouncilProgress(progressState);
-                    };
-                    let realtimeCouncilText = '';
-                    let realtimeCouncilRenderer = null;
-                    const renderCouncilSynthesisChunk = (chunk) => {
-                        if (getOutputMode() !== 'realtime') return;
-                        if (!responseRenderedInRealtime) {
-                            if (councilProgressTimer) {
-                                stopProgressTicker(councilProgressTimer);
-                                councilProgressTimer = null;
-                            }
-                            contentDiv.innerHTML = '';
-                            realtimeCouncilRenderer = createStreamingMarkdownRenderer(contentDiv, { preserveCouncilDetails: true });
-                            responseRenderedInRealtime = true;
-                        }
-                        realtimeCouncilText += chunk || '';
-                        realtimeCouncilRenderer?.appendText(chunk || '');
-                    };
-                    councilProgressTimer = startProgressTicker(() => {
-                        if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
-                        if (!latestCouncilProgress) return;
-                        const startedAt = latestCouncilProgress.startedAt || Date.now();
-                        latestCouncilProgress = {
-                            ...latestCouncilProgress,
-                            tick: (latestCouncilProgress.tick || 0) + 1,
-                            elapsedMs: Date.now() - startedAt
-                        };
-                        contentDiv.innerHTML = renderCouncilProgress(latestCouncilProgress);
-                    });
-                    const councilResult = await runModelCouncil(
+                    const councilResult = await runCouncilResponseRenderLifecycle({
+                        contentDiv,
                         userParts,
-                        abortController.signal,
-                        renderCouncilProgressState,
-                        renderCouncilSynthesisChunk
-                    );
-                    stopProgressTicker(councilProgressTimer);
-                    councilProgressTimer = null;
-                    fullResponse = councilResult.text;
-                    if (getOutputMode() === 'realtime') {
-                        if (!realtimeCouncilRenderer) {
-                            contentDiv.innerHTML = '';
-                            realtimeCouncilRenderer = createStreamingMarkdownRenderer(contentDiv, { preserveCouncilDetails: true });
-                            responseRenderedInRealtime = true;
-                        }
-                        const remainingCouncilText = fullResponse.slice(realtimeCouncilText.length);
-                        if (remainingCouncilText) {
-                            await appendRendererTextGradually(realtimeCouncilRenderer, remainingCouncilText, abortController.signal, 18, (callback) => requestAnimationFrame(callback));
-                        }
-                        realtimeCouncilRenderer.finish({ renderFormulas: true });
-                    }
+                        signal: abortController.signal,
+                        getOutputMode,
+                        runModelCouncil,
+                        renderCouncilProgress,
+                        createStreamingMarkdownRenderer,
+                        appendRendererTextGradually,
+                        startProgressTicker,
+                        stopProgressTicker,
+                        setCouncilRunning: (value) => { isCouncilRunning = value; },
+                        renderCouncilControls,
+                        renderInputIndicators,
+                        requestFrame: (callback) => requestAnimationFrame(callback)
+                    });
+                    fullResponse = councilResult.fullResponse;
+                    responseRenderedInRealtime = councilResult.responseRenderedInRealtime;
                     finalAiMessage.council = councilResult.metadata;
                 } else {
                     const modelInfo = normalizeConversationModel(conv);
@@ -2223,10 +2183,6 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
 
             } catch (error) {
                 if (error.name !== 'AbortError' || !abortController?.signal?.aborted) {
-                    if (councilProgressTimer) {
-                        stopProgressTicker(councilProgressTimer);
-                        councilProgressTimer = null;
-                    }
                     singleModelResponseLifecycle.stop();
                     const errorMessage = `${i18n[config.uiLanguage].errorPrefix || '抱歉，發生錯誤：'}${error.message || error.name || 'Unknown error'}`;
                     const currentProgress = (!responseUsesCouncil && singleModelResponseLifecycle.getLatestProgress()) || {
@@ -2240,9 +2196,6 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
                 }
             } finally {
                 // ... finally 區塊的程式碼保持不變 ...
-                if (councilProgressTimer) {
-                    stopProgressTicker(councilProgressTimer);
-                }
                 singleModelResponseLifecycle.stop();
                 isCouncilRunning = false;
                 abortController = null;
