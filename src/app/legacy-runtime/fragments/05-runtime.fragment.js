@@ -1032,3 +1032,50 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
         logger: console
     });
     const processReceivedData = (...args) => receivedDataLifecycle.processReceivedData(...args);
+            setupHistorySidebarInteractions();
+    setupHistorySidebarTriggers();
+            ALL_ELEMENTS.shareAstrasBtn = document.getElementById('share-astras-btn');
+            ALL_ELEMENTS.shareFoldersBtn = document.getElementById('share-folders-btn');
+            
+            ALL_ELEMENTS.shareAstrasBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                initP2P('astras');
+            });
+            
+            ALL_ELEMENTS.shareFoldersBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                initP2P('folders');
+            });
+
+            document.getElementById('close-p2p-modal-btn').addEventListener('click', () => {
+                toggleModal(document.getElementById('p2p-share-modal'), false);
+                resetP2PUI();
+            });
+
+            document.getElementById('p2p-role-sender').addEventListener('click', () => {
+                p2pMode = 'sender';
+                showP2PSelection();
+            });
+
+            document.getElementById('p2p-role-receiver').addEventListener('click', () => {
+                p2pMode = 'receiver';
+                startP2PReceiverUI();
+            });
+
+            document.getElementById('p2p-confirm-selection-btn').addEventListener('click', () => {
+                startP2PSender();
+            });
+
+            document.getElementById('p2p-connect-btn').addEventListener('click', () => {
+                const code = document.getElementById('p2p-code-input').value.trim();
+                if (code.length !== 5) {
+                    showNotification("請輸入正確的 5 碼代碼", "warning");
+                    return;
+                }
+                connectToSender(code);
+            });
+
+            document.getElementById('p2p-start-scan-btn').addEventListener('click', () => {
+                startQRScanner();
+            });
+        }

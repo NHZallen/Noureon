@@ -61,6 +61,88 @@ const findMatchingBrace = (source, openIndex) => {
   return -1;
 };
 
+const findCrossFragmentBracePairs = (fragments) => {
+  const offsets = [];
+  let combined = '';
+  for (const fragment of fragments) {
+    offsets.push(combined.length);
+    combined += `${fragment.source}\n`;
+  }
+  const findFragmentAt = (index) => {
+    let fragmentIndex = 0;
+    for (let cursor = 0; cursor < offsets.length; cursor += 1) {
+      if (index >= offsets[cursor]) fragmentIndex = cursor;
+    }
+    const fragment = fragments[fragmentIndex];
+    const relativeIndex = index - offsets[fragmentIndex];
+    return {
+      name: fragment.name,
+      index: fragmentIndex,
+      line: fragment.source.slice(0, relativeIndex).split(/\r?\n/).length
+    };
+  };
+
+  const stack = [];
+  const pairs = [];
+  let state = 'code';
+  for (let index = 0; index < combined.length; index += 1) {
+    const char = combined[index];
+    const next = combined[index + 1];
+    const previous = combined[index - 1];
+    if (state === 'code') {
+      if (char === '/' && next === '/') {
+        state = 'line-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '/' && next === '*') {
+        state = 'block-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        state = 'double-quote';
+        continue;
+      }
+      if (char === "'") {
+        state = 'single-quote';
+        continue;
+      }
+      if (char === '`') {
+        state = 'template';
+        continue;
+      }
+      if (char === '{') {
+        stack.push(index);
+      } else if (char === '}') {
+        const openIndex = stack.pop();
+        if (openIndex !== undefined) {
+          const open = findFragmentAt(openIndex);
+          const close = findFragmentAt(index);
+          if (open.index !== close.index) {
+            pairs.push({ open, close });
+          }
+        }
+      }
+    } else if (state === 'line-comment') {
+      if (char === '\n') state = 'code';
+    } else if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        state = 'code';
+        index += 1;
+      }
+    } else if (state === 'double-quote') {
+      if (char === '"' && previous !== '\\') state = 'code';
+    } else if (state === 'single-quote') {
+      if (char === "'" && previous !== '\\') state = 'code';
+    } else if (state === 'template') {
+      if (char === '`' && previous !== '\\') state = 'code';
+    }
+  }
+
+  return pairs;
+};
+
 test('legacy runtime fragments keep the numeric filename ordering contract', () => {
   const fragmentNames = readdirSync(projectFile('src/app/legacy-runtime/fragments'))
     .filter((name) => name.endsWith('.fragment.js'))
@@ -91,6 +173,28 @@ test('legacy runtime fragments exist and are not empty', () => {
     assert.ok(statSync(projectFile(path)).isFile(), `${path} should exist`);
     assert.ok(readSource(path).trim().length > 0, `${path} should not be empty`);
   }
+});
+
+test('legacy runtime adjacent fragments do not contain cross-fragment brace continuations', () => {
+  const fragments = [
+    '00-runtime.fragment.js',
+    '01-runtime.fragment.js',
+    '02-runtime.fragment.js',
+    '03-runtime.fragment.js',
+    '04-runtime.fragment.js',
+    '05-runtime.fragment.js',
+    '06-runtime.fragment.js'
+  ].map((name) => ({
+    name,
+    source: readSource(`src/app/legacy-runtime/fragments/${name}`)
+  }));
+
+  const crossFragmentPairs = findCrossFragmentBracePairs(fragments);
+  assert.deepEqual(
+    crossFragmentPairs,
+    [],
+    `cross-fragment brace continuations remain: ${crossFragmentPairs.map(({ open, close }) => `${open.name}:${open.line}->${close.name}:${close.line}`).join(', ')}`
+  );
 });
 
 test('sidebar Astras lifecycle breaks the 00 to 01 renderAstras continuation boundary', () => {
