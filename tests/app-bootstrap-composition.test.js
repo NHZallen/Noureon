@@ -120,6 +120,49 @@ test('P2P click handlers preserve injected handoffs without scanner implementati
   ]);
 });
 
+test('P2P scan handoff resolves the scanner callback only when the button is clicked', () => {
+  const events = [];
+  const buttons = new Map([
+    ['share-astras-btn', createButton('share-astras-btn', events)],
+    ['share-folders-btn', createButton('share-folders-btn', events)],
+    ['close-p2p-modal-btn', createButton('close-p2p-modal-btn', events)],
+    ['p2p-role-sender', createButton('p2p-role-sender', events)],
+    ['p2p-role-receiver', createButton('p2p-role-receiver', events)],
+    ['p2p-confirm-selection-btn', createButton('p2p-confirm-selection-btn', events)],
+    ['p2p-connect-btn', createButton('p2p-connect-btn', events)],
+    ['p2p-start-scan-btn', createButton('p2p-start-scan-btn', events)]
+  ]);
+  let scannerCalls = 0;
+  let scannerCallback;
+
+  createAppBootstrapComposition({
+    allElements: {},
+    getElementById: (id) => buttons.get(id),
+    setupHistorySidebarInteractions: () => {},
+    setupHistorySidebarTriggers: () => {},
+    initP2P: () => {},
+    toggleP2PModal: () => {},
+    resetP2PUI: () => {},
+    setP2PMode: () => {},
+    showP2PSelection: () => {},
+    startP2PReceiverUI: () => {},
+    startP2PSender: () => {},
+    getP2PCodeInputValue: () => 'abcde',
+    showNotification: () => {},
+    connectToSender: () => {},
+    startQRScanner: () => scannerCallback()
+  }).runLateBootstrapBindings();
+
+  assert.equal(scannerCalls, 0);
+  scannerCallback = () => {
+    scannerCalls += 1;
+  };
+
+  buttons.get('p2p-start-scan-btn').handler();
+
+  assert.equal(scannerCalls, 1);
+});
+
 test('invalid P2P connect code preserves the legacy warning handoff', () => {
   const calls = [];
   const events = [];

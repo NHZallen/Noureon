@@ -341,6 +341,8 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   const initBody = fragment05Source.slice(initStart, initClose);
 
   assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+  assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
+  assert.doesNotMatch(initBody, /^\s*startQRScanner\s*[,}]/m);
   assert.doesNotMatch(initBody, /setupHistorySidebarInteractions\(\);\s*setupHistorySidebarTriggers\(\);/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });

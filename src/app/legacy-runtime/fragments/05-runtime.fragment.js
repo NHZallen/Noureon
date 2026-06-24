@@ -1048,7 +1048,7 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
         getP2PCodeInputValue: () => document.getElementById('p2p-code-input').value,
         showNotification,
         connectToSender,
-        startQRScanner
+        startQRScanner: () => startQRScanner()
     });
     appBootstrapComposition.runLateBootstrapBindings();
         }
