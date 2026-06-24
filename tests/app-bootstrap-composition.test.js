@@ -163,6 +163,44 @@ test('P2P scan handoff resolves the scanner callback only when the button is cli
   assert.equal(scannerCalls, 1);
 });
 
+test('P2P scan button dispatches a real click event to the injected scanner handoff', () => {
+  const buttons = new Map([
+    'share-astras-btn',
+    'share-folders-btn',
+    'close-p2p-modal-btn',
+    'p2p-role-sender',
+    'p2p-role-receiver',
+    'p2p-confirm-selection-btn',
+    'p2p-connect-btn',
+    'p2p-start-scan-btn'
+  ].map((id) => [id, new EventTarget()]));
+  let scannerCalls = 0;
+
+  createAppBootstrapComposition({
+    allElements: {},
+    getElementById: (id) => buttons.get(id),
+    setupHistorySidebarInteractions: () => {},
+    setupHistorySidebarTriggers: () => {},
+    initP2P: () => {},
+    toggleP2PModal: () => {},
+    resetP2PUI: () => {},
+    setP2PMode: () => {},
+    showP2PSelection: () => {},
+    startP2PReceiverUI: () => {},
+    startP2PSender: () => {},
+    getP2PCodeInputValue: () => 'abcde',
+    showNotification: () => {},
+    connectToSender: () => {},
+    startQRScanner: () => {
+      scannerCalls += 1;
+    }
+  }).runLateBootstrapBindings();
+
+  buttons.get('p2p-start-scan-btn').dispatchEvent(new Event('click'));
+
+  assert.equal(scannerCalls, 1);
+});
+
 test('invalid P2P connect code preserves the legacy warning handoff', () => {
   const calls = [];
   const events = [];

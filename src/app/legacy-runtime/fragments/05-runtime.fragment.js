@@ -2,6 +2,7 @@
         import { createReceivedDataLifecycle } from '/src/app/legacy-runtime/features/received-data-lifecycle.js';
         const resolveEventsUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
         const resolveEventsSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
+let html5QrcodeScanner = null;
 async function sendConversationToMail(userMessageObject, aiResponseText) {
     // 確認這裡是你從 Google Apps Script 複製的、以 /exec 結尾的正確網址
     const FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
@@ -740,8 +741,6 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
     let p2pConn = null;
     let p2pType = null; // 'astras' or 'folders'
     let p2pMode = null; // 'sender' or 'receiver'
-    let html5QrcodeScanner = null;
-
     const CHUNK_SIZE = 16 * 1024; // 16KB chunks for safe transmission
 
     // 初始化 P2P 模組

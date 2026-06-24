@@ -86,4 +86,7 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
   assert.doesNotMatch(fragment06Source, /^\s*setupHistorySidebarInteractions\(\);/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
   assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
+  assert.match(fragment05Source.slice(0, initStart), /let\s+html5QrcodeScanner\s*=\s*null;/);
+  assert.doesNotMatch(initBody, /let\s+html5QrcodeScanner\s*=/);
+  assert.match(fragment06Source, /function\s+startQRScanner\(\)[\s\S]*html5QrcodeScanner\s*=\s*new\s+Html5Qrcode/);
 });

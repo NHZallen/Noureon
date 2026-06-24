@@ -343,6 +343,8 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
   assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
   assert.doesNotMatch(initBody, /^\s*startQRScanner\s*[,}]/m);
+  assert.match(fragment05Source.slice(0, initStart), /let\s+html5QrcodeScanner\s*=\s*null;/);
+  assert.doesNotMatch(initBody, /let\s+html5QrcodeScanner\s*=/);
   assert.doesNotMatch(initBody, /setupHistorySidebarInteractions\(\);\s*setupHistorySidebarTriggers\(\);/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });
