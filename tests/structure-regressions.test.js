@@ -210,11 +210,50 @@ test('stream API provider request and parser core is isolated from the 02 runtim
   assert.doesNotMatch(fragmentSource, /line\.startsWith\('data: '\)/);
   assert.doesNotMatch(fragmentSource, /parsed\?\.candidates\?\.\[0\]\?\.content\?\.parts\?\.\[0\]\?\.text/);
 
-  assert.match(fragmentSource, /const\s+streamCouncilApiCallWithRetry\s*=/);
-  assert.match(fragmentSource, /return\s+await\s+streamApiCall\(parts,\s*onChunk,\s*signal,\s*isWebSearchForced,\s*streamOptions\)/);
   assert.match(fragmentSource, /function\s+calculateRelevanceScore\b/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/stream-api-call.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 130 * 1024);
+});
+
+test('provider request support helpers are isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/provider-request-support.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/provider-request-support.js'));
+
+  assert.equal(typeof helpers.createProviderRequestSupport, 'function');
+  assert.match(helperSource, /export\s+function\s+createProviderRequestSupport\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{\s*createProviderRequestSupport\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/provider-request-support\.js';/
+  );
+  assert.match(fragmentSource, /const\s+providerRequestSupport\s*=\s*createProviderRequestSupport\(\{/);
+  assert.match(fragmentSource, /buildTavilySearchQuery,/);
+  assert.match(fragmentSource, /formatTavilySearchPacket,/);
+  assert.match(fragmentSource, /streamApiCall,/);
+  assert.match(fragmentSource, /councilRetryDelayMs:\s*COUNCIL_RETRY_DELAY_MS/);
+  assert.match(fragmentSource, /buildSingleModelTranslatedRequestParts,[\s\S]*streamCouncilApiCallWithRetry,[\s\S]*truncateCouncilText[\s\S]*=\s*providerRequestSupport/);
+
+  for (const removedSupportCore of [
+    /const\s+waitCouncilRetryDelay\s*=/,
+    /const\s+streamCouncilApiCallWithRetry\s*=\s*async/,
+    /const\s+getUnsupportedSingleDocumentParts\s*=/,
+    /const\s+buildSingleDocumentTranslationPrompt\s*=/,
+    /const\s+getTavilyApiKey\s*=/,
+    /const\s+fetchTavilySearchPacket\s*=\s*async/,
+    /const\s+buildTavilyContextPart\s*=/,
+    /const\s+buildSingleSearchTranslationPrompt\s*=/,
+    /const\s+buildSingleModelTranslatedRequestParts\s*=\s*async/
+  ]) {
+    assert.doesNotMatch(fragmentSource, removedSupportCore);
+  }
+
+  assert.match(helperSource, /const\s+streamCouncilApiCallWithRetry\s*=\s*async/);
+  assert.match(helperSource, /const\s+fetchTavilySearchPacket\s*=\s*async/);
+  assert.match(helperSource, /const\s+buildSingleModelTranslatedRequestParts\s*=\s*async/);
+  assert.doesNotMatch(helperSource, /document\.|window\.|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/provider-request-support.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
 });
 
 test('council response lifecycle core is isolated from the 02 runtime fragment', async () => {
@@ -245,8 +284,8 @@ test('council response lifecycle core is isolated from the 02 runtime fragment',
     assert.doesNotMatch(fragmentSource, removedCouncilCore);
   }
 
-  assert.match(fragmentSource, /const\s+streamCouncilApiCallWithRetry\s*=/);
-  assert.match(fragmentSource, /const\s+buildSingleModelTranslatedRequestParts\s*=/);
+  assert.match(fragmentSource, /streamCouncilApiCallWithRetry,/);
+  assert.match(fragmentSource, /buildSingleModelTranslatedRequestParts,/);
   assert.match(fragmentSource, /async\s+function\s+callApiWithSchema\b/);
   assert.match(helperSource, /const\s+firstRoundSettled\s*=\s*await\s+Promise\.allSettled/);
   assert.match(helperSource, /const\s+secondRoundSettled\s*=\s*await\s+Promise\.allSettled/);
@@ -254,7 +293,7 @@ test('council response lifecycle core is isolated from the 02 runtime fragment',
   assert.doesNotMatch(helperSource, /document\.|window\.|indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body\.getReader\(\)|virtual:legacy-app-runtime|vite\.config|package\.json/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-response-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 115 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 80 * 1024);
 });
 
 test('settings mobile metadata helpers are isolated from the 02 runtime fragment', async () => {
