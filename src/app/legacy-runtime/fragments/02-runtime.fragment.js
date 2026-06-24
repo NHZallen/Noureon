@@ -179,7 +179,7 @@
                 conv.isNaming = false;
                 await saveAppData();
                 renderHistorySidebar();
-                if (conv.id === activeConversationId) { ALL_ELEMENTS.headerTitle.textContent = conv.title; }
+                if (conv.id === conversationStateAccess.getCurrentConversationId()) { ALL_ELEMENTS.headerTitle.textContent = conv.title; }
                 showNotification(i18n[config.uiLanguage].autoNamed || '對話已自動命名', 'success');
             } else {
                 conv.isNaming = false;

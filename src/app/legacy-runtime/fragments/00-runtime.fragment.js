@@ -22,6 +22,7 @@ import { createConversationViewRenderer as createArchivedConversationViewRendere
 import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
 import { createModelUsageChartLifecycle } from '/src/app/legacy-runtime/features/model-usage-chart-lifecycle.js';
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
+import { createConversationStateAccess } from '/src/app/legacy-runtime/runtime/conversation-state-access.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -827,6 +828,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let astras = [];
         let personalMemories = [];
         let activeConversationId = null;
+        const conversationStateAccess = createConversationStateAccess({
+            getConversations: () => conversations,
+            getCurrentConversationId: () => activeConversationId,
+            setCurrentConversationId: (id) => { activeConversationId = id; }
+        });
         let config = {
             apiKeys: { gemini: '', openrouter: '', stepPlan: '', nvidia: '', tavily: '' },
             defaultModel: MODELS[0].id,
@@ -1703,7 +1709,7 @@ function renderMarkdownWithFormulas(text) {
             uploadedFiles = [];
             const newConv = createBaseConversation('新對話');
             conversations.unshift(newConv);
-            activeConversationId = newConv.id;
+            conversationStateAccess.setCurrentConversationId(newConv.id);
             renderAll();
             ALL_ELEMENTS.messageInput.value = '';
             setTimeout(adjustTextareaHeight, 0);
@@ -1714,13 +1720,13 @@ function renderMarkdownWithFormulas(text) {
         const loadChat = (id) => {
             if (messageObserver) {
         messageObserver.disconnect();
-    }
-            if (id !== activeConversationId) {
+            }
+            if (id !== conversationStateAccess.getCurrentConversationId()) {
                 const previousConv = getActiveConversation();
                 if (previousConv && previousConv.isTemporary && previousConv.messages.length === 0) {
                     conversations = conversations.filter(c => c.id !== previousConv.id);
                 }
-                activeConversationId = id;
+                conversationStateAccess.setCurrentConversationId(id);
                 uploadedFiles = [];
                 renderAll();
                 const conv = getActiveConversation();
@@ -1859,7 +1865,7 @@ function renderMarkdownWithFormulas(text) {
             itemToRename = { id: null, type: null };
         };
         const getActiveConversation = () => {
-            const conv = conversations.find(c => c.id === activeConversationId);
+            const conv = conversationStateAccess.getCurrentConversation();
             if (conv) normalizeConversationModel(conv);
             return conv;
         };

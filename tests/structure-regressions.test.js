@@ -357,6 +357,28 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });
 
+test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const accessSource = readSource('src/app/legacy-runtime/runtime/conversation-state-access.js');
+
+  assert.match(accessSource, /export\s+function\s+createConversationStateAccess/);
+  assert.match(fragment00Source, /import\s+\{\s*createConversationStateAccess\s*\}/);
+  assert.equal((fragment00Source.match(/createConversationStateAccess\(\{/g) || []).length, 1);
+  assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationId/);
+  assert.match(fragment00Source, /setCurrentConversationId:\s*\(id\)\s*=>\s*\{\s*activeConversationId\s*=\s*id;\s*\}/);
+
+  assert.match(fragment00Source, /const\s+getActiveConversation\s*=\s*\(\)\s*=>\s*\{\s*const\s+conv\s*=\s*conversationStateAccess\.getCurrentConversation\(\);/);
+  assert.match(fragment00Source, /conversationStateAccess\.setCurrentConversationId\(newConv\.id\);/);
+  assert.match(fragment00Source, /if\s*\(id\s*!==\s*conversationStateAccess\.getCurrentConversationId\(\)\)/);
+  assert.match(fragment00Source, /conversationStateAccess\.setCurrentConversationId\(id\);/);
+  assert.match(fragment02Source, /conv\.id\s*===\s*conversationStateAccess\.getCurrentConversationId\(\)/);
+
+  assert.doesNotMatch(fragment00Source, /const\s+getActiveConversation\s*=\s*\(\)\s*=>\s*\{\s*const\s+conv\s*=\s*conversations\.find\(c\s*=>\s*c\.id\s*===\s*activeConversationId\)/);
+  assert.doesNotMatch(fragment02Source, /conv\.id\s*===\s*activeConversationId/);
+});
+
 test('app shell imports and preserves critical DOM IDs', async () => {
   const { default: appShell } = await import(projectFile('src/templates/app-shell.js'));
 
