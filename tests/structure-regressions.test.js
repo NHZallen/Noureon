@@ -217,6 +217,46 @@ test('stream API provider request and parser core is isolated from the 02 runtim
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 130 * 1024);
 });
 
+test('council response lifecycle core is isolated from the 02 runtime fragment', async () => {
+  const helperSource = readSource('src/app/legacy-runtime/features/council-response-lifecycle.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const helpers = await import(projectFile('src/app/legacy-runtime/features/council-response-lifecycle.js'));
+
+  assert.equal(typeof helpers.createCouncilResponseLifecycle, 'function');
+  assert.match(helperSource, /export\s+function\s+createCouncilResponseLifecycle\b/);
+  assert.match(
+    fragmentSource,
+    /import\s*\{\s*createCouncilResponseLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-response-lifecycle\.js';/
+  );
+  assert.match(fragmentSource, /const\s+councilResponseLifecycle\s*=\s*createCouncilResponseLifecycle\(\{/);
+  assert.match(fragmentSource, /const\s+runModelCouncil\s*=\s*\(\.\.\.args\)\s*=>\s*councilResponseLifecycle\.runModelCouncil\(\.\.\.args\)/);
+
+  for (const removedCouncilCore of [
+    /async\s+function\s+runModelCouncil\b/,
+    /const\s+formatCouncilResponses\s*=/,
+    /const\s+buildCouncilSharedSearchPrompt\s*=/,
+    /const\s+buildCouncilSecondSearchPrompt\s*=/,
+    /const\s+buildCouncilAttachmentTranslationPackets\s*=/,
+    /const\s+buildCouncilMemberInstruction\s*=/,
+    /const\s+buildCouncilDeliberationPrompt\s*=/,
+    /const\s+buildCouncilSynthesisPrompt\s*=/,
+    /const\s+buildCouncilAppendix\s*=/
+  ]) {
+    assert.doesNotMatch(fragmentSource, removedCouncilCore);
+  }
+
+  assert.match(fragmentSource, /const\s+streamCouncilApiCallWithRetry\s*=/);
+  assert.match(fragmentSource, /const\s+buildSingleModelTranslatedRequestParts\s*=/);
+  assert.match(fragmentSource, /async\s+function\s+callApiWithSchema\b/);
+  assert.match(helperSource, /const\s+firstRoundSettled\s*=\s*await\s+Promise\.allSettled/);
+  assert.match(helperSource, /const\s+secondRoundSettled\s*=\s*await\s+Promise\.allSettled/);
+  assert.match(helperSource, /const\s+synthesisPrompt\s*=\s*buildCouncilSynthesisPrompt/);
+  assert.doesNotMatch(helperSource, /document\.|window\.|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body\.getReader\(\)|virtual:legacy-app-runtime|vite\.config|package\.json/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-response-lifecycle.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')).size < 115 * 1024);
+});
+
 test('settings mobile metadata helpers are isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/settings-mobile-metadata.js');
   const fragmentSource = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
