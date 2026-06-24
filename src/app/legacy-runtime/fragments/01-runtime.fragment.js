@@ -1074,7 +1074,7 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             getUploadedFiles: () => uploadedFiles,
             setUploadedFiles: (files) => { uploadedFiles = files; },
             getActiveConversation,
-            updateSubmitButtonState,
+            updateSubmitButtonState: (...args) => updateSubmitButtonState(...args),
             getCouncilValidation,
             showNotification,
             renderCouncilControls,
@@ -1083,14 +1083,14 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
             addMessageToUI,
             renderHistorySidebar,
             getAutoNaming: () => config.autoNaming,
-            generateTitleAndSummary,
+            generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
             saveAppData,
             getAutoWebSearchEnabled: () => config.enableAutoWebSearch,
-            shouldPerformWebSearch,
+            shouldPerformWebSearch: (...args) => shouldPerformWebSearch(...args),
             getAutoSearchNotice: () => i18n[config.uiLanguage].autoSearchNotice || '偵測到問題需要連網搜索，已自動開啟。',
             renderInputIndicators,
-            adjustTextareaHeight,
-            renderFilePreviews,
+            adjustTextareaHeight: (...args) => adjustTextareaHeight(...args),
+            renderFilePreviews: (...args) => renderFilePreviews(...args),
             requestFrame: (callback) => requestAnimationFrame(callback)
         });
 
