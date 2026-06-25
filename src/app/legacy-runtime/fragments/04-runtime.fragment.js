@@ -423,7 +423,9 @@ import {
         const handleSubscription = async (officialId) => {
             const isSubscribed = astras.some(a => a.officialId === officialId);
             if (isSubscribed) {
-                astras = astras.filter(a => a.officialId !== officialId);
+                astras = runtimeAppDataStore.replaceAstras(
+                    astras.filter(a => a.officialId !== officialId)
+                );
                 showNotification(i18n[config.uiLanguage].unsubscribed || '已取消訂閱', 'success');
             } else {
                 const officialAstra = OFFICIAL_ASTRAS.find(a => a.id === officialId);

@@ -438,11 +438,11 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const normalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
   const storeSource = readSource('src/app/runtime/kernel/app-data-store.js');
   const unmigratedFragmentSources = [
-    '04-runtime.fragment.js',
     '05-runtime.fragment.js',
     '06-runtime.fragment.js'
   ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
@@ -452,6 +452,10 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const performImportBody = getConstFunctionBody(fragment03Source, 'performImport');
   const handleImportBody = getConstFunctionBody(fragment03Source, 'handleImport');
   const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
+  const handleSubscriptionBody = getConstFunctionBody(fragment04Source, 'handleSubscription');
+  const permanentDeleteBody = getConstFunctionBody(fragment04Source, 'handleDeleteTrashItemPermanently');
+  const batchDeleteBody = getConstFunctionBody(fragment04Source, 'handleBatchDeleteFromTrash');
+  const emptyTrashBody = getConstFunctionBody(fragment04Source, 'handleEmptyTrash');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
@@ -554,9 +558,38 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'conversations.push(conv)',
     'await saveAppData()'
   ], '03 processAuthImport legacy replacements and chunked pushes');
+  assertMarkersInOrder(handleSubscriptionBody, [
+    'astras = runtimeAppDataStore.replaceAstras(',
+    'astras.filter(a => a.officialId !== officialId)',
+    "showNotification(i18n[config.uiLanguage].unsubscribed",
+    'astras.unshift(newAstra)',
+    "showNotification(i18n[config.uiLanguage].subscribed",
+    'await saveAppData()',
+    'renderStore()',
+    'renderAstras()'
+  ], '04 store unsubscribe Astra replacement');
+  assertMarkersInOrder(permanentDeleteBody, [
+    'conversations = conversations.filter(c => c.id !== convId)',
+    'await saveAppData()',
+    'renderTrash()',
+    'showNotification'
+  ], '04 trash permanent delete legacy replacement');
+  assertMarkersInOrder(batchDeleteBody, [
+    'conversations = conversations.filter(c => !selectedTrashIds.has(c.id))',
+    'await saveAppData()',
+    'toggleTrashSelectionMode()',
+    'showNotification'
+  ], '04 trash batch delete legacy replacement');
+  assertMarkersInOrder(emptyTrashBody, [
+    'conversations = conversations.filter(c => !c.deletedAt)',
+    'await saveAppData()',
+    'renderTrash()',
+    'showNotification'
+  ], '04 empty trash legacy replacement');
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(fragment04Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
