@@ -912,10 +912,16 @@
         updateProgress(30, "身份驗證通過，開始還原...");
 
         // 清空全域變數準備接收資料
-        conversations = [];
-        folders = [];
-        astras = [];
-        personalMemories = [];
+        const clearedAppData = runtimeAppDataStore.replaceAll({
+            conversations: [],
+            folders: [],
+            astras: [],
+            personalMemories: [],
+        });
+        conversations = clearedAppData.conversations;
+        folders = clearedAppData.folders;
+        astras = clearedAppData.astras;
+        personalMemories = clearedAppData.personalMemories;
 
         // --- 處理 Astras ---
         const astrasToImport = rawData.astras || [];
@@ -941,8 +947,12 @@
         }
 
         // --- 處理資料夾與記憶 ---
-        if (rawData.folders) folders = rawData.folders;
-        if (rawData.personalMemories) personalMemories = rawData.personalMemories;
+        if (rawData.folders) {
+            folders = runtimeAppDataStore.replaceFolders(rawData.folders);
+        }
+        if (rawData.personalMemories) {
+            personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories);
+        }
 
         // --- 處理對話 (最耗資源的部分) ---
         const convsToImport = rawData.conversations || [];

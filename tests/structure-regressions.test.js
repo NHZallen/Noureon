@@ -558,16 +558,25 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'await saveAppData()'
   ], '03 handleImport store-backed replacements and chunked pushes');
   assertMarkersInOrder(processAuthImportBody, [
-    'conversations = []',
-    'folders = []',
-    'astras = []',
-    'personalMemories = []',
+    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'conversations: []',
+    'folders: []',
+    'astras: []',
+    'personalMemories: []',
+    'conversations = clearedAppData.conversations',
+    'folders = clearedAppData.folders',
+    'astras = clearedAppData.astras',
+    'personalMemories = clearedAppData.personalMemories',
     'astras.push(ast)',
-    'if (rawData.folders) folders = rawData.folders',
-    'if (rawData.personalMemories) personalMemories = rawData.personalMemories',
+    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
+    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
     'conversations.push(conv)',
-    'await saveAppData()'
-  ], '03 processAuthImport legacy replacements and chunked pushes');
+    'await saveAppData()',
+    'await saveConfig()',
+    'toggleModal(ALL_ELEMENTS.importDataModalAuth, false)',
+    "legacyRuntimeContext.resolveBinding('app.initChatApp')()",
+    'showNotification(i18n[config.uiLanguage].importSuccess'
+  ], '03 processAuthImport store-backed replacements and app handoff');
   assertMarkersInOrder(handleSubscriptionBody, [
     'astras = runtimeAppDataStore.replaceAstras(',
     'astras.filter(a => a.officialId !== officialId)',
@@ -610,7 +619,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.doesNotMatch(fragment04Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.equal((performImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
   assert.equal((handleImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
-  assert.doesNotMatch(processAuthImportBody, /runtimeAppDataStore\./);
+  assert.equal((processAuthImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
   assert.doesNotMatch(fragment03Source, /appendConversations|appendAstras|syncFromLexical/);
   assert.doesNotMatch(storeSource, /appendConversations|appendAstras|syncFromLexical/);
   assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);

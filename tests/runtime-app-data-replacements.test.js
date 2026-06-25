@@ -250,20 +250,24 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
   ], 'handleImport replacement, chunk import, and UI order');
 
   assertMarkersInOrder(processAuthImportBody, [
-    'conversations = []',
-    'folders = []',
-    'astras = []',
-    'personalMemories = []',
+    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'conversations: []',
+    'folders: []',
+    'astras: []',
+    'personalMemories: []',
+    'conversations = clearedAppData.conversations',
+    'folders = clearedAppData.folders',
+    'astras = clearedAppData.astras',
+    'personalMemories = clearedAppData.personalMemories',
     'astras.push(ast)',
-    'if (rawData.folders) folders = rawData.folders',
-    'if (rawData.personalMemories) personalMemories = rawData.personalMemories',
+    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
+    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
     'conversations.push(conv)',
     'await saveAppData()',
     'await saveConfig()',
     'toggleModal(ALL_ELEMENTS.importDataModalAuth, false)',
     "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
   ], 'processAuthImport replacement, chunk import, and app handoff order');
-  assert.doesNotMatch(processAuthImportBody, /runtimeAppDataStore\./);
 
   assertMarkersInOrder(fragment03Source, [
     'personalMemories = runtimeAppDataStore.replacePersonalMemories(',

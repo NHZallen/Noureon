@@ -154,14 +154,19 @@ test('processAuthImport keeps user persistence before app data mutation and pers
     'await setItem(userKey, JSON.stringify(currentUser))',
     "await setItem('chat_lastUser', username)",
     'updateProgress(30',
-    'conversations = []',
-    'folders = []',
-    'astras = []',
-    'personalMemories = []',
+    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'conversations: []',
+    'folders: []',
+    'astras: []',
+    'personalMemories: []',
+    'conversations = clearedAppData.conversations',
+    'folders = clearedAppData.folders',
+    'astras = clearedAppData.astras',
+    'personalMemories = clearedAppData.personalMemories',
     'await processInChunks(astrasToImport',
     'astras.push(ast)',
-    'if (rawData.folders) folders = rawData.folders',
-    'if (rawData.personalMemories) personalMemories = rawData.personalMemories',
+    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
+    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
     'await processInChunks(convsToImport',
     'conversations.push(conv)',
     'await saveAppData()',
@@ -203,7 +208,7 @@ test('selected import flows use pointer replacement without adding store append 
 
   assert.match(performImportBody, /runtimeAppDataStore\.replaceAll\(/);
   assert.match(handleImportBody, /runtimeAppDataStore\.replaceAll\(/);
-  assert.doesNotMatch(processAuthImportBody, /runtimeAppDataStore\./);
+  assert.match(processAuthImportBody, /runtimeAppDataStore\.replaceAll\(/);
   for (const body of [performImportBody, handleImportBody, processAuthImportBody]) {
     assert.doesNotMatch(body, /appendConversations|appendAstras|syncFromLexical/);
   }
