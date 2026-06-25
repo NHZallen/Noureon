@@ -969,15 +969,18 @@ function setupMessageIntersectionObserver() {
             container.querySelectorAll('.trash-item-view-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); showTrashItemInViewModal(e.currentTarget.dataset.id); }));
             container.querySelectorAll('.trash-item-restore-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); handleRestoreTrashItem(e.currentTarget.dataset.id); }));
             container.querySelectorAll('.trash-item-delete-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); handleDeleteTrashItemPermanently(e.currentTarget.dataset.id); }));
-            container.querySelectorAll('.trash-select-checkbox').forEach(checkbox => checkbox.addEventListener('change', (e) => {
-                const id = e.target.dataset.id;
-                if (e.target.checked) {
-                    selectedTrashIds.add(id);
-                } else {
-                    selectedTrashIds.delete(id);
-                }
-                renderTrashBatchActionBar();
-            }));
+            container.querySelectorAll('.trash-select-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('click', (e) => e.stopPropagation());
+                checkbox.addEventListener('change', (e) => {
+                    const id = e.target.dataset.id;
+                    if (e.target.checked) {
+                        selectedTrashIds.add(id);
+                    } else {
+                        selectedTrashIds.delete(id);
+                    }
+                    renderTrashBatchActionBar();
+                });
+            });
         };
         const handleRestoreTrashItem = async (convId) => {
             const conv = conversations.find(c => c.id === convId);

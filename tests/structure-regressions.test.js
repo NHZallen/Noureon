@@ -585,6 +585,21 @@ test('runtime DOM access owns selected element reads without changing DOM regist
   assert.match(renderHistorySidebarContentBody, /historySidebarList\.appendChild\(listItem\);/);
 });
 
+test('trash batch selection checkbox click does not bubble into row toggle', () => {
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const renderTrashBody = getConstFunctionBody(fragment04Source, 'renderTrash');
+  const handleBatchRestoreFromTrashBody = getConstFunctionBody(fragment04Source, 'handleBatchRestoreFromTrash');
+  const handleBatchDeleteFromTrashBody = getConstFunctionBody(fragment04Source, 'handleBatchDeleteFromTrash');
+
+  assert.match(renderTrashBody, /item\.addEventListener\('click',\s*\(e\)\s*=>\s*\{/);
+  assert.match(renderTrashBody, /if\s*\(e\.target\.closest\('button'\)\)\s*return;/);
+  assert.match(renderTrashBody, /checkbox\.checked\s*=\s*!checkbox\.checked;\s*checkbox\.dispatchEvent\(new Event\('change'\)\);/);
+  assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*\(e\)\s*=>\s*e\.stopPropagation\(\)\);/);
+  assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*\(e\)\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*conversations\s*=\s*conversations\.filter\(c\s*=>\s*!selectedTrashIds\.has\(c\.id\)\);\s*await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
+});
+
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
