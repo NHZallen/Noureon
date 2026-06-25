@@ -30,9 +30,11 @@ function legacyRuntimeFragmentsPlugin() {
 
       fragmentPaths.forEach((file) => this.addWatchFile(file));
 
-      return fragmentPaths
+      const legacyRuntimeSource = fragmentPaths
         .map((file) => readFileSync(file, 'utf8'))
         .join('\n');
+
+      return `${legacyRuntimeSource}\nexport { legacyRuntimeContext };\n`;
     }
   };
 }

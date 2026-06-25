@@ -210,7 +210,80 @@ test('legacy runtime entry still uses the sorted virtual fragment composition', 
     ".map((file) => readFileSync(file, 'utf8'))",
     ".join('\\n')"
   ], 'Vite legacy runtime fragment composition');
+  assert.match(viteSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
   assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+});
+
+test('non-production runtime entry composes the explicit legacy dependency facade', () => {
+  const runtimeEntryPath = 'src/app/runtime-entry.js';
+  const dependencyPath = 'src/app/runtime/runtime-entry-dependencies.js';
+  const runtimeEntrySource = readSource(runtimeEntryPath);
+  const dependencySource = readSource(dependencyPath);
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const mainSource = readSource('src/main.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+  const viteSource = readSource('vite.config.js');
+
+  assert.equal(existsSync(projectFile(runtimeEntryPath)), true);
+  assert.equal(existsSync(projectFile(dependencyPath)), true);
+  assert.match(runtimeEntrySource, /export\s+function\s+createRuntimeEntry/);
+  assert.match(runtimeEntrySource, /export\s+function\s+getLegacyRuntimeEntryDependencies/);
+  assert.match(runtimeEntrySource, /export\s+async\s+function\s+loadLegacyRuntimeContext/);
+  assert.match(
+    runtimeEntrySource,
+    /await\s+import\('virtual:legacy-app-runtime'\)/
+  );
+  assert.doesNotMatch(runtimeEntrySource, /^import\s+.*virtual:legacy-app-runtime/m);
+  assert.doesNotMatch(runtimeEntrySource, /legacy-runtime\/fragments/);
+  assert.doesNotMatch(
+    runtimeEntrySource,
+    /(?:^|\n)\s*(?:void\s+)?(?:start|initializeApp|initChatApp)\(\);/
+  );
+  assert.match(dependencySource, /export\s+function\s+createLegacyRuntimeEntryDependencies/);
+  assert.match(dependencySource, /export\s+function\s+validateLegacyRuntimeEntryDependencies/);
+  assert.doesNotMatch(
+    dependencySource,
+    /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/
+  );
+
+  assert.match(
+    fragment04Source,
+    /import\s+\{\s*createLegacyRuntimeEntryDependencies\s*\}\s+from\s+['"]\/src\/app\/runtime\/runtime-entry-dependencies\.js['"]/
+  );
+  assert.match(
+    fragment04Source,
+    /const\s+runtimeEntryDependencies\s*=\s*createLegacyRuntimeEntryDependencies\(\{/
+  );
+  assert.match(
+    fragment04Source,
+    /legacyRuntimeContext\.registerLazyBinding\(\s*['"]runtime\.entryDependencies['"],\s*\(\)\s*=>\s*runtimeEntryDependencies\s*\)/
+  );
+  assert.match(fragment04Source, /appBootstrap:\s*\{/);
+  assert.match(fragment04Source, /startup:\s*\{/);
+  assert.match(fragment04Source, /getCurrentUser:\s*\(\)\s*=>\s*currentUser/);
+  assert.match(fragment04Source, /getConfig:\s*\(\)\s*=>\s*config/);
+  assert.match(fragment04Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(fragment04Source, /getFolders:\s*\(\)\s*=>\s*folders/);
+  assert.match(fragment04Source, /getAstras:\s*\(\)\s*=>\s*astras/);
+  assert.match(fragment04Source, /getPersonalMemories:\s*\(\)\s*=>\s*personalMemories/);
+  assert.match(fragment04Source, /getItem,\s*getUserKey,\s*loadConfig,\s*loadAppData/s);
+  assert.match(
+    fragment04Source,
+    /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.adjustTextareaHeight'\)\(\.\.\.args\)/
+  );
+  assert.doesNotMatch(fragment04Source, /\binitChatApp\(\);|\binitializeApp\(\);/);
+
+  assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
+  assert.match(fragment06Source, /createLegacyStartupLifecycle\(\{/);
+  assert.match(viteSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
+  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.doesNotMatch(legacyEntrySource, /runtime-entry/);
+  assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
+  assert.doesNotMatch(mainSource, /runtime-entry/);
+  assert.doesNotMatch(runtimeAppSource, /runtime-entry|virtual:legacy-app-runtime/);
 });
 
 test('runtime DOM registry ownership moves into the non-live runtime kernel', () => {

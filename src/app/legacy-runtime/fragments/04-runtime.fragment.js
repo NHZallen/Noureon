@@ -2,6 +2,7 @@ import {
     getTextColorForBackground as getThemeTextColorForBackground,
 } from '/src/utils/color-contrast.js';
 import { createLegacyTrashLifecycle } from '/src/app/runtime/features/trash-lifecycle.js';
+import { createLegacyRuntimeEntryDependencies } from '/src/app/runtime/runtime-entry-dependencies.js';
 
         const setupTimeAnalysis = () => {
             const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
@@ -950,3 +951,151 @@ function setupMessageIntersectionObserver() {
         versionDisplayElement.textContent = latestVersionInLog;
     }
 };
+        const runtimeEntryDependencies = createLegacyRuntimeEntryDependencies({
+            appBootstrap: {
+                window,
+                document,
+                elements: ALL_ELEMENTS,
+                Peer,
+                QRCode,
+                Html5Qrcode,
+                JSZip,
+                BlobCtor: Blob,
+                getCurrentUser: () => currentUser,
+                getConfig: () => config,
+                getConversations: () => conversations,
+                getFolders: () => folders,
+                getAstras: () => astras,
+                getPersonalMemories: () => personalMemories,
+                setSidebarOpen: (next) => {
+                    sidebarOpen = next;
+                    return sidebarOpen;
+                },
+                setSendConfirmed: (next) => {
+                    sendConfirmed = next;
+                    return sendConfirmed;
+                },
+                getAbortController: () => abortController,
+                getCropperInstance: () => cropperInstance,
+                setCropperInstance: (next) => {
+                    cropperInstance = next;
+                    return cropperInstance;
+                },
+                setEditingAstraForAvatarId: (next) => {
+                    editingAstraForAvatarId = next;
+                    return editingAstraForAvatarId;
+                },
+                startNewChat,
+                renderAll,
+                setTheme,
+                setupVoiceInput,
+                setupScrollToBottomButton,
+                updateDisplayedVersion,
+                checkAndShowLatestUpdate,
+                updateFunctionButtonsState,
+                updateInputState: (...args) =>
+                    legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
+                setupSettingsModal: (...args) =>
+                    legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args),
+                toggleSidebar,
+                toggleModal,
+                saveSettings,
+                saveAppData,
+                handleExport,
+                handleImport,
+                handleLogout,
+                handleFileSelection,
+                handleFormSubmit,
+                handleRename,
+                handleSaveFolderSettings,
+                performSearchAndRenderResults,
+                loadChat,
+                openDashboard,
+                getActiveConversation,
+                copyTextToClipboard,
+                showNotification,
+                normalizeConversationModel,
+                getCouncilSelectedModels,
+                isCouncilEnabled,
+                hasCouncilWebSearchAccess,
+                hasSingleWebSearchAccess,
+                hasSingleDocumentAccess,
+                modelSupportsVision,
+                getCouncilTexts,
+                renderInputIndicators,
+                toggleLearningMode,
+                toggleSelectionMode,
+                handleBatchDelete,
+                handleBatchArchive,
+                handleBatchMove,
+                adjustTextareaHeight: (...args) =>
+                    legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
+                submitChatForm,
+                closeAllPopovers,
+                showCustomPrompt,
+                createNewFolder,
+                createAstras,
+                handleSaveAstras,
+                renderPersonalMemoryList,
+                handleWallpaperUpload,
+                restoreDefaultWallpaper,
+                handleConfirmCrop,
+                handleDeleteAllData,
+                applyLanguage,
+                openStore,
+                closeStore,
+                handleAvatarUpload,
+                handleConfirmAvatarCrop,
+                showUpdateHistory,
+                toggleTrashSelectionMode,
+                handleBatchRestoreFromTrash,
+                handleBatchDeleteFromTrash,
+                handleEmptyTrash,
+                updateFileInputUI,
+                postJsonWithReadableError,
+                openCouncilPopoverFromAttachmentMenu,
+                setupHistorySidebarInteractions,
+                setupHistorySidebarTriggers,
+                escapeHTML,
+                getDefaultFolder,
+                isMobileSettingsViewport,
+                openSettingsMobileSection,
+                i18n,
+                randomUUID: () => crypto.randomUUID(),
+                random: () => Math.random(),
+                scheduleTimeout: setTimeout,
+                clearScheduledTimeout: clearTimeout,
+                scheduleAnimationFrame: requestAnimationFrame,
+                logger: console
+            },
+            startup: {
+                window,
+                document,
+                globalObject: globalThis,
+                elements: ALL_ELEMENTS,
+                getConfig: () => config,
+                setCurrentUser: (nextUser) => {
+                    currentUser = nextUser;
+                    return currentUser;
+                },
+                getItem,
+                getUserKey,
+                loadConfig,
+                loadAppData,
+                applyLanguage,
+                applyCustomWallpaper,
+                applyUiTheme,
+                handleLogin,
+                handleImportOnAuth,
+                processAuthImport,
+                toggleModal,
+                installTouchGuards,
+                registerServiceWorker,
+                showCustomDialog,
+                getComputedStyle
+            }
+        });
+        legacyRuntimeContext.registerLazyBinding(
+            'runtime.entryDependencies',
+            () => runtimeEntryDependencies
+        );
