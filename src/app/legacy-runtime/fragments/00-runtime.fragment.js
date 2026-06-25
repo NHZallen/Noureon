@@ -428,7 +428,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
 
     // 渲染歷史訊息側邊欄的內容
     function renderHistorySidebarContent() {
-    const { historySidebarList } = ALL_ELEMENTS;
+    const historySidebarList = runtimeDomAccess.getRequiredElement('historySidebarList');
     const conv = getActiveConversation();
     
     historySidebarList.innerHTML = ''; // 先清空舊的列表
@@ -1903,7 +1903,8 @@ function renderMarkdownWithFormulas(text) {
         });
         const renderAll = (...args) => runtimeRenderCoordinator.renderAll(...args);
         const renderHistorySidebar = () => {
-            ALL_ELEMENTS.historyList.innerHTML = '';
+            const historyList = runtimeDomAccess.getRequiredElement('historyList');
+            historyList.innerHTML = '';
             const sortedConversations = conversations
                 .filter(c => !c.archived && !c.folderId && !c.deletedAt)
                 .sort((a, b) => {
@@ -1927,10 +1928,10 @@ function renderMarkdownWithFormulas(text) {
                         </svg>
                         <span data-lang-key="naming">${i18n[config.uiLanguage].naming || 'AI思考中...'}</span>
                     `;
-                    ALL_ELEMENTS.historyList.appendChild(thinkingPlaceholder);
+                    historyList.appendChild(thinkingPlaceholder);
                     return;
                 }
-                ALL_ELEMENTS.historyList.appendChild(createConversationElement(conv));
+                historyList.appendChild(createConversationElement(conv));
             });
         };
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({

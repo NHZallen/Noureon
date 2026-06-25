@@ -544,6 +544,9 @@ test('runtime DOM access owns selected element reads without changing DOM regist
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
   const arrangeInputMediaPreviewBody = getConstFunctionBody(fragment00Source, 'arrangeInputMediaPreview');
   const renderArchivedChatsBody = getConstFunctionBody(fragment01Source, 'renderArchivedChats');
+  const renderFoldersBody = getConstFunctionBody(fragment01Source, 'renderFolders');
+  const renderHistorySidebarBody = getConstFunctionBody(fragment00Source, 'renderHistorySidebar');
+  const renderHistorySidebarContentBody = getBlockFromMarker(fragment00Source, 'function renderHistorySidebarContent()');
 
   assert.match(accessSource, /export\s+function\s+createRuntimeDomAccess/);
   assert.doesNotMatch(accessSource, /document\.|querySelector|getElementById|addEventListener/);
@@ -563,6 +566,23 @@ test('runtime DOM access owns selected element reads without changing DOM regist
   assert.match(renderArchivedChatsBody, /archivedChatsContainer\.innerHTML\s*=\s*'';/);
   assert.match(renderArchivedChatsBody, /archivedChatsContainer\.appendChild\(item\);/);
   assert.match(renderArchivedChatsBody, /archivedChatsContainer\.querySelectorAll\('\.view-archived-btn'\)\.forEach\(btn\s*=>\s*btn\.addEventListener/);
+
+  assert.match(renderFoldersBody, /const\s+folderList\s*=\s*runtimeDomAccess\.getRequiredElement\('folderList'\);/);
+  assert.doesNotMatch(renderFoldersBody, /ALL_ELEMENTS\.folderList/);
+  assert.match(renderFoldersBody, /folderList\.innerHTML\s*=\s*'';/);
+  assert.match(renderFoldersBody, /folderList\.appendChild\(folderElement\);/);
+  assert.match(renderFoldersBody, /folderOptionsBtn\.addEventListener\('click'/);
+
+  assert.match(renderHistorySidebarBody, /const\s+historyList\s*=\s*runtimeDomAccess\.getRequiredElement\('historyList'\);/);
+  assert.doesNotMatch(renderHistorySidebarBody, /ALL_ELEMENTS\.historyList/);
+  assert.match(renderHistorySidebarBody, /historyList\.innerHTML\s*=\s*'';/);
+  assert.match(renderHistorySidebarBody, /historyList\.appendChild\(thinkingPlaceholder\);/);
+  assert.match(renderHistorySidebarBody, /historyList\.appendChild\(createConversationElement\(conv\)\);/);
+
+  assert.match(renderHistorySidebarContentBody, /const\s+historySidebarList\s*=\s*runtimeDomAccess\.getRequiredElement\('historySidebarList'\);/);
+  assert.doesNotMatch(renderHistorySidebarContentBody, /const\s+\{\s*historySidebarList\s*\}\s*=\s*ALL_ELEMENTS/);
+  assert.match(renderHistorySidebarContentBody, /historySidebarList\.innerHTML\s*=\s*'';/);
+  assert.match(renderHistorySidebarContentBody, /historySidebarList\.appendChild\(listItem\);/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {

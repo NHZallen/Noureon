@@ -1,5 +1,6 @@
         const renderFolders = () => {
-            ALL_ELEMENTS.folderList.innerHTML = '';
+            const folderList = runtimeDomAccess.getRequiredElement('folderList');
+            folderList.innerHTML = '';
             folders.forEach(folder => {
                 const folderConvs = folder.conversationIds
                     .map(id => conversations.find(c => c.id === id))
@@ -95,7 +96,7 @@
                     e.stopPropagation();
                     createFolderMenu(folder.id, folderOptionsBtn);
                 });
-                ALL_ELEMENTS.folderList.appendChild(folderElement);
+                folderList.appendChild(folderElement);
             });
         };
         const createConversationElement = (conv) => {
