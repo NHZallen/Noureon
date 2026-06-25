@@ -82,9 +82,6 @@ const createHarness = (overrides = {}) => {
   const lifecycle = createModelSwitcherLifecycle({
     closeAllPopovers: () => calls.push(['closeAllPopovers']),
     document,
-    elements: {
-      modelSwitcherContainer: document.querySelector('#model-switcher-container')
-    },
     escapeHTML,
     getActiveConversation: () => conversation,
     getConfig: () => config,
@@ -93,6 +90,7 @@ const createHarness = (overrides = {}) => {
     getCouncilTexts: () => ({ title: 'Council' }),
     getI18n: () => i18n,
     getModelApiId: (model) => model.id,
+    getModelSwitcherContainer: () => document.querySelector('#model-switcher-container'),
     getModelRetirementLabel: (model) => model.retirement || '',
     getModelTiers: (model) => model.tier || [],
     getSingleDocumentTranslatorModel: () => null,
@@ -163,6 +161,18 @@ test('renders model switcher navigation and persists selected model', async () =
   }
 });
 
+test('model switcher reads the container from the injected getter without an elements bundle', () => {
+  const { cleanup, document, lifecycle } = createHarness();
+  try {
+    lifecycle.renderModelSwitcher();
+
+    const container = document.querySelector('#model-switcher-container');
+    assert.match(container.textContent, /Step A/);
+  } finally {
+    cleanup();
+  }
+});
+
 test('council mode switcher button delegates to council controls without duplicating council rendering', () => {
   const { calls, cleanup, conversation, document, lifecycle } = createHarness({
     conversation: {
@@ -193,6 +203,10 @@ test('council mode switcher button delegates to council controls without duplica
 
 test('model switcher lifecycle source avoids provider parser, storage schema, package, and Vite coupling', () => {
   const source = readSource('src/app/legacy-runtime/features/model-switcher-lifecycle.js');
+
+  assert.match(source, /\bgetModelSwitcherContainer\b/);
+  assert.doesNotMatch(source, /\belements\b/);
+  assert.doesNotMatch(source, /\bALL_ELEMENTS\b/);
 
   for (const forbidden of [
     'TextDecoder',

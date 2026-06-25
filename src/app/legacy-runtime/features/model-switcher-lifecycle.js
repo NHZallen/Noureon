@@ -39,7 +39,6 @@ export function prepareModelSwitcherModels({
 export function createModelSwitcherLifecycle({
     closeAllPopovers,
     document,
-    elements,
     escapeHTML,
     getActiveConversation,
     getConfig,
@@ -48,6 +47,7 @@ export function createModelSwitcherLifecycle({
     getCouncilTexts,
     getI18n,
     getModelApiId,
+    getModelSwitcherContainer = () => undefined,
     getModelRetirementLabel,
     getModelTiers,
     getSingleDocumentTranslatorModel,
@@ -63,14 +63,14 @@ export function createModelSwitcherLifecycle({
     saveConfig,
     window
 }) {
-    const ALL_ELEMENTS = elements;
     const MODELS = models;
     const requestAnimationFrame = requestFrame;
     const renderModelSwitcher = () => {
+    const modelSwitcherContainer = getModelSwitcherContainer();
     const conv = getActiveConversation();
     const config = getConfig();
     const i18n = getI18n();
-    ALL_ELEMENTS.modelSwitcherContainer.innerHTML = '';
+    modelSwitcherContainer.innerHTML = '';
     if (!conv) return;
 
 
@@ -94,7 +94,7 @@ export function createModelSwitcherLifecycle({
         const { council } = getCouncilSelectedModels(conv);
         const texts = getCouncilTexts();
         const councilModeLabel = getCouncilModeLabel(council);
-        ALL_ELEMENTS.modelSwitcherContainer.innerHTML = `
+        modelSwitcherContainer.innerHTML = `
             <button id="current-model-btn" class="model-switcher-council-btn flex items-center gap-2 text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] px-2 py-1 md:px-3 rounded-md ${isArchived ? 'cursor-not-allowed' : ''}" ${isArchived ? 'disabled' : ''}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
                 <span class="model-switcher-council-copy">
@@ -138,7 +138,7 @@ export function createModelSwitcherLifecycle({
             </div>
         </div>
     `;
-    ALL_ELEMENTS.modelSwitcherContainer.innerHTML = popoverHTML;
+    modelSwitcherContainer.innerHTML = popoverHTML;
 
 
     const popover = document.getElementById('model-options-popover');

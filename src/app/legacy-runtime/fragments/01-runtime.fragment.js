@@ -732,7 +732,6 @@
         const { renderModelSwitcher } = createModelSwitcherLifecycle({
             closeAllPopovers,
             document,
-            elements: ALL_ELEMENTS,
             escapeHTML,
             getActiveConversation,
             getConfig: () => config,
@@ -741,6 +740,7 @@
             getCouncilTexts,
             getI18n: () => i18n,
             getModelApiId,
+            getModelSwitcherContainer: () => ALL_ELEMENTS.modelSwitcherContainer,
             getModelRetirementLabel,
             getModelTiers,
             getSingleDocumentTranslatorModel,

@@ -1349,6 +1349,14 @@ test('model switcher preparation and lifecycle are isolated from the 01 runtime 
     /import\s*\{\s*createModelSwitcherLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-switcher-lifecycle\.js';/
   );
   assert.match(fragment01Source, /\{\s*renderModelSwitcher\s*\}\s*=\s*createModelSwitcherLifecycle\(\{/);
+  assert.match(helperSource, /\bgetModelSwitcherContainer\b/);
+  assert.doesNotMatch(helperSource, /\belements\b/);
+  assert.doesNotMatch(helperSource, /\bALL_ELEMENTS\b/);
+  assert.match(fragment01Source, /getModelSwitcherContainer:\s*\(\)\s*=>\s*ALL_ELEMENTS\.modelSwitcherContainer/);
+  assert.doesNotMatch(
+    fragment01Source,
+    /createModelSwitcherLifecycle\(\{[\s\S]*?elements:\s*ALL_ELEMENTS[\s\S]*?\}\);/
+  );
 
   assert.doesNotMatch(fragment01Source, /const\s+renderModelSwitcher\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(fragment01Source, /const\s+processedModels\s*=\s*MODELS\.map\(model\s*=>/);
