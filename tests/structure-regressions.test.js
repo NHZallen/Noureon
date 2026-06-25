@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import test from 'node:test';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -78,6 +78,16 @@ const getBlockFromMarker = (source, marker) => {
   const closeIndex = findMatchingBrace(source, openIndex);
   assert.notEqual(closeIndex, -1, `Expected to close block for marker ${marker}`);
   return source.slice(markerIndex, closeIndex + 1);
+};
+
+const assertMarkersInOrder = (source, markers, context) => {
+  let cursor = -1;
+  for (const marker of markers) {
+    const next = source.indexOf(marker, cursor + 1);
+    assert.notEqual(next, -1, `${context} should contain ${marker}`);
+    assert.ok(next > cursor, `${marker} should remain in ${context} legacy order`);
+    cursor = next;
+  }
 };
 
 const findCrossFragmentBracePairs = (fragments) => {
@@ -176,6 +186,22 @@ test('legacy runtime fragments keep the numeric filename ordering contract', () 
     '05-runtime.fragment.js',
     '06-runtime.fragment.js'
   ]);
+});
+
+test('legacy runtime entry still uses the sorted virtual fragment composition', () => {
+  const viteSource = readSource('vite.config.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+
+  assert.match(viteSource, /const\s+legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime';/);
+  assertMarkersInOrder(viteSource, [
+    'readdirSync(fragmentsDir)',
+    ".filter((file) => file.endsWith('.fragment.js'))",
+    '.sort()',
+    '.map((file) => resolve(fragmentsDir, file))',
+    ".map((file) => readFileSync(file, 'utf8'))",
+    ".join('\\n')"
+  ], 'Vite legacy runtime fragment composition');
+  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
 });
 
 test('legacy runtime fragments exist and are not empty', () => {
@@ -404,6 +430,141 @@ test('store navigation lifecycle owns only the selected bootstrap listeners', ()
   assert.match(initBody, /ALL_ELEMENTS\.messageInput\.addEventListener\('keydown'/);
   assert.match(initBody, /ALL_ELEMENTS\.importDataBtn\.addEventListener\('click'/);
   assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+});
+
+test('auth and homepage import bindings remain before startup in legacy order', () => {
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
+
+  assertMarkersInOrder(fragment06Source, [
+    "ALL_ELEMENTS.authForm.addEventListener('submit', handleLogin)",
+    "ALL_ELEMENTS.usernameInput.addEventListener('input', toggleAuthImportButton)",
+    "ALL_ELEMENTS.passwordInput.addEventListener('input', toggleAuthImportButton)",
+    "ALL_ELEMENTS.importBtnAuth.addEventListener('click', handleImportOnAuth)",
+    "ALL_ELEMENTS.confirmImportBtnAuth.addEventListener('click', processAuthImport)",
+    "ALL_ELEMENTS.cancelImportBtnAuth.addEventListener('click'",
+    '(async function initializeApp()'
+  ], '06 auth bootstrap');
+
+  assertMarkersInOrder(initializeAppBody, [
+    'await loadConfig()',
+    'await loadAppData()',
+    'applyCustomWallpaper()',
+    'applyUiTheme()',
+    "ALL_ELEMENTS.authContainer.style.display = 'none'",
+    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
+    "ALL_ELEMENTS.appContainer.classList.add('visible')",
+    'initChatApp()'
+  ], '06 auto-login startup');
+});
+
+test('input submit bindings and late P2P composition preserve bootstrap order', () => {
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const initStart = fragment05Source.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, '05 should define initChatApp');
+  const initOpen = fragment05Source.indexOf('{', initStart);
+  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
+  const initBody = fragment05Source.slice(initStart, initClose);
+
+  assertMarkersInOrder(initBody, [
+    "ALL_ELEMENTS.messageInput.addEventListener('input', (e) =>",
+    "ALL_ELEMENTS.messageInput.addEventListener('input', adjustTextareaHeight)",
+    "ALL_ELEMENTS.messageInput.addEventListener('keydown'",
+    "ALL_ELEMENTS.messageInput.addEventListener('focus', handleInputFocus)",
+    "ALL_ELEMENTS.messageInput.addEventListener('input', () =>",
+    "ALL_ELEMENTS.submitButton.addEventListener('click'",
+    "ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit)"
+  ], '05 input and submit bootstrap');
+
+  assertMarkersInOrder(initBody, [
+    'storeNavigationLifecycle.bind()',
+    "ALL_ELEMENTS.addFileBtn.addEventListener('click'",
+    'const receivedDataLifecycle = createReceivedDataLifecycle({',
+    'const p2pScannerLifecycle = createP2PScannerLifecycle({',
+    'const appBootstrapComposition = createAppBootstrapComposition({',
+    'appBootstrapComposition.runLateBootstrapBindings()'
+  ], '05 normal listeners and late P2P composition');
+});
+
+test('runtime core dependencies preserve their backing-state creation order', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+
+  assertMarkersInOrder(fragment00Source, [
+    'const legacyRuntimeContext = createLegacyRuntimeContext()',
+    'const ALL_ELEMENTS = {',
+    'const runtimeDomAccess = createRuntimeDomAccess({',
+    'let conversations = []',
+    'let activeConversationId = null',
+    'const conversationStateAccess = createConversationStateAccess({',
+    'let config = {',
+    'const runtimeConfigAccess = createRuntimeConfigAccess({',
+    'const showNotification =',
+    'const runtimeDialogCoordinator = createRuntimeDialogCoordinator({',
+    'createArchivedMediaAttachmentRenderer({ escapeHTML })',
+    'createArchivedMediaPreviewLifecycle({',
+    'createArchivedConversationViewRenderer({',
+    'const runtimeRenderCoordinator = createRuntimeRenderCoordinator({',
+    'const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({'
+  ], '00 runtime core composition');
+
+  assert.match(fragment00Source, /getElements:\s*\(\)\s*=>\s*ALL_ELEMENTS/);
+  assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationId/);
+  assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*config/);
+  assert.match(fragment00Source, /showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/);
+  assert.match(fragment00Source, /renderHistorySidebar:\s*\(\)\s*=>\s*renderHistorySidebar\(\)/);
+  assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
+});
+
+test('runtime lazy registrations and composition handoffs preserve legacy order', () => {
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
+
+  assertMarkersInOrder(fragment01Source, [
+    "legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState'",
+    "legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary'",
+    "legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch'",
+    "legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight'",
+    "legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews'",
+    'const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({',
+    'const handleFormSubmit = async'
+  ], '01 submit runtime registration');
+
+  assertMarkersInOrder(fragment02Source, [
+    'const updateInputState = () =>',
+    'const setupSettingsModal = () =>',
+    "legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal'",
+    "legacyRuntimeContext.registerLazyBinding('input.updateInputState'",
+    'const saveSettings = async'
+  ], '02 settings and input runtime registration');
+
+  assertMarkersInOrder(fragment05Source, [
+    'storeNavigationLifecycle.bind()',
+    'const receivedDataLifecycle = createReceivedDataLifecycle({',
+    'const p2pScannerLifecycle = createP2PScannerLifecycle({',
+    'const appBootstrapComposition = createAppBootstrapComposition({',
+    'appBootstrapComposition.runLateBootstrapBindings()'
+  ], '05 runtime composition tail');
+
+  assertMarkersInOrder(initializeAppBody, [
+    'await loadConfig()',
+    'await loadAppData()',
+    'applyCustomWallpaper()',
+    'applyUiTheme()',
+    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
+    "ALL_ELEMENTS.appContainer.classList.add('visible')",
+    'initChatApp()'
+  ], '06 startup handoff');
+
+  assert.equal(
+    existsSync(projectFile('src/app/legacy-runtime/runtime/runtime-app-composition.js')),
+    false,
+    'runtime-app-composition production boundary should not exist before its implementation slice'
+  );
 });
 
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
