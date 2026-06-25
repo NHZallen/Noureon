@@ -1023,6 +1023,34 @@ test('runtime core dependencies preserve their backing-state creation order', ()
   assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
 });
 
+test('legacy IndexedDB ownership remains guarded before storage adapter extraction', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
+  const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
+
+  assert.equal(
+    existsSync(projectFile('src/app/runtime/kernel/storage-adapter.js')),
+    false,
+    'storage adapter should not exist before the extraction slice'
+  );
+  assert.match(fragment00Source, /const\s+DB_NAME\s*=\s*['"]ChatAppDB['"]/);
+  assert.match(fragment00Source, /const\s+STORE_NAME\s*=\s*['"]keyValue['"]/);
+  assert.match(fragment00Source, /indexedDB\.open\(DB_NAME,\s*1\)/);
+  assert.match(fragment00Source, /createObjectStore\(STORE_NAME,\s*\{\s*keyPath:\s*['"]key['"]\s*\}\)/);
+  assert.match(fragment00Source, /async\s+function\s+openDB\(\)/);
+  assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
+  assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
+  assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
+  assert.match(fragment02Source, /const\s+idb\s*=\s*await\s+openDB\(\)/);
+  assert.match(fragment02Source, /idb\.transaction\(STORE_NAME,\s*['"]readwrite['"]\)/);
+  assert.match(fragment02Source, /store\.clear\(\)/);
+  assert.doesNotMatch(runtimeAppSource, /storage-adapter|indexedDB|openDB|getItem|setItem|removeItem/);
+  assert.doesNotMatch(configPersistenceSource, /storage-adapter|indexedDB|openDB|getItem|removeItem/);
+  assert.doesNotMatch(appDataPersistenceSource, /storage-adapter|indexedDB|openDB|getItem|removeItem/);
+});
+
 test('runtime lazy registrations and composition handoffs preserve legacy order', () => {
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
