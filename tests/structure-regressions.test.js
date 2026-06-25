@@ -253,6 +253,41 @@ test('folder metadata is shared without later-fragment lexical ownership', () =>
   );
 });
 
+test('color contrast helper is shared without later-fragment lexical ownership', () => {
+  const helperPath = 'src/utils/color-contrast.js';
+  const helperSource = readSource(helperPath);
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const renderHistorySidebarContentBody = getBlockFromMarker(fragment00Source, 'function renderHistorySidebarContent()');
+  const applyUiThemeBody = getConstFunctionBody(fragment04Source, 'applyUiTheme');
+
+  assert.equal(existsSync(projectFile(helperPath)), true, 'shared color contrast helper should exist');
+  assert.match(helperSource, /export\s+function\s+getTextColorForBackground\s*\(/);
+  assert.doesNotMatch(helperSource, /export\s+(?:const|function)\s+hexToRgb|export\s*\{[^}]*hexToRgb/);
+  assert.match(
+    fragment00Source,
+    /import\s*\{\s*getTextColorForBackground\s*\}\s*from\s*['"]\/src\/utils\/color-contrast\.js['"]/
+  );
+  assert.match(
+    fragment04Source,
+    /import\s*\{\s*getTextColorForBackground\s+as\s+getThemeTextColorForBackground,\s*\}\s*from\s*['"]\/src\/utils\/color-contrast\.js['"]/
+  );
+  assert.doesNotMatch(fragment04Source, /const\s+hexToRgb\s*=/);
+  assert.doesNotMatch(fragment04Source, /const\s+getTextColorForBackground\s*=/);
+  assert.match(
+    renderHistorySidebarContentBody,
+    /listItem\.style\.color\s*=\s*getTextColorForBackground\(bgColor\);/
+  );
+  assert.match(
+    applyUiThemeBody,
+    /const\s+textColor\s*=\s*\(config\.uiTheme\.style\s*===\s*'gradient'\s*&&\s*config\.uiTheme\.mode\s*===\s*'adaptive'\)\s*\?\s*'#ffffff'\s*:\s*getThemeTextColorForBackground\(primaryBg\);/
+  );
+  assertMarkersInOrder(applyUiThemeBody, [
+    "root.style.setProperty('--button-primary-bg', primaryBg)",
+    "root.style.setProperty('--button-primary-text', textColor)"
+  ], 'applyUiTheme color assignments');
+});
+
 test('legacy runtime adjacent fragments do not contain cross-fragment brace continuations', () => {
   const fragments = [
     '00-runtime.fragment.js',

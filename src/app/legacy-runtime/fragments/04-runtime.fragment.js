@@ -1,3 +1,7 @@
+import {
+    getTextColorForBackground as getThemeTextColorForBackground,
+} from '/src/utils/color-contrast.js';
+
         const setupTimeAnalysis = () => {
             const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
             const allMessages = conversations.flatMap(c => c.messages.map(m => new Date(m.createdAt)));
@@ -128,20 +132,6 @@
                 img.onerror = reject;
             });
         };
-        const hexToRgb = (hex) => {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : null;
-        };
-        const getTextColorForBackground = (hexColor) => {
-            const rgb = hexToRgb(hexColor);
-            if (!rgb) return '#000000';
-            const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-            return luminance > 0.5 ? '#000000' : '#ffffff';
-        };
         const applyUiTheme = () => {
             const root = document.documentElement;
             let primaryBg;
@@ -165,7 +155,7 @@
             }
             const textColor = (config.uiTheme.style === 'gradient' && config.uiTheme.mode === 'adaptive')
                 ? '#ffffff'
-                : getTextColorForBackground(primaryBg);
+                : getThemeTextColorForBackground(primaryBg);
             root.style.setProperty('--button-primary-bg', primaryBg);
             root.style.setProperty('--button-primary-text', textColor);
             if (primaryBgOverride) {

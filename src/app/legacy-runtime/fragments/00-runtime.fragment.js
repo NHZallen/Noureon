@@ -1,6 +1,7 @@
 import { installTouchGuards } from '/src/pwa/touch-guards.js';
 import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
 import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/folder-colors.js';
+import { getTextColorForBackground } from '/src/utils/color-contrast.js';
 import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
 import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-formatting.js';
 import { buildTimeDistributionChartData } from '/src/app/legacy-runtime/features/time-distribution-chart-data.js';
