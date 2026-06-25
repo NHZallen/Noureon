@@ -68,6 +68,15 @@ const getConstFunctionBody = (source, name) => {
   return source.slice(match.index, closeIndex + 1);
 };
 
+const getFunctionDeclarationBody = (source, name) => {
+  const match = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`).exec(source);
+  assert.ok(match, `Expected to find ${name}`);
+  const openIndex = match.index + match[0].lastIndexOf('{');
+  const closeIndex = findMatchingBrace(source, openIndex);
+  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
+  return source.slice(match.index, closeIndex + 1);
+};
+
 const assertMarkersInOrder = (source, markers, context) => {
   let cursor = -1;
   for (const marker of markers) {
@@ -204,48 +213,41 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
 
 test('03 import and auth import paths keep bulk replacements, chunked pushes, and persistence order', () => {
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
-  const performImportBody = getConstFunctionBody(fragment03Source, 'performImport');
-  const handleImportBody = getConstFunctionBody(fragment03Source, 'handleImport');
+  const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
+  const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
+  const handleImportBody = getFunctionDeclarationBody(importExportSource, 'handleImport');
   const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
 
   assertMarkersInOrder(performImportBody, [
-    'const latestAppData = runtimeAppDataStore.replaceAll({',
+    'replaceAllAppData({',
     'conversations: data.conversations || []',
     'folders: data.folders || []',
     'astras: data.astras || []',
     'personalMemories: data.personalMemories || []',
-    'conversations = latestAppData.conversations',
-    'folders = latestAppData.folders',
-    'astras = latestAppData.astras',
-    'personalMemories = latestAppData.personalMemories',
     'await saveAppData()',
-    'Object.assign(config, data.settings)',
+    'applySettings(data.settings)',
     'await saveConfig()'
   ], 'performImport bulk app data replacement');
 
   assertMarkersInOrder(handleImportBody, [
-    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'const activeAppData = replaceAllAppData({',
     'conversations: []',
     'folders: []',
     'astras: []',
     'personalMemories: []',
-    'conversations = clearedAppData.conversations',
-    'folders = clearedAppData.folders',
-    'astras = clearedAppData.astras',
-    'personalMemories = clearedAppData.personalMemories',
     'await saveConfig()',
-    'astras.push(ast)',
-    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
-    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
-    'conversations.push(conv)',
+    'activeAppData.astras.push(astra)',
+    'activeAppData.folders = replaceFolders(rawData.folders)',
+    'activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories)',
+    'activeAppData.conversations.push(conversation)',
     'await saveAppData()',
-    'toggleModal(ALL_ELEMENTS.importDataModal, false)',
+    'toggleModal(elements.importDataModal, false)',
     'showNotification',
     'applyCustomWallpaper()',
     'applyUiTheme()',
-    'applyLanguage(config.uiLanguage)',
-    'const firstConv = conversations.find(c => !c.archived && !c.deletedAt)',
-    'if (firstConv) loadChat(firstConv.id)',
+    'applyLanguage(getConfig().uiLanguage)',
+    'const firstConversation = getConversations().find((conversation) => !conversation.archived && !conversation.deletedAt)',
+    'if (firstConversation) loadChat(firstConversation.id)',
     'else startNewChat()'
   ], 'handleImport replacement, chunk import, and UI order');
 

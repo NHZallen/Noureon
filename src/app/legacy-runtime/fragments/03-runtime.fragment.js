@@ -96,6 +96,7 @@
         import { createMediaPreviewLifecycle as createSearchMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
         import { createConversationViewRenderer as createSearchConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
         import { createUploadedFilePreviewLifecycle } from '/src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js';
+        import { createLegacyImportExportLifecycle } from '/src/app/runtime/features/import-export-lifecycle.js';
         const {
             getInlineMediaSrc: getSearchInlineMediaSrc,
             renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid
@@ -400,424 +401,71 @@
             });
             event.target.value = '';
         };
-        const handleExport = async () => {
-    const dataToExport = {
-        backup_identity: {
-            username: currentUser.username,
-            exportedAt: new Date().toISOString(),
-            authVersion: currentUser.passwordKdf === 'PBKDF2-SHA-256' ? 2 : 1
-        }
-    };
-    
-    // 1. 收集資料
-    const rawData = {};
-    if (ALL_ELEMENTS.exportHistoryCheck.checked) { 
-        rawData.conversations = conversations; 
-        rawData.folders = folders; 
-    }
-    if (ALL_ELEMENTS.exportAstrasCheck.checked) { 
-        rawData.astras = astras; 
-    }
-    if (ALL_ELEMENTS.exportSettingsCheck.checked) {
-        rawData.settings = {
-            defaultModel: config.defaultModel, theme: config.theme, modelSettings: config.modelSettings,
-            aiBubbleColor: config.aiBubbleColor, userBubbleColor: config.userBubbleColor,
-            autoNaming: config.autoNaming, enableAutoWebSearch: config.enableAutoWebSearch, memoryEnabled1: config.memoryEnabled1,
-            enableAutoMemory: config.enableAutoMemory, customWallpaper: config.customWallpaper, wallpaperBrightness: config.wallpaperBrightness,
-            uiTheme: config.uiTheme, uiLanguage: config.uiLanguage, aiDefaultLanguage: config.aiDefaultLanguage,
-            isLearningMode: config.isLearningMode, outputMode: getOutputMode()
-        };
-    }
-    if (document.getElementById('export-api-check').checked) { rawData.apiKeys = config.apiKeys; }
-    if (ALL_ELEMENTS.exportMemoryCheck.checked) { rawData.personalMemories = personalMemories; }
-
-
-    if (Object.keys(rawData).length === 0) {
-        showNotification(i18n[config.uiLanguage].selectDataToExportNotice || '請至少選擇一項要匯出的資料。', 'warning');
-        return;
-    }
-
-
-    // 按鈕狀態更新
-    const originalBtnText = ALL_ELEMENTS.confirmExportBtn.textContent;
-    ALL_ELEMENTS.confirmExportBtn.textContent = "正在處理檔案...";
-    ALL_ELEMENTS.confirmExportBtn.disabled = true;
-
-
-    const dataClone = JSON.parse(JSON.stringify(rawData));
-    Object.assign(dataToExport, dataClone);
-
-
-    const timestamp = new Date().toISOString().split('T')[0];
-    const fileName = `chatbot_backup_${currentUser.username}_${timestamp}.zip`;
-    
-    try {
-        const zip = new JSZip();
-        // ✨ 建立兩個資料夾
-        const imagesFolder = zip.folder("images");
-        const filesFolder = zip.folder("files");
-
-
-        // --- 處理對話中的附件 START ---
-        if (dataToExport.conversations) {
-            for (const conv of dataToExport.conversations) {
-                for (const msg of conv.messages) {
-                    if (msg.parts) {
-                        for (const part of msg.parts) {
-                            if (part.inlineData && part.inlineData.data) {
-                                const originalMime = part.inlineData.mimeType;
-                                
-                                // 判斷是圖片還是其他檔案
-                                if (originalMime.startsWith('image/')) {
-                                    // === 圖片處理流程 (壓縮 -> images/) ===
-                                    const processed = await compressImage(part.inlineData.data, originalMime, 1920, 0.6);
-                                    const imgName = `img_${crypto.randomUUID().slice(0,8)}.${processed.ext}`;
-                                    
-                                    imagesFolder.file(imgName, processed.data, {base64: true});
-                                    
-                                    part.inlineData._zipRef = `images/${imgName}`;
-                                    part.inlineData.mimeType = processed.mimeType; // 更新為 jpeg
-                                } else {
-                                    // === 其他檔案處理流程 (原樣 -> files/) ===
-                                    // 嘗試從 mimeType 猜測副檔名，或者直接用 bin
-                                    let ext = 'bin';
-                                    if (originalMime.includes('pdf')) ext = 'pdf';
-                                    else if (originalMime.includes('text') || originalMime.includes('plain')) ext = 'txt';
-                                    else if (originalMime.includes('csv')) ext = 'csv';
-                                    else if (originalMime.includes('json')) ext = 'json';
-                                    
-                                    const fileName = `file_${crypto.randomUUID().slice(0,8)}.${ext}`;
-                                    
-                                    filesFolder.file(fileName, part.inlineData.data, {base64: true});
-                                    part.inlineData._zipRef = `files/${fileName}`;
-                                    // 檔案不修改 mimeType
-                                }
-                                
-                                // 刪除原始 Base64 數據以節省 JSON 空間
-                                delete part.inlineData.data;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // --- 處理附件 END ---
-
-
-        // B. 處理 Astras 頭像 (這一定放 images)
-        if (dataToExport.astras) {
-            for (const ast of dataToExport.astras) {
-                if (ast.avatarUrl && ast.avatarUrl.startsWith('data:image')) {
-                    const matches = ast.avatarUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-                    if (matches && matches.length === 3) {
-                        const mimeType = matches[1];
-                        const base64Data = matches[2];
-                        const processed = await compressImage(base64Data, mimeType, 256, 0.7);
-                        const imgName = `avatar_${ast.id.slice(0,8)}.${processed.ext}`;
-                        
-                        imagesFolder.file(imgName, processed.data, {base64: true});
-                        ast._avatarZipRef = `images/${imgName}`;
-                        delete ast.avatarUrl;
-                    }
-                }
-            }
-        }
-
-
-        zip.file("data.json", JSON.stringify(dataToExport));
-
-
-        const blob = await zip.generateAsync({
-            type: "blob",
-            compression: "DEFLATE",
-            compressionOptions: { level: 9 }
+        const importExportLifecycle = createLegacyImportExportLifecycle({
+            document,
+            window,
+            navigator,
+            URL,
+            File,
+            JSZip,
+            elements: ALL_ELEMENTS,
+            getCurrentUser: () => currentUser,
+            getConfig: () => config,
+            mutateConfig: (mutator) => {
+                if (typeof mutator === 'function') return mutator(config);
+                Object.assign(config, mutator);
+                return config;
+            },
+            getConversations: () => conversations,
+            getFolders: () => folders,
+            getAstras: () => astras,
+            getPersonalMemories: () => personalMemories,
+            replaceAllAppData: (nextAppData) => {
+                const snapshot = runtimeAppDataStore.replaceAll(nextAppData);
+                conversations = snapshot.conversations;
+                folders = snapshot.folders;
+                astras = snapshot.astras;
+                personalMemories = snapshot.personalMemories;
+                return snapshot;
+            },
+            replaceFolders: (nextFolders) => {
+                folders = runtimeAppDataStore.replaceFolders(nextFolders);
+                return folders;
+            },
+            replacePersonalMemories: (nextPersonalMemories) => {
+                personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
+                return personalMemories;
+            },
+            saveAppData,
+            saveConfig,
+            processInChunks,
+            getBackupUsername,
+            compressImage,
+            analyzeImageBrightness,
+            getDominantColorPalette,
+            applyCustomWallpaper,
+            applyUiTheme,
+            applyLanguage,
+            setAiBubbleColor,
+            setUserBubbleColor,
+            loadChat,
+            startNewChat,
+            showCustomConfirm,
+            showNotification,
+            toggleModal,
+            getOutputMode,
+            resolveSearchSetupSettingsModal,
+            i18n,
+            randomUUID: () => crypto.randomUUID(),
+            delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+            logger: console,
         });
 
-
-        if ('showSaveFilePicker' in window) {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: fileName,
-                    types: [{ description: 'Astra Backup (ZIP)', accept: { 'application/zip': ['.zip'] } }],
-                });
-                const writable = await handle.createWritable();
-                await writable.write(blob);
-                await writable.close();
-                toggleModal(ALL_ELEMENTS.exportDataModal, false);
-                showNotification(i18n[config.uiLanguage].exportSuccess || '資料匯出成功！', 'success');
-                return;
-            } catch (err) { console.log("File System API skipped."); }
-        }
-
-
-        const shareFile = new File([blob], fileName, { type: 'application/zip' });
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] }) && /Mobi|Android/i.test(navigator.userAgent)) {
-            await navigator.share({ files: [shareFile], title: 'Astra Backup', text: 'Chat backup.' });
-        } else {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        }
-
-
-        toggleModal(ALL_ELEMENTS.exportDataModal, false);
-        showNotification(i18n[config.uiLanguage].exportSuccess || '資料匯出成功！', 'success');
-
-
-    } catch (error) {
-        console.error("Export failed:", error);
-        showNotification(`${i18n[config.uiLanguage].exportFailed || '匯出失敗'}: ${error.message}`, 'error');
-    } finally {
-        ALL_ELEMENTS.confirmExportBtn.textContent = originalBtnText;
-        ALL_ELEMENTS.confirmExportBtn.disabled = false;
-    }
-};
-        const performImport = async (data) => {
-            if (!currentUser) {
-                throw new Error("無法在沒有登入使用者的情況下匯入資料。");
-            }
-            const latestAppData = runtimeAppDataStore.replaceAll({
-                conversations: data.conversations || [],
-                folders: data.folders || [],
-                astras: data.astras || [],
-                personalMemories: data.personalMemories || [],
-            });
-            conversations = latestAppData.conversations;
-            folders = latestAppData.folders;
-            astras = latestAppData.astras;
-            personalMemories = latestAppData.personalMemories;
-            await saveAppData();
-            if (data.settings) {
-                Object.assign(config, data.settings);
-            }
-            if (data.apiKeys) {
-                config.apiKeys = { ...config.apiKeys, ...data.apiKeys };
-            }
-            await saveConfig();
-        };
-        const handleImport = async () => {
-    const file = ALL_ELEMENTS.importFileInput.files[0];
-    if (!file) {
-        showNotification(i18n[config.uiLanguage].selectFileError || '請選擇檔案。', 'error');
-        return;
-    }
-
-    // 1. 初始化 UI
-    const { importProgressContainer, importProgressBar, importStatusText, importPercentage, importWarningText, confirmImportBtn } = ALL_ELEMENTS;
-    
-    importProgressContainer.classList.remove('hidden');
-    importWarningText.classList.remove('hidden');
-    confirmImportBtn.disabled = true; // 禁用按鈕防止重複點擊
-    confirmImportBtn.textContent = "處理中...";
-    
-    const updateProgress = (percent, text) => {
-        importProgressBar.style.width = `${percent}%`;
-        importPercentage.textContent = `${Math.round(percent)}%`;
-        if (text) importStatusText.textContent = text;
-    };
-
-    try {
-        updateProgress(5, "正在讀取檔案...");
-        
-        // 模擬您要求的等待時間 (雖然技術上不需要，但為了符合您的需求，這裡先等待 1 秒讓使用者看清進度條出現)
-        await new Promise(r => setTimeout(r, 1000));
-
-        let rawData = null;
-        let zip = null;
-
-        // 2. 判斷檔案類型並讀取
-        if (file.name.endsWith('.zip') || file.type.includes('zip')) {
-            updateProgress(10, "正在解壓縮 ZIP...");
-            zip = await JSZip.loadAsync(file);
-            
-            let jsonFile = zip.file("data.json");
-            if (!jsonFile) {
-                // 嘗試尋找任何 .json 檔案 (兼容舊版備份)
-                const files = Object.keys(zip.files);
-                const jsonFileName = files.find(name => name.endsWith('.json'));
-                if (jsonFileName) jsonFile = zip.file(jsonFileName);
-            }
-            
-            if (!jsonFile) throw new Error("ZIP 檔案中找不到 JSON 資料。");
-            
-            updateProgress(20, "正在解析 JSON 結構...");
-            const jsonContent = await jsonFile.async("string");
-            
-            // 注意：如果 JSON 本身巨大 (例如 500MB 文字)，這裡還是可能崩潰。
-            // 但通常 ZIP 裡的 JSON 即使大也能被現代手機解析，瓶頸通常在 DOM 渲染或圖片處理。
-            rawData = JSON.parse(jsonContent);
-
-        } else {
-            updateProgress(10, "正在解析 JSON...");
-            const text = await file.text();
-            rawData = JSON.parse(text);
-        }
-
-        // 3. 權限檢查 (維持原有邏輯)
-        const backupUsername = getBackupUsername(rawData);
-        if (backupUsername && backupUsername !== currentUser.username) {
-            const confirmed = await showCustomConfirm(
-                i18n[config.uiLanguage].importUserMismatch.replace('{backupUser}', backupUsername).replace('{currentUser}', currentUser.username),
-                i18n[config.uiLanguage].importUserMismatchTitle
-            );
-            if (!confirmed) throw new Error("使用者取消匯入");
-        } else {
-            // 簡單確認
-            if (!(await showCustomConfirm(i18n[config.uiLanguage].importOverwriteWarning, i18n[config.uiLanguage].importConfirmation))) {
-                throw new Error("使用者取消匯入");
-            }
-        }
-
-        // 4. 開始分階段匯入資料
-        updateProgress(30, "準備匯入資料...");
-
-        // 清空現有資料 (根據需求，這裡是覆蓋模式)
-        const clearedAppData = runtimeAppDataStore.replaceAll({
-            conversations: [],
-            folders: [],
-            astras: [],
-            personalMemories: [],
-        });
-        conversations = clearedAppData.conversations;
-        folders = clearedAppData.folders;
-        astras = clearedAppData.astras;
-        personalMemories = clearedAppData.personalMemories;
-
-        // --- 處理設定 (Settings) ---
-        if (rawData.settings) Object.assign(config, rawData.settings);
-        if (rawData.apiKeys) config.apiKeys = { ...config.apiKeys, ...rawData.apiKeys };
-        await saveConfig();
-
-        // --- 處理 Astras (分塊處理) ---
-        const astrasToImport = rawData.astras || [];
-        if (astrasToImport.length > 0) {
-            await processInChunks(astrasToImport, async (ast) => {
-                // 處理 Astra 頭像 (如果是 ZIP 格式)
-                if (ast._avatarZipRef && zip) {
-                    try {
-                        const fileInZip = zip.file(ast._avatarZipRef);
-                        if (fileInZip) {
-                            const base64 = await fileInZip.async("base64");
-                            let mime = 'image/png';
-                            if (ast._avatarZipRef.endsWith('.jpg') || ast._avatarZipRef.endsWith('.jpeg')) mime = 'image/jpeg';
-                            ast.avatarUrl = `data:${mime};base64,${base64}`;
-                            delete ast._avatarZipRef;
-                        }
-                    } catch (e) { console.warn("Astra 頭像還原失敗", e); }
-                }
-                astras.push(ast);
-            }, 10, (current, total) => {
-                // 進度 30% ~ 40% 分配給 Astras
-                const p = 30 + (current / total) * 10;
-                updateProgress(p, `正在匯入 Astras (${current}/${total})...`);
-            });
-        }
-
-        // --- 處理資料夾 ---
-        if (rawData.folders) {
-            folders = runtimeAppDataStore.replaceFolders(rawData.folders);
-        }
-
-        // --- 處理記憶 ---
-        if (rawData.personalMemories) {
-            personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories);
-        }
-
-        // --- 處理對話 (最佔資源的部分 - 分塊處理) ---
-        const convsToImport = rawData.conversations || [];
-        if (convsToImport.length > 0) {
-            // 為了避免記憶體峰值，我們直接操作全域變數 conversations，而不是建立巨大的暫存陣列
-            await processInChunks(convsToImport, async (conv) => {
-                // 處理每則訊息中的圖片/檔案附件
-                for (const msg of conv.messages) {
-                    if (msg.parts) {
-                        for (const part of msg.parts) {
-                            // 處理 ZIP 參照還原
-                            if (part.inlineData && part.inlineData._zipRef && zip) {
-                                try {
-                                    const fileName = part.inlineData._zipRef;
-                                    const fileInZip = zip.file(fileName);
-                                    if (fileInZip) {
-                                        const base64 = await fileInZip.async("base64");
-                                        part.inlineData.data = base64;
-                                        delete part.inlineData._zipRef;
-                                    }
-                                } catch (e) { console.warn("附件還原失敗", e); }
-                            }
-                        }
-                    }
-                }
-                conversations.push(conv);
-            }, 5, (current, total) => { // 每次處理 5 個對話，避免卡頓
-                // 進度 40% ~ 90% 分配給對話
-                const p = 40 + (current / total) * 50;
-                updateProgress(p, `正在還原對話 (${current}/${total})...`);
-            });
-        }
-
-        // 5. 儲存至 IndexedDB (這是另一個耗時操作)
-        updateProgress(90, "正在寫入資料庫...");
-        
-        // 為了防止 saveAppData (JSON.stringify) 導致記憶體不足，
-        // 如果資料真的超級大，這裡其實應該拆分儲存 key，但為了相容性，我們先維持原樣。
-        // 在分塊處理後，記憶體壓力已經比原本小很多了（因為 GC 有機會介入）。
-        await saveAppData();
-
-        updateProgress(100, "匯入完成！");
-        
-        // 稍微等待一下讓使用者看到 100%
-        await new Promise(r => setTimeout(r, 500));
-
-        // 6. 後續 UI 更新
-        toggleModal(ALL_ELEMENTS.importDataModal, false);
-        showNotification(i18n[config.uiLanguage].importSuccess, 'success');
-
-        if (config.customWallpaper) {
-            try {
-                const brightness = await analyzeImageBrightness(config.customWallpaper);
-                config.wallpaperBrightness = brightness;
-                if (config.uiTheme.mode === 'adaptive') {
-                    const palette = await getDominantColorPalette(config.customWallpaper);
-                    config.uiTheme.adaptivePalette = palette;
-                    config.uiTheme.adaptiveColor = palette[0] || '#3b82f6';
-                }
-                await saveConfig();
-            } catch (err) { }
-        }
-        
-        applyCustomWallpaper();
-        applyUiTheme();
-        setAiBubbleColor();
-        setUserBubbleColor();
-        applyLanguage(config.uiLanguage);
-        resolveSearchSetupSettingsModal();
-        
-        const firstConv = conversations.find(c => !c.archived && !c.deletedAt);
-        if (firstConv) loadChat(firstConv.id);
-        else startNewChat();
-
-    } catch (error) {
-        if (error.message === "使用者取消匯入") {
-            showNotification("已取消匯入", "info");
-        } else {
-            console.error(error);
-            showNotification(`${i18n[config.uiLanguage].importFailed}: ${error.message}`, 'error');
-            updateProgress(0, "匯入失敗");
-            importProgressBar.classList.add('bg-red-500');
-        }
-    } finally {
-        // 重置 UI 狀態
-        confirmImportBtn.disabled = false;
-        confirmImportBtn.textContent = i18n[config.uiLanguage].confirmAndImport || "確認並匯入";
-        // 不要立即隱藏進度條，讓使用者看到結果，下次打開視窗時再重置
-    }
-};
+        const {
+            handleExport,
+            performImport,
+            handleImport,
+        } = importExportLifecycle;
         const handleImportOnAuth = () => {
             toggleModal(ALL_ELEMENTS.importDataModalAuth, true);
         };

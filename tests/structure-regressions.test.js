@@ -70,6 +70,15 @@ const getConstFunctionBody = (source, name) => {
   return source.slice(match.index, closeIndex + 1);
 };
 
+const getFunctionDeclarationBody = (source, name) => {
+  const match = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`).exec(source);
+  assert.ok(match, `Expected to find ${name}`);
+  const openIndex = match.index + match[0].lastIndexOf('{');
+  const closeIndex = findMatchingBrace(source, openIndex);
+  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
+  return source.slice(match.index, closeIndex + 1);
+};
+
 const getBlockFromMarker = (source, marker) => {
   const markerIndex = source.indexOf(marker);
   assert.notEqual(markerIndex, -1, `Expected to find marker ${marker}`);
@@ -244,6 +253,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   const normalizationSource = readSource(normalizationPath);
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
   const laterFragmentSources = [
     '01-runtime.fragment.js',
@@ -319,7 +329,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal((laterFragmentSources.join('\n').match(/\bsaveConfig\(\)/g) || []).length, 14);
+  assert.equal(((laterFragmentSources.join('\n') + importExportSource).match(/\bsaveConfig\(\)/g) || []).length, 14);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -342,6 +352,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
+  const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const laterFragmentSources = [
     '01-runtime.fragment.js',
     '02-runtime.fragment.js',
@@ -423,7 +434,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + folderLifecycleSource + trashLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + folderLifecycleSource + trashLifecycleSource + importExportSource).match(/\bsaveAppData\(\)/g) || []).length,
     32
   );
   for (const source of laterFragmentSources) {
@@ -438,6 +449,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const normalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
@@ -449,8 +461,8 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
   const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
   const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
-  const performImportBody = getConstFunctionBody(fragment03Source, 'performImport');
-  const handleImportBody = getConstFunctionBody(fragment03Source, 'handleImport');
+  const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
+  const handleImportBody = getFunctionDeclarationBody(importExportSource, 'handleImport');
   const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
   const handleSubscriptionBody = getConstFunctionBody(fragment04Source, 'handleSubscription');
   const permanentDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleDeleteTrashItemPermanently');
@@ -537,33 +549,25 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'renderPersonalMemoryList()'
   ], '03 personal memory delete store replacement');
   assertMarkersInOrder(performImportBody, [
-    'const latestAppData = runtimeAppDataStore.replaceAll({',
+    'replaceAllAppData({',
     'conversations: data.conversations || []',
     'folders: data.folders || []',
     'astras: data.astras || []',
     'personalMemories: data.personalMemories || []',
-    'conversations = latestAppData.conversations',
-    'folders = latestAppData.folders',
-    'astras = latestAppData.astras',
-    'personalMemories = latestAppData.personalMemories',
     'await saveAppData()'
-  ], '03 performImport store-backed bulk replacement');
+  ], 'import-export lifecycle performImport injected bulk replacement');
   assertMarkersInOrder(handleImportBody, [
-    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'const activeAppData = replaceAllAppData({',
     'conversations: []',
     'folders: []',
     'astras: []',
     'personalMemories: []',
-    'conversations = clearedAppData.conversations',
-    'folders = clearedAppData.folders',
-    'astras = clearedAppData.astras',
-    'personalMemories = clearedAppData.personalMemories',
-    'astras.push(ast)',
-    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
-    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
-    'conversations.push(conv)',
+    'activeAppData.astras.push(astra)',
+    'activeAppData.folders = replaceFolders(rawData.folders)',
+    'activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories)',
+    'activeAppData.conversations.push(conversation)',
     'await saveAppData()'
-  ], '03 handleImport store-backed replacements and chunked pushes');
+  ], 'import-export lifecycle handleImport injected replacements and chunked pushes');
   assertMarkersInOrder(processAuthImportBody, [
     'const clearedAppData = runtimeAppDataStore.replaceAll({',
     'conversations: []',
@@ -625,8 +629,8 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment04Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
-  assert.equal((performImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
-  assert.equal((handleImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
+  assert.equal((performImportBody.match(/replaceAllAppData\(/g) || []).length, 1);
+  assert.equal((handleImportBody.match(/replaceAllAppData\(/g) || []).length, 1);
   assert.equal((processAuthImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
   assert.doesNotMatch(fragment03Source, /appendConversations|appendAstras|syncFromLexical/);
   assert.doesNotMatch(storeSource, /appendConversations|appendAstras|syncFromLexical/);
@@ -788,6 +792,61 @@ test('trash lifecycle ownership moves out of 04 into a real runtime module', () 
   assert.doesNotMatch(fragment04Source, /\blet\s+isTrashSelectionMode\b|\bnew\s+Set\(\)/);
   assert.match(lifecycleSource, /let\s+isTrashSelectionMode\s*=\s*false/);
   assert.match(lifecycleSource, /const\s+selectedTrashIds\s*=\s*new\s+Set\(\)/);
+});
+
+test('normal import/export lifecycle ownership moves out of 03 into a real runtime module', () => {
+  const lifecyclePath = 'src/app/runtime/features/import-export-lifecycle.js';
+  const lifecycleSource = readSource(lifecyclePath);
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+
+  assert.equal(existsSync(projectFile(lifecyclePath)), true);
+  assert.match(lifecycleSource, /export\s+function\s+createLegacyImportExportLifecycle/);
+  assert.doesNotMatch(
+    lifecycleSource,
+    /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|initChatApp|initializeApp|chat_lastUser|createPasswordRecord|getUserKey/
+  );
+  assert.doesNotMatch(lifecycleSource, /(?:^|\n)\s*currentUser\s*=/);
+  assert.match(fragment03Source, /import\s+\{\s*createLegacyImportExportLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/import-export-lifecycle\.js['"]/);
+  assertMarkersInOrder(fragment03Source, [
+    'const importExportLifecycle = createLegacyImportExportLifecycle({',
+    'getCurrentUser: () => currentUser',
+    'getConfig: () => config',
+    'mutateConfig: (mutator) => {',
+    'getConversations: () => conversations',
+    'getFolders: () => folders',
+    'getAstras: () => astras',
+    'getPersonalMemories: () => personalMemories',
+    'replaceAllAppData: (nextAppData) => {',
+    'const snapshot = runtimeAppDataStore.replaceAll(nextAppData)',
+    'conversations = snapshot.conversations',
+    'folders = snapshot.folders',
+    'astras = snapshot.astras',
+    'personalMemories = snapshot.personalMemories',
+    'replaceFolders: (nextFolders) => {',
+    'folders = runtimeAppDataStore.replaceFolders(nextFolders)',
+    'replacePersonalMemories: (nextPersonalMemories) => {',
+    'personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories)',
+    'saveAppData',
+    'saveConfig',
+    'const {',
+    'handleExport',
+    'performImport',
+    'handleImport',
+    '} = importExportLifecycle',
+    'const handleImportOnAuth = () => {',
+    'const processAuthImport = async () => {'
+  ], '03 import/export lifecycle wiring and auth split');
+  for (const name of ['handleExport', 'performImport', 'handleImport']) {
+    assert.doesNotMatch(fragment03Source, new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`));
+  }
+  assert.match(fragment03Source, /const\s+handleImportOnAuth\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(fragment03Source, /const\s+processAuthImport\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(fragment05Source, /confirmExportBtn\.addEventListener\('click',\s*handleExport\)/);
+  assert.match(fragment05Source, /confirmImportBtn\.addEventListener\('click',\s*handleImport\)/);
+  assert.match(fragment06Source, /importBtnAuth\.addEventListener\('click',\s*handleImportOnAuth\)/);
+  assert.match(fragment06Source, /confirmImportBtnAuth\.addEventListener\('click',\s*processAuthImport\)/);
 });
 
 test('color contrast helper is shared without later-fragment lexical ownership', () => {
