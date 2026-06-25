@@ -530,23 +530,33 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'renderPersonalMemoryList()'
   ], '03 personal memory delete store replacement');
   assertMarkersInOrder(performImportBody, [
-    'conversations = data.conversations || []',
-    'folders = data.folders || []',
-    'astras = data.astras || []',
-    'personalMemories = data.personalMemories || []',
+    'const latestAppData = runtimeAppDataStore.replaceAll({',
+    'conversations: data.conversations || []',
+    'folders: data.folders || []',
+    'astras: data.astras || []',
+    'personalMemories: data.personalMemories || []',
+    'conversations = latestAppData.conversations',
+    'folders = latestAppData.folders',
+    'astras = latestAppData.astras',
+    'personalMemories = latestAppData.personalMemories',
     'await saveAppData()'
-  ], '03 performImport legacy bulk replacements');
+  ], '03 performImport store-backed bulk replacement');
   assertMarkersInOrder(handleImportBody, [
-    'conversations = []',
-    'folders = []',
-    'astras = []',
-    'personalMemories = []',
+    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'conversations: []',
+    'folders: []',
+    'astras: []',
+    'personalMemories: []',
+    'conversations = clearedAppData.conversations',
+    'folders = clearedAppData.folders',
+    'astras = clearedAppData.astras',
+    'personalMemories = clearedAppData.personalMemories',
     'astras.push(ast)',
-    'folders = rawData.folders',
-    'personalMemories = rawData.personalMemories',
+    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
+    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
     'conversations.push(conv)',
     'await saveAppData()'
-  ], '03 handleImport legacy replacements and chunked pushes');
+  ], '03 handleImport store-backed replacements and chunked pushes');
   assertMarkersInOrder(processAuthImportBody, [
     'conversations = []',
     'folders = []',
@@ -598,7 +608,9 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment04Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
-  assert.doesNotMatch(fragment03Source, /runtimeAppDataStore\.replaceAll\(/);
+  assert.equal((performImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
+  assert.equal((handleImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
+  assert.doesNotMatch(processAuthImportBody, /runtimeAppDataStore\./);
   assert.doesNotMatch(fragment03Source, /appendConversations|appendAstras|syncFromLexical/);
   assert.doesNotMatch(storeSource, /appendConversations|appendAstras|syncFromLexical/);
   assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);

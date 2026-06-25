@@ -582,10 +582,16 @@
             if (!currentUser) {
                 throw new Error("無法在沒有登入使用者的情況下匯入資料。");
             }
-            conversations = data.conversations || [];
-            folders = data.folders || [];
-            astras = data.astras || [];
-            personalMemories = data.personalMemories || [];
+            const latestAppData = runtimeAppDataStore.replaceAll({
+                conversations: data.conversations || [],
+                folders: data.folders || [],
+                astras: data.astras || [],
+                personalMemories: data.personalMemories || [],
+            });
+            conversations = latestAppData.conversations;
+            folders = latestAppData.folders;
+            astras = latestAppData.astras;
+            personalMemories = latestAppData.personalMemories;
             await saveAppData();
             if (data.settings) {
                 Object.assign(config, data.settings);
@@ -672,10 +678,16 @@
         updateProgress(30, "準備匯入資料...");
 
         // 清空現有資料 (根據需求，這裡是覆蓋模式)
-        conversations = [];
-        folders = [];
-        astras = [];
-        personalMemories = [];
+        const clearedAppData = runtimeAppDataStore.replaceAll({
+            conversations: [],
+            folders: [],
+            astras: [],
+            personalMemories: [],
+        });
+        conversations = clearedAppData.conversations;
+        folders = clearedAppData.folders;
+        astras = clearedAppData.astras;
+        personalMemories = clearedAppData.personalMemories;
 
         // --- 處理設定 (Settings) ---
         if (rawData.settings) Object.assign(config, rawData.settings);
@@ -709,12 +721,12 @@
 
         // --- 處理資料夾 ---
         if (rawData.folders) {
-            folders = rawData.folders;
+            folders = runtimeAppDataStore.replaceFolders(rawData.folders);
         }
 
         // --- 處理記憶 ---
         if (rawData.personalMemories) {
-            personalMemories = rawData.personalMemories;
+            personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories);
         }
 
         // --- 處理對話 (最佔資源的部分 - 分塊處理) ---
