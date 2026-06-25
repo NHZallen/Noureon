@@ -40,6 +40,7 @@ import {
     normalizeLoadedLegacyConfig
 } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
+import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -1134,6 +1135,17 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`;
         const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;
         const getUserKey = (username) => `chatUser_${username}`;
+        const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({
+            getCurrentUser: () => currentUser,
+            getAppData: () => ({
+                conversations,
+                folders,
+                astras,
+                personalMemories
+            }),
+            getAppDataKey,
+            setItem
+        });
         const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
             getCurrentUser: () => currentUser,
             getConfig: () => runtimeConfigStore.getConfig(),
@@ -1333,7 +1345,7 @@ function renderMarkdownWithFormulas(text) {
                 Object.assign(config, normalizedConfig);
             }
         };
-        const saveAppData = async () => { if (currentUser) await setItem(getAppDataKey(), JSON.stringify({ conversations, folders, astras, personalMemories })); };
+        const saveAppData = async () => { await runtimeAppDataPersistence.saveAppData(); };
         const loadAppData = async () => {
             if (!currentUser) return;
             const saved = await getItem(getAppDataKey());

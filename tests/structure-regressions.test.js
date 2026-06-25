@@ -336,7 +336,9 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
 
 test('runtime app data normalization moves into a pure non-live kernel helper', () => {
   const normalizationPath = 'src/app/runtime/kernel/app-data-normalization.js';
+  const persistencePath = 'src/app/runtime/kernel/app-data-persistence.js';
   const normalizationSource = readSource(normalizationPath);
+  const persistenceSource = readSource(persistencePath);
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const laterFragmentSources = [
@@ -360,13 +362,36 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(normalizationSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|runtimeContext/);
   assert.doesNotMatch(normalizationSource, /getItem|setItem|removeItem|openDB|indexedDB|localStorage|sessionStorage|currentUser/);
   assert.doesNotMatch(normalizationSource, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
+  assert.equal(existsSync(projectFile(persistencePath)), true, 'runtime app data persistence module should exist');
+  assert.match(persistenceSource, /export\s+function\s+createLegacyRuntimeAppDataPersistence/);
+  assert.doesNotMatch(persistenceSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|app-data-normalization/);
+  assert.doesNotMatch(persistenceSource, /getItem|removeItem|openDB|loadAppData|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(persistenceSource, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
+  assert.doesNotMatch(persistenceSource, /try\s*\{|catch\s*\(/);
 
   assert.match(
     fragment00Source,
     /import\s+\{\s*normalizeLoadedLegacyAppData\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/app-data-normalization\.js['"]/
   );
+  assert.match(
+    fragment00Source,
+    /import\s+\{\s*createLegacyRuntimeAppDataPersistence\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/app-data-persistence\.js['"]/
+  );
+  assertMarkersInOrder(fragment00Source, [
+    'const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`',
+    'const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({',
+    'getCurrentUser: () => currentUser',
+    'getAppData: () => ({',
+    'conversations',
+    'folders',
+    'astras',
+    'personalMemories',
+    'getAppDataKey',
+    'setItem',
+    'const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({'
+  ], '00 runtime app data persistence wiring');
   assert.match(fragment00Source, /const\s+loadAppData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*if\s*\(currentUser\)\s*await\s+setItem\(getAppDataKey\(\),\s*JSON\.stringify\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)\);\s*\}/);
+  assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(\);\s*\}/);
   assert.match(fragment00Source, /const\s+getAppDataKey\s*=\s*\(\)\s*=>\s*`chatAppData_v8\.6_\$\{currentUser\.username\}`/);
   assertMarkersInOrder(loadAppDataBody, [
     'if (!currentUser) return',
@@ -398,9 +423,10 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
   assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
 
-  assert.doesNotMatch(runtimeAppSource, /app-data-normalization|loadAppData|saveAppData|indexedDB/);
+  assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
+  assert.equal((laterFragmentSources.join('\n').match(/\bsaveAppData\(\)/g) || []).length, 32);
   for (const source of laterFragmentSources) {
-    assert.doesNotMatch(source, /app-data-normalization/);
+    assert.doesNotMatch(source, /app-data-normalization|app-data-persistence/);
   }
 });
 
