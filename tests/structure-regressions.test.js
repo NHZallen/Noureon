@@ -421,8 +421,9 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
+  const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + folderLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + folderLifecycleSource + trashLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
     32
   );
   for (const source of laterFragmentSources) {
@@ -437,6 +438,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const normalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
   const storeSource = readSource('src/app/runtime/kernel/app-data-store.js');
@@ -451,9 +453,9 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const handleImportBody = getConstFunctionBody(fragment03Source, 'handleImport');
   const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
   const handleSubscriptionBody = getConstFunctionBody(fragment04Source, 'handleSubscription');
-  const permanentDeleteBody = getConstFunctionBody(fragment04Source, 'handleDeleteTrashItemPermanently');
-  const batchDeleteBody = getConstFunctionBody(fragment04Source, 'handleBatchDeleteFromTrash');
-  const emptyTrashBody = getConstFunctionBody(fragment04Source, 'handleEmptyTrash');
+  const permanentDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleDeleteTrashItemPermanently');
+  const batchDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchDeleteFromTrash');
+  const emptyTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleEmptyTrash');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
@@ -594,8 +596,8 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   ], '04 store unsubscribe Astra replacement');
   assertMarkersInOrder(permanentDeleteBody, [
     'showCustomConfirm',
-    'conversations = runtimeAppDataStore.replaceConversations(',
-    'conversations.filter(c => c.id !== convId)',
+    'replaceConversations(',
+    'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
@@ -603,17 +605,18 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assertMarkersInOrder(batchDeleteBody, [
     'const count = selectedTrashIds.size',
     'showCustomConfirm',
-    'conversations = runtimeAppDataStore.replaceConversations(',
-    'conversations.filter(c => !selectedTrashIds.has(c.id))',
+    'replaceConversations(',
+    'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
     'toggleTrashSelectionMode()',
     'showNotification'
   ], '04 trash batch delete store replacement');
   assertMarkersInOrder(emptyTrashBody, [
     'showCustomConfirm',
-    'const count = conversations.filter(c => c.deletedAt).length',
-    'conversations = runtimeAppDataStore.replaceConversations(',
-    'conversations.filter(c => !c.deletedAt)',
+    'const conversations = getConversations()',
+    'const count = conversations.filter(conversation => conversation.deletedAt).length',
+    'replaceConversations(',
+    'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
@@ -734,6 +737,57 @@ test('folder CRUD lifecycle ownership moves out of 02 into a real runtime module
   assert.doesNotMatch(fragment00Source, /\bfolderToCustomize\b/);
   assert.doesNotMatch(fragment02Source, /\bfolderToCustomize\b/);
   assert.match(lifecycleSource, /let\s+folderToCustomize\s*=\s*null/);
+});
+
+test('trash lifecycle ownership moves out of 04 into a real runtime module', () => {
+  const lifecyclePath = 'src/app/runtime/features/trash-lifecycle.js';
+  const lifecycleSource = readSource(lifecyclePath);
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+
+  assert.equal(existsSync(projectFile(lifecyclePath)), true);
+  assert.match(lifecycleSource, /export\s+function\s+createLegacyTrashLifecycle/);
+  assert.doesNotMatch(
+    lifecycleSource,
+    /legacy-runtime\/fragments|virtual:legacy-app-runtime|storage-adapter|runtime-app|indexedDB|localStorage|sessionStorage|currentUser|loadConfig|loadAppData|initChatApp|initializeApp|Peer|P2P|JSZip/
+  );
+  assert.match(fragment04Source, /import\s+\{\s*createLegacyTrashLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/trash-lifecycle\.js['"]/);
+  assertMarkersInOrder(fragment04Source, [
+    'const {',
+    'renderTrash',
+    'handleRestoreTrashItem',
+    'handleDeleteTrashItemPermanently',
+    'showTrashItemInViewModal',
+    'toggleTrashSelectionMode',
+    'renderTrashBatchActionBar',
+    'handleBatchRestoreFromTrash',
+    'handleBatchDeleteFromTrash',
+    'handleEmptyTrash',
+    '} = createLegacyTrashLifecycle({',
+    'elements: ALL_ELEMENTS',
+    'getConversations: () => conversations',
+    'replaceConversations: (nextConversations) => {',
+    'conversations = runtimeAppDataStore.replaceConversations(nextConversations)',
+    'return conversations',
+    'saveAppData'
+  ], '04 trash lifecycle wiring');
+  for (const name of [
+    'renderTrash',
+    'handleRestoreTrashItem',
+    'handleDeleteTrashItemPermanently',
+    'showTrashItemInViewModal',
+    'toggleTrashSelectionMode',
+    'renderTrashBatchActionBar',
+    'handleBatchRestoreFromTrash',
+    'handleBatchDeleteFromTrash',
+    'handleEmptyTrash'
+  ]) {
+    assert.doesNotMatch(fragment04Source, new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`));
+  }
+  assert.doesNotMatch(fragment00Source, /\bisTrashSelectionMode\b|\bselectedTrashIds\b/);
+  assert.doesNotMatch(fragment04Source, /\blet\s+isTrashSelectionMode\b|\bnew\s+Set\(\)/);
+  assert.match(lifecycleSource, /let\s+isTrashSelectionMode\s*=\s*false/);
+  assert.match(lifecycleSource, /const\s+selectedTrashIds\s*=\s*new\s+Set\(\)/);
 });
 
 test('color contrast helper is shared without later-fragment lexical ownership', () => {
@@ -1434,6 +1488,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
@@ -1441,8 +1496,8 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const handleBatchArchiveBody = getConstFunctionBody(fragment03Source, 'handleBatchArchive');
   const defaultModelUpdateBody = getBlockFromMarker(fragment03Source, 'input[name="default-model-radio"]');
   const moveModelOrderBody = getConstFunctionBody(fragment03Source, 'moveModelOrder');
-  const handleRestoreTrashItemBody = getConstFunctionBody(fragment04Source, 'handleRestoreTrashItem');
-  const handleBatchRestoreFromTrashBody = getConstFunctionBody(fragment04Source, 'handleBatchRestoreFromTrash');
+  const handleRestoreTrashItemBody = getConstFunctionBody(trashLifecycleSource, 'handleRestoreTrashItem');
+  const handleBatchRestoreFromTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchRestoreFromTrash');
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeDialogCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeDialogCoordinator\s*\}/);
@@ -1459,8 +1514,6 @@ test('runtime dialog coordinator owns selected notification call sites without r
     deactivateAstrasBody,
     deleteAstrasBody,
     handleBatchArchiveBody,
-    handleRestoreTrashItemBody,
-    handleBatchRestoreFromTrashBody,
     defaultModelUpdateBody,
     moveModelOrderBody
   ]) {
@@ -1472,8 +1525,9 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderTrash\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(fragment04Source, /showCoordinatedNotification:\s*\(\.\.\.args\)\s*=>\s*runtimeDialogCoordinator\.showNotification\(\.\.\.args\)/);
+  assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderTrash\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
   assert.match(defaultModelUpdateBody, /config\.defaultModel\s*=\s*modelId;\s*await\s+saveConfig\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
   assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
 });
@@ -1589,18 +1643,18 @@ test('runtime DOM access owns selected element reads through the extracted DOM r
 });
 
 test('trash batch selection checkbox click does not bubble into row toggle', () => {
-  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
-  const renderTrashBody = getConstFunctionBody(fragment04Source, 'renderTrash');
-  const handleBatchRestoreFromTrashBody = getConstFunctionBody(fragment04Source, 'handleBatchRestoreFromTrash');
-  const handleBatchDeleteFromTrashBody = getConstFunctionBody(fragment04Source, 'handleBatchDeleteFromTrash');
+  const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
+  const renderTrashBody = getConstFunctionBody(trashLifecycleSource, 'renderTrash');
+  const handleBatchRestoreFromTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchRestoreFromTrash');
+  const handleBatchDeleteFromTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchDeleteFromTrash');
 
-  assert.match(renderTrashBody, /item\.addEventListener\('click',\s*\(e\)\s*=>\s*\{/);
-  assert.match(renderTrashBody, /if\s*\(e\.target\.closest\('button'\)\)\s*return;/);
-  assert.match(renderTrashBody, /checkbox\.checked\s*=\s*!checkbox\.checked;\s*checkbox\.dispatchEvent\(new Event\('change'\)\);/);
-  assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*\(e\)\s*=>\s*e\.stopPropagation\(\)\);/);
-  assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*\(e\)\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
-  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(\s*conversations\.filter\(c\s*=>\s*!selectedTrashIds\.has\(c\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
+  assert.match(renderTrashBody, /item\.addEventListener\('click',\s*event\s*=>\s*\{/);
+  assert.match(renderTrashBody, /if\s*\(event\.target\.closest\('button'\)\)\s*return;/);
+  assert.match(renderTrashBody, /checkbox\.checked\s*=\s*!checkbox\.checked;\s*checkbox\.dispatchEvent\(createChangeEvent\(\)\);/);
+  assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*event\s*=>\s*event\.stopPropagation\(\)\);/);
+  assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*event\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
@@ -2021,7 +2075,7 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
   const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/date-formatting.js'));
 
   assert.equal(typeof helpers.formatFullTimestamp, 'function');
@@ -2034,7 +2088,7 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
   assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp/);
   assert.match(messageMarkupSource, /formatTimestamp\(message\.createdAt\)/);
   assert.match(postResponseActionsSource, /formatTimestamp\(aiMessageObject\.createdAt\)/);
-  assert.match(fragment04Source, /formatFullTimestamp\(conv\.deletedAt\)/);
+  assert.match(trashLifecycleSource, /formatFullTimestamp\(conversation\.deletedAt\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
@@ -2602,6 +2656,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
@@ -2627,8 +2682,8 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(fragment01Source, /createMediaPreviewLifecycle\s+as\s+createMessageMediaPreviewLifecycle/);
   assert.match(fragment03Source, /createMediaAttachmentRenderer\s+as\s+createSearchMediaAttachmentRenderer/);
   assert.match(fragment03Source, /createMediaPreviewLifecycle\s+as\s+createSearchMediaPreviewLifecycle/);
-  assert.match(fragment04Source, /createMediaAttachmentRenderer\s+as\s+createTrashMediaAttachmentRenderer/);
-  assert.match(fragment04Source, /createMediaPreviewLifecycle\s+as\s+createTrashMediaPreviewLifecycle/);
+  assert.match(trashLifecycleSource, /import\s+\{\s*createMediaAttachmentRenderer\s*\}/);
+  assert.match(trashLifecycleSource, /import\s+\{\s*createMediaPreviewLifecycle\s*\}/);
 
   assert.match(fragment00Source, /createConversationViewRenderer\s+as\s+createArchivedConversationViewRenderer/);
   assert.match(fragment00Source, /archivedConversationViewRenderer\.renderConversationMessages\(\{/);
@@ -2642,10 +2697,9 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(fragment03Source, /bindMediaPreviewButtons:\s*bindSearchMediaPreviewButtons/);
   assert.match(fragment03Source, /createUploadedFilePreviewLifecycle\(\{/);
   assert.match(fragment03Source, /openMediaPreview:\s*openSearchMediaPreview/);
-  assert.match(fragment04Source, /createConversationViewRenderer\s+as\s+createTrashConversationViewRenderer/);
-  assert.match(fragment04Source, /trashConversationViewRenderer\.renderConversationMessages\(\{/);
-  assert.match(fragment04Source, /renderMediaAttachmentGrid:\s*renderTrashMediaAttachmentGrid/);
-  assert.match(fragment04Source, /bindMediaPreviewButtons:\s*bindTrashMediaPreviewButtons/);
+  assert.match(trashLifecycleSource, /import\s+\{\s*createConversationViewRenderer\s*\}/);
+  assert.match(trashLifecycleSource, /trashConversationViewRenderer\.renderConversationMessages\(\{/);
+  assert.match(trashLifecycleSource, /renderMediaAttachmentGrid,\s*bindMediaPreviewButtons/);
 
   assert.doesNotMatch(fragment01Source, /\bconst\s+getInlineMediaSrc\s*=/);
   assert.doesNotMatch(fragment01Source, /\bconst\s+renderMediaAttachmentGrid\s*=/);
@@ -2658,9 +2712,11 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.doesNotMatch(fragment03Source, /const\s+removeFile\s*=\s*\(fileId\)\s*=>/);
   assert.doesNotMatch(fragment04Source, /typeof\s+renderMediaAttachmentGrid/);
   assert.doesNotMatch(fragment04Source, /typeof\s+bindMediaPreviewButtons/);
+  assert.doesNotMatch(trashLifecycleSource, /typeof\s+renderMediaAttachmentGrid/);
+  assert.doesNotMatch(trashLifecycleSource, /typeof\s+bindMediaPreviewButtons/);
   assert.doesNotMatch(fragment00Source, /conv\.messages\.forEach\(msg\s*=>/);
   assert.doesNotMatch(fragment03Source, /conv\.messages\.forEach\(msg\s*=>/);
-  assert.doesNotMatch(fragment04Source, /conv\.messages\.forEach\(msg\s*=>/);
+  assert.doesNotMatch(trashLifecycleSource, /conv\.messages\.forEach\(msg\s*=>/);
 
   assert.match(messageMarkupSource, /const\s+mediaView\s*=\s*buildMediaAttachmentView\(mediaParts\)/);
   assert.match(messageMarkupSource, /previewMediaParts\s*=\s*mediaView\.previewMediaParts/);

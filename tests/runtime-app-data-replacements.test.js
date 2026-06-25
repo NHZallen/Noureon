@@ -280,10 +280,11 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
 
 test('04 store and trash destructive flows keep replacement, save, render, and notification order', () => {
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const handleSubscriptionBody = getConstFunctionBody(fragment04Source, 'handleSubscription');
-  const permanentDeleteBody = getConstFunctionBody(fragment04Source, 'handleDeleteTrashItemPermanently');
-  const batchDeleteBody = getConstFunctionBody(fragment04Source, 'handleBatchDeleteFromTrash');
-  const emptyTrashBody = getConstFunctionBody(fragment04Source, 'handleEmptyTrash');
+  const permanentDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleDeleteTrashItemPermanently');
+  const batchDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchDeleteFromTrash');
+  const emptyTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleEmptyTrash');
 
   assertMarkersInOrder(handleSubscriptionBody, [
     'astras = runtimeAppDataStore.replaceAstras(',
@@ -299,8 +300,8 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
   assertMarkersInOrder(permanentDeleteBody, [
     'showCustomConfirm',
-    'conversations = runtimeAppDataStore.replaceConversations(',
-    'conversations.filter(c => c.id !== convId)',
+    'replaceConversations(',
+    'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
@@ -309,8 +310,8 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   assertMarkersInOrder(batchDeleteBody, [
     'const count = selectedTrashIds.size',
     'showCustomConfirm',
-    'conversations = runtimeAppDataStore.replaceConversations(',
-    'conversations.filter(c => !selectedTrashIds.has(c.id))',
+    'replaceConversations(',
+    'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
     'toggleTrashSelectionMode()',
     'showNotification'
@@ -318,17 +319,19 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
   assertMarkersInOrder(emptyTrashBody, [
     'showCustomConfirm',
-    'const count = conversations.filter(c => c.deletedAt).length',
-    'conversations = runtimeAppDataStore.replaceConversations(',
-    'conversations.filter(c => !c.deletedAt)',
+    'const conversations = getConversations()',
+    'const count = conversations.filter(conversation => conversation.deletedAt).length',
+    'replaceConversations(',
+    'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
   ], 'empty trash replacement order');
 
-  assert.doesNotMatch(permanentDeleteBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*convId\)/);
-  assert.doesNotMatch(batchDeleteBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*!selectedTrashIds\.has\(c\.id\)\)/);
-  assert.doesNotMatch(emptyTrashBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*!c\.deletedAt\)/);
+  assert.match(
+    fragment04Source,
+    /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(nextConversations\);\s*return\s+conversations;\s*\}/
+  );
 });
 
 test('app data store is wired to selected lexical replacements and runtime entry remains legacy', () => {

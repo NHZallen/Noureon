@@ -1,6 +1,7 @@
 import {
     getTextColorForBackground as getThemeTextColorForBackground,
 } from '/src/utils/color-contrast.js';
+import { createLegacyTrashLifecycle } from '/src/app/runtime/features/trash-lifecycle.js';
 
         const setupTimeAnalysis = () => {
             const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
@@ -905,181 +906,42 @@ function setupMessageIntersectionObserver() {
         messageObserver.observe(item);
     });
 }
-        const renderTrash = () => {
-            const container = ALL_ELEMENTS.trashListContainer;
-            const deletedConvs = conversations.filter(c => c.deletedAt).sort((a,b) => new Date(b.deletedAt) - new Date(a.deletedAt));
-            container.innerHTML = '';
-            if (deletedConvs.length === 0) {
-                container.innerHTML = `<p class="text-center text-[var(--text-secondary)] py-4">${i18n[config.uiLanguage].trashIsEmpty || '垃圾桶是空的。'}</p>`;
-                ALL_ELEMENTS.emptyTrashBtn.disabled = true;
-                ALL_ELEMENTS.trashBatchSelectBtn.disabled = true;
-                return;
-            }
-            ALL_ELEMENTS.emptyTrashBtn.disabled = false;
-            ALL_ELEMENTS.trashBatchSelectBtn.disabled = false;
-            deletedConvs.forEach(conv => {
-                const item = document.createElement('div');
-                item.className = 'trash-item flex items-center p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
-                item.dataset.id = conv.id;
-                const checkboxHTML = isTrashSelectionMode
-                    ? `<input type="checkbox" class="trash-select-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3 flex-shrink-0" data-id="${conv.id}" ${selectedTrashIds.has(conv.id) ? 'checked' : ''}>`
-                    : '';
-                item.innerHTML = `
-                    ${checkboxHTML}
-                    <div class="flex-1 min-w-0">
-                        <p class="font-medium truncate">${conv.title}</p>
-                        <p class="text-xs text-[var(--text-secondary)]">${i18n[config.uiLanguage].deletedOn || '刪除於'}: ${formatFullTimestamp(conv.deletedAt)}</p>
-                    </div>
-                    <div class="flex gap-2 flex-shrink-0 ml-2">
-                        <button data-id="${conv.id}" class="trash-item-view-btn btn-outline-white text-xs px-2 py-1 rounded">${i18n[config.uiLanguage].view || '檢視'}</button>
-                        <button data-id="${conv.id}" class="trash-item-restore-btn btn-outline-white text-xs px-2 py-1 rounded">${i18n[config.uiLanguage].restore || '還原'}</button>
-                        <button data-id="${conv.id}" class="trash-item-delete-btn btn-outline-white text-xs px-2 py-1 rounded">${i18n[config.uiLanguage].delete || '刪除'}</button>
-                    </div>
-                `;
-                container.appendChild(item);
-                let pressTimer = null;
-                item.addEventListener('touchstart', (e) => {
-                    if (e.target.closest('button')) return;
-                    pressTimer = setTimeout(() => {
-                        e.preventDefault();
-                        showTrashItemInViewModal(conv.id);
-                    }, 500);
-                }, { passive: false });
-                item.addEventListener('touchend', () => clearTimeout(pressTimer));
-                item.addEventListener('touchmove', () => clearTimeout(pressTimer));
-                if (isTrashSelectionMode) {
-                    item.addEventListener('click', (e) => {
-                        if (e.target.closest('button')) return;
-                        const checkbox = item.querySelector('.trash-select-checkbox');
-                        if (checkbox) {
-                            checkbox.checked = !checkbox.checked;
-                            checkbox.dispatchEvent(new Event('change'));
-                        }
-                    });
-                }
-            });
-            container.querySelectorAll('.trash-item-view-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); showTrashItemInViewModal(e.currentTarget.dataset.id); }));
-            container.querySelectorAll('.trash-item-restore-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); handleRestoreTrashItem(e.currentTarget.dataset.id); }));
-            container.querySelectorAll('.trash-item-delete-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); handleDeleteTrashItemPermanently(e.currentTarget.dataset.id); }));
-            container.querySelectorAll('.trash-select-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('click', (e) => e.stopPropagation());
-                checkbox.addEventListener('change', (e) => {
-                    const id = e.target.dataset.id;
-                    if (e.target.checked) {
-                        selectedTrashIds.add(id);
-                    } else {
-                        selectedTrashIds.delete(id);
-                    }
-                    renderTrashBatchActionBar();
-                });
-            });
-        };
-        const handleRestoreTrashItem = async (convId) => {
-            const conv = conversations.find(c => c.id === convId);
-            if (conv) {
-                conv.deletedAt = null;
-                await saveAppData();
-                renderTrash();
-                runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].itemRestored || '項目已還原。', 'success');
-            }
-        };
-        const handleDeleteTrashItemPermanently = async (convId) => {
-            if (!(await showCustomConfirm(i18n[config.uiLanguage].confirmPermanentDelete || '此操作將永久刪除此對話，無法復原。您確定嗎？', i18n[config.uiLanguage].permanentDeleteTitle || '永久刪除確認'))) return;
-            conversations = runtimeAppDataStore.replaceConversations(
-                conversations.filter(c => c.id !== convId)
-            );
-            await saveAppData();
-            renderTrash();
-            showNotification(i18n[config.uiLanguage].itemPermanentlyDeleted || '項目已永久刪除。', 'success');
-        };
-        import { createMediaAttachmentRenderer as createTrashMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
-        import { createMediaPreviewLifecycle as createTrashMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
-        import { createConversationViewRenderer as createTrashConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
         const {
-            getInlineMediaSrc: getTrashInlineMediaSrc,
-            renderMediaAttachmentGrid: renderTrashMediaAttachmentGrid
-        } = createTrashMediaAttachmentRenderer({ escapeHTML });
-        const {
-            bindMediaPreviewButtons: bindTrashMediaPreviewButtons
-        } = createTrashMediaPreviewLifecycle({
+            renderTrash,
+            handleRestoreTrashItem,
+            handleDeleteTrashItemPermanently,
+            showTrashItemInViewModal,
+            toggleTrashSelectionMode,
+            renderTrashBatchActionBar,
+            handleBatchRestoreFromTrash,
+            handleBatchDeleteFromTrash,
+            handleEmptyTrash
+        } = createLegacyTrashLifecycle({
             document,
             navigator,
             fetch,
             File,
-            escapeHTML,
-            getInlineMediaSrc: getTrashInlineMediaSrc,
-            getUiLanguage: () => config.uiLanguage
-        });
-        const trashConversationViewRenderer = createTrashConversationViewRenderer({
-            document,
+            elements: ALL_ELEMENTS,
+            getConversations: () => conversations,
+            replaceConversations: (nextConversations) => {
+                conversations = runtimeAppDataStore.replaceConversations(nextConversations);
+                return conversations;
+            },
+            saveAppData,
+            getI18n: () => i18n,
+            getUiLanguage: () => config.uiLanguage,
+            showCustomConfirm,
+            showNotification,
+            showCoordinatedNotification: (...args) => runtimeDialogCoordinator.showNotification(...args),
+            toggleModal,
+            formatFullTimestamp,
             renderUserText,
             renderModelText: renderMarkdownWithFormulas,
-            renderMediaAttachmentGrid: renderTrashMediaAttachmentGrid,
-            bindMediaPreviewButtons: bindTrashMediaPreviewButtons
+            escapeHTML,
+            scheduleTimeout: setTimeout,
+            clearScheduledTimeout: clearTimeout,
+            createChangeEvent: () => new Event('change')
         });
-        const showTrashItemInViewModal = (convId) => {
-            const conv = conversations.find(c => c.id === convId);
-            if (!conv) return;
-            ALL_ELEMENTS.trashViewTitle.textContent = conv.title;
-            const contentContainer = ALL_ELEMENTS.trashViewContent;
-            trashConversationViewRenderer.renderConversationMessages({
-                conversation: conv,
-                contentContainer,
-                emptyHTML: `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].noMessages || '此對話沒有訊息。'}</p>`
-            });
-            toggleModal(ALL_ELEMENTS.trashViewModal, true);
-        };
-        const toggleTrashSelectionMode = () => {
-            isTrashSelectionMode = !isTrashSelectionMode;
-            selectedTrashIds.clear();
-            renderTrash();
-            renderTrashBatchActionBar();
-        };
-        const renderTrashBatchActionBar = () => {
-            const { trashBatchActionBar, trashSelectionCount, trashBatchRestoreBtn, trashBatchDeleteBtn } = ALL_ELEMENTS;
-            if (isTrashSelectionMode) {
-                trashBatchActionBar.classList.remove('hidden');
-                const count = selectedTrashIds.size;
-                trashSelectionCount.textContent = `${i18n[config.uiLanguage].selected || '已選取'} ${count} ${i18n[config.uiLanguage].items || '個項目'}`;
-                const hasSelection = count > 0;
-                trashBatchRestoreBtn.disabled = !hasSelection;
-                trashBatchDeleteBtn.disabled = !hasSelection;
-            } else {
-                trashBatchActionBar.classList.add('hidden');
-            }
-        };
-        const handleBatchRestoreFromTrash = async () => {
-            const count = selectedTrashIds.size;
-            if (count === 0) return;
-            selectedTrashIds.forEach(id => {
-                const conv = conversations.find(c => c.id === id);
-                if (conv) conv.deletedAt = null;
-            });
-            await saveAppData();
-            toggleTrashSelectionMode();
-            runtimeDialogCoordinator.showNotification(`${i18n[config.uiLanguage].batchRestoredSuccess || '已成功還原'} ${count} ${i18n[config.uiLanguage].items || '個項目'}。`, 'success');
-        };
-        const handleBatchDeleteFromTrash = async () => {
-            const count = selectedTrashIds.size;
-            if (count === 0) return;
-            if (!(await showCustomConfirm(`${i18n[config.uiLanguage].confirmBatchPermanentDelete || '您確定要永久刪除這'} ${count} ${i18n[config.uiLanguage].items || '個項目嗎？'}`, i18n[config.uiLanguage].permanentDeleteTitle || '永久刪除確認'))) return;
-            conversations = runtimeAppDataStore.replaceConversations(
-                conversations.filter(c => !selectedTrashIds.has(c.id))
-            );
-            await saveAppData();
-            toggleTrashSelectionMode();
-            showNotification(`${i18n[config.uiLanguage].batchPermanentlyDeletedSuccess || '已成功永久刪除'} ${count} ${i18n[config.uiLanguage].items || '個項目'}。`, 'success');
-        };
-        const handleEmptyTrash = async () => {
-            if (!(await showCustomConfirm(i18n[config.uiLanguage].confirmEmptyTrash || '您確定要清空垃圾桶嗎？此操作無法復原。', i18n[config.uiLanguage].emptyTrashConfirmationTitle || '清空垃圾桶確認'))) return;
-            const count = conversations.filter(c => c.deletedAt).length;
-            conversations = runtimeAppDataStore.replaceConversations(
-                conversations.filter(c => !c.deletedAt)
-            );
-            await saveAppData();
-            renderTrash();
-            showNotification(`${i18n[config.uiLanguage].trashEmptiedSuccess || '已成功清空垃圾桶，刪除了'} ${count} ${i18n[config.uiLanguage].items || '個項目'}。`, 'success');
-        };
         const updateDisplayedVersion = () => {
     const versionDisplayElement = document.getElementById('version-number-display');
     if (versionDisplayElement && typeof updateLogs !== 'undefined' && updateLogs.length > 0) {

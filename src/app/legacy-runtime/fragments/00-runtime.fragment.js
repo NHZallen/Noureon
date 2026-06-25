@@ -968,8 +968,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let currentStoreCategory = '全部';
         let editingAstraForAvatarId = null;
         let isAutoScrolling = false;
-        let isTrashSelectionMode = false;
-        let selectedTrashIds = new Set();
         const runtimeStorageAdapter = createLegacyRuntimeStorageAdapter({
             indexedDBFactory: indexedDB,
             dbName: 'ChatAppDB',
