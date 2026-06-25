@@ -355,6 +355,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const laterFragmentSources = [
     '01-runtime.fragment.js',
     '02-runtime.fragment.js',
@@ -436,7 +437,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
     32
   );
   for (const source of laterFragmentSources) {
@@ -798,6 +799,7 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
   const lifecycleSource = readSource(lifecyclePath);
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
@@ -839,8 +841,10 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
   for (const name of ['handleExport', 'performImport', 'handleImport']) {
     assert.doesNotMatch(fragment03Source, new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`));
   }
-  assert.match(fragment05Source, /confirmExportBtn\.addEventListener\('click',\s*handleExport\)/);
-  assert.match(fragment05Source, /confirmImportBtn\.addEventListener\('click',\s*handleImport\)/);
+  assert.match(fragment05Source, /handleExport,?/);
+  assert.match(fragment05Source, /handleImport,?/);
+  assert.match(appBootstrapLifecycleSource, /confirmExportBtn\.addEventListener\('click',\s*handleExport\)/);
+  assert.match(appBootstrapLifecycleSource, /confirmImportBtn\.addEventListener\('click',\s*handleImport\)/);
   assert.match(fragment06Source, /importBtnAuth\.addEventListener\('click',\s*handleImportOnAuth\)/);
   assert.match(fragment06Source, /confirmImportBtnAuth\.addEventListener\('click',\s*processAuthImport\)/);
 });
@@ -1051,6 +1055,7 @@ test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar contin
 test('received data lifecycle breaks the 05 to 06 processReceivedData continuation boundary', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const p2pLifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
   const receivedDataSource = readSource('src/app/legacy-runtime/features/received-data-lifecycle.js');
 
@@ -1061,22 +1066,22 @@ test('received data lifecycle breaks the 05 to 06 processReceivedData continuati
   assert.doesNotMatch(fragment05Source, /const\s+zip\s*=\s*await\s+JSZip\.loadAsync\(blob\);/);
   assert.doesNotMatch(fragment06Source, /^\s*showNotification\(`成功接收 \$\{count\} 個 Astras！`, 'success'\);/);
 
-  const processStart = fragment05Source.indexOf('processReceivedData');
-  assert.notEqual(processStart, -1, '05 should still expose a processReceivedData binding');
-  const processStatementEnd = fragment05Source.indexOf('} = p2pLifecycle;', processStart);
-  assert.notEqual(processStatementEnd, -1, 'processReceivedData binding should end inside 05');
+  const processStart = appBootstrapLifecycleSource.indexOf('processReceivedData');
+  assert.notEqual(processStart, -1, 'app bootstrap lifecycle should expose a processReceivedData binding');
+  const processStatementEnd = appBootstrapLifecycleSource.indexOf('} = p2pLifecycle;', processStart);
+  assert.notEqual(processStatementEnd, -1, 'processReceivedData binding should end inside app bootstrap lifecycle');
   assert.ok(
-    processStatementEnd < fragment05Source.length,
+    processStatementEnd < appBootstrapLifecycleSource.length,
     'processReceivedData binding should not need 06 to finish its statement'
   );
   assert.doesNotMatch(
-    fragment05Source.slice(processStart, processStatementEnd),
+    appBootstrapLifecycleSource.slice(processStart, processStatementEnd),
     /=>\s*\{/,
-    'processReceivedData should not reopen an inline body in 05'
+    'processReceivedData should not reopen an inline body in app bootstrap lifecycle'
   );
 
-  const combinedStart = `${fragment05Source}\n`.length;
-  const concatenated = `${fragment05Source}\n${fragment06Source}`;
+  const combinedStart = `${appBootstrapLifecycleSource}\n`.length;
+  const concatenated = `${appBootstrapLifecycleSource}\n${fragment06Source}`;
   const nextOpenBrace = concatenated.indexOf('{', processStart);
   const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
   assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > processStatementEnd);
@@ -1085,6 +1090,7 @@ test('received data lifecycle breaks the 05 to 06 processReceivedData continuati
 test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const p2pLifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
   const compositionSource = readSource('src/app/legacy-runtime/features/app-bootstrap-composition.js');
   const scannerLifecycleSource = readSource('src/app/legacy-runtime/features/p2p-scanner-lifecycle.js');
@@ -1093,15 +1099,16 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   assert.match(scannerLifecycleSource, /export\s+function\s+createP2PScannerLifecycle/);
   assert.match(p2pLifecycleSource, /createP2PScannerLifecycle\(\{/);
   assert.doesNotMatch(fragment05Source, /createP2PScannerLifecycle\(\{/);
-  assert.match(fragment05Source, /createAppBootstrapComposition\(\{/);
-  assert.match(fragment05Source, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+  assert.match(appBootstrapLifecycleSource, /createAppBootstrapComposition\(\{/);
+  assert.match(appBootstrapLifecycleSource, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+  assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
 
-  const initStart = fragment05Source.indexOf('async function initChatApp()');
-  assert.notEqual(initStart, -1, '05 should define initChatApp');
-  const initOpen = fragment05Source.indexOf('{', initStart);
-  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, 'app bootstrap lifecycle should define initChatApp');
+  const initOpen = appBootstrapLifecycleSource.indexOf('{', initStart);
+  const initClose = findMatchingBrace(appBootstrapLifecycleSource, initOpen);
   assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
-  const initBody = fragment05Source.slice(initStart, initClose);
+  const initBody = appBootstrapLifecycleSource.slice(initStart, initClose);
 
   assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
   assert.match(p2pLifecycleSource, /p2pScannerLifecycle\.updateP2PProgress\(\.\.\.args\)/);
@@ -1109,15 +1116,60 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   assert.match(p2pLifecycleSource, /p2pScannerLifecycle\.stopScannerIfActive\(\)/);
   assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
   assert.doesNotMatch(fragment05Source, /\bhtml5QrcodeScanner\b/);
+  assert.doesNotMatch(appBootstrapLifecycleSource, /\bhtml5QrcodeScanner\b/);
   assert.doesNotMatch(fragment06Source, /\bhtml5QrcodeScanner\b/);
   assert.doesNotMatch(fragment06Source, /function\s+(?:updateP2PProgress|startQRScanner)\b/);
   assert.doesNotMatch(initBody, /setupHistorySidebarInteractions\(\);\s*setupHistorySidebarTriggers\(\);/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });
 
+test('app bootstrap lifecycle ownership moves initChatApp listener shell out of 05', () => {
+  const lifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const mainSource = readSource('src/main.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+  const viteSource = readSource('vite.config.js');
+
+  assert.match(lifecycleSource, /export\s+function\s+createLegacyAppBootstrapLifecycle/);
+  assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
+  assert.doesNotMatch(lifecycleSource, /loadConfig|loadAppData|getItem\(|setItem\(/);
+  const currentUserAssignments = lifecycleSource.match(/currentUser\s*=/g) ?? [];
+  assert.equal(currentUserAssignments.length, 1);
+  assert.match(lifecycleSource, /const\s+currentUser\s*=\s*getCurrentUser\(\)/);
+  assert.doesNotMatch(lifecycleSource, /function\s+handleLogin|const\s+handleLogin|function\s+handleLogout|const\s+handleLogout/);
+  assert.match(lifecycleSource, /async\s+function\s+initChatApp\(\)/);
+  assert.match(lifecycleSource, /createAppBootstrapComposition\(\{/);
+  assert.match(lifecycleSource, /createLegacyP2PLifecycle\(\{/);
+
+  assert.match(
+    fragment05Source,
+    /import\s+\{\s*createLegacyAppBootstrapLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/app-bootstrap-lifecycle\.js['"]/
+  );
+  assert.match(fragment05Source, /const\s+appBootstrapLifecycle\s*=\s*createLegacyAppBootstrapLifecycle\(\{/);
+  assert.match(fragment05Source, /getCurrentUser:\s*\(\)\s*=>\s*currentUser/);
+  assert.match(fragment05Source, /getConfig:\s*\(\)\s*=>\s*config/);
+  assert.match(fragment05Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(fragment05Source, /setSidebarOpen:\s*\(next\)\s*=>\s*\{[\s\S]*sidebarOpen\s*=\s*next/);
+  assert.match(fragment05Source, /setSendConfirmed:\s*\(next\)\s*=>\s*\{[\s\S]*sendConfirmed\s*=\s*next/);
+  assert.match(fragment05Source, /getAbortController:\s*\(\)\s*=>\s*abortController/);
+  assert.match(fragment05Source, /const\s+\{\s*initChatApp\s*\}\s*=\s*appBootstrapLifecycle/);
+  assert.match(fragment05Source, /legacyRuntimeContext\.registerLazyBinding\('app\.initChatApp',\s*\(\)\s*=>\s*initChatApp\)/);
+  assert.doesNotMatch(fragment05Source, /async\s+function\s+initChatApp\(\)/);
+  assert.doesNotMatch(fragment05Source, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+
+  assert.match(fragment06Source, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
+  assert.match(runtimeAppSource, /export\s+function\s+createRuntimeAppKernel/);
+  assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
+  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
+});
+
 test('P2P lifecycle owns Peer, QR, scanner, and transfer implementation outside 05', () => {
   const lifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(lifecycleSource, /export\s+function\s+createLegacyP2PLifecycle/);
   assert.match(lifecycleSource, /createReceivedDataLifecycle\(\{/);
@@ -1129,9 +1181,9 @@ test('P2P lifecycle owns Peer, QR, scanner, and transfer implementation outside 
 
   assert.match(
     fragment05Source,
-    /import\s+\{\s*createLegacyP2PLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/p2p-lifecycle\.js['"]/
+    /import\s+\{\s*createLegacyAppBootstrapLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/app-bootstrap-lifecycle\.js['"]/
   );
-  assert.match(fragment05Source, /const\s+p2pLifecycle\s*=\s*createLegacyP2PLifecycle\(\{/);
+  assert.match(appBootstrapLifecycleSource, /const\s+p2pLifecycle\s*=\s*createLegacyP2PLifecycle\(\{/);
   assert.match(fragment05Source, /getAstras:\s*\(\)\s*=>\s*astras/);
   assert.match(fragment05Source, /getFolders:\s*\(\)\s*=>\s*folders/);
   assert.match(fragment05Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
@@ -1152,7 +1204,7 @@ test('P2P lifecycle owns Peer, QR, scanner, and transfer implementation outside 
     'processReceivedData',
     'updateP2PProgress'
   ]) {
-    assert.match(fragment05Source, new RegExp(`\\b${alias}\\b`), `05 should keep ${alias} binding`);
+    assert.match(appBootstrapLifecycleSource, new RegExp(`\\b${alias}\\b`), `app bootstrap lifecycle should keep ${alias} binding`);
   }
 
   for (const removedCore of [
@@ -1172,18 +1224,19 @@ test('P2P lifecycle owns Peer, QR, scanner, and transfer implementation outside 
 
 test('store navigation lifecycle owns only the selected bootstrap listeners', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const lifecycleSource = readSource('src/app/legacy-runtime/features/store-navigation-lifecycle.js');
-  const initStart = fragment05Source.indexOf('async function initChatApp()');
-  assert.notEqual(initStart, -1, '05 should define initChatApp');
-  const initOpen = fragment05Source.indexOf('{', initStart);
-  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, 'app bootstrap lifecycle should define initChatApp');
+  const initOpen = appBootstrapLifecycleSource.indexOf('{', initStart);
+  const initClose = findMatchingBrace(appBootstrapLifecycleSource, initOpen);
   assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
-  const initBody = fragment05Source.slice(initStart, initClose);
+  const initBody = appBootstrapLifecycleSource.slice(initStart, initClose);
 
   assert.match(lifecycleSource, /export\s+function\s+createStoreNavigationLifecycle/);
   assert.match(
-    fragment05Source,
-    /import\s*\{\s*createStoreNavigationLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/store-navigation-lifecycle\.js';/
+    appBootstrapLifecycleSource,
+    /import\s*\{\s*createStoreNavigationLifecycle\s*\}\s*from\s+['"]\.\.\/\.\.\/legacy-runtime\/features\/store-navigation-lifecycle\.js['"]/
   );
   assert.doesNotMatch(initBody, /ALL_ELEMENTS\.openStoreBtn\.addEventListener\('click',\s*openStore\)/);
   assert.doesNotMatch(initBody, /ALL_ELEMENTS\.backToChatBtn\.addEventListener\('click',\s*closeStore\)/);
@@ -1227,13 +1280,13 @@ test('auth and homepage import bindings remain before startup in legacy order', 
 });
 
 test('input submit bindings and late P2P composition preserve bootstrap order', () => {
-  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
-  const initStart = fragment05Source.indexOf('async function initChatApp()');
-  assert.notEqual(initStart, -1, '05 should define initChatApp');
-  const initOpen = fragment05Source.indexOf('{', initStart);
-  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, 'app bootstrap lifecycle should define initChatApp');
+  const initOpen = appBootstrapLifecycleSource.indexOf('{', initStart);
+  const initClose = findMatchingBrace(appBootstrapLifecycleSource, initOpen);
   assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
-  const initBody = fragment05Source.slice(initStart, initClose);
+  const initBody = appBootstrapLifecycleSource.slice(initStart, initClose);
 
   assertMarkersInOrder(initBody, [
     "ALL_ELEMENTS.messageInput.addEventListener('input', (e) =>",
@@ -1337,6 +1390,7 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
   const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
 
@@ -1358,12 +1412,14 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
     'const saveSettings = async'
   ], '02 settings and input runtime registration');
 
-  assertMarkersInOrder(fragment05Source, [
+  assert.match(fragment05Source, /const\s+appBootstrapLifecycle\s*=\s*createLegacyAppBootstrapLifecycle\(\{/);
+  assert.match(fragment05Source, /const\s+\{\s*initChatApp\s*\}\s*=\s*appBootstrapLifecycle/);
+  assertMarkersInOrder(appBootstrapLifecycleSource, [
     'storeNavigationLifecycle.bind()',
     'const p2pLifecycle = createLegacyP2PLifecycle({',
     'const appBootstrapComposition = createAppBootstrapComposition({',
     'appBootstrapComposition.runLateBootstrapBindings()'
-  ], '05 runtime composition tail');
+  ], 'app bootstrap lifecycle composition tail');
 
   assertMarkersInOrder(initializeAppBody, [
     'await loadConfig()',
@@ -1387,21 +1443,24 @@ test('initChatApp callers use the required runtime handoff without changing lega
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const handleLoginBody = getConstFunctionBody(fragment02Source, 'handleLogin');
   const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
   const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
   const requiredHandoff = "legacyRuntimeContext.resolveBinding('app.initChatApp')()";
 
-  const initStart = fragment05Source.indexOf('async function initChatApp()');
-  assert.notEqual(initStart, -1, '05 should keep the initChatApp declaration');
-  const initOpen = fragment05Source.indexOf('{', initStart);
-  const initClose = findMatchingBrace(fragment05Source, initOpen);
-  assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
+  const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, 'app bootstrap lifecycle should keep the initChatApp declaration');
+  const initOpen = appBootstrapLifecycleSource.indexOf('{', initStart);
+  const initClose = findMatchingBrace(appBootstrapLifecycleSource, initOpen);
+  assert.notEqual(initClose, -1, 'initChatApp should close inside app bootstrap lifecycle');
+  const aliasIndex = fragment05Source.indexOf('const { initChatApp } = appBootstrapLifecycle');
+  assert.notEqual(aliasIndex, -1, '05 should keep the initChatApp alias');
   const registrationIndex = fragment05Source.indexOf(
     "legacyRuntimeContext.registerLazyBinding('app.initChatApp', () => initChatApp)"
   );
-  assert.ok(registrationIndex > initClose, '05 should register app.initChatApp after the function declaration closes');
+  assert.ok(registrationIndex > aliasIndex, '05 should register app.initChatApp after the lifecycle alias');
 
   for (const [source, label] of [
     [fragment02Source, '02'],
@@ -1463,6 +1522,7 @@ test('loadChat resolves updateFunctionButtonsState through the required runtime 
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
   const toggleLearningModeBody = getConstFunctionBody(fragment01Source, 'toggleLearningMode');
   const functionStart = fragment01Source.indexOf('const updateFunctionButtonsState =');
@@ -1516,10 +1576,11 @@ test('loadChat resolves updateFunctionButtonsState through the required runtime 
     '01 owner-local updateFunctionButtonsState call should remain direct'
   );
   assert.match(
-    fragment05Source,
+    appBootstrapLifecycleSource,
     /updateFunctionButtonsState\(\)/,
-    'later-fragment updateFunctionButtonsState calls should remain untouched'
+    'app bootstrap lifecycle updateFunctionButtonsState calls should remain direct'
   );
+  assert.match(fragment05Source, /updateFunctionButtonsState,?/);
 });
 
 test('selected toggleSidebar callers use the required runtime handoff without changing sidebar behavior', () => {
@@ -1527,6 +1588,7 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
   const createConversationElementBody = getConstFunctionBody(fragment01Source, 'createConversationElement');
   const toggleStart = fragment03Source.indexOf('function toggleSidebar(show)');
@@ -1590,8 +1652,9 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
   }
 
   assert.match(fragment03Source.slice(0, toggleStart), /toggleSidebar\(false\)/, '03 owner-local call should remain direct');
-  assert.match(fragment05Source, /toggleSidebar\(\)/, '05 later-fragment toggle call should remain direct');
-  assert.match(fragment05Source, /toggleSidebar\(false\)/, '05 later-fragment close calls should remain direct');
+  assert.match(appBootstrapLifecycleSource, /toggleSidebar\(\)/, 'app bootstrap lifecycle toggle call should remain direct');
+  assert.match(appBootstrapLifecycleSource, /toggleSidebar\(false\)/, 'app bootstrap lifecycle close calls should remain direct');
+  assert.match(fragment05Source, /toggleSidebar,?/);
 });
 
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
@@ -1899,6 +1962,7 @@ test('settings sidebar button remains wired to initialize and open the settings 
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(fragment02Source, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(fragment02Source, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
@@ -1924,10 +1988,10 @@ test('settings sidebar button remains wired to initialize and open the settings 
   assert.match(fragment01Source, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
   assert.match(fragment04Source, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
   assert.match(
-    fragment05Source,
+    appBootstrapLifecycleSource,
     /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*resolveEventsSetupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
   );
-  assert.match(fragment05Source, /ALL_ELEMENTS\.closeSettingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*false\)\);/);
+  assert.match(appBootstrapLifecycleSource, /ALL_ELEMENTS\.closeSettingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*false\)\);/);
   assert.match(fragment01Source, /updateInputState:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\)/);
   assert.doesNotMatch(fragment01Source, /createMessageListLifecycle\(\{[\s\S]*\n\s*updateInputState,\s*\n[\s\S]*\}\);/);
 });
@@ -2760,6 +2824,7 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
   const streamingRendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const finalizationSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
@@ -2799,7 +2864,8 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   assert.match(messageListSource, /elements\.messageList\.appendChild\(messageElement\)/);
   assert.match(messageListSource, /elements\.chatContainer\.scrollTo/);
   assert.match(messageListSource, /scheduleFrame\(\(\)\s*=>\s*setupMessageIntersectionObserver\(\)\)/);
-  assert.match(fragment05Source, /e\.target\.closest\('\.copy-content-btn'\)/);
+  assert.match(fragment05Source, /copyTextToClipboard,?/);
+  assert.match(appBootstrapLifecycleSource, /e\.target\.closest\('\.copy-content-btn'\)/);
 
   assert.match(postResponseActionsSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
   assert.match(streamingRendererSource, /export\s+function\s+createStreamingMarkdownFeature\b/);
@@ -2821,6 +2887,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
   const conversationViewSource = readSource('src/app/legacy-runtime/features/conversation-view-renderer.js');
@@ -2884,7 +2951,8 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(messageMarkupSource, /const\s+mediaView\s*=\s*buildMediaAttachmentView\(mediaParts\)/);
   assert.match(messageMarkupSource, /previewMediaParts\s*=\s*mediaView\.previewMediaParts/);
   assert.match(postResponseActionsSource, /export\s+function\s+applyModelMessagePostResponseActions\b/);
-  assert.match(fragment05Source, /e\.target\.closest\('\.copy-content-btn'\)/);
+  assert.match(fragment05Source, /copyTextToClipboard,?/);
+  assert.match(appBootstrapLifecycleSource, /e\.target\.closest\('\.copy-content-btn'\)/);
   assert.doesNotMatch(rendererSource, /document|window|globalThis|addEventListener|fetch\s*\(/);
   assert.doesNotMatch(rendererSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(previewSource, /indexedDB|localStorage|sessionStorage|streamApiCall/);

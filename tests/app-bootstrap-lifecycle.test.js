@@ -61,14 +61,15 @@ const findMatchingBrace = (source, openIndex) => {
 test('initChatApp closes inside 05 while preserving late bootstrap event bindings', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
-  const initStart = fragment05Source.indexOf('async function initChatApp()');
-  assert.notEqual(initStart, -1, '05 should define initChatApp');
-  const initOpen = fragment05Source.indexOf('{', initStart);
-  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, 'app bootstrap lifecycle should define initChatApp');
+  const initOpen = appBootstrapLifecycleSource.indexOf('{', initStart);
+  const initClose = findMatchingBrace(appBootstrapLifecycleSource, initOpen);
   assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
 
-  const initBody = fragment05Source.slice(initStart, initClose);
+  const initBody = appBootstrapLifecycleSource.slice(initStart, initClose);
   const expectedOrder = [
     'const p2pLifecycle = createLegacyP2PLifecycle({',
     '} = p2pLifecycle;',
@@ -82,7 +83,9 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
     cursor = next;
   }
 
-  assert.match(fragment05Source, /createLegacyP2PLifecycle\(\{/);
+  assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
+  assert.match(fragment05Source, /legacyRuntimeContext\.registerLazyBinding\('app\.initChatApp',\s*\(\)\s*=>\s*initChatApp\)/);
+  assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);
   assert.match(initBody, /\bprocessReceivedData\b/);
   assert.match(initBody, /\bupdateP2PProgress\b/);
   assert.match(initBody, /\bstartQRScanner\b/);

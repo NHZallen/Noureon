@@ -46,7 +46,7 @@ test('outlined settings and trash actions use the shared white outline button st
 test('active input modes use the theme color without black outline chrome', () => {
   const css = readUiSource('src/styles/main.css');
   const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const runtime05 = readUiSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active/);
   assert.match(css, /#input-indicator-container\s+\.input-indicator-item[^{]*\{[^}]*border:\s*0\s*!important;[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
@@ -54,7 +54,7 @@ test('active input modes use the theme color without black outline chrome', () =
   assert.doesNotMatch(css, /#attachment-menu\s+\.menu-item\.is-active[^{]*\{[^}]*color:\s*#111827\s*!important;/s);
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active,\s*#file-options-popover\s+#web-search-popover-btn\.is-active,\s*#file-options-popover\s+#learning-mode-btn\.is-active,\s*#file-options-popover\s+#model-council-menu-btn\.is-active[^{]*\{[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
   assert.match(runtime01, /councilMenuButton\.classList\.toggle\('is-active',\s*councilActive\)/);
-  assert.match(runtime05, /item\.id === 'model-council-menu-btn' && councilActive/);
+  assert.match(appBootstrapLifecycle, /item\.id === 'model-council-menu-btn' && councilActive/);
 });
 
 test('desktop chat input reserves the lower row only for active modes or multiline text', () => {

@@ -290,9 +290,9 @@ test('loadConfig keeps API, model, and council normalization in legacy order', (
 
 test('settings persistence keeps mutation, visual, save, render, and notification order', () => {
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
-  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const saveSettingsBody = getConstFunctionBody(fragment02Source, 'saveSettings');
-  const initChatAppBody = getBlockFromMarker(fragment05Source, 'async function initChatApp()');
+  const initChatAppBody = getBlockFromMarker(appBootstrapLifecycleSource, 'async function initChatApp()');
 
   assertMarkersInOrder(saveSettingsBody, [
     'config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim()',
@@ -320,11 +320,11 @@ test('settings persistence keeps mutation, visual, save, render, and notificatio
   );
   assert.match(
     initChatAppBody,
-    /saveTimer\s*=\s*setTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*350\)/
+    /saveTimer\s*=\s*scheduleTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*350\)/
   );
   assert.match(
     initChatAppBody,
-    /event\.target\.closest\('\.color-swatch, \.color-option, \.translator-picker-option'\)[\s\S]*?setTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*0\)/
+    /event\.target\.closest\('\.color-swatch, \.color-option, \.translator-picker-option'\)[\s\S]*?scheduleTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*0\)/
   );
 });
 
