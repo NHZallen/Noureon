@@ -185,11 +185,12 @@
             return item;
         };
         const renderArchivedChats = () => {
-            ALL_ELEMENTS.archivedChatsContainer.innerHTML = '';
+            const archivedChatsContainer = runtimeDomAccess.getRequiredElement('archivedChatsContainer');
+            archivedChatsContainer.innerHTML = '';
             const archived = conversations.filter(c => c.archived).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             if (archived.length === 0) {
-                ALL_ELEMENTS.archivedChatsContainer.innerHTML = `<p class="text-sm text-[var(--text-secondary)] text-center p-4">${i18n[uiLanguage].noArchivedChats || '沒有已封存的對話。'}</p>`;
+                archivedChatsContainer.innerHTML = `<p class="text-sm text-[var(--text-secondary)] text-center p-4">${i18n[uiLanguage].noArchivedChats || '沒有已封存的對話。'}</p>`;
                 return;
             }
             archived.forEach(conv => {
@@ -206,11 +207,11 @@
                     </div>
                     ${conv.summary ? `<p class="archived-chat-summary">${conv.summary}</p>` : ''}
                 `;
-                ALL_ELEMENTS.archivedChatsContainer.appendChild(item);
+                archivedChatsContainer.appendChild(item);
             });
-            ALL_ELEMENTS.archivedChatsContainer.querySelectorAll('.view-archived-btn').forEach(btn => btn.addEventListener('click', (e) => showArchivedChatPreview(e.target.dataset.id, e)));
-            ALL_ELEMENTS.archivedChatsContainer.querySelectorAll('.unarchive-btn').forEach(btn => btn.addEventListener('click', (e) => unarchiveChat(e.target.dataset.id, e)));
-            ALL_ELEMENTS.archivedChatsContainer.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => deleteChat(e.target.dataset.id, e)));
+            archivedChatsContainer.querySelectorAll('.view-archived-btn').forEach(btn => btn.addEventListener('click', (e) => showArchivedChatPreview(e.target.dataset.id, e)));
+            archivedChatsContainer.querySelectorAll('.unarchive-btn').forEach(btn => btn.addEventListener('click', (e) => unarchiveChat(e.target.dataset.id, e)));
+            archivedChatsContainer.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => deleteChat(e.target.dataset.id, e)));
         };
         const openCouncilPopoverFromAttachmentMenu = () => {
             renderCouncilControls();

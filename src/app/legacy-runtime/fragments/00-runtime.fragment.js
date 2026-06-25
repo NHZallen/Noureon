@@ -26,6 +26,7 @@ import { createConversationStateAccess } from '/src/app/legacy-runtime/runtime/c
 import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/runtime-render-coordinator.js';
 import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
+import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -385,15 +386,19 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     importStatusTextAuth: document.getElementById('import-status-text-auth'),
     importPercentageAuth: document.getElementById('import-percentage-auth'),
         };
+        const runtimeDomAccess = createRuntimeDomAccess({
+            getElements: () => ALL_ELEMENTS,
+            logger: console
+        });
         const arrangeInputMediaPreview = () => {
             const wrapper = document.querySelector('.input-wrapper');
-            const preview = ALL_ELEMENTS.filePreviewContainer;
+            const preview = runtimeDomAccess.getOptionalElement('filePreviewContainer');
             if (!wrapper || !preview || preview.parentElement === wrapper) return;
             preview.className = 'input-media-preview empty:hidden';
             wrapper.insertBefore(preview, wrapper.firstChild);
         };
         arrangeInputMediaPreview();
-        const settingsIcon = ALL_ELEMENTS.settingsBtn?.querySelector('svg');
+        const settingsIcon = runtimeDomAccess.getOptionalElement('settingsBtn')?.querySelector('svg');
         if (settingsIcon) {
             settingsIcon.setAttribute('viewBox', '0 0 24 24');
             settingsIcon.innerHTML = '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.658 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.329 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.329 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.658 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.329-4.033 2.34 2.34 0 0 0 0-3.831 2.34 2.34 0 0 1 2.329-4.033 2.34 2.34 0 0 0 3.32-1.915"></path><circle cx="12" cy="12" r="3"></circle>';

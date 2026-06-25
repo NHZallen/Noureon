@@ -538,6 +538,33 @@ test('runtime config access owns selected uiLanguage reads without changing conf
   assert.match(fragment02Source, /applyLanguage\(config\.uiLanguage\);/);
 });
 
+test('runtime DOM access owns selected element reads without changing DOM registry ownership', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
+  const arrangeInputMediaPreviewBody = getConstFunctionBody(fragment00Source, 'arrangeInputMediaPreview');
+  const renderArchivedChatsBody = getConstFunctionBody(fragment01Source, 'renderArchivedChats');
+
+  assert.match(accessSource, /export\s+function\s+createRuntimeDomAccess/);
+  assert.doesNotMatch(accessSource, /document\.|querySelector|getElementById|addEventListener/);
+  assert.match(fragment00Source, /import\s+\{\s*createRuntimeDomAccess\s*\}/);
+  assert.equal((fragment00Source.match(/createRuntimeDomAccess\(\{/g) || []).length, 1);
+  assert.match(fragment00Source, /const\s+ALL_ELEMENTS\s*=\s*\{/);
+  assert.match(fragment00Source, /const\s+runtimeDomAccess\s*=\s*createRuntimeDomAccess\(\{\s*getElements:\s*\(\)\s*=>\s*ALL_ELEMENTS,\s*logger:\s*console\s*\}\);/);
+  assert.doesNotMatch(fragment00Source, /getElements:\s*ALL_ELEMENTS\b/);
+
+  assert.match(arrangeInputMediaPreviewBody, /const\s+preview\s*=\s*runtimeDomAccess\.getOptionalElement\('filePreviewContainer'\);/);
+  assert.doesNotMatch(arrangeInputMediaPreviewBody, /ALL_ELEMENTS\.filePreviewContainer/);
+  assert.match(fragment00Source, /const\s+settingsIcon\s*=\s*runtimeDomAccess\.getOptionalElement\('settingsBtn'\)\?\.querySelector\('svg'\);/);
+  assert.doesNotMatch(fragment00Source, /const\s+settingsIcon\s*=\s*ALL_ELEMENTS\.settingsBtn/);
+
+  assert.match(renderArchivedChatsBody, /const\s+archivedChatsContainer\s*=\s*runtimeDomAccess\.getRequiredElement\('archivedChatsContainer'\);/);
+  assert.doesNotMatch(renderArchivedChatsBody, /ALL_ELEMENTS\.archivedChatsContainer/);
+  assert.match(renderArchivedChatsBody, /archivedChatsContainer\.innerHTML\s*=\s*'';/);
+  assert.match(renderArchivedChatsBody, /archivedChatsContainer\.appendChild\(item\);/);
+  assert.match(renderArchivedChatsBody, /archivedChatsContainer\.querySelectorAll\('\.view-archived-btn'\)\.forEach\(btn\s*=>\s*btn\.addEventListener/);
+});
+
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
