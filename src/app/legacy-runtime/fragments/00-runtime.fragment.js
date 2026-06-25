@@ -1425,7 +1425,9 @@ function renderMarkdownWithFormulas(text) {
         };
         const startNewChat = async () => {
             const oldTempChatCount = conversations.length;
-            conversations = conversations.filter(c => !c.isTemporary || c.messages.length > 0);
+            conversations = runtimeAppDataStore.replaceConversations(
+                conversations.filter(c => !c.isTemporary || c.messages.length > 0)
+            );
             if (conversations.length < oldTempChatCount) {
                  await saveAppData();
             }
@@ -1447,7 +1449,9 @@ function renderMarkdownWithFormulas(text) {
             if (id !== conversationStateAccess.getCurrentConversationId()) {
                 const previousConv = getActiveConversation();
                 if (previousConv && previousConv.isTemporary && previousConv.messages.length === 0) {
-                    conversations = conversations.filter(c => c.id !== previousConv.id);
+                    conversations = runtimeAppDataStore.replaceConversations(
+                        conversations.filter(c => c.id !== previousConv.id)
+                    );
                 }
                 conversationStateAccess.setCurrentConversationId(id);
                 uploadedFiles = [];

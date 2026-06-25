@@ -432,7 +432,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   }
 });
 
-test('runtime app data store ownership starts as a 00 loadAppData lexical bridge only', () => {
+test('runtime app data store ownership covers 00 local replacements only', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
@@ -447,6 +447,8 @@ test('runtime app data store ownership starts as a 00 loadAppData lexical bridge
     '06-runtime.fragment.js'
   ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
   const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
+  const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
+  const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
@@ -478,6 +480,22 @@ test('runtime app data store ownership starts as a 00 loadAppData lexical bridge
   ], '00 loadAppData store-backed successful replacement');
   assert.equal((loadAppDataBody.match(/runtimeAppDataStore\.replaceAll\(\{/g) || []).length, 2);
   assert.match(loadAppDataBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
+  assertMarkersInOrder(startNewChatBody, [
+    'const oldTempChatCount = conversations.length',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => !c.isTemporary || c.messages.length > 0)',
+    'await saveAppData()',
+    'uploadedFiles = []',
+    'conversations.unshift(newConv)'
+  ], '00 startNewChat store-backed temporary conversation replacement');
+  assertMarkersInOrder(loadChatBody, [
+    'const previousConv = getActiveConversation()',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => c.id !== previousConv.id)',
+    'conversationStateAccess.setCurrentConversationId(id)',
+    'uploadedFiles = []',
+    'renderAll()'
+  ], '00 loadChat store-backed previous temporary conversation replacement');
   assert.equal((laterFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);

@@ -148,7 +148,8 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
   assertMarkersInOrder(startNewChatBody, [
     'const oldTempChatCount = conversations.length',
-    'conversations = conversations.filter(c => !c.isTemporary || c.messages.length > 0)',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => !c.isTemporary || c.messages.length > 0)',
     'await saveAppData()',
     'uploadedFiles = []',
     'conversations.unshift(newConv)',
@@ -158,11 +159,15 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
   assertMarkersInOrder(loadChatBody, [
     'const previousConv = getActiveConversation()',
-    'conversations = conversations.filter(c => c.id !== previousConv.id)',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => c.id !== previousConv.id)',
     'conversationStateAccess.setCurrentConversationId(id)',
     'uploadedFiles = []',
     'renderAll()'
   ], 'loadChat previous temporary conversation replacement');
+
+  assert.doesNotMatch(startNewChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*!c\.isTemporary\s*\|\|\s*c\.messages\.length\s*>\s*0\)/);
+  assert.doesNotMatch(loadChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
 });
 
 test('Astra and folder delete flows keep linked conversation cleanup and save/render order', () => {
@@ -292,7 +297,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   ], 'empty trash replacement order');
 });
 
-test('app data store is only wired to 00 loadAppData and runtime entry remains legacy', () => {
+test('app data store is only wired to 00 local replacements and runtime entry remains legacy', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const appDataNormalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
