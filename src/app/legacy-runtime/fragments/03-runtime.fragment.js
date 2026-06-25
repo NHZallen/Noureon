@@ -1392,7 +1392,9 @@
                 btn.addEventListener('click', async (e) => {
                     const id = e.currentTarget.dataset.id;
                     if (await showCustomConfirm(i18n[config.uiLanguage].confirmDeleteMemory || '確定刪除此記憶？')) {
-                        personalMemories = personalMemories.filter(m => m.id !== id);
+                        personalMemories = runtimeAppDataStore.replacePersonalMemories(
+                            personalMemories.filter(m => m.id !== id)
+                        );
                         await saveAppData();
                         renderPersonalMemoryList();
                     }

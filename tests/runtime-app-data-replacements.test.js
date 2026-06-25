@@ -255,10 +255,12 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
   ], 'processAuthImport replacement, chunk import, and app handoff order');
 
   assertMarkersInOrder(fragment03Source, [
-    'personalMemories = personalMemories.filter(m => m.id !== id)',
+    'personalMemories = runtimeAppDataStore.replacePersonalMemories(',
+    'personalMemories.filter(m => m.id !== id)',
     'await saveAppData()',
     'renderPersonalMemoryList()'
   ], 'personal memory delete replacement order');
+  assert.doesNotMatch(fragment03Source, /personalMemories\s*=\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)/);
 });
 
 test('04 store and trash destructive flows keep replacement, save, render, and notification order', () => {
@@ -310,8 +312,8 @@ test('app data store is wired to selected lexical replacements and runtime entry
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const unmigratedFragmentSources = [
-    '03-runtime.fragment.js',
     '04-runtime.fragment.js',
     '05-runtime.fragment.js',
     '06-runtime.fragment.js'
@@ -331,8 +333,10 @@ test('app data store is wired to selected lexical replacements and runtime entry
   assert.match(fragment00Source, /let\s+personalMemories\s*=\s*runtimeAppDataStore\.getPersonalMemories\(\)/);
   assert.match(fragment01Source, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*astras\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\s*\)/);
   assert.match(fragment02Source, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(\s*folders\.filter\(f\s*=>\s*f\.id\s*!==\s*id\)\s*\)/);
+  assert.match(fragment03Source, /personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(appDataPersistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);

@@ -437,11 +437,11 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const normalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
   const storeSource = readSource('src/app/runtime/kernel/app-data-store.js');
   const unmigratedFragmentSources = [
-    '03-runtime.fragment.js',
     '04-runtime.fragment.js',
     '05-runtime.fragment.js',
     '06-runtime.fragment.js'
@@ -449,6 +449,9 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
   const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
   const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
+  const performImportBody = getConstFunctionBody(fragment03Source, 'performImport');
+  const handleImportBody = getConstFunctionBody(fragment03Source, 'handleImport');
+  const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
@@ -516,8 +519,44 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'runtimeRenderCoordinator.renderAll()',
     'showNotification'
   ], '02 deleteFolder linked store replacement');
+  assertMarkersInOrder(fragment03Source, [
+    'personalMemories = runtimeAppDataStore.replacePersonalMemories(',
+    'personalMemories.filter(m => m.id !== id)',
+    'await saveAppData()',
+    'renderPersonalMemoryList()'
+  ], '03 personal memory delete store replacement');
+  assertMarkersInOrder(performImportBody, [
+    'conversations = data.conversations || []',
+    'folders = data.folders || []',
+    'astras = data.astras || []',
+    'personalMemories = data.personalMemories || []',
+    'await saveAppData()'
+  ], '03 performImport legacy bulk replacements');
+  assertMarkersInOrder(handleImportBody, [
+    'conversations = []',
+    'folders = []',
+    'astras = []',
+    'personalMemories = []',
+    'astras.push(ast)',
+    'folders = rawData.folders',
+    'personalMemories = rawData.personalMemories',
+    'conversations.push(conv)',
+    'await saveAppData()'
+  ], '03 handleImport legacy replacements and chunked pushes');
+  assertMarkersInOrder(processAuthImportBody, [
+    'conversations = []',
+    'folders = []',
+    'astras = []',
+    'personalMemories = []',
+    'astras.push(ast)',
+    'if (rawData.folders) folders = rawData.folders',
+    'if (rawData.personalMemories) personalMemories = rawData.personalMemories',
+    'conversations.push(conv)',
+    'await saveAppData()'
+  ], '03 processAuthImport legacy replacements and chunked pushes');
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
