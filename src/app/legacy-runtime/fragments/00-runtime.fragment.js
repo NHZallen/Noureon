@@ -1139,12 +1139,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const getUserKey = (username) => `chatUser_${username}`;
         const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({
             getCurrentUser: () => currentUser,
-            getAppData: () => ({
-                conversations,
-                folders,
-                astras,
-                personalMemories
-            }),
+            getAppData: () => runtimeAppDataStore.getSnapshot(),
             getAppDataKey,
             setItem
         });

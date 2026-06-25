@@ -381,11 +381,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
     'const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`',
     'const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({',
     'getCurrentUser: () => currentUser',
-    'getAppData: () => ({',
-    'conversations',
-    'folders',
-    'astras',
-    'personalMemories',
+    'getAppData: () => runtimeAppDataStore.getSnapshot()',
     'getAppDataKey',
     'setItem',
     'const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({'
@@ -622,7 +618,9 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.equal((processAuthImportBody.match(/runtimeAppDataStore\.replaceAll\(/g) || []).length, 1);
   assert.doesNotMatch(fragment03Source, /appendConversations|appendAstras|syncFromLexical/);
   assert.doesNotMatch(storeSource, /appendConversations|appendAstras|syncFromLexical/);
-  assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
+  assert.match(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
+  assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
+  assert.doesNotMatch(fragment00Source, /getAppData:[\s\S]{0,120}\bactiveConversationId\b/);
   assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);

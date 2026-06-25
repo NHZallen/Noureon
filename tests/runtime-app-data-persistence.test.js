@@ -3,21 +3,19 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
+import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('serialized app data persistence writes the latest app data for the latest user', async () => {
+test('serialized app data persistence writes the latest store snapshot for the latest user', async () => {
   const calls = [];
   let currentUser = null;
-  let appData = {
-    conversations: [{ id: 'initial-conv' }],
-    folders: [],
-    astras: [],
-    personalMemories: []
-  };
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialConversations: [{ id: 'initial-conv' }]
+  });
   const persistence = createLegacyRuntimeAppDataPersistence({
     getCurrentUser: () => currentUser,
-    getAppData: () => appData,
+    getAppData: () => appDataStore.getSnapshot(),
     getAppDataKey: () => `chatAppData_v8.6_${currentUser.username}`,
     setItem: async (key, value) => calls.push([key, value])
   });
@@ -38,18 +36,51 @@ test('serialized app data persistence writes the latest app data for the latest 
   ]]);
 
   currentUser = { username: 'bob' };
-  appData = {
-    conversations: [{ id: 'next-conv' }],
-    folders: [{ id: 'folder-1' }],
-    astras: [{ id: 'astra-1' }],
-    personalMemories: [{ id: 'memory-1' }]
-  };
+  const nextConversations = [{ id: 'next-conv' }];
+  const nextFolders = [{ id: 'folder-1' }];
+  const nextAstras = [{ id: 'astra-1' }];
+  const nextPersonalMemories = [{ id: 'memory-1' }];
+  appDataStore.replaceAll({
+    conversations: nextConversations,
+    folders: nextFolders,
+    astras: nextAstras,
+    personalMemories: nextPersonalMemories
+  });
+  nextConversations.push({ id: 'pushed-conv' });
+  nextFolders.push({ id: 'pushed-folder' });
+  nextAstras.push({ id: 'pushed-astra' });
+  nextPersonalMemories.push({ id: 'pushed-memory' });
   await persistence.saveAppData();
+
+  const expectedSnapshot = {
+    conversations: [{ id: 'next-conv' }, { id: 'pushed-conv' }],
+    folders: [{ id: 'folder-1' }],
+    astras: [{ id: 'astra-1' }, { id: 'pushed-astra' }],
+    personalMemories: [{ id: 'memory-1' }, { id: 'pushed-memory' }]
+  };
+  expectedSnapshot.folders.push({ id: 'pushed-folder' });
 
   assert.deepEqual(calls[1], [
     'chatAppData_v8.6_bob',
-    JSON.stringify(appData)
+    JSON.stringify(expectedSnapshot)
   ]);
+  assert.deepEqual(Object.keys(JSON.parse(calls[1][1])), [
+    'conversations',
+    'folders',
+    'astras',
+    'personalMemories'
+  ]);
+  assert.equal('activeConversationId' in JSON.parse(calls[1][1]), false);
+});
+
+test('production saveAppData wiring reads the store snapshot at save time', () => {
+  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+
+  assert.match(source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
+  assert.doesNotMatch(
+    source,
+    /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/
+  );
 });
 
 test('missing user does not read key, app data, or storage adapter', async () => {

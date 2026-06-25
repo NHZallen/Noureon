@@ -115,7 +115,7 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
   assert.match(loadAppDataBody, /}\s*else\s*{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*folders\s*=\s*latestAppData\.folders;\s*astras\s*=\s*latestAppData\.astras;\s*personalMemories\s*=\s*latestAppData\.personalMemories;\s*}/);
 });
 
-test('saveAppData and active conversation bridges stay lexical and live', () => {
+test('saveAppData reads the store snapshot while active conversation stays lexical', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
 
   assertMarkersInOrder(fragment00Source, [
@@ -128,17 +128,13 @@ test('saveAppData and active conversation bridges stay lexical and live', () => 
   assertMarkersInOrder(fragment00Source, [
     'const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({',
     'getCurrentUser: () => currentUser',
-    'getAppData: () => ({',
-    'conversations',
-    'folders',
-    'astras',
-    'personalMemories',
+    'getAppData: () => runtimeAppDataStore.getSnapshot()',
     'getAppDataKey',
     'setItem'
-  ], 'saveAppData live app data getter');
+  ], 'saveAppData store snapshot getter');
 
   assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(\);\s*\}/);
-  assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
+  assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
 });
 
 test('00 transient conversation replacements preserve legacy ordering', () => {

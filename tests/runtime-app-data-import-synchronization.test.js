@@ -213,6 +213,6 @@ test('selected import flows use pointer replacement without adding store append 
     assert.doesNotMatch(body, /appendConversations|appendAstras|syncFromLexical/);
   }
   assert.doesNotMatch(storeSource, /appendConversations|appendAstras|syncFromLexical/);
-  assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
+  assert.match(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
 });
