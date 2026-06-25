@@ -376,6 +376,36 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
 });
 
+test('store navigation lifecycle owns only the selected bootstrap listeners', () => {
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const lifecycleSource = readSource('src/app/legacy-runtime/features/store-navigation-lifecycle.js');
+  const initStart = fragment05Source.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, '05 should define initChatApp');
+  const initOpen = fragment05Source.indexOf('{', initStart);
+  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
+  const initBody = fragment05Source.slice(initStart, initClose);
+
+  assert.match(lifecycleSource, /export\s+function\s+createStoreNavigationLifecycle/);
+  assert.match(
+    fragment05Source,
+    /import\s*\{\s*createStoreNavigationLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/store-navigation-lifecycle\.js';/
+  );
+  assert.doesNotMatch(initBody, /ALL_ELEMENTS\.openStoreBtn\.addEventListener\('click',\s*openStore\)/);
+  assert.doesNotMatch(initBody, /ALL_ELEMENTS\.backToChatBtn\.addEventListener\('click',\s*closeStore\)/);
+  assert.match(initBody, /getOpenStoreButton:\s*\(\)\s*=>\s*ALL_ELEMENTS\.openStoreBtn/);
+  assert.match(initBody, /getBackToChatButton:\s*\(\)\s*=>\s*ALL_ELEMENTS\.backToChatBtn/);
+  assert.match(initBody, /openStore,\s*closeStore\s*\}\);\s*storeNavigationLifecycle\.bind\(\);/);
+  assert.match(
+    initBody,
+    /ALL_ELEMENTS\.uiLanguageSelect\.addEventListener\('change',[\s\S]*?storeNavigationLifecycle\.bind\(\);[\s\S]*?ALL_ELEMENTS\.astrasAvatarInput\.addEventListener\('change',\s*handleAvatarUpload\)/
+  );
+  assert.match(initBody, /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click'/);
+  assert.match(initBody, /ALL_ELEMENTS\.messageInput\.addEventListener\('keydown'/);
+  assert.match(initBody, /ALL_ELEMENTS\.importDataBtn\.addEventListener\('click'/);
+  assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
+});
+
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');

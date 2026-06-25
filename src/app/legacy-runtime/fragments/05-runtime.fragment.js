@@ -1,6 +1,7 @@
         import { createAppBootstrapComposition } from '/src/app/legacy-runtime/features/app-bootstrap-composition.js';
         import { createP2PScannerLifecycle } from '/src/app/legacy-runtime/features/p2p-scanner-lifecycle.js';
         import { createReceivedDataLifecycle } from '/src/app/legacy-runtime/features/received-data-lifecycle.js';
+        import { createStoreNavigationLifecycle } from '/src/app/legacy-runtime/features/store-navigation-lifecycle.js';
         const resolveEventsUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
         const resolveEventsSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
 async function sendConversationToMail(userMessageObject, aiResponseText) {
@@ -434,8 +435,13 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
                 config.uiLanguage = e.target.value;
                 applyLanguage(config.uiLanguage);
             });
-            ALL_ELEMENTS.openStoreBtn.addEventListener('click', openStore);
-            ALL_ELEMENTS.backToChatBtn.addEventListener('click', closeStore);
+            const storeNavigationLifecycle = createStoreNavigationLifecycle({
+                getOpenStoreButton: () => ALL_ELEMENTS.openStoreBtn,
+                getBackToChatButton: () => ALL_ELEMENTS.backToChatBtn,
+                openStore,
+                closeStore
+            });
+            storeNavigationLifecycle.bind();
             ALL_ELEMENTS.astrasAvatarInput.addEventListener('change', handleAvatarUpload);
             ALL_ELEMENTS.confirmAvatarCropBtn.addEventListener('click', handleConfirmAvatarCrop);
             ALL_ELEMENTS.cancelAvatarCropBtn.addEventListener('click', () => {
