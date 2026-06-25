@@ -1734,7 +1734,7 @@ function renderMarkdownWithFormulas(text) {
             renderAll();
             ALL_ELEMENTS.messageInput.value = '';
             setTimeout(adjustTextareaHeight, 0);
-            toggleSidebar(false);
+            legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
             resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
         };
@@ -1940,7 +1940,7 @@ function renderMarkdownWithFormulas(text) {
             getActiveAstrasId: () => getActiveAstrasId(),
             getIsSelectionMode: () => isSelectionMode,
             setAstrasForConversation: (...args) => setAstrasForConversation(...args),
-            toggleSidebar: (...args) => toggleSidebar(...args),
+            toggleSidebar: (...args) => legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(...args),
             createAstrasMenu: (...args) => createAstrasMenu(...args),
             showMobileContextMenuForAstras: (...args) => showMobileContextMenuForAstras(...args),
             setTimeoutFn: (...args) => setTimeout(...args),

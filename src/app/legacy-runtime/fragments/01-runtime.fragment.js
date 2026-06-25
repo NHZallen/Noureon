@@ -167,7 +167,7 @@
                         }
                     } else {
                         loadChat(conv.id);
-                        toggleSidebar(false);
+                        legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
                     }
                 }
             };

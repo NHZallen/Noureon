@@ -738,6 +738,78 @@ test('loadChat resolves updateFunctionButtonsState through the required runtime 
   );
 });
 
+test('selected toggleSidebar callers use the required runtime handoff without changing sidebar behavior', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
+  const createConversationElementBody = getConstFunctionBody(fragment01Source, 'createConversationElement');
+  const toggleStart = fragment03Source.indexOf('function toggleSidebar(show)');
+  const toggleOpenBrace = fragment03Source.indexOf('{', toggleStart);
+  const toggleCloseBrace = findMatchingBrace(fragment03Source, toggleOpenBrace);
+  const registrationMarker =
+    "legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar)";
+  const registrationIndex = fragment03Source.indexOf(registrationMarker);
+
+  assert.notEqual(toggleStart, -1, '03 should keep the toggleSidebar declaration');
+  assert.ok(registrationIndex > toggleCloseBrace, '03 should register sidebar.toggleSidebar after the declaration closes');
+  assert.ok(
+    registrationIndex < fragment03Source.indexOf('function closeAllPopovers()', toggleCloseBrace),
+    '03 should register the handoff before the next owner-local function'
+  );
+  assert.match(
+    startNewChatBody,
+    /legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'\)\(false\);/,
+    '00 startNewChat should use the required sidebar handoff'
+  );
+  assert.doesNotMatch(
+    startNewChatBody,
+    /(^|[^\w.])toggleSidebar\(false\)/,
+    '00 startNewChat should not directly call the later-fragment function'
+  );
+  assertMarkersInOrder(
+    startNewChatBody,
+    [
+      'renderAll()',
+      "ALL_ELEMENTS.messageInput.value = ''",
+      'setTimeout(adjustTextareaHeight, 0)',
+      "legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false)",
+      'resolveFoundationUpdateInputState()',
+      'updateApiKeyWarningBadge()'
+    ],
+    '00 startNewChat sidebar handoff'
+  );
+  assert.match(
+    fragment00Source,
+    /toggleSidebar:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'\)\(\.\.\.args\)/,
+    'sidebar Astras lifecycle should resolve toggleSidebar lazily inside its callback'
+  );
+  assert.match(
+    createConversationElementBody,
+    /loadChat\(conv\.id\);\s*legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'\)\(false\);/,
+    '01 conversation click should preserve loadChat before the sidebar handoff'
+  );
+  assert.doesNotMatch(
+    createConversationElementBody,
+    /(^|[^\w.])toggleSidebar\(false\)/,
+    '01 createConversationElement should not directly call the later-fragment function'
+  );
+
+  for (const [source, label] of [
+    [startNewChatBody, '00 startNewChat'],
+    [createConversationElementBody, '01 createConversationElement'],
+    [fragment00Source.match(/toggleSidebar:\s*\(\.\.\.args\)[\s\S]*?createAstrasMenu:/)?.[0] || '', '00 sidebar Astras callback']
+  ]) {
+    assert.doesNotMatch(source, /resolveOptionalBinding\('sidebar\.toggleSidebar'/, `${label} should use the required resolver`);
+    assert.doesNotMatch(source, /await\s+legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'/, `${label} should remain synchronous`);
+  }
+
+  assert.match(fragment03Source.slice(0, toggleStart), /toggleSidebar\(false\)/, '03 owner-local call should remain direct');
+  assert.match(fragment05Source, /toggleSidebar\(\)/, '05 later-fragment toggle call should remain direct');
+  assert.match(fragment05Source, /toggleSidebar\(false\)/, '05 later-fragment close calls should remain direct');
+});
+
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');

@@ -1280,6 +1280,8 @@
         }
     }
 }
+        legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar);
+
         function closeAllPopovers() {
             document.querySelectorAll('.popover.visible').forEach(popover => {
                 popover.classList.remove('visible');
