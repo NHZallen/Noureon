@@ -317,7 +317,7 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
     'getConfig',
     'getCurrentUser',
     'getConversations',
-    'setSidebarOpen:true',
+    'setSidebarOpen:false',
     'setTheme:dark',
     'renderAll',
     'updateFunctionButtonsState',
@@ -335,7 +335,34 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
   }
   assert.equal(harness.elements.usernameDisplay.textContent, 'alice');
   assert.equal(harness.document.querySelector('.user-avatar').textContent, 'A');
-  assert.equal(harness.getState().sidebarOpen, true);
+  assert.equal(harness.getState().sidebarOpen, false);
+  assert.ok(
+    harness.calls.includes('class:appContainer:remove:sidebar-open'),
+    'desktop startup should explicitly keep the sidebar closed'
+  );
+  assert.equal(
+    harness.calls.some((call) => call === 'class:appContainer:add:sidebar-open'),
+    false
+  );
+});
+
+test('desktop sidebar remains closed on startup and manual toggle wiring remains active', async () => {
+  const harness = createLifecycleHarness();
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+
+  await initChatApp();
+
+  assert.equal(harness.getState().sidebarOpen, false);
+  assert.equal(
+    harness.calls.some((call) => call === 'class:appContainer:add:sidebar-open'),
+    false
+  );
+
+  findListener(harness.listeners, 'menuToggleBtn', 'click')();
+  findListener(harness.listeners, 'sidebarOverlay', 'click')();
+
+  assert.ok(harness.calls.includes('toggleSidebar:'));
+  assert.ok(harness.calls.includes('toggleSidebar:false'));
 });
 
 test('initChatApp binds settings, import/export, trash, P2P, file, and form listeners', async () => {

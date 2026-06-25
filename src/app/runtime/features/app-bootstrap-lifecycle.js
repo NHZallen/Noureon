@@ -112,8 +112,8 @@ export function createLegacyAppBootstrapLifecycle({
                 const currentUser = getCurrentUser();
                 const conversations = getConversations();
                 if (window.innerWidth >= 1024) {
-            setSidebarOpen(true);
-            ALL_ELEMENTS.appContainer.classList.add('sidebar-open');
+            setSidebarOpen(false);
+            ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
         }
                 setTheme(config.theme);
                 ALL_ELEMENTS.usernameDisplay.textContent = currentUser.username;

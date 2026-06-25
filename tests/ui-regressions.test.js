@@ -161,6 +161,25 @@ test('sidebar search and history model pills use solid white surfaces', () => {
   assert.match(css, /\.dark\s+\.model-suffix[^{]*\{[^}]*background-color:\s*var\(--input-field-bg\)(?:\s*!important)?;/s);
 });
 
+test('desktop startup keeps sidebar closed while preserving manual and mobile toggle paths', () => {
+  const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const runtime03 = readUiSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+
+  assert.match(
+    appBootstrapLifecycle,
+    /if\s*\(window\.innerWidth\s*>=\s*1024\)\s*\{[\s\S]*setSidebarOpen\(false\);[\s\S]*ALL_ELEMENTS\.appContainer\.classList\.remove\('sidebar-open'\);[\s\S]*\}/
+  );
+  assert.doesNotMatch(
+    appBootstrapLifecycle,
+    /if\s*\(window\.innerWidth\s*>=\s*1024\)\s*\{[\s\S]*setSidebarOpen\(true\);[\s\S]*classList\.add\('sidebar-open'\)/
+  );
+  assert.match(appBootstrapLifecycle, /ALL_ELEMENTS\.menuToggleBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleSidebar\(\)\)/);
+  assert.match(appBootstrapLifecycle, /ALL_ELEMENTS\.sidebarOverlay\.addEventListener\('click',\s*\(\)\s*=>\s*toggleSidebar\(false\)\)/);
+  assert.match(runtime03, /appContainer\.classList\.toggle\('sidebar-open',\s*sidebarOpen\)/);
+  assert.match(runtime03, /sidebar\.style\.transform\s*=\s*'translateX\(0\)'/);
+  assert.match(runtime03, /sidebar\.style\.transform\s*=\s*'translateX\(-100%\)'/);
+});
+
 test('settings navigation starts below the modal header divider on desktop', () => {
   const css = readUiSource('src/styles/main.css');
 
