@@ -12,6 +12,7 @@
         } from '/src/app/legacy-runtime/features/settings-mobile-metadata.js';
         import { getOutputModeSettingsText } from '/src/app/legacy-runtime/features/output-mode-settings-text.js';
         import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
+        import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
         import {
             FOLDER_SVGS as FOLDER_ICON_OPTIONS,
         } from '/src/app/legacy-runtime/data/folder-metadata.js';
@@ -991,237 +992,40 @@ submitButtonIcon.innerHTML = sendIconHTML;
                 showNotification(i18n[config.uiLanguage].incorrectInput || '輸入錯誤，操作已取消。', 'warning');
             }
         };
-        const createNewFolder = (name) => {
-            const newFolder = { id: crypto.randomUUID(), name,conversationIds: [], ...getDefaultFolder() };
-            folders.push(newFolder);
-            void saveAppData().catch(error => console.error('Failed to save folder state:', error));
-            renderFolders();
-            return newFolder.id;
-        };
-        const moveConversationToFolder = async (convId, folderId) => {
-            const conv = conversations.find(c => c.id === convId);
-            if (!conv) return;
-            if (conv.folderId) {
-                const oldFolder = folders.find(f => f.id === conv.folderId);
-                if (oldFolder) {
-                    oldFolder.conversationIds = oldFolder.conversationIds.filter(id => id !== convId);
-                }
-            }
-            conv.folderId = folderId;
-            if (folderId) {
-                const newFolder = folders.find(f => f.id === folderId);
-                if (newFolder && !newFolder.conversationIds.includes(convId)) {
-                    newFolder.conversationIds.push(convId);
-                }
-            }
-            await saveAppData();
-            runtimeRenderCoordinator.renderAll();
-        };
-        const deleteFolder = async (id, event) => {
-            event?.stopPropagation();
-            const folder = folders.find(f => f.id === id);
-            if (!folder) return;
-            const confirmMsg = folder.conversationIds.length > 0
-                ? i18n[config.uiLanguage].confirmDeleteFolderWithChats
-                : i18n[config.uiLanguage].confirmDeleteEmptyFolder;
-            if (!(await showCustomConfirm(confirmMsg, i18n[config.uiLanguage].deleteFolderTitle))) return;
-            conversations.forEach(c => {
-                if (c.folderId === id) {
-                    c.folderId = null;
-                }
-            });
-            folders = runtimeAppDataStore.replaceFolders(
-                folders.filter(f => f.id !== id)
-            );
-            await saveAppData();
-            runtimeRenderCoordinator.renderAll();
-            showNotification(i18n[config.uiLanguage].folderDeleted, 'success');
-        };
-        const showFolderSettingsModal = (id, event) => {
-            event?.stopPropagation();
-            folderToCustomize = id;
-            const folder = folders.find(f => f.id === id);
-            if (!folder) return;
-
-
-            // 1. 選擇圖示線條顏色
-            ALL_ELEMENTS.colorSwatchesContainer.innerHTML = '';
-            // 設定標題
-            const colorTitle = ALL_ELEMENTS.colorSwatchesContainer.parentElement.querySelector('h3');
-            if (colorTitle) colorTitle.textContent = "設定圖示線條顏色";
-            
-            Object.entries(FOLDER_COLORS).forEach(([name, hex]) => {
-                const swatch = document.createElement('div');
-                // 增加 flex-shrink-0 防止被壓縮
-                swatch.className = `color-swatch w-8 h-8 rounded-full cursor-pointer border-2 border-transparent flex-shrink-0`;
-                swatch.style.backgroundColor = hex;
-                swatch.dataset.color = name;
-                if (normalizeFolderColorSelection(folder.color, FOLDER_COLORS) === name) {
-                    swatch.classList.add('selected');
-                    swatch.style.borderColor = '#3b82f6'; 
-                }
-                swatch.addEventListener('click', () => {
-                    ALL_ELEMENTS.colorSwatchesContainer.querySelectorAll('.selected').forEach(el => {
-                        el.classList.remove('selected');
-                        el.style.borderColor = 'transparent';
-                    });
-                    swatch.classList.add('selected');
-                    swatch.style.borderColor = '#3b82f6';
-                });
-                ALL_ELEMENTS.colorSwatchesContainer.appendChild(swatch);
-            });
-
-
-            // 2. 選擇 SVG 圖示 (修正排版)
-            // 強制重設容器的 class，改用 flex wrap 或較寬鬆的 grid
-            ALL_ELEMENTS.iconOptionsContainer.className = 'grid grid-cols-5 sm:grid-cols-6 gap-3 mt-2'; 
-            ALL_ELEMENTS.iconOptionsContainer.innerHTML = '';
-            
-            Object.entries(FOLDER_ICON_OPTIONS).forEach(([key, svgPath]) => {
-                const iconOption = document.createElement('div');
-                // 確保圖示容器大小適中且不會跑版
-                iconOption.className = 'icon-option w-11 h-11 sm:w-12 sm:h-12 rounded-lg cursor-pointer flex items-center justify-center bg-[var(--sidebar-bg)] border border-transparent hover:bg-[var(--hover-bg)] transition-all';
-                // 這裡顯示 SVG
-                iconOption.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg>`;
-                iconOption.dataset.icon = key;
-                
-                if (folder.icon === key || (!folder.icon && key === 'default')) {
-                    iconOption.classList.add('selected');
-                    iconOption.style.borderColor = '#3b82f6';
-                    iconOption.style.color = '#3b82f6';
-                    iconOption.style.backgroundColor = 'var(--active-bg)'; // 選中時加深背景
-                } else {
-                    iconOption.style.color = 'var(--text-secondary)';
-                }
-
-
-                iconOption.addEventListener('click', () => {
-                    ALL_ELEMENTS.iconOptionsContainer.querySelectorAll('.selected').forEach(el => {
-                        el.classList.remove('selected');
-                        el.style.borderColor = 'transparent';
-                        el.style.color = 'var(--text-secondary)';
-                        el.style.backgroundColor = '';
-                    });
-                    iconOption.classList.add('selected');
-                    iconOption.style.borderColor = '#3b82f6';
-                    iconOption.style.color = '#3b82f6';
-                    iconOption.style.backgroundColor = 'var(--active-bg)';
-                });
-                ALL_ELEMENTS.iconOptionsContainer.appendChild(iconOption);
-            });
-
-
-            // 3. 選擇文字顏色
-            let textColorContainer = document.getElementById('text-color-container');
-            if (!textColorContainer) {
-                const containerDiv = document.createElement('div');
-                containerDiv.id = 'text-color-container';
-                containerDiv.className = 'mt-6 border-t border-[var(--border-color)] pt-4';
-                containerDiv.innerHTML = `
-                    <h3 class="text-sm font-medium mb-3">選擇文字顏色</h3>
-                    <div id="text-color-options" class="flex gap-4"></div>
-                `;
-                ALL_ELEMENTS.iconOptionsContainer.parentElement.after(containerDiv);
-                textColorContainer = containerDiv;
-            }
-
-
-            const textColorOptions = document.getElementById('text-color-options');
-            textColorOptions.innerHTML = '';
-            
-            const textColorMap = {
-                'gray': { label: '預設灰', bg: '#6b7280', border: 'transparent' },
-                'black': { label: '深邃黑', bg: '#111827', border: 'transparent' },
-                'white': { label: '純淨白', bg: '#ffffff', border: '#e5e7eb' } 
-            };
-
-
-            Object.entries(textColorMap).forEach(([key, info]) => {
-                const btn = document.createElement('button');
-                btn.className = 'w-9 h-9 rounded-full cursor-pointer border-2 relative shadow-sm transition-transform hover:scale-110';
-                btn.style.backgroundColor = info.bg;
-                btn.style.borderColor = info.border;
-                btn.dataset.textColor = key;
-                btn.title = info.label;
-
-
-                if (folder.textColor === key || (!folder.textColor && key === 'gray')) {
-                    btn.classList.add('selected-text');
-                    btn.innerHTML = `<svg class="w-5 h-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${key === 'white' ? 'text-black' : 'text-white'}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-                    if (key === 'white') btn.style.borderColor = '#3b82f6';
-                    else btn.style.boxShadow = '0 0 0 2px #3b82f6';
-                }
-
-
-                btn.addEventListener('click', () => {
-                    textColorOptions.querySelectorAll('.selected-text').forEach(el => {
-                        el.classList.remove('selected-text');
-                        el.innerHTML = '';
-                        el.style.boxShadow = '';
-                        if (el.dataset.textColor === 'white') el.style.borderColor = '#e5e7eb';
-                    });
-                    btn.classList.add('selected-text');
-                    btn.innerHTML = `<svg class="w-5 h-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${key === 'white' ? 'text-black' : 'text-white'}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-                    if (key === 'white') btn.style.borderColor = '#3b82f6';
-                    else btn.style.boxShadow = '0 0 0 2px #3b82f6';
-                });
-                textColorOptions.appendChild(btn);
-            });
-
-
-            toggleModal(ALL_ELEMENTS.folderSettingsModal, true);
-        };
-        const handleSaveFolderSettings = async () => {
-            const folder = folders.find(f => f.id === folderToCustomize);
-            if (!folder) return;
-
-
-            // 1. 取得選中的線條顏色
-            const selectedColor = ALL_ELEMENTS.colorSwatchesContainer.querySelector('.selected')?.dataset.color;
-            
-            // 2. 取得選中的圖示 Key
-            const selectedIcon = ALL_ELEMENTS.iconOptionsContainer.querySelector('.selected')?.dataset.icon;
-            
-            // 3. 取得選中的文字顏色 (新功能)
-            const textColorContainer = document.getElementById('text-color-options');
-            const selectedTextColor = textColorContainer?.querySelector('.selected-text')?.dataset.textColor;
-
-
-            if (selectedColor) folder.color = normalizeFolderColorSelection(selectedColor, FOLDER_COLORS);
-            if (selectedIcon) folder.icon = selectedIcon;
-            if (selectedTextColor) folder.textColor = selectedTextColor;
-
-
-            await saveAppData();
-            renderAll();
-            toggleModal(ALL_ELEMENTS.folderSettingsModal, false);
-            folderToCustomize = null;
-        };
-        const createFolderMenu = (folderId, targetButton) => {
-            const existingPopover = document.getElementById('history-popover');
-            if (existingPopover) {
-                existingPopover.remove();
-                if (existingPopover.dataset.targetId === targetButton.id) return;
-            }
-            const rect = targetButton.getBoundingClientRect();
-            const popover = document.createElement('div');
-            popover.id = 'history-popover';
-            popover.className = 'popover absolute w-48 rounded-lg border border-[var(--border-color)] z-50';
-            popover.dataset.targetId = targetButton.id;
-            popover.style.top = `${rect.bottom}px`;
-            popover.style.left = `${rect.left}px`;
-            popover.innerHTML = `
-                <button data-id="${folderId}" class="rename-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${i18n[config.uiLanguage].rename || '重新命名'}</button>
-                <button data-id="${folderId}" class="customize-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${i18n[config.uiLanguage].customize || '自訂'}</button>
-                <div class="border-t my-1 border-[var(--border-color)]"></div>
-                <button data-id="${folderId}" class="delete-folder-btn w-full text-left px-4 py-2 text-red-600 hover:bg-red-500/10 text-sm">${i18n[config.uiLanguage].deleteFolder || '刪除資料夾'}</button>
-            `;
-            document.body.appendChild(popover);
-            requestAnimationFrame(() => popover.classList.add('visible'));
-            popover.querySelector('.rename-folder-btn').addEventListener('click', (e) => { showRenameModal(folderId, 'folder', e); popover.remove(); });
-            popover.querySelector('.customize-folder-btn').addEventListener('click', (e) => { showFolderSettingsModal(folderId, e); popover.remove(); });
-            popover.querySelector('.delete-folder-btn').addEventListener('click', (e) => { deleteFolder(folderId, e); popover.remove(); });
-        };
+        const {
+            createNewFolder,
+            moveConversationToFolder,
+            deleteFolder,
+            showFolderSettingsModal,
+            handleSaveFolderSettings,
+            createFolderMenu
+        } = createLegacyFolderLifecycle({
+            document,
+            elements: ALL_ELEMENTS,
+            getFolders: () => folders,
+            getConversations: () => conversations,
+            replaceFolders: (nextFolders) => {
+                folders = runtimeAppDataStore.replaceFolders(nextFolders);
+                return folders;
+            },
+            getDefaultFolder,
+            saveAppData,
+            renderFolders,
+            renderAll,
+            showCustomConfirm,
+            showNotification,
+            toggleModal,
+            showRenameModal,
+            folderColors: FOLDER_COLORS,
+            folderIconOptions: FOLDER_ICON_OPTIONS,
+            normalizeFolderColorSelection: (selectedColor) =>
+                normalizeFolderColorSelection(selectedColor, FOLDER_COLORS),
+            getI18n: () => i18n,
+            getUiLanguage: () => config.uiLanguage,
+            randomUUID: () => crypto.randomUUID(),
+            scheduleAnimationFrame: requestAnimationFrame,
+            logger: console
+        });
         const toggleSelectionMode = () => {
     isSelectionMode = !isSelectionMode;
     selectedConversationIds.clear();

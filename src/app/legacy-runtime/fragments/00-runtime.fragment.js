@@ -949,7 +949,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             return { ok: true, reason: 'ready', message: texts.ready };
         };
         let itemToRename = { id: null, type: null };
-        let folderToCustomize = null;
         let currentUser = null;
         let abortController = null;
         let isCouncilRunning = false;

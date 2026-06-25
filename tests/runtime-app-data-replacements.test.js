@@ -169,8 +169,9 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 test('Astra and folder delete flows keep linked conversation cleanup and save/render order', () => {
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
-  const deleteFolderBody = getConstFunctionBody(fragment02Source, 'deleteFolder');
+  const deleteFolderBody = getConstFunctionBody(folderLifecycleSource, 'deleteFolder');
 
   assertMarkersInOrder(deleteAstrasBody, [
     'showCustomConfirm',
@@ -185,17 +186,20 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
 
   assertMarkersInOrder(deleteFolderBody, [
     'showCustomConfirm',
-    'conversations.forEach(c => {',
-    'c.folderId = null',
-    'folders = runtimeAppDataStore.replaceFolders(',
-    'folders.filter(f => f.id !== id)',
+    'getConversations().forEach(conversation => {',
+    'conversation.folderId = null',
+    'replaceFolders(folders.filter(item => item.id !== id))',
     'await saveAppData()',
-    'runtimeRenderCoordinator.renderAll()',
+    'renderAll()',
     'showNotification'
   ], 'deleteFolder replacement and cleanup');
 
   assert.doesNotMatch(deleteAstrasBody, /astras\s*=\s*astras\.filter\(/);
-  assert.doesNotMatch(deleteFolderBody, /folders\s*=\s*folders\.filter\(/);
+  assert.match(
+    fragment02Source,
+    /replaceFolders:\s*\(nextFolders\)\s*=>\s*\{\s*folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\);\s*return\s+folders;\s*\}/
+  );
+  assert.doesNotMatch(fragment02Source, /const\s+deleteFolder\s*=\s*async/);
 });
 
 test('03 import and auth import paths keep bulk replacements, chunked pushes, and persistence order', () => {
@@ -332,6 +336,7 @@ test('app data store is wired to selected lexical replacements and runtime entry
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const appDataNormalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
   const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
+  const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
@@ -355,7 +360,11 @@ test('app data store is wired to selected lexical replacements and runtime entry
   assert.match(fragment00Source, /let\s+astras\s*=\s*runtimeAppDataStore\.getAstras\(\)/);
   assert.match(fragment00Source, /let\s+personalMemories\s*=\s*runtimeAppDataStore\.getPersonalMemories\(\)/);
   assert.match(fragment01Source, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*astras\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\s*\)/);
-  assert.match(fragment02Source, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(\s*folders\.filter\(f\s*=>\s*f\.id\s*!==\s*id\)\s*\)/);
+  assert.match(folderLifecycleSource, /replaceFolders\(folders\.filter\(item\s*=>\s*item\.id\s*!==\s*id\)\)/);
+  assert.match(
+    fragment02Source,
+    /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
+  );
   assert.match(fragment03Source, /personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
   assert.match(fragment04Source, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);

@@ -341,6 +341,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const persistenceSource = readSource(persistencePath);
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const laterFragmentSources = [
     '01-runtime.fragment.js',
     '02-runtime.fragment.js',
@@ -420,7 +421,10 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
-  assert.equal((laterFragmentSources.join('\n').match(/\bsaveAppData\(\)/g) || []).length, 32);
+  assert.equal(
+    ((laterFragmentSources.join('\n') + folderLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
+    32
+  );
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /app-data-normalization|app-data-persistence/);
   }
@@ -501,7 +505,8 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'renderAll()'
   ], '00 loadChat store-backed previous temporary conversation replacement');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
-  const deleteFolderBody = getConstFunctionBody(fragment02Source, 'deleteFolder');
+  const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
+  const deleteFolderBody = getConstFunctionBody(folderLifecycleSource, 'deleteFolder');
   assertMarkersInOrder(deleteAstrasBody, [
     'astras = runtimeAppDataStore.replaceAstras(',
     'astras.filter(a => a.id !== id)',
@@ -512,14 +517,17 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'runtimeDialogCoordinator.showNotification'
   ], '01 deleteAstras linked store replacement');
   assertMarkersInOrder(deleteFolderBody, [
-    'conversations.forEach(c => {',
-    'c.folderId = null',
-    'folders = runtimeAppDataStore.replaceFolders(',
-    'folders.filter(f => f.id !== id)',
+    'getConversations().forEach(conversation => {',
+    'conversation.folderId = null',
+    'replaceFolders(folders.filter(item => item.id !== id))',
     'await saveAppData()',
-    'runtimeRenderCoordinator.renderAll()',
+    'renderAll()',
     'showNotification'
-  ], '02 deleteFolder linked store replacement');
+  ], 'folder lifecycle deleteFolder linked store replacement');
+  assert.match(
+    fragment02Source,
+    /replaceFolders:\s*\(nextFolders\)\s*=>\s*\{\s*folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\);\s*return\s+folders;\s*\}/
+  );
   assertMarkersInOrder(fragment03Source, [
     'personalMemories = runtimeAppDataStore.replacePersonalMemories(',
     'personalMemories.filter(m => m.id !== id)',
@@ -653,8 +661,9 @@ test('folder metadata is shared without later-fragment lexical ownership', () =>
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const renderFoldersBody = getConstFunctionBody(fragment01Source, 'renderFolders');
-  const showFolderSettingsModalBody = getConstFunctionBody(fragment02Source, 'showFolderSettingsModal');
+  const showFolderSettingsModalBody = getConstFunctionBody(folderLifecycleSource, 'showFolderSettingsModal');
 
   assert.equal(existsSync(projectFile(metadataPath)), true, 'shared folder metadata module should exist');
   assert.match(metadataSource, /export\s+const\s+FOLDER_SVGS\s*=/);
@@ -667,7 +676,7 @@ test('folder metadata is shared without later-fragment lexical ownership', () =>
     fragment02Source,
     /import\s*\{\s*FOLDER_SVGS\s+as\s+FOLDER_ICON_OPTIONS,\s*\}\s*from\s*['"]\/src\/app\/legacy-runtime\/data\/folder-metadata\.js['"]/
   );
-  assert.match(showFolderSettingsModalBody, /Object\.entries\(FOLDER_ICON_OPTIONS\)/);
+  assert.match(showFolderSettingsModalBody, /Object\.entries\(folderIconOptions\)/);
   assert.doesNotMatch(fragment06Source, /const\s+FOLDER_SVGS\s*=/);
   assert.doesNotMatch(fragment06Source, /const\s+FOLDER_TEXT_COLORS\s*=/);
   assert.match(
@@ -678,6 +687,53 @@ test('folder metadata is shared without later-fragment lexical ownership', () =>
     renderFoldersBody,
     /FOLDER_TEXT_COLORS\[folder\.textColor\]\s*\|\|\s*FOLDER_TEXT_COLORS(?:\[['"]gray['"]\]|\.gray)/
   );
+});
+
+test('folder CRUD lifecycle ownership moves out of 02 into a real runtime module', () => {
+  const lifecyclePath = 'src/app/runtime/features/folder-lifecycle.js';
+  const lifecycleSource = readSource(lifecyclePath);
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+
+  assert.equal(existsSync(projectFile(lifecyclePath)), true);
+  assert.match(lifecycleSource, /export\s+function\s+createLegacyFolderLifecycle/);
+  assert.doesNotMatch(
+    lifecycleSource,
+    /legacy-runtime\/fragments|virtual:legacy-app-runtime|storage-adapter|runtime-app|indexedDB|localStorage|sessionStorage|currentUser|loadConfig|loadAppData|initChatApp|initializeApp|Peer|P2P|JSZip/
+  );
+  assert.match(fragment02Source, /import\s+\{\s*createLegacyFolderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/folder-lifecycle\.js['"]/);
+  assertMarkersInOrder(fragment02Source, [
+    'const {',
+    'createNewFolder',
+    'moveConversationToFolder',
+    'deleteFolder',
+    'showFolderSettingsModal',
+    'handleSaveFolderSettings',
+    'createFolderMenu',
+    '} = createLegacyFolderLifecycle({',
+    'getFolders: () => folders',
+    'getConversations: () => conversations',
+    'replaceFolders: (nextFolders) => {',
+    'folders = runtimeAppDataStore.replaceFolders(nextFolders)',
+    'return folders',
+    'getDefaultFolder',
+    'saveAppData',
+    'renderFolders',
+    'renderAll'
+  ], '02 folder lifecycle wiring');
+  for (const name of [
+    'createNewFolder',
+    'moveConversationToFolder',
+    'deleteFolder',
+    'showFolderSettingsModal',
+    'handleSaveFolderSettings',
+    'createFolderMenu'
+  ]) {
+    assert.doesNotMatch(fragment02Source, new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`));
+  }
+  assert.doesNotMatch(fragment00Source, /\bfolderToCustomize\b/);
+  assert.doesNotMatch(fragment02Source, /\bfolderToCustomize\b/);
+  assert.match(lifecycleSource, /let\s+folderToCustomize\s*=\s*null/);
 });
 
 test('color contrast helper is shared without later-fragment lexical ownership', () => {
@@ -1325,6 +1381,7 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-render-coordinator.js');
   const setAstrasBody = getConstFunctionBody(fragment01Source, 'setAstrasForConversation');
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
@@ -1334,8 +1391,8 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   const unarchiveChatBody = getConstFunctionBody(fragment00Source, 'unarchiveChat');
   const togglePinChatBody = getConstFunctionBody(fragment00Source, 'togglePinChat');
   const handleRenameBody = getConstFunctionBody(fragment00Source, 'handleRename');
-  const moveConversationToFolderBody = getConstFunctionBody(fragment02Source, 'moveConversationToFolder');
-  const deleteFolderBody = getConstFunctionBody(fragment02Source, 'deleteFolder');
+  const moveConversationToFolderBody = getConstFunctionBody(folderLifecycleSource, 'moveConversationToFolder');
+  const deleteFolderBody = getConstFunctionBody(folderLifecycleSource, 'deleteFolder');
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeRenderCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeRenderCoordinator\s*\}/);
@@ -1364,11 +1421,12 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   assert.match(handleRenameBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderAll\(\);\s*toggleModal\(ALL_ELEMENTS\.renameModal,\s*false\);\s*itemToRename\s*=\s*\{\s*id:\s*null,\s*type:\s*null\s*\};/);
 
   for (const body of [moveConversationToFolderBody, deleteFolderBody]) {
-    assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
-    assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
+    assert.match(body, /renderAll\(\)/);
+    assert.doesNotMatch(body, /runtimeRenderCoordinator/);
   }
 
-  assert.match(deleteFolderBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderAll\(\);\s*showNotification\(i18n\[config\.uiLanguage\]\.folderDeleted,\s*'success'\);/);
+  assert.match(deleteFolderBody, /await\s+saveAppData\(\);\s*renderAll\(\);\s*showNotification\(getTexts\(\)\.folderDeleted,\s*'success'\);/);
+  assert.match(fragment02Source, /renderAll,/);
 });
 
 test('runtime dialog coordinator owns selected notification call sites without replacing modal helpers', () => {
