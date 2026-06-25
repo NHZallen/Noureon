@@ -985,7 +985,9 @@ function setupMessageIntersectionObserver() {
         };
         const handleDeleteTrashItemPermanently = async (convId) => {
             if (!(await showCustomConfirm(i18n[config.uiLanguage].confirmPermanentDelete || '此操作將永久刪除此對話，無法復原。您確定嗎？', i18n[config.uiLanguage].permanentDeleteTitle || '永久刪除確認'))) return;
-            conversations = conversations.filter(c => c.id !== convId);
+            conversations = runtimeAppDataStore.replaceConversations(
+                conversations.filter(c => c.id !== convId)
+            );
             await saveAppData();
             renderTrash();
             showNotification(i18n[config.uiLanguage].itemPermanentlyDeleted || '項目已永久刪除。', 'success');
@@ -1061,7 +1063,9 @@ function setupMessageIntersectionObserver() {
             const count = selectedTrashIds.size;
             if (count === 0) return;
             if (!(await showCustomConfirm(`${i18n[config.uiLanguage].confirmBatchPermanentDelete || '您確定要永久刪除這'} ${count} ${i18n[config.uiLanguage].items || '個項目嗎？'}`, i18n[config.uiLanguage].permanentDeleteTitle || '永久刪除確認'))) return;
-            conversations = conversations.filter(c => !selectedTrashIds.has(c.id));
+            conversations = runtimeAppDataStore.replaceConversations(
+                conversations.filter(c => !selectedTrashIds.has(c.id))
+            );
             await saveAppData();
             toggleTrashSelectionMode();
             showNotification(`${i18n[config.uiLanguage].batchPermanentlyDeletedSuccess || '已成功永久刪除'} ${count} ${i18n[config.uiLanguage].items || '個項目'}。`, 'success');
@@ -1069,7 +1073,9 @@ function setupMessageIntersectionObserver() {
         const handleEmptyTrash = async () => {
             if (!(await showCustomConfirm(i18n[config.uiLanguage].confirmEmptyTrash || '您確定要清空垃圾桶嗎？此操作無法復原。', i18n[config.uiLanguage].emptyTrashConfirmationTitle || '清空垃圾桶確認'))) return;
             const count = conversations.filter(c => c.deletedAt).length;
-            conversations = conversations.filter(c => !c.deletedAt);
+            conversations = runtimeAppDataStore.replaceConversations(
+                conversations.filter(c => !c.deletedAt)
+            );
             await saveAppData();
             renderTrash();
             showNotification(`${i18n[config.uiLanguage].trashEmptiedSuccess || '已成功清空垃圾桶，刪除了'} ${count} ${i18n[config.uiLanguage].items || '個項目'}。`, 'success');

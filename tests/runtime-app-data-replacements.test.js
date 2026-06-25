@@ -284,15 +284,18 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
   assertMarkersInOrder(permanentDeleteBody, [
     'showCustomConfirm',
-    'conversations = conversations.filter(c => c.id !== convId)',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => c.id !== convId)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
   ], 'trash permanent delete replacement order');
 
   assertMarkersInOrder(batchDeleteBody, [
+    'const count = selectedTrashIds.size',
     'showCustomConfirm',
-    'conversations = conversations.filter(c => !selectedTrashIds.has(c.id))',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => !selectedTrashIds.has(c.id))',
     'await saveAppData()',
     'toggleTrashSelectionMode()',
     'showNotification'
@@ -301,11 +304,16 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   assertMarkersInOrder(emptyTrashBody, [
     'showCustomConfirm',
     'const count = conversations.filter(c => c.deletedAt).length',
-    'conversations = conversations.filter(c => !c.deletedAt)',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => !c.deletedAt)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
   ], 'empty trash replacement order');
+
+  assert.doesNotMatch(permanentDeleteBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*convId\)/);
+  assert.doesNotMatch(batchDeleteBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*!selectedTrashIds\.has\(c\.id\)\)/);
+  assert.doesNotMatch(emptyTrashBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*!c\.deletedAt\)/);
 });
 
 test('app data store is wired to selected lexical replacements and runtime entry remains legacy', () => {

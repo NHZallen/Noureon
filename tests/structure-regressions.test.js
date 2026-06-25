@@ -569,23 +569,31 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'renderAstras()'
   ], '04 store unsubscribe Astra replacement');
   assertMarkersInOrder(permanentDeleteBody, [
-    'conversations = conversations.filter(c => c.id !== convId)',
+    'showCustomConfirm',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => c.id !== convId)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
-  ], '04 trash permanent delete legacy replacement');
+  ], '04 trash permanent delete store replacement');
   assertMarkersInOrder(batchDeleteBody, [
-    'conversations = conversations.filter(c => !selectedTrashIds.has(c.id))',
+    'const count = selectedTrashIds.size',
+    'showCustomConfirm',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => !selectedTrashIds.has(c.id))',
     'await saveAppData()',
     'toggleTrashSelectionMode()',
     'showNotification'
-  ], '04 trash batch delete legacy replacement');
+  ], '04 trash batch delete store replacement');
   assertMarkersInOrder(emptyTrashBody, [
-    'conversations = conversations.filter(c => !c.deletedAt)',
+    'showCustomConfirm',
+    'const count = conversations.filter(c => c.deletedAt).length',
+    'conversations = runtimeAppDataStore.replaceConversations(',
+    'conversations.filter(c => !c.deletedAt)',
     'await saveAppData()',
     'renderTrash()',
     'showNotification'
-  ], '04 empty trash legacy replacement');
+  ], '04 empty trash store replacement');
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
@@ -1466,7 +1474,7 @@ test('trash batch selection checkbox click does not bubble into row toggle', () 
   assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*\(e\)\s*=>\s*e\.stopPropagation\(\)\);/);
   assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*\(e\)\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
   assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*conversations\s*=\s*conversations\.filter\(c\s*=>\s*!selectedTrashIds\.has\(c\.id\)\);\s*await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
+  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(\s*conversations\.filter\(c\s*=>\s*!selectedTrashIds\.has\(c\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
