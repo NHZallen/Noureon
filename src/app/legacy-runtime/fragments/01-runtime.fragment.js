@@ -320,6 +320,8 @@
         };
 
 
+        legacyRuntimeContext.registerLazyBinding('input.updateFunctionButtonsState', () => updateFunctionButtonsState);
+
         const toggleLearningMode = async () => {
             const conv = getActiveConversation();
             if (!config.isLearningMode && isCouncilEnabled(conv)) {

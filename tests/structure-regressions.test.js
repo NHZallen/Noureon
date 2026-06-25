@@ -642,6 +642,69 @@ test('initChatApp callers use the required runtime handoff without changing lega
   ], '06 startup initChatApp handoff');
 });
 
+test('loadChat resolves updateFunctionButtonsState through the required runtime handoff', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
+  const toggleLearningModeBody = getConstFunctionBody(fragment01Source, 'toggleLearningMode');
+  const functionStart = fragment01Source.indexOf('const updateFunctionButtonsState =');
+  const functionOpenBrace = fragment01Source.indexOf('{', functionStart);
+  const functionCloseBrace = findMatchingBrace(fragment01Source, functionOpenBrace);
+  const registrationMarker =
+    "legacyRuntimeContext.registerLazyBinding('input.updateFunctionButtonsState', () => updateFunctionButtonsState)";
+  const registrationIndex = fragment01Source.indexOf(registrationMarker);
+
+  assert.notEqual(functionStart, -1, '01 should declare updateFunctionButtonsState');
+  assert.ok(registrationIndex > functionCloseBrace, '01 should register the handoff after the function declaration closes');
+  assert.ok(
+    registrationIndex < fragment01Source.indexOf('const toggleLearningMode', functionCloseBrace),
+    '01 should register the handoff before the next owner-local consumer'
+  );
+  assert.match(
+    loadChatBody,
+    /legacyRuntimeContext\.resolveBinding\('input\.updateFunctionButtonsState'\)\(\);/,
+    '00 loadChat should use the required runtime handoff'
+  );
+  assert.doesNotMatch(
+    loadChatBody,
+    /(^|[^\w.])updateFunctionButtonsState\(\)/,
+    '00 loadChat should not directly call the later-fragment function'
+  );
+  assert.doesNotMatch(
+    loadChatBody,
+    /resolveOptionalBinding\('input\.updateFunctionButtonsState'\)/,
+    '00 loadChat should not silently skip a missing required binding'
+  );
+  assert.doesNotMatch(
+    loadChatBody,
+    /await\s+legacyRuntimeContext\.resolveBinding\('input\.updateFunctionButtonsState'\)/,
+    '00 loadChat should preserve the synchronous handoff'
+  );
+  assertMarkersInOrder(
+    loadChatBody,
+    [
+      'renderAll()',
+      "ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : ''",
+      'setTimeout(adjustTextareaHeight, 0)',
+      'resolveFoundationUpdateInputState()',
+      'updateApiKeyWarningBadge()',
+      "legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')()"
+    ],
+    '00 loadChat function-button handoff'
+  );
+  assert.match(
+    toggleLearningModeBody,
+    /updateFunctionButtonsState\(\)/,
+    '01 owner-local updateFunctionButtonsState call should remain direct'
+  );
+  assert.match(
+    fragment05Source,
+    /updateFunctionButtonsState\(\)/,
+    'later-fragment updateFunctionButtonsState calls should remain untouched'
+  );
+});
+
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');

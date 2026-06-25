@@ -1756,7 +1756,7 @@ function renderMarkdownWithFormulas(text) {
             }
             resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
-            updateFunctionButtonsState();
+            legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
         };
         const deleteChat = async (id, event) => {
     event?.stopPropagation();
