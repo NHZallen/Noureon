@@ -30,6 +30,7 @@ import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runti
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
 import { createLegacyRuntimeConfigStore } from '/src/app/runtime/kernel/config-store.js';
+import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -1157,6 +1158,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`;
         const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;
         const getUserKey = (username) => `chatUser_${username}`;
+        const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
+            getCurrentUser: () => currentUser,
+            getConfig: () => runtimeConfigStore.getConfig(),
+            getConfigKey,
+            setItem
+        });
         const showNotification = (message, type = 'success') => {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
@@ -1323,7 +1330,7 @@ function renderMarkdownWithFormulas(text) {
 
     return html;
 }
-        const saveConfig = async () => { if (currentUser) await setItem(getConfigKey(), JSON.stringify(config)); };
+        const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
         const loadConfig = async () => {
             if (!currentUser) return;
             const saved = await getItem(getConfigKey());

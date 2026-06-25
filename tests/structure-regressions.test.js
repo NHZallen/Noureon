@@ -236,7 +236,9 @@ test('runtime DOM registry ownership moves into the non-live runtime kernel', ()
 
 test('runtime config ownership moves into a narrow non-live kernel store', () => {
   const storePath = 'src/app/runtime/kernel/config-store.js';
+  const persistencePath = 'src/app/runtime/kernel/config-persistence.js';
   const storeSource = readSource(storePath);
+  const persistenceSource = readSource(persistencePath);
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
@@ -253,10 +255,19 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(storeSource, /export\s+function\s+createLegacyRuntimeConfigStore/);
   assert.doesNotMatch(storeSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.doesNotMatch(storeSource, /import[\s\S]*\bMODELS\b/);
+  assert.equal(existsSync(projectFile(persistencePath)), true, 'runtime config persistence module should exist');
+  assert.match(persistenceSource, /export\s+function\s+createLegacyRuntimeConfigPersistence/);
+  assert.doesNotMatch(persistenceSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|config-store/);
+  assert.doesNotMatch(persistenceSource, /getItem|removeItem|openDB|loadConfig|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(persistenceSource, /try\s*\{|catch\s*\(/);
 
   assert.match(
     fragment00Source,
     /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/config-store\.js['"]/
+  );
+  assert.match(
+    fragment00Source,
+    /import\s+\{\s*createLegacyRuntimeConfigPersistence\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/config-persistence\.js['"]/
   );
   assertMarkersInOrder(fragment00Source, [
     'const runtimeConfigStore = createLegacyRuntimeConfigStore({',
@@ -271,24 +282,35 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     assert.doesNotMatch(source, /\bconfig\s*=/);
   }
   assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
+  assertMarkersInOrder(fragment00Source, [
+    'const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`',
+    'const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`',
+    'const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({',
+    'getCurrentUser: () => currentUser',
+    'getConfig: () => runtimeConfigStore.getConfig()',
+    'getConfigKey',
+    'setItem',
+    'const showNotification ='
+  ], '00 runtime config persistence wiring');
+  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
+  assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
+  assert.match(fragment00Source, /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`/);
+  assert.match(fragment00Source, /async\s+function\s+openDB\(\)/);
+  assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
+  assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
+  assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
+  assert.equal((laterFragmentSources.join('\n').match(/\bsaveConfig\(\)/g) || []).length, 14);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
   assert.match(runtimeAppSource, /return\s*\{\s*elements,\s*configStore\s*\}/);
   assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.doesNotMatch(runtimeAppSource, /addEventListener|DOMContentLoaded|bootstrap\(|initChatApp|initializeApp/);
-  assert.equal(
-    existsSync(projectFile('src/app/runtime/kernel/config-persistence.js')),
-    false,
-    'config persistence should remain in the legacy runtime until its implementation slice'
-  );
   assert.doesNotMatch(
     storeSource,
     /indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem|JSON\.parse|JSON\.stringify/
   );
   assert.doesNotMatch(runtimeAppSource, /config-persistence|loadConfig|saveConfig|indexedDB/);
-  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>/);
-  assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
 });
 
 test('legacy runtime fragments exist and are not empty', () => {
@@ -1089,7 +1111,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   assert.match(updateTimeDistributionChartBody, /const\s+lang\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(updateTimeDistributionChartBody, /buildTimeDistributionChartData\(\{\s*messages:\s*allMessages,\s*year,\s*month,\s*day,\s*text:\s*i18n\[lang\]\s*\}\)/);
 
-  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*if\s*\(currentUser\)\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(config\)\);\s*\};/);
+  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\};/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(fragment02Source, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value;/);
   assert.match(fragment02Source, /applyLanguage\(config\.uiLanguage\);/);

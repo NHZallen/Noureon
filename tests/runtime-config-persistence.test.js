@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
+import { createLegacyRuntimeConfigPersistence } from '../src/app/runtime/kernel/config-persistence.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -88,6 +89,83 @@ const assertMarkersInOrder = (source, markers, context) => {
   }
 };
 
+test('serialized config persistence writes the latest config for the latest user', async () => {
+  const calls = [];
+  let currentUser = null;
+  let config = { theme: 'light' };
+  const persistence = createLegacyRuntimeConfigPersistence({
+    getCurrentUser: () => currentUser,
+    getConfig: () => config,
+    getConfigKey: () => `chatConfig_v_v8.6_${currentUser.username}`,
+    setItem: async (key, value) => {
+      calls.push({ key, value });
+    }
+  });
+
+  await persistence.saveConfig();
+  assert.deepEqual(calls, []);
+
+  currentUser = { username: 'alice' };
+  config = { theme: 'dark', nested: { enabled: true } };
+  await persistence.saveConfig();
+  assert.deepEqual(calls, [
+    {
+      key: 'chatConfig_v_v8.6_alice',
+      value: JSON.stringify(config)
+    }
+  ]);
+
+  currentUser = { username: 'bob' };
+  config = { theme: 'light', items: [1, 2, 3] };
+  await persistence.saveConfig();
+  assert.deepEqual(calls.at(-1), {
+    key: 'chatConfig_v_v8.6_bob',
+    value: JSON.stringify(config)
+  });
+});
+
+test('serialized config persistence preserves rejection and stringify error boundaries', async () => {
+  const setItemError = new Error('write failed');
+  const rejectingPersistence = createLegacyRuntimeConfigPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getConfig: () => ({ theme: 'dark' }),
+    getConfigKey: () => 'chatConfig_v_v8.6_alice',
+    setItem: async () => {
+      throw setItemError;
+    }
+  });
+
+  await assert.rejects(() => rejectingPersistence.saveConfig(), setItemError);
+
+  const circularConfig = {};
+  circularConfig.self = circularConfig;
+  const circularPersistence = createLegacyRuntimeConfigPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getConfig: () => circularConfig,
+    getConfigKey: () => 'chatConfig_v_v8.6_alice',
+    setItem: async () => {}
+  });
+
+  await assert.rejects(
+    () => circularPersistence.saveConfig(),
+    /circular structure|Converting circular/i
+  );
+});
+
+test('serialized config persistence exposes only saveConfig and avoids storage reader ownership', () => {
+  const persistence = createLegacyRuntimeConfigPersistence({
+    getCurrentUser: () => null,
+    getConfig: () => ({}),
+    getConfigKey: () => 'unused',
+    setItem: async () => {}
+  });
+  const source = readSource('src/app/runtime/kernel/config-persistence.js');
+
+  assert.deepEqual(Object.keys(persistence), ['saveConfig']);
+  assert.equal(typeof persistence.saveConfig, 'function');
+  assert.doesNotMatch(source, /loadConfig|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage/);
+});
+
 test('config persistence keeps the IndexedDB adapter and exact user-scoped key', () => {
   const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
 
@@ -107,15 +185,20 @@ test('config persistence keeps the IndexedDB adapter and exact user-scoped key',
 
 test('saveConfig preserves missing-user, serialization, and rejection behavior', () => {
   const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const persistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const body = getConstFunctionBody(source, 'saveConfig');
 
   assert.match(
     body,
-    /if\s*\(currentUser\)\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(config\)\);/
+    /await\s+runtimeConfigPersistence\.saveConfig\(\)/
   );
-  assert.doesNotMatch(body, /\belse\b|try\s*\{|catch\s*\(/);
+  assert.match(
+    persistenceSource,
+    /const\s+currentUser\s*=\s*getCurrentUser\(\);\s*if\s*\(currentUser\)\s*\{\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(getConfig\(\)\)\);/s
+  );
+  assert.doesNotMatch(`${body}\n${persistenceSource}`, /\belse\b|try\s*\{|catch\s*\(/);
   assert.doesNotMatch(
-    body,
+    `${body}\n${persistenceSource}`,
     /applyUiTheme|applyLanguage|render(?:All|Chat|Store|ModelSwitcher)|showNotification|runtimeDialogCoordinator/
   );
 });
@@ -250,11 +333,28 @@ test('startup restores the user before config and app data visual handoff', () =
   ], 'startup config persistence');
 });
 
-test('config persistence remains in the legacy runtime until a later extraction slice', () => {
+test('config persistence extracts only the serialized write adapter', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const persistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const storeSource = readSource('src/app/runtime/kernel/config-store.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
 
-  assert.equal(existsSync(projectFile('src/app/runtime/kernel/config-persistence.js')), false);
+  assert.equal(existsSync(projectFile('src/app/runtime/kernel/config-persistence.js')), true);
+  assert.match(persistenceSource, /export\s+function\s+createLegacyRuntimeConfigPersistence/);
+  assert.doesNotMatch(
+    persistenceSource,
+    /loadConfig|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage|legacy-runtime\/fragments|virtual:legacy-app-runtime/
+  );
+  assert.match(fragment00Source, /import\s+\{\s*createLegacyRuntimeConfigPersistence\s*\}/);
+  assert.match(fragment00Source, /const\s+runtimeConfigPersistence\s*=\s*createLegacyRuntimeConfigPersistence\(\{/);
+  assertMarkersInOrder(fragment00Source, [
+    'getCurrentUser: () => currentUser',
+    'getConfig: () => runtimeConfigStore.getConfig()',
+    'getConfigKey',
+    'setItem'
+  ], '00 config persistence adapter wiring');
+  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
+  assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
   assert.doesNotMatch(
     storeSource,
     /indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem|JSON\.parse|JSON\.stringify/
