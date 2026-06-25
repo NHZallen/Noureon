@@ -559,7 +559,9 @@
         };
         const deleteAstras = async (id) => {
             if (!(await showCustomConfirm(i18n[config.uiLanguage].confirmDeleteAstras || '確定刪除此 Astras？'))) return;
-            astras = astras.filter(a => a.id !== id);
+            astras = runtimeAppDataStore.replaceAstras(
+                astras.filter(a => a.id !== id)
+            );
             conversations.forEach(c => {
                 if (c.astrasId === id) c.astrasId = null;
             });

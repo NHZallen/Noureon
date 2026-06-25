@@ -178,7 +178,8 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
 
   assertMarkersInOrder(deleteAstrasBody, [
     'showCustomConfirm',
-    'astras = astras.filter(a => a.id !== id)',
+    'astras = runtimeAppDataStore.replaceAstras(',
+    'astras.filter(a => a.id !== id)',
     'conversations.forEach(c => {',
     'if (c.astrasId === id) c.astrasId = null',
     'await saveAppData()',
@@ -190,11 +191,15 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
     'showCustomConfirm',
     'conversations.forEach(c => {',
     'c.folderId = null',
-    'folders = folders.filter(f => f.id !== id)',
+    'folders = runtimeAppDataStore.replaceFolders(',
+    'folders.filter(f => f.id !== id)',
     'await saveAppData()',
     'runtimeRenderCoordinator.renderAll()',
     'showNotification'
   ], 'deleteFolder replacement and cleanup');
+
+  assert.doesNotMatch(deleteAstrasBody, /astras\s*=\s*astras\.filter\(/);
+  assert.doesNotMatch(deleteFolderBody, /folders\s*=\s*folders\.filter\(/);
 });
 
 test('03 import and auth import paths keep bulk replacements, chunked pushes, and persistence order', () => {
@@ -297,15 +302,15 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   ], 'empty trash replacement order');
 });
 
-test('app data store is only wired to 00 local replacements and runtime entry remains legacy', () => {
+test('app data store is wired to selected lexical replacements and runtime entry remains legacy', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const appDataNormalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
   const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const laterFragmentSources = [
-    '01-runtime.fragment.js',
-    '02-runtime.fragment.js',
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const unmigratedFragmentSources = [
     '03-runtime.fragment.js',
     '04-runtime.fragment.js',
     '05-runtime.fragment.js',
@@ -324,7 +329,11 @@ test('app data store is only wired to 00 local replacements and runtime entry re
   assert.match(fragment00Source, /let\s+folders\s*=\s*runtimeAppDataStore\.getFolders\(\)/);
   assert.match(fragment00Source, /let\s+astras\s*=\s*runtimeAppDataStore\.getAstras\(\)/);
   assert.match(fragment00Source, /let\s+personalMemories\s*=\s*runtimeAppDataStore\.getPersonalMemories\(\)/);
-  assert.equal((laterFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
+  assert.match(fragment01Source, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*astras\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\s*\)/);
+  assert.match(fragment02Source, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(\s*folders\.filter\(f\s*=>\s*f\.id\s*!==\s*id\)\s*\)/);
+  assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(appDataPersistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
   assert.doesNotMatch(appDataNormalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);

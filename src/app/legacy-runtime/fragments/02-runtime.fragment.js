@@ -1037,7 +1037,9 @@ submitButtonIcon.innerHTML = sendIconHTML;
                     c.folderId = null;
                 }
             });
-            folders = folders.filter(f => f.id !== id);
+            folders = runtimeAppDataStore.replaceFolders(
+                folders.filter(f => f.id !== id)
+            );
             await saveAppData();
             runtimeRenderCoordinator.renderAll();
             showNotification(i18n[config.uiLanguage].folderDeleted, 'success');

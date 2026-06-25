@@ -432,15 +432,15 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   }
 });
 
-test('runtime app data store ownership covers 00 local replacements only', () => {
+test('runtime app data store ownership covers 00 and selected linked replacements', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const normalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
   const storeSource = readSource('src/app/runtime/kernel/app-data-store.js');
-  const laterFragmentSources = [
-    '01-runtime.fragment.js',
-    '02-runtime.fragment.js',
+  const unmigratedFragmentSources = [
     '03-runtime.fragment.js',
     '04-runtime.fragment.js',
     '05-runtime.fragment.js',
@@ -496,7 +496,29 @@ test('runtime app data store ownership covers 00 local replacements only', () =>
     'uploadedFiles = []',
     'renderAll()'
   ], '00 loadChat store-backed previous temporary conversation replacement');
-  assert.equal((laterFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
+  const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+  const deleteFolderBody = getConstFunctionBody(fragment02Source, 'deleteFolder');
+  assertMarkersInOrder(deleteAstrasBody, [
+    'astras = runtimeAppDataStore.replaceAstras(',
+    'astras.filter(a => a.id !== id)',
+    'conversations.forEach(c => {',
+    'if (c.astrasId === id) c.astrasId = null',
+    'await saveAppData()',
+    'runtimeRenderCoordinator.renderAll()',
+    'runtimeDialogCoordinator.showNotification'
+  ], '01 deleteAstras linked store replacement');
+  assertMarkersInOrder(deleteFolderBody, [
+    'conversations.forEach(c => {',
+    'c.folderId = null',
+    'folders = runtimeAppDataStore.replaceFolders(',
+    'folders.filter(f => f.id !== id)',
+    'await saveAppData()',
+    'runtimeRenderCoordinator.renderAll()',
+    'showNotification'
+  ], '02 deleteFolder linked store replacement');
+  assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
   assert.doesNotMatch(normalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);
