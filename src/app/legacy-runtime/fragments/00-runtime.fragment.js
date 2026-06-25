@@ -39,6 +39,7 @@ import {
     normalizeCouncilConfig as normalizeLegacyCouncilConfig,
     normalizeLoadedLegacyConfig
 } from '/src/app/runtime/kernel/config-normalization.js';
+import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -1339,22 +1340,18 @@ function renderMarkdownWithFormulas(text) {
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
-                    folders = (data.folders || []).map(f => ({...getDefaultFolder(), ...f}));
-                    conversations = (data.conversations || []).map(c => ({
-                        archived: false, summary: '', folderId: null, isWebSearchEnabled: false, astrasId: null, pinned: false, deletedAt: null, ...c,
-                        unsentMessage: c.unsentMessage || '',
-                        genConfig: c.genConfig || getDefaultGenConfig(),
-                        council: normalizeCouncilConfig(c.council || config.lastCouncilConfig),
-                        lastUpdatedAt: c.lastUpdatedAt || (c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1].createdAt : c.createdAt),
-                        messages: (c.messages || []).map(m => ({
-                            ...m,
-                            createdAt: m.createdAt || c.createdAt,
-                            parts: m.parts || [{ text: m.content }]
-                        }))
-                    }));
-                    conversations.forEach(normalizeConversationModel);
-                    astras = (data.astras || []).map(a => ({ avatarUrl: null, officialId: null, ...a }));
-                    personalMemories = data.personalMemories || [];
+                    const normalizedData = normalizeLoadedLegacyAppData({
+                        rawData: data,
+                        defaultFolder: getDefaultFolder(),
+                        defaultGenConfig: getDefaultGenConfig(),
+                        lastCouncilConfig: config.lastCouncilConfig,
+                        normalizeCouncilConfig,
+                        normalizeConversationModel
+                    });
+                    conversations = normalizedData.conversations;
+                    folders = normalizedData.folders;
+                    astras = normalizedData.astras;
+                    personalMemories = normalizedData.personalMemories;
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
                     showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");

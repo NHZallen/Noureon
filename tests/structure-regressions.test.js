@@ -334,6 +334,76 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.doesNotMatch(runtimeAppSource, /config-persistence|loadConfig|saveConfig|indexedDB/);
 });
 
+test('runtime app data normalization moves into a pure non-live kernel helper', () => {
+  const normalizationPath = 'src/app/runtime/kernel/app-data-normalization.js';
+  const normalizationSource = readSource(normalizationPath);
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const laterFragmentSources = [
+    '01-runtime.fragment.js',
+    '02-runtime.fragment.js',
+    '03-runtime.fragment.js',
+    '04-runtime.fragment.js',
+    '05-runtime.fragment.js',
+    '06-runtime.fragment.js'
+  ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
+  const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
+  const catchIndex = loadAppDataBody.indexOf('catch (e)');
+  assert.notEqual(catchIndex, -1, 'loadAppData should keep its corruption catch in 00');
+  const catchBody = loadAppDataBody.slice(catchIndex);
+
+  assert.equal(existsSync(projectFile(normalizationPath)), true, 'runtime app data normalization module should exist');
+  assert.match(normalizationSource, /export\s+function\s+normalizeLoadedLegacyAppData/);
+  assert.match(normalizationSource, /export\s+function\s+normalizeConversationRecord/);
+  assert.match(normalizationSource, /export\s+function\s+normalizeFolderRecord/);
+  assert.match(normalizationSource, /export\s+function\s+normalizeAstraRecord/);
+  assert.doesNotMatch(normalizationSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|runtimeContext/);
+  assert.doesNotMatch(normalizationSource, /getItem|setItem|removeItem|openDB|indexedDB|localStorage|sessionStorage|currentUser/);
+  assert.doesNotMatch(normalizationSource, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
+
+  assert.match(
+    fragment00Source,
+    /import\s+\{\s*normalizeLoadedLegacyAppData\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/app-data-normalization\.js['"]/
+  );
+  assert.match(fragment00Source, /const\s+loadAppData\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*if\s*\(currentUser\)\s*await\s+setItem\(getAppDataKey\(\),\s*JSON\.stringify\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)\);\s*\}/);
+  assert.match(fragment00Source, /const\s+getAppDataKey\s*=\s*\(\)\s*=>\s*`chatAppData_v8\.6_\$\{currentUser\.username\}`/);
+  assertMarkersInOrder(loadAppDataBody, [
+    'if (!currentUser) return',
+    'const saved = await getItem(getAppDataKey())',
+    'if (saved) {',
+    'try {',
+    'const data = JSON.parse(saved)',
+    'const normalizedData = normalizeLoadedLegacyAppData({',
+    'rawData: data',
+    'defaultFolder: getDefaultFolder()',
+    'defaultGenConfig: getDefaultGenConfig()',
+    'lastCouncilConfig: config.lastCouncilConfig',
+    'normalizeCouncilConfig',
+    'normalizeConversationModel',
+    'conversations = normalizedData.conversations',
+    'folders = normalizedData.folders',
+    'astras = normalizedData.astras',
+    'personalMemories = normalizedData.personalMemories'
+  ], '00 app data load orchestration');
+  assert.match(catchBody, /console\.error\("Failed to parse app data:",\s*e\)/);
+  assert.match(catchBody, /showNotification\(/);
+  assert.match(catchBody, /conversations\s*=\s*\[\]/);
+  assert.match(catchBody, /folders\s*=\s*\[\]/);
+  assert.match(catchBody, /astras\s*=\s*\[\]/);
+  assert.match(catchBody, /personalMemories\s*=\s*\[\]/);
+  assert.match(catchBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
+  assert.match(loadAppDataBody, /else\s*\{\s*conversations\s*=\s*\[\];\s*folders\s*=\s*\[\];\s*astras\s*=\s*\[\];\s*personalMemories\s*=\s*\[\];\s*\}/);
+  assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
+  assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
+  assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
+
+  assert.doesNotMatch(runtimeAppSource, /app-data-normalization|loadAppData|saveAppData|indexedDB/);
+  for (const source of laterFragmentSources) {
+    assert.doesNotMatch(source, /app-data-normalization/);
+  }
+});
+
 test('legacy runtime fragments exist and are not empty', () => {
   for (const name of [
     '00-runtime.fragment.js',
