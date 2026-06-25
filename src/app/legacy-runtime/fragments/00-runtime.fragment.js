@@ -41,6 +41,7 @@ import {
 } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
+import { createLegacyRuntimeAppDataStore } from '/src/app/runtime/kernel/app-data-store.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -617,10 +618,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             Violet: '#8b5cf6', Purple: '#a855f7', Fuchsia: '#d946ef',
             Pink: '#ec4899', Rose: '#f43f5e', Slate: '#64748b'
         };
-        let conversations = [];
-        let folders = [];
-        let astras = [];
-        let personalMemories = [];
+        const runtimeAppDataStore = createLegacyRuntimeAppDataStore();
+        let conversations = runtimeAppDataStore.getConversations();
+        let folders = runtimeAppDataStore.getFolders();
+        let astras = runtimeAppDataStore.getAstras();
+        let personalMemories = runtimeAppDataStore.getPersonalMemories();
         let activeConversationId = null;
         const conversationStateAccess = createConversationStateAccess({
             getConversations: () => conversations,
@@ -1360,24 +1362,37 @@ function renderMarkdownWithFormulas(text) {
                         normalizeCouncilConfig,
                         normalizeConversationModel
                     });
-                    conversations = normalizedData.conversations;
-                    folders = normalizedData.folders;
-                    astras = normalizedData.astras;
-                    personalMemories = normalizedData.personalMemories;
+                    const latestAppData = runtimeAppDataStore.replaceAll(normalizedData);
+                    conversations = latestAppData.conversations;
+                    folders = latestAppData.folders;
+                    astras = latestAppData.astras;
+                    personalMemories = latestAppData.personalMemories;
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
                     showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
-                    conversations = [];
-                    folders = [];
-                    astras = [];
-                    personalMemories = [];
+                    const latestAppData = runtimeAppDataStore.replaceAll({
+                        conversations: [],
+                        folders: [],
+                        astras: [],
+                        personalMemories: []
+                    });
+                    conversations = latestAppData.conversations;
+                    folders = latestAppData.folders;
+                    astras = latestAppData.astras;
+                    personalMemories = latestAppData.personalMemories;
                     await removeItem(getAppDataKey());
                 }
             } else {
-                conversations = [];
-                folders = [];
-                astras = [];
-                personalMemories = [];
+                const latestAppData = runtimeAppDataStore.replaceAll({
+                    conversations: [],
+                    folders: [],
+                    astras: [],
+                    personalMemories: []
+                });
+                conversations = latestAppData.conversations;
+                folders = latestAppData.folders;
+                astras = latestAppData.astras;
+                personalMemories = latestAppData.personalMemories;
             }
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });

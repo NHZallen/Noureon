@@ -406,19 +406,21 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
     'lastCouncilConfig: config.lastCouncilConfig',
     'normalizeCouncilConfig',
     'normalizeConversationModel',
-    'conversations = normalizedData.conversations',
-    'folders = normalizedData.folders',
-    'astras = normalizedData.astras',
-    'personalMemories = normalizedData.personalMemories'
+    'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
+    'conversations = latestAppData.conversations',
+    'folders = latestAppData.folders',
+    'astras = latestAppData.astras',
+    'personalMemories = latestAppData.personalMemories'
   ], '00 app data load orchestration');
   assert.match(catchBody, /console\.error\("Failed to parse app data:",\s*e\)/);
   assert.match(catchBody, /showNotification\(/);
-  assert.match(catchBody, /conversations\s*=\s*\[\]/);
-  assert.match(catchBody, /folders\s*=\s*\[\]/);
-  assert.match(catchBody, /astras\s*=\s*\[\]/);
-  assert.match(catchBody, /personalMemories\s*=\s*\[\]/);
+  assert.match(catchBody, /const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\)/);
+  assert.match(catchBody, /conversations\s*=\s*latestAppData\.conversations/);
+  assert.match(catchBody, /folders\s*=\s*latestAppData\.folders/);
+  assert.match(catchBody, /astras\s*=\s*latestAppData\.astras/);
+  assert.match(catchBody, /personalMemories\s*=\s*latestAppData\.personalMemories/);
   assert.match(catchBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
-  assert.match(loadAppDataBody, /else\s*\{\s*conversations\s*=\s*\[\];\s*folders\s*=\s*\[\];\s*astras\s*=\s*\[\];\s*personalMemories\s*=\s*\[\];\s*\}/);
+  assert.match(loadAppDataBody, /else\s*\{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*folders\s*=\s*latestAppData\.folders;\s*astras\s*=\s*latestAppData\.astras;\s*personalMemories\s*=\s*latestAppData\.personalMemories;\s*\}/);
   assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
   assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
   assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
@@ -430,15 +432,53 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   }
 });
 
-test('runtime app data store ownership is not introduced before replacement map guards', () => {
+test('runtime app data store ownership starts as a 00 loadAppData lexical bridge only', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const normalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
+  const storeSource = readSource('src/app/runtime/kernel/app-data-store.js');
+  const laterFragmentSources = [
+    '01-runtime.fragment.js',
+    '02-runtime.fragment.js',
+    '03-runtime.fragment.js',
+    '04-runtime.fragment.js',
+    '05-runtime.fragment.js',
+    '06-runtime.fragment.js'
+  ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
+  const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
 
-  assert.equal(existsSync(projectFile('src/app/runtime/kernel/app-data-store.js')), false);
+  assert.equal(existsSync(projectFile('src/app/runtime/kernel/app-data-store.js')), true);
+  assert.match(storeSource, /export\s+function\s+createLegacyRuntimeAppDataStore/);
+  assert.doesNotMatch(storeSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtimeContext/);
+  assert.doesNotMatch(storeSource, /getItem|setItem|removeItem|openDB|indexedDB|localStorage|sessionStorage|currentUser/);
+  assert.doesNotMatch(storeSource, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
+  assert.match(
+    fragment00Source,
+    /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/app-data-store\.js['"]/
+  );
+  assertMarkersInOrder(fragment00Source, [
+    'const runtimeAppDataStore = createLegacyRuntimeAppDataStore()',
+    'let conversations = runtimeAppDataStore.getConversations()',
+    'let folders = runtimeAppDataStore.getFolders()',
+    'let astras = runtimeAppDataStore.getAstras()',
+    'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
+    'let activeConversationId = null'
+  ], '00 app data store lexical bridge');
+  assertMarkersInOrder(loadAppDataBody, [
+    'const normalizedData = normalizeLoadedLegacyAppData({',
+    'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
+    'conversations = latestAppData.conversations',
+    'folders = latestAppData.folders',
+    'astras = latestAppData.astras',
+    'personalMemories = latestAppData.personalMemories'
+  ], '00 loadAppData store-backed successful replacement');
+  assert.equal((loadAppDataBody.match(/runtimeAppDataStore\.replaceAll\(\{/g) || []).length, 2);
+  assert.match(loadAppDataBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
+  assert.equal((laterFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
   assert.doesNotMatch(normalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);
@@ -805,7 +845,11 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'const legacyRuntimeContext = createLegacyRuntimeContext()',
     'const ALL_ELEMENTS = createLegacyRuntimeDomRegistry()',
     'const runtimeDomAccess = createRuntimeDomAccess({',
-    'let conversations = []',
+    'const runtimeAppDataStore = createLegacyRuntimeAppDataStore()',
+    'let conversations = runtimeAppDataStore.getConversations()',
+    'let folders = runtimeAppDataStore.getFolders()',
+    'let astras = runtimeAppDataStore.getAstras()',
+    'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
     'let activeConversationId = null',
     'const conversationStateAccess = createConversationStateAccess({',
     'const runtimeConfigStore = createLegacyRuntimeConfigStore({',

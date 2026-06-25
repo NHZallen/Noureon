@@ -88,28 +88,31 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
     'const saved = await getItem(getAppDataKey())',
     'const data = JSON.parse(saved)',
     'const normalizedData = normalizeLoadedLegacyAppData({',
-    'conversations = normalizedData.conversations',
-    'folders = normalizedData.folders',
-    'astras = normalizedData.astras',
-    'personalMemories = normalizedData.personalMemories'
+    'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
+    'conversations = latestAppData.conversations',
+    'folders = latestAppData.folders',
+    'astras = latestAppData.astras',
+    'personalMemories = latestAppData.personalMemories'
   ], 'loadAppData successful app data replacement');
 
   assertMarkersInOrder(loadAppDataBody, [
     'catch (e)',
     'console.error',
     'showNotification',
-    'conversations = []',
-    'folders = []',
-    'astras = []',
-    'personalMemories = []',
+    'const latestAppData = runtimeAppDataStore.replaceAll({',
+    'conversations: []',
+    'folders: []',
+    'astras: []',
+    'personalMemories: []',
+    'conversations = latestAppData.conversations',
+    'folders = latestAppData.folders',
+    'astras = latestAppData.astras',
+    'personalMemories = latestAppData.personalMemories',
     'await removeItem(getAppDataKey())'
   ], 'loadAppData corruption fallback');
 
-  assert.equal(countLiteral(loadAppDataBody, 'conversations = []'), 2);
-  assert.equal(countLiteral(loadAppDataBody, 'folders = []'), 2);
-  assert.equal(countLiteral(loadAppDataBody, 'astras = []'), 2);
-  assert.equal(countLiteral(loadAppDataBody, 'personalMemories = []'), 2);
-  assert.match(loadAppDataBody, /}\s*else\s*{\s*conversations\s*=\s*\[\];\s*folders\s*=\s*\[\];\s*astras\s*=\s*\[\];\s*personalMemories\s*=\s*\[\];\s*}/);
+  assert.equal(countLiteral(loadAppDataBody, 'runtimeAppDataStore.replaceAll({'), 2);
+  assert.match(loadAppDataBody, /}\s*else\s*{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*folders\s*=\s*latestAppData\.folders;\s*astras\s*=\s*latestAppData\.astras;\s*personalMemories\s*=\s*latestAppData\.personalMemories;\s*}/);
 });
 
 test('saveAppData and active conversation bridges stay lexical and live', () => {
@@ -135,6 +138,7 @@ test('saveAppData and active conversation bridges stay lexical and live', () => 
   ], 'saveAppData live app data getter');
 
   assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(\);\s*\}/);
+  assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
 });
 
 test('00 transient conversation replacements preserve legacy ordering', () => {
@@ -288,15 +292,34 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   ], 'empty trash replacement order');
 });
 
-test('app data store does not exist yet and runtime entry remains legacy during guard-only slice', () => {
+test('app data store is only wired to 00 loadAppData and runtime entry remains legacy', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const appDataNormalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
+  const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const laterFragmentSources = [
+    '01-runtime.fragment.js',
+    '02-runtime.fragment.js',
+    '03-runtime.fragment.js',
+    '04-runtime.fragment.js',
+    '05-runtime.fragment.js',
+    '06-runtime.fragment.js'
+  ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
 
-  assert.equal(existsSync(projectFile('src/app/runtime/kernel/app-data-store.js')), false);
+  assert.equal(existsSync(projectFile('src/app/runtime/kernel/app-data-store.js')), true);
+  assert.match(appDataStoreSource, /export\s+function\s+createLegacyRuntimeAppDataStore/);
+  assert.doesNotMatch(appDataStoreSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|currentUser|getItem|setItem|removeItem|openDB|showNotification|renderAll|toggleModal/);
+  assert.match(fragment00Source, /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/app-data-store\.js['"]/);
+  assert.match(fragment00Source, /const\s+runtimeAppDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);
+  assert.match(fragment00Source, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.match(fragment00Source, /let\s+folders\s*=\s*runtimeAppDataStore\.getFolders\(\)/);
+  assert.match(fragment00Source, /let\s+astras\s*=\s*runtimeAppDataStore\.getAstras\(\)/);
+  assert.match(fragment00Source, /let\s+personalMemories\s*=\s*runtimeAppDataStore\.getPersonalMemories\(\)/);
+  assert.equal((laterFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
   assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.doesNotMatch(appDataPersistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
   assert.doesNotMatch(appDataNormalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);
