@@ -237,8 +237,10 @@ test('runtime DOM registry ownership moves into the non-live runtime kernel', ()
 test('runtime config ownership moves into a narrow non-live kernel store', () => {
   const storePath = 'src/app/runtime/kernel/config-store.js';
   const persistencePath = 'src/app/runtime/kernel/config-persistence.js';
+  const normalizationPath = 'src/app/runtime/kernel/config-normalization.js';
   const storeSource = readSource(storePath);
   const persistenceSource = readSource(persistencePath);
+  const normalizationSource = readSource(normalizationPath);
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
@@ -260,6 +262,12 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.doesNotMatch(persistenceSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|config-store/);
   assert.doesNotMatch(persistenceSource, /getItem|removeItem|openDB|loadConfig|indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(persistenceSource, /try\s*\{|catch\s*\(/);
+  assert.equal(existsSync(projectFile(normalizationPath)), true, 'runtime config normalization module should exist');
+  assert.match(normalizationSource, /export\s+function\s+normalizeLoadedLegacyConfig/);
+  assert.match(normalizationSource, /export\s+function\s+normalizeApiKeyValue/);
+  assert.match(normalizationSource, /export\s+function\s+normalizeCouncilConfig/);
+  assert.doesNotMatch(normalizationSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|config-store|runtimeConfigStore/);
+  assert.doesNotMatch(normalizationSource, /getItem|setItem|removeItem|openDB|indexedDB|localStorage|sessionStorage/);
 
   assert.match(
     fragment00Source,
@@ -269,6 +277,10 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     fragment00Source,
     /import\s+\{\s*createLegacyRuntimeConfigPersistence\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/config-persistence\.js['"]/
   );
+  assert.match(
+    fragment00Source,
+    /from\s*['"]\/src\/app\/runtime\/kernel\/config-normalization\.js['"]/
+  );
   assertMarkersInOrder(fragment00Source, [
     'const runtimeConfigStore = createLegacyRuntimeConfigStore({',
     'defaultModelId: MODELS[0].id',
@@ -276,7 +288,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     'const runtimeConfigAccess = createRuntimeConfigAccess({'
   ], '00 runtime config ownership');
   assert.doesNotMatch(fragment00Source, /let\s+config\s*=\s*\{\s*apiKeys:/);
-  assert.match(fragment00Source, /config\s*=\s*runtimeConfigStore\.replaceConfig\(defaultConfig\)/);
+  assert.match(fragment00Source, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
   assert.equal(fragmentConfigAssignments.length, 2);
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /\bconfig\s*=/);
@@ -294,6 +306,14 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   ], '00 runtime config persistence wiring');
   assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
+  assertMarkersInOrder(fragment00Source, [
+    'const loadConfig = async () => {',
+    'const saved = await getItem(getConfigKey())',
+    'const savedConfig = JSON.parse(saved)',
+    'const normalizedConfig = normalizeLoadedLegacyConfig({',
+    'config = runtimeConfigStore.replaceConfig(normalizedConfig)'
+  ], '00 config load orchestration');
+  assert.match(fragment00Source, /Object\.assign\(config,\s*normalizedConfig\)/);
   assert.match(fragment00Source, /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`/);
   assert.match(fragment00Source, /async\s+function\s+openDB\(\)/);
   assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
@@ -310,6 +330,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     storeSource,
     /indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem|JSON\.parse|JSON\.stringify/
   );
+  assert.doesNotMatch(persistenceSource, /config-normalization|normalizeLoadedLegacyConfig/);
   assert.doesNotMatch(runtimeAppSource, /config-persistence|loadConfig|saveConfig|indexedDB/);
 });
 

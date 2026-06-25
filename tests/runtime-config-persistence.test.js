@@ -219,58 +219,70 @@ test('loadConfig preserves missing-user, null storage, and invalid JSON boundari
     'const savedConfig = JSON.parse(saved)'
   ], 'loadConfig storage boundary');
   assert.doesNotMatch(body, /try\s*\{|catch\s*\(/);
-  assert.match(savedIfBody, /config\s*=\s*runtimeConfigStore\.replaceConfig\(defaultConfig\)/);
+  assert.match(savedIfBody, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
   assert.equal((body.match(/runtimeConfigStore\.replaceConfig\(/g) || []).length, 1);
   assert.ok(
-    body.indexOf('const allModelIds = new Set(MODELS.map(m => m.id))') > savedIfClose,
-    'null storage should skip pointer replacement while retaining legacy normalization'
+    body.indexOf('Object.assign(config, normalizedConfig)') > savedIfClose,
+    'null storage should skip pointer replacement while retaining legacy normalization through the current pointer'
   );
 });
 
 test('loadConfig preserves saved config and nested merge precedence', () => {
   const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const body = getConstFunctionBody(source, 'loadConfig');
+  const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
 
   assertMarkersInOrder(body, [
     'const savedConfig = JSON.parse(saved)',
+    'const normalizedConfig = normalizeLoadedLegacyConfig({',
+    'currentConfig: config',
+    'savedConfig',
+    'models: MODELS',
+    'config = runtimeConfigStore.replaceConfig(normalizedConfig)'
+  ], 'loadConfig merge precedence');
+  assertMarkersInOrder(normalizationSource, [
     'openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter)',
     'stepPlanKey = normalizeApiKeyValue(savedConfig.apiKeys.stepPlan)',
     'nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia)',
     'tavilyKey = normalizeApiKeyValue(savedConfig.apiKeys.tavily)',
-    'const defaultConfig = {',
-    '...config',
+    '...currentConfig',
     '...savedConfig',
     'apiKeys: {',
-    '...config.apiKeys',
+    '...currentConfig.apiKeys',
     '...savedConfig.apiKeys',
     'openrouter: openrouterKey',
     'stepPlan: stepPlanKey',
     'nvidia: nvidiaKey',
     'tavily: tavilyKey',
-    'uiTheme: { ...config.uiTheme, ...(savedConfig.uiTheme || {}) }',
-    'config = runtimeConfigStore.replaceConfig(defaultConfig)'
-  ], 'loadConfig merge precedence');
+    'uiTheme: { ...currentConfig.uiTheme, ...(savedConfig.uiTheme || {}) }'
+  ], 'config normalization merge precedence');
 });
 
 test('loadConfig keeps API, model, and council normalization in legacy order', () => {
   const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const body = getConstFunctionBody(source, 'loadConfig');
+  const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
 
   assertMarkersInOrder(body, [
-    "defaultConfig.outputMode = defaultConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter'",
-    "defaultConfig.tavilySearchDepth = defaultConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic'",
-    'config = runtimeConfigStore.replaceConfig(defaultConfig)',
-    'const allModelIds = new Set(MODELS.map(m => m.id))',
-    'const id = getCanonicalModelId(setting.id)',
-    'MODELS.forEach((model, index) =>',
-    'config.modelSettings.sort((a, b) => a.order - b.order)',
-    'config.modelSettings.forEach((s, index) => s.order = index)',
-    'config.defaultModel = getCanonicalModelId(config.defaultModel)',
-    'config.lastUsedModel = getCanonicalModelId(config.lastUsedModel)',
-    'config.lastCouncilConfig = normalizeCouncilConfig(config.lastCouncilConfig)',
-    'getCouncilTranslatorCandidates().some(model => model.id === config.councilTranslatorModelId)',
-    'getSingleTranslatorCandidates().some(model => model.id === config.singleDocumentTranslatorModelId)'
+    'const normalizedConfig = normalizeLoadedLegacyConfig({',
+    'councilTranslatorCandidates: getCouncilTranslatorCandidates()',
+    'singleTranslatorCandidates: getSingleTranslatorCandidates()',
+    'config = runtimeConfigStore.replaceConfig(normalizedConfig)'
   ], 'loadConfig normalization');
+  assertMarkersInOrder(normalizationSource, [
+    "normalizedConfig.outputMode = normalizedConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter'",
+    "normalizedConfig.tavilySearchDepth = normalizedConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic'",
+    'const allModelIds = new Set(models.map(m => m.id))',
+    'const id = canonicalizeModelId(setting.id)',
+    'models.forEach((model) =>',
+    'normalizedConfig.modelSettings.sort((a, b) => a.order - b.order)',
+    'normalizedConfig.modelSettings.forEach((s, index) => { s.order = index; })',
+    'normalizedConfig.defaultModel = canonicalizeModelId(normalizedConfig.defaultModel)',
+    'normalizedConfig.lastUsedModel = canonicalizeModelId(normalizedConfig.lastUsedModel)',
+    'normalizedConfig.lastCouncilConfig = normalizeCouncilConfig(normalizedConfig.lastCouncilConfig',
+    'councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)',
+    'singleTranslatorCandidates.some(model => model.id === normalizedConfig.singleDocumentTranslatorModelId)'
+  ], 'config normalization model and council order');
 });
 
 test('settings persistence keeps mutation, visual, save, render, and notification order', () => {

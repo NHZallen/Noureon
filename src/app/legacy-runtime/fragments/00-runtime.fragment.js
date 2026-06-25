@@ -31,6 +31,14 @@ import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
 import { createLegacyRuntimeConfigStore } from '/src/app/runtime/kernel/config-store.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
+import {
+    cloneCouncilConfig as cloneLegacyCouncilConfig,
+    createDefaultCouncilConfig,
+    createModelIdCanonicalizer,
+    normalizeApiKeyValue,
+    normalizeCouncilConfig as normalizeLegacyCouncilConfig,
+    normalizeLoadedLegacyConfig
+} from '/src/app/runtime/kernel/config-normalization.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -628,41 +636,18 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             return COUNCIL_TEXT[uiLanguage] || COUNCIL_TEXT['zh-TW'];
         };
-        const getDefaultCouncilConfig = () => ({
-            enabled: false,
-            mode: 'consensus',
-            participantModelIds: [],
-            synthesizerModelId: null,
-            showRawResponses: true,
-            showComparisonTable: true
+        const getDefaultCouncilConfig = createDefaultCouncilConfig;
+        const getCanonicalModelId = createModelIdCanonicalizer({ models: MODELS });
+        const normalizeCouncilConfig = (value = {}) => normalizeLegacyCouncilConfig(value, {
+            models: MODELS,
+            maxCouncilModels: COUNCIL_MAX_MODELS,
+            canonicalizeModelId: getCanonicalModelId
         });
-        const getCanonicalModelId = (modelId) => {
-            if (!modelId) return modelId;
-            if (MODELS.some(model => model.id === modelId)) return modelId;
-            const legacyNvidiaModel = MODELS.find(model => model.provider === 'nvidia' && model.apiId === modelId);
-            return legacyNvidiaModel?.id || modelId;
-        };
-        const normalizeCouncilConfig = (value = {}) => {
-            const validModelIds = new Set(MODELS.map(model => model.id));
-            const normalized = { ...getDefaultCouncilConfig(), ...(value || {}) };
-            const participantModelIds = Array.isArray(normalized.participantModelIds)
-                ? normalized.participantModelIds
-                    .map(getCanonicalModelId)
-                    .filter((modelId, index, arr) => validModelIds.has(modelId) && arr.indexOf(modelId) === index)
-                    .slice(0, COUNCIL_MAX_MODELS)
-                : [];
-            const canonicalSynthesizerModelId = getCanonicalModelId(normalized.synthesizerModelId);
-            const synthesizerModelId = validModelIds.has(canonicalSynthesizerModelId) ? canonicalSynthesizerModelId : null;
-            return {
-                enabled: Boolean(normalized.enabled),
-                mode: normalized.mode === 'deliberation' ? 'deliberation' : 'consensus',
-                participantModelIds,
-                synthesizerModelId,
-                showRawResponses: normalized.showRawResponses !== false,
-                showComparisonTable: normalized.showComparisonTable !== false
-            };
-        };
-        const cloneCouncilConfig = (value = {}) => normalizeCouncilConfig(JSON.parse(JSON.stringify(value || {})));
+        const cloneCouncilConfig = (value = {}) => cloneLegacyCouncilConfig(value, {
+            models: MODELS,
+            maxCouncilModels: COUNCIL_MAX_MODELS,
+            canonicalizeModelId: getCanonicalModelId
+        });
         const isCouncilEnabled = (conv) => Boolean(conv?.council?.enabled);
         const getVisibleCouncilModels = () => {
             const settings = Array.isArray(config.modelSettings) ? config.modelSettings : [];
@@ -983,16 +968,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const DB_NAME = 'ChatAppDB';
         const STORE_NAME = 'keyValue';
         let db;
-        function normalizeApiKeyValue(value) {
-            if (typeof value === 'string') {
-                return value.trim();
-            }
-            if (value && typeof value === 'object') {
-                const key = Object.values(value).find(v => typeof v === 'string' && v.trim());
-                return key ? key.trim() : '';
-            }
-            return '';
-        }
         function getApiKeyForProvider(provider) {
             if (provider === 'gemini') {
                 return normalizeApiKeyValue(config.apiKeys?.gemini);
@@ -1336,68 +1311,25 @@ function renderMarkdownWithFormulas(text) {
             const saved = await getItem(getConfigKey());
             if (saved) {
                 const savedConfig = JSON.parse(saved);
-                let openrouterKey = '';
-                let stepPlanKey = '';
-                let nvidiaKey = '';
-                let tavilyKey = '';
-                if (savedConfig.apiKeys) {
-                    openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter);
-                    stepPlanKey = normalizeApiKeyValue(savedConfig.apiKeys.stepPlan);
-                    nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia);
-                    tavilyKey = normalizeApiKeyValue(savedConfig.apiKeys.tavily);
-                }
-                const savedOpenrouterKeys = savedConfig.apiKeys?.openrouter || {};
-                const defaultConfig = {
-                    ...config,
-                    ...savedConfig,
-                    apiKeys: {
-                        ...config.apiKeys,
-                        ...savedConfig.apiKeys,
-                        openrouter: openrouterKey,
-                        stepPlan: stepPlanKey,
-                        nvidia: nvidiaKey,
-                        tavily: tavilyKey
-                    },
-                    uiTheme: { ...config.uiTheme, ...(savedConfig.uiTheme || {}) }
-                };
-                defaultConfig.uiTheme.style = defaultConfig.uiTheme.style || 'single';
-                defaultConfig.uiTheme.adaptivePalette = defaultConfig.uiTheme.adaptivePalette || [];
-                defaultConfig.uiTheme.adaptiveGradient = defaultConfig.uiTheme.adaptiveGradient || '';
-                defaultConfig.outputMode = defaultConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter';
-                defaultConfig.tavilySearchDepth = defaultConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
-                config = runtimeConfigStore.replaceConfig(defaultConfig);
-            }
-            const allModelIds = new Set(MODELS.map(m => m.id));
-            const savedModelSettings = [];
-            (config.modelSettings || []).forEach(setting => {
-                const id = getCanonicalModelId(setting.id);
-                if (allModelIds.has(id) && !savedModelSettings.some(item => item.id === id)) {
-                    savedModelSettings.push({ ...setting, id });
-                }
-            });
-            const savedSettingIds = new Set(savedModelSettings.map(s => s.id));
-            MODELS.forEach((model, index) => {
-                if (!savedSettingIds.has(model.id)) {
-                    savedModelSettings.push({ id: model.id, hidden: false, order: savedModelSettings.length });
-                }
-            });
-            config.modelSettings = savedModelSettings.filter(s => allModelIds.has(s.id));
-            config.modelSettings.sort((a, b) => a.order - b.order);
-            config.modelSettings.forEach((s, index) => s.order = index);
-            config.defaultModel = getCanonicalModelId(config.defaultModel);
-            config.lastUsedModel = getCanonicalModelId(config.lastUsedModel);
-            if (!allModelIds.has(config.defaultModel)) {
-                config.defaultModel = MODELS[0].id;
-            }
-            if (!allModelIds.has(config.lastUsedModel)) {
-                config.lastUsedModel = MODELS[0].id;
-            }
-            config.lastCouncilConfig = normalizeCouncilConfig(config.lastCouncilConfig);
-            if (!getCouncilTranslatorCandidates().some(model => model.id === config.councilTranslatorModelId)) {
-                config.councilTranslatorModelId = getCouncilTranslatorCandidates()[0]?.id || null;
-            }
-            if (!getSingleTranslatorCandidates().some(model => model.id === config.singleDocumentTranslatorModelId)) {
-                config.singleDocumentTranslatorModelId = getSingleTranslatorCandidates()[0]?.id || null;
+                const normalizedConfig = normalizeLoadedLegacyConfig({
+                    currentConfig: config,
+                    savedConfig,
+                    models: MODELS,
+                    maxCouncilModels: COUNCIL_MAX_MODELS,
+                    councilTranslatorCandidates: getCouncilTranslatorCandidates(),
+                    singleTranslatorCandidates: getSingleTranslatorCandidates()
+                });
+                config = runtimeConfigStore.replaceConfig(normalizedConfig);
+            } else {
+                const normalizedConfig = normalizeLoadedLegacyConfig({
+                    currentConfig: config,
+                    savedConfig: null,
+                    models: MODELS,
+                    maxCouncilModels: COUNCIL_MAX_MODELS,
+                    councilTranslatorCandidates: getCouncilTranslatorCandidates(),
+                    singleTranslatorCandidates: getSingleTranslatorCandidates()
+                });
+                Object.assign(config, normalizedConfig);
             }
         };
         const saveAppData = async () => { if (currentUser) await setItem(getAppDataKey(), JSON.stringify({ conversations, folders, astras, personalMemories })); };
