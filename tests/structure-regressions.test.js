@@ -204,6 +204,36 @@ test('legacy runtime entry still uses the sorted virtual fragment composition', 
   assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
 });
 
+test('runtime DOM registry ownership moves into the non-live runtime kernel', () => {
+  const registryPath = 'src/app/runtime/kernel/dom-registry.js';
+  const runtimeAppPath = 'src/app/runtime-app.js';
+  const registrySource = readSource(registryPath);
+  const runtimeAppSource = readSource(runtimeAppPath);
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const mainSource = readSource('src/main.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+  const viteSource = readSource('vite.config.js');
+
+  assert.equal(existsSync(projectFile(registryPath)), true, 'runtime DOM registry module should exist');
+  assert.equal(existsSync(projectFile(runtimeAppPath)), true, 'non-live runtime app seed should exist');
+  assert.match(registrySource, /export\s+function\s+createLegacyRuntimeDomRegistry/);
+  assert.match(
+    fragment00Source,
+    /import\s+\{\s*createLegacyRuntimeDomRegistry\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/dom-registry\.js['"]/
+  );
+  assert.match(fragment00Source, /const\s+ALL_ELEMENTS\s*=\s*createLegacyRuntimeDomRegistry\(\);/);
+  assert.doesNotMatch(fragment00Source, /const\s+ALL_ELEMENTS\s*=\s*\{/);
+
+  assert.match(runtimeAppSource, /export\s+function\s+createRuntimeAppKernel/);
+  assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeDomRegistry\s*\}/);
+  assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
+
+  assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
+  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(viteSource, /function\s+legacyRuntimeFragmentsPlugin\(\)/);
+  assert.match(viteSource, /plugins:\s*\[legacyRuntimeFragmentsPlugin\(\)\]/);
+});
+
 test('legacy runtime fragments exist and are not empty', () => {
   for (const name of [
     '00-runtime.fragment.js',
@@ -560,7 +590,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
 
   assertMarkersInOrder(fragment00Source, [
     'const legacyRuntimeContext = createLegacyRuntimeContext()',
-    'const ALL_ELEMENTS = {',
+    'const ALL_ELEMENTS = createLegacyRuntimeDomRegistry()',
     'const runtimeDomAccess = createRuntimeDomAccess({',
     'let conversations = []',
     'let activeConversationId = null',
@@ -1007,7 +1037,7 @@ test('runtime config access owns selected uiLanguage reads without changing conf
   assert.match(fragment02Source, /applyLanguage\(config\.uiLanguage\);/);
 });
 
-test('runtime DOM access owns selected element reads without changing DOM registry ownership', () => {
+test('runtime DOM access owns selected element reads through the extracted DOM registry', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
@@ -1021,7 +1051,7 @@ test('runtime DOM access owns selected element reads without changing DOM regist
   assert.doesNotMatch(accessSource, /document\.|querySelector|getElementById|addEventListener/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeDomAccess\s*\}/);
   assert.equal((fragment00Source.match(/createRuntimeDomAccess\(\{/g) || []).length, 1);
-  assert.match(fragment00Source, /const\s+ALL_ELEMENTS\s*=\s*\{/);
+  assert.match(fragment00Source, /const\s+ALL_ELEMENTS\s*=\s*createLegacyRuntimeDomRegistry\(\);/);
   assert.match(fragment00Source, /const\s+runtimeDomAccess\s*=\s*createRuntimeDomAccess\(\{\s*getElements:\s*\(\)\s*=>\s*ALL_ELEMENTS,\s*logger:\s*console\s*\}\);/);
   assert.doesNotMatch(fragment00Source, /getElements:\s*ALL_ELEMENTS\b/);
 
