@@ -2,7 +2,8 @@
             const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
             const allMessages = conversations.flatMap(c => c.messages.map(m => new Date(m.createdAt)));
             const years = [...new Set(allMessages.map(d => d.getFullYear()))].sort((a,b) => b-a);
-            timeAnalysisYearSelect.innerHTML = `<option value="">${i18n[config.uiLanguage].all || '全部'}</option>`;
+            const uiLanguage = runtimeConfigAccess.getUiLanguage();
+            timeAnalysisYearSelect.innerHTML = `<option value="">${i18n[uiLanguage].all || '全部'}</option>`;
             years.forEach(year => {
                 const option = document.createElement('option');
                 option.value = year;
@@ -12,12 +13,13 @@
             timeAnalysisYearSelect.addEventListener('change', () => {
                 const year = timeAnalysisYearSelect.value;
                 if (year) {
+                    const uiLanguage = runtimeConfigAccess.getUiLanguage();
                     timeAnalysisMonthSelect.disabled = false;
-                    timeAnalysisMonthSelect.innerHTML = `<option value="">${i18n[config.uiLanguage].wholeYear || '全年'}</option>`;
+                    timeAnalysisMonthSelect.innerHTML = `<option value="">${i18n[uiLanguage].wholeYear || '全年'}</option>`;
                      for(let i=1; i<=12; i++) {
                         const option = document.createElement('option');
                         option.value = i;
-                        option.textContent = `${i}${i18n[config.uiLanguage].monthSuffix || '月'}`;
+                        option.textContent = `${i}${i18n[uiLanguage].monthSuffix || '月'}`;
                         timeAnalysisMonthSelect.appendChild(option);
                     }
                 } else {
@@ -32,13 +34,14 @@
                 const year = parseInt(timeAnalysisYearSelect.value);
                 const month = parseInt(timeAnalysisMonthSelect.value);
                  if (year && month) {
+                    const uiLanguage = runtimeConfigAccess.getUiLanguage();
                     timeAnalysisDaySelect.disabled = false;
                     const daysInMonth = new Date(year, month, 0).getDate();
-                    timeAnalysisDaySelect.innerHTML = `<option value="">${i18n[config.uiLanguage].wholeMonth || '全月'}</option>`;
+                    timeAnalysisDaySelect.innerHTML = `<option value="">${i18n[uiLanguage].wholeMonth || '全月'}</option>`;
                     for (let i = 1; i <= daysInMonth; i++) {
                         const option = document.createElement('option');
                         option.value = i;
-                        option.textContent = `${i}${i18n[config.uiLanguage].daySuffix || '日'}`;
+                        option.textContent = `${i}${i18n[uiLanguage].daySuffix || '日'}`;
                         timeAnalysisDaySelect.appendChild(option);
                     }
                 } else {
@@ -55,7 +58,7 @@
             const month = ALL_ELEMENTS.timeAnalysisMonthSelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisMonthSelect.value) : null;
             const day = ALL_ELEMENTS.timeAnalysisDaySelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisDaySelect.value) : null;
             const allMessages = conversations.flatMap(c => c.messages);
-            const lang = config.uiLanguage;
+            const lang = runtimeConfigAccess.getUiLanguage();
             const { chartType, label, labels, data } = buildTimeDistributionChartData({ messages: allMessages, year, month, day, text: i18n[lang] });
             const ctx = document.getElementById('time-distribution-chart').getContext('2d');
             if (timeDistChart) {

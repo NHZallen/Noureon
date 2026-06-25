@@ -479,12 +479,16 @@ test('runtime config access owns selected uiLanguage reads without changing conf
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
   const getCouncilTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilTexts');
   const getCouncilRuntimeTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilRuntimeTexts');
   const getModelRetirementLabelBody = getConstFunctionBody(fragment00Source, 'getModelRetirementLabel');
   const getModelPriceLabelBody = getConstFunctionBody(fragment00Source, 'getModelPriceLabel');
+  const renderArchivedChatsBody = getConstFunctionBody(fragment01Source, 'renderArchivedChats');
   const getCouncilModeLabelBody = getConstFunctionBody(fragment01Source, 'getCouncilModeLabel');
+  const setupTimeAnalysisBody = getConstFunctionBody(fragment04Source, 'setupTimeAnalysis');
+  const updateTimeDistributionChartBody = getConstFunctionBody(fragment04Source, 'updateTimeDistributionChart');
 
   assert.match(accessSource, /export\s+function\s+createRuntimeConfigAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeConfigAccess\s*\}/);
@@ -497,7 +501,10 @@ test('runtime config access owns selected uiLanguage reads without changing conf
     getCouncilRuntimeTextsBody,
     getModelRetirementLabelBody,
     getModelPriceLabelBody,
-    getCouncilModeLabelBody
+    getCouncilModeLabelBody,
+    renderArchivedChatsBody,
+    setupTimeAnalysisBody,
+    updateTimeDistributionChartBody
   ]) {
     assert.match(body, /runtimeConfigAccess\.getUiLanguage\(\)/);
     assert.doesNotMatch(body, /config\.uiLanguage/);
@@ -514,6 +521,16 @@ test('runtime config access owns selected uiLanguage reads without changing conf
   assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'en'\)\s*return\s+`Council \$\{modeLabel\}`;/);
   assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*return\s+`Conseil \$\{modeLabel\}`;/);
   assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*return\s+`Conseil \$\{modeLabel\}`;\s*return\s+`[^`]*\$\{modeLabel\}`;/);
+  assert.match(renderArchivedChatsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
+  for (const key of ['noArchivedChats', 'view', 'restore', 'delete']) {
+    assert.match(renderArchivedChatsBody, new RegExp(`i18n\\[uiLanguage\\]\\.${key}\\s*\\|\\|`));
+  }
+  assert.ok((setupTimeAnalysisBody.match(/runtimeConfigAccess\.getUiLanguage\(\)/g) || []).length >= 3);
+  for (const key of ['all', 'wholeYear', 'monthSuffix', 'wholeMonth', 'daySuffix']) {
+    assert.match(setupTimeAnalysisBody, new RegExp(`i18n\\[uiLanguage\\]\\.${key}\\s*\\|\\|`));
+  }
+  assert.match(updateTimeDistributionChartBody, /const\s+lang\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
+  assert.match(updateTimeDistributionChartBody, /buildTimeDistributionChartData\(\{\s*messages:\s*allMessages,\s*year,\s*month,\s*day,\s*text:\s*i18n\[lang\]\s*\}\)/);
 
   assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*if\s*\(currentUser\)\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(config\)\);\s*\};/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>\s*\{/);
