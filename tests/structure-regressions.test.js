@@ -220,6 +220,39 @@ test('legacy runtime fragments exist and are not empty', () => {
   }
 });
 
+test('folder metadata is shared without later-fragment lexical ownership', () => {
+  const metadataPath = 'src/app/legacy-runtime/data/folder-metadata.js';
+  const metadataSource = readSource(metadataPath);
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const renderFoldersBody = getConstFunctionBody(fragment01Source, 'renderFolders');
+  const showFolderSettingsModalBody = getConstFunctionBody(fragment02Source, 'showFolderSettingsModal');
+
+  assert.equal(existsSync(projectFile(metadataPath)), true, 'shared folder metadata module should exist');
+  assert.match(metadataSource, /export\s+const\s+FOLDER_SVGS\s*=/);
+  assert.match(metadataSource, /export\s+const\s+FOLDER_TEXT_COLORS\s*=/);
+  assert.match(
+    fragment01Source,
+    /import\s*\{\s*FOLDER_SVGS,\s*FOLDER_TEXT_COLORS,\s*\}\s*from\s*['"]\/src\/app\/legacy-runtime\/data\/folder-metadata\.js['"]/
+  );
+  assert.match(
+    fragment02Source,
+    /import\s*\{\s*FOLDER_SVGS\s+as\s+FOLDER_ICON_OPTIONS,\s*\}\s*from\s*['"]\/src\/app\/legacy-runtime\/data\/folder-metadata\.js['"]/
+  );
+  assert.match(showFolderSettingsModalBody, /Object\.entries\(FOLDER_ICON_OPTIONS\)/);
+  assert.doesNotMatch(fragment06Source, /const\s+FOLDER_SVGS\s*=/);
+  assert.doesNotMatch(fragment06Source, /const\s+FOLDER_TEXT_COLORS\s*=/);
+  assert.match(
+    renderFoldersBody,
+    /FOLDER_SVGS\[folder\.icon\]\s*\|\|\s*FOLDER_SVGS(?:\[['"]default['"]\]|\.default)/
+  );
+  assert.match(
+    renderFoldersBody,
+    /FOLDER_TEXT_COLORS\[folder\.textColor\]\s*\|\|\s*FOLDER_TEXT_COLORS(?:\[['"]gray['"]\]|\.gray)/
+  );
+});
+
 test('legacy runtime adjacent fragments do not contain cross-fragment brace continuations', () => {
   const fragments = [
     '00-runtime.fragment.js',

@@ -12,6 +12,9 @@
         } from '/src/app/legacy-runtime/features/settings-mobile-metadata.js';
         import { getOutputModeSettingsText } from '/src/app/legacy-runtime/features/output-mode-settings-text.js';
         import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
+        import {
+            FOLDER_SVGS as FOLDER_ICON_OPTIONS,
+        } from '/src/app/legacy-runtime/data/folder-metadata.js';
         function calculateRelevanceScore(summary, keywords) {
             if (!summary || !keywords || keywords.length === 0) {
                 return 0;
@@ -1079,7 +1082,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
             ALL_ELEMENTS.iconOptionsContainer.className = 'grid grid-cols-5 sm:grid-cols-6 gap-3 mt-2'; 
             ALL_ELEMENTS.iconOptionsContainer.innerHTML = '';
             
-            Object.entries(FOLDER_SVGS).forEach(([key, svgPath]) => {
+            Object.entries(FOLDER_ICON_OPTIONS).forEach(([key, svgPath]) => {
                 const iconOption = document.createElement('div');
                 // 確保圖示容器大小適中且不會跑版
                 iconOption.className = 'icon-option w-11 h-11 sm:w-12 sm:h-12 rounded-lg cursor-pointer flex items-center justify-center bg-[var(--sidebar-bg)] border border-transparent hover:bg-[var(--hover-bg)] transition-all';

@@ -1,3 +1,8 @@
+        import {
+            FOLDER_SVGS,
+            FOLDER_TEXT_COLORS,
+        } from '/src/app/legacy-runtime/data/folder-metadata.js';
+
         const renderFolders = () => {
             const folderList = runtimeDomAccess.getRequiredElement('folderList');
             folderList.innerHTML = '';
