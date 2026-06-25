@@ -5,7 +5,8 @@ import test from 'node:test';
 import {
   createRuntimeEntry,
   getLegacyRuntimeEntryDependencies,
-  loadLegacyRuntimeContext
+  loadLegacyRuntimeContext,
+  registerRuntimeEntryBindings
 } from '../src/app/runtime-entry.js';
 import {
   LEGACY_RUNTIME_ENTRY_REQUIRED_FIELDS,
@@ -63,6 +64,7 @@ test('runtime entry exports an inert composition API', () => {
   assert.equal(typeof createRuntimeEntry, 'function');
   assert.equal(typeof getLegacyRuntimeEntryDependencies, 'function');
   assert.equal(typeof loadLegacyRuntimeContext, 'function');
+  assert.equal(typeof registerRuntimeEntryBindings, 'function');
 
   const calls = [];
   const dependencies = createCompleteDependencies({
@@ -78,7 +80,56 @@ test('runtime entry exports an inert composition API', () => {
   assert.equal(typeof entry.initChatApp, 'function');
   assert.equal(typeof entry.initializeApp, 'function');
   assert.equal(typeof entry.adjustTextareaHeight, 'function');
+  assert.equal(typeof entry.registerBindings, 'function');
   assert.equal(typeof entry.start, 'function');
+});
+
+test('runtime entry explicitly registers startup textarea ownership without starting', () => {
+  const bindings = new Map();
+  const runtimeContext = {
+    registerLazyBinding(name, getter) {
+      assert.equal(bindings.has(name), false);
+      bindings.set(name, getter);
+    },
+    resolveOptionalBinding(name) {
+      return bindings.get(name)?.();
+    }
+  };
+  const adjustTextareaHeight = () => {};
+  const startupLifecycle = { adjustTextareaHeight };
+
+  assert.equal(
+    registerRuntimeEntryBindings({ runtimeContext, startupLifecycle }),
+    adjustTextareaHeight
+  );
+  assert.equal(
+    runtimeContext.resolveOptionalBinding('runtimeEntry.submit.adjustTextareaHeight'),
+    adjustTextareaHeight
+  );
+  assert.equal(
+    registerRuntimeEntryBindings({ runtimeContext, startupLifecycle }),
+    adjustTextareaHeight
+  );
+});
+
+test('createRuntimeEntry binding registration stays inert until explicitly requested', () => {
+  const registered = [];
+  const runtimeContext = {
+    registerLazyBinding(name) {
+      registered.push(name);
+    },
+    resolveOptionalBinding() {
+      return undefined;
+    }
+  };
+  const entry = createRuntimeEntry({
+    runtimeContext,
+    dependencies: createCompleteDependencies()
+  });
+
+  assert.deepEqual(registered, []);
+  entry.registerBindings();
+  assert.deepEqual(registered, ['runtimeEntry.submit.adjustTextareaHeight']);
 });
 
 test('runtime entry resolves the registered facade from an injected runtime context', () => {

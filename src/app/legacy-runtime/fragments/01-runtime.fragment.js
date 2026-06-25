@@ -2,6 +2,16 @@
             FOLDER_SVGS,
             FOLDER_TEXT_COLORS,
         } from '/src/app/legacy-runtime/data/folder-metadata.js';
+        import { createLegacyConversationMailSender } from '/src/app/runtime/features/conversation-mail.js';
+
+        const sendConversationToMail = createLegacyConversationMailSender({
+            getActiveConversation,
+            getModels: () => MODELS,
+            isCouncilEnabled,
+            getCouncilTexts,
+            postJsonWithReadableError,
+            logger: console,
+        });
 
         const renderFolders = () => {
             const folderList = runtimeDomAccess.getRequiredElement('folderList');
@@ -1024,7 +1034,13 @@ const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
         legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
         legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
         legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
-        legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => adjustTextareaHeight);
+        legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => {
+            const runtimeEntryAdjustTextareaHeight = legacyRuntimeContext.resolveOptionalBinding(
+                'runtimeEntry.submit.adjustTextareaHeight'
+            );
+            if (runtimeEntryAdjustTextareaHeight) return runtimeEntryAdjustTextareaHeight;
+            return adjustTextareaHeight;
+        });
         legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({
             elements: {

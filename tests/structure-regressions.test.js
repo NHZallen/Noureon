@@ -230,6 +230,7 @@ test('non-production runtime entry composes the explicit legacy dependency facad
   assert.equal(existsSync(projectFile(runtimeEntryPath)), true);
   assert.equal(existsSync(projectFile(dependencyPath)), true);
   assert.match(runtimeEntrySource, /export\s+function\s+createRuntimeEntry/);
+  assert.match(runtimeEntrySource, /export\s+function\s+registerRuntimeEntryBindings/);
   assert.match(runtimeEntrySource, /export\s+function\s+getLegacyRuntimeEntryDependencies/);
   assert.match(runtimeEntrySource, /export\s+async\s+function\s+loadLegacyRuntimeContext/);
   assert.match(
@@ -284,6 +285,55 @@ test('non-production runtime entry composes the explicit legacy dependency facad
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
   assert.doesNotMatch(mainSource, /runtime-entry/);
   assert.doesNotMatch(runtimeAppSource, /runtime-entry|virtual:legacy-app-runtime/);
+});
+
+test('runtime entry cutover helpers no longer rely on 05 lexical ownership', () => {
+  const conversationMailPath = 'src/app/runtime/features/conversation-mail.js';
+  const imageCompressionPath = 'src/app/runtime/utils/image-compression.js';
+  const conversationMailSource = readSource(conversationMailPath);
+  const imageCompressionSource = readSource(imageCompressionPath);
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const runtimeEntrySource = readSource('src/app/runtime-entry.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+  const viteSource = readSource('vite.config.js');
+
+  assert.equal(existsSync(projectFile(conversationMailPath)), true);
+  assert.equal(existsSync(projectFile(imageCompressionPath)), true);
+  assert.match(conversationMailSource, /export\s+async\s+function\s+sendConversationToMail/);
+  assert.match(imageCompressionSource, /export\s+function\s+compressImage/);
+  assert.doesNotMatch(
+    `${conversationMailSource}\n${imageCompressionSource}`,
+    /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/
+  );
+
+  assert.match(
+    fragment01Source,
+    /import\s+\{\s*createLegacyConversationMailSender\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/conversation-mail\.js['"]/
+  );
+  assert.match(
+    fragment01Source,
+    /const\s+sendConversationToMail\s*=\s*createLegacyConversationMailSender\(\{/
+  );
+  assert.match(
+    fragment03Source,
+    /import\s+\{\s*compressImage\s*\}\s+from\s+['"]\/src\/app\/runtime\/utils\/image-compression\.js['"]/
+  );
+  assert.doesNotMatch(fragment05Source, /function\s+sendConversationToMail|const\s+compressImage\s*=/);
+
+  assert.match(runtimeEntrySource, /export\s+function\s+registerRuntimeEntryBindings/);
+  assert.match(runtimeEntrySource, /runtimeEntry\.submit\.adjustTextareaHeight/);
+  assert.match(
+    fragment01Source,
+    /resolveOptionalBinding\(\s*['"]runtimeEntry\.submit\.adjustTextareaHeight['"]\s*\)/
+  );
+  assert.match(fragment06Source, /createLegacyStartupLifecycle/);
+  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.doesNotMatch(legacyEntrySource, /runtime-entry/);
+  assert.match(viteSource, /readdirSync\(fragmentsDir\)/);
+  assert.doesNotMatch(viteSource, /0[0-4]-runtime|exclude.*05|exclude.*06/);
 });
 
 test('runtime DOM registry ownership moves into the non-live runtime kernel', () => {
@@ -1288,7 +1338,7 @@ test('startup lifecycle ownership moves initializeApp and auth startup bindings 
 
   assert.match(
     fragment01Source,
-    /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*adjustTextareaHeight\)/
+    /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*resolveOptionalBinding\(\s*'runtimeEntry\.submit\.adjustTextareaHeight'\s*\)[\s\S]*return\s+adjustTextareaHeight;[\s\S]*\}\)/
   );
   assert.match(
     fragment05Source,
@@ -2719,7 +2769,6 @@ test('response progress renderers and submit preparation are isolated from the 0
     'updateSubmitButtonState',
     'generateTitleAndSummary',
     'shouldPerformWebSearch',
-    'adjustTextareaHeight',
     'renderFilePreviews'
   ]) {
     assert.match(
@@ -2735,6 +2784,15 @@ test('response progress renderers and submit preparation are isolated from the 0
       new RegExp(`\\n\\s*${bindingName},\\s*\\n`)
     );
   }
+  assert.match(
+    fragment01Source,
+    /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*runtimeEntry\.submit\.adjustTextareaHeight[\s\S]*return\s+adjustTextareaHeight;[\s\S]*\}\)/
+  );
+  assert.match(
+    fragment01Source,
+    /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.adjustTextareaHeight'\)\(\.\.\.args\)/
+  );
+  assert.doesNotMatch(fragment01Source, /\n\s*adjustTextareaHeight,\s*\n/);
   assert.match(fragment01Source, /if\s*\(responseUsesCouncil\)\s*\{[\s\S]*runCouncilResponseRenderLifecycle\(\{/);
   assert.match(fragment01Source, /\}\s*else\s*\{[\s\S]*singleModelResponseLifecycle\.run\(\{/);
 

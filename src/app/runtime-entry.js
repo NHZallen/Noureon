@@ -17,6 +17,36 @@ export function getLegacyRuntimeEntryDependencies({ runtimeContext } = {}) {
   );
 }
 
+export function registerRuntimeEntryBindings({
+  runtimeContext,
+  startupLifecycle
+} = {}) {
+  if (!runtimeContext || typeof runtimeContext.registerLazyBinding !== 'function') {
+    throw new TypeError('A legacy runtime context with registerLazyBinding() is required.');
+  }
+  if (!startupLifecycle || typeof startupLifecycle.adjustTextareaHeight !== 'function') {
+    throw new TypeError('A startup lifecycle with adjustTextareaHeight() is required.');
+  }
+
+  const bindingName = 'runtimeEntry.submit.adjustTextareaHeight';
+  const existingBinding = typeof runtimeContext.resolveOptionalBinding === 'function'
+    ? runtimeContext.resolveOptionalBinding(bindingName)
+    : undefined;
+
+  if (existingBinding) {
+    if (existingBinding !== startupLifecycle.adjustTextareaHeight) {
+      throw new Error(`Legacy runtime binding "${bindingName}" is already registered.`);
+    }
+    return existingBinding;
+  }
+
+  runtimeContext.registerLazyBinding(
+    bindingName,
+    () => startupLifecycle.adjustTextareaHeight
+  );
+  return startupLifecycle.adjustTextareaHeight;
+}
+
 export function createRuntimeEntry({
   runtimeContext,
   dependencies = runtimeContext
@@ -33,9 +63,14 @@ export function createRuntimeEntry({
   });
 
   let startPromise;
+  const registerBindings = () => {
+    if (!runtimeContext) return startupLifecycle.adjustTextareaHeight;
+    return registerRuntimeEntryBindings({ runtimeContext, startupLifecycle });
+  };
   const start = () => {
     if (startPromise) return startPromise;
 
+    registerBindings();
     startupLifecycle.bindAuthStartupListeners();
     startPromise = Promise.resolve(startupLifecycle.initializeApp());
     startupLifecycle.bindLoginLanguageSwitcher();
@@ -49,6 +84,7 @@ export function createRuntimeEntry({
     initChatApp: appBootstrapLifecycle.initChatApp,
     initializeApp: startupLifecycle.initializeApp,
     adjustTextareaHeight: startupLifecycle.adjustTextareaHeight,
+    registerBindings,
     start
   });
 }

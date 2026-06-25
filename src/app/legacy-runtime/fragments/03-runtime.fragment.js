@@ -1,3 +1,5 @@
+        import { compressImage } from '/src/app/runtime/utils/image-compression.js';
+
         const handleBatchDelete = async () => {
             const count = selectedConversationIds.size;
             if (count === 0) return;
