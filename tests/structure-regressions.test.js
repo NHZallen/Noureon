@@ -475,6 +475,33 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
 });
 
+test('runtime config access owns selected uiLanguage reads without changing config ownership', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
+  const getModelRetirementLabelBody = getConstFunctionBody(fragment00Source, 'getModelRetirementLabel');
+  const getModelPriceLabelBody = getConstFunctionBody(fragment00Source, 'getModelPriceLabel');
+
+  assert.match(accessSource, /export\s+function\s+createRuntimeConfigAccess/);
+  assert.match(fragment00Source, /import\s+\{\s*createRuntimeConfigAccess\s*\}/);
+  assert.equal((fragment00Source.match(/createRuntimeConfigAccess\(\{/g) || []).length, 1);
+  assert.match(fragment00Source, /const\s+runtimeConfigAccess\s*=\s*createRuntimeConfigAccess\(\{\s*getConfig:\s*\(\)\s*=>\s*config\s*\}\);/);
+  assert.doesNotMatch(fragment00Source, /getConfig:\s*config\b/);
+
+  for (const body of [getModelRetirementLabelBody, getModelPriceLabelBody]) {
+    assert.match(body, /runtimeConfigAccess\.getUiLanguage\(\)/);
+    assert.doesNotMatch(body, /config\.uiLanguage/);
+  }
+
+  assert.match(getModelRetirementLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
+  assert.match(getModelPriceLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
+
+  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*if\s*\(currentUser\)\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(config\)\);\s*\};/);
+  assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(fragment02Source, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value;/);
+  assert.match(fragment02Source, /applyLanguage\(config\.uiLanguage\);/);
+});
+
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');

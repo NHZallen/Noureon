@@ -25,6 +25,7 @@ import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/lega
 import { createConversationStateAccess } from '/src/app/legacy-runtime/runtime/conversation-state-access.js';
 import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/runtime-render-coordinator.js';
 import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
+import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -875,6 +876,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             councilTranslatorModelId: null,
             singleDocumentTranslatorModelId: null,
         };
+        const runtimeConfigAccess = createRuntimeConfigAccess({
+            getConfig: () => config
+        });
         const getCouncilTexts = () => COUNCIL_TEXT[config.uiLanguage] || COUNCIL_TEXT['zh-TW'];
         const getDefaultCouncilConfig = () => ({
             enabled: false,
@@ -1016,21 +1020,23 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const getModelRetirementLabel = (model) => {
             const retirementDate = model?.retirementDate || model?.deprecationDate || model?.sunsetDate;
             if (!retirementDate) return '';
-            const label = config.uiLanguage === 'en'
+            const uiLanguage = runtimeConfigAccess.getUiLanguage();
+            const label = uiLanguage === 'en'
                 ? 'Retires'
-                : (config.uiLanguage === 'fr' ? 'Retrait' : '下架');
+                : (uiLanguage === 'fr' ? 'Retrait' : '下架');
             return `${label} ${retirementDate}`;
         };
         const getModelPriceLabel = (model) => {
             if (!model) return '';
-            if (getModelTiers(model).includes('free')) return config.uiLanguage === 'en' ? 'Free' : '免費';
+            const uiLanguage = runtimeConfigAccess.getUiLanguage();
+            if (getModelTiers(model).includes('free')) return uiLanguage === 'en' ? 'Free' : '免費';
             const priceKey = model.descriptionKey ? `${model.descriptionKey}_tier_paid` : '';
-            const localizedPrice = priceKey ? i18n[config.uiLanguage]?.[priceKey] : '';
+            const localizedPrice = priceKey ? i18n[uiLanguage]?.[priceKey] : '';
             if (localizedPrice) return localizedPrice;
-            if (model.provider === 'gemini') return config.uiLanguage === 'en' ? 'Google API pricing' : 'Google API 計費';
-            if (model.provider === 'openrouter') return config.uiLanguage === 'en' ? 'OpenRouter pricing' : 'OpenRouter 計費';
+            if (model.provider === 'gemini') return uiLanguage === 'en' ? 'Google API pricing' : 'Google API 計費';
+            if (model.provider === 'openrouter') return uiLanguage === 'en' ? 'OpenRouter pricing' : 'OpenRouter 計費';
             if (model.provider === 'stepfun') return 'Step Plan credits';
-            return config.uiLanguage === 'en' ? 'Provider pricing' : '供應商計費';
+            return uiLanguage === 'en' ? 'Provider pricing' : '供應商計費';
         };
         const getCouncilRuntimeTexts = () => {
             if (config.uiLanguage === 'en') {
