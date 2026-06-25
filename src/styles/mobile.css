@@ -21,6 +21,27 @@
         padding-bottom: 0.65rem !important;
     }
 
+    #input-bar-container .input-wrapper.has-file-previews {
+        grid-template-areas:
+            "preview preview preview preview preview"
+            "file input input voice submit";
+    }
+
+    #input-bar-container .input-wrapper.has-file-previews.has-indicators,
+    #input-bar-container .input-wrapper.has-file-previews.has-multiline-input {
+        grid-template-areas:
+            "preview preview preview preview preview"
+            "input input input input input"
+            "file indicators spacer voice submit";
+    }
+
+    #input-bar-container .input-wrapper > .input-media-preview {
+        grid-area: preview;
+        align-self: stretch;
+        width: 100%;
+        min-width: 0;
+    }
+
     #input-bar-container .input-wrapper > .flex.items-end {
         display: contents !important;
         width: auto !important;

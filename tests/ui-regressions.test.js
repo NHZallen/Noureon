@@ -73,6 +73,19 @@ test('desktop chat input reserves the lower row only for active modes or multili
   assert.match(runtime06, /if\s*\(wrapper\s*&&\s*isDesktopInput\)\s*\{[\s\S]*wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
 });
 
+test('composer upload previews occupy a full-width row above desktop input controls', () => {
+  const css = readUiSource('src/styles/main.css');
+  const runtime00 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const previewLifecycle = readUiSource('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js');
+
+  assert.match(runtime00, /preview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(preview,\s*wrapper\.firstChild\)/);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"file input input voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*grid-area:\s*preview;[^}]*align-self:\s*stretch;[^}]*width:\s*100%;/s);
+  assert.doesNotMatch(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*position:\s*absolute/s);
+  assert.match(previewLifecycle, /removeButton\.innerHTML\s*=\s*'&times;';[\s\S]*event\.stopPropagation\(\);[\s\S]*removeFile\(file\.id\)/);
+});
+
 test('desktop active mode and Astras pills swap their leading icon to the themed close icon on hover', () => {
   const css = readUiSource('src/styles/main.css');
   const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
