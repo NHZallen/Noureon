@@ -333,7 +333,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   );
 });
 
-test('app data store is wired to selected lexical replacements and runtime entry remains legacy', () => {
+test('app data store remains wired while production boot moves through runtime entry', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const appDataNormalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
@@ -379,6 +379,10 @@ test('app data store is wired to selected lexical replacements and runtime entry
   assert.doesNotMatch(appDataPersistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
   assert.doesNotMatch(appDataNormalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(
+    legacyEntrySource,
+    /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/
+  );
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
   assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
 });

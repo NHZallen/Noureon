@@ -6,6 +6,13 @@ import { defineConfig } from 'vite';
 const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 const legacyRuntimeModuleId = 'virtual:legacy-app-runtime';
 const resolvedLegacyRuntimeModuleId = `\0${legacyRuntimeModuleId}`;
+const legacyCoreFragmentNames = new Set([
+  '00-runtime.fragment.js',
+  '01-runtime.fragment.js',
+  '02-runtime.fragment.js',
+  '03-runtime.fragment.js',
+  '04-runtime.fragment.js'
+]);
 
 function legacyRuntimeFragmentsPlugin() {
   const fragmentsDir = resolve(projectRoot, 'src/app/legacy-runtime/fragments');
@@ -24,7 +31,7 @@ function legacyRuntimeFragmentsPlugin() {
       }
 
       const fragmentPaths = readdirSync(fragmentsDir)
-        .filter((file) => file.endsWith('.fragment.js'))
+        .filter((file) => legacyCoreFragmentNames.has(file))
         .sort()
         .map((file) => resolve(fragmentsDir, file));
 

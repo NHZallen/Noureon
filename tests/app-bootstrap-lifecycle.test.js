@@ -58,16 +58,17 @@ const findMatchingBrace = (source, openIndex) => {
   return -1;
 };
 
-test('initChatApp closes inside 05 while preserving late bootstrap event bindings', () => {
+test('runtime entry composes initChatApp while preserving late bootstrap event bindings', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const runtimeEntrySource = readSource('src/app/runtime-entry.js');
 
   const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
   assert.notEqual(initStart, -1, 'app bootstrap lifecycle should define initChatApp');
   const initOpen = appBootstrapLifecycleSource.indexOf('{', initStart);
   const initClose = findMatchingBrace(appBootstrapLifecycleSource, initOpen);
-  assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
+  assert.notEqual(initClose, -1, 'initChatApp should close inside the real lifecycle');
 
   const initBody = appBootstrapLifecycleSource.slice(initStart, initClose);
   const expectedOrder = [
@@ -83,13 +84,15 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
     cursor = next;
   }
 
-  assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
+  assert.match(runtimeEntrySource, /createLegacyAppBootstrapLifecycle\(/);
   assert.match(
-    fragment05Source,
-    /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.adjustTextareaHeight'\)\(\.\.\.args\)/
+    runtimeEntrySource,
+    /registerBinding\(\s*'app\.initChatApp',\s*appBootstrapLifecycle\.initChatApp/
   );
-  assert.doesNotMatch(fragment05Source, /^\s*adjustTextareaHeight,\s*$/m);
-  assert.match(fragment05Source, /legacyRuntimeContext\.registerLazyBinding\('app\.initChatApp',\s*\(\)\s*=>\s*initChatApp\)/);
+  assert.match(runtimeEntrySource, /runtimeEntry\.submit\.adjustTextareaHeight/);
+  assert.match(runtimeEntrySource, /startupLifecycle\.bindAuthStartupListeners\(\)/);
+  assert.match(runtimeEntrySource, /startupLifecycle\.initializeApp\(\)/);
+  assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
   assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);
   assert.match(initBody, /\bprocessReceivedData\b/);
   assert.match(initBody, /\bupdateP2PProgress\b/);

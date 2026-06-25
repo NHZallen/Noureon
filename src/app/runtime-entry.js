@@ -2,6 +2,8 @@ import { createLegacyAppBootstrapLifecycle } from './runtime/features/app-bootst
 import { createLegacyStartupLifecycle } from './runtime/features/startup-lifecycle.js';
 import { validateLegacyRuntimeEntryDependencies } from './runtime/runtime-entry-dependencies.js';
 
+let productionStartPromise;
+
 export async function loadLegacyRuntimeContext() {
   const { legacyRuntimeContext } = await import('virtual:legacy-app-runtime');
   return legacyRuntimeContext;
@@ -19,32 +21,45 @@ export function getLegacyRuntimeEntryDependencies({ runtimeContext } = {}) {
 
 export function registerRuntimeEntryBindings({
   runtimeContext,
+  appBootstrapLifecycle,
   startupLifecycle
 } = {}) {
   if (!runtimeContext || typeof runtimeContext.registerLazyBinding !== 'function') {
     throw new TypeError('A legacy runtime context with registerLazyBinding() is required.');
   }
+  if (!appBootstrapLifecycle || typeof appBootstrapLifecycle.initChatApp !== 'function') {
+    throw new TypeError('An app bootstrap lifecycle with initChatApp() is required.');
+  }
   if (!startupLifecycle || typeof startupLifecycle.adjustTextareaHeight !== 'function') {
     throw new TypeError('A startup lifecycle with adjustTextareaHeight() is required.');
   }
 
-  const bindingName = 'runtimeEntry.submit.adjustTextareaHeight';
-  const existingBinding = typeof runtimeContext.resolveOptionalBinding === 'function'
-    ? runtimeContext.resolveOptionalBinding(bindingName)
-    : undefined;
+  const registerBinding = (bindingName, binding) => {
+    const existingBinding = typeof runtimeContext.resolveOptionalBinding === 'function'
+      ? runtimeContext.resolveOptionalBinding(bindingName)
+      : undefined;
 
-  if (existingBinding) {
-    if (existingBinding !== startupLifecycle.adjustTextareaHeight) {
-      throw new Error(`Legacy runtime binding "${bindingName}" is already registered.`);
+    if (existingBinding) {
+      if (existingBinding !== binding) {
+        throw new Error(`Legacy runtime binding "${bindingName}" is already registered.`);
+      }
+      return existingBinding;
     }
-    return existingBinding;
-  }
 
-  runtimeContext.registerLazyBinding(
-    bindingName,
-    () => startupLifecycle.adjustTextareaHeight
-  );
-  return startupLifecycle.adjustTextareaHeight;
+    runtimeContext.registerLazyBinding(bindingName, () => binding);
+    return binding;
+  };
+
+  return Object.freeze({
+    initChatApp: registerBinding(
+      'app.initChatApp',
+      appBootstrapLifecycle.initChatApp
+    ),
+    adjustTextareaHeight: registerBinding(
+      'runtimeEntry.submit.adjustTextareaHeight',
+      startupLifecycle.adjustTextareaHeight
+    )
+  });
 }
 
 export function createRuntimeEntry({
@@ -64,8 +79,17 @@ export function createRuntimeEntry({
 
   let startPromise;
   const registerBindings = () => {
-    if (!runtimeContext) return startupLifecycle.adjustTextareaHeight;
-    return registerRuntimeEntryBindings({ runtimeContext, startupLifecycle });
+    if (!runtimeContext) {
+      return Object.freeze({
+        initChatApp: appBootstrapLifecycle.initChatApp,
+        adjustTextareaHeight: startupLifecycle.adjustTextareaHeight
+      });
+    }
+    return registerRuntimeEntryBindings({
+      runtimeContext,
+      appBootstrapLifecycle,
+      startupLifecycle
+    });
   };
   const start = () => {
     if (startPromise) return startPromise;
@@ -92,4 +116,19 @@ export function createRuntimeEntry({
 export async function createRuntimeEntryFromLegacyRuntime() {
   const runtimeContext = await loadLegacyRuntimeContext();
   return createRuntimeEntry({ runtimeContext });
+}
+
+export function startRuntimeEntry({
+  loadRuntimeContext = loadLegacyRuntimeContext
+} = {}) {
+  if (productionStartPromise) return productionStartPromise;
+
+  productionStartPromise = Promise.resolve()
+    .then(() => loadRuntimeContext())
+    .then((runtimeContext) => {
+      const entry = createRuntimeEntry({ runtimeContext });
+      return Promise.resolve(entry.start()).then(() => entry);
+    });
+
+  return productionStartPromise;
 }

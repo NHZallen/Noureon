@@ -197,24 +197,40 @@ test('legacy runtime fragments keep the numeric filename ordering contract', () 
   ]);
 });
 
-test('legacy runtime entry still uses the sorted virtual fragment composition', () => {
+test('production runtime entry uses the sorted 00-04 virtual legacy core', () => {
   const viteSource = readSource('vite.config.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
 
   assert.match(viteSource, /const\s+legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime';/);
   assertMarkersInOrder(viteSource, [
+    "'00-runtime.fragment.js'",
+    "'01-runtime.fragment.js'",
+    "'02-runtime.fragment.js'",
+    "'03-runtime.fragment.js'",
+    "'04-runtime.fragment.js'"
+  ], 'Vite legacy core fragment allowlist');
+  assert.doesNotMatch(
+    viteSource,
+    /legacyCoreFragmentNames\s*=\s*new Set\(\[[\s\S]*?(?:05|06)-runtime\.fragment\.js[\s\S]*?\]\)/
+  );
+  assertMarkersInOrder(viteSource, [
     'readdirSync(fragmentsDir)',
-    ".filter((file) => file.endsWith('.fragment.js'))",
+    '.filter((file) => legacyCoreFragmentNames.has(file))',
     '.sort()',
     '.map((file) => resolve(fragmentsDir, file))',
     ".map((file) => readFileSync(file, 'utf8'))",
     ".join('\\n')"
   ], 'Vite legacy runtime fragment composition');
   assert.match(viteSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(
+    legacyEntrySource,
+    /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/
+  );
+  assert.match(legacyEntrySource, /startRuntimeEntry\(\);/);
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
 });
 
-test('non-production runtime entry composes the explicit legacy dependency facade', () => {
+test('production runtime entry composes the explicit legacy dependency facade', () => {
   const runtimeEntryPath = 'src/app/runtime-entry.js';
   const dependencyPath = 'src/app/runtime/runtime-entry-dependencies.js';
   const runtimeEntrySource = readSource(runtimeEntryPath);
@@ -230,6 +246,7 @@ test('non-production runtime entry composes the explicit legacy dependency facad
   assert.equal(existsSync(projectFile(runtimeEntryPath)), true);
   assert.equal(existsSync(projectFile(dependencyPath)), true);
   assert.match(runtimeEntrySource, /export\s+function\s+createRuntimeEntry/);
+  assert.match(runtimeEntrySource, /export\s+function\s+startRuntimeEntry/);
   assert.match(runtimeEntrySource, /export\s+function\s+registerRuntimeEntryBindings/);
   assert.match(runtimeEntrySource, /export\s+function\s+getLegacyRuntimeEntryDependencies/);
   assert.match(runtimeEntrySource, /export\s+async\s+function\s+loadLegacyRuntimeContext/);
@@ -277,11 +294,16 @@ test('non-production runtime entry composes the explicit legacy dependency facad
   );
   assert.doesNotMatch(fragment04Source, /\binitChatApp\(\);|\binitializeApp\(\);/);
 
+  assert.match(runtimeEntrySource, /createLegacyAppBootstrapLifecycle\(/);
+  assert.match(runtimeEntrySource, /createLegacyStartupLifecycle\(\{/);
+  assert.match(runtimeEntrySource, /registerBinding\(\s*'app\.initChatApp'/);
+  assert.match(runtimeEntrySource, /runtimeEntry\.submit\.adjustTextareaHeight/);
+  assert.match(runtimeEntrySource, /if\s*\(productionStartPromise\)\s*return\s+productionStartPromise/);
   assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
   assert.match(fragment06Source, /createLegacyStartupLifecycle\(\{/);
   assert.match(viteSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
-  assert.doesNotMatch(legacyEntrySource, /runtime-entry/);
+  assert.match(legacyEntrySource, /from\s+['"]\.\/runtime-entry\.js['"]/);
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
   assert.doesNotMatch(mainSource, /runtime-entry/);
   assert.doesNotMatch(runtimeAppSource, /runtime-entry|virtual:legacy-app-runtime/);
@@ -330,10 +352,14 @@ test('runtime entry cutover helpers no longer rely on 05 lexical ownership', () 
     /resolveOptionalBinding\(\s*['"]runtimeEntry\.submit\.adjustTextareaHeight['"]\s*\)/
   );
   assert.match(fragment06Source, /createLegacyStartupLifecycle/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
-  assert.doesNotMatch(legacyEntrySource, /runtime-entry/);
+  assert.match(legacyEntrySource, /from\s+['"]\.\/runtime-entry\.js['"]/);
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
   assert.match(viteSource, /readdirSync\(fragmentsDir\)/);
-  assert.doesNotMatch(viteSource, /0[0-4]-runtime|exclude.*05|exclude.*06/);
+  assert.match(viteSource, /legacyCoreFragmentNames/);
+  assert.doesNotMatch(
+    viteSource,
+    /legacyCoreFragmentNames\s*=\s*new Set\(\[[\s\S]*?(?:05|06)-runtime\.fragment\.js[\s\S]*?\]\)/
+  );
 });
 
 test('runtime DOM registry ownership moves into the non-live runtime kernel', () => {
@@ -362,7 +388,8 @@ test('runtime DOM registry ownership moves into the non-live runtime kernel', ()
   assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
 
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(legacyEntrySource, /from\s+['"]\.\/runtime-entry\.js['"]/);
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
   assert.match(viteSource, /function\s+legacyRuntimeFragmentsPlugin\(\)/);
   assert.match(viteSource, /plugins:\s*\[legacyRuntimeFragmentsPlugin\(\)\]/);
 });
@@ -765,7 +792,8 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
   assert.doesNotMatch(normalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(legacyEntrySource, /from\s+['"]\.\/runtime-entry\.js['"]/);
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
   assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
 });
 
@@ -1290,7 +1318,8 @@ test('app bootstrap lifecycle ownership moves initChatApp listener shell out of 
   );
   assert.match(runtimeAppSource, /export\s+function\s+createRuntimeAppKernel/);
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(legacyEntrySource, /from\s+['"]\.\/runtime-entry\.js['"]/);
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
   assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
 });
 
@@ -1349,7 +1378,8 @@ test('startup lifecycle ownership moves initializeApp and auth startup bindings 
 
   assert.doesNotMatch(runtimeAppSource, /startup-lifecycle|initializeApp/);
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
-  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(legacyEntrySource, /from\s+['"]\.\/runtime-entry\.js['"]/);
+  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
   assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
 });
 

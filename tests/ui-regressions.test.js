@@ -59,18 +59,18 @@ test('active input modes use the theme color without black outline chrome', () =
 
 test('desktop chat input reserves the lower row only for active modes or multiline text', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime06 = readUiSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s*!important;/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*min-height\s+0\.24s[^}]*padding\s+0\.24s/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.flex\.items-end[^{]*\{[^}]*transition:[^}]*transform\s+0\.24s/s);
-  assert.match(runtime06, /const\s+wasMultilineLayout\s*=\s*wrapper\?\.classList\.contains\('has-multiline-input'\)\s*\|\|\s*false/);
-  assert.match(runtime06, /const\s+firstLineWouldWrap\s*=\s*hasInputText\s*&&\s*isDesktopInput\s*&&\s*!wasMultilineLayout/);
-  assert.match(runtime06, /measurementContext\.measureText\(line\)\.width/);
-  assert.match(runtime06, /const\s+useMultilineLayout\s*=\s*isDesktopInput\s*&&\s*hasInputText\s*&&\s*\(\s*wasMultilineLayout/s);
-  assert.match(runtime06, /if\s*\(wrapper\s*&&\s*isDesktopInput\)\s*\{[\s\S]*wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
+  assert.match(startupLifecycle, /const\s+wasMultilineLayout\s*=\s*wrapper\?\.classList\.contains\('has-multiline-input'\)\s*\|\|\s*false/);
+  assert.match(startupLifecycle, /const\s+firstLineWouldWrap\s*=\s*hasInputText\s*&&\s*isDesktopInput\s*&&\s*!wasMultilineLayout/);
+  assert.match(startupLifecycle, /measurementContext\.measureText\(line\)\.width/);
+  assert.match(startupLifecycle, /const\s+useMultilineLayout\s*=\s*isDesktopInput\s*&&\s*hasInputText\s*&&\s*\(\s*wasMultilineLayout/s);
+  assert.match(startupLifecycle, /if\s*\(wrapper\s*&&\s*isDesktopInput\)\s*\{[\s\S]*wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
 });
 
 test('composer upload previews occupy a full-width row above desktop input controls', () => {
@@ -115,12 +115,12 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
 
 test('mobile web search typing does not disable the message input when Tavily is missing', () => {
   const runtime02 = readUiSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
-  const runtime06 = readUiSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.match(runtime02, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
   assert.match(runtime02, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
   assert.match(runtime02, /ALL_ELEMENTS\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
-  assert.match(runtime06, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
+  assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });
 
 test('model council manager uses compact pills and a bounded scroll area', () => {

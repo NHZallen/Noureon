@@ -6,7 +6,8 @@ import {
   createRuntimeEntry,
   getLegacyRuntimeEntryDependencies,
   loadLegacyRuntimeContext,
-  registerRuntimeEntryBindings
+  registerRuntimeEntryBindings,
+  startRuntimeEntry
 } from '../src/app/runtime-entry.js';
 import {
   LEGACY_RUNTIME_ENTRY_REQUIRED_FIELDS,
@@ -65,6 +66,7 @@ test('runtime entry exports an inert composition API', () => {
   assert.equal(typeof getLegacyRuntimeEntryDependencies, 'function');
   assert.equal(typeof loadLegacyRuntimeContext, 'function');
   assert.equal(typeof registerRuntimeEntryBindings, 'function');
+  assert.equal(typeof startRuntimeEntry, 'function');
 
   const calls = [];
   const dependencies = createCompleteDependencies({
@@ -96,19 +98,33 @@ test('runtime entry explicitly registers startup textarea ownership without star
     }
   };
   const adjustTextareaHeight = () => {};
+  const initChatApp = () => {};
+  const appBootstrapLifecycle = { initChatApp };
   const startupLifecycle = { adjustTextareaHeight };
 
+  assert.deepEqual(
+    registerRuntimeEntryBindings({
+      runtimeContext,
+      appBootstrapLifecycle,
+      startupLifecycle
+    }),
+    { initChatApp, adjustTextareaHeight }
+  );
   assert.equal(
-    registerRuntimeEntryBindings({ runtimeContext, startupLifecycle }),
-    adjustTextareaHeight
+    runtimeContext.resolveOptionalBinding('app.initChatApp'),
+    initChatApp
   );
   assert.equal(
     runtimeContext.resolveOptionalBinding('runtimeEntry.submit.adjustTextareaHeight'),
     adjustTextareaHeight
   );
-  assert.equal(
-    registerRuntimeEntryBindings({ runtimeContext, startupLifecycle }),
-    adjustTextareaHeight
+  assert.deepEqual(
+    registerRuntimeEntryBindings({
+      runtimeContext,
+      appBootstrapLifecycle,
+      startupLifecycle
+    }),
+    { initChatApp, adjustTextareaHeight }
   );
 });
 
@@ -129,7 +145,10 @@ test('createRuntimeEntry binding registration stays inert until explicitly reque
 
   assert.deepEqual(registered, []);
   entry.registerBindings();
-  assert.deepEqual(registered, ['runtimeEntry.submit.adjustTextareaHeight']);
+  assert.deepEqual(registered, [
+    'app.initChatApp',
+    'runtimeEntry.submit.adjustTextareaHeight'
+  ]);
 });
 
 test('runtime entry resolves the registered facade from an injected runtime context', () => {
@@ -268,4 +287,105 @@ test('runtime entry uses only the transitional named virtual context loader', ()
   assert.doesNotMatch(source, /^import\s+.*virtual:legacy-app-runtime/m);
   assert.doesNotMatch(source, /legacy-runtime\/fragments/);
   assert.doesNotMatch(source, /(?:^|\n)\s*(?:void\s+)?(?:start|initializeApp|initChatApp)\(\);/);
+});
+
+test('production runtime entry loads the legacy core and starts only once', async () => {
+  const listeners = [];
+  const createElement = () => ({
+    value: '',
+    disabled: false,
+    style: {},
+    classList: {
+      add() {},
+      remove() {},
+      toggle() {},
+      contains: () => false
+    },
+    addEventListener(type) {
+      listeners.push(type);
+    },
+    contains: () => false
+  });
+  const elements = new Proxy({}, {
+    get(target, prop) {
+      if (!target[prop]) target[prop] = createElement();
+      return target[prop];
+    }
+  });
+  const dependencies = createCompleteDependencies({
+    startup: {
+      window: {},
+      document: {
+        addEventListener(type) {
+          listeners.push(type);
+        },
+        getElementById: () => createElement()
+      },
+      globalObject: {},
+      elements,
+      getConfig: () => ({}),
+      setCurrentUser: () => {},
+      getItem: async () => null,
+      getUserKey: () => '',
+      loadConfig: async () => {},
+      loadAppData: async () => {},
+      applyLanguage: () => {},
+      applyCustomWallpaper: () => {},
+      applyUiTheme: () => {},
+      handleLogin: () => {},
+      handleImportOnAuth: () => {},
+      processAuthImport: () => {},
+      toggleModal: () => {},
+      installTouchGuards: () => {},
+      registerServiceWorker: () => {},
+      showCustomDialog: () => {},
+      getComputedStyle: () => ({})
+    }
+  });
+  const bindings = new Map([
+    ['runtime.entryDependencies', () => dependencies]
+  ]);
+  const runtimeContext = {
+    registerLazyBinding(name, getter) {
+      assert.equal(bindings.has(name), false);
+      bindings.set(name, getter);
+    },
+    resolveBinding(name) {
+      const getter = bindings.get(name);
+      if (!getter) throw new Error(`Missing binding: ${name}`);
+      return getter();
+    },
+    resolveOptionalBinding(name) {
+      return bindings.get(name)?.();
+    }
+  };
+  let loads = 0;
+  const loadRuntimeContext = async () => {
+    loads += 1;
+    return runtimeContext;
+  };
+
+  const firstStart = startRuntimeEntry({ loadRuntimeContext });
+  const secondStart = startRuntimeEntry({ loadRuntimeContext });
+
+  assert.equal(firstStart, secondStart);
+  const entry = await firstStart;
+  assert.equal(loads, 1);
+  assert.equal(bindings.get('app.initChatApp')(), entry.initChatApp);
+  assert.equal(
+    bindings.get('runtimeEntry.submit.adjustTextareaHeight')(),
+    entry.adjustTextareaHeight
+  );
+  assert.equal(listeners.filter((type) => type === 'submit').length, 1);
+});
+
+test('legacy production entry starts runtime-entry without directly importing the virtual core', () => {
+  const source = readSource('src/app/legacy-app.js');
+
+  assert.match(
+    source,
+    /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/
+  );
+  assert.match(source, /startRuntimeEntry\(\);/);
+  assert.doesNotMatch(source, /virtual:legacy-app-runtime/);
 });
