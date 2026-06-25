@@ -430,6 +430,23 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   }
 });
 
+test('runtime app data store ownership is not introduced before replacement map guards', () => {
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const persistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
+  const normalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
+  const mainSource = readSource('src/main.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+  const viteSource = readSource('vite.config.js');
+
+  assert.equal(existsSync(projectFile('src/app/runtime/kernel/app-data-store.js')), false);
+  assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
+  assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
+  assert.doesNotMatch(normalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);
+  assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
+  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
+});
+
 test('legacy runtime fragments exist and are not empty', () => {
   for (const name of [
     '00-runtime.fragment.js',
