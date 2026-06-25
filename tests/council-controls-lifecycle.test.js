@@ -45,7 +45,6 @@ const createHarness = (overrides = {}) => {
     closeAllPopovers: () => calls.push(['closeAllPopovers']),
     councilMaxModels: 4,
     document,
-    elements: { fileInputContainer: document.querySelector('#file-input') },
     escapeHTML,
     formatCouncilModelSummary: (models) => models.map((model) => model.name).join(', '),
     getActiveConversation: () => overrides.noConversation ? null : conversation,
@@ -73,6 +72,7 @@ const createHarness = (overrides = {}) => {
     }),
     getCouncilValidation: () => ({ message: 'Ready', ok: true }),
     getI18n: () => ({ en: { done: 'Done', search: 'Search', webSearchNotAvailable: 'Unavailable' } }),
+    getFileInputContainer: () => document.querySelector('#file-input'),
     getIsCouncilRunning: () => overrides.isCouncilRunning ?? false,
     getModelApiId: (model) => model.id,
     getModelFamilyKey: (model) => model.id,
@@ -164,14 +164,46 @@ test('missing conversation clears the council controls container', () => {
 test('missing input controls remain a safe no-op boundary', () => {
   const lifecycle = createCouncilControlsLifecycle({
     document: {},
-    elements: { fileInputContainer: { parentElement: null } }
+    getFileInputContainer: () => ({ parentElement: null })
   });
 
   assert.doesNotThrow(() => lifecycle.renderCouncilControls());
 });
 
+test('file input container is read lazily from the injected getter', () => {
+  const { document, cleanup } = createDom(`
+    <div id="first-controls">
+      <div id="first-input"></div>
+    </div>
+    <div id="second-controls">
+      <div id="second-input"></div>
+    </div>
+  `);
+  let fileInputContainer = document.querySelector('#first-input');
+  const lifecycle = createCouncilControlsLifecycle({
+    document,
+    getActiveConversation: () => null,
+    getFileInputContainer: () => fileInputContainer
+  });
+
+  try {
+    fileInputContainer = document.querySelector('#second-input');
+    lifecycle.renderCouncilControls();
+
+    const container = document.querySelector('#model-council-control');
+    assert.equal(container.previousElementSibling.id, 'second-input');
+    assert.equal(document.querySelector('#first-controls #model-council-control'), null);
+  } finally {
+    cleanup();
+  }
+});
+
 test('council controls source avoids provider parser, storage schema, package, and Vite coupling', () => {
   const source = readSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
+
+  assert.match(source, /\bgetFileInputContainer\b/);
+  assert.doesNotMatch(source, /\belements\b/);
+  assert.doesNotMatch(source, /elements\.fileInputContainer/);
 
   for (const forbidden of [
     'TextDecoder',

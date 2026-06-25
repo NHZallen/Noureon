@@ -3,7 +3,6 @@ export function createCouncilControlsLifecycle(deps) {
     closeAllPopovers = () => {},
     councilMaxModels = 4,
     document,
-    elements = {},
     escapeHTML = (value) => String(value ?? ''),
     formatCouncilModelSummary = () => '',
     getActiveConversation = () => null,
@@ -13,6 +12,7 @@ export function createCouncilControlsLifecycle(deps) {
     getCouncilTexts = () => ({}),
     getCouncilValidation = () => ({ ok: false, message: '' }),
     getI18n = () => ({}),
+    getFileInputContainer = () => undefined,
     getIsCouncilRunning = () => false,
     getModelApiId = (model) => model?.id || '',
     getModelFamilyKey = (model) => model?.id || '',
@@ -36,7 +36,8 @@ export function createCouncilControlsLifecycle(deps) {
   } = deps || {};
 
   const renderCouncilControls = () => {
-    const inputControls = elements.fileInputContainer?.parentElement;
+    const fileInputContainer = getFileInputContainer();
+    const inputControls = fileInputContainer?.parentElement;
     if (!inputControls) return;
 
     let container = document.getElementById('model-council-control');
@@ -52,8 +53,8 @@ export function createCouncilControlsLifecycle(deps) {
       container = document.createElement('div');
       container.id = 'model-council-control';
     }
-    if (container.parentElement !== inputControls || container.previousElementSibling !== elements.fileInputContainer) {
-      elements.fileInputContainer.insertAdjacentElement('afterend', container);
+    if (container.parentElement !== inputControls || container.previousElementSibling !== fileInputContainer) {
+      fileInputContainer.insertAdjacentElement('afterend', container);
     }
 
     const conversation = getActiveConversation();

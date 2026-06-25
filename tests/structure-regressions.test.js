@@ -1389,6 +1389,15 @@ test('council controls lifecycle is isolated from the 01 runtime shell', async (
     /import\s*\{\s*createCouncilControlsLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-controls-lifecycle\.js';/
   );
   assert.match(fragment01Source, /\{\s*renderCouncilControls\s*\}\s*=\s*createCouncilControlsLifecycle\(\{/);
+  assert.match(helperSource, /\bgetFileInputContainer\b/);
+  assert.doesNotMatch(helperSource, /\belements\b/);
+  assert.doesNotMatch(helperSource, /elements\.fileInputContainer/);
+  assert.match(fragment01Source, /getFileInputContainer:\s*\(\)\s*=>\s*ALL_ELEMENTS\.fileInputContainer/);
+  assert.doesNotMatch(fragment01Source, /getFileInputContainer:\s*ALL_ELEMENTS\.fileInputContainer/);
+  assert.doesNotMatch(
+    fragment01Source,
+    /createCouncilControlsLifecycle\(\{[\s\S]*?elements:\s*ALL_ELEMENTS[\s\S]*?\}\);/
+  );
 
   assert.doesNotMatch(fragment01Source, /const\s+renderCouncilControls\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(fragment01Source, /id="model-council-enabled"/);
