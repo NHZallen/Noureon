@@ -946,17 +946,19 @@ test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar contin
 test('received data lifecycle breaks the 05 to 06 processReceivedData continuation boundary', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const p2pLifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
   const receivedDataSource = readSource('src/app/legacy-runtime/features/received-data-lifecycle.js');
 
   assert.match(receivedDataSource, /export\s+function\s+createReceivedDataLifecycle/);
-  assert.match(fragment05Source, /createReceivedDataLifecycle\(\{/);
-  assert.match(fragment05Source, /const\s+processReceivedData\s*=\s*\(\.\.\.args\)\s*=>\s*receivedDataLifecycle\.processReceivedData\(\.\.\.args\);/);
+  assert.match(p2pLifecycleSource, /createReceivedDataLifecycle\(\{/);
+  assert.match(p2pLifecycleSource, /const\s+processReceivedData\s*=\s*\(\.\.\.args\)\s*=>\s*receivedDataLifecycle\.processReceivedData\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment05Source, /createReceivedDataLifecycle\(\{/);
   assert.doesNotMatch(fragment05Source, /const\s+zip\s*=\s*await\s+JSZip\.loadAsync\(blob\);/);
   assert.doesNotMatch(fragment06Source, /^\s*showNotification\(`成功接收 \$\{count\} 個 Astras！`, 'success'\);/);
 
-  const processStart = fragment05Source.indexOf('const processReceivedData =');
+  const processStart = fragment05Source.indexOf('processReceivedData');
   assert.notEqual(processStart, -1, '05 should still expose a processReceivedData binding');
-  const processStatementEnd = fragment05Source.indexOf(';', processStart);
+  const processStatementEnd = fragment05Source.indexOf('} = p2pLifecycle;', processStart);
   assert.notEqual(processStatementEnd, -1, 'processReceivedData binding should end inside 05');
   assert.ok(
     processStatementEnd < fragment05Source.length,
@@ -978,12 +980,14 @@ test('received data lifecycle breaks the 05 to 06 processReceivedData continuati
 test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const p2pLifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
   const compositionSource = readSource('src/app/legacy-runtime/features/app-bootstrap-composition.js');
   const scannerLifecycleSource = readSource('src/app/legacy-runtime/features/p2p-scanner-lifecycle.js');
 
   assert.match(compositionSource, /export\s+function\s+createAppBootstrapComposition/);
   assert.match(scannerLifecycleSource, /export\s+function\s+createP2PScannerLifecycle/);
-  assert.match(fragment05Source, /createP2PScannerLifecycle\(\{/);
+  assert.match(p2pLifecycleSource, /createP2PScannerLifecycle\(\{/);
+  assert.doesNotMatch(fragment05Source, /createP2PScannerLifecycle\(\{/);
   assert.match(fragment05Source, /createAppBootstrapComposition\(\{/);
   assert.match(fragment05Source, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
 
@@ -995,16 +999,70 @@ test('app bootstrap composition owns late bootstrap event-binding tail', () => {
   const initBody = fragment05Source.slice(initStart, initClose);
 
   assert.match(initBody, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
-  assert.match(initBody, /p2pScannerLifecycle\.updateP2PProgress\(\.\.\.args\)/);
-  assert.match(initBody, /p2pScannerLifecycle\.startQRScanner\(\.\.\.args\)/);
-  assert.match(initBody, /p2pScannerLifecycle\.stopScannerIfActive\(\)/);
+  assert.match(p2pLifecycleSource, /p2pScannerLifecycle\.updateP2PProgress\(\.\.\.args\)/);
+  assert.match(p2pLifecycleSource, /p2pScannerLifecycle\.startQRScanner\(\.\.\.args\)/);
+  assert.match(p2pLifecycleSource, /p2pScannerLifecycle\.stopScannerIfActive\(\)/);
   assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
-  assert.doesNotMatch(initBody, /^\s*startQRScanner\s*[,}]/m);
   assert.doesNotMatch(fragment05Source, /\bhtml5QrcodeScanner\b/);
   assert.doesNotMatch(fragment06Source, /\bhtml5QrcodeScanner\b/);
   assert.doesNotMatch(fragment06Source, /function\s+(?:updateP2PProgress|startQRScanner)\b/);
   assert.doesNotMatch(initBody, /setupHistorySidebarInteractions\(\);\s*setupHistorySidebarTriggers\(\);/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
+});
+
+test('P2P lifecycle owns Peer, QR, scanner, and transfer implementation outside 05', () => {
+  const lifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+
+  assert.match(lifecycleSource, /export\s+function\s+createLegacyP2PLifecycle/);
+  assert.match(lifecycleSource, /createReceivedDataLifecycle\(\{/);
+  assert.match(lifecycleSource, /createP2PScannerLifecycle\(\{/);
+  assert.doesNotMatch(
+    lifecycleSource,
+    /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|storage-adapter|indexedDB|localStorage|sessionStorage|currentUser|initializeApp|initChatApp/
+  );
+
+  assert.match(
+    fragment05Source,
+    /import\s+\{\s*createLegacyP2PLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/p2p-lifecycle\.js['"]/
+  );
+  assert.match(fragment05Source, /const\s+p2pLifecycle\s*=\s*createLegacyP2PLifecycle\(\{/);
+  assert.match(fragment05Source, /getAstras:\s*\(\)\s*=>\s*astras/);
+  assert.match(fragment05Source, /getFolders:\s*\(\)\s*=>\s*folders/);
+  assert.match(fragment05Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(fragment05Source, /Peer,\s*QRCode,\s*Html5Qrcode,\s*JSZip,\s*BlobCtor:\s*Blob/s);
+  assert.match(fragment05Source, /randomUUID:\s*\(\)\s*=>\s*crypto\.randomUUID\(\)/);
+  assert.match(fragment05Source, /random:\s*\(\)\s*=>\s*Math\.random\(\)/);
+  assert.match(fragment05Source, /scheduleTimeout:\s*setTimeout/);
+
+  for (const alias of [
+    'initP2P',
+    'resetP2PUI',
+    'setP2PMode',
+    'showP2PSelection',
+    'startP2PReceiverUI',
+    'startP2PSender',
+    'connectToSender',
+    'startQRScanner',
+    'processReceivedData',
+    'updateP2PProgress'
+  ]) {
+    assert.match(fragment05Source, new RegExp(`\\b${alias}\\b`), `05 should keep ${alias} binding`);
+  }
+
+  for (const removedCore of [
+    /let\s+p2pPeer\s*=/,
+    /let\s+p2pConn\s*=/,
+    /const\s+CHUNK_SIZE\s*=/,
+    /function\s+generateP2PCode\b/,
+    /function\s+setupSenderConnection\b/,
+    /function\s+setupReceiverConnection\b/,
+    /new\s+Peer\(/,
+    /new\s+QRCode\(/,
+    /new\s+JSZip\(/
+  ]) {
+    assert.doesNotMatch(fragment05Source, removedCore);
+  }
 });
 
 test('store navigation lifecycle owns only the selected bootstrap listeners', () => {
@@ -1085,8 +1143,7 @@ test('input submit bindings and late P2P composition preserve bootstrap order', 
   assertMarkersInOrder(initBody, [
     'storeNavigationLifecycle.bind()',
     "ALL_ELEMENTS.addFileBtn.addEventListener('click'",
-    'const receivedDataLifecycle = createReceivedDataLifecycle({',
-    'const p2pScannerLifecycle = createP2PScannerLifecycle({',
+    'const p2pLifecycle = createLegacyP2PLifecycle({',
     'const appBootstrapComposition = createAppBootstrapComposition({',
     'appBootstrapComposition.runLateBootstrapBindings()'
   ], '05 normal listeners and late P2P composition');
@@ -1198,8 +1255,7 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
 
   assertMarkersInOrder(fragment05Source, [
     'storeNavigationLifecycle.bind()',
-    'const receivedDataLifecycle = createReceivedDataLifecycle({',
-    'const p2pScannerLifecycle = createP2PScannerLifecycle({',
+    'const p2pLifecycle = createLegacyP2PLifecycle({',
     'const appBootstrapComposition = createAppBootstrapComposition({',
     'appBootstrapComposition.runLateBootstrapBindings()'
   ], '05 runtime composition tail');

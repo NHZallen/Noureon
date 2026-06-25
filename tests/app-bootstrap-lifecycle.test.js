@@ -70,8 +70,8 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
 
   const initBody = fragment05Source.slice(initStart, initClose);
   const expectedOrder = [
-    'const receivedDataLifecycle = createReceivedDataLifecycle({',
-    'const processReceivedData = (...args) => receivedDataLifecycle.processReceivedData(...args);',
+    'const p2pLifecycle = createLegacyP2PLifecycle({',
+    '} = p2pLifecycle;',
     'const appBootstrapComposition = createAppBootstrapComposition({',
     'appBootstrapComposition.runLateBootstrapBindings();'
   ];
@@ -82,9 +82,10 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
     cursor = next;
   }
 
-  assert.match(fragment05Source, /createP2PScannerLifecycle\(\{/);
-  assert.match(initBody, /const\s+updateP2PProgress\s*=\s*\(\.\.\.args\)\s*=>\s*p2pScannerLifecycle\.updateP2PProgress\(\.\.\.args\);/);
-  assert.match(initBody, /const\s+startQRScanner\s*=\s*\(\.\.\.args\)\s*=>\s*p2pScannerLifecycle\.startQRScanner\(\.\.\.args\);/);
+  assert.match(fragment05Source, /createLegacyP2PLifecycle\(\{/);
+  assert.match(initBody, /\bprocessReceivedData\b/);
+  assert.match(initBody, /\bupdateP2PProgress\b/);
+  assert.match(initBody, /\bstartQRScanner\b/);
   assert.doesNotMatch(fragment06Source, /^\s*setupHistorySidebarInteractions\(\);/);
   assert.doesNotMatch(fragment06Source, /function\s+updateP2PProgress\b/);
   assert.doesNotMatch(fragment06Source, /function\s+startQRScanner\b/);
