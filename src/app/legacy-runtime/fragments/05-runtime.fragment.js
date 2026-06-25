@@ -1063,3 +1063,4 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
     });
     appBootstrapComposition.runLateBootstrapBindings();
         }
+        legacyRuntimeContext.registerLazyBinding('app.initChatApp', () => initChatApp);

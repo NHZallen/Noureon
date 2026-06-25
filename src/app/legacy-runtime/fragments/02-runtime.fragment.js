@@ -954,7 +954,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
     ALL_ELEMENTS.authContainer.addEventListener('transitionend', () => {
         ALL_ELEMENTS.authContainer.style.display = 'none';
     }, { once: true });
-    initChatApp();
+    legacyRuntimeContext.resolveBinding('app.initChatApp')();
 };
         const handleLogout = async () => {
             if (await showCustomConfirm(i18n[config.uiLanguage].confirmLogout || '您確定要登出嗎？', i18n[config.uiLanguage].logoutConfirmation || '登出確認')) {

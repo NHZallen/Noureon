@@ -454,7 +454,7 @@ test('auth and homepage import bindings remain before startup in legacy order', 
     "ALL_ELEMENTS.authContainer.style.display = 'none'",
     "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
     "ALL_ELEMENTS.appContainer.classList.add('visible')",
-    'initChatApp()'
+    "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
   ], '06 auto-login startup');
 });
 
@@ -557,7 +557,7 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
     'applyUiTheme()',
     "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
     "ALL_ELEMENTS.appContainer.classList.add('visible')",
-    'initChatApp()'
+    "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
   ], '06 startup handoff');
 
   assert.equal(
@@ -565,6 +565,81 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
     false,
     'runtime-app-composition production boundary should not exist before its implementation slice'
   );
+});
+
+test('initChatApp callers use the required runtime handoff without changing legacy order', () => {
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const handleLoginBody = getConstFunctionBody(fragment02Source, 'handleLogin');
+  const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
+  const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
+  const requiredHandoff = "legacyRuntimeContext.resolveBinding('app.initChatApp')()";
+
+  const initStart = fragment05Source.indexOf('async function initChatApp()');
+  assert.notEqual(initStart, -1, '05 should keep the initChatApp declaration');
+  const initOpen = fragment05Source.indexOf('{', initStart);
+  const initClose = findMatchingBrace(fragment05Source, initOpen);
+  assert.notEqual(initClose, -1, 'initChatApp should close inside 05');
+  const registrationIndex = fragment05Source.indexOf(
+    "legacyRuntimeContext.registerLazyBinding('app.initChatApp', () => initChatApp)"
+  );
+  assert.ok(registrationIndex > initClose, '05 should register app.initChatApp after the function declaration closes');
+
+  for (const [source, label] of [
+    [fragment02Source, '02'],
+    [fragment03Source, '03'],
+    [fragment06Source, '06']
+  ]) {
+    assert.doesNotMatch(source, /(^|[^\w.])initChatApp\(\)/, `${label} should not directly call initChatApp`);
+    assert.doesNotMatch(
+      source,
+      /resolveOptionalBinding\('app\.initChatApp'/,
+      `${label} should use the required initChatApp handoff`
+    );
+  }
+
+  for (const [body, label] of [
+    [handleLoginBody, '02 handleLogin'],
+    [processAuthImportBody, '03 processAuthImport'],
+    [initializeAppBody, '06 initializeApp']
+  ]) {
+    assert.equal((body.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 1, `${label} should resolve the handoff once`);
+    assert.doesNotMatch(body, /await\s+legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)/);
+  }
+
+  assertMarkersInOrder(handleLoginBody, [
+    "await setItem('chat_lastUser', username)",
+    "ALL_ELEMENTS.authContainer.classList.add('fade-out')",
+    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
+    'requestAnimationFrame(() =>',
+    "ALL_ELEMENTS.authContainer.addEventListener('transitionend'",
+    requiredHandoff
+  ], '02 login initChatApp handoff');
+
+  assertMarkersInOrder(processAuthImportBody, [
+    'await saveAppData()',
+    'Object.assign(config, rawData.settings)',
+    'await saveConfig()',
+    'toggleModal(ALL_ELEMENTS.importDataModalAuth, false)',
+    "ALL_ELEMENTS.authContainer.addEventListener('transitionend'",
+    'setTimeout(hideAuthContainer, 500)',
+    requiredHandoff,
+    'showNotification(i18n[config.uiLanguage].importSuccess'
+  ], '03 auth import initChatApp handoff');
+
+  assertMarkersInOrder(initializeAppBody, [
+    'await loadConfig()',
+    'await loadAppData()',
+    'applyCustomWallpaper()',
+    'applyUiTheme()',
+    "ALL_ELEMENTS.authContainer.style.display = 'none'",
+    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
+    "ALL_ELEMENTS.appContainer.classList.add('visible')",
+    requiredHandoff,
+    'return'
+  ], '06 startup initChatApp handoff');
 });
 
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {

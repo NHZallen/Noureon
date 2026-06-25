@@ -73,7 +73,7 @@
 
 
             // 4. 最後，呼叫 initChatApp，此時它知道所有資料都已準備就緒
-            initChatApp();
+            legacyRuntimeContext.resolveBinding('app.initChatApp')();
             return;
         }
     }

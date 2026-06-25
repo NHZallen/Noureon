@@ -990,7 +990,7 @@
         setTimeout(hideAuthContainer, 500);
 
         // 初始化應用程式
-        initChatApp();
+        legacyRuntimeContext.resolveBinding('app.initChatApp')();
         showNotification(i18n[config.uiLanguage].importSuccess || '匯入成功！', 'success');
 
     } catch (error) {
