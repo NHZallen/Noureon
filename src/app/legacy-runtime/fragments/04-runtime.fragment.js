@@ -1057,7 +1057,7 @@ function setupMessageIntersectionObserver() {
             });
             await saveAppData();
             toggleTrashSelectionMode();
-            showNotification(`${i18n[config.uiLanguage].batchRestoredSuccess || '已成功還原'} ${count} ${i18n[config.uiLanguage].items || '個項目'}。`, 'success');
+            runtimeDialogCoordinator.showNotification(`${i18n[config.uiLanguage].batchRestoredSuccess || '已成功還原'} ${count} ${i18n[config.uiLanguage].items || '個項目'}。`, 'success');
         };
         const handleBatchDeleteFromTrash = async () => {
             const count = selectedTrashIds.size;

@@ -70,6 +70,16 @@ const getConstFunctionBody = (source, name) => {
   return source.slice(match.index, closeIndex + 1);
 };
 
+const getBlockFromMarker = (source, marker) => {
+  const markerIndex = source.indexOf(marker);
+  assert.notEqual(markerIndex, -1, `Expected to find marker ${marker}`);
+  const openIndex = source.indexOf('{', markerIndex);
+  assert.notEqual(openIndex, -1, `Expected to find block for marker ${marker}`);
+  const closeIndex = findMatchingBrace(source, openIndex);
+  assert.notEqual(closeIndex, -1, `Expected to close block for marker ${marker}`);
+  return source.slice(markerIndex, closeIndex + 1);
+};
+
 const findCrossFragmentBracePairs = (fragments) => {
   const offsets = [];
   let combined = '';
@@ -426,7 +436,10 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
   const handleBatchArchiveBody = getConstFunctionBody(fragment03Source, 'handleBatchArchive');
+  const defaultModelUpdateBody = getBlockFromMarker(fragment03Source, 'input[name="default-model-radio"]');
+  const moveModelOrderBody = getConstFunctionBody(fragment03Source, 'moveModelOrder');
   const handleRestoreTrashItemBody = getConstFunctionBody(fragment04Source, 'handleRestoreTrashItem');
+  const handleBatchRestoreFromTrashBody = getConstFunctionBody(fragment04Source, 'handleBatchRestoreFromTrash');
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeDialogCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeDialogCoordinator\s*\}/);
@@ -438,7 +451,16 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(fragment00Source, /const\s+showCustomConfirm\s*=\s*\(message,\s*title\s*=\s*'請確認'\)\s*=>\s*showCustomDialog\(/);
   assert.match(fragment00Source, /const\s+showCustomPrompt\s*=\s*\(message,\s*title\s*=\s*'請輸入',\s*inputType\s*=\s*'text'\)\s*=>\s*showCustomDialog\(/);
 
-  for (const body of [deleteChatBody, deactivateAstrasBody, deleteAstrasBody, handleBatchArchiveBody, handleRestoreTrashItemBody]) {
+  for (const body of [
+    deleteChatBody,
+    deactivateAstrasBody,
+    deleteAstrasBody,
+    handleBatchArchiveBody,
+    handleRestoreTrashItemBody,
+    handleBatchRestoreFromTrashBody,
+    defaultModelUpdateBody,
+    moveModelOrderBody
+  ]) {
     assert.match(body, /runtimeDialogCoordinator\.showNotification\(/);
     assert.doesNotMatch(body, /(^|[^\w.])showNotification\(/);
   }
@@ -448,6 +470,9 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderTrash\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(defaultModelUpdateBody, /config\.defaultModel\s*=\s*modelId;\s*await\s+saveConfig\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {

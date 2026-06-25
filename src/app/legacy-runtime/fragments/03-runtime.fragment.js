@@ -1177,7 +1177,7 @@
             config.defaultModel = modelId;
             await saveConfig();
             // 不需重繪，只需通知即可
-            showNotification(i18n[config.uiLanguage].defaultModelUpdated || '預設模型已更新');
+            runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].defaultModelUpdated || '預設模型已更新');
         });
     });
 
@@ -1258,7 +1258,7 @@
 
     await saveConfig();
     renderModelManagementUI(); // 重新渲染UI
-    showNotification(i18n[config.uiLanguage].modelOrderUpdated || '模型順序已更新');
+    runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].modelOrderUpdated || '模型順序已更新');
 };
         function toggleSidebar(show) {
     const { sidebar, sidebarOverlay, appContainer } = ALL_ELEMENTS;
