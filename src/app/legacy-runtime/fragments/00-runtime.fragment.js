@@ -29,6 +29,7 @@ import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
+import { createLegacyRuntimeConfigStore } from '/src/app/runtime/kernel/config-store.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -615,48 +616,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getCurrentConversationId: () => activeConversationId,
             setCurrentConversationId: (id) => { activeConversationId = id; }
         });
-        let config = {
-            apiKeys: { gemini: '', openrouter: '', stepPlan: '', nvidia: '', tavily: '' },
-            defaultModel: MODELS[0].id,
-            theme: 'light',
-            modelSettings: [],
-            enableAutoWebSearch: false,
-            tavilySearchDepth: 'basic',
-            outputMode: 'typewriter',
-            aiBubbleColor: 'default',
-            userBubbleColor: 'default',
-            autoNaming: true,
-            lastUsedModel: null,
-            memoryEnabled1: true,
-            enableAutoMemory: true,
-            customWallpaper: null,
-            wallpaperBrightness: 'light',
-            uiTheme: {
-                mode: 'default',
-                style: 'single',
-                customColor: '#3b82f6',
-                adaptiveColor: '#3b82f6',
-                adaptivePalette: [],
-                adaptiveGradient: ''
-            },
-            uiLanguage: 'zh-TW',
-            aiDefaultLanguage: 'zh-TW',
-            enableUpdateNotifications: true,
-            lastSeenVersion: '',
-            isLearningMode: false,
-            lastCouncilConfig: {
-                enabled: false,
-                mode: 'consensus',
-                participantModelIds: [],
-                synthesizerModelId: null,
-                showRawResponses: true,
-                showComparisonTable: true
-            },
-            councilTranslatorModelId: null,
-            singleDocumentTranslatorModelId: null,
-        };
+        const runtimeConfigStore = createLegacyRuntimeConfigStore({
+            defaultModelId: MODELS[0].id
+        });
+        let config = runtimeConfigStore.getConfig();
         const runtimeConfigAccess = createRuntimeConfigAccess({
-            getConfig: () => config
+            getConfig: () => runtimeConfigStore.getConfig()
         });
         const getCouncilTexts = () => {
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
@@ -1393,7 +1358,7 @@ function renderMarkdownWithFormulas(text) {
                 defaultConfig.uiTheme.adaptiveGradient = defaultConfig.uiTheme.adaptiveGradient || '';
                 defaultConfig.outputMode = defaultConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter';
                 defaultConfig.tavilySearchDepth = defaultConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
-                config = defaultConfig;
+                config = runtimeConfigStore.replaceConfig(defaultConfig);
             }
             const allModelIds = new Set(MODELS.map(m => m.id));
             const savedModelSettings = [];

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { createRuntimeConfigAccess } from '../src/app/legacy-runtime/runtime/runtime-config-access.js';
+import { createLegacyRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -24,6 +25,17 @@ test('getUiLanguage reads latest config without stale snapshots', () => {
   assert.equal(access.getUiLanguage(), 'fr');
   config.uiLanguage = 'en';
   assert.equal(access.getUiLanguage(), 'en');
+});
+
+test('getUiLanguage reads the latest config store pointer after replacement', () => {
+  const configStore = createLegacyRuntimeConfigStore({ defaultModelId: 'model' });
+  const access = createRuntimeConfigAccess({
+    getConfig: () => configStore.getConfig()
+  });
+
+  assert.equal(access.getUiLanguage(), 'zh-TW');
+  configStore.replaceConfig({ uiLanguage: 'fr' });
+  assert.equal(access.getUiLanguage(), 'fr');
 });
 
 test('missing config returns undefined without inventing a fallback', () => {

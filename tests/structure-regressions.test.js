@@ -234,6 +234,51 @@ test('runtime DOM registry ownership moves into the non-live runtime kernel', ()
   assert.match(viteSource, /plugins:\s*\[legacyRuntimeFragmentsPlugin\(\)\]/);
 });
 
+test('runtime config ownership moves into a narrow non-live kernel store', () => {
+  const storePath = 'src/app/runtime/kernel/config-store.js';
+  const storeSource = readSource(storePath);
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
+  const laterFragmentSources = [
+    '01-runtime.fragment.js',
+    '02-runtime.fragment.js',
+    '03-runtime.fragment.js',
+    '04-runtime.fragment.js',
+    '05-runtime.fragment.js',
+    '06-runtime.fragment.js'
+  ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
+
+  assert.equal(existsSync(projectFile(storePath)), true, 'runtime config store module should exist');
+  assert.match(storeSource, /export\s+function\s+createLegacyRuntimeConfigStore/);
+  assert.doesNotMatch(storeSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
+  assert.doesNotMatch(storeSource, /import[\s\S]*\bMODELS\b/);
+
+  assert.match(
+    fragment00Source,
+    /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/config-store\.js['"]/
+  );
+  assertMarkersInOrder(fragment00Source, [
+    'const runtimeConfigStore = createLegacyRuntimeConfigStore({',
+    'defaultModelId: MODELS[0].id',
+    'let config = runtimeConfigStore.getConfig()',
+    'const runtimeConfigAccess = createRuntimeConfigAccess({'
+  ], '00 runtime config ownership');
+  assert.doesNotMatch(fragment00Source, /let\s+config\s*=\s*\{\s*apiKeys:/);
+  assert.match(fragment00Source, /config\s*=\s*runtimeConfigStore\.replaceConfig\(defaultConfig\)/);
+  assert.equal(fragmentConfigAssignments.length, 2);
+  for (const source of laterFragmentSources) {
+    assert.doesNotMatch(source, /\bconfig\s*=/);
+  }
+  assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
+
+  assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
+  assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
+  assert.match(runtimeAppSource, /return\s*\{\s*elements,\s*configStore\s*\}/);
+  assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
+  assert.doesNotMatch(runtimeAppSource, /addEventListener|DOMContentLoaded|bootstrap\(|initChatApp|initializeApp/);
+});
+
 test('legacy runtime fragments exist and are not empty', () => {
   for (const name of [
     '00-runtime.fragment.js',
@@ -595,7 +640,8 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'let conversations = []',
     'let activeConversationId = null',
     'const conversationStateAccess = createConversationStateAccess({',
-    'let config = {',
+    'const runtimeConfigStore = createLegacyRuntimeConfigStore({',
+    'let config = runtimeConfigStore.getConfig()',
     'const runtimeConfigAccess = createRuntimeConfigAccess({',
     'const showNotification =',
     'const runtimeDialogCoordinator = createRuntimeDialogCoordinator({',
@@ -609,7 +655,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
   assert.match(fragment00Source, /getElements:\s*\(\)\s*=>\s*ALL_ELEMENTS/);
   assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
   assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationId/);
-  assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*config/);
+  assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
   assert.match(fragment00Source, /showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/);
   assert.match(fragment00Source, /renderHistorySidebar:\s*\(\)\s*=>\s*renderHistorySidebar\(\)/);
   assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
@@ -974,7 +1020,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
 });
 
-test('runtime config access owns selected uiLanguage reads without changing config ownership', () => {
+test('runtime config access owns selected uiLanguage reads through the config store', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
@@ -992,7 +1038,7 @@ test('runtime config access owns selected uiLanguage reads without changing conf
   assert.match(accessSource, /export\s+function\s+createRuntimeConfigAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeConfigAccess\s*\}/);
   assert.equal((fragment00Source.match(/createRuntimeConfigAccess\(\{/g) || []).length, 1);
-  assert.match(fragment00Source, /const\s+runtimeConfigAccess\s*=\s*createRuntimeConfigAccess\(\{\s*getConfig:\s*\(\)\s*=>\s*config\s*\}\);/);
+  assert.match(fragment00Source, /const\s+runtimeConfigAccess\s*=\s*createRuntimeConfigAccess\(\{\s*getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)\s*\}\);/);
   assert.doesNotMatch(fragment00Source, /getConfig:\s*config\b/);
 
   for (const body of [

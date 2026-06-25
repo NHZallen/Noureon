@@ -54,7 +54,7 @@ test('runtime app kernel exposes the registry without starting the app', () => {
   const kernel = createRuntimeAppKernel({ rootDocument });
 
   assert.deepEqual(kernel.elements.openStoreBtn, { id: 'open-store-btn' });
-  assert.deepEqual(Object.keys(kernel), ['elements']);
+  assert.deepEqual(Object.keys(kernel), ['elements', 'configStore']);
 });
 
 test('DOM registry module owns lookup creation only', () => {
