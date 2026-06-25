@@ -214,9 +214,10 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
 test('03 import and auth import paths keep bulk replacements, chunked pushes, and persistence order', () => {
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
+  const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
   const handleImportBody = getFunctionDeclarationBody(importExportSource, 'handleImport');
-  const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
+  const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
 
   assertMarkersInOrder(performImportBody, [
     'replaceAllAppData({',
@@ -252,23 +253,19 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
   ], 'handleImport replacement, chunk import, and UI order');
 
   assertMarkersInOrder(processAuthImportBody, [
-    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'const activeAppData = replaceAllAppData({',
     'conversations: []',
     'folders: []',
     'astras: []',
     'personalMemories: []',
-    'conversations = clearedAppData.conversations',
-    'folders = clearedAppData.folders',
-    'astras = clearedAppData.astras',
-    'personalMemories = clearedAppData.personalMemories',
-    'astras.push(ast)',
-    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
-    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
-    'conversations.push(conv)',
+    'activeAppData.astras.push(astra)',
+    'activeAppData.folders = replaceFolders(rawData.folders)',
+    'activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories)',
+    'activeAppData.conversations.push(conversation)',
     'await saveAppData()',
     'await saveConfig()',
-    'toggleModal(ALL_ELEMENTS.importDataModalAuth, false)',
-    "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
+    'toggleModal(elements.importDataModalAuth, false)',
+    'initChatApp()'
   ], 'processAuthImport replacement, chunk import, and app handoff order');
 
   assertMarkersInOrder(fragment03Source, [

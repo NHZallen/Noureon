@@ -79,9 +79,10 @@ const assertMarkersInOrder = (source, markers, context) => {
 
 const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
 const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
+const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
 const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
 const handleImportBody = getFunctionDeclarationBody(importExportSource, 'handleImport');
-const processAuthImportBody = getConstFunctionBody(fragment03Source, 'processAuthImport');
+const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
 
 test('performImport keeps four-group replacement before app and config persistence', () => {
   assertMarkersInOrder(performImportBody, [
@@ -152,50 +153,47 @@ test('processAuthImport keeps user persistence before app data mutation and pers
   assertMarkersInOrder(processAuthImportBody, [
     'const backupUsername = getBackupUsername(rawData)',
     'const userKey = getUserKey(username)',
-    'currentUser = await createPasswordRecord(username, password)',
-    'await setItem(userKey, JSON.stringify(currentUser))',
+    'const nextUser = await createPasswordRecord(username, password)',
+    'const persistedUser = setCurrentUser(nextUser)',
+    'await setItem(userKey, JSON.stringify(persistedUser))',
     "await setItem('chat_lastUser', username)",
     'updateProgress(30',
-    'const clearedAppData = runtimeAppDataStore.replaceAll({',
+    'const activeAppData = replaceAllAppData({',
     'conversations: []',
     'folders: []',
     'astras: []',
     'personalMemories: []',
-    'conversations = clearedAppData.conversations',
-    'folders = clearedAppData.folders',
-    'astras = clearedAppData.astras',
-    'personalMemories = clearedAppData.personalMemories',
     'await processInChunks(astrasToImport',
-    'astras.push(ast)',
-    'folders = runtimeAppDataStore.replaceFolders(rawData.folders)',
-    'personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories)',
-    'await processInChunks(convsToImport',
-    'conversations.push(conv)',
+    'activeAppData.astras.push(astra)',
+    'activeAppData.folders = replaceFolders(rawData.folders)',
+    'activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories)',
+    'await processInChunks(conversationsToImport',
+    'activeAppData.conversations.push(conversation)',
     'await saveAppData()',
     'Object.assign(config, rawData.settings)',
     'await saveConfig()',
-    'toggleModal(ALL_ELEMENTS.importDataModalAuth, false)',
-    "ALL_ELEMENTS.authContainer.addEventListener('transitionend'",
-    'setTimeout(hideAuthContainer, 500)',
-    "legacyRuntimeContext.resolveBinding('app.initChatApp')()",
-    'showNotification(i18n[config.uiLanguage].importSuccess'
+    'toggleModal(elements.importDataModalAuth, false)',
+    "elements.authContainer.addEventListener('transitionend'",
+    'scheduleTimeout(hideAuthContainer, 500)',
+    'initChatApp()',
+    "showNotification(text('importSuccess'"
   ], 'processAuthImport auth, mutation, persistence, and app handoff');
 });
 
 test('processAuthImport preserves partial-state behavior without rollback', () => {
   assertMarkersInOrder(processAuthImportBody, [
-    'catch (e) { console.warn("Astra',
-    'astras.push(ast)',
-    'catch (e) { console.warn("附件',
-    'conversations.push(conv)'
+    "catch (error) {\n              logger.warn('Astra",
+    'activeAppData.astras.push(astra)',
+    "catch (error) {\n                    logger.warn('Attachment",
+    'activeAppData.conversations.push(conversation)'
   ], 'processAuthImport recoverable transform failures');
 
   const outerCatch = processAuthImportBody.slice(processAuthImportBody.lastIndexOf('catch (error)'));
   assert.doesNotMatch(outerCatch, /(?:conversations|folders|astras|personalMemories)\s*=\s*\[\]/);
-  assert.doesNotMatch(outerCatch, /runtimeAppDataStore\.(?:replaceAll|replaceConversations|replaceFolders|replaceAstras|replacePersonalMemories)/);
+  assert.doesNotMatch(outerCatch, /(?:replaceAllAppData|replaceFolders|replacePersonalMemories)\(/);
   assertMarkersInOrder(outerCatch, [
     'catch (error)',
-    'console.error(error)',
+    'logger.error(error)',
     'showNotification',
     'updateProgress(0',
     'finally',
@@ -210,7 +208,7 @@ test('selected import flows use pointer replacement without adding store append 
 
   assert.match(performImportBody, /replaceAllAppData\(/);
   assert.match(handleImportBody, /replaceAllAppData\(/);
-  assert.match(processAuthImportBody, /runtimeAppDataStore\.replaceAll\(/);
+  assert.match(processAuthImportBody, /replaceAllAppData\(/);
   for (const body of [performImportBody, handleImportBody, processAuthImportBody]) {
     assert.doesNotMatch(body, /appendConversations|appendAstras|syncFromLexical/);
   }

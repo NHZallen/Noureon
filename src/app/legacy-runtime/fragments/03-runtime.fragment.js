@@ -97,6 +97,7 @@
         import { createConversationViewRenderer as createSearchConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
         import { createUploadedFilePreviewLifecycle } from '/src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js';
         import { createLegacyImportExportLifecycle } from '/src/app/runtime/features/import-export-lifecycle.js';
+        import { createLegacyAuthImportLifecycle } from '/src/app/runtime/features/auth-import-lifecycle.js';
         const {
             getInlineMediaSrc: getSearchInlineMediaSrc,
             renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid
@@ -466,214 +467,58 @@
             performImport,
             handleImport,
         } = importExportLifecycle;
-        const handleImportOnAuth = () => {
-            toggleModal(ALL_ELEMENTS.importDataModalAuth, true);
-        };
-        const processAuthImport = async () => {
-    const username = ALL_ELEMENTS.usernameInput.value.trim();
-    const password = ALL_ELEMENTS.passwordInput.value;
-    const file = ALL_ELEMENTS.importFileInputAuth.files[0];
-
-    if (!file) {
-        showNotification(i18n[config.uiLanguage].selectFileError || '請選擇檔案。', 'error');
-        return;
-    }
-
-    // 1. 初始化 UI
-    const { 
-        importProgressContainerAuth, 
-        importProgressBarAuth, 
-        importStatusTextAuth, 
-        importPercentageAuth,
-        confirmImportBtnAuth 
-    } = ALL_ELEMENTS;
-
-    importProgressContainerAuth.classList.remove('hidden');
-    confirmImportBtnAuth.disabled = true;
-    confirmImportBtnAuth.textContent = "驗證與處理中...";
-
-    const updateProgress = (percent, text) => {
-        importProgressBarAuth.style.width = `${percent}%`;
-        importPercentageAuth.textContent = `${Math.round(percent)}%`;
-        if (text) importStatusTextAuth.textContent = text;
-    };
-
-    try {
-        updateProgress(5, "正在讀取並驗證...");
-        
-        // 模擬等待 (讓使用者有反應時間)
-        await new Promise(r => setTimeout(r, 1000));
-
-        let rawData = null;
-        let zip = null;
-
-        // 2. 讀取檔案
-        if (file.name.endsWith('.zip') || file.type.includes('zip')) {
-            updateProgress(10, "正在解壓縮...");
-            zip = await JSZip.loadAsync(file);
-            
-            let jsonFile = zip.file("data.json");
-            if (!jsonFile) {
-                const files = Object.keys(zip.files);
-                const jsonFileName = files.find(name => name.endsWith('.json'));
-                if (jsonFileName) jsonFile = zip.file(jsonFileName);
-            }
-            
-            if (!jsonFile) throw new Error("ZIP 檔案中找不到 JSON 資料。");
-            
-            updateProgress(15, "正在解析結構...");
-            const jsonContent = await jsonFile.async("string");
-            rawData = JSON.parse(jsonContent);
-
-        } else {
-            updateProgress(10, "正在解析 JSON...");
-            const text = await file.text();
-            rawData = JSON.parse(text);
-        }
-
-        // 3. 驗證帳號密碼 (這是 processAuthImport 特有的步驟)
-        updateProgress(20, "正在驗證身份...");
-        
-        const backupUsername = getBackupUsername(rawData);
-        if (!backupUsername) {
-            throw new Error(i18n[config.uiLanguage].importInvalidFile || '備份檔案格式無效或缺少驗證資訊。');
-        }
-        
-        if (backupUsername !== username) {
-            throw new Error(i18n[config.uiLanguage].importAuthMismatch || '帳號或密碼與備份檔案不符。');
-        }
-
-        if (rawData.user_credentials?.passwordHash) {
-            const legacyHash = await hashString(password);
-            if (!constantTimeEqual(rawData.user_credentials.passwordHash, legacyHash)) {
-                throw new Error(i18n[config.uiLanguage].importAuthMismatch || '帳號或密碼與備份檔案不符。');
-            }
-        }
-
-        // 驗證通過，寫入使用者資訊
-        const userKey = getUserKey(username);
-        currentUser = await createPasswordRecord(username, password);
-        await setItem(userKey, JSON.stringify(currentUser));
-        await setItem('chat_lastUser', username);
-
-        // 4. 開始分階段還原資料 (這裡修復了 restoreAttachmentsFromZip 報錯的問題)
-        updateProgress(30, "身份驗證通過，開始還原...");
-
-        // 清空全域變數準備接收資料
-        const clearedAppData = runtimeAppDataStore.replaceAll({
-            conversations: [],
-            folders: [],
-            astras: [],
-            personalMemories: [],
-        });
-        conversations = clearedAppData.conversations;
-        folders = clearedAppData.folders;
-        astras = clearedAppData.astras;
-        personalMemories = clearedAppData.personalMemories;
-
-        // --- 處理 Astras ---
-        const astrasToImport = rawData.astras || [];
-        if (astrasToImport.length > 0) {
-            await processInChunks(astrasToImport, async (ast) => {
-                if (ast._avatarZipRef && zip) {
-                    try {
-                        const fileInZip = zip.file(ast._avatarZipRef);
-                        if (fileInZip) {
-                            const base64 = await fileInZip.async("base64");
-                            let mime = 'image/png';
-                            if (ast._avatarZipRef.endsWith('.jpg') || ast._avatarZipRef.endsWith('.jpeg')) mime = 'image/jpeg';
-                            ast.avatarUrl = `data:${mime};base64,${base64}`;
-                            delete ast._avatarZipRef;
-                        }
-                    } catch (e) { console.warn("Astra 頭像還原失敗", e); }
-                }
-                astras.push(ast);
-            }, 10, (current, total) => {
-                const p = 30 + (current / total) * 10;
-                updateProgress(p, `還原 Astras (${current}/${total})...`);
-            });
-        }
-
-        // --- 處理資料夾與記憶 ---
-        if (rawData.folders) {
-            folders = runtimeAppDataStore.replaceFolders(rawData.folders);
-        }
-        if (rawData.personalMemories) {
-            personalMemories = runtimeAppDataStore.replacePersonalMemories(rawData.personalMemories);
-        }
-
-        // --- 處理對話 (最耗資源的部分) ---
-        const convsToImport = rawData.conversations || [];
-        if (convsToImport.length > 0) {
-            await processInChunks(convsToImport, async (conv) => {
-                for (const msg of conv.messages) {
-                    if (msg.parts) {
-                        for (const part of msg.parts) {
-                            // 處理 ZIP 參照還原
-                            if (part.inlineData && part.inlineData._zipRef && zip) {
-                                try {
-                                    const fileName = part.inlineData._zipRef;
-                                    const fileInZip = zip.file(fileName);
-                                    if (fileInZip) {
-                                        const base64 = await fileInZip.async("base64");
-                                        part.inlineData.data = base64;
-                                        delete part.inlineData._zipRef;
-                                    }
-                                } catch (e) { console.warn("附件還原失敗", e); }
-                            }
-                        }
-                    }
-                }
-                conversations.push(conv);
-            }, 5, (current, total) => {
-                const p = 40 + (current / total) * 50;
-                updateProgress(p, `還原對話 (${current}/${total})...`);
-            });
-        }
-
-        // 5. 寫入資料庫與設定
-        updateProgress(95, "正在寫入資料庫...");
-        
-        await saveAppData();
-        if (rawData.settings) Object.assign(config, rawData.settings);
-        if (rawData.apiKeys) config.apiKeys = { ...config.apiKeys, ...rawData.apiKeys };
-        await saveConfig();
-
-        updateProgress(100, "匯入成功！");
-        await new Promise(r => setTimeout(r, 500));
-
-        // 6. 關閉視窗並進入 App
-        toggleModal(ALL_ELEMENTS.importDataModalAuth, false);
-        
-        // UI 轉場動畫
-        ALL_ELEMENTS.authContainer.classList.add('fade-out');
-        ALL_ELEMENTS.appContainer.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            ALL_ELEMENTS.appContainer.classList.add('visible');
+        const authImportLifecycle = createLegacyAuthImportLifecycle({
+            elements: ALL_ELEMENTS,
+            JSZip,
+            getConfig: () => config,
+            mutateConfig: (mutator) => {
+                if (typeof mutator === 'function') return mutator(config);
+                Object.assign(config, mutator);
+                return config;
+            },
+            setCurrentUser: (nextUser) => {
+                currentUser = nextUser;
+                return currentUser;
+            },
+            createPasswordRecord,
+            getUserKey,
+            setItem,
+            replaceAllAppData: (nextAppData) => {
+                const snapshot = runtimeAppDataStore.replaceAll(nextAppData);
+                conversations = snapshot.conversations;
+                folders = snapshot.folders;
+                astras = snapshot.astras;
+                personalMemories = snapshot.personalMemories;
+                return snapshot;
+            },
+            replaceFolders: (nextFolders) => {
+                folders = runtimeAppDataStore.replaceFolders(nextFolders);
+                return folders;
+            },
+            replacePersonalMemories: (nextPersonalMemories) => {
+                personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
+                return personalMemories;
+            },
+            saveAppData,
+            saveConfig,
+            processInChunks,
+            getBackupUsername,
+            hashString,
+            constantTimeEqual,
+            showNotification,
+            toggleModal,
+            requestAnimationFrame,
+            scheduleTimeout: (callback, ms) => setTimeout(callback, ms),
+            delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+            initChatApp: () => legacyRuntimeContext.resolveBinding('app.initChatApp')(),
+            i18n,
+            logger: console,
         });
 
-        const hideAuthContainer = () => {
-            ALL_ELEMENTS.authContainer.style.display = 'none';
-            ALL_ELEMENTS.authContainer.classList.remove('visible');
-        };
-        ALL_ELEMENTS.authContainer.addEventListener('transitionend', hideAuthContainer, { once: true });
-        setTimeout(hideAuthContainer, 500);
-
-        // 初始化應用程式
-        legacyRuntimeContext.resolveBinding('app.initChatApp')();
-        showNotification(i18n[config.uiLanguage].importSuccess || '匯入成功！', 'success');
-
-    } catch (error) {
-        console.error(error);
-        showNotification(`${i18n[config.uiLanguage].importFailed || '匯入失敗'}: ${error.message}`, 'error');
-        updateProgress(0, "發生錯誤");
-        importProgressBarAuth.classList.add('bg-red-500');
-        importStatusTextAuth.classList.add('text-red-500');
-    } finally {
-        confirmImportBtnAuth.disabled = false;
-        confirmImportBtnAuth.textContent = i18n[config.uiLanguage].confirmAndImport || "確認並匯入";
-    }
-};
+        const {
+            handleImportOnAuth,
+            processAuthImport,
+        } = authImportLifecycle;
         const renderModelManagementUI = () => {
     const container = ALL_ELEMENTS.modelManagementList;
     const settingsContent = container.closest('.flex-1.p-6.overflow-y-auto') || container.closest('.scroll-area');
