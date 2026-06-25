@@ -659,8 +659,9 @@
         const getCouncilModeLabel = (council = {}) => {
             const texts = getCouncilTexts();
             const modeLabel = council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
-            if (config.uiLanguage === 'en') return `Council ${modeLabel}`;
-            if (config.uiLanguage === 'fr') return `Conseil ${modeLabel}`;
+            const uiLanguage = runtimeConfigAccess.getUiLanguage();
+            if (uiLanguage === 'en') return `Council ${modeLabel}`;
+            if (uiLanguage === 'fr') return `Conseil ${modeLabel}`;
             return `理事會${modeLabel}`;
         };
         const getCouncilModelList = (conv) => {

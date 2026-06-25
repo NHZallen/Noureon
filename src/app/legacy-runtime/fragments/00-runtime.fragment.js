@@ -879,7 +879,10 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const runtimeConfigAccess = createRuntimeConfigAccess({
             getConfig: () => config
         });
-        const getCouncilTexts = () => COUNCIL_TEXT[config.uiLanguage] || COUNCIL_TEXT['zh-TW'];
+        const getCouncilTexts = () => {
+            const uiLanguage = runtimeConfigAccess.getUiLanguage();
+            return COUNCIL_TEXT[uiLanguage] || COUNCIL_TEXT['zh-TW'];
+        };
         const getDefaultCouncilConfig = () => ({
             enabled: false,
             mode: 'consensus',
@@ -1039,7 +1042,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             return uiLanguage === 'en' ? 'Provider pricing' : '供應商計費';
         };
         const getCouncilRuntimeTexts = () => {
-            if (config.uiLanguage === 'en') {
+            const uiLanguage = runtimeConfigAccess.getUiLanguage();
+            if (uiLanguage === 'en') {
                 return {
                     visualOnly: 'visual participants',
                     skipped: 'skipped',
@@ -1066,7 +1070,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     searchEnabledNote: 'Search is on: the council will use one shared search packet.'
                 };
             }
-            if (config.uiLanguage === 'fr') {
+            if (uiLanguage === 'fr') {
                 return {
                     visualOnly: 'participants visuels',
                     skipped: 'ignoré',

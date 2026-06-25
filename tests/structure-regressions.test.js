@@ -64,7 +64,7 @@ const findMatchingBrace = (source, openIndex) => {
 const getConstFunctionBody = (source, name) => {
   const match = new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*\\{`).exec(source);
   assert.ok(match, `Expected to find ${name}`);
-  const openIndex = source.indexOf('{', match.index);
+  const openIndex = match.index + match[0].lastIndexOf('{');
   const closeIndex = findMatchingBrace(source, openIndex);
   assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
   return source.slice(match.index, closeIndex + 1);
@@ -477,10 +477,14 @@ test('runtime dialog coordinator owns selected notification call sites without r
 
 test('runtime config access owns selected uiLanguage reads without changing config ownership', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
+  const getCouncilTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilTexts');
+  const getCouncilRuntimeTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilRuntimeTexts');
   const getModelRetirementLabelBody = getConstFunctionBody(fragment00Source, 'getModelRetirementLabel');
   const getModelPriceLabelBody = getConstFunctionBody(fragment00Source, 'getModelPriceLabel');
+  const getCouncilModeLabelBody = getConstFunctionBody(fragment01Source, 'getCouncilModeLabel');
 
   assert.match(accessSource, /export\s+function\s+createRuntimeConfigAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeConfigAccess\s*\}/);
@@ -488,13 +492,28 @@ test('runtime config access owns selected uiLanguage reads without changing conf
   assert.match(fragment00Source, /const\s+runtimeConfigAccess\s*=\s*createRuntimeConfigAccess\(\{\s*getConfig:\s*\(\)\s*=>\s*config\s*\}\);/);
   assert.doesNotMatch(fragment00Source, /getConfig:\s*config\b/);
 
-  for (const body of [getModelRetirementLabelBody, getModelPriceLabelBody]) {
+  for (const body of [
+    getCouncilTextsBody,
+    getCouncilRuntimeTextsBody,
+    getModelRetirementLabelBody,
+    getModelPriceLabelBody,
+    getCouncilModeLabelBody
+  ]) {
     assert.match(body, /runtimeConfigAccess\.getUiLanguage\(\)/);
     assert.doesNotMatch(body, /config\.uiLanguage/);
   }
 
+  assert.match(getCouncilTextsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);\s*return\s+COUNCIL_TEXT\[uiLanguage\]\s*\|\|\s*COUNCIL_TEXT\['zh-TW'\];/);
+  assert.match(getCouncilRuntimeTextsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
+  assert.match(getCouncilRuntimeTextsBody, /if\s*\(uiLanguage\s*===\s*'en'\)\s*\{\s*return\s*\{/);
+  assert.match(getCouncilRuntimeTextsBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*\{\s*return\s*\{/);
+  assert.ok((getCouncilRuntimeTextsBody.match(/return\s+\{/g) || []).length >= 3);
   assert.match(getModelRetirementLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(getModelPriceLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
+  assert.match(getCouncilModeLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
+  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'en'\)\s*return\s+`Council \$\{modeLabel\}`;/);
+  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*return\s+`Conseil \$\{modeLabel\}`;/);
+  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*return\s+`Conseil \$\{modeLabel\}`;\s*return\s+`[^`]*\$\{modeLabel\}`;/);
 
   assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*if\s*\(currentUser\)\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(config\)\);\s*\};/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>\s*\{/);
