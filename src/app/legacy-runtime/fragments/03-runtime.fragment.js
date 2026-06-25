@@ -1156,3 +1156,207 @@ ${JSON.stringify(potentialMemories, null, 2)}
             setModelPieChart: (chart) => { modelPieChart = chart; }
         });
         const renderModelUsageChart = (...args) => modelUsageChartLifecycle.renderModelUsageChart(...args);
+
+        const coreTailState = {
+            get conversations() { return conversations; },
+            set conversations(next) { conversations = next; },
+            get folders() { return folders; },
+            set folders(next) { folders = next; },
+            get astras() { return astras; },
+            set astras(next) { astras = next; },
+            get personalMemories() { return personalMemories; },
+            set personalMemories(next) { personalMemories = next; },
+            get config() { return config; },
+            set config(next) { config = next; },
+            get currentUser() { return currentUser; },
+            set currentUser(next) { currentUser = next; },
+            get sidebarOpen() { return sidebarOpen; },
+            set sidebarOpen(next) { sidebarOpen = next; },
+            get sendConfirmed() { return sendConfirmed; },
+            set sendConfirmed(next) { sendConfirmed = next; },
+            get abortController() { return abortController; },
+            set abortController(next) { abortController = next; },
+            get cropperInstance() { return cropperInstance; },
+            set cropperInstance(next) { cropperInstance = next; },
+            get editingAstraForAvatarId() { return editingAstraForAvatarId; },
+            set editingAstraForAvatarId(next) { editingAstraForAvatarId = next; },
+            get editingAstrasId() { return editingAstrasId; },
+            set editingAstrasId(next) { editingAstrasId = next; },
+            get currentStoreCategory() { return currentStoreCategory; },
+            set currentStoreCategory(next) { currentStoreCategory = next; },
+            get messageObserver() { return messageObserver; },
+            set messageObserver(next) { messageObserver = next; },
+            get timeDistChart() { return timeDistChart; },
+            set timeDistChart(next) { timeDistChart = next; },
+            get isAutoScrolling() { return isAutoScrolling; },
+            set isAutoScrolling(next) { isAutoScrolling = next; }
+        };
+
+        const coreTailDependencies = {
+            window,
+            document,
+            navigator,
+            fetch,
+            File,
+            Event,
+            Blob,
+            Image,
+            FileReader,
+            Chart,
+            Cropper,
+            Peer,
+            QRCode,
+            Html5Qrcode,
+            JSZip,
+            ResizeObserver,
+            IntersectionObserver,
+            requestAnimationFrame,
+            setTimeout,
+            clearTimeout,
+            crypto,
+            console,
+            globalObject: globalThis,
+            getComputedStyle,
+            random: () => Math.random(),
+            elements: ALL_ELEMENTS,
+            state: coreTailState,
+            runtimeConfigAccess,
+            runtimeAppDataStore,
+            runtimeDialogCoordinator,
+            legacyRuntimeContext,
+            i18n,
+            OFFICIAL_ASTRAS,
+            updateLogs,
+            UI_THEME_COLORS,
+            setTheme,
+            updateThemeButtons,
+            setAiBubbleColor,
+            setUserBubbleColor,
+            saveConfig,
+            saveAppData,
+            showNotification,
+            toggleModal,
+            renderAstras,
+            escapeHTML,
+            sanitizeTrustedHTML,
+            showRenameModal,
+            togglePinChat,
+            archiveChat,
+            deleteChat,
+            moveConversationToFolder,
+            renderBatchMoveModal,
+            showFolderSettingsModal,
+            deleteFolder,
+            deleteAstras,
+            showCustomConfirm,
+            formatFullTimestamp,
+            renderUserText,
+            renderMarkdownWithFormulas,
+            startNewChat,
+            renderAll,
+            setupVoiceInput,
+            updateFunctionButtonsState,
+            toggleSidebar,
+            saveSettings,
+            handleExport,
+            handleImport,
+            handleLogout,
+            handleFileSelection,
+            handleFormSubmit,
+            handleRename,
+            handleSaveFolderSettings,
+            performSearchAndRenderResults,
+            loadChat,
+            openDashboard,
+            getActiveConversation,
+            copyTextToClipboard,
+            normalizeConversationModel,
+            getCouncilSelectedModels,
+            isCouncilEnabled,
+            hasCouncilWebSearchAccess,
+            hasSingleWebSearchAccess,
+            hasSingleDocumentAccess,
+            modelSupportsVision,
+            getCouncilTexts,
+            renderInputIndicators,
+            toggleLearningMode,
+            toggleSelectionMode,
+            handleBatchDelete,
+            handleBatchArchive,
+            handleBatchMove,
+            submitChatForm,
+            closeAllPopovers,
+            showCustomPrompt,
+            createNewFolder,
+            createAstras,
+            handleSaveAstras,
+            renderPersonalMemoryList,
+            handleDeleteAllData,
+            updateFileInputUI,
+            postJsonWithReadableError,
+            openCouncilPopoverFromAttachmentMenu,
+            setupHistorySidebarInteractions,
+            setupHistorySidebarTriggers,
+            getDefaultFolder,
+            isMobileSettingsViewport,
+            openSettingsMobileSection,
+            getItem,
+            getUserKey,
+            loadConfig,
+            loadAppData,
+            handleLogin,
+            handleImportOnAuth,
+            processAuthImport,
+            installTouchGuards,
+            registerServiceWorker,
+            showCustomDialog
+        };
+
+        legacyRuntimeContext.registerLazyBinding(
+            'runtime.coreTailDependencies',
+            () => coreTailDependencies
+        );
+
+        const resolveCoreTailFunction = (name) => {
+            const binding = legacyRuntimeContext.resolveBinding(`coreTail.${name}`);
+            if (typeof binding !== 'function') {
+                throw new TypeError(`Legacy core tail binding "coreTail.${name}" must be a function.`);
+            }
+            return binding;
+        };
+
+        function setupTimeAnalysis(...args) { return resolveCoreTailFunction('setupTimeAnalysis')(...args); }
+        function updateTimeDistributionChart(...args) { return resolveCoreTailFunction('updateTimeDistributionChart')(...args); }
+        function getDominantColorPalette(...args) { return resolveCoreTailFunction('getDominantColorPalette')(...args); }
+        function applyUiTheme(...args) { return resolveCoreTailFunction('applyUiTheme')(...args); }
+        function renderUiColorOptions(...args) { return resolveCoreTailFunction('renderUiColorOptions')(...args); }
+        function analyzeImageBrightness(...args) { return resolveCoreTailFunction('analyzeImageBrightness')(...args); }
+        function applyCustomWallpaper(...args) { return resolveCoreTailFunction('applyCustomWallpaper')(...args); }
+        function handleWallpaperUpload(...args) { return resolveCoreTailFunction('handleWallpaperUpload')(...args); }
+        function handleConfirmCrop(...args) { return resolveCoreTailFunction('handleConfirmCrop')(...args); }
+        function restoreDefaultWallpaper(...args) { return resolveCoreTailFunction('restoreDefaultWallpaper')(...args); }
+        function openStore(...args) { return resolveCoreTailFunction('openStore')(...args); }
+        function closeStore(...args) { return resolveCoreTailFunction('closeStore')(...args); }
+        function renderStore(...args) { return resolveCoreTailFunction('renderStore')(...args); }
+        function handleSubscription(...args) { return resolveCoreTailFunction('handleSubscription')(...args); }
+        function openAvatarEditor(...args) { return resolveCoreTailFunction('openAvatarEditor')(...args); }
+        function handleAvatarUpload(...args) { return resolveCoreTailFunction('handleAvatarUpload')(...args); }
+        function handleConfirmAvatarCrop(...args) { return resolveCoreTailFunction('handleConfirmAvatarCrop')(...args); }
+        function applyLanguage(...args) { return resolveCoreTailFunction('applyLanguage')(...args); }
+        function showMobileContextMenu(...args) { return resolveCoreTailFunction('showMobileContextMenu')(...args); }
+        function showMobileContextMenuForFolder(...args) { return resolveCoreTailFunction('showMobileContextMenuForFolder')(...args); }
+        function showMobileContextMenuForAstras(...args) { return resolveCoreTailFunction('showMobileContextMenuForAstras')(...args); }
+        function setupScrollToBottomButton(...args) { return resolveCoreTailFunction('setupScrollToBottomButton')(...args); }
+        function showUpdateHistory(...args) { return resolveCoreTailFunction('showUpdateHistory')(...args); }
+        function checkAndShowLatestUpdate(...args) { return resolveCoreTailFunction('checkAndShowLatestUpdate')(...args); }
+        function setupMessageIntersectionObserver(...args) { return resolveCoreTailFunction('setupMessageIntersectionObserver')(...args); }
+        function renderTrash(...args) { return resolveCoreTailFunction('renderTrash')(...args); }
+        function handleRestoreTrashItem(...args) { return resolveCoreTailFunction('handleRestoreTrashItem')(...args); }
+        function handleDeleteTrashItemPermanently(...args) { return resolveCoreTailFunction('handleDeleteTrashItemPermanently')(...args); }
+        function showTrashItemInViewModal(...args) { return resolveCoreTailFunction('showTrashItemInViewModal')(...args); }
+        function toggleTrashSelectionMode(...args) { return resolveCoreTailFunction('toggleTrashSelectionMode')(...args); }
+        function renderTrashBatchActionBar(...args) { return resolveCoreTailFunction('renderTrashBatchActionBar')(...args); }
+        function handleBatchRestoreFromTrash(...args) { return resolveCoreTailFunction('handleBatchRestoreFromTrash')(...args); }
+        function handleBatchDeleteFromTrash(...args) { return resolveCoreTailFunction('handleBatchDeleteFromTrash')(...args); }
+        function handleEmptyTrash(...args) { return resolveCoreTailFunction('handleEmptyTrash')(...args); }
+        function updateDisplayedVersion(...args) { return resolveCoreTailFunction('updateDisplayedVersion')(...args); }

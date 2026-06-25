@@ -6,6 +6,7 @@ import {
   createRuntimeEntry,
   getLegacyRuntimeEntryDependencies,
   loadLegacyRuntimeContext,
+  registerCoreTailBindings,
   registerRuntimeEntryBindings,
   startRuntimeEntry
 } from '../src/app/runtime-entry.js';
@@ -17,6 +18,16 @@ import {
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+
+const assertMarkersInOrder = (source, markers, context) => {
+  let cursor = -1;
+  for (const marker of markers) {
+    const next = source.indexOf(marker, cursor + 1);
+    assert.notEqual(next, -1, `${context} should contain ${marker}`);
+    assert.ok(next > cursor, `${marker} should remain in ${context} order`);
+    cursor = next;
+  }
+};
 
 const createCompleteGroup = (fields) => Object.fromEntries(
   fields.map((field) => [field, () => {}])
@@ -61,10 +72,210 @@ const createCompleteDependencies = (overrides = {}) => {
   });
 };
 
+const createElement = (id = 'element') => ({
+  id,
+  value: '',
+  disabled: false,
+  dataset: {},
+  style: {},
+  innerHTML: '',
+  textContent: '',
+  classList: {
+    add() {},
+    remove() {},
+    toggle() {},
+    contains: () => false
+  },
+  addEventListener() {},
+  appendChild() {},
+  querySelector: () => null,
+  querySelectorAll: () => [],
+  contains: () => false
+});
+
+const createElementsProxy = () => new Proxy({}, {
+  get(target, prop) {
+    if (!target[prop]) target[prop] = createElement(prop);
+    return target[prop];
+  }
+});
+
+const createDocumentFake = () => ({
+  addEventListener() {},
+  createElement: (tag) => createElement(tag),
+  getElementById: (id) => createElement(id),
+  querySelector: () => null,
+  querySelectorAll: () => [],
+  body: createElement('body'),
+  documentElement: {
+    style: { setProperty() {} },
+    classList: {
+      add() {},
+      remove() {},
+      toggle() {},
+      contains: () => false
+    }
+  }
+});
+
+const createCompleteCoreTailDependencies = ({
+  runtimeContext,
+  elements = createElementsProxy(),
+  document = createDocumentFake(),
+  overrides = {}
+} = {}) => {
+  const noop = () => {};
+  const asyncNoop = async () => {};
+  return {
+    window: {},
+    document,
+    navigator: {},
+    fetch: noop,
+    File: class {},
+    Event: class {},
+    Blob: class {},
+    Image: class {},
+    FileReader: class {},
+    Chart: class { destroy() {} },
+    Cropper: class {},
+    Peer: class {},
+    QRCode: class {},
+    Html5Qrcode: class {},
+    JSZip: class {},
+    ResizeObserver: class {},
+    IntersectionObserver: class {},
+    requestAnimationFrame: (callback) => callback(),
+    setTimeout: (callback) => {
+      if (typeof callback === 'function') callback();
+      return 1;
+    },
+    clearTimeout: noop,
+    crypto: { randomUUID: () => 'uuid' },
+    console,
+    globalObject: {},
+    getComputedStyle: () => ({}),
+    random: () => 0.5,
+    elements,
+    state: {
+      conversations: [],
+      folders: [],
+      astras: [],
+      personalMemories: [],
+      config: { uiLanguage: 'zh-TW' },
+      currentUser: null,
+      sidebarOpen: false,
+      sendConfirmed: false,
+      abortController: null,
+      cropperInstance: null,
+      editingAstraForAvatarId: null,
+      editingAstrasId: null,
+      currentStoreCategory: 'all',
+      messageObserver: null,
+      timeDistChart: null,
+      isAutoScrolling: false
+    },
+    runtimeConfigAccess: { getUiLanguage: () => 'zh-TW' },
+    runtimeAppDataStore: {
+      replaceConversations: (next) => next,
+      replaceAstras: (next) => next
+    },
+    runtimeDialogCoordinator: { showNotification: noop },
+    legacyRuntimeContext: runtimeContext,
+    i18n: { 'zh-TW': {} },
+    OFFICIAL_ASTRAS: [],
+    updateLogs: [],
+    UI_THEME_COLORS: {},
+    setTheme: noop,
+    updateThemeButtons: noop,
+    setAiBubbleColor: noop,
+    setUserBubbleColor: noop,
+    saveConfig: asyncNoop,
+    saveAppData: asyncNoop,
+    showNotification: noop,
+    toggleModal: noop,
+    renderAstras: noop,
+    escapeHTML: (value = '') => String(value),
+    sanitizeTrustedHTML: (value = '') => String(value),
+    showRenameModal: noop,
+    togglePinChat: noop,
+    archiveChat: noop,
+    deleteChat: noop,
+    moveConversationToFolder: noop,
+    renderBatchMoveModal: noop,
+    showFolderSettingsModal: noop,
+    deleteFolder: noop,
+    deleteAstras: noop,
+    showCustomConfirm: async () => true,
+    formatFullTimestamp: () => '',
+    renderUserText: (value = '') => String(value),
+    renderMarkdownWithFormulas: (value = '') => String(value),
+    startNewChat: noop,
+    renderAll: noop,
+    setupVoiceInput: noop,
+    updateFunctionButtonsState: noop,
+    toggleSidebar: noop,
+    saveSettings: noop,
+    handleExport: noop,
+    handleImport: noop,
+    handleLogout: noop,
+    handleFileSelection: noop,
+    handleFormSubmit: noop,
+    handleRename: noop,
+    handleSaveFolderSettings: noop,
+    performSearchAndRenderResults: noop,
+    loadChat: noop,
+    openDashboard: noop,
+    getActiveConversation: () => null,
+    copyTextToClipboard: noop,
+    normalizeConversationModel: () => null,
+    getCouncilSelectedModels: () => [],
+    isCouncilEnabled: () => false,
+    hasCouncilWebSearchAccess: () => false,
+    hasSingleWebSearchAccess: () => false,
+    hasSingleDocumentAccess: () => false,
+    modelSupportsVision: () => false,
+    getCouncilTexts: () => [],
+    renderInputIndicators: noop,
+    toggleLearningMode: noop,
+    toggleSelectionMode: noop,
+    handleBatchDelete: noop,
+    handleBatchArchive: noop,
+    handleBatchMove: noop,
+    submitChatForm: noop,
+    closeAllPopovers: noop,
+    showCustomPrompt: async () => '',
+    createNewFolder: noop,
+    createAstras: noop,
+    handleSaveAstras: noop,
+    renderPersonalMemoryList: noop,
+    handleDeleteAllData: noop,
+    updateFileInputUI: noop,
+    postJsonWithReadableError: noop,
+    openCouncilPopoverFromAttachmentMenu: noop,
+    setupHistorySidebarInteractions: noop,
+    setupHistorySidebarTriggers: noop,
+    getDefaultFolder: () => ({}),
+    isMobileSettingsViewport: () => false,
+    openSettingsMobileSection: noop,
+    getItem: async () => null,
+    getUserKey: () => '',
+    loadConfig: asyncNoop,
+    loadAppData: asyncNoop,
+    handleLogin: noop,
+    handleImportOnAuth: noop,
+    processAuthImport: noop,
+    installTouchGuards: noop,
+    registerServiceWorker: noop,
+    showCustomDialog: noop,
+    ...overrides
+  };
+};
+
 test('runtime entry exports an inert composition API', () => {
   assert.equal(typeof createRuntimeEntry, 'function');
   assert.equal(typeof getLegacyRuntimeEntryDependencies, 'function');
   assert.equal(typeof loadLegacyRuntimeContext, 'function');
+  assert.equal(typeof registerCoreTailBindings, 'function');
   assert.equal(typeof registerRuntimeEntryBindings, 'function');
   assert.equal(typeof startRuntimeEntry, 'function');
 
@@ -84,6 +295,22 @@ test('runtime entry exports an inert composition API', () => {
   assert.equal(typeof entry.adjustTextareaHeight, 'function');
   assert.equal(typeof entry.registerBindings, 'function');
   assert.equal(typeof entry.start, 'function');
+});
+
+test('runtime entry source composes core tail before app bootstrap and startup', () => {
+  const source = readSource('src/app/runtime-entry.js');
+
+  assert.match(source, /import\s+\{\s*createLegacyCoreTailLifecycle\s*\}/);
+  assert.match(source, /resolveBinding\(\s*['"]runtime\.coreTailDependencies['"]\s*\)/);
+  assert.match(source, /createLegacyCoreTailLifecycle\(/);
+  assert.match(source, /registerCoreTailBindings\(/);
+  assertMarkersInOrder(source, [
+    'createLegacyCoreTailLifecycle',
+    'registerCoreTailBindings',
+    'registerRuntimeEntryDependencies',
+    'createLegacyAppBootstrapLifecycle',
+    'createLegacyStartupLifecycle'
+  ], 'runtime-entry production composition');
 });
 
 test('runtime entry explicitly registers startup textarea ownership without starting', () => {
@@ -152,26 +379,40 @@ test('createRuntimeEntry binding registration stays inert until explicitly reque
 });
 
 test('runtime entry resolves the registered facade from an injected runtime context', () => {
-  const dependencies = createCompleteDependencies();
   const calls = [];
+  const bindings = new Map();
   const runtimeContext = {
+    registerLazyBinding(name, getter) {
+      bindings.set(name, getter);
+    },
     resolveBinding(name) {
       calls.push(name);
-      return dependencies;
+      const getter = bindings.get(name);
+      if (!getter) throw new Error(`Missing binding: ${name}`);
+      return getter();
+    },
+    resolveOptionalBinding(name) {
+      return bindings.get(name)?.();
     }
   };
+  const coreTailDependencies = createCompleteCoreTailDependencies({ runtimeContext });
+  bindings.set('runtime.coreTailDependencies', () => coreTailDependencies);
 
   assert.equal(
-    getLegacyRuntimeEntryDependencies({ runtimeContext }),
-    dependencies
+    runtimeContext.resolveBinding('runtime.coreTailDependencies'),
+    coreTailDependencies
   );
   const entry = createRuntimeEntry({ runtimeContext });
 
   assert.equal(entry.runtimeContext, runtimeContext);
-  assert.equal(entry.dependencies, dependencies);
+  assert.equal(entry.dependencies, runtimeContext.resolveBinding('runtime.entryDependencies'));
+  assert.equal(typeof runtimeContext.resolveBinding('coreTail.applyLanguage'), 'function');
   assert.deepEqual(calls, [
+    'runtime.coreTailDependencies',
+    'runtime.coreTailDependencies',
     'runtime.entryDependencies',
-    'runtime.entryDependencies'
+    'runtime.entryDependencies',
+    'coreTail.applyLanguage'
   ]);
 });
 
@@ -291,59 +532,33 @@ test('runtime entry uses only the transitional named virtual context loader', ()
 
 test('production runtime entry loads the legacy core and starts only once', async () => {
   const listeners = [];
-  const createElement = () => ({
-    value: '',
-    disabled: false,
-    style: {},
-    classList: {
-      add() {},
-      remove() {},
-      toggle() {},
-      contains: () => false
-    },
+  const document = {
+    ...createDocumentFake(),
     addEventListener(type) {
       listeners.push(type);
     },
-    contains: () => false
-  });
+    getElementById: () => ({
+      ...createElement(),
+      addEventListener(type) {
+        listeners.push(type);
+      }
+    })
+  };
   const elements = new Proxy({}, {
     get(target, prop) {
-      if (!target[prop]) target[prop] = createElement();
+      if (!target[prop]) {
+        target[prop] = {
+          ...createElement(prop),
+          addEventListener(type) {
+            listeners.push(type);
+          }
+        };
+      }
       return target[prop];
     }
   });
-  const dependencies = createCompleteDependencies({
-    startup: {
-      window: {},
-      document: {
-        addEventListener(type) {
-          listeners.push(type);
-        },
-        getElementById: () => createElement()
-      },
-      globalObject: {},
-      elements,
-      getConfig: () => ({}),
-      setCurrentUser: () => {},
-      getItem: async () => null,
-      getUserKey: () => '',
-      loadConfig: async () => {},
-      loadAppData: async () => {},
-      applyLanguage: () => {},
-      applyCustomWallpaper: () => {},
-      applyUiTheme: () => {},
-      handleLogin: () => {},
-      handleImportOnAuth: () => {},
-      processAuthImport: () => {},
-      toggleModal: () => {},
-      installTouchGuards: () => {},
-      registerServiceWorker: () => {},
-      showCustomDialog: () => {},
-      getComputedStyle: () => ({})
-    }
-  });
   const bindings = new Map([
-    ['runtime.entryDependencies', () => dependencies]
+    ['input.updateInputState', () => () => {}]
   ]);
   const runtimeContext = {
     registerLazyBinding(name, getter) {
@@ -359,6 +574,11 @@ test('production runtime entry loads the legacy core and starts only once', asyn
       return bindings.get(name)?.();
     }
   };
+  bindings.set('runtime.coreTailDependencies', () => createCompleteCoreTailDependencies({
+    runtimeContext,
+    document,
+    elements
+  }));
   let loads = 0;
   const loadRuntimeContext = async () => {
     loads += 1;
@@ -371,6 +591,8 @@ test('production runtime entry loads the legacy core and starts only once', asyn
   assert.equal(firstStart, secondStart);
   const entry = await firstStart;
   assert.equal(loads, 1);
+  assert.equal(typeof bindings.get('coreTail.applyLanguage')(), 'function');
+  assert.equal(entry.dependencies, bindings.get('runtime.entryDependencies')());
   assert.equal(bindings.get('app.initChatApp')(), entry.initChatApp);
   assert.equal(
     bindings.get('runtimeEntry.submit.adjustTextareaHeight')(),
