@@ -1,0 +1,268 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import test from 'node:test';
+
+const projectFile = (path) => new URL(`../${path}`, import.meta.url);
+const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+
+const findMatchingBrace = (source, openIndex) => {
+  let state = 'code';
+  let depth = 0;
+  for (let index = openIndex; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    const previous = source[index - 1];
+    if (state === 'code') {
+      if (char === '/' && next === '/') {
+        state = 'line-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '/' && next === '*') {
+        state = 'block-comment';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        state = 'double-quote';
+        continue;
+      }
+      if (char === "'") {
+        state = 'single-quote';
+        continue;
+      }
+      if (char === '`') {
+        state = 'template';
+        continue;
+      }
+      if (char === '{') {
+        depth += 1;
+      } else if (char === '}') {
+        depth -= 1;
+        if (depth === 0) return index;
+      }
+    } else if (state === 'line-comment') {
+      if (char === '\n') state = 'code';
+    } else if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        state = 'code';
+        index += 1;
+      }
+    } else if (state === 'double-quote') {
+      if (char === '"' && previous !== '\\') state = 'code';
+    } else if (state === 'single-quote') {
+      if (char === "'" && previous !== '\\') state = 'code';
+    } else if (state === 'template') {
+      if (char === '`' && previous !== '\\') state = 'code';
+    }
+  }
+  return -1;
+};
+
+const getConstFunctionBody = (source, name) => {
+  const match = new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*\\{`).exec(source);
+  assert.ok(match, `Expected to find ${name}`);
+  const openIndex = match.index + match[0].lastIndexOf('{');
+  const closeIndex = findMatchingBrace(source, openIndex);
+  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
+  return source.slice(match.index, closeIndex + 1);
+};
+
+const getBlockFromMarker = (source, marker) => {
+  const markerIndex = source.indexOf(marker);
+  assert.notEqual(markerIndex, -1, `Expected to find marker ${marker}`);
+  const openIndex = source.indexOf('{', markerIndex);
+  assert.notEqual(openIndex, -1, `Expected to find block for marker ${marker}`);
+  const closeIndex = findMatchingBrace(source, openIndex);
+  assert.notEqual(closeIndex, -1, `Expected to close block for marker ${marker}`);
+  return source.slice(markerIndex, closeIndex + 1);
+};
+
+const assertMarkersInOrder = (source, markers, context) => {
+  let cursor = -1;
+  for (const marker of markers) {
+    const next = source.indexOf(marker, cursor + 1);
+    assert.notEqual(next, -1, `${context} should contain ${marker}`);
+    assert.ok(next > cursor, `${marker} should remain in ${context} legacy order`);
+    cursor = next;
+  }
+};
+
+test('config persistence keeps the IndexedDB adapter and exact user-scoped key', () => {
+  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+
+  assert.match(source, /const\s+DB_NAME\s*=\s*'ChatAppDB';/);
+  assert.match(source, /const\s+STORE_NAME\s*=\s*'keyValue';/);
+  assert.match(source, /indexedDB\.open\(DB_NAME,\s*1\)/);
+  assert.match(source, /idb\.createObjectStore\(STORE_NAME,\s*\{\s*keyPath:\s*'key'\s*\}\)/);
+  assert.match(source, /idb\.transaction\(STORE_NAME,\s*'readonly'\)/);
+  assert.match(source, /idb\.transaction\(STORE_NAME,\s*'readwrite'\)/);
+  assert.match(
+    source,
+    /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`;/
+  );
+  assert.equal((source.match(/chatConfig_v_v8\.6_/g) || []).length, 1);
+  assert.doesNotMatch(source, /localStorage|sessionStorage/);
+});
+
+test('saveConfig preserves missing-user, serialization, and rejection behavior', () => {
+  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const body = getConstFunctionBody(source, 'saveConfig');
+
+  assert.match(
+    body,
+    /if\s*\(currentUser\)\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(config\)\);/
+  );
+  assert.doesNotMatch(body, /\belse\b|try\s*\{|catch\s*\(/);
+  assert.doesNotMatch(
+    body,
+    /applyUiTheme|applyLanguage|render(?:All|Chat|Store|ModelSwitcher)|showNotification|runtimeDialogCoordinator/
+  );
+});
+
+test('loadConfig preserves missing-user, null storage, and invalid JSON boundaries', () => {
+  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const body = getConstFunctionBody(source, 'loadConfig');
+  const savedIfMarker = 'if (saved) {';
+  const savedIfStart = body.indexOf(savedIfMarker);
+  const savedIfOpen = body.indexOf('{', savedIfStart);
+  const savedIfClose = findMatchingBrace(body, savedIfOpen);
+  const savedIfBody = body.slice(savedIfStart, savedIfClose + 1);
+
+  assertMarkersInOrder(body, [
+    'if (!currentUser) return',
+    'const saved = await getItem(getConfigKey())',
+    savedIfMarker,
+    'const savedConfig = JSON.parse(saved)'
+  ], 'loadConfig storage boundary');
+  assert.doesNotMatch(body, /try\s*\{|catch\s*\(/);
+  assert.match(savedIfBody, /config\s*=\s*runtimeConfigStore\.replaceConfig\(defaultConfig\)/);
+  assert.equal((body.match(/runtimeConfigStore\.replaceConfig\(/g) || []).length, 1);
+  assert.ok(
+    body.indexOf('const allModelIds = new Set(MODELS.map(m => m.id))') > savedIfClose,
+    'null storage should skip pointer replacement while retaining legacy normalization'
+  );
+});
+
+test('loadConfig preserves saved config and nested merge precedence', () => {
+  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const body = getConstFunctionBody(source, 'loadConfig');
+
+  assertMarkersInOrder(body, [
+    'const savedConfig = JSON.parse(saved)',
+    'openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter)',
+    'stepPlanKey = normalizeApiKeyValue(savedConfig.apiKeys.stepPlan)',
+    'nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia)',
+    'tavilyKey = normalizeApiKeyValue(savedConfig.apiKeys.tavily)',
+    'const defaultConfig = {',
+    '...config',
+    '...savedConfig',
+    'apiKeys: {',
+    '...config.apiKeys',
+    '...savedConfig.apiKeys',
+    'openrouter: openrouterKey',
+    'stepPlan: stepPlanKey',
+    'nvidia: nvidiaKey',
+    'tavily: tavilyKey',
+    'uiTheme: { ...config.uiTheme, ...(savedConfig.uiTheme || {}) }',
+    'config = runtimeConfigStore.replaceConfig(defaultConfig)'
+  ], 'loadConfig merge precedence');
+});
+
+test('loadConfig keeps API, model, and council normalization in legacy order', () => {
+  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const body = getConstFunctionBody(source, 'loadConfig');
+
+  assertMarkersInOrder(body, [
+    "defaultConfig.outputMode = defaultConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter'",
+    "defaultConfig.tavilySearchDepth = defaultConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic'",
+    'config = runtimeConfigStore.replaceConfig(defaultConfig)',
+    'const allModelIds = new Set(MODELS.map(m => m.id))',
+    'const id = getCanonicalModelId(setting.id)',
+    'MODELS.forEach((model, index) =>',
+    'config.modelSettings.sort((a, b) => a.order - b.order)',
+    'config.modelSettings.forEach((s, index) => s.order = index)',
+    'config.defaultModel = getCanonicalModelId(config.defaultModel)',
+    'config.lastUsedModel = getCanonicalModelId(config.lastUsedModel)',
+    'config.lastCouncilConfig = normalizeCouncilConfig(config.lastCouncilConfig)',
+    'getCouncilTranslatorCandidates().some(model => model.id === config.councilTranslatorModelId)',
+    'getSingleTranslatorCandidates().some(model => model.id === config.singleDocumentTranslatorModelId)'
+  ], 'loadConfig normalization');
+});
+
+test('settings persistence keeps mutation, visual, save, render, and notification order', () => {
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const saveSettingsBody = getConstFunctionBody(fragment02Source, 'saveSettings');
+  const initChatAppBody = getBlockFromMarker(fragment05Source, 'async function initChatApp()');
+
+  assertMarkersInOrder(saveSettingsBody, [
+    'config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim()',
+    'config.uiLanguage = ALL_ELEMENTS.uiLanguageSelect.value',
+    'config.uiTheme.mode = selectedThemeMode',
+    'setAiBubbleColor()',
+    'setUserBubbleColor()',
+    'applyUiTheme()',
+    'await saveConfig()',
+    'applyLanguage(config.uiLanguage)',
+    'renderModelSwitcher()',
+    'renderChat()',
+    'renderStore()',
+    'if (close) {',
+    'toggleModal(ALL_ELEMENTS.settingsModal, false)',
+    'updateApiKeyWarningBadge()',
+    'updateInputState()',
+    'if (notify) {',
+    'showNotification('
+  ], 'settings save persistence');
+
+  assert.match(
+    initChatAppBody,
+    /ALL_ELEMENTS\.settingsModal\.addEventListener\('change',[\s\S]*?saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\)/
+  );
+  assert.match(
+    initChatAppBody,
+    /saveTimer\s*=\s*setTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*350\)/
+  );
+  assert.match(
+    initChatAppBody,
+    /event\.target\.closest\('\.color-swatch, \.color-option, \.translator-picker-option'\)[\s\S]*?setTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*0\)/
+  );
+});
+
+test('startup restores the user before config and app data visual handoff', () => {
+  const source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const body = getBlockFromMarker(source, '(async function initializeApp()');
+
+  assertMarkersInOrder(body, [
+    "const lastUsername = await getItem('chat_lastUser')",
+    'const userKey = getUserKey(lastUsername)',
+    'const savedUser = await getItem(userKey)',
+    'currentUser = JSON.parse(savedUser)',
+    'await loadConfig()',
+    'await loadAppData()',
+    'applyCustomWallpaper()',
+    'applyUiTheme()',
+    "ALL_ELEMENTS.authContainer.style.display = 'none'",
+    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
+    "ALL_ELEMENTS.appContainer.classList.add('visible')",
+    "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
+  ], 'startup config persistence');
+});
+
+test('config persistence remains in the legacy runtime until a later extraction slice', () => {
+  const storeSource = readSource('src/app/runtime/kernel/config-store.js');
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+
+  assert.equal(existsSync(projectFile('src/app/runtime/kernel/config-persistence.js')), false);
+  assert.doesNotMatch(
+    storeSource,
+    /indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem|JSON\.parse|JSON\.stringify/
+  );
+  assert.doesNotMatch(
+    runtimeAppSource,
+    /config-persistence|loadConfig|saveConfig|indexedDB|localStorage|sessionStorage/
+  );
+  assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
+  assert.doesNotMatch(runtimeAppSource, /addEventListener|DOMContentLoaded|initChatApp|initializeApp/);
+});

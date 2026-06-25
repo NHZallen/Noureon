@@ -277,6 +277,18 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(runtimeAppSource, /return\s*\{\s*elements,\s*configStore\s*\}/);
   assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.doesNotMatch(runtimeAppSource, /addEventListener|DOMContentLoaded|bootstrap\(|initChatApp|initializeApp/);
+  assert.equal(
+    existsSync(projectFile('src/app/runtime/kernel/config-persistence.js')),
+    false,
+    'config persistence should remain in the legacy runtime until its implementation slice'
+  );
+  assert.doesNotMatch(
+    storeSource,
+    /indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem|JSON\.parse|JSON\.stringify/
+  );
+  assert.doesNotMatch(runtimeAppSource, /config-persistence|loadConfig|saveConfig|indexedDB/);
+  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>/);
+  assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
 });
 
 test('legacy runtime fragments exist and are not empty', () => {
