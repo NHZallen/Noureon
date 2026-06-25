@@ -59,9 +59,9 @@ const findMatchingBrace = (source, openIndex) => {
 };
 
 test('runtime entry composes initChatApp while preserving late bootstrap event bindings', () => {
-  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
-  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const p2pLifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
+  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
 
   const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
@@ -92,16 +92,16 @@ test('runtime entry composes initChatApp while preserving late bootstrap event b
   assert.match(runtimeEntrySource, /runtimeEntry\.submit\.adjustTextareaHeight/);
   assert.match(runtimeEntrySource, /startupLifecycle\.bindAuthStartupListeners\(\)/);
   assert.match(runtimeEntrySource, /startupLifecycle\.initializeApp\(\)/);
-  assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
   assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);
+  assert.match(p2pLifecycleSource, /createP2PScannerLifecycle\(\{/);
   assert.match(initBody, /\bprocessReceivedData\b/);
   assert.match(initBody, /\bupdateP2PProgress\b/);
   assert.match(initBody, /\bstartQRScanner\b/);
-  assert.doesNotMatch(fragment06Source, /^\s*setupHistorySidebarInteractions\(\);/);
-  assert.doesNotMatch(fragment06Source, /function\s+updateP2PProgress\b/);
-  assert.doesNotMatch(fragment06Source, /function\s+startQRScanner\b/);
+  assert.match(startupLifecycleSource, /function\s+adjustTextareaHeight\(\)/);
+  assert.doesNotMatch(startupLifecycleSource, /function\s+updateP2PProgress\b/);
+  assert.doesNotMatch(startupLifecycleSource, /function\s+startQRScanner\b/);
   assert.doesNotMatch(initBody, /document\.getElementById\('p2p-start-scan-btn'\)\.addEventListener\('click'/);
   assert.match(initBody, /startQRScanner:\s*\(\)\s*=>\s*startQRScanner\(\)/);
-  assert.doesNotMatch(fragment05Source, /\bhtml5QrcodeScanner\b/);
-  assert.doesNotMatch(fragment06Source, /\bhtml5QrcodeScanner\b/);
+  assert.doesNotMatch(runtimeEntrySource, /\bhtml5QrcodeScanner\b/);
+  assert.doesNotMatch(startupLifecycleSource, /\bhtml5QrcodeScanner\b/);
 });

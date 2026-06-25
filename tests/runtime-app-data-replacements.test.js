@@ -344,10 +344,7 @@ test('app data store remains wired while production boot moves through runtime e
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
-  const unmigratedFragmentSources = [
-    '05-runtime.fragment.js',
-    '06-runtime.fragment.js'
-  ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
+  const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
@@ -373,7 +370,7 @@ test('app data store remains wired while production boot moves through runtime e
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment04Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
-  assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
+  assert.doesNotMatch(runtimeEntrySource, /runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+appDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);
   assert.doesNotMatch(appDataPersistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);

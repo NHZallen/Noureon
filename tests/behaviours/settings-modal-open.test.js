@@ -85,15 +85,20 @@ test('settings modal source keeps Tavily depth fallback local to setupSettingsMo
 
 test('settings modal opener uses lazy context resolution instead of direct cross-fragment setup access', () => {
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
-  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(
     fragment02Source,
     /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/
   );
   assert.match(
-    fragment05Source,
-    /const\s+resolveEventsSetupSettingsModal\s*=\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\);/
+    fragment04Source,
+    /setupSettingsModal:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\)/
   );
-  assert.doesNotMatch(fragment05Source, /setupSettingsModal\(\)/);
+  assert.match(
+    appBootstrapLifecycleSource,
+    /const\s+resolveEventsSetupSettingsModal\s*=\s*setupSettingsModal;/
+  );
+  assert.doesNotMatch(appBootstrapLifecycleSource, /legacyRuntimeContext/);
 });
