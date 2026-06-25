@@ -166,15 +166,18 @@ test('serialized config persistence exposes only saveConfig and avoids storage r
   assert.doesNotMatch(source, /loadConfig|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage/);
 });
 
-test('config persistence keeps the IndexedDB adapter and exact user-scoped key', () => {
+test('config persistence receives the extracted IndexedDB adapter and keeps the exact user-scoped key', () => {
   const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const storageSource = readSource('src/app/runtime/kernel/storage-adapter.js');
 
-  assert.match(source, /const\s+DB_NAME\s*=\s*'ChatAppDB';/);
-  assert.match(source, /const\s+STORE_NAME\s*=\s*'keyValue';/);
-  assert.match(source, /indexedDB\.open\(DB_NAME,\s*1\)/);
-  assert.match(source, /idb\.createObjectStore\(STORE_NAME,\s*\{\s*keyPath:\s*'key'\s*\}\)/);
-  assert.match(source, /idb\.transaction\(STORE_NAME,\s*'readonly'\)/);
-  assert.match(source, /idb\.transaction\(STORE_NAME,\s*'readwrite'\)/);
+  assert.match(source, /createLegacyRuntimeStorageAdapter/);
+  assert.match(source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
+  assert.match(storageSource, /dbName\s*=\s*'ChatAppDB'/);
+  assert.match(storageSource, /storeName\s*=\s*'keyValue'/);
+  assert.match(storageSource, /indexedDBFactory\.open\(dbName,\s*version\)/);
+  assert.match(storageSource, /idb\.createObjectStore\(storeName,\s*\{\s*keyPath:\s*'key'\s*\}\)/);
+  assert.match(storageSource, /idb\.transaction\(storeName,\s*'readonly'\)/);
+  assert.match(storageSource, /idb\.transaction\(storeName,\s*'readwrite'\)/);
   assert.match(
     source,
     /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`;/

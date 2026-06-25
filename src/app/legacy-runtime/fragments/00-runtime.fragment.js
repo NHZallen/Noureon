@@ -30,6 +30,7 @@ import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runti
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
 import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
+import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 import {
     cloneCouncilConfig as cloneLegacyCouncilConfig,
@@ -970,9 +971,13 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let isAutoScrolling = false;
         let isTrashSelectionMode = false;
         let selectedTrashIds = new Set();
-        const DB_NAME = 'ChatAppDB';
-        const STORE_NAME = 'keyValue';
-        let db;
+        const runtimeStorageAdapter = createLegacyRuntimeStorageAdapter({
+            indexedDBFactory: indexedDB,
+            dbName: 'ChatAppDB',
+            storeName: 'keyValue',
+            version: 1
+        });
+        const { getItem, setItem, removeItem } = runtimeStorageAdapter;
         function getApiKeyForProvider(provider) {
             if (provider === 'gemini') {
                 return normalizeApiKeyValue(config.apiKeys?.gemini);
@@ -1015,51 +1020,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             } else {
                 form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
             }
-        }
-        async function openDB() {
-            if (db) return db;
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, 1);
-                request.onupgradeneeded = (e) => {
-                    const idb = e.target.result;
-                    idb.createObjectStore(STORE_NAME, { keyPath: 'key' });
-                };
-                request.onsuccess = (e) => {
-                    db = e.target.result;
-                    resolve(db);
-                };
-                request.onerror = (e) => reject(e.target.error);
-            });
-        }
-        async function getItem(key) {
-            const idb = await openDB();
-            return new Promise((resolve, reject) => {
-                const tx = idb.transaction(STORE_NAME, 'readonly');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.get(key);
-                req.onsuccess = () => resolve(req.result ? req.result.value : null);
-                req.onerror = reject;
-            });
-        }
-        async function setItem(key, value) {
-            const idb = await openDB();
-            return new Promise((resolve, reject) => {
-                const tx = idb.transaction(STORE_NAME, 'readwrite');
-                const store = tx.objectStore(STORE_NAME);
-                store.put({ key, value });
-                tx.oncomplete = resolve;
-                tx.onerror = reject;
-            });
-        }
-        async function removeItem(key) {
-            const idb = await openDB();
-            return new Promise((resolve, reject) => {
-                const tx = idb.transaction(STORE_NAME, 'readwrite');
-                const store = tx.objectStore(STORE_NAME);
-                store.delete(key);
-                tx.oncomplete = resolve;
-                tx.onerror = reject;
-            });
         }
         const hashString = async (str) => {
             const data = new TextEncoder().encode(str);

@@ -978,14 +978,7 @@ submitButtonIcon.innerHTML = sendIconHTML;
             });
             if (confirmation === 'DELETE') {
                 try {
-                    const idb = await openDB();
-                    const tx = idb.transaction(STORE_NAME, 'readwrite');
-                    const store = tx.objectStore(STORE_NAME);
-                    await new Promise((resolve, reject) => {
-                        const req = store.clear();
-                        req.onsuccess = resolve;
-                        req.onerror = reject;
-                    });
+                    await runtimeStorageAdapter.clear();
                     showNotification(i18n[config.uiLanguage].deleteAllDataSuccess || '所有資料已成功刪除。頁面即將重新整理。', 'success');
                     setTimeout(() => {
                         window.location.reload();

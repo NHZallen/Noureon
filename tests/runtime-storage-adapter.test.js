@@ -1,190 +1,282 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+import { createLegacyRuntimeStorageAdapter } from '../src/app/runtime/kernel/storage-adapter.js';
 
-const findMatchingBrace = (source, openIndex) => {
-  let state = 'code';
-  let depth = 0;
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1];
-    const previous = source[index - 1];
-    if (state === 'code') {
-      if (char === '/' && next === '/') {
-        state = 'line-comment';
-        index += 1;
-      } else if (char === '/' && next === '*') {
-        state = 'block-comment';
-        index += 1;
-      } else if (char === '"') {
-        state = 'double-quote';
-      } else if (char === "'") {
-        state = 'single-quote';
-      } else if (char === '`') {
-        state = 'template';
-      } else if (char === '{') {
-        depth += 1;
-      } else if (char === '}') {
-        depth -= 1;
-        if (depth === 0) return index;
+const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+
+function createFakeIndexedDB({
+  initialValues = {},
+  openError = null,
+  getError = null,
+  transactionError = null,
+  clearError = null,
+  manualWrites = false,
+  manualClear = false
+} = {}) {
+  const values = new Map(Object.entries(initialValues));
+  const calls = {
+    open: [],
+    createObjectStore: [],
+    transactions: [],
+    get: [],
+    put: [],
+    delete: [],
+    clear: 0,
+    pendingTransactions: [],
+    pendingClearRequests: []
+  };
+
+  const db = {
+    createObjectStore(name, options) {
+      calls.createObjectStore.push([name, options]);
+    },
+    transaction(name, mode) {
+      calls.transactions.push([name, mode]);
+      const transaction = {
+        objectStore(storeName) {
+          assert.equal(storeName, name);
+          return {
+            get(key) {
+              calls.get.push(key);
+              const request = {};
+              queueMicrotask(() => {
+                if (getError) {
+                  request.onerror?.(getError);
+                  return;
+                }
+                request.result = values.has(key) ? { key, value: values.get(key) } : undefined;
+                request.onsuccess?.();
+              });
+              return request;
+            },
+            put(entry) {
+              calls.put.push(entry);
+              values.set(entry.key, entry.value);
+              completeTransaction(transaction);
+            },
+            delete(key) {
+              calls.delete.push(key);
+              values.delete(key);
+              completeTransaction(transaction);
+            },
+            clear() {
+              calls.clear += 1;
+              values.clear();
+              const request = {};
+              if (manualClear) {
+                calls.pendingClearRequests.push(request);
+              } else {
+                queueMicrotask(() => {
+                  if (clearError) request.onerror?.(clearError);
+                  else request.onsuccess?.();
+                });
+              }
+              return request;
+            }
+          };
+        }
+      };
+
+      function completeTransaction(target) {
+        if (manualWrites) {
+          calls.pendingTransactions.push(target);
+          return;
+        }
+        queueMicrotask(() => {
+          if (transactionError) target.onerror?.(transactionError);
+          else target.oncomplete?.();
+        });
       }
-    } else if (state === 'line-comment') {
-      if (char === '\n') state = 'code';
-    } else if (state === 'block-comment') {
-      if (char === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-    } else if (state === 'double-quote') {
-      if (char === '"' && previous !== '\\') state = 'code';
-    } else if (state === 'single-quote') {
-      if (char === "'" && previous !== '\\') state = 'code';
-    } else if (state === 'template') {
-      if (char === '`' && previous !== '\\') state = 'code';
+
+      return transaction;
     }
-  }
-  return -1;
-};
+  };
 
-const getFunctionBody = (source, name) => {
-  const match = new RegExp(`async\\s+function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`).exec(source);
-  assert.ok(match, `Expected to find ${name}`);
-  const openIndex = match.index + match[0].lastIndexOf('{');
-  const closeIndex = findMatchingBrace(source, openIndex);
-  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
-  return source.slice(match.index, closeIndex + 1);
-};
+  const indexedDBFactory = {
+    open(name, version) {
+      calls.open.push([name, version]);
+      const request = {};
+      queueMicrotask(() => {
+        if (openError) {
+          request.onerror?.({ target: { error: openError } });
+          return;
+        }
+        request.onupgradeneeded?.({ target: { result: db } });
+        request.onsuccess?.({ target: { result: db } });
+      });
+      return request;
+    }
+  };
 
-const getConstFunctionBody = (source, name) => {
-  const match = new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*\\{`).exec(source);
-  assert.ok(match, `Expected to find ${name}`);
-  const openIndex = match.index + match[0].lastIndexOf('{');
-  const closeIndex = findMatchingBrace(source, openIndex);
-  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
-  return source.slice(match.index, closeIndex + 1);
-};
+  return { indexedDBFactory, db, calls, values };
+}
 
-const assertMarkersInOrder = (source, markers, context) => {
-  let cursor = -1;
-  for (const marker of markers) {
-    const next = source.indexOf(marker, cursor + 1);
-    assert.notEqual(next, -1, `${context} should contain ${marker}`);
-    assert.ok(next > cursor, `${marker} should remain in ${context} legacy order`);
-    cursor = next;
-  }
-};
+test('storage adapter preserves schema defaults, upgrade creation, and lazy connection cache', async () => {
+  const fake = createFakeIndexedDB();
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
 
-const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const first = await adapter.openDB();
+  const second = await adapter.openDB();
 
-test('legacy IndexedDB schema and connection cache remain exact', () => {
-  const openDBBody = getFunctionBody(fragment00Source, 'openDB');
-
-  assert.match(fragment00Source, /const\s+DB_NAME\s*=\s*['"]ChatAppDB['"]/);
-  assert.match(fragment00Source, /const\s+STORE_NAME\s*=\s*['"]keyValue['"]/);
-  assert.match(fragment00Source, /let\s+db\s*;/);
-  assertMarkersInOrder(openDBBody, [
-    'if (db) return db',
-    'indexedDB.open(DB_NAME, 1)',
-    'request.onupgradeneeded',
-    "idb.createObjectStore(STORE_NAME, { keyPath: 'key' })",
-    'request.onsuccess',
-    'db = e.target.result',
-    'resolve(db)',
-    'request.onerror',
-    'reject(e.target.error)'
-  ], 'openDB');
-
-  // Legacy upgrade handling creates the v1 store directly; extraction must not
-  // silently add a schema branch without an explicit behavior decision.
-  assert.doesNotMatch(openDBBody, /objectStoreNames\.contains/);
+  assert.equal(first, fake.db);
+  assert.equal(second, first);
+  assert.deepEqual(fake.calls.open, [['ChatAppDB', 1]]);
+  assert.deepEqual(fake.calls.createObjectStore, [['keyValue', { keyPath: 'key' }]]);
 });
 
-test('legacy getItem keeps readonly lookup and null fallback behavior', () => {
-  const body = getFunctionBody(fragment00Source, 'getItem');
+test('storage adapter getItem preserves readonly lookup and null fallback', async () => {
+  const fake = createFakeIndexedDB({ initialValues: { saved: 'value' } });
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
 
-  assertMarkersInOrder(body, [
-    'const idb = await openDB()',
-    "idb.transaction(STORE_NAME, 'readonly')",
-    'tx.objectStore(STORE_NAME)',
-    'store.get(key)',
-    'req.onsuccess',
-    'req.result ? req.result.value : null',
-    'req.onerror = reject'
-  ], 'getItem');
+  assert.equal(await adapter.getItem('saved'), 'value');
+  assert.equal(await adapter.getItem('missing'), null);
+  assert.deepEqual(fake.calls.transactions, [
+    ['keyValue', 'readonly'],
+    ['keyValue', 'readonly']
+  ]);
+  assert.deepEqual(fake.calls.get, ['saved', 'missing']);
 });
 
-test('legacy setItem keeps transaction-complete persistence semantics', () => {
-  const body = getFunctionBody(fragment00Source, 'setItem');
+test('storage adapter setItem and removeItem wait for transaction completion', async () => {
+  const fake = createFakeIndexedDB({ manualWrites: true });
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
+  await adapter.openDB();
 
-  assertMarkersInOrder(body, [
-    'const idb = await openDB()',
-    "idb.transaction(STORE_NAME, 'readwrite')",
-    'tx.objectStore(STORE_NAME)',
-    'store.put({ key, value })',
-    'tx.oncomplete = resolve',
-    'tx.onerror = reject'
-  ], 'setItem');
-  assert.doesNotMatch(body, /req\.(?:onsuccess|onerror)/);
+  let setSettled = false;
+  const setPromise = adapter.setItem('item', 'payload').then(() => {
+    setSettled = true;
+  });
+  await Promise.resolve();
+  assert.equal(setSettled, false);
+  assert.deepEqual(fake.calls.put, [{ key: 'item', value: 'payload' }]);
+  fake.calls.pendingTransactions.shift().oncomplete();
+  await setPromise;
+  assert.equal(setSettled, true);
+
+  let removeSettled = false;
+  const removePromise = adapter.removeItem('item').then(() => {
+    removeSettled = true;
+  });
+  await Promise.resolve();
+  assert.equal(removeSettled, false);
+  assert.deepEqual(fake.calls.delete, ['item']);
+  fake.calls.pendingTransactions.shift().oncomplete();
+  await removePromise;
+  assert.equal(removeSettled, true);
+  assert.deepEqual(fake.calls.transactions.slice(-2), [
+    ['keyValue', 'readwrite'],
+    ['keyValue', 'readwrite']
+  ]);
 });
 
-test('legacy removeItem keeps transaction-complete deletion semantics', () => {
-  const body = getFunctionBody(fragment00Source, 'removeItem');
+test('storage adapter clear preserves request success completion semantics', async () => {
+  const fake = createFakeIndexedDB({
+    initialValues: { first: 'one', second: 'two' },
+    manualClear: true
+  });
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
+  await adapter.openDB();
 
-  assertMarkersInOrder(body, [
-    'const idb = await openDB()',
-    "idb.transaction(STORE_NAME, 'readwrite')",
-    'tx.objectStore(STORE_NAME)',
-    'store.delete(key)',
-    'tx.oncomplete = resolve',
-    'tx.onerror = reject'
-  ], 'removeItem');
-  assert.doesNotMatch(body, /req\.(?:onsuccess|onerror)/);
+  let settled = false;
+  const clearPromise = adapter.clear().then(() => {
+    settled = true;
+  });
+  await Promise.resolve();
+  assert.equal(settled, false);
+  assert.equal(fake.calls.clear, 1);
+  assert.equal(fake.values.size, 0);
+  fake.calls.pendingClearRequests.shift().onsuccess();
+  await clearPromise;
+  assert.equal(settled, true);
+  assert.deepEqual(fake.calls.transactions.slice(-1), [['keyValue', 'readwrite']]);
 });
 
-test('delete-all flow keeps confirmation, IndexedDB clear, notification, and reload order', () => {
-  const body = getConstFunctionBody(fragment02Source, 'handleDeleteAllData');
+test('storage adapter propagates open, request, transaction, and clear failures', async () => {
+  const openError = new Error('open failed');
+  const getError = new Error('get failed');
+  const transactionError = new Error('transaction failed');
+  const clearError = new Error('clear failed');
 
-  assertMarkersInOrder(body, [
-    'const confirmation = await showCustomDialog({',
-    "if (confirmation === 'DELETE')",
-    'const idb = await openDB()',
-    "idb.transaction(STORE_NAME, 'readwrite')",
-    'tx.objectStore(STORE_NAME)',
-    'store.clear()',
-    'req.onsuccess = resolve',
-    'req.onerror = reject',
-    "showNotification(i18n[config.uiLanguage].deleteAllDataSuccess",
-    'setTimeout(() => {',
-    'window.location.reload()'
-  ], 'handleDeleteAllData');
-  assert.match(body, /catch\s*\(error\)[\s\S]*showNotification\([^;]*deleteAllDataError/);
-  assert.doesNotMatch(body, /localStorage|sessionStorage|runtimeAppDataStore|runtimeConfigStore/);
+  await assert.rejects(
+    createLegacyRuntimeStorageAdapter({
+      indexedDBFactory: createFakeIndexedDB({ openError }).indexedDBFactory
+    }).openDB(),
+    openError
+  );
+  await assert.rejects(
+    createLegacyRuntimeStorageAdapter({
+      indexedDBFactory: createFakeIndexedDB({ getError }).indexedDBFactory
+    }).getItem('key'),
+    getError
+  );
+
+  const transactionAdapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: createFakeIndexedDB({ transactionError }).indexedDBFactory
+  });
+  await assert.rejects(transactionAdapter.setItem('key', 'value'), transactionError);
+  await assert.rejects(transactionAdapter.removeItem('key'), transactionError);
+
+  await assert.rejects(
+    createLegacyRuntimeStorageAdapter({
+      indexedDBFactory: createFakeIndexedDB({ clearError }).indexedDBFactory
+    }).clear(),
+    clearError
+  );
 });
 
-test('serialized persistence remains injected-storage only', () => {
+test('storage adapter instances keep independent cached connections', async () => {
+  const firstFake = createFakeIndexedDB();
+  const secondFake = createFakeIndexedDB();
+  const first = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: firstFake.indexedDBFactory
+  });
+  const second = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: secondFake.indexedDBFactory
+  });
+
+  assert.notEqual(await first.openDB(), await second.openDB());
+  assert.equal(firstFake.calls.open.length, 1);
+  assert.equal(secondFake.calls.open.length, 1);
+});
+
+test('production wiring uses the adapter while persistence modules remain injected-storage only', () => {
+  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+
+  assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
+  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
+  assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
+  assert.match(fragment02Source, /await\s+runtimeStorageAdapter\.clear\(\)/);
+  assert.doesNotMatch(fragment02Source, /\bSTORE_NAME\b|\bopenDB\(\)/);
 
   for (const source of [configPersistenceSource, appDataPersistenceSource]) {
     assert.match(source, /\bsetItem\b/);
-    assert.doesNotMatch(
-      source,
-      /storage-adapter|indexedDB|openDB|getItem|removeItem|DB_NAME|STORE_NAME/
-    );
+    assert.doesNotMatch(source, /storage-adapter|indexedDB|openDB|getItem|removeItem/);
   }
+  assert.doesNotMatch(runtimeAppSource, /storage-adapter|indexedDB|openDB|getItem|setItem|removeItem/);
 });
 
-test('runtime app remains storage-free and no storage adapter module exists yet', () => {
-  const runtimeAppSource = readSource('src/app/runtime-app.js');
+test('storage adapter source preserves legacy IndexedDB semantics', () => {
+  const source = readSource('src/app/runtime/kernel/storage-adapter.js');
 
-  assert.equal(existsSync(projectFile('src/app/runtime/kernel/storage-adapter.js')), false);
-  assert.match(runtimeAppSource, /return\s*\{\s*elements:\s*resolvedElements,\s*configStore,\s*appDataStore\s*\}/);
-  assert.doesNotMatch(
-    runtimeAppSource,
-    /storage-adapter|indexedDB|openDB|getItem|setItem|removeItem|clear|Persistence/
-  );
+  assert.doesNotMatch(source, /objectStoreNames\.contains/);
+  assert.match(source, /createObjectStore\(storeName,\s*\{\s*keyPath:\s*['"]key['"]\s*\}\)/);
+  assert.match(source, /transaction\.oncomplete\s*=\s*resolve/);
+  assert.match(source, /transaction\.onerror\s*=\s*reject/);
+  assert.match(source, /request\.onsuccess\s*=\s*resolve/);
+  assert.match(source, /request\.onerror\s*=\s*reject/);
+  assert.doesNotMatch(source, /currentUser|loadConfig|loadAppData|showNotification|renderAll/);
 });

@@ -316,10 +316,9 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   ], '00 config load orchestration');
   assert.match(fragment00Source, /Object\.assign\(config,\s*normalizedConfig\)/);
   assert.match(fragment00Source, /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`/);
-  assert.match(fragment00Source, /async\s+function\s+openDB\(\)/);
-  assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
-  assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
-  assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
+  assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
+  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
+  assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
   assert.equal((laterFragmentSources.join('\n').match(/\bsaveConfig\(\)/g) || []).length, 14);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
@@ -418,9 +417,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.match(catchBody, /personalMemories\s*=\s*latestAppData\.personalMemories/);
   assert.match(catchBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
   assert.match(loadAppDataBody, /else\s*\{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*folders\s*=\s*latestAppData\.folders;\s*astras\s*=\s*latestAppData\.astras;\s*personalMemories\s*=\s*latestAppData\.personalMemories;\s*\}/);
-  assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
-  assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
-  assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
+  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   assert.equal((laterFragmentSources.join('\n').match(/\bsaveAppData\(\)/g) || []).length, 32);
@@ -1023,29 +1020,42 @@ test('runtime core dependencies preserve their backing-state creation order', ()
   assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
 });
 
-test('legacy IndexedDB ownership remains guarded before storage adapter extraction', () => {
+test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const storageAdapterSource = readSource('src/app/runtime/kernel/storage-adapter.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
 
   assert.equal(
     existsSync(projectFile('src/app/runtime/kernel/storage-adapter.js')),
-    false,
-    'storage adapter should not exist before the extraction slice'
+    true,
+    'storage adapter should exist after the extraction slice'
   );
-  assert.match(fragment00Source, /const\s+DB_NAME\s*=\s*['"]ChatAppDB['"]/);
-  assert.match(fragment00Source, /const\s+STORE_NAME\s*=\s*['"]keyValue['"]/);
-  assert.match(fragment00Source, /indexedDB\.open\(DB_NAME,\s*1\)/);
-  assert.match(fragment00Source, /createObjectStore\(STORE_NAME,\s*\{\s*keyPath:\s*['"]key['"]\s*\}\)/);
-  assert.match(fragment00Source, /async\s+function\s+openDB\(\)/);
-  assert.match(fragment00Source, /async\s+function\s+getItem\(key\)/);
-  assert.match(fragment00Source, /async\s+function\s+setItem\(key,\s*value\)/);
-  assert.match(fragment00Source, /async\s+function\s+removeItem\(key\)/);
-  assert.match(fragment02Source, /const\s+idb\s*=\s*await\s+openDB\(\)/);
-  assert.match(fragment02Source, /idb\.transaction\(STORE_NAME,\s*['"]readwrite['"]\)/);
-  assert.match(fragment02Source, /store\.clear\(\)/);
+  assert.match(storageAdapterSource, /export\s+function\s+createLegacyRuntimeStorageAdapter/);
+  assert.match(storageAdapterSource, /dbName\s*=\s*['"]ChatAppDB['"]/);
+  assert.match(storageAdapterSource, /storeName\s*=\s*['"]keyValue['"]/);
+  assert.match(storageAdapterSource, /version\s*=\s*1/);
+  assert.match(storageAdapterSource, /createObjectStore\(storeName,\s*\{\s*keyPath:\s*['"]key['"]\s*\}\)/);
+  assert.match(storageAdapterSource, /return\s*\{\s*openDB,\s*getItem,\s*setItem,\s*removeItem,\s*clear\s*\}/);
+  assert.doesNotMatch(storageAdapterSource, /objectStoreNames\.contains/);
+  assert.match(fragment00Source, /import\s+\{\s*createLegacyRuntimeStorageAdapter\s*\}/);
+  assertMarkersInOrder(fragment00Source, [
+    'const runtimeStorageAdapter = createLegacyRuntimeStorageAdapter({',
+    'indexedDBFactory: indexedDB',
+    "dbName: 'ChatAppDB'",
+    "storeName: 'keyValue'",
+    'version: 1',
+    'const { getItem, setItem, removeItem } = runtimeStorageAdapter'
+  ], '00 storage adapter wiring');
+  assert.doesNotMatch(fragment00Source, /const\s+(?:DB_NAME|STORE_NAME)\b|async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
+  assert.match(fragment00Source, /const\s+getConfigKey\s*=/);
+  assert.match(fragment00Source, /const\s+getAppDataKey\s*=/);
+  assert.match(fragment00Source, /const\s+loadConfig\s*=/);
+  assert.match(fragment00Source, /const\s+loadAppData\s*=/);
+  assert.match(fragment02Source, /await\s+runtimeStorageAdapter\.clear\(\)/);
+  assert.doesNotMatch(fragment02Source, /\bSTORE_NAME\b|\bopenDB\(\)|store\.clear\(\)/);
   assert.doesNotMatch(runtimeAppSource, /storage-adapter|indexedDB|openDB|getItem|setItem|removeItem/);
   assert.doesNotMatch(configPersistenceSource, /storage-adapter|indexedDB|openDB|getItem|removeItem/);
   assert.doesNotMatch(appDataPersistenceSource, /storage-adapter|indexedDB|openDB|getItem|removeItem/);
