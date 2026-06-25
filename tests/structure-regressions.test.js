@@ -215,7 +215,7 @@ test('runtime DOM registry ownership moves into the non-live runtime kernel', ()
   const viteSource = readSource('vite.config.js');
 
   assert.equal(existsSync(projectFile(registryPath)), true, 'runtime DOM registry module should exist');
-  assert.equal(existsSync(projectFile(runtimeAppPath)), true, 'non-live runtime app seed should exist');
+  assert.equal(existsSync(projectFile(runtimeAppPath)), true, 'runtime app kernel should exist');
   assert.match(registrySource, /export\s+function\s+createLegacyRuntimeDomRegistry/);
   assert.match(
     fragment00Source,
@@ -226,6 +226,7 @@ test('runtime DOM registry ownership moves into the non-live runtime kernel', ()
 
   assert.match(runtimeAppSource, /export\s+function\s+createRuntimeAppKernel/);
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeDomRegistry\s*\}/);
+  assert.match(runtimeAppSource, /elements\s*\?\?\s*createLegacyRuntimeDomRegistry\(rootDocument\)/);
   assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
 
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
@@ -269,10 +270,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.doesNotMatch(normalizationSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|config-store|runtimeConfigStore/);
   assert.doesNotMatch(normalizationSource, /getItem|setItem|removeItem|openDB|indexedDB|localStorage|sessionStorage/);
 
-  assert.match(
-    fragment00Source,
-    /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/config-store\.js['"]/
-  );
+  assert.match(fragment00Source, /import\s+\{\s*createRuntimeAppKernel\s*\}\s*from\s*['"]\/src\/app\/runtime-app\.js['"]/);
   assert.match(
     fragment00Source,
     /import\s+\{\s*createLegacyRuntimeConfigPersistence\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/config-persistence\.js['"]/
@@ -282,11 +280,14 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     /from\s*['"]\/src\/app\/runtime\/kernel\/config-normalization\.js['"]/
   );
   assertMarkersInOrder(fragment00Source, [
-    'const runtimeConfigStore = createLegacyRuntimeConfigStore({',
+    'const runtimeAppKernel = createRuntimeAppKernel({',
+    'elements: ALL_ELEMENTS',
     'defaultModelId: MODELS[0].id',
+    'const runtimeConfigStore = runtimeAppKernel.configStore',
     'let config = runtimeConfigStore.getConfig()',
     'const runtimeConfigAccess = createRuntimeConfigAccess({'
   ], '00 runtime config ownership');
+  assert.doesNotMatch(fragment00Source, /createLegacyRuntimeConfigStore\(/);
   assert.doesNotMatch(fragment00Source, /let\s+config\s*=\s*\{\s*apiKeys:/);
   assert.match(fragment00Source, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
   assert.equal(fragmentConfigAssignments.length, 2);
@@ -323,7 +324,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
-  assert.match(runtimeAppSource, /return\s*\{\s*elements,\s*configStore\s*\}/);
+  assert.match(runtimeAppSource, /return\s*\{\s*elements:\s*resolvedElements,\s*configStore,\s*appDataStore\s*\}/);
   assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.doesNotMatch(runtimeAppSource, /addEventListener|DOMContentLoaded|bootstrap\(|initChatApp|initializeApp/);
   assert.doesNotMatch(
@@ -461,18 +462,21 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.doesNotMatch(storeSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtimeContext/);
   assert.doesNotMatch(storeSource, /getItem|setItem|removeItem|openDB|indexedDB|localStorage|sessionStorage|currentUser/);
   assert.doesNotMatch(storeSource, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
-  assert.match(
-    fragment00Source,
-    /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}\s*from\s*['"]\/src\/app\/runtime\/kernel\/app-data-store\.js['"]/
-  );
+  assert.match(fragment00Source, /import\s+\{\s*createRuntimeAppKernel\s*\}\s*from\s*['"]\/src\/app\/runtime-app\.js['"]/);
   assertMarkersInOrder(fragment00Source, [
-    'const runtimeAppDataStore = createLegacyRuntimeAppDataStore()',
+    'const runtimeAppKernel = createRuntimeAppKernel({',
+    'elements: ALL_ELEMENTS',
+    'defaultModelId: MODELS[0].id',
+    'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
     'let folders = runtimeAppDataStore.getFolders()',
     'let astras = runtimeAppDataStore.getAstras()',
     'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
     'let activeConversationId = null'
   ], '00 app data store lexical bridge');
+  assert.doesNotMatch(fragment00Source, /createLegacyRuntimeAppDataStore\(/);
+  assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}/);
+  assert.match(runtimeAppSource, /const\s+appDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);
   assertMarkersInOrder(loadAppDataBody, [
     'const normalizedData = normalizeLoadedLegacyAppData({',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
@@ -622,7 +626,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
   assert.doesNotMatch(fragment00Source, /getAppData:[\s\S]{0,120}\bactiveConversationId\b/);
   assert.equal((unmigratedFragmentSources.join('\n').match(/runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/g) || []).length, 0);
-  assert.doesNotMatch(runtimeAppSource, /appDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
+  assert.match(runtimeAppSource, /const\s+appDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);
   assert.doesNotMatch(persistenceSource, /loadAppData|getItem|removeItem|openDB|normalizeLoadedLegacyAppData/);
   assert.doesNotMatch(normalizationSource, /showNotification|renderAll|toggleModal|currentUser|getItem|setItem|removeItem|openDB/);
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
@@ -988,14 +992,17 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'const legacyRuntimeContext = createLegacyRuntimeContext()',
     'const ALL_ELEMENTS = createLegacyRuntimeDomRegistry()',
     'const runtimeDomAccess = createRuntimeDomAccess({',
-    'const runtimeAppDataStore = createLegacyRuntimeAppDataStore()',
+    'const runtimeAppKernel = createRuntimeAppKernel({',
+    'elements: ALL_ELEMENTS',
+    'defaultModelId: MODELS[0].id',
+    'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
     'let folders = runtimeAppDataStore.getFolders()',
     'let astras = runtimeAppDataStore.getAstras()',
     'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
     'let activeConversationId = null',
     'const conversationStateAccess = createConversationStateAccess({',
-    'const runtimeConfigStore = createLegacyRuntimeConfigStore({',
+    'const runtimeConfigStore = runtimeAppKernel.configStore',
     'let config = runtimeConfigStore.getConfig()',
     'const runtimeConfigAccess = createRuntimeConfigAccess({',
     'const showNotification =',

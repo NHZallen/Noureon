@@ -88,7 +88,7 @@ test('missing defaultModelId remains an explicit undefined injected value', () =
   assert.equal(store.getConfig().defaultModel, undefined);
 });
 
-test('non-live runtime app kernel exposes the config store with the injected model id', () => {
+test('runtime app kernel exposes the config store with the injected model id', () => {
   const rootDocument = {
     getElementById: (id) => ({ id })
   };

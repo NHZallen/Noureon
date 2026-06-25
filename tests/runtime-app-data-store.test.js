@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createRuntimeAppKernel } from '../src/app/runtime-app.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -101,6 +102,27 @@ test('app data store instances are independent', () => {
   assert.notEqual(first.getFolders(), second.getFolders());
   assert.notEqual(first.getAstras(), second.getAstras());
   assert.notEqual(first.getPersonalMemories(), second.getPersonalMemories());
+});
+
+test('runtime app kernel creates an independent empty app data store', () => {
+  const elements = {};
+  const rootDocument = {
+    getElementById: () => assert.fail('provided elements should avoid DOM registry creation')
+  };
+  const firstKernel = createRuntimeAppKernel({ elements, rootDocument });
+  const secondKernel = createRuntimeAppKernel({ elements, rootDocument });
+
+  assert.deepEqual(firstKernel.appDataStore.getSnapshot(), {
+    conversations: [],
+    folders: [],
+    astras: [],
+    personalMemories: []
+  });
+  assert.notEqual(firstKernel.appDataStore, secondKernel.appDataStore);
+  assert.notEqual(
+    firstKernel.appDataStore.getConversations(),
+    secondKernel.appDataStore.getConversations()
+  );
 });
 
 test('app data store source owns pointers only', () => {

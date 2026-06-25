@@ -54,7 +54,18 @@ test('runtime app kernel exposes the registry without starting the app', () => {
   const kernel = createRuntimeAppKernel({ rootDocument });
 
   assert.deepEqual(kernel.elements.openStoreBtn, { id: 'open-store-btn' });
-  assert.deepEqual(Object.keys(kernel), ['elements', 'configStore']);
+  assert.deepEqual(Object.keys(kernel), ['elements', 'configStore', 'appDataStore']);
+});
+
+test('runtime app kernel reuses provided elements without another DOM lookup', () => {
+  const elements = { authContainer: { id: 'existing-auth-container' } };
+  const rootDocument = {
+    getElementById: () => assert.fail('provided elements should avoid DOM registry creation')
+  };
+
+  const kernel = createRuntimeAppKernel({ elements, rootDocument });
+
+  assert.equal(kernel.elements, elements);
 });
 
 test('DOM registry module owns lookup creation only', () => {
@@ -67,11 +78,11 @@ test('DOM registry module owns lookup creation only', () => {
   assert.doesNotMatch(source, /render|bootstrap|startup|resolveBinding|registerLazyBinding/i);
 });
 
-test('runtime app remains a non-live kernel seed', () => {
+test('runtime app remains lifecycle-free while providing the production kernel', () => {
   const source = readSource('src/app/runtime-app.js');
 
   assert.match(source, /export\s+function\s+createRuntimeAppKernel/);
-  assert.match(source, /createLegacyRuntimeDomRegistry\(rootDocument\)/);
+  assert.match(source, /elements\s*\?\?\s*createLegacyRuntimeDomRegistry\(rootDocument\)/);
   assert.doesNotMatch(source, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.doesNotMatch(source, /addEventListener|DOMContentLoaded|bootstrap\(|initChatApp|initializeApp/);
   assert.doesNotMatch(source, /document\.(?:getElementById|querySelector)|classList|innerHTML/);

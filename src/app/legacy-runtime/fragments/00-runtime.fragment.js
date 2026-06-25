@@ -29,7 +29,7 @@ import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
-import { createLegacyRuntimeConfigStore } from '/src/app/runtime/kernel/config-store.js';
+import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 import {
     cloneCouncilConfig as cloneLegacyCouncilConfig,
@@ -41,7 +41,6 @@ import {
 } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
-import { createLegacyRuntimeAppDataStore } from '/src/app/runtime/kernel/app-data-store.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -618,7 +617,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             Violet: '#8b5cf6', Purple: '#a855f7', Fuchsia: '#d946ef',
             Pink: '#ec4899', Rose: '#f43f5e', Slate: '#64748b'
         };
-        const runtimeAppDataStore = createLegacyRuntimeAppDataStore();
+        const runtimeAppKernel = createRuntimeAppKernel({
+            elements: ALL_ELEMENTS,
+            defaultModelId: MODELS[0].id
+        });
+        const runtimeAppDataStore = runtimeAppKernel.appDataStore;
         let conversations = runtimeAppDataStore.getConversations();
         let folders = runtimeAppDataStore.getFolders();
         let astras = runtimeAppDataStore.getAstras();
@@ -629,9 +632,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getCurrentConversationId: () => activeConversationId,
             setCurrentConversationId: (id) => { activeConversationId = id; }
         });
-        const runtimeConfigStore = createLegacyRuntimeConfigStore({
-            defaultModelId: MODELS[0].id
-        });
+        const runtimeConfigStore = runtimeAppKernel.configStore;
         let config = runtimeConfigStore.getConfig();
         const runtimeConfigAccess = createRuntimeConfigAccess({
             getConfig: () => runtimeConfigStore.getConfig()
