@@ -279,23 +279,24 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
 
 test('04 store and trash destructive flows keep replacement, save, render, and notification order', () => {
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
-  const handleSubscriptionBody = getConstFunctionBody(fragment04Source, 'handleSubscription');
+  const handleSubscriptionBody = getConstFunctionBody(coreTailSource, 'handleSubscription');
   const permanentDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleDeleteTrashItemPermanently');
   const batchDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchDeleteFromTrash');
   const emptyTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleEmptyTrash');
 
   assertMarkersInOrder(handleSubscriptionBody, [
-    'astras = runtimeAppDataStore.replaceAstras(',
-    'astras.filter(a => a.officialId !== officialId)',
-    "showNotification(i18n[config.uiLanguage].unsubscribed",
-    'astras.unshift(newAstra)',
-    "showNotification(i18n[config.uiLanguage].subscribed",
+    'state.astras = runtimeAppDataStore.replaceAstras(',
+    'state.astras.filter(a => a.officialId !== officialId)',
+    "showNotification(i18n[state.config.uiLanguage].unsubscribed",
+    'state.astras.unshift(newAstra)',
+    "showNotification(i18n[state.config.uiLanguage].subscribed",
     'await saveAppData()',
     'renderStore()',
     'renderAstras()'
   ], 'store subscription Astra replacement and render order');
-  assert.doesNotMatch(handleSubscriptionBody, /astras\s*=\s*astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)/);
+  assert.doesNotMatch(handleSubscriptionBody, /state\.astras\s*=\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)/);
 
   assertMarkersInOrder(permanentDeleteBody, [
     'showCustomConfirm',
@@ -328,9 +329,10 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   ], 'empty trash replacement order');
 
   assert.match(
-    fragment04Source,
-    /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(nextConversations\);\s*return\s+conversations;\s*\}/
+    coreTailSource,
+    /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*state\.conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(nextConversations\);\s*return\s+state\.conversations;\s*\}/
   );
+  assert.match(fragment04Source, /set\s+conversations\(next\)\s*\{\s*conversations\s*=\s*next;\s*\}/);
 });
 
 test('app data store remains wired while production boot moves through runtime entry', () => {
@@ -344,6 +346,7 @@ test('app data store remains wired while production boot moves through runtime e
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
@@ -365,11 +368,13 @@ test('app data store remains wired while production boot moves through runtime e
     /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
   );
   assert.match(fragment03Source, /personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
-  assert.match(fragment04Source, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
+  assert.match(coreTailSource, /state\.astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
+  assert.match(fragment04Source, /set\s+astras\(next\)\s*\{\s*astras\s*=\s*next;\s*\}/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment04Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(coreTailSource, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(runtimeEntrySource, /runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+appDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);

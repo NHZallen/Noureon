@@ -236,6 +236,7 @@ test('production runtime entry composes the explicit legacy dependency facade', 
   const runtimeEntrySource = readSource(runtimeEntryPath);
   const dependencySource = readSource(dependencyPath);
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
@@ -267,29 +268,30 @@ test('production runtime entry composes the explicit legacy dependency facade', 
 
   assert.match(
     fragment04Source,
-    /import\s+\{\s*createLegacyRuntimeEntryDependencies\s*\}\s+from\s+['"]\/src\/app\/runtime\/runtime-entry-dependencies\.js['"]/
+    /import\s+\{\s*createLegacyCoreTailLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/core-tail-lifecycle\.js['"]/
   );
   assert.match(
-    fragment04Source,
+    coreTailSource,
     /const\s+runtimeEntryDependencies\s*=\s*createLegacyRuntimeEntryDependencies\(\{/
   );
   assert.match(
-    fragment04Source,
+    coreTailSource,
     /legacyRuntimeContext\.registerLazyBinding\(\s*['"]runtime\.entryDependencies['"],\s*\(\)\s*=>\s*runtimeEntryDependencies\s*\)/
   );
-  assert.match(fragment04Source, /appBootstrap:\s*\{/);
-  assert.match(fragment04Source, /startup:\s*\{/);
-  assert.match(fragment04Source, /getCurrentUser:\s*\(\)\s*=>\s*currentUser/);
-  assert.match(fragment04Source, /getConfig:\s*\(\)\s*=>\s*config/);
-  assert.match(fragment04Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
-  assert.match(fragment04Source, /getFolders:\s*\(\)\s*=>\s*folders/);
-  assert.match(fragment04Source, /getAstras:\s*\(\)\s*=>\s*astras/);
-  assert.match(fragment04Source, /getPersonalMemories:\s*\(\)\s*=>\s*personalMemories/);
-  assert.match(fragment04Source, /getItem,\s*getUserKey,\s*loadConfig,\s*loadAppData/s);
+  assert.match(coreTailSource, /appBootstrap:\s*\{/);
+  assert.match(coreTailSource, /startup:\s*\{/);
+  assert.match(coreTailSource, /getCurrentUser:\s*\(\)\s*=>\s*state\.currentUser/);
+  assert.match(coreTailSource, /getConfig:\s*\(\)\s*=>\s*state\.config/);
+  assert.match(coreTailSource, /getConversations:\s*\(\)\s*=>\s*state\.conversations/);
+  assert.match(coreTailSource, /getFolders:\s*\(\)\s*=>\s*state\.folders/);
+  assert.match(coreTailSource, /getAstras:\s*\(\)\s*=>\s*state\.astras/);
+  assert.match(coreTailSource, /getPersonalMemories:\s*\(\)\s*=>\s*state\.personalMemories/);
+  assert.match(coreTailSource, /getItem,\s*getUserKey,\s*loadConfig,\s*loadAppData/s);
   assert.match(
-    fragment04Source,
+    coreTailSource,
     /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.adjustTextareaHeight'\)\(\.\.\.args\)/
   );
+  assert.match(fragment04Source, /registerRuntimeEntryDependencies\(\);/);
   assert.doesNotMatch(fragment04Source, /\binitChatApp\(\);|\binitializeApp\(\);/);
 
   assert.match(runtimeEntrySource, /createLegacyAppBootstrapLifecycle\(/);
@@ -408,12 +410,13 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
   const laterFragmentSources = [
     '01-runtime.fragment.js',
     '02-runtime.fragment.js',
-    '03-runtime.fragment.js',
-    '04-runtime.fragment.js'
+    '03-runtime.fragment.js'
   ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
 
   assert.equal(existsSync(projectFile(storePath)), true, 'runtime config store module should exist');
@@ -456,6 +459,8 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /\bconfig\s*=/);
   }
+  assert.match(fragment04Source, /set\s+config\(next\)\s*\{\s*config\s*=\s*next;\s*\}/);
+  assert.doesNotMatch(coreTailSource, /state\.config\s*=/);
   assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
   assertMarkersInOrder(fragment00Source, [
     'const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`',
@@ -481,7 +486,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + importExportSource + authImportSource).match(/\bsaveConfig\(\)/g) || []).length, 14);
+  assert.equal(((laterFragmentSources.join('\n') + coreTailSource + importExportSource + authImportSource).match(/\bsaveConfig\(\)/g) || []).length, 14);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -507,6 +512,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const laterFragmentSources = [
     '01-runtime.fragment.js',
     '02-runtime.fragment.js',
@@ -586,7 +592,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
     31
   );
   for (const source of laterFragmentSources) {
@@ -601,6 +607,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
@@ -614,7 +621,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
   const handleImportBody = getFunctionDeclarationBody(importExportSource, 'handleImport');
   const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
-  const handleSubscriptionBody = getConstFunctionBody(fragment04Source, 'handleSubscription');
+  const handleSubscriptionBody = getConstFunctionBody(coreTailSource, 'handleSubscription');
   const permanentDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleDeleteTrashItemPermanently');
   const batchDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchDeleteFromTrash');
   const emptyTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleEmptyTrash');
@@ -735,11 +742,11 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     "showNotification(text('importSuccess'"
   ], 'auth import lifecycle processAuthImport injected replacements and app handoff');
   assertMarkersInOrder(handleSubscriptionBody, [
-    'astras = runtimeAppDataStore.replaceAstras(',
-    'astras.filter(a => a.officialId !== officialId)',
-    "showNotification(i18n[config.uiLanguage].unsubscribed",
-    'astras.unshift(newAstra)',
-    "showNotification(i18n[config.uiLanguage].subscribed",
+    'state.astras = runtimeAppDataStore.replaceAstras(',
+    'state.astras.filter(a => a.officialId !== officialId)',
+    "showNotification(i18n[state.config.uiLanguage].unsubscribed",
+    'state.astras.unshift(newAstra)',
+    "showNotification(i18n[state.config.uiLanguage].subscribed",
     'await saveAppData()',
     'renderStore()',
     'renderAstras()'
@@ -775,6 +782,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment04Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(coreTailSource, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.equal((performImportBody.match(/replaceAllAppData\(/g) || []).length, 1);
   assert.equal((handleImportBody.match(/replaceAllAppData\(/g) || []).length, 1);
   assert.equal((processAuthImportBody.match(/replaceAllAppData\(/g) || []).length, 1);
@@ -893,6 +901,7 @@ test('trash lifecycle ownership moves out of 04 into a real runtime module', () 
   const lifecycleSource = readSource(lifecyclePath);
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacyTrashLifecycle/);
@@ -900,8 +909,8 @@ test('trash lifecycle ownership moves out of 04 into a real runtime module', () 
     lifecycleSource,
     /legacy-runtime\/fragments|virtual:legacy-app-runtime|storage-adapter|runtime-app|indexedDB|localStorage|sessionStorage|currentUser|loadConfig|loadAppData|initChatApp|initializeApp|Peer|P2P|JSZip/
   );
-  assert.match(fragment04Source, /import\s+\{\s*createLegacyTrashLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/trash-lifecycle\.js['"]/);
-  assertMarkersInOrder(fragment04Source, [
+  assert.match(coreTailSource, /import\s+\{\s*createLegacyTrashLifecycle\s*\}\s+from\s+['"]\.\.\/features\/trash-lifecycle\.js['"]/);
+  assertMarkersInOrder(coreTailSource, [
     'const {',
     'renderTrash',
     'handleRestoreTrashItem',
@@ -914,12 +923,12 @@ test('trash lifecycle ownership moves out of 04 into a real runtime module', () 
     'handleEmptyTrash',
     '} = createLegacyTrashLifecycle({',
     'elements: ALL_ELEMENTS',
-    'getConversations: () => conversations',
+    'getConversations: () => state.conversations',
     'replaceConversations: (nextConversations) => {',
-    'conversations = runtimeAppDataStore.replaceConversations(nextConversations)',
-    'return conversations',
+    'state.conversations = runtimeAppDataStore.replaceConversations(nextConversations)',
+    'return state.conversations',
     'saveAppData'
-  ], '04 trash lifecycle wiring');
+  ], 'core tail trash lifecycle wiring');
   for (const name of [
     'renderTrash',
     'handleRestoreTrashItem',
@@ -933,10 +942,48 @@ test('trash lifecycle ownership moves out of 04 into a real runtime module', () 
   ]) {
     assert.doesNotMatch(fragment04Source, new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`));
   }
+  assert.match(fragment04Source, /renderTrash,[\s\S]*handleEmptyTrash,[\s\S]*registerRuntimeEntryDependencies/);
   assert.doesNotMatch(fragment00Source, /\bisTrashSelectionMode\b|\bselectedTrashIds\b/);
   assert.doesNotMatch(fragment04Source, /\blet\s+isTrashSelectionMode\b|\bnew\s+Set\(\)/);
   assert.match(lifecycleSource, /let\s+isTrashSelectionMode\s*=\s*false/);
   assert.match(lifecycleSource, /const\s+selectedTrashIds\s*=\s*new\s+Set\(\)/);
+});
+
+test('legacy core tail ownership moves out of 04 into a thin wiring wrapper', () => {
+  const modulePath = 'src/app/runtime/legacy-core/core-tail-lifecycle.js';
+  const moduleSource = readSource(modulePath);
+  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const runtimeEntrySource = readSource('src/app/runtime-entry.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+  const viteSource = readSource('vite.config.js');
+
+  assert.equal(existsSync(projectFile(modulePath)), true);
+  assert.match(moduleSource, /export\s+function\s+createLegacyCoreTailLifecycle/);
+  assert.doesNotMatch(moduleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
+  assert.match(
+    fragment04Source,
+    /import\s+\{\s*createLegacyCoreTailLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/core-tail-lifecycle\.js['"]/
+  );
+  assert.match(fragment04Source, /const\s+coreTailState\s*=\s*\{/);
+  assert.match(fragment04Source, /const\s+coreTailLifecycle\s*=\s*createLegacyCoreTailLifecycle\(\{/);
+  assert.match(fragment04Source, /state:\s*coreTailState/);
+  assert.match(fragment04Source, /registerRuntimeEntryDependencies\(\);/);
+  for (const name of [
+    'applyUiTheme',
+    'applyCustomWallpaper',
+    'renderStore',
+    'applyLanguage',
+    'showMobileContextMenu',
+    'setupMessageIntersectionObserver'
+  ]) {
+    assert.doesNotMatch(fragment04Source, new RegExp(`(?:const|function)\\s+${name}\\s*(?:=|\\()`));
+    assert.match(moduleSource, new RegExp(`(?:const|function)\\s+${name}\\s*(?:=|\\()`));
+  }
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 10 * 1024);
+  assert.match(viteSource, /'04-runtime\.fragment\.js'/);
+  assert.doesNotMatch(viteSource, /(?:05|06)-runtime\.fragment\.js/);
+  assert.match(legacyEntrySource, /from\s+['"]\.\/runtime-entry\.js['"]/);
+  assert.doesNotMatch(runtimeEntrySource, /core-tail-lifecycle/);
 });
 
 test('normal import/export lifecycle ownership moves out of 03 into a real runtime module', () => {
@@ -1049,8 +1096,9 @@ test('color contrast helper is shared without later-fragment lexical ownership',
   const helperSource = readSource(helperPath);
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const renderHistorySidebarContentBody = getBlockFromMarker(fragment00Source, 'function renderHistorySidebarContent()');
-  const applyUiThemeBody = getConstFunctionBody(fragment04Source, 'applyUiTheme');
+  const applyUiThemeBody = getConstFunctionBody(coreTailSource, 'applyUiTheme');
 
   assert.equal(existsSync(projectFile(helperPath)), true, 'shared color contrast helper should exist');
   assert.match(helperSource, /export\s+function\s+getTextColorForBackground\s*\(/);
@@ -1060,18 +1108,18 @@ test('color contrast helper is shared without later-fragment lexical ownership',
     /import\s*\{\s*getTextColorForBackground\s*\}\s*from\s*['"]\/src\/utils\/color-contrast\.js['"]/
   );
   assert.match(
-    fragment04Source,
-    /import\s*\{\s*getTextColorForBackground\s+as\s+getThemeTextColorForBackground,\s*\}\s*from\s*['"]\/src\/utils\/color-contrast\.js['"]/
+    coreTailSource,
+    /import\s*\{\s*getTextColorForBackground\s+as\s+getThemeTextColorForBackground,\s*\}\s*from\s*['"]\.\.\/\.\.\/\.\.\/utils\/color-contrast\.js['"]/
   );
-  assert.doesNotMatch(fragment04Source, /const\s+hexToRgb\s*=/);
-  assert.doesNotMatch(fragment04Source, /const\s+getTextColorForBackground\s*=/);
+  assert.doesNotMatch(coreTailSource, /const\s+hexToRgb\s*=/);
+  assert.doesNotMatch(coreTailSource, /const\s+getTextColorForBackground\s*=/);
   assert.match(
     renderHistorySidebarContentBody,
     /listItem\.style\.color\s*=\s*getTextColorForBackground\(bgColor\);/
   );
   assert.match(
     applyUiThemeBody,
-    /const\s+textColor\s*=\s*\(config\.uiTheme\.style\s*===\s*'gradient'\s*&&\s*config\.uiTheme\.mode\s*===\s*'adaptive'\)\s*\?\s*'#ffffff'\s*:\s*getThemeTextColorForBackground\(primaryBg\);/
+    /const\s+textColor\s*=\s*\(state\.config\.uiTheme\.style\s*===\s*'gradient'\s*&&\s*state\.config\.uiTheme\.mode\s*===\s*'adaptive'\)\s*\?\s*'#ffffff'\s*:\s*getThemeTextColorForBackground\(primaryBg\);/
   );
   assertMarkersInOrder(applyUiThemeBody, [
     "root.style.setProperty('--button-primary-bg', primaryBg)",
@@ -1878,6 +1926,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
@@ -1915,7 +1964,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(fragment04Source, /showCoordinatedNotification:\s*\(\.\.\.args\)\s*=>\s*runtimeDialogCoordinator\.showNotification\(\.\.\.args\)/);
+  assert.match(coreTailSource, /showCoordinatedNotification:\s*\(\.\.\.args\)\s*=>\s*runtimeDialogCoordinator\.showNotification\(\.\.\.args\)/);
   assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderTrash\(\);\s*showCoordinatedNotification\(/);
   assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
   assert.match(defaultModelUpdateBody, /config\.defaultModel\s*=\s*modelId;\s*await\s+saveConfig\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
@@ -1926,7 +1975,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
-  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
   const getCouncilTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilTexts');
   const getCouncilRuntimeTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilRuntimeTexts');
@@ -1934,8 +1983,8 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const getModelPriceLabelBody = getConstFunctionBody(fragment00Source, 'getModelPriceLabel');
   const renderArchivedChatsBody = getConstFunctionBody(fragment01Source, 'renderArchivedChats');
   const getCouncilModeLabelBody = getConstFunctionBody(fragment01Source, 'getCouncilModeLabel');
-  const setupTimeAnalysisBody = getConstFunctionBody(fragment04Source, 'setupTimeAnalysis');
-  const updateTimeDistributionChartBody = getConstFunctionBody(fragment04Source, 'updateTimeDistributionChart');
+  const setupTimeAnalysisBody = getConstFunctionBody(coreTailSource, 'setupTimeAnalysis');
+  const updateTimeDistributionChartBody = getConstFunctionBody(coreTailSource, 'updateTimeDistributionChart');
 
   assert.match(accessSource, /export\s+function\s+createRuntimeConfigAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeConfigAccess\s*\}/);
@@ -2125,6 +2174,7 @@ test('settings sidebar button remains wired to initialize and open the settings 
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(fragment02Source, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
@@ -2134,7 +2184,7 @@ test('settings sidebar button remains wired to initialize and open the settings 
   assert.match(fragment02Source, /const\s+getTavilySearchDepth\s*=\s*\(\)\s*=>\s*config\.tavilySearchDepth\s*===\s*'advanced'\s*\?\s*'advanced'\s*:\s*'basic';/);
   assert.match(fragment02Source, /ALL_ELEMENTS\.tavilySearchDepthSelect\.value\s*=\s*getTavilySearchDepth\(\);/);
   assert.match(fragment03Source, /const\s+resolveSearchSetupSettingsModal\s*=\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\);/);
-  assert.match(fragment04Source, /setupSettingsModal:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\)/);
+  assert.match(coreTailSource, /setupSettingsModal:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\)/);
   assert.match(appBootstrapLifecycleSource, /const\s+resolveEventsSetupSettingsModal\s*=\s*setupSettingsModal;/);
   for (const [source, fragmentLabel, resolverName] of [
     [fragment00Source, '00', 'resolveFoundationUpdateInputState'],
@@ -2147,10 +2197,10 @@ test('settings sidebar button remains wired to initialize and open the settings 
     );
   }
   assert.doesNotMatch(fragment01Source, /const\s+resolveMainUpdateInputState\b/);
-  assert.doesNotMatch(fragment04Source, /const\s+resolveTrashUpdateInputState\b/);
+  assert.doesNotMatch(coreTailSource, /const\s+resolveTrashUpdateInputState\b/);
   assert.match(fragment01Source, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
-  assert.match(fragment04Source, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
-  assert.match(fragment04Source, /updateInputState:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\.\.\.args\)/);
+  assert.match(coreTailSource, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
+  assert.match(coreTailSource, /updateInputState:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\.\.\.args\)/);
   assert.match(appBootstrapLifecycleSource, /const\s+resolveEventsUpdateInputState\s*=\s*updateInputState;/);
   assert.match(
     appBootstrapLifecycleSource,
@@ -2488,6 +2538,7 @@ test('time distribution chart data helper is isolated from the 04 runtime fragme
   const helperSource = readSource('src/app/legacy-runtime/features/time-distribution-chart-data.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/time-distribution-chart-data.js'));
 
   assert.equal(typeof helpers.buildTimeDistributionChartData, 'function');
@@ -2496,22 +2547,24 @@ test('time distribution chart data helper is isolated from the 04 runtime fragme
     fragment00Source,
     /import\s*\{[\s\S]*\bbuildTimeDistributionChartData\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/time-distribution-chart-data\.js';/
   );
-  assert.doesNotMatch(fragment04Source, /import\('\/src\/app\/legacy-runtime\/features\/time-distribution-chart-data\.js'\)/);
-  assert.doesNotMatch(fragment04Source, /timeDistributionChartDataModulePromise/);
-  assert.doesNotMatch(fragment04Source, /\blet\s+labels,\s*data,\s*chartType,\s*label\b/);
-  assert.doesNotMatch(fragment04Source, /data\s*=\s*years\.map\(y\s*=>\s*allMessages\.filter/);
-  assert.match(fragment04Source, /const\s+updateTimeDistributionChart\s*=\s*\(\)\s*=>/);
-  assert.doesNotMatch(fragment04Source, /const\s+updateTimeDistributionChart\s*=\s*async\s*\(\)\s*=>/);
-  assert.match(fragment04Source, /buildTimeDistributionChartData\(\{\s*messages:\s*allMessages,\s*year,\s*month,\s*day,\s*text:\s*i18n\[lang\]\s*\}\)/);
-  assert.match(fragment04Source, /document\.getElementById\('time-distribution-chart'\)\.getContext\('2d'\)/);
-  assert.match(fragment04Source, /timeDistChart\s*=\s*new Chart\(ctx,/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
+  assert.doesNotMatch(coreTailSource, /import\('\/src\/app\/legacy-runtime\/features\/time-distribution-chart-data\.js'\)/);
+  assert.doesNotMatch(coreTailSource, /timeDistributionChartDataModulePromise/);
+  assert.doesNotMatch(coreTailSource, /\blet\s+labels,\s*data,\s*chartType,\s*label\b/);
+  assert.doesNotMatch(coreTailSource, /data\s*=\s*years\.map\(y\s*=>\s*allMessages\.filter/);
+  assert.match(coreTailSource, /const\s+updateTimeDistributionChart\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(coreTailSource, /const\s+updateTimeDistributionChart\s*=\s*async\s*\(\)\s*=>/);
+  assert.match(coreTailSource, /buildTimeDistributionChartData\(\{\s*messages:\s*allMessages,\s*year,\s*month,\s*day,\s*text:\s*i18n\[lang\]\s*\}\)/);
+  assert.match(coreTailSource, /document\.getElementById\('time-distribution-chart'\)\.getContext\('2d'\)/);
+  assert.match(coreTailSource, /state\.timeDistChart\s*=\s*new Chart\(ctx,/);
+  assert.match(fragment04Source, /updateTimeDistributionChart,/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 10 * 1024);
 });
 
 test('mobile context menu markup helpers are isolated from the 04 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/mobile-context-menu-markup.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/mobile-context-menu-markup.js'));
 
   assert.equal(typeof helpers.buildConversationMobileContextMenuMarkup, 'function');
@@ -2524,19 +2577,20 @@ test('mobile context menu markup helpers are isolated from the 04 runtime fragme
     fragment00Source,
     /import\s*\{[\s\S]*\bbuildConversationMobileContextMenuMarkup\b[\s\S]*\bbuildFolderMobileContextMenuMarkup\b[\s\S]*\bbuildAstraMobileContextMenuMarkup\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/mobile-context-menu-markup\.js';/
   );
-  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildConversationMobileContextMenuMarkup\(\{/);
-  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildFolderMobileContextMenuMarkup\(\{/);
-  assert.match(fragment04Source, /menu\.innerHTML\s*=\s*buildAstraMobileContextMenuMarkup\(\{/);
-  assert.doesNotMatch(fragment04Source, /const\s+menuHeader\s*=/);
-  assert.doesNotMatch(fragment04Source, /let\s+menuOptions\s*=/);
-  assert.doesNotMatch(fragment04Source, /const\s+moveOptionsHTML\s*=/);
-  assert.match(fragment04Source, /document\.createElement\('div'\)/);
-  assert.match(fragment04Source, /document\.body\.appendChild\(menuWrapper\)/);
-  assert.match(fragment04Source, /menu\.addEventListener\('click'/);
-  assert.match(fragment04Source, /showRenameModal\(convId,\s*'conversation',\s*e\)/);
-  assert.match(fragment04Source, /showFolderSettingsModal\(folderId,\s*e\)/);
-  assert.match(fragment04Source, /openAvatarEditor\(astrasId\)/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 150 * 1024);
+  assert.match(coreTailSource, /menu\.innerHTML\s*=\s*buildConversationMobileContextMenuMarkup\(\{/);
+  assert.match(coreTailSource, /menu\.innerHTML\s*=\s*buildFolderMobileContextMenuMarkup\(\{/);
+  assert.match(coreTailSource, /menu\.innerHTML\s*=\s*buildAstraMobileContextMenuMarkup\(\{/);
+  assert.doesNotMatch(coreTailSource, /const\s+menuHeader\s*=/);
+  assert.doesNotMatch(coreTailSource, /let\s+menuOptions\s*=/);
+  assert.doesNotMatch(coreTailSource, /const\s+moveOptionsHTML\s*=/);
+  assert.match(coreTailSource, /document\.createElement\('div'\)/);
+  assert.match(coreTailSource, /document\.body\.appendChild\(menuWrapper\)/);
+  assert.match(coreTailSource, /menu\.addEventListener\('click'/);
+  assert.match(coreTailSource, /showRenameModal\(convId,\s*'conversation',\s*e\)/);
+  assert.match(coreTailSource, /showFolderSettingsModal\(folderId,\s*e\)/);
+  assert.match(coreTailSource, /openAvatarEditor\(astrasId\)/);
+  assert.match(fragment04Source, /showMobileContextMenu,[\s\S]*showMobileContextMenuForAstras,/);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')).size < 10 * 1024);
 });
 
 test('streaming council details helpers are isolated from the 01 runtime fragment', async () => {
@@ -3058,6 +3112,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
@@ -3326,7 +3381,7 @@ test('renderer gradual append controller is isolated from the 01 runtime RAF app
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment04Source = readSource('src/app/legacy-runtime/fragments/04-runtime.fragment.js');
+  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/version-compare.js'));
 
   assert.equal(typeof helpers.compareVersions, 'function');
@@ -3336,8 +3391,8 @@ test('version compare helper is isolated from the 00 runtime fragment and remain
     /import\s*\{[\s\S]*\bcompareVersions\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/version-compare\.js';/
   );
   assert.doesNotMatch(fragment00Source, /\b(?:const|function)\s+compareVersions\b/);
-  assert.match(fragment04Source, /compareVersions\(log\.version,\s*lastSeenVersion\)/);
-  assert.match(fragment04Source, /compareVersions\(b\.version,\s*a\.version\)/);
-  assert.match(fragment04Source, /compareVersions\(log\.version,\s*max\)/);
+  assert.match(coreTailSource, /compareVersions\(log\.version,\s*lastSeenVersion\)/);
+  assert.match(coreTailSource, /compareVersions\(b\.version,\s*a\.version\)/);
+  assert.match(coreTailSource, /compareVersions\(log\.version,\s*max\)/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
