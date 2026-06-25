@@ -329,22 +329,22 @@ test('settings persistence keeps mutation, visual, save, render, and notificatio
 });
 
 test('startup restores the user before config and app data visual handoff', () => {
-  const source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
-  const body = getBlockFromMarker(source, '(async function initializeApp()');
+  const source = readSource('src/app/runtime/features/startup-lifecycle.js');
+  const body = getBlockFromMarker(source, 'async function initializeApp()');
 
   assertMarkersInOrder(body, [
     "const lastUsername = await getItem('chat_lastUser')",
     'const userKey = getUserKey(lastUsername)',
     'const savedUser = await getItem(userKey)',
-    'currentUser = JSON.parse(savedUser)',
+    'setCurrentUser(JSON.parse(savedUser))',
     'await loadConfig()',
     'await loadAppData()',
     'applyCustomWallpaper()',
     'applyUiTheme()',
-    "ALL_ELEMENTS.authContainer.style.display = 'none'",
-    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
-    "ALL_ELEMENTS.appContainer.classList.add('visible')",
-    "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
+    "elements.authContainer.style.display = 'none'",
+    "elements.appContainer.classList.remove('hidden')",
+    "elements.appContainer.classList.add('visible')",
+    'initChatApp()'
   ], 'startup config persistence');
 });
 

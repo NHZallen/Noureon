@@ -84,6 +84,11 @@ test('initChatApp closes inside 05 while preserving late bootstrap event binding
   }
 
   assert.match(fragment05Source, /createLegacyAppBootstrapLifecycle\(\{/);
+  assert.match(
+    fragment05Source,
+    /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.adjustTextareaHeight'\)\(\.\.\.args\)/
+  );
+  assert.doesNotMatch(fragment05Source, /^\s*adjustTextareaHeight,\s*$/m);
   assert.match(fragment05Source, /legacyRuntimeContext\.registerLazyBinding\('app\.initChatApp',\s*\(\)\s*=>\s*initChatApp\)/);
   assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);
   assert.match(initBody, /\bprocessReceivedData\b/);

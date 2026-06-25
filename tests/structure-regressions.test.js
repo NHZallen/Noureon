@@ -800,7 +800,7 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacyImportExportLifecycle/);
@@ -845,8 +845,8 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
   assert.match(fragment05Source, /handleImport,?/);
   assert.match(appBootstrapLifecycleSource, /confirmExportBtn\.addEventListener\('click',\s*handleExport\)/);
   assert.match(appBootstrapLifecycleSource, /confirmImportBtn\.addEventListener\('click',\s*handleImport\)/);
-  assert.match(fragment06Source, /importBtnAuth\.addEventListener\('click',\s*handleImportOnAuth\)/);
-  assert.match(fragment06Source, /confirmImportBtnAuth\.addEventListener\('click',\s*processAuthImport\)/);
+  assert.match(startupLifecycleSource, /importBtnAuth\.addEventListener\('click',\s*handleImportOnAuth\)/);
+  assert.match(startupLifecycleSource, /confirmImportBtnAuth\.addEventListener\('click',\s*processAuthImport\)/);
 });
 
 test('auth import lifecycle ownership moves out of 03 into a real runtime module', () => {
@@ -854,7 +854,7 @@ test('auth import lifecycle ownership moves out of 03 into a real runtime module
   const lifecycleSource = readSource(lifecyclePath);
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
-  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacyAuthImportLifecycle/);
@@ -895,8 +895,8 @@ test('auth import lifecycle ownership moves out of 03 into a real runtime module
   }
   assert.match(fragment00Source, /const\s+createPasswordRecord\s*=\s*async\s*\(/);
   assert.match(fragment00Source, /const\s+getUserKey\s*=\s*\(username\)\s*=>\s*`chatUser_\$\{username\}`/);
-  assert.match(fragment06Source, /importBtnAuth\.addEventListener\('click',\s*handleImportOnAuth\)/);
-  assert.match(fragment06Source, /confirmImportBtnAuth\.addEventListener\('click',\s*processAuthImport\)/);
+  assert.match(startupLifecycleSource, /importBtnAuth\.addEventListener\('click',\s*handleImportOnAuth\)/);
+  assert.match(startupLifecycleSource, /confirmImportBtnAuth\.addEventListener\('click',\s*processAuthImport\)/);
 });
 
 test('color contrast helper is shared without later-fragment lexical ownership', () => {
@@ -1127,6 +1127,7 @@ test('app bootstrap lifecycle ownership moves initChatApp listener shell out of 
   const lifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
@@ -1159,8 +1160,71 @@ test('app bootstrap lifecycle ownership moves initChatApp listener shell out of 
   assert.doesNotMatch(fragment05Source, /async\s+function\s+initChatApp\(\)/);
   assert.doesNotMatch(fragment05Source, /appBootstrapComposition\.runLateBootstrapBindings\(\);/);
 
-  assert.match(fragment06Source, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
+  assert.match(startupLifecycleSource, /\binitChatApp\(\);/);
+  assert.match(
+    fragment06Source,
+    /initChatApp:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/
+  );
   assert.match(runtimeAppSource, /export\s+function\s+createRuntimeAppKernel/);
+  assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
+  assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
+  assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
+});
+
+test('startup lifecycle ownership moves initializeApp and auth startup bindings out of 06', () => {
+  const lifecyclePath = 'src/app/runtime/features/startup-lifecycle.js';
+  const lifecycleSource = readSource(lifecyclePath);
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
+  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
+  const runtimeAppSource = readSource('src/app/runtime-app.js');
+  const mainSource = readSource('src/main.js');
+  const legacyEntrySource = readSource('src/app/legacy-app.js');
+  const viteSource = readSource('vite.config.js');
+
+  assert.equal(existsSync(projectFile(lifecyclePath)), true);
+  assert.match(lifecycleSource, /export\s+function\s+createLegacyStartupLifecycle/);
+  assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
+  assert.doesNotMatch(lifecycleSource, /legacyRuntimeContext|indexedDB|createLegacyRuntimeStorageAdapter/);
+  assert.doesNotMatch(lifecycleSource, /function\s+handleLogin|function\s+handleImportOnAuth|function\s+processAuthImport/);
+  assert.match(lifecycleSource, /function\s+bindAuthStartupListeners\(\)/);
+  assert.match(lifecycleSource, /async\s+function\s+initializeApp\(\)/);
+  assert.match(lifecycleSource, /function\s+bindLoginLanguageSwitcher\(\)/);
+  assert.match(lifecycleSource, /function\s+adjustTextareaHeight\(\)/);
+  assert.match(lifecycleSource, /function\s+runStartupPostlude\(\)/);
+
+  assert.match(
+    fragment06Source,
+    /import\s+\{\s*createLegacyStartupLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/startup-lifecycle\.js['"]/
+  );
+  assert.match(fragment06Source, /const\s+startupLifecycle\s*=\s*createLegacyStartupLifecycle\(\{/);
+  assert.match(fragment06Source, /setCurrentUser:\s*\(nextUser\)\s*=>\s*\{[\s\S]*currentUser\s*=\s*nextUser/);
+  assert.match(
+    fragment06Source,
+    /initChatApp:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/
+  );
+  assert.match(fragment06Source, /const\s+\{[\s\S]*initializeApp,[\s\S]*adjustTextareaHeight,[\s\S]*\}\s*=\s*startupLifecycle/);
+  assertMarkersInOrder(fragment06Source, [
+    'bindAuthStartupListeners()',
+    'void initializeApp()',
+    'bindLoginLanguageSwitcher()',
+    'runStartupPostlude()'
+  ], '06 thin startup wrapper');
+  assert.doesNotMatch(fragment06Source, /async\s+function\s+initializeApp\(\)|const\s+toggleAuthImportButton\s*=/);
+  assert.doesNotMatch(fragment06Source, /measurementCanvas|loginLangBtn\.addEventListener/);
+
+  assert.match(
+    fragment01Source,
+    /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*adjustTextareaHeight\)/
+  );
+  assert.match(
+    fragment05Source,
+    /adjustTextareaHeight:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.adjustTextareaHeight'\)\(\.\.\.args\)/
+  );
+  assert.doesNotMatch(fragment05Source, /^\s*adjustTextareaHeight,\s*$/m);
+  assert.match(fragment05Source, /legacyRuntimeContext\.registerLazyBinding\('app\.initChatApp',\s*\(\)\s*=>\s*initChatApp\)/);
+
+  assert.doesNotMatch(runtimeAppSource, /startup-lifecycle|initializeApp/);
   assert.match(mainSource, /await\s+import\(['"]\.\/app\/legacy-app\.js['"]\)/);
   assert.match(legacyEntrySource, /import\s+['"]virtual:legacy-app-runtime['"];/);
   assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
@@ -1255,16 +1319,17 @@ test('store navigation lifecycle owns only the selected bootstrap listeners', ()
 
 test('auth and homepage import bindings remain before startup in legacy order', () => {
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
-  const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
+  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
+  const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
 
-  assertMarkersInOrder(fragment06Source, [
-    "ALL_ELEMENTS.authForm.addEventListener('submit', handleLogin)",
-    "ALL_ELEMENTS.usernameInput.addEventListener('input', toggleAuthImportButton)",
-    "ALL_ELEMENTS.passwordInput.addEventListener('input', toggleAuthImportButton)",
-    "ALL_ELEMENTS.importBtnAuth.addEventListener('click', handleImportOnAuth)",
-    "ALL_ELEMENTS.confirmImportBtnAuth.addEventListener('click', processAuthImport)",
-    "ALL_ELEMENTS.cancelImportBtnAuth.addEventListener('click'",
-    '(async function initializeApp()'
+  assertMarkersInOrder(startupLifecycleSource, [
+    "elements.authForm.addEventListener('submit', handleLogin)",
+    "elements.usernameInput.addEventListener('input', toggleAuthImportButton)",
+    "elements.passwordInput.addEventListener('input', toggleAuthImportButton)",
+    "elements.importBtnAuth.addEventListener('click', handleImportOnAuth)",
+    "elements.confirmImportBtnAuth.addEventListener('click', processAuthImport)",
+    "elements.cancelImportBtnAuth.addEventListener('click'",
+    'async function initializeApp()'
   ], '06 auth bootstrap');
 
   assertMarkersInOrder(initializeAppBody, [
@@ -1272,11 +1337,17 @@ test('auth and homepage import bindings remain before startup in legacy order', 
     'await loadAppData()',
     'applyCustomWallpaper()',
     'applyUiTheme()',
-    "ALL_ELEMENTS.authContainer.style.display = 'none'",
-    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
-    "ALL_ELEMENTS.appContainer.classList.add('visible')",
-    "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
+    "elements.authContainer.style.display = 'none'",
+    "elements.appContainer.classList.remove('hidden')",
+    "elements.appContainer.classList.add('visible')",
+    'initChatApp()'
   ], '06 auto-login startup');
+  assertMarkersInOrder(fragment06Source, [
+    'bindAuthStartupListeners()',
+    'void initializeApp()',
+    'bindLoginLanguageSwitcher()',
+    'runStartupPostlude()'
+  ], '06 startup lifecycle wiring');
 });
 
 test('input submit bindings and late P2P composition preserve bootstrap order', () => {
@@ -1391,8 +1462,8 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-  const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
-  const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
+  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
+  const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
 
   assertMarkersInOrder(fragment01Source, [
     "legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState'",
@@ -1426,9 +1497,9 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
     'await loadAppData()',
     'applyCustomWallpaper()',
     'applyUiTheme()',
-    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
-    "ALL_ELEMENTS.appContainer.classList.add('visible')",
-    "legacyRuntimeContext.resolveBinding('app.initChatApp')()"
+    "elements.appContainer.classList.remove('hidden')",
+    "elements.appContainer.classList.add('visible')",
+    'initChatApp()'
   ], '06 startup handoff');
 
   assert.equal(
@@ -1444,10 +1515,11 @@ test('initChatApp callers use the required runtime handoff without changing lega
   const fragment05Source = readSource('src/app/legacy-runtime/fragments/05-runtime.fragment.js');
   const fragment06Source = readSource('src/app/legacy-runtime/fragments/06-runtime.fragment.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const handleLoginBody = getConstFunctionBody(fragment02Source, 'handleLogin');
   const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
-  const initializeAppBody = getBlockFromMarker(fragment06Source, '(async function initializeApp()');
+  const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
   const requiredHandoff = "legacyRuntimeContext.resolveBinding('app.initChatApp')()";
 
   const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
@@ -1475,13 +1547,11 @@ test('initChatApp callers use the required runtime handoff without changing lega
     );
   }
 
-  for (const [body, label] of [
-    [handleLoginBody, '02 handleLogin'],
-    [initializeAppBody, '06 initializeApp']
-  ]) {
-    assert.equal((body.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 1, `${label} should resolve the handoff once`);
-    assert.doesNotMatch(body, /await\s+legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)/);
-  }
+  assert.equal((handleLoginBody.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 1);
+  assert.doesNotMatch(handleLoginBody, /await\s+legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)/);
+  assert.equal((initializeAppBody.match(/\binitChatApp\(\)/g) || []).length, 1);
+  assert.doesNotMatch(startupLifecycleSource, /legacyRuntimeContext/);
+  assert.equal((fragment06Source.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 1);
   assert.equal((fragment03Source.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 1, '03 auth import wiring should resolve the handoff once');
   assert.equal((processAuthImportBody.match(/\binitChatApp\(\)/g) || []).length, 1, 'auth import lifecycle should invoke the injected handoff once');
 
@@ -1510,10 +1580,10 @@ test('initChatApp callers use the required runtime handoff without changing lega
     'await loadAppData()',
     'applyCustomWallpaper()',
     'applyUiTheme()',
-    "ALL_ELEMENTS.authContainer.style.display = 'none'",
-    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
-    "ALL_ELEMENTS.appContainer.classList.add('visible')",
-    requiredHandoff,
+    "elements.authContainer.style.display = 'none'",
+    "elements.appContainer.classList.remove('hidden')",
+    "elements.appContainer.classList.add('visible')",
+    'initChatApp()',
     'return'
   ], '06 startup initChatApp handoff');
 });

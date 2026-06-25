@@ -183,7 +183,8 @@ async function sendConversationToMail(userMessageObject, aiResponseText) {
             handleBatchDelete,
             handleBatchArchive,
             handleBatchMove,
-            adjustTextareaHeight,
+            adjustTextareaHeight: (...args) =>
+                legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
             submitChatForm,
             closeAllPopovers,
             showCustomPrompt,
