@@ -234,6 +234,7 @@ test('sensitive config export redaction boundary is explicit', () => {
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const streamApiSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
   const redactionSource = readSource(redactionPath);
   const sensitiveStoreSource = readSource(sensitiveStorePath);
   const inputIntentSource = readSource(inputIntentPath);
@@ -245,6 +246,7 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.equal(existsSync(projectFile('tests/security/api-key-mask.test.js')), true);
   assert.equal(existsSync(projectFile('tests/security/export-redacts-secrets.test.js')), true);
   assert.equal(existsSync(projectFile('tests/security/sensitive-config-store.test.js')), true);
+  assert.equal(existsSync(projectFile('tests/security/gemini-key-transport.test.js')), true);
   assert.equal(existsSync(projectFile('tests/runtime-sensitive-config-persistence.test.js')), true);
   assert.match(redactionSource, /export\s+const\s+SENSITIVE_API_KEY_FIELDS/);
   assert.match(redactionSource, /'gemini'/);
@@ -282,6 +284,10 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(settingsAuthProviderSource, /readApiKeyInputIntent/);
   assert.match(settingsAuthProviderSource, /markApiKeyInputCleared/);
   assert.doesNotMatch(settingsAuthProviderSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
+  assert.match(settingsAuthProviderSource, /'x-goog-api-key':\s*apiKey/);
+  assert.match(streamApiSource, /'x-goog-api-key':\s*apiKey/);
+  assert.doesNotMatch(settingsAuthProviderSource, /:generateContent\?key=|\?key=\$\{apiKey\}/);
+  assert.doesNotMatch(streamApiSource, /:streamGenerateContent\?key=|\?key=\$\{apiKey\}/);
   assert.doesNotMatch(inputIntentSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
   assert.doesNotMatch(inputIntentSource, /input\.dataset\.raw|dataset\.raw|secretValue/);
   assert.doesNotMatch(redactionSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);

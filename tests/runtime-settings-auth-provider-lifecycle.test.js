@@ -222,6 +222,71 @@ test('factory exposes settings auth provider lifecycle API', () => {
   assert.equal(typeof lifecycle.councilResponseLifecycle, 'object');
 });
 
+test('callApiWithSchema sends Gemini key through header instead of URL query', async () => {
+  const requests = [];
+  const { dependencies } = createDependencies({
+    getApiKeyForProvider: (provider) => provider === 'gemini' ? 'gemini-secret-key' : '',
+    fetch: async (url, options) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        json: async () => ({
+          candidates: [
+            { content: { parts: [{ text: '{"ok":true}' }] } }
+          ]
+        })
+      };
+    }
+  });
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  const result = await lifecycle.callApiWithSchema('Return JSON', {
+    type: 'OBJECT',
+    properties: { ok: { type: 'BOOLEAN' } }
+  });
+
+  assert.deepEqual(result, { ok: true });
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /\/cheap:generateContent$/);
+  assert.equal(requests[0].url.includes('?key='), false);
+  assert.equal(requests[0].url.includes('gemini-secret-key'), false);
+  assert.deepEqual(requests[0].options.headers, {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': 'gemini-secret-key'
+  });
+});
+
+test('shouldPerformWebSearch sends Gemini key through header instead of URL query', async () => {
+  const requests = [];
+  const { dependencies } = createDependencies({
+    getApiKeyForProvider: (provider) => provider === 'gemini' ? 'gemini-secret-key' : '',
+    fetch: async (url, options) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        json: async () => ({
+          candidates: [
+            { content: { parts: [{ text: 'yes' }] } }
+          ]
+        })
+      };
+    }
+  });
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  const result = await lifecycle.shouldPerformWebSearch('Latest release notes?');
+
+  assert.equal(result, true);
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /\/cheap:generateContent$/);
+  assert.equal(requests[0].url.includes('?key='), false);
+  assert.equal(requests[0].url.includes('gemini-secret-key'), false);
+  assert.deepEqual(requests[0].options.headers, {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': 'gemini-secret-key'
+  });
+});
+
 test('delete-all path uses injected storage adapter and preserves reload ordering', async () => {
   const { dependencies, calls } = createDependencies();
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);

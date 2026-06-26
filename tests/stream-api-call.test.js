@@ -216,8 +216,13 @@ test('Gemini requests preserve native payload, headers, web search, and partial 
     undefined
   );
 
-  assert.match(requests[0].url, /gemini\/model:streamGenerateContent\?key=gemini-key$/);
-  assert.deepEqual(requests[0].options.headers, { 'Content-Type': 'application/json' });
+  assert.match(requests[0].url, /gemini\/model:streamGenerateContent$/);
+  assert.equal(requests[0].url.includes('?key='), false);
+  assert.equal(requests[0].url.includes('gemini-key'), false);
+  assert.deepEqual(requests[0].options.headers, {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': 'gemini-key'
+  });
   const payload = JSON.parse(requests[0].options.body);
   assert.equal(payload.contents.at(-1).role, 'user');
   assert.deepEqual(payload.tools, [{ googleSearch: {} }]);

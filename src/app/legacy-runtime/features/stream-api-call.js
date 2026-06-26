@@ -201,9 +201,9 @@ const buildGeminiRequest = ({
     payload.tools = [{ googleSearch: {} }];
   }
   return {
-    url: `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent?key=${apiKey}`,
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent`,
     payload,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     isStepPlanDirectVideoRequest: false
   };
 };
