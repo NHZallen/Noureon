@@ -999,7 +999,28 @@ test('sidebar chat Astra render lifecycle ownership stays in a real module with 
   );
   assert.match(fragment01Source, /const\s+sidebarChatAstraRenderLifecycle\s*=\s*createLegacySidebarChatAstraRenderLifecycle\(\{/);
   assert.match(fragment01Source, /replaceAstras:\s*\(nextAstras\)\s*=>\s*\{\s*astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\);\s*return\s+astras;\s*\}/);
+  assert.match(fragment01Source, /showMobileContextMenu:\s*\(\.\.\.args\)\s*=>\s*showMobileContextMenu\(\.\.\.args\)/);
+  assert.match(fragment01Source, /showMobileContextMenuForFolder:\s*\(\.\.\.args\)\s*=>\s*showMobileContextMenuForFolder\(\.\.\.args\)/);
+  assert.match(fragment01Source, /openAvatarEditor:\s*\(\.\.\.args\)\s*=>\s*openAvatarEditor\(\.\.\.args\)/);
+  assert.match(fragment01Source, /setupMessageIntersectionObserver:\s*\(\.\.\.args\)\s*=>\s*setupMessageIntersectionObserver\(\.\.\.args\)/);
   assert.match(fragment01Source, /\{\s*renderFolders,[\s\S]*createConversationElement,[\s\S]*renderArchivedChats,[\s\S]*addMessageToUI,[\s\S]*renderChat,[\s\S]*createAstras,[\s\S]*handleSaveAstras,[\s\S]*deleteAstras[\s\S]*\}\s*=\s*sidebarChatAstraRenderLifecycle\);/);
+  const settingsLifecycleIndex = fragment01Source.indexOf(
+    'const settingsAuthProviderLifecycle = createLegacySettingsAuthProviderLifecycle({'
+  );
+  const createHistoryMenuAliasIndex = fragment01Source.indexOf(
+    'createHistoryMenu,',
+    settingsLifecycleIndex
+  );
+  const sidebarLifecycleIndex = fragment01Source.indexOf(
+    'const sidebarChatAstraRenderLifecycle = createLegacySidebarChatAstraRenderLifecycle({'
+  );
+  assert.notEqual(settingsLifecycleIndex, -1, 'settings/auth/provider lifecycle should be wired');
+  assert.notEqual(createHistoryMenuAliasIndex, -1, 'createHistoryMenu alias should be assigned from settings/auth/provider lifecycle');
+  assert.notEqual(sidebarLifecycleIndex, -1, 'sidebar/chat/Astra lifecycle should be wired');
+  assert.ok(
+    settingsLifecycleIndex < createHistoryMenuAliasIndex && createHistoryMenuAliasIndex < sidebarLifecycleIndex,
+    'createHistoryMenu should be assigned before sidebar/chat/Astra lifecycle receives it'
+  );
   for (const removedInlineBody of [
     /const\s+renderFolders\s*=\s*\(\)\s*=>\s*\{/,
     /const\s+createConversationElement\s*=\s*\(conv\)\s*=>\s*\{/,

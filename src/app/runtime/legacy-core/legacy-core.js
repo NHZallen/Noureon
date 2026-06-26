@@ -1612,6 +1612,7 @@ function renderMarkdownWithFormulas(text) {
         import { createLegacySidebarChatAstraRenderLifecycle } from '/src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
         import { createLegacyConversationMailSender } from '/src/app/runtime/features/conversation-mail.js';
         import { createLegacySubmitInputCouncilLifecycle } from '/src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
+        import { createLegacySettingsAuthProviderLifecycle } from '/src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
 
         const sendConversationToMail = createLegacyConversationMailSender({
             getActiveConversation,
@@ -1751,93 +1752,6 @@ function renderMarkdownWithFormulas(text) {
             return adjustTextareaHeight;
         });
         legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
-        const sidebarChatAstraRenderState = {
-            get config() { return config; },
-            get conversations() { return conversations; },
-            get folders() { return folders; },
-            get astras() { return astras; },
-            set astras(next) { astras = next; },
-            get currentUser() { return currentUser; },
-            get editingAstrasId() { return editingAstrasId; },
-            set editingAstrasId(next) { editingAstrasId = next; },
-            get selectedConversationIds() { return selectedConversationIds; },
-            get isSelectionMode() { return isSelectionMode; },
-            get isAutoScrolling() { return isAutoScrolling; }
-        };
-        const sidebarChatAstraRenderLifecycle = createLegacySidebarChatAstraRenderLifecycle({
-            window,
-            document,
-            navigator,
-            fetch,
-            File,
-            crypto,
-            requestAnimationFrame,
-            elements: ALL_ELEMENTS,
-            legacyRuntimeContext,
-            state: sidebarChatAstraRenderState,
-            runtimeDomAccess,
-            runtimeConfigAccess,
-            conversationStateAccess,
-            runtimeRenderCoordinator,
-            runtimeDialogCoordinator,
-            i18n,
-            getActiveConversation,
-            normalizeConversationModel,
-            isCouncilEnabled,
-            getCouncilTexts,
-            resolveFolderColor,
-            folderColors: FOLDER_COLORS,
-            saveAppData,
-            renderAstras,
-            renderAll,
-            renderBatchActionBar: (...args) => renderBatchActionBar(...args),
-            loadChat,
-            createHistoryMenu,
-            createFolderMenu: (...args) => createFolderMenu(...args),
-            deleteChat,
-            showArchivedChatPreview,
-            unarchiveChat,
-            showMobileContextMenu,
-            showMobileContextMenuForFolder,
-            openAvatarEditor,
-            toggleModal,
-            showNotification,
-            showCustomConfirm,
-            buildMessageRenderView,
-            escapeHTML,
-            renderUserText,
-            renderMarkdownWithFormulas,
-            formatFullTimestamp,
-            renderModelSwitcher,
-            renderInputIndicators,
-            renderCouncilControls,
-            setupMessageIntersectionObserver,
-            replaceAstras: (nextAstras) => {
-                astras = runtimeAppDataStore.replaceAstras(nextAstras);
-                return astras;
-            }
-        });
-        ({
-            renderFolders,
-            createConversationElement,
-            renderArchivedChats,
-            addMessageToUI,
-            renderChat,
-            getActiveAstrasId,
-            setAstrasForConversation,
-            deactivateAstras,
-            createAstras,
-            handleSaveAstras,
-            deleteAstras,
-            createAstrasMenu
-        } = sidebarChatAstraRenderLifecycle);
-        import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
-        import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
-        import { createLegacyTransitionBusLifecycle } from '/src/app/runtime/legacy-core/transition-bus-lifecycle.js';
-        import { createLegacySettingsAuthProviderLifecycle } from '/src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
-        import {
-            FOLDER_SVGS as FOLDER_ICON_OPTIONS,
-        } from '/src/app/legacy-runtime/data/folder-metadata.js';
         const settingsAuthProviderState = {
             get config() { return config; },
             set config(next) { config = next; },
@@ -1911,7 +1825,7 @@ function renderMarkdownWithFormulas(text) {
             renderUiColorOptions: (...args) => renderUiColorOptions(...args),
             renderTrash: (...args) => renderTrash(...args),
             renderModelSwitcher,
-            renderChat,
+            renderChat: (...args) => renderChat(...args),
             renderStore: (...args) => renderStore(...args),
             updateApiKeyWarningBadge: (...args) => updateApiKeyWarningBadge(...args),
             applyUiTheme: (...args) => applyUiTheme(...args),
@@ -1974,6 +1888,92 @@ function renderMarkdownWithFormulas(text) {
         } = settingsAuthProviderLifecycle;
         legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
         legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
+        const sidebarChatAstraRenderState = {
+            get config() { return config; },
+            get conversations() { return conversations; },
+            get folders() { return folders; },
+            get astras() { return astras; },
+            set astras(next) { astras = next; },
+            get currentUser() { return currentUser; },
+            get editingAstrasId() { return editingAstrasId; },
+            set editingAstrasId(next) { editingAstrasId = next; },
+            get selectedConversationIds() { return selectedConversationIds; },
+            get isSelectionMode() { return isSelectionMode; },
+            get isAutoScrolling() { return isAutoScrolling; }
+        };
+        const sidebarChatAstraRenderLifecycle = createLegacySidebarChatAstraRenderLifecycle({
+            window,
+            document,
+            navigator,
+            fetch,
+            File,
+            crypto,
+            requestAnimationFrame,
+            elements: ALL_ELEMENTS,
+            legacyRuntimeContext,
+            state: sidebarChatAstraRenderState,
+            runtimeDomAccess,
+            runtimeConfigAccess,
+            conversationStateAccess,
+            runtimeRenderCoordinator,
+            runtimeDialogCoordinator,
+            i18n,
+            getActiveConversation,
+            normalizeConversationModel,
+            isCouncilEnabled,
+            getCouncilTexts,
+            resolveFolderColor,
+            folderColors: FOLDER_COLORS,
+            saveAppData,
+            renderAstras,
+            renderAll,
+            renderBatchActionBar: (...args) => renderBatchActionBar(...args),
+            loadChat,
+            createHistoryMenu,
+            createFolderMenu: (...args) => createFolderMenu(...args),
+            deleteChat,
+            showArchivedChatPreview,
+            unarchiveChat,
+            showMobileContextMenu: (...args) => showMobileContextMenu(...args),
+            showMobileContextMenuForFolder: (...args) => showMobileContextMenuForFolder(...args),
+            openAvatarEditor: (...args) => openAvatarEditor(...args),
+            toggleModal,
+            showNotification,
+            showCustomConfirm,
+            buildMessageRenderView,
+            escapeHTML,
+            renderUserText,
+            renderMarkdownWithFormulas,
+            formatFullTimestamp,
+            renderModelSwitcher,
+            renderInputIndicators,
+            renderCouncilControls,
+            setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args),
+            replaceAstras: (nextAstras) => {
+                astras = runtimeAppDataStore.replaceAstras(nextAstras);
+                return astras;
+            }
+        });
+        ({
+            renderFolders,
+            createConversationElement,
+            renderArchivedChats,
+            addMessageToUI,
+            renderChat,
+            getActiveAstrasId,
+            setAstrasForConversation,
+            deactivateAstras,
+            createAstras,
+            handleSaveAstras,
+            deleteAstras,
+            createAstrasMenu
+        } = sidebarChatAstraRenderLifecycle);
+        import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
+        import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
+        import { createLegacyTransitionBusLifecycle } from '/src/app/runtime/legacy-core/transition-bus-lifecycle.js';
+        import {
+            FOLDER_SVGS as FOLDER_ICON_OPTIONS,
+        } from '/src/app/legacy-runtime/data/folder-metadata.js';
         const {
             createNewFolder,
             moveConversationToFolder,
