@@ -329,6 +329,7 @@ test('runtime entry cutover helpers no longer rely on 05 lexical ownership', () 
   const imageCompressionSource = readSource(imageCompressionPath);
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
@@ -352,9 +353,10 @@ test('runtime entry cutover helpers no longer rely on 05 lexical ownership', () 
     /const\s+sendConversationToMail\s*=\s*createLegacyConversationMailSender\(\{/
   );
   assert.match(
-    fragment03Source,
-    /import\s+\{\s*compressImage\s*\}\s+from\s+['"]\/src\/app\/runtime\/utils\/image-compression\.js['"]/
+    batchImportVoiceSource,
+    /import\s+\{\s*compressImage\s*\}\s+from\s+['"]\.\.\/utils\/image-compression\.js['"]/
   );
+  assert.doesNotMatch(fragment03Source, /\bcompressImage\b/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/05-runtime.fragment.js')), false);
 
   assert.match(runtimeEntrySource, /export\s+function\s+registerRuntimeEntryBindings/);
@@ -520,6 +522,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const laterFragmentSources = [
@@ -600,7 +603,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource).match(/\bsaveAppData\(\)/g) || []).length,
     31
   );
   for (const source of laterFragmentSources) {
@@ -999,6 +1002,7 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
   const lifecyclePath = 'src/app/runtime/features/import-export-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
@@ -1010,12 +1014,29 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
     /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|initChatApp|initializeApp|chat_lastUser|createPasswordRecord|getUserKey/
   );
   assert.doesNotMatch(lifecycleSource, /(?:^|\n)\s*currentUser\s*=/);
-  assert.match(fragment03Source, /import\s+\{\s*createLegacyImportExportLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/import-export-lifecycle\.js['"]/);
-  assertMarkersInOrder(fragment03Source, [
+  assert.match(batchImportVoiceSource, /import\s+\{\s*createLegacyImportExportLifecycle\s*\}\s+from\s+['"]\.\.\/features\/import-export-lifecycle\.js['"]/);
+  assert.doesNotMatch(fragment03Source, /createLegacyImportExportLifecycle/);
+  assertMarkersInOrder(batchImportVoiceSource, [
     'const importExportLifecycle = createLegacyImportExportLifecycle({',
-    'getCurrentUser: () => currentUser',
+    'getCurrentUser',
+    'getConfig',
+    'mutateConfig',
+    'getConversations',
+    'getFolders',
+    'getAstras',
+    'getPersonalMemories',
+    'replaceAllAppData',
+    'replaceFolders',
+    'replacePersonalMemories',
+    'saveAppData',
+    'saveConfig',
+    'const authImportLifecycle = createLegacyAuthImportLifecycle({'
+  ], 'batch/import/voice lifecycle import/export composition and auth split');
+  assertMarkersInOrder(fragment03Source, [
+    'const batchImportVoiceLifecycle = createLegacyBatchImportVoiceLifecycle({',
     'getConfig: () => config',
     'mutateConfig: (mutator) => {',
+    'getCurrentUser: () => currentUser',
     'getConversations: () => conversations',
     'getFolders: () => folders',
     'getAstras: () => astras',
@@ -1030,15 +1051,12 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
     'folders = runtimeAppDataStore.replaceFolders(nextFolders)',
     'replacePersonalMemories: (nextPersonalMemories) => {',
     'personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories)',
-    'saveAppData',
-    'saveConfig',
     'const {',
     'handleExport',
     'performImport',
     'handleImport',
-    '} = importExportLifecycle',
-    'const authImportLifecycle = createLegacyAuthImportLifecycle({'
-  ], '03 import/export lifecycle wiring and auth split');
+    '} = batchImportVoiceLifecycle'
+  ], '03 batch/import/voice lifecycle wiring');
   for (const name of ['handleExport', 'performImport', 'handleImport']) {
     assert.doesNotMatch(fragment03Source, new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`));
   }
@@ -1055,6 +1073,7 @@ test('auth import lifecycle ownership moves out of 03 into a real runtime module
   const lifecycleSource = readSource(lifecyclePath);
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
@@ -1064,33 +1083,32 @@ test('auth import lifecycle ownership moves out of 03 into a real runtime module
     /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|legacyRuntimeContext|initializeApp|handleLogin|handleLogout/
   );
   assert.doesNotMatch(lifecycleSource, /(?:^|\n)\s*currentUser\s*=/);
-  assert.match(fragment03Source, /import\s+\{\s*createLegacyAuthImportLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/auth-import-lifecycle\.js['"]/);
-  assertMarkersInOrder(fragment03Source, [
+  assert.match(batchImportVoiceSource, /import\s+\{\s*createLegacyAuthImportLifecycle\s*\}\s+from\s+['"]\.\.\/features\/auth-import-lifecycle\.js['"]/);
+  assert.doesNotMatch(fragment03Source, /createLegacyAuthImportLifecycle/);
+  assertMarkersInOrder(batchImportVoiceSource, [
     'const authImportLifecycle = createLegacyAuthImportLifecycle({',
     'elements: ALL_ELEMENTS',
-    'getConfig: () => config',
-    'mutateConfig: (mutator) => {',
+    'getConfig',
+    'mutateConfig',
+    'setCurrentUser',
+    'createPasswordRecord',
+    'getUserKey',
+    'setItem',
+    'replaceAllAppData',
+    'replaceFolders',
+    'replacePersonalMemories',
+    "initChatApp: () => legacyRuntimeContext.resolveBinding('app.initChatApp')()",
+  ], 'batch/import/voice auth import lifecycle composition');
+  assertMarkersInOrder(fragment03Source, [
     'setCurrentUser: (nextUser) => {',
     'currentUser = nextUser',
     'createPasswordRecord',
     'getUserKey',
     'setItem',
-    'replaceAllAppData: (nextAppData) => {',
-    'const snapshot = runtimeAppDataStore.replaceAll(nextAppData)',
-    'conversations = snapshot.conversations',
-    'folders = snapshot.folders',
-    'astras = snapshot.astras',
-    'personalMemories = snapshot.personalMemories',
-    'replaceFolders: (nextFolders) => {',
-    'folders = runtimeAppDataStore.replaceFolders(nextFolders)',
-    'replacePersonalMemories: (nextPersonalMemories) => {',
-    'personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories)',
-    "initChatApp: () => legacyRuntimeContext.resolveBinding('app.initChatApp')()",
-    'const {',
     'handleImportOnAuth',
     'processAuthImport',
-    '} = authImportLifecycle'
-  ], '03 auth import lifecycle wiring');
+    '} = batchImportVoiceLifecycle'
+  ], '03 auth import bridge wiring');
   for (const name of ['handleImportOnAuth', 'processAuthImport']) {
     assert.doesNotMatch(fragment03Source, new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`));
   }
@@ -1244,6 +1262,35 @@ test('search upload sidebar lifecycle moves search upload sidebar ownership out 
   assert.match(lifecycleSource, /const\s+performSearchAndRenderResults\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /createUploadedFilePreviewLifecycle\(\{/);
   assert.match(lifecycleSource, /function\s+toggleSidebar\(show\)\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
+  assert.match(fragment03Source, /legacyRuntimeContext\.registerLazyBinding\(\s*['"]runtime\.coreTailDependencies['"]/);
+});
+
+test('batch import voice lifecycle moves batch import and voice ownership out of 03', () => {
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const lifecycleSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
+
+  assert.equal(existsSync(projectFile('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js')), true);
+  assert.match(lifecycleSource, /export\s+function\s+createLegacyBatchImportVoiceLifecycle/);
+  assert.match(fragment03Source, /import\s+\{\s*createLegacyBatchImportVoiceLifecycle\s*\}/);
+  assert.match(fragment03Source, /const\s+batchImportVoiceLifecycle\s*=\s*createLegacyBatchImportVoiceLifecycle\(\{/);
+  assert.match(fragment03Source, /getSelectedConversationIds:\s*\(\)\s*=>\s*selectedConversationIds/);
+  assert.match(fragment03Source, /conversationStateAccess,/);
+  assert.match(fragment03Source, /replaceAllAppData:\s*\(nextAppData\)\s*=>\s*\{/);
+  assert.match(fragment03Source, /setCurrentSpeechRecognition:\s*\(nextRecognition\)\s*=>\s*\{/);
+  assert.match(fragment03Source, /setCurrentVoiceTarget:\s*\(nextTarget\)\s*=>\s*\{/);
+  assert.match(fragment03Source, /handleBatchDelete,\s*handleBatchArchive,\s*handleBatchMove,/);
+  assert.match(fragment03Source, /handleExport,\s*performImport,\s*handleImport,/);
+  assert.match(fragment03Source, /handleImportOnAuth,\s*processAuthImport,\s*setupVoiceInput,/);
+  assert.doesNotMatch(fragment03Source, /const\s+handleBatchDelete\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /const\s+handleBatchArchive\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /const\s+setupVoiceInput\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /const\s+toggleVoiceInput\s*=\s*\(target\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /createLegacyImportExportLifecycle|createLegacyAuthImportLifecycle/);
+  assert.match(lifecycleSource, /const\s+handleBatchDelete\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /createLegacyImportExportLifecycle\(\{/);
+  assert.match(lifecycleSource, /createLegacyAuthImportLifecycle\(\{/);
+  assert.match(lifecycleSource, /const\s+setupVoiceInput\s*=\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
   assert.match(fragment03Source, /legacyRuntimeContext\.registerLazyBinding\(\s*['"]runtime\.coreTailDependencies['"]/);
 });
@@ -1703,6 +1750,7 @@ test('initChatApp callers use the required runtime handoff without changing lega
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const handleLoginBody = getConstFunctionBody(fragment02Source, 'handleLogin');
   const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
   const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
@@ -1731,7 +1779,8 @@ test('initChatApp callers use the required runtime handoff without changing lega
   assert.doesNotMatch(handleLoginBody, /await\s+legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)/);
   assert.equal((initializeAppBody.match(/\binitChatApp\(\)/g) || []).length, 1);
   assert.doesNotMatch(startupLifecycleSource, /legacyRuntimeContext/);
-  assert.equal((fragment03Source.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 1, '03 auth import wiring should resolve the handoff once');
+  assert.equal((fragment03Source.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 0, '03 should inject runtime context without owning the auth import handoff');
+  assert.equal((batchImportVoiceSource.match(/resolveBinding\('app\.initChatApp'\)\(\)/g) || []).length, 1, 'batch/import/voice lifecycle should resolve the auth import handoff once');
   assert.equal((processAuthImportBody.match(/\binitChatApp\(\)/g) || []).length, 1, 'auth import lifecycle should invoke the injected handoff once');
 
   assertMarkersInOrder(handleLoginBody, [
@@ -1962,6 +2011,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
@@ -1969,7 +2019,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
-  const handleBatchArchiveBody = getConstFunctionBody(fragment03Source, 'handleBatchArchive');
+  const handleBatchArchiveBody = getConstFunctionBody(batchImportVoiceSource, 'handleBatchArchive');
   const defaultModelUpdateBody = getBlockFromMarker(modelMemoryDashboardSource, 'input[name="default-model-radio"]');
   const moveModelOrderBody = getConstFunctionBody(modelMemoryDashboardSource, 'moveModelOrder');
   const handleRestoreTrashItemBody = getConstFunctionBody(trashLifecycleSource, 'handleRestoreTrashItem');
@@ -2007,6 +2057,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(defaultModelUpdateBody, /config\.defaultModel\s*=\s*modelId;\s*await\s+saveConfig\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
   assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
   assert.match(fragment03Source, /moveModelOrder,\s*renderPersonalMemoryList,/);
+  assert.match(fragment03Source, /handleBatchArchive,/);
 });
 
 test('runtime config access owns selected uiLanguage reads through the config store', () => {
@@ -2139,12 +2190,13 @@ test('conversation state access owns selected active conversation lookups withou
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/conversation-state-access.js');
   const createConversationElementBody = getConstFunctionBody(fragment01Source, 'createConversationElement');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const archiveChatBody = getConstFunctionBody(fragment00Source, 'archiveChat');
-  const batchDeleteBody = getConstFunctionBody(fragment03Source, 'handleBatchDelete');
-  const batchArchiveBody = getConstFunctionBody(fragment03Source, 'handleBatchArchive');
+  const batchDeleteBody = getConstFunctionBody(batchImportVoiceSource, 'handleBatchDelete');
+  const batchArchiveBody = getConstFunctionBody(batchImportVoiceSource, 'handleBatchArchive');
 
   assert.match(accessSource, /export\s+function\s+createConversationStateAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createConversationStateAccess\s*\}/);
@@ -2212,6 +2264,7 @@ test('settings sidebar button remains wired to initialize and open the settings 
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(fragment02Source, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
@@ -2220,7 +2273,8 @@ test('settings sidebar button remains wired to initialize and open the settings 
   assert.match(fragment02Source, /legacyRuntimeContext\.registerLazyBinding\('input\.updateInputState',\s*\(\)\s*=>\s*updateInputState\);/);
   assert.match(fragment02Source, /const\s+getTavilySearchDepth\s*=\s*\(\)\s*=>\s*config\.tavilySearchDepth\s*===\s*'advanced'\s*\?\s*'advanced'\s*:\s*'basic';/);
   assert.match(fragment02Source, /ALL_ELEMENTS\.tavilySearchDepthSelect\.value\s*=\s*getTavilySearchDepth\(\);/);
-  assert.match(fragment03Source, /const\s+resolveSearchSetupSettingsModal\s*=\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\);/);
+  assert.doesNotMatch(fragment03Source, /const\s+resolveSearchSetupSettingsModal\b/);
+  assert.match(batchImportVoiceSource, /const\s+resolveSearchSetupSettingsModal\s*=\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\);/);
   assert.match(coreTailSource, /setupSettingsModal:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\)/);
   assert.match(appBootstrapLifecycleSource, /const\s+resolveEventsSetupSettingsModal\s*=\s*setupSettingsModal;/);
   for (const [source, fragmentLabel, resolverName] of [

@@ -1,101 +1,5 @@
-        import { compressImage } from '/src/app/runtime/utils/image-compression.js';
-
-        const handleBatchDelete = async () => {
-            const count = selectedConversationIds.size;
-            if (count === 0) return;
-            if (!(await showCustomConfirm(`${i18n[config.uiLanguage].confirmBatchMoveToTrash || '您確定要將這'} ${count} ${i18n[config.uiLanguage].conversations || '個對話'} ${i18n[config.uiLanguage].moveToTrashConfirmText || '移至垃圾桶嗎？'}`))) return;
-            selectedConversationIds.forEach(id => {
-                const conv = conversations.find(c => c.id === id);
-                if (conv) {
-                    conv.deletedAt = new Date().toISOString();
-                }
-            });
-            if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
-                const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
-                conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
-                if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
-            }
-            await saveAppData();
-            toggleSelectionMode();
-            showNotification(`${i18n[config.uiLanguage].batchMoveToTrashSuccess || '已成功將'} ${count} ${i18n[config.uiLanguage].conversations || '個對話'} ${i18n[config.uiLanguage].movedToTrashText || '移至垃圾桶。'}`, 'success');
-        };
-        const handleBatchArchive = async () => {
-            const count = selectedConversationIds.size;
-            if (count === 0) return;
-            conversations.forEach(c => {
-                if (selectedConversationIds.has(c.id)) {
-                    c.archived = true;
-                }
-            });
-            if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
-                const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
-                conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
-                if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
-            }
-            await saveAppData();
-            toggleSelectionMode();
-            runtimeDialogCoordinator.showNotification(`${i18n[config.uiLanguage].batchArchiveSuccess || '已成功封存'} ${count} ${i18n[config.uiLanguage].conversations || '個對話。'}`, 'success');
-        };
-        const handleBatchMove = () => {
-            if (selectedConversationIds.size === 0) return;
-            renderBatchMoveModal();
-            toggleModal(ALL_ELEMENTS.batchMoveModal, true);
-        };
-        const renderBatchMoveModal = (singleConvId = null) => {
-            const container = ALL_ELEMENTS.batchMoveFolderList;
-            container.dataset.singleConvId = singleConvId || '';
-            container.innerHTML = `
-                <button class="w-full text-left p-2 rounded-md hover:bg-[var(--hover-bg)]" data-folder-id="none">
-                    ${i18n[config.uiLanguage].moveOutOfFolder || '移出資料夾'}
-                </button>
-            `;
-            folders.forEach(folder => {
-                const btn = document.createElement('button');
-                btn.className = 'w-full text-left p-2 rounded-md hover:bg-[var(--hover-bg)]';
-                btn.dataset.folderId = folder.id;
-                btn.textContent = folder.name;
-                container.appendChild(btn);
-            });
-            const newFolderOption = document.createElement('button');
-            newFolderOption.className = 'w-full text-left p-2 rounded-md hover:bg-[var(--hover-bg)] flex items-center gap-2 border-t border-[var(--border-color)] mt-2';
-            newFolderOption.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path><line x1="12" y1="10" x2="12" y2="16"></line><line x1="9" y1="13" x2="15" y2="13"></line></svg>${i18n[config.uiLanguage].createNewFolder || '建立新資料夾'}`;
-            newFolderOption.addEventListener('click', async () => {
-                toggleModal(ALL_ELEMENTS.batchMoveModal, false);
-                const name = await showCustomPrompt(i18n[config.uiLanguage].enterFolderName || '請輸入新資料夾名稱：', i18n[config.uiLanguage].createFolder || '建立資料夾');
-                if (name) {
-                    const newId = createNewFolder(name);
-                    batchMoveToFolder(newId);
-                }
-            });
-            container.appendChild(newFolderOption);
-            container.querySelectorAll('button[data-folder-id]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const folderId = btn.dataset.folderId === 'none' ? null : btn.dataset.folderId;
-                    batchMoveToFolder(folderId);
-                });
-            });
-        };
-        const batchMoveToFolder = async (folderId) => {
-            const singleConvId = ALL_ELEMENTS.batchMoveFolderList.dataset.singleConvId;
-            let idsToMove;
-            if (singleConvId) {
-                idsToMove = new Set([singleConvId]);
-            } else {
-                idsToMove = selectedConversationIds;
-            }
-            const count = idsToMove.size;
-            idsToMove.forEach(convId => {
-                moveConversationToFolder(convId, folderId);
-            });
-            toggleModal(ALL_ELEMENTS.batchMoveModal, false);
-            if (!singleConvId) {
-                toggleSelectionMode();
-            }
-            showNotification(`${i18n[config.uiLanguage].moved || '已移動'} ${count} ${i18n[config.uiLanguage].conversations || '個對話。'}`);
-        };
+        import { createLegacyBatchImportVoiceLifecycle } from '/src/app/runtime/legacy-core/batch-import-voice-lifecycle.js';
         import { createLegacySearchUploadSidebarLifecycle } from '/src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js';
-        import { createLegacyImportExportLifecycle } from '/src/app/runtime/features/import-export-lifecycle.js';
-        import { createLegacyAuthImportLifecycle } from '/src/app/runtime/features/auth-import-lifecycle.js';
         import { createLegacyModelMemoryDashboardLifecycle } from '/src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js';
         const resolveUploadUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
         const searchUploadSidebarLifecycle = createLegacySearchUploadSidebarLifecycle({
@@ -143,21 +47,25 @@
             toggleSidebar
         } = searchUploadSidebarLifecycle;
         legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar);
-        const resolveSearchSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
-        const importExportLifecycle = createLegacyImportExportLifecycle({
-            document,
+        const batchImportVoiceLifecycle = createLegacyBatchImportVoiceLifecycle({
             window,
+            document,
             navigator,
             URL,
             File,
             JSZip,
             elements: ALL_ELEMENTS,
-            getCurrentUser: () => currentUser,
+            legacyRuntimeContext,
             getConfig: () => config,
             mutateConfig: (mutator) => {
                 if (typeof mutator === 'function') return mutator(config);
                 Object.assign(config, mutator);
                 return config;
+            },
+            getCurrentUser: () => currentUser,
+            setCurrentUser: (nextUser) => {
+                currentUser = nextUser;
+                return currentUser;
             },
             getConversations: () => conversations,
             getFolders: () => folders,
@@ -179,11 +87,27 @@
                 personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
                 return personalMemories;
             },
+            getSelectedConversationIds: () => selectedConversationIds,
+            conversationStateAccess,
+            runtimeDialogCoordinator,
             saveAppData,
             saveConfig,
+            toggleSelectionMode,
+            toggleModal,
+            showNotification,
+            showCustomConfirm,
+            showCustomPrompt,
+            moveConversationToFolder,
+            createNewFolder,
+            startNewChat,
             processInChunks,
             getBackupUsername,
-            compressImage,
+            createPasswordRecord,
+            getUserKey,
+            setItem,
+            hashString,
+            constantTimeEqual,
+            requestAnimationFrame,
             analyzeImageBrightness,
             getDominantColorPalette,
             applyCustomWallpaper,
@@ -192,75 +116,39 @@
             setAiBubbleColor,
             setUserBubbleColor,
             loadChat,
-            startNewChat,
-            showCustomConfirm,
-            showNotification,
-            toggleModal,
             getOutputMode,
-            resolveSearchSetupSettingsModal,
+            resolveUploadUpdateInputState,
+            performSearchAndRenderResults,
+            getCurrentSpeechRecognition: () => currentSpeechRecognition,
+            setCurrentSpeechRecognition: (nextRecognition) => {
+                currentSpeechRecognition = nextRecognition;
+                return currentSpeechRecognition;
+            },
+            setCurrentVoiceTarget: (nextTarget) => {
+                currentVoiceTarget = nextTarget;
+                return currentVoiceTarget;
+            },
             i18n,
             randomUUID: () => crypto.randomUUID(),
+            scheduleTimeout: (callback, ms) => setTimeout(callback, ms),
             delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-            logger: console,
+            logger: console
         });
 
         const {
+            handleBatchDelete,
+            handleBatchArchive,
+            handleBatchMove,
+            renderBatchMoveModal,
+            batchMoveToFolder,
             handleExport,
             performImport,
             handleImport,
-        } = importExportLifecycle;
-        const authImportLifecycle = createLegacyAuthImportLifecycle({
-            elements: ALL_ELEMENTS,
-            JSZip,
-            getConfig: () => config,
-            mutateConfig: (mutator) => {
-                if (typeof mutator === 'function') return mutator(config);
-                Object.assign(config, mutator);
-                return config;
-            },
-            setCurrentUser: (nextUser) => {
-                currentUser = nextUser;
-                return currentUser;
-            },
-            createPasswordRecord,
-            getUserKey,
-            setItem,
-            replaceAllAppData: (nextAppData) => {
-                const snapshot = runtimeAppDataStore.replaceAll(nextAppData);
-                conversations = snapshot.conversations;
-                folders = snapshot.folders;
-                astras = snapshot.astras;
-                personalMemories = snapshot.personalMemories;
-                return snapshot;
-            },
-            replaceFolders: (nextFolders) => {
-                folders = runtimeAppDataStore.replaceFolders(nextFolders);
-                return folders;
-            },
-            replacePersonalMemories: (nextPersonalMemories) => {
-                personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
-                return personalMemories;
-            },
-            saveAppData,
-            saveConfig,
-            processInChunks,
-            getBackupUsername,
-            hashString,
-            constantTimeEqual,
-            showNotification,
-            toggleModal,
-            requestAnimationFrame,
-            scheduleTimeout: (callback, ms) => setTimeout(callback, ms),
-            delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-            initChatApp: () => legacyRuntimeContext.resolveBinding('app.initChatApp')(),
-            i18n,
-            logger: console,
-        });
-
-        const {
             handleImportOnAuth,
             processAuthImport,
-        } = authImportLifecycle;
+            setupVoiceInput,
+            toggleVoiceInput
+        } = batchImportVoiceLifecycle;
         const modelMemoryDashboardLifecycle = createLegacyModelMemoryDashboardLifecycle({
             Chart,
             document,
@@ -343,52 +231,6 @@
             }
             document.body.removeChild(textArea);
         }
-        const setupVoiceInput = () => {
-            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-                ALL_ELEMENTS.voiceInputBtnMessage.addEventListener('click', () => toggleVoiceInput('message'));
-                ALL_ELEMENTS.voiceInputBtnSearch.addEventListener('click', () => toggleVoiceInput('search'));
-            } else {
-                ALL_ELEMENTS.voiceInputBtnMessage.style.display = 'none';
-                ALL_ELEMENTS.voiceInputBtnSearch.style.display = 'none';
-                showNotification(i18n[config.uiLanguage].voiceNotSupported || '您的瀏覽器不支援語音輸入功能。', 'warning');
-            }
-        };
-        const toggleVoiceInput = (target) => {
-            if (currentSpeechRecognition) {
-                currentSpeechRecognition.stop();
-                return;
-            }
-            currentVoiceTarget = target;
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            currentSpeechRecognition = new SpeechRecognition();
-            currentSpeechRecognition.lang = 'zh-TW';
-            currentSpeechRecognition.continuous = true;
-            currentSpeechRecognition.interimResults = true;
-            currentSpeechRecognition.onresult = (event) => {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
-                }
-                const inputEl = target === 'message' ? ALL_ELEMENTS.messageInput : ALL_ELEMENTS.modalSearchInput;
-                inputEl.value = transcript;
-                if (target === 'search') {
-                    performSearchAndRenderResults();
-                }
-                resolveUploadUpdateInputState();
-            };
-            currentSpeechRecognition.onend = () => {
-                currentSpeechRecognition = null;
-                currentVoiceTarget = null;
-                ALL_ELEMENTS.voiceInputBtnMessage.classList.remove('active');
-                ALL_ELEMENTS.voiceInputBtnSearch.classList.remove('active');
-            };
-            currentSpeechRecognition.onerror = (event) => {
-                showNotification(`${i18n[config.uiLanguage].voiceError || '語音輸入錯誤'}: ${event.error}`, 'error');
-                currentSpeechRecognition = null;
-            };
-            currentSpeechRecognition.start();
-            ALL_ELEMENTS[`voiceInputBtn${target.charAt(0).toUpperCase() + target.slice(1)}`].classList.add('active');
-        };
 
         const coreTailState = {
             get conversations() { return conversations; },
