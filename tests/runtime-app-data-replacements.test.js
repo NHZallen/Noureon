@@ -178,15 +178,16 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 test('Astra and folder delete flows keep linked conversation cleanup and save/render order', () => {
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
-  const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+  const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
   const deleteFolderBody = getConstFunctionBody(folderLifecycleSource, 'deleteFolder');
 
   assertMarkersInOrder(deleteAstrasBody, [
     'showCustomConfirm',
-    'astras = runtimeAppDataStore.replaceAstras(',
-    'astras.filter(a => a.id !== id)',
-    'conversations.forEach(c => {',
+    'setAstras(replaceAstras(',
+    'getAstras().filter(a => a.id !== id)',
+    'getConversations().forEach(c => {',
     'if (c.astrasId === id) c.astrasId = null',
     'await saveAppData()',
     'runtimeRenderCoordinator.renderAll()',
@@ -204,6 +205,10 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
   ], 'deleteFolder replacement and cleanup');
 
   assert.doesNotMatch(deleteAstrasBody, /astras\s*=\s*astras\.filter\(/);
+  assert.match(
+    fragment01Source,
+    /replaceAstras:\s*\(nextAstras\)\s*=>\s*\{\s*astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\);\s*return\s+astras;\s*\}/
+  );
   assert.match(
     fragment02Source,
     /replaceFolders:\s*\(nextFolders\)\s*=>\s*\{\s*folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\);\s*return\s+folders;\s*\}/
@@ -349,6 +354,7 @@ test('app data store remains wired while production boot moves through runtime e
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
@@ -366,7 +372,11 @@ test('app data store remains wired while production boot moves through runtime e
   assert.match(fragment00Source, /let\s+folders\s*=\s*runtimeAppDataStore\.getFolders\(\)/);
   assert.match(fragment00Source, /let\s+astras\s*=\s*runtimeAppDataStore\.getAstras\(\)/);
   assert.match(fragment00Source, /let\s+personalMemories\s*=\s*runtimeAppDataStore\.getPersonalMemories\(\)/);
-  assert.match(fragment01Source, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*astras\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\s*\)/);
+  assert.match(sidebarChatAstraRenderSource, /setAstras\(replaceAstras\(\s*getAstras\(\)\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\s*\)\)/);
+  assert.match(
+    fragment01Source,
+    /replaceAstras:\s*\(nextAstras\)\s*=>\s*\{\s*astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\);\s*return\s+astras;\s*\}/
+  );
   assert.match(folderLifecycleSource, /replaceFolders\(folders\.filter\(item\s*=>\s*item\.id\s*!==\s*id\)\)/);
   assert.match(
     fragment02Source,

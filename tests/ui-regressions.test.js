@@ -250,13 +250,15 @@ test('app typography uses restrained GPT-like system weights and mobile settings
 
 test('folder color rendering supports saved css color values without falling back', () => {
   const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const runtime02 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const runtime00 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const css = readUiSource('src/styles/main.css');
 
   assert.match(runtime00, /resolveFolderColor/);
-  assert.match(runtime01, /resolveFolderColor\(folder\.color,\s*FOLDER_COLORS,\s*FOLDER_COLORS\.gray\)/);
-  assert.match(runtime01, /--folder-icon-color:\s*\$\{iconColor\}/);
+  assert.match(runtime01, /folderColors:\s*FOLDER_COLORS/);
+  assert.match(sidebarChatAstraRenderSource, /resolveFolderColor\(folder\.color,\s*folderColors,\s*folderColors\.gray\)/);
+  assert.match(sidebarChatAstraRenderSource, /--folder-icon-color:\s*\$\{iconColor\}/);
   assert.match(runtime02, /normalizeFolderColorSelection\(selectedColor,\s*FOLDER_COLORS\)/);
   assert.match(css, /\.folder-icon\s*\{[^}]*color:\s*var\(--folder-icon-color,\s*inherit\)\s*!important;/s);
 });

@@ -1,0 +1,193 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+
+import { createLegacySidebarChatAstraRenderLifecycle } from '../src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
+
+const projectFile = (path) => new URL(`../${path}`, import.meta.url);
+const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+const noop = () => {};
+
+function createElement() {
+  return {
+    children: [],
+    classList: {
+      add: noop,
+      remove: noop,
+      toggle: noop
+    },
+    dataset: {},
+    innerHTML: '',
+    style: {},
+    textContent: '',
+    value: '',
+    addEventListener: noop,
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+    closest() {
+      return this;
+    },
+    getBoundingClientRect() {
+      return { bottom: 0, left: 0, top: 0 };
+    },
+    querySelector() {
+      return createElement();
+    },
+    querySelectorAll() {
+      return [];
+    },
+    remove: noop
+  };
+}
+
+function createDependencies(overrides = {}) {
+  const elements = new Proxy({}, {
+    get(target, key) {
+      if (!(key in target)) target[key] = createElement();
+      return target[key];
+    }
+  });
+  const folderList = createElement();
+  const state = {
+    config: { uiLanguage: 'en', autoNaming: false },
+    conversations: [],
+    folders: [],
+    astras: [],
+    currentUser: { username: 'tester' },
+    editingAstrasId: null,
+    selectedConversationIds: new Set(),
+    isSelectionMode: false,
+    isAutoScrolling: false
+  };
+  const calls = [];
+
+  return {
+    window: { innerHeight: 800, innerWidth: 1024 },
+    document: {
+      body: createElement(),
+      createElement,
+      getElementById: () => null,
+      querySelector: () => createElement(),
+      querySelectorAll: () => []
+    },
+    navigator: {},
+    fetch: async () => ({}),
+    File: class {},
+    crypto: { randomUUID: () => 'new-astra-id' },
+    requestAnimationFrame: (callback) => callback(),
+    elements,
+    legacyRuntimeContext: {
+      resolveBinding: (name) => {
+        calls.push(`resolve:${name}`);
+        return noop;
+      }
+    },
+    state,
+    runtimeDomAccess: {
+      getRequiredElement: (id) => {
+        if (id === 'folderList') return folderList;
+        return createElement();
+      }
+    },
+    runtimeConfigAccess: { getUiLanguage: () => state.config.uiLanguage },
+    conversationStateAccess: { getCurrentConversationId: () => 'active-conv' },
+    runtimeRenderCoordinator: { renderAll: () => calls.push('renderAll') },
+    runtimeDialogCoordinator: { showNotification: (...args) => calls.push(['runtimeNotify', ...args]) },
+    i18n: { en: { noArchivedChats: 'No archived', createAstras: 'Create Astra', confirmDeleteAstras: 'Delete?' } },
+    getActiveConversation: () => state.conversations[0] || null,
+    saveAppData: async () => calls.push('saveAppData'),
+    renderAstras: () => calls.push('renderAstras'),
+    renderAll: () => calls.push('renderAllDirect'),
+    renderBatchActionBar: () => calls.push('renderBatchActionBar'),
+    loadChat: (id) => calls.push(['loadChat', id]),
+    createHistoryMenu: noop,
+    createFolderMenu: noop,
+    deleteChat: noop,
+    showArchivedChatPreview: noop,
+    unarchiveChat: noop,
+    showMobileContextMenu: noop,
+    showMobileContextMenuForFolder: noop,
+    toggleModal: noop,
+    showNotification: (...args) => calls.push(['notify', ...args]),
+    showCustomConfirm: async () => true,
+    buildMessageRenderView: () => ({ role: 'model', html: '' }),
+    replaceAstras: (nextAstras) => {
+      calls.push('replaceAstras');
+      state.astras = nextAstras;
+      return state.astras;
+    },
+    _folderList: folderList,
+    _calls: calls,
+    ...overrides
+  };
+}
+
+test('factory exports createLegacySidebarChatAstraRenderLifecycle', () => {
+  assert.equal(typeof createLegacySidebarChatAstraRenderLifecycle, 'function');
+});
+
+test('import is inert and module avoids fragments and virtual runtime', () => {
+  const source = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
+
+  assert.match(source, /export\s+function\s+createLegacySidebarChatAstraRenderLifecycle/);
+  assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
+});
+
+test('factory validates required dependencies', () => {
+  assert.throws(
+    () => createLegacySidebarChatAstraRenderLifecycle(),
+    /missing dependency: window/
+  );
+});
+
+test('factory exposes sidebar chat Astra render API', () => {
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(createDependencies());
+
+  for (const name of [
+    'renderFolders',
+    'createConversationElement',
+    'renderArchivedChats',
+    'renderChat',
+    'addMessageToUI',
+    'getActiveAstrasId',
+    'setAstrasForConversation',
+    'deactivateAstras',
+    'createAstras',
+    'handleSaveAstras',
+    'deleteAstras',
+    'createAstrasMenu'
+  ]) {
+    assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
+  }
+});
+
+test('renderFolders reads live folders and conversations', () => {
+  const dependencies = createDependencies();
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+
+  dependencies.state.conversations = [
+    { id: 'conv-1', title: 'One', model: { name: 'Model (A)' }, createdAt: '2024-01-01' }
+  ];
+  dependencies.state.folders = [
+    { id: 'folder-1', name: 'Folder', icon: 'default', color: 'gray', textColor: 'gray', isOpen: true, conversationIds: ['conv-1'] }
+  ];
+
+  lifecycle.renderFolders();
+
+  assert.equal(dependencies._folderList.children.length, 1);
+});
+
+test('Astra delete path uses injected replacement bridge and live conversations', async () => {
+  const dependencies = createDependencies();
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  dependencies.state.astras = [{ id: 'astra-1', name: 'Astra' }];
+  dependencies.state.conversations = [{ id: 'conv-1', astrasId: 'astra-1' }];
+
+  await lifecycle.deleteAstras('astra-1');
+
+  assert.deepEqual(dependencies.state.astras, []);
+  assert.equal(dependencies.state.conversations[0].astrasId, null);
+  assert.deepEqual(dependencies._calls.slice(0, 3), ['replaceAstras', 'saveAppData', 'renderAll']);
+});

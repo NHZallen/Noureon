@@ -530,6 +530,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const laterFragmentSources = [
     '01-runtime.fragment.js'
   ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
@@ -606,7 +607,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource + sidebarChatAstraRenderSource).match(/\bsaveAppData\(\)/g) || []).length,
     31
   );
   for (const source of laterFragmentSources) {
@@ -621,6 +622,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
@@ -691,18 +693,22 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'uploadedFiles = []',
     'renderAll()'
   ], '00 loadChat store-backed previous temporary conversation replacement');
-  const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+  const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const deleteFolderBody = getConstFunctionBody(folderLifecycleSource, 'deleteFolder');
   assertMarkersInOrder(deleteAstrasBody, [
-    'astras = runtimeAppDataStore.replaceAstras(',
-    'astras.filter(a => a.id !== id)',
-    'conversations.forEach(c => {',
+    'setAstras(replaceAstras(',
+    'getAstras().filter(a => a.id !== id)',
+    'getConversations().forEach(c => {',
     'if (c.astrasId === id) c.astrasId = null',
     'await saveAppData()',
     'runtimeRenderCoordinator.renderAll()',
     'runtimeDialogCoordinator.showNotification'
   ], '01 deleteAstras linked store replacement');
+  assert.match(
+    fragment01Source,
+    /replaceAstras:\s*\(nextAstras\)\s*=>\s*\{\s*astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\);\s*return\s+astras;\s*\}/
+  );
   assertMarkersInOrder(deleteFolderBody, [
     'getConversations().forEach(conversation => {',
     'conversation.folderId = null',
@@ -842,16 +848,17 @@ test('folder metadata is shared without later-fragment lexical ownership', () =>
   const metadataSource = readSource(metadataPath);
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
-  const renderFoldersBody = getConstFunctionBody(fragment01Source, 'renderFolders');
+  const renderFoldersBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderFolders');
   const showFolderSettingsModalBody = getConstFunctionBody(folderLifecycleSource, 'showFolderSettingsModal');
 
   assert.equal(existsSync(projectFile(metadataPath)), true, 'shared folder metadata module should exist');
   assert.match(metadataSource, /export\s+const\s+FOLDER_SVGS\s*=/);
   assert.match(metadataSource, /export\s+const\s+FOLDER_TEXT_COLORS\s*=/);
   assert.match(
-    fragment01Source,
-    /import\s*\{\s*FOLDER_SVGS,\s*FOLDER_TEXT_COLORS,\s*\}\s*from\s*['"]\/src\/app\/legacy-runtime\/data\/folder-metadata\.js['"]/
+    sidebarChatAstraRenderSource,
+    /import\s*\{\s*FOLDER_SVGS,\s*FOLDER_TEXT_COLORS\s*\}\s*from\s*['"][^'"]*legacy-runtime\/data\/folder-metadata\.js['"]/
   );
   assert.match(
     fragment02Source,
@@ -952,6 +959,43 @@ test('settings auth provider lifecycle ownership stays in a real runtime module 
   assert.match(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
+});
+
+test('sidebar chat Astra render lifecycle ownership stays in a real runtime module with 01 wiring', () => {
+  const lifecyclePath = 'src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
+  const lifecycleSource = readSource(lifecyclePath);
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+
+  assert.equal(existsSync(projectFile(lifecyclePath)), true);
+  assert.match(lifecycleSource, /export\s+function\s+createLegacySidebarChatAstraRenderLifecycle/);
+  assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
+  assert.match(
+    fragment01Source,
+    /import\s+\{\s*createLegacySidebarChatAstraRenderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/sidebar-chat-astra-render-lifecycle\.js['"]/
+  );
+  assert.match(fragment01Source, /const\s+sidebarChatAstraRenderLifecycle\s*=\s*createLegacySidebarChatAstraRenderLifecycle\(\{/);
+  assert.match(fragment01Source, /replaceAstras:\s*\(nextAstras\)\s*=>\s*\{\s*astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\);\s*return\s+astras;\s*\}/);
+  assert.match(fragment01Source, /\{\s*renderFolders,[\s\S]*createConversationElement,[\s\S]*renderArchivedChats,[\s\S]*addMessageToUI,[\s\S]*renderChat,[\s\S]*createAstras,[\s\S]*handleSaveAstras,[\s\S]*deleteAstras[\s\S]*\}\s*=\s*sidebarChatAstraRenderLifecycle\);/);
+  for (const removedInlineBody of [
+    /const\s+renderFolders\s*=\s*\(\)\s*=>\s*\{/,
+    /const\s+createConversationElement\s*=\s*\(conv\)\s*=>\s*\{/,
+    /const\s+renderArchivedChats\s*=\s*\(\)\s*=>\s*\{/,
+    /const\s+createAstras\s*=\s*async\s*\(\)\s*=>\s*\{/,
+    /const\s+handleSaveAstras\s*=\s*async\s*\(\)\s*=>\s*\{/,
+    /const\s+deleteAstras\s*=\s*async\s*\(id\)\s*=>\s*\{/,
+    /createMessageListLifecycle\(\{/
+  ]) {
+    assert.doesNotMatch(fragment01Source, removedInlineBody);
+  }
+  assert.match(lifecycleSource, /const\s+renderFolders\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /const\s+createConversationElement\s*=\s*\(conv\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /const\s+renderArchivedChats\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /const\s+createAstras\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /const\s+deleteAstras\s*=\s*async\s*\(id\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /createMessageListLifecycle\(\{/);
+  assert.match(fragment01Source, /const\s+submitInputCouncilLifecycle\s*=\s*createLegacySubmitInputCouncilLifecycle\(\{/);
+  assert.match(fragment01Source, /const\s+transitionBusLifecycle\s*=\s*createLegacyTransitionBusLifecycle\(\{/);
+  assert.match(fragment01Source, /transitionBusLifecycle\.registerCoreTailDependencies\(\);/);
 });
 
 test('trash lifecycle ownership moves out of 04 into a real runtime module', () => {
@@ -1952,10 +1996,11 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const searchUploadSidebarSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
-  const createConversationElementBody = getConstFunctionBody(fragment01Source, 'createConversationElement');
+  const createConversationElementBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'createConversationElement');
   const toggleStart = searchUploadSidebarSource.indexOf('function toggleSidebar(show)');
   const registrationMarker =
     "legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar)";
@@ -2023,11 +2068,12 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-render-coordinator.js');
-  const setAstrasBody = getConstFunctionBody(fragment01Source, 'setAstrasForConversation');
-  const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
-  const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+  const setAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'setAstrasForConversation');
+  const deactivateAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deactivateAstras');
+  const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const archiveChatBody = getConstFunctionBody(fragment00Source, 'archiveChat');
   const unarchiveChatBody = getConstFunctionBody(fragment00Source, 'unarchiveChat');
@@ -2074,6 +2120,7 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
 test('runtime dialog coordinator owns selected notification call sites without replacing modal helpers', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
@@ -2081,8 +2128,8 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
-  const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
-  const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
+  const deactivateAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deactivateAstras');
+  const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
   const handleBatchArchiveBody = getConstFunctionBody(batchImportVoiceSource, 'handleBatchArchive');
   const defaultModelUpdateBody = getBlockFromMarker(modelMemoryDashboardSource, 'input[name="default-model-radio"]');
   const moveModelOrderBody = getConstFunctionBody(modelMemoryDashboardSource, 'moveModelOrder');
@@ -2128,6 +2175,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
@@ -2136,7 +2184,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const getCouncilRuntimeTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilRuntimeTexts');
   const getModelRetirementLabelBody = getConstFunctionBody(fragment00Source, 'getModelRetirementLabel');
   const getModelPriceLabelBody = getConstFunctionBody(fragment00Source, 'getModelPriceLabel');
-  const renderArchivedChatsBody = getConstFunctionBody(fragment01Source, 'renderArchivedChats');
+  const renderArchivedChatsBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderArchivedChats');
   const getCouncilModeLabelBody = getConstFunctionBody(submitInputCouncilSource, 'getCouncilModeLabel');
   const setupTimeAnalysisBody = getConstFunctionBody(coreTailSource, 'setupTimeAnalysis');
   const updateTimeDistributionChartBody = getConstFunctionBody(coreTailSource, 'updateTimeDistributionChart');
@@ -2192,10 +2240,11 @@ test('runtime config access owns selected uiLanguage reads through the config st
 test('runtime DOM access owns selected element reads through the extracted DOM registry', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
   const arrangeInputMediaPreviewBody = getConstFunctionBody(fragment00Source, 'arrangeInputMediaPreview');
-  const renderArchivedChatsBody = getConstFunctionBody(fragment01Source, 'renderArchivedChats');
-  const renderFoldersBody = getConstFunctionBody(fragment01Source, 'renderFolders');
+  const renderArchivedChatsBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderArchivedChats');
+  const renderFoldersBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderFolders');
   const renderHistorySidebarBody = getConstFunctionBody(fragment00Source, 'renderHistorySidebar');
   const renderHistorySidebarContentBody = getBlockFromMarker(fragment00Source, 'function renderHistorySidebarContent()');
 
@@ -2255,11 +2304,12 @@ test('conversation state access owns selected active conversation lookups withou
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/conversation-state-access.js');
-  const createConversationElementBody = getConstFunctionBody(fragment01Source, 'createConversationElement');
+  const createConversationElementBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'createConversationElement');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const archiveChatBody = getConstFunctionBody(fragment00Source, 'archiveChat');
   const batchDeleteBody = getConstFunctionBody(batchImportVoiceSource, 'handleBatchDelete');
@@ -2279,7 +2329,7 @@ test('conversation state access owns selected active conversation lookups withou
   assert.match(settingsAuthProviderSource, /conv\.id\s*===\s*conversationStateAccess\.getCurrentConversationId\(\)/);
 
   assert.match(createConversationElementBody, /const\s+currentConversationId\s*=\s*conversationStateAccess\.getCurrentConversationId\(\);/);
-  assert.match(createConversationElementBody, /conv\.id\s*===\s*currentConversationId\s*&&\s*!isSelectionMode\s*\?\s*'active'/);
+  assert.match(createConversationElementBody, /conv\.id\s*===\s*currentConversationId\s*&&\s*!getIsSelectionMode\(\)\s*\?\s*'active'/);
   assert.doesNotMatch(createConversationElementBody, /conv\.id\s*===\s*activeConversationId/);
 
   assert.match(deleteChatBody, /conversationStateAccess\.getCurrentConversationId\(\)\s*===\s*id/);
@@ -2329,6 +2379,7 @@ test('settings sidebar button remains wired to initialize and open the settings 
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
@@ -2357,7 +2408,7 @@ test('settings sidebar button remains wired to initialize and open the settings 
   }
   assert.doesNotMatch(fragment01Source, /const\s+resolveMainUpdateInputState\b/);
   assert.doesNotMatch(coreTailSource, /const\s+resolveTrashUpdateInputState\b/);
-  assert.match(fragment01Source, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
+  assert.match(sidebarChatAstraRenderSource, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
   assert.match(coreTailSource, /legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);/);
   assert.match(coreTailSource, /updateInputState:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\.\.\.args\)/);
   assert.match(appBootstrapLifecycleSource, /const\s+resolveEventsUpdateInputState\s*=\s*updateInputState;/);
@@ -2366,8 +2417,8 @@ test('settings sidebar button remains wired to initialize and open the settings 
     /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*resolveEventsSetupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
   );
   assert.match(appBootstrapLifecycleSource, /ALL_ELEMENTS\.closeSettingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*false\)\);/);
-  assert.match(fragment01Source, /updateInputState:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\)/);
-  const messageListWiring = getBlockFromMarker(fragment01Source, 'createMessageListLifecycle({');
+  assert.match(sidebarChatAstraRenderSource, /updateInputState:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\)/);
+  const messageListWiring = getBlockFromMarker(sidebarChatAstraRenderSource, 'createMessageListLifecycle({');
   assert.doesNotMatch(messageListWiring, /\n\s*updateInputState,\s*\n/);
 });
 
@@ -2689,6 +2740,7 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
   const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/date-formatting.js'));
 
@@ -2699,7 +2751,7 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
     /import\s*\{[\s\S]*\bformatFullTimestamp\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/date-formatting\.js';/
   );
   assert.doesNotMatch(fragment00Source, /\bconst\s+formatFullTimestamp\s*=/);
-  assert.match(fragment01Source, /formatTimestamp:\s*formatFullTimestamp/);
+  assert.match(sidebarChatAstraRenderSource, /formatTimestamp:\s*formatFullTimestamp/);
   assert.match(messageMarkupSource, /formatTimestamp\(message\.createdAt\)/);
   assert.match(postResponseActionsSource, /formatTimestamp\(aiMessageObject\.createdAt\)/);
   assert.match(trashLifecycleSource, /formatFullTimestamp\(conversation\.deletedAt\)/);
@@ -3211,6 +3263,7 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   const messageListSource = readSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
@@ -3228,25 +3281,25 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
     /import\s*\{\s*buildMessageRenderView\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-markup-renderer\.js';/
   );
   assert.match(
-    fragment01Source,
-    /import\s*\{\s*createMessageListLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/message-list-lifecycle\.js';/
+    sidebarChatAstraRenderSource,
+    /import\s*\{\s*createMessageListLifecycle\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/message-list-lifecycle\.js['"];/
   );
-  assert.match(fragment01Source, /\{\s*addMessageToUI,\s*renderChat\s*\}\s*=\s*createMessageListLifecycle\(\{/);
-  assert.match(fragment01Source, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
-  assert.match(fragment01Source, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
+  assert.match(sidebarChatAstraRenderSource, /\{\s*addMessageToUI,\s*renderChat\s*\}\s*=\s*createMessageListLifecycle\(\{/);
+  assert.match(sidebarChatAstraRenderSource, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
+  assert.match(sidebarChatAstraRenderSource, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
   assert.match(messageListSource, /const\s+messageView\s*=\s*buildMessageRenderView\(\{\s*message,/);
   assert.match(messageListSource, /messageElement\.className\s*=\s*messageView\.messageClassName/);
   assert.match(messageListSource, /messageElement\.innerHTML\s*=\s*messageView\.messageHTML/);
   assert.match(messageListSource, /bindMediaPreviewButtons\(messageElement,\s*messageView\.previewMediaParts\)/);
 
-  assert.doesNotMatch(fragment01Source, /const\s+isUser\s*=\s*msg\.role\s*===\s*'user'/);
-  assert.doesNotMatch(fragment01Source, /const\s+isLoadingMessage\s*=\s*!isUser/);
-  assert.doesNotMatch(fragment01Source, /let\s+textPartsContent\s*=\s*\[\]/);
-  assert.doesNotMatch(fragment01Source, /const\s+messageBubble\s*=\s*`/);
-  assert.doesNotMatch(fragment01Source, /copy-content-btn[\s\S]*contentPaddingClass\s*=\s*'pb-8'/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /const\s+isUser\s*=\s*msg\.role\s*===\s*'user'/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /const\s+isLoadingMessage\s*=\s*!isUser/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /let\s+textPartsContent\s*=\s*\[\]/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /const\s+messageBubble\s*=\s*`/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /copy-content-btn[\s\S]*contentPaddingClass\s*=\s*'pb-8'/);
 
-  assert.doesNotMatch(fragment01Source, /const\s+addMessageToUI\s*=\s*\(msg,\s*index,/);
-  assert.doesNotMatch(fragment01Source, /const\s+renderChat\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /const\s+addMessageToUI\s*=\s*\(msg,\s*index,/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /const\s+renderChat\s*=\s*\(\)\s*=>/);
   assert.match(messageListSource, /conversation\.messages\.push\(message\)/);
   assert.match(messageListSource, /document\.createElement\('div'\)/);
   assert.match(messageListSource, /elements\.messageList\.appendChild\(messageElement\)/);
@@ -3271,6 +3324,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   const previewSource = readSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const searchUploadSidebarSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
@@ -3297,8 +3351,8 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
 
   assert.match(fragment00Source, /createMediaAttachmentRenderer\s+as\s+createArchivedMediaAttachmentRenderer/);
   assert.match(fragment00Source, /createMediaPreviewLifecycle\s+as\s+createArchivedMediaPreviewLifecycle/);
-  assert.match(fragment01Source, /createMediaAttachmentRenderer\s+as\s+createMessageMediaAttachmentRenderer/);
-  assert.match(fragment01Source, /createMediaPreviewLifecycle\s+as\s+createMessageMediaPreviewLifecycle/);
+  assert.match(sidebarChatAstraRenderSource, /createMediaAttachmentRenderer\s+as\s+createMessageMediaAttachmentRenderer/);
+  assert.match(sidebarChatAstraRenderSource, /createMediaPreviewLifecycle\s+as\s+createMessageMediaPreviewLifecycle/);
   assert.match(searchUploadSidebarSource, /import\s+\{\s*createMediaAttachmentRenderer\s*\}/);
   assert.match(searchUploadSidebarSource, /import\s+\{\s*createMediaPreviewLifecycle\s*\}/);
   assert.match(trashLifecycleSource, /import\s+\{\s*createMediaAttachmentRenderer\s*\}/);
@@ -3308,8 +3362,8 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(fragment00Source, /archivedConversationViewRenderer\.renderConversationMessages\(\{/);
   assert.match(fragment00Source, /renderMediaAttachmentGrid:\s*renderArchivedMediaAttachmentGrid/);
   assert.match(fragment00Source, /bindMediaPreviewButtons:\s*bindArchivedMediaPreviewButtons/);
-  assert.match(fragment01Source, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
-  assert.match(fragment01Source, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
+  assert.match(sidebarChatAstraRenderSource, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
+  assert.match(sidebarChatAstraRenderSource, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
   assert.match(searchUploadSidebarSource, /import\s+\{\s*createConversationViewRenderer\s*\}/);
   assert.match(searchUploadSidebarSource, /searchConversationViewRenderer\.renderConversationMessages\(\{/);
   assert.match(searchUploadSidebarSource, /renderMediaAttachmentGrid:\s*renderSearchMediaAttachmentGrid/);
@@ -3320,10 +3374,10 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(trashLifecycleSource, /trashConversationViewRenderer\.renderConversationMessages\(\{/);
   assert.match(trashLifecycleSource, /renderMediaAttachmentGrid,\s*bindMediaPreviewButtons/);
 
-  assert.doesNotMatch(fragment01Source, /\bconst\s+getInlineMediaSrc\s*=/);
-  assert.doesNotMatch(fragment01Source, /\bconst\s+renderMediaAttachmentGrid\s*=/);
-  assert.doesNotMatch(fragment01Source, /\bconst\s+openMediaPreview\s*=/);
-  assert.doesNotMatch(fragment01Source, /\bconst\s+bindMediaPreviewButtons\s*=/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /\bconst\s+getInlineMediaSrc\s*=/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /\bconst\s+renderMediaAttachmentGrid\s*=/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /\bconst\s+openMediaPreview\s*=/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /\bconst\s+bindMediaPreviewButtons\s*=/);
   assert.doesNotMatch(fragment03Source, /typeof\s+renderMediaAttachmentGrid/);
   assert.doesNotMatch(fragment03Source, /typeof\s+bindMediaPreviewButtons/);
   assert.doesNotMatch(fragment03Source, /\bopenMediaPreview\(/);
