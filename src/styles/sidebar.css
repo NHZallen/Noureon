@@ -97,15 +97,27 @@
 .sidebar-section[data-open="true"] .section-toggle-arrow {
     transform: rotate(0deg); /* 修改點 2: 展開時轉回來 */
 }
-    #user-controls {
+#sidebar {
+    visibility: hidden;
+    pointer-events: none;
+}
+#sidebar.open,
+#app-container.sidebar-open #sidebar {
+    visibility: visible;
+    pointer-events: auto;
+}
+#user-controls {
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    min-width: 0;
 }
 
 
 #user-profile-btn {
     flex: 1; /* 讓使用者名稱區域佔滿可用空間 */
+    width: auto !important;
+    min-width: 0;
     padding: 0.5rem; /* 調整內邊距 */
     gap: 0.75rem;
 }
@@ -131,6 +143,7 @@
 #settings-btn {
     width: 2.75rem; /* 讓它和使用者卡片差不多高 */
     height: 2.75rem;
+    flex: 0 0 2.75rem;
     padding: 0.75rem;
     justify-content: center;
 }

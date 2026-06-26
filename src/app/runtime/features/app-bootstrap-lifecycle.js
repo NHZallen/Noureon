@@ -113,6 +113,7 @@ export function createLegacyAppBootstrapLifecycle({
                 const conversations = getConversations();
                 if (window.innerWidth >= 1024) {
             setSidebarOpen(false);
+            ALL_ELEMENTS.sidebar.classList.remove('open');
             ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
         }
                 setTheme(config.theme);

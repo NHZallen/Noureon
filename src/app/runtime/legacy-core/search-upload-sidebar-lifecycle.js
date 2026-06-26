@@ -382,6 +382,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         const { sidebar, sidebarOverlay, appContainer } = ALL_ELEMENTS;
         const nextSidebarOpen = typeof show === 'boolean' ? show : !getSidebarOpen();
         const sidebarOpen = setSidebarOpen(nextSidebarOpen);
+        sidebar.classList.toggle('open', sidebarOpen);
 
         if (window.innerWidth >= 1024) {
             appContainer.classList.toggle('sidebar-open', sidebarOpen);
