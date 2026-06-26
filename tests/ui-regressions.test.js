@@ -249,9 +249,9 @@ test('app typography uses restrained GPT-like system weights and mobile settings
 });
 
 test('folder color rendering supports saved css color values without falling back', () => {
-  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
-  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const runtime00 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const css = readUiSource('src/styles/main.css');
 

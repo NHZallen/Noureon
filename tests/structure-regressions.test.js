@@ -181,15 +181,15 @@ const findCrossFragmentBracePairs = (fragments) => {
   return pairs;
 };
 
-test('legacy runtime core keeps the numeric 00-01 filename ordering contract', () => {
+test('legacy runtime core keeps the numeric 00 filename contract', () => {
   const fragmentNames = readdirSync(projectFile('src/app/legacy-runtime/fragments'))
     .filter((name) => name.endsWith('.fragment.js'))
     .sort();
 
   assert.deepEqual(fragmentNames, [
-    '00-runtime.fragment.js',
-    '01-runtime.fragment.js'
+    '00-runtime.fragment.js'
   ]);
+  assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')), false);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/03-runtime.fragment.js')), false);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')), false);
@@ -197,18 +197,17 @@ test('legacy runtime core keeps the numeric 00-01 filename ordering contract', (
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/06-runtime.fragment.js')), false);
 });
 
-test('production runtime entry uses the sorted 00-01 virtual legacy core', () => {
+test('production runtime entry uses the single 00 virtual legacy core', () => {
   const viteSource = readSource('vite.config.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
 
   assert.match(viteSource, /const\s+legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime';/);
   assertMarkersInOrder(viteSource, [
-    "'00-runtime.fragment.js'",
-    "'01-runtime.fragment.js'"
+    "'00-runtime.fragment.js'"
   ], 'Vite legacy core fragment allowlist');
   assert.doesNotMatch(
     viteSource,
-    /legacyCoreFragmentNames\s*=\s*new Set\(\[[\s\S]*?(?:02|03|04|05|06)-runtime\.fragment\.js[\s\S]*?\]\)/
+    /legacyCoreFragmentNames\s*=\s*new Set\(\[[\s\S]*?(?:01|02|03|04|05|06)-runtime\.fragment\.js[\s\S]*?\]\)/
   );
   assertMarkersInOrder(viteSource, [
     'readdirSync(fragmentsDir)',
@@ -325,7 +324,7 @@ test('runtime entry cutover helpers no longer rely on 05 lexical ownership', () 
   const imageCompressionPath = 'src/app/runtime/utils/image-compression.js';
   const conversationMailSource = readSource(conversationMailPath);
   const imageCompressionSource = readSource(imageCompressionPath);
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
@@ -422,10 +421,10 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
-  const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
-  const laterFragmentSources = [
-    '01-runtime.fragment.js'
-  ].map((name) => {
+  const finalTailIndex = fragment00Source.indexOf('import { createLegacySidebarChatAstraRenderLifecycle');
+  const fragment00CoreSource = finalTailIndex === -1 ? fragment00Source : fragment00Source.slice(0, finalTailIndex);
+  const fragmentConfigAssignments = fragment00CoreSource.match(/\bconfig\s*=/g) || [];
+  const laterFragmentSources = [].map((name) => {
     const source = readSource(`src/app/legacy-runtime/fragments/${name}`);
     const finalTailIndex = source.indexOf('const settingsAuthProviderState =');
     return finalTailIndex === -1 ? source : source.slice(0, finalTailIndex);
@@ -531,9 +530,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
-  const laterFragmentSources = [
-    '01-runtime.fragment.js'
-  ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
+  const laterFragmentSources = [].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
   const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
   const catchIndex = loadAppDataBody.indexOf('catch (e)');
   assert.notEqual(catchIndex, -1, 'loadAppData should keep its corruption catch in 00');
@@ -618,8 +615,8 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
 test('runtime app data store ownership covers 00 and selected linked replacements', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
@@ -829,13 +826,13 @@ test('runtime app data store ownership covers 00 and selected linked replacement
 
 test('legacy runtime core fragments exist and retired wrappers stay absent', () => {
   for (const name of [
-    '00-runtime.fragment.js',
-    '01-runtime.fragment.js'
+    '00-runtime.fragment.js'
   ]) {
     const path = `src/app/legacy-runtime/fragments/${name}`;
     assert.ok(statSync(projectFile(path)).isFile(), `${path} should exist`);
     assert.ok(readSource(path).trim().length > 0, `${path} should not be empty`);
   }
+  assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')), false);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/03-runtime.fragment.js')), false);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')), false);
@@ -846,8 +843,8 @@ test('legacy runtime core fragments exist and retired wrappers stay absent', () 
 test('folder metadata is shared without later-fragment lexical ownership', () => {
   const metadataPath = 'src/app/legacy-runtime/data/folder-metadata.js';
   const metadataSource = readSource(metadataPath);
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const renderFoldersBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderFolders');
@@ -880,7 +877,7 @@ test('folder CRUD lifecycle ownership stays in a real runtime module with 01 fin
   const lifecyclePath = 'src/app/runtime/features/folder-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacyFolderLifecycle/);
@@ -926,7 +923,7 @@ test('folder CRUD lifecycle ownership stays in a real runtime module with 01 fin
 test('settings auth provider lifecycle ownership stays in a real runtime module with 01 final-tail wiring', () => {
   const lifecyclePath = 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
@@ -964,7 +961,7 @@ test('settings auth provider lifecycle ownership stays in a real runtime module 
 test('sidebar chat Astra render lifecycle ownership stays in a real runtime module with 01 wiring', () => {
   const lifecyclePath = 'src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySidebarChatAstraRenderLifecycle/);
@@ -1245,8 +1242,7 @@ test('color contrast helper is shared without later-fragment lexical ownership',
 
 test('legacy runtime adjacent fragments do not contain cross-fragment brace continuations', () => {
   const fragments = [
-    '00-runtime.fragment.js',
-    '01-runtime.fragment.js'
+    '00-runtime.fragment.js'
   ].map((name) => ({
     name,
     source: readSource(`src/app/legacy-runtime/fragments/${name}`)
@@ -1262,7 +1258,7 @@ test('legacy runtime adjacent fragments do not contain cross-fragment brace cont
 
 test('sidebar Astras lifecycle breaks the 00 to 01 renderAstras continuation boundary', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarAstrasSource = readSource('src/app/legacy-runtime/features/sidebar-astras-lifecycle.js');
 
   assert.match(sidebarAstrasSource, /export\s+function\s+createSidebarAstrasLifecycle/);
@@ -1389,7 +1385,7 @@ test('batch import voice lifecycle moves batch import and voice ownership out of
 });
 
 test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary', () => {
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const batchActionBarSource = readSource('src/app/legacy-runtime/features/batch-action-bar-lifecycle.js');
 
@@ -1523,7 +1519,7 @@ test('app bootstrap lifecycle and runtime entry own the retired 05 listener shel
 test('startup lifecycle and runtime entry own the retired 06 startup shell', () => {
   const lifecyclePath = 'src/app/runtime/features/startup-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const mainSource = readSource('src/main.js');
@@ -1745,7 +1741,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
 
 test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const storageAdapterSource = readSource('src/app/runtime/kernel/storage-adapter.js');
@@ -1788,8 +1784,8 @@ test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
 });
 
 test('runtime lazy registrations and composition handoffs preserve legacy order', () => {
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
@@ -1854,7 +1850,7 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
 });
 
 test('initChatApp callers use the required runtime handoff without changing legacy order', () => {
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
@@ -1930,7 +1926,7 @@ test('initChatApp callers use the required runtime handoff without changing lega
 
 test('loadChat resolves updateFunctionButtonsState through the required runtime handoff', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
@@ -1992,8 +1988,8 @@ test('loadChat resolves updateFunctionButtonsState through the required runtime 
 
 test('selected toggleSidebar callers use the required runtime handoff without changing sidebar behavior', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const searchUploadSidebarSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
@@ -2066,8 +2062,8 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
 
 test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-render-coordinator.js');
@@ -2119,7 +2115,7 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
 
 test('runtime dialog coordinator owns selected notification call sites without replacing modal helpers', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
@@ -2173,8 +2169,8 @@ test('runtime dialog coordinator owns selected notification call sites without r
 
 test('runtime config access owns selected uiLanguage reads through the config store', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
@@ -2239,7 +2235,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
 
 test('runtime DOM access owns selected element reads through the extracted DOM registry', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
   const arrangeInputMediaPreviewBody = getConstFunctionBody(fragment00Source, 'arrangeInputMediaPreview');
@@ -2302,8 +2298,8 @@ test('trash batch selection checkbox click does not bubble into row toggle', () 
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
@@ -2377,8 +2373,8 @@ test('app shell imports and preserves critical DOM IDs', async () => {
 
 test('settings sidebar button remains wired to initialize and open the settings modal', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
@@ -2521,7 +2517,7 @@ test('main css is an ordered split manifest with every imported file under the s
 test('legacy provider request formatting helpers are isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/model-request-formatting.js');
   const streamApiSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
-  const fragmentSource = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/model-request-formatting.js'));
 
@@ -2548,7 +2544,7 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
 
 test('stream API provider request and parser core is isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
-  const fragmentSource = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/stream-api-call.js'));
 
@@ -2582,7 +2578,7 @@ test('stream API provider request and parser core is isolated from the 02 runtim
 
 test('provider request support helpers are isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/provider-request-support.js');
-  const fragmentSource = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/provider-request-support.js'));
 
@@ -2624,7 +2620,7 @@ test('provider request support helpers are isolated from the 02 runtime fragment
 
 test('council response lifecycle core is isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/council-response-lifecycle.js');
-  const fragmentSource = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/council-response-lifecycle.js'));
 
@@ -2666,7 +2662,7 @@ test('council response lifecycle core is isolated from the 02 runtime fragment',
 
 test('settings mobile metadata helpers are isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/settings-mobile-metadata.js');
-  const fragmentSource = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/settings-mobile-metadata.js'));
 
@@ -2686,7 +2682,7 @@ test('settings mobile metadata helpers are isolated from the 02 runtime fragment
 
 test('output mode settings text helper is isolated from the 02 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/output-mode-settings-text.js');
-  const fragmentSource = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragmentSource = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/output-mode-settings-text.js'));
 
@@ -2739,7 +2735,7 @@ test('date formatting helper is isolated from the 00 runtime fragment and remain
   const postResponseActionsSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
   const messageMarkupSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/date-formatting.js'));
@@ -2849,7 +2845,7 @@ test('streaming council details helpers are isolated from the 01 runtime fragmen
   assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
   assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('streaming markdown render state helper is isolated from the 01 runtime renderer', async () => {
@@ -2884,7 +2880,7 @@ test('streaming markdown render state helper is isolated from the 01 runtime ren
   assert.match(fragment01Source, /\bkeepChatPositionAfterRender,/);
   assert.match(fragment01Source, /requestAnimationFrame\(/);
   assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('streaming markdown renderer and response core is isolated from the 01 runtime fragment', async () => {
@@ -2928,7 +2924,7 @@ test('streaming markdown renderer and response core is isolated from the 01 runt
   );
   assert.match(fragment01Source, /createTypewriterPlaybackController\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 140 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 140 * 1024);
 });
 
 test('single-model response lifecycle is isolated from the 01 runtime submit flow', async () => {
@@ -2975,7 +2971,7 @@ test('single-model response lifecycle is isolated from the 01 runtime submit flo
   assert.match(fragment01Source, /await\s+finalizeAssistantResponse\(\{/);
   assert.match(fragment01Source, /await\s+persistAssistantResponseError\(\{/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 135 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 135 * 1024);
 });
 
 test('response progress renderers and submit preparation are isolated from the 01 runtime shell', async () => {
@@ -3028,7 +3024,7 @@ test('response progress renderers and submit preparation are isolated from the 0
     );
   }
   assert.match(
-    readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js'),
+    readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js'),
     /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*runtimeEntry\.submit\.adjustTextareaHeight[\s\S]*return\s+adjustTextareaHeight;[\s\S]*\}\)/
   );
   assert.match(
@@ -3059,7 +3055,7 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.doesNotMatch(`${progressSource}\n${submitPrepSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 80 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
@@ -3100,7 +3096,7 @@ test('model switcher preparation and lifecycle are isolated from the 01 runtime 
   assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/model-switcher-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 100 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('council controls lifecycle is isolated from the 01 runtime shell', async () => {
@@ -3138,7 +3134,7 @@ test('council controls lifecycle is isolated from the 01 runtime shell', async (
   assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-controls-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 80 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('assistant response finalization is isolated from the 01 runtime submit flow', async () => {
@@ -3191,7 +3187,7 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
   assert.match(fragment01Source, /renderCouncilControls,/);
   assert.match(fragment01Source, /renderInputIndicators,/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 130 * 1024);
 });
 
 test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow', async () => {
@@ -3220,14 +3216,14 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
   assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 130 * 1024);
 });
 
 test('model message post-response actions remove the 01 to 02 last message lexical continuation', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js'));
 
   assert.equal(typeof helpers.applyModelMessagePostResponseActions, 'function');
@@ -3254,7 +3250,7 @@ test('model message post-response actions remove the 01 to 02 last message lexic
   assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 130 * 1024);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
@@ -3262,7 +3258,7 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   const helperSource = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
   const messageListSource = readSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
@@ -3316,14 +3312,14 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   assert.doesNotMatch(`${helperSource}\n${messageListSource}`, /virtual:legacy-app-runtime|vite\.config|package\.json/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/message-markup-renderer.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/message-list-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 125 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 125 * 1024);
 });
 
 test('media renderer and preview lifecycle replace fragment-local and hidden lexical media helpers', async () => {
   const rendererSource = readSource('src/app/legacy-runtime/features/media-attachment-renderer.js');
   const previewSource = readSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const searchUploadSidebarSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
@@ -3407,7 +3403,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/media-preview-lifecycle.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/conversation-view-renderer.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 120 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 120 * 1024);
 });
 
 test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {
@@ -3452,7 +3448,7 @@ test('council response render lifecycle is isolated from the 01 runtime submit f
   assert.match(fragment01Source, /persistAppData:\s*saveAppData/);
   assert.match(fragment01Source, /renderError:\s*renderSingleModelError/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/council-response-render-lifecycle.js')).size < 150 * 1024);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 130 * 1024);
 });
 
 test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {
@@ -3485,7 +3481,7 @@ test('streaming text frame queue helper is isolated from the 01 runtime stream r
   assert.match(rendererSource, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
   assert.doesNotMatch(fragment01Source, /async\s+function\s+streamMarkdownResponse\b/);
   assert.doesNotMatch(fragment01Source, /const\s+createStreamingMarkdownRenderer\s*=\s*\(/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('typewriter stream uses the shared streaming text frame queue boundary', async () => {
@@ -3516,7 +3512,7 @@ test('typewriter stream uses the shared streaming text frame queue boundary', as
   assert.match(typewriterStreamSource, /targetElement\.appendChild\(fragment\)/);
   assert.match(typewriterStreamSource, /targetElement\.innerHTML\s*=\s*renderMarkdownWithFormulas\(fullText\)/);
   assert.match(typewriterStreamSource, /renderMarkdown\(`[^`]*\$\{error\.message\}`\)/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('typewriter playback controller is isolated from the 01 runtime playback loops', async () => {
@@ -3559,7 +3555,7 @@ test('typewriter playback controller is isolated from the 01 runtime playback lo
   assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
   assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
   assert.match(fragment01Source, /isCouncilDeferredSectionVisible\(currentText\)/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('renderer gradual append controller is isolated from the 01 runtime RAF append loop', async () => {
@@ -3590,7 +3586,7 @@ test('renderer gradual append controller is isolated from the 01 runtime RAF app
   assert.match(fragment01Source, /requestAnimationFrame\(/);
   assert.match(fragment01Source, /targetElement\.innerHTML\s*=/);
   assert.match(fragment01Source, /renderMarkdownWithFormulas\(/);
-  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 150 * 1024);
+  assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/00-runtime.fragment.js')).size < 150 * 1024);
 });
 
 test('version compare helper is isolated from the 00 runtime fragment and remains available to update logs', async () => {
