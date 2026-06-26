@@ -177,7 +177,7 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
 test('Astra and folder delete flows keep linked conversation cleanup and save/render order', () => {
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
   const deleteFolderBody = getConstFunctionBody(folderLifecycleSource, 'deleteFolder');
@@ -348,7 +348,7 @@ test('app data store remains wired while production boot moves through runtime e
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');

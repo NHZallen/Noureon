@@ -84,7 +84,7 @@ test('settings modal source keeps Tavily depth fallback local to setupSettingsMo
 });
 
 test('settings modal opener uses lazy context resolution instead of direct cross-fragment setup access', () => {
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 

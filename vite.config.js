@@ -8,8 +8,7 @@ const legacyRuntimeModuleId = 'virtual:legacy-app-runtime';
 const resolvedLegacyRuntimeModuleId = `\0${legacyRuntimeModuleId}`;
 const legacyCoreFragmentNames = new Set([
   '00-runtime.fragment.js',
-  '01-runtime.fragment.js',
-  '02-runtime.fragment.js'
+  '01-runtime.fragment.js'
 ]);
 
 function legacyRuntimeFragmentsPlugin() {
