@@ -248,6 +248,7 @@ function createHarness({
     config,
     document,
     elements,
+    FakeJSZip,
     get astras() {
       return astras;
     },
@@ -372,6 +373,87 @@ test('handleExport uses live getters and packages selected data without leaving 
   assert.equal(calls.some((call) => call[0] === 'toggleModal' && call[1] === 'importDataModal'), false);
   assert.equal(elements.confirmExportBtn.disabled, false);
   assert.equal(elements.confirmExportBtn.textContent, 'Export');
+});
+
+test('handleExport excludes apiKeys from normal settings exports by default', async () => {
+  const { config, elements, FakeJSZip, lifecycle } = createHarness({
+    config: {
+      uiLanguage: 'en',
+      apiKeys: {
+        gemini: 'gemini-secret',
+        openrouter: 'openrouter-secret',
+        nvidia: 'nvidia-secret',
+        stepPlan: 'step-plan-secret',
+        tavily: 'tavily-secret'
+      },
+      defaultModel: 'model-a',
+      theme: 'dark',
+      modelSettings: [],
+      aiBubbleColor: '#111111',
+      userBubbleColor: '#222222',
+      autoNaming: true,
+      enableAutoWebSearch: false,
+      memoryEnabled1: true,
+      enableAutoMemory: true,
+      customWallpaper: null,
+      wallpaperBrightness: null,
+      uiTheme: {},
+      aiDefaultLanguage: 'en',
+      isLearningMode: false
+    }
+  });
+  elements.exportSettingsCheck.checked = true;
+
+  await lifecycle.handleExport();
+
+  const zip = FakeJSZip.instances.at(-1);
+  const exportedData = JSON.parse(await zip.files['data.json'].async('string'));
+  const serialized = JSON.stringify(exportedData);
+
+  assert.equal('apiKeys' in exportedData, false);
+  assert.equal('apiKeys' in exportedData.settings, false);
+  for (const secret of Object.values(config.apiKeys)) {
+    assert.equal(serialized.includes(secret), false);
+  }
+});
+
+test('handleExport preserves explicit opt-in full apiKeys export', async () => {
+  const { config, calls, elements, FakeJSZip, lifecycle } = createHarness({
+    config: {
+      uiLanguage: 'en',
+      apiKeys: {
+        gemini: 'gemini-secret',
+        openrouter: 'openrouter-secret',
+        nvidia: 'nvidia-secret',
+        stepPlan: 'step-plan-secret',
+        tavily: 'tavily-secret'
+      },
+      defaultModel: 'model-a',
+      theme: 'dark',
+      modelSettings: [],
+      aiBubbleColor: '#111111',
+      userBubbleColor: '#222222',
+      autoNaming: true,
+      enableAutoWebSearch: false,
+      memoryEnabled1: true,
+      enableAutoMemory: true,
+      customWallpaper: null,
+      wallpaperBrightness: null,
+      uiTheme: {},
+      aiDefaultLanguage: 'en',
+      isLearningMode: false
+    }
+  });
+  elements.exportSettingsCheck.checked = true;
+  elements.exportApiCheck.checked = true;
+
+  await lifecycle.handleExport();
+
+  const zip = FakeJSZip.instances.at(-1);
+  const exportedData = JSON.parse(await zip.files['data.json'].async('string'));
+
+  assert.deepEqual(exportedData.apiKeys, config.apiKeys);
+  assert.equal(calls.some((call) => call[0] === 'confirm'), true);
 });
 
 test('handleImport preserves partial-state behavior without rollback on outer errors', async () => {

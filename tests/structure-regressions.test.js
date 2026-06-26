@@ -226,6 +226,31 @@ test('production runtime entry uses the real legacy core without the virtual run
   assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime|legacy-core\/legacy-core\.js/);
 });
 
+test('sensitive config export redaction boundary is explicit', () => {
+  const redactionPath = 'src/app/runtime/security/sensitive-config-redaction.js';
+  const exportLifecycleSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
+  const redactionSource = readSource(redactionPath);
+
+  assert.equal(existsSync(projectFile(redactionPath)), true);
+  assert.equal(existsSync(projectFile('tests/security/sensitive-config-redaction.test.js')), true);
+  assert.equal(existsSync(projectFile('tests/security/export-redacts-secrets.test.js')), true);
+  assert.match(redactionSource, /export\s+const\s+SENSITIVE_API_KEY_FIELDS/);
+  assert.match(redactionSource, /'gemini'/);
+  assert.match(redactionSource, /'openrouter'/);
+  assert.match(redactionSource, /'nvidia'/);
+  assert.match(redactionSource, /'stepPlan'/);
+  assert.match(redactionSource, /'tavily'/);
+  assert.match(redactionSource, /export\s+function\s+createExportSafeConfig/);
+  assert.match(
+    exportLifecycleSource,
+    /import\s+\{\s*createExportSafeConfig\s*\}\s+from\s+['"]\.\.\/security\/sensitive-config-redaction\.js['"]/
+  );
+  assert.match(exportLifecycleSource, /rawData\.settings\s*=\s*createExportSafeConfig\(/);
+  assert.match(exportLifecycleSource, /createExportSafeConfig\(config,\s*\{\s*includeSecrets:\s*true\s*\}\)\.apiKeys/);
+  assert.match(exportLifecycleSource, /exportApiKeysWarning/);
+  assert.doesNotMatch(redactionSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+});
+
 test('quality lock script protects legacy runtime boundaries without banning template fragments', () => {
   const packageJson = JSON.parse(readSource('package.json'));
   const scriptPath = 'scripts/check-legacy-runtime-boundaries.mjs';

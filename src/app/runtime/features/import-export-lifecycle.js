@@ -1,3 +1,5 @@
+import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
+
 const IMPORT_CANCELLED = 'IMPORT_CANCELLED';
 
 const getLocaleText = (i18n, language, key, fallback) => i18n?.[language]?.[key] || fallback;
@@ -83,7 +85,7 @@ export function createLegacyImportExportLifecycle({
       rawData.astras = getAstras();
     }
     if (elements.exportSettingsCheck.checked) {
-      rawData.settings = {
+      rawData.settings = createExportSafeConfig({
         defaultModel: config.defaultModel,
         theme: config.theme,
         modelSettings: config.modelSettings,
@@ -100,10 +102,19 @@ export function createLegacyImportExportLifecycle({
         aiDefaultLanguage: config.aiDefaultLanguage,
         isLearningMode: config.isLearningMode,
         outputMode: getOutputMode()
-      };
+      });
     }
-    if (document.getElementById('export-api-check').checked) {
-      rawData.apiKeys = config.apiKeys;
+    const shouldExportApiKeys = document.getElementById('export-api-check')?.checked === true;
+    if (shouldExportApiKeys) {
+      const confirmed = await showCustomConfirm(
+        text(
+          'exportApiKeysWarning',
+          'This export will include full API keys. Only continue if you will store the backup securely.'
+        ),
+        text('exportApiKeysWarningTitle', 'Export API keys?')
+      );
+      if (!confirmed) return;
+      rawData.apiKeys = createExportSafeConfig(config, { includeSecrets: true }).apiKeys || {};
     }
     if (elements.exportMemoryCheck.checked) {
       rawData.personalMemories = getPersonalMemories();
