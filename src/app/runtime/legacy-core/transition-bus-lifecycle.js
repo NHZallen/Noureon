@@ -1,0 +1,678 @@
+import { createLegacyBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
+import { createLegacySearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
+import { createLegacyModelMemoryDashboardLifecycle } from './model-memory-dashboard-lifecycle.js';
+
+const requiredDependencies = [
+    'window',
+    'document',
+    'elements',
+    'legacyRuntimeContext',
+    'state',
+    'runtimeConfigAccess',
+    'runtimeAppDataStore',
+    'runtimeDialogCoordinator',
+    'i18n',
+    'models',
+    'saveConfig',
+    'saveAppData',
+    'renderAll',
+    'loadChat',
+    'toggleModal',
+    'showNotification'
+];
+
+function assertRequiredDependencies(dependencies) {
+    const missing = requiredDependencies.filter((key) => dependencies[key] == null);
+    if (missing.length > 0) {
+        throw new TypeError(`createLegacyTransitionBusLifecycle missing dependencies: ${missing.join(', ')}`);
+    }
+}
+
+export function createLegacyTransitionBusLifecycle(dependencies = {}) {
+    assertRequiredDependencies(dependencies);
+
+    const {
+        window,
+        document,
+        navigator,
+        fetch,
+        File,
+        FileReader: FileReaderCtor,
+        Image: ImageCtor,
+        URL,
+        Event,
+        Blob,
+        Chart,
+        Cropper,
+        Peer,
+        QRCode,
+        Html5Qrcode,
+        JSZip,
+        ResizeObserver,
+        IntersectionObserver,
+        requestAnimationFrame,
+        setTimeout,
+        clearTimeout,
+        crypto,
+        console = globalThis.console,
+        globalObject = globalThis,
+        getComputedStyle,
+        elements: ALL_ELEMENTS,
+        legacyRuntimeContext,
+        state,
+        runtimeConfigAccess,
+        runtimeAppDataStore,
+        runtimeDialogCoordinator,
+        i18n,
+        officialAstras,
+        updateLogs,
+        uiThemeColors,
+        models: MODELS,
+        setTheme,
+        updateThemeButtons,
+        setAiBubbleColor,
+        setUserBubbleColor,
+        saveConfig,
+        saveAppData,
+        showNotification,
+        toggleModal,
+        renderAstras,
+        escapeHTML,
+        sanitizeTrustedHTML,
+        showRenameModal,
+        togglePinChat,
+        archiveChat,
+        deleteChat,
+        moveConversationToFolder,
+        showFolderSettingsModal,
+        deleteFolder,
+        deleteAstras,
+        showCustomConfirm,
+        showCustomPrompt,
+        showCustomDialog,
+        formatFullTimestamp,
+        renderUserText,
+        renderMarkdownWithFormulas,
+        startNewChat,
+        renderAll,
+        updateFunctionButtonsState,
+        saveSettings,
+        handleLogout,
+        handleFormSubmit,
+        handleRename,
+        handleSaveFolderSettings,
+        loadChat,
+        getActiveConversation,
+        normalizeConversationModel,
+        getCouncilSelectedModels,
+        isCouncilEnabled,
+        hasCouncilWebSearchAccess,
+        hasSingleWebSearchAccess,
+        hasSingleDocumentAccess,
+        modelSupportsVision,
+        getCouncilTexts,
+        renderInputIndicators,
+        toggleLearningMode,
+        toggleSelectionMode,
+        submitChatForm,
+        createNewFolder,
+        createAstras,
+        handleSaveAstras,
+        handleDeleteAllData,
+        updateFileInputUI,
+        postJsonWithReadableError,
+        openCouncilPopoverFromAttachmentMenu,
+        setupHistorySidebarInteractions,
+        setupHistorySidebarTriggers,
+        getDefaultFolder,
+        isMobileSettingsViewport,
+        openSettingsMobileSection,
+        getItem,
+        getUserKey,
+        loadConfig,
+        loadAppData,
+        handleLogin,
+        installTouchGuards,
+        registerServiceWorker,
+        getModelTiers,
+        getModelApiId,
+        getApiKeyForProvider,
+        getCouncilValidation,
+        callApiWithSchema,
+        getOutputMode,
+        analyzeImageBrightness: injectedAnalyzeImageBrightness,
+        getDominantColorPalette: injectedGetDominantColorPalette,
+        hashString,
+        constantTimeEqual,
+        processInChunks,
+        getBackupUsername,
+        createPasswordRecord,
+        setItem,
+        logger = console
+    } = dependencies;
+
+    const resolveUploadUpdateInputState = (...args) =>
+        legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+
+    const searchUploadSidebarLifecycle = createLegacySearchUploadSidebarLifecycle({
+        window,
+        document,
+        navigator,
+        fetch,
+        File,
+        FileReaderCtor,
+        ImageCtor,
+        elements: ALL_ELEMENTS,
+        getConfig: () => state.config,
+        getConversations: () => state.conversations,
+        getUploadedFiles: () => state.uploadedFiles,
+        setUploadedFiles: (files) => {
+            state.uploadedFiles = files;
+            return state.uploadedFiles;
+        },
+        getSidebarOpen: () => state.sidebarOpen,
+        setSidebarOpen: (nextSidebarOpen) => {
+            state.sidebarOpen = nextSidebarOpen;
+            return state.sidebarOpen;
+        },
+        escapeHTML,
+        renderUserText,
+        renderMarkdownWithFormulas,
+        loadChat,
+        toggleModal,
+        callApiWithSchema,
+        resolveUploadUpdateInputState,
+        i18n,
+        randomUUID: () => crypto.randomUUID(),
+        scheduleTimeout: (...args) => setTimeout(...args),
+        clearScheduledTimeout: (...args) => clearTimeout(...args),
+        logger
+    });
+
+    const {
+        performSearchAndRenderResults,
+        showConversationInViewModal,
+        generateSearchKeywords,
+        calculateRelevanceScores,
+        renderFilePreviews,
+        removeFile,
+        handleFileSelection,
+        toggleSidebar
+    } = searchUploadSidebarLifecycle;
+
+    const batchImportVoiceLifecycle = createLegacyBatchImportVoiceLifecycle({
+        window,
+        document,
+        navigator,
+        URL,
+        File,
+        JSZip,
+        elements: ALL_ELEMENTS,
+        legacyRuntimeContext,
+        getConfig: () => state.config,
+        mutateConfig: (mutator) => {
+            if (typeof mutator === 'function') return mutator(state.config);
+            Object.assign(state.config, mutator);
+            return state.config;
+        },
+        getCurrentUser: () => state.currentUser,
+        setCurrentUser: (nextUser) => {
+            state.currentUser = nextUser;
+            return state.currentUser;
+        },
+        getConversations: () => state.conversations,
+        getFolders: () => state.folders,
+        getAstras: () => state.astras,
+        getPersonalMemories: () => state.personalMemories,
+        replaceAllAppData: (nextAppData) => {
+            const snapshot = runtimeAppDataStore.replaceAll(nextAppData);
+            state.conversations = snapshot.conversations;
+            state.folders = snapshot.folders;
+            state.astras = snapshot.astras;
+            state.personalMemories = snapshot.personalMemories;
+            return snapshot;
+        },
+        replaceFolders: (nextFolders) => {
+            state.folders = runtimeAppDataStore.replaceFolders(nextFolders);
+            return state.folders;
+        },
+        replacePersonalMemories: (nextPersonalMemories) => {
+            state.personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
+            return state.personalMemories;
+        },
+        getSelectedConversationIds: () => state.selectedConversationIds,
+        conversationStateAccess: state.conversationStateAccess,
+        runtimeDialogCoordinator,
+        saveAppData,
+        saveConfig,
+        toggleSelectionMode,
+        toggleModal,
+        showNotification,
+        showCustomConfirm,
+        showCustomPrompt,
+        moveConversationToFolder,
+        createNewFolder,
+        startNewChat,
+        processInChunks,
+        getBackupUsername,
+        createPasswordRecord,
+        getUserKey,
+        setItem,
+        hashString,
+        constantTimeEqual,
+        requestAnimationFrame,
+        analyzeImageBrightness,
+        getDominantColorPalette,
+        applyCustomWallpaper,
+        applyUiTheme,
+        applyLanguage,
+        setAiBubbleColor,
+        setUserBubbleColor,
+        loadChat,
+        getOutputMode,
+        resolveUploadUpdateInputState,
+        performSearchAndRenderResults,
+        getCurrentSpeechRecognition: () => state.currentSpeechRecognition,
+        setCurrentSpeechRecognition: (nextRecognition) => {
+            state.currentSpeechRecognition = nextRecognition;
+            return state.currentSpeechRecognition;
+        },
+        setCurrentVoiceTarget: (nextTarget) => {
+            state.currentVoiceTarget = nextTarget;
+            return state.currentVoiceTarget;
+        },
+        i18n,
+        randomUUID: () => crypto.randomUUID(),
+        scheduleTimeout: (callback, ms) => setTimeout(callback, ms),
+        delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+        logger
+    });
+
+    const {
+        handleBatchDelete,
+        handleBatchArchive,
+        handleBatchMove,
+        renderBatchMoveModal,
+        batchMoveToFolder,
+        handleExport,
+        performImport,
+        handleImport,
+        handleImportOnAuth,
+        processAuthImport,
+        setupVoiceInput,
+        toggleVoiceInput
+    } = batchImportVoiceLifecycle;
+
+    const modelMemoryDashboardLifecycle = createLegacyModelMemoryDashboardLifecycle({
+        Chart,
+        document,
+        requestAnimationFrame,
+        crypto,
+        elements: ALL_ELEMENTS,
+        getConfig: () => state.config,
+        getConversations: () => state.conversations,
+        getFolders: () => state.folders,
+        getPersonalMemories: () => state.personalMemories,
+        replacePersonalMemories: (nextPersonalMemories) => {
+            state.personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
+            return state.personalMemories;
+        },
+        getModelPieChart: () => state.modelPieChart,
+        setModelPieChart: (chart) => {
+            state.modelPieChart = chart;
+        },
+        models: MODELS,
+        i18n,
+        getModelTiers,
+        getModelApiId,
+        saveConfig,
+        saveAppData,
+        runtimeDialogCoordinator,
+        showNotification,
+        showCustomConfirm,
+        toggleModal,
+        callApiWithSchema,
+        getActiveConversation,
+        normalizeConversationModel,
+        isCouncilEnabled,
+        getCouncilValidation,
+        getApiKeyForProvider,
+        setupTimeAnalysis,
+        console
+    });
+
+    const {
+        renderModelManagementUI,
+        moveModelOrder,
+        renderPersonalMemoryList,
+        refineAndStoreMemories,
+        extractPersonalMemory,
+        updateApiKeyWarningBadge,
+        openDashboard,
+        renderDashboardStats,
+        renderModelUsageChart
+    } = modelMemoryDashboardLifecycle;
+
+    function closeAllPopovers() {
+        document.querySelectorAll('.popover.visible').forEach(popover => {
+            popover.classList.remove('visible');
+        });
+    }
+
+    async function copyTextToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return;
+            } catch (err) {
+                console.warn('Clipboard API failed; falling back to execCommand.', err);
+            }
+        }
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '-9999px';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (!successful) {
+                throw new Error('Fallback copy command failed.');
+            }
+        } catch (err) {
+            document.body.removeChild(textArea);
+            throw err;
+        }
+        document.body.removeChild(textArea);
+    }
+
+    const coreTailState = {
+        get conversations() { return state.conversations; },
+        set conversations(next) { state.conversations = next; },
+        get folders() { return state.folders; },
+        set folders(next) { state.folders = next; },
+        get astras() { return state.astras; },
+        set astras(next) { state.astras = next; },
+        get personalMemories() { return state.personalMemories; },
+        set personalMemories(next) { state.personalMemories = next; },
+        get config() { return state.config; },
+        set config(next) { state.config = next; },
+        get currentUser() { return state.currentUser; },
+        set currentUser(next) { state.currentUser = next; },
+        get sidebarOpen() { return state.sidebarOpen; },
+        set sidebarOpen(next) { state.sidebarOpen = next; },
+        get sendConfirmed() { return state.sendConfirmed; },
+        set sendConfirmed(next) { state.sendConfirmed = next; },
+        get abortController() { return state.abortController; },
+        set abortController(next) { state.abortController = next; },
+        get cropperInstance() { return state.cropperInstance; },
+        set cropperInstance(next) { state.cropperInstance = next; },
+        get editingAstraForAvatarId() { return state.editingAstraForAvatarId; },
+        set editingAstraForAvatarId(next) { state.editingAstraForAvatarId = next; },
+        get editingAstrasId() { return state.editingAstrasId; },
+        set editingAstrasId(next) { state.editingAstrasId = next; },
+        get currentStoreCategory() { return state.currentStoreCategory; },
+        set currentStoreCategory(next) { state.currentStoreCategory = next; },
+        get messageObserver() { return state.messageObserver; },
+        set messageObserver(next) { state.messageObserver = next; },
+        get timeDistChart() { return state.timeDistChart; },
+        set timeDistChart(next) { state.timeDistChart = next; },
+        get isAutoScrolling() { return state.isAutoScrolling; },
+        set isAutoScrolling(next) { state.isAutoScrolling = next; }
+    };
+
+    const coreTailDependencies = {
+        window,
+        document,
+        navigator,
+        fetch,
+        File,
+        Event,
+        Blob,
+        Image: ImageCtor,
+        FileReader: FileReaderCtor,
+        Chart,
+        Cropper,
+        Peer,
+        QRCode,
+        Html5Qrcode,
+        JSZip,
+        ResizeObserver,
+        IntersectionObserver,
+        requestAnimationFrame,
+        setTimeout,
+        clearTimeout,
+        crypto,
+        console,
+        globalObject,
+        getComputedStyle,
+        random: () => Math.random(),
+        elements: ALL_ELEMENTS,
+        state: coreTailState,
+        runtimeConfigAccess,
+        runtimeAppDataStore,
+        runtimeDialogCoordinator,
+        legacyRuntimeContext,
+        i18n,
+        OFFICIAL_ASTRAS: officialAstras,
+        updateLogs,
+        UI_THEME_COLORS: uiThemeColors,
+        setTheme,
+        updateThemeButtons,
+        setAiBubbleColor,
+        setUserBubbleColor,
+        saveConfig,
+        saveAppData,
+        showNotification,
+        toggleModal,
+        renderAstras,
+        escapeHTML,
+        sanitizeTrustedHTML,
+        showRenameModal,
+        togglePinChat,
+        archiveChat,
+        deleteChat,
+        moveConversationToFolder,
+        renderBatchMoveModal,
+        showFolderSettingsModal,
+        deleteFolder,
+        deleteAstras,
+        showCustomConfirm,
+        formatFullTimestamp,
+        renderUserText,
+        renderMarkdownWithFormulas,
+        startNewChat,
+        renderAll,
+        setupVoiceInput,
+        updateFunctionButtonsState,
+        toggleSidebar,
+        saveSettings,
+        handleExport,
+        handleImport,
+        handleLogout,
+        handleFileSelection,
+        handleFormSubmit,
+        handleRename,
+        handleSaveFolderSettings,
+        performSearchAndRenderResults,
+        loadChat,
+        openDashboard,
+        getActiveConversation,
+        copyTextToClipboard,
+        normalizeConversationModel,
+        getCouncilSelectedModels,
+        isCouncilEnabled,
+        hasCouncilWebSearchAccess,
+        hasSingleWebSearchAccess,
+        hasSingleDocumentAccess,
+        modelSupportsVision,
+        getCouncilTexts,
+        renderInputIndicators,
+        toggleLearningMode,
+        toggleSelectionMode,
+        handleBatchDelete,
+        handleBatchArchive,
+        handleBatchMove,
+        submitChatForm,
+        closeAllPopovers,
+        showCustomPrompt,
+        createNewFolder,
+        createAstras,
+        handleSaveAstras,
+        renderPersonalMemoryList,
+        handleDeleteAllData,
+        updateFileInputUI,
+        postJsonWithReadableError,
+        openCouncilPopoverFromAttachmentMenu,
+        setupHistorySidebarInteractions,
+        setupHistorySidebarTriggers,
+        getDefaultFolder,
+        isMobileSettingsViewport,
+        openSettingsMobileSection,
+        getItem,
+        getUserKey,
+        loadConfig,
+        loadAppData,
+        handleLogin,
+        handleImportOnAuth,
+        processAuthImport,
+        installTouchGuards,
+        registerServiceWorker,
+        showCustomDialog
+    };
+
+    const registerSidebarBindings = () => {
+        legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar);
+    };
+
+    const registerCoreTailDependencies = () => {
+        legacyRuntimeContext.registerLazyBinding(
+            'runtime.coreTailDependencies',
+            () => coreTailDependencies
+        );
+    };
+
+    const resolveCoreTailFunction = (name) => {
+        const binding = legacyRuntimeContext.resolveBinding(`coreTail.${name}`);
+        if (typeof binding !== 'function') {
+            throw new TypeError(`Legacy core tail binding "coreTail.${name}" must be a function.`);
+        }
+        return binding;
+    };
+
+    function setupTimeAnalysis(...args) { return resolveCoreTailFunction('setupTimeAnalysis')(...args); }
+    function updateTimeDistributionChart(...args) { return resolveCoreTailFunction('updateTimeDistributionChart')(...args); }
+    function getDominantColorPalette(...args) {
+        if (injectedGetDominantColorPalette) return injectedGetDominantColorPalette(...args);
+        return resolveCoreTailFunction('getDominantColorPalette')(...args);
+    }
+    function applyUiTheme(...args) { return resolveCoreTailFunction('applyUiTheme')(...args); }
+    function renderUiColorOptions(...args) { return resolveCoreTailFunction('renderUiColorOptions')(...args); }
+    function analyzeImageBrightness(...args) {
+        if (injectedAnalyzeImageBrightness) return injectedAnalyzeImageBrightness(...args);
+        return resolveCoreTailFunction('analyzeImageBrightness')(...args);
+    }
+    function applyCustomWallpaper(...args) { return resolveCoreTailFunction('applyCustomWallpaper')(...args); }
+    function handleWallpaperUpload(...args) { return resolveCoreTailFunction('handleWallpaperUpload')(...args); }
+    function handleConfirmCrop(...args) { return resolveCoreTailFunction('handleConfirmCrop')(...args); }
+    function restoreDefaultWallpaper(...args) { return resolveCoreTailFunction('restoreDefaultWallpaper')(...args); }
+    function openStore(...args) { return resolveCoreTailFunction('openStore')(...args); }
+    function closeStore(...args) { return resolveCoreTailFunction('closeStore')(...args); }
+    function renderStore(...args) { return resolveCoreTailFunction('renderStore')(...args); }
+    function handleSubscription(...args) { return resolveCoreTailFunction('handleSubscription')(...args); }
+    function openAvatarEditor(...args) { return resolveCoreTailFunction('openAvatarEditor')(...args); }
+    function handleAvatarUpload(...args) { return resolveCoreTailFunction('handleAvatarUpload')(...args); }
+    function handleConfirmAvatarCrop(...args) { return resolveCoreTailFunction('handleConfirmAvatarCrop')(...args); }
+    function applyLanguage(...args) { return resolveCoreTailFunction('applyLanguage')(...args); }
+    function showMobileContextMenu(...args) { return resolveCoreTailFunction('showMobileContextMenu')(...args); }
+    function showMobileContextMenuForFolder(...args) { return resolveCoreTailFunction('showMobileContextMenuForFolder')(...args); }
+    function showMobileContextMenuForAstras(...args) { return resolveCoreTailFunction('showMobileContextMenuForAstras')(...args); }
+    function setupScrollToBottomButton(...args) { return resolveCoreTailFunction('setupScrollToBottomButton')(...args); }
+    function showUpdateHistory(...args) { return resolveCoreTailFunction('showUpdateHistory')(...args); }
+    function checkAndShowLatestUpdate(...args) { return resolveCoreTailFunction('checkAndShowLatestUpdate')(...args); }
+    function setupMessageIntersectionObserver(...args) { return resolveCoreTailFunction('setupMessageIntersectionObserver')(...args); }
+    function renderTrash(...args) { return resolveCoreTailFunction('renderTrash')(...args); }
+    function handleRestoreTrashItem(...args) { return resolveCoreTailFunction('handleRestoreTrashItem')(...args); }
+    function handleDeleteTrashItemPermanently(...args) { return resolveCoreTailFunction('handleDeleteTrashItemPermanently')(...args); }
+    function showTrashItemInViewModal(...args) { return resolveCoreTailFunction('showTrashItemInViewModal')(...args); }
+    function toggleTrashSelectionMode(...args) { return resolveCoreTailFunction('toggleTrashSelectionMode')(...args); }
+    function renderTrashBatchActionBar(...args) { return resolveCoreTailFunction('renderTrashBatchActionBar')(...args); }
+    function handleBatchRestoreFromTrash(...args) { return resolveCoreTailFunction('handleBatchRestoreFromTrash')(...args); }
+    function handleBatchDeleteFromTrash(...args) { return resolveCoreTailFunction('handleBatchDeleteFromTrash')(...args); }
+    function handleEmptyTrash(...args) { return resolveCoreTailFunction('handleEmptyTrash')(...args); }
+    function updateDisplayedVersion(...args) { return resolveCoreTailFunction('updateDisplayedVersion')(...args); }
+
+    return {
+        renderModelManagementUI,
+        moveModelOrder,
+        renderPersonalMemoryList,
+        refineAndStoreMemories,
+        extractPersonalMemory,
+        updateApiKeyWarningBadge,
+        openDashboard,
+        renderDashboardStats,
+        renderModelUsageChart,
+        performSearchAndRenderResults,
+        showConversationInViewModal,
+        generateSearchKeywords,
+        calculateRelevanceScores,
+        renderFilePreviews,
+        removeFile,
+        handleFileSelection,
+        toggleSidebar,
+        handleBatchDelete,
+        handleBatchArchive,
+        handleBatchMove,
+        renderBatchMoveModal,
+        batchMoveToFolder,
+        handleExport,
+        performImport,
+        handleImport,
+        handleImportOnAuth,
+        processAuthImport,
+        setupVoiceInput,
+        toggleVoiceInput,
+        closeAllPopovers,
+        copyTextToClipboard,
+        setupTimeAnalysis,
+        updateTimeDistributionChart,
+        getDominantColorPalette,
+        applyUiTheme,
+        renderUiColorOptions,
+        analyzeImageBrightness,
+        applyCustomWallpaper,
+        handleWallpaperUpload,
+        handleConfirmCrop,
+        restoreDefaultWallpaper,
+        openStore,
+        closeStore,
+        renderStore,
+        handleSubscription,
+        openAvatarEditor,
+        handleAvatarUpload,
+        handleConfirmAvatarCrop,
+        applyLanguage,
+        showMobileContextMenu,
+        showMobileContextMenuForFolder,
+        showMobileContextMenuForAstras,
+        setupScrollToBottomButton,
+        showUpdateHistory,
+        checkAndShowLatestUpdate,
+        setupMessageIntersectionObserver,
+        renderTrash,
+        handleRestoreTrashItem,
+        handleDeleteTrashItemPermanently,
+        showTrashItemInViewModal,
+        toggleTrashSelectionMode,
+        renderTrashBatchActionBar,
+        handleBatchRestoreFromTrash,
+        handleBatchDeleteFromTrash,
+        handleEmptyTrash,
+        updateDisplayedVersion,
+        coreTailDependencies,
+        registerSidebarBindings,
+        registerCoreTailDependencies
+    };
+}

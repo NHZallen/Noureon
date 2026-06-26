@@ -77,7 +77,7 @@ const assertMarkersInOrder = (source, markers, context) => {
   }
 };
 
-const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
 const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
 const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
 const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
