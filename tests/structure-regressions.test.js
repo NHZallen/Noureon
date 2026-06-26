@@ -221,6 +221,29 @@ test('production runtime entry uses the real legacy core without the virtual run
   assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime|legacy-core\/legacy-core\.js/);
 });
 
+test('quality lock script protects legacy runtime boundaries without banning template fragments', () => {
+  const packageJson = JSON.parse(readSource('package.json'));
+  const scriptPath = 'scripts/check-legacy-runtime-boundaries.mjs';
+  const scriptSource = readSource(scriptPath);
+  const templateFragmentNames = readdirSync(projectFile('src/templates/fragments'))
+    .filter((name) => name.endsWith('.fragment.js'))
+    .sort();
+
+  assert.equal(
+    packageJson.scripts['check:legacy-runtime'],
+    'node scripts/check-legacy-runtime-boundaries.mjs'
+  );
+  assert.match(scriptSource, /src\/app\/legacy-runtime\/fragments/);
+  assert.match(scriptSource, /virtual:legacy-app-runtime/);
+  assert.match(scriptSource, /legacyRuntimeFragmentsPlugin/);
+  assert.match(scriptSource, /legacyRuntimeModuleId/);
+  assert.match(scriptSource, /resolvedLegacyRuntimeModuleId/);
+  assert.match(scriptSource, /legacyCoreFragmentNames/);
+  assert.match(scriptSource, /\.\/runtime\/legacy-core\/legacy-core\.js/);
+  assert.doesNotMatch(scriptSource, /src\/templates\/fragments/);
+  assert.ok(templateFragmentNames.length > 0, 'template fragments are unrelated and must remain allowed');
+});
+
 test('production runtime entry composes the explicit legacy dependency facade', () => {
   const runtimeEntryPath = 'src/app/runtime-entry.js';
   const dependencyPath = 'src/app/runtime/runtime-entry-dependencies.js';
@@ -872,7 +895,7 @@ test('folder metadata is shared without later-fragment lexical ownership', () =>
   );
 });
 
-test('folder CRUD lifecycle ownership stays in a real runtime module with 01 final-tail wiring', () => {
+test('folder CRUD lifecycle ownership stays in a real module with legacy core wiring', () => {
   const lifecyclePath = 'src/app/runtime/features/folder-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -919,7 +942,7 @@ test('folder CRUD lifecycle ownership stays in a real runtime module with 01 fin
   assert.match(lifecycleSource, /let\s+folderToCustomize\s*=\s*null/);
 });
 
-test('settings auth provider lifecycle ownership stays in a real runtime module with 01 final-tail wiring', () => {
+test('settings auth provider lifecycle ownership stays in a real module with legacy core wiring', () => {
   const lifecyclePath = 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -957,7 +980,7 @@ test('settings auth provider lifecycle ownership stays in a real runtime module 
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
-test('sidebar chat Astra render lifecycle ownership stays in a real runtime module with 01 wiring', () => {
+test('sidebar chat Astra render lifecycle ownership stays in a real module with legacy core wiring', () => {
   const lifecyclePath = 'src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
   const lifecycleSource = readSource(lifecyclePath);
   const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -1048,7 +1071,7 @@ test('trash lifecycle ownership moves out of 04 into a real runtime module', () 
   assert.match(lifecycleSource, /const\s+selectedTrashIds\s*=\s*new\s+Set\(\)/);
 });
 
-test('legacy core tail ownership moves into runtime entry with 03 facade bridges', () => {
+test('legacy core tail ownership stays in runtime entry with transition bus bridges', () => {
   const modulePath = 'src/app/runtime/legacy-core/core-tail-lifecycle.js';
   const moduleSource = readSource(modulePath);
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
