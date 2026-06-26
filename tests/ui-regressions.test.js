@@ -163,7 +163,7 @@ test('sidebar search and history model pills use solid white surfaces', () => {
 
 test('desktop startup keeps sidebar closed while preserving manual and mobile toggle paths', () => {
   const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-  const runtime03 = readUiSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const searchUploadSidebarLifecycle = readUiSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
 
   assert.match(
     appBootstrapLifecycle,
@@ -175,9 +175,9 @@ test('desktop startup keeps sidebar closed while preserving manual and mobile to
   );
   assert.match(appBootstrapLifecycle, /ALL_ELEMENTS\.menuToggleBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleSidebar\(\)\)/);
   assert.match(appBootstrapLifecycle, /ALL_ELEMENTS\.sidebarOverlay\.addEventListener\('click',\s*\(\)\s*=>\s*toggleSidebar\(false\)\)/);
-  assert.match(runtime03, /appContainer\.classList\.toggle\('sidebar-open',\s*sidebarOpen\)/);
-  assert.match(runtime03, /sidebar\.style\.transform\s*=\s*'translateX\(0\)'/);
-  assert.match(runtime03, /sidebar\.style\.transform\s*=\s*'translateX\(-100%\)'/);
+  assert.match(searchUploadSidebarLifecycle, /appContainer\.classList\.toggle\('sidebar-open',\s*sidebarOpen\)/);
+  assert.match(searchUploadSidebarLifecycle, /sidebar\.style\.transform\s*=\s*'translateX\(0\)'/);
+  assert.match(searchUploadSidebarLifecycle, /sidebar\.style\.transform\s*=\s*'translateX\(-100%\)'/);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {

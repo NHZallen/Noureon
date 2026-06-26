@@ -1221,6 +1221,33 @@ test('model memory dashboard lifecycle moves model usage chart ownership out of 
   );
 });
 
+test('search upload sidebar lifecycle moves search upload sidebar ownership out of 03', () => {
+  const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const lifecycleSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
+
+  assert.equal(existsSync(projectFile('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js')), true);
+  assert.match(lifecycleSource, /export\s+function\s+createLegacySearchUploadSidebarLifecycle/);
+  assert.match(fragment03Source, /import\s+\{\s*createLegacySearchUploadSidebarLifecycle\s*\}/);
+  assert.match(fragment03Source, /const\s+searchUploadSidebarLifecycle\s*=\s*createLegacySearchUploadSidebarLifecycle\(\{/);
+  assert.match(fragment03Source, /getUploadedFiles:\s*\(\)\s*=>\s*uploadedFiles/);
+  assert.match(fragment03Source, /setUploadedFiles:\s*\(files\)\s*=>\s*\{\s*uploadedFiles\s*=\s*files;\s*return\s+uploadedFiles;\s*\}/);
+  assert.match(fragment03Source, /getSidebarOpen:\s*\(\)\s*=>\s*sidebarOpen/);
+  assert.match(fragment03Source, /setSidebarOpen:\s*\(nextSidebarOpen\)\s*=>\s*\{\s*sidebarOpen\s*=\s*nextSidebarOpen;\s*return\s+sidebarOpen;\s*\}/);
+  assert.match(fragment03Source, /performSearchAndRenderResults,\s*showConversationInViewModal,\s*generateSearchKeywords,/);
+  assert.match(fragment03Source, /renderFilePreviews,\s*removeFile,\s*handleFileSelection,\s*toggleSidebar/);
+  assert.match(fragment03Source, /legacyRuntimeContext\.registerLazyBinding\('sidebar\.toggleSidebar',\s*\(\)\s*=>\s*toggleSidebar\);/);
+  assert.doesNotMatch(fragment03Source, /const\s+performSearchAndRenderResults\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /const\s+showConversationInViewModal\s*=\s*\(convId\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /const\s+generateSearchKeywords\s*=\s*async\s*\(naturalQuery\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /createUploadedFilePreviewLifecycle\(\{/);
+  assert.doesNotMatch(fragment03Source, /function\s+toggleSidebar\(show\)\s*\{/);
+  assert.match(lifecycleSource, /const\s+performSearchAndRenderResults\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /createUploadedFilePreviewLifecycle\(\{/);
+  assert.match(lifecycleSource, /function\s+toggleSidebar\(show\)\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
+  assert.match(fragment03Source, /legacyRuntimeContext\.registerLazyBinding\(\s*['"]runtime\.coreTailDependencies['"]/);
+});
+
 test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary', () => {
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
@@ -1809,21 +1836,21 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const searchUploadSidebarSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
   const createConversationElementBody = getConstFunctionBody(fragment01Source, 'createConversationElement');
-  const toggleStart = fragment03Source.indexOf('function toggleSidebar(show)');
-  const toggleOpenBrace = fragment03Source.indexOf('{', toggleStart);
-  const toggleCloseBrace = findMatchingBrace(fragment03Source, toggleOpenBrace);
+  const toggleStart = searchUploadSidebarSource.indexOf('function toggleSidebar(show)');
   const registrationMarker =
     "legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar)";
   const registrationIndex = fragment03Source.indexOf(registrationMarker);
 
-  assert.notEqual(toggleStart, -1, '03 should keep the toggleSidebar declaration');
-  assert.ok(registrationIndex > toggleCloseBrace, '03 should register sidebar.toggleSidebar after the declaration closes');
+  assert.notEqual(toggleStart, -1, 'search/upload/sidebar lifecycle should own the toggleSidebar declaration');
+  assert.match(fragment03Source, /toggleSidebar\s*\n\s*\}\s*=\s*searchUploadSidebarLifecycle;/);
+  assert.notEqual(registrationIndex, -1, '03 should keep the sidebar.toggleSidebar binding');
   assert.ok(
-    registrationIndex < fragment03Source.indexOf('function closeAllPopovers()', toggleCloseBrace),
+    registrationIndex < fragment03Source.indexOf('function closeAllPopovers()'),
     '03 should register the handoff before the next owner-local function'
   );
   assert.match(
@@ -1873,7 +1900,7 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
     assert.doesNotMatch(source, /await\s+legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'/, `${label} should remain synchronous`);
   }
 
-  assert.match(fragment03Source.slice(0, toggleStart), /toggleSidebar\(false\)/, '03 owner-local call should remain direct');
+  assert.match(searchUploadSidebarSource.slice(0, toggleStart), /toggleSidebar\(false\)/, 'search owner-local call should remain direct');
   assert.match(appBootstrapLifecycleSource, /toggleSidebar\(\)/, 'app bootstrap lifecycle toggle call should remain direct');
   assert.match(appBootstrapLifecycleSource, /toggleSidebar\(false\)/, 'app bootstrap lifecycle close calls should remain direct');
   assert.match(dependencySource, /'toggleSidebar'/);
@@ -2494,15 +2521,17 @@ test('output mode settings text helper is isolated from the 02 runtime fragment'
 test('search text formatting helper is isolated from the 03 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/search-text-formatting.js');
   const fragmentSource = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const searchUploadSidebarSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/search-text-formatting.js'));
 
   assert.equal(typeof helpers.highlightText, 'function');
   assert.match(helperSource, /export\s+const\s+highlightText\b/);
   assert.match(
-    fragmentSource,
-    /import\s*\{[\s\S]*\bhighlightText\b[\s\S]*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/search-text-formatting\.js';/
+    searchUploadSidebarSource,
+    /import\s*\{[\s\S]*\bhighlightText\b[\s\S]*\}\s*from\s+'..\/..\/legacy-runtime\/features\/search-text-formatting\.js';/
   );
   assert.doesNotMatch(fragmentSource, /\b(?:const|function)\s+highlightText\b/);
+  assert.doesNotMatch(fragmentSource, /search-text-formatting\.js/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/03-runtime.fragment.js')).size < 150 * 1024);
 });
 
@@ -3117,6 +3146,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const searchUploadSidebarSource = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
@@ -3143,8 +3173,8 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(fragment00Source, /createMediaPreviewLifecycle\s+as\s+createArchivedMediaPreviewLifecycle/);
   assert.match(fragment01Source, /createMediaAttachmentRenderer\s+as\s+createMessageMediaAttachmentRenderer/);
   assert.match(fragment01Source, /createMediaPreviewLifecycle\s+as\s+createMessageMediaPreviewLifecycle/);
-  assert.match(fragment03Source, /createMediaAttachmentRenderer\s+as\s+createSearchMediaAttachmentRenderer/);
-  assert.match(fragment03Source, /createMediaPreviewLifecycle\s+as\s+createSearchMediaPreviewLifecycle/);
+  assert.match(searchUploadSidebarSource, /import\s+\{\s*createMediaAttachmentRenderer\s*\}/);
+  assert.match(searchUploadSidebarSource, /import\s+\{\s*createMediaPreviewLifecycle\s*\}/);
   assert.match(trashLifecycleSource, /import\s+\{\s*createMediaAttachmentRenderer\s*\}/);
   assert.match(trashLifecycleSource, /import\s+\{\s*createMediaPreviewLifecycle\s*\}/);
 
@@ -3154,12 +3184,12 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(fragment00Source, /bindMediaPreviewButtons:\s*bindArchivedMediaPreviewButtons/);
   assert.match(fragment01Source, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
   assert.match(fragment01Source, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
-  assert.match(fragment03Source, /createConversationViewRenderer\s+as\s+createSearchConversationViewRenderer/);
-  assert.match(fragment03Source, /searchConversationViewRenderer\.renderConversationMessages\(\{/);
-  assert.match(fragment03Source, /renderMediaAttachmentGrid:\s*renderSearchMediaAttachmentGrid/);
-  assert.match(fragment03Source, /bindMediaPreviewButtons:\s*bindSearchMediaPreviewButtons/);
-  assert.match(fragment03Source, /createUploadedFilePreviewLifecycle\(\{/);
-  assert.match(fragment03Source, /openMediaPreview:\s*openSearchMediaPreview/);
+  assert.match(searchUploadSidebarSource, /import\s+\{\s*createConversationViewRenderer\s*\}/);
+  assert.match(searchUploadSidebarSource, /searchConversationViewRenderer\.renderConversationMessages\(\{/);
+  assert.match(searchUploadSidebarSource, /renderMediaAttachmentGrid:\s*renderSearchMediaAttachmentGrid/);
+  assert.match(searchUploadSidebarSource, /bindMediaPreviewButtons:\s*bindSearchMediaPreviewButtons/);
+  assert.match(searchUploadSidebarSource, /createUploadedFilePreviewLifecycle\(\{/);
+  assert.match(searchUploadSidebarSource, /openMediaPreview:\s*openSearchMediaPreview/);
   assert.match(trashLifecycleSource, /import\s+\{\s*createConversationViewRenderer\s*\}/);
   assert.match(trashLifecycleSource, /trashConversationViewRenderer\.renderConversationMessages\(\{/);
   assert.match(trashLifecycleSource, /renderMediaAttachmentGrid,\s*bindMediaPreviewButtons/);
@@ -3171,6 +3201,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.doesNotMatch(fragment03Source, /typeof\s+renderMediaAttachmentGrid/);
   assert.doesNotMatch(fragment03Source, /typeof\s+bindMediaPreviewButtons/);
   assert.doesNotMatch(fragment03Source, /\bopenMediaPreview\(/);
+  assert.doesNotMatch(fragment03Source, /createUploadedFilePreviewLifecycle\(\{/);
   assert.doesNotMatch(fragment03Source, /const\s+renderFilePreviews\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(fragment03Source, /const\s+removeFile\s*=\s*\(fileId\)\s*=>/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')), false);

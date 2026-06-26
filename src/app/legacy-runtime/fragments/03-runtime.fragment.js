@@ -93,318 +93,57 @@
             }
             showNotification(`${i18n[config.uiLanguage].moved || '已移動'} ${count} ${i18n[config.uiLanguage].conversations || '個對話。'}`);
         };
-        import { highlightText } from '/src/app/legacy-runtime/features/search-text-formatting.js';
-        import { createMediaAttachmentRenderer as createSearchMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
-        import { createMediaPreviewLifecycle as createSearchMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
-        import { createConversationViewRenderer as createSearchConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
-        import { createUploadedFilePreviewLifecycle } from '/src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js';
+        import { createLegacySearchUploadSidebarLifecycle } from '/src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js';
         import { createLegacyImportExportLifecycle } from '/src/app/runtime/features/import-export-lifecycle.js';
         import { createLegacyAuthImportLifecycle } from '/src/app/runtime/features/auth-import-lifecycle.js';
         import { createLegacyModelMemoryDashboardLifecycle } from '/src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js';
-        const {
-            getInlineMediaSrc: getSearchInlineMediaSrc,
-            renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid
-        } = createSearchMediaAttachmentRenderer({ escapeHTML });
-        const {
-            openMediaPreview: openSearchMediaPreview,
-            bindMediaPreviewButtons: bindSearchMediaPreviewButtons
-        } = createSearchMediaPreviewLifecycle({
+        const resolveUploadUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+        const searchUploadSidebarLifecycle = createLegacySearchUploadSidebarLifecycle({
+            window,
             document,
             navigator,
             fetch,
             File,
-            escapeHTML,
-            getInlineMediaSrc: getSearchInlineMediaSrc,
-            getUiLanguage: () => config.uiLanguage
-        });
-        const searchConversationViewRenderer = createSearchConversationViewRenderer({
-            document,
-            renderUserText,
-            renderModelText: renderMarkdownWithFormulas,
-            renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid,
-            bindMediaPreviewButtons: bindSearchMediaPreviewButtons
-        });
-        const performSearchAndRenderResults = async () => {
-            const query = ALL_ELEMENTS.modalSearchInput.value.trim();
-            const scope = ALL_ELEMENTS.modalSearchScopeSelect.value;
-            const container = ALL_ELEMENTS.searchResultsContainer;
-            container.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].searching || '正在搜尋中...'}</p>`;
-            if (!query) {
-                container.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].searchPrompt}</p>`;
-                return;
-            }
-            let results = [];
-            if (scope === 'natural') {
-                try {
-                    const weightedKeywords = await generateSearchKeywords(query);
-                    if (!weightedKeywords || weightedKeywords.length === 0) {
-                        throw new Error(i18n[config.uiLanguage].keywordGenerationFailed || '無法從您的查詢中提取關鍵字。');
-                    }
-                    results = calculateRelevanceScores(weightedKeywords);
-                } catch (error) {
-                    container.innerHTML = `<p class="text-center text-red-500">${error.message}</p>`;
-                    return;
-                }
-            } else {
-    const lowerCaseQuery = query.toLowerCase();
-    const searchIn = scope === 'keyword-title' ? ['title'] : ['title', 'content'];
-    
-    // ✨ 核心修正：在搜尋前過濾掉垃圾桶中的內容
-    conversations
-        .filter(c => !c.deletedAt)
-        .forEach(conv => {
-            let matchFound = false;
-            let titleHTML = conv.title;
-                    let snippetHTML = '';
-                    if (searchIn.includes('title') && conv.title.toLowerCase().includes(lowerCaseQuery)) {
-                        matchFound = true;
-                        titleHTML = highlightText(conv.title, query);
-                    }
-                    if (searchIn.includes('content')) {
-                        for (const msg of conv.messages) {
-                            for (const part of msg.parts) {
-                                if (part.text && part.text.toLowerCase().includes(lowerCaseQuery)) {
-                                    matchFound = true;
-                                    const text = part.text;
-                                    const matchIndex = text.toLowerCase().indexOf(lowerCaseQuery);
-                                    const start = Math.max(0, matchIndex - 40);
-                                    const end = Math.min(text.length, matchIndex + query.length + 40);
-                                    snippetHTML = (start > 0 ? '...' : '') + highlightText(text.substring(start, end), query) + (end < text.length ? '...' : '');
-                                    break;
-                                }
-                            }
-                            if (snippetHTML) break;
-                        }
-                    }
-                    if (matchFound) {
-                        results.push({ conv, titleHTML, snippetHTML, score: 0 });
-                    }
-                });
-            }
-            if (scope === 'natural') {
-                results.sort((a, b) => b.score - a.score);
-            }
-            container.innerHTML = '';
-            if (results.length === 0) {
-                container.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].noResultsFound || '找不到符合的對話。'}</p>`;
-                return;
-            }
-            results.forEach(({ conv, titleHTML, snippetHTML, score }) => {
-                const item = document.createElement('div');
-                item.className = 'p-3 rounded-md hover:bg-[var(--hover-bg)] border border-transparent hover:border-[var(--border-color)]';
-                item.dataset.id = conv.id;
-                const scoreHTML = scope === 'natural' ? `
-                    <div class="flex items-center gap-2 mt-2">
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                            <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${score}%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">${score}</span>
-                    </div>
-                ` : '';
-                item.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium truncate">${titleHTML || highlightText(conv.title, query)}</div>
-                            ${snippetHTML ? `<p class="text-xs text-[var(--text-secondary)] mt-1 truncate">${snippetHTML}</p>` : ''}
-                        </div>
-                        <button data-id="${conv.id}" class="search-view-btn ml-2 flex-shrink-0 text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full hover:bg-blue-200">${i18n[config.uiLanguage].view || '檢視'}</button>
-                    </div>
-                    ${scoreHTML}
-                `;
-                const titleArea = item.querySelector('.flex-1');
-                titleArea.addEventListener('click', () => {
-    loadChat(conv.id);
-    toggleSidebar(false);
-    toggleModal(ALL_ELEMENTS.searchModal, false);
-    ALL_ELEMENTS.openSearchBtn.classList.remove('active'); // <-- ✨ 加上這一行
-});
-                const viewBtn = item.querySelector('.search-view-btn');
-                viewBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showConversationInViewModal(conv.id);
-                });
-                let pressTimer = null;
-                item.addEventListener('touchstart', (e) => {
-                    if (e.target.closest('button')) return;
-                    pressTimer = setTimeout(() => {
-                        e.preventDefault();
-                        showConversationInViewModal(conv.id);
-                    }, 500);
-                }, { passive: false });
-                item.addEventListener('touchend', () => clearTimeout(pressTimer));
-                item.addEventListener('touchmove', () => clearTimeout(pressTimer));
-                container.appendChild(item);
-            });
-        };
-        const showConversationInViewModal = (convId) => {
-            const conv = conversations.find(c => c.id === convId);
-            if (!conv) return;
-            ALL_ELEMENTS.searchViewTitle.textContent = conv.title;
-            const contentContainer = ALL_ELEMENTS.searchViewContent;
-            searchConversationViewRenderer.renderConversationMessages({
-                conversation: conv,
-                contentContainer,
-                emptyHTML: `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].noMessages || '此對話沒有訊息。'}</p>`
-            });
-            ALL_ELEMENTS.searchViewConfirmBtn.dataset.id = convId;
-            toggleModal(ALL_ELEMENTS.searchViewModal, true);
-        };
-        const generateSearchKeywords = async (naturalQuery) => {
-            const prompt = `分析以下自然語言查詢，提取 5-10 個最相關的核心關鍵字。對於每個關鍵字，根據其在查詢中的重要性，給予一個 1 到 10 的權重分數（10為最重要）。請嚴格按照以下 JSON 格式輸出，不要有任何額外的文字或解釋。
-範例:
-查詢: "去年夏天在巴黎鐵塔附近吃的最好吃的法國可麗餅是什麼？"
-輸出: [{"keyword": "可麗餅", "weight": 10}, {"keyword": "巴黎鐵塔", "weight": 9}, {"keyword": "法國", "weight": 7}, {"keyword": "吃", "weight": 5}, {"keyword": "去年夏天", "weight": 4}]
-查詢內容：${naturalQuery}`;
-            const responseSchema = {
-                type: "ARRAY",
-                items: {
-                    type: "OBJECT",
-                    properties: {
-                        keyword: { type: "STRING" },
-                        weight: { type: "INTEGER", minimum: 1, maximum: 10 }
-                    },
-                    required: ["keyword", "weight"]
-                },
-                minItems: 3,
-                maxItems: 10
-            };
-            return await callApiWithSchema(prompt, responseSchema);
-        };
-        const calculateRelevanceScores = (weightedKeywords) => {
-    let results = [];
-    let processedConvIds = new Set();
-    const totalWeightSum = weightedKeywords.reduce((sum, kw) => sum + kw.weight, 0);
-
-
-    // ✨ 核心修正：在計分前過濾掉垃圾桶中的內容
-    conversations
-        .filter(c => !c.deletedAt)
-        .forEach(conv => {
-            if (processedConvIds.has(conv.id)) return;
-                let totalScore = 0;
-                let maxPossibleScore = 0;
-                let foundKeywords = new Set();
-                let bestSnippet = '';
-                let titleHTML = conv.title;
-                const totalMessages = conv.messages.length;
-                weightedKeywords.forEach(kw => {
-                    const keywordLower = kw.keyword.toLowerCase();
-                    maxPossibleScore += kw.weight * 10;
-                    if (conv.title.toLowerCase().includes(keywordLower)) {
-                        totalScore += kw.weight * 10;
-                        foundKeywords.add(keywordLower);
-                        titleHTML = highlightText(titleHTML, kw.keyword);
-                    }
-                    conv.messages.forEach((msg, msgIndex) => {
-                        msg.parts.forEach(part => {
-                            if (part.text && part.text.toLowerCase().includes(keywordLower)) {
-                                foundKeywords.add(keywordLower);
-                                const occurrences = (part.text.toLowerCase().match(new RegExp(keywordLower, 'g')) || []).length;
-                                totalScore += kw.weight * occurrences * 0.5;
-                                const recencyWeight = (msgIndex + 1) / totalMessages;
-                                totalScore += kw.weight * recencyWeight * 2;
-                                const roleWeight = msg.role === 'user' ? 1.5 : 1;
-                                totalScore += kw.weight * roleWeight;
-                                if (!bestSnippet) {
-                                    const text = part.text;
-                                    const matchIndex = text.toLowerCase().indexOf(keywordLower);
-                                    const start = Math.max(0, matchIndex - 40);
-                                    const end = Math.min(text.length, matchIndex + kw.keyword.length + 40);
-                                    bestSnippet = (start > 0 ? '...' : '') + text.substring(start, end) + (end < text.length ? '...' : '');
-                                }
-                            }
-                        });
-                    });
-                });
-                if (foundKeywords.size > 0) {
-                    const coverageRatio = foundKeywords.size / weightedKeywords.length;
-                    totalScore *= (1 + coverageRatio);
-                    let finalScore = Math.min(100, Math.round((totalScore / maxPossibleScore) * 100 * 3));
-                    finalScore = Math.min(99, finalScore);
-                    const allKeywordsQuery = weightedKeywords.map(kw => kw.keyword).join('|');
-                    const highlightedSnippet = highlightText(bestSnippet, allKeywordsQuery);
-                    results.push({
-                        conv,
-                        titleHTML: highlightText(conv.title, allKeywordsQuery),
-                        snippetHTML: highlightedSnippet,
-                        score: finalScore
-                    });
-                    processedConvIds.add(conv.id);
-                }
-            });
-            return results;
-        };
-        const CHAT_IMAGE_MAX_SIZE = 1600;
-        const CHAT_IMAGE_QUALITY = 0.78;
-        const normalizeImageForChatUpload = (dataUrl, mimeType, fileName = 'image') => new Promise((resolve) => {
-            mimeType = mimeType || '';
-            if (!mimeType.startsWith('image/') || mimeType === 'image/gif') {
-                resolve({ base64: dataUrl, type: mimeType });
-                return;
-            }
-            const img = new Image();
-            img.onload = () => {
-                const maxEdge = Math.max(img.width, img.height);
-                const scale = maxEdge > CHAT_IMAGE_MAX_SIZE ? CHAT_IMAGE_MAX_SIZE / maxEdge : 1;
-                const canvas = document.createElement('canvas');
-                canvas.width = Math.max(1, Math.round(img.width * scale));
-                canvas.height = Math.max(1, Math.round(img.height * scale));
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    resolve({ base64: dataUrl, type: mimeType });
-                    return;
-                }
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve({
-                    base64: canvas.toDataURL('image/jpeg', CHAT_IMAGE_QUALITY),
-                    type: 'image/jpeg'
-                });
-            };
-            img.onerror = () => {
-                console.warn(`Could not normalize uploaded image for chat: ${fileName}`);
-                resolve({ base64: dataUrl, type: mimeType });
-            };
-            img.src = dataUrl;
-        });
-        const resolveUploadUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
-        const resolveSearchSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
-        const {
-            renderFilePreviews,
-            removeFile
-        } = createUploadedFilePreviewLifecycle({
-            document,
-            getFiles: () => uploadedFiles,
-            setFiles: (files) => {
+            FileReaderCtor: FileReader,
+            ImageCtor: Image,
+            elements: ALL_ELEMENTS,
+            getConfig: () => config,
+            getConversations: () => conversations,
+            getUploadedFiles: () => uploadedFiles,
+            setUploadedFiles: (files) => {
                 uploadedFiles = files;
+                return uploadedFiles;
             },
-            getContainer: () => ALL_ELEMENTS.filePreviewContainer,
-            getInputWrapper: () => document.querySelector('.input-wrapper'),
-            openMediaPreview: openSearchMediaPreview,
-            updateInputState: resolveUploadUpdateInputState
+            getSidebarOpen: () => sidebarOpen,
+            setSidebarOpen: (nextSidebarOpen) => {
+                sidebarOpen = nextSidebarOpen;
+                return sidebarOpen;
+            },
+            escapeHTML,
+            renderUserText,
+            renderMarkdownWithFormulas,
+            loadChat,
+            toggleModal,
+            callApiWithSchema,
+            resolveUploadUpdateInputState,
+            i18n,
+            randomUUID: () => crypto.randomUUID(),
+            scheduleTimeout: (...args) => setTimeout(...args),
+            clearScheduledTimeout: (...args) => clearTimeout(...args),
+            logger: console
         });
-        const handleFileSelection = (event) => {
-            const files = event.target.files;
-            if (!files) return;
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const normalized = await normalizeImageForChatUpload(e.target.result, file.type, file.name);
-                    uploadedFiles.push({
-                        id: crypto.randomUUID(),
-                        name: file.name,
-                        type: normalized.type,
-                        originalType: file.type,
-                        size: file.size,
-                        base64: normalized.base64,
-                    });
-                    renderFilePreviews();
-                };
-                reader.readAsDataURL(file);
-            });
-            event.target.value = '';
-        };
+        const {
+            performSearchAndRenderResults,
+            showConversationInViewModal,
+            generateSearchKeywords,
+            calculateRelevanceScores,
+            renderFilePreviews,
+            removeFile,
+            handleFileSelection,
+            toggleSidebar
+        } = searchUploadSidebarLifecycle;
+        legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar);
+        const resolveSearchSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
         const importExportLifecycle = createLegacyImportExportLifecycle({
             document,
             window,
@@ -570,27 +309,6 @@
             renderModelUsageChart
         } = modelMemoryDashboardLifecycle;
 
-        function toggleSidebar(show) {
-    const { sidebar, sidebarOverlay, appContainer } = ALL_ELEMENTS;
-    sidebarOpen = typeof show === 'boolean' ? show : !sidebarOpen;
-
-
-    // 判斷是否為電腦版螢幕
-    if (window.innerWidth >= 1024) {
-        // --- 電腦版邏輯：切換 class 來推擠 ---
-        appContainer.classList.toggle('sidebar-open', sidebarOpen);
-    } else {
-        // --- 手機版邏輯：維持原本的覆蓋效果 ---
-        if (sidebarOpen) {
-            sidebar.style.transform = 'translateX(0)';
-            sidebarOverlay.classList.add('visible');
-        } else {
-            sidebar.style.transform = 'translateX(-100%)';
-            sidebarOverlay.classList.remove('visible');
-        }
-    }
-}
-        legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar);
 
         function closeAllPopovers() {
             document.querySelectorAll('.popover.visible').forEach(popover => {
