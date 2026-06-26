@@ -8,6 +8,12 @@ const runtimeEntryPath = resolve(projectRoot, 'src/app/runtime-entry.js');
 const legacyCorePath = resolve(projectRoot, 'src/app/runtime/legacy-core/legacy-core.js');
 const viteConfigPath = resolve(projectRoot, 'vite.config.js');
 
+const legacyCoreOwnershipBudget = Object.freeze({
+  label: 'legacy-core ownership budget',
+  maxBytes: 120 * 1024,
+  maxLines: 2300
+});
+
 const oldViteSymbols = [
   'legacyRuntimeFragmentsPlugin',
   'legacyRuntimeModuleId',
@@ -50,6 +56,12 @@ const getExtension = (path) => {
   return match?.[0] ?? '';
 };
 
+const countLines = (source) => {
+  if (source.length === 0) return 0;
+  const lines = source.split(/\r\n|\r|\n/).length;
+  return source.endsWith('\n') ? lines - 1 : lines;
+};
+
 const runtimeFragments = listFiles(runtimeFragmentsDir)
   .filter((file) => file.endsWith('.fragment.js'));
 
@@ -61,8 +73,23 @@ if (!existsSync(legacyCorePath)) {
   fail('Missing real legacy core module: src/app/runtime/legacy-core/legacy-core.js');
 } else {
   const legacyCoreSource = readFileSync(legacyCorePath, 'utf8');
+  const legacyCoreSize = statSync(legacyCorePath).size;
+  const legacyCoreLineCount = countLines(legacyCoreSource);
+
   if (!/export\s+\{\s*legacyRuntimeContext\s*\};/.test(legacyCoreSource)) {
     fail('legacy-core.js must explicitly export legacyRuntimeContext.');
+  }
+  if (legacyCoreSize > legacyCoreOwnershipBudget.maxBytes) {
+    fail(
+      `legacy-core.js exceeded the Phase 8 ownership budget (${legacyCoreSize} bytes > ${legacyCoreOwnershipBudget.maxBytes} bytes). ` +
+      'If this growth is intentional, extract a real lifecycle/module instead of expanding the core shell.'
+    );
+  }
+  if (legacyCoreLineCount > legacyCoreOwnershipBudget.maxLines) {
+    fail(
+      `legacy-core.js exceeded the Phase 8 ownership budget (${legacyCoreLineCount} lines > ${legacyCoreOwnershipBudget.maxLines} lines). ` +
+      'If this growth is intentional, extract a real lifecycle/module instead of expanding the core shell.'
+    );
   }
 }
 
