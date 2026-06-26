@@ -1390,7 +1390,7 @@ function renderMarkdownWithFormulas(text) {
             conversationStateAccess.setCurrentConversationId(newConv.id);
             renderAll();
             ALL_ELEMENTS.messageInput.value = '';
-            setTimeout(adjustTextareaHeight, 0);
+            setTimeout(adjustTextareaHeightAlias, 0);
             legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
             resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
@@ -1411,7 +1411,7 @@ function renderMarkdownWithFormulas(text) {
                 renderAll();
                 const conv = getActiveConversation();
                 ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
-                setTimeout(adjustTextareaHeight, 0);
+                setTimeout(adjustTextareaHeightAlias, 0);
             }
             resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
@@ -1744,12 +1744,20 @@ function renderMarkdownWithFormulas(text) {
         legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
         legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
         legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
+        const resolveRuntimeEntryAdjustTextareaHeight = () => legacyRuntimeContext.resolveOptionalBinding(
+            'runtimeEntry.submit.adjustTextareaHeight'
+        );
+        const adjustTextareaHeightAlias = (...args) => {
+            const runtimeEntryAdjustTextareaHeight = resolveRuntimeEntryAdjustTextareaHeight();
+            if (runtimeEntryAdjustTextareaHeight) {
+                return runtimeEntryAdjustTextareaHeight(...args);
+            }
+            return undefined;
+        };
         legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => {
-            const runtimeEntryAdjustTextareaHeight = legacyRuntimeContext.resolveOptionalBinding(
-                'runtimeEntry.submit.adjustTextareaHeight'
-            );
+            const runtimeEntryAdjustTextareaHeight = resolveRuntimeEntryAdjustTextareaHeight();
             if (runtimeEntryAdjustTextareaHeight) return runtimeEntryAdjustTextareaHeight;
-            return adjustTextareaHeight;
+            return adjustTextareaHeightAlias;
         });
         legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const settingsAuthProviderState = {
@@ -1812,6 +1820,7 @@ function renderMarkdownWithFormulas(text) {
             conversationNeedsTavilySearch,
             getCouncilValidation,
             isCouncilEnabled,
+            getOutputMode,
             renderHistorySidebar,
             conversationStateAccess,
             getProviderLabel,

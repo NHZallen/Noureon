@@ -111,6 +111,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         getModelPriceLabel,
         getCouncilTranslatorCandidates,
         getSingleTranslatorCandidates,
+        getOutputMode = () => 'typewriter',
         escapeHTML,
         hexToRgba,
         renderPersonalMemoryList,

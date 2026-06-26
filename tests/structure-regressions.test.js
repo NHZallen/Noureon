@@ -960,6 +960,8 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
   );
   assert.match(fragment02Source, /const\s+settingsAuthProviderLifecycle\s*=\s*createLegacySettingsAuthProviderLifecycle\(\{/);
+  assert.match(fragment02Source, /getOutputMode,\s*\n\s*renderHistorySidebar,/);
+  assert.match(lifecycleSource, /getOutputMode\s*=\s*\(\)\s*=>\s*'typewriter'/);
   assert.match(fragment02Source, /const\s+\{[\s\S]*runModelCouncil,[\s\S]*callApiWithSchema,[\s\S]*updateSubmitButtonState,[\s\S]*updateInputState,[\s\S]*setupSettingsModal,[\s\S]*saveSettings,[\s\S]*handleLogin,[\s\S]*handleLogout,[\s\S]*handleDeleteAllData[\s\S]*\}\s*=\s*settingsAuthProviderLifecycle;/);
   assert.match(fragment02Source, /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/);
   assert.match(fragment02Source, /legacyRuntimeContext\.registerLazyBinding\('input\.updateInputState',\s*\(\)\s*=>\s*updateInputState\);/);
@@ -1591,8 +1593,9 @@ test('startup lifecycle and runtime entry own the retired 06 startup shell', () 
 
   assert.match(
     fragment01Source,
-    /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*resolveOptionalBinding\(\s*'runtimeEntry\.submit\.adjustTextareaHeight'\s*\)[\s\S]*return\s+adjustTextareaHeight;[\s\S]*\}\)/
+    /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*resolveRuntimeEntryAdjustTextareaHeight\(\)[\s\S]*return\s+adjustTextareaHeightAlias;[\s\S]*\}\)/
   );
+  assert.doesNotMatch(fragment01Source, /return\s+adjustTextareaHeight;/);
   assert.match(runtimeEntrySource, /runtimeEntry\.submit\.adjustTextareaHeight/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/05-runtime.fragment.js')), false);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/06-runtime.fragment.js')), false);
@@ -2008,7 +2011,7 @@ test('loadChat resolves updateFunctionButtonsState through the required runtime 
     [
       'renderAll()',
       "ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : ''",
-      'setTimeout(adjustTextareaHeight, 0)',
+      'setTimeout(adjustTextareaHeightAlias, 0)',
       'resolveFoundationUpdateInputState()',
       'updateApiKeyWarningBadge()',
       "legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')()"
@@ -2064,7 +2067,7 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
     [
       'renderAll()',
       "ALL_ELEMENTS.messageInput.value = ''",
-      'setTimeout(adjustTextareaHeight, 0)',
+      'setTimeout(adjustTextareaHeightAlias, 0)',
       "legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false)",
       'resolveFoundationUpdateInputState()',
       'updateApiKeyWarningBadge()'
@@ -3067,7 +3070,11 @@ test('response progress renderers and submit preparation are isolated from the 0
   }
   assert.match(
     readSource('src/app/runtime/legacy-core/legacy-core.js'),
-    /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*runtimeEntry\.submit\.adjustTextareaHeight[\s\S]*return\s+adjustTextareaHeight;[\s\S]*\}\)/
+    /const\s+adjustTextareaHeightAlias\s*=\s*\(\.\.\.args\)\s*=>\s*\{[\s\S]*resolveRuntimeEntryAdjustTextareaHeight\(\)[\s\S]*return\s+undefined;[\s\S]*\};[\s\S]*registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*return\s+adjustTextareaHeightAlias;[\s\S]*\}\)/
+  );
+  assert.doesNotMatch(
+    readSource('src/app/runtime/legacy-core/legacy-core.js'),
+    /return\s+adjustTextareaHeight;/
   );
   assert.match(
     fragment01Source,
