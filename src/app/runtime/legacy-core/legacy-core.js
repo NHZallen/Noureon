@@ -995,6 +995,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const getSensitiveApiKeys = () => sensitiveConfigStore.getApiKeys();
         const setApiKeyForProvider = (provider, value) => sensitiveConfigStore.setApiKey(provider, value);
         const mergeSensitiveApiKeys = (apiKeys) => sensitiveConfigStore.mergeApiKeys(apiKeys);
+        const clearSensitiveApiKeys = () => sensitiveConfigStore.clearApiKeys();
         const saveSensitiveConfig = async () => { await runtimeSensitiveConfigPersistence.saveSensitiveConfig(); };
         function getApiKeyForProvider(provider) {
             return sensitiveConfigStore.getApiKey(provider);
@@ -1839,6 +1840,7 @@ function renderMarkdownWithFormulas(text) {
             getModelPriceLabel,
             setApiKeyForProvider,
             mergeSensitiveApiKeys,
+            clearSensitiveApiKeys,
             saveSensitiveConfig,
             getCouncilTranslatorCandidates,
             getSingleTranslatorCandidates,

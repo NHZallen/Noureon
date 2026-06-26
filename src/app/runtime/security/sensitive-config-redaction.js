@@ -8,6 +8,7 @@ export const SENSITIVE_API_KEY_FIELDS = Object.freeze([
 
 const SENSITIVE_API_KEY_FIELD_SET = new Set(SENSITIVE_API_KEY_FIELDS);
 const DEFAULT_REDACTION_MASK = '********';
+const DEFAULT_DISPLAY_MASK = '************';
 
 export function isSensitiveConfigKey(key) {
   return key === 'apiKeys' || SENSITIVE_API_KEY_FIELD_SET.has(key);
@@ -25,6 +26,32 @@ export function redactApiKey(value, {
   const prefix = visiblePrefix > 0 ? stringValue.slice(0, visiblePrefix) : '';
   const suffix = visibleSuffix > 0 ? stringValue.slice(-visibleSuffix) : '';
   return `${prefix}${mask}${suffix}`;
+}
+
+export function maskApiKeyForDisplay(value, {
+  mask = DEFAULT_DISPLAY_MASK,
+  visiblePrefix = 8,
+  visibleSuffix = 4
+} = {}) {
+  if (value == null) return '';
+  const stringValue = String(value);
+  if (!stringValue) return '';
+
+  if (stringValue.length <= visiblePrefix + visibleSuffix) {
+    const prefixLength = Math.min(4, Math.max(1, stringValue.length - 1));
+    const suffixLength = stringValue.length > 1 ? 1 : 0;
+    const prefix = stringValue.slice(0, prefixLength);
+    const suffix = suffixLength > 0 ? stringValue.slice(-suffixLength) : '';
+    return `${prefix}${mask}${suffix}`;
+  }
+
+  return redactApiKey(stringValue, { mask, visiblePrefix, visibleSuffix });
+}
+
+export function isMaskedApiKeyDisplayValue(value, { mask = DEFAULT_DISPLAY_MASK } = {}) {
+  if (value == null) return false;
+  const stringValue = String(value);
+  return stringValue.includes(mask);
 }
 
 export function redactApiKeys(apiKeys, options = {}) {

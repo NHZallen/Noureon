@@ -318,8 +318,7 @@ test('settings persistence keeps mutation, visual, save, render, and notificatio
   const initChatAppBody = getBlockFromMarker(appBootstrapLifecycleSource, 'async function initChatApp()');
 
   assertMarkersInOrder(saveSettingsBody, [
-    'const nextApiKeys = {',
-    'await saveSensitiveConfig()',
+    'await persistApiKeyInputIntents()',
     'config.uiLanguage = ALL_ELEMENTS.uiLanguageSelect.value',
     'config.uiTheme.mode = selectedThemeMode',
     'setAiBubbleColor()',

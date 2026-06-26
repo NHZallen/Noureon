@@ -3,6 +3,11 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+import {
+  markApiKeyInputCleared,
+  markApiKeyInputDirty,
+  prepareApiKeyInput
+} from '../src/app/runtime/security/api-key-input-intent.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -16,6 +21,9 @@ const createDependencies = (overrides = {}) => {
       enabledModels: [],
       modelSettings: [],
       uiTheme: {},
+      theme: 'dark',
+      aiBubbleColor: 'default',
+      userBubbleColor: 'default',
       outputMode: 'typewriter',
       tavilySearchDepth: 'basic'
     },
@@ -98,8 +106,8 @@ const createDependencies = (overrides = {}) => {
     councilResponseCharLimit: 1000,
     councilRetryDelayMs: 1,
     councilMaxModels: 3,
-    aiBubbleColors: [],
-    userBubbleColors: [],
+    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
+    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
     getActiveConversation: () => null,
     normalizeConversationModel: (model) => model,
     getModelApiId: (model) => model?.id || '',
@@ -282,6 +290,175 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   assert.ok(calls.indexOf('saveSensitiveConfig') < calls.indexOf('saveConfig'));
   assert.deepEqual(state.config.apiKeys, {});
   assert.equal(state.config.outputMode, 'realtime');
+});
+
+test('setupSettingsModal displays masked API keys without putting raw secrets in value or dataset', () => {
+  const rawKeys = {
+    gemini: 'gemini-secret-value-abcd',
+    openrouter: 'sk-or-v1-openrouter-secret-abcd'
+  };
+  const { dependencies } = createDependencies({
+    getApiKeyForProvider: (provider) => rawKeys[provider] || '',
+    document: {
+      body: { classList: { contains() { return false; } } },
+      documentElement: { style: { setProperty() {} } },
+      createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } }, addEventListener() {}, appendChild() {}, getBoundingClientRect: () => ({ bottom: 0, height: 0 }) }),
+      createTextNode: (text) => ({ textContent: text }),
+      getElementById: () => null,
+      addEventListener() {},
+      querySelector: () => ({ style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      querySelectorAll: () => []
+    }
+  });
+  dependencies.elements.geminiApiKeyInput.id = 'gemini-api-key-input';
+  dependencies.elements.openrouterApiKeyInputAll.id = 'openrouter-api-key-input-all';
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  lifecycle.setupSettingsModal();
+
+  assert.notEqual(dependencies.elements.geminiApiKeyInput.value, rawKeys.gemini);
+  assert.notEqual(dependencies.elements.openrouterApiKeyInputAll.value, rawKeys.openrouter);
+  assert.equal(dependencies.elements.geminiApiKeyInput.value.includes('************'), true);
+  assert.equal(JSON.stringify(dependencies.elements.geminiApiKeyInput.dataset).includes(rawKeys.gemini), false);
+  assert.equal(JSON.stringify(dependencies.elements.openrouterApiKeyInputAll.dataset).includes(rawKeys.openrouter), false);
+});
+
+test('saveSettings preserves unchanged masked keys and never stores masked placeholders', async () => {
+  const { dependencies, calls } = createDependencies({
+    document: {
+      body: { classList: { contains() { return false; } } },
+      documentElement: { style: { setProperty: () => {} } },
+      createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      getElementById: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      querySelector: (selector) => {
+        if (selector === 'input[name="color-theme"]:checked') return { value: 'dark' };
+        if (selector === 'input[name="color-style"]:checked') return { value: 'single' };
+        return null;
+      },
+      querySelectorAll: () => []
+    },
+    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
+    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
+    setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
+    saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
+  });
+
+  prepareApiKeyInput(dependencies.elements.geminiApiKeyInput, {
+    provider: 'gemini',
+    rawValue: 'gemini-secret-value-abcd'
+  });
+  dependencies.elements.tavilySearchDepthSelect.value = 'basic';
+  dependencies.elements.outputModeSelect.value = 'typewriter';
+  dependencies.elements.uiLanguageSelect.value = 'en';
+  dependencies.elements.aiLanguageSelect.value = 'en';
+  dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
+  dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
+  dependencies.elements.customColorSwatches.querySelector = () => null;
+  dependencies.elements.gradientSwatches.querySelector = () => null;
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  await lifecycle.saveSettings({ close: false, notify: false });
+
+  assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), false);
+  assert.equal(calls.includes('saveSensitiveConfig'), false);
+  assert.equal(calls.includes('saveConfig'), true);
+});
+
+test('saveSettings writes new and cleared API key intents through sensitive callbacks', async () => {
+  const { dependencies, calls } = createDependencies({
+    document: {
+      body: { classList: { contains() { return false; } } },
+      documentElement: { style: { setProperty: () => {} } },
+      createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      getElementById: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      querySelector: (selector) => {
+        if (selector === 'input[name="color-theme"]:checked') return { value: 'dark' };
+        if (selector === 'input[name="color-style"]:checked') return { value: 'single' };
+        return null;
+      },
+      querySelectorAll: () => []
+    },
+    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
+    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
+    setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
+    saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
+  });
+  prepareApiKeyInput(dependencies.elements.geminiApiKeyInput, { provider: 'gemini', rawValue: 'old-gemini-key' });
+  dependencies.elements.geminiApiKeyInput.value = ' new-gemini-key ';
+  markApiKeyInputDirty(dependencies.elements.geminiApiKeyInput);
+  prepareApiKeyInput(dependencies.elements.stepPlanApiKeyInput, { provider: 'stepPlan', rawValue: 'old-step-key' });
+  markApiKeyInputCleared(dependencies.elements.stepPlanApiKeyInput);
+  dependencies.elements.tavilySearchDepthSelect.value = 'basic';
+  dependencies.elements.outputModeSelect.value = 'typewriter';
+  dependencies.elements.uiLanguageSelect.value = 'en';
+  dependencies.elements.aiLanguageSelect.value = 'en';
+  dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
+  dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
+  dependencies.elements.customColorSwatches.querySelector = () => null;
+  dependencies.elements.gradientSwatches.querySelector = () => null;
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  await lifecycle.saveSettings({ close: false, notify: false });
+
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), [
+    ['setApiKeyForProvider', 'gemini', 'new-gemini-key'],
+    ['setApiKeyForProvider', 'stepPlan', '']
+  ]);
+  assert.ok(calls.indexOf('saveSensitiveConfig') < calls.indexOf('saveConfig'));
+});
+
+test('clear all API keys button clears sensitive store and saves without raw dataset secrets', async () => {
+  const createdButtons = {};
+  const wrapper = {
+    classList: { add() {} },
+    appendChild(button) { createdButtons[button.id] = button; },
+    insertAdjacentElement(_position, button) { createdButtons[button.id] = button; }
+  };
+  const makeElement = (id = '') => ({
+    id,
+    value: '',
+    dataset: {},
+    style: {},
+    classList: { add() {}, remove() {}, contains() { return false; } },
+    listeners: {},
+    addEventListener(type, listener) { this.listeners[type] = listener; },
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    closest() { return wrapper; },
+    appendChild(button) { createdButtons[button.id] = button; },
+    getBoundingClientRect: () => ({ bottom: 0, height: 0 })
+  });
+  const { dependencies, calls } = createDependencies({
+    getApiKeyForProvider: (provider) => `${provider}-secret-value-abcd`,
+    clearSensitiveApiKeys: async () => calls.push('clearSensitiveApiKeys'),
+    saveSensitiveConfig: async () => calls.push('saveSensitiveConfig'),
+    document: {
+      body: { classList: { contains() { return false; } } },
+      documentElement: { style: { setProperty() {} } },
+      createElement: () => makeElement(),
+      createTextNode: (text) => ({ textContent: text }),
+      getElementById: (id) => {
+        if (id === 'accessibility-section' || id === 'output-mode-setting-row') return null;
+        return id.endsWith('-clear-btn') || id === 'clear-all-api-keys-btn' ? null : makeElement(id);
+      },
+      addEventListener() {},
+      querySelector: () => ({ style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      querySelectorAll: () => []
+    }
+  });
+  dependencies.elements.geminiApiKeyInput = makeElement('gemini-api-key-input');
+  dependencies.elements.openrouterApiKeyInputAll = makeElement('openrouter-api-key-input-all');
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  lifecycle.setupSettingsModal();
+  await createdButtons['clear-all-api-keys-btn'].listeners.click({ preventDefault() {} });
+
+  assert.deepEqual(calls.filter((call) => call === 'clearSensitiveApiKeys' || call === 'saveSensitiveConfig'), [
+    'clearSensitiveApiKeys',
+    'saveSensitiveConfig'
+  ]);
+  assert.equal(dependencies.elements.geminiApiKeyInput.value, '');
+  assert.equal(JSON.stringify(dependencies.elements.geminiApiKeyInput.dataset).includes('gemini-secret-value-abcd'), false);
 });
 
 test('source keeps settings save, login, and delete-all ownership', () => {

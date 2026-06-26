@@ -6,6 +6,8 @@ import {
   SENSITIVE_API_KEY_FIELDS,
   createExportSafeConfig,
   isSensitiveConfigKey,
+  isMaskedApiKeyDisplayValue,
+  maskApiKeyForDisplay,
   redactApiKey,
   redactApiKeys,
   redactSensitiveConfig,
@@ -21,6 +23,8 @@ test('sensitive config redaction exports the expected helper API', () => {
     ['gemini', 'nvidia', 'openrouter', 'stepPlan', 'tavily'].sort()
   );
   assert.equal(typeof isSensitiveConfigKey, 'function');
+  assert.equal(typeof isMaskedApiKeyDisplayValue, 'function');
+  assert.equal(typeof maskApiKeyForDisplay, 'function');
   assert.equal(typeof redactApiKey, 'function');
   assert.equal(typeof redactApiKeys, 'function');
   assert.equal(typeof redactSensitiveConfig, 'function');

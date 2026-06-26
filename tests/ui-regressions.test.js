@@ -123,6 +123,22 @@ test('mobile web search typing does not disable the message input when Tavily is
   assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });
 
+test('settings API key controls use masked intent helpers and scoped clear button styles', () => {
+  const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const css = readUiSource('src/styles/main.css');
+
+  assert.match(settingsAuthProviderLifecycle, /prepareApiKeyInput\(input,\s*\{/);
+  assert.match(settingsAuthProviderLifecycle, /readApiKeyInputIntent\(input\)/);
+  assert.match(settingsAuthProviderLifecycle, /markApiKeyInputCleared\(input\)/);
+  assert.match(settingsAuthProviderLifecycle, /id\s*=\s*'clear-all-api-keys-btn'/);
+  assert.doesNotMatch(settingsAuthProviderLifecycle, /ALL_ELEMENTS\.geminiApiKeyInput\.value\s*=\s*getApiKeyForProvider/);
+  assert.doesNotMatch(settingsAuthProviderLifecycle, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
+
+  assert.match(css, /\.api-key-input-group\s*\{/);
+  assert.match(css, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
+  assert.match(css, /\.api-key-clear-all-btn\s*\{[^}]*width:\s*100%;/s);
+});
+
 test('model council manager uses compact pills and a bounded scroll area', () => {
   const css = readUiSource('src/styles/main.css');
   const runtime01 = readUiSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');

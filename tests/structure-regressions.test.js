@@ -229,15 +229,20 @@ test('production runtime entry uses the real legacy core without the virtual run
 test('sensitive config export redaction boundary is explicit', () => {
   const redactionPath = 'src/app/runtime/security/sensitive-config-redaction.js';
   const sensitiveStorePath = 'src/app/runtime/security/sensitive-config-store.js';
+  const inputIntentPath = 'src/app/runtime/security/api-key-input-intent.js';
   const exportLifecycleSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const redactionSource = readSource(redactionPath);
   const sensitiveStoreSource = readSource(sensitiveStorePath);
+  const inputIntentSource = readSource(inputIntentPath);
 
   assert.equal(existsSync(projectFile(redactionPath)), true);
   assert.equal(existsSync(projectFile(sensitiveStorePath)), true);
+  assert.equal(existsSync(projectFile(inputIntentPath)), true);
   assert.equal(existsSync(projectFile('tests/security/sensitive-config-redaction.test.js')), true);
+  assert.equal(existsSync(projectFile('tests/security/api-key-mask.test.js')), true);
   assert.equal(existsSync(projectFile('tests/security/export-redacts-secrets.test.js')), true);
   assert.equal(existsSync(projectFile('tests/security/sensitive-config-store.test.js')), true);
   assert.equal(existsSync(projectFile('tests/runtime-sensitive-config-persistence.test.js')), true);
@@ -248,6 +253,10 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(redactionSource, /'stepPlan'/);
   assert.match(redactionSource, /'tavily'/);
   assert.match(redactionSource, /export\s+function\s+createExportSafeConfig/);
+  assert.match(redactionSource, /export\s+function\s+maskApiKeyForDisplay/);
+  assert.match(redactionSource, /export\s+function\s+isMaskedApiKeyDisplayValue/);
+  assert.match(inputIntentSource, /export\s+function\s+prepareApiKeyInput/);
+  assert.match(inputIntentSource, /export\s+function\s+readApiKeyInputIntent/);
   assert.match(
     exportLifecycleSource,
     /import\s+\{\s*createExportSafeConfig\s*\}\s+from\s+['"]\.\.\/security\/sensitive-config-redaction\.js['"]/
@@ -265,10 +274,18 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(legacyCoreSource, /createSensitiveConfigStore\(\{/);
   assert.match(legacyCoreSource, /createSensitiveConfigPersistence\(\{/);
   assert.match(legacyCoreSource, /function\s+getApiKeyForProvider\(provider\)\s*\{\s*return\s+sensitiveConfigStore\.getApiKey\(provider\);/);
+  assert.match(legacyCoreSource, /const\s+clearSensitiveApiKeys\s*=\s*\(\)\s*=>\s*sensitiveConfigStore\.clearApiKeys\(\);/);
   assert.match(legacyCoreSource, /mergeSensitiveApiKeys\(savedConfig\.apiKeys\)/);
   assert.match(legacyCoreSource, /removeSensitiveConfig\(savedConfig\)/);
   assert.match(configPersistenceSource, /removeSensitiveConfig\(getConfig\(\)\)/);
+  assert.match(settingsAuthProviderSource, /prepareApiKeyInput/);
+  assert.match(settingsAuthProviderSource, /readApiKeyInputIntent/);
+  assert.match(settingsAuthProviderSource, /markApiKeyInputCleared/);
+  assert.doesNotMatch(settingsAuthProviderSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
+  assert.doesNotMatch(inputIntentSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
+  assert.doesNotMatch(inputIntentSource, /input\.dataset\.raw|dataset\.raw|secretValue/);
   assert.doesNotMatch(redactionSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(inputIntentSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(sensitiveStoreSource, /crypto\.subtle|AES-GCM/);
 });
 
