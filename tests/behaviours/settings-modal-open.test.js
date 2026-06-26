@@ -66,15 +66,15 @@ test('settings button initializes settings state before opening the modal', () =
 });
 
 test('settings modal source keeps Tavily depth fallback local to setupSettingsModal', () => {
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(
-    fragment02Source,
+    settingsAuthProviderSource,
     /const\s+getTavilySearchDepth\s*=\s*\(\)\s*=>\s*config\.tavilySearchDepth\s*===\s*'advanced'\s*\?\s*'advanced'\s*:\s*'basic';/
   );
   assert.match(
-    fragment02Source,
+    settingsAuthProviderSource,
     /if\s*\(ALL_ELEMENTS\.tavilySearchDepthSelect\)\s*ALL_ELEMENTS\.tavilySearchDepthSelect\.value\s*=\s*getTavilySearchDepth\(\);/
   );
   assert.match(

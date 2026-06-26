@@ -252,6 +252,7 @@ test('storage adapter instances keep independent cached connections', async () =
 test('production wiring uses the adapter while persistence modules remain injected-storage only', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
@@ -259,8 +260,10 @@ test('production wiring uses the adapter while persistence modules remain inject
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.match(fragment02Source, /await\s+runtimeStorageAdapter\.clear\(\)/);
+  assert.match(fragment02Source, /runtimeStorageAdapter,/);
+  assert.match(settingsAuthProviderSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
   assert.doesNotMatch(fragment02Source, /\bSTORE_NAME\b|\bopenDB\(\)/);
+  assert.doesNotMatch(settingsAuthProviderSource, /\bSTORE_NAME\b|\bopenDB\(\)/);
 
   for (const source of [configPersistenceSource, appDataPersistenceSource]) {
     assert.match(source, /\bsetItem\b/);

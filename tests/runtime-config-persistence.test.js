@@ -289,9 +289,9 @@ test('loadConfig keeps API, model, and council normalization in legacy order', (
 });
 
 test('settings persistence keeps mutation, visual, save, render, and notification order', () => {
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-  const saveSettingsBody = getConstFunctionBody(fragment02Source, 'saveSettings');
+  const saveSettingsBody = getConstFunctionBody(settingsAuthProviderSource, 'saveSettings');
   const initChatAppBody = getBlockFromMarker(appBootstrapLifecycleSource, 'async function initChatApp()');
 
   assertMarkersInOrder(saveSettingsBody, [

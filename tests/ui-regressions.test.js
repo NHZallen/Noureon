@@ -114,12 +114,12 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
 });
 
 test('mobile web search typing does not disable the message input when Tavily is missing', () => {
-  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
-  assert.match(runtime02, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
-  assert.match(runtime02, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
-  assert.match(runtime02, /ALL_ELEMENTS\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
+  assert.match(settingsAuthProviderLifecycle, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
+  assert.match(settingsAuthProviderLifecycle, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
+  assert.match(settingsAuthProviderLifecycle, /ALL_ELEMENTS\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
   assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });
 
@@ -188,25 +188,25 @@ test('settings navigation starts below the modal header divider on desktop', () 
 });
 
 test('mobile settings open to a GPT-style category list before drilling into details', () => {
-  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
+  const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const css = readUiSource('src/styles/main.css');
 
-  assert.match(runtime02, /const\s+isMobileSettingsViewport\s*=\s*\(\)\s*=>\s*window\.matchMedia\('\(max-width:\s*768px\)'\)\.matches/);
-  assert.match(runtime02, /mobileHeader\.id\s*=\s*'settings-mobile-header'/);
-  assert.match(runtime02, /mobileList\.id\s*=\s*'settings-mobile-list'/);
-  assert.match(runtime02, /class="settings-mobile-list-item settings-nav-item"/);
-  assert.match(runtime02, /id="settings-mobile-back-btn"/);
-  assert.match(runtime02, /const\s+SETTINGS_MOBILE_VIEW_TRANSITION_MS\s*=\s*280/);
-  assert.match(runtime02, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
-  assert.match(runtime02, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
-  assert.match(runtime02, /ALL_ELEMENTS\.settingsModal\.classList\.add\('settings-mobile-detail-open'\)/);
-  assert.match(runtime02, /settingsModal\.classList\.add\('settings-mobile-returning'\)/);
-  assert.match(runtime02, /setTimeout\(finishReturn,\s*SETTINGS_MOBILE_VIEW_TRANSITION_MS\)/);
-  assert.match(runtime02, /showSettingsMobileList\(\{\s*animate:\s*false\s*\}\)/);
-  assert.match(runtime02, /settings-mobile-list-item/);
-  assert.match(runtime02, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
-  assert.doesNotMatch(runtime02, /const\s+setSettingsSection\s*=/);
-  assert.doesNotMatch(runtime02, /accessibility:\s*'<svg[^']*m8 21 4-9 4 9/);
+  assert.match(settingsAuthProviderLifecycle, /const\s+isMobileSettingsViewport\s*=\s*\(\)\s*=>\s*window\.matchMedia\('\(max-width:\s*768px\)'\)\.matches/);
+  assert.match(settingsAuthProviderLifecycle, /mobileHeader\.id\s*=\s*'settings-mobile-header'/);
+  assert.match(settingsAuthProviderLifecycle, /mobileList\.id\s*=\s*'settings-mobile-list'/);
+  assert.match(settingsAuthProviderLifecycle, /class="settings-mobile-list-item settings-nav-item"/);
+  assert.match(settingsAuthProviderLifecycle, /id="settings-mobile-back-btn"/);
+  assert.match(settingsAuthProviderLifecycle, /const\s+SETTINGS_MOBILE_VIEW_TRANSITION_MS\s*=\s*280/);
+  assert.match(settingsAuthProviderLifecycle, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
+  assert.match(settingsAuthProviderLifecycle, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
+  assert.match(settingsAuthProviderLifecycle, /ALL_ELEMENTS\.settingsModal\.classList\.add\('settings-mobile-detail-open'\)/);
+  assert.match(settingsAuthProviderLifecycle, /settingsModal\.classList\.add\('settings-mobile-returning'\)/);
+  assert.match(settingsAuthProviderLifecycle, /setTimeout\(finishReturn,\s*SETTINGS_MOBILE_VIEW_TRANSITION_MS\)/);
+  assert.match(settingsAuthProviderLifecycle, /showSettingsMobileList\(\{\s*animate:\s*false\s*\}\)/);
+  assert.match(settingsAuthProviderLifecycle, /settings-mobile-list-item/);
+  assert.match(settingsAuthProviderLifecycle, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
+  assert.doesNotMatch(settingsAuthProviderLifecycle, /const\s+setSettingsSection\s*=/);
+  assert.doesNotMatch(settingsAuthProviderLifecycle, /accessibility:\s*'<svg[^']*m8 21 4-9 4 9/);
 
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-header[^{]*\{[^}]*display:\s*flex\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\.visible[^{]*\{[^}]*align-items:\s*flex-end\s*!important;[^}]*padding:\s*0\s*!important;/s);
