@@ -4,6 +4,11 @@ import test from 'node:test';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+const listFilesIfDirExists = (path) => {
+  const directory = projectFile(path);
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory);
+};
 
 const findMatchingBrace = (source, openIndex) => {
   let state = 'code';
@@ -182,7 +187,7 @@ const findCrossFragmentBracePairs = (fragments) => {
 };
 
 test('legacy runtime core is now a real module and runtime fragments stay retired', () => {
-  const fragmentNames = readdirSync(projectFile('src/app/legacy-runtime/fragments'))
+  const fragmentNames = listFilesIfDirExists('src/app/legacy-runtime/fragments')
     .filter((name) => name.endsWith('.fragment.js'))
     .sort();
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -849,7 +854,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
 });
 
 test('legacy runtime fragments are retired after real legacy core cutover', () => {
-  const fragmentNames = readdirSync(projectFile('src/app/legacy-runtime/fragments'))
+  const fragmentNames = listFilesIfDirExists('src/app/legacy-runtime/fragments')
     .filter((name) => name.endsWith('.fragment.js'))
     .sort();
   const legacyCorePath = 'src/app/runtime/legacy-core/legacy-core.js';
@@ -1291,7 +1296,7 @@ test('color contrast helper is shared without later-fragment lexical ownership',
 });
 
 test('legacy runtime real core has no remaining fragment boundary to stitch', () => {
-  const fragmentNames = readdirSync(projectFile('src/app/legacy-runtime/fragments'))
+  const fragmentNames = listFilesIfDirExists('src/app/legacy-runtime/fragments')
     .filter((name) => name.endsWith('.fragment.js'))
     .sort();
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');

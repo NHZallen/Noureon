@@ -1,328 +1,132 @@
 # AstraChat Refactor Plan
 
-This document tracks the current AstraChat refactor state. The V3 refactor plan is the active source of truth for future work.
-
-Process principles for every slice:
-
-- Work in small atomic tasks.
-- Use one coherent slice at a time.
-- Prefer tests as proof over confidence.
-- Review before implementation.
-- Do not rationalize scope expansion.
-- Keep production behavior stable unless the slice explicitly says otherwise.
+This document tracks the current AstraChat refactor state after the V3 runtime
+cutover. It is intentionally a checkpoint document, not a request to execute the
+whole V4 plan at once.
 
 ## Current Status
 
-Current position:
+V3 is complete.
 
-- Phase 0 safety net: complete in practice.
-- Phase 1 bootstrap / vendor bridge: complete.
-- Phase 2 CSS physical split: complete.
-- Phase 3 data modules split: complete.
-- Phase 4 test-first helper extraction: complete for the listed helpers.
-- Phase 5 behaviour safety net: complete with deferred risks.
-- Phase 6 feature-slice migration: complete with concerns.
-- Phase 7 legacy concat eradication: not started.
+- `virtual:legacy-app-runtime` has been removed.
+- The Vite virtual runtime plugin has been removed.
+- `src/app/legacy-runtime/fragments` is retired.
+- The production entry path is:
 
-Latest expected gates at each checkpoint:
-
-```bash
-npm.cmd test
-npm.cmd run build
-npm.cmd run check:sizes
-```
-
-Latest Phase 6 convergence result:
-
-- `npm.cmd test`: 288/288 pass.
-- `npm.cmd run build`: pass, 165 modules transformed.
-- `npm.cmd run check:sizes`: pass.
-- No production hotfix blocks the Phase 7 handoff.
-
-## Completed Phase 4 Helper Extractions
-
-These helpers were extracted before Phase 5 and have passed post-audit:
-
-- `src/app/legacy-runtime/features/model-request-formatting.js`
-- `src/app/legacy-runtime/features/settings-mobile-metadata.js`
-- `src/app/legacy-runtime/features/output-mode-settings-text.js`
-- `src/app/legacy-runtime/features/search-text-formatting.js`
-- `src/app/legacy-runtime/features/version-compare.js`
-
-Phase 6 readiness later confirmed these are already migrated and do not need additional production changes:
-
-- `output-mode-settings-text`: already migrated.
-- `settings-mobile-metadata`: already migrated.
-- `search-text-formatting`: already migrated.
-- `version-compare`: already migrated with lexical-binding compatibility note.
-- `model-request-formatting`: already migrated; source guard test was added.
-
-## Phase 5 Behaviour Safety Net
-
-Verdict: Phase 5 complete with deferred risks.
-
-Completed Phase 5 coverage:
-
-- Nested Node test runner via:
-
-  ```json
-  "test": "node --test \"tests/**/*.test.js\""
+  ```text
+  src/main.js
+  -> src/app/legacy-app.js
+  -> src/app/runtime-entry.js
+  -> dynamic import ./runtime/legacy-core/legacy-core.js
   ```
 
-- `happy-dom` DOM harness.
-- `TESTING.md`.
-- `tests/behaviours/helpers/create-dom.js`.
-- `tests/behaviours/mobile-settings-nav.test.js`.
-- `tests/behaviours/model-switch.test.js`.
-- `tests/behaviours/typewriter-playback.test.js`.
-- `tests/behaviours/provider-stream-fixture.test.js`.
-- OpenAI-compatible SSE fixture tests:
-  - normal fixture
-  - partial-line chunk fixture
-  - malformed JSON fixture
-  - byte-level multibyte split fixture
-- Gemini JSON fixture tests:
-  - normal JSON object fixture
-  - partial JSON object fixture
-  - malformed JSON fixture
-  - balanced braces inside JSON string fixture
-- `tests/behaviours/settings-storage-fixture.test.js`.
-- `tests/behaviours/helpers/openai-sse-fixtures.js` with test-only `createSseStream`.
+- `src/app/runtime/legacy-core/legacy-core.js` exports `legacyRuntimeContext`.
+- `runtime-entry.js` composes core-tail, app-bootstrap, and startup lifecycles.
+- `check:legacy-runtime` protects the retired fragment and virtual runtime
+  boundary.
+- `legacy-core.js` has a Phase 8 ownership budget:
+  - `<= 120 * 1024` bytes
+  - `<= 2300` lines
 
-Phase 5 intentionally stopped before turning harness proofs into production parser/storage coverage. Do not keep adding Phase 5 harness tests unless a Phase 6 readiness audit identifies a specific gap.
+Recent production hotfixes restored the real-core cutover aliases:
 
-## Deferred Risks
+- `createHistoryMenu`
+- `adjustTextareaHeight`
+- `getOutputMode`
 
-These are known risks, but they did not block Phase 6 completion:
+Do not regress these runtime bridges:
 
-- Gemini unbalanced braces parser hardening.
-- Production `streamApiCall` parser coverage.
-- Incremental DOM stream render coverage.
-- Production IndexedDB adapter coverage.
-- `saveConfig()` / `loadConfig()` / `saveSettings()` production coverage.
-- API key handling.
-- Full settings save flow.
-- Theme and language side effects.
-- Submit / council / retry orchestration.
+- `settings.setupSettingsModal`
+- `input.updateInputState`
+- `submit.*`
+- `sidebar.toggleSidebar`
+- `runtime.coreTailDependencies`
 
-Track these as explicitly scoped Phase 7 readiness or follow-up work. Do not mix them into unrelated concat-eradication work.
+## V4 Direction
 
-## Phase 6 Completion
+V4 begins from hardening and debt reduction. The current debt center is no
+longer virtual concatenation; it is the real legacy core shell and the large
+legacy lifecycle modules around it.
 
-Verdict: Phase 6 complete with concerns.
+V4 must proceed in small audited slices:
 
-Phase 6 moved large runtime responsibilities out of legacy fragments and into explicit feature modules with deterministic tests. It progressed from small helper extraction to coherent medium, large, and structural migrations.
+1. Keep gates honest from a fresh checkout.
+2. Preserve production behavior while reducing risk.
+3. Prefer real modules and explicit dependency boundaries.
+4. Avoid reviving retired fragments, virtual runtime ids, or concat plugins.
+5. Avoid broad rewrites unless a slice explicitly authorizes them.
 
-Primary size targets:
+## Phase 1: Baseline Stabilization and Honest Gates
 
-| Fragment | Approximate size | Status |
-| --- | ---: | --- |
-| `00-runtime.fragment.js` | 104.2 KB | Runtime foundation; deferred to Phase 7 |
-| `01-runtime.fragment.js` | 62.6 KB | Below 80 KB target |
-| `02-runtime.fragment.js` | 75.7 KB | Below 80 KB target |
-| `03-runtime.fragment.js` | 77.8 KB | Below 80 KB |
-| `04-runtime.fragment.js` | 55.5 KB | Below 80 KB |
-| `05-runtime.fragment.js` | 48.5 KB | Below 80 KB |
-| `06-runtime.fragment.js` | 17.1 KB | Below 80 KB |
+Phase 1 establishes the post-V3 baseline.
 
-Completion outcomes:
+Scope:
 
-- `01` and `02` both reached the Phase 6 size goal.
-- Large response, rendering, model, council, media, provider, and submit responsibilities moved to explicit modules.
-- Extracted modules are protected by deterministic unit, behaviour, or exact-output tests.
-- Structure regressions protect exports, wiring, removed inline ownership, and fragment size gates.
-- Remaining concerns are concat-eradication work rather than feature-extraction blockers.
+- Make tests robust when the retired fragments directory is absent.
+- Keep `check:legacy-runtime` passing.
+- Document current source/test/bundle size debt.
+- Document current production graph and gates.
+- Keep a browser smoke checklist for runtime alias regressions.
 
-## Completed Phase 6 Checkpoints
+Non-goals:
 
-### Already Migrated Readiness Checks
+- Do not start API key security work.
+- Do not split `legacy-core.js`.
+- Do not split the settings lifecycle.
+- Do not change production runtime behavior.
 
-- `output-mode-settings-text`: already migrated; no production code change.
-- `settings-mobile-metadata`: already migrated; no production code change.
-- `search-text-formatting`: already migrated; no production code change.
-- `version-compare`: already migrated with lexical-binding compatibility note.
-- `model-request-formatting`: already migrated; source guard test added.
+Baseline report:
 
-### `getMessageTypeIcon(message)`
+- `docs/refactor/V4_BASELINE.md`
 
-Extracted from:
+## Current Gates
 
-- `src/app/legacy-runtime/fragments/00-runtime.fragment.js`
-
-Into:
-
-- `src/app/legacy-runtime/features/message-type-icon.js`
-
-Notes:
-
-- Preserves empty/text-only/image/file behavior.
-- Preserves image precedence.
-- Does not touch rendering, storage, API, or event binding.
-
-### `formatFullTimestamp(isoString)`
-
-Extracted from:
-
-- `src/app/legacy-runtime/fragments/00-runtime.fragment.js`
-
-Into:
-
-- `src/app/legacy-runtime/features/date-formatting.js`
-
-Notes:
-
-- Preserves missing input fallback.
-- Preserves local `Date` semantics.
-- Preserves `YYYY-MM-DD HH:mm` formatting and zero padding.
-- `01/02/04` continue using current virtual concat lexical compatibility.
-
-### `time-distribution-chart-data`
-
-Extracted deterministic chart data preparation from:
-
-- `src/app/legacy-runtime/fragments/04-runtime.fragment.js`
-
-Into:
-
-- `src/app/legacy-runtime/features/time-distribution-chart-data.js`
-
-Export:
-
-```js
-export function buildTimeDistributionChartData({ messages, year, month, day, text })
-```
-
-Impact:
-
-- `04-runtime.fragment.js` reduced by about 41 lines / 2439 bytes.
-- Initial dynamic import wiring was hotfixed back to synchronous lexical compatibility.
-- `04-runtime.fragment.js` still owns DOM select reads, canvas lookup, `new Chart(...)`, chart options, and event listeners.
-
-### `mobile-context-menu-markup`
-
-Extracted deterministic mobile context menu HTML string construction from:
-
-- `src/app/legacy-runtime/fragments/04-runtime.fragment.js`
-
-Into:
-
-- `src/app/legacy-runtime/features/mobile-context-menu-markup.js`
-
-Exports:
-
-```js
-export function buildConversationMobileContextMenuMarkup(...)
-export function buildFolderMobileContextMenuMarkup(...)
-export function buildAstraMobileContextMenuMarkup(...)
-```
-
-Impact:
-
-- `04-runtime.fragment.js` reduced by about 40 lines / 8991 bytes.
-- Production source net reduced by about 2154 bytes.
-- Post-audit passed.
-- Helper only builds markup strings.
-- `04-runtime.fragment.js` still owns DOM creation, append/remove, animation classes, touch handling, click dispatch, all action handlers, and lifecycle.
-- No sanitizer or escaping semantics were changed.
-
-### Major Runtime Feature Migrations
-
-Message, media, and secondary-view rendering:
-
-- `message-list-lifecycle`
-- `message-markup-renderer`
-- `conversation-view-renderer`
-- `uploaded-file-preview-lifecycle`
-- `media-attachment-renderer`
-- `media-preview-lifecycle`
-- `model-message-post-response-actions`
-
-Submit, response, and rendering lifecycles:
-
-- `response-progress-renderers`
-- `submit-input-preparation-lifecycle`
-- `single-model-response-lifecycle`
-- `council-response-render-lifecycle`
-- `assistant-response-finalization`
-- `submit-final-cleanup-lifecycle`
-- `streaming-markdown-renderer`
-- `streaming-markdown-render-state`
-- `streaming-text-frame-queue`
-- `typewriter-playback-controller`
-- `renderer-gradual-append-controller`
-- `streaming-council-details`
-
-Model and council UI ownership:
-
-- `model-switcher-lifecycle`
-- `council-controls-lifecycle`
-
-Provider and council request ownership:
-
-- `stream-api-call`
-- `council-response-lifecycle`
-- `provider-request-support`
-
-These migrations removed core feature ownership from fragments while retaining explicit wiring, thin call sites, or app-level shell responsibilities where appropriate.
-
-## Phase 6 Concerns
-
-- Runtime concat order still matters.
-- Hidden lexical dependencies still exist between fragments.
-- `00-runtime.fragment.js` remains the runtime foundation and exceeds 80 KB.
-- Some UI behaviour hardening remains deferred to Phase 7 readiness.
-- The virtual concat plugin remains required until runtime composition is explicit.
-
-These are Phase 7 concat-eradication concerns, not remaining Phase 6 feature-extraction blockers.
-
-## Phase 7 Recommended Strategy
-
-Phase 7 should not continue fragment size-driven helper extraction. It should:
-
-1. Establish an explicit legacy runtime context and composition entry.
-2. Move shared state, DOM references, and dependencies out of implicit concat scope.
-3. Convert fragments incrementally into legal independent modules.
-4. Replace hidden lexical continuations with explicit module APIs.
-5. Remove the virtual concat plugin only after runtime composition is explicit.
-
-Phase 7 has not started.
-
-### First Targets
-
-1. Establish an explicit legacy runtime context / composition entry that consolidates `00` shared state, DOM references, and dependencies.
-2. Break the `00 -> 01` sidebar / Astras syntax continuation into an independent sidebar lifecycle module.
-3. Break settings / input-state cross-fragment bindings so `setupSettingsModal` and `updateInputState` are provided through explicit module APIs.
-
-### Known Concat Continuations
-
-- `00 -> 01`: `renderAstras`
-- `02 -> 03`: `renderBatchActionBar`
-- `03 -> 04`: `renderModelUsageChart`
-- `05 -> 06`: `processReceivedData`
-
-Additional hidden lexical usage remains, including settings and input-state bindings. Phase 7 should inventory and eliminate these through composition APIs rather than further fragment-local helper extraction.
-
-## Standard Verification
-
-For implementation slices:
+Run before and after each implementation slice:
 
 ```bash
+npm.cmd run check:legacy-runtime
 npm.cmd test
 npm.cmd run build
 npm.cmd run check:sizes
 ```
 
-When a new single-file test is added, run it first:
+For production runtime alias work, also run a browser smoke:
 
-```bash
-node --test tests/<new-test-file>.test.js
+```text
+1. Preview the production build.
+2. Confirm the page is not white.
+3. Enter the app or login/register if needed.
+4. Open the settings modal.
+5. Type or dispatch input into the textarea.
+6. Confirm the console has no ReferenceError for:
+   - createHistoryMenu
+   - adjustTextareaHeight
+   - getOutputMode
 ```
 
-For documentation-only slices:
+## Active Debt Centers
 
-```bash
-git diff -- REFACTOR_PLAN.md
-git status
-```
+Top current debt areas:
 
-Full test/build is not required for documentation-only changes unless code, tests, package files, or build configuration are touched.
+- `src/app/runtime/legacy-core/legacy-core.js`
+- `src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js`
+- `src/app/runtime/legacy-core/core-tail-lifecycle.js`
+- `tests/structure-regressions.test.js`
+- `src/styles/settings.css`
+- provider/API-key storage and export behavior
+- legacy runtime bridges and lazy binding aliases
+
+## Next V4 Phases
+
+Future phases should be audited before implementation. Phase 1 does not grant
+permission to begin them.
+
+- Phase 2: Sensitive config and API key security.
+- Phase 3: Legacy core decomposition.
+- Phase 4: Giant lifecycle split.
+- Phase 5: DOM and template modernization.
+- Phase 6: Test suite hardening.
+- Phase 7: State and bridge retirement.
+- Phase 8: CSS and settings UI decomposition.
+- Phase 9: Bundle, performance, and runtime observability.
+- Phase 10: Quality lock and anti-regression rules.
