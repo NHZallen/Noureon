@@ -167,7 +167,7 @@ test('serialized config persistence exposes only saveConfig and avoids storage r
 });
 
 test('config persistence receives the extracted IndexedDB adapter and keeps the exact user-scoped key', () => {
-  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const storageSource = readSource('src/app/runtime/kernel/storage-adapter.js');
 
   assert.match(source, /createLegacyRuntimeStorageAdapter/);
@@ -187,7 +187,7 @@ test('config persistence receives the extracted IndexedDB adapter and keeps the 
 });
 
 test('saveConfig preserves missing-user, serialization, and rejection behavior', () => {
-  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const persistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const body = getConstFunctionBody(source, 'saveConfig');
 
@@ -207,7 +207,7 @@ test('saveConfig preserves missing-user, serialization, and rejection behavior',
 });
 
 test('loadConfig preserves missing-user, null storage, and invalid JSON boundaries', () => {
-  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const body = getConstFunctionBody(source, 'loadConfig');
   const savedIfMarker = 'if (saved) {';
   const savedIfStart = body.indexOf(savedIfMarker);
@@ -231,7 +231,7 @@ test('loadConfig preserves missing-user, null storage, and invalid JSON boundari
 });
 
 test('loadConfig preserves saved config and nested merge precedence', () => {
-  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const body = getConstFunctionBody(source, 'loadConfig');
   const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
 
@@ -262,7 +262,7 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
 });
 
 test('loadConfig keeps API, model, and council normalization in legacy order', () => {
-  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const body = getConstFunctionBody(source, 'loadConfig');
   const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
 
@@ -349,7 +349,7 @@ test('startup restores the user before config and app data visual handoff', () =
 });
 
 test('config persistence extracts only the serialized write adapter', () => {
-  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const persistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const storeSource = readSource('src/app/runtime/kernel/config-store.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');

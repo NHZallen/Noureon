@@ -518,14 +518,14 @@ test('dependency facade validates required groups and reports missing fields', (
   assert.equal(Object.isFrozen(dependencies.startup), true);
 });
 
-test('runtime entry uses only the transitional named virtual context loader', () => {
+test('runtime entry loads the real legacy core without virtual runtime imports', () => {
   const source = readSource('src/app/runtime-entry.js');
 
   assert.match(
     source,
-    /const\s+\{\s*legacyRuntimeContext\s*\}\s*=\s*await\s+import\('virtual:legacy-app-runtime'\)/
+    /const\s+\{\s*legacyRuntimeContext\s*\}\s*=\s*await\s+import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/
   );
-  assert.doesNotMatch(source, /^import\s+.*virtual:legacy-app-runtime/m);
+  assert.doesNotMatch(source, /virtual:legacy-app-runtime/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments/);
   assert.doesNotMatch(source, /(?:^|\n)\s*(?:void\s+)?(?:start|initializeApp|initChatApp)\(\);/);
 });
@@ -601,7 +601,7 @@ test('production runtime entry loads the legacy core and starts only once', asyn
   assert.equal(listeners.filter((type) => type === 'submit').length, 1);
 });
 
-test('legacy production entry starts runtime-entry without directly importing the virtual core', () => {
+test('legacy production entry starts runtime-entry without importing the legacy core directly', () => {
   const source = readSource('src/app/legacy-app.js');
 
   assert.match(
@@ -610,4 +610,5 @@ test('legacy production entry starts runtime-entry without directly importing th
   );
   assert.match(source, /startRuntimeEntry\(\);/);
   assert.doesNotMatch(source, /virtual:legacy-app-runtime/);
+  assert.doesNotMatch(source, /legacy-core\/legacy-core\.js/);
 });

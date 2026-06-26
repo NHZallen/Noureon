@@ -74,7 +74,7 @@ test('serialized app data persistence writes the latest store snapshot for the l
 });
 
 test('production saveAppData wiring reads the store snapshot at save time', () => {
-  const source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.match(source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
   assert.doesNotMatch(

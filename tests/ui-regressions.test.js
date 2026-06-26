@@ -75,7 +75,7 @@ test('desktop chat input reserves the lower row only for active modes or multili
 
 test('composer upload previews occupy a full-width row above desktop input controls', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime00 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const runtime00 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
   const previewLifecycle = readUiSource('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js');
 
   assert.match(runtime00, /preview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(preview,\s*wrapper\.firstChild\)/);
@@ -249,10 +249,10 @@ test('app typography uses restrained GPT-like system weights and mobile settings
 });
 
 test('folder color rendering supports saved css color values without falling back', () => {
-  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const runtime01 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
   const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
-  const runtime02 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const runtime00 = readUiSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const runtime02 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
+  const runtime00 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
   const css = readUiSource('src/styles/main.css');
 
   assert.match(runtime00, /resolveFolderColor/);

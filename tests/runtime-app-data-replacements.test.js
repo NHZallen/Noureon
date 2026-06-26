@@ -90,7 +90,7 @@ const assertMarkersInOrder = (source, markers, context) => {
 const countLiteral = (source, literal) => source.split(literal).length - 1;
 
 test('loadAppData keeps orchestration, lexical replacements, and corruption fallback in 00', () => {
-  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
 
   assertMarkersInOrder(loadAppDataBody, [
@@ -125,7 +125,7 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
 });
 
 test('saveAppData reads the store snapshot while active conversation stays lexical', () => {
-  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assertMarkersInOrder(fragment00Source, [
     'const conversationStateAccess = createConversationStateAccess({',
@@ -147,7 +147,7 @@ test('saveAppData reads the store snapshot while active conversation stays lexic
 });
 
 test('00 transient conversation replacements preserve legacy ordering', () => {
-  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
   const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
 
@@ -176,8 +176,8 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 });
 
 test('Astra and folder delete flows keep linked conversation cleanup and save/render order', () => {
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
@@ -351,9 +351,9 @@ test('app data store remains wired while production boot moves through runtime e
   const appDataNormalizationSource = readSource('src/app/runtime/kernel/app-data-normalization.js');
   const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
-  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment02Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
@@ -404,5 +404,5 @@ test('app data store remains wired while production boot moves through runtime e
     /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/
   );
   assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime/);
-  assert.match(viteSource, /legacyRuntimeModuleId\s*=\s*'virtual:legacy-app-runtime'/);
+  assert.doesNotMatch(viteSource, /legacyRuntimeModuleId|virtual:legacy-app-runtime|legacyRuntimeFragmentsPlugin/);
 });

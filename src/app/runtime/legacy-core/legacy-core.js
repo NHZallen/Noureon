@@ -2013,14 +2013,14 @@ function renderMarkdownWithFormulas(text) {
     selectedConversationIds.clear();
 
 
-    // ???è©??½æ ¼?–å?î«???˜î??ˆï???®î¤£???»î???? 'active' CSS ?¿îµ¤??    ALL_ELEMENTS.selectionModeBtn.classList.toggle('active', isSelectionMode);
+    // ???ï¿½??ï¿½æ ¼?ï¿½ï¿½?ï¿½???ï¿½ï¿½??ï¿½ï¿½???ï¿½î¤£???ï¿½ï¿½???? 'active' CSS ?ï¿½îµ¤??    ALL_ELEMENTS.selectionModeBtn.classList.toggle('active', isSelectionMode);
 
 
-    // ??????—î«°??î¿™î?????Œî???î°?????·ç®¸???
+    // ??????ï¿½î«°??î¿™ï¿½?????ï¿½ï¿½???ï¿½?????ï¿½ç®¸???
     if (isSelectionMode) {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[config.uiLanguage].cancelBatchSelect || '?î¡??å¯žæ´»?è©?';
+        ALL_ELEMENTS.selectionModeBtn.title = i18n[config.uiLanguage].cancelBatchSelect || '?ï¿½??å¯žæ´»?ï¿½?';
     } else {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[config.uiLanguage].batchSelect || '?å¯žæ´»?è©?';
+        ALL_ELEMENTS.selectionModeBtn.title = i18n[config.uiLanguage].batchSelect || '?å¯žæ´»?ï¿½?';
     }
 
 
@@ -2265,3 +2265,5 @@ function renderMarkdownWithFormulas(text) {
         } = transitionBusLifecycle;
         transitionBusLifecycle.registerSidebarBindings();
         transitionBusLifecycle.registerCoreTailDependencies();
+
+export { legacyRuntimeContext };

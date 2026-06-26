@@ -44,7 +44,7 @@ const CORE_TAIL_BINDING_NAMES = [
 ];
 
 export async function loadLegacyRuntimeContext() {
-  const { legacyRuntimeContext } = await import('virtual:legacy-app-runtime');
+  const { legacyRuntimeContext } = await import('./runtime/legacy-core/legacy-core.js');
   return legacyRuntimeContext;
 }
 

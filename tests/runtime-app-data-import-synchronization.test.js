@@ -203,7 +203,7 @@ test('processAuthImport preserves partial-state behavior without rollback', () =
 
 test('selected import flows use pointer replacement without adding store append or synchronization API', () => {
   const storeSource = readSource('src/app/runtime/kernel/app-data-store.js');
-  const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
+  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
 
   assert.match(performImportBody, /replaceAllAppData\(/);

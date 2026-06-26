@@ -1,8 +1,8 @@
 # Legacy Runtime Fragments
 
-The old single-file app runtime is split into small ordered fragments here.
-`src/app/legacy-app.js` imports `virtual:legacy-app-runtime`, and the Vite plugin in
-`vite.config.js` assembles these fragments for dev and production builds.
+The legacy runtime fragments have been retired. Production now boots through
+`src/app/runtime-entry.js`, which loads the real legacy core module at
+`src/app/runtime/legacy-core/legacy-core.js`.
 
-This keeps the source tree free of one oversized app file while preserving the
-legacy runtime's execution order during the larger migration.
+This directory is kept only as a historical marker while the remaining legacy
+core state is migrated into smaller runtime modules.
