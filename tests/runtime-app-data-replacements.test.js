@@ -213,6 +213,7 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
 
 test('03 import and auth import paths keep bulk replacements, chunked pushes, and persistence order', () => {
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
@@ -268,13 +269,14 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
     'initChatApp()'
   ], 'processAuthImport replacement, chunk import, and app handoff order');
 
-  assertMarkersInOrder(fragment03Source, [
-    'personalMemories = runtimeAppDataStore.replacePersonalMemories(',
+  assertMarkersInOrder(modelMemoryDashboardSource, [
+    'personalMemories = replacePersonalMemories(',
     'personalMemories.filter(m => m.id !== id)',
     'await saveAppData()',
     'renderPersonalMemoryList()'
   ], 'personal memory delete replacement order');
-  assert.doesNotMatch(fragment03Source, /personalMemories\s*=\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)/);
+  assert.match(fragment03Source, /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\);\s*return\s+personalMemories;\s*\}/);
+  assert.doesNotMatch(modelMemoryDashboardSource, /personalMemories\s*=\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)/);
 });
 
 test('04 store and trash destructive flows keep replacement, save, render, and notification order', () => {
@@ -345,6 +347,7 @@ test('app data store remains wired while production boot moves through runtime e
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const mainSource = readSource('src/main.js');
@@ -366,7 +369,8 @@ test('app data store remains wired while production boot moves through runtime e
     fragment02Source,
     /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
   );
-  assert.match(fragment03Source, /personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
+  assert.match(fragment03Source, /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\);\s*return\s+personalMemories;\s*\}/);
+  assert.match(modelMemoryDashboardSource, /personalMemories\s*=\s*replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
   assert.match(coreTailSource, /state\.astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
   assert.match(fragment03Source, /set\s+astras\(next\)\s*\{\s*astras\s*=\s*next;\s*\}/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);

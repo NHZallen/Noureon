@@ -417,6 +417,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
@@ -493,7 +494,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + importExportSource + authImportSource).match(/\bsaveConfig\(\)/g) || []).length, 14);
+  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + importExportSource + authImportSource + modelMemoryDashboardSource).match(/\bsaveConfig\(\)/g) || []).length, 14);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -518,6 +519,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const laterFragmentSources = [
@@ -598,7 +600,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource).match(/\bsaveAppData\(\)/g) || []).length,
     31
   );
   for (const source of laterFragmentSources) {
@@ -612,6 +614,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/02-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
@@ -704,12 +707,13 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     fragment02Source,
     /replaceFolders:\s*\(nextFolders\)\s*=>\s*\{\s*folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\);\s*return\s+folders;\s*\}/
   );
-  assertMarkersInOrder(fragment03Source, [
-    'personalMemories = runtimeAppDataStore.replacePersonalMemories(',
+  assertMarkersInOrder(modelMemoryDashboardSource, [
+    'personalMemories = replacePersonalMemories(',
     'personalMemories.filter(m => m.id !== id)',
     'await saveAppData()',
     'renderPersonalMemoryList()'
   ], '03 personal memory delete store replacement');
+  assert.match(fragment03Source, /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\);\s*return\s+personalMemories;\s*\}/);
   assertMarkersInOrder(performImportBody, [
     'replaceAllAppData({',
     'conversations: data.conversations || []',
@@ -1182,35 +1186,39 @@ test('sidebar Astras lifecycle breaks the 00 to 01 renderAstras continuation bou
   assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderAstrasStatementEnd);
 });
 
-test('model usage chart lifecycle remains complete inside the 03 runtime fragment', () => {
+test('model memory dashboard lifecycle moves model usage chart ownership out of 03', () => {
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const chartLifecycleSource = readSource('src/app/legacy-runtime/features/model-usage-chart-lifecycle.js');
 
+  assert.equal(existsSync(projectFile('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js')), true);
+  assert.match(modelMemoryDashboardSource, /export\s+function\s+createLegacyModelMemoryDashboardLifecycle/);
+  assert.match(fragment03Source, /import\s+\{\s*createLegacyModelMemoryDashboardLifecycle\s*\}/);
+  assert.match(fragment03Source, /const\s+modelMemoryDashboardLifecycle\s*=\s*createLegacyModelMemoryDashboardLifecycle\(\{/);
+  assert.match(fragment03Source, /renderModelManagementUI,\s*moveModelOrder,\s*renderPersonalMemoryList,/);
+  assert.match(fragment03Source, /openDashboard,\s*renderDashboardStats,\s*renderModelUsageChart/);
+  assert.doesNotMatch(fragment03Source, /const\s+renderModelManagementUI\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /const\s+renderPersonalMemoryList\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(fragment03Source, /const\s+openDashboard\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(modelMemoryDashboardSource, /const\s+renderModelManagementUI\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(modelMemoryDashboardSource, /const\s+renderPersonalMemoryList\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(modelMemoryDashboardSource, /const\s+openDashboard\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(chartLifecycleSource, /export\s+function\s+createModelUsageChartLifecycle/);
-  assert.match(fragment03Source, /createModelUsageChartLifecycle\(\{/);
-  assert.match(fragment03Source, /const\s+renderModelUsageChart\s*=\s*\(\.\.\.args\)\s*=>\s*modelUsageChartLifecycle\.renderModelUsageChart\(\.\.\.args\);/);
+  assert.match(modelMemoryDashboardSource, /createModelUsageChartLifecycle\(\{/);
+  assert.match(modelMemoryDashboardSource, /const\s+renderModelUsageChart\s*=\s*\(\.\.\.args\)\s*=>\s*\{\s*syncState\(\);\s*return\s+modelUsageChartLifecycle\.renderModelUsageChart\(\.\.\.args\);\s*\};/);
+  assert.doesNotMatch(fragment03Source, /createModelUsageChartLifecycle\(\{/);
   assert.doesNotMatch(fragment03Source, /modelPieChart\s*=\s*new Chart\(ctx,/);
+  assert.doesNotMatch(modelMemoryDashboardSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/04-runtime.fragment.js')), false);
 
-  const renderChartStart = fragment03Source.indexOf('const renderModelUsageChart =');
-  assert.notEqual(renderChartStart, -1, '03 should still expose a renderModelUsageChart binding');
-  const renderChartStatementEnd = fragment03Source.indexOf(';', renderChartStart);
-  assert.notEqual(renderChartStatementEnd, -1, 'renderModelUsageChart binding should end inside 03');
-  assert.ok(
-    renderChartStatementEnd < fragment03Source.length,
-    'renderModelUsageChart binding should not need 04 to finish its statement'
+  assert.match(
+    fragment03Source,
+    /getModelPieChart:\s*\(\)\s*=>\s*modelPieChart/
   );
-  assert.doesNotMatch(
-    fragment03Source.slice(renderChartStart, renderChartStatementEnd),
-    /=>\s*\{/,
-    'renderModelUsageChart should not reopen an inline body in 03'
+  assert.match(
+    fragment03Source,
+    /setModelPieChart:\s*\(chart\)\s*=>\s*\{\s*modelPieChart\s*=\s*chart;\s*\}/
   );
-
-  const combinedStart = `${fragment03Source}\n`.length;
-  const concatenated = fragment03Source;
-  const nextOpenBrace = concatenated.indexOf('{', renderChartStart);
-  const concatenatedClose = findMatchingBrace(concatenated, nextOpenBrace);
-  assert.ok(nextOpenBrace === -1 || concatenatedClose < combinedStart || nextOpenBrace > renderChartStatementEnd);
 });
 
 test('batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary', () => {
@@ -1927,6 +1935,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment03Source = readSource('src/app/legacy-runtime/fragments/03-runtime.fragment.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
@@ -1934,8 +1943,8 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const deactivateAstrasBody = getConstFunctionBody(fragment01Source, 'deactivateAstras');
   const deleteAstrasBody = getConstFunctionBody(fragment01Source, 'deleteAstras');
   const handleBatchArchiveBody = getConstFunctionBody(fragment03Source, 'handleBatchArchive');
-  const defaultModelUpdateBody = getBlockFromMarker(fragment03Source, 'input[name="default-model-radio"]');
-  const moveModelOrderBody = getConstFunctionBody(fragment03Source, 'moveModelOrder');
+  const defaultModelUpdateBody = getBlockFromMarker(modelMemoryDashboardSource, 'input[name="default-model-radio"]');
+  const moveModelOrderBody = getConstFunctionBody(modelMemoryDashboardSource, 'moveModelOrder');
   const handleRestoreTrashItemBody = getConstFunctionBody(trashLifecycleSource, 'handleRestoreTrashItem');
   const handleBatchRestoreFromTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchRestoreFromTrash');
 
@@ -1970,6 +1979,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
   assert.match(defaultModelUpdateBody, /config\.defaultModel\s*=\s*modelId;\s*await\s+saveConfig\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
   assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(fragment03Source, /moveModelOrder,\s*renderPersonalMemoryList,/);
 });
 
 test('runtime config access owns selected uiLanguage reads through the config store', () => {
