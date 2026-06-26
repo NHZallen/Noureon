@@ -42,6 +42,11 @@ import {
 } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
+import {
+    createSensitiveConfigPersistence,
+    createSensitiveConfigStore
+} from '/src/app/runtime/security/sensitive-config-store.js';
+import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -975,23 +980,24 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             version: 1
         });
         const { getItem, setItem, removeItem } = runtimeStorageAdapter;
+        const sensitiveConfigStore = createSensitiveConfigStore({
+            initialApiKeys: config.apiKeys,
+            normalizeApiKeyValue
+        });
+        const runtimeSensitiveConfigPersistence = createSensitiveConfigPersistence({
+            getCurrentUser: () => currentUser,
+            getItem,
+            setItem,
+            removeItem,
+            getApiKeys: () => sensitiveConfigStore.getApiKeys(),
+            replaceApiKeys: (apiKeys) => sensitiveConfigStore.replaceApiKeys(apiKeys)
+        });
+        const getSensitiveApiKeys = () => sensitiveConfigStore.getApiKeys();
+        const setApiKeyForProvider = (provider, value) => sensitiveConfigStore.setApiKey(provider, value);
+        const mergeSensitiveApiKeys = (apiKeys) => sensitiveConfigStore.mergeApiKeys(apiKeys);
+        const saveSensitiveConfig = async () => { await runtimeSensitiveConfigPersistence.saveSensitiveConfig(); };
         function getApiKeyForProvider(provider) {
-            if (provider === 'gemini') {
-                return normalizeApiKeyValue(config.apiKeys?.gemini);
-            }
-            if (provider === 'openrouter') {
-                return normalizeApiKeyValue(config.apiKeys?.openrouter);
-            }
-            if (provider === 'stepfun') {
-                return normalizeApiKeyValue(config.apiKeys?.stepPlan);
-            }
-            if (provider === 'nvidia') {
-                return normalizeApiKeyValue(config.apiKeys?.nvidia);
-            }
-            if (provider === 'tavily') {
-                return normalizeApiKeyValue(config.apiKeys?.tavily);
-            }
-            return '';
+            return sensitiveConfigStore.getApiKey(provider);
         }
         function normalizeConversationModel(conv) {
             if (!conv) return null;
@@ -1276,12 +1282,18 @@ function renderMarkdownWithFormulas(text) {
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
         const loadConfig = async () => {
             if (!currentUser) return;
+            await runtimeSensitiveConfigPersistence.loadSensitiveConfig();
             const saved = await getItem(getConfigKey());
             if (saved) {
                 const savedConfig = JSON.parse(saved);
+                if (savedConfig.apiKeys) {
+                    mergeSensitiveApiKeys(savedConfig.apiKeys);
+                    await saveSensitiveConfig();
+                }
+                const normalSavedConfig = removeSensitiveConfig(savedConfig);
                 const normalizedConfig = normalizeLoadedLegacyConfig({
                     currentConfig: config,
-                    savedConfig,
+                    savedConfig: normalSavedConfig,
                     models: MODELS,
                     maxCouncilModels: COUNCIL_MAX_MODELS,
                     councilTranslatorCandidates: getCouncilTranslatorCandidates(),
@@ -1825,6 +1837,9 @@ function renderMarkdownWithFormulas(text) {
             conversationStateAccess,
             getProviderLabel,
             getModelPriceLabel,
+            setApiKeyForProvider,
+            mergeSensitiveApiKeys,
+            saveSensitiveConfig,
             getCouncilTranslatorCandidates,
             getSingleTranslatorCandidates,
             escapeHTML,
@@ -1851,6 +1866,9 @@ function renderMarkdownWithFormulas(text) {
             showNotification,
             toggleModal,
             saveConfig,
+            getSensitiveApiKeys,
+            mergeSensitiveApiKeys,
+            saveSensitiveConfig,
             saveAppData,
             getUserKey,
             getItem,

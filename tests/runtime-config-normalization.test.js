@@ -100,7 +100,7 @@ test('council config normalization keeps defaults, canonical ids, uniqueness, an
   );
 });
 
-test('loaded config normalization preserves merge precedence and model/council validation', () => {
+test('loaded config normalization strips retired apiKeys and preserves model/council validation', () => {
   const currentConfig = baseConfig();
   const savedConfig = {
     apiKeys: {
@@ -147,13 +147,7 @@ test('loaded config normalization preserves merge precedence and model/council v
   assert.notEqual(normalized, currentConfig);
   assert.equal(currentConfig.apiKeys.openrouter, '');
   assert.equal(savedConfig.apiKeys.openrouter.next, ' openrouter-key ');
-  assert.deepEqual(normalized.apiKeys, {
-    gemini: 'saved-gemini',
-    openrouter: 'openrouter-key',
-    stepPlan: 'step-key',
-    nvidia: 'nvidia-key',
-    tavily: ''
-  });
+  assert.deepEqual(normalized.apiKeys, currentConfig.apiKeys);
   assert.equal(normalized.outputMode, 'typewriter');
   assert.equal(normalized.tavilySearchDepth, 'advanced');
   assert.equal(normalized.defaultModel, 'gemini-default');

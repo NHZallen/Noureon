@@ -14,7 +14,15 @@ export function createLegacyImportExportLifecycle({
   elements,
   getCurrentUser,
   getConfig,
+  getSensitiveApiKeys = () => getConfig()?.apiKeys || {},
   mutateConfig,
+  mergeSensitiveApiKeys = (apiKeys) => {
+    if (!apiKeys) return;
+    mutateConfig((config) => {
+      config.apiKeys = { ...config.apiKeys, ...apiKeys };
+      return config;
+    });
+  },
   getConversations,
   getFolders,
   getAstras,
@@ -24,6 +32,7 @@ export function createLegacyImportExportLifecycle({
   replacePersonalMemories,
   saveAppData,
   saveConfig,
+  saveSensitiveConfig = async () => {},
   processInChunks,
   getBackupUsername,
   compressImage,
@@ -57,12 +66,10 @@ export function createLegacyImportExportLifecycle({
     });
   }
 
-  function mergeApiKeys(apiKeys) {
+  async function mergeApiKeys(apiKeys) {
     if (!apiKeys) return;
-    mutateConfig((config) => {
-      config.apiKeys = { ...config.apiKeys, ...apiKeys };
-      return config;
-    });
+    mergeSensitiveApiKeys(apiKeys);
+    await saveSensitiveConfig();
   }
 
   async function handleExport() {
@@ -114,7 +121,10 @@ export function createLegacyImportExportLifecycle({
         text('exportApiKeysWarningTitle', 'Export API keys?')
       );
       if (!confirmed) return;
-      rawData.apiKeys = createExportSafeConfig(config, { includeSecrets: true }).apiKeys || {};
+      rawData.apiKeys = createExportSafeConfig(
+        { apiKeys: getSensitiveApiKeys() },
+        { includeSecrets: true }
+      ).apiKeys || {};
     }
     if (elements.exportMemoryCheck.checked) {
       rawData.personalMemories = getPersonalMemories();
@@ -252,7 +262,7 @@ export function createLegacyImportExportLifecycle({
     });
     await saveAppData();
     applySettings(data.settings);
-    mergeApiKeys(data.apiKeys);
+    await mergeApiKeys(data.apiKeys);
     await saveConfig();
   }
 
@@ -335,7 +345,7 @@ export function createLegacyImportExportLifecycle({
       });
 
       applySettings(rawData.settings);
-      mergeApiKeys(rawData.apiKeys);
+      await mergeApiKeys(rawData.apiKeys);
       await saveConfig();
 
       const astrasToImport = rawData.astras || [];

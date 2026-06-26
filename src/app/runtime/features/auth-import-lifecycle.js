@@ -5,6 +5,13 @@ export function createLegacyAuthImportLifecycle({
   JSZip,
   getConfig,
   mutateConfig,
+  mergeSensitiveApiKeys = (apiKeys) => {
+    if (!apiKeys) return;
+    mutateConfig((config) => {
+      config.apiKeys = { ...config.apiKeys, ...apiKeys };
+      return config;
+    });
+  },
   setCurrentUser,
   createPasswordRecord,
   getUserKey,
@@ -14,6 +21,7 @@ export function createLegacyAuthImportLifecycle({
   replacePersonalMemories,
   saveAppData,
   saveConfig,
+  saveSensitiveConfig = async () => {},
   processInChunks,
   getBackupUsername,
   hashString,
@@ -194,10 +202,8 @@ export function createLegacyAuthImportLifecycle({
         });
       }
       if (rawData.apiKeys) {
-        mutateConfig((config) => {
-          config.apiKeys = { ...config.apiKeys, ...rawData.apiKeys };
-          return config;
-        });
+        mergeSensitiveApiKeys(rawData.apiKeys);
+        await saveSensitiveConfig();
       }
       await saveConfig();
 

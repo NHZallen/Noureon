@@ -45,7 +45,8 @@ function createHarness({
   file,
   username = 'alice',
   password = 'secret',
-  config = { uiLanguage: 'en', apiKeys: { keep: 'yes' } }
+  config = { uiLanguage: 'en', apiKeys: { keep: 'yes' } },
+  sensitiveApiKeys = { ...(config.apiKeys || {}) }
 } = {}) {
   const calls = [];
   let currentUser = null;
@@ -125,6 +126,11 @@ function createHarness({
       Object.assign(config, mutator);
       return config;
     },
+    mergeSensitiveApiKeys: (apiKeys) => {
+      calls.push(['mergeSensitiveApiKeys']);
+      Object.assign(sensitiveApiKeys, apiKeys);
+      return sensitiveApiKeys;
+    },
     setCurrentUser: (nextUser) => {
       calls.push(['setCurrentUser', nextUser.username]);
       currentUser = nextUser;
@@ -159,6 +165,7 @@ function createHarness({
     },
     saveAppData: async () => calls.push(['saveAppData']),
     saveConfig: async () => calls.push(['saveConfig']),
+    saveSensitiveConfig: async () => calls.push(['saveSensitiveConfig']),
     processInChunks: async (items, processFn, chunkSize, onProgress) => {
       for (let index = 0; index < items.length; index += 1) {
         await processFn(items[index]);
@@ -205,6 +212,9 @@ function createHarness({
   return {
     calls,
     config,
+    get sensitiveApiKeys() {
+      return sensitiveApiKeys;
+    },
     elements,
     get currentUser() {
       return currentUser;
@@ -265,7 +275,8 @@ test('processAuthImport preserves auth persistence, app-data import, config save
   assert.equal(harness.currentUser.username, 'alice');
   assert.equal(harness.astras[0].avatarUrl, 'data:image/png;base64,ASTRA_BASE64');
   assert.equal(harness.conversations[0].messages[0].parts[0].inlineData.data, 'MESSAGE_BASE64');
-  assert.deepEqual(harness.config.apiKeys, { keep: 'yes', imported: 'key' });
+  assert.deepEqual(harness.config.apiKeys, { keep: 'yes' });
+  assert.deepEqual(harness.sensitiveApiKeys, { keep: 'yes', imported: 'key' });
 
   const ordered = harness.calls
     .map((call) => call[0] === 'setItem' ? `${call[0]}:${call[1]}` : call[0])
@@ -285,6 +296,8 @@ test('processAuthImport preserves auth persistence, app-data import, config save
       'conversationsPush',
       'saveAppData',
       'mutateConfig',
+      'mergeSensitiveApiKeys',
+      'saveSensitiveConfig',
       'saveConfig',
       'toggleModal',
       'requestAnimationFrame',
@@ -309,7 +322,8 @@ test('processAuthImport preserves auth persistence, app-data import, config save
     'conversationsPush',
     'saveAppData',
     'mutateConfig',
-    'mutateConfig',
+    'mergeSensitiveApiKeys',
+    'saveSensitiveConfig',
     'saveConfig',
     'toggleModal',
     'requestAnimationFrame',

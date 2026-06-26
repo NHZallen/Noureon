@@ -228,12 +228,19 @@ test('production runtime entry uses the real legacy core without the virtual run
 
 test('sensitive config export redaction boundary is explicit', () => {
   const redactionPath = 'src/app/runtime/security/sensitive-config-redaction.js';
+  const sensitiveStorePath = 'src/app/runtime/security/sensitive-config-store.js';
   const exportLifecycleSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
+  const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const redactionSource = readSource(redactionPath);
+  const sensitiveStoreSource = readSource(sensitiveStorePath);
 
   assert.equal(existsSync(projectFile(redactionPath)), true);
+  assert.equal(existsSync(projectFile(sensitiveStorePath)), true);
   assert.equal(existsSync(projectFile('tests/security/sensitive-config-redaction.test.js')), true);
   assert.equal(existsSync(projectFile('tests/security/export-redacts-secrets.test.js')), true);
+  assert.equal(existsSync(projectFile('tests/security/sensitive-config-store.test.js')), true);
+  assert.equal(existsSync(projectFile('tests/runtime-sensitive-config-persistence.test.js')), true);
   assert.match(redactionSource, /export\s+const\s+SENSITIVE_API_KEY_FIELDS/);
   assert.match(redactionSource, /'gemini'/);
   assert.match(redactionSource, /'openrouter'/);
@@ -246,9 +253,23 @@ test('sensitive config export redaction boundary is explicit', () => {
     /import\s+\{\s*createExportSafeConfig\s*\}\s+from\s+['"]\.\.\/security\/sensitive-config-redaction\.js['"]/
   );
   assert.match(exportLifecycleSource, /rawData\.settings\s*=\s*createExportSafeConfig\(/);
-  assert.match(exportLifecycleSource, /createExportSafeConfig\(config,\s*\{\s*includeSecrets:\s*true\s*\}\)\.apiKeys/);
+  assert.match(exportLifecycleSource, /getSensitiveApiKeys/);
+  assert.match(exportLifecycleSource, /mergeSensitiveApiKeys/);
+  assert.match(exportLifecycleSource, /saveSensitiveConfig/);
+  assert.match(exportLifecycleSource, /createExportSafeConfig\(\s*\{\s*apiKeys:\s*getSensitiveApiKeys\(\)\s*\},\s*\{\s*includeSecrets:\s*true\s*\}\s*\)\.apiKeys/);
   assert.match(exportLifecycleSource, /exportApiKeysWarning/);
+  assert.match(sensitiveStoreSource, /export\s+function\s+createSensitiveConfigStore/);
+  assert.match(sensitiveStoreSource, /export\s+function\s+createSensitiveConfigPersistence/);
+  assert.match(sensitiveStoreSource, /chatSensitiveConfig_v1_\$\{user\.username\}/);
+  assert.match(sensitiveStoreSource, /stepfun:\s*'stepPlan'/);
+  assert.match(legacyCoreSource, /createSensitiveConfigStore\(\{/);
+  assert.match(legacyCoreSource, /createSensitiveConfigPersistence\(\{/);
+  assert.match(legacyCoreSource, /function\s+getApiKeyForProvider\(provider\)\s*\{\s*return\s+sensitiveConfigStore\.getApiKey\(provider\);/);
+  assert.match(legacyCoreSource, /mergeSensitiveApiKeys\(savedConfig\.apiKeys\)/);
+  assert.match(legacyCoreSource, /removeSensitiveConfig\(savedConfig\)/);
+  assert.match(configPersistenceSource, /removeSensitiveConfig\(getConfig\(\)\)/);
   assert.doesNotMatch(redactionSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(sensitiveStoreSource, /crypto\.subtle|AES-GCM/);
 });
 
 test('quality lock script protects legacy runtime boundaries without banning template fragments', () => {

@@ -71,28 +71,12 @@ export function normalizeLoadedLegacyConfig({
   let normalizedConfig = currentConfig;
 
   if (savedConfig) {
-    let openrouterKey = '';
-    let stepPlanKey = '';
-    let nvidiaKey = '';
-    let tavilyKey = '';
-    if (savedConfig.apiKeys) {
-      openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter);
-      stepPlanKey = normalizeApiKeyValue(savedConfig.apiKeys.stepPlan);
-      nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia);
-      tavilyKey = normalizeApiKeyValue(savedConfig.apiKeys.tavily);
-    }
+    const { apiKeys: _retiredApiKeys, ...normalSavedConfig } = savedConfig;
     normalizedConfig = {
       ...currentConfig,
-      ...savedConfig,
-      apiKeys: {
-        ...currentConfig.apiKeys,
-        ...savedConfig.apiKeys,
-        openrouter: openrouterKey,
-        stepPlan: stepPlanKey,
-        nvidia: nvidiaKey,
-        tavily: tavilyKey
-      },
-      uiTheme: { ...currentConfig.uiTheme, ...(savedConfig.uiTheme || {}) }
+      ...normalSavedConfig,
+      apiKeys: { ...(currentConfig?.apiKeys || {}) },
+      uiTheme: { ...currentConfig.uiTheme, ...(normalSavedConfig.uiTheme || {}) }
     };
     normalizedConfig.uiTheme.style = normalizedConfig.uiTheme.style || 'single';
     normalizedConfig.uiTheme.adaptivePalette = normalizedConfig.uiTheme.adaptivePalette || [];

@@ -1,3 +1,5 @@
+import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
+
 export function createLegacyRuntimeConfigPersistence({
   getCurrentUser,
   getConfig,
@@ -7,7 +9,7 @@ export function createLegacyRuntimeConfigPersistence({
   async function saveConfig() {
     const currentUser = getCurrentUser();
     if (currentUser) {
-      await setItem(getConfigKey(), JSON.stringify(getConfig()));
+      await setItem(getConfigKey(), JSON.stringify(removeSensitiveConfig(getConfig())));
     }
   }
 

@@ -109,6 +109,12 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         conversationStateAccess,
         getProviderLabel,
         getModelPriceLabel,
+        setApiKeyForProvider,
+        mergeSensitiveApiKeys = (apiKeys) => {
+            config.apiKeys = { ...config.apiKeys, ...apiKeys };
+            return config.apiKeys;
+        },
+        saveSensitiveConfig = async () => {},
         getCouncilTranslatorCandidates,
         getSingleTranslatorCandidates,
         getOutputMode = () => 'typewriter',
@@ -797,11 +803,19 @@ const setupSettingsModal = () => {
     }
 };
 const saveSettings = async ({ close = true, notify = true } = {}) => {
-    config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim();
-    config.apiKeys.openrouter = ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim();
-    config.apiKeys.stepPlan = ALL_ELEMENTS.stepPlanApiKeyInput?.value.trim() || '';
-    config.apiKeys.nvidia = ALL_ELEMENTS.nvidiaApiKeyInput?.value.trim() || '';
-    config.apiKeys.tavily = ALL_ELEMENTS.tavilyApiKeyInput?.value.trim() || '';
+    const nextApiKeys = {
+        gemini: ALL_ELEMENTS.geminiApiKeyInput.value.trim(),
+        openrouter: ALL_ELEMENTS.openrouterApiKeyInputAll.value.trim(),
+        stepPlan: ALL_ELEMENTS.stepPlanApiKeyInput?.value.trim() || '',
+        nvidia: ALL_ELEMENTS.nvidiaApiKeyInput?.value.trim() || '',
+        tavily: ALL_ELEMENTS.tavilyApiKeyInput?.value.trim() || ''
+    };
+    if (typeof setApiKeyForProvider === 'function') {
+        Object.entries(nextApiKeys).forEach(([provider, value]) => setApiKeyForProvider(provider, value));
+    } else {
+        mergeSensitiveApiKeys(nextApiKeys);
+    }
+    await saveSensitiveConfig();
     config.tavilySearchDepth = ALL_ELEMENTS.tavilySearchDepthSelect?.value === 'advanced' ? 'advanced' : 'basic';
     config.councilTranslatorModelId = ALL_ELEMENTS.councilTranslatorModelSelect?.value || null;
     config.singleDocumentTranslatorModelId = ALL_ELEMENTS.singleDocumentTranslatorModelSelect?.value || null;

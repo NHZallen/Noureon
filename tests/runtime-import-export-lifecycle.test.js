@@ -63,6 +63,7 @@ function createHarness({
   folders = [],
   astras = [],
   personalMemories = [],
+  sensitiveApiKeys = { ...(config.apiKeys || {}) },
   importFile
 } = {}) {
   const calls = [];
@@ -169,11 +170,17 @@ function createHarness({
     elements,
     getCurrentUser: () => currentUser,
     getConfig: () => config,
+    getSensitiveApiKeys: () => sensitiveApiKeys,
     mutateConfig: (mutator) => {
       calls.push(['mutateConfig']);
       if (typeof mutator === 'function') return mutator(config);
       Object.assign(config, mutator);
       return config;
+    },
+    mergeSensitiveApiKeys: (apiKeys) => {
+      calls.push(['mergeSensitiveApiKeys']);
+      Object.assign(sensitiveApiKeys, apiKeys);
+      return sensitiveApiKeys;
     },
     getConversations: () => conversations,
     getFolders: () => folders,
@@ -199,6 +206,7 @@ function createHarness({
     },
     saveAppData: async () => calls.push(['saveAppData']),
     saveConfig: async () => calls.push(['saveConfig']),
+    saveSensitiveConfig: async () => calls.push(['saveSensitiveConfig']),
     processInChunks: async (items, processFn, chunkSize, onProgress) => {
       for (let index = 0; index < items.length; index += 1) {
         await processFn(items[index]);
@@ -246,6 +254,9 @@ function createHarness({
   return {
     calls,
     config,
+    get sensitiveApiKeys() {
+      return sensitiveApiKeys;
+    },
     document,
     elements,
     FakeJSZip,
@@ -267,8 +278,9 @@ test('factory exports the normal import/export lifecycle API', () => {
   assert.equal(typeof lifecycle.handleImport, 'function');
 });
 
-test('performImport preserves replacement, app persistence, config mutation, and config persistence order', async () => {
-  const { calls, config, lifecycle } = createHarness();
+test('performImport preserves replacement, app persistence, sensitive key merge, and config persistence order', async () => {
+  const harness = createHarness();
+  const { calls, config, lifecycle } = harness;
 
   await lifecycle.performImport({
     conversations: [{ id: 'conv-1' }],
@@ -283,11 +295,13 @@ test('performImport preserves replacement, app persistence, config mutation, and
     'replaceAllAppData',
     'saveAppData',
     'mutateConfig',
-    'mutateConfig',
+    'mergeSensitiveApiKeys',
+    'saveSensitiveConfig',
     'saveConfig'
   ]);
   assert.equal(config.theme, 'light');
-  assert.deepEqual(config.apiKeys, { keep: 'yes', imported: 'key' });
+  assert.deepEqual(config.apiKeys, { keep: 'yes' });
+  assert.deepEqual(harness.sensitiveApiKeys, { keep: 'yes', imported: 'key' });
 });
 
 test('handleImport validates, confirms, clears through bridges, chunks live arrays, and saves before UI handoffs', async () => {
@@ -318,6 +332,8 @@ test('handleImport validates, confirms, clears through bridges, chunks live arra
     'confirm',
     'replaceAllAppData',
     'mutateConfig',
+    'mergeSensitiveApiKeys',
+    'saveSensitiveConfig',
     'saveConfig',
     'replaceFolders',
     'replacePersonalMemories',
@@ -335,7 +351,8 @@ test('handleImport validates, confirms, clears through bridges, chunks live arra
     'confirm',
     'replaceAllAppData',
     'mutateConfig',
-    'mutateConfig',
+    'mergeSensitiveApiKeys',
+    'saveSensitiveConfig',
     'saveConfig',
     'replaceFolders',
     'replacePersonalMemories',

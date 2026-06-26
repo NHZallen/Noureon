@@ -228,6 +228,62 @@ test('delete-all path uses injected storage adapter and preserves reload orderin
   ]);
 });
 
+test('saveSettings writes API keys through sensitive key callbacks before normal config save', async () => {
+  const { dependencies, calls, state } = createDependencies({
+    document: {
+      body: { classList: { contains() { return false; } } },
+      documentElement: { style: { setProperty: () => {} } },
+      createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      getElementById: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      querySelector: (selector) => {
+        if (selector === 'input[name="color-theme"]:checked') return { value: 'dark' };
+        if (selector === 'input[name="color-style"]:checked') return { value: 'single' };
+        return null;
+      },
+      querySelectorAll: () => []
+    },
+    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
+    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
+    setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
+    saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
+  });
+  dependencies.elements.geminiApiKeyInput.value = ' gemini-key ';
+  dependencies.elements.openrouterApiKeyInputAll.value = ' openrouter-key ';
+  dependencies.elements.stepPlanApiKeyInput.value = ' step-key ';
+  dependencies.elements.nvidiaApiKeyInput.value = ' nvidia-key ';
+  dependencies.elements.tavilyApiKeyInput.value = ' tavily-key ';
+  dependencies.elements.tavilySearchDepthSelect.value = 'advanced';
+  dependencies.elements.autoWebSearchToggleSwitch.checked = true;
+  dependencies.elements.outputModeSelect.value = 'realtime';
+  dependencies.elements.autoNamingToggleSwitch.checked = true;
+  dependencies.elements.memoryToggle1.checked = true;
+  dependencies.elements.autoMemoryToggleSwitch.checked = true;
+  dependencies.elements.uiLanguageSelect.value = 'en';
+  dependencies.elements.aiLanguageSelect.value = 'en';
+  dependencies.elements.enableUpdateNotificationsToggle.checked = true;
+  state.config.theme = 'dark';
+  state.config.aiBubbleColor = 'default';
+  state.config.userBubbleColor = 'default';
+  dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
+  dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
+  dependencies.elements.customColorSwatches.querySelector = () => null;
+  dependencies.elements.gradientSwatches.querySelector = () => null;
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  await lifecycle.saveSettings({ close: false, notify: false });
+
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), [
+    ['setApiKeyForProvider', 'gemini', 'gemini-key'],
+    ['setApiKeyForProvider', 'openrouter', 'openrouter-key'],
+    ['setApiKeyForProvider', 'stepPlan', 'step-key'],
+    ['setApiKeyForProvider', 'nvidia', 'nvidia-key'],
+    ['setApiKeyForProvider', 'tavily', 'tavily-key']
+  ]);
+  assert.ok(calls.indexOf('saveSensitiveConfig') < calls.indexOf('saveConfig'));
+  assert.deepEqual(state.config.apiKeys, {});
+  assert.equal(state.config.outputMode, 'realtime');
+});
+
 test('source keeps settings save, login, and delete-all ownership', () => {
   const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
@@ -237,5 +293,7 @@ test('source keeps settings save, login, and delete-all ownership', () => {
   assert.match(source, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(source, /await\s+runtimeStorageAdapter\.clear\(\)/);
   assert.match(source, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value/);
+  assert.match(source, /await\s+saveSensitiveConfig\(\)/);
+  assert.doesNotMatch(source, /config\.apiKeys\.gemini\s*=/);
   assert.match(source, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
 });

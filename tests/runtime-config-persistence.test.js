@@ -124,6 +124,33 @@ test('serialized config persistence writes the latest config for the latest user
   });
 });
 
+test('serialized config persistence removes apiKeys from normal config writes', async () => {
+  const calls = [];
+  const persistence = createLegacyRuntimeConfigPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getConfig: () => ({
+      theme: 'dark',
+      apiKeys: {
+        gemini: 'gemini-secret',
+        openrouter: 'openrouter-secret'
+      }
+    }),
+    getConfigKey: () => 'chatConfig_v_v8.6_alice',
+    setItem: async (key, value) => {
+      calls.push({ key, value });
+    }
+  });
+
+  await persistence.saveConfig();
+
+  assert.deepEqual(calls, [
+    {
+      key: 'chatConfig_v_v8.6_alice',
+      value: JSON.stringify({ theme: 'dark' })
+    }
+  ]);
+});
+
 test('serialized config persistence preserves rejection and stringify error boundaries', async () => {
   const setItemError = new Error('write failed');
   const rejectingPersistence = createLegacyRuntimeConfigPersistence({
@@ -197,7 +224,7 @@ test('saveConfig preserves missing-user, serialization, and rejection behavior',
   );
   assert.match(
     persistenceSource,
-    /const\s+currentUser\s*=\s*getCurrentUser\(\);\s*if\s*\(currentUser\)\s*\{\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(getConfig\(\)\)\);/s
+    /const\s+currentUser\s*=\s*getCurrentUser\(\);\s*if\s*\(currentUser\)\s*\{\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(removeSensitiveConfig\(getConfig\(\)\)\)\);/s
   );
   assert.doesNotMatch(`${body}\n${persistenceSource}`, /\belse\b|try\s*\{|catch\s*\(/);
   assert.doesNotMatch(
@@ -217,6 +244,7 @@ test('loadConfig preserves missing-user, null storage, and invalid JSON boundari
 
   assertMarkersInOrder(body, [
     'if (!currentUser) return',
+    'await runtimeSensitiveConfigPersistence.loadSensitiveConfig()',
     'const saved = await getItem(getConfigKey())',
     savedIfMarker,
     'const savedConfig = JSON.parse(saved)'
@@ -237,27 +265,22 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
 
   assertMarkersInOrder(body, [
     'const savedConfig = JSON.parse(saved)',
+    'if (savedConfig.apiKeys) {',
+    'mergeSensitiveApiKeys(savedConfig.apiKeys)',
+    'await saveSensitiveConfig()',
+    'const normalSavedConfig = removeSensitiveConfig(savedConfig)',
     'const normalizedConfig = normalizeLoadedLegacyConfig({',
     'currentConfig: config',
-    'savedConfig',
+    'savedConfig: normalSavedConfig',
     'models: MODELS',
     'config = runtimeConfigStore.replaceConfig(normalizedConfig)'
   ], 'loadConfig merge precedence');
   assertMarkersInOrder(normalizationSource, [
-    'openrouterKey = normalizeApiKeyValue(savedConfig.apiKeys.openrouter)',
-    'stepPlanKey = normalizeApiKeyValue(savedConfig.apiKeys.stepPlan)',
-    'nvidiaKey = normalizeApiKeyValue(savedConfig.apiKeys.nvidia)',
-    'tavilyKey = normalizeApiKeyValue(savedConfig.apiKeys.tavily)',
+    'const { apiKeys: _retiredApiKeys, ...normalSavedConfig } = savedConfig',
     '...currentConfig',
-    '...savedConfig',
-    'apiKeys: {',
-    '...currentConfig.apiKeys',
-    '...savedConfig.apiKeys',
-    'openrouter: openrouterKey',
-    'stepPlan: stepPlanKey',
-    'nvidia: nvidiaKey',
-    'tavily: tavilyKey',
-    'uiTheme: { ...currentConfig.uiTheme, ...(savedConfig.uiTheme || {}) }'
+    '...normalSavedConfig',
+    'apiKeys: { ...(currentConfig?.apiKeys || {}) }',
+    'uiTheme: { ...currentConfig.uiTheme, ...(normalSavedConfig.uiTheme || {}) }'
   ], 'config normalization merge precedence');
 });
 
@@ -295,7 +318,8 @@ test('settings persistence keeps mutation, visual, save, render, and notificatio
   const initChatAppBody = getBlockFromMarker(appBootstrapLifecycleSource, 'async function initChatApp()');
 
   assertMarkersInOrder(saveSettingsBody, [
-    'config.apiKeys.gemini = ALL_ELEMENTS.geminiApiKeyInput.value.trim()',
+    'const nextApiKeys = {',
+    'await saveSensitiveConfig()',
     'config.uiLanguage = ALL_ELEMENTS.uiLanguageSelect.value',
     'config.uiTheme.mode = selectedThemeMode',
     'setAiBubbleColor()',
@@ -361,6 +385,7 @@ test('config persistence extracts only the serialized write adapter', () => {
     /loadConfig|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage|legacy-runtime\/fragments|virtual:legacy-app-runtime/
   );
   assert.match(fragment00Source, /import\s+\{\s*createLegacyRuntimeConfigPersistence\s*\}/);
+  assert.match(persistenceSource, /import\s+\{\s*removeSensitiveConfig\s*\}/);
   assert.match(fragment00Source, /const\s+runtimeConfigPersistence\s*=\s*createLegacyRuntimeConfigPersistence\(\{/);
   assertMarkersInOrder(fragment00Source, [
     'getCurrentUser: () => currentUser',
