@@ -3,6 +3,7 @@
             FOLDER_TEXT_COLORS,
         } from '/src/app/legacy-runtime/data/folder-metadata.js';
         import { createLegacyConversationMailSender } from '/src/app/runtime/features/conversation-mail.js';
+        import { createLegacySubmitInputCouncilLifecycle } from '/src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
 
         const sendConversationToMail = createLegacyConversationMailSender({
             getActiveConversation,
@@ -229,276 +230,125 @@
             archivedChatsContainer.querySelectorAll('.unarchive-btn').forEach(btn => btn.addEventListener('click', (e) => unarchiveChat(e.target.dataset.id, e)));
             archivedChatsContainer.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => deleteChat(e.target.dataset.id, e)));
         };
-        const openCouncilPopoverFromAttachmentMenu = () => {
-            renderCouncilControls();
-            const toggleButton = document.getElementById('model-council-toggle-btn');
-            if (!toggleButton) {
-                showNotification(config.uiLanguage === 'en' ? 'Model Council is unavailable while Learning Mode is enabled.' : '學習模式開啟時無法使用模型理事會。', 'warning');
-                return;
-            }
-            closeAllPopovers();
-            toggleButton.click();
+        const submitInputCouncilState = {
+            get config() { return config; },
+            get conversations() { return conversations; },
+            get astras() { return astras; },
+            get uploadedFiles() { return uploadedFiles; },
+            set uploadedFiles(next) { uploadedFiles = next; },
+            get abortController() { return abortController; },
+            set abortController(next) { abortController = next; },
+            get isCouncilRunning() { return isCouncilRunning; },
+            set isCouncilRunning(next) { isCouncilRunning = next; },
+            get isAutoScrolling() { return isAutoScrolling; }
         };
-
-        const ensureCouncilMenuButton = () => {
-            const popover = ALL_ELEMENTS.fileOptionsPopover;
-            if (!popover) return null;
-            let button = document.getElementById('model-council-menu-btn');
-            if (!button) {
-                button = document.createElement('button');
-                button.id = 'model-council-menu-btn';
-                button.type = 'button';
-                button.className = 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3';
-                button.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                    <span></span>
-                `;
-                button.addEventListener('click', openCouncilPopoverFromAttachmentMenu);
-                const learningButton = document.getElementById('learning-mode-btn');
-                popover.insertBefore(button, learningButton || null);
-            }
-            button.querySelector('span').textContent = getCouncilTexts().title;
-            return button;
-        };
-
-        const updateFunctionButtonsState = () => {
-            const { cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn } = ALL_ELEMENTS;
-            const conv = getActiveConversation();
-            if (!conv) return;
-
-
-            const modelInfo = normalizeConversationModel(conv);
-            const { participants, synthesizer } = getCouncilSelectedModels(conv);
-            const councilActive = isCouncilEnabled(conv);
-            const provider = modelInfo?.provider;
-            const supportsVision = councilActive
-                ? participants.some(modelSupportsVision)
-                : modelSupportsVision(modelInfo);
-            const supportsDocumentUpload = councilActive
-                ? true
-                : hasSingleDocumentAccess(modelInfo);
-            const supportsWebSearch = councilActive
-                ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
-                : hasSingleWebSearchAccess(modelInfo);
-
-
-            // 預設先顯示所有按鈕
-            [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn].forEach(btn => btn.style.display = 'flex');
-            document.querySelectorAll('#file-options-popover .border-t').forEach(sep => sep.style.display = 'block');
-            [cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn]
-                .filter(Boolean)
-                .forEach(btn => btn.style.display = 'flex');
-            if (webSearchPopoverBtn) {
-                webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
-                webSearchPopoverBtn.classList.toggle('is-active', Boolean(conv.isWebSearchEnabled));
-            }
-            [cameraBtn, uploadImageBtn]
-                .filter(Boolean)
-                .forEach(btn => btn.style.display = supportsVision ? 'flex' : 'none');
-            if (uploadFileBtn) {
-                uploadFileBtn.style.display = supportsDocumentUpload ? 'flex' : 'none';
-            }
-            if (learningModeBtn) {
-                learningModeBtn.style.display = councilActive ? 'none' : 'flex';
-                learningModeBtn.classList.toggle('is-active', Boolean(config.isLearningMode));
-            }
-            const councilMenuButton = ensureCouncilMenuButton();
-            if (councilMenuButton) {
-                councilMenuButton.style.display = (config.isLearningMode && !councilActive) ? 'none' : 'flex';
-                councilMenuButton.classList.toggle('is-active', councilActive);
-            }
-            
-            if (!councilActive && provider === 'openrouter') {
-    // 檢查當前 OpenRouter 模型是否支援圖片輸入
-    const supportsVision = OPENROUTER_VISION_MODELS.includes(modelInfo?.id);
-
-
-    if (webSearchPopoverBtn) webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
-    
-    // 2. 確保檔案上傳按鈕是顯示的 (flex)
-    uploadFileBtn.style.display = supportsDocumentUpload ? 'flex' : 'none';
-
-
-    // 根據是否支援圖片，決定是否顯示相機和圖片按鈕
-    [cameraBtn, uploadImageBtn].forEach(btn => btn.style.display = supportsVision ? 'flex' : 'none');
-                
-                // 根據是否支援圖片，決定是否顯示相機和圖片按鈕
-                [cameraBtn, uploadImageBtn].forEach(btn => btn.style.display = supportsVision ? 'flex' : 'none');
-
-
-                // 根據按鈕的顯示狀態，決定是否隱藏分隔線
-                const firstSeparator = document.querySelector('#file-options-popover .border-t');
-                if (firstSeparator) {
-                    firstSeparator.style.display = (supportsVision) ? 'block' : 'none';
-                }
-            }
-        };
-
-
+        let addMessageToUI;
+        let renderChat;
+        const submitInputCouncilLifecycle = createLegacySubmitInputCouncilLifecycle({
+            window,
+            document,
+            AbortController,
+            requestAnimationFrame,
+            setTimeout,
+            clearTimeout,
+            elements: ALL_ELEMENTS,
+            legacyRuntimeContext,
+            state: submitInputCouncilState,
+            models: MODELS,
+            openRouterVisionModels: OPENROUTER_VISION_MODELS,
+            i18n,
+            councilMinModels: COUNCIL_MIN_MODELS,
+            councilMaxModels: COUNCIL_MAX_MODELS,
+            councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
+            councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
+            closeAllPopovers: (...args) => closeAllPopovers(...args),
+            escapeHTML,
+            formatCouncilModelSummary,
+            formatFullTimestamp,
+            getActiveConversation,
+            getConfig: () => config,
+            runtimeConfigAccess,
+            getCouncilRuntimeTexts,
+            getCouncilSelectedModels,
+            getCouncilTexts,
+            getCouncilValidation,
+            getModelApiId,
+            getModelFamilyKey,
+            getModelFamilyName,
+            getModelPriceLabel,
+            getModelRetirementLabel,
+            getModelTiers,
+            getModelsByIds,
+            getOutputMode,
+            getProviderLabel,
+            getSingleDocumentTranslatorModel,
+            getVisibleCouncilModels,
+            hasCouncilWebSearchAccess,
+            hasSingleDocumentAccess,
+            hasSingleWebSearchAccess,
+            isCouncilEnabled,
+            modelSupportsDocumentUpload,
+            modelSupportsVision,
+            modelSupportsWebSearch,
+            normalizeCouncilConfig,
+            cloneCouncilConfig,
+            normalizeConversationModel,
+            renderAll,
+            renderHistorySidebar,
+            renderMarkdown,
+            renderMarkdownWithFormulas,
+            renderUserText,
+            addMessageToUI: (...args) => addMessageToUI(...args),
+            buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
+            streamApiCall: (...args) => streamApiCall(...args),
+            runModelCouncil: (...args) => runModelCouncil(...args),
+            extractPersonalMemory: (...args) => extractPersonalMemory(...args),
+            saveAppData,
+            saveConfig,
+            sendConversationToMail,
+            showNotification,
+            updateApiKeyWarningBadge: (...args) => updateApiKeyWarningBadge(...args),
+            getFileInputContainer: () => ALL_ELEMENTS.fileInputContainer,
+            getActiveAstrasId: () => getActiveAstrasId(),
+            deactivateAstras: (...args) => deactivateAstras(...args),
+            logger: console
+        });
+        const {
+            openCouncilPopoverFromAttachmentMenu,
+            ensureCouncilMenuButton,
+            updateFunctionButtonsState,
+            toggleLearningMode,
+            renderInputIndicators,
+            updateFileInputUI,
+            seedCouncilParticipants,
+            persistCouncilConfig,
+            getCouncilModeLabel,
+            getCouncilModelList,
+            renderCouncilControls,
+            renderModelSwitcher,
+            renderCouncilProgress,
+            renderSingleModelError,
+            renderSingleModelProgress,
+            typewriterStream,
+            renderIncrementalResponse,
+            playbackTypewriterResponse,
+            playbackStreamingMarkdownResponse,
+            startProgressTicker,
+            stopProgressTicker,
+            handleFormSubmit
+        } = submitInputCouncilLifecycle;
         legacyRuntimeContext.registerLazyBinding('input.updateFunctionButtonsState', () => updateFunctionButtonsState);
-
-        const toggleLearningMode = async () => {
-            const conv = getActiveConversation();
-            if (!config.isLearningMode && isCouncilEnabled(conv)) {
-                const message = config.uiLanguage === 'en'
-                    ? 'Learning Mode is unavailable while Model Council is enabled.'
-                    : '模型理事會模式無法啟用學習模式。';
-                showNotification(message, 'warning');
-                return;
-            }
-            config.isLearningMode = !config.isLearningMode;
-            await saveConfig();
-            renderInputIndicators();
-            updateFunctionButtonsState();
-            ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
-            showNotification(config.isLearningMode ? (i18n[config.uiLanguage].learningEnabled || '學習模式已開啟') : (i18n[config.uiLanguage].learningDisabled || '學習模式已關閉'), 'success');
-        };
-
-
-        const renderInputIndicators = () => {
-            const container = ALL_ELEMENTS.inputIndicatorContainer;
-            const conv = getActiveConversation();
-            const wrapper = document.querySelector('.input-wrapper');
-            if (!wrapper) return;
-
-
-            if (!conv) {
-                if (container.children.length > 0) container.innerHTML = '';
-                wrapper.classList.remove('has-indicators');
-                return;
-            }
-        
-            const activeIndicators = new Map();
-            const astrasId = getActiveAstrasId();
-
-
-            if (config.isLearningMode) {
-                activeIndicators.set('learning-mode-indicator', {
-                    id: 'learning-mode-indicator',
-                    html: `
-                        <span class="input-indicator-content flex items-center gap-2">
-                            <span class="input-indicator-leading">
-                                <svg class="input-indicator-mode-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"/></svg>
-                            </span>
-                            <span>${i18n[config.uiLanguage].learningIndicator || '學習'}</span>
-                        </span>
-                        <button id="close-learning-mode-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${i18n[config.uiLanguage].closeLearning || '關閉學習'}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    `,
-                    eventListener: (el) => el.querySelector('#close-learning-mode-btn-input').addEventListener('click', toggleLearningMode)
-                });
-            }
-        
-            if (astrasId) {
-                const ast = astras.find(a => a.id === astrasId);
-                if (ast) {
-                    activeIndicators.set('astras-input-indicator', {
-                        id: 'astras-input-indicator',
-                        html: `
-                            <span class="input-indicator-content flex items-center gap-2">
-                                <span class="input-indicator-leading">
-                                    <span class="astras-sidebar-avatar input-indicator-mode-icon" style="width: 18px; height: 18px; font-size: 0.7rem;">
-                                    ${ast.avatarUrl ? `<img src="${ast.avatarUrl}" class="w-full h-full object-cover rounded-full">` : ast.name.charAt(0)}
-                                </span>
-                                </span>
-                                <span>${ast.name} ${i18n[config.uiLanguage].astrasActive || '使用中'}</span>
-                            </span>
-                            <button id="close-astras-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${i18n[config.uiLanguage].closeAstras || '關閉 Astras'}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        `,
-                        eventListener: (el) => el.querySelector('#close-astras-btn-input').addEventListener('click', deactivateAstras)
-                    });
-                }
-            }
-        
-            if (conv.isWebSearchEnabled) {
-                activeIndicators.set('search-indicator', {
-                    id: 'search-indicator',
-                    html: `
-                        <span class="input-indicator-content flex items-center gap-2">
-                            <span class="input-indicator-leading">
-                                <svg class="input-indicator-mode-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                            </span>
-                            <span>${i18n[config.uiLanguage].search || '搜索'}</span>
-                        </span>
-                        <button id="close-search-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${i18n[config.uiLanguage].closeSearchMode || '關閉搜索'}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    `,
-                    eventListener: (el) => el.querySelector('#close-search-btn-input').addEventListener('click', async () => {
-                        conv.isWebSearchEnabled = false;
-                        await saveAppData();
-                        renderInputIndicators();
-                    })
-                });
-            }
-            if (isCouncilEnabled(conv)) {
-                const { council } = getCouncilSelectedModels(conv);
-                const texts = getCouncilTexts();
-                const validation = getCouncilValidation(conv);
-                const councilModeLabel = getCouncilModeLabel(council);
-                activeIndicators.set('model-council-indicator', {
-                    id: 'model-council-indicator',
-                    html: `
-                        <span class="input-indicator-content flex items-center gap-2">
-                            <span class="input-indicator-leading">
-                                <svg class="input-indicator-mode-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                            </span>
-                            <span>${escapeHTML(councilModeLabel)}</span>
-                        </span>
-                        <button id="close-model-council-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10" title="${escapeHTML(validation.message || texts.title)}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    `,
-                    eventListener: (el) => el.querySelector('#close-model-council-btn-input').addEventListener('click', async (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        conv.council.enabled = false;
-                        await persistCouncilConfig(conv);
-                        renderInputIndicators();
-                    })
-                });
-            }
-        
-            Array.from(container.children).forEach(child => {
-                if (!activeIndicators.has(child.id)) {
-                    child.classList.remove('enter');
-                    child.classList.add('exit');
-                    child.addEventListener('animationend', () => {
-                        child.remove();
-                        if (container.children.length === 0) {
-                            wrapper.classList.remove('has-indicators');
-                        }
-                    }, { once: true });
-                }
-            });
-        
-            activeIndicators.forEach((indicatorData, key) => {
-                const existingIndicator = document.getElementById(indicatorData.id);
-                if (!existingIndicator) {
-                    const indicator = document.createElement('div');
-                    indicator.id = indicatorData.id;
-                    indicator.className = 'input-indicator-item flex items-center justify-between text-sm font-medium px-2 py-1 rounded-full enter';
-                    indicator.innerHTML = indicatorData.html;
-                    indicator.dataset.indicatorHtml = indicatorData.html;
-                    container.appendChild(indicator);
-                    indicatorData.eventListener(indicator);
-                } else if (existingIndicator.dataset.indicatorHtml !== indicatorData.html) {
-                    existingIndicator.innerHTML = indicatorData.html;
-                    existingIndicator.dataset.indicatorHtml = indicatorData.html;
-                    indicatorData.eventListener(existingIndicator);
-                }
-            });
-            
-            if (activeIndicators.size > 0) {
-                wrapper.classList.add('has-indicators');
-            } 
-            else if (container.children.length === 0) {
-                wrapper.classList.remove('has-indicators');
-            }
-        };
+        legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
+        legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
+        legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
+        legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => {
+            const runtimeEntryAdjustTextareaHeight = legacyRuntimeContext.resolveOptionalBinding(
+                'runtimeEntry.submit.adjustTextareaHeight'
+            );
+            if (runtimeEntryAdjustTextareaHeight) return runtimeEntryAdjustTextareaHeight;
+            return adjustTextareaHeight;
+        });
+        legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const getActiveAstrasId = () => {
             const conv = getActiveConversation();
             return conv ? conv.astrasId : null;
@@ -637,144 +487,6 @@
             });
             popover.querySelector('.delete-astras-btn').addEventListener('click', () => { deleteAstras(astrasId); popover.remove(); });
         };
-        const updateFileInputUI = () => {
-            const { fileInputContainer } = ALL_ELEMENTS;
-            fileInputContainer.classList.remove('hidden');
-            const conv = getActiveConversation();
-            const modelInfo = MODELS.find(m => m.id === conv?.model);
-            if (modelInfo?.provider !== 'gemini' && uploadedFiles.length > 0) {
-            }
-        };
-        const seedCouncilParticipants = (conv) => {
-            if (!conv) return;
-            conv.council = normalizeCouncilConfig(conv.council);
-            if (conv.council.participantModelIds.length > 0) return;
-            const visibleModels = getVisibleCouncilModels();
-            const seedIds = [];
-            if (conv.model && MODELS.some(model => model.id === conv.model)) {
-                seedIds.push(conv.model);
-            }
-            visibleModels.forEach(model => {
-                if (seedIds.length < COUNCIL_MIN_MODELS && !seedIds.includes(model.id)) {
-                    seedIds.push(model.id);
-                }
-            });
-            conv.council.participantModelIds = seedIds.slice(0, COUNCIL_MAX_MODELS);
-        };
-        const persistCouncilConfig = async (conv, shouldRender = true) => {
-            if (!conv) return;
-            conv.council = normalizeCouncilConfig(conv.council);
-            if (conv.council.enabled && config.isLearningMode) {
-                config.isLearningMode = false;
-            }
-            config.lastCouncilConfig = cloneCouncilConfig(conv.council);
-            await saveAppData();
-            await saveConfig();
-            if (shouldRender) {
-                renderModelSwitcher();
-                renderCouncilControls();
-                renderInputIndicators();
-                legacyRuntimeContext.resolveBinding('input.updateInputState')();
-                updateApiKeyWarningBadge();
-            }
-        };
-        const getCouncilModeLabel = (council = {}) => {
-            const texts = getCouncilTexts();
-            const modeLabel = council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
-            const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            if (uiLanguage === 'en') return `Council ${modeLabel}`;
-            if (uiLanguage === 'fr') return `Conseil ${modeLabel}`;
-            return `理事會${modeLabel}`;
-        };
-        const getCouncilModelList = (conv) => {
-            const visibleModels = getVisibleCouncilModels();
-            const selectedIds = new Set([
-                ...(conv?.council?.participantModelIds || []),
-                conv?.council?.synthesizerModelId
-            ].filter(Boolean));
-            selectedIds.forEach(modelId => {
-                const model = MODELS.find(item => item.id === modelId);
-                if (model && !visibleModels.some(item => item.id === model.id)) {
-                    visibleModels.push(model);
-                }
-            });
-            return visibleModels;
-        };
-        import { createCouncilControlsLifecycle } from '/src/app/legacy-runtime/features/council-controls-lifecycle.js';
-        const { renderCouncilControls } = createCouncilControlsLifecycle({
-            closeAllPopovers,
-            councilMaxModels: COUNCIL_MAX_MODELS,
-            document,
-            escapeHTML,
-            formatCouncilModelSummary,
-            getActiveConversation,
-            getConfig: () => config,
-            getCouncilModelList,
-            getCouncilRuntimeTexts,
-            getCouncilTexts,
-            getCouncilValidation,
-            getI18n: () => i18n,
-            getFileInputContainer: () => ALL_ELEMENTS.fileInputContainer,
-            getIsCouncilRunning: () => isCouncilRunning,
-            getModelApiId,
-            getModelFamilyKey,
-            getModelFamilyName,
-            getModelPriceLabel,
-            getModelsByIds,
-            getProviderLabel,
-            hasCouncilWebSearchAccess,
-            modelSupportsDocumentUpload,
-            modelSupportsVision,
-            modelSupportsWebSearch,
-            models: MODELS,
-            normalizeConversationModel,
-            normalizeCouncilConfig,
-            persistCouncilConfig,
-            renderInputIndicators,
-            requestFrame: requestAnimationFrame,
-            saveAppData,
-            seedCouncilParticipants,
-            showNotification
-        });
-        import { createResponseProgressRenderers } from '/src/app/legacy-runtime/features/response-progress-renderers.js';
-        const {
-            renderCouncilProgress,
-            renderSingleModelError,
-            renderSingleModelProgress
-        } = createResponseProgressRenderers({
-            escapeHTML,
-            getUiLanguage: () => config.uiLanguage,
-            getCouncilRuntimeTexts
-        });
-        const isCouncilDeferredSectionVisible = (text = '') => /<details\b|共識與差異整理|模型理事會紀錄|Model council record|Compte rendu du conseil/i.test(String(text || ''));
-        import { createModelSwitcherLifecycle } from '/src/app/legacy-runtime/features/model-switcher-lifecycle.js';
-        const { renderModelSwitcher } = createModelSwitcherLifecycle({
-            closeAllPopovers,
-            document,
-            escapeHTML,
-            getActiveConversation,
-            getConfig: () => config,
-            getCouncilModeLabel,
-            getCouncilSelectedModels,
-            getCouncilTexts,
-            getI18n: () => i18n,
-            getModelApiId,
-            getModelSwitcherContainer: () => ALL_ELEMENTS.modelSwitcherContainer,
-            getModelRetirementLabel,
-            getModelTiers,
-            getSingleDocumentTranslatorModel,
-            isCouncilEnabled,
-            modelSupportsDocumentUpload,
-            modelSupportsVision,
-            modelSupportsWebSearch,
-            models: MODELS,
-            renderAll,
-            renderCouncilControls,
-            requestFrame: requestAnimationFrame,
-            saveAppData,
-            saveConfig,
-            window
-        });
         import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
         import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
         import { createMessageListLifecycle } from '/src/app/legacy-runtime/features/message-list-lifecycle.js';
@@ -793,7 +505,7 @@
             getInlineMediaSrc: getMessageInlineMediaSrc,
             getUiLanguage: () => config.uiLanguage
         });
-        const {
+        ({
             addMessageToUI,
             renderChat
         } = createMessageListLifecycle({
@@ -827,358 +539,7 @@
             updateInputState: () => legacyRuntimeContext.resolveBinding('input.updateInputState')(),
             scheduleFrame: (callback) => requestAnimationFrame(callback),
             isAutoScrolling: () => isAutoScrolling
-        });
-/**
- * ✨ 最終優化版：幀同步直接渲染打字機 (V5)
- *    - 徹底解決 UI 渲染延遲，真實反映模型輸出速度。
- *    - 使用 requestAnimationFrame 進行批次 DOM 更新，確保動畫流暢與高效能。
- *    - 當模型快速輸出大量文字時，會在下一幀立即渲染，沒有人工延遲。
- * @param {HTMLElement} targetElement 要顯示文字的目標 DOM 元素
- * @param {function(function(string): void): Promise<void>} streamApiCallFn 啟動 API 呼叫的函數
- * @param {AbortSignal} signal 用於中止操作的 AbortSignal
- * @returns {Promise<string>} 返回完整的 AI 回應字串
- */
-async function typewriterStream(targetElement, streamApiCallFn, signal) {
-    let fullText = '';
-    let isStreaming = true;
-
-
-    targetElement.innerHTML = '';
-    targetElement.classList.add('typing-cursor');
-
-
-    const typewriterFrameQueue = createStreamingTextFrameQueue({
-        drainText: (chunkToRender) => {
-            fullText += chunkToRender;
-
-            const fragment = document.createDocumentFragment();
-            for (const char of chunkToRender) {
-                const span = document.createElement('span');
-                span.className = 'fade-in-char'; 
-                if (char === '\n') {
-                    fragment.appendChild(document.createElement('br'));
-                } else {
-                    span.textContent = char;
-                    fragment.appendChild(span);
-                }
-            }
-            targetElement.appendChild(fragment);
-
-            const chatContainer = ALL_ELEMENTS.chatContainer;
-            const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
-            if (isNearBottom) {
-                chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
-            }
-        },
-        scheduleFrame: (callback) => requestAnimationFrame(callback),
-        waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16))
-    });
-
-
-    // 當 API 收到新資料時呼叫此函式
-    const onChunkReceived = (chunk) => {
-        typewriterFrameQueue.enqueue(chunk);
-    };
-
-
-    // 使用 try...finally 結構確保無論成功或失敗都能正確清理
-    try {
-        // 等待 API 串流 पूरी तरह से खत्म हो जाए
-        await streamApiCallFn(onChunkReceived);
-    } catch (error) {
-        console.error("Stream API call failed:", error);
-        // 如果出錯，也要確保最後的清理工作能執行
-        isStreaming = false;
-        // 將錯誤訊息直接顯示在畫面上
-        targetElement.innerHTML = renderMarkdown(`抱歉，發生錯誤：${error.message}`);
-        // 向上層拋出錯誤
-        throw error; 
-    } finally {
-        isStreaming = false;
-
-
-        await typewriterFrameQueue.flushUntilIdle();
-        
-        // 所有工作都完成了，進行最終清理
-        targetElement.classList.remove('typing-cursor');
-        // 為了確保所有 Markdown 和數學公式都能正確渲染，用完整的文字重新渲染一次最終結果
-        targetElement.innerHTML = renderMarkdownWithFormulas(fullText);
-    }
-
-
-    // 返回完整的文字內容
-    return fullText;
-}
-
-const renderIncrementalResponse = (targetElement, text, options = {}) => {
-    const openKeys = options.preserveCouncilDetails ? getOpenCouncilDetailKeys(targetElement) : null;
-    targetElement.innerHTML = options.final
-        ? renderMarkdownWithFormulas(text)
-        : renderMarkdown(`${text}${options.cursor ? '|' : ''}`);
-    restoreOpenCouncilDetails(targetElement, openKeys);
-};
-
-const playbackTypewriterResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
-    targetElement.innerHTML = '';
-    const playbackController = createTypewriterPlaybackController({
-        text: fullResponse,
-        signal,
-        schedule: (callback, delay) => setTimeout(callback, delay),
-        onStep: ({ currentText }) => {
-            renderIncrementalResponse(targetElement, currentText, { cursor: true, preserveCouncilDetails });
-            const chatContainer = ALL_ELEMENTS.chatContainer;
-            const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
-            const pauseCouncilAutoScroll = preserveCouncilDetails && isCouncilDeferredSectionVisible(currentText);
-            if (!pauseCouncilAutoScroll && isNearBottom) {
-                chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
-            }
-        },
-        onFinish: () => {
-            renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails });
-            resolve();
-        }
-    });
-    playbackController.start();
-});
-
-const isChatNearBottom = (threshold = 16) => {
-    const chatContainer = ALL_ELEMENTS.chatContainer;
-    if (!chatContainer) return false;
-    return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight <= threshold;
-};
-
-const keepChatPositionAfterRender = (shouldStick, previousTop) => {
-    const chatContainer = ALL_ELEMENTS.chatContainer;
-    if (!chatContainer) return;
-    if (shouldStick) {
-        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
-    } else {
-        chatContainer.scrollTop = previousTop;
-    }
-};
-
-const {
-    createStreamingMarkdownRenderer,
-    streamMarkdownResponse
-} = createStreamingMarkdownFeature({
-    document,
-    renderMarkdown,
-    renderMarkdownWithFormulas,
-    isChatNearBottom,
-    getChatScrollTop: () => ALL_ELEMENTS.chatContainer?.scrollTop || 0,
-    keepChatPositionAfterRender,
-    scheduleFrame: (callback) => requestAnimationFrame(callback),
-    waitForFrame: () => new Promise(resolve => setTimeout(resolve, 16)),
-    getStreamErrorText: (error) => `?望?嚗?隤歹?${error.message}`,
-    logError: (...args) => console.error(...args)
-});
-
-const playbackStreamingMarkdownResponse = (targetElement, fullResponse, signal, preserveCouncilDetails = false) => new Promise(resolve => {
-    const renderer = createStreamingMarkdownRenderer(targetElement, { preserveCouncilDetails });
-    const playbackController = createTypewriterPlaybackController({
-        text: fullResponse,
-        signal,
-        schedule: (callback, delay) => setTimeout(callback, delay),
-        getStep: ({ source, currentIndex }) => source.includes('```', Math.max(0, currentIndex - 3)) ? 5 : 1,
-        onStep: ({ chunk }) => {
-            renderer.appendText(chunk);
-        },
-        onFinish: () => {
-            renderer.finish({ renderFormulas: true });
-            resolve();
-        }
-    });
-    playbackController.start();
-});
-
-const startProgressTicker = (tick, intervalMs = 250) => {
-    let stopped = false;
-    let timerId = null;
-    const run = () => {
-        if (stopped) return;
-        tick();
-        timerId = setTimeout(run, intervalMs);
-    };
-    timerId = setTimeout(run, intervalMs);
-    return () => {
-        stopped = true;
-        if (timerId) clearTimeout(timerId);
-    };
-};
-
-const stopProgressTicker = (ticker) => {
-    if (typeof ticker === 'function') {
-        ticker();
-    } else if (ticker) {
-        clearInterval(ticker);
-        clearTimeout(ticker);
-    }
-};
-
-const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
-    now: () => Date.now(),
-    getOutputMode,
-    renderSingleModelProgress,
-    startProgressTicker,
-    stopProgressTicker,
-    buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
-    streamApiCall: (...args) => streamApiCall(...args),
-    streamMarkdownResponse,
-    playbackStreamingMarkdownResponse,
-    renderIncrementalResponse,
-    getOpenCouncilDetailKeys,
-    restoreOpenCouncilDetails
-});
-
-        import { createSubmitInputPreparationLifecycle } from '/src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
-        legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
-        legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
-        legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
-        legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => {
-            const runtimeEntryAdjustTextareaHeight = legacyRuntimeContext.resolveOptionalBinding(
-                'runtimeEntry.submit.adjustTextareaHeight'
-            );
-            if (runtimeEntryAdjustTextareaHeight) return runtimeEntryAdjustTextareaHeight;
-            return adjustTextareaHeight;
-        });
-        legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
-        const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({
-            elements: {
-                messageInput: ALL_ELEMENTS.messageInput
-            },
-            getAbortController: () => abortController,
-            setAbortController: (value) => { abortController = value; },
-            createAbortController: () => new AbortController(),
-            getUploadedFiles: () => uploadedFiles,
-            setUploadedFiles: (files) => { uploadedFiles = files; },
-            getActiveConversation,
-            updateSubmitButtonState: (...args) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(...args),
-            getCouncilValidation,
-            showNotification,
-            renderCouncilControls,
-            isCouncilEnabled,
-            getCouncilRuntimeTexts,
-            addMessageToUI,
-            renderHistorySidebar,
-            getAutoNaming: () => config.autoNaming,
-            generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
-            saveAppData,
-            getAutoWebSearchEnabled: () => config.enableAutoWebSearch,
-            shouldPerformWebSearch: (...args) => legacyRuntimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
-            getAutoSearchNotice: () => i18n[config.uiLanguage].autoSearchNotice || '偵測到問題需要連網搜索，已自動開啟。',
-            renderInputIndicators,
-            adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
-            renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
-            requestFrame: (callback) => requestAnimationFrame(callback)
-        });
-
-        const handleFormSubmit = async (e) => {
-            e.preventDefault();
-            const preparedSubmit = await submitInputPreparationLifecycle.prepareSubmitResponse();
-            if (!preparedSubmit.shouldContinue) return;
-            const {
-                abortController: submitAbortController,
-                contentDiv,
-                conversation: conv,
-                responseUsesCouncil,
-                userMessage,
-                userMessageObject,
-                userParts
-            } = preparedSubmit;
-            
-            try {
-                let fullResponse = '';
-                const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
-                let councilMetadata = null;
-                let responseRenderedInRealtime = false;
-
-
-                // 1. 先等待 API 回應完全結束，獲取完整文字
-                if (responseUsesCouncil) {
-                    const councilResult = await runCouncilResponseRenderLifecycle({
-                        contentDiv,
-                        userParts,
-                        signal: submitAbortController.signal,
-                        getOutputMode,
-                        runModelCouncil,
-                        renderCouncilProgress,
-                        createStreamingMarkdownRenderer,
-                        appendRendererTextGradually,
-                        startProgressTicker,
-                        stopProgressTicker,
-                        setCouncilRunning: (value) => { isCouncilRunning = value; },
-                        renderCouncilControls,
-                        renderInputIndicators,
-                        requestFrame: (callback) => requestAnimationFrame(callback)
-                    });
-                    fullResponse = councilResult.fullResponse;
-                    responseRenderedInRealtime = councilResult.responseRenderedInRealtime;
-                    councilMetadata = councilResult.metadata;
-                } else {
-                    const modelInfo = normalizeConversationModel(conv);
-                    const singleResult = await singleModelResponseLifecycle.run({
-                        targetElement: contentDiv,
-                        userParts,
-                        modelInfo,
-                        conversation: conv,
-                        signal: submitAbortController.signal,
-                        uiLanguage: config.uiLanguage
-                    });
-                    fullResponse = singleResult.fullResponse;
-                    responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
-                }
-                await finalizeAssistantResponse({
-                    fullResponse,
-                    finalAiMessage,
-                    councilMetadata,
-                    includeCouncilMetadata: responseUsesCouncil,
-                    conversation: conv,
-                    userMessageObject,
-                    userMessageText: userMessage,
-                    signal: submitAbortController.signal,
-                    responseUsesCouncil,
-                    responseRenderedInRealtime,
-                    targetElement: contentDiv,
-                    uiLanguage: config.uiLanguage,
-                    memoryEnabled: config.memoryEnabled1,
-                    autoMemoryEnabled: config.enableAutoMemory,
-                    sendConversationToMail,
-                    persistAppData: saveAppData,
-                    completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
-                    restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
-                    renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
-                    playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
-                    extractPersonalMemory
-                });
-            } catch (error) {
-                await persistAssistantResponseError({
-                    error,
-                    signal: submitAbortController?.signal,
-                    conversation: conv,
-                    targetElement: contentDiv,
-                    errorPrefix: i18n[config.uiLanguage].errorPrefix,
-                    fallbackModelName: normalizeConversationModel(conv)?.name || conv.model,
-                    getLatestProgress: () => (!responseUsesCouncil && singleModelResponseLifecycle.getLatestProgress()),
-                    stopSingleModelLifecycle: () => singleModelResponseLifecycle.stop(),
-                    renderError: renderSingleModelError,
-                    persistAppData: saveAppData
-                });
-            } finally {
-                const lastMessageElement = runSubmitFinalCleanupLifecycle(
-                    () => singleModelResponseLifecycle.stop(),
-                    () => { isCouncilRunning = false; abortController = null; },
-                    updateSubmitButtonState, (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args), renderCouncilControls, renderInputIndicators,
-                    () => ALL_ELEMENTS.messageList.lastElementChild
-                );
-                applyModelMessagePostResponseActions({
-                    lastMessageElement,
-                    conversation: conv,
-                    i18n,
-                    uiLanguage: config.uiLanguage,
-                    formatTimestamp: formatFullTimestamp
-                });
-            }
-        };
+        }));
         import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
         import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
         import { createLegacyTransitionBusLifecycle } from '/src/app/runtime/legacy-core/transition-bus-lifecycle.js';

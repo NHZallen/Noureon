@@ -419,6 +419,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
+  const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const fragmentConfigAssignments = fragment00Source.match(/\bconfig\s*=/g) || [];
@@ -498,7 +499,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + importExportSource + authImportSource + modelMemoryDashboardSource).match(/\bsaveConfig\(\)/g) || []).length, 12);
+  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 12);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -528,6 +529,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const laterFragmentSources = [
     '01-runtime.fragment.js'
   ].map((name) => readSource(`src/app/legacy-runtime/fragments/${name}`));
@@ -604,7 +606,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource).match(/\bsaveAppData\(\)/g) || []).length,
     31
   );
   for (const source of laterFragmentSources) {
@@ -617,6 +619,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
@@ -1743,6 +1746,7 @@ test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
 test('runtime lazy registrations and composition handoffs preserve legacy order', () => {
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
@@ -1750,14 +1754,18 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
   const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
 
   assertMarkersInOrder(fragment01Source, [
+    'const submitInputCouncilLifecycle = createLegacySubmitInputCouncilLifecycle({',
     "legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState'",
     "legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary'",
     "legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch'",
     "legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight'",
-    "legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews'",
+    "legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews'"
+  ], '01 submit runtime registration');
+
+  assertMarkersInOrder(submitInputCouncilSource, [
     'const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({',
     'const handleFormSubmit = async'
-  ], '01 submit runtime registration');
+  ], 'submit input council lifecycle submit runtime wiring');
 
   assertMarkersInOrder(settingsAuthProviderSource, [
     'const updateInputState = () =>',
@@ -1879,23 +1887,20 @@ test('initChatApp callers use the required runtime handoff without changing lega
 test('loadChat resolves updateFunctionButtonsState through the required runtime handoff', () => {
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const dependencySource = readSource('src/app/runtime/runtime-entry-dependencies.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
-  const toggleLearningModeBody = getConstFunctionBody(fragment01Source, 'toggleLearningMode');
-  const functionStart = fragment01Source.indexOf('const updateFunctionButtonsState =');
-  const functionOpenBrace = fragment01Source.indexOf('{', functionStart);
-  const functionCloseBrace = findMatchingBrace(fragment01Source, functionOpenBrace);
+  const toggleLearningModeBody = getConstFunctionBody(submitInputCouncilSource, 'toggleLearningMode');
+  const functionStart = submitInputCouncilSource.indexOf('const updateFunctionButtonsState =');
+  const functionOpenBrace = submitInputCouncilSource.indexOf('{', functionStart);
+  const functionCloseBrace = findMatchingBrace(submitInputCouncilSource, functionOpenBrace);
   const registrationMarker =
     "legacyRuntimeContext.registerLazyBinding('input.updateFunctionButtonsState', () => updateFunctionButtonsState)";
   const registrationIndex = fragment01Source.indexOf(registrationMarker);
 
-  assert.notEqual(functionStart, -1, '01 should declare updateFunctionButtonsState');
-  assert.ok(registrationIndex > functionCloseBrace, '01 should register the handoff after the function declaration closes');
-  assert.ok(
-    registrationIndex < fragment01Source.indexOf('const toggleLearningMode', functionCloseBrace),
-    '01 should register the handoff before the next owner-local consumer'
-  );
+  assert.notEqual(functionStart, -1, 'submit/input/council lifecycle should declare updateFunctionButtonsState');
+  assert.ok(registrationIndex > fragment01Source.indexOf('} = submitInputCouncilLifecycle'), '01 should register the handoff after lifecycle aliases are created');
   assert.match(
     loadChatBody,
     /legacyRuntimeContext\.resolveBinding\('input\.updateFunctionButtonsState'\)\(\);/,
@@ -2123,6 +2128,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
@@ -2131,7 +2137,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const getModelRetirementLabelBody = getConstFunctionBody(fragment00Source, 'getModelRetirementLabel');
   const getModelPriceLabelBody = getConstFunctionBody(fragment00Source, 'getModelPriceLabel');
   const renderArchivedChatsBody = getConstFunctionBody(fragment01Source, 'renderArchivedChats');
-  const getCouncilModeLabelBody = getConstFunctionBody(fragment01Source, 'getCouncilModeLabel');
+  const getCouncilModeLabelBody = getConstFunctionBody(submitInputCouncilSource, 'getCouncilModeLabel');
   const setupTimeAnalysisBody = getConstFunctionBody(coreTailSource, 'setupTimeAnalysis');
   const updateTimeDistributionChartBody = getConstFunctionBody(coreTailSource, 'updateTimeDistributionChart');
 
@@ -2758,7 +2764,7 @@ test('mobile context menu markup helpers are isolated from the 04 runtime fragme
 test('streaming council details helpers are isolated from the 01 runtime fragment', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-council-details.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-council-details.js'));
 
   for (const exportName of [
@@ -2797,7 +2803,7 @@ test('streaming council details helpers are isolated from the 01 runtime fragmen
 test('streaming markdown render state helper is isolated from the 01 runtime renderer', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-markdown-render-state.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-render-state.js'));
 
@@ -2833,7 +2839,7 @@ test('streaming markdown renderer and response core is isolated from the 01 runt
   const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const lifecycleSource = readSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-markdown-renderer.js'));
 
   assert.equal(typeof helpers.createStreamingMarkdownFeature, 'function');
@@ -2849,7 +2855,7 @@ test('streaming markdown renderer and response core is isolated from the 01 runt
   assert.match(fragment01Source, /\bisChatNearBottom,/);
   assert.match(fragment01Source, /\bkeepChatPositionAfterRender,/);
   assert.match(fragment01Source, /scheduleFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
-  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(resolve\s*=>\s*setTimeout\(resolve,\s*16\)\)/);
+  assert.match(fragment01Source, /waitForFrame:\s*\(\)\s*=>\s*new Promise\(\(?resolve\)?\s*=>\s*(?:setTimeout|scheduleTimeout)\(resolve,\s*16\)\)/);
   assert.match(fragment01Source, /getStreamErrorText:\s*\(error\)\s*=>/);
 
   assert.doesNotMatch(fragment01Source, /const\s+renderFinalized\s*=/);
@@ -2876,7 +2882,7 @@ test('streaming markdown renderer and response core is isolated from the 01 runt
 test('single-model response lifecycle is isolated from the 01 runtime submit flow', async () => {
   const lifecycleSource = readSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/single-model-response-lifecycle.js'));
 
   assert.equal(typeof helpers.createSingleModelResponseLifecycle, 'function');
@@ -2925,7 +2931,7 @@ test('response progress renderers and submit preparation are isolated from the 0
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
   const progressSource = readSource('src/app/legacy-runtime/features/response-progress-renderers.js');
   const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const runtimeContextHelpers = await import(projectFile('src/app/legacy-runtime/runtime/legacy-runtime-context.js'));
   const progressHelpers = await import(projectFile('src/app/legacy-runtime/features/response-progress-renderers.js'));
   const submitPrepHelpers = await import(projectFile('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js'));
@@ -2943,11 +2949,11 @@ test('response progress renderers and submit preparation are isolated from the 0
   assert.match(submitPrepSource, /export\s+function\s+createSubmitInputPreparationLifecycle\b/);
   assert.match(
     fragment01Source,
-    /import\s*\{\s*createResponseProgressRenderers\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/response-progress-renderers\.js';/
+    /import\s*\{\s*createResponseProgressRenderers\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/response-progress-renderers\.js['"];/
   );
   assert.match(
     fragment01Source,
-    /import\s*\{\s*createSubmitInputPreparationLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/submit-input-preparation-lifecycle\.js';/
+    /import\s*\{\s*createSubmitInputPreparationLifecycle\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/submit-input-preparation-lifecycle\.js['"];/
   );
   assert.match(fragment01Source, /\{\s*renderCouncilProgress,\s*renderSingleModelError,\s*renderSingleModelProgress\s*\}\s*=\s*createResponseProgressRenderers\(\{/);
   assert.match(fragment01Source, /submitInputPreparationLifecycle\s*=\s*createSubmitInputPreparationLifecycle\(\{/);
@@ -2962,10 +2968,6 @@ test('response progress renderers and submit preparation are isolated from the 0
   ]) {
     assert.match(
       fragment01Source,
-      new RegExp(`registerLazyBinding\\('submit\\.${bindingName}',\\s*\\(\\)\\s*=>\\s*${bindingName}\\)`)
-    );
-    assert.match(
-      fragment01Source,
       new RegExp(`${bindingName}:\\s*\\(\\.\\.\\.args\\)\\s*=>\\s*legacyRuntimeContext\\.resolveBinding\\('submit\\.${bindingName}'\\)\\(\\.\\.\\.args\\)`)
     );
     assert.doesNotMatch(
@@ -2974,7 +2976,7 @@ test('response progress renderers and submit preparation are isolated from the 0
     );
   }
   assert.match(
-    fragment01Source,
+    readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js'),
     /registerLazyBinding\('submit\.adjustTextareaHeight',\s*\(\)\s*=>\s*\{[\s\S]*runtimeEntry\.submit\.adjustTextareaHeight[\s\S]*return\s+adjustTextareaHeight;[\s\S]*\}\)/
   );
   assert.match(
@@ -3011,7 +3013,7 @@ test('response progress renderers and submit preparation are isolated from the 0
 
 test('model switcher preparation and lifecycle are isolated from the 01 runtime shell', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/model-switcher-lifecycle.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/model-switcher-lifecycle.js'));
 
   assert.equal(typeof helpers.prepareModelSwitcherModels, 'function');
@@ -3020,7 +3022,7 @@ test('model switcher preparation and lifecycle are isolated from the 01 runtime 
   assert.match(helperSource, /export\s+function\s+createModelSwitcherLifecycle\b/);
   assert.match(
     fragment01Source,
-    /import\s*\{\s*createModelSwitcherLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/model-switcher-lifecycle\.js';/
+    /import\s*\{\s*createModelSwitcherLifecycle\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/model-switcher-lifecycle\.js['"];/
   );
   assert.match(fragment01Source, /\{\s*renderModelSwitcher\s*\}\s*=\s*createModelSwitcherLifecycle\(\{/);
   assert.match(helperSource, /\bgetModelSwitcherContainer\b/);
@@ -3051,20 +3053,20 @@ test('model switcher preparation and lifecycle are isolated from the 01 runtime 
 
 test('council controls lifecycle is isolated from the 01 runtime shell', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/council-controls-lifecycle.js'));
 
   assert.equal(typeof helpers.createCouncilControlsLifecycle, 'function');
   assert.match(helperSource, /export\s+function\s+createCouncilControlsLifecycle\b/);
   assert.match(
     fragment01Source,
-    /import\s*\{\s*createCouncilControlsLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-controls-lifecycle\.js';/
+    /import\s*\{\s*createCouncilControlsLifecycle\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/council-controls-lifecycle\.js['"];/
   );
   assert.match(fragment01Source, /\{\s*renderCouncilControls\s*\}\s*=\s*createCouncilControlsLifecycle\(\{/);
   assert.match(helperSource, /\bgetFileInputContainer\b/);
   assert.doesNotMatch(helperSource, /\belements\b/);
   assert.doesNotMatch(helperSource, /elements\.fileInputContainer/);
-  assert.match(fragment01Source, /getFileInputContainer:\s*\(\)\s*=>\s*ALL_ELEMENTS\.fileInputContainer/);
+  assert.match(fragment01Source, /getFileInputContainer\s*=\s*\(\)\s*=>\s*ALL_ELEMENTS\.fileInputContainer/);
   assert.doesNotMatch(fragment01Source, /getFileInputContainer:\s*ALL_ELEMENTS\.fileInputContainer/);
   const councilControlsWiring = getBlockFromMarker(fragment01Source, 'createCouncilControlsLifecycle({');
   assert.doesNotMatch(councilControlsWiring, /elements:\s*ALL_ELEMENTS/);
@@ -3091,7 +3093,7 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
   const helperSource = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
   const submitPrepSource = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js'));
   const submitFlowSource = fragment01Source.slice(fragment01Source.indexOf('const handleFormSubmit'));
 
@@ -3132,10 +3134,10 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
   assert.doesNotMatch(helperSource, /TextDecoder\b|response\.body|streamApiCall\b/);
   assert.doesNotMatch(helperSource, /indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(helperSource, /virtual:legacy-app-runtime|vite\.config|package\.json/);
-  assert.match(fragment01Source, /updateSubmitButtonState,/);
+  assert.match(fragment01Source, /legacyRuntimeContext\.resolveBinding\('submit\.updateSubmitButtonState'\)/);
   assert.match(submitPrepSource, /updateSubmitButtonState\(false\)/);
-  assert.match(fragment01Source, /renderCouncilControls\(\)/);
-  assert.match(fragment01Source, /renderInputIndicators\(\)/);
+  assert.match(fragment01Source, /renderCouncilControls,/);
+  assert.match(fragment01Source, /renderInputIndicators,/);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/features/assistant-response-finalization.js')).size < 150 * 1024);
   assert.ok(statSync(projectFile('src/app/legacy-runtime/fragments/01-runtime.fragment.js')).size < 130 * 1024);
 });
@@ -3143,7 +3145,7 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
 test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js'));
 
   assert.equal(typeof helpers.runSubmitFinalCleanupLifecycle, 'function');
@@ -3153,8 +3155,8 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
     /import\s*\{\s*runSubmitFinalCleanupLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/submit-final-cleanup-lifecycle\.js';/
   );
   assert.match(fragment01Source, /const\s+lastMessageElement\s*=\s*runSubmitFinalCleanupLifecycle\(\s*\(\)\s*=>\s*singleModelResponseLifecycle\.stop\(\),/);
-  assert.match(fragment01Source, /\(\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*\},/);
-  assert.match(fragment01Source, /updateSubmitButtonState,\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\.\.\.args\),\s*renderCouncilControls,\s*renderInputIndicators,/);
+  assert.match(fragment01Source, /\(\)\s*=>\s*\{\s*setIsCouncilRunning\(false\);\s*setAbortController\(null\);\s*\},/);
+  assert.match(fragment01Source, /\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.updateSubmitButtonState'\)\(\.\.\.args\),\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\.\.\.args\),\s*renderCouncilControls,\s*renderInputIndicators,/);
   assert.match(fragment01Source, /\(\)\s*=>\s*ALL_ELEMENTS\.messageList\.lastElementChild/);
   assert.doesNotMatch(
     fragment01Source,
@@ -3172,7 +3174,7 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
 test('model message post-response actions remove the 01 to 02 last message lexical continuation', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const fragment02Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/model-message-post-response-actions.js'));
 
@@ -3357,7 +3359,7 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
 test('council response render lifecycle is isolated from the 01 runtime submit flow', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/council-response-render-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/council-response-render-lifecycle.js'));
 
   assert.equal(typeof helpers.runCouncilResponseRenderLifecycle, 'function');
@@ -3367,7 +3369,7 @@ test('council response render lifecycle is isolated from the 01 runtime submit f
     /import\s*\{\s*runCouncilResponseRenderLifecycle\s*\}\s*from\s+'\/src\/app\/legacy-runtime\/features\/council-response-render-lifecycle\.js';/
   );
   assert.match(fragment01Source, /const\s+councilResult\s*=\s*await\s+runCouncilResponseRenderLifecycle\(\{/);
-  assert.match(fragment01Source, /setCouncilRunning:\s*\(value\)\s*=>\s*\{\s*isCouncilRunning\s*=\s*value;\s*\}/);
+  assert.match(fragment01Source, /setCouncilRunning:\s*setIsCouncilRunning/);
   assert.match(fragment01Source, /requestFrame:\s*\(callback\)\s*=>\s*requestAnimationFrame\(callback\)/);
 
   for (const removedCouncilRenderCore of [
@@ -3402,7 +3404,7 @@ test('council response render lifecycle is isolated from the 01 runtime submit f
 test('streaming text frame queue helper is isolated from the 01 runtime stream response', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const rendererSource = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
 
@@ -3435,7 +3437,7 @@ test('streaming text frame queue helper is isolated from the 01 runtime stream r
 test('typewriter stream uses the shared streaming text frame queue boundary', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/streaming-text-frame-queue.js'));
   const typewriterStreamSource = fragment01Source.slice(
     fragment01Source.indexOf('async function typewriterStream'),
@@ -3456,7 +3458,7 @@ test('typewriter stream uses the shared streaming text frame queue boundary', as
   assert.doesNotMatch(typewriterStreamSource, /\blet\s+isFrameRequested\s*=/);
   assert.doesNotMatch(typewriterStreamSource, /\bconst\s+renderFrame\s*=/);
   assert.match(typewriterStreamSource, /requestAnimationFrame\(/);
-  assert.match(typewriterStreamSource, /setTimeout\(resolve,\s*16\)/);
+  assert.match(typewriterStreamSource, /scheduleTimeout\(resolve,\s*16\)/);
   assert.match(typewriterStreamSource, /targetElement\.appendChild\(fragment\)/);
   assert.match(typewriterStreamSource, /targetElement\.innerHTML\s*=\s*renderMarkdownWithFormulas\(fullText\)/);
   assert.match(typewriterStreamSource, /renderMarkdown\(`[^`]*\$\{error\.message\}`\)/);
@@ -3466,7 +3468,7 @@ test('typewriter stream uses the shared streaming text frame queue boundary', as
 test('typewriter playback controller is isolated from the 01 runtime playback loops', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/typewriter-playback-controller.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/typewriter-playback-controller.js'));
   const playbackTypewriterSource = fragment01Source.slice(
     fragment01Source.indexOf('const playbackTypewriterResponse'),
@@ -3489,8 +3491,8 @@ test('typewriter playback controller is isolated from the 01 runtime playback lo
   assert.match(playbackTypewriterSource, /renderIncrementalResponse\(targetElement,\s*fullResponse,\s*\{\s*final:\s*true,\s*preserveCouncilDetails\s*\}\)/);
   assert.match(playbackStreamingSource, /renderer\.appendText\(chunk\)/);
   assert.match(playbackStreamingSource, /renderer\.finish\(\{\s*renderFormulas:\s*true\s*\}\)/);
-  assert.match(playbackTypewriterSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*setTimeout\(callback,\s*delay\)/);
-  assert.match(playbackStreamingSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*setTimeout\(callback,\s*delay\)/);
+  assert.match(playbackTypewriterSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*scheduleTimeout\(callback,\s*delay\)/);
+  assert.match(playbackStreamingSource, /schedule:\s*\(callback,\s*delay\)\s*=>\s*scheduleTimeout\(callback,\s*delay\)/);
   assert.doesNotMatch(playbackTypewriterSource, /\blet\s+currentIndex\s*=/);
   assert.doesNotMatch(playbackTypewriterSource, /\bconst\s+type\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(playbackTypewriterSource, /setTimeout\(type,\s*typingSpeed\)/);
@@ -3510,7 +3512,7 @@ test('renderer gradual append controller is isolated from the 01 runtime RAF app
   const helperSource = readSource('src/app/legacy-runtime/features/renderer-gradual-append-controller.js');
   const councilRenderSource = readSource('src/app/legacy-runtime/features/council-response-render-lifecycle.js');
   const fragment00Source = readSource('src/app/legacy-runtime/fragments/00-runtime.fragment.js');
-  const fragment01Source = readSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const fragment01Source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/renderer-gradual-append-controller.js'));
   const submitFlowSource = fragment01Source.slice(
     fragment01Source.indexOf('const appendRendererTextGradually'),

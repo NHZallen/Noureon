@@ -45,7 +45,7 @@ test('outlined settings and trash actions use the shared white outline button st
 
 test('active input modes use the theme color without black outline chrome', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime01 = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active/);
@@ -88,7 +88,7 @@ test('composer upload previews occupy a full-width row above desktop input contr
 
 test('desktop active mode and Astras pills swap their leading icon to the themed close icon on hover', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime01 = readUiSource('src/app/legacy-runtime/fragments/01-runtime.fragment.js');
+  const runtime01 = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
 
   assert.match(runtime01, /id: 'astras-input-indicator'[\s\S]*input-indicator-leading[\s\S]*input-indicator-mode-icon[\s\S]*close-astras-btn-input/);
   assert.match(css, /#astras-input-indicator[^{]*\{[^}]*color:\s*var\(--button-primary-bg\)\s*!important;/s);
