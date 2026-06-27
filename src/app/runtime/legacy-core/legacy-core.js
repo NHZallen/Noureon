@@ -33,6 +33,7 @@ import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conv
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
 import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
 import { setupDemoModelHomepage } from '/src/app/runtime/features/demo-model-homepage.js';
+import { createDialogNotificationLifecycle } from '/src/app/runtime/features/dialog-notification-lifecycle.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 import {
@@ -844,48 +845,23 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getConfigKey,
             setItem
         });
-        const showNotification = (message, type = 'success') => {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            ALL_ELEMENTS.notificationContainer.appendChild(notification);
-            setTimeout(() => { notification.remove(); }, 3000);
-        };
+        const {
+            showNotification,
+            toggleModal,
+            showCustomDialog,
+            showCustomConfirm,
+            showCustomPrompt
+        } = createDialogNotificationLifecycle({
+            document,
+            elements: ALL_ELEMENTS,
+            setTimeout,
+            clearTimeout,
+            requestAnimationFrame
+        });
         const runtimeDialogCoordinator = createRuntimeDialogCoordinator({
             showNotification: (...args) => showNotification(...args),
             logger: console
         });
-        const toggleModal = (modalElement, show) => {
-            if (!modalElement) return;
-            const closeTimers = toggleModal.closeTimers || (toggleModal.closeTimers = new WeakMap());
-            if (show) {
-                const existingTimer = closeTimers.get(modalElement);
-                if (existingTimer) {
-                    clearTimeout(existingTimer);
-                    closeTimers.delete(modalElement);
-                }
-                document.body.classList.add('modal-open');
-                modalElement.classList.remove('hidden');
-                requestAnimationFrame(() => {
-                    modalElement.classList.add('visible');
-                });
-            } else {
-                document.body.classList.remove('modal-open');
-                modalElement.classList.remove('visible');
-                const onTransitionEnd = () => {
-                    modalElement.classList.add('hidden');
-                    modalElement.removeEventListener('transitionend', onTransitionEnd);
-                    const timer = closeTimers.get(modalElement);
-                    if (timer) {
-                        clearTimeout(timer);
-                        closeTimers.delete(modalElement);
-                    }
-                };
-                modalElement.addEventListener('transitionend', onTransitionEnd);
-                const fallbackTimer = setTimeout(onTransitionEnd, 350);
-                closeTimers.set(modalElement, fallbackTimer);
-            }
-        };
          document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.modal').forEach(m => {
     if (!m.classList.contains('visible')) {
@@ -894,44 +870,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     }
   });
 });
-        const showCustomDialog = (options) => {
-            return new Promise((resolve) => {
-                const { title, message, input = null, buttons, dialogClass = '' } = options;
-                const dialogBox = ALL_ELEMENTS.customDialogModal.querySelector('.bg-\\[var\\(--modal-bg\\)\\]');
-                if (dialogClass) {
-                    dialogBox.classList.add(dialogClass);
-                }
-                ALL_ELEMENTS.customDialogTitle.textContent = title;
-                ALL_ELEMENTS.customDialogMessage.textContent = message;
-                if (input) {
-                    ALL_ELEMENTS.customDialogInput.type = input.type || 'text';
-                    ALL_ELEMENTS.customDialogInput.value = '';
-                    ALL_ELEMENTS.customDialogInput.placeholder = input.placeholder || '';
-                    ALL_ELEMENTS.customDialogInputContainer.classList.remove('hidden');
-                } else {
-                    ALL_ELEMENTS.customDialogInputContainer.classList.add('hidden');
-                }
-                ALL_ELEMENTS.customDialogButtons.innerHTML = '';
-                buttons.forEach(btnInfo => {
-                    const button = document.createElement('button');
-                    button.textContent = btnInfo.text;
-                    button.className = btnInfo.class;
-                    button.onclick = () => {
-                        toggleModal(ALL_ELEMENTS.customDialogModal, false);
-                        if (dialogClass) {
-                            dialogBox.classList.remove(dialogClass);
-                        }
-                        const inputValue = input ? ALL_ELEMENTS.customDialogInput.value : null;
-                        resolve(btnInfo.value(inputValue));
-                    };
-                    ALL_ELEMENTS.customDialogButtons.appendChild(button);
-                });
-                toggleModal(ALL_ELEMENTS.customDialogModal, true);
-                if (input) { ALL_ELEMENTS.customDialogInput.focus(); }
-            });
-        };
-        const showCustomConfirm = (message, title = '請確認') => showCustomDialog({ title, message, buttons: [{ text: '取消', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false }, { text: '確定', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }] });
-        const showCustomPrompt = (message, title = '請輸入', inputType = 'text') => showCustomDialog({ title, message, input: { type: inputType, placeholder: '請在此輸入...' }, buttons: [{ text: '取消', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null }, { text: '確定', class: 'px-4 py-2 rounded-md btn-primary', value: (val) => val }] });
         const throttle = (func, limit) => {
             let inThrottle;
             return function() {

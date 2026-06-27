@@ -690,7 +690,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     'getConfig: () => runtimeConfigStore.getConfig()',
     'getConfigKey',
     'setItem',
-    'const showNotification ='
+    'createDialogNotificationLifecycle({'
   ], '00 runtime config persistence wiring');
   assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
@@ -1916,7 +1916,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'const conversationStateAccess = createConversationStateAccess({',
     'const runtimeConfigStore = runtimeAppKernel.configStore',
     'const runtimeConfigAccess = createRuntimeConfigAccess({',
-    'const showNotification =',
+    'createDialogNotificationLifecycle({',
     'const runtimeDialogCoordinator = createRuntimeDialogCoordinator({',
     'createArchivedMediaAttachmentRenderer({ escapeHTML })',
     'createArchivedMediaPreviewLifecycle({',
@@ -2313,7 +2313,7 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   assert.match(fragment02Source, /renderAll,/);
 });
 
-test('runtime dialog coordinator owns selected notification call sites without replacing modal helpers', () => {
+test('runtime dialog coordinator forwards the extracted dialog notification lifecycle', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
@@ -2323,6 +2323,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const coordinatorSource = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
+  const dialogNotificationSource = readSource('src/app/runtime/features/dialog-notification-lifecycle.js');
   const deleteChatBody = getConstFunctionBody(fragment00Source, 'deleteChat');
   const deactivateAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deactivateAstras');
   const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
@@ -2334,13 +2335,19 @@ test('runtime dialog coordinator owns selected notification call sites without r
 
   assert.match(coordinatorSource, /export\s+function\s+createRuntimeDialogCoordinator/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeDialogCoordinator\s*\}/);
+  assert.match(fragment00Source, /import\s+\{\s*createDialogNotificationLifecycle\s*\}/);
   assert.equal((fragment00Source.match(/createRuntimeDialogCoordinator\(\{/g) || []).length, 1);
+  assert.equal((fragment00Source.match(/createDialogNotificationLifecycle\(\{/g) || []).length, 1);
   assert.match(fragment00Source, /const\s+runtimeDialogCoordinator\s*=\s*createRuntimeDialogCoordinator\(\{/);
   assert.match(fragment00Source, /showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/);
-  assert.match(fragment00Source, /const\s+showNotification\s*=\s*\(message,\s*type\s*=\s*'success'\)\s*=>\s*\{/);
-  assert.match(fragment00Source, /const\s+toggleModal\s*=\s*\(modalElement,\s*show\)\s*=>\s*\{/);
-  assert.match(fragment00Source, /const\s+showCustomConfirm\s*=\s*\(message,\s*title\s*=\s*[^)]*\)\s*=>\s*showCustomDialog\(/);
-  assert.match(fragment00Source, /const\s+showCustomPrompt\s*=\s*\(message,\s*title\s*=\s*[^,]+,\s*inputType\s*=\s*'text'\)\s*=>\s*showCustomDialog\(/);
+  assert.match(dialogNotificationSource, /export\s+function\s+createDialogNotificationLifecycle/);
+  assert.match(dialogNotificationSource, /const\s+showNotification\s*=\s*\(message,\s*type\s*=\s*'success'\)\s*=>\s*\{/);
+  assert.match(dialogNotificationSource, /const\s+toggleModal\s*=\s*\(modalElement,\s*show\)\s*=>\s*\{/);
+  assert.match(dialogNotificationSource, /const\s+showCustomConfirm\s*=\s*\(message,\s*title\s*=\s*[^)]*\)\s*=>\s*showCustomDialog\(/);
+  assert.match(dialogNotificationSource, /const\s+showCustomPrompt\s*=\s*\(message,\s*title\s*=\s*[^,]+,\s*inputType\s*=\s*'text'\)\s*=>\s*showCustomDialog\(/);
+  assert.doesNotMatch(fragment00Source, /const\s+showNotification\s*=\s*\(message,/);
+  assert.doesNotMatch(fragment00Source, /const\s+toggleModal\s*=\s*\(modalElement,/);
+  assert.doesNotMatch(dialogNotificationSource, /registerLazyBinding|resolveBinding|resolveOptionalBinding/);
 
   for (const body of [
     deleteChatBody,

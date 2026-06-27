@@ -6,89 +6,15 @@ import { projectFile, readSource } from './helpers/source-guards.js';
 
 const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
 const dialogNotificationModulePath = 'src/app/runtime/features/dialog-notification-lifecycle.js';
-
-function findMatchingBrace(source, openIndex) {
-  let state = 'code';
-  let depth = 0;
-
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1];
-    const previous = source[index - 1];
-
-    if (state === 'code') {
-      if (char === '/' && next === '/') {
-        state = 'line-comment';
-        index += 1;
-      } else if (char === '/' && next === '*') {
-        state = 'block-comment';
-        index += 1;
-      } else if (char === '"') {
-        state = 'double-quote';
-      } else if (char === "'") {
-        state = 'single-quote';
-      } else if (char === '`') {
-        state = 'template';
-      } else if (char === '{') {
-        depth += 1;
-      } else if (char === '}') {
-        depth -= 1;
-        if (depth === 0) return index;
-      }
-    } else if (state === 'line-comment') {
-      if (char === '\n') state = 'code';
-    } else if (state === 'block-comment') {
-      if (char === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-    } else if (state === 'double-quote') {
-      if (char === '"' && previous !== '\\') state = 'code';
-    } else if (state === 'single-quote') {
-      if (char === "'" && previous !== '\\') state = 'code';
-    } else if (state === 'template') {
-      if (char === '`' && previous !== '\\') state = 'code';
-    }
-  }
-
-  return -1;
-}
-
-function getBracedArrowDeclaration(name) {
-  const marker = `const ${name} =`;
-  const start = legacyCoreSource.indexOf(marker);
-  assert.notEqual(start, -1, `${name} should remain in legacy-core before extraction`);
-  const arrow = legacyCoreSource.indexOf('=>', start);
-  const open = legacyCoreSource.indexOf('{', arrow);
-  const close = findMatchingBrace(legacyCoreSource, open);
-  assert.notEqual(close, -1, `${name} should have a complete function body`);
-  return legacyCoreSource.slice(start, close + 2);
-}
-
-function getSingleLineDeclaration(name) {
-  const marker = `const ${name} =`;
-  const start = legacyCoreSource.indexOf(marker);
-  assert.notEqual(start, -1, `${name} should remain in legacy-core before extraction`);
-  const end = legacyCoreSource.indexOf('\n', start);
-  return legacyCoreSource.slice(start, end).trim();
-}
-
-const dialogDeclarations = [
-  getBracedArrowDeclaration('showNotification'),
-  getBracedArrowDeclaration('toggleModal'),
-  getBracedArrowDeclaration('showCustomDialog'),
-  getSingleLineDeclaration('showCustomConfirm'),
-  getSingleLineDeclaration('showCustomPrompt')
-];
-
-const createDialogFunctions = new Function(
-  'document',
-  'ALL_ELEMENTS',
-  'setTimeout',
-  'clearTimeout',
-  'requestAnimationFrame',
-  `"use strict";\n${dialogDeclarations.join('\n')}\nreturn { showNotification, toggleModal, showCustomDialog, showCustomConfirm, showCustomPrompt };`
-);
+const dialogNotificationModuleUrl = new URL(`../${dialogNotificationModulePath}`, import.meta.url);
+const dialogNotificationModuleExists = existsSync(dialogNotificationModuleUrl);
+const dialogNotificationModule = dialogNotificationModuleExists
+  ? await import(dialogNotificationModuleUrl.href)
+  : {};
+const { createDialogNotificationLifecycle } = dialogNotificationModule;
+const dialogNotificationModuleSource = dialogNotificationModuleExists
+  ? readSource(dialogNotificationModulePath)
+  : '';
 
 function createHarness({ includeNotificationContainer = true } = {}) {
   const window = new Window({ url: 'https://example.test/' });
@@ -135,16 +61,22 @@ function createHarness({ includeNotificationContainer = true } = {}) {
     customDialogButtons: document.getElementById('custom-dialog-buttons')
   };
 
+  assert.equal(
+    typeof createDialogNotificationLifecycle,
+    'function',
+    'dialog notification lifecycle factory should be exported'
+  );
+
   return {
     document,
     elements,
-    functions: createDialogFunctions(
+    functions: createDialogNotificationLifecycle({
       document,
       elements,
       setTimeout,
       clearTimeout,
       requestAnimationFrame
-    ),
+    }),
     timers,
     window
   };
@@ -257,21 +189,30 @@ test('missing notification container preserves the current explicit failure beha
   }
 });
 
-test('dialog and notification ownership remains inline without runtime bindings before extraction', () => {
-  const dialogSource = dialogDeclarations.join('\n');
-
-  assert.equal(existsSync(projectFile(dialogNotificationModulePath)), false);
-  assert.match(legacyCoreSource, /const\s+showNotification\s*=\s*\(message,\s*type\s*=\s*'success'\)/);
-  assert.match(legacyCoreSource, /const\s+toggleModal\s*=\s*\(modalElement,\s*show\)/);
-  assert.match(legacyCoreSource, /const\s+showCustomDialog\s*=\s*\(options\)/);
-  assert.match(legacyCoreSource, /const\s+showCustomConfirm\s*=/);
-  assert.match(legacyCoreSource, /const\s+showCustomPrompt\s*=/);
+test('legacy core composes the extracted lifecycle without moving runtime contracts', () => {
+  assert.equal(existsSync(projectFile(dialogNotificationModulePath)), true);
+  assert.equal(typeof createDialogNotificationLifecycle, 'function');
+  assert.match(
+    legacyCoreSource,
+    /import\s+\{\s*createDialogNotificationLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/dialog-notification-lifecycle\.js['"]/
+  );
+  assert.match(legacyCoreSource, /createDialogNotificationLifecycle\(\{[\s\S]*?document,[\s\S]*?elements:\s*ALL_ELEMENTS/);
   assert.match(
     legacyCoreSource,
     /createRuntimeDialogCoordinator\(\{\s*showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/
   );
+  assert.match(legacyCoreSource, /document\.addEventListener\('DOMContentLoaded',[\s\S]*?querySelectorAll\('\.modal'\)/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+showNotification\s*=\s*\(message,/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+toggleModal\s*=\s*\(modalElement,/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+showCustomDialog\s*=\s*\(options\)/);
+
+  assert.match(dialogNotificationModuleSource, /export\s+function\s+createDialogNotificationLifecycle\s*\(/);
   assert.doesNotMatch(
-    dialogSource,
+    dialogNotificationModuleSource,
     /legacyRuntimeContext|registerLazyBinding|resolveBinding|resolveOptionalBinding/
+  );
+  assert.doesNotMatch(
+    dialogNotificationModuleSource,
+    /^import\s+[\s\S]*?from\s+['"][^'"]*(?:runtime-entry|app-bootstrap|startup-lifecycle|sidebar|settings|submit|input)[^'"]*['"]/m
   );
 });
