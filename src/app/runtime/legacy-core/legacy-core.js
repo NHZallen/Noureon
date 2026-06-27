@@ -475,7 +475,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let conversations = runtimeAppDataStore.getConversations();
         let folders = runtimeAppDataStore.getFolders();
         let astras = runtimeAppDataStore.getAstras();
-        let personalMemories = runtimeAppDataStore.getPersonalMemories();
         const activeConversationStore = createActiveConversationStore(null);
         const conversationStateAccess = createConversationStateAccess({
             getConversations: () => conversations,
@@ -1099,7 +1098,6 @@ function renderMarkdownWithFormulas(text) {
                     conversations = latestAppData.conversations;
                     folders = latestAppData.folders;
                     astras = latestAppData.astras;
-                    personalMemories = latestAppData.personalMemories;
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
                     showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
@@ -1112,7 +1110,6 @@ function renderMarkdownWithFormulas(text) {
                     conversations = latestAppData.conversations;
                     folders = latestAppData.folders;
                     astras = latestAppData.astras;
-                    personalMemories = latestAppData.personalMemories;
                     await removeItem(getAppDataKey());
                 }
             } else {
@@ -1125,7 +1122,6 @@ function renderMarkdownWithFormulas(text) {
                 conversations = latestAppData.conversations;
                 folders = latestAppData.folders;
                 astras = latestAppData.astras;
-                personalMemories = latestAppData.personalMemories;
             }
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
@@ -1549,8 +1545,8 @@ function renderMarkdownWithFormulas(text) {
             set folders(next) { folders = next; },
             get astras() { return astras; },
             set astras(next) { astras = next; },
-            get personalMemories() { return personalMemories; },
-            set personalMemories(next) { personalMemories = next; },
+            get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
+            set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
             get currentUser() { return currentUser; },
@@ -1839,8 +1835,8 @@ function renderMarkdownWithFormulas(text) {
             set folders(next) { folders = next; },
             get astras() { return astras; },
             set astras(next) { astras = next; },
-            get personalMemories() { return personalMemories; },
-            set personalMemories(next) { personalMemories = next; },
+            get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
+            set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
             get sidebarOpen() { return sidebarOpen; },
