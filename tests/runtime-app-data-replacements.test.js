@@ -98,9 +98,9 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
     'const data = JSON.parse(saved)',
     'const normalizedData = normalizeLoadedLegacyAppData({',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
-    'conversations = latestAppData.conversations',
-    'folders = latestAppData.folders'
+    'conversations = latestAppData.conversations'
   ], 'loadAppData successful app data replacement');
+  assert.doesNotMatch(loadAppDataBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(loadAppDataBody, /astras\s*=\s*latestAppData\.astras/);
   assert.doesNotMatch(loadAppDataBody, /personalMemories\s*=\s*latestAppData\.personalMemories/);
 
@@ -114,12 +114,11 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
     'astras: []',
     'personalMemories: []',
     'conversations = latestAppData.conversations',
-    'folders = latestAppData.folders',
     'await removeItem(getAppDataKey())'
   ], 'loadAppData corruption fallback');
 
   assert.equal(countLiteral(loadAppDataBody, 'runtimeAppDataStore.replaceAll({'), 2);
-  assert.match(loadAppDataBody, /}\s*else\s*{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*folders\s*=\s*latestAppData\.folders;\s*}/);
+  assert.match(loadAppDataBody, /}\s*else\s*{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*}/);
 });
 
 test('saveAppData reads the store snapshot while active conversation id uses the kernel store', () => {
@@ -146,14 +145,13 @@ test('saveAppData reads the store snapshot while active conversation id uses the
   assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
 });
 
-test('only conversations and folders remain temporary compatibility mirrors', () => {
+test('only conversations remains as the temporary compatibility mirror', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
 
   assertMarkersInOrder(legacyCoreSource, [
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
-    'let folders = runtimeAppDataStore.getFolders()',
     'const activeConversationStore = createActiveConversationStore(null)'
   ], 'temporary app data mirror ownership');
   assertMarkersInOrder(legacyCoreSource, [
@@ -167,7 +165,10 @@ test('only conversations and folders remain temporary compatibility mirrors', ()
   assert.match(legacyCoreSource, /const\s+activeConversationStore\s*=\s*createActiveConversationStore\(null\)/);
 
   assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*conversations/);
-  assert.match(legacyCoreSource, /get folders\(\)\s*\{\s*return folders;\s*\}/);
+  assert.doesNotMatch(legacyCoreSource, /let\s+folders\s*=/);
+  assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*latestAppData\.folders/);
+  assert.ok((legacyCoreSource.match(/get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/g) || []).length >= 3);
+  assert.ok((legacyCoreSource.match(/set folders\(next\)\s*\{\s*runtimeAppDataStore\.replaceFolders\(next\);\s*\}/g) || []).length >= 2);
   assert.doesNotMatch(legacyCoreSource, /let\s+astras\s*=/);
   assert.doesNotMatch(legacyCoreSource, /astras\s*=\s*latestAppData\.astras/);
   assert.ok((legacyCoreSource.match(/get astras\(\)\s*\{\s*return runtimeAppDataStore\.getAstras\(\);\s*\}/g) || []).length >= 4);
@@ -184,11 +185,12 @@ test('only conversations and folders remain temporary compatibility mirrors', ()
   );
   assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
   assert.match(legacyCoreSource, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
-  assert.match(legacyCoreSource, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
+  assert.match(legacyCoreSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
+  assert.match(legacyCoreSource, /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
   assert.match(legacyCoreSource, /replaceAstras:\s*\(nextAstras\)\s*=>\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
 });
 
-test('mirror decomposition order is locked after config, personalMemories, and Astras extraction', () => {
+test('mirror decomposition order is locked after config, personalMemories, Astras, and folders extraction', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
@@ -208,7 +210,9 @@ test('mirror decomposition order is locked after config, personalMemories, and A
   assert.match(folderLifecycleSource, /replaceFolders/);
   assert.doesNotMatch(legacyCoreSource, /let\s+astras\s*=/);
   assert.match(legacyCoreSource, /get astras\(\)\s*\{\s*return runtimeAppDataStore\.getAstras\(\);\s*\}/);
-  assert.match(legacyCoreSource, /let\s+folders\s*=\s*runtimeAppDataStore\.getFolders\(\)/);
+  assert.doesNotMatch(legacyCoreSource, /let\s+folders\s*=/);
+  assert.match(legacyCoreSource, /get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/);
+  assert.match(legacyCoreSource, /set folders\(next\)\s*\{\s*runtimeAppDataStore\.replaceFolders\(next\);\s*\}/);
 
   assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
   assert.match(legacyCoreSource, /conversations\.unshift\(newConv\)/);
@@ -216,8 +220,9 @@ test('mirror decomposition order is locked after config, personalMemories, and A
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*true/);
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*false/);
 
-  // Future mirror removal order: personalMemories is extracted; config second,
-  // astras/folders after their linked cleanup paths, conversations last.
+  // Future mirror removal order: personalMemories, config, Astras, and folders
+  // are extracted; conversations remains last because folder flows still mutate
+  // conversation.folderId.
   assert.doesNotMatch(legacyCoreSource, /createConversationStore|createConversationsStore/);
 });
 
@@ -286,7 +291,7 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
   );
   assert.match(
     fragment02Source,
-    /replaceFolders:\s*\(nextFolders\)\s*=>\s*\{\s*folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\);\s*return\s+folders;\s*\}/
+    /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
   );
   assert.doesNotMatch(fragment02Source, /const\s+deleteFolder\s*=\s*async/);
 });
@@ -444,7 +449,8 @@ test('app data store remains wired while production boot moves through runtime e
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeAppKernel\s*\}\s*from\s*['"]\/src\/app\/runtime-app\.js['"]/);
   assert.match(fragment00Source, /const\s+runtimeAppDataStore\s*=\s*runtimeAppKernel\.appDataStore/);
   assert.match(fragment00Source, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
-  assert.match(fragment00Source, /let\s+folders\s*=\s*runtimeAppDataStore\.getFolders\(\)/);
+  assert.doesNotMatch(fragment00Source, /let\s+folders\s*=/);
+  assert.match(fragment00Source, /get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/);
   assert.doesNotMatch(fragment00Source, /let\s+astras\s*=/);
   assert.match(fragment00Source, /get astras\(\)\s*\{\s*return runtimeAppDataStore\.getAstras\(\);\s*\}/);
   assert.doesNotMatch(fragment00Source, /let\s+personalMemories\s*=/);
@@ -457,7 +463,7 @@ test('app data store remains wired while production boot moves through runtime e
   assert.match(folderLifecycleSource, /replaceFolders\(folders\.filter\(item\s*=>\s*item\.id\s*!==\s*id\)\)/);
   assert.match(
     fragment02Source,
-    /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
+    /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
   );
   assert.match(
     fragment03Source,

@@ -285,7 +285,6 @@ test('active conversation id ownership lives in a small kernel store', () => {
   );
   assertMarkersInOrder(legacyCoreSource, [
     'let conversations = runtimeAppDataStore.getConversations()',
-    'let folders = runtimeAppDataStore.getFolders()',
     'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
     'getConversations: () => conversations',
@@ -301,7 +300,7 @@ test('active conversation id ownership lives in a small kernel store', () => {
   assert.match(legacyCoreSource, /from\s+['"]\/src\/app\/runtime\/legacy-core\/model-registry\.js['"]/);
 });
 
-test('config, personal memories, and Astras use stores while remaining app data mirrors stay temporary', () => {
+test('config, personal memories, Astras, and folders use stores while conversations stays temporary', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
   const configStoreSource = readSource('src/app/runtime/kernel/config-store.js');
@@ -320,7 +319,6 @@ test('config, personal memories, and Astras use stores while remaining app data 
   assertMarkersInOrder(legacyCoreSource, [
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
-    'let folders = runtimeAppDataStore.getFolders()',
     'const activeConversationStore = createActiveConversationStore(null)'
   ], 'temporary app data local mirror bridge');
   assertMarkersInOrder(legacyCoreSource, [
@@ -330,7 +328,7 @@ test('config, personal memories, and Astras use stores while remaining app data 
   ], 'live config store bridge');
 
   assert.equal((legacyCoreSource.match(/\blet\s+conversations\s*=/g) || []).length, 1);
-  assert.equal((legacyCoreSource.match(/\blet\s+folders\s*=/g) || []).length, 1);
+  assert.equal((legacyCoreSource.match(/\blet\s+folders\s*=/g) || []).length, 0);
   assert.equal((legacyCoreSource.match(/\blet\s+astras\s*=/g) || []).length, 0);
   assert.equal((legacyCoreSource.match(/\blet\s+personalMemories\s*=/g) || []).length, 0);
   assert.equal((legacyCoreSource.match(/\blet\s+config\s*=/g) || []).length, 0);
@@ -339,7 +337,12 @@ test('config, personal memories, and Astras use stores while remaining app data 
   assert.doesNotMatch(legacyCoreSource, /let\s+(chatHistory|folderList|astraList|memoryList|runtimeConfig)\s*=/);
 
   assert.match(legacyCoreSource, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
-  assert.match(legacyCoreSource, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
+  assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
+  assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*latestAppData\.folders/);
+  assert.match(legacyCoreSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
+  assert.match(legacyCoreSource, /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
+  assert.ok((legacyCoreSource.match(/get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/g) || []).length >= 3);
+  assert.ok((legacyCoreSource.match(/set folders\(next\)\s*\{\s*runtimeAppDataStore\.replaceFolders\(next\);\s*\}/g) || []).length >= 2);
   assert.doesNotMatch(legacyCoreSource, /astras\s*=\s*latestAppData\.astras/);
   assert.ok((legacyCoreSource.match(/get astras\(\)\s*\{\s*return runtimeAppDataStore\.getAstras\(\);\s*\}/g) || []).length >= 4);
   assert.ok((legacyCoreSource.match(/set astras\(next\)\s*\{\s*runtimeAppDataStore\.replaceAstras\(next\);\s*\}/g) || []).length >= 3);
@@ -811,19 +814,19 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
     'normalizeCouncilConfig',
     'normalizeConversationModel',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
-    'conversations = latestAppData.conversations',
-    'folders = latestAppData.folders'
+    'conversations = latestAppData.conversations'
   ], '00 app data load orchestration');
+  assert.doesNotMatch(loadAppDataBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(loadAppDataBody, /astras\s*=\s*latestAppData\.astras/);
   assert.doesNotMatch(loadAppDataBody, /personalMemories\s*=\s*latestAppData\.personalMemories/);
   assert.match(catchBody, /console\.error\("Failed to parse app data:",\s*e\)/);
   assert.match(catchBody, /showNotification\(/);
   assert.match(catchBody, /const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\)/);
   assert.match(catchBody, /conversations\s*=\s*latestAppData\.conversations/);
-  assert.match(catchBody, /folders\s*=\s*latestAppData\.folders/);
+  assert.doesNotMatch(catchBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(catchBody, /astras\s*=\s*latestAppData\.astras/);
   assert.match(catchBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
-  assert.match(loadAppDataBody, /else\s*\{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*folders\s*=\s*latestAppData\.folders;\s*\}/);
+  assert.match(loadAppDataBody, /else\s*\{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*\}/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
@@ -881,7 +884,6 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'defaultModelId: MODELS[0].id',
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
-    'let folders = runtimeAppDataStore.getFolders()',
     'const activeConversationStore = createActiveConversationStore(null)'
   ], '00 app data store lexical bridge');
   assert.doesNotMatch(fragment00Source, /let\s+activeConversationId\s*=/);
@@ -893,9 +895,9 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assertMarkersInOrder(loadAppDataBody, [
     'const normalizedData = normalizeLoadedLegacyAppData({',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
-    'conversations = latestAppData.conversations',
-    'folders = latestAppData.folders'
+    'conversations = latestAppData.conversations'
   ], '00 loadAppData store-backed successful replacement');
+  assert.doesNotMatch(loadAppDataBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(loadAppDataBody, /astras\s*=\s*latestAppData\.astras/);
   assert.doesNotMatch(loadAppDataBody, /personalMemories\s*=\s*latestAppData\.personalMemories/);
   assert.equal((loadAppDataBody.match(/runtimeAppDataStore\.replaceAll\(\{/g) || []).length, 2);
@@ -942,7 +944,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   ], 'folder lifecycle deleteFolder linked store replacement');
   assert.match(
     fragment02Source,
-    /replaceFolders:\s*\(nextFolders\)\s*=>\s*\{\s*folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\);\s*return\s+folders;\s*\}/
+    /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
   );
   assertMarkersInOrder(modelMemoryDashboardSource, [
     'personalMemories = replacePersonalMemories(',
@@ -1124,11 +1126,9 @@ test('folder CRUD lifecycle ownership stays in a real module with legacy core wi
     'handleSaveFolderSettings',
     'createFolderMenu',
     '} = createLegacyFolderLifecycle({',
-    'getFolders: () => folders',
+    'getFolders: () => runtimeAppDataStore.getFolders()',
     'getConversations: () => conversations',
-    'replaceFolders: (nextFolders) => {',
-    'folders = runtimeAppDataStore.replaceFolders(nextFolders)',
-    'return folders',
+    'replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders)',
     'getDefaultFolder',
     'saveAppData',
     'renderFolders',
@@ -1960,7 +1960,6 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'defaultModelId: MODELS[0].id',
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
-    'let folders = runtimeAppDataStore.getFolders()',
     'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
     'const runtimeConfigStore = runtimeAppKernel.configStore',

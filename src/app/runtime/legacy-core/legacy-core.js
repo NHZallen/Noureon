@@ -474,7 +474,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         });
         const runtimeAppDataStore = runtimeAppKernel.appDataStore;
         let conversations = runtimeAppDataStore.getConversations();
-        let folders = runtimeAppDataStore.getFolders();
         const activeConversationStore = createActiveConversationStore(null);
         const conversationStateAccess = createConversationStateAccess({
             getConversations: () => conversations,
@@ -1096,7 +1095,6 @@ function renderMarkdownWithFormulas(text) {
                     });
                     const latestAppData = runtimeAppDataStore.replaceAll(normalizedData);
                     conversations = latestAppData.conversations;
-                    folders = latestAppData.folders;
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
                     showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
@@ -1107,7 +1105,6 @@ function renderMarkdownWithFormulas(text) {
                         personalMemories: []
                     });
                     conversations = latestAppData.conversations;
-                    folders = latestAppData.folders;
                     await removeItem(getAppDataKey());
                 }
             } else {
@@ -1118,7 +1115,6 @@ function renderMarkdownWithFormulas(text) {
                     personalMemories: []
                 });
                 conversations = latestAppData.conversations;
-                folders = latestAppData.folders;
             }
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
@@ -1197,7 +1193,7 @@ function renderMarkdownWithFormulas(text) {
     if (conv) {
         conv.deletedAt = new Date().toISOString();
         if (conv.folderId) {
-            const folder = folders.find(f => f.id === conv.folderId);
+            const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId);
             if (folder) {
                 folder.conversationIds = folder.conversationIds.filter(cid => cid !== id);
             }
@@ -1295,7 +1291,7 @@ function renderMarkdownWithFormulas(text) {
                 const conv = conversations.find(c => c.id === id);
                 if (conv) currentTitle = conv.title;
             } else if (type === 'folder') {
-                const folder = folders.find(f => f.id === id);
+                const folder = runtimeAppDataStore.getFolders().find(f => f.id === id);
                 if (folder) currentTitle = folder.name;
             }
             ALL_ELEMENTS.renameModal.querySelector('h2').textContent = `重新命名${type === 'folder' ? '資料夾' : '對話'}`;
@@ -1310,7 +1306,7 @@ function renderMarkdownWithFormulas(text) {
                 const conv = conversations.find(c => c.id === itemToRename.id);
                 if (conv) { conv.title = newTitle; conv.isRenamed = true; }
             } else if (itemToRename.type === 'folder') {
-                const folder = folders.find(f => f.id === itemToRename.id);
+                const folder = runtimeAppDataStore.getFolders().find(f => f.id === itemToRename.id);
                 if (folder) { folder.name = newTitle; }
             }
             await saveAppData();
@@ -1539,8 +1535,8 @@ function renderMarkdownWithFormulas(text) {
             set config(next) { runtimeConfigAccess.replaceConfig(next); },
             get conversations() { return conversations; },
             set conversations(next) { conversations = next; },
-            get folders() { return folders; },
-            set folders(next) { folders = next; },
+            get folders() { return runtimeAppDataStore.getFolders(); },
+            set folders(next) { runtimeAppDataStore.replaceFolders(next); },
             get astras() { return runtimeAppDataStore.getAstras(); },
             set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
@@ -1681,7 +1677,7 @@ function renderMarkdownWithFormulas(text) {
         const sidebarChatAstraRenderState = {
             get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return conversations; },
-            get folders() { return folders; },
+            get folders() { return runtimeAppDataStore.getFolders(); },
             get astras() { return runtimeAppDataStore.getAstras(); },
             set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get currentUser() { return currentUser; },
@@ -1771,12 +1767,9 @@ function renderMarkdownWithFormulas(text) {
         } = createLegacyFolderLifecycle({
             document,
             elements: ALL_ELEMENTS,
-            getFolders: () => folders,
+            getFolders: () => runtimeAppDataStore.getFolders(),
             getConversations: () => conversations,
-            replaceFolders: (nextFolders) => {
-                folders = runtimeAppDataStore.replaceFolders(nextFolders);
-                return folders;
-            },
+            replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders),
             getDefaultFolder,
             saveAppData,
             renderFolders,
@@ -1826,8 +1819,8 @@ function renderMarkdownWithFormulas(text) {
             set config(next) { runtimeConfigAccess.replaceConfig(next); },
             get conversations() { return conversations; },
             set conversations(next) { conversations = next; },
-            get folders() { return folders; },
-            set folders(next) { folders = next; },
+            get folders() { return runtimeAppDataStore.getFolders(); },
+            set folders(next) { runtimeAppDataStore.replaceFolders(next); },
             get astras() { return runtimeAppDataStore.getAstras(); },
             set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
