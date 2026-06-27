@@ -3,11 +3,13 @@ import test from 'node:test';
 import {
   assertFileWithinBudget,
   collectCssSelectorHits,
+  readSource,
   readUiSource
 } from '../helpers/source-guards.js';
 
 const settingsSurfaceCssFiles = [
   'src/styles/settings.css',
+  'src/styles/settings-mobile.css',
   'src/styles/mobile.css',
   'src/styles/typography.css',
   'src/styles/regression-overrides.css',
@@ -107,8 +109,8 @@ test('app typography uses restrained GPT-like system weights and mobile settings
 test('settings modal CSS surface selectors are mapped before extraction', () => {
   const settingsOnlySelectors = [
     ['#settings-modal', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-modal > div', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-modal nav', ['src/styles/settings.css', 'src/styles/mobile.css']],
+    ['#settings-modal > div', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal nav', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/mobile.css']],
     ['#settings-nav', ['src/styles/settings.css']],
     ['.settings-sidebar', ['src/styles/regression-overrides.css']],
     ['.settings-section', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
@@ -123,6 +125,8 @@ test('settings modal CSS surface selectors are mapped before extraction', () => 
 
 test('mobile settings CSS surface is explicitly mapped before extraction', () => {
   const mobileSelectors = [
+    ['#settings-modal.visible', ['src/styles/settings-mobile.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal .flex-1.p-6.overflow-y-auto', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
     ['#settings-mobile-header', ['src/styles/mobile.css']],
     ['#settings-mobile-list', ['src/styles/mobile.css', 'src/styles/typography.css']],
     ['#settings-mobile-title', ['src/styles/mobile.css', 'src/styles/typography.css']],
@@ -137,6 +141,13 @@ test('mobile settings CSS surface is explicitly mapped before extraction', () =>
   for (const [selector, expectedFiles] of mobileSelectors) {
     assertSelectorHits(selector, expectedFiles);
   }
+
+  const settingsCss = readUiSource('src/styles/settings.css');
+  const settingsMobileCss = readUiSource('src/styles/settings-mobile.css');
+  assert.doesNotMatch(settingsCss, /#settings-modal\.visible[^{]*\{[^}]*padding:\s*0\.75rem\s*!important;/s);
+  assert.match(settingsMobileCss, /#settings-modal\.visible[^{]*\{[^}]*padding:\s*0\.75rem\s*!important;/s);
+  assert.match(settingsMobileCss, /#settings-modal\s+nav[^{]*\{[^}]*display:\s*none\s*!important;/s);
+  assert.match(settingsMobileCss, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*padding:\s*1rem\s*!important;/s);
 });
 
 test('settings control selectors stay visible and scoped by surface', () => {
@@ -200,17 +211,36 @@ test('dark mode, root variables, typography, and regression overrides remain cla
   );
 });
 
-test('settings CSS surface stays within a generous Phase 8 pre-extraction budget', () => {
+test('settings CSS surface stays within a generous Phase 8 post-mobile-extraction budget', () => {
   const stats = assertFileWithinBudget(
     assert,
     ['src', 'styles', 'settings.css'],
-    { maxBytes: 42000, maxLines: 1400 }
+    { maxBytes: 40000, maxLines: 1400 }
+  );
+  const settingsMobileStats = assertFileWithinBudget(
+    assert,
+    ['src', 'styles', 'settings-mobile.css'],
+    { maxBytes: 5000, maxLines: 180 }
   );
 
   const settingsModalHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings.css']);
+  const settingsMobileShellHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings-mobile.css']);
   const mobileSurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css', 'src/styles/typography.css']);
 
-  assert.ok(stats.lines > 1000, 'settings.css should still be tracked as the large pre-extraction settings surface');
+  assert.ok(stats.lines > 1000, 'settings.css should still be tracked as the large settings surface after mobile shell extraction');
+  assert.ok(settingsMobileStats.lines > 0, 'settings-mobile.css should own extracted mobile settings shell rules');
   assert.equal(settingsModalHits.length, 1);
+  assert.equal(settingsMobileShellHits.length, 1);
   assert.equal(mobileSurfaceHits.length, 2);
+});
+
+test('main css imports settings mobile styles after settings and before broad overrides', () => {
+  const mainCss = readSource('src/styles/main.css');
+  const settingsIndex = mainCss.indexOf("@import './settings.css';");
+  const settingsMobileIndex = mainCss.indexOf("@import './settings-mobile.css';");
+  const regressionIndex = mainCss.indexOf("@import './regression-overrides.css';");
+
+  assert.ok(settingsIndex >= 0, 'main.css should import settings.css');
+  assert.ok(settingsMobileIndex > settingsIndex, 'settings-mobile.css should refine settings.css');
+  assert.ok(regressionIndex > settingsMobileIndex, 'regression overrides should remain later in the cascade');
 });
