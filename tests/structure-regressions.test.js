@@ -1163,11 +1163,13 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const titleSummaryHelperPath = 'src/app/runtime/legacy-core/settings-title-summary-helpers.js';
   const historyMenuHelperPath = 'src/app/runtime/legacy-core/settings-history-menu-helper.js';
   const apiKeyControlsPath = 'src/app/runtime/legacy-core/settings-api-key-controls.js';
+  const outputTranslatorControlsPath = 'src/app/runtime/legacy-core/settings-output-translator-controls.js';
   const lifecycleSource = readSource(lifecyclePath);
   const structuredHelperSource = readSource(structuredHelperPath);
   const titleSummaryHelperSource = readSource(titleSummaryHelperPath);
   const historyMenuHelperSource = readSource(historyMenuHelperPath);
   const apiKeyControlsSource = readSource(apiKeyControlsPath);
+  const outputTranslatorControlsSource = readSource(outputTranslatorControlsPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
@@ -1175,16 +1177,19 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.equal(existsSync(projectFile(titleSummaryHelperPath)), true);
   assert.equal(existsSync(projectFile(historyMenuHelperPath)), true);
   assert.equal(existsSync(projectFile(apiKeyControlsPath)), true);
+  assert.equal(existsSync(projectFile(outputTranslatorControlsPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
   assert.match(titleSummaryHelperSource, /export\s+function\s+createSettingsTitleSummaryHelpers/);
   assert.match(historyMenuHelperSource, /export\s+function\s+createSettingsHistoryMenuHelper/);
   assert.match(apiKeyControlsSource, /export\s+function\s+createSettingsApiKeyControls/);
+  assert.match(outputTranslatorControlsSource, /export\s+function\s+createSettingsOutputTranslatorControls/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(titleSummaryHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(historyMenuHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(apiKeyControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(outputTranslatorControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.match(
     lifecycleSource,
     /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
@@ -1201,6 +1206,10 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
     lifecycleSource,
     /import\s+\{\s*createSettingsApiKeyControls\s*\}\s+from\s+['"]\.\/settings-api-key-controls\.js['"]/
   );
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsOutputTranslatorControls\s*\}\s+from\s+['"]\.\/settings-output-translator-controls\.js['"]/
+  );
   assert.match(lifecycleSource, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
   assert.match(lifecycleSource, /getApiKeyForProvider,/);
   assert.match(lifecycleSource, /readErrorBody,/);
@@ -1214,6 +1223,10 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(lifecycleSource, /elements:\s*ALL_ELEMENTS/);
   assert.match(lifecycleSource, /setApiKeyForProvider,/);
   assert.match(lifecycleSource, /clearSensitiveApiKeys,/);
+  assert.match(lifecycleSource, /const\s+outputTranslatorControls\s*=\s*createSettingsOutputTranslatorControls\(\{/);
+  assert.match(lifecycleSource, /getCouncilTranslatorCandidates,/);
+  assert.match(lifecycleSource, /getSingleTranslatorCandidates,/);
+  assert.match(lifecycleSource, /syncOutputModeSettingsControls/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
@@ -1250,8 +1263,15 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.doesNotMatch(lifecycleSource, /const\s+ensureApiKeyInputSecurityControls\s*=/);
   assert.doesNotMatch(lifecycleSource, /const\s+prepareApiKeyInputsForSettings\s*=\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /const\s+persistApiKeyInputIntents\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPicker\s*=/);
+  assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPickers\s*=/);
+  assert.doesNotMatch(lifecycleSource, /const\s+ensureOutputModeSettingsControls\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /prepareApiKeyInputsForSettings\(\);/);
   assert.match(lifecycleSource, /await\s+persistApiKeyInputIntents\(\);/);
+  assert.match(lifecycleSource, /ensureCouncilTranslatorSettingsControls\(\);/);
+  assert.match(lifecycleSource, /ensureOutputModeSettingsControls\(\);/);
+  assert.match(lifecycleSource, /renderTranslatorModelPickers\(\);/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+shouldPerformWebSearch\b/);
   assert.doesNotMatch(lifecycleSource, /const\s+conversationHistory\s*=\s*conv\.messages/);
@@ -1277,6 +1297,11 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(apiKeyControlsSource, /const\s+persistApiKeyInputIntents\s*=/);
   assert.match(apiKeyControlsSource, /readApiKeyInputIntent/);
   assert.match(apiKeyControlsSource, /markApiKeyInputCleared/);
+  assert.match(outputTranslatorControlsSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
+  assert.match(outputTranslatorControlsSource, /const\s+renderTranslatorModelPicker\s*=/);
+  assert.match(outputTranslatorControlsSource, /const\s+renderTranslatorModelPickers\s*=/);
+  assert.match(outputTranslatorControlsSource, /const\s+ensureOutputModeSettingsControls\s*=/);
+  assert.match(outputTranslatorControlsSource, /getOutputModeSettingsText/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
@@ -3023,15 +3048,17 @@ test('output mode settings text helper is isolated from the 02 runtime fragment'
   const helperSource = readSource('src/app/legacy-runtime/features/output-mode-settings-text.js');
   const fragmentSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const outputTranslatorControlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/output-mode-settings-text.js'));
 
   assert.equal(typeof helpers.getOutputModeSettingsText, 'function');
   assert.match(helperSource, /export\s+const\s+getOutputModeSettingsText\b/);
   assert.match(
-    settingsAuthProviderSource,
+    outputTranslatorControlsSource,
     /import\s*\{[\s\S]*\bgetOutputModeSettingsText\b[\s\S]*\}\s*from\s+['"][^'"]*output-mode-settings-text\.js['"];/
   );
-  assert.match(settingsAuthProviderSource, /getOutputModeSettingsText\(\s*config\.uiLanguage\s*\)/);
+  assert.match(settingsAuthProviderSource, /createSettingsOutputTranslatorControls/);
+  assert.match(outputTranslatorControlsSource, /getOutputModeSettingsText\(\s*config\.uiLanguage\s*\)/);
   assert.doesNotMatch(fragmentSource, /const\s+getOutputModeSettingsText\s*=\s*\(\)\s*=>/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });

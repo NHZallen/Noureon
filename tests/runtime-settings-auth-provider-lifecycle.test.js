@@ -224,6 +224,34 @@ test('API key controls are composed through the extracted helper', () => {
   assert.doesNotMatch(source, /const\s+createApiKeyClearButton\s*=/);
 });
 
+test('output and translator controls are composed through the extracted helper', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const controlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
+
+  assert.match(
+    source,
+    /import\s+\{\s*createSettingsOutputTranslatorControls\s*\}\s+from\s+['"]\.\/settings-output-translator-controls\.js['"]/
+  );
+  assert.match(source, /const\s+outputTranslatorControls\s*=\s*createSettingsOutputTranslatorControls\(\{/);
+  assert.match(source, /elements:\s*ALL_ELEMENTS/);
+  assert.match(source, /getOutputMode,/);
+  assert.match(source, /getCouncilTranslatorCandidates,/);
+  assert.match(source, /getSingleTranslatorCandidates,/);
+  assert.match(source, /ensureCouncilTranslatorSettingsControls\(\);/);
+  assert.match(source, /ensureOutputModeSettingsControls\(\);/);
+  assert.match(source, /renderTranslatorModelPickers\(\);/);
+  assert.match(source, /syncOutputModeSettingsControls\(\);/);
+  assert.doesNotMatch(source, /const\s+renderTranslatorModelPicker\s*=/);
+  assert.doesNotMatch(source, /const\s+renderTranslatorModelPickers\s*=/);
+  assert.doesNotMatch(source, /const\s+ensureOutputModeSettingsControls\s*=/);
+  assert.doesNotMatch(source, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
+  assert.match(controlsSource, /export\s+function\s+createSettingsOutputTranslatorControls/);
+  assert.match(controlsSource, /const\s+renderTranslatorModelPicker\s*=/);
+  assert.match(controlsSource, /const\s+renderTranslatorModelPickers\s*=/);
+  assert.match(controlsSource, /const\s+ensureOutputModeSettingsControls\s*=/);
+  assert.match(controlsSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySettingsAuthProviderLifecycle(),
