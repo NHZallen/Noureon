@@ -108,12 +108,31 @@ test('unarchiveChat reads the latest conversations pointer before mutating', () 
   assert.doesNotMatch(body, /\bconversations\.find\(/);
 });
 
-test('archive and delete remain deferred on the legacy mirror', () => {
-  for (const name of ['deleteChat', 'archiveChat']) {
-    const body = getConstFunctionBody(legacyCoreSource, name);
-    assert.match(body, /\bconversations\.find\(/, `${name} should remain deferred`);
-    assert.doesNotMatch(body, /liveConversationsBridge\.getConversations\(/);
-  }
+test('archiveChat refreshes the conversations pointer after saving for fallback', () => {
+  const body = getConstFunctionBody(legacyCoreSource, 'archiveChat');
+
+  assertMarkersInOrder(body, [
+    'const currentConversations = liveConversationsBridge.getConversations()',
+    'const conv = currentConversations.find(c => c.id === id)',
+    'if(conv) conv.archived = true',
+    'await saveAppData()',
+    'if (conversationStateAccess.getCurrentConversationId() === id)',
+    'const latestConversations = liveConversationsBridge.getConversations()',
+    'const nextConv = latestConversations.find(c => !c.archived && !c.deletedAt)',
+    'conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null)',
+    'if (!conversationStateAccess.getCurrentConversationId()) startNewChat()',
+    'else loadChat(conversationStateAccess.getCurrentConversationId())'
+  ], 'archiveChat live target and fallback lookups');
+  assert.equal((body.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
+  assert.doesNotMatch(body, /\bconversations\.find\(/);
+  assert.doesNotMatch(body, /currentConversations\.find\(c\s*=>\s*!c\.archived/);
+});
+
+test('delete remains deferred on the legacy mirror', () => {
+  const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
+
+  assert.match(body, /\bconversations\.find\(/);
+  assert.doesNotMatch(body, /liveConversationsBridge\.getConversations\(/);
 
   assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
 });

@@ -1226,11 +1226,13 @@ function renderMarkdownWithFormulas(text) {
 };
         const archiveChat = async (id, event) => {
             event?.stopPropagation();
-            const conv = conversations.find(c => c.id === id);
+            const currentConversations = liveConversationsBridge.getConversations();
+            const conv = currentConversations.find(c => c.id === id);
             if(conv) conv.archived = true;
             await saveAppData();
             if (conversationStateAccess.getCurrentConversationId() === id) {
-                const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
+                const latestConversations = liveConversationsBridge.getConversations();
+                const nextConv = latestConversations.find(c => !c.archived && !c.deletedAt);
                 conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
                 if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
                 else loadChat(conversationStateAccess.getCurrentConversationId());
