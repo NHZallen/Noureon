@@ -896,15 +896,17 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   ], '00 startNewChat store-backed temporary conversation replacement');
   assertMarkersInOrder(loadChatBody, [
     'const previousConv = getActiveConversation()',
+    'const currentConversations = liveConversationsBridge.getConversations()',
     'liveConversationsBridge.replaceConversations(',
-    'conversations.filter(c => c.id !== previousConv.id)',
+    'currentConversations.filter(c => c.id !== previousConv.id)',
     'conversationStateAccess.setCurrentConversationId(id)',
     'uploadedFiles = []',
     'renderAll()'
   ], '00 loadChat store-backed previous temporary conversation replacement');
   assert.equal((startNewChatBody.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
   assert.doesNotMatch(startNewChatBody, /\bconversations\.(?:length|filter|unshift)\b/);
-  assert.match(loadChatBody, /conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
+  assert.match(loadChatBody, /currentConversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
+  assert.doesNotMatch(loadChatBody, /\bconversations\.filter\(/);
   assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');

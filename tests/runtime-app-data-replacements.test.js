@@ -253,8 +253,9 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
   assertMarkersInOrder(loadChatBody, [
     'const previousConv = getActiveConversation()',
+    'const currentConversations = liveConversationsBridge.getConversations()',
     'liveConversationsBridge.replaceConversations(',
-    'conversations.filter(c => c.id !== previousConv.id)',
+    'currentConversations.filter(c => c.id !== previousConv.id)',
     'conversationStateAccess.setCurrentConversationId(id)',
     'uploadedFiles = []',
     'renderAll()'
@@ -262,7 +263,8 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
   assert.equal((startNewChatBody.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
   assert.doesNotMatch(startNewChatBody, /\bconversations\.(?:length|filter|unshift)\b/);
-  assert.match(loadChatBody, /conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
+  assert.match(loadChatBody, /currentConversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
+  assert.doesNotMatch(loadChatBody, /\bconversations\.filter\(/);
   assert.doesNotMatch(loadChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
   assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);

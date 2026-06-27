@@ -116,7 +116,10 @@ test('direct app data store conversation replacements stay inside the deferred a
     .replace(bridgeAdapter, '');
   assert.doesNotMatch(unallowlistedLegacyCore, directReplacementPattern);
   assert.match(startNewChatBody, /liveConversationsBridge\.replaceConversations\(/);
+  assert.match(loadChatBody, /const\s+currentConversations\s*=\s*liveConversationsBridge\.getConversations\(\)/);
   assert.match(loadChatBody, /liveConversationsBridge\.replaceConversations\(/);
+  assert.match(loadChatBody, /currentConversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
+  assert.doesNotMatch(loadChatBody, /\bconversations\.filter\(/);
   assert.doesNotMatch(startNewChatBody, directReplacementPattern);
   assert.doesNotMatch(loadChatBody, directReplacementPattern);
 

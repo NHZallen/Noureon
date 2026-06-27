@@ -1181,8 +1181,9 @@ function renderMarkdownWithFormulas(text) {
             if (id !== conversationStateAccess.getCurrentConversationId()) {
                 const previousConv = getActiveConversation();
                 if (previousConv && previousConv.isTemporary && previousConv.messages.length === 0) {
+                    const currentConversations = liveConversationsBridge.getConversations();
                     liveConversationsBridge.replaceConversations(
-                        conversations.filter(c => c.id !== previousConv.id)
+                        currentConversations.filter(c => c.id !== previousConv.id)
                     );
                 }
                 conversationStateAccess.setCurrentConversationId(id);
