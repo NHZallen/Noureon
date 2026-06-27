@@ -1197,7 +1197,8 @@ function renderMarkdownWithFormulas(text) {
         };
         const deleteChat = async (id, event) => {
     event?.stopPropagation();
-    const conv = conversations.find(c => c.id === id);
+    const currentConversations = liveConversationsBridge.getConversations();
+    const conv = currentConversations.find(c => c.id === id);
     if (conv) {
         conv.deletedAt = new Date().toISOString();
         if (conv.folderId) {

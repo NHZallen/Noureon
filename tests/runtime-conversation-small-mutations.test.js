@@ -132,7 +132,8 @@ test('deleteChat preserves deletion and folder unlink mutations', () => {
   const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
 
   assertMarkersInOrder(body, [
-    'const conv = conversations.find(c => c.id === id)',
+    'const currentConversations = liveConversationsBridge.getConversations()',
+    'const conv = currentConversations.find(c => c.id === id)',
     'if (conv)',
     'conv.deletedAt = new Date().toISOString()',
     'if (conv.folderId)',
@@ -158,11 +159,11 @@ test('deleteChat preserves persistence, active fallback, render, and notificatio
   assert.match(body, /runtimeDialogCoordinator\.showNotification\([\s\S]*?'success'\)/);
 });
 
-test('delete remains deferred on the legacy mirror', () => {
+test('deleteChat uses the live bridge while the legacy mirror remains deferred', () => {
   const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
 
-  assert.match(body, /\bconversations\.find\(/);
-  assert.doesNotMatch(body, /liveConversationsBridge\.getConversations\(/);
+  assert.match(body, /liveConversationsBridge\.getConversations\(\)/);
+  assert.doesNotMatch(body, /\bconversations\.find\(/);
 
   assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
 });
