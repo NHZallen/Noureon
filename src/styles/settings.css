@@ -45,7 +45,6 @@ button,
 .section-action-btn,
 .model-option-btn-container,
 .color-option,
-.translator-picker-button,
 .council-done-btn,
 .media-lightbox-action,
 #scroll-to-bottom-btn,
@@ -182,7 +181,6 @@ button:active:not(:disabled),
 #model-options-popover,
 .model-council-popover,
 .color-dropdown-menu,
-.translator-picker-menu,
 #mobile-context-menu,
 #attachment-menu {
     background: var(--gpt-surface) !important;
@@ -215,7 +213,6 @@ button:active:not(:disabled),
 #file-options-popover button,
 #model-options-popover button,
 .color-option,
-.translator-picker-option,
 #mobile-context-menu .menu-item,
 #attachment-menu .menu-item {
     min-height: 2.55rem !important;
@@ -231,15 +228,12 @@ button:active:not(:disabled),
 #file-options-popover button:hover,
 #model-options-popover button:hover,
 .color-option:hover,
-.translator-picker-option:hover,
-.translator-picker-option.selected,
 #mobile-context-menu .menu-item:hover,
 #attachment-menu .menu-item:hover {
     background: var(--gpt-subtle) !important;
 }
 
 .color-dropdown-btn,
-.translator-picker-button,
 .modal input,
 .modal select,
 .modal textarea {
@@ -252,20 +246,17 @@ button:active:not(:disabled),
 }
 
 .color-dropdown-btn:hover,
-.translator-picker-button:hover,
 .modal input:hover,
 .modal select:hover,
 .modal textarea:hover {
     border-color: color-mix(in srgb, var(--gpt-border) 70%, var(--text-secondary)) !important;
 }
 
-.color-dropdown-menu,
-.translator-picker-menu {
+.color-dropdown-menu {
     top: calc(100% + 0.45rem) !important;
 }
 
-.color-option.selected,
-.translator-picker-option.selected {
+.color-option.selected {
     background: var(--gpt-subtle) !important;
     outline: none !important;
 }
@@ -418,7 +409,6 @@ button:active:not(:disabled),
 }
 
 .theme-btn,
-.custom-output-mode-option,
 .store-category-btn,
 .council-mode-tabs button,
 .section-add-btn,
@@ -453,7 +443,6 @@ button:active:not(:disabled),
 }
 
 .theme-btn:hover,
-.custom-output-mode-option:hover,
 .store-category-btn:hover,
 .council-mode-tabs button:hover,
 .section-add-btn:hover,
@@ -476,26 +465,11 @@ button:active:not(:disabled),
 }
 
 .theme-btn.active,
-.custom-output-mode-option.active,
 .store-category-btn.active,
 .council-mode-tabs button.active {
     background: var(--gpt-primary-action-bg) !important;
     border-color: var(--gpt-primary-action-bg) !important;
     color: var(--gpt-primary-action-text) !important;
-}
-
-.custom-output-mode-select {
-    gap: 0.25rem !important;
-    padding: 0.25rem !important;
-    border: 1px solid var(--gpt-border) !important;
-    border-radius: 999px !important;
-    background: var(--gpt-subtle) !important;
-}
-
-.custom-output-mode-option {
-    min-height: 2.35rem !important;
-    border-color: transparent !important;
-    white-space: nowrap !important;
 }
 
 #trash-section .flex.justify-between.items-center.mb-4,
@@ -903,7 +877,6 @@ body svg {
 }
 
 .theme-btn,
-.custom-output-mode-option,
 .store-category-btn,
 .council-mode-tabs button,
 .section-add-btn,
@@ -928,7 +901,6 @@ body svg {
 }
 
 .theme-btn:hover,
-.custom-output-mode-option:hover,
 .store-category-btn:hover,
 .council-mode-tabs button:hover,
 .section-add-btn:hover,
@@ -952,7 +924,6 @@ body svg {
 }
 
 .theme-btn.active,
-.custom-output-mode-option.active,
 .store-category-btn.active,
 .council-mode-tabs button.active {
     background: var(--button-primary-bg) !important;
@@ -961,7 +932,6 @@ body svg {
 }
 
 #settings-modal .theme-btn.active,
-#settings-modal .custom-output-mode-option.active,
 #settings-modal .store-category-btn.active,
 #settings-modal .council-mode-tabs button.active {
     background: var(--button-primary-bg) !important;
@@ -969,7 +939,6 @@ body svg {
     color: var(--button-primary-text) !important;
 }
 
-.custom-output-mode-select,
 .theme-button-group {
     background: transparent !important;
     border: 0 !important;
@@ -1025,7 +994,6 @@ body svg {
 }
 
 .theme-btn,
-.custom-output-mode-option,
 .store-category-btn,
 .council-mode-tabs button,
 .section-add-btn,
@@ -1061,7 +1029,6 @@ body svg {
 }
 
 .theme-btn,
-.custom-output-mode-option,
 .store-category-btn,
 .council-mode-tabs button,
 .section-add-btn,
@@ -1097,7 +1064,6 @@ body svg {
 }
 
 .theme-btn:not(.active):hover,
-.custom-output-mode-option:not(.active):hover,
 .store-category-btn:not(.active):hover,
 .council-mode-tabs button:not(.active):hover,
 .section-add-btn:hover,
@@ -1124,7 +1090,6 @@ body svg {
 }
 
 .theme-btn:not(.active):active,
-.custom-output-mode-option:not(.active):active,
 .store-category-btn:not(.active):active,
 .council-mode-tabs button:not(.active):active,
 .section-add-btn:active,
@@ -1150,11 +1115,9 @@ body svg {
 }
 
 .theme-btn.active,
-.custom-output-mode-option.active,
 .store-category-btn.active,
 .council-mode-tabs button.active,
 #settings-modal .theme-btn.active,
-#settings-modal .custom-output-mode-option.active,
 #settings-modal .store-category-btn.active,
 #settings-modal .council-mode-tabs button.active {
     background: var(--button-primary-bg) !important;
@@ -1300,7 +1263,6 @@ body svg {
 
 /* Restore pill outlines for normal buttons; only model row icon controls stay frameless. */
 .theme-btn:not(.active),
-.custom-output-mode-option:not(.active),
 .store-category-btn:not(.active),
 .council-mode-tabs button:not(.active),
 .section-add-btn,

@@ -11,6 +11,7 @@ const settingsSurfaceCssFiles = [
   'src/styles/settings.css',
   'src/styles/settings-mobile.css',
   'src/styles/settings-api-keys.css',
+  'src/styles/settings-output-translator.css',
   'src/styles/mobile.css',
   'src/styles/typography.css',
   'src/styles/regression-overrides.css',
@@ -167,11 +168,11 @@ test('settings control selectors stay visible and scoped by surface', () => {
     ['.api-key-input-group', ['src/styles/settings-api-keys.css']],
     ['.api-key-clear-btn', ['src/styles/settings-api-keys.css']],
     ['.api-key-clear-all-btn', ['src/styles/settings-api-keys.css']],
-    ['.translator-picker-menu', ['src/styles/settings.css']],
-    ['.translator-picker-button', ['src/styles/settings.css']],
-    ['.translator-picker-option', ['src/styles/settings.css']],
-    ['.custom-output-mode-select', ['src/styles/settings.css']],
-    ['.custom-output-mode-option', ['src/styles/settings.css', 'src/styles/regression-overrides.css']],
+    ['.translator-picker-menu', ['src/styles/settings-output-translator.css']],
+    ['.translator-picker-button', ['src/styles/settings-output-translator.css']],
+    ['.translator-picker-option', ['src/styles/settings-output-translator.css']],
+    ['.custom-output-mode-select', ['src/styles/settings-output-translator.css']],
+    ['.custom-output-mode-option', ['src/styles/settings-output-translator.css', 'src/styles/regression-overrides.css']],
     ['#settings-modal #delete-all-data-btn', ['src/styles/settings.css']],
     ['#settings-modal .model-management-item .model-row-action', ['src/styles/settings.css']]
   ];
@@ -188,6 +189,8 @@ test('settings control selectors stay visible and scoped by surface', () => {
   const settingsCss = readUiSource('src/styles/settings.css');
   assert.doesNotMatch(settingsCss, /\.api-key-clear-btn/);
   assert.doesNotMatch(settingsCss, /\.api-key-clear-all-btn/);
+  assert.doesNotMatch(settingsCss, /\.translator-picker-/);
+  assert.doesNotMatch(settingsCss, /\.custom-output-mode-/);
 });
 
 test('shared settings-adjacent selectors are classified as shared, not settings-only', () => {
@@ -248,11 +251,18 @@ test('settings CSS surface stays within a generous Phase 8 post-mobile-extractio
     ['src', 'styles', 'settings-api-keys.css'],
     { maxBytes: 3000, maxLines: 100 }
   );
+  const outputTranslatorStats = assertFileWithinBudget(
+    assert,
+    ['src', 'styles', 'settings-output-translator.css'],
+    { maxBytes: 7000, maxLines: 240 }
+  );
 
   const settingsModalHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings.css']);
   const settingsMobileShellHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings-mobile.css']);
   const settingsCssApiKeyHits = collectCssSelectorHits(/\.api-key-/, ['src/styles/settings.css']);
   const apiKeySurfaceHits = collectCssSelectorHits(/\.api-key-/, ['src/styles/settings-api-keys.css']);
+  const settingsCssOutputTranslatorHits = collectCssSelectorHits(/(?:translator-picker|custom-output-mode)/, ['src/styles/settings.css']);
+  const outputTranslatorSurfaceHits = collectCssSelectorHits(/(?:translator-picker|custom-output-mode)/, ['src/styles/settings-output-translator.css']);
   const mobileCssSettingsHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css']);
   const typographySurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/typography.css']);
 
@@ -260,10 +270,13 @@ test('settings CSS surface stays within a generous Phase 8 post-mobile-extractio
   assert.ok(settingsMobileStats.lines > 300, 'settings-mobile.css should own the mobile settings shell surface');
   assert.ok(mobileStats.lines > 100, 'mobile.css should keep generic mobile app rules');
   assert.ok(apiKeyStats.lines > 0, 'settings-api-keys.css should own API key control styles');
+  assert.ok(outputTranslatorStats.lines > 0, 'settings-output-translator.css should own output/translator control styles');
   assert.equal(settingsModalHits.length, 1);
   assert.equal(settingsMobileShellHits.length, 1);
   assert.equal(settingsCssApiKeyHits.length, 0);
   assert.equal(apiKeySurfaceHits.length, 1);
+  assert.equal(settingsCssOutputTranslatorHits.length, 0);
+  assert.equal(outputTranslatorSurfaceHits.length, 1);
   assert.equal(mobileCssSettingsHits.length, 0);
   assert.equal(typographySurfaceHits.length, 1);
 });
@@ -273,10 +286,12 @@ test('main css imports settings surface styles before broad overrides', () => {
   const settingsIndex = mainCss.indexOf("@import './settings.css';");
   const settingsMobileIndex = mainCss.indexOf("@import './settings-mobile.css';");
   const settingsApiKeysIndex = mainCss.indexOf("@import './settings-api-keys.css';");
+  const settingsOutputTranslatorIndex = mainCss.indexOf("@import './settings-output-translator.css';");
   const regressionIndex = mainCss.indexOf("@import './regression-overrides.css';");
 
   assert.ok(settingsIndex >= 0, 'main.css should import settings.css');
   assert.ok(settingsMobileIndex > settingsIndex, 'settings-mobile.css should refine settings.css');
   assert.ok(settingsApiKeysIndex > settingsMobileIndex, 'settings-api-keys.css should refine settings controls after settings-mobile.css');
-  assert.ok(regressionIndex > settingsApiKeysIndex, 'regression overrides should remain later in the cascade');
+  assert.ok(settingsOutputTranslatorIndex > settingsApiKeysIndex, 'settings-output-translator.css should refine output and translator controls after API key styles');
+  assert.ok(regressionIndex > settingsOutputTranslatorIndex, 'regression overrides should remain later in the cascade');
 });

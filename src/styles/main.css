@@ -11,6 +11,7 @@
 @import './settings.css';
 @import './settings-mobile.css';
 @import './settings-api-keys.css';
+@import './settings-output-translator.css';
 @import './regression-overrides.css';
 @import './mobile.css';
 @import './typography.css';
