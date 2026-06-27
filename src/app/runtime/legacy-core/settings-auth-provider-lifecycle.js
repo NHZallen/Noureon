@@ -14,6 +14,7 @@ import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.
 import { createSettingsThemeBubbleControls } from './settings-theme-bubble-controls.js';
 import { createSettingsMobileShellHelper } from './settings-mobile-shell-helper.js';
 import { createSettingsDesktopSectionHelper } from './settings-desktop-section-helper.js';
+import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
 
 const requiredDependencies = [
     'window',
@@ -442,28 +443,27 @@ const setupSettingsModal = () => {
 };
 const saveSettings = async ({ close = true, notify = true } = {}) => {
     await persistApiKeyInputIntents();
-    config.tavilySearchDepth = ALL_ELEMENTS.tavilySearchDepthSelect?.value === 'advanced' ? 'advanced' : 'basic';
-    config.councilTranslatorModelId = ALL_ELEMENTS.councilTranslatorModelSelect?.value || null;
-    config.singleDocumentTranslatorModelId = ALL_ELEMENTS.singleDocumentTranslatorModelSelect?.value || null;
-    config.enableAutoWebSearch = ALL_ELEMENTS.autoWebSearchToggleSwitch.checked;
-    config.outputMode = ALL_ELEMENTS.outputModeSelect?.value === 'realtime' ? 'realtime' : 'typewriter';
-    config.aiBubbleColor = ALL_ELEMENTS.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default';
-    config.userBubbleColor = ALL_ELEMENTS.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default';
-    config.autoNaming = ALL_ELEMENTS.autoNamingToggleSwitch.checked;
-    config.memoryEnabled1 = ALL_ELEMENTS.memoryToggle1.checked;
-    config.enableAutoMemory = ALL_ELEMENTS.autoMemoryToggleSwitch.checked;
-    config.uiLanguage = ALL_ELEMENTS.uiLanguageSelect.value;
-    config.aiDefaultLanguage = ALL_ELEMENTS.aiLanguageSelect.value;
-    config.enableUpdateNotifications = ALL_ELEMENTS.enableUpdateNotificationsToggle.checked;
-    const selectedThemeMode = document.querySelector('input[name="color-theme"]:checked').value;
-    const selectedCustomColor = ALL_ELEMENTS.customColorSwatches.querySelector('.selected')?.dataset.color || config.uiTheme.customColor;
-    const selectedStyle = document.querySelector('input[name="color-style"]:checked')?.value || 'single';
-    const selectedGradientSwatch = ALL_ELEMENTS.gradientSwatches.querySelector('.selected-gradient');
-    const selectedGradient = selectedGradientSwatch ? selectedGradientSwatch.dataset.gradient : (config.uiTheme.adaptivePalette?.length > 1 ? `linear-gradient(to right, ${config.uiTheme.adaptivePalette[0]}, ${config.uiTheme.adaptivePalette[1]})` : '');
-    config.uiTheme.mode = selectedThemeMode;
-    config.uiTheme.customColor = selectedCustomColor;
-    config.uiTheme.style = selectedStyle;
-    config.uiTheme.adaptiveGradient = selectedGradient;
+    const collectedSettings = collectSettingsSaveFormValues({
+        document,
+        elements: ALL_ELEMENTS,
+        config
+    });
+    Object.assign(config, {
+        tavilySearchDepth: collectedSettings.tavilySearchDepth,
+        councilTranslatorModelId: collectedSettings.councilTranslatorModelId,
+        singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,
+        enableAutoWebSearch: collectedSettings.enableAutoWebSearch,
+        outputMode: collectedSettings.outputMode,
+        aiBubbleColor: collectedSettings.aiBubbleColor,
+        userBubbleColor: collectedSettings.userBubbleColor,
+        autoNaming: collectedSettings.autoNaming,
+        memoryEnabled1: collectedSettings.memoryEnabled1,
+        enableAutoMemory: collectedSettings.enableAutoMemory,
+        uiLanguage: collectedSettings.uiLanguage,
+        aiDefaultLanguage: collectedSettings.aiDefaultLanguage,
+        enableUpdateNotifications: collectedSettings.enableUpdateNotifications
+    });
+    Object.assign(config.uiTheme, collectedSettings.uiTheme);
     setAiBubbleColor();
     setUserBubbleColor();
     applyUiTheme();

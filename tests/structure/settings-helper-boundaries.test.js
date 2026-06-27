@@ -45,12 +45,31 @@ const settingsHelperModules = [
   }
 ];
 
+const settingsCollectorHelpers = [
+  {
+    path: 'src/app/runtime/legacy-core/settings-save-settings-helper.js',
+    exportName: 'collectSettingsSaveFormValues',
+    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
+  }
+];
+
 test('settings helper modules exist and keep their exported factories', () => {
   for (const helper of settingsHelperModules) {
     const source = readSource(helper.path);
     assertFileExists(assert, helper.path);
     assert.match(source, new RegExp(`export\\s+function\\s+${helper.factory}`));
     assert.doesNotMatch(source, helper.blockedRuntimeGlobals);
+  }
+});
+
+test('settings collector helper modules exist and avoid runtime side effects', () => {
+  for (const helper of settingsCollectorHelpers) {
+    const source = readSource(helper.path);
+    assertFileExists(assert, helper.path);
+    assert.match(source, new RegExp(`export\\s+function\\s+${helper.exportName}`));
+    assert.doesNotMatch(source, helper.blockedRuntimeGlobals);
+    assert.doesNotMatch(source, /saveConfig|persistApiKeyInputIntents|saveSensitiveConfig|showNotification|toggleModal|applyUiTheme|applyLanguage|render[A-Z]/);
+    assert.doesNotMatch(source, /sensitive-config-store|api-key-input-intent/);
   }
 });
 
@@ -82,6 +101,12 @@ test('settings auth provider lifecycle composes every extracted settings helper'
       new RegExp(`const\\s+${localName}\\s*=\\s*${helper.factory}\\(\\{`)
     );
   }
+
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*collectSettingsSaveFormValues\s*\}\s+from\s+['"]\.\/settings-save-settings-helper\.js['"]/
+  );
+  assert.match(lifecycleSource, /const\s+collectedSettings\s*=\s*collectSettingsSaveFormValues\(\{/);
 });
 
 test('settings structured provider and title summary helpers remain delegated from the lifecycle', () => {
@@ -175,8 +200,13 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPicker\s*=/);
   assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPickers\s*=/);
   assert.doesNotMatch(lifecycleSource, /const\s+ensureOutputModeSettingsControls\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value/);
+  assert.doesNotMatch(lifecycleSource, /const\s+selectedThemeMode\s*=\s*document\.querySelector\('input\[name="color-theme"\]:checked'\)/);
+  assert.doesNotMatch(lifecycleSource, /const\s+selectedGradientSwatch\s*=\s*ALL_ELEMENTS\.gradientSwatches\.querySelector/);
   assert.match(lifecycleSource, /prepareApiKeyInputsForSettings\(\);/);
   assert.match(lifecycleSource, /await\s+persistApiKeyInputIntents\(\);/);
+  assert.match(lifecycleSource, /collectSettingsSaveFormValues\(\{/);
+  assert.match(lifecycleSource, /Object\.assign\(config\.uiTheme,\s*collectedSettings\.uiTheme\);/);
   assert.match(lifecycleSource, /ensureCouncilTranslatorSettingsControls\(\);/);
   assert.match(lifecycleSource, /ensureOutputModeSettingsControls\(\);/);
   assert.match(lifecycleSource, /renderTranslatorModelPickers\(\);/);

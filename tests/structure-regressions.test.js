@@ -365,6 +365,7 @@ test('sensitive config export redaction boundary is explicit', () => {
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsSaveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
   const settingsProviderStructuredSource = readSource('src/app/runtime/legacy-core/settings-provider-structured-helpers.js');
   const streamApiSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
   const redactionSource = readSource(redactionPath);
@@ -2369,6 +2370,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsSaveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
   const getCouncilTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilTexts');
@@ -2428,7 +2430,9 @@ test('runtime config access owns selected uiLanguage reads through the config st
 
   assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\};/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(settingsAuthProviderSource, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value;/);
+  assert.match(settingsAuthProviderSource, /collectSettingsSaveFormValues\(\{/);
+  assert.doesNotMatch(settingsAuthProviderSource, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value;/);
+  assert.match(settingsSaveSettingsHelperSource, /uiLanguage:\s*elements\.uiLanguageSelect\.value/);
   assert.match(settingsAuthProviderSource, /applyLanguage\(config\.uiLanguage\);/);
 });
 

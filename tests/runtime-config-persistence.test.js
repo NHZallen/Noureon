@@ -313,14 +313,17 @@ test('loadConfig keeps API, model, and council normalization in legacy order', (
 
 test('settings persistence keeps mutation, visual, save, render, and notification order', () => {
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsSaveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const saveSettingsBody = getConstFunctionBody(settingsAuthProviderSource, 'saveSettings');
   const initChatAppBody = getBlockFromMarker(appBootstrapLifecycleSource, 'async function initChatApp()');
 
   assertMarkersInOrder(saveSettingsBody, [
     'await persistApiKeyInputIntents()',
-    'config.uiLanguage = ALL_ELEMENTS.uiLanguageSelect.value',
-    'config.uiTheme.mode = selectedThemeMode',
+    'const collectedSettings = collectSettingsSaveFormValues({',
+    'Object.assign(config, {',
+    'uiLanguage: collectedSettings.uiLanguage',
+    'Object.assign(config.uiTheme, collectedSettings.uiTheme)',
     'setAiBubbleColor()',
     'setUserBubbleColor()',
     'applyUiTheme()',
@@ -336,6 +339,7 @@ test('settings persistence keeps mutation, visual, save, render, and notificatio
     'if (notify) {',
     'showNotification('
   ], 'settings save persistence');
+  assert.match(settingsSaveSettingsHelperSource, /uiLanguage:\s*elements\.uiLanguageSelect\.value/);
 
   assert.match(
     initChatAppBody,
