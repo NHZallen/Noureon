@@ -36,6 +36,7 @@ import {
     readErrorBody,
     renderUserText
 } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
+import { createHistorySidebarHelpers } from '/src/app/runtime/legacy-core/history-sidebar-helpers.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
@@ -136,28 +137,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             inputMediaPreview: runtimeDomAccess.getOptionalElement('filePreviewContainer'),
             settingsButton: runtimeDomAccess.getOptionalElement('settingsBtn')
         });
-        function toggleHistorySidebar(show) {
-    const { historySidebar, historySidebarOverlay } = ALL_ELEMENTS;
-    if (show) {
-        requestAnimationFrame(() => {
-            setupMessageIntersectionObserver();
+        const { toggleHistorySidebar } = createHistorySidebarHelpers({
+            elements: ALL_ELEMENTS,
+            requestAnimationFrame,
+            setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args)
         });
-        historySidebarOverlay.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            historySidebar.classList.add('visible');
-            historySidebarOverlay.classList.add('visible');
-        });
-    } else {
-        historySidebar.classList.remove('visible');
-        historySidebarOverlay.classList.remove('visible');
-        // 等待動畫結束後再徹底隱藏遮罩層
-        historySidebarOverlay.addEventListener('transitionend', () => {
-            if (!historySidebarOverlay.classList.contains('visible')) {
-                historySidebarOverlay.classList.add('hidden');
-            }
-        }, { once: true });
-    }
-}
 
     // 渲染歷史訊息側邊欄的內容
     function renderHistorySidebarContent() {
