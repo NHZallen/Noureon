@@ -626,6 +626,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
+  const themeAppearanceSource = readSource('src/app/runtime/features/theme-appearance-lifecycle.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const submitInputCouncilSource = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
@@ -706,7 +707,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 12);
+  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 12);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -1415,8 +1416,9 @@ test('color contrast helper is shared without later-fragment lexical ownership',
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const historySidebarHelperSource = readSource('src/app/runtime/legacy-core/history-sidebar-helpers.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
+  const themeAppearanceSource = readSource('src/app/runtime/features/theme-appearance-lifecycle.js');
   const renderHistorySidebarContentBody = getBlockFromMarker(historySidebarHelperSource, 'function renderHistorySidebarContent()');
-  const applyUiThemeBody = getConstFunctionBody(coreTailSource, 'applyUiTheme');
+  const applyUiThemeBody = getConstFunctionBody(themeAppearanceSource, 'applyUiTheme');
 
   assert.equal(existsSync(projectFile(helperPath)), true, 'shared color contrast helper should exist');
   assert.match(helperSource, /export\s+function\s+getTextColorForBackground\s*\(/);
@@ -1426,9 +1428,10 @@ test('color contrast helper is shared without later-fragment lexical ownership',
     /import\s*\{\s*getTextColorForBackground\s*\}\s*from\s*['"]\/src\/utils\/color-contrast\.js['"]/
   );
   assert.match(
-    coreTailSource,
+    themeAppearanceSource,
     /import\s*\{\s*getTextColorForBackground\s+as\s+getThemeTextColorForBackground,\s*\}\s*from\s*['"]\.\.\/\.\.\/\.\.\/utils\/color-contrast\.js['"]/
   );
+  assert.doesNotMatch(coreTailSource, /getThemeTextColorForBackground/);
   assert.doesNotMatch(coreTailSource, /const\s+hexToRgb\s*=/);
   assert.doesNotMatch(coreTailSource, /const\s+getTextColorForBackground\s*=/);
   assert.match(
