@@ -28,6 +28,14 @@ import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/
 import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
+import {
+    createTrustedHtmlSanitizer,
+    escapeHTML,
+    getErrorMessage,
+    hexToRgba,
+    readErrorBody,
+    renderUserText
+} from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
@@ -67,38 +75,7 @@ const i18n = globalThis.i18n;
 const demoConversations = globalThis.demoConversations;
 const OFFICIAL_ASTRAS = globalThis.OFFICIAL_ASTRAS;
 const updateLogs = globalThis.updateLogs;
-
-const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-}[char]));
-
-const renderUserText = (value = '') => escapeHTML(value).replace(/\n/g, '<br>');
-
-const sanitizeTrustedHTML = (value = '') => {
-    if (DOMPurify?.sanitize) {
-        return DOMPurify.sanitize(String(value));
-    }
-    return escapeHTML(value);
-};
-
-const readErrorBody = async (response) => {
-    const text = await response.text();
-    try {
-        return JSON.parse(text);
-    } catch {
-        return { error: { message: text || response.statusText } };
-    }
-};
-
-const getErrorMessage = (errorBody, fallback = 'API 請求失敗') => (
-    errorBody?.error?.message ||
-    errorBody?.message ||
-    fallback
-);
+const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify });
 
 const postJsonWithReadableError = async (url, data, options = {}) => {
     const request = {
@@ -813,15 +790,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const upgradedRecord = await createPasswordRecord(userRecord.username, password);
             await setItem(userKey, JSON.stringify(upgradedRecord));
             return upgradedRecord;
-        };
-        const hexToRgba = (hex, alpha = 1) => {
-            if (!hex) return `rgba(255, 255, 255, ${alpha})`;
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            if (!result) return `rgba(255, 255, 255, ${alpha})`;
-            const r = parseInt(result[1], 16);
-            const g = parseInt(result[2], 16);
-            const b = parseInt(result[3], 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         };
         const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`;
         const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;
