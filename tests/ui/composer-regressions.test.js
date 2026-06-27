@@ -34,10 +34,10 @@ test('desktop chat input reserves the lower row only for active modes or multili
 
 test('composer upload previews occupy a full-width row above desktop input controls', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime00 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
+  const inputMediaPlacement = readUiSource('src/app/runtime/features/input-media-placement.js');
   const previewLifecycle = readUiSource('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js');
 
-  assert.match(runtime00, /preview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(preview,\s*wrapper\.firstChild\)/);
+  assert.match(inputMediaPlacement, /inputMediaPreview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(inputMediaPreview,\s*wrapper\.firstChild\)/);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"file input input voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*grid-area:\s*preview;[^}]*align-self:\s*stretch;[^}]*width:\s*100%;/s);

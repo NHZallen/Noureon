@@ -2452,7 +2452,7 @@ test('runtime DOM access owns selected element reads through the extracted DOM r
   const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
-  const arrangeInputMediaPreviewBody = getConstFunctionBody(fragment00Source, 'arrangeInputMediaPreview');
+  const inputMediaPlacementSource = readSource('src/app/runtime/features/input-media-placement.js');
   const renderArchivedChatsBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderArchivedChats');
   const renderFoldersBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderFolders');
   const renderHistorySidebarBody = getConstFunctionBody(fragment00Source, 'renderHistorySidebar');
@@ -2466,10 +2466,14 @@ test('runtime DOM access owns selected element reads through the extracted DOM r
   assert.match(fragment00Source, /const\s+runtimeDomAccess\s*=\s*createRuntimeDomAccess\(\{\s*getElements:\s*\(\)\s*=>\s*ALL_ELEMENTS,\s*logger:\s*console\s*\}\);/);
   assert.doesNotMatch(fragment00Source, /getElements:\s*ALL_ELEMENTS\b/);
 
-  assert.match(arrangeInputMediaPreviewBody, /const\s+preview\s*=\s*runtimeDomAccess\.getOptionalElement\('filePreviewContainer'\);/);
-  assert.doesNotMatch(arrangeInputMediaPreviewBody, /ALL_ELEMENTS\.filePreviewContainer/);
-  assert.match(fragment00Source, /const\s+settingsIcon\s*=\s*runtimeDomAccess\.getOptionalElement\('settingsBtn'\)\?\.querySelector\('svg'\);/);
-  assert.doesNotMatch(fragment00Source, /const\s+settingsIcon\s*=\s*ALL_ELEMENTS\.settingsBtn/);
+  assert.match(fragment00Source, /import\s+\{\s*arrangeInputMediaPreview\s*\}/);
+  assert.match(fragment00Source, /inputMediaPreview:\s*runtimeDomAccess\.getOptionalElement\('filePreviewContainer'\)/);
+  assert.match(fragment00Source, /settingsButton:\s*runtimeDomAccess\.getOptionalElement\('settingsBtn'\)/);
+  assert.doesNotMatch(fragment00Source, /ALL_ELEMENTS\.(?:filePreviewContainer|settingsBtn)/);
+  assert.match(inputMediaPlacementSource, /export\s+function\s+arrangeInputMediaPreview/);
+  assert.match(inputMediaPlacementSource, /inputMediaPreview\.className\s*=\s*'input-media-preview empty:hidden';/);
+  assert.match(inputMediaPlacementSource, /wrapper\.insertBefore\(inputMediaPreview,\s*wrapper\.firstChild\)/);
+  assert.doesNotMatch(inputMediaPlacementSource, /runtimeDomAccess|ALL_ELEMENTS|registerLazyBinding|resolveBinding/);
 
   assert.match(renderArchivedChatsBody, /const\s+archivedChatsContainer\s*=\s*runtimeDomAccess\.getRequiredElement\('archivedChatsContainer'\);/);
   assert.doesNotMatch(renderArchivedChatsBody, /ALL_ELEMENTS\.archivedChatsContainer/);

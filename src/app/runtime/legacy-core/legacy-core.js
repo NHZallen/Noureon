@@ -34,6 +34,7 @@ import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-regi
 import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
 import { setupDemoModelHomepage } from '/src/app/runtime/features/demo-model-homepage.js';
 import { createDialogNotificationLifecycle } from '/src/app/runtime/features/dialog-notification-lifecycle.js';
+import { arrangeInputMediaPreview } from '/src/app/runtime/features/input-media-placement.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 import {
@@ -153,19 +154,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getElements: () => ALL_ELEMENTS,
             logger: console
         });
-        const arrangeInputMediaPreview = () => {
-            const wrapper = document.querySelector('.input-wrapper');
-            const preview = runtimeDomAccess.getOptionalElement('filePreviewContainer');
-            if (!wrapper || !preview || preview.parentElement === wrapper) return;
-            preview.className = 'input-media-preview empty:hidden';
-            wrapper.insertBefore(preview, wrapper.firstChild);
-        };
-        arrangeInputMediaPreview();
-        const settingsIcon = runtimeDomAccess.getOptionalElement('settingsBtn')?.querySelector('svg');
-        if (settingsIcon) {
-            settingsIcon.setAttribute('viewBox', '0 0 24 24');
-            settingsIcon.innerHTML = '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.658 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.329 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.329 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.658 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.329-4.033 2.34 2.34 0 0 0 0-3.831 2.34 2.34 0 0 1 2.329-4.033 2.34 2.34 0 0 0 3.32-1.915"></path><circle cx="12" cy="12" r="3"></circle>';
-        }
+        arrangeInputMediaPreview({
+            document,
+            inputMediaPreview: runtimeDomAccess.getOptionalElement('filePreviewContainer'),
+            settingsButton: runtimeDomAccess.getOptionalElement('settingsBtn')
+        });
         function toggleHistorySidebar(show) {
     const { historySidebar, historySidebarOverlay } = ALL_ELEMENTS;
     if (show) {
