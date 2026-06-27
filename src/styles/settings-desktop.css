@@ -1,0 +1,158 @@
+@media (min-width: 769px) {
+    .settings-nav-item {
+        background-image: none !important;
+        box-shadow: none !important;
+        filter: none !important;
+        text-shadow: none !important;
+        transform: none !important;
+    }
+
+    #settings-modal nav {
+        background: var(--gpt-surface) !important;
+        border-right: 1px solid color-mix(in srgb, var(--gpt-border) 70%, transparent) !important;
+    }
+
+    #settings-modal .settings-section {
+        max-width: 46rem;
+        margin: 0 auto;
+    }
+
+    #settings-modal .settings-section > h3 {
+        margin-top: 1.35rem !important;
+        margin-bottom: 0.85rem !important;
+        color: var(--text-primary) !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+    }
+
+    .settings-nav-item {
+        min-height: 2.75rem;
+        padding: 0.7rem 0.95rem !important;
+        border-radius: 0.78rem !important;
+        color: var(--text-primary) !important;
+        font-weight: 400 !important;
+    }
+
+    .settings-nav-item:hover {
+        background: var(--gpt-subtle) !important;
+    }
+
+    .settings-nav-item.active {
+        background: var(--gpt-subtle) !important;
+        color: var(--text-primary) !important;
+        font-weight: 500 !important;
+    }
+
+    #settings-modal .flex-1.p-6.overflow-y-auto {
+        padding: 1.5rem !important;
+    }
+
+    #settings-modal .settings-section {
+        max-width: 40rem !important;
+        margin: 0 !important;
+    }
+
+    #settings-modal .settings-section > h3 {
+        color: var(--text-primary) !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+    }
+
+    #settings-modal nav {
+        width: 15.5rem !important;
+        padding-top: 4rem !important;
+        background: var(--gpt-surface) !important;
+    }
+
+    #settings-modal #settings-nav {
+        padding: 0 0.5rem 1rem 0.5rem !important;
+    }
+
+    .settings-nav-item {
+        color: var(--gpt-control-text) !important;
+        background: transparent !important;
+        border: 0 !important;
+    }
+
+    .settings-nav-item.active,
+    .settings-nav-item:hover {
+        color: var(--gpt-control-text) !important;
+        background: transparent !important;
+        font-weight: 600 !important;
+    }
+
+    #settings-modal .flex-1.p-6.overflow-y-auto {
+        position: static !important;
+        padding: 1.1rem 1.5rem 1.5rem 1.35rem !important;
+        overflow-y: auto !important;
+        scrollbar-width: thin !important;
+        scrollbar-color: var(--gpt-scrollbar) transparent !important;
+    }
+
+    #settings-modal .flex-1.p-6.overflow-y-auto::-webkit-scrollbar,
+    #settings-modal nav::-webkit-scrollbar {
+        width: 10px !important;
+    }
+
+    #settings-modal .flex-1.p-6.overflow-y-auto::-webkit-scrollbar-thumb,
+    #settings-modal nav::-webkit-scrollbar-thumb {
+        background: var(--gpt-scrollbar) !important;
+        border: 3px solid transparent !important;
+        background-clip: content-box !important;
+        border-radius: 999px !important;
+    }
+
+    #settings-modal .settings-section {
+        position: static !important;
+        display: none !important;
+        width: 100% !important;
+        height: auto !important;
+        max-width: 40rem !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        animation: none !important;
+        color: var(--gpt-control-text) !important;
+    }
+
+    #settings-modal .settings-section.active {
+        display: block !important;
+    }
+
+    #settings-modal .settings-section.active::before {
+        display: block;
+        margin: 0 0 1.7rem 0;
+        padding-bottom: 1.35rem;
+        border-bottom: 1px solid var(--gpt-border);
+        color: var(--gpt-control-text);
+        font-size: 1.05rem;
+        font-weight: 500;
+    }
+
+    #personalization-section.active::before { content: "個人化"; }
+    #memory-section.active::before { content: "記憶管理"; }
+    #model-management-section.active::before { content: "模型管理"; }
+    #data-management-section.active::before { content: "資料管理"; }
+    #accessibility-section.active::before { content: "輔助功能"; }
+    #trash-section.active::before { content: "垃圾桶"; }
+    #about-section.active::before { content: "關於"; }
+
+    #settings-modal nav {
+        padding-top: 3rem !important;
+    }
+
+    #settings-modal #settings-nav {
+        padding-top: 0.25rem !important;
+    }
+
+    #settings-modal .settings-nav-item {
+        display: flex !important;
+        align-items: center !important;
+        min-height: 2.35rem !important;
+        padding: 0.45rem 1rem !important;
+        line-height: 1.15 !important;
+    }
+}

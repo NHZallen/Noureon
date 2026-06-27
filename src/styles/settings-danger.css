@@ -1,0 +1,59 @@
+#delete-all-data-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 2.45rem !important;
+    padding: 0.55rem 0.95rem !important;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    font-size: 0.92rem !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+}
+
+#delete-all-data-btn:hover {
+    background: var(--gpt-subtle) !important;
+    border-color: var(--gpt-border) !important;
+}
+
+#delete-all-data-btn {
+    width: 100% !important;
+}
+
+#delete-all-data-btn {
+    background: var(--gpt-control-bg) !important;
+    color: var(--gpt-control-text) !important;
+    border-color: var(--gpt-control-border) !important;
+}
+
+#delete-all-data-btn:hover {
+    background: var(--gpt-control-bg) !important;
+    color: var(--gpt-control-text) !important;
+}
+
+#settings-modal #delete-all-data-btn {
+    height: 3rem !important;
+    min-height: 3rem !important;
+    padding: 0 1.15rem !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: #ff0000 !important;
+    color: #ffffff !important;
+}
+
+#settings-modal #delete-all-data-btn:hover {
+    background: #e60000 !important;
+    color: #ffffff !important;
+}
+
+#settings-modal #delete-all-data-btn:active {
+    background: #cc0000 !important;
+}
+
+#settings-modal #delete-all-data-btn * {
+    color: #ffffff !important;
+}

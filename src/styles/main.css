@@ -14,6 +14,8 @@
 @import './settings-output-translator.css';
 @import './settings-theme-bubble.css';
 @import './settings-provider-management.css';
+@import './settings-desktop.css';
+@import './settings-danger.css';
 @import './regression-overrides.css';
 @import './mobile.css';
 @import './typography.css';
