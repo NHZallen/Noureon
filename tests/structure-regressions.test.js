@@ -1155,20 +1155,25 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const lifecyclePath = 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
   const structuredHelperPath = 'src/app/runtime/legacy-core/settings-provider-structured-helpers.js';
   const titleSummaryHelperPath = 'src/app/runtime/legacy-core/settings-title-summary-helpers.js';
+  const historyMenuHelperPath = 'src/app/runtime/legacy-core/settings-history-menu-helper.js';
   const lifecycleSource = readSource(lifecyclePath);
   const structuredHelperSource = readSource(structuredHelperPath);
   const titleSummaryHelperSource = readSource(titleSummaryHelperPath);
+  const historyMenuHelperSource = readSource(historyMenuHelperPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.equal(existsSync(projectFile(structuredHelperPath)), true);
   assert.equal(existsSync(projectFile(titleSummaryHelperPath)), true);
+  assert.equal(existsSync(projectFile(historyMenuHelperPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
   assert.match(titleSummaryHelperSource, /export\s+function\s+createSettingsTitleSummaryHelpers/);
+  assert.match(historyMenuHelperSource, /export\s+function\s+createSettingsHistoryMenuHelper/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(titleSummaryHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
+  assert.doesNotMatch(historyMenuHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.match(
     lifecycleSource,
     /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
@@ -1177,12 +1182,19 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
     lifecycleSource,
     /import\s+\{\s*createSettingsTitleSummaryHelpers\s*\}\s+from\s+['"]\.\/settings-title-summary-helpers\.js['"]/
   );
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from\s+['"]\.\/settings-history-menu-helper\.js['"]/
+  );
   assert.match(lifecycleSource, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
   assert.match(lifecycleSource, /getApiKeyForProvider,/);
   assert.match(lifecycleSource, /readErrorBody,/);
   assert.match(lifecycleSource, /cheapModelId:\s*CHEAP_MODEL_ID/);
   assert.match(lifecycleSource, /const\s+titleSummaryHelpers\s*=\s*createSettingsTitleSummaryHelpers\(\{/);
   assert.match(lifecycleSource, /callApiWithSchema\s*\n?\s*\}\);/);
+  assert.match(lifecycleSource, /const\s+historyMenuHelper\s*=\s*createSettingsHistoryMenuHelper\(\{/);
+  assert.match(lifecycleSource, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(lifecycleSource, /getFolders:\s*\(\)\s*=>\s*folders/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
@@ -1212,6 +1224,8 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(lifecycleSource, /const\s+saveSettings\s*=\s*async\s*\(\{/);
   assert.match(lifecycleSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /const\s+createHistoryMenu\s*=\s*\(convId,\s*targetButton\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /createHistoryMenu\s*\n?\s*\}\s*=\s*historyMenuHelper/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+shouldPerformWebSearch\b/);
   assert.doesNotMatch(lifecycleSource, /const\s+conversationHistory\s*=\s*conv\.messages/);
@@ -1227,6 +1241,9 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(titleSummaryHelperSource, /function\s+buildTitleSummaryPrompt\b/);
   assert.match(titleSummaryHelperSource, /TITLE_SUMMARY_RESPONSE_SCHEMA/);
   assert.match(titleSummaryHelperSource, /async\s+function\s+requestTitleSummary\b/);
+  assert.match(historyMenuHelperSource, /function\s+createHistoryMenu\(convId,\s*targetButton\)\s*\{/);
+  assert.match(historyMenuHelperSource, /moveConversationToFolder\(convId,\s*button\.dataset\.folderId\)/);
+  assert.match(historyMenuHelperSource, /showRenameModal\(convId,\s*'conversation',\s*event\)/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 

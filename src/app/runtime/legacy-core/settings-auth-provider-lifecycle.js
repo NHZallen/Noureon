@@ -19,6 +19,7 @@ import {
 } from '../security/api-key-input-intent.js';
 import { createSettingsProviderStructuredHelpers } from './settings-provider-structured-helpers.js';
 import { createSettingsTitleSummaryHelpers } from './settings-title-summary-helpers.js';
+import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.js';
 
 const requiredDependencies = [
     'window',
@@ -1003,74 +1004,25 @@ const renderUserBubbleColorDropdown = () => {
     container.appendChild(btn);
     container.appendChild(menu);
 };
-const createHistoryMenu = (convId, targetButton) => {
-    const existingPopover = document.getElementById('history-popover');
-    if (existingPopover) {
-        existingPopover.remove();
-        if (existingPopover.dataset.targetId === targetButton.id) return;
-    }
-    const rect = targetButton.getBoundingClientRect();
-    const popover = document.createElement('div');
-    popover.id = 'history-popover';
-    popover.className = 'popover absolute w-48 rounded-lg border border-[var(--border-color)] z-50';
-    popover.dataset.targetId = targetButton.id;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    if (spaceBelow < 250) {
-        popover.style.bottom = `${window.innerHeight - rect.top}px`;
-        popover.style.transformOrigin = 'bottom';
-    } else {
-        popover.style.top = `${rect.bottom}px`;
-        popover.style.transformOrigin = 'top';
-    }
-    popover.style.left = `${rect.left}px`;
-    const conv = conversations.find(c => c.id === convId);
-    const pinText = conv.pinned ? (i18n[config.uiLanguage].unpin || '取消釘選') : (i18n[config.uiLanguage].pin || '釘選');
-    const moveOptionsHTML = conv.folderId
-        ? `<button data-id="${convId}" class="move-out-of-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${i18n[config.uiLanguage].moveOutOfFolder || '移出資料夾'}</button>`
-        : `
-            <div class="relative group">
-                <button class="w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm flex justify-between items-center">
-                    <span>${i18n[config.uiLanguage].moveToFolder || '移至資料夾'}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </button>
-                <div class="absolute left-full top-0 w-48 rounded-lg border border-[var(--border-color)] bg-[var(--modal-bg)] hidden group-hover:block">
-                    ${folders.map(f => `<button data-folder-id="${f.id}" class="move-to-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${f.name}</button>`).join('')}
-                        <div class="border-t my-1 border-[var(--border-color)]"></div>
-                        <button class="new-folder-from-menu-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${i18n[config.uiLanguage].createNewFolder || '建立新資料夾'}</button>
-                    </div>
-                </div>
-            `;
-    popover.innerHTML = `
-        <button data-id="${convId}" class="rename-conv-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${i18n[config.uiLanguage].rename || '重新命名'}</button>
-        <button data-id="${convId}" class="pin-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${pinText}</button>
-        ${moveOptionsHTML}
-        <button data-id="${convId}" class="archive-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${i18n[config.uiLanguage].archive || '封存'}</button>
-        <div class="border-t my-1 border-[var(--border-color)]"></div>
-        <button data-id="${convId}" class="delete-btn w-full text-left px-4 py-2 text-red-600 hover:bg-red-500/10 text-sm">${i18n[config.uiLanguage].delete || '刪除'}</button>
-    `;
-    document.body.appendChild(popover);
-    requestAnimationFrame(() => popover.classList.add('visible'));
-    popover.querySelector('.rename-conv-btn').addEventListener('click', (e) => { showRenameModal(convId, 'conversation', e); popover.remove(); });
-    popover.querySelector('.pin-btn').addEventListener('click', (e) => { togglePinChat(convId, e); popover.remove(); });
-    popover.querySelector('.archive-btn').addEventListener('click', (e) => { archiveChat(convId, e); popover.remove(); });
-    popover.querySelector('.delete-btn').addEventListener('click', (e) => { deleteChat(convId, e); popover.remove(); });
-    popover.querySelectorAll('.move-to-folder-btn').forEach(btn => btn.addEventListener('click', () => { moveConversationToFolder(convId, btn.dataset.folderId); popover.remove(); }));
-    const newFolderBtn = popover.querySelector('.new-folder-from-menu-btn');
-    if (newFolderBtn) {
-        newFolderBtn.addEventListener('click', async () => {
-            popover.remove();
-            const folderName = await showCustomPrompt(i18n[config.uiLanguage].enterFolderName || '請輸入新資料夾的名稱：', i18n[config.uiLanguage].createNewFolder || '建立新資料夾');
-            if (folderName) {
-                const newFolderId = createNewFolder(folderName);
-                moveConversationToFolder(convId, newFolderId);
-            }
-        });
-    }
-    const moveOutBtn = popover.querySelector('.move-out-of-folder-btn');
-    if (moveOutBtn) {
-        moveOutBtn.addEventListener('click', () => { moveConversationToFolder(convId, null); popover.remove(); });
-    }
-};
+const historyMenuHelper = createSettingsHistoryMenuHelper({
+    window,
+    document,
+    requestAnimationFrame,
+    getConfig: () => config,
+    getConversations: () => conversations,
+    getFolders: () => folders,
+    i18n,
+    showRenameModal,
+    togglePinChat,
+    archiveChat,
+    deleteChat,
+    moveConversationToFolder,
+    createNewFolder,
+    showCustomPrompt
+});
+const {
+    createHistoryMenu
+} = historyMenuHelper;
 const setTheme = async (theme) => {
     if (document.body.classList.contains('custom-wallpaper-active')) {
         return;

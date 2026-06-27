@@ -197,6 +197,19 @@ test('structured provider helpers are composed through injected key access', () 
   assert.match(source, /callApiWithSchema,\s*\n\s*shouldPerformWebSearch/);
 });
 
+test('history menu helper is composed while preserving lifecycle alias', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+
+  assert.match(source, /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from\s+['"]\.\/settings-history-menu-helper\.js['"]/);
+  assert.match(source, /const\s+historyMenuHelper\s*=\s*createSettingsHistoryMenuHelper\(\{/);
+  assert.match(source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(source, /getFolders:\s*\(\)\s*=>\s*folders/);
+  assert.match(source, /showRenameModal,/);
+  assert.match(source, /moveConversationToFolder,/);
+  assert.match(source, /createHistoryMenu\s*\n?\s*\}\s*=\s*historyMenuHelper/);
+  assert.doesNotMatch(source, /const\s+createHistoryMenu\s*=\s*\(convId,\s*targetButton\)\s*=>\s*\{/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySettingsAuthProviderLifecycle(),
