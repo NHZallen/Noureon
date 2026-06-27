@@ -128,6 +128,36 @@ test('archiveChat refreshes the conversations pointer after saving for fallback'
   assert.doesNotMatch(body, /currentConversations\.find\(c\s*=>\s*!c\.archived/);
 });
 
+test('deleteChat preserves deletion and folder unlink mutations', () => {
+  const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
+
+  assertMarkersInOrder(body, [
+    'const conv = conversations.find(c => c.id === id)',
+    'if (conv)',
+    'conv.deletedAt = new Date().toISOString()',
+    'if (conv.folderId)',
+    'const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId)',
+    'if (folder)',
+    'folder.conversationIds = folder.conversationIds.filter(cid => cid !== id)',
+    'conv.folderId = null'
+  ], 'deleteChat deletion and folder unlink');
+});
+
+test('deleteChat preserves persistence, active fallback, render, and notification ordering', () => {
+  const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
+
+  assertMarkersInOrder(body, [
+    'await saveAppData()',
+    'if (conversationStateAccess.getCurrentConversationId() === id)',
+    'startNewChat()',
+    'else {',
+    'runtimeRenderCoordinator.renderAll()',
+    'runtimeDialogCoordinator.showNotification('
+  ], 'deleteChat side effects');
+  assert.match(body, /chatMovedToTrash\s*\|\|/);
+  assert.match(body, /runtimeDialogCoordinator\.showNotification\([\s\S]*?'success'\)/);
+});
+
 test('delete remains deferred on the legacy mirror', () => {
   const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
 
