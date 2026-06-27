@@ -29,6 +29,7 @@ import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
+import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
 import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
@@ -474,9 +475,16 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         });
         const runtimeAppDataStore = runtimeAppKernel.appDataStore;
         let conversations = runtimeAppDataStore.getConversations();
+        const liveConversationsBridge = createLiveConversationsBridge({
+            getConversations: () => runtimeAppDataStore.getConversations(),
+            replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations),
+            syncLegacyMirror: (nextConversations) => {
+                conversations = nextConversations;
+            }
+        });
         const activeConversationStore = createActiveConversationStore(null);
         const conversationStateAccess = createConversationStateAccess({
-            getConversations: () => conversations,
+            getConversations: () => liveConversationsBridge.getConversations(),
             getCurrentConversationId: () => activeConversationStore.getActiveConversationId(),
             setCurrentConversationId: (id) => activeConversationStore.setActiveConversationId(id)
         });
@@ -1094,7 +1102,7 @@ function renderMarkdownWithFormulas(text) {
                         normalizeConversationModel
                     });
                     const latestAppData = runtimeAppDataStore.replaceAll(normalizedData);
-                    conversations = latestAppData.conversations;
+                    liveConversationsBridge.syncLegacyMirror(latestAppData.conversations);
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
                     showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
@@ -1104,7 +1112,7 @@ function renderMarkdownWithFormulas(text) {
                         astras: [],
                         personalMemories: []
                     });
-                    conversations = latestAppData.conversations;
+                    liveConversationsBridge.syncLegacyMirror(latestAppData.conversations);
                     await removeItem(getAppDataKey());
                 }
             } else {
@@ -1114,7 +1122,7 @@ function renderMarkdownWithFormulas(text) {
                     astras: [],
                     personalMemories: []
                 });
-                conversations = latestAppData.conversations;
+                liveConversationsBridge.syncLegacyMirror(latestAppData.conversations);
             }
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
@@ -1407,7 +1415,7 @@ function renderMarkdownWithFormulas(text) {
         let createAstrasMenu;
         const submitInputCouncilState = {
             get config() { return runtimeConfigAccess.getConfig(); },
-            get conversations() { return conversations; },
+            get conversations() { return liveConversationsBridge.getConversations(); },
             get astras() { return runtimeAppDataStore.getAstras(); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
@@ -1533,8 +1541,8 @@ function renderMarkdownWithFormulas(text) {
         const settingsAuthProviderState = {
             get config() { return runtimeConfigAccess.getConfig(); },
             set config(next) { runtimeConfigAccess.replaceConfig(next); },
-            get conversations() { return conversations; },
-            set conversations(next) { conversations = next; },
+            get conversations() { return liveConversationsBridge.getConversations(); },
+            set conversations(next) { liveConversationsBridge.replaceConversations(next); },
             get folders() { return runtimeAppDataStore.getFolders(); },
             set folders(next) { runtimeAppDataStore.replaceFolders(next); },
             get astras() { return runtimeAppDataStore.getAstras(); },
@@ -1676,7 +1684,7 @@ function renderMarkdownWithFormulas(text) {
         legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
         const sidebarChatAstraRenderState = {
             get config() { return runtimeConfigAccess.getConfig(); },
-            get conversations() { return conversations; },
+            get conversations() { return liveConversationsBridge.getConversations(); },
             get folders() { return runtimeAppDataStore.getFolders(); },
             get astras() { return runtimeAppDataStore.getAstras(); },
             set astras(next) { runtimeAppDataStore.replaceAstras(next); },
@@ -1768,7 +1776,7 @@ function renderMarkdownWithFormulas(text) {
             document,
             elements: ALL_ELEMENTS,
             getFolders: () => runtimeAppDataStore.getFolders(),
-            getConversations: () => conversations,
+            getConversations: () => liveConversationsBridge.getConversations(),
             replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders),
             getDefaultFolder,
             saveAppData,
@@ -1817,8 +1825,8 @@ function renderMarkdownWithFormulas(text) {
         const transitionBusState = {
             get config() { return runtimeConfigAccess.getConfig(); },
             set config(next) { runtimeConfigAccess.replaceConfig(next); },
-            get conversations() { return conversations; },
-            set conversations(next) { conversations = next; },
+            get conversations() { return liveConversationsBridge.getConversations(); },
+            set conversations(next) { liveConversationsBridge.replaceConversations(next); },
             get folders() { return runtimeAppDataStore.getFolders(); },
             set folders(next) { runtimeAppDataStore.replaceFolders(next); },
             get astras() { return runtimeAppDataStore.getAstras(); },

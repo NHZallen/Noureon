@@ -98,7 +98,7 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
     'const data = JSON.parse(saved)',
     'const normalizedData = normalizeLoadedLegacyAppData({',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
-    'conversations = latestAppData.conversations'
+    'liveConversationsBridge.syncLegacyMirror(latestAppData.conversations)'
   ], 'loadAppData successful app data replacement');
   assert.doesNotMatch(loadAppDataBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(loadAppDataBody, /astras\s*=\s*latestAppData\.astras/);
@@ -113,21 +113,22 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
     'folders: []',
     'astras: []',
     'personalMemories: []',
-    'conversations = latestAppData.conversations',
+    'liveConversationsBridge.syncLegacyMirror(latestAppData.conversations)',
     'await removeItem(getAppDataKey())'
   ], 'loadAppData corruption fallback');
 
   assert.equal(countLiteral(loadAppDataBody, 'runtimeAppDataStore.replaceAll({'), 2);
-  assert.match(loadAppDataBody, /}\s*else\s*{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*}/);
+  assert.match(loadAppDataBody, /}\s*else\s*{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*liveConversationsBridge\.syncLegacyMirror\(latestAppData\.conversations\);\s*}/);
 });
 
 test('saveAppData reads the store snapshot while active conversation id uses the kernel store', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assertMarkersInOrder(fragment00Source, [
+    'const liveConversationsBridge = createLiveConversationsBridge({',
     'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
-    'getConversations: () => conversations',
+    'getConversations: () => liveConversationsBridge.getConversations()',
     'getCurrentConversationId: () => activeConversationStore.getActiveConversationId()',
     'setCurrentConversationId: (id) => activeConversationStore.setActiveConversationId(id)'
   ], 'conversationStateAccess active conversation bridge');
@@ -152,6 +153,7 @@ test('only conversations remains as the temporary compatibility mirror', () => {
   assertMarkersInOrder(legacyCoreSource, [
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
+    'const liveConversationsBridge = createLiveConversationsBridge({',
     'const activeConversationStore = createActiveConversationStore(null)'
   ], 'temporary app data mirror ownership');
   assertMarkersInOrder(legacyCoreSource, [
@@ -164,7 +166,10 @@ test('only conversations remains as the temporary compatibility mirror', () => {
   assert.doesNotMatch(legacyCoreSource, /let\s+activeConversationId\s*=/);
   assert.match(legacyCoreSource, /const\s+activeConversationStore\s*=\s*createActiveConversationStore\(null\)/);
 
-  assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*liveConversationsBridge\.getConversations\(\)/);
+  assert.match(legacyCoreSource, /syncLegacyMirror:\s*\(nextConversations\)\s*=>\s*{\s*conversations\s*=\s*nextConversations;\s*}/);
+  assert.ok((legacyCoreSource.match(/get conversations\(\)\s*{\s*return liveConversationsBridge\.getConversations\(\);\s*}/g) || []).length >= 4);
+  assert.ok((legacyCoreSource.match(/set conversations\(next\)\s*{\s*liveConversationsBridge\.replaceConversations\(next\);\s*}/g) || []).length >= 2);
   assert.doesNotMatch(legacyCoreSource, /let\s+folders\s*=/);
   assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*latestAppData\.folders/);
   assert.ok((legacyCoreSource.match(/get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/g) || []).length >= 3);

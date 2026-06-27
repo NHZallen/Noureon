@@ -245,9 +245,10 @@ test('active conversation id ownership lives in a small kernel store', () => {
   );
   assertMarkersInOrder(legacyCoreSource, [
     'let conversations = runtimeAppDataStore.getConversations()',
+    'const liveConversationsBridge = createLiveConversationsBridge({',
     'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
-    'getConversations: () => conversations',
+    'getConversations: () => liveConversationsBridge.getConversations()',
     'getCurrentConversationId: () => activeConversationStore.getActiveConversationId()',
     'setCurrentConversationId: (id) => activeConversationStore.setActiveConversationId(id)'
   ], 'active conversation store bridge');
@@ -258,6 +259,41 @@ test('active conversation id ownership lives in a small kernel store', () => {
   assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return runtimeAppDataStore\.getPersonalMemories\(\);\s*\}/);
   assert.match(legacyCoreSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
   assert.match(legacyCoreSource, /from\s+['"]\/src\/app\/runtime\/legacy-core\/model-registry\.js['"]/);
+});
+
+test('live conversations bridge owns low-risk access while the legacy mirror remains deferred', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const bridgePath = 'src/app/runtime/kernel/live-conversations-bridge.js';
+  const bridgeSource = readSource(bridgePath);
+  const loadAppDataBody = getConstFunctionBody(legacyCoreSource, 'loadAppData');
+  const startNewChatBody = getConstFunctionBody(legacyCoreSource, 'startNewChat');
+  const loadChatBody = getConstFunctionBody(legacyCoreSource, 'loadChat');
+
+  assert.equal(existsSync(projectFile(bridgePath)), true);
+  assert.match(bridgeSource, /export\s+function\s+createLiveConversationsBridge/);
+  assert.match(
+    legacyCoreSource,
+    /import\s+{\s*createLiveConversationsBridge\s*}\s+from\s+['"]\/src\/app\/runtime\/kernel\/live-conversations-bridge\.js['"]/
+  );
+  assertMarkersInOrder(legacyCoreSource, [
+    'let conversations = runtimeAppDataStore.getConversations()',
+    'const liveConversationsBridge = createLiveConversationsBridge({',
+    'getConversations: () => runtimeAppDataStore.getConversations()',
+    'replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations)',
+    'syncLegacyMirror: (nextConversations) => {',
+    'conversations = nextConversations',
+    'const activeConversationStore = createActiveConversationStore(null)'
+  ], 'live conversations bridge composition');
+
+  assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*liveConversationsBridge\.getConversations\(\)/);
+  assert.ok((legacyCoreSource.match(/get conversations\(\)\s*{\s*return liveConversationsBridge\.getConversations\(\);\s*}/g) || []).length >= 4);
+  assert.ok((legacyCoreSource.match(/set conversations\(next\)\s*{\s*liveConversationsBridge\.replaceConversations\(next\);\s*}/g) || []).length >= 2);
+  assert.equal((loadAppDataBody.match(/liveConversationsBridge\.syncLegacyMirror\(latestAppData\.conversations\)/g) || []).length, 3);
+
+  assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.match(startNewChatBody, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
+  assert.match(loadChatBody, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
+  assert.doesNotMatch(legacyCoreSource, /let\s+(activeConversationId|config|personalMemories|astras|folders)\s*=/);
 });
 
 test('config, personal memories, Astras, and folders use stores while conversations stays temporary', () => {
@@ -754,7 +790,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
     'normalizeCouncilConfig',
     'normalizeConversationModel',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
-    'conversations = latestAppData.conversations'
+    'liveConversationsBridge.syncLegacyMirror(latestAppData.conversations)'
   ], '00 app data load orchestration');
   assert.doesNotMatch(loadAppDataBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(loadAppDataBody, /astras\s*=\s*latestAppData\.astras/);
@@ -762,11 +798,11 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.match(catchBody, /console\.error\("Failed to parse app data:",\s*e\)/);
   assert.match(catchBody, /showNotification\(/);
   assert.match(catchBody, /const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\)/);
-  assert.match(catchBody, /conversations\s*=\s*latestAppData\.conversations/);
+  assert.match(catchBody, /liveConversationsBridge\.syncLegacyMirror\(latestAppData\.conversations\)/);
   assert.doesNotMatch(catchBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(catchBody, /astras\s*=\s*latestAppData\.astras/);
   assert.match(catchBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
-  assert.match(loadAppDataBody, /else\s*\{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*\}/);
+  assert.match(loadAppDataBody, /else\s*\{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*liveConversationsBridge\.syncLegacyMirror\(latestAppData\.conversations\);\s*\}/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
@@ -824,6 +860,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'defaultModelId: MODELS[0].id',
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
+    'const liveConversationsBridge = createLiveConversationsBridge({',
     'const activeConversationStore = createActiveConversationStore(null)'
   ], '00 app data store lexical bridge');
   assert.doesNotMatch(fragment00Source, /let\s+activeConversationId\s*=/);
@@ -835,7 +872,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assertMarkersInOrder(loadAppDataBody, [
     'const normalizedData = normalizeLoadedLegacyAppData({',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
-    'conversations = latestAppData.conversations'
+    'liveConversationsBridge.syncLegacyMirror(latestAppData.conversations)'
   ], '00 loadAppData store-backed successful replacement');
   assert.doesNotMatch(loadAppDataBody, /folders\s*=\s*latestAppData\.folders/);
   assert.doesNotMatch(loadAppDataBody, /astras\s*=\s*latestAppData\.astras/);
@@ -1067,7 +1104,7 @@ test('folder CRUD lifecycle ownership stays in a real module with legacy core wi
     'createFolderMenu',
     '} = createLegacyFolderLifecycle({',
     'getFolders: () => runtimeAppDataStore.getFolders()',
-    'getConversations: () => conversations',
+    'getConversations: () => liveConversationsBridge.getConversations()',
     'replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders)',
     'getDefaultFolder',
     'saveAppData',
@@ -1860,6 +1897,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'defaultModelId: MODELS[0].id',
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
     'let conversations = runtimeAppDataStore.getConversations()',
+    'const liveConversationsBridge = createLiveConversationsBridge({',
     'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
     'const runtimeConfigStore = runtimeAppKernel.configStore',
@@ -1874,7 +1912,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
   ], '00 runtime core composition');
 
   assert.match(fragment00Source, /getElements:\s*\(\)\s*=>\s*ALL_ELEMENTS/);
-  assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*liveConversationsBridge\.getConversations\(\)/);
   assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationStore\.getActiveConversationId\(\)/);
   assert.doesNotMatch(fragment00Source, /let\s+activeConversationId\s*=/);
   assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
@@ -2462,7 +2500,7 @@ test('conversation state access owns selected active conversation lookups withou
   assert.match(accessSource, /export\s+function\s+createConversationStateAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createConversationStateAccess\s*\}/);
   assert.equal((fragment00Source.match(/createConversationStateAccess\(\{/g) || []).length, 1);
-  assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*liveConversationsBridge\.getConversations\(\)/);
   assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationStore\.getActiveConversationId\(\)/);
   assert.match(fragment00Source, /setCurrentConversationId:\s*\(id\)\s*=>\s*activeConversationStore\.setActiveConversationId\(id\)/);
 
