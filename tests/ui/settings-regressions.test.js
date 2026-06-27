@@ -108,14 +108,14 @@ test('app typography uses restrained GPT-like system weights and mobile settings
 
 test('settings modal CSS surface selectors are mapped before extraction', () => {
   const settingsOnlySelectors = [
-    ['#settings-modal', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-modal > div', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-modal nav', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/mobile.css']],
+    ['#settings-modal', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal > div', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal nav', ['src/styles/settings.css', 'src/styles/settings-mobile.css']],
     ['#settings-nav', ['src/styles/settings.css']],
     ['.settings-sidebar', ['src/styles/regression-overrides.css']],
-    ['.settings-section', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['.settings-section.active', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['.settings-nav-item', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']]
+    ['.settings-section', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-section.active', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-nav-item', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']]
   ];
 
   for (const [selector, expectedFiles] of settingsOnlySelectors) {
@@ -125,17 +125,17 @@ test('settings modal CSS surface selectors are mapped before extraction', () => 
 
 test('mobile settings CSS surface is explicitly mapped before extraction', () => {
   const mobileSelectors = [
-    ['#settings-modal.visible', ['src/styles/settings-mobile.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-modal .flex-1.p-6.overflow-y-auto', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-mobile-header', ['src/styles/mobile.css']],
-    ['#settings-mobile-list', ['src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-mobile-title', ['src/styles/mobile.css', 'src/styles/typography.css']],
-    ['#settings-mobile-back-btn', ['src/styles/mobile.css', 'src/styles/typography.css']],
-    ['.settings-mobile-group', ['src/styles/mobile.css', 'src/styles/typography.css']],
-    ['.settings-mobile-card', ['src/styles/mobile.css']],
-    ['.settings-mobile-list-item', ['src/styles/mobile.css', 'src/styles/typography.css']],
-    ['.settings-mobile-row-icon', ['src/styles/mobile.css', 'src/styles/typography.css']],
-    ['.settings-mobile-row-label', ['src/styles/mobile.css']]
+    ['#settings-modal.visible', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal .flex-1.p-6.overflow-y-auto', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['#settings-mobile-header', ['src/styles/settings-mobile.css']],
+    ['#settings-mobile-list', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['#settings-mobile-title', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['#settings-mobile-back-btn', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-group', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-card', ['src/styles/settings-mobile.css']],
+    ['.settings-mobile-list-item', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-row-icon', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-row-label', ['src/styles/settings-mobile.css']]
   ];
 
   for (const [selector, expectedFiles] of mobileSelectors) {
@@ -144,10 +144,15 @@ test('mobile settings CSS surface is explicitly mapped before extraction', () =>
 
   const settingsCss = readUiSource('src/styles/settings.css');
   const settingsMobileCss = readUiSource('src/styles/settings-mobile.css');
+  const mobileCss = readUiSource('src/styles/mobile.css');
   assert.doesNotMatch(settingsCss, /#settings-modal\.visible[^{]*\{[^}]*padding:\s*0\.75rem\s*!important;/s);
   assert.match(settingsMobileCss, /#settings-modal\.visible[^{]*\{[^}]*padding:\s*0\.75rem\s*!important;/s);
   assert.match(settingsMobileCss, /#settings-modal\s+nav[^{]*\{[^}]*display:\s*none\s*!important;/s);
   assert.match(settingsMobileCss, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*padding:\s*1rem\s*!important;/s);
+  assert.doesNotMatch(mobileCss, /#settings-mobile-|\.settings-mobile-/);
+  assert.doesNotMatch(mobileCss, /settings-mobile-detail-open|settings-mobile-returning/);
+  assert.match(settingsMobileCss, /\.dark\s+#settings-modal\s+#settings-mobile-list/);
+  assert.match(settingsMobileCss, /\.dark\s+#settings-modal\s+\.settings-mobile-card/);
 });
 
 test('settings control selectors stay visible and scoped by surface', () => {
@@ -192,7 +197,7 @@ test('shared settings-adjacent selectors are classified as shared, not settings-
 test('dark mode, root variables, typography, and regression overrides remain classified as shared surfaces', () => {
   assertSelectorHits('.dark #settings-modal', [
     'src/styles/settings.css',
-    'src/styles/mobile.css',
+    'src/styles/settings-mobile.css',
     'src/styles/personalization.css'
   ]);
   assertSelectorHits(':root', ['src/styles/settings.css', 'src/styles/typography.css']);
@@ -220,18 +225,26 @@ test('settings CSS surface stays within a generous Phase 8 post-mobile-extractio
   const settingsMobileStats = assertFileWithinBudget(
     assert,
     ['src', 'styles', 'settings-mobile.css'],
-    { maxBytes: 5000, maxLines: 180 }
+    { maxBytes: 14000, maxLines: 450 }
+  );
+  const mobileStats = assertFileWithinBudget(
+    assert,
+    ['src', 'styles', 'mobile.css'],
+    { maxBytes: 8000, maxLines: 220 }
   );
 
   const settingsModalHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings.css']);
   const settingsMobileShellHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings-mobile.css']);
-  const mobileSurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css', 'src/styles/typography.css']);
+  const mobileCssSettingsHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css']);
+  const typographySurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/typography.css']);
 
   assert.ok(stats.lines > 1000, 'settings.css should still be tracked as the large settings surface after mobile shell extraction');
-  assert.ok(settingsMobileStats.lines > 0, 'settings-mobile.css should own extracted mobile settings shell rules');
+  assert.ok(settingsMobileStats.lines > 300, 'settings-mobile.css should own the mobile settings shell surface');
+  assert.ok(mobileStats.lines > 100, 'mobile.css should keep generic mobile app rules');
   assert.equal(settingsModalHits.length, 1);
   assert.equal(settingsMobileShellHits.length, 1);
-  assert.equal(mobileSurfaceHits.length, 2);
+  assert.equal(mobileCssSettingsHits.length, 0);
+  assert.equal(typographySurfaceHits.length, 1);
 });
 
 test('main css imports settings mobile styles after settings and before broad overrides', () => {
