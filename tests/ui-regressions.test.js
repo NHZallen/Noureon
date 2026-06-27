@@ -213,22 +213,24 @@ test('settings navigation starts below the modal header divider on desktop', () 
 
 test('mobile settings open to a GPT-style category list before drilling into details', () => {
   const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsMobileShellHelper = readUiSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
   const css = readUiSource('src/styles/main.css');
 
-  assert.match(settingsAuthProviderLifecycle, /const\s+isMobileSettingsViewport\s*=\s*\(\)\s*=>\s*window\.matchMedia\('\(max-width:\s*768px\)'\)\.matches/);
-  assert.match(settingsAuthProviderLifecycle, /mobileHeader\.id\s*=\s*'settings-mobile-header'/);
-  assert.match(settingsAuthProviderLifecycle, /mobileList\.id\s*=\s*'settings-mobile-list'/);
-  assert.match(settingsAuthProviderLifecycle, /class="settings-mobile-list-item settings-nav-item"/);
-  assert.match(settingsAuthProviderLifecycle, /id="settings-mobile-back-btn"/);
-  assert.match(settingsAuthProviderLifecycle, /const\s+SETTINGS_MOBILE_VIEW_TRANSITION_MS\s*=\s*280/);
-  assert.match(settingsAuthProviderLifecycle, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
-  assert.match(settingsAuthProviderLifecycle, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
-  assert.match(settingsAuthProviderLifecycle, /ALL_ELEMENTS\.settingsModal\.classList\.add\('settings-mobile-detail-open'\)/);
-  assert.match(settingsAuthProviderLifecycle, /settingsModal\.classList\.add\('settings-mobile-returning'\)/);
-  assert.match(settingsAuthProviderLifecycle, /setTimeout\(finishReturn,\s*SETTINGS_MOBILE_VIEW_TRANSITION_MS\)/);
+  assert.match(settingsAuthProviderLifecycle, /createSettingsMobileShellHelper/);
+  assert.match(settingsMobileShellHelper, /const\s+isMobileSettingsViewport\s*=\s*\(\)\s*=>\s*window\.matchMedia\('\(max-width:\s*768px\)'\)\.matches/);
+  assert.match(settingsMobileShellHelper, /mobileHeader\.id\s*=\s*'settings-mobile-header'/);
+  assert.match(settingsMobileShellHelper, /mobileList\.id\s*=\s*'settings-mobile-list'/);
+  assert.match(settingsMobileShellHelper, /class="settings-mobile-list-item settings-nav-item"/);
+  assert.match(settingsMobileShellHelper, /id="settings-mobile-back-btn"/);
+  assert.match(settingsMobileShellHelper, /const\s+SETTINGS_MOBILE_VIEW_TRANSITION_MS\s*=\s*280/);
+  assert.match(settingsMobileShellHelper, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
+  assert.match(settingsMobileShellHelper, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
+  assert.match(settingsMobileShellHelper, /ALL_ELEMENTS\.settingsModal\.classList\.add\('settings-mobile-detail-open'\)/);
+  assert.match(settingsMobileShellHelper, /settingsModal\.classList\.add\('settings-mobile-returning'\)/);
+  assert.match(settingsMobileShellHelper, /setTimeout\(finishReturn,\s*SETTINGS_MOBILE_VIEW_TRANSITION_MS\)/);
   assert.match(settingsAuthProviderLifecycle, /showSettingsMobileList\(\{\s*animate:\s*false\s*\}\)/);
-  assert.match(settingsAuthProviderLifecycle, /settings-mobile-list-item/);
-  assert.match(settingsAuthProviderLifecycle, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
+  assert.match(settingsMobileShellHelper, /settings-mobile-list-item/);
+  assert.match(settingsMobileShellHelper, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
   assert.doesNotMatch(settingsAuthProviderLifecycle, /const\s+setSettingsSection\s*=/);
   assert.doesNotMatch(settingsAuthProviderLifecycle, /accessibility:\s*'<svg[^']*m8 21 4-9 4 9/);
 

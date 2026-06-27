@@ -1165,6 +1165,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const apiKeyControlsPath = 'src/app/runtime/legacy-core/settings-api-key-controls.js';
   const outputTranslatorControlsPath = 'src/app/runtime/legacy-core/settings-output-translator-controls.js';
   const themeBubbleControlsPath = 'src/app/runtime/legacy-core/settings-theme-bubble-controls.js';
+  const mobileShellHelperPath = 'src/app/runtime/legacy-core/settings-mobile-shell-helper.js';
   const lifecycleSource = readSource(lifecyclePath);
   const structuredHelperSource = readSource(structuredHelperPath);
   const titleSummaryHelperSource = readSource(titleSummaryHelperPath);
@@ -1172,6 +1173,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const apiKeyControlsSource = readSource(apiKeyControlsPath);
   const outputTranslatorControlsSource = readSource(outputTranslatorControlsPath);
   const themeBubbleControlsSource = readSource(themeBubbleControlsPath);
+  const mobileShellHelperSource = readSource(mobileShellHelperPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
@@ -1181,6 +1183,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.equal(existsSync(projectFile(apiKeyControlsPath)), true);
   assert.equal(existsSync(projectFile(outputTranslatorControlsPath)), true);
   assert.equal(existsSync(projectFile(themeBubbleControlsPath)), true);
+  assert.equal(existsSync(projectFile(mobileShellHelperPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
   assert.match(titleSummaryHelperSource, /export\s+function\s+createSettingsTitleSummaryHelpers/);
@@ -1188,6 +1191,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(apiKeyControlsSource, /export\s+function\s+createSettingsApiKeyControls/);
   assert.match(outputTranslatorControlsSource, /export\s+function\s+createSettingsOutputTranslatorControls/);
   assert.match(themeBubbleControlsSource, /export\s+function\s+createSettingsThemeBubbleControls/);
+  assert.match(mobileShellHelperSource, /export\s+function\s+createSettingsMobileShellHelper/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(titleSummaryHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
@@ -1195,6 +1199,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.doesNotMatch(apiKeyControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(outputTranslatorControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(themeBubbleControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(mobileShellHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.match(
     lifecycleSource,
     /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
@@ -1247,6 +1252,22 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.doesNotMatch(lifecycleSource, /const\s+renderUserBubbleColorDropdown\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(lifecycleSource, /const\s+setTheme\s*=\s*async/);
   assert.doesNotMatch(lifecycleSource, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsMobileShellHelper\s*\}\s+from\s+['"]\.\/settings-mobile-shell-helper\.js['"]/
+  );
+  assert.match(lifecycleSource, /const\s+mobileShellHelper\s*=\s*createSettingsMobileShellHelper\(\{/);
+  assert.match(lifecycleSource, /handleLogout:\s*\(\.\.\.args\)\s*=>\s*handleLogout\(\.\.\.args\)/);
+  assert.match(lifecycleSource, /ensureSettingsMobileShell,\s*\n\s*renderSettingsMobileList,\s*\n\s*clearSettingsMobileViewTransition,/);
+  assert.match(mobileShellHelperSource, /const\s+renderSettingsMobileList\s*=/);
+  assert.match(mobileShellHelperSource, /const\s+ensureSettingsMobileShell\s*=/);
+  assert.match(mobileShellHelperSource, /const\s+showSettingsMobileList\s*=/);
+  assert.match(mobileShellHelperSource, /const\s+openSettingsMobileSection\s*=/);
+  assert.match(mobileShellHelperSource, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
+  assert.doesNotMatch(lifecycleSource, /const\s+renderSettingsMobileList\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(lifecycleSource, /const\s+ensureSettingsMobileShell\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(lifecycleSource, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
+  assert.doesNotMatch(lifecycleSource, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
@@ -3048,6 +3069,7 @@ test('settings mobile metadata helpers are isolated from the 02 runtime fragment
   const helperSource = readSource('src/app/legacy-runtime/features/settings-mobile-metadata.js');
   const fragmentSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsMobileShellHelperSource = readSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
   const helpers = await import(projectFile('src/app/legacy-runtime/features/settings-mobile-metadata.js'));
 
   assert.equal(typeof helpers.getSettingsMobileGroups, 'function');
@@ -3056,10 +3078,11 @@ test('settings mobile metadata helpers are isolated from the 02 runtime fragment
   assert.match(helperSource, /export\s+const\s+getSettingsMobileGroups\b/);
 
   assert.match(
-    settingsAuthProviderSource,
+    settingsMobileShellHelperSource,
     /import\s*\{[\s\S]*\bSETTINGS_MOBILE_ICON_MAP\b[\s\S]*\bgetSettingsMobileGroups\s+as\s+getSettingsMobileGroupsBase\b[\s\S]*\}\s*from\s+['"][^'"]*settings-mobile-metadata\.js['"];/
   );
-  assert.match(settingsAuthProviderSource, /getSettingsMobileGroupsBase\(\s*getSettingsText\s*\)/);
+  assert.match(settingsAuthProviderSource, /createSettingsMobileShellHelper/);
+  assert.match(settingsMobileShellHelperSource, /getSettingsMobileGroupsBase\(\s*getSettingsText\s*\)/);
   assert.doesNotMatch(fragmentSource, /const\s+SETTINGS_MOBILE_ICON_MAP\s*=/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });

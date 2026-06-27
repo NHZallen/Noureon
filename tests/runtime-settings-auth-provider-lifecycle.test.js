@@ -275,6 +275,30 @@ test('theme and bubble controls are composed through the extracted helper', () =
   assert.match(controlsSource, /const\s+updateThemeButtons\s*=/);
 });
 
+test('mobile settings shell is composed through the extracted helper', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const helperSource = readSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
+
+  assert.match(
+    source,
+    /import\s+\{\s*createSettingsMobileShellHelper\s*\}\s+from\s+['"]\.\/settings-mobile-shell-helper\.js['"]/
+  );
+  assert.match(source, /const\s+mobileShellHelper\s*=\s*createSettingsMobileShellHelper\(\{/);
+  assert.match(source, /elements:\s*ALL_ELEMENTS/);
+  assert.match(source, /handleLogout:\s*\(\.\.\.args\)\s*=>\s*handleLogout\(\.\.\.args\)/);
+  assert.match(source, /ensureSettingsMobileShell,\s*\n\s*renderSettingsMobileList,\s*\n\s*clearSettingsMobileViewTransition,/);
+  assert.match(source, /showSettingsMobileList,\s*\n\s*openSettingsMobileSection,\s*\n\s*isMobileSettingsViewport/);
+  assert.doesNotMatch(source, /const\s+renderSettingsMobileList\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(source, /const\s+ensureSettingsMobileShell\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(source, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
+  assert.doesNotMatch(source, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
+  assert.match(helperSource, /export\s+function\s+createSettingsMobileShellHelper/);
+  assert.match(helperSource, /const\s+renderSettingsMobileList\s*=/);
+  assert.match(helperSource, /const\s+ensureSettingsMobileShell\s*=/);
+  assert.match(helperSource, /const\s+showSettingsMobileList\s*=/);
+  assert.match(helperSource, /const\s+openSettingsMobileSection\s*=/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySettingsAuthProviderLifecycle(),
