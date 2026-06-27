@@ -300,6 +300,54 @@ test('active conversation id ownership lives in a small kernel store', () => {
   assert.match(legacyCoreSource, /from\s+['"]\/src\/app\/runtime\/legacy-core\/model-registry\.js['"]/);
 });
 
+test('local mirror state remains a temporary compatibility bridge before decomposition', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
+  const configStoreSource = readSource('src/app/runtime/kernel/config-store.js');
+  const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+
+  assert.match(appDataStoreSource, /export\s+function\s+createLegacyRuntimeAppDataStore/);
+  assert.match(appDataStoreSource, /replaceAll:\s*\(\{/);
+  assert.match(appDataStoreSource, /replaceConversations:\s*\(nextConversations\)\s*=>/);
+  assert.match(appDataStoreSource, /replaceFolders:\s*\(nextFolders\)\s*=>/);
+  assert.match(appDataStoreSource, /replaceAstras:\s*\(nextAstras\)\s*=>/);
+  assert.match(appDataStoreSource, /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>/);
+  assert.match(configStoreSource, /export\s+function\s+createLegacyRuntimeConfigStore/);
+  assert.match(configStoreSource, /const\s+getConfig\s*=\s*\(\)\s*=>\s*config/);
+  assert.match(configStoreSource, /const\s+replaceConfig\s*=\s*\(nextConfig\)\s*=>/);
+
+  assertMarkersInOrder(legacyCoreSource, [
+    'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
+    'let conversations = runtimeAppDataStore.getConversations()',
+    'let folders = runtimeAppDataStore.getFolders()',
+    'let astras = runtimeAppDataStore.getAstras()',
+    'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
+    'const activeConversationStore = createActiveConversationStore(null)'
+  ], 'temporary app data local mirror bridge');
+  assertMarkersInOrder(legacyCoreSource, [
+    'const runtimeConfigStore = runtimeAppKernel.configStore',
+    'let config = runtimeConfigStore.getConfig()',
+    'const runtimeConfigAccess = createRuntimeConfigAccess({',
+    'getConfig: () => runtimeConfigStore.getConfig()'
+  ], 'temporary config local mirror bridge');
+
+  assert.equal((legacyCoreSource.match(/\blet\s+conversations\s*=/g) || []).length, 1);
+  assert.equal((legacyCoreSource.match(/\blet\s+folders\s*=/g) || []).length, 1);
+  assert.equal((legacyCoreSource.match(/\blet\s+astras\s*=/g) || []).length, 1);
+  assert.equal((legacyCoreSource.match(/\blet\s+personalMemories\s*=/g) || []).length, 1);
+  assert.equal((legacyCoreSource.match(/\blet\s+config\s*=/g) || []).length, 1);
+  assert.doesNotMatch(legacyCoreSource, /let\s+activeConversationId\s*=/);
+  assert.doesNotMatch(legacyCoreSource, /let\s+(chatHistory|folderList|astraList|memoryList|runtimeConfig)\s*=/);
+
+  assert.match(legacyCoreSource, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
+  assert.match(legacyCoreSource, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
+  assert.match(legacyCoreSource, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
+  assert.match(transitionBusSource, /state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/);
+  assert.match(legacyCoreSource, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+  assert.match(legacyCoreSource, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
+  assert.doesNotMatch(legacyCoreSource, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
+});
+
 test('sensitive config export redaction boundary is explicit', () => {
   const redactionPath = 'src/app/runtime/security/sensitive-config-redaction.js';
   const sensitiveStorePath = 'src/app/runtime/security/sensitive-config-store.js';

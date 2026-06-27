@@ -88,6 +88,66 @@ test('replaceAll updates all pointers and returns the current pointer snapshot',
   assert.equal(store.getSnapshot().personalMemories, nextData.personalMemories);
 });
 
+test('getter arrays are live legacy pointers until mirror decomposition', () => {
+  const store = createLegacyRuntimeAppDataStore();
+
+  store.getConversations().push({ id: 'conv-live' });
+  store.getFolders().push({ id: 'folder-live' });
+  store.getAstras().push({ id: 'astra-live' });
+  store.getPersonalMemories().push({ id: 'memory-live' });
+
+  assert.deepEqual(store.getConversations(), [{ id: 'conv-live' }]);
+  assert.deepEqual(store.getFolders(), [{ id: 'folder-live' }]);
+  assert.deepEqual(store.getAstras(), [{ id: 'astra-live' }]);
+  assert.deepEqual(store.getPersonalMemories(), [{ id: 'memory-live' }]);
+  assert.equal(store.getSnapshot().conversations, store.getConversations());
+  assert.equal(store.getSnapshot().folders, store.getFolders());
+  assert.equal(store.getSnapshot().astras, store.getAstras());
+  assert.equal(store.getSnapshot().personalMemories, store.getPersonalMemories());
+});
+
+test('replaceAll moves live mutation to the new active arrays only', () => {
+  const store = createLegacyRuntimeAppDataStore({
+    initialConversations: [{ id: 'old-conv' }],
+    initialFolders: [{ id: 'old-folder' }],
+    initialAstras: [{ id: 'old-astra' }],
+    initialPersonalMemories: [{ id: 'old-memory' }]
+  });
+  const oldConversations = store.getConversations();
+  const oldFolders = store.getFolders();
+  const oldAstras = store.getAstras();
+  const oldPersonalMemories = store.getPersonalMemories();
+  const nextData = {
+    conversations: [{ id: 'new-conv' }],
+    folders: [{ id: 'new-folder' }],
+    astras: [{ id: 'new-astra' }],
+    personalMemories: [{ id: 'new-memory' }]
+  };
+
+  const snapshot = store.replaceAll(nextData);
+  snapshot.conversations.push({ id: 'new-conv-live' });
+  snapshot.folders.push({ id: 'new-folder-live' });
+  snapshot.astras.push({ id: 'new-astra-live' });
+  snapshot.personalMemories.push({ id: 'new-memory-live' });
+  oldConversations.push({ id: 'old-conv-stale' });
+  oldFolders.push({ id: 'old-folder-stale' });
+  oldAstras.push({ id: 'old-astra-stale' });
+  oldPersonalMemories.push({ id: 'old-memory-stale' });
+
+  assert.equal(store.getConversations(), nextData.conversations);
+  assert.equal(store.getFolders(), nextData.folders);
+  assert.equal(store.getAstras(), nextData.astras);
+  assert.equal(store.getPersonalMemories(), nextData.personalMemories);
+  assert.deepEqual(store.getConversations().map((item) => item.id), ['new-conv', 'new-conv-live']);
+  assert.deepEqual(store.getFolders().map((item) => item.id), ['new-folder', 'new-folder-live']);
+  assert.deepEqual(store.getAstras().map((item) => item.id), ['new-astra', 'new-astra-live']);
+  assert.deepEqual(store.getPersonalMemories().map((item) => item.id), ['new-memory', 'new-memory-live']);
+  assert.deepEqual(oldConversations.map((item) => item.id), ['old-conv', 'old-conv-stale']);
+  assert.deepEqual(oldFolders.map((item) => item.id), ['old-folder', 'old-folder-stale']);
+  assert.deepEqual(oldAstras.map((item) => item.id), ['old-astra', 'old-astra-stale']);
+  assert.deepEqual(oldPersonalMemories.map((item) => item.id), ['old-memory', 'old-memory-stale']);
+});
+
 test('app data store instances are independent', () => {
   const first = createLegacyRuntimeAppDataStore();
   const second = createLegacyRuntimeAppDataStore();

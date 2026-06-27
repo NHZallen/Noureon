@@ -148,6 +148,74 @@ test('saveAppData reads the store snapshot while active conversation id uses the
   assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
 });
 
+test('local mirrors remain temporary compatibility state before decomposition', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+
+  assertMarkersInOrder(legacyCoreSource, [
+    'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
+    'let conversations = runtimeAppDataStore.getConversations()',
+    'let folders = runtimeAppDataStore.getFolders()',
+    'let astras = runtimeAppDataStore.getAstras()',
+    'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
+    'const activeConversationStore = createActiveConversationStore(null)'
+  ], 'temporary app data mirror ownership');
+  assertMarkersInOrder(legacyCoreSource, [
+    'const runtimeConfigStore = runtimeAppKernel.configStore',
+    'let config = runtimeConfigStore.getConfig()',
+    'const runtimeConfigAccess = createRuntimeConfigAccess({',
+    'getConfig: () => runtimeConfigStore.getConfig()'
+  ], 'temporary config mirror ownership');
+  assert.doesNotMatch(legacyCoreSource, /let\s+activeConversationId\s*=/);
+  assert.match(legacyCoreSource, /const\s+activeConversationStore\s*=\s*createActiveConversationStore\(null\)/);
+
+  assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*conversations/);
+  assert.match(legacyCoreSource, /get folders\(\)\s*\{\s*return folders;\s*\}/);
+  assert.match(legacyCoreSource, /get astras\(\)\s*\{\s*return astras;\s*\}/);
+  assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return personalMemories;\s*\}/);
+  assert.match(legacyCoreSource, /get config\(\)\s*\{\s*return config;\s*\}/);
+
+  assert.match(legacyCoreSource, /personalMemories\s*=\s*latestAppData\.personalMemories/);
+  assert.match(
+    transitionBusSource,
+    /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
+  );
+  assert.match(legacyCoreSource, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+  assert.match(legacyCoreSource, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
+  assert.match(legacyCoreSource, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
+  assert.match(legacyCoreSource, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
+});
+
+test('mirror decomposition order is locked before the first extraction slice', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
+  const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+  const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
+  const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
+
+  assert.match(modelMemoryDashboardSource, /replacePersonalMemories/);
+  assert.match(transitionBusSource, /replacePersonalMemories:\s*\(nextPersonalMemories\)/);
+  assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return personalMemories;\s*\}/);
+
+  assert.match(legacyCoreSource, /let\s+config\s*=\s*runtimeConfigStore\.getConfig\(\)/);
+  assert.match(legacyCoreSource, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+
+  assert.match(sidebarChatAstraRenderSource, /replaceAstras/);
+  assert.match(folderLifecycleSource, /replaceFolders/);
+  assert.match(legacyCoreSource, /let\s+astras\s*=\s*runtimeAppDataStore\.getAstras\(\)/);
+  assert.match(legacyCoreSource, /let\s+folders\s*=\s*runtimeAppDataStore\.getFolders\(\)/);
+
+  assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.match(legacyCoreSource, /conversations\.unshift\(newConv\)/);
+  assert.match(legacyCoreSource, /conv\.deletedAt\s*=\s*new Date\(\)\.toISOString\(\)/);
+  assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*true/);
+  assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*false/);
+
+  // Future mirror removal order: personalMemories first, config second,
+  // astras/folders after their linked cleanup paths, conversations last.
+  assert.doesNotMatch(legacyCoreSource, /createConversationStore|createConversationsStore/);
+});
+
 test('00 transient conversation replacements preserve legacy ordering', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
