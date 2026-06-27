@@ -475,7 +475,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const runtimeAppDataStore = runtimeAppKernel.appDataStore;
         let conversations = runtimeAppDataStore.getConversations();
         let folders = runtimeAppDataStore.getFolders();
-        let astras = runtimeAppDataStore.getAstras();
         const activeConversationStore = createActiveConversationStore(null);
         const conversationStateAccess = createConversationStateAccess({
             getConversations: () => conversations,
@@ -1098,7 +1097,6 @@ function renderMarkdownWithFormulas(text) {
                     const latestAppData = runtimeAppDataStore.replaceAll(normalizedData);
                     conversations = latestAppData.conversations;
                     folders = latestAppData.folders;
-                    astras = latestAppData.astras;
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
                     showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
@@ -1110,7 +1108,6 @@ function renderMarkdownWithFormulas(text) {
                     });
                     conversations = latestAppData.conversations;
                     folders = latestAppData.folders;
-                    astras = latestAppData.astras;
                     await removeItem(getAppDataKey());
                 }
             } else {
@@ -1122,7 +1119,6 @@ function renderMarkdownWithFormulas(text) {
                 });
                 conversations = latestAppData.conversations;
                 folders = latestAppData.folders;
-                astras = latestAppData.astras;
             }
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
@@ -1373,7 +1369,7 @@ function renderMarkdownWithFormulas(text) {
         };
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,
-            getAstras: () => astras,
+            getAstras: () => runtimeAppDataStore.getAstras(),
             getActiveAstrasId: () => getActiveAstrasId(),
             getIsSelectionMode: () => isSelectionMode,
             setAstrasForConversation: (...args) => setAstrasForConversation(...args),
@@ -1416,7 +1412,7 @@ function renderMarkdownWithFormulas(text) {
         const submitInputCouncilState = {
             get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return conversations; },
-            get astras() { return astras; },
+            get astras() { return runtimeAppDataStore.getAstras(); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
             get abortController() { return abortController; },
@@ -1545,8 +1541,8 @@ function renderMarkdownWithFormulas(text) {
             set conversations(next) { conversations = next; },
             get folders() { return folders; },
             set folders(next) { folders = next; },
-            get astras() { return astras; },
-            set astras(next) { astras = next; },
+            get astras() { return runtimeAppDataStore.getAstras(); },
+            set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
             set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
             get uploadedFiles() { return uploadedFiles; },
@@ -1686,8 +1682,8 @@ function renderMarkdownWithFormulas(text) {
             get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return conversations; },
             get folders() { return folders; },
-            get astras() { return astras; },
-            set astras(next) { astras = next; },
+            get astras() { return runtimeAppDataStore.getAstras(); },
+            set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get currentUser() { return currentUser; },
             get editingAstrasId() { return editingAstrasId; },
             set editingAstrasId(next) { editingAstrasId = next; },
@@ -1743,10 +1739,7 @@ function renderMarkdownWithFormulas(text) {
             renderInputIndicators,
             renderCouncilControls,
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args),
-            replaceAstras: (nextAstras) => {
-                astras = runtimeAppDataStore.replaceAstras(nextAstras);
-                return astras;
-            }
+            replaceAstras: (nextAstras) => runtimeAppDataStore.replaceAstras(nextAstras)
         });
         ({
             renderFolders,
@@ -1835,8 +1828,8 @@ function renderMarkdownWithFormulas(text) {
             set conversations(next) { conversations = next; },
             get folders() { return folders; },
             set folders(next) { folders = next; },
-            get astras() { return astras; },
-            set astras(next) { astras = next; },
+            get astras() { return runtimeAppDataStore.getAstras(); },
+            set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
             set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
             get uploadedFiles() { return uploadedFiles; },
