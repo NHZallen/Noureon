@@ -299,6 +299,29 @@ test('mobile settings shell is composed through the extracted helper', () => {
   assert.match(helperSource, /const\s+openSettingsMobileSection\s*=/);
 });
 
+test('desktop settings section navigation is composed through the extracted helper', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const helperSource = readSource('src/app/runtime/legacy-core/settings-desktop-section-helper.js');
+
+  assert.match(
+    source,
+    /import\s+\{\s*createSettingsDesktopSectionHelper\s*\}\s+from\s+['"]\.\/settings-desktop-section-helper\.js['"]/
+  );
+  assert.match(source, /const\s+desktopSectionHelper\s*=\s*createSettingsDesktopSectionHelper\(\{/);
+  assert.match(source, /isMobileSettingsViewport,/);
+  assert.match(source, /showSettingsMobileList,/);
+  assert.match(source, /clearSettingsMobileViewTransition/);
+  assert.match(source, /const\s+navItems\s*=\s*bindDesktopSettingsSections\(\);/);
+  assert.match(source, /syncSettingsSectionForViewport\(navItems\);/);
+  assert.doesNotMatch(source, /item\.dataset\.settingsDesktopBound\s*=\s*'true'/);
+  assert.doesNotMatch(source, /item\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(source, /const\s+activeNavItem\s*=\s*ALL_ELEMENTS\.settingsNav\.querySelector/);
+  assert.match(helperSource, /export\s+function\s+createSettingsDesktopSectionHelper/);
+  assert.match(helperSource, /const\s+bindDesktopSettingsSections\s*=/);
+  assert.match(helperSource, /const\s+syncSettingsSectionForViewport\s*=/);
+  assert.match(helperSource, /settingsDesktopBound/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySettingsAuthProviderLifecycle(),

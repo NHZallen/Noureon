@@ -214,6 +214,7 @@ test('settings navigation starts below the modal header divider on desktop', () 
 test('mobile settings open to a GPT-style category list before drilling into details', () => {
   const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const settingsMobileShellHelper = readUiSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
+  const settingsDesktopSectionHelper = readUiSource('src/app/runtime/legacy-core/settings-desktop-section-helper.js');
   const css = readUiSource('src/styles/main.css');
 
   assert.match(settingsAuthProviderLifecycle, /createSettingsMobileShellHelper/);
@@ -228,7 +229,8 @@ test('mobile settings open to a GPT-style category list before drilling into det
   assert.match(settingsMobileShellHelper, /ALL_ELEMENTS\.settingsModal\.classList\.add\('settings-mobile-detail-open'\)/);
   assert.match(settingsMobileShellHelper, /settingsModal\.classList\.add\('settings-mobile-returning'\)/);
   assert.match(settingsMobileShellHelper, /setTimeout\(finishReturn,\s*SETTINGS_MOBILE_VIEW_TRANSITION_MS\)/);
-  assert.match(settingsAuthProviderLifecycle, /showSettingsMobileList\(\{\s*animate:\s*false\s*\}\)/);
+  assert.match(settingsAuthProviderLifecycle, /createSettingsDesktopSectionHelper/);
+  assert.match(settingsDesktopSectionHelper, /showSettingsMobileList\(\{\s*animate:\s*false\s*\}\)/);
   assert.match(settingsMobileShellHelper, /settings-mobile-list-item/);
   assert.match(settingsMobileShellHelper, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
   assert.doesNotMatch(settingsAuthProviderLifecycle, /const\s+setSettingsSection\s*=/);

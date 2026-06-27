@@ -1166,6 +1166,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const outputTranslatorControlsPath = 'src/app/runtime/legacy-core/settings-output-translator-controls.js';
   const themeBubbleControlsPath = 'src/app/runtime/legacy-core/settings-theme-bubble-controls.js';
   const mobileShellHelperPath = 'src/app/runtime/legacy-core/settings-mobile-shell-helper.js';
+  const desktopSectionHelperPath = 'src/app/runtime/legacy-core/settings-desktop-section-helper.js';
   const lifecycleSource = readSource(lifecyclePath);
   const structuredHelperSource = readSource(structuredHelperPath);
   const titleSummaryHelperSource = readSource(titleSummaryHelperPath);
@@ -1174,6 +1175,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const outputTranslatorControlsSource = readSource(outputTranslatorControlsPath);
   const themeBubbleControlsSource = readSource(themeBubbleControlsPath);
   const mobileShellHelperSource = readSource(mobileShellHelperPath);
+  const desktopSectionHelperSource = readSource(desktopSectionHelperPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
@@ -1184,6 +1186,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.equal(existsSync(projectFile(outputTranslatorControlsPath)), true);
   assert.equal(existsSync(projectFile(themeBubbleControlsPath)), true);
   assert.equal(existsSync(projectFile(mobileShellHelperPath)), true);
+  assert.equal(existsSync(projectFile(desktopSectionHelperPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
   assert.match(titleSummaryHelperSource, /export\s+function\s+createSettingsTitleSummaryHelpers/);
@@ -1192,6 +1195,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(outputTranslatorControlsSource, /export\s+function\s+createSettingsOutputTranslatorControls/);
   assert.match(themeBubbleControlsSource, /export\s+function\s+createSettingsThemeBubbleControls/);
   assert.match(mobileShellHelperSource, /export\s+function\s+createSettingsMobileShellHelper/);
+  assert.match(desktopSectionHelperSource, /export\s+function\s+createSettingsDesktopSectionHelper/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(titleSummaryHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
@@ -1200,6 +1204,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.doesNotMatch(outputTranslatorControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(themeBubbleControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(mobileShellHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(desktopSectionHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.match(
     lifecycleSource,
     /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
@@ -1268,6 +1273,19 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.doesNotMatch(lifecycleSource, /const\s+ensureSettingsMobileShell\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(lifecycleSource, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
   assert.doesNotMatch(lifecycleSource, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsDesktopSectionHelper\s*\}\s+from\s+['"]\.\/settings-desktop-section-helper\.js['"]/
+  );
+  assert.match(lifecycleSource, /const\s+desktopSectionHelper\s*=\s*createSettingsDesktopSectionHelper\(\{/);
+  assert.match(lifecycleSource, /const\s+navItems\s*=\s*bindDesktopSettingsSections\(\);/);
+  assert.match(lifecycleSource, /syncSettingsSectionForViewport\(navItems\);/);
+  assert.match(desktopSectionHelperSource, /const\s+bindDesktopSettingsSections\s*=/);
+  assert.match(desktopSectionHelperSource, /const\s+syncSettingsSectionForViewport\s*=/);
+  assert.match(desktopSectionHelperSource, /settingsDesktopBound/);
+  assert.doesNotMatch(lifecycleSource, /item\.dataset\.settingsDesktopBound\s*=\s*'true'/);
+  assert.doesNotMatch(lifecycleSource, /item\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /const\s+activeNavItem\s*=\s*ALL_ELEMENTS\.settingsNav\.querySelector/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/

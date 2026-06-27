@@ -13,6 +13,7 @@ import { createSettingsTitleSummaryHelpers } from './settings-title-summary-help
 import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.js';
 import { createSettingsThemeBubbleControls } from './settings-theme-bubble-controls.js';
 import { createSettingsMobileShellHelper } from './settings-mobile-shell-helper.js';
+import { createSettingsDesktopSectionHelper } from './settings-desktop-section-helper.js';
 
 const requiredDependencies = [
     'window',
@@ -384,6 +385,17 @@ const {
     openSettingsMobileSection,
     isMobileSettingsViewport
 } = mobileShellHelper;
+const desktopSectionHelper = createSettingsDesktopSectionHelper({
+    document,
+    elements: ALL_ELEMENTS,
+    isMobileSettingsViewport,
+    showSettingsMobileList,
+    clearSettingsMobileViewTransition
+});
+const {
+    bindDesktopSettingsSections,
+    syncSettingsSectionForViewport
+} = desktopSectionHelper;
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
     ensureCouncilTranslatorSettingsControls();
@@ -425,30 +437,8 @@ const setupSettingsModal = () => {
     renderUiColorOptions();
     renderTrash();
     renderSettingsMobileList();
-    const navItems = ALL_ELEMENTS.settingsNav.querySelectorAll('.settings-nav-item');
-    navItems.forEach(item => {
-        if (item.dataset.settingsDesktopBound === 'true') return;
-        item.dataset.settingsDesktopBound = 'true';
-        item.addEventListener('click', () => {
-            navItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            const sectionId = item.dataset.section + '-section';
-            document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
-            document.getElementById(sectionId).classList.add('active');
-        });
-    });
-    if (isMobileSettingsViewport()) {
-        showSettingsMobileList({ animate: false });
-    } else {
-        clearSettingsMobileViewTransition();
-        ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-detail-open', 'settings-mobile-returning');
-        const activeNavItem = ALL_ELEMENTS.settingsNav.querySelector('.settings-nav-item.active') || ALL_ELEMENTS.settingsNav.querySelector('.settings-nav-item');
-        if (activeNavItem) {
-            navItems.forEach(i => i.classList.toggle('active', i === activeNavItem));
-            document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
-            document.getElementById(`${activeNavItem.dataset.section}-section`)?.classList.add('active');
-        }
-    }
+    const navItems = bindDesktopSettingsSections();
+    syncSettingsSectionForViewport(navItems);
 };
 const saveSettings = async ({ close = true, notify = true } = {}) => {
     await persistApiKeyInputIntents();
