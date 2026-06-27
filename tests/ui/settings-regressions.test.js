@@ -10,6 +10,7 @@ import {
 const settingsSurfaceCssFiles = [
   'src/styles/settings.css',
   'src/styles/settings-mobile.css',
+  'src/styles/settings-api-keys.css',
   'src/styles/mobile.css',
   'src/styles/typography.css',
   'src/styles/regression-overrides.css',
@@ -44,6 +45,12 @@ test('settings API key controls use masked intent helpers and scoped clear butto
   assert.match(css, /\.api-key-input-group\s*\{/);
   assert.match(css, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
   assert.match(css, /\.api-key-clear-all-btn\s*\{[^}]*width:\s*100%;/s);
+
+  const settingsCss = readUiSource('src/styles/settings.css');
+  const settingsApiKeysCss = readUiSource('src/styles/settings-api-keys.css');
+  assert.doesNotMatch(settingsCss, /\.api-key-input-group\s*\{/);
+  assert.match(settingsApiKeysCss, /\.api-key-input-group\s*\{/);
+  assert.match(settingsApiKeysCss, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {
@@ -157,9 +164,9 @@ test('mobile settings CSS surface is explicitly mapped before extraction', () =>
 
 test('settings control selectors stay visible and scoped by surface', () => {
   const controlSelectors = [
-    ['.api-key-input-group', ['src/styles/settings.css']],
-    ['.api-key-clear-btn', ['src/styles/settings.css']],
-    ['.api-key-clear-all-btn', ['src/styles/settings.css']],
+    ['.api-key-input-group', ['src/styles/settings-api-keys.css']],
+    ['.api-key-clear-btn', ['src/styles/settings-api-keys.css']],
+    ['.api-key-clear-all-btn', ['src/styles/settings-api-keys.css']],
     ['.translator-picker-menu', ['src/styles/settings.css']],
     ['.translator-picker-button', ['src/styles/settings.css']],
     ['.translator-picker-option', ['src/styles/settings.css']],
@@ -177,6 +184,10 @@ test('settings control selectors stay visible and scoped by surface', () => {
   assert.match(css, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
   assert.match(css, /\.translator-picker-button[^{]*\{/);
   assert.match(css, /\.custom-output-mode-option[^{]*\{/);
+
+  const settingsCss = readUiSource('src/styles/settings.css');
+  assert.doesNotMatch(settingsCss, /\.api-key-clear-btn/);
+  assert.doesNotMatch(settingsCss, /\.api-key-clear-all-btn/);
 });
 
 test('shared settings-adjacent selectors are classified as shared, not settings-only', () => {
@@ -232,28 +243,40 @@ test('settings CSS surface stays within a generous Phase 8 post-mobile-extractio
     ['src', 'styles', 'mobile.css'],
     { maxBytes: 8000, maxLines: 220 }
   );
+  const apiKeyStats = assertFileWithinBudget(
+    assert,
+    ['src', 'styles', 'settings-api-keys.css'],
+    { maxBytes: 3000, maxLines: 100 }
+  );
 
   const settingsModalHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings.css']);
   const settingsMobileShellHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings-mobile.css']);
+  const settingsCssApiKeyHits = collectCssSelectorHits(/\.api-key-/, ['src/styles/settings.css']);
+  const apiKeySurfaceHits = collectCssSelectorHits(/\.api-key-/, ['src/styles/settings-api-keys.css']);
   const mobileCssSettingsHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css']);
   const typographySurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/typography.css']);
 
   assert.ok(stats.lines > 1000, 'settings.css should still be tracked as the large settings surface after mobile shell extraction');
   assert.ok(settingsMobileStats.lines > 300, 'settings-mobile.css should own the mobile settings shell surface');
   assert.ok(mobileStats.lines > 100, 'mobile.css should keep generic mobile app rules');
+  assert.ok(apiKeyStats.lines > 0, 'settings-api-keys.css should own API key control styles');
   assert.equal(settingsModalHits.length, 1);
   assert.equal(settingsMobileShellHits.length, 1);
+  assert.equal(settingsCssApiKeyHits.length, 0);
+  assert.equal(apiKeySurfaceHits.length, 1);
   assert.equal(mobileCssSettingsHits.length, 0);
   assert.equal(typographySurfaceHits.length, 1);
 });
 
-test('main css imports settings mobile styles after settings and before broad overrides', () => {
+test('main css imports settings surface styles before broad overrides', () => {
   const mainCss = readSource('src/styles/main.css');
   const settingsIndex = mainCss.indexOf("@import './settings.css';");
   const settingsMobileIndex = mainCss.indexOf("@import './settings-mobile.css';");
+  const settingsApiKeysIndex = mainCss.indexOf("@import './settings-api-keys.css';");
   const regressionIndex = mainCss.indexOf("@import './regression-overrides.css';");
 
   assert.ok(settingsIndex >= 0, 'main.css should import settings.css');
   assert.ok(settingsMobileIndex > settingsIndex, 'settings-mobile.css should refine settings.css');
-  assert.ok(regressionIndex > settingsMobileIndex, 'regression overrides should remain later in the cascade');
+  assert.ok(settingsApiKeysIndex > settingsMobileIndex, 'settings-api-keys.css should refine settings controls after settings-mobile.css');
+  assert.ok(regressionIndex > settingsApiKeysIndex, 'regression overrides should remain later in the cascade');
 });

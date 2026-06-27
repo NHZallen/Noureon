@@ -2692,6 +2692,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'model-council.css',
     'settings.css',
     'settings-mobile.css',
+    'settings-api-keys.css',
     'regression-overrides.css',
     'mobile.css',
     'typography.css'
