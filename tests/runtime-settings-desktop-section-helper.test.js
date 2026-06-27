@@ -27,14 +27,19 @@ function createClassList(initial = []) {
 
 function createElement({ section, active = false } = {}) {
   const listeners = new Map();
+  const listenerCounts = new Map();
   return {
     dataset: section ? { section } : {},
     classList: createClassList(active ? ['active'] : []),
     addEventListener(type, listener) {
       listeners.set(type, listener);
+      listenerCounts.set(type, (listenerCounts.get(type) || 0) + 1);
     },
     dispatch(type) {
       listeners.get(type)?.();
+    },
+    listenerCount(type) {
+      return listenerCounts.get(type) || 0;
     }
   };
 }
@@ -145,13 +150,12 @@ test('mobile viewport delegates section reset to mobile shell helper', () => {
 test('binding is idempotent for already-bound nav items', () => {
   const { helper, navItems } = createFixture();
   helper.bindDesktopSettingsSections();
-  navItems[0].addEventListener = () => {
-    throw new Error('should not rebind already-bound item');
-  };
 
   helper.bindDesktopSettingsSections();
 
   assert.equal(navItems[0].dataset.settingsDesktopBound, 'true');
+  assert.equal(navItems[0].listenerCount('click'), 1);
+  assert.equal(navItems[1].listenerCount('click'), 1);
 });
 
 test('import is inert', () => {

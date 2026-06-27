@@ -160,6 +160,23 @@ test('mobile settings list renders groups and logout action', () => {
   assert.deepEqual(calls, ['logout']);
 });
 
+test('mobile settings groups preserve the expected section order', () => {
+  const { helper } = createFixture();
+
+  const sections = helper.getSettingsMobileGroups()
+    .flatMap((group) => group.items.map((item) => item.section));
+
+  assert.deepEqual(sections, [
+    'personalization',
+    'memory',
+    'model-management',
+    'data-management',
+    'accessibility',
+    'trash',
+    'about'
+  ]);
+});
+
 test('clicking a mobile group opens the expected detail section', () => {
   const { document, helper, sections, settingsModal, title } = createFixture();
 
@@ -177,11 +194,12 @@ test('clicking a mobile group opens the expected detail section', () => {
 });
 
 test('back button returns to the mobile list and clears active sections', () => {
-  const { backButton, helper, sections, settingsModal, title } = createFixture();
+  const { backButton, calls, helper, sections, settingsModal, title } = createFixture();
 
   helper.openSettingsMobileSection('general');
   backButton.dispatch('click');
 
+  assert.deepEqual(calls, [['timeout', 280]]);
   assert.equal(settingsModal.classList.contains('settings-mobile-detail-open'), false);
   assert.equal(settingsModal.classList.contains('settings-mobile-returning'), false);
   assert.equal(sections.some((section) => section.classList.contains('active')), false);

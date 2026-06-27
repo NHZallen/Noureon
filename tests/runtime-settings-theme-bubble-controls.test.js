@@ -223,6 +223,20 @@ test('shared dropdown helper positions menu without global state', () => {
   assert.equal(menu.style.bottom, 'auto');
 });
 
+test('shared dropdown helper toggles the menu state on repeated button clicks', () => {
+  const { controls, elements } = createFixture();
+
+  controls.renderAiBubbleColorDropdown();
+  const button = elements.aiBubbleColorDropdown.children[0];
+  const menu = elements.aiBubbleColorDropdown.children[1];
+
+  button.dispatch('click');
+  assert.equal(menu.classList.contains('show'), true);
+
+  button.dispatch('click');
+  assert.equal(menu.classList.contains('show'), false);
+});
+
 test('import is inert', () => {
   assert.equal(typeof createSettingsThemeBubbleControls, 'function');
 });
