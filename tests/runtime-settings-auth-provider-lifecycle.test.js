@@ -331,6 +331,50 @@ test('shouldPerformWebSearch sends Gemini key through header instead of URL quer
   });
 });
 
+test('generateTitleAndSummary keeps conversation side effects in lifecycle', async () => {
+  const requests = [];
+  const conversation = {
+    id: 'conv-1',
+    title: 'Old title',
+    summary: '',
+    isNaming: true,
+    messages: [
+      { role: 'user', parts: [{ text: 'What is the capital of France?' }] },
+      { role: 'model', parts: [{ text: 'Paris.' }] }
+    ]
+  };
+  const { dependencies, calls } = createDependencies({
+    getApiKeyForProvider: (provider) => provider === 'gemini' ? 'gemini-secret-key' : '',
+    fetch: async (url, options) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        json: async () => ({
+          candidates: [
+            { content: { parts: [{ text: '{"title":"France","summary":"Asked about Paris"}' }] } }
+          ]
+        })
+      };
+    },
+    conversationStateAccess: { getCurrentConversationId: () => 'conv-1' }
+  });
+  dependencies.elements.headerTitle.textContent = '';
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  await lifecycle.generateTitleAndSummary(conversation);
+
+  assert.equal(conversation.title, 'France');
+  assert.equal(conversation.summary, 'Asked about Paris');
+  assert.equal(conversation.isNaming, false);
+  assert.equal(dependencies.elements.headerTitle.textContent, 'France');
+  assert.deepEqual(calls.filter((call) => call === 'saveAppData' || call === 'renderHistorySidebar'), [
+    'saveAppData',
+    'renderHistorySidebar'
+  ]);
+  assert.equal(requests[0].url.includes('?key='), false);
+  assert.equal(requests[0].options.headers['x-goog-api-key'], 'gemini-secret-key');
+});
+
 test('delete-all path uses injected storage adapter and preserves reload ordering', async () => {
   const { dependencies, calls } = createDependencies();
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);

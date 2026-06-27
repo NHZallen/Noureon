@@ -8,7 +8,8 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 const requestBuilderPaths = [
   'src/app/legacy-runtime/features/stream-api-call.js',
   'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js',
-  'src/app/runtime/legacy-core/settings-provider-structured-helpers.js'
+  'src/app/runtime/legacy-core/settings-provider-structured-helpers.js',
+  'src/app/runtime/legacy-core/settings-title-summary-helpers.js'
 ];
 
 test('Gemini request builders keep API keys out of request URLs', () => {

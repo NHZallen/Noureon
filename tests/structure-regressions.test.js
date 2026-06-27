@@ -1154,24 +1154,35 @@ test('folder CRUD lifecycle ownership stays in a real module with legacy core wi
 test('settings auth provider lifecycle ownership stays in a real module with legacy core wiring', () => {
   const lifecyclePath = 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
   const structuredHelperPath = 'src/app/runtime/legacy-core/settings-provider-structured-helpers.js';
+  const titleSummaryHelperPath = 'src/app/runtime/legacy-core/settings-title-summary-helpers.js';
   const lifecycleSource = readSource(lifecyclePath);
   const structuredHelperSource = readSource(structuredHelperPath);
+  const titleSummaryHelperSource = readSource(titleSummaryHelperPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.equal(existsSync(projectFile(structuredHelperPath)), true);
+  assert.equal(existsSync(projectFile(titleSummaryHelperPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
+  assert.match(titleSummaryHelperSource, /export\s+function\s+createSettingsTitleSummaryHelpers/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
+  assert.doesNotMatch(titleSummaryHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.match(
     lifecycleSource,
     /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
+  );
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsTitleSummaryHelpers\s*\}\s+from\s+['"]\.\/settings-title-summary-helpers\.js['"]/
   );
   assert.match(lifecycleSource, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
   assert.match(lifecycleSource, /getApiKeyForProvider,/);
   assert.match(lifecycleSource, /readErrorBody,/);
   assert.match(lifecycleSource, /cheapModelId:\s*CHEAP_MODEL_ID/);
+  assert.match(lifecycleSource, /const\s+titleSummaryHelpers\s*=\s*createSettingsTitleSummaryHelpers\(\{/);
+  assert.match(lifecycleSource, /callApiWithSchema\s*\n?\s*\}\);/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
@@ -1203,8 +1214,19 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+shouldPerformWebSearch\b/);
+  assert.doesNotMatch(lifecycleSource, /const\s+conversationHistory\s*=\s*conv\.messages/);
+  assert.doesNotMatch(lifecycleSource, /const\s+responseSchema\s*=\s*\{/);
+  assert.match(lifecycleSource, /const\s+generateTitleAndSummary\s*=\s*async\s*\(conv\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /const\s+data\s*=\s*await\s+requestTitleSummary\(conv\);/);
+  assert.match(lifecycleSource, /conv\.title\s*=\s*data\.title/);
+  assert.match(lifecycleSource, /conv\.summary\s*=\s*data\.summary/);
+  assert.match(lifecycleSource, /await\s+saveAppData\(\);/);
+  assert.match(lifecycleSource, /renderHistorySidebar\(\);/);
   assert.match(structuredHelperSource, /async\s+function\s+callApiWithSchema\b/);
   assert.match(structuredHelperSource, /async\s+function\s+shouldPerformWebSearch\b/);
+  assert.match(titleSummaryHelperSource, /function\s+buildTitleSummaryPrompt\b/);
+  assert.match(titleSummaryHelperSource, /TITLE_SUMMARY_RESPONSE_SCHEMA/);
+  assert.match(titleSummaryHelperSource, /async\s+function\s+requestTitleSummary\b/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
