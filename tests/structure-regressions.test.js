@@ -1413,8 +1413,9 @@ test('color contrast helper is shared without later-fragment lexical ownership',
   const helperPath = 'src/utils/color-contrast.js';
   const helperSource = readSource(helperPath);
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const historySidebarHelperSource = readSource('src/app/runtime/legacy-core/history-sidebar-helpers.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
-  const renderHistorySidebarContentBody = getBlockFromMarker(fragment00Source, 'function renderHistorySidebarContent()');
+  const renderHistorySidebarContentBody = getBlockFromMarker(historySidebarHelperSource, 'function renderHistorySidebarContent()');
   const applyUiThemeBody = getConstFunctionBody(coreTailSource, 'applyUiTheme');
 
   assert.equal(existsSync(projectFile(helperPath)), true, 'shared color contrast helper should exist');
@@ -2453,10 +2454,11 @@ test('runtime DOM access owns selected element reads through the extracted DOM r
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
   const inputMediaPlacementSource = readSource('src/app/runtime/features/input-media-placement.js');
+  const historySidebarHelperSource = readSource('src/app/runtime/legacy-core/history-sidebar-helpers.js');
   const renderArchivedChatsBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderArchivedChats');
   const renderFoldersBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'renderFolders');
-  const renderHistorySidebarBody = getConstFunctionBody(fragment00Source, 'renderHistorySidebar');
-  const renderHistorySidebarContentBody = getBlockFromMarker(fragment00Source, 'function renderHistorySidebarContent()');
+  const renderHistorySidebarBody = getBlockFromMarker(historySidebarHelperSource, 'function renderHistorySidebar(conversations = getConversations())');
+  const renderHistorySidebarContentBody = getBlockFromMarker(historySidebarHelperSource, 'function renderHistorySidebarContent()');
 
   assert.match(accessSource, /export\s+function\s+createRuntimeDomAccess/);
   assert.doesNotMatch(accessSource, /document\.|querySelector|getElementById|addEventListener/);
@@ -2487,13 +2489,14 @@ test('runtime DOM access owns selected element reads through the extracted DOM r
   assert.match(renderFoldersBody, /folderList\.appendChild\(folderElement\);/);
   assert.match(renderFoldersBody, /folderOptionsBtn\.addEventListener\('click'/);
 
-  assert.match(renderHistorySidebarBody, /const\s+historyList\s*=\s*runtimeDomAccess\.getRequiredElement\('historyList'\);/);
+  assert.match(fragment00Source, /getRequiredElement:\s*\(\.\.\.args\)\s*=>\s*runtimeDomAccess\.getRequiredElement\(\.\.\.args\)/);
+  assert.match(renderHistorySidebarBody, /const\s+historyList\s*=\s*getRequiredElement\('historyList'\);/);
   assert.doesNotMatch(renderHistorySidebarBody, /ALL_ELEMENTS\.historyList/);
   assert.match(renderHistorySidebarBody, /historyList\.innerHTML\s*=\s*'';/);
   assert.match(renderHistorySidebarBody, /historyList\.appendChild\(thinkingPlaceholder\);/);
-  assert.match(renderHistorySidebarBody, /historyList\.appendChild\(createConversationElement\(conv\)\);/);
+  assert.match(renderHistorySidebarBody, /historyList\.appendChild\(createConversationElement\(conversation\)\);/);
 
-  assert.match(renderHistorySidebarContentBody, /const\s+historySidebarList\s*=\s*runtimeDomAccess\.getRequiredElement\('historySidebarList'\);/);
+  assert.match(renderHistorySidebarContentBody, /const\s+historySidebarList\s*=\s*getRequiredElement\('historySidebarList'\);/);
   assert.doesNotMatch(renderHistorySidebarContentBody, /const\s+\{\s*historySidebarList\s*\}\s*=\s*ALL_ELEMENTS/);
   assert.match(renderHistorySidebarContentBody, /historySidebarList\.innerHTML\s*=\s*'';/);
   assert.match(renderHistorySidebarContentBody, /historySidebarList\.appendChild\(listItem\);/);

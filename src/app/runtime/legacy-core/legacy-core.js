@@ -137,217 +137,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             inputMediaPreview: runtimeDomAccess.getOptionalElement('filePreviewContainer'),
             settingsButton: runtimeDomAccess.getOptionalElement('settingsBtn')
         });
-        const { toggleHistorySidebar } = createHistorySidebarHelpers({
-            elements: ALL_ELEMENTS,
-            requestAnimationFrame,
-            setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args)
-        });
-
-    // 渲染歷史訊息側邊欄的內容
-    function renderHistorySidebarContent() {
-    const historySidebarList = runtimeDomAccess.getRequiredElement('historySidebarList');
-    const conv = getActiveConversation();
-    
-    historySidebarList.innerHTML = ''; // 先清空舊的列表
-
-
-    if (!conv || conv.messages.length === 0) {
-        historySidebarList.innerHTML = `<p class="p-4 text-sm text-center text-[var(--text-secondary)]">沒有歷史訊息</p>`;
-        return;
-    }
-
-
-    conv.messages.forEach((msg, index) => {
-        const textPart = msg.parts.find(p => p.text);
-        let snippet = textPart ? textPart.text : (msg.role === 'user' ? '用戶訊息' : 'AI 回覆');
-        
-        const icon = getMessageTypeIcon(msg);
-        
-        const listItem = document.createElement('div');
-        listItem.className = 'history-sidebar-item';
-        listItem.dataset.messageIndex = index;
-        
-        // ✨ --- 以下是新增的核心邏輯 --- ✨
-        
-        // 1. 判斷訊息角色並獲取對應顏色設定
-        const isUser = msg.role === 'user';
-        const colorConfig = isUser ? USER_BUBBLE_COLORS : AI_BUBBLE_COLORS;
-        const currentConfig = runtimeConfigAccess.getConfig();
-        const colorName = isUser ? currentConfig.userBubbleColor : currentConfig.aiBubbleColor;
-        
-        // 2. 根據當前主題（淺色/深色）取得正確的顏色碼
-        const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-        const bgColor = (colorConfig[colorName] || colorConfig['default'])[theme];
-
-
-        // 3. 應用背景色，並稍微降低飽和度/增加透明度，讓它不那麼刺眼
-        // 我們使用 RGBA 來添加透明度
-        const rgbaColor = hexToRgba(bgColor, 0.4); // 40% 的透明度
-        listItem.style.backgroundColor = rgbaColor;
-
-
-        // 4. 根據背景色，自動決定文字顏色（黑或白）以確保可讀性
-        listItem.style.color = getTextColorForBackground(bgColor);
-        
-        // ✨ --- 新增邏輯結束 --- ✨
-
-
-        listItem.textContent = icon + snippet;
-        historySidebarList.appendChild(listItem);
-    });
-}
-
-
-    // 處理歷史訊息側邊欄的點擊事件
-    function setupHistorySidebarInteractions() {
-        const { historySidebarList, messageList } = ALL_ELEMENTS;
-
-
-        historySidebarList.addEventListener('click', (e) => {
-            const item = e.target.closest('.history-sidebar-item');
-            if (!item) return;
-
-
-            const messageIndex = item.dataset.messageIndex;
-            if (messageIndex === undefined) return;
-
-
-            // 根據索引找到主聊天視窗中對應的那則訊息
-            const targetMessageElement = messageList.querySelector(`[data-message-index="${messageIndex}"]`);
-
-
-            if (targetMessageElement) {
-                // 讓訊息滾動到畫面中央
-                targetMessageElement.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-
-
-                // 添加高亮效果
-                const bubble = targetMessageElement.querySelector('.message-bubble');
-                if (bubble) {
-                    bubble.classList.add('message-highlight');
-                    // 1.5秒後移除高亮效果
-                    setTimeout(() => {
-                        bubble.classList.remove('message-highlight');
-                    }, 1500);
-                }
-
-
-                // 點擊後自動關閉側邊欄
-                toggleHistorySidebar(false);
-            }
-        });
-    }
-
-
-    // 設定觸發歷史訊息側邊欄的各種機制
-    function setupHistorySidebarTriggers() {
-    const { chatContainer, historySidebar, historySidebarTriggerZone, historySidebarOverlay } = ALL_ELEMENTS;
-
-
-    // --- 點擊遮罩層來關閉 ---
-    // 這是解決手機版關不掉問題最可靠的方法！
-    historySidebarOverlay.addEventListener('click', () => {
-        historySidebarOverlay.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-
-
-    historySidebarOverlay.addEventListener('touchend', (e) => {
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-
-
-        const deltaX = touchEndX - touchStartX;
-        const deltaY = touchEndY - touchStartY;
-        
-        // 如果是向右滑動超過 50 像素，且不是垂直滑動
-        if (deltaX > 50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
-            toggleHistorySidebar(false); // 執行關閉
-        }
-    }, { passive: true });
-        toggleHistorySidebar(false);
-    });
-
-
-    // --- 電腦版：滑鼠懸停 ---
-    historySidebarTriggerZone.addEventListener('mouseenter', () => {
-        renderHistorySidebarContent(); 
-        toggleHistorySidebar(true);
-    });
-
-
-    // 當滑鼠從側邊欄或遮罩層移開時，才關閉
-    document.body.addEventListener('mousemove', (e) => {
-        if (historySidebar.classList.contains('visible')) {
-            const isOverSidebar = historySidebar.contains(e.target);
-            const isOverTrigger = historySidebarTriggerZone.contains(e.target);
-            if (!isOverSidebar && !isOverTrigger) {
-                toggleHistorySidebar(false);
-            }
-        }
-    });
-
-
-    // --- 手機版：右往左滑動打開 ---
-    let touchStartX = 0;
-    let touchStartY = 0;
-
-
-    chatContainer.addEventListener('touchstart', (e) => {
-        // ✨ 修改：如果使用者按在表格滾動容器內，就不紀錄滑動起點（等於停用側邊欄手勢）
-        if (e.target.closest('.table-scroll-container')) {
-            touchStartX = null; // 設為 null 標記為無效
-            return;
-        }
-        
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-
-
-    chatContainer.addEventListener('touchend', (e) => {
-        // ✨ 修改：如果起點是無效的 (null)，表示剛才按在表格上，直接結束不處理
-        if (touchStartX === null) return;
-
-
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-        
-        const deltaX = touchEndX - touchStartX;
-        const deltaY = touchEndY - touchStartY;
-
-
-        if (deltaX < -50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
-            renderHistorySidebarContent();
-            toggleHistorySidebar(true);
-        }
-    }, { passive: true });
-
-
-    // --- 手機版：在側邊欄上左往右滑動來關閉 (保留此快捷操作) ---
-    historySidebar.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-
-
-    historySidebar.addEventListener('touchend', (e) => {
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-
-
-        const deltaX = touchEndX - touchStartX;
-        const deltaY = touchEndY - touchStartY;
-        
-        if (deltaX > 50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
-            toggleHistorySidebar(false);
-        }
-    }, { passive: true });
-}
         import { compareVersions } from '/src/app/legacy-runtime/features/version-compare.js';
         const FOLDER_COLORS = {
             black: '#000000',gray: '#808080', red: '#f87171', yellow: '#facc15', green: '#4ade80',
@@ -1174,6 +963,36 @@ function renderMarkdownWithFormulas(text) {
             if (conv) normalizeConversationModel(conv);
             return conv;
         };
+        const historySidebarHelpers = createHistorySidebarHelpers({
+            document,
+            elements: ALL_ELEMENTS,
+            getRequiredElement: (...args) => runtimeDomAccess.getRequiredElement(...args),
+            getActiveConversation,
+            getMessageTypeIcon,
+            userBubbleColors: USER_BUBBLE_COLORS,
+            aiBubbleColors: AI_BUBBLE_COLORS,
+            getConfig: () => runtimeConfigAccess.getConfig(),
+            hexToRgba,
+            getTextColorForBackground,
+            getConversations: () => liveConversationsBridge.getConversations(),
+            createConversationElement: (...args) => createConversationElement(...args),
+            getNamingText: () => i18n[runtimeConfigAccess.getUiLanguage()].naming || 'AI思考中...',
+            requestAnimationFrame,
+            setTimeout,
+            setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args)
+        });
+        const {
+            renderHistorySidebarContent,
+            setupHistorySidebarInteractions,
+            setupHistorySidebarTriggers,
+            toggleHistorySidebar
+        } = historySidebarHelpers;
+        const renderHistorySidebar = () => {
+            const currentConversations = liveConversationsBridge.getConversations();
+            const sortedConversations = currentConversations
+                .filter(historySidebarHelpers.isVisibleConversation);
+            return historySidebarHelpers.renderHistorySidebar(sortedConversations);
+        };
         const runtimeRenderCoordinator = createRuntimeRenderCoordinator({
             renderHistorySidebar: () => renderHistorySidebar(),
             renderFolders: () => renderFolders(),
@@ -1186,39 +1005,6 @@ function renderMarkdownWithFormulas(text) {
             logger: console
         });
         const renderAll = (...args) => runtimeRenderCoordinator.renderAll(...args);
-        const renderHistorySidebar = () => {
-            const historyList = runtimeDomAccess.getRequiredElement('historyList');
-            historyList.innerHTML = '';
-            const currentConversations = liveConversationsBridge.getConversations();
-            const sortedConversations = currentConversations
-                .filter(c => !c.archived && !c.folderId && !c.deletedAt)
-                .sort((a, b) => {
-                    if (a.pinned && !b.pinned) return -1;
-                    if (!a.pinned && b.pinned) return 1;
-                    const dateB = b.lastUpdatedAt || b.createdAt;
-                    const dateA = a.lastUpdatedAt || a.createdAt;
-                    return new Date(dateB) - new Date(dateA);
-                });
-            sortedConversations.forEach(conv => {
-                if (conv.isTemporary) {
-                    return;
-                }
-                if (conv.isNaming) {
-                    const thinkingPlaceholder = document.createElement('div');
-                    thinkingPlaceholder.className = 'sidebar-item p-3 rounded-lg flex items-center gap-3 text-[var(--text-secondary)] italic';
-                    thinkingPlaceholder.innerHTML = `
-                        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span data-lang-key="naming">${i18n[runtimeConfigAccess.getUiLanguage()].naming || 'AI思考中...'}</span>
-                    `;
-                    historyList.appendChild(thinkingPlaceholder);
-                    return;
-                }
-                historyList.appendChild(createConversationElement(conv));
-            });
-        };
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,
             getAstras: () => runtimeAppDataStore.getAstras(),
