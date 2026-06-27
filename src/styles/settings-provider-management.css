@@ -1,0 +1,110 @@
+#model-management-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.35rem !important;
+}
+
+#model-management-list .collapsible-section {
+    margin-left: 0 !important;
+}
+
+#model-management-list .collapsible-summary {
+    border-radius: 0.75rem !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.86rem !important;
+    font-weight: 500 !important;
+}
+
+#model-management-list .collapsible-content {
+    padding-left: 0.5rem !important;
+    border-left: 1px solid var(--gpt-border) !important;
+}
+
+.model-management-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto auto auto !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
+    min-height: 3rem !important;
+    padding: 0.45rem 0.55rem !important;
+    border: 1px solid transparent !important;
+    border-radius: 0.75rem !important;
+    background: transparent !important;
+}
+
+.model-management-item:hover {
+    background: var(--gpt-subtle) !important;
+}
+
+.model-management-name {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: var(--text-primary) !important;
+    font-size: 0.93rem !important;
+    font-weight: 500 !important;
+}
+
+.model-default-radio {
+    accent-color: var(--gpt-primary-action-bg) !important;
+}
+
+.model-order-controls {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+}
+
+@media (max-width: 768px) {
+    .model-management-item {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        gap: 0.4rem !important;
+    }
+
+    .model-order-controls {
+        grid-column: 1 / -1 !important;
+        justify-self: end !important;
+    }
+}
+
+#model-management-list .collapsible-summary,
+.model-management-name {
+    color: var(--gpt-control-text) !important;
+}
+
+/* Model list icon controls are plain icons, not pill buttons. */
+.model-management-item .model-row-action,
+#settings-modal .model-management-item .model-row-action {
+    width: 1.85rem !important;
+    height: 1.85rem !important;
+    min-height: 1.85rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0.4rem !important;
+    background: transparent !important;
+    color: var(--gpt-icon) !important;
+    box-shadow: none !important;
+}
+
+.model-management-item .model-row-action:hover,
+#settings-modal .model-management-item .model-row-action:hover {
+    background: #f2f2f2 !important;
+    color: #000000 !important;
+}
+
+.dark .model-management-item .model-row-action:hover,
+.dark #settings-modal .model-management-item .model-row-action:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.model-management-item .model-row-action:active,
+#settings-modal .model-management-item .model-row-action:active {
+    background: #eeeeee !important;
+}
+
+.dark .model-management-item .model-row-action:active,
+.dark #settings-modal .model-management-item .model-row-action:active {
+    background: rgba(255, 255, 255, 0.18) !important;
+}

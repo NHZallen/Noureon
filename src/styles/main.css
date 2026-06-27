@@ -13,6 +13,7 @@
 @import './settings-api-keys.css';
 @import './settings-output-translator.css';
 @import './settings-theme-bubble.css';
+@import './settings-provider-management.css';
 @import './regression-overrides.css';
 @import './mobile.css';
 @import './typography.css';
