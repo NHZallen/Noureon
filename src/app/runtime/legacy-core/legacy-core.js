@@ -1271,7 +1271,8 @@ function renderMarkdownWithFormulas(text) {
         });
         const showArchivedChatPreview = (id, event) => {
             event?.stopPropagation();
-            const conv = conversations.find(c => c.id === id);
+            const currentConversations = liveConversationsBridge.getConversations();
+            const conv = currentConversations.find(c => c.id === id);
             if (!conv) return;
             ALL_ELEMENTS.viewArchivedTitle.textContent = conv.title;
             const contentContainer = ALL_ELEMENTS.viewArchivedContent;
@@ -1296,7 +1297,8 @@ function renderMarkdownWithFormulas(text) {
             itemToRename = { id, type };
             let currentTitle = '';
             if (type === 'conversation') {
-                const conv = conversations.find(c => c.id === id);
+                const currentConversations = liveConversationsBridge.getConversations();
+                const conv = currentConversations.find(c => c.id === id);
                 if (conv) currentTitle = conv.title;
             } else if (type === 'folder') {
                 const folder = runtimeAppDataStore.getFolders().find(f => f.id === id);
@@ -1342,7 +1344,8 @@ function renderMarkdownWithFormulas(text) {
         const renderHistorySidebar = () => {
             const historyList = runtimeDomAccess.getRequiredElement('historyList');
             historyList.innerHTML = '';
-            const sortedConversations = conversations
+            const currentConversations = liveConversationsBridge.getConversations();
+            const sortedConversations = currentConversations
                 .filter(c => !c.archived && !c.folderId && !c.deletedAt)
                 .sort((a, b) => {
                     if (a.pinned && !b.pinned) return -1;
