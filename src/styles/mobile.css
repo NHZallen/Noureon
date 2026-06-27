@@ -441,5 +441,51 @@
         font-size: 1.05rem !important;
         font-weight: 700 !important;
     }
+
+    .dark #settings-modal > div,
+    .dark #settings-modal .flex.flex-1.overflow-hidden,
+    .dark #settings-modal #settings-mobile-header,
+    .dark #settings-modal #settings-mobile-list,
+    .dark #settings-modal .flex-1.p-6.overflow-y-auto {
+        background: var(--modal-bg) !important;
+    }
+
+    .dark #settings-modal .settings-mobile-card,
+    .dark #settings-modal .settings-mobile-list-item,
+    .dark #settings-modal .settings-mobile-list-item.settings-nav-item {
+        border-color: var(--border-color) !important;
+        background: var(--input-field-bg) !important;
+        color: var(--text-primary) !important;
+    }
+
+    .dark #settings-modal .settings-mobile-list-item + .settings-mobile-list-item {
+        border-color: var(--border-color) !important;
+    }
+
+    .dark #settings-modal #settings-mobile-title,
+    .dark #settings-modal .settings-mobile-row-icon,
+    .dark #settings-modal .settings-mobile-row-label {
+        color: var(--text-primary) !important;
+    }
+
+    .dark #settings-modal .settings-mobile-group-title,
+    .dark #settings-modal.settings-mobile-detail-open .settings-section > h3,
+    .dark #settings-modal .settings-mobile-chevron {
+        color: var(--text-secondary) !important;
+    }
+
+    .dark #settings-modal #close-settings-btn,
+    .dark #settings-modal #settings-mobile-back-btn {
+        border-color: var(--border-color) !important;
+        background: var(--input-field-bg) !important;
+        color: var(--text-primary) !important;
+    }
+
+    .dark #settings-modal #close-settings-btn::before,
+    .dark #settings-modal #settings-mobile-back-btn svg,
+    .dark #settings-modal #settings-mobile-back-btn svg * {
+        color: var(--text-primary) !important;
+        stroke: currentColor !important;
+    }
 }
 
