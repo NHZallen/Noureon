@@ -6,6 +6,11 @@ import { projectFile, readSource } from './helpers/source-guards.js';
 
 const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
 const demoModulePath = 'src/app/runtime/features/demo-model-homepage.js';
+const demoModuleUrl = new URL(`../${demoModulePath}`, import.meta.url);
+const demoModuleExists = existsSync(demoModuleUrl);
+const demoModule = demoModuleExists ? await import(demoModuleUrl.href) : {};
+const { setupDemoModelHomepage } = demoModule;
+const demoModuleSource = demoModuleExists ? readSource(demoModulePath) : '';
 const domContentLoadedMarker = "document.addEventListener('DOMContentLoaded', () => {";
 const expectedModelIds = ['proMax', 'proPV', 'pro', 'plusPV', 'mini', 'mill', 'nano'];
 
@@ -66,7 +71,11 @@ function getDemoDomContentLoadedBody() {
 }
 
 const demoSetupBody = getDemoDomContentLoadedBody();
-const runDemoSetup = new Function('document', 'demoConversations', demoSetupBody);
+
+function runDemoSetup(document, demoConversations) {
+  assert.equal(typeof setupDemoModelHomepage, 'function', 'demo homepage helper should be exported');
+  return setupDemoModelHomepage({ document, demoConversations });
+}
 
 function createFixture({ includeDemoSurface = true } = {}) {
   const window = new Window();
@@ -135,8 +144,9 @@ test('selecting a demo model updates the active button, visible content, and tit
   }
 });
 
-test('empty demo data and an absent demo surface preserve the current graceful boundaries', () => {
+test('empty or missing demo data and an absent demo surface are graceful', () => {
   const emptyDataFixture = createFixture();
+  const missingDataFixture = createFixture();
   const missingSurfaceFixture = createFixture({ includeDemoSurface: false });
   try {
     assert.doesNotThrow(() => runDemoSetup(emptyDataFixture.document, {}));
@@ -145,26 +155,43 @@ test('empty demo data and an absent demo surface preserve the current graceful b
       expectedModelIds.length
     );
 
-    assert.doesNotThrow(() => runDemoSetup(missingSurfaceFixture.document, undefined));
+    assert.doesNotThrow(() => runDemoSetup(missingDataFixture.document, undefined));
     assert.equal(
-      missingSurfaceFixture.document.getElementById('auth-container').classList.contains('visible'),
-      true
+      missingDataFixture.document.querySelectorAll('#demo-chat-window .demo-chat-content').length,
+      expectedModelIds.length
     );
+
+    assert.doesNotThrow(() => runDemoSetup(missingSurfaceFixture.document, undefined));
   } finally {
     emptyDataFixture.window.close();
+    missingDataFixture.window.close();
     missingSurfaceFixture.window.close();
   }
 });
 
-test('demo setup and startup visibility remain inline without runtime contract bindings', () => {
-  assert.equal(existsSync(projectFile(demoModulePath)), false);
+test('legacy core keeps startup wiring while the helper owns demo rendering without bindings', () => {
+  assert.equal(existsSync(projectFile(demoModulePath)), true);
+  assert.equal(typeof setupDemoModelHomepage, 'function');
   assert.match(legacyCoreSource, /document\.addEventListener\('DOMContentLoaded',\s*\(\)\s*=>\s*\{/);
+  assert.match(
+    legacyCoreSource,
+    /import\s+\{\s*setupDemoModelHomepage\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/demo-model-homepage\.js['"]/
+  );
   assert.match(demoSetupBody, /getElementById\('auth-container'\)\.classList\.add\('visible'\)/);
-  assert.match(demoSetupBody, /const\s+demoModels\s*=\s*\[/);
-  assert.match(demoSetupBody, /document\.querySelector\('\.demo-model-selector'\)/);
-  assert.match(demoSetupBody, /contentDiv\.innerHTML\s*=\s*demoConversations\[model\.id\]/);
-  assert.doesNotMatch(
+  assert.match(
     demoSetupBody,
+    /setupDemoModelHomepage\(\{\s*document,\s*demoConversations\s*\}\)/
+  );
+  assert.doesNotMatch(demoSetupBody, /const\s+demoModels\s*=|\.demo-model-selector|contentDiv/);
+  assert.match(demoModuleSource, /export\s+function\s+setupDemoModelHomepage\s*\(/);
+  assert.match(demoModuleSource, /document\.querySelector\('\.demo-model-selector'\)/);
+  assert.match(demoModuleSource, /contentDiv\.innerHTML\s*=/);
+  assert.doesNotMatch(
+    demoModuleSource,
     /legacyRuntimeContext|registerLazyBinding|resolveBinding|resolveOptionalBinding/
+  );
+  assert.doesNotMatch(
+    demoModuleSource,
+    /runtime-entry|app-bootstrap|startup-lifecycle|sidebar|settings|submit|input|globalThis/
   );
 });
