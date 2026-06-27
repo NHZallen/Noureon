@@ -61,6 +61,9 @@ test('shared source guard helper exposes file lookup, source reading, and budget
   assert.match(helperSource, /export function countLines/);
   assert.match(helperSource, /export function fileStats/);
   assert.match(helperSource, /export function assertFileWithinBudget/);
+  assert.match(helperSource, /export function assertSourceContains/);
+  assert.match(helperSource, /export function assertSourceDoesNotContain/);
+  assert.match(helperSource, /export function collectCssSelectorHits/);
   assert.equal(countLines('one\ntwo'), 2);
   assert.equal(typeof fileStats('tests', 'ui-regressions.test.js').bytes, 'number');
 });

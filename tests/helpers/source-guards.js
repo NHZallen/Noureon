@@ -59,6 +59,22 @@ export function assertFileWithinBudget(assert, segments, { maxBytes, maxLines })
   return stats;
 }
 
+export function assertSourceContains(assert, path, pattern, message) {
+  assert.match(readUiSource(path), pattern, message || `${path} should contain ${pattern}`);
+}
+
+export function assertSourceDoesNotContain(assert, path, pattern, message) {
+  assert.doesNotMatch(readUiSource(path), pattern, message || `${path} should not contain ${pattern}`);
+}
+
+export function collectCssSelectorHits(selectorOrPattern, files) {
+  return files.filter((file) => {
+    const source = readUiSource(file);
+    if (typeof selectorOrPattern === 'string') return source.includes(selectorOrPattern);
+    return selectorOrPattern.test(source);
+  });
+}
+
 export function listFilesIfDirExists(...segments) {
   const directory = projectFile(...segments);
   if (!existsSync(directory)) return [];

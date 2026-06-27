@@ -1,6 +1,30 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readUiSource } from '../helpers/source-guards.js';
+import {
+  assertFileWithinBudget,
+  collectCssSelectorHits,
+  readUiSource
+} from '../helpers/source-guards.js';
+
+const settingsSurfaceCssFiles = [
+  'src/styles/settings.css',
+  'src/styles/mobile.css',
+  'src/styles/typography.css',
+  'src/styles/regression-overrides.css',
+  'src/styles/modals.css',
+  'src/styles/personalization.css'
+];
+
+function assertSelectorHits(selector, expectedFiles, message) {
+  const hits = collectCssSelectorHits(selector, settingsSurfaceCssFiles);
+  for (const expectedFile of expectedFiles) {
+    assert.ok(
+      hits.includes(expectedFile),
+      message || `${selector} should be mapped in ${expectedFile}; hits: ${hits.join(', ')}`
+    );
+  }
+  return hits;
+}
 
 test('settings API key controls use masked intent helpers and scoped clear button styles', () => {
   const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
@@ -78,4 +102,115 @@ test('app typography uses restrained GPT-like system weights and mobile settings
   assert.match(css, /#settings-modal\s*>\s*div[^{]*\{[^}]*transition:\s*transform\s+0\.32s\s+cubic-bezier\(0\.22,\s*1,\s*0\.36,\s*1\)/s);
   assert.match(css, /#settings-modal:not\(\.visible\)\s*>\s*div[^{]*\{[^}]*transform:\s*translateY\(100%\)\s*!important;/s);
   assert.match(css, /#settings-modal\.visible\s*>\s*div[^{]*\{[^}]*transform:\s*translateY\(0\)\s*!important;/s);
+});
+
+test('settings modal CSS surface selectors are mapped before extraction', () => {
+  const settingsOnlySelectors = [
+    ['#settings-modal', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal > div', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal nav', ['src/styles/settings.css', 'src/styles/mobile.css']],
+    ['#settings-nav', ['src/styles/settings.css']],
+    ['.settings-sidebar', ['src/styles/regression-overrides.css']],
+    ['.settings-section', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
+    ['.settings-section.active', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']],
+    ['.settings-nav-item', ['src/styles/settings.css', 'src/styles/mobile.css', 'src/styles/typography.css']]
+  ];
+
+  for (const [selector, expectedFiles] of settingsOnlySelectors) {
+    assertSelectorHits(selector, expectedFiles);
+  }
+});
+
+test('mobile settings CSS surface is explicitly mapped before extraction', () => {
+  const mobileSelectors = [
+    ['#settings-mobile-header', ['src/styles/mobile.css']],
+    ['#settings-mobile-list', ['src/styles/mobile.css', 'src/styles/typography.css']],
+    ['#settings-mobile-title', ['src/styles/mobile.css', 'src/styles/typography.css']],
+    ['#settings-mobile-back-btn', ['src/styles/mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-group', ['src/styles/mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-card', ['src/styles/mobile.css']],
+    ['.settings-mobile-list-item', ['src/styles/mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-row-icon', ['src/styles/mobile.css', 'src/styles/typography.css']],
+    ['.settings-mobile-row-label', ['src/styles/mobile.css']]
+  ];
+
+  for (const [selector, expectedFiles] of mobileSelectors) {
+    assertSelectorHits(selector, expectedFiles);
+  }
+});
+
+test('settings control selectors stay visible and scoped by surface', () => {
+  const controlSelectors = [
+    ['.api-key-input-group', ['src/styles/settings.css']],
+    ['.api-key-clear-btn', ['src/styles/settings.css']],
+    ['.api-key-clear-all-btn', ['src/styles/settings.css']],
+    ['.translator-picker-menu', ['src/styles/settings.css']],
+    ['.translator-picker-button', ['src/styles/settings.css']],
+    ['.translator-picker-option', ['src/styles/settings.css']],
+    ['.custom-output-mode-select', ['src/styles/settings.css']],
+    ['.custom-output-mode-option', ['src/styles/settings.css', 'src/styles/regression-overrides.css']],
+    ['#settings-modal #delete-all-data-btn', ['src/styles/settings.css']],
+    ['#settings-modal .model-management-item .model-row-action', ['src/styles/settings.css']]
+  ];
+
+  for (const [selector, expectedFiles] of controlSelectors) {
+    assertSelectorHits(selector, expectedFiles);
+  }
+
+  const css = readUiSource('src/styles/main.css');
+  assert.match(css, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
+  assert.match(css, /\.translator-picker-button[^{]*\{/);
+  assert.match(css, /\.custom-output-mode-option[^{]*\{/);
+});
+
+test('shared settings-adjacent selectors are classified as shared, not settings-only', () => {
+  const sharedSelectors = [
+    ['.theme-btn', ['src/styles/settings.css', 'src/styles/modals.css', 'src/styles/regression-overrides.css']],
+    ['.modal input', ['src/styles/settings.css', 'src/styles/personalization.css']],
+    ['.modal select', ['src/styles/settings.css', 'src/styles/personalization.css']],
+    ['.modal textarea', ['src/styles/settings.css', 'src/styles/personalization.css']],
+    ['#archived-chats-modal', ['src/styles/settings.css', 'src/styles/regression-overrides.css']]
+  ];
+
+  for (const [selector, expectedFiles] of sharedSelectors) {
+    const hits = assertSelectorHits(selector, expectedFiles);
+    assert.ok(hits.length >= 2, `${selector} should remain documented as shared; hits: ${hits.join(', ')}`);
+  }
+});
+
+test('dark mode, root variables, typography, and regression overrides remain classified as shared surfaces', () => {
+  assertSelectorHits('.dark #settings-modal', [
+    'src/styles/settings.css',
+    'src/styles/mobile.css',
+    'src/styles/personalization.css'
+  ]);
+  assertSelectorHits(':root', ['src/styles/settings.css', 'src/styles/typography.css']);
+  assertSelectorHits('#settings-modal .settings-mobile-group-title', ['src/styles/typography.css']);
+  assertSelectorHits('#settings-modal .settings-sidebar', ['src/styles/regression-overrides.css']);
+  assertSelectorHits('#settings-modal .theme-btn.active', [
+    'src/styles/settings.css',
+    'src/styles/regression-overrides.css'
+  ]);
+
+  const fullCss = readUiSource('src/styles/main.css');
+  assert.doesNotMatch(
+    fullCss,
+    /\[data-theme/,
+    '[data-theme] selectors are not currently a settings-only surface; future additions should be owned as global theme CSS'
+  );
+});
+
+test('settings CSS surface stays within a generous Phase 8 pre-extraction budget', () => {
+  const stats = assertFileWithinBudget(
+    assert,
+    ['src', 'styles', 'settings.css'],
+    { maxBytes: 42000, maxLines: 1400 }
+  );
+
+  const settingsModalHits = collectCssSelectorHits(/#settings-modal/, ['src/styles/settings.css']);
+  const mobileSurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css', 'src/styles/typography.css']);
+
+  assert.ok(stats.lines > 1000, 'settings.css should still be tracked as the large pre-extraction settings surface');
+  assert.equal(settingsModalHits.length, 1);
+  assert.equal(mobileSurfaceHits.length, 2);
 });
