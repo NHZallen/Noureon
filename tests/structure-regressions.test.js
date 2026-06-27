@@ -2694,6 +2694,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'settings-mobile.css',
     'settings-api-keys.css',
     'settings-output-translator.css',
+    'settings-theme-bubble.css',
     'regression-overrides.css',
     'mobile.css',
     'typography.css'
