@@ -12,6 +12,85 @@ import {
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
+const getConstFunctionBody = (source, name) => {
+  const marker = `const ${name} =`;
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `${name} should exist`);
+  const braceStart = source.indexOf('{', start);
+  assert.notEqual(braceStart, -1, `${name} should have a body`);
+
+  let depth = 0;
+  for (let index = braceStart; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === '{') depth += 1;
+    if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(braceStart, index + 1);
+    }
+  }
+  throw new Error(`${name} body should close`);
+};
+
+const assertMarkersInOrder = (source, markers, context) => {
+  let cursor = -1;
+  for (const marker of markers) {
+    const next = source.indexOf(marker, cursor + 1);
+    assert.notEqual(next, -1, `${context} should include ${marker}`);
+    assert.ok(next > cursor, `${marker} should remain in order for ${context}`);
+    cursor = next;
+  }
+};
+
+const createTrackedElement = (calls, name) => {
+  const classes = new Set();
+  const listeners = [];
+  return {
+    value: '',
+    checked: false,
+    disabled: false,
+    innerHTML: '',
+    textContent: '',
+    style: {},
+    dataset: {},
+    listeners,
+    classList: {
+      add: (...tokens) => {
+        calls.push(['class:add', name, ...tokens]);
+        for (const token of tokens) classes.add(token);
+      },
+      remove: (...tokens) => {
+        calls.push(['class:remove', name, ...tokens]);
+        for (const token of tokens) classes.delete(token);
+      },
+      toggle: (token, force) => {
+        calls.push(['class:toggle', name, token, force]);
+        if (force === false) {
+          classes.delete(token);
+          return false;
+        }
+        if (force === true || !classes.has(token)) {
+          classes.add(token);
+          return true;
+        }
+        classes.delete(token);
+        return false;
+      },
+      contains: (token) => classes.has(token)
+    },
+    addEventListener: (event, listener, options) => {
+      calls.push(['listener', name, event, options]);
+      listeners.push({ event, listener, options });
+    },
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    appendChild() {},
+    remove() {},
+    closest() { return null; },
+    focus() {},
+    hasClass: (token) => classes.has(token)
+  };
+};
+
 const createDependencies = (overrides = {}) => {
   const calls = [];
   const state = {
@@ -514,6 +593,135 @@ test('delete-all path uses injected storage adapter and preserves reload orderin
   ]);
 });
 
+test('login success preserves auth storage, visibility transitions, and init handoff', async () => {
+  const { dependencies, calls, state } = createDependencies();
+  const authContainer = createTrackedElement(calls, 'authContainer');
+  const appContainer = createTrackedElement(calls, 'appContainer');
+  const event = { preventDefault: () => calls.push('preventDefault') };
+  dependencies.elements.usernameInput.value = ' alice ';
+  dependencies.elements.passwordInput.value = 'correct-password';
+  dependencies.elements.authContainer = authContainer;
+  dependencies.elements.appContainer = appContainer;
+  dependencies.createPasswordRecord = async (username, password) => {
+    calls.push(['createPasswordRecord', username, password]);
+    return { username, passwordHash: 'new-hash' };
+  };
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  await lifecycle.handleLogin(event);
+
+  assert.deepEqual(calls.filter((call) => call === 'preventDefault'), ['preventDefault']);
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'createPasswordRecord'), [
+    ['createPasswordRecord', 'alice', 'correct-password']
+  ]);
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setItem'), [
+    ['setItem', 'user:alice', JSON.stringify({ username: 'alice', passwordHash: 'new-hash' })],
+    ['setItem', 'chat_lastUser', 'alice']
+  ]);
+  assert.deepEqual(state.currentUser, { username: 'alice', passwordHash: 'new-hash' });
+  assert.equal(authContainer.hasClass('visible'), false);
+  assert.equal(authContainer.hasClass('fade-out'), true);
+  assert.equal(appContainer.hasClass('hidden'), false);
+  assert.equal(appContainer.hasClass('visible'), true);
+  assert.equal(authContainer.listeners[0]?.event, 'transitionend');
+  assert.deepEqual(calls.slice(-2), [
+    ['resolveBinding', 'app.initChatApp'],
+    ['binding', 'app.initChatApp']
+  ]);
+});
+
+test('login failure keeps failure path isolated and does not initialize app', async () => {
+  const { dependencies, calls, state } = createDependencies({
+    getItem: async (key) => {
+      calls.push(['getItem', key]);
+      return JSON.stringify({ username: 'alice', passwordHash: 'old-hash' });
+    },
+    verifyPasswordRecord: async (password, record) => {
+      calls.push(['verifyPasswordRecord', password, record.username]);
+      return false;
+    }
+  });
+  dependencies.elements.usernameInput.value = 'alice';
+  dependencies.elements.passwordInput.value = 'wrong-password';
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  await lifecycle.handleLogin({ preventDefault: () => calls.push('preventDefault') });
+
+  assert.equal(state.currentUser, null);
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setItem'), []);
+  assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'notification' && call[2] === 'error'), true);
+  assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'resolveBinding' && call[1] === 'app.initChatApp'), false);
+  assert.equal(calls.includes('renderAll'), false);
+});
+
+test('logout confirm accepted clears last user and reloads', async () => {
+  const { dependencies, calls } = createDependencies({
+    showCustomConfirm: async () => {
+      calls.push('confirmLogout');
+      return true;
+    },
+    removeItem: async (...args) => calls.push(['removeItem', ...args])
+  });
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  await lifecycle.handleLogout();
+
+  assert.deepEqual(calls, [
+    'confirmLogout',
+    ['removeItem', 'chat_lastUser'],
+    'reload'
+  ]);
+});
+
+test('logout confirm rejected does not clear storage or reload', async () => {
+  const { dependencies, calls } = createDependencies({
+    showCustomConfirm: async () => {
+      calls.push('confirmLogout');
+      return false;
+    },
+    removeItem: async (...args) => calls.push(['removeItem', ...args])
+  });
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  await lifecycle.handleLogout();
+
+  assert.deepEqual(calls, ['confirmLogout']);
+});
+
+test('delete-all confirm accepted clears storage, notifies, and reloads after delay', async () => {
+  const { dependencies, calls } = createDependencies({
+    showCustomDialog: async (options) => {
+      calls.push(['dialog', options.input.type, options.buttons.length]);
+      return 'DELETE';
+    }
+  });
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  await lifecycle.handleDeleteAllData();
+
+  assert.deepEqual(calls, [
+    ['dialog', 'text', 2],
+    'clear',
+    ['notification', 'Deleted', 'success'],
+    ['timeout', 2000],
+    'reload'
+  ]);
+});
+
+test('delete-all confirm rejected does not clear storage or reload', async () => {
+  const { dependencies, calls } = createDependencies({
+    showCustomDialog: async () => {
+      calls.push('dialog');
+      return null;
+    }
+  });
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  await lifecycle.handleDeleteAllData();
+
+  assert.deepEqual(calls, ['dialog']);
+});
+
 test('saveSettings writes API keys through sensitive key callbacks before normal config save', async () => {
   const { dependencies, calls, state } = createDependencies({
     document: {
@@ -743,6 +951,9 @@ test('source keeps settings save, login, and delete-all ownership', () => {
   const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
   const saveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
+  const handleLoginBody = getConstFunctionBody(source, 'handleLogin');
+  const handleLogoutBody = getConstFunctionBody(source, 'handleLogout');
+  const handleDeleteAllDataBody = getConstFunctionBody(source, 'handleDeleteAllData');
 
   assert.match(source, /const\s+saveSettings\s*=\s*async\s*\(\{\s*close\s*=\s*true,\s*notify\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>\s*\{/);
   assert.match(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
@@ -757,4 +968,27 @@ test('source keeps settings save, login, and delete-all ownership', () => {
   assert.doesNotMatch(saveSettingsHelperSource, /sensitive-config-store|api-key-input-intent/);
   assert.doesNotMatch(source, /config\.apiKeys\.gemini\s*=/);
   assert.match(source, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
+  assertMarkersInOrder(handleLoginBody, [
+    'await setItem(\'chat_lastUser\', username);',
+    'ALL_ELEMENTS.authContainer.classList.remove(\'visible\');',
+    'ALL_ELEMENTS.authContainer.classList.add(\'fade-out\');',
+    'ALL_ELEMENTS.appContainer.classList.remove(\'hidden\');',
+    'requestAnimationFrame(() =>',
+    'ALL_ELEMENTS.authContainer.addEventListener(\'transitionend\'',
+    'legacyRuntimeContext.resolveBinding(\'app.initChatApp\')();'
+  ], 'handleLogin success transition and init handoff');
+  assertMarkersInOrder(handleLogoutBody, [
+    'await showCustomConfirm',
+    'await removeItem(\'chat_lastUser\');',
+    'window.location.reload();'
+  ], 'handleLogout confirm clear reload path');
+  assertMarkersInOrder(handleDeleteAllDataBody, [
+    'const confirmation = await showCustomDialog',
+    'if (confirmation === \'DELETE\')',
+    'await runtimeStorageAdapter.clear();',
+    'showNotification',
+    'setTimeout(() =>',
+    'window.location.reload();'
+  ], 'handleDeleteAllData clear notify reload path');
+  assert.doesNotMatch(saveSettingsHelperSource, /handleLogin|handleLogout|handleDeleteAllData|authContainer|appContainer|chat_lastUser|runtimeStorageAdapter\.clear|window\.location\.reload|initChatApp/);
 });
