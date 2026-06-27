@@ -10,6 +10,7 @@ enough. It is a reproducible checkpoint, not a production behavior change.
 - Git commit: `5e28fd9`
 - Baseline command: `npm.cmd run report:refactor-baseline`
 - Report script: `scripts/report-refactor-baseline.mjs`
+- Grouped budget command: `npm.cmd run check:sizes`
 - Review scope note: `dist/` is generated build output and is not part of the
   review scope for this baseline slice.
 
@@ -154,7 +155,9 @@ Total test files: 128.
 
 ## Deferred V5 Workstreams
 
-- Phase 1 grouped budget reporting.
+- Phase 1 grouped budget reporting is now started: `check:sizes` reports
+  runtime source, CSS, test file, and build output budget groups with
+  transitional pass/fail limits and non-failing V5 target debt markers.
 - Phase 2 runtime contract inventory.
 - Phase 3 legacy-core shell reduction.
 - Phase 4 core-tail and transition bus retirement.

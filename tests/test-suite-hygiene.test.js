@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import test from 'node:test';
 
 import {
@@ -87,4 +88,33 @@ test('hygiene suite remains test-only and inert', () => {
   assert.doesNotMatch(source, /from\s+['"][^'"]*src\//);
   assert.doesNotMatch(source, /\bbuild\b\s*\(/);
   assert.doesNotMatch(source, /\bfetch\s*\(/);
+});
+
+test('check:sizes reports grouped V5 budgets without using targets as hard failures', () => {
+  const source = readSource('scripts', 'check-file-sizes.mjs');
+  const output = execFileSync('node', ['scripts/check-file-sizes.mjs'], {
+    encoding: 'utf8'
+  });
+
+  assert.match(output, /# V5 grouped size budget report/);
+  assert.match(output, /Runtime source budgets: PASS/);
+  assert.match(output, /CSS budgets: PASS/);
+  assert.match(output, /Test file budgets: PASS/);
+  assert.match(output, /Build output budgets: PASS/);
+  assert.match(output, /above V5 target/);
+  assert.match(output, /OK: all grouped size budgets are within transitional limits/);
+  assert.match(source, /Hard failures use transitional limits/);
+  assert.match(source, /status\s*=\s*overTransitional[\s\S]*overTarget[\s\S]*'DEBT'/);
+  assert.doesNotMatch(source, /process\.exit\(1\)[\s\S]{0,120}overTarget/);
+});
+
+test('baseline scripts keep dist out of review source and report it only as build output', () => {
+  const checkSizesSource = readSource('scripts', 'check-file-sizes.mjs');
+  const baselineSource = readSource('scripts', 'report-refactor-baseline.mjs');
+
+  assert.match(checkSizesSource, /ignoredSourceDirectories\s*=\s*new Set\(\['node_modules',\s*'dist'\]\)/);
+  assert.match(checkSizesSource, /Build output budgets/);
+  assert.match(checkSizesSource, /join\(root,\s*'dist'\)/);
+  assert.match(baselineSource, /Largest build outputs/);
+  assert.match(baselineSource, /join\(root,\s*'dist'\)/);
 });
