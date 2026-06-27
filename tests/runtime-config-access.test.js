@@ -48,11 +48,14 @@ test('missing config returns undefined without inventing a fallback', () => {
   assert.equal(accessWithoutGetter.getUiLanguage(), undefined);
 });
 
-test('runtime config access source is read-only and avoids unrelated systems', () => {
+test('runtime config access bridge avoids unrelated systems', () => {
   const source = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
 
   assert.match(source, /export\s+function\s+createRuntimeConfigAccess/);
-  assert.match(source, /getConfig\?\.\(\)\?\.uiLanguage/);
+  assert.match(source, /const\s+readConfig\s*=\s*\(\)\s*=>\s*getConfig\?\.\(\)/);
+  assert.match(source, /replaceConfig\(nextConfig\)/);
+  assert.match(source, /mutateConfig\(mutatorOrPatch\)/);
+  assert.match(source, /return\s+readConfig\(\)\?\.uiLanguage/);
   assert.doesNotMatch(source, /document|window|localStorage|sessionStorage|fetch|XMLHttpRequest/);
   assert.doesNotMatch(source, /provider|parser|storage|schema|package|vite|css|template/i);
   assert.doesNotMatch(source, /config\.uiLanguage\s*=/);

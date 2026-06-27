@@ -345,7 +345,10 @@ test('local mirror state remains a temporary compatibility bridge before decompo
   assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return runtimeAppDataStore\.getPersonalMemories\(\);\s*\}/);
   assert.match(legacyCoreSource, /set personalMemories\(next\)\s*\{\s*runtimeAppDataStore\.replacePersonalMemories\(next\);\s*\}/);
   assert.match(transitionBusSource, /state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/);
-  assert.match(legacyCoreSource, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+  assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
+  assert.ok((legacyCoreSource.match(/get config\(\)\s*\{\s*return runtimeConfigAccess\.getConfig\(\);\s*\}/g) || []).length >= 4);
+  assert.ok((legacyCoreSource.match(/set config\(next\)\s*\{\s*runtimeConfigAccess\.replaceConfig\(next\);\s*\}/g) || []).length >= 2);
+  assert.doesNotMatch(legacyCoreSource, /set config\(next\)\s*\{\s*config\s*=\s*next;\s*\}/);
   assert.match(legacyCoreSource, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
   assert.doesNotMatch(legacyCoreSource, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
 });
@@ -687,7 +690,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   ], '00 runtime config ownership');
   assert.doesNotMatch(fragment00Source, /createLegacyRuntimeConfigStore\(/);
   assert.doesNotMatch(fragment00Source, /let\s+config\s*=\s*\{\s*apiKeys:/);
-  assert.match(fragment00Source, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+  assert.match(fragment00Source, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
   assert.equal(fragmentConfigAssignments.length, 2);
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /\bconfig\s*=/);
@@ -713,9 +716,9 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     'const saved = await getItem(getConfigKey())',
     'const savedConfig = JSON.parse(saved)',
     'const normalizedConfig = normalizeLoadedLegacyConfig({',
-    'config = runtimeConfigStore.replaceConfig(normalizedConfig)'
+    'runtimeConfigAccess.replaceConfig(normalizedConfig)'
   ], '00 config load orchestration');
-  assert.match(fragment00Source, /Object\.assign\(config,\s*normalizedConfig\)/);
+  assert.match(fragment00Source, /runtimeConfigAccess\.mutateConfig\(normalizedConfig\)/);
   assert.match(fragment00Source, /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`/);
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
@@ -2333,7 +2336,7 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   assert.match(fragment00Source, /renderArchivedChats:\s*\(\)\s*=>\s*renderArchivedChats\(\)/);
   assert.match(fragment00Source, /renderBatchActionBar:\s*\(\)\s*=>\s*renderBatchActionBar\(\)/);
   assert.match(fragment00Source, /renderFilePreviews:\s*\(\)\s*=>\s*renderFilePreviews\(\)/);
-  assert.match(fragment00Source, /applyLanguage:\s*\(\)\s*=>\s*applyLanguage\(config\.uiLanguage\)/);
+  assert.match(fragment00Source, /applyLanguage:\s*\(\)\s*=>\s*applyLanguage\(runtimeConfigAccess\.getUiLanguage\(\)\)/);
   assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
 
   for (const body of [setAstrasBody, deactivateAstrasBody, deleteAstrasBody]) {
@@ -2432,7 +2435,10 @@ test('runtime config access owns selected uiLanguage reads through the config st
   assert.match(accessSource, /export\s+function\s+createRuntimeConfigAccess/);
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeConfigAccess\s*\}/);
   assert.equal((fragment00Source.match(/createRuntimeConfigAccess\(\{/g) || []).length, 1);
-  assert.match(fragment00Source, /const\s+runtimeConfigAccess\s*=\s*createRuntimeConfigAccess\(\{\s*getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)\s*\}\);/);
+  assert.match(fragment00Source, /const\s+runtimeConfigAccess\s*=\s*createRuntimeConfigAccess\(\{/);
+  assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
+  assert.match(fragment00Source, /replaceConfig:\s*\(nextConfig\)\s*=>\s*runtimeConfigStore\.replaceConfig\(nextConfig\)/);
+  assert.match(fragment00Source, /syncConfig:\s*\(nextConfig\)\s*=>\s*\{\s*config\s*=\s*nextConfig;\s*\}/);
   assert.doesNotMatch(fragment00Source, /getConfig:\s*config\b/);
 
   for (const body of [

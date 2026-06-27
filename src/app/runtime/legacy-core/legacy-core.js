@@ -484,14 +484,16 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const runtimeConfigStore = runtimeAppKernel.configStore;
         let config = runtimeConfigStore.getConfig();
         const runtimeConfigAccess = createRuntimeConfigAccess({
-            getConfig: () => runtimeConfigStore.getConfig()
+            getConfig: () => runtimeConfigStore.getConfig(),
+            replaceConfig: (nextConfig) => runtimeConfigStore.replaceConfig(nextConfig),
+            syncConfig: (nextConfig) => { config = nextConfig; }
         });
         const getCouncilTexts = () => {
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             return COUNCIL_TEXT[uiLanguage] || COUNCIL_TEXT['zh-TW'];
         };
         const legacyModelRegistry = createLegacyModelRegistry({
-            getConfig: () => config,
+            getConfig: () => runtimeConfigAccess.getConfig(),
             normalizeConversationModel: (conv) => normalizeConversationModel(conv)
         });
         const {
@@ -1066,7 +1068,7 @@ function renderMarkdownWithFormulas(text) {
                     councilTranslatorCandidates: getCouncilTranslatorCandidates(),
                     singleTranslatorCandidates: getSingleTranslatorCandidates()
                 });
-                config = runtimeConfigStore.replaceConfig(normalizedConfig);
+                runtimeConfigAccess.replaceConfig(normalizedConfig);
             } else {
                 const normalizedConfig = normalizeLoadedLegacyConfig({
                     currentConfig: config,
@@ -1076,7 +1078,7 @@ function renderMarkdownWithFormulas(text) {
                     councilTranslatorCandidates: getCouncilTranslatorCandidates(),
                     singleTranslatorCandidates: getSingleTranslatorCandidates()
                 });
-                Object.assign(config, normalizedConfig);
+                runtimeConfigAccess.mutateConfig(normalizedConfig);
             }
         };
         const saveAppData = async () => { await runtimeAppDataPersistence.saveAppData(); };
@@ -1256,7 +1258,7 @@ function renderMarkdownWithFormulas(text) {
             File,
             escapeHTML,
             getInlineMediaSrc: getArchivedInlineMediaSrc,
-            getUiLanguage: () => config.uiLanguage
+            getUiLanguage: () => runtimeConfigAccess.getUiLanguage()
         });
         const archivedConversationViewRenderer = createArchivedConversationViewRenderer({
             document,
@@ -1333,7 +1335,7 @@ function renderMarkdownWithFormulas(text) {
             renderArchivedChats: () => renderArchivedChats(),
             renderBatchActionBar: () => renderBatchActionBar(),
             renderFilePreviews: () => renderFilePreviews(),
-            applyLanguage: () => applyLanguage(config.uiLanguage),
+            applyLanguage: () => applyLanguage(runtimeConfigAccess.getUiLanguage()),
             logger: console
         });
         const renderAll = (...args) => runtimeRenderCoordinator.renderAll(...args);
@@ -1412,7 +1414,7 @@ function renderMarkdownWithFormulas(text) {
         let deleteAstras;
         let createAstrasMenu;
         const submitInputCouncilState = {
-            get config() { return config; },
+            get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return conversations; },
             get astras() { return astras; },
             get uploadedFiles() { return uploadedFiles; },
@@ -1445,7 +1447,7 @@ function renderMarkdownWithFormulas(text) {
             formatCouncilModelSummary,
             formatFullTimestamp,
             getActiveConversation,
-            getConfig: () => config,
+            getConfig: () => runtimeConfigAccess.getConfig(),
             runtimeConfigAccess,
             getCouncilRuntimeTexts,
             getCouncilSelectedModels,
@@ -1537,8 +1539,8 @@ function renderMarkdownWithFormulas(text) {
         });
         legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const settingsAuthProviderState = {
-            get config() { return config; },
-            set config(next) { config = next; },
+            get config() { return runtimeConfigAccess.getConfig(); },
+            set config(next) { runtimeConfigAccess.replaceConfig(next); },
             get conversations() { return conversations; },
             set conversations(next) { conversations = next; },
             get folders() { return folders; },
@@ -1681,7 +1683,7 @@ function renderMarkdownWithFormulas(text) {
         legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
         legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
         const sidebarChatAstraRenderState = {
-            get config() { return config; },
+            get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return conversations; },
             get folders() { return folders; },
             get astras() { return astras; },
@@ -1795,7 +1797,7 @@ function renderMarkdownWithFormulas(text) {
             normalizeFolderColorSelection: (selectedColor) =>
                 normalizeFolderColorSelection(selectedColor, FOLDER_COLORS),
             getI18n: () => i18n,
-            getUiLanguage: () => config.uiLanguage,
+            getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
             randomUUID: () => crypto.randomUUID(),
             scheduleAnimationFrame: requestAnimationFrame,
             logger: console
@@ -1823,12 +1825,12 @@ function renderMarkdownWithFormulas(text) {
             getI18n: () => i18n,
             getIsSelectionMode: () => isSelectionMode,
             getSelectedConversationIds: () => selectedConversationIds,
-            getUiLanguage: () => config.uiLanguage
+            getUiLanguage: () => runtimeConfigAccess.getUiLanguage()
         });
         const renderBatchActionBar = (...args) => batchActionBarLifecycle.renderBatchActionBar(...args);
         const transitionBusState = {
-            get config() { return config; },
-            set config(next) { config = next; },
+            get config() { return runtimeConfigAccess.getConfig(); },
+            set config(next) { runtimeConfigAccess.replaceConfig(next); },
             get conversations() { return conversations; },
             set conversations(next) { conversations = next; },
             get folders() { return folders; },

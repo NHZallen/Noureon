@@ -250,10 +250,10 @@ test('loadConfig preserves missing-user, null storage, and invalid JSON boundari
     'const savedConfig = JSON.parse(saved)'
   ], 'loadConfig storage boundary');
   assert.doesNotMatch(body, /try\s*\{|catch\s*\(/);
-  assert.match(savedIfBody, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
-  assert.equal((body.match(/runtimeConfigStore\.replaceConfig\(/g) || []).length, 1);
+  assert.match(savedIfBody, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
+  assert.equal((body.match(/runtimeConfigAccess\.replaceConfig\(/g) || []).length, 1);
   assert.ok(
-    body.indexOf('Object.assign(config, normalizedConfig)') > savedIfClose,
+    body.indexOf('runtimeConfigAccess.mutateConfig(normalizedConfig)') > savedIfClose,
     'null storage should skip pointer replacement while retaining legacy normalization through the current pointer'
   );
 });
@@ -273,7 +273,7 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
     'currentConfig: config',
     'savedConfig: normalSavedConfig',
     'models: MODELS',
-    'config = runtimeConfigStore.replaceConfig(normalizedConfig)'
+    'runtimeConfigAccess.replaceConfig(normalizedConfig)'
   ], 'loadConfig merge precedence');
   assertMarkersInOrder(normalizationSource, [
     'const { apiKeys: _retiredApiKeys, ...normalSavedConfig } = savedConfig',
@@ -293,7 +293,7 @@ test('loadConfig keeps API, model, and council normalization in legacy order', (
     'const normalizedConfig = normalizeLoadedLegacyConfig({',
     'councilTranslatorCandidates: getCouncilTranslatorCandidates()',
     'singleTranslatorCandidates: getSingleTranslatorCandidates()',
-    'config = runtimeConfigStore.replaceConfig(normalizedConfig)'
+    'runtimeConfigAccess.replaceConfig(normalizedConfig)'
   ], 'loadConfig normalization');
   assertMarkersInOrder(normalizationSource, [
     "normalizedConfig.outputMode = normalizedConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter'",

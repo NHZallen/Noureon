@@ -236,8 +236,9 @@ test('callApiWithSchema sends Gemini key through header instead of URL query', a
           ]
         })
       };
-    }
-  });
+  }
+});
+
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
 
   const result = await lifecycle.callApiWithSchema('Return JSON', {
@@ -254,6 +255,38 @@ test('callApiWithSchema sends Gemini key through header instead of URL query', a
     'Content-Type': 'application/json',
     'x-goog-api-key': 'gemini-secret-key'
   });
+});
+
+test('settings config proxy reads and mutates the latest state config pointer', async () => {
+  const { dependencies, calls, state } = createDependencies({
+    document: {
+      body: { classList: { contains: () => false } },
+      documentElement: {
+        classList: { toggle() {} },
+        style: { setProperty() {} }
+      },
+      createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      getElementById: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
+      querySelector: () => null,
+      querySelectorAll: () => []
+    }
+  });
+  dependencies.elements.settingsModal.classList.contains = (name) => name === 'hidden';
+  const staleConfig = state.config;
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const replacement = {
+    ...staleConfig,
+    tavilySearchDepth: 'advanced',
+    theme: 'dark'
+  };
+
+  state.config = replacement;
+
+  assert.equal(lifecycle.getTavilySearchDepth(), 'advanced');
+  await lifecycle.setTheme('light');
+  assert.equal(replacement.theme, 'light');
+  assert.equal(staleConfig.theme, 'dark');
+  assert.equal(calls.includes('saveConfig'), true);
 });
 
 test('shouldPerformWebSearch sends Gemini key through header instead of URL query', async () => {

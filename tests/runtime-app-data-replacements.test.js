@@ -172,7 +172,7 @@ test('local mirrors remain temporary compatibility state before decomposition', 
   assert.match(legacyCoreSource, /get astras\(\)\s*\{\s*return astras;\s*\}/);
   assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return runtimeAppDataStore\.getPersonalMemories\(\);\s*\}/);
   assert.match(legacyCoreSource, /set personalMemories\(next\)\s*\{\s*runtimeAppDataStore\.replacePersonalMemories\(next\);\s*\}/);
-  assert.match(legacyCoreSource, /get config\(\)\s*\{\s*return config;\s*\}/);
+  assert.match(legacyCoreSource, /get config\(\)\s*\{\s*return runtimeConfigAccess\.getConfig\(\);\s*\}/);
 
   assert.doesNotMatch(legacyCoreSource, /let\s+personalMemories\s*=/);
   assert.doesNotMatch(legacyCoreSource, /personalMemories\s*=\s*latestAppData\.personalMemories/);
@@ -180,7 +180,7 @@ test('local mirrors remain temporary compatibility state before decomposition', 
     transitionBusSource,
     /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
   );
-  assert.match(legacyCoreSource, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+  assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
   assert.match(legacyCoreSource, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
   assert.match(legacyCoreSource, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
   assert.match(legacyCoreSource, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
@@ -199,7 +199,7 @@ test('mirror decomposition order is locked after personalMemories extraction', (
   assert.doesNotMatch(legacyCoreSource, /let\s+personalMemories\s*=/);
 
   assert.match(legacyCoreSource, /let\s+config\s*=\s*runtimeConfigStore\.getConfig\(\)/);
-  assert.match(legacyCoreSource, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+  assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
 
   assert.match(sidebarChatAstraRenderSource, /replaceAstras/);
   assert.match(folderLifecycleSource, /replaceFolders/);
