@@ -270,7 +270,7 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
     'await saveSensitiveConfig()',
     'const normalSavedConfig = removeSensitiveConfig(savedConfig)',
     'const normalizedConfig = normalizeLoadedLegacyConfig({',
-    'currentConfig: config',
+    'currentConfig: runtimeConfigAccess.getConfig()',
     'savedConfig: normalSavedConfig',
     'models: MODELS',
     'runtimeConfigAccess.replaceConfig(normalizedConfig)'

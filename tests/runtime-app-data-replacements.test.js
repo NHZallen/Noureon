@@ -147,7 +147,7 @@ test('saveAppData reads the store snapshot while active conversation id uses the
   assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
 });
 
-test('local mirrors remain temporary compatibility state before decomposition', () => {
+test('only app data mirrors remain temporary compatibility state before decomposition', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
 
@@ -160,10 +160,11 @@ test('local mirrors remain temporary compatibility state before decomposition', 
   ], 'temporary app data mirror ownership');
   assertMarkersInOrder(legacyCoreSource, [
     'const runtimeConfigStore = runtimeAppKernel.configStore',
-    'let config = runtimeConfigStore.getConfig()',
     'const runtimeConfigAccess = createRuntimeConfigAccess({',
     'getConfig: () => runtimeConfigStore.getConfig()'
-  ], 'temporary config mirror ownership');
+  ], 'live config store ownership');
+  assert.doesNotMatch(legacyCoreSource, /let\s+config\s*=/);
+  assert.doesNotMatch(legacyCoreSource, /syncConfig\s*:/);
   assert.doesNotMatch(legacyCoreSource, /let\s+activeConversationId\s*=/);
   assert.match(legacyCoreSource, /const\s+activeConversationStore\s*=\s*createActiveConversationStore\(null\)/);
 
@@ -186,7 +187,7 @@ test('local mirrors remain temporary compatibility state before decomposition', 
   assert.match(legacyCoreSource, /astras\s*=\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
 });
 
-test('mirror decomposition order is locked after personalMemories extraction', () => {
+test('mirror decomposition order is locked after config and personalMemories extraction', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
@@ -198,7 +199,8 @@ test('mirror decomposition order is locked after personalMemories extraction', (
   assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return runtimeAppDataStore\.getPersonalMemories\(\);\s*\}/);
   assert.doesNotMatch(legacyCoreSource, /let\s+personalMemories\s*=/);
 
-  assert.match(legacyCoreSource, /let\s+config\s*=\s*runtimeConfigStore\.getConfig\(\)/);
+  assert.doesNotMatch(legacyCoreSource, /let\s+config\s*=/);
+  assert.match(legacyCoreSource, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
   assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
 
   assert.match(sidebarChatAstraRenderSource, /replaceAstras/);

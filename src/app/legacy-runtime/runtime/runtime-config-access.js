@@ -1,20 +1,13 @@
 export function createRuntimeConfigAccess({
     getConfig,
-    replaceConfig,
-    syncConfig
+    replaceConfig
 } = {}) {
     const readConfig = () => getConfig?.();
-
-    const syncCurrentConfig = (currentConfig) => {
-        syncConfig?.(currentConfig);
-        return currentConfig;
-    };
 
     return {
         getConfig: readConfig,
         replaceConfig(nextConfig) {
-            const replacedConfig = replaceConfig?.(nextConfig) ?? nextConfig;
-            return syncCurrentConfig(replacedConfig);
+            return replaceConfig?.(nextConfig) ?? nextConfig;
         },
         mutateConfig(mutatorOrPatch) {
             const currentConfig = readConfig();
@@ -24,7 +17,7 @@ export function createRuntimeConfigAccess({
             } else if (mutatorOrPatch && typeof mutatorOrPatch === 'object') {
                 Object.assign(currentConfig, mutatorOrPatch);
             }
-            return syncCurrentConfig(currentConfig);
+            return currentConfig;
         },
         getUiLanguage() {
             return readConfig()?.uiLanguage;

@@ -301,7 +301,7 @@ test('active conversation id ownership lives in a small kernel store', () => {
   assert.match(legacyCoreSource, /from\s+['"]\/src\/app\/runtime\/legacy-core\/model-registry\.js['"]/);
 });
 
-test('local mirror state remains a temporary compatibility bridge before decomposition', () => {
+test('config and personal memories use stores while remaining app data mirrors stay temporary', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
   const configStoreSource = readSource('src/app/runtime/kernel/config-store.js');
@@ -326,16 +326,16 @@ test('local mirror state remains a temporary compatibility bridge before decompo
   ], 'temporary app data local mirror bridge');
   assertMarkersInOrder(legacyCoreSource, [
     'const runtimeConfigStore = runtimeAppKernel.configStore',
-    'let config = runtimeConfigStore.getConfig()',
     'const runtimeConfigAccess = createRuntimeConfigAccess({',
     'getConfig: () => runtimeConfigStore.getConfig()'
-  ], 'temporary config local mirror bridge');
+  ], 'live config store bridge');
 
   assert.equal((legacyCoreSource.match(/\blet\s+conversations\s*=/g) || []).length, 1);
   assert.equal((legacyCoreSource.match(/\blet\s+folders\s*=/g) || []).length, 1);
   assert.equal((legacyCoreSource.match(/\blet\s+astras\s*=/g) || []).length, 1);
   assert.equal((legacyCoreSource.match(/\blet\s+personalMemories\s*=/g) || []).length, 0);
-  assert.equal((legacyCoreSource.match(/\blet\s+config\s*=/g) || []).length, 1);
+  assert.equal((legacyCoreSource.match(/\blet\s+config\s*=/g) || []).length, 0);
+  assert.doesNotMatch(legacyCoreSource, /syncConfig\s*:/);
   assert.doesNotMatch(legacyCoreSource, /let\s+activeConversationId\s*=/);
   assert.doesNotMatch(legacyCoreSource, /let\s+(chatHistory|folderList|astraList|memoryList|runtimeConfig)\s*=/);
 
@@ -685,13 +685,12 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     'elements: ALL_ELEMENTS',
     'defaultModelId: MODELS[0].id',
     'const runtimeConfigStore = runtimeAppKernel.configStore',
-    'let config = runtimeConfigStore.getConfig()',
     'const runtimeConfigAccess = createRuntimeConfigAccess({'
   ], '00 runtime config ownership');
   assert.doesNotMatch(fragment00Source, /createLegacyRuntimeConfigStore\(/);
   assert.doesNotMatch(fragment00Source, /let\s+config\s*=\s*\{\s*apiKeys:/);
   assert.match(fragment00Source, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
-  assert.equal(fragmentConfigAssignments.length, 2);
+  assert.equal(fragmentConfigAssignments.length, 0);
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /\bconfig\s*=/);
   }
@@ -806,7 +805,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
     'rawData: data',
     'defaultFolder: getDefaultFolder()',
     'defaultGenConfig: getDefaultGenConfig()',
-    'lastCouncilConfig: config.lastCouncilConfig',
+    'lastCouncilConfig: runtimeConfigAccess.getConfig().lastCouncilConfig',
     'normalizeCouncilConfig',
     'normalizeConversationModel',
     'const latestAppData = runtimeAppDataStore.replaceAll(normalizedData)',
@@ -1965,7 +1964,6 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
     'const runtimeConfigStore = runtimeAppKernel.configStore',
-    'let config = runtimeConfigStore.getConfig()',
     'const runtimeConfigAccess = createRuntimeConfigAccess({',
     'const showNotification =',
     'const runtimeDialogCoordinator = createRuntimeDialogCoordinator({',
@@ -2401,7 +2399,7 @@ test('runtime dialog coordinator owns selected notification call sites without r
     assert.doesNotMatch(body, /(^|[^\w.])showNotification\(/);
   }
 
-  assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderAll\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[config\.uiLanguage\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
+  assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderAll\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[runtimeConfigAccess\.getUiLanguage\(\)\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
   assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
@@ -2438,7 +2436,8 @@ test('runtime config access owns selected uiLanguage reads through the config st
   assert.match(fragment00Source, /const\s+runtimeConfigAccess\s*=\s*createRuntimeConfigAccess\(\{/);
   assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
   assert.match(fragment00Source, /replaceConfig:\s*\(nextConfig\)\s*=>\s*runtimeConfigStore\.replaceConfig\(nextConfig\)/);
-  assert.match(fragment00Source, /syncConfig:\s*\(nextConfig\)\s*=>\s*\{\s*config\s*=\s*nextConfig;\s*\}/);
+  assert.doesNotMatch(fragment00Source, /syncConfig\s*:/);
+  assert.doesNotMatch(fragment00Source, /let\s+config\s*=/);
   assert.doesNotMatch(fragment00Source, /getConfig:\s*config\b/);
 
   for (const body of [

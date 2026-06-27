@@ -255,7 +255,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         // 1. 判斷訊息角色並獲取對應顏色設定
         const isUser = msg.role === 'user';
         const colorConfig = isUser ? USER_BUBBLE_COLORS : AI_BUBBLE_COLORS;
-        const colorName = isUser ? config.userBubbleColor : config.aiBubbleColor;
+        const currentConfig = runtimeConfigAccess.getConfig();
+        const colorName = isUser ? currentConfig.userBubbleColor : currentConfig.aiBubbleColor;
         
         // 2. 根據當前主題（淺色/深色）取得正確的顏色碼
         const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
@@ -482,11 +483,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             setCurrentConversationId: (id) => activeConversationStore.setActiveConversationId(id)
         });
         const runtimeConfigStore = runtimeAppKernel.configStore;
-        let config = runtimeConfigStore.getConfig();
         const runtimeConfigAccess = createRuntimeConfigAccess({
             getConfig: () => runtimeConfigStore.getConfig(),
-            replaceConfig: (nextConfig) => runtimeConfigStore.replaceConfig(nextConfig),
-            syncConfig: (nextConfig) => { config = nextConfig; }
+            replaceConfig: (nextConfig) => runtimeConfigStore.replaceConfig(nextConfig)
         });
         const getCouncilTexts = () => {
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
@@ -528,7 +527,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             conversationNeedsTavilySearch,
             getModelTiers
         } = legacyModelRegistry;
-        const getOutputMode = () => config.outputMode === 'realtime' ? 'realtime' : 'typewriter';
+        const getOutputMode = () => runtimeConfigAccess.getConfig().outputMode === 'realtime' ? 'realtime' : 'typewriter';
         const getModelRetirementLabel = (model) => {
             const retirementDate = model?.retirementDate || model?.deprecationDate || model?.sunsetDate;
             if (!retirementDate) return '';
@@ -706,7 +705,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 return {
                     ok: false,
                     reason: 'missingCouncilTranslator',
-                    message: config.uiLanguage === 'en'
+                    message: runtimeConfigAccess.getConfig().uiLanguage === 'en'
                         ? 'Council attachments need a translator model that supports both vision and file upload. Choose one in Settings.'
                         : '理事會附件需要同時支援視覺與文件上傳的轉譯模型，請先到設定中選擇。'
                 };
@@ -716,7 +715,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 return {
                     ok: true,
                     reason: 'readyWithAttachmentTranslation',
-                    message: `${texts.ready} · ${config.uiLanguage === 'en' ? 'attachment translator' : '附件轉譯模型'}: ${translatorModel.name}`
+                    message: `${texts.ready} · ${runtimeConfigAccess.getConfig().uiLanguage === 'en' ? 'attachment translator' : '附件轉譯模型'}: ${translatorModel.name}`
                 };
             }
             return { ok: true, reason: 'ready', message: texts.ready };
@@ -749,7 +748,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         });
         const { getItem, setItem, removeItem } = runtimeStorageAdapter;
         const sensitiveConfigStore = createSensitiveConfigStore({
-            initialApiKeys: config.apiKeys,
+            initialApiKeys: runtimeConfigAccess.getConfig().apiKeys,
             normalizeApiKeyValue
         });
         const runtimeSensitiveConfigPersistence = createSensitiveConfigPersistence({
@@ -773,7 +772,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const canonicalModelId = getCanonicalModelId(conv.model);
             let modelInfo = MODELS.find(m => m.id === canonicalModelId);
             if (!modelInfo) {
-                modelInfo = MODELS.find(m => m.id === config.defaultModel) || MODELS[0];
+                modelInfo = MODELS.find(m => m.id === runtimeConfigAccess.getConfig().defaultModel) || MODELS[0];
             }
             conv.model = modelInfo.id;
             conv.provider = modelInfo.provider;
@@ -983,7 +982,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             };
         };
         const renderMarkdown = (text) => {
-            const thinkingLabel = config.uiLanguage === 'en' ? 'Model thinking process' : '模型思考過程';
+            const thinkingLabel = runtimeConfigAccess.getConfig().uiLanguage === 'en' ? 'Model thinking process' : '模型思考過程';
             const normalizedText = String(text || '').replace(/<think>([\s\S]*?)<\/think>/gi, (_, content) => {
                 return `\n\n<details class="thinking-collapse"><summary>${thinkingLabel}</summary>\n\n${content.trim()}\n\n</details>\n\n`;
             });
@@ -1061,7 +1060,7 @@ function renderMarkdownWithFormulas(text) {
                 }
                 const normalSavedConfig = removeSensitiveConfig(savedConfig);
                 const normalizedConfig = normalizeLoadedLegacyConfig({
-                    currentConfig: config,
+                    currentConfig: runtimeConfigAccess.getConfig(),
                     savedConfig: normalSavedConfig,
                     models: MODELS,
                     maxCouncilModels: COUNCIL_MAX_MODELS,
@@ -1071,7 +1070,7 @@ function renderMarkdownWithFormulas(text) {
                 runtimeConfigAccess.replaceConfig(normalizedConfig);
             } else {
                 const normalizedConfig = normalizeLoadedLegacyConfig({
-                    currentConfig: config,
+                    currentConfig: runtimeConfigAccess.getConfig(),
                     savedConfig: null,
                     models: MODELS,
                     maxCouncilModels: COUNCIL_MAX_MODELS,
@@ -1092,7 +1091,7 @@ function renderMarkdownWithFormulas(text) {
                         rawData: data,
                         defaultFolder: getDefaultFolder(),
                         defaultGenConfig: getDefaultGenConfig(),
-                        lastCouncilConfig: config.lastCouncilConfig,
+                        lastCouncilConfig: runtimeConfigAccess.getConfig().lastCouncilConfig,
                         normalizeCouncilConfig,
                         normalizeConversationModel
                     });
@@ -1129,7 +1128,8 @@ function renderMarkdownWithFormulas(text) {
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
         const getDefaultFolder = () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false});
         const createBaseConversation = (title) => {
-            const defaultModelInfo = MODELS.find(m => m.id === config.lastUsedModel) || MODELS.find(m => m.id === config.defaultModel) || MODELS[0];
+            const currentConfig = runtimeConfigAccess.getConfig();
+            const defaultModelInfo = MODELS.find(m => m.id === currentConfig.lastUsedModel) || MODELS.find(m => m.id === currentConfig.defaultModel) || MODELS[0];
             const now = new Date().toISOString();
             return {
                 id: crypto.randomUUID(),
@@ -1142,7 +1142,7 @@ function renderMarkdownWithFormulas(text) {
                 createdAt: now,
                 lastUpdatedAt: now,
                 genConfig: getDefaultGenConfig(),
-                council: cloneCouncilConfig(config.lastCouncilConfig),
+                council: cloneCouncilConfig(currentConfig.lastCouncilConfig),
                 isRenamed: false,
                 folderId: null,
                 astrasId: null,
@@ -1221,7 +1221,7 @@ function renderMarkdownWithFormulas(text) {
         else {
             runtimeRenderCoordinator.renderAll();
         }
-        runtimeDialogCoordinator.showNotification(i18n[config.uiLanguage].chatMovedToTrash || '對話已移至垃圾桶。', 'success');
+        runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || '對話已移至垃圾桶。', 'success');
     }
 };
         const archiveChat = async (id, event) => {
@@ -1363,7 +1363,7 @@ function renderMarkdownWithFormulas(text) {
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span data-lang-key="naming">${i18n[config.uiLanguage].naming || 'AI思考中...'}</span>
+                        <span data-lang-key="naming">${i18n[runtimeConfigAccess.getUiLanguage()].naming || 'AI思考中...'}</span>
                     `;
                     historyList.appendChild(thinkingPlaceholder);
                     return;
@@ -1812,9 +1812,9 @@ function renderMarkdownWithFormulas(text) {
 
     // ??????�??�?????��???�?????�箸???
     if (isSelectionMode) {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[config.uiLanguage].cancelBatchSelect || '?�??寞活?�?';
+        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].cancelBatchSelect || '?�??寞活?�?';
     } else {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[config.uiLanguage].batchSelect || '?寞活?�?';
+        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].batchSelect || '?寞活?�?';
     }
 
 

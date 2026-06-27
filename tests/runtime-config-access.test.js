@@ -56,6 +56,7 @@ test('runtime config access bridge avoids unrelated systems', () => {
   assert.match(source, /replaceConfig\(nextConfig\)/);
   assert.match(source, /mutateConfig\(mutatorOrPatch\)/);
   assert.match(source, /return\s+readConfig\(\)\?\.uiLanguage/);
+  assert.doesNotMatch(source, /syncConfig|syncCurrentConfig/);
   assert.doesNotMatch(source, /document|window|localStorage|sessionStorage|fetch|XMLHttpRequest/);
   assert.doesNotMatch(source, /provider|parser|storage|schema|package|vite|css|template/i);
   assert.doesNotMatch(source, /config\.uiLanguage\s*=/);

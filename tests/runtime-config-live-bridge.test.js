@@ -8,22 +8,17 @@ const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url)
 
 function createHarness(initialConfig) {
   let storeConfig = initialConfig;
-  let legacyMirror = initialConfig;
   const access = createRuntimeConfigAccess({
     getConfig: () => storeConfig,
     replaceConfig: (nextConfig) => {
       storeConfig = nextConfig;
       return storeConfig;
-    },
-    syncConfig: (nextConfig) => {
-      legacyMirror = nextConfig;
     }
   });
 
   return {
     access,
-    getStoreConfig: () => storeConfig,
-    getLegacyMirror: () => legacyMirror
+    getStoreConfig: () => storeConfig
   };
 }
 
@@ -38,13 +33,12 @@ test('live config getter returns the config store current pointer', () => {
   assert.equal(harness.access.getConfig(), replacement);
 });
 
-test('replaceConfig updates the store and synchronizes the legacy mirror', () => {
+test('replaceConfig updates the store pointer without mirror synchronization', () => {
   const harness = createHarness({ theme: 'light' });
   const replacement = { theme: 'dark' };
 
   assert.equal(harness.access.replaceConfig(replacement), replacement);
   assert.equal(harness.getStoreConfig(), replacement);
-  assert.equal(harness.getLegacyMirror(), replacement);
 });
 
 test('mutateConfig operates on the latest pointer after replacement', () => {
@@ -59,7 +53,6 @@ test('mutateConfig operates on the latest pointer after replacement', () => {
 
   assert.equal(mutated, replacement);
   assert.equal(harness.getStoreConfig(), replacement);
-  assert.equal(harness.getLegacyMirror(), replacement);
   assert.equal(replacement.outputMode, 'realtime');
   assert.equal(staleConfig.outputMode, 'typewriter');
 });
@@ -72,16 +65,16 @@ test('mutateConfig applies object patches without replacing the active pointer',
 
   assert.equal(mutated, currentConfig);
   assert.equal(harness.getStoreConfig(), currentConfig);
-  assert.equal(harness.getLegacyMirror(), currentConfig);
   assert.deepEqual(currentConfig, { uiLanguage: 'fr', theme: 'light' });
 });
 
 test('legacy core routes lifecycle config state through the live store bridge', () => {
   const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
-  assert.match(source, /let\s+config\s*=\s*runtimeConfigStore\.getConfig\(\)/);
+  assert.doesNotMatch(source, /let\s+config\s*=/);
+  assert.doesNotMatch(source, /syncConfig\s*:/);
   assert.match(source, /replaceConfig:\s*\(nextConfig\)\s*=>\s*runtimeConfigStore\.replaceConfig\(nextConfig\)/);
-  assert.match(source, /syncConfig:\s*\(nextConfig\)\s*=>\s*\{\s*config\s*=\s*nextConfig;\s*\}/);
+  assert.match(source, /initialApiKeys:\s*runtimeConfigAccess\.getConfig\(\)\.apiKeys/);
   assert.ok(
     (source.match(/get config\(\)\s*\{\s*return runtimeConfigAccess\.getConfig\(\);\s*\}/g) || []).length >= 4
   );
@@ -91,12 +84,13 @@ test('legacy core routes lifecycle config state through the live store bridge', 
   assert.doesNotMatch(source, /set config\(next\)\s*\{\s*config\s*=\s*next;\s*\}/);
 });
 
-test('loadConfig replacement and mutation keep the store and mirror synchronized through the bridge', () => {
+test('loadConfig replacement and mutation use the current store pointer through the bridge', () => {
   const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
+  assert.ok((source.match(/currentConfig:\s*runtimeConfigAccess\.getConfig\(\)/g) || []).length >= 2);
   assert.match(source, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
   assert.match(source, /runtimeConfigAccess\.mutateConfig\(normalizedConfig\)/);
-  assert.doesNotMatch(source, /config\s*=\s*runtimeConfigStore\.replaceConfig\(normalizedConfig\)/);
+  assert.doesNotMatch(source, /currentConfig:\s*config\b/);
   assert.doesNotMatch(source, /Object\.assign\(config,\s*normalizedConfig\)/);
 });
 
