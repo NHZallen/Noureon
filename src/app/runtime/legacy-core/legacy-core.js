@@ -1155,16 +1155,17 @@ function renderMarkdownWithFormulas(text) {
             };
         };
         const startNewChat = async () => {
-            const oldTempChatCount = conversations.length;
-            liveConversationsBridge.replaceConversations(
-                conversations.filter(c => !c.isTemporary || c.messages.length > 0)
+            const currentConversations = liveConversationsBridge.getConversations();
+            const oldTempChatCount = currentConversations.length;
+            const cleanedConversations = liveConversationsBridge.replaceConversations(
+                currentConversations.filter(c => !c.isTemporary || c.messages.length > 0)
             );
-            if (conversations.length < oldTempChatCount) {
+            if (cleanedConversations.length < oldTempChatCount) {
                  await saveAppData();
             }
             uploadedFiles = [];
             const newConv = createBaseConversation('新對話');
-            conversations.unshift(newConv);
+            liveConversationsBridge.getConversations().unshift(newConv);
             conversationStateAccess.setCurrentConversationId(newConv.id);
             renderAll();
             ALL_ELEMENTS.messageInput.value = '';

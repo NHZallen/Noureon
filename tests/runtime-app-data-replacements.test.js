@@ -220,14 +220,15 @@ test('mirror decomposition order is locked after config, personalMemories, Astra
   assert.match(legacyCoreSource, /set folders\(next\)\s*\{\s*runtimeAppDataStore\.replaceFolders\(next\);\s*\}/);
 
   assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
-  assert.match(legacyCoreSource, /conversations\.unshift\(newConv\)/);
+  assert.match(legacyCoreSource, /liveConversationsBridge\.getConversations\(\)\.unshift\(newConv\)/);
+  assert.doesNotMatch(legacyCoreSource, /conversations\.unshift\(newConv\)/);
   assert.match(legacyCoreSource, /conv\.deletedAt\s*=\s*new Date\(\)\.toISOString\(\)/);
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*true/);
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*false/);
 
   // Future mirror removal order: personalMemories, config, Astras, and folders
-  // are extracted; conversations remains last because folder flows still mutate
-  // conversation.folderId.
+  // are extracted; conversations remains last while load/sync compatibility paths
+  // still own the deferred mirror.
   assert.doesNotMatch(legacyCoreSource, /createConversationStore|createConversationsStore/);
 });
 
@@ -237,12 +238,15 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
   const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
 
   assertMarkersInOrder(startNewChatBody, [
-    'const oldTempChatCount = conversations.length',
-    'liveConversationsBridge.replaceConversations(',
-    'conversations.filter(c => !c.isTemporary || c.messages.length > 0)',
+    'const currentConversations = liveConversationsBridge.getConversations()',
+    'const oldTempChatCount = currentConversations.length',
+    'const cleanedConversations = liveConversationsBridge.replaceConversations(',
+    'currentConversations.filter(c => !c.isTemporary || c.messages.length > 0)',
+    'if (cleanedConversations.length < oldTempChatCount)',
     'await saveAppData()',
     'uploadedFiles = []',
-    'conversations.unshift(newConv)',
+    "const newConv = createBaseConversation('新對話')",
+    'liveConversationsBridge.getConversations().unshift(newConv)',
     'conversationStateAccess.setCurrentConversationId(newConv.id)',
     'renderAll()'
   ], 'startNewChat temporary conversation replacement');
@@ -256,7 +260,9 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
     'renderAll()'
   ], 'loadChat previous temporary conversation replacement');
 
-  assert.doesNotMatch(startNewChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*!c\.isTemporary\s*\|\|\s*c\.messages\.length\s*>\s*0\)/);
+  assert.equal((startNewChatBody.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
+  assert.doesNotMatch(startNewChatBody, /\bconversations\.(?:length|filter|unshift)\b/);
+  assert.match(loadChatBody, /conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
   assert.doesNotMatch(loadChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
   assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);

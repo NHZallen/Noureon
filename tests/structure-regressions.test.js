@@ -882,12 +882,17 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.equal((loadAppDataBody.match(/runtimeAppDataStore\.replaceAll\(\{/g) || []).length, 2);
   assert.match(loadAppDataBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
   assertMarkersInOrder(startNewChatBody, [
-    'const oldTempChatCount = conversations.length',
-    'liveConversationsBridge.replaceConversations(',
-    'conversations.filter(c => !c.isTemporary || c.messages.length > 0)',
+    'const currentConversations = liveConversationsBridge.getConversations()',
+    'const oldTempChatCount = currentConversations.length',
+    'const cleanedConversations = liveConversationsBridge.replaceConversations(',
+    'currentConversations.filter(c => !c.isTemporary || c.messages.length > 0)',
+    'if (cleanedConversations.length < oldTempChatCount)',
     'await saveAppData()',
     'uploadedFiles = []',
-    'conversations.unshift(newConv)'
+    "const newConv = createBaseConversation('新對話')",
+    'liveConversationsBridge.getConversations().unshift(newConv)',
+    'conversationStateAccess.setCurrentConversationId(newConv.id)',
+    'renderAll()'
   ], '00 startNewChat store-backed temporary conversation replacement');
   assertMarkersInOrder(loadChatBody, [
     'const previousConv = getActiveConversation()',
@@ -897,6 +902,9 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'uploadedFiles = []',
     'renderAll()'
   ], '00 loadChat store-backed previous temporary conversation replacement');
+  assert.equal((startNewChatBody.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
+  assert.doesNotMatch(startNewChatBody, /\bconversations\.(?:length|filter|unshift)\b/);
+  assert.match(loadChatBody, /conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
   assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
