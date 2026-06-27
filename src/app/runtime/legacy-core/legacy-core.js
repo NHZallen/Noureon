@@ -28,6 +28,7 @@ import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/
 import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
+import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
 import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
@@ -475,11 +476,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         let folders = runtimeAppDataStore.getFolders();
         let astras = runtimeAppDataStore.getAstras();
         let personalMemories = runtimeAppDataStore.getPersonalMemories();
-        let activeConversationId = null;
+        const activeConversationStore = createActiveConversationStore(null);
         const conversationStateAccess = createConversationStateAccess({
             getConversations: () => conversations,
-            getCurrentConversationId: () => activeConversationId,
-            setCurrentConversationId: (id) => { activeConversationId = id; }
+            getCurrentConversationId: () => activeConversationStore.getActiveConversationId(),
+            setCurrentConversationId: (id) => activeConversationStore.setActiveConversationId(id)
         });
         const runtimeConfigStore = runtimeAppKernel.configStore;
         let config = runtimeConfigStore.getConfig();

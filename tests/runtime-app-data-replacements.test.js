@@ -124,15 +124,17 @@ test('loadAppData keeps orchestration, lexical replacements, and corruption fall
   assert.match(loadAppDataBody, /}\s*else\s*{\s*const\s+latestAppData\s*=\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*conversations\s*=\s*latestAppData\.conversations;\s*folders\s*=\s*latestAppData\.folders;\s*astras\s*=\s*latestAppData\.astras;\s*personalMemories\s*=\s*latestAppData\.personalMemories;\s*}/);
 });
 
-test('saveAppData reads the store snapshot while active conversation stays lexical', () => {
+test('saveAppData reads the store snapshot while active conversation id uses the kernel store', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assertMarkersInOrder(fragment00Source, [
+    'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
     'getConversations: () => conversations',
-    'getCurrentConversationId: () => activeConversationId',
-    'setCurrentConversationId: (id) => { activeConversationId = id; }'
+    'getCurrentConversationId: () => activeConversationStore.getActiveConversationId()',
+    'setCurrentConversationId: (id) => activeConversationStore.setActiveConversationId(id)'
   ], 'conversationStateAccess active conversation bridge');
+  assert.doesNotMatch(fragment00Source, /let\s+activeConversationId\s*=/);
 
   assertMarkersInOrder(fragment00Source, [
     'const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({',

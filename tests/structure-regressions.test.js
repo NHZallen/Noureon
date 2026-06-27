@@ -264,6 +264,42 @@ test('legacy model registry owns static model metadata and capability helpers', 
   assert.ok(legacyCoreLineCount < 2150, 'legacy-core should have meaningful line-count headroom after model registry extraction');
 });
 
+test('active conversation id ownership lives in a small kernel store', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const activeConversationStorePath = 'src/app/runtime/kernel/active-conversation-store.js';
+  const activeConversationStoreSource = readSource(activeConversationStorePath);
+
+  assert.equal(existsSync(projectFile(activeConversationStorePath)), true);
+  assert.equal(existsSync(projectFile('tests/runtime-active-conversation-store.test.js')), true);
+  assert.match(activeConversationStoreSource, /export\s+function\s+createActiveConversationStore/);
+  assert.match(activeConversationStoreSource, /getActiveConversationId/);
+  assert.match(activeConversationStoreSource, /setActiveConversationId/);
+  assert.match(activeConversationStoreSource, /clearActiveConversationId/);
+  assert.match(activeConversationStoreSource, /hasActiveConversation/);
+  assert.doesNotMatch(activeConversationStoreSource, /document|window|indexedDB|localStorage|sessionStorage/);
+  assert.doesNotMatch(activeConversationStoreSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+
+  assert.match(
+    legacyCoreSource,
+    /import\s+\{\s*createActiveConversationStore\s*\}\s+from\s+['"]\/src\/app\/runtime\/kernel\/active-conversation-store\.js['"]/
+  );
+  assertMarkersInOrder(legacyCoreSource, [
+    'let conversations = runtimeAppDataStore.getConversations()',
+    'let folders = runtimeAppDataStore.getFolders()',
+    'let astras = runtimeAppDataStore.getAstras()',
+    'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
+    'const activeConversationStore = createActiveConversationStore(null)',
+    'const conversationStateAccess = createConversationStateAccess({',
+    'getConversations: () => conversations',
+    'getCurrentConversationId: () => activeConversationStore.getActiveConversationId()',
+    'setCurrentConversationId: (id) => activeConversationStore.setActiveConversationId(id)'
+  ], 'active conversation store bridge');
+  assert.doesNotMatch(legacyCoreSource, /let\s+activeConversationId\s*=/);
+  assert.doesNotMatch(legacyCoreSource, /activeConversationId\s*=/);
+  assert.match(legacyCoreSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
+  assert.match(legacyCoreSource, /from\s+['"]\/src\/app\/runtime\/legacy-core\/model-registry\.js['"]/);
+});
+
 test('sensitive config export redaction boundary is explicit', () => {
   const redactionPath = 'src/app/runtime/security/sensitive-config-redaction.js';
   const sensitiveStorePath = 'src/app/runtime/security/sensitive-config-store.js';
@@ -795,8 +831,9 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'let folders = runtimeAppDataStore.getFolders()',
     'let astras = runtimeAppDataStore.getAstras()',
     'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
-    'let activeConversationId = null'
+    'const activeConversationStore = createActiveConversationStore(null)'
   ], '00 app data store lexical bridge');
+  assert.doesNotMatch(fragment00Source, /let\s+activeConversationId\s*=/);
   assert.doesNotMatch(fragment00Source, /createLegacyRuntimeAppDataStore\(/);
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+appDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);
@@ -1873,7 +1910,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'let folders = runtimeAppDataStore.getFolders()',
     'let astras = runtimeAppDataStore.getAstras()',
     'let personalMemories = runtimeAppDataStore.getPersonalMemories()',
-    'let activeConversationId = null',
+    'const activeConversationStore = createActiveConversationStore(null)',
     'const conversationStateAccess = createConversationStateAccess({',
     'const runtimeConfigStore = runtimeAppKernel.configStore',
     'let config = runtimeConfigStore.getConfig()',
@@ -1889,7 +1926,8 @@ test('runtime core dependencies preserve their backing-state creation order', ()
 
   assert.match(fragment00Source, /getElements:\s*\(\)\s*=>\s*ALL_ELEMENTS/);
   assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
-  assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationId/);
+  assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationStore\.getActiveConversationId\(\)/);
+  assert.doesNotMatch(fragment00Source, /let\s+activeConversationId\s*=/);
   assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
   assert.match(fragment00Source, /showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/);
   assert.match(fragment00Source, /renderHistorySidebar:\s*\(\)\s*=>\s*renderHistorySidebar\(\)/);
@@ -2472,8 +2510,8 @@ test('conversation state access owns selected active conversation lookups withou
   assert.match(fragment00Source, /import\s+\{\s*createConversationStateAccess\s*\}/);
   assert.equal((fragment00Source.match(/createConversationStateAccess\(\{/g) || []).length, 1);
   assert.match(fragment00Source, /getConversations:\s*\(\)\s*=>\s*conversations/);
-  assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationId/);
-  assert.match(fragment00Source, /setCurrentConversationId:\s*\(id\)\s*=>\s*\{\s*activeConversationId\s*=\s*id;\s*\}/);
+  assert.match(fragment00Source, /getCurrentConversationId:\s*\(\)\s*=>\s*activeConversationStore\.getActiveConversationId\(\)/);
+  assert.match(fragment00Source, /setCurrentConversationId:\s*\(id\)\s*=>\s*activeConversationStore\.setActiveConversationId\(id\)/);
 
   assert.match(fragment00Source, /const\s+getActiveConversation\s*=\s*\(\)\s*=>\s*\{\s*const\s+conv\s*=\s*conversationStateAccess\.getCurrentConversation\(\);/);
   assert.match(fragment00Source, /conversationStateAccess\.setCurrentConversationId\(newConv\.id\);/);
