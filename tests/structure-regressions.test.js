@@ -362,6 +362,7 @@ test('sensitive config export redaction boundary is explicit', () => {
   const redactionPath = 'src/app/runtime/security/sensitive-config-redaction.js';
   const sensitiveStorePath = 'src/app/runtime/security/sensitive-config-store.js';
   const inputIntentPath = 'src/app/runtime/security/api-key-input-intent.js';
+  const apiKeyControlsPath = 'src/app/runtime/legacy-core/settings-api-key-controls.js';
   const exportLifecycleSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -371,10 +372,12 @@ test('sensitive config export redaction boundary is explicit', () => {
   const redactionSource = readSource(redactionPath);
   const sensitiveStoreSource = readSource(sensitiveStorePath);
   const inputIntentSource = readSource(inputIntentPath);
+  const apiKeyControlsSource = readSource(apiKeyControlsPath);
 
   assert.equal(existsSync(projectFile(redactionPath)), true);
   assert.equal(existsSync(projectFile(sensitiveStorePath)), true);
   assert.equal(existsSync(projectFile(inputIntentPath)), true);
+  assert.equal(existsSync(projectFile(apiKeyControlsPath)), true);
   assert.equal(existsSync(projectFile('tests/security/sensitive-config-redaction.test.js')), true);
   assert.equal(existsSync(projectFile('tests/security/api-key-mask.test.js')), true);
   assert.equal(existsSync(projectFile('tests/security/export-redacts-secrets.test.js')), true);
@@ -413,10 +416,12 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(legacyCoreSource, /mergeSensitiveApiKeys\(savedConfig\.apiKeys\)/);
   assert.match(legacyCoreSource, /removeSensitiveConfig\(savedConfig\)/);
   assert.match(configPersistenceSource, /removeSensitiveConfig\(getConfig\(\)\)/);
-  assert.match(settingsAuthProviderSource, /prepareApiKeyInput/);
-  assert.match(settingsAuthProviderSource, /readApiKeyInputIntent/);
-  assert.match(settingsAuthProviderSource, /markApiKeyInputCleared/);
-  assert.doesNotMatch(settingsAuthProviderSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
+  assert.match(settingsAuthProviderSource, /createSettingsApiKeyControls/);
+  assert.match(apiKeyControlsSource, /prepareApiKeyInput/);
+  assert.match(apiKeyControlsSource, /readApiKeyInputIntent/);
+  assert.match(apiKeyControlsSource, /markApiKeyInputCleared/);
+  assert.doesNotMatch(settingsAuthProviderSource, /readApiKeyInputIntent|markApiKeyInputCleared/);
+  assert.doesNotMatch(apiKeyControlsSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
   assert.match(settingsProviderStructuredSource, /'x-goog-api-key':\s*apiKey/);
   assert.match(streamApiSource, /'x-goog-api-key':\s*apiKey/);
   assert.doesNotMatch(settingsAuthProviderSource, /:generateContent\?key=|\?key=\$\{apiKey\}/);
@@ -426,6 +431,7 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.doesNotMatch(inputIntentSource, /input\.dataset\.raw|dataset\.raw|secretValue/);
   assert.doesNotMatch(redactionSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(inputIntentSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(apiKeyControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(sensitiveStoreSource, /crypto\.subtle|AES-GCM/);
 });
 
@@ -1156,24 +1162,29 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const structuredHelperPath = 'src/app/runtime/legacy-core/settings-provider-structured-helpers.js';
   const titleSummaryHelperPath = 'src/app/runtime/legacy-core/settings-title-summary-helpers.js';
   const historyMenuHelperPath = 'src/app/runtime/legacy-core/settings-history-menu-helper.js';
+  const apiKeyControlsPath = 'src/app/runtime/legacy-core/settings-api-key-controls.js';
   const lifecycleSource = readSource(lifecyclePath);
   const structuredHelperSource = readSource(structuredHelperPath);
   const titleSummaryHelperSource = readSource(titleSummaryHelperPath);
   const historyMenuHelperSource = readSource(historyMenuHelperPath);
+  const apiKeyControlsSource = readSource(apiKeyControlsPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
   assert.equal(existsSync(projectFile(structuredHelperPath)), true);
   assert.equal(existsSync(projectFile(titleSummaryHelperPath)), true);
   assert.equal(existsSync(projectFile(historyMenuHelperPath)), true);
+  assert.equal(existsSync(projectFile(apiKeyControlsPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
   assert.match(titleSummaryHelperSource, /export\s+function\s+createSettingsTitleSummaryHelpers/);
   assert.match(historyMenuHelperSource, /export\s+function\s+createSettingsHistoryMenuHelper/);
+  assert.match(apiKeyControlsSource, /export\s+function\s+createSettingsApiKeyControls/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(titleSummaryHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(historyMenuHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(apiKeyControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.match(
     lifecycleSource,
     /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
@@ -1186,6 +1197,10 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
     lifecycleSource,
     /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from\s+['"]\.\/settings-history-menu-helper\.js['"]/
   );
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsApiKeyControls\s*\}\s+from\s+['"]\.\/settings-api-key-controls\.js['"]/
+  );
   assert.match(lifecycleSource, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
   assert.match(lifecycleSource, /getApiKeyForProvider,/);
   assert.match(lifecycleSource, /readErrorBody,/);
@@ -1195,6 +1210,10 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(lifecycleSource, /const\s+historyMenuHelper\s*=\s*createSettingsHistoryMenuHelper\(\{/);
   assert.match(lifecycleSource, /getConversations:\s*\(\)\s*=>\s*conversations/);
   assert.match(lifecycleSource, /getFolders:\s*\(\)\s*=>\s*folders/);
+  assert.match(lifecycleSource, /const\s+apiKeyControls\s*=\s*createSettingsApiKeyControls\(\{/);
+  assert.match(lifecycleSource, /elements:\s*ALL_ELEMENTS/);
+  assert.match(lifecycleSource, /setApiKeyForProvider,/);
+  assert.match(lifecycleSource, /clearSensitiveApiKeys,/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
@@ -1226,6 +1245,13 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /const\s+createHistoryMenu\s*=\s*\(convId,\s*targetButton\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /createHistoryMenu\s*\n?\s*\}\s*=\s*historyMenuHelper/);
+  assert.doesNotMatch(lifecycleSource, /const\s+getApiKeyInputDescriptors\s*=/);
+  assert.doesNotMatch(lifecycleSource, /const\s+createApiKeyClearButton\s*=/);
+  assert.doesNotMatch(lifecycleSource, /const\s+ensureApiKeyInputSecurityControls\s*=/);
+  assert.doesNotMatch(lifecycleSource, /const\s+prepareApiKeyInputsForSettings\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /const\s+persistApiKeyInputIntents\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /prepareApiKeyInputsForSettings\(\);/);
+  assert.match(lifecycleSource, /await\s+persistApiKeyInputIntents\(\);/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+shouldPerformWebSearch\b/);
   assert.doesNotMatch(lifecycleSource, /const\s+conversationHistory\s*=\s*conv\.messages/);
@@ -1244,6 +1270,13 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(historyMenuHelperSource, /function\s+createHistoryMenu\(convId,\s*targetButton\)\s*\{/);
   assert.match(historyMenuHelperSource, /moveConversationToFolder\(convId,\s*button\.dataset\.folderId\)/);
   assert.match(historyMenuHelperSource, /showRenameModal\(convId,\s*'conversation',\s*event\)/);
+  assert.match(apiKeyControlsSource, /const\s+getApiKeyInputDescriptors\s*=/);
+  assert.match(apiKeyControlsSource, /const\s+createApiKeyClearButton\s*=/);
+  assert.match(apiKeyControlsSource, /const\s+ensureApiKeyInputSecurityControls\s*=/);
+  assert.match(apiKeyControlsSource, /const\s+prepareApiKeyInputsForSettings\s*=/);
+  assert.match(apiKeyControlsSource, /const\s+persistApiKeyInputIntents\s*=/);
+  assert.match(apiKeyControlsSource, /readApiKeyInputIntent/);
+  assert.match(apiKeyControlsSource, /markApiKeyInputCleared/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 

@@ -11,12 +11,7 @@ import {
     getSettingsMobileGroups as getSettingsMobileGroupsBase
 } from '../../legacy-runtime/features/settings-mobile-metadata.js';
 import { getOutputModeSettingsText } from '../../legacy-runtime/features/output-mode-settings-text.js';
-import {
-    markApiKeyInputCleared,
-    markApiKeyInputDirty,
-    prepareApiKeyInput,
-    readApiKeyInputIntent
-} from '../security/api-key-input-intent.js';
+import { createSettingsApiKeyControls } from './settings-api-key-controls.js';
 import { createSettingsProviderStructuredHelpers } from './settings-provider-structured-helpers.js';
 import { createSettingsTitleSummaryHelpers } from './settings-title-summary-helpers.js';
 import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.js';
@@ -337,99 +332,19 @@ submitButtonIcon.innerHTML = sendIconHTML;
     }
 };
 const getTavilySearchDepth = () => config.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
-const getApiKeyInputDescriptors = () => [
-    { provider: 'gemini', input: ALL_ELEMENTS.geminiApiKeyInput },
-    { provider: 'openrouter', input: ALL_ELEMENTS.openrouterApiKeyInputAll },
-    { provider: 'stepPlan', input: ALL_ELEMENTS.stepPlanApiKeyInput },
-    { provider: 'nvidia', input: ALL_ELEMENTS.nvidiaApiKeyInput },
-    { provider: 'tavily', input: ALL_ELEMENTS.tavilyApiKeyInput }
-].filter(({ input }) => input);
-
-const createApiKeyClearButton = (provider, input) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'api-key-clear-btn';
-    button.textContent = 'Clear';
-    button.dataset.apiKeyClearProvider = provider;
-    button.addEventListener('click', async (event) => {
-        event.preventDefault();
-        markApiKeyInputCleared(input);
-        if (typeof setApiKeyForProvider === 'function') {
-            setApiKeyForProvider(provider, '');
-        } else {
-            mergeSensitiveApiKeys({ [provider]: '' });
-        }
-        await saveSensitiveConfig();
-    });
-    return button;
-};
-
-const ensureApiKeyInputSecurityControls = () => {
-    getApiKeyInputDescriptors().forEach(({ provider, input }) => {
-        if (input.dataset.apiKeyIntentBound !== 'true') {
-            input.dataset.apiKeyIntentBound = 'true';
-            input.addEventListener('input', () => markApiKeyInputDirty(input));
-        }
-
-        if (!input.id || document.getElementById(`${input.id}-clear-btn`)) return;
-        const clearButton = createApiKeyClearButton(provider, input);
-        clearButton.id = `${input.id}-clear-btn`;
-        const wrapper = input.closest?.('div');
-        if (wrapper?.classList?.add) wrapper.classList.add('api-key-input-group');
-        if (wrapper?.appendChild) wrapper.appendChild(clearButton);
-    });
-
-    if (document.getElementById('clear-all-api-keys-btn')) return;
-    const lastKeyInput = ALL_ELEMENTS.tavilyApiKeyInput || ALL_ELEMENTS.openrouterApiKeyInputAll || ALL_ELEMENTS.geminiApiKeyInput;
-    const lastKeyWrapper = lastKeyInput?.closest?.('div');
-    if (!lastKeyWrapper?.insertAdjacentElement && !lastKeyWrapper?.appendChild) return;
-    const clearAllButton = document.createElement('button');
-    clearAllButton.type = 'button';
-    clearAllButton.id = 'clear-all-api-keys-btn';
-    clearAllButton.className = 'api-key-clear-all-btn';
-    clearAllButton.textContent = 'Clear all API keys';
-    clearAllButton.addEventListener('click', async (event) => {
-        event.preventDefault();
-        getApiKeyInputDescriptors().forEach(({ input }) => markApiKeyInputCleared(input));
-        await clearSensitiveApiKeys();
-        await saveSensitiveConfig();
-    });
-    if (lastKeyWrapper.insertAdjacentElement) {
-        lastKeyWrapper.insertAdjacentElement('afterend', clearAllButton);
-    } else {
-        lastKeyWrapper.appendChild(clearAllButton);
-    }
-};
-
-const prepareApiKeyInputsForSettings = () => {
-    ensureApiKeyInputSecurityControls();
-    getApiKeyInputDescriptors().forEach(({ provider, input }) => {
-        const lookupProvider = provider === 'stepPlan' ? 'stepfun' : provider;
-        prepareApiKeyInput(input, {
-            provider,
-            rawValue: getApiKeyForProvider(lookupProvider)
-        });
-    });
-};
-
-const persistApiKeyInputIntents = async () => {
-    const changes = {};
-    for (const { provider, input } of getApiKeyInputDescriptors()) {
-        const intent = readApiKeyInputIntent(input);
-        const targetProvider = intent.provider || provider;
-        if (!targetProvider || intent.action === 'unchanged') continue;
-        changes[targetProvider] = intent.action === 'clear' ? '' : intent.value;
-    }
-
-    if (Object.keys(changes).length === 0) return;
-
-    if (typeof setApiKeyForProvider === 'function') {
-        Object.entries(changes).forEach(([provider, value]) => setApiKeyForProvider(provider, value));
-    } else {
-        mergeSensitiveApiKeys(changes);
-    }
-    await saveSensitiveConfig();
-};
+const apiKeyControls = createSettingsApiKeyControls({
+    document,
+    elements: ALL_ELEMENTS,
+    getApiKeyForProvider,
+    setApiKeyForProvider,
+    mergeSensitiveApiKeys,
+    clearSensitiveApiKeys,
+    saveSensitiveConfig
+});
+const {
+    prepareApiKeyInputsForSettings,
+    persistApiKeyInputIntents
+} = apiKeyControls;
 
 const ensureCouncilTranslatorSettingsControls = () => {
     if (!document.getElementById('nvidia-api-key-input')) {

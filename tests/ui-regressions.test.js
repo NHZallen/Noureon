@@ -125,14 +125,16 @@ test('mobile web search typing does not disable the message input when Tavily is
 
 test('settings API key controls use masked intent helpers and scoped clear button styles', () => {
   const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsApiKeyControls = readUiSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
   const css = readUiSource('src/styles/main.css');
 
-  assert.match(settingsAuthProviderLifecycle, /prepareApiKeyInput\(input,\s*\{/);
-  assert.match(settingsAuthProviderLifecycle, /readApiKeyInputIntent\(input\)/);
-  assert.match(settingsAuthProviderLifecycle, /markApiKeyInputCleared\(input\)/);
-  assert.match(settingsAuthProviderLifecycle, /id\s*=\s*'clear-all-api-keys-btn'/);
+  assert.match(settingsAuthProviderLifecycle, /createSettingsApiKeyControls/);
+  assert.match(settingsApiKeyControls, /prepareApiKeyInput\(input,\s*\{/);
+  assert.match(settingsApiKeyControls, /readApiKeyInputIntent\(input\)/);
+  assert.match(settingsApiKeyControls, /markApiKeyInputCleared\(input\)/);
+  assert.match(settingsApiKeyControls, /id\s*=\s*'clear-all-api-keys-btn'/);
   assert.doesNotMatch(settingsAuthProviderLifecycle, /ALL_ELEMENTS\.geminiApiKeyInput\.value\s*=\s*getApiKeyForProvider/);
-  assert.doesNotMatch(settingsAuthProviderLifecycle, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
+  assert.doesNotMatch(settingsApiKeyControls, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
 
   assert.match(css, /\.api-key-input-group\s*\{/);
   assert.match(css, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
@@ -247,6 +249,16 @@ test('mobile settings open to a GPT-style category list before drilling into det
   assert.match(css, /@keyframes\s+settingsBackReturnOut\s*\{[\s\S]*from\s*\{[^}]*opacity:\s*1;[^}]*transform:\s*translateX\(0\)\s+scale\(1\);[^}]*\}[\s\S]*to\s*\{[^}]*opacity:\s*0;[^}]*transform:\s*translateX\(-0\.35rem\)\s+scale\(0\.96\);/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active[^{]*\{[^}]*display:\s*block\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active\s*>\s*h3[^{]*\{[^}]*margin-left:\s*0\s*!important;[^}]*width:\s*100%\s*!important;[^}]*text-align:\s*left\s*!important;/s);
+});
+
+test('mobile settings use readable dark surfaces in dark mode', () => {
+  const css = readUiSource('src/styles/main.css');
+
+  assert.match(css, /\.dark\s+#settings-modal\s*>\s*div,[\s\S]*\.dark\s+#settings-modal\s+#settings-mobile-list,[\s\S]*\.dark\s+#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*background:\s*var\(--modal-bg\)\s*!important;/s);
+  assert.match(css, /\.dark\s+#settings-modal\s+\.settings-mobile-card,[\s\S]*\.dark\s+#settings-modal\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*background:\s*var\(--input-field-bg\)\s*!important;[^}]*color:\s*var\(--text-primary\)\s*!important;/s);
+  assert.match(css, /\.dark\s+#settings-modal\s+\.settings-mobile-row-label[^{]*\{[^}]*color:\s*var\(--text-primary\)\s*!important;/s);
+  assert.match(css, /\.dark\s+#settings-modal\s+\.settings-mobile-group-title[^{]*\{[^}]*color:\s*var\(--text-secondary\)\s*!important;/s);
+  assert.match(css, /\.dark\s+#settings-modal\s+#close-settings-btn[^{]*\{[^}]*background:\s*var\(--input-field-bg\)\s*!important;/s);
 });
 
 test('app typography uses restrained GPT-like system weights and mobile settings sheet motion', () => {

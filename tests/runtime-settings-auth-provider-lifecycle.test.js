@@ -210,6 +210,20 @@ test('history menu helper is composed while preserving lifecycle alias', () => {
   assert.doesNotMatch(source, /const\s+createHistoryMenu\s*=\s*\(convId,\s*targetButton\)\s*=>\s*\{/);
 });
 
+test('API key controls are composed through the extracted helper', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+
+  assert.match(source, /import\s+\{\s*createSettingsApiKeyControls\s*\}\s+from\s+['"]\.\/settings-api-key-controls\.js['"]/);
+  assert.match(source, /const\s+apiKeyControls\s*=\s*createSettingsApiKeyControls\(\{/);
+  assert.match(source, /elements:\s*ALL_ELEMENTS/);
+  assert.match(source, /getApiKeyForProvider,/);
+  assert.match(source, /setApiKeyForProvider,/);
+  assert.match(source, /clearSensitiveApiKeys,/);
+  assert.match(source, /prepareApiKeyInputsForSettings,\s*\n\s*persistApiKeyInputIntents/);
+  assert.doesNotMatch(source, /const\s+getApiKeyInputDescriptors\s*=/);
+  assert.doesNotMatch(source, /const\s+createApiKeyClearButton\s*=/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySettingsAuthProviderLifecycle(),
@@ -629,6 +643,7 @@ test('clear all API keys button clears sensitive store and saves without raw dat
 
 test('source keeps settings save, login, and delete-all ownership', () => {
   const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
 
   assert.match(source, /const\s+saveSettings\s*=\s*async\s*\(\{\s*close\s*=\s*true,\s*notify\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>\s*\{/);
   assert.match(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
@@ -636,7 +651,8 @@ test('source keeps settings save, login, and delete-all ownership', () => {
   assert.match(source, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(source, /await\s+runtimeStorageAdapter\.clear\(\)/);
   assert.match(source, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value/);
-  assert.match(source, /await\s+saveSensitiveConfig\(\)/);
+  assert.match(source, /await\s+persistApiKeyInputIntents\(\)/);
+  assert.match(apiKeyControlsSource, /await\s+saveSensitiveConfig\(\)/);
   assert.doesNotMatch(source, /config\.apiKeys\.gemini\s*=/);
   assert.match(source, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
 });
