@@ -105,7 +105,6 @@ test('direct app data store conversation replacements stay inside the deferred a
     .sort();
 
   assert.deepEqual(filesWithDirectReplacement, [
-    'src/app/runtime/legacy-core/core-tail-lifecycle.js',
     'src/app/runtime/legacy-core/legacy-core.js'
   ]);
 
@@ -124,9 +123,8 @@ test('direct app data store conversation replacements stay inside the deferred a
   assert.doesNotMatch(loadChatBody, directReplacementPattern);
 
   const coreTailSource = readSource('src', 'app', 'runtime', 'legacy-core', 'core-tail-lifecycle.js');
-  const coreTailMatches = coreTailSource.match(new RegExp(directReplacementPattern.source, 'g')) || [];
-  assert.equal(coreTailMatches.length, 1);
-  assert.match(coreTailSource, /state\.conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(nextConversations\)/);
+  assert.doesNotMatch(coreTailSource, directReplacementPattern);
+  assert.match(coreTailSource, /state\.conversations\s*=\s*nextConversations/);
 
   assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
 });

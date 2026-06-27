@@ -1072,7 +1072,7 @@ function setupMessageIntersectionObserver() {
             elements: ALL_ELEMENTS,
             getConversations: () => state.conversations,
             replaceConversations: (nextConversations) => {
-                state.conversations = runtimeAppDataStore.replaceConversations(nextConversations);
+                state.conversations = nextConversations;
                 return state.conversations;
             },
             saveAppData,

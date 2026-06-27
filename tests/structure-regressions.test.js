@@ -1227,10 +1227,11 @@ test('trash lifecycle ownership moves out of 04 into a real runtime module', () 
     'elements: ALL_ELEMENTS',
     'getConversations: () => state.conversations',
     'replaceConversations: (nextConversations) => {',
-    'state.conversations = runtimeAppDataStore.replaceConversations(nextConversations)',
+    'state.conversations = nextConversations',
     'return state.conversations',
     'saveAppData'
   ], 'core tail trash lifecycle wiring');
+  assert.doesNotMatch(coreTailSource, /runtimeAppDataStore\.replaceConversations\(/);
   for (const name of [
     'renderTrash',
     'handleRestoreTrashItem',

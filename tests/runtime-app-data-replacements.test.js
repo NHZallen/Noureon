@@ -436,8 +436,9 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
   assert.match(
     coreTailSource,
-    /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*state\.conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(nextConversations\);\s*return\s+state\.conversations;\s*\}/
+    /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*state\.conversations\s*=\s*nextConversations;\s*return\s+state\.conversations;\s*\}/
   );
+  assert.doesNotMatch(coreTailSource, /runtimeAppDataStore\.replaceConversations\(/);
   assert.match(fragment03Source, /set\s+conversations\(next\)\s*\{\s*state\.conversations\s*=\s*next;\s*\}/);
 });
 
