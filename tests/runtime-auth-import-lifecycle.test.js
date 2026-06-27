@@ -336,6 +336,28 @@ test('processAuthImport preserves auth persistence, app-data import, config save
   assert.equal(userWrite[2], JSON.stringify({ username: 'alice', passwordKdf: 'PBKDF2-SHA-256' }));
 });
 
+test('processAuthImport pushes conversations into the active replaceAll array without mutating stale pointers', async () => {
+  const rawData = {
+    backup_identity: { username: 'alice' },
+    user_credentials: { passwordHash: 'hash:secret' },
+    conversations: [{ id: 'conv-1', messages: [] }, { id: 'conv-2', messages: [] }]
+  };
+  const harness = createHarness({
+    file: { name: 'auth-backup.json', type: 'application/json', async text() { return JSON.stringify(rawData); } }
+  });
+  const staleConversations = harness.conversations;
+
+  await harness.lifecycle.processAuthImport();
+
+  assert.deepEqual(harness.conversations.map((conversation) => conversation.id), ['conv-1', 'conv-2']);
+  assert.deepEqual(staleConversations, []);
+  assert.ok(harness.calls.some((call) => call[0] === 'replaceAllAppData'));
+  assert.deepEqual(
+    harness.calls.filter((call) => call[0] === 'conversationsPush').map((call) => call[1]),
+    ['conv-1', 'conv-2']
+  );
+});
+
 test('processAuthImport validates missing files and backup credential mismatch without mutating state', async () => {
   const missingFileHarness = createHarness();
   missingFileHarness.elements.importFileInputAuth.files = [];

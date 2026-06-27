@@ -253,6 +253,30 @@ test('batch delete uses live selection getters and preserves persistence orderin
   ]);
 });
 
+test('batch delete falls back to the next live conversation without starting a new chat when possible', async () => {
+  const harness = createHarness({
+    selectedConversationIds: new Set(['c1']),
+    currentConversationId: 'c1',
+    conversations: [
+      { id: 'c1', archived: false, deletedAt: null },
+      { id: 'c2', archived: false, deletedAt: null }
+    ]
+  });
+
+  await harness.lifecycle.handleBatchDelete();
+
+  assert.equal(harness.conversations[0].deletedAt != null, true);
+  assert.equal(harness.currentConversationId, 'c2');
+  assert.equal(harness.calls.some((call) => call[0] === 'startNewChat'), false);
+  assert.deepEqual(harness.calls.map((call) => call[0]), [
+    'showCustomConfirm',
+    'setCurrentConversationId',
+    'saveAppData',
+    'toggleSelectionMode',
+    'showNotification'
+  ]);
+});
+
 test('batch archive uses runtime dialog notification after save and selection toggle', async () => {
   const harness = createHarness({
     selectedConversationIds: new Set(['c1', 'c2'])
@@ -269,6 +293,29 @@ test('batch archive uses runtime dialog notification after save and selection to
   ]);
 });
 
+test('batch archive falls back to the next unarchived live conversation without stale selection state', async () => {
+  const harness = createHarness({
+    selectedConversationIds: new Set(['c1']),
+    currentConversationId: 'c1',
+    conversations: [
+      { id: 'c1', archived: false, deletedAt: null },
+      { id: 'c2', archived: false, deletedAt: null }
+    ]
+  });
+
+  await harness.lifecycle.handleBatchArchive();
+
+  assert.equal(harness.conversations[0].archived, true);
+  assert.equal(harness.currentConversationId, 'c2');
+  assert.equal(harness.calls.some((call) => call[0] === 'startNewChat'), false);
+  assert.deepEqual(harness.calls.map((call) => call[0]), [
+    'setCurrentConversationId',
+    'saveAppData',
+    'toggleSelectionMode',
+    'runtimeDialogCoordinator.showNotification'
+  ]);
+});
+
 test('batch move modal and move handoff use injected folder and selection dependencies', async () => {
   const harness = createHarness();
   harness.lifecycle.handleBatchMove();
@@ -278,6 +325,19 @@ test('batch move modal and move handoff use injected folder and selection depend
   await harness.lifecycle.batchMoveToFolder('f1');
   assert.ok(harness.calls.some((call) => call[0] === 'moveConversationToFolder' && call[1] === 'c1' && call[2] === 'f1'));
   assert.ok(harness.calls.some((call) => call[0] === 'toggleSelectionMode'));
+});
+
+test('single conversation batch move preserves selection mode and routes only the requested id', async () => {
+  const harness = createHarness({
+    selectedConversationIds: new Set(['c1', 'c2'])
+  });
+  harness.lifecycle.renderBatchMoveModal('c2');
+
+  await harness.lifecycle.batchMoveToFolder('f1');
+
+  assert.ok(harness.calls.some((call) => call[0] === 'moveConversationToFolder' && call[1] === 'c2' && call[2] === 'f1'));
+  assert.equal(harness.calls.some((call) => call[0] === 'moveConversationToFolder' && call[1] === 'c1'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'toggleSelectionMode'), false);
 });
 
 test('voice setup and toggle use injected browser and state bridges', () => {

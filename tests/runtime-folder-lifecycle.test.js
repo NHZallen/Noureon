@@ -186,6 +186,26 @@ test('moveConversationToFolder reads live arrays and preserves save-render order
   assert.deepEqual(harness.calls, [['saveAppData'], ['renderAll']]);
 });
 
+test('moveConversationToFolder uses the latest conversations pointer after replacement', async () => {
+  const staleConversation = { id: 'stale', folderId: null };
+  const activeConversation = { id: 'conv', folderId: null };
+  const folder = { id: 'new', conversationIds: [] };
+  const harness = createHarness({
+    folders: [folder],
+    conversations: [staleConversation]
+  });
+  const staleConversations = harness.getConversations();
+
+  harness.setConversations([activeConversation]);
+  await harness.lifecycle.moveConversationToFolder('conv', 'new');
+
+  assert.equal(activeConversation.folderId, 'new');
+  assert.deepEqual(folder.conversationIds, ['conv']);
+  assert.deepEqual(staleConversations, [staleConversation]);
+  assert.equal(staleConversation.folderId, null);
+  assert.deepEqual(harness.calls, [['saveAppData'], ['renderAll']]);
+});
+
 test('deleteFolder clears linked conversations before replacement and persistence', async () => {
   const folder = { id: 'folder', conversationIds: ['conv'] };
   const linkedConversation = { id: 'conv', folderId: 'folder' };

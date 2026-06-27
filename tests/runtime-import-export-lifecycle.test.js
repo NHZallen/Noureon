@@ -369,6 +369,31 @@ test('handleImport validates, confirms, clears through bridges, chunks live arra
   ]);
 });
 
+test('handleImport pushes imported conversations into the active replaceAll conversation array only', async () => {
+  const rawData = {
+    backup_identity: { username: 'alice' },
+    conversations: [{ id: 'conv-1', messages: [] }, { id: 'conv-2', messages: [] }]
+  };
+  const harness = createHarness({
+    conversations: [{ id: 'stale-before-import' }],
+    importFile: {
+      name: 'backup.json',
+      type: 'application/json',
+      async text() {
+        return JSON.stringify(rawData);
+      }
+    }
+  });
+  const staleConversations = harness.conversations;
+
+  await harness.lifecycle.handleImport();
+
+  assert.deepEqual(harness.conversations.map((conversation) => conversation.id), ['conv-1', 'conv-2']);
+  assert.deepEqual(staleConversations.map((conversation) => conversation.id), ['stale-before-import']);
+  assert.ok(harness.calls.some((call) => call[0] === 'replaceAllAppData'));
+  assert.ok(harness.calls.some((call) => call[0] === 'loadChat' && call[1] === 'conv-1'));
+});
+
 test('handleExport uses live getters and packages selected data without leaving the export button disabled', async () => {
   const { calls, elements, lifecycle } = createHarness({
     conversations: [{ id: 'conv-1', messages: [] }],

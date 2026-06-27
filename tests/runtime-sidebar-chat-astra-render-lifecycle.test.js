@@ -191,3 +191,21 @@ test('Astra delete path uses injected replacement bridge and live conversations'
   assert.equal(dependencies.state.conversations[0].astrasId, null);
   assert.deepEqual(dependencies._calls.slice(0, 3), ['replaceAstras', 'saveAppData', 'renderAll']);
 });
+
+test('Astra delete path clears astrasId on the latest conversations pointer only', async () => {
+  const dependencies = createDependencies();
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const staleConversation = { id: 'stale', astrasId: 'astra-1' };
+  const activeConversation = { id: 'active', astrasId: 'astra-1' };
+  const staleConversations = [staleConversation];
+
+  dependencies.state.astras = [{ id: 'astra-1', name: 'Astra' }];
+  dependencies.state.conversations = staleConversations;
+  dependencies.state.conversations = [activeConversation];
+
+  await lifecycle.deleteAstras('astra-1');
+
+  assert.equal(activeConversation.astrasId, null);
+  assert.equal(staleConversation.astrasId, 'astra-1');
+  assert.deepEqual(dependencies._calls.slice(0, 3), ['replaceAstras', 'saveAppData', 'renderAll']);
+});

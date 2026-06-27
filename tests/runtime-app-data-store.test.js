@@ -148,6 +148,24 @@ test('replaceAll moves live mutation to the new active arrays only', () => {
   assert.deepEqual(oldPersonalMemories.map((item) => item.id), ['old-memory', 'old-memory-stale']);
 });
 
+test('replaceConversations moves live mutation to the new active conversation array only', () => {
+  const store = createLegacyRuntimeAppDataStore({
+    initialConversations: [{ id: 'old-conv' }]
+  });
+  const oldConversations = store.getConversations();
+  const nextConversations = [{ id: 'new-conv' }];
+
+  const activeConversations = store.replaceConversations(nextConversations);
+  activeConversations.push({ id: 'new-conv-live' });
+  oldConversations.push({ id: 'old-conv-stale' });
+
+  assert.equal(activeConversations, nextConversations);
+  assert.equal(store.getConversations(), nextConversations);
+  assert.equal(store.getSnapshot().conversations, nextConversations);
+  assert.deepEqual(store.getConversations().map((item) => item.id), ['new-conv', 'new-conv-live']);
+  assert.deepEqual(oldConversations.map((item) => item.id), ['old-conv', 'old-conv-stale']);
+});
+
 test('app data store instances are independent', () => {
   const first = createLegacyRuntimeAppDataStore();
   const second = createLegacyRuntimeAppDataStore();
