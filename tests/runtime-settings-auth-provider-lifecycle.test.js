@@ -254,6 +254,59 @@ const createDependencies = (overrides = {}) => {
   return { dependencies, calls, state };
 };
 
+const createUpdateInputStateHarness = (overrides = {}) => {
+  const conversation = {
+    id: 'conv-1',
+    model: 'gemini',
+    provider: 'gemini',
+    archived: false,
+    ...overrides.conversation
+  };
+  const { dependencies, calls, state } = createDependencies({
+    getActiveConversation: () => conversation,
+    normalizeConversationModel: (conv) => ({ provider: conv.provider || 'gemini', id: conv.model || 'gemini' }),
+    getApiKeyForProvider: (provider) => (provider === 'gemini' ? 'gemini-key' : ''),
+    conversationNeedsTavilySearch: () => false,
+    getCouncilValidation: () => ({ ok: true }),
+    isCouncilEnabled: () => false,
+    ...overrides.dependencies
+  });
+  Object.assign(dependencies.i18n.en, {
+    enterMessagePlaceholder: 'Type a message',
+    enterApiKeyPlaceholder: 'Enter API key',
+    viewingArchived: 'Viewing archived conversation'
+  });
+  dependencies.elements.messageInput.value = overrides.messageValue ?? 'hello';
+  dependencies.elements.messageInput.placeholder = 'previous placeholder';
+  dependencies.elements.messageInput.disabled = false;
+  dependencies.elements.submitButton.disabled = false;
+  dependencies.elements.submitButtonIcon.innerHTML = 'previous icon';
+  if (overrides.uploadedFiles) state.uploadedFiles = overrides.uploadedFiles;
+  if (overrides.abortController) state.abortController = overrides.abortController;
+
+  return {
+    lifecycle: createLegacySettingsAuthProviderLifecycle(dependencies),
+    dependencies,
+    calls,
+    state,
+    conversation
+  };
+};
+
+const assertDisabledSubmitIcon = (iconHtml) => {
+  assert.match(iconHtml, /<circle cx="12" cy="12" r="9">/);
+  assert.match(iconHtml, /m5\.7 5\.7 12\.6 12\.6/);
+};
+
+const assertSendSubmitIcon = (iconHtml) => {
+  assert.match(iconHtml, /<path d="M12 19V5">/);
+  assert.match(iconHtml, /<path d="m5 12 7-7 7 7">/);
+};
+
+const assertStopSubmitIcon = (iconHtml) => {
+  assert.match(iconHtml, /<rect x="3" y="3" width="18" height="18" rx="2" ry="2">/);
+};
+
 test('factory exports createLegacySettingsAuthProviderLifecycle', () => {
   assert.equal(typeof createLegacySettingsAuthProviderLifecycle, 'function');
 });
@@ -577,6 +630,130 @@ test('generateTitleAndSummary keeps conversation side effects in lifecycle', asy
   ]);
   assert.equal(requests[0].url.includes('?key='), false);
   assert.equal(requests[0].options.headers['x-goog-api-key'], 'gemini-secret-key');
+});
+
+test('updateInputState disables submit and preserves input state when no conversation is active', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    dependencies: { getActiveConversation: () => null },
+    messageValue: 'ready'
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.messageInput.disabled, false);
+  assert.equal(dependencies.elements.messageInput.placeholder, 'previous placeholder');
+  assert.equal(dependencies.elements.submitButton.disabled, true);
+  assertDisabledSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState disables archived conversations without changing the existing icon', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    conversation: { archived: true },
+    messageValue: 'archived text'
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.messageInput.disabled, true);
+  assert.equal(dependencies.elements.messageInput.placeholder, 'Viewing archived conversation');
+  assert.equal(dependencies.elements.submitButton.disabled, true);
+  assert.equal(dependencies.elements.submitButtonIcon.innerHTML, 'previous icon');
+});
+
+test('updateInputState disables input and submit when the model provider key is missing', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    dependencies: { getApiKeyForProvider: () => '' },
+    messageValue: 'needs key'
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.messageInput.disabled, true);
+  assert.equal(dependencies.elements.messageInput.placeholder, 'Enter API key');
+  assert.equal(dependencies.elements.submitButton.disabled, true);
+  assertDisabledSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState blocks submit but keeps input enabled when Tavily key is missing for search', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    dependencies: {
+      conversationNeedsTavilySearch: () => true,
+      getApiKeyForProvider: (provider) => (provider === 'gemini' ? 'gemini-key' : '')
+    },
+    messageValue: 'search this'
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.messageInput.disabled, false);
+  assert.equal(dependencies.elements.messageInput.placeholder, 'Type a message');
+  assert.equal(dependencies.elements.submitButton.disabled, true);
+  assertDisabledSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState blocks council validation failures with the validation message', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    dependencies: {
+      isCouncilEnabled: () => true,
+      getCouncilValidation: () => ({ ok: false, reason: 'tooFewModels', message: 'Select more council models' })
+    },
+    messageValue: 'council prompt'
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.messageInput.disabled, false);
+  assert.equal(dependencies.elements.messageInput.placeholder, 'Select more council models');
+  assert.equal(dependencies.elements.submitButton.disabled, true);
+  assertDisabledSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState enables submit when content, model key, and search/council checks pass', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    messageValue: 'send this'
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.messageInput.disabled, false);
+  assert.equal(dependencies.elements.messageInput.placeholder, 'Type a message');
+  assert.equal(dependencies.elements.submitButton.disabled, false);
+  assertSendSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState enables submit for uploaded files without typed text', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    messageValue: '   ',
+    uploadedFiles: [{ id: 'file-1' }]
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.submitButton.disabled, false);
+  assertSendSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState shows stop icon while generation is abortable', () => {
+  const { lifecycle, dependencies } = createUpdateInputStateHarness({
+    abortController: { abort() {} },
+    messageValue: ''
+  });
+
+  lifecycle.updateInputState();
+
+  assert.equal(dependencies.elements.submitButton.disabled, false);
+  assertStopSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState remains safe with the default injected DOM element fallbacks', () => {
+  const { dependencies } = createDependencies({
+    getActiveConversation: () => null
+  });
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+
+  assert.doesNotThrow(() => lifecycle.updateInputState());
+  assert.equal(dependencies.elements.submitButton.disabled, true);
+  assertDisabledSubmitIcon(dependencies.elements.submitButtonIcon.innerHTML);
 });
 
 test('delete-all path uses injected storage adapter and preserves reload ordering', async () => {
@@ -995,4 +1172,26 @@ test('source keeps settings save ownership and composes auth actions helper', ()
     'setTimeout(() =>',
     'window.location.reload();'
   ], 'handleDeleteAllData clear notify reload path');
+});
+
+test('source keeps updateInputState in lifecycle until the guarded helper extraction', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const updateInputStateBody = getConstFunctionBody(source, 'updateInputState');
+
+  assert.match(source, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(source, /settings-update-input-state-helper|createSettingsUpdateInputStateHelper/);
+  assertMarkersInOrder(updateInputStateBody, [
+    'const hasContent = ALL_ELEMENTS.messageInput.value.trim()',
+    'if (state.abortController)',
+    'const conv = getActiveConversation();',
+    'if (!conv)',
+    'if (conv.archived)',
+    'const modelInfo = normalizeConversationModel(conv);',
+    'const councilValidation = getCouncilValidation(conv);',
+    'const hasTavilyKey = !conversationNeedsTavilySearch(conv)',
+    'ALL_ELEMENTS.messageInput.disabled = !hasModelApiKey;',
+    'ALL_ELEMENTS.messageInput.placeholder = hasModelApiKey',
+    'submitButton.disabled = true;',
+    'submitButton.disabled = false;'
+  ], 'updateInputState behavior branches');
 });
