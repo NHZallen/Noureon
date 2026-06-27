@@ -68,6 +68,14 @@ From `REFACTOR_PLAN.md`:
 
 Do not lower an automated budget before the codebase is already below it.
 
+### Phase 3 Legacy-Core Budget Lock
+
+Phase 3 reduced `src/app/runtime/legacy-core/legacy-core.js` from `98,887`
+bytes to `78,790` bytes (`76.9 KB`). The Phase 3 `<= 80,000` byte checkpoint
+is complete. `check:sizes` now hard-fails the legacy-core shell at `82 KB` to
+preserve a small buffer while continuing to report the long-term V5 target of
+`55 KB` as debt.
+
 ## Largest Source Files
 
 From `node scripts/report-refactor-baseline.mjs`:

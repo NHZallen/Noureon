@@ -104,6 +104,11 @@ test('check:sizes reports grouped V5 budgets without using targets as hard failu
   assert.match(output, /above V5 target/);
   assert.match(output, /OK: all grouped size budgets are within transitional limits/);
   assert.match(source, /Hard failures use transitional limits/);
+  assert.match(
+    source,
+    /label:\s*'legacy-core shell'[\s\S]*transitionalLimit:\s*bytes\(82\)[\s\S]*v5Target:\s*bytes\(55\)/,
+    'legacy-core shell budget should stay ratcheted after Phase 3 while preserving the long-term V5 target'
+  );
   assert.match(source, /status\s*=\s*overTransitional[\s\S]*overTarget[\s\S]*'DEBT'/);
   assert.doesNotMatch(source, /process\.exit\(1\)[\s\S]{0,120}overTarget/);
 });
