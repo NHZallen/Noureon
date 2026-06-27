@@ -17,6 +17,7 @@ import {
     prepareApiKeyInput,
     readApiKeyInputIntent
 } from '../security/api-key-input-intent.js';
+import { createSettingsProviderStructuredHelpers } from './settings-provider-structured-helpers.js';
 
 const requiredDependencies = [
     'window',
@@ -246,81 +247,18 @@ const councilResponseLifecycle = createCouncilResponseLifecycle({
     modelSupportsDocumentUpload
 });
 const runModelCouncil = (...args) => councilResponseLifecycle.runModelCouncil(...args);
-async function callApiWithSchema(prompt, responseSchema, signal) {
-    const apiKey = getApiKeyForProvider('gemini');
-    if (!apiKey) {
-        console.error("Gemini API key is not set for generating structured response.");
-        return null;
-    }
-    const payload = {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-        }
-    };
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CHEAP_MODEL_ID}:generateContent`;
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-            body: JSON.stringify(payload),
-            signal
-        });
-        if (!response.ok) {
-            const errorData = await readErrorBody(response);
-            throw new Error(errorData.error?.message || 'API request failed');
-        }
-        const result = await response.json();
-        const jsonString = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (jsonString) {
-            let cleanedJsonString = jsonString.trim();
-            if (cleanedJsonString.startsWith("```json")) {
-                cleanedJsonString = cleanedJsonString.substring(7).trim();
-            }
-            if (cleanedJsonString.endsWith("```")) {
-                cleanedJsonString = cleanedJsonString.slice(0, -3).trim();
-            }
-            try {
-                return JSON.parse(cleanedJsonString);
-            } catch (e) {
-                console.error("清理後的 JSON 解析失敗:", e);
-                console.error("原始字串:", jsonString);
-                throw new Error("無法解析 API 回傳的 JSON 字串。");
-            }
-        }
-    } catch (error) {
-        console.error('Error generating structured response:', error);
-    }
-    return null;
-}
-async function shouldPerformWebSearch(prompt) {
-    const apiKey = getApiKeyForProvider('gemini');
-    if (!apiKey) {
-        console.warn("Gemini API key is not set. Cannot perform auto web search check.");
-        return false;
-    }
-    const systemPrompt = "你是一個判斷器，根據使用者問題判斷是否需要連網搜尋。如果問題是關於即時、最新資訊、或特定事實，請回答'yes'。如果是常識性、創意寫作、程式碼等，請回答'no'。只輸出'yes'或'no'，不要有任何其他文字。";
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CHEAP_MODEL_ID}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-            contents: [
-                { role: 'user', parts: [{ text: systemPrompt }] },
-                { role: 'model', parts: [{ text: "好的，我會只回答'yes'或'no'。" }] },
-                { role: 'user', parts: [{ text: prompt }] }
-            ],
-        }),
-        signal: AbortSignal.timeout(3000)
-    });
-    if (!response.ok) {
-        console.error('Auto web search check failed:', await response.text());
-        return false;
-    }
-    const result = await response.json();
-    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
-    return text === 'yes';
-}
+const structuredHelpers = createSettingsProviderStructuredHelpers({
+    fetchImpl: fetch,
+    AbortSignal,
+    getApiKeyForProvider,
+    readErrorBody,
+    cheapModelId: CHEAP_MODEL_ID,
+    logger: console
+});
+const {
+    callApiWithSchema,
+    shouldPerformWebSearch
+} = structuredHelpers;
 const generateTitleAndSummary = async (conv) => {
     const conversationHistory = conv.messages.slice(0, 5).map(m => `${m.role}: ${m.parts.map(p => p.text).join(' ')}`).join('\n');
     const prompt = `為以下對話生成一個簡潔且能代表核心主題的標題。標題應直接反映使用者詢問的主要內容，而不是以你的視角描述AI的行為，（例如，好的標題是「法國首都」，而不是「回答地理問題」）。標題限制在10個字以內。請嚴格按照以下 JSON 格式輸出，不要有任何額外的文字或解釋:\n{"title": "你的標題", "summary": "你的一句話摘要"}\n\n對話內容:\n${conversationHistory}`;

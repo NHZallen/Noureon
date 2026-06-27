@@ -186,6 +186,17 @@ test('import is inert and module avoids fragments and virtual runtime', () => {
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
 
+test('structured provider helpers are composed through injected key access', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+
+  assert.match(source, /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/);
+  assert.match(source, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
+  assert.match(source, /getApiKeyForProvider,/);
+  assert.match(source, /readErrorBody,/);
+  assert.match(source, /cheapModelId:\s*CHEAP_MODEL_ID/);
+  assert.match(source, /callApiWithSchema,\s*\n\s*shouldPerformWebSearch/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySettingsAuthProviderLifecycle(),

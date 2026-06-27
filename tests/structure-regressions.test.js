@@ -366,6 +366,7 @@ test('sensitive config export redaction boundary is explicit', () => {
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsProviderStructuredSource = readSource('src/app/runtime/legacy-core/settings-provider-structured-helpers.js');
   const streamApiSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
   const redactionSource = readSource(redactionPath);
   const sensitiveStoreSource = readSource(sensitiveStorePath);
@@ -416,9 +417,10 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(settingsAuthProviderSource, /readApiKeyInputIntent/);
   assert.match(settingsAuthProviderSource, /markApiKeyInputCleared/);
   assert.doesNotMatch(settingsAuthProviderSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
-  assert.match(settingsAuthProviderSource, /'x-goog-api-key':\s*apiKey/);
+  assert.match(settingsProviderStructuredSource, /'x-goog-api-key':\s*apiKey/);
   assert.match(streamApiSource, /'x-goog-api-key':\s*apiKey/);
   assert.doesNotMatch(settingsAuthProviderSource, /:generateContent\?key=|\?key=\$\{apiKey\}/);
+  assert.doesNotMatch(settingsProviderStructuredSource, /:generateContent\?key=|\?key=\$\{apiKey\}/);
   assert.doesNotMatch(streamApiSource, /:streamGenerateContent\?key=|\?key=\$\{apiKey\}/);
   assert.doesNotMatch(inputIntentSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
   assert.doesNotMatch(inputIntentSource, /input\.dataset\.raw|dataset\.raw|secretValue/);
@@ -1151,12 +1153,25 @@ test('folder CRUD lifecycle ownership stays in a real module with legacy core wi
 
 test('settings auth provider lifecycle ownership stays in a real module with legacy core wiring', () => {
   const lifecyclePath = 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+  const structuredHelperPath = 'src/app/runtime/legacy-core/settings-provider-structured-helpers.js';
   const lifecycleSource = readSource(lifecyclePath);
+  const structuredHelperSource = readSource(structuredHelperPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
+  assert.equal(existsSync(projectFile(structuredHelperPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
+  assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
+  assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
+  );
+  assert.match(lifecycleSource, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
+  assert.match(lifecycleSource, /getApiKeyForProvider,/);
+  assert.match(lifecycleSource, /readErrorBody,/);
+  assert.match(lifecycleSource, /cheapModelId:\s*CHEAP_MODEL_ID/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
@@ -1177,6 +1192,7 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
     /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/,
     /const\s+createHistoryMenu\s*=/,
     /async\s+function\s+callApiWithSchema\b/,
+    /async\s+function\s+shouldPerformWebSearch\b/,
     /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/
   ]) {
     assert.doesNotMatch(fragment02Source, removedInlineBody);
@@ -1185,7 +1201,10 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(lifecycleSource, /const\s+saveSettings\s*=\s*async\s*\(\{/);
   assert.match(lifecycleSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
+  assert.doesNotMatch(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
+  assert.doesNotMatch(lifecycleSource, /async\s+function\s+shouldPerformWebSearch\b/);
+  assert.match(structuredHelperSource, /async\s+function\s+callApiWithSchema\b/);
+  assert.match(structuredHelperSource, /async\s+function\s+shouldPerformWebSearch\b/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
@@ -2898,7 +2917,7 @@ test('council response lifecycle core is isolated from the 02 runtime fragment',
 
   assert.match(settingsAuthProviderSource, /streamCouncilApiCallWithRetry,/);
   assert.match(settingsAuthProviderSource, /buildSingleModelTranslatedRequestParts,/);
-  assert.match(settingsAuthProviderSource, /async\s+function\s+callApiWithSchema\b/);
+  assert.match(settingsAuthProviderSource, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
   assert.match(helperSource, /const\s+firstRoundSettled\s*=\s*await\s+Promise\.allSettled/);
   assert.match(helperSource, /const\s+secondRoundSettled\s*=\s*await\s+Promise\.allSettled/);
   assert.match(helperSource, /const\s+synthesisPrompt\s*=\s*buildCouncilSynthesisPrompt/);
