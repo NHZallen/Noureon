@@ -132,6 +132,34 @@ test('settings modal CSS surface selectors are mapped before extraction', () => 
   }
 });
 
+test('desktop settings nav and section selectors are mapped before extraction', () => {
+  const desktopSelectors = [
+    ['#settings-modal nav', ['src/styles/settings.css', 'src/styles/settings-mobile.css']],
+    ['#settings-modal #settings-nav', ['src/styles/settings.css']],
+    ['#settings-nav', ['src/styles/settings.css']],
+    ['.settings-sidebar', ['src/styles/regression-overrides.css']],
+    ['.settings-nav-item', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-nav-item.active', ['src/styles/settings.css']],
+    ['#settings-modal .settings-section', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['#settings-modal .settings-section.active', ['src/styles/settings.css', 'src/styles/settings-mobile.css']],
+    ['#settings-modal .settings-section.active::before', ['src/styles/settings.css', 'src/styles/settings-mobile.css']],
+    ['#settings-modal .flex-1.p-6.overflow-y-auto', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']]
+  ];
+
+  for (const [selector, expectedFiles] of desktopSelectors) {
+    assertSelectorHits(selector, expectedFiles);
+  }
+
+  const settingsCss = readUiSource('src/styles/settings.css');
+  const regressionOverridesCss = readUiSource('src/styles/regression-overrides.css');
+  assert.match(settingsCss, /#settings-modal\s+#settings-nav\s*\{/);
+  assert.match(settingsCss, /#settings-modal\s+\.settings-section\.active::before\s*\{/);
+  assert.match(
+    regressionOverridesCss,
+    /#settings-modal\s+\.settings-sidebar\s*\{[^}]*margin-top:\s*4\.5rem\s*!important;[^}]*height:\s*calc\(100%\s*-\s*4\.5rem\)\s*!important;/s
+  );
+});
+
 test('mobile settings CSS surface is explicitly mapped before extraction', () => {
   const mobileSelectors = [
     ['#settings-modal.visible', ['src/styles/settings-mobile.css', 'src/styles/typography.css']],
@@ -164,6 +192,29 @@ test('mobile settings CSS surface is explicitly mapped before extraction', () =>
   assert.match(settingsMobileCss, /\.dark\s+#settings-modal\s+\.settings-mobile-card/);
 });
 
+test('provider and model management selectors are mapped before extraction', () => {
+  const providerManagementSelectors = [
+    ['#model-management-list', ['src/styles/settings.css']],
+    ['#model-management-list .collapsible-section', ['src/styles/settings.css']],
+    ['#model-management-list .collapsible-summary', ['src/styles/settings.css']],
+    ['#model-management-list .collapsible-content', ['src/styles/settings.css']],
+    ['.model-management-item', ['src/styles/settings.css']],
+    ['.model-management-name', ['src/styles/settings.css', 'src/styles/typography.css']],
+    ['.model-row-action', ['src/styles/settings.css']],
+    ['.model-order-controls', ['src/styles/settings.css']],
+    ['.model-default-radio', ['src/styles/settings.css']]
+  ];
+
+  for (const [selector, expectedFiles] of providerManagementSelectors) {
+    assertSelectorHits(selector, expectedFiles);
+  }
+
+  const settingsCss = readUiSource('src/styles/settings.css');
+  assert.match(settingsCss, /#model-management-list\s+\.collapsible-summary\s*\{/);
+  assert.match(settingsCss, /\.model-management-item\s*\{/);
+  assert.match(settingsCss, /\.model-management-item\s+\.model-row-action,\s*#settings-modal\s+\.model-management-item\s+\.model-row-action\s*\{/);
+});
+
 test('settings control selectors stay visible and scoped by surface', () => {
   const controlSelectors = [
     ['.api-key-input-group', ['src/styles/settings-api-keys.css']],
@@ -192,6 +243,39 @@ test('settings control selectors stay visible and scoped by surface', () => {
   assert.doesNotMatch(settingsCss, /\.api-key-clear-all-btn/);
   assert.doesNotMatch(settingsCss, /\.translator-picker-/);
   assert.doesNotMatch(settingsCss, /\.custom-output-mode-/);
+});
+
+test('provider controls and desktop sections are classified separately before extraction', () => {
+  const settingsCss = readUiSource('src/styles/settings.css');
+  const desktopSectionIndex = settingsCss.indexOf('#settings-modal .settings-section');
+  const modelManagementIndex = settingsCss.indexOf('#model-management-list');
+  const modelItemIndex = settingsCss.indexOf('.model-management-item');
+
+  assert.match(settingsCss, /#settings-modal\s+\.settings-section\s*\{/);
+  assert.match(settingsCss, /#model-management-list\s*\{/);
+  assert.match(settingsCss, /\.model-row-action\s*\{/);
+  assert.ok(desktopSectionIndex >= 0, 'desktop section rules should stay visible as an extraction candidate');
+  assert.ok(modelManagementIndex >= 0, 'provider/model management list rules should stay visible as an extraction candidate');
+  assert.ok(modelItemIndex >= 0, 'provider/model item rules should stay visible as an extraction candidate');
+  assert.notEqual(desktopSectionIndex, modelManagementIndex, 'desktop section and model management rules should be distinct candidates');
+  assert.notEqual(modelManagementIndex, modelItemIndex, 'provider/model list and item rules should be distinct candidates');
+});
+
+test('provider-adjacent and desktop-adjacent risky selectors remain classified as shared or deferred', () => {
+  const settingsCss = readUiSource('src/styles/settings.css');
+
+  assertSelectorHits('#settings-modal', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']);
+  assertSelectorHits('#settings-modal > div', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']);
+  assertSelectorHits('#settings-modal.visible', ['src/styles/settings.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']);
+  assertSelectorHits('.modal input', ['src/styles/settings.css', 'src/styles/personalization.css']);
+  assertSelectorHits('.modal select', ['src/styles/settings.css', 'src/styles/personalization.css']);
+  assertSelectorHits('#settings-modal input[type="radio"]', ['src/styles/settings.css']);
+  assertSelectorHits('#settings-modal input[type="checkbox"]', ['src/styles/settings.css']);
+  assertSelectorHits('.model-row-action', ['src/styles/settings.css']);
+
+  assert.match(settingsCss, /#settings-modal\s+input\[type="radio"\],\s*#settings-modal\s+input\[type="checkbox"\]\s*\{/);
+  assert.match(settingsCss, /\.store-category-btn,[\s\S]*?\.model-row-action\s*\{/);
+  assert.doesNotMatch(settingsCss, /\[data-theme/);
 });
 
 test('settings theme and bubble color selectors are scoped to the theme bubble surface', () => {
@@ -379,6 +463,8 @@ test('main css imports settings surface styles before broad overrides', () => {
   const settingsApiKeysIndex = mainCss.indexOf("@import './settings-api-keys.css';");
   const settingsOutputTranslatorIndex = mainCss.indexOf("@import './settings-output-translator.css';");
   const settingsThemeBubbleIndex = mainCss.indexOf("@import './settings-theme-bubble.css';");
+  const settingsProviderManagementIndex = mainCss.indexOf("@import './settings-provider-management.css';");
+  const settingsDesktopIndex = mainCss.indexOf("@import './settings-desktop.css';");
   const regressionIndex = mainCss.indexOf("@import './regression-overrides.css';");
 
   assert.ok(settingsIndex >= 0, 'main.css should import settings.css');
@@ -386,5 +472,16 @@ test('main css imports settings surface styles before broad overrides', () => {
   assert.ok(settingsApiKeysIndex > settingsMobileIndex, 'settings-api-keys.css should refine settings controls after settings-mobile.css');
   assert.ok(settingsOutputTranslatorIndex > settingsApiKeysIndex, 'settings-output-translator.css should refine output and translator controls after API key styles');
   assert.ok(settingsThemeBubbleIndex > settingsOutputTranslatorIndex, 'settings-theme-bubble.css should refine theme and bubble controls after output/translator styles');
+  if (settingsProviderManagementIndex >= 0) {
+    assert.ok(settingsProviderManagementIndex > settingsThemeBubbleIndex, 'settings-provider-management.css should load after extracted settings control CSS files');
+    assert.ok(settingsProviderManagementIndex < regressionIndex, 'settings-provider-management.css should load before final regression overrides');
+  }
+  if (settingsDesktopIndex >= 0) {
+    const previousSettingsSurfaceIndex = settingsProviderManagementIndex >= 0
+      ? settingsProviderManagementIndex
+      : settingsThemeBubbleIndex;
+    assert.ok(settingsDesktopIndex > previousSettingsSurfaceIndex, 'settings-desktop.css should load after extracted settings control CSS files');
+    assert.ok(settingsDesktopIndex < regressionIndex, 'settings-desktop.css should load before final regression overrides');
+  }
   assert.ok(regressionIndex > settingsThemeBubbleIndex, 'regression overrides should remain later in the cascade after theme/bubble styles');
 });
