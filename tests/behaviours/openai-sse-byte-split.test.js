@@ -77,7 +77,7 @@ const consumeOpenAiCompatibleSse = async (stream, onChunk) => {
 };
 
 test('OpenAI-compatible SSE fixture preserves a multibyte character split across byte chunks', async () => {
-  // V3 Phase 5 harness-level OpenAI-compatible SSE byte-level multibyte split
+  // Harness-level OpenAI-compatible SSE byte-level multibyte split
   // fixture proof. This establishes the UTF-8 decoder boundary test pattern.
   // It is not a production streamApiCall parser test; production SSE parsing
   // still lives in the legacy runtime closure. The shared createSseStream helper

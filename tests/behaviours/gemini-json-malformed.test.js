@@ -75,7 +75,7 @@ const consumeGeminiJsonStream = async (stream, onChunk) => {
 };
 
 test('Gemini JSON fixture warns, skips, and continues after malformed complete objects', async () => {
-  // V3 Phase 5 harness-level Gemini malformed JSON fixture proof. This
+  // Harness-level Gemini malformed JSON fixture proof. This
   // establishes the malformed complete object warn / skip / continue test
   // pattern. It is not a production streamApiCall parser test; production
   // Gemini parsing still lives in the legacy runtime closure. Nested braces

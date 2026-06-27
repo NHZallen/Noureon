@@ -70,7 +70,7 @@ const consumeGeminiJsonStream = async (stream, onChunk) => {
 };
 
 test('Gemini JSON fixture preserves balanced braces inside text strings', async () => {
-  // V3 Phase 5 harness-level Gemini nested balanced braces fixture proof. This
+  // Harness-level Gemini nested balanced braces fixture proof. This
   // characterizes balanced braces inside JSON string content, such as
   // "Use {x}". It is not a production streamApiCall parser test; production
   // Gemini parsing still lives in the legacy runtime closure. Unbalanced

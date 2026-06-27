@@ -78,12 +78,12 @@ function printGroup(title, items) {
 
   console.log(`\n## ${title}: ${groupStatus}`);
   for (const item of items) {
-    const debtText = item.status === 'DEBT' ? ' (above V5 target)' : '';
+    const debtText = item.status === 'DEBT' ? ' (above target)' : '';
     const gzipText = item.gzipSize == null
       ? ''
-      : ` | gzip ${formatBytes(item.gzipSize)} / transitional ${formatOptionalBytes(item.gzipTransitionalLimit)} / V5 target ${formatOptionalBytes(item.gzipV5Target)}`;
+      : ` | gzip ${formatBytes(item.gzipSize)} / transitional ${formatOptionalBytes(item.gzipTransitionalLimit)} / target ${formatOptionalBytes(item.gzipV5Target)}`;
     console.log(
-      `${item.status.padEnd(4)} ${item.label}: ${formatBytes(item.current)} / transitional ${formatBytes(item.transitionalLimit)} / V5 target ${formatOptionalBytes(item.v5Target)}${gzipText} | ${item.path}${debtText}`
+      `${item.status.padEnd(4)} ${item.label}: ${formatBytes(item.current)} / transitional ${formatBytes(item.transitionalLimit)} / target ${formatOptionalBytes(item.v5Target)}${gzipText} | ${item.path}${debtText}`
     );
   }
   if (debt.length > 0) {
@@ -154,8 +154,8 @@ const cssItems = resolveBudgetItems(cssBudgetDefinitions, cssFiles);
 const testItems = resolveBudgetItems(testBudgetDefinitions, testFiles);
 const buildItems = resolveBudgetItems(buildBudgetDefinitions, distFiles);
 
-console.log('# V5 grouped size budget report');
-console.log('Hard failures use transitional limits. V5 targets are shown as debt and do not fail this gate yet.');
+console.log('# Grouped size budget report');
+console.log('Hard failures use transitional limits. Long-term targets are shown as debt and do not fail this gate yet.');
 console.log('dist/ is ignored as review source and reported only as generated build output when present.');
 
 const failures = [

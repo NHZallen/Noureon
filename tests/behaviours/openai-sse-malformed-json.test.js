@@ -40,7 +40,7 @@ const consumeOpenAiCompatibleSse = async (stream, onChunk) => {
 };
 
 test('OpenAI-compatible SSE fixture silently ignores malformed JSON events', async () => {
-  // V3 Phase 5 harness-level OpenAI-compatible SSE malformed JSON fixture proof:
+  // Harness-level OpenAI-compatible SSE malformed JSON fixture proof:
   // this establishes the malformed JSON silent-ignore test pattern. It is not
   // a production streamApiCall parser test; production SSE parsing still lives
   // in the legacy runtime closure. Multiple malformed events, partial malformed

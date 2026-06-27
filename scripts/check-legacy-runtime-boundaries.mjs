@@ -81,13 +81,13 @@ if (!existsSync(legacyCorePath)) {
   }
   if (legacyCoreSize > legacyCoreOwnershipBudget.maxBytes) {
     fail(
-      `legacy-core.js exceeded the Phase 8 ownership budget (${legacyCoreSize} bytes > ${legacyCoreOwnershipBudget.maxBytes} bytes). ` +
+      `legacy-core.js exceeded the legacy runtime ownership budget (${legacyCoreSize} bytes > ${legacyCoreOwnershipBudget.maxBytes} bytes). ` +
       'If this growth is intentional, extract a real lifecycle/module instead of expanding the core shell.'
     );
   }
   if (legacyCoreLineCount > legacyCoreOwnershipBudget.maxLines) {
     fail(
-      `legacy-core.js exceeded the Phase 8 ownership budget (${legacyCoreLineCount} lines > ${legacyCoreOwnershipBudget.maxLines} lines). ` +
+      `legacy-core.js exceeded the legacy runtime ownership budget (${legacyCoreLineCount} lines > ${legacyCoreOwnershipBudget.maxLines} lines). ` +
       'If this growth is intentional, extract a real lifecycle/module instead of expanding the core shell.'
     );
   }

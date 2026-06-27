@@ -428,7 +428,7 @@ test('dark mode, root variables, typography, and regression overrides remain cla
   );
 });
 
-test('settings CSS surface stays within a generous Phase 8 post-mobile-extraction budget', () => {
+test('settings CSS surface stays within its post-mobile-extraction budget', () => {
   const stats = assertFileWithinBudget(
     assert,
     ['src', 'styles', 'settings.css'],
@@ -492,7 +492,7 @@ test('settings CSS surface stays within a generous Phase 8 post-mobile-extractio
   const mobileCssSettingsHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css']);
   const typographySurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/typography.css']);
 
-  assert.ok(stats.lines > 800, 'settings.css should still be tracked as the base settings surface after Phase 8 extractions');
+  assert.ok(stats.lines > 800, 'settings.css should still be tracked as the base settings surface after extraction');
   assert.ok(settingsMobileStats.lines > 300, 'settings-mobile.css should own the mobile settings shell surface');
   assert.ok(mobileStats.lines > 100, 'mobile.css should keep generic mobile app rules');
   assert.ok(apiKeyStats.lines > 0, 'settings-api-keys.css should own API key control styles');

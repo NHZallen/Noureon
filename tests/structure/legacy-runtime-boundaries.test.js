@@ -120,7 +120,7 @@ test('check:legacy-runtime remains the primary script-level boundary guard', () 
   assert.match(scriptSource, /legacy-core ownership budget/);
   assert.match(scriptSource, /maxBytes:\s*120\s*\*\s*1024/);
   assert.match(scriptSource, /maxLines:\s*2300/);
-  assert.match(scriptSource, /legacy-core\.js exceeded the Phase 8 ownership budget/);
+  assert.match(scriptSource, /legacy-core\.js exceeded the legacy runtime ownership budget/);
   assert.match(scriptSource, /extract a real lifecycle\/module instead of expanding the core shell/);
   assert.doesNotMatch(scriptSource, /src\/templates\/fragments/);
   assert.ok(templateFragmentNames.length > 0, 'template fragments are unrelated and must remain allowed');
@@ -131,6 +131,6 @@ test('legacy core remains under the explicit legacy runtime ownership budget', (
   const legacyCoreSize = statSync(projectFile('src/app/runtime/legacy-core/legacy-core.js')).size;
   const legacyCoreLineCount = legacyCoreSource.split(/\r?\n/).length;
 
-  assert.ok(legacyCoreSize <= 120 * 1024, 'legacy-core.js must stay within the Phase 8 byte budget');
-  assert.ok(legacyCoreLineCount <= 2300, 'legacy-core.js must stay within the Phase 8 line budget');
+  assert.ok(legacyCoreSize <= 120 * 1024, 'legacy-core.js must stay within the legacy runtime byte budget');
+  assert.ok(legacyCoreLineCount <= 2300, 'legacy-core.js must stay within the legacy runtime line budget');
 });

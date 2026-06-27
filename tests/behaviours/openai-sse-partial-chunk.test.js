@@ -38,7 +38,7 @@ const consumeOpenAiCompatibleSse = async (stream, onChunk, options = {}) => {
 };
 
 test('OpenAI-compatible SSE fixture buffers partial lines until newline completion', async () => {
-  // V3 Phase 5 harness-level OpenAI-compatible SSE partial-line fixture proof:
+  // Harness-level OpenAI-compatible SSE partial-line fixture proof:
   // this establishes the partial-line buffering test pattern. It is not a
   // production streamApiCall parser test; production SSE parsing still lives
   // in the legacy runtime closure. Malformed JSON, byte-level multibyte split,

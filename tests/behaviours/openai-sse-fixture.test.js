@@ -36,7 +36,7 @@ const consumeOpenAiCompatibleSse = async (stream, onChunk) => {
 };
 
 test('OpenAI-compatible SSE fixture emits delta content in order', async () => {
-  // V3 Phase 5 harness-level OpenAI-compatible SSE fixture proof:
+  // Harness-level OpenAI-compatible SSE fixture proof:
   // this establishes the SSE fixture / consumer test pattern. It is not a
   // production streamApiCall parser test; production SSE parsing still lives
   // in the legacy runtime closure. Malformed JSON, partial chunks, Gemini JSON,

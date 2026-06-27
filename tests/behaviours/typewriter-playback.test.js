@@ -33,11 +33,11 @@ const setupTypewriterPlaybackFixture = (target) => {
 };
 
 test('typewriter playback appends buffered text in order in a minimal DOM fixture', () => {
-  // V3 Phase 5 harness-level behaviour proof:
+  // Harness-level behaviour proof:
   // this establishes the timer / DOM test pattern for typewriter playback.
   // It is not a production runtime typewriter test. The production typewriter
-  // still lives in the legacy runtime closure, and future Phase 5 slices need
-  // broader production behaviour coverage before any Phase 6 migration.
+  // still lives in the legacy runtime closure, and future migrations need
+  // broader production behaviour coverage before moving this behavior.
   const { document, cleanup } = createDom('<div id="message-target"></div>');
 
   try {

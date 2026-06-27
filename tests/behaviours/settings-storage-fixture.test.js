@@ -18,7 +18,7 @@ const createAsyncKeyValueStorage = () => {
 };
 
 test('settings storage fixture preserves async string key-value behaviour', async () => {
-  // V3 Phase 5 harness-level settings storage fake fixture proof. This
+  // Harness-level settings storage fake fixture proof. This
   // establishes the async key-value storage fake pattern. It is not a
   // production IndexedDB adapter test, and it is not a production
   // saveSettings/saveConfig/loadConfig test. Production settings/storage still

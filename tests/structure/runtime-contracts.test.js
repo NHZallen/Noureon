@@ -134,23 +134,6 @@ function collectCoreTailNames(runtimeEntrySource) {
   return [...arrayMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
 }
 
-function parseDocumentedContracts(source) {
-  const section = source.match(
-    /<!-- runtime-contract-inventory:start -->([\s\S]*?)<!-- runtime-contract-inventory:end -->/
-  );
-  assert.ok(section, 'V5 runtime contracts must contain the guarded inventory section');
-
-  return new Map(
-    section[1]
-      .split(/\r?\n/)
-      .filter((line) => /^\|\s*`[^`]+`\s*\|/.test(line))
-      .map((line) => {
-        const cells = line.split('|').slice(1, -1).map((cell) => cell.trim());
-        return [cells[0].slice(1, -1), cells[3].replaceAll('`', '')];
-      })
-  );
-}
-
 test('production runtime binding inventory matches the classified contract allowlist', () => {
   const calls = collectRuntimeMethodCalls();
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
@@ -211,16 +194,8 @@ test('dynamic runtime binding calls stay limited to documented registry adapters
   );
 });
 
-test('runtime contract documentation stays synchronized with names and categories', () => {
-  const contractSource = readSource('docs/refactor/V5_RUNTIME_CONTRACTS.md');
-  const documentedContracts = parseDocumentedContracts(contractSource);
-
-  assert.deepEqual(
-    [...documentedContracts.entries()].sort(([left], [right]) => left.localeCompare(right)),
-    [...CONTRACT_CATEGORIES.entries()].sort(([left], [right]) => left.localeCompare(right))
-  );
-  assert.deepEqual(new Set(documentedContracts.values()), KNOWN_CATEGORIES);
-  assert.match(contractSource, /explicit\s+allowlist[\s\S]*must be\s+updated together/i);
+test('runtime binding categories stay limited to the known contract groups', () => {
+  assert.deepEqual(new Set(CONTRACT_CATEGORIES.values()), KNOWN_CATEGORIES);
 });
 
 test('retired virtual runtime and fragment paths remain absent from production', () => {

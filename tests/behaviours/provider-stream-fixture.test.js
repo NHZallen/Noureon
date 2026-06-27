@@ -37,10 +37,10 @@ const consumeTextStream = async (stream, onChunk) => {
 };
 
 test('provider stream fixture accumulates decoded chunks in order', async () => {
-  // V3 Phase 5 harness-level stream fixture proof:
+  // Harness-level stream fixture proof:
   // this establishes the provider stream fixture / accumulation test pattern.
   // It is not a production stream parser test. The production stream parser
-  // and renderer still live in the legacy runtime closure. Future Phase 5
+  // and renderer still live in the legacy runtime closure. Future
   // slices can add SSE, Gemini JSON, abort/error, and incremental DOM fixtures.
   const receivedChunks = [];
   const stream = createTextChunkStream(['Hello', ' ', 'Astra']);

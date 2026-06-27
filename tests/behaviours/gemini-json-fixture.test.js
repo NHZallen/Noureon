@@ -70,7 +70,7 @@ const consumeGeminiJsonStream = async (stream, onChunk) => {
 };
 
 test('Gemini JSON fixture emits candidate part text in order', async () => {
-  // V3 Phase 5 harness-level Gemini JSON fixture proof. This establishes the
+  // Harness-level Gemini JSON fixture proof. This establishes the
   // Gemini JSON object stream fixture / consumer test pattern. It is not a
   // production streamApiCall parser test; production Gemini parsing still lives
   // in the legacy runtime closure. Gemini fixture data does not use OpenAI SSE

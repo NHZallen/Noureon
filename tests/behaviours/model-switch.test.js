@@ -66,11 +66,11 @@ const setupModelSwitcherFixture = (document) => {
 };
 
 test('model switcher updates the visible label and selected option in a minimal DOM fixture', () => {
-  // Phase 5 harness-level behaviour proof:
+  // Harness-level behaviour proof:
   // this locks the user-visible model switch DOM contract pattern.
   // It is not a production runtime function extraction. The production
-  // model switcher still lives in the legacy runtime, and future Phase 5
-  // slices need broader coverage before any Phase 6 migration.
+  // model switcher still lives in the legacy runtime, and future migrations
+  // need broader coverage before moving this behavior.
   const { window, document, cleanup } = createDom(fixture);
 
   try {

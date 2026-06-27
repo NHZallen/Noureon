@@ -79,7 +79,7 @@ const consumeGeminiJsonStream = async (stream, onChunk, options = {}) => {
 };
 
 test('Gemini JSON fixture buffers partial objects until closing braces arrive', async () => {
-  // V3 Phase 5 harness-level Gemini partial JSON object fixture proof. This
+  // Harness-level Gemini partial JSON object fixture proof. This
   // establishes the brace-count buffer / partial object test pattern. It is not
   // a production streamApiCall parser test; production Gemini parsing still
   // lives in the legacy runtime closure. Malformed Gemini JSON, byte-level
