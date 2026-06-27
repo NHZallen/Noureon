@@ -2006,7 +2006,8 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
   ], 'submit input council lifecycle submit runtime wiring');
 
   assertMarkersInOrder(settingsAuthProviderSource, [
-    'const updateInputState = () =>',
+    'const updateInputStateHelper = createSettingsUpdateInputStateHelper({',
+    'const updateSubmitButtonState = (isGenerating) =>',
     'const setupSettingsModal = () =>',
     'const saveSettings = async'
   ], 'settings auth provider lifecycle registration bodies');
@@ -2589,7 +2590,10 @@ test('settings sidebar button remains wired to initialize and open the settings 
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(settingsAuthProviderSource, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
-  assert.match(settingsAuthProviderSource, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(settingsAuthProviderSource, /import\s+\{\s*createSettingsUpdateInputStateHelper\s*\}\s+from\s+['"]\.\/settings-update-input-state-helper\.js['"]/);
+  assert.match(settingsAuthProviderSource, /const\s+updateInputStateHelper\s*=\s*createSettingsUpdateInputStateHelper\(\{/);
+  assert.match(settingsAuthProviderSource, /updateInputState\s*\n?\}\s*=\s*updateInputStateHelper/);
+  assert.doesNotMatch(settingsAuthProviderSource, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(fragment02Source, /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/);
   assert.match(fragment02Source, /legacyRuntimeContext\.registerLazyBinding\('input\.updateInputState',\s*\(\)\s*=>\s*updateInputState\);/);
   assert.match(settingsAuthProviderSource, /const\s+getTavilySearchDepth\s*=\s*\(\)\s*=>\s*config\.tavilySearchDepth\s*===\s*'advanced'\s*\?\s*'advanced'\s*:\s*'basic';/);

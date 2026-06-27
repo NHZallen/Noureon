@@ -65,11 +65,11 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
 });
 
 test('mobile web search typing does not disable the message input when Tavily is missing', () => {
-  const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const updateInputStateHelper = readUiSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
-  assert.match(settingsAuthProviderLifecycle, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
-  assert.match(settingsAuthProviderLifecycle, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
-  assert.match(settingsAuthProviderLifecycle, /ALL_ELEMENTS\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
+  assert.match(updateInputStateHelper, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
+  assert.match(updateInputStateHelper, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
+  assert.match(updateInputStateHelper, /elements\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
   assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });

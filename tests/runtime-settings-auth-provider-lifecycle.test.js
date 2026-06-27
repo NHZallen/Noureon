@@ -1174,24 +1174,24 @@ test('source keeps settings save ownership and composes auth actions helper', ()
   ], 'handleDeleteAllData clear notify reload path');
 });
 
-test('source keeps updateInputState in lifecycle until the guarded helper extraction', () => {
+test('source composes updateInputState through the extracted helper', () => {
   const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const updateInputStateBody = getConstFunctionBody(source, 'updateInputState');
 
-  assert.match(source, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(source, /settings-update-input-state-helper|createSettingsUpdateInputStateHelper/);
-  assertMarkersInOrder(updateInputStateBody, [
-    'const hasContent = ALL_ELEMENTS.messageInput.value.trim()',
-    'if (state.abortController)',
-    'const conv = getActiveConversation();',
-    'if (!conv)',
-    'if (conv.archived)',
-    'const modelInfo = normalizeConversationModel(conv);',
-    'const councilValidation = getCouncilValidation(conv);',
-    'const hasTavilyKey = !conversationNeedsTavilySearch(conv)',
-    'ALL_ELEMENTS.messageInput.disabled = !hasModelApiKey;',
-    'ALL_ELEMENTS.messageInput.placeholder = hasModelApiKey',
-    'submitButton.disabled = true;',
-    'submitButton.disabled = false;'
-  ], 'updateInputState behavior branches');
+  assert.match(source, /import\s+\{\s*createSettingsUpdateInputStateHelper\s*\}\s+from\s+['"]\.\/settings-update-input-state-helper\.js['"]/);
+  assert.match(source, /const\s+updateInputStateHelper\s*=\s*createSettingsUpdateInputStateHelper\(\{/);
+  assert.match(source, /updateInputState\s*\n?\}\s*=\s*updateInputStateHelper/);
+  assert.doesNotMatch(source, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
+  assertMarkersInOrder(source, [
+    'createSettingsUpdateInputStateHelper({',
+    'elements: ALL_ELEMENTS',
+    'getConfig: () => config',
+    'getUploadedFiles: () => uploadedFiles',
+    'getActiveConversation',
+    'normalizeConversationModel',
+    'getApiKeyForProvider',
+    'conversationNeedsTavilySearch',
+    'getCouncilValidation',
+    'isCouncilEnabled',
+    'const updateSubmitButtonState = (isGenerating) =>'
+  ], 'updateInputState helper composition');
 });
