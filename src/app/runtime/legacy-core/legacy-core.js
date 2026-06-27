@@ -37,6 +37,7 @@ import {
     renderUserText
 } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
 import { createHistorySidebarHelpers } from '/src/app/runtime/legacy-core/history-sidebar-helpers.js';
+import { createMarkdownRenderingHelpers } from '/src/app/runtime/legacy-core/markdown-rendering-helpers.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
@@ -616,72 +617,17 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 }
             };
         };
-        const renderMarkdown = (text) => {
-            const thinkingLabel = runtimeConfigAccess.getConfig().uiLanguage === 'en' ? 'Model thinking process' : '模型思考過程';
-            const normalizedText = String(text || '').replace(/<think>([\s\S]*?)<\/think>/gi, (_, content) => {
-                return `\n\n<details class="thinking-collapse"><summary>${thinkingLabel}</summary>\n\n${content.trim()}\n\n</details>\n\n`;
-            });
-            const dirty = marked.parse(normalizedText);
-            const clean = DOMPurify.sanitize(dirty);
-            const documentFragment = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html');
-            documentFragment.body.querySelectorAll('table').forEach((table) => {
-                if (table.parentElement?.classList.contains('table-scroll-container')) return;
-                const wrapper = documentFragment.createElement('div');
-                wrapper.className = 'table-scroll-container';
-                table.replaceWith(wrapper);
-                wrapper.appendChild(table);
-            });
-
-            return documentFragment.body.innerHTML;
-        };
-        /**
- * 渲染含有數學/化學公式的 Markdown 文本。
- * @param {string} text - 包含 Markdown 和 KaTeX 公式的原始文本。
- * @returns {string} - 渲染後的 HTML 字串。
- */
-function renderMarkdownWithFormulas(text) {
-    // 首先，使用您現有的函式處理基礎 Markdown 和安全性過濾
-    let html = renderMarkdown(text);
-
-
-    // 使用規則運算式來尋找並替換區塊級公式 ($$ ... $$)
-    // marked.js 通常會把它們包在 <p>...</p> 裡面，所以我們匹配這種模式
-    html = html.replace(/<p>\$\$(.*)\$\$<\/p>/g, (match, formula) => {
-        try {
-            // 將公式文字解碼 (例如 &lt; 會變回 <)
-            const decodedFormula = new DOMParser().parseFromString(formula, "text/html").documentElement.textContent;
-            // 使用 KaTeX 渲染成 HTML 字串 (displayMode: true 代表是區塊)
-            return katex.renderToString(decodedFormula, {
-                displayMode: true,
-                throwOnError: false // 如果公式語法錯誤，不要拋出異常中斷程式
-            });
-        } catch (e) {
-            console.error("KaTeX block rendering error:", e);
-            return `<p style="color: red;">[數學公式渲染錯誤: ${formula}]</p>`; // 出錯時顯示錯誤訊息
-        }
-    });
-
-
-    // 使用規則運算式尋找並替換行內公式 ($ ... $)
-    html = html.replace(/\$(.*?)\$/g, (match, formula) => {
-        // 避免匹配到已經被處理過的 HTML 標籤
-        if (match.includes('<') || match.includes('>')) return match;
-        try {
-            const decodedFormula = new DOMParser().parseFromString(formula, "text/html").documentElement.textContent;
-            // 使用 KaTeX 渲染 (displayMode: false 代表是行內)
-            return katex.renderToString(decodedFormula, {
-                displayMode: false,
-                throwOnError: false
-            });
-        } catch (e) {
-            console.error("KaTeX inline rendering error:", e);
-            return `<span style="color: red;">[公式錯誤: ${formula}]</span>`;
-        }
-    });
-
-
-    return html;
-}
+        const {
+            renderMarkdown,
+            renderMarkdownWithFormulas
+        } = createMarkdownRenderingHelpers({
+            marked,
+            sanitizer: DOMPurify,
+            DOMParser,
+            katex,
+            getUiLanguage: () => runtimeConfigAccess.getConfig().uiLanguage,
+            logger: console
+        });
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
         const loadConfig = async () => {
             if (!currentUser) return;
