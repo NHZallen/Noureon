@@ -1164,12 +1164,14 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   const historyMenuHelperPath = 'src/app/runtime/legacy-core/settings-history-menu-helper.js';
   const apiKeyControlsPath = 'src/app/runtime/legacy-core/settings-api-key-controls.js';
   const outputTranslatorControlsPath = 'src/app/runtime/legacy-core/settings-output-translator-controls.js';
+  const themeBubbleControlsPath = 'src/app/runtime/legacy-core/settings-theme-bubble-controls.js';
   const lifecycleSource = readSource(lifecyclePath);
   const structuredHelperSource = readSource(structuredHelperPath);
   const titleSummaryHelperSource = readSource(titleSummaryHelperPath);
   const historyMenuHelperSource = readSource(historyMenuHelperPath);
   const apiKeyControlsSource = readSource(apiKeyControlsPath);
   const outputTranslatorControlsSource = readSource(outputTranslatorControlsPath);
+  const themeBubbleControlsSource = readSource(themeBubbleControlsPath);
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   assert.equal(existsSync(projectFile(lifecyclePath)), true);
@@ -1178,18 +1180,21 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.equal(existsSync(projectFile(historyMenuHelperPath)), true);
   assert.equal(existsSync(projectFile(apiKeyControlsPath)), true);
   assert.equal(existsSync(projectFile(outputTranslatorControlsPath)), true);
+  assert.equal(existsSync(projectFile(themeBubbleControlsPath)), true);
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.match(structuredHelperSource, /export\s+function\s+createSettingsProviderStructuredHelpers/);
   assert.match(titleSummaryHelperSource, /export\s+function\s+createSettingsTitleSummaryHelpers/);
   assert.match(historyMenuHelperSource, /export\s+function\s+createSettingsHistoryMenuHelper/);
   assert.match(apiKeyControlsSource, /export\s+function\s+createSettingsApiKeyControls/);
   assert.match(outputTranslatorControlsSource, /export\s+function\s+createSettingsOutputTranslatorControls/);
+  assert.match(themeBubbleControlsSource, /export\s+function\s+createSettingsThemeBubbleControls/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(structuredHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(titleSummaryHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./);
   assert.doesNotMatch(historyMenuHelperSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(apiKeyControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.doesNotMatch(outputTranslatorControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
+  assert.doesNotMatch(themeBubbleControlsSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
   assert.match(
     lifecycleSource,
     /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/
@@ -1227,6 +1232,21 @@ test('settings auth provider lifecycle ownership stays in a real module with leg
   assert.match(lifecycleSource, /getCouncilTranslatorCandidates,/);
   assert.match(lifecycleSource, /getSingleTranslatorCandidates,/);
   assert.match(lifecycleSource, /syncOutputModeSettingsControls/);
+  assert.match(
+    lifecycleSource,
+    /import\s+\{\s*createSettingsThemeBubbleControls\s*\}\s+from\s+['"]\.\/settings-theme-bubble-controls\.js['"]/
+  );
+  assert.match(lifecycleSource, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
+  assert.match(lifecycleSource, /aiBubbleColors:\s*AI_BUBBLE_COLORS/);
+  assert.match(lifecycleSource, /userBubbleColors:\s*USER_BUBBLE_COLORS/);
+  assert.match(lifecycleSource, /setAiBubbleColor,\s*\n\s*setUserBubbleColor,\s*\n\s*renderAiBubbleColorDropdown,\s*\n\s*renderUserBubbleColorDropdown,/);
+  assert.match(themeBubbleControlsSource, /const\s+renderBubbleColorDropdown\s*=/);
+  assert.match(themeBubbleControlsSource, /const\s+setTheme\s*=\s*async/);
+  assert.match(themeBubbleControlsSource, /const\s+updateThemeButtons\s*=/);
+  assert.doesNotMatch(lifecycleSource, /const\s+renderAiBubbleColorDropdown\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(lifecycleSource, /const\s+renderUserBubbleColorDropdown\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(lifecycleSource, /const\s+setTheme\s*=\s*async/);
+  assert.doesNotMatch(lifecycleSource, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
   assert.match(
     fragment02Source,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/

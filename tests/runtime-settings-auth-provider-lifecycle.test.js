@@ -252,6 +252,29 @@ test('output and translator controls are composed through the extracted helper',
   assert.match(controlsSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
 });
 
+test('theme and bubble controls are composed through the extracted helper', () => {
+  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const controlsSource = readSource('src/app/runtime/legacy-core/settings-theme-bubble-controls.js');
+
+  assert.match(
+    source,
+    /import\s+\{\s*createSettingsThemeBubbleControls\s*\}\s+from\s+['"]\.\/settings-theme-bubble-controls\.js['"]/
+  );
+  assert.match(source, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
+  assert.match(source, /elements:\s*ALL_ELEMENTS/);
+  assert.match(source, /aiBubbleColors:\s*AI_BUBBLE_COLORS/);
+  assert.match(source, /userBubbleColors:\s*USER_BUBBLE_COLORS/);
+  assert.match(source, /setAiBubbleColor,\s*\n\s*setUserBubbleColor,\s*\n\s*renderAiBubbleColorDropdown,\s*\n\s*renderUserBubbleColorDropdown,/);
+  assert.doesNotMatch(source, /const\s+renderAiBubbleColorDropdown\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(source, /const\s+renderUserBubbleColorDropdown\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(source, /const\s+setTheme\s*=\s*async/);
+  assert.doesNotMatch(source, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
+  assert.match(controlsSource, /export\s+function\s+createSettingsThemeBubbleControls/);
+  assert.match(controlsSource, /const\s+renderBubbleColorDropdown\s*=/);
+  assert.match(controlsSource, /const\s+setTheme\s*=\s*async/);
+  assert.match(controlsSource, /const\s+updateThemeButtons\s*=/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySettingsAuthProviderLifecycle(),
