@@ -10,6 +10,7 @@
     "build": "vite build",
     "check:legacy-runtime": "node scripts/check-legacy-runtime-boundaries.mjs",
     "check:sizes": "node scripts/check-file-sizes.mjs",
+    "report:refactor-baseline": "node scripts/report-refactor-baseline.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
