@@ -474,13 +474,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             defaultModelId: MODELS[0].id
         });
         const runtimeAppDataStore = runtimeAppKernel.appDataStore;
-        let conversations = runtimeAppDataStore.getConversations();
         const liveConversationsBridge = createLiveConversationsBridge({
             getConversations: () => runtimeAppDataStore.getConversations(),
-            replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations),
-            syncLegacyMirror: (nextConversations) => {
-                conversations = nextConversations;
-            }
+            replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations)
         });
         const activeConversationStore = createActiveConversationStore(null);
         const conversationStateAccess = createConversationStateAccess({
@@ -1101,28 +1097,25 @@ function renderMarkdownWithFormulas(text) {
                         normalizeCouncilConfig,
                         normalizeConversationModel
                     });
-                    const latestAppData = runtimeAppDataStore.replaceAll(normalizedData);
-                    liveConversationsBridge.syncLegacyMirror(latestAppData.conversations);
+                    runtimeAppDataStore.replaceAll(normalizedData);
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
                     showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
-                    const latestAppData = runtimeAppDataStore.replaceAll({
+                    runtimeAppDataStore.replaceAll({
                         conversations: [],
                         folders: [],
                         astras: [],
                         personalMemories: []
                     });
-                    liveConversationsBridge.syncLegacyMirror(latestAppData.conversations);
                     await removeItem(getAppDataKey());
                 }
             } else {
-                const latestAppData = runtimeAppDataStore.replaceAll({
+                runtimeAppDataStore.replaceAll({
                     conversations: [],
                     folders: [],
                     astras: [],
                     personalMemories: []
                 });
-                liveConversationsBridge.syncLegacyMirror(latestAppData.conversations);
             }
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });

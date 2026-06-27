@@ -93,7 +93,7 @@ test('showRenameModal reads the latest bridge conversations', () => {
   assert.doesNotMatch(body, /\bconversations\b/);
 });
 
-test('direct app data store conversation replacements stay inside the deferred allowlist', () => {
+test('direct app data store conversation replacements stay inside the bridge adapter allowlist', () => {
   const directReplacementPattern = /runtimeAppDataStore\.replaceConversations\(/;
   const runtimeFiles = [
     ...listJavaScriptFiles(projectFile('src', 'app', 'runtime')),
@@ -110,7 +110,7 @@ test('direct app data store conversation replacements stay inside the deferred a
 
   const startNewChatBody = getConstFunctionBody(legacyCoreSource, 'startNewChat');
   const loadChatBody = getConstFunctionBody(legacyCoreSource, 'loadChat');
-  const bridgeAdapter = 'replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations),';
+  const bridgeAdapter = 'replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations)';
   const unallowlistedLegacyCore = legacyCoreSource
     .replace(bridgeAdapter, '');
   assert.doesNotMatch(unallowlistedLegacyCore, directReplacementPattern);
@@ -126,5 +126,6 @@ test('direct app data store conversation replacements stay inside the deferred a
   assert.doesNotMatch(coreTailSource, directReplacementPattern);
   assert.match(coreTailSource, /state\.conversations\s*=\s*nextConversations/);
 
-  assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.doesNotMatch(legacyCoreSource, /let\s+conversations\s*=/);
+  assert.doesNotMatch(legacyCoreSource, /syncLegacyMirror/);
 });

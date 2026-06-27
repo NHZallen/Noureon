@@ -159,11 +159,12 @@ test('deleteChat preserves persistence, active fallback, render, and notificatio
   assert.match(body, /runtimeDialogCoordinator\.showNotification\([\s\S]*?'success'\)/);
 });
 
-test('deleteChat uses the live bridge while the legacy mirror remains deferred', () => {
+test('deleteChat uses the live bridge without a legacy conversations mirror', () => {
   const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
 
   assert.match(body, /liveConversationsBridge\.getConversations\(\)/);
   assert.doesNotMatch(body, /\bconversations\.find\(/);
 
-  assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.doesNotMatch(legacyCoreSource, /let\s+conversations\s*=/);
+  assert.doesNotMatch(legacyCoreSource, /syncLegacyMirror/);
 });

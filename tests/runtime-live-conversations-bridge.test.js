@@ -32,19 +32,13 @@ test('getConversations always returns the latest app data store pointer', async 
   assert.equal(bridge.getConversations(), replacement);
 });
 
-test('replaceConversations updates the store and synchronizes the legacy mirror', async () => {
+test('replaceConversations updates and returns the active store pointer', async () => {
   const store = createLegacyRuntimeAppDataStore({
     initialConversations: [{ id: 'initial' }]
   });
-  let legacyMirror = store.getConversations();
-  const synchronizedPointers = [];
   const bridge = await createBridge({
     getConversations: () => store.getConversations(),
-    replaceConversations: (next) => store.replaceConversations(next),
-    syncLegacyMirror: (next) => {
-      legacyMirror = next;
-      synchronizedPointers.push(next);
-    }
+    replaceConversations: (next) => store.replaceConversations(next)
   });
   const replacement = [{ id: 'replacement' }];
 
@@ -52,8 +46,7 @@ test('replaceConversations updates the store and synchronizes the legacy mirror'
 
   assert.equal(result, replacement);
   assert.equal(store.getConversations(), replacement);
-  assert.equal(legacyMirror, replacement);
-  assert.deepEqual(synchronizedPointers, [replacement]);
+  assert.deepEqual(Object.keys(bridge).sort(), ['getConversations', 'replaceConversations']);
 });
 
 test('replaceConversations stops stale arrays from becoming the source of truth', async () => {
@@ -76,17 +69,13 @@ test('replaceConversations stops stale arrays from becoming the source of truth'
   assert.deepEqual(staleConversations.map(({ id }) => id), ['stale', 'stale-mutation']);
 });
 
-test('syncLegacyMirror can synchronize after an external replaceAll operation', async () => {
+test('getConversations sees the active pointer after an external replaceAll operation', async () => {
   const store = createLegacyRuntimeAppDataStore({
     initialConversations: [{ id: 'initial' }]
   });
-  let legacyMirror = store.getConversations();
   const bridge = await createBridge({
     getConversations: () => store.getConversations(),
-    replaceConversations: (next) => store.replaceConversations(next),
-    syncLegacyMirror: (next) => {
-      legacyMirror = next;
-    }
+    replaceConversations: (next) => store.replaceConversations(next)
   });
   const replacement = [{ id: 'replace-all' }];
 
@@ -97,8 +86,8 @@ test('syncLegacyMirror can synchronize after an external replaceAll operation', 
     personalMemories: []
   });
 
-  assert.equal(bridge.syncLegacyMirror(), replacement);
-  assert.equal(legacyMirror, replacement);
+  assert.equal(bridge.getConversations(), replacement);
+  assert.equal('syncLegacyMirror' in bridge, false);
 });
 
 test('live conversations bridge import is inert and kernel scoped', () => {
