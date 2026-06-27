@@ -3,9 +3,11 @@ import test from 'node:test';
 import {
   assertFileWithinBudget,
   collectCssSelectorHits,
+  projectFile,
   readSource,
   readUiSource
 } from '../helpers/source-guards.js';
+import { existsSync } from 'node:fs';
 
 const settingsSurfaceCssFiles = [
   'src/styles/settings.css',
@@ -193,6 +195,79 @@ test('settings control selectors stay visible and scoped by surface', () => {
   assert.doesNotMatch(settingsCss, /\.custom-output-mode-/);
 });
 
+test('settings theme and bubble color selectors are mapped before extraction', () => {
+  const themeBubbleSelectors = [
+    ['.theme-button-group', ['src/styles/settings.css', 'src/styles/modals.css']],
+    ['.theme-btn', ['src/styles/settings.css', 'src/styles/modals.css', 'src/styles/regression-overrides.css']],
+    ['.theme-btn:hover', ['src/styles/settings.css']],
+    ['.theme-btn.active', ['src/styles/settings.css', 'src/styles/modals.css', 'src/styles/regression-overrides.css']],
+    ['#settings-modal .theme-btn.active', ['src/styles/settings.css', 'src/styles/regression-overrides.css']],
+    ['.theme-btn:not(.active)', ['src/styles/settings.css', 'src/styles/regression-overrides.css']],
+    ['.theme-btn:not(.active):hover', ['src/styles/settings.css', 'src/styles/regression-overrides.css']],
+    ['.theme-btn:not(.active):active', ['src/styles/settings.css', 'src/styles/regression-overrides.css']],
+    ['.color-dropdown-menu', ['src/styles/settings.css']],
+    ['.color-dropdown-btn', ['src/styles/settings.css']],
+    ['.color-dropdown-btn:hover', ['src/styles/settings.css']],
+    ['.color-option', ['src/styles/settings.css']],
+    ['.color-option:hover', ['src/styles/settings.css']],
+    ['.color-option.selected', ['src/styles/settings.css']]
+  ];
+
+  for (const [selector, expectedFiles] of themeBubbleSelectors) {
+    assertSelectorHits(selector, expectedFiles);
+  }
+
+  const settingsCss = readUiSource('src/styles/settings.css');
+  assert.match(settingsCss, /\.color-dropdown-btn,\s*\.modal input,\s*\.modal select,\s*\.modal textarea\s*\{/);
+  assert.match(settingsCss, /\.color-option\.selected\s*\{/);
+});
+
+test('theme button selectors are shared-adjacent and not a pure settings-only surface', () => {
+  const themeButtonHits = collectCssSelectorHits(/\.theme-btn(?:[\.#:,\s{]|:not|\[)/, settingsSurfaceCssFiles);
+  assert.deepEqual(
+    themeButtonHits.sort(),
+    [
+      'src/styles/modals.css',
+      'src/styles/regression-overrides.css',
+      'src/styles/settings.css'
+    ].sort(),
+    `.theme-btn should stay documented as shared-adjacent; hits: ${themeButtonHits.join(', ')}`
+  );
+
+  const settingsCss = readUiSource('src/styles/settings.css');
+  assert.match(settingsCss, /\.theme-btn,\s*\.store-category-btn,/);
+  assert.match(settingsCss, /#settings-modal\s+\.theme-btn\.active,\s*#settings-modal\s+\.store-category-btn\.active,/);
+});
+
+test('theme button final overrides remain visible in the regression override layer', () => {
+  const regressionOverridesCss = readUiSource('src/styles/regression-overrides.css');
+
+  assert.match(regressionOverridesCss, /\.theme-btn:not\(\.active\),\s*\.custom-output-mode-option:not\(\.active\),/);
+  assert.match(regressionOverridesCss, /\.theme-btn:not\(\.active\):hover,\s*\.custom-output-mode-option:not\(\.active\):hover,/);
+  assert.match(regressionOverridesCss, /\.theme-btn:not\(\.active\):active,\s*\.custom-output-mode-option:not\(\.active\):active,/);
+  assert.match(regressionOverridesCss, /\.theme-btn\.active,\s*\.custom-output-mode-option\.active,/);
+  assert.match(regressionOverridesCss, /#settings-modal\s+\.theme-btn\.active,\s*#settings-modal\s+\.custom-output-mode-option\.active,/);
+});
+
+test('future theme bubble extraction keeps global and shared selectors out of the new surface', () => {
+  const settingsThemeBubblePath = ['src', 'styles', 'settings-theme-bubble.css'];
+  const futureThemeBubbleFileExists = existsSync(projectFile(...settingsThemeBubblePath));
+
+  assert.equal(futureThemeBubbleFileExists, false, 'settings-theme-bubble.css should not exist in this guard-only slice');
+  assertSelectorHits(':root', ['src/styles/settings.css', 'src/styles/typography.css']);
+  assertSelectorHits('.dark #settings-modal', [
+    'src/styles/settings.css',
+    'src/styles/settings-mobile.css',
+    'src/styles/personalization.css'
+  ]);
+  assertSelectorHits('.modal input', ['src/styles/settings.css', 'src/styles/personalization.css']);
+  assertSelectorHits('.modal select', ['src/styles/settings.css', 'src/styles/personalization.css']);
+  assertSelectorHits('.modal textarea', ['src/styles/settings.css', 'src/styles/personalization.css']);
+
+  const fullCss = readUiSource('src/styles/main.css');
+  assert.doesNotMatch(fullCss, /\[data-theme/);
+});
+
 test('shared settings-adjacent selectors are classified as shared, not settings-only', () => {
   const sharedSelectors = [
     ['.theme-btn', ['src/styles/settings.css', 'src/styles/modals.css', 'src/styles/regression-overrides.css']],
@@ -287,11 +362,16 @@ test('main css imports settings surface styles before broad overrides', () => {
   const settingsMobileIndex = mainCss.indexOf("@import './settings-mobile.css';");
   const settingsApiKeysIndex = mainCss.indexOf("@import './settings-api-keys.css';");
   const settingsOutputTranslatorIndex = mainCss.indexOf("@import './settings-output-translator.css';");
+  const settingsThemeBubbleIndex = mainCss.indexOf("@import './settings-theme-bubble.css';");
   const regressionIndex = mainCss.indexOf("@import './regression-overrides.css';");
 
   assert.ok(settingsIndex >= 0, 'main.css should import settings.css');
   assert.ok(settingsMobileIndex > settingsIndex, 'settings-mobile.css should refine settings.css');
   assert.ok(settingsApiKeysIndex > settingsMobileIndex, 'settings-api-keys.css should refine settings controls after settings-mobile.css');
   assert.ok(settingsOutputTranslatorIndex > settingsApiKeysIndex, 'settings-output-translator.css should refine output and translator controls after API key styles');
+  if (settingsThemeBubbleIndex >= 0) {
+    assert.ok(settingsThemeBubbleIndex > settingsOutputTranslatorIndex, 'settings-theme-bubble.css should refine theme and bubble controls after output/translator styles');
+    assert.ok(settingsThemeBubbleIndex < regressionIndex, 'settings-theme-bubble.css should load before final regression overrides');
+  }
   assert.ok(regressionIndex > settingsOutputTranslatorIndex, 'regression overrides should remain later in the cascade');
 });
