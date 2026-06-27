@@ -95,8 +95,21 @@ test('handleRename reads the latest conversations pointer and preserves cleanup 
   assert.doesNotMatch(body, /\bconversations\.find\(/);
 });
 
-test('archive, unarchive, and delete remain deferred on the legacy mirror', () => {
-  for (const name of ['deleteChat', 'archiveChat', 'unarchiveChat']) {
+test('unarchiveChat reads the latest conversations pointer before mutating', () => {
+  const body = getConstFunctionBody(legacyCoreSource, 'unarchiveChat');
+
+  assertMarkersInOrder(body, [
+    'const currentConversations = liveConversationsBridge.getConversations()',
+    'const conv = currentConversations.find(c => c.id === id)',
+    'if(conv) conv.archived = false',
+    'await saveAppData()',
+    'runtimeRenderCoordinator.renderAll()'
+  ], 'unarchiveChat live lookup');
+  assert.doesNotMatch(body, /\bconversations\.find\(/);
+});
+
+test('archive and delete remain deferred on the legacy mirror', () => {
+  for (const name of ['deleteChat', 'archiveChat']) {
     const body = getConstFunctionBody(legacyCoreSource, name);
     assert.match(body, /\bconversations\.find\(/, `${name} should remain deferred`);
     assert.doesNotMatch(body, /liveConversationsBridge\.getConversations\(/);

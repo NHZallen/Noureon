@@ -1240,7 +1240,8 @@ function renderMarkdownWithFormulas(text) {
         };
         const unarchiveChat = async (id, event) => {
             event?.stopPropagation();
-            const conv = conversations.find(c => c.id === id);
+            const currentConversations = liveConversationsBridge.getConversations();
+            const conv = currentConversations.find(c => c.id === id);
             if(conv) conv.archived = false;
             await saveAppData();
             runtimeRenderCoordinator.renderAll();
