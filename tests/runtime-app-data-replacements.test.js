@@ -189,7 +189,7 @@ test('only conversations remains as the temporary compatibility mirror', () => {
     /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
   );
   assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
-  assert.match(legacyCoreSource, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
+  assert.match(legacyCoreSource, /liveConversationsBridge\.replaceConversations\(/);
   assert.match(legacyCoreSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
   assert.match(legacyCoreSource, /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
   assert.match(legacyCoreSource, /replaceAstras:\s*\(nextAstras\)\s*=>\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
@@ -238,7 +238,7 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
   assertMarkersInOrder(startNewChatBody, [
     'const oldTempChatCount = conversations.length',
-    'conversations = runtimeAppDataStore.replaceConversations(',
+    'liveConversationsBridge.replaceConversations(',
     'conversations.filter(c => !c.isTemporary || c.messages.length > 0)',
     'await saveAppData()',
     'uploadedFiles = []',
@@ -249,7 +249,7 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
   assertMarkersInOrder(loadChatBody, [
     'const previousConv = getActiveConversation()',
-    'conversations = runtimeAppDataStore.replaceConversations(',
+    'liveConversationsBridge.replaceConversations(',
     'conversations.filter(c => c.id !== previousConv.id)',
     'conversationStateAccess.setCurrentConversationId(id)',
     'uploadedFiles = []',
@@ -258,6 +258,9 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
 
   assert.doesNotMatch(startNewChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*!c\.isTemporary\s*\|\|\s*c\.messages\.length\s*>\s*0\)/);
   assert.doesNotMatch(loadChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
+  assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
+  assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);
+  assert.match(fragment00Source, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
 });
 
 test('Astra and folder delete flows keep linked conversation cleanup and save/render order', () => {

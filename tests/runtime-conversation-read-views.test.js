@@ -113,10 +113,12 @@ test('direct app data store conversation replacements stay inside the deferred a
   const loadChatBody = getConstFunctionBody(legacyCoreSource, 'loadChat');
   const bridgeAdapter = 'replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations),';
   const unallowlistedLegacyCore = legacyCoreSource
-    .replace(startNewChatBody, '')
-    .replace(loadChatBody, '')
     .replace(bridgeAdapter, '');
   assert.doesNotMatch(unallowlistedLegacyCore, directReplacementPattern);
+  assert.match(startNewChatBody, /liveConversationsBridge\.replaceConversations\(/);
+  assert.match(loadChatBody, /liveConversationsBridge\.replaceConversations\(/);
+  assert.doesNotMatch(startNewChatBody, directReplacementPattern);
+  assert.doesNotMatch(loadChatBody, directReplacementPattern);
 
   const coreTailSource = readSource('src', 'app', 'runtime', 'legacy-core', 'core-tail-lifecycle.js');
   const coreTailMatches = coreTailSource.match(new RegExp(directReplacementPattern.source, 'g')) || [];

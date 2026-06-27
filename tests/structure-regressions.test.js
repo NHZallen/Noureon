@@ -291,8 +291,10 @@ test('live conversations bridge owns low-risk access while the legacy mirror rem
   assert.equal((loadAppDataBody.match(/liveConversationsBridge\.syncLegacyMirror\(latestAppData\.conversations\)/g) || []).length, 3);
 
   assert.match(legacyCoreSource, /let\s+conversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
-  assert.match(startNewChatBody, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
-  assert.match(loadChatBody, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
+  assert.match(startNewChatBody, /liveConversationsBridge\.replaceConversations\(/);
+  assert.match(loadChatBody, /liveConversationsBridge\.replaceConversations\(/);
+  assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
+  assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   assert.doesNotMatch(legacyCoreSource, /let\s+(activeConversationId|config|personalMemories|astras|folders)\s*=/);
 });
 
@@ -332,7 +334,7 @@ test('config, personal memories, Astras, and folders use stores while conversati
   assert.doesNotMatch(legacyCoreSource, /let\s+activeConversationId\s*=/);
   assert.doesNotMatch(legacyCoreSource, /let\s+(chatHistory|folderList|astraList|memoryList|runtimeConfig)\s*=/);
 
-  assert.match(legacyCoreSource, /conversations\s*=\s*runtimeAppDataStore\.replaceConversations\(/);
+  assert.match(legacyCoreSource, /liveConversationsBridge\.replaceConversations\(/);
   assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
   assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*latestAppData\.folders/);
   assert.match(legacyCoreSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
@@ -881,7 +883,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   assert.match(loadAppDataBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
   assertMarkersInOrder(startNewChatBody, [
     'const oldTempChatCount = conversations.length',
-    'conversations = runtimeAppDataStore.replaceConversations(',
+    'liveConversationsBridge.replaceConversations(',
     'conversations.filter(c => !c.isTemporary || c.messages.length > 0)',
     'await saveAppData()',
     'uploadedFiles = []',
@@ -889,12 +891,14 @@ test('runtime app data store ownership covers 00 and selected linked replacement
   ], '00 startNewChat store-backed temporary conversation replacement');
   assertMarkersInOrder(loadChatBody, [
     'const previousConv = getActiveConversation()',
-    'conversations = runtimeAppDataStore.replaceConversations(',
+    'liveConversationsBridge.replaceConversations(',
     'conversations.filter(c => c.id !== previousConv.id)',
     'conversationStateAccess.setCurrentConversationId(id)',
     'uploadedFiles = []',
     'renderAll()'
   ], '00 loadChat store-backed previous temporary conversation replacement');
+  assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
+  assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);
   const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const deleteFolderBody = getConstFunctionBody(folderLifecycleSource, 'deleteFolder');
