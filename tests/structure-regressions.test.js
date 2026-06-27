@@ -226,6 +226,44 @@ test('production runtime entry uses the real legacy core without the virtual run
   assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime|legacy-core\/legacy-core\.js/);
 });
 
+test('legacy model registry owns static model metadata and capability helpers', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const modelRegistryPath = 'src/app/runtime/legacy-core/model-registry.js';
+  const modelRegistrySource = readSource(modelRegistryPath);
+  const legacyCoreLineCount = readSource('src/app/runtime/legacy-core/legacy-core.js').split(/\r?\n/).length;
+
+  assert.equal(existsSync(projectFile(modelRegistryPath)), true);
+  assert.equal(existsSync(projectFile('tests/runtime-model-registry.test.js')), true);
+  assert.match(modelRegistrySource, /export\s+const\s+MODELS\s*=\s*\[/);
+  assert.match(modelRegistrySource, /export\s+const\s+CHEAP_MODEL_ID\s*=/);
+  assert.match(modelRegistrySource, /export\s+const\s+OPENROUTER_VISION_MODELS\s*=\s*\[/);
+  assert.match(modelRegistrySource, /export\s+const\s+NVIDIA_VISION_MODELS\s*=\s*\[/);
+  assert.match(modelRegistrySource, /export\s+const\s+STEP_PLAN_VISION_MODELS\s*=\s*\[/);
+  assert.match(modelRegistrySource, /export\s+const\s+GEMINI_DOCUMENT_MODELS\s*=\s*\[/);
+  assert.match(modelRegistrySource, /export\s+function\s+createLegacyModelRegistry/);
+  assert.match(modelRegistrySource, /export\s+const\s+modelSupportsVision\s*=/);
+  assert.match(modelRegistrySource, /export\s+const\s+modelSupportsDocumentUpload\s*=/);
+  assert.match(modelRegistrySource, /export\s+const\s+getModelApiId\s*=/);
+  assert.match(modelRegistrySource, /export\s+const\s+getProviderLabel\s*=/);
+  assert.match(modelRegistrySource, /export\s+const\s+getCouncilTranslatorCandidates\s*=/);
+  assert.match(modelRegistrySource, /export\s+const\s+getSingleTranslatorCandidates\s*=/);
+  assert.doesNotMatch(modelRegistrySource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|runtime-entry|legacy-app\.js/);
+
+  assert.match(
+    legacyCoreSource,
+    /from\s+['"]\/src\/app\/runtime\/legacy-core\/model-registry\.js['"]/
+  );
+  assert.match(legacyCoreSource, /createLegacyModelRegistry\(\{/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+MODELS\s*=\s*\[/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+OPENROUTER_VISION_MODELS\s*=\s*\[/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+NVIDIA_VISION_MODELS\s*=\s*\[/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+STEP_PLAN_VISION_MODELS\s*=\s*\[/);
+  assert.doesNotMatch(legacyCoreSource, /const\s+GEMINI_DOCUMENT_MODELS\s*=\s*\[/);
+  assert.match(legacyCoreSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
+  assert.match(legacyCoreSource, /createSensitiveConfigStore\(\{/);
+  assert.ok(legacyCoreLineCount < 2150, 'legacy-core should have meaningful line-count headroom after model registry extraction');
+});
+
 test('sensitive config export redaction boundary is explicit', () => {
   const redactionPath = 'src/app/runtime/security/sensitive-config-redaction.js';
   const sensitiveStorePath = 'src/app/runtime/security/sensitive-config-store.js';
