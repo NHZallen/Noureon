@@ -42,6 +42,11 @@ const settingsHelperModules = [
     path: 'src/app/runtime/legacy-core/settings-desktop-section-helper.js',
     factory: 'createSettingsDesktopSectionHelper',
     blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
+  },
+  {
+    path: 'src/app/runtime/legacy-core/settings-auth-actions-helper.js',
+    factory: 'createSettingsAuthActionsHelper',
+    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js|bootstrap|sidebar/
   }
 ];
 
@@ -90,7 +95,8 @@ test('settings auth provider lifecycle composes every extracted settings helper'
       .replace(/^OutputTranslatorControls$/, 'outputTranslatorControls')
       .replace(/^ThemeBubbleControls$/, 'themeBubbleControls')
       .replace(/^MobileShellHelper$/, 'mobileShellHelper')
-      .replace(/^DesktopSectionHelper$/, 'desktopSectionHelper');
+      .replace(/^DesktopSectionHelper$/, 'desktopSectionHelper')
+      .replace(/^AuthActionsHelper$/, 'authActionsHelper');
 
     assert.match(
       lifecycleSource,
@@ -177,6 +183,7 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   const historyMenuHelperSource = readSource('src/app/runtime/legacy-core/settings-history-menu-helper.js');
   const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
   const outputTranslatorControlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
+  const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
 
   assert.doesNotMatch(lifecycleSource, /const\s+renderAiBubbleColorDropdown\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(lifecycleSource, /const\s+renderUserBubbleColorDropdown\s*=\s*\(\)\s*=>/);
@@ -240,17 +247,27 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   assert.match(outputTranslatorControlsSource, /const\s+renderTranslatorModelPickers\s*=/);
   assert.match(outputTranslatorControlsSource, /const\s+ensureOutputModeSettingsControls\s*=/);
   assert.match(outputTranslatorControlsSource, /getOutputModeSettingsText/);
+  assert.doesNotMatch(lifecycleSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(authActionsHelperSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
+  assert.match(authActionsHelperSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(authActionsHelperSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(authActionsHelperSource, /settings-save-settings-helper|settings-api-key-controls|sensitive-config-store|api-key-input-intent/);
 });
 
 test('settings modal orchestration and legacy core wiring remain in place', () => {
   const lifecycleSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
 
   assert.match(lifecycleSource, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /const\s+saveSettings\s*=\s*async\s*\(\{\s*close\s*=\s*true,\s*notify\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /const\s+authActionsHelper\s*=\s*createSettingsAuthActionsHelper\(\{/);
+  assert.match(lifecycleSource, /handleLogin,\s*\n\s*handleLogout,\s*\n\s*handleDeleteAllData\s*\n?\}\s*=\s*authActionsHelper/);
+  assert.match(authActionsHelperSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
+  assert.match(authActionsHelperSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(authActionsHelperSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(
     legacyCoreSource,
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/

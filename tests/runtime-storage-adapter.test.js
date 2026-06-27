@@ -253,6 +253,7 @@ test('production wiring uses the adapter while persistence modules remain inject
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsAuthActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
@@ -261,9 +262,11 @@ test('production wiring uses the adapter while persistence modules remain inject
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
   assert.match(fragment02Source, /runtimeStorageAdapter,/);
-  assert.match(settingsAuthProviderSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
+  assert.match(settingsAuthProviderSource, /runtimeStorageAdapter,/);
+  assert.match(settingsAuthActionsHelperSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
   assert.doesNotMatch(fragment02Source, /\bSTORE_NAME\b|\bopenDB\(\)/);
   assert.doesNotMatch(settingsAuthProviderSource, /\bSTORE_NAME\b|\bopenDB\(\)/);
+  assert.doesNotMatch(settingsAuthActionsHelperSource, /\bSTORE_NAME\b|\bopenDB\(\)/);
 
   for (const source of [configPersistenceSource, appDataPersistenceSource]) {
     assert.match(source, /\bsetItem\b/);

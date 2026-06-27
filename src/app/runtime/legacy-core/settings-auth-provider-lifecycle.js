@@ -14,6 +14,7 @@ import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.
 import { createSettingsThemeBubbleControls } from './settings-theme-bubble-controls.js';
 import { createSettingsMobileShellHelper } from './settings-mobile-shell-helper.js';
 import { createSettingsDesktopSectionHelper } from './settings-desktop-section-helper.js';
+import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
 
 const requiredDependencies = [
@@ -368,6 +369,33 @@ const {
     syncOutputModeSettingsControls
 } = outputTranslatorControls;
 const getSettingsText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
+const authActionsHelper = createSettingsAuthActionsHelper({
+    window,
+    requestAnimationFrame,
+    setTimeout,
+    console,
+    elements: ALL_ELEMENTS,
+    state,
+    getConfig: () => config,
+    legacyRuntimeContext,
+    runtimeStorageAdapter,
+    i18n,
+    showNotification,
+    showCustomConfirm,
+    showCustomDialog,
+    getUserKey,
+    getItem,
+    setItem,
+    removeItem,
+    verifyPasswordRecord,
+    upgradeLegacyPasswordRecord,
+    createPasswordRecord
+});
+const {
+    handleLogin,
+    handleLogout,
+    handleDeleteAllData
+} = authActionsHelper;
 const mobileShellHelper = createSettingsMobileShellHelper({
     window,
     document,
@@ -518,78 +546,6 @@ const historyMenuHelper = createSettingsHistoryMenuHelper({
 const {
     createHistoryMenu
 } = historyMenuHelper;
-const handleLogin = async (e) => {
-    e.preventDefault();
-    const username = ALL_ELEMENTS.usernameInput.value.trim();
-    const password = ALL_ELEMENTS.passwordInput.value;
-    if (!username || !password) {
-showNotification(i18n[config.uiLanguage].usernamePasswordRequired || '使用者名稱和密碼皆為必填項目。', 'error');
-return;
-    }
-    const userKey = getUserKey(username);
-    const savedUser = await getItem(userKey);
-    if (savedUser) {
-const parsedUser = JSON.parse(savedUser);
-if (!(await verifyPasswordRecord(password, parsedUser))) {
-    showNotification(i18n[config.uiLanguage].passwordIncorrect || '密碼錯誤。', 'error');
-    return;
-}
-state.currentUser = await upgradeLegacyPasswordRecord(password, userKey, parsedUser);
-    } else {
-state.currentUser = await createPasswordRecord(username, password);
-await setItem(userKey, JSON.stringify(state.currentUser));
-    }
-    await setItem('chat_lastUser', username);
-
-
-    // --- ✨ 這是唯一的修改處 START ---
-    // 在執行淡出前，先移除我們為了顯示登入畫面而加入的 'visible' class
-    ALL_ELEMENTS.authContainer.classList.remove('visible'); 
-    // --- ✨ 這是唯一的修改處 END ---
-
-
-    ALL_ELEMENTS.authContainer.classList.add('fade-out');
-    ALL_ELEMENTS.appContainer.classList.remove('hidden');
-    requestAnimationFrame(() => {
-ALL_ELEMENTS.appContainer.classList.add('visible');
-    });
-    ALL_ELEMENTS.authContainer.addEventListener('transitionend', () => {
-ALL_ELEMENTS.authContainer.style.display = 'none';
-    }, { once: true });
-    legacyRuntimeContext.resolveBinding('app.initChatApp')();
-};
-const handleLogout = async () => {
-    if (await showCustomConfirm(i18n[config.uiLanguage].confirmLogout || '您確定要登出嗎？', i18n[config.uiLanguage].logoutConfirmation || '登出確認')) {
-        await removeItem('chat_lastUser');
-        window.location.reload();
-    }
-};
-const handleDeleteAllData = async () => {
-    const confirmation = await showCustomDialog({
-        title: i18n[config.uiLanguage].deleteAllDataTitle || '永久刪除所有資料',
-        message: i18n[config.uiLanguage].deleteAllDataMessage || '此操作將會刪除您所有的對話紀錄、設定、Astras 及 API 金鑰。此動作無法復原。請輸入「DELETE」以確認刪除。',
-        input: { type: 'text', placeholder: 'DELETE' },
-        dialogClass: 'dialog-warning-border',
-        buttons: [
-            { text: i18n[config.uiLanguage].cancel || '取消', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null },
-            { text: i18n[config.uiLanguage].confirmDelete || '確認刪除', class: 'bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700', value: (val) => val }
-        ]
-    });
-    if (confirmation === 'DELETE') {
-        try {
-            await runtimeStorageAdapter.clear();
-            showNotification(i18n[config.uiLanguage].deleteAllDataSuccess || '所有資料已成功刪除。頁面即將重新整理。', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } catch (error) {
-            console.error('刪除資料時發生錯誤:', error);
-            showNotification(i18n[config.uiLanguage].deleteAllDataError || '刪除資料失敗。', 'error');
-        }
-    } else if (confirmation !== null) {
-        showNotification(i18n[config.uiLanguage].incorrectInput || '輸入錯誤，操作已取消。', 'warning');
-    }
-};
 
 
     return {

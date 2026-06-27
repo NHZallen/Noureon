@@ -947,34 +947,39 @@ test('clear all API keys button clears sensitive store and saves without raw dat
   assert.equal(JSON.stringify(dependencies.elements.geminiApiKeyInput.dataset).includes('gemini-secret-value-abcd'), false);
 });
 
-test('source keeps settings save, login, and delete-all ownership', () => {
+test('source keeps settings save ownership and composes auth actions helper', () => {
   const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
   const saveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
-  const handleLoginBody = getConstFunctionBody(source, 'handleLogin');
-  const handleLogoutBody = getConstFunctionBody(source, 'handleLogout');
-  const handleDeleteAllDataBody = getConstFunctionBody(source, 'handleDeleteAllData');
+  const handleLoginBody = getConstFunctionBody(authActionsHelperSource, 'handleLogin');
+  const handleLogoutBody = getConstFunctionBody(authActionsHelperSource, 'handleLogout');
+  const handleDeleteAllDataBody = getConstFunctionBody(authActionsHelperSource, 'handleDeleteAllData');
 
   assert.match(source, /const\s+saveSettings\s*=\s*async\s*\(\{\s*close\s*=\s*true,\s*notify\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>\s*\{/);
-  assert.match(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
-  assert.match(source, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(source, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(source, /await\s+runtimeStorageAdapter\.clear\(\)/);
+  assert.match(source, /import\s+\{\s*createSettingsAuthActionsHelper\s*\}\s+from\s+['"]\.\/settings-auth-actions-helper\.js['"]/);
+  assert.match(source, /const\s+authActionsHelper\s*=\s*createSettingsAuthActionsHelper\(\{/);
+  assert.match(source, /handleLogin,\s*\n\s*handleLogout,\s*\n\s*handleDeleteAllData\s*\n?\}\s*=\s*authActionsHelper/);
+  assert.doesNotMatch(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
+  assert.doesNotMatch(source, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(source, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
+  assert.match(authActionsHelperSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
   assert.match(source, /collectSettingsSaveFormValues\(\{/);
   assert.doesNotMatch(source, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value/);
   assert.match(source, /await\s+persistApiKeyInputIntents\(\)/);
   assert.match(apiKeyControlsSource, /await\s+saveSensitiveConfig\(\)/);
   assert.doesNotMatch(saveSettingsHelperSource, /saveConfig|persistApiKeyInputIntents|saveSensitiveConfig|showNotification|toggleModal/);
   assert.doesNotMatch(saveSettingsHelperSource, /sensitive-config-store|api-key-input-intent/);
+  assert.doesNotMatch(saveSettingsHelperSource, /handleLogin|handleLogout|handleDeleteAllData|authContainer|appContainer|chat_lastUser|runtimeStorageAdapter\.clear|window\.location\.reload|initChatApp/);
   assert.doesNotMatch(source, /config\.apiKeys\.gemini\s*=/);
-  assert.match(source, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
+  assert.match(authActionsHelperSource, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
   assertMarkersInOrder(handleLoginBody, [
     'await setItem(\'chat_lastUser\', username);',
-    'ALL_ELEMENTS.authContainer.classList.remove(\'visible\');',
-    'ALL_ELEMENTS.authContainer.classList.add(\'fade-out\');',
-    'ALL_ELEMENTS.appContainer.classList.remove(\'hidden\');',
+    'elements.authContainer.classList.remove(\'visible\');',
+    'elements.authContainer.classList.add(\'fade-out\');',
+    'elements.appContainer.classList.remove(\'hidden\');',
     'requestAnimationFrame(() =>',
-    'ALL_ELEMENTS.authContainer.addEventListener(\'transitionend\'',
+    'elements.authContainer.addEventListener(\'transitionend\'',
     'legacyRuntimeContext.resolveBinding(\'app.initChatApp\')();'
   ], 'handleLogin success transition and init handoff');
   assertMarkersInOrder(handleLogoutBody, [
@@ -990,5 +995,4 @@ test('source keeps settings save, login, and delete-all ownership', () => {
     'setTimeout(() =>',
     'window.location.reload();'
   ], 'handleDeleteAllData clear notify reload path');
-  assert.doesNotMatch(saveSettingsHelperSource, /handleLogin|handleLogout|handleDeleteAllData|authContainer|appContainer|chat_lastUser|runtimeStorageAdapter\.clear|window\.location\.reload|initChatApp/);
 });

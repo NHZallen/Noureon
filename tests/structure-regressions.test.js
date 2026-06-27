@@ -1939,6 +1939,7 @@ test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsAuthActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const storageAdapterSource = readSource('src/app/runtime/kernel/storage-adapter.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
@@ -1970,7 +1971,8 @@ test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
   assert.match(fragment00Source, /const\s+getAppDataKey\s*=/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=/);
   assert.match(fragment00Source, /const\s+loadAppData\s*=/);
-  assert.match(settingsAuthProviderSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
+  assert.match(settingsAuthProviderSource, /createSettingsAuthActionsHelper\(\{/);
+  assert.match(settingsAuthActionsHelperSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
   assert.match(fragment02Source, /runtimeStorageAdapter,/);
   assert.doesNotMatch(fragment02Source, /\bSTORE_NAME\b|\bopenDB\(\)|store\.clear\(\)/);
   assert.doesNotMatch(settingsAuthProviderSource, /\bSTORE_NAME\b|\bopenDB\(\)|store\.clear\(\)/);
@@ -2048,13 +2050,14 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
 test('initChatApp callers use the required runtime handoff without changing legacy order', () => {
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsAuthActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
   const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
-  const handleLoginBody = getConstFunctionBody(settingsAuthProviderSource, 'handleLogin');
+  const handleLoginBody = getConstFunctionBody(settingsAuthActionsHelperSource, 'handleLogin');
   const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
   const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
   const requiredHandoff = "legacyRuntimeContext.resolveBinding('app.initChatApp')()";
@@ -2089,10 +2092,10 @@ test('initChatApp callers use the required runtime handoff without changing lega
 
   assertMarkersInOrder(handleLoginBody, [
     "await setItem('chat_lastUser', username)",
-    "ALL_ELEMENTS.authContainer.classList.add('fade-out')",
-    "ALL_ELEMENTS.appContainer.classList.remove('hidden')",
+    "elements.authContainer.classList.add('fade-out')",
+    "elements.appContainer.classList.remove('hidden')",
     'requestAnimationFrame(() =>',
-    "ALL_ELEMENTS.authContainer.addEventListener('transitionend'",
+    "elements.authContainer.addEventListener('transitionend'",
     requiredHandoff
   ], '02 login initChatApp handoff');
 
