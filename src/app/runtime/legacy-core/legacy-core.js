@@ -1285,7 +1285,8 @@ function renderMarkdownWithFormulas(text) {
         };
         const togglePinChat = async (id, event) => {
             event?.stopPropagation();
-            const conv = conversations.find(c => c.id === id);
+            const currentConversations = liveConversationsBridge.getConversations();
+            const conv = currentConversations.find(c => c.id === id);
             if (conv) {
                 conv.pinned = !conv.pinned;
                 await saveAppData();
@@ -1313,7 +1314,8 @@ function renderMarkdownWithFormulas(text) {
             const newTitle = ALL_ELEMENTS.renameInput.value.trim();
             if (!newTitle || !itemToRename.id) return;
             if (itemToRename.type === 'conversation') {
-                const conv = conversations.find(c => c.id === itemToRename.id);
+                const currentConversations = liveConversationsBridge.getConversations();
+                const conv = currentConversations.find(c => c.id === itemToRename.id);
                 if (conv) { conv.title = newTitle; conv.isRenamed = true; }
             } else if (itemToRename.type === 'folder') {
                 const folder = runtimeAppDataStore.getFolders().find(f => f.id === itemToRename.id);
