@@ -381,12 +381,12 @@ button:active:not(:disabled),
 
 #import-progress-bar,
 #p2p-progress-bar {
-    background: var(--text-primary) !important;
+    background: var(--text-primary);
 }
 
 #import-warning-text,
 #p2p-share-code {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
 }
 
 .toggle-checkbox {
@@ -741,56 +741,56 @@ body svg {
 }
 
 #archived-chats-container {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.75rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .archived-chat-item {
-    min-width: 0 !important;
-    padding: 0.85rem 0 !important;
-    border-bottom: 1px solid var(--gpt-border) !important;
-    background: transparent !important;
+    min-width: 0;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--gpt-border);
+    background: transparent;
 }
 
 .archived-chat-item:last-child {
-    border-bottom: 0 !important;
+    border-bottom: 0;
 }
 
 .archived-chat-row {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 0.75rem !important;
-    min-width: 0 !important;
-    flex-wrap: wrap !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    flex-wrap: wrap;
 }
 
 .archived-chat-title {
-    flex: 1 1 14rem !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    color: var(--text-primary) !important;
-    line-height: 1.35 !important;
+    flex: 1 1 14rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+    line-height: 1.35;
 }
 
 .archived-chat-actions {
-    display: flex !important;
-    flex: 0 0 auto !important;
-    flex-wrap: wrap !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 0.45rem !important;
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
 }
 
 .archived-chat-summary {
-    margin-top: 0.45rem !important;
-    color: var(--text-secondary) !important;
-    font-size: 0.82rem !important;
-    line-height: 1.45 !important;
-    overflow-wrap: anywhere !important;
+    margin-top: 0.45rem;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
 }
 
 .folder-icon,
@@ -798,18 +798,18 @@ body svg {
 .folder-icon-svg,
 #folder-settings-modal .icon-option,
 #folder-settings-modal .icon-option svg {
-    color: inherit !important;
-    stroke: currentColor !important;
+    color: inherit;
+    stroke: currentColor;
 }
 
 #folder-settings-modal .icon-option.selected {
-    color: var(--button-primary-bg) !important;
-    background: #ffffff !important;
-    border-color: transparent !important;
+    color: var(--button-primary-bg);
+    background: #ffffff;
+    border-color: transparent;
 }
 
 #folder-settings-modal .icon-option:hover {
-    background: #f2f2f2 !important;
+    background: #f2f2f2;
 }
 
 /* Restore pill outlines for normal buttons; only model row icon controls stay frameless. */
