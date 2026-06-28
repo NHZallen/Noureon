@@ -336,65 +336,6 @@ button:active:not(:disabled),
     background: var(--gpt-subtle) !important;
 }
 
-.store-category-btn,
-.council-mode-tabs button,
-.section-add-btn,
-#trash-batch-select-btn,
-#empty-trash-btn,
-#trash-batch-restore-btn,
-#trash-batch-delete-btn,
-#trash-cancel-selection-btn,
-.trash-item-view-btn,
-.trash-item-restore-btn,
-.trash-item-delete-btn,
-#export-data-btn,
-#import-data-btn,
-#open-archived-modal-btn,
-#upload-wallpaper-btn,
-#restore-wallpaper-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 2.45rem !important;
-    padding: 0.55rem 0.95rem !important;
-    border: 1px solid var(--gpt-border) !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    color: var(--text-primary) !important;
-    font-size: 0.92rem !important;
-    font-weight: 500 !important;
-    line-height: 1 !important;
-    text-decoration: none !important;
-    box-shadow: none !important;
-}
-
-.store-category-btn:hover,
-.council-mode-tabs button:hover,
-.section-add-btn:hover,
-#trash-batch-select-btn:hover,
-#empty-trash-btn:hover,
-#trash-batch-restore-btn:hover,
-#trash-batch-delete-btn:hover,
-#trash-cancel-selection-btn:hover,
-.trash-item-view-btn:hover,
-.trash-item-restore-btn:hover,
-.trash-item-delete-btn:hover,
-#export-data-btn:hover,
-#import-data-btn:hover,
-#open-archived-modal-btn:hover,
-#upload-wallpaper-btn:hover,
-#restore-wallpaper-btn:hover {
-    background: var(--gpt-subtle) !important;
-    border-color: var(--gpt-border) !important;
-}
-
-.store-category-btn.active,
-.council-mode-tabs button.active {
-    background: var(--gpt-primary-action-bg) !important;
-    border-color: var(--gpt-primary-action-bg) !important;
-    color: var(--gpt-primary-action-text) !important;
-}
-
 #trash-section .flex.justify-between.items-center.mb-4,
 #trash-batch-action-bar,
 .trash-item,
@@ -501,27 +442,6 @@ button:active:not(:disabled),
 #settings-modal input[type="radio"],
 #settings-modal input[type="checkbox"] {
     accent-color: var(--gpt-primary-action-bg) !important;
-}
-
-.model-row-action {
-    width: 2rem !important;
-    height: 2rem !important;
-    min-height: 2rem !important;
-    padding: 0 !important;
-    border: 1px solid var(--gpt-border) !important;
-    border-radius: 999px !important;
-    background: var(--gpt-surface) !important;
-    color: var(--text-secondary) !important;
-}
-
-.model-row-action:hover {
-    background: var(--gpt-subtle) !important;
-    color: var(--text-primary) !important;
-}
-
-.model-row-action:disabled {
-    opacity: 0.35 !important;
-    cursor: default !important;
 }
 
 /* GPT-like settings modal: centered, instant-save, black/white UI */
@@ -654,63 +574,6 @@ body svg {
 #settings-modal .text-xs,
 #settings-modal .model-description {
     color: var(--gpt-control-text) !important;
-}
-
-.store-category-btn,
-.council-mode-tabs button,
-.section-add-btn,
-#trash-batch-select-btn,
-#empty-trash-btn,
-#trash-batch-restore-btn,
-#trash-batch-delete-btn,
-#trash-cancel-selection-btn,
-.trash-item-view-btn,
-.trash-item-restore-btn,
-.trash-item-delete-btn,
-#export-data-btn,
-#import-data-btn,
-#open-archived-modal-btn,
-#upload-wallpaper-btn,
-#restore-wallpaper-btn,
-.model-row-action {
-    background: var(--gpt-control-bg) !important;
-    color: var(--gpt-control-text) !important;
-    border-color: var(--gpt-control-border) !important;
-}
-
-.store-category-btn:hover,
-.council-mode-tabs button:hover,
-.section-add-btn:hover,
-#trash-batch-select-btn:hover,
-#empty-trash-btn:hover,
-#trash-batch-restore-btn:hover,
-#trash-batch-delete-btn:hover,
-#trash-cancel-selection-btn:hover,
-.trash-item-view-btn:hover,
-.trash-item-restore-btn:hover,
-.trash-item-delete-btn:hover,
-#export-data-btn:hover,
-#import-data-btn:hover,
-#open-archived-modal-btn:hover,
-#upload-wallpaper-btn:hover,
-#restore-wallpaper-btn:hover,
-.model-row-action:hover {
-    background: var(--gpt-control-bg) !important;
-    color: var(--gpt-control-text) !important;
-}
-
-.store-category-btn.active,
-.council-mode-tabs button.active {
-    background: var(--button-primary-bg) !important;
-    border-color: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
-}
-
-#settings-modal .store-category-btn.active,
-#settings-modal .council-mode-tabs button.active {
-    background: var(--button-primary-bg) !important;
-    border-color: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
 }
 
 .toggle-label {

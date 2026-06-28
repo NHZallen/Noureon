@@ -315,7 +315,6 @@ test('settings theme and bubble color selectors are scoped to the theme bubble s
   const themeBubbleSelectors = [
     ['.theme-button-group', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css']],
     ['.theme-btn', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css']],
-    ['.theme-btn:hover', ['src/styles/settings-theme-bubble.css']],
     ['.theme-btn.active', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css']],
     ['#settings-modal .theme-btn.active', ['src/styles/settings-theme-bubble.css']],
     ['.theme-btn:not(.active)', ['src/styles/settings-theme-bubble.css']],

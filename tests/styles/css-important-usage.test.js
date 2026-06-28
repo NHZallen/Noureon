@@ -51,7 +51,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings.css': {
-    max: 312,
+    max: 270,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-danger.css': {
@@ -75,7 +75,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-theme-bubble.css': {
-    max: 100,
+    max: 57,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/sidebar.css': {

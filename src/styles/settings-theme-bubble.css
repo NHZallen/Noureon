@@ -9,12 +9,6 @@
     transform: none !important;
 }
 
-.theme-btn.active {
-    background: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
-    border-color: transparent !important;
-}
-
 .color-dropdown-menu {
     background: var(--gpt-surface) !important;
     border: 1px solid var(--gpt-menu-border) !important;
@@ -60,81 +54,11 @@
     outline: none !important;
 }
 
-.theme-btn {
-    border-radius: 999px !important;
-    background: transparent !important;
-    border: 1px solid var(--gpt-border) !important;
-    color: var(--text-primary) !important;
-    font-weight: 500 !important;
-}
-
-.theme-btn:hover {
-    background: var(--gpt-subtle) !important;
-    border-color: var(--gpt-border) !important;
-}
-
-.theme-btn.active {
-    background: var(--button-primary-bg) !important;
-    border-color: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
-}
-
 .theme-button-group {
     gap: 0.5rem !important;
     padding: 0 !important;
     background: transparent !important;
     border-radius: 0 !important;
-}
-
-.theme-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 2.45rem !important;
-    padding: 0.55rem 0.95rem !important;
-    border: 1px solid var(--gpt-border) !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    color: var(--text-primary) !important;
-    font-size: 0.92rem !important;
-    font-weight: 500 !important;
-    line-height: 1 !important;
-    text-decoration: none !important;
-    box-shadow: none !important;
-}
-
-.theme-btn:hover {
-    background: var(--gpt-subtle) !important;
-    border-color: var(--gpt-border) !important;
-}
-
-.theme-btn.active {
-    background: var(--gpt-primary-action-bg) !important;
-    border-color: var(--gpt-primary-action-bg) !important;
-    color: var(--gpt-primary-action-text) !important;
-}
-
-.theme-btn {
-    background: var(--gpt-control-bg) !important;
-    color: var(--gpt-control-text) !important;
-    border-color: var(--gpt-control-border) !important;
-}
-
-.theme-btn:hover {
-    background: var(--gpt-control-bg) !important;
-    color: var(--gpt-control-text) !important;
-}
-
-.theme-btn.active {
-    background: var(--button-primary-bg) !important;
-    border-color: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
-}
-
-#settings-modal .theme-btn.active {
-    background: var(--button-primary-bg) !important;
-    border-color: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
 }
 
 .theme-button-group {
