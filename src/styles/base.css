@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* important-audit: required: regression override / legacy compatibility - legacy Tailwind utility collisions remain until CSS ownership is fully normalized. */
+
 body {
     touch-action: manipulation;
 }
@@ -57,19 +59,19 @@ body.custom-wallpaper-active #history-sidebar {
     -webkit-backdrop-filter: blur(20px); /* 兼容 Safari */
     
     /* 強制使用淺色的半透明背景，無論桌布是深是淺 */
-    background-color: rgba(255, 255, 255, 0.55) !important; 
+    background-color: rgba(255, 255, 255, 0.55);
     
-    border-left: 1px solid rgba(255, 255, 255, 0.6) !important; /* 設定半透明亮色邊框 */
+    border-left: 1px solid rgba(255, 255, 255, 0.6); /* 設定半透明亮色邊框 */
     box-shadow: -4px 0px 15px rgba(0, 0, 0, 0.05); /* 加上陰影 */
     
     /* 確保側邊欄內的文字顏色是深色，以便在淺色背景上閱讀 */
-    color: #000000 !important; 
+    color: #000000;
 }
 
 
 /* 同時，也需要強制覆蓋標題的顏色，確保可讀性 */
 body.custom-wallpaper-active #history-sidebar h3 {
-    color: #000000 !important;
+    color: #000000;
 }
 #history-sidebar-overlay.visible {
     display: block; /* 讓它可以被看見 */

@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - sidebar controls still override legacy utility dimensions and colors. */
+
 /* ✨ 新增：移除最後一個區塊的底線和間距，讓佈局更乾淨 */
 .scroll-area > .sidebar-section:last-child {
     border-bottom: none;

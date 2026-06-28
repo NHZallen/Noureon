@@ -1,3 +1,5 @@
+/* important-audit: required: mobile override - mobile composer/sidebar layout must outrank desktop and utility rules in the existing cascade. */
+
 @media (min-width: 769px) {
     #input-bar-container .input-wrapper {
         display: grid !important;

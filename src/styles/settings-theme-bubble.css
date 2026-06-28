@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - theme and bubble controls override shared button/color control styles. */
+
 .theme-btn,
 .color-option {
     background-image: none !important;

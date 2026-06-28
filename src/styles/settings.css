@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - settings base shell still overrides older utility-heavy modal markup. */
+
 @media (max-width: 640px) {
     .council-toggle-label {
         display: none;

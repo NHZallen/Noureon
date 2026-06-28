@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - desktop settings layout overrides shared modal shell and utility classes. */
+
 @media (min-width: 769px) {
     .settings-nav-item {
         background-image: none !important;

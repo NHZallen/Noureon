@@ -1,4 +1,5 @@
 /* Final UI correction layer: restore legacy model menus, rebuild pill buttons, and keep icon colors intentional. */
+/* important-audit: required: regression override / legacy compatibility - this final correction layer intentionally outranks split CSS during staged refactors. */
 #model-options-popover {
     padding: 0 !important;
     overflow: hidden !important;

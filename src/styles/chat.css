@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - chat, input, and media bubbles still compete with legacy utility classes and final UI overrides. */
+
     #auth-container {
         transition: opacity 0.4s ease-out, transform 0.4s ease-out;
     }

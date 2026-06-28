@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - custom wallpaper appearance overrides must outrank base, modal, and utility backgrounds. */
+
     @media (max-width: 640px) {
         .media-lightbox {
             padding: 4rem 0 6.6rem;

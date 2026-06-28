@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - translator and output controls override shared settings select/button styles. */
+
 .translator-picker-button {
     background-image: none !important;
     box-shadow: none !important;

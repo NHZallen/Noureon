@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - destructive settings controls intentionally override shared button styles for visibility. */
+
 #delete-all-data-btn {
     display: inline-flex !important;
     align-items: center !important;

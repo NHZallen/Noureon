@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - modal and media lightbox overrides preserve legacy dialog layering and icon contrast. */
+
     @media (min-width: 1024px) {
     /* --- 新增開始 --- */
 

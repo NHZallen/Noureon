@@ -1,3 +1,5 @@
+/* important-audit: required: regression override / legacy compatibility - attachment menu wallpaper overrides still need to outrank inherited legacy input styles. */
+
     #attachment-menu-overlay {
     position: fixed;
     inset: 0;

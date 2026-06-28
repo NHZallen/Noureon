@@ -1,4 +1,6 @@
 
+/* important-audit: required: regression override / legacy compatibility - composer polish intentionally wins over older input utility classes during incremental CSS cleanup. */
+
 
 .spotlight-effect {
     position: relative;
