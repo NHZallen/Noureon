@@ -92,7 +92,7 @@ const assertMarkersInOrder = (source, markers, context) => {
 test('serialized config persistence writes the latest config for the latest user', async () => {
   const calls = [];
   let currentUser = null;
-  let config = { theme: 'light' };
+  let config = { nested: { enabled: false } };
   const persistence = createLegacyRuntimeConfigPersistence({
     getCurrentUser: () => currentUser,
     getConfig: () => config,
@@ -111,7 +111,7 @@ test('serialized config persistence writes the latest config for the latest user
   assert.deepEqual(calls, [
     {
       key: 'chatConfig_v_v8.6_alice',
-      value: JSON.stringify(config)
+      value: JSON.stringify({ nested: { enabled: true } })
     }
   ]);
 
@@ -120,7 +120,7 @@ test('serialized config persistence writes the latest config for the latest user
   await persistence.saveConfig();
   assert.deepEqual(calls.at(-1), {
     key: 'chatConfig_v_v8.6_bob',
-    value: JSON.stringify(config)
+    value: JSON.stringify({ items: [1, 2, 3] })
   });
 });
 
@@ -146,7 +146,7 @@ test('serialized config persistence removes apiKeys from normal config writes', 
   assert.deepEqual(calls, [
     {
       key: 'chatConfig_v_v8.6_alice',
-      value: JSON.stringify({ theme: 'dark' })
+      value: JSON.stringify({})
     }
   ]);
 });
@@ -276,7 +276,7 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
     'runtimeConfigAccess.replaceConfig(normalizedConfig)'
   ], 'loadConfig merge precedence');
   assertMarkersInOrder(normalizationSource, [
-    'const { apiKeys: _retiredApiKeys, ...normalSavedConfig } = savedConfig',
+    'const { apiKeys: _retiredApiKeys, theme: _retiredTheme, ...normalSavedConfig } = savedConfig',
     '...currentConfig',
     '...normalSavedConfig',
     'apiKeys: { ...(currentConfig?.apiKeys || {}) }',

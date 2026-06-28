@@ -6,6 +6,7 @@ export function createMediaPreviewLifecycle({
     escapeHTML,
     getInlineMediaSrc,
     getUiLanguage,
+    getText = (_key, fallback) => fallback,
     logWarn = (...args) => console.warn(...args)
 }) {
     const openMediaPreview = (media) => {
@@ -19,17 +20,21 @@ export function createMediaPreviewLifecycle({
         const mediaHTML = mimeType.startsWith('video/')
             ? `<video src="${escapeHTML(src)}" controls autoplay playsinline></video>`
             : `<img src="${escapeHTML(src)}" alt="${escapeHTML(name)}">`;
-        const isEnglish = getUiLanguage() === 'en';
+        getUiLanguage();
+        const closePreviewLabel = getText('closePreview', 'Close preview');
+        const downloadLabel = getText('download', 'Download');
+        const saveLabel = getText('save', 'Save');
+        const shareLabel = getText('share', 'Share');
         overlay.innerHTML = `
-            <button type="button" class="media-lightbox-close" aria-label="${isEnglish ? 'Close preview' : '關閉預覽'}">&times;</button>
+            <button type="button" class="media-lightbox-close" aria-label="${escapeHTML(closePreviewLabel)}">&times;</button>
             <div class="media-lightbox-toolbar">
-                <a class="media-lightbox-action media-lightbox-download" href="${escapeHTML(src)}" download="${escapeHTML(name)}" aria-label="${isEnglish ? 'Download' : '下載'}">
+                <a class="media-lightbox-action media-lightbox-download" href="${escapeHTML(src)}" download="${escapeHTML(name)}" aria-label="${escapeHTML(downloadLabel)}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                    <span>${isEnglish ? 'Save' : '儲存'}</span>
+                    <span>${escapeHTML(saveLabel)}</span>
                 </a>
-                <button type="button" class="media-lightbox-action media-lightbox-share" aria-label="${isEnglish ? 'Share' : '分享'}">
+                <button type="button" class="media-lightbox-action media-lightbox-share" aria-label="${escapeHTML(shareLabel)}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
-                    <span>${isEnglish ? 'Share' : '分享'}</span>
+                    <span>${escapeHTML(shareLabel)}</span>
                 </button>
             </div>
             <div class="media-lightbox-stage">

@@ -10,7 +10,6 @@ const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url)
 const expectedConfig = (defaultModelId) => ({
   apiKeys: { gemini: '', openrouter: '', stepPlan: '', nvidia: '', tavily: '' },
   defaultModel: defaultModelId,
-  theme: 'light',
   modelSettings: [],
   enableAutoWebSearch: false,
   tavilySearchDepth: 'basic',

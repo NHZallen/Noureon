@@ -81,7 +81,8 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         File,
         escapeHTML,
         getInlineMediaSrc: getSearchInlineMediaSrc,
-        getUiLanguage: () => getConfig().uiLanguage
+        getUiLanguage: () => getConfig().uiLanguage,
+        getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback
     });
 
     const searchConversationViewRenderer = createConversationViewRenderer({
@@ -265,10 +266,10 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             item.dataset.id = conv.id;
             const scoreHTML = scope === 'natural' ? `
                     <div class="flex items-center gap-2 mt-2">
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
                             <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${score}%"></div>
                         </div>
-                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">${score}</span>
+                        <span class="text-sm font-medium text-gray-500">${score}</span>
                     </div>
                 ` : '';
             item.innerHTML = `

@@ -131,12 +131,6 @@ body.custom-wallpaper-active #history-sidebar h3 {
     transition: all 0.2s ease-in-out; /* 保留平滑動畫 */
     padding-left: 1.25rem; /* 稍微增加左邊距，為指示條留出空間 */
 }
-.dark .sidebar-item.active,
-.sidebar .sidebar-item.active {
-    background-color: var(--hover-bg); 
-    color: var(--text-primary) !important; 
-    font-weight: 600; 
-}
 .sidebar-item.active::before {
     content: ''; /* 偽元素必須要有 content 屬性 */
     position: absolute; /* 絕對定位，相對於 .sidebar-item */

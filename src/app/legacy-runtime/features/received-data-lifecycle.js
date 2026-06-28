@@ -10,6 +10,7 @@ export function createReceivedDataLifecycle({
     renderAll,
     showNotification,
     toggleModal,
+    getText = (_key, fallback) => fallback,
     getP2pShareModal,
     scheduleTimeout = setTimeout,
     logger = console
@@ -32,7 +33,7 @@ export function createReceivedDataLifecycle({
 
                         if (astras.some(a => a.id === astraData.id)) {
                             astraData.id = randomUUID();
-                            astraData.name += " (匯入)";
+                            astraData.name += ` (${getText('imported', 'Imported')})`;
                         }
                         astraData.officialId = null;
 
@@ -40,7 +41,7 @@ export function createReceivedDataLifecycle({
                         count++;
                     }
                 }
-                showNotification(`成功接收 ${count} 個 Astras！`, 'success');
+                showNotification(getText('p2pReceivedAstrasSuccess', 'Received {count} Astras.').replace('{count}', count), 'success');
             } else {
                 const foldersContent = await zip.file('folders.json').async("string");
                 const convsContent = await zip.file('conversations.json').async("string");
@@ -66,7 +67,7 @@ export function createReceivedDataLifecycle({
                 importedFolders.forEach(folder => {
                     let folderName = folder.name;
                     if (folders.some(f => f.name === folderName)) {
-                        folderName += " (分享)";
+                        folderName += ` (${getText('shared', 'Shared')})`;
                     }
 
                     const newFolder = {
@@ -96,7 +97,12 @@ export function createReceivedDataLifecycle({
                     });
                 });
 
-                showNotification(`成功接收 ${importedFolders.length} 個資料夾與 ${importedConvs.length} 則對話！`, 'success');
+                showNotification(
+                    getText('p2pReceivedFoldersSuccess', 'Received {folders} folders and {conversations} conversations.')
+                        .replace('{folders}', importedFolders.length)
+                        .replace('{conversations}', importedConvs.length),
+                    'success'
+                );
             }
 
             await saveAppData();
@@ -106,7 +112,7 @@ export function createReceivedDataLifecycle({
             }, 1500);
         } catch (e) {
             logger.error(e);
-            showNotification("資料解析失敗", "error");
+            showNotification(getText('p2pDataParseFailed', 'Failed to parse received data.'), "error");
         }
     };
 

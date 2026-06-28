@@ -25,22 +25,8 @@
 .spotlight-effect:hover::before {
     opacity: 1;
 }
-.dark .spotlight-effect::before {
-    background-image: radial-gradient(
-        circle 150px at var(--spotlight-x) var(--spotlight-y),
-        rgba(255, 255, 255, 0.2) 0%,
-        rgba(255, 255, 255, 0) 100%
-    );
-}
 .spotlight-effect:hover::before {
     opacity: 1;
-}
-.dark .spotlight-effect::before {
-    background-image: radial-gradient(
-        circle 200px at var(--spotlight-x) var(--spotlight-y),
-        rgba(255, 255, 255, 0.12) 0%,
-        rgba(255, 255, 255, 0) 100%
-    );
 }
 .input-wrapper {
     flex-direction: column;
@@ -74,10 +60,6 @@
     -ms-user-select: none;     /* 適用於 Internet Explorer/Edge */
     user-select: none;         /* 標準語法 */
 }
-.dark .input-indicator-item {
-    background-color: var(--hover-bg);
-    border: 1px solid var(--border-color);
-}
 body.custom-wallpaper-active .input-indicator-item {
     background-color: rgba(255, 255, 255, 0.2) !important;
     backdrop-filter: blur(20px) !important;
@@ -95,11 +77,14 @@ body.custom-wallpaper-active .input-indicator-item {
 #chat-form {
     min-width: 0;
     min-height: 2.5rem;
+    display: flex;
     align-items: center !important;
+    align-self: center;
 }
 #message-input {
     min-width: 0;
     min-height: 2.5rem;
+    box-sizing: border-box;
     line-height: 1.5rem;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
@@ -142,14 +127,6 @@ body.custom-wallpaper-active .input-indicator-item {
     background: transparent !important;
     color: #111827 !important;
 }
-.dark #add-file-btn,
-.dark #voice-input-btn-message {
-    color: var(--text-secondary) !important;
-}
-.dark #add-file-btn:hover,
-.dark #voice-input-btn-message:hover {
-    color: var(--text-primary) !important;
-}
 #submit-btn {
     border: 0 !important;
     border-radius: 999px !important;
@@ -165,9 +142,6 @@ body.custom-wallpaper-active .input-indicator-item {
     color: var(--button-primary-text) !important;
     opacity: 0.55 !important;
 }
-.dark #submit-btn:disabled {
-    background: var(--button-primary-bg) !important;
-}
 #add-file-btn svg,
 #voice-input-btn-message svg,
 #submit-btn svg,
@@ -180,6 +154,13 @@ body.custom-wallpaper-active .input-indicator-item {
     display: flex;
     align-items: center;
     justify-content: center;
+    line-height: 1;
+}
+#add-file-btn svg,
+#voice-input-btn-message svg,
+#submit-btn svg,
+#submit-btn-icon svg {
+    display: block;
 }
 #message-input {
     outline: none !important;

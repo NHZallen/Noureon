@@ -71,7 +71,7 @@ export function normalizeLoadedLegacyConfig({
   let normalizedConfig = currentConfig;
 
   if (savedConfig) {
-    const { apiKeys: _retiredApiKeys, ...normalSavedConfig } = savedConfig;
+    const { apiKeys: _retiredApiKeys, theme: _retiredTheme, ...normalSavedConfig } = savedConfig;
     normalizedConfig = {
       ...currentConfig,
       ...normalSavedConfig,
@@ -90,6 +90,7 @@ export function normalizeLoadedLegacyConfig({
       uiTheme: { ...(currentConfig?.uiTheme || {}) }
     };
   }
+  delete normalizedConfig.theme;
 
   const allModelIds = new Set(models.map(m => m.id));
   const savedModelSettings = [];

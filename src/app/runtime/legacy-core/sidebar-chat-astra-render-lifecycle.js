@@ -474,7 +474,8 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     File,
     escapeHTML,
     getInlineMediaSrc: getMessageInlineMediaSrc,
-    getUiLanguage: () => getConfig().uiLanguage
+    getUiLanguage: () => getConfig().uiLanguage,
+    getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback
   });
 
   const {

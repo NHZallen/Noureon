@@ -318,7 +318,6 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
     'getCurrentUser',
     'getConversations',
     'setSidebarOpen:false',
-    'setTheme:dark',
     'renderAll',
     'updateFunctionButtonsState',
     'updateInputState',

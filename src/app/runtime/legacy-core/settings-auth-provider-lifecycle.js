@@ -53,6 +53,10 @@ function createLiveObject(getter) {
             getter()[property] = value;
             return true;
         },
+        deleteProperty(_target, property) {
+            delete getter()[property];
+            return true;
+        },
         has(_target, property) {
             return property in getter();
         },

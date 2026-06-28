@@ -13,8 +13,6 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         state,
         i18n,
         UI_THEME_COLORS,
-        setTheme,
-        updateThemeButtons,
         setAiBubbleColor,
         setUserBubbleColor,
         saveConfig,
@@ -92,7 +90,6 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         } else {
             root.style.removeProperty('--button-primary-bg-override');
         }
-        updateThemeButtons();
     };
 
     const renderUiColorOptions = () => {
@@ -191,11 +188,9 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
             ALL_ELEMENTS.wallpaperContainer.style.backgroundImage = `url(${state.config.customWallpaper})`;
             document.body.classList.add('custom-wallpaper-active');
             document.body.classList.toggle('wallpaper-is-dark', state.config.wallpaperBrightness === 'dark');
-            document.documentElement.classList.remove('dark');
         } else {
             ALL_ELEMENTS.wallpaperContainer.style.backgroundImage = 'none';
             document.body.classList.remove('custom-wallpaper-active', 'wallpaper-is-dark');
-            setTheme(state.config.theme);
         }
         setAiBubbleColor();
         setUserBubbleColor();

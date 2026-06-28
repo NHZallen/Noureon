@@ -119,17 +119,6 @@ button:active:not(:disabled),
     --gpt-primary-action-text: #ffffff;
 }
 
-.dark {
-    --gpt-surface: #212121;
-    --gpt-subtle: #2f2f2f;
-    --gpt-subtle-hover: #3a3a3a;
-    --gpt-border: #3f3f3f;
-    --gpt-menu-border: #4a4a4a;
-    --gpt-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
-    --gpt-primary-action-bg: #f9fafb;
-    --gpt-primary-action-text: #111827;
-}
-
 #settings-modal > div {
     border-radius: 1.25rem !important;
     background: var(--gpt-surface) !important;
@@ -276,16 +265,6 @@ button:active:not(:disabled),
     -webkit-backdrop-filter: blur(10px) saturate(1.02) !important;
 }
 
-.dark #settings-modal,
-.dark #search-modal,
-.dark #trash-view-modal,
-.dark #search-view-modal,
-.dark #export-data-modal,
-.dark #import-data-modal,
-.dark #custom-dialog-modal {
-    background: rgba(18, 18, 18, 0.72) !important;
-}
-
 #settings-modal > div {
     width: min(58rem, calc(100vw - 2rem)) !important;
     height: min(76vh, 52rem) !important;
@@ -319,21 +298,6 @@ button:active:not(:disabled),
 #settings-modal .text-green-700,
 #settings-modal .text-green-800 {
     color: var(--text-primary) !important;
-}
-
-#settings-modal .bg-red-100,
-#settings-modal .bg-red-200,
-#settings-modal .bg-red-500,
-#settings-modal .bg-blue-100,
-#settings-modal .bg-blue-200,
-#settings-modal .bg-blue-500,
-#settings-modal .bg-green-100,
-#settings-modal .bg-green-200,
-#settings-modal .bg-green-500,
-#settings-modal .dark\:bg-red-900,
-#settings-modal .dark\:bg-blue-900,
-#settings-modal .dark\:bg-green-900 {
-    background: var(--gpt-subtle) !important;
 }
 
 #trash-section .flex.justify-between.items-center.mb-4,
@@ -411,10 +375,6 @@ button:active:not(:disabled),
     box-shadow: none !important;
 }
 
-.dark .toggle-label {
-    background: #4a4a4a !important;
-}
-
 .toggle-label:before {
     top: 2px !important;
     left: 2px !important;
@@ -455,24 +415,8 @@ button:active:not(:disabled),
     --gpt-scrollbar: #d8d8d8;
 }
 
-.dark {
-    --gpt-primary-action-bg: #000000;
-    --gpt-primary-action-text: #ffffff;
-    --gpt-icon: #ffffff;
-    --gpt-control-bg: #000000;
-    --gpt-control-text: #ffffff;
-    --gpt-control-border: #ffffff;
-    --gpt-scrollbar: #d8d8d8;
-}
-
 body svg {
     color: #000000 !important;
-    stroke: currentColor !important;
-}
-
-.dark body svg,
-.dark svg {
-    color: #ffffff !important;
     stroke: currentColor !important;
 }
 
@@ -579,10 +523,6 @@ body svg {
 .toggle-label {
     background: #e3e3e3 !important;
     border: 0 !important;
-}
-
-.dark .toggle-label {
-    background: #e3e3e3 !important;
 }
 
 .toggle-checkbox:checked + .toggle-label {

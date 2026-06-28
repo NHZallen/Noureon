@@ -887,18 +887,6 @@ details.council-model-group > summary::-webkit-details-marker {
     -webkit-backdrop-filter: blur(10px);
 }
 
-.dark .popover,
-.dark #file-options-popover,
-.dark #model-options-popover,
-.dark .model-council-popover,
-.dark .color-dropdown-menu,
-.dark .translator-picker-menu,
-.dark #mobile-context-menu,
-.dark #attachment-menu {
-    background-color: rgba(31, 41, 55, 0.96) !important;
-    border-color: rgba(75, 85, 99, 0.95) !important;
-}
-
 body.custom-wallpaper-active .popover,
 body.custom-wallpaper-active #file-options-popover,
 body.custom-wallpaper-active #model-options-popover,

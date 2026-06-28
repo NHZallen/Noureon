@@ -42,7 +42,8 @@ export function createLegacyTrashLifecycle({
     File,
     escapeHTML,
     getInlineMediaSrc,
-    getUiLanguage
+    getUiLanguage,
+    getText: (key, fallback) => getTexts()?.[key] || fallback
   });
   const trashConversationViewRenderer = createConversationViewRenderer({
     document,

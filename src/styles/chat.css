@@ -182,12 +182,6 @@
         box-shadow: 4px 0px 15px rgba(0, 0, 0, 0.05);
         --border-color: rgba(0, 0, 0, 0.1);
     }
-    .dark .sidebar {
-        background-color: rgba(30, 30, 30, 0.5);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 4px 0px 20px rgba(0, 0, 0, 0.2);
-        --border-color: rgba(255, 255, 255, 0.1);
-    }
     .popover {
         box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color);
         background-color: var(--modal-bg);
@@ -279,18 +273,11 @@
     transform-origin: bottom left;
     transform: scale(0.95) translateY(10px);
 }
-.dark #file-options-popover {
-    background-color: rgba(30, 30, 30, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-}
 #file-options-popover.visible {
     transform: scale(1) translateY(0);
 }
 #file-options-popover button {
     color: #111827;
-}
-.dark #file-options-popover button {
-    color: #f9fafb;
 }
 #file-options-popover button svg {
     color: inherit;
@@ -298,9 +285,6 @@
 }
 #file-options-popover button:hover {
     background-color: rgba(255, 255, 255, 0.15);
-}
-.dark #file-options-popover button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
 }
     .folder-summary .folder-arrow {
         transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
@@ -432,20 +416,6 @@
         --button-primary-hover-bg: #3f7ee6;
         --button-primary-text: #ffffff;
     }
-    .dark {
-        --chat-bg: #111111;
-        --sidebar-bg: #1c1c1c;
-        --input-bar-bg: #1c1c1c;
-        --input-field-bg: #2d2d2d;
-        --text-primary: #f9fafb;
-        --text-secondary: #9ca3af;
-        --border-color: #374151;
-        --hover-bg: #374151;
-        --active-bg: #4b5563;
-        --modal-bg: #1f2937;
-        --shadow-color: rgba(0, 0, 0, 0.4);
-        --user-bubble-bg: #223958;
-    }
         .model-message .message-bubble {
         box-shadow: none;
     }
@@ -481,11 +451,6 @@
         border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
         color: var(--text-primary);
-    }
-    .dark .notification {
-        background-color: rgba(20, 20, 20, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
     }
     .notification.success { color: #22c55e; }
     .notification.error { color: #ef4444; }
@@ -687,19 +652,9 @@
 
     /* 針對所有標題、段落、列表、粗體 */
     /* 全部強制設定為純白色 #ffffff */
-    .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4, 
-    .dark .prose h5, .dark .prose h6,
-    .dark .prose p, 
-    .dark .prose ul, .dark .prose ol, .dark .prose li, 
-    .dark .prose strong, .dark .prose b {
-        color: #ffffff !important;
-    }
 
 
     /* 特別針對：列表前面的「圓點」或「數字」 */
-    .dark .prose li::marker {
-        color: #ffffff !important;
-    }
     .folder-summary {
         cursor: pointer;
     }

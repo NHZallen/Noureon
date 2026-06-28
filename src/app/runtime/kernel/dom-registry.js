@@ -43,8 +43,6 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['singleDocumentTranslatorModelSelect', 'single-document-translator-model-select'],
   ['modelManagementList', 'model-management-list'],
   ['openArchivedModalBtn', 'open-archived-modal-btn'],
-  ['themeLightBtn', 'theme-light-btn'],
-  ['themeDarkBtn', 'theme-dark-btn'],
   ['archivedChatsModal', 'archived-chats-modal'],
   ['closeArchivedModalBtn', 'close-archived-modal-btn'],
   ['archivedChatsContainer', 'archived-chats-container'],

@@ -25,7 +25,6 @@ export function createLegacyAppBootstrapLifecycle({
     setEditingAstraForAvatarId,
     startNewChat,
     renderAll,
-    setTheme,
     setupVoiceInput,
     setupScrollToBottomButton,
     updateDisplayedVersion,
@@ -116,7 +115,6 @@ export function createLegacyAppBootstrapLifecycle({
             ALL_ELEMENTS.sidebar.classList.remove('open');
             ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
         }
-                setTheme(config.theme);
                 ALL_ELEMENTS.usernameDisplay.textContent = currentUser.username;
                 document.querySelector('.user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
                 if (!conversations.find(c => !c.archived && !c.deletedAt)) startNewChat();
@@ -208,8 +206,6 @@ export function createLegacyAppBootstrapLifecycle({
                         toggleModal(ALL_ELEMENTS.settingsModal, false);
                     }
                 });
-                ALL_ELEMENTS.themeLightBtn.addEventListener('click', () => setTheme('light'));
-                ALL_ELEMENTS.themeDarkBtn.addEventListener('click', () => setTheme('dark'));
                 ALL_ELEMENTS.openArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, true));
                 ALL_ELEMENTS.closeArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, false));
                 const closeViewArchivedModal = () => toggleModal(ALL_ELEMENTS.viewArchivedChatModal, false);
@@ -761,6 +757,7 @@ export function createLegacyAppBootstrapLifecycle({
             showNotification,
             toggleModal,
             escapeHTML,
+            getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback,
             randomUUID,
             random,
             scheduleTimeout: setTimeout,
@@ -792,6 +789,7 @@ export function createLegacyAppBootstrapLifecycle({
             startP2PSender,
             getP2PCodeInputValue: () => document.getElementById('p2p-code-input').value,
             showNotification,
+            getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback,
             connectToSender,
             startQRScanner: () => startQRScanner()
         });

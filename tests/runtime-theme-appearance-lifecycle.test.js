@@ -117,8 +117,6 @@ function createHarness(overrides = {}) {
       blue: '#111111',
       red: '#ff0000'
     },
-    setTheme: (theme) => calls.push(['setTheme', theme]),
-    updateThemeButtons: () => calls.push(['updateThemeButtons']),
     setAiBubbleColor: () => calls.push(['setAiBubbleColor']),
     setUserBubbleColor: () => calls.push(['setUserBubbleColor']),
     saveConfig: async () => calls.push(['saveConfig']),
@@ -172,7 +170,7 @@ test('applyUiTheme preserves default, custom, and adaptive gradient CSS variable
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-bg'), '#3b82f6');
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-text'), '#ffffff');
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-bg-override'), '');
-  assert.deepEqual(calls, [['updateThemeButtons']]);
+  assert.deepEqual(calls, []);
 
   state.config.uiTheme.mode = 'custom';
   state.config.uiTheme.customColor = '#ffffff';
@@ -243,13 +241,11 @@ test('applyCustomWallpaper preserves wallpaper classes and bubble color handoffs
   lifecycle.applyCustomWallpaper();
   assert.equal(elements.wallpaperContainer.style.backgroundImage, 'none');
   assert.deepEqual(calls, [
-    ['setTheme', 'light'],
     ['setAiBubbleColor'],
     ['setUserBubbleColor']
   ]);
 
   calls.length = 0;
-  document.documentElement.classList.add('dark');
   state.config.customWallpaper = 'data:image/png;base64,wallpaper';
   state.config.wallpaperBrightness = 'dark';
   lifecycle.applyCustomWallpaper();
@@ -257,7 +253,6 @@ test('applyCustomWallpaper preserves wallpaper classes and bubble color handoffs
   assert.equal(elements.wallpaperContainer.style.backgroundImage, 'url("data:image/png;base64,wallpaper")');
   assert.equal(document.body.classList.contains('custom-wallpaper-active'), true);
   assert.equal(document.body.classList.contains('wallpaper-is-dark'), true);
-  assert.equal(document.documentElement.classList.contains('dark'), false);
   assert.deepEqual(calls, [
     ['setAiBubbleColor'],
     ['setUserBubbleColor']

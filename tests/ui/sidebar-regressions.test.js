@@ -7,7 +7,7 @@ test('sidebar search and history model pills use solid white surfaces', () => {
 
   assert.match(css, /#open-search-btn[^{]*\{[^}]*background:\s*#ffffff\s!important;/s);
   assert.match(css, /\.model-suffix[^{]*\{[^}]*background-color:\s*#ffffff;/s);
-  assert.match(css, /\.dark\s+\.model-suffix[^{]*\{[^}]*background-color:\s*var\(--input-field-bg\)(?:\s!important)?;/s);
+  assert.doesNotMatch(css, /\.dark\b|dark\\:|dark:/);
 });
 
 test('desktop startup keeps sidebar closed while preserving manual and mobile toggle paths', () => {

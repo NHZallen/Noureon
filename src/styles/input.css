@@ -87,13 +87,6 @@
 
 
 /* 針對暗黑模式和自訂桌布的適配 */
-.dark #attachment-menu .menu-header,
-.dark #attachment-menu .menu-item {
-    color: var(--text-primary);
-}
-.dark #attachment-menu .menu-item svg {
-    color: var(--text-secondary);
-}
 body.custom-wallpaper-active #attachment-menu {
     color: #111827 !important;
     background-color: rgba(255, 255, 255, 0.85) !important;

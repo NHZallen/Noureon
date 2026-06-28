@@ -56,8 +56,7 @@ export function createHistorySidebarHelpers({
       const colorConfig = isUser ? userBubbleColors : aiBubbleColors;
       const currentConfig = getConfig();
       const colorName = isUser ? currentConfig.userBubbleColor : currentConfig.aiBubbleColor;
-      const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-      const bgColor = (colorConfig[colorName] || colorConfig.default)[theme];
+      const bgColor = (colorConfig[colorName] || colorConfig.default).light;
 
       listItem.className = 'history-sidebar-item';
       listItem.dataset.messageIndex = index;

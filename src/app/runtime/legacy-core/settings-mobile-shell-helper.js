@@ -79,7 +79,7 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
     const mobileHeader = document.createElement('div');
     mobileHeader.id = 'settings-mobile-header';
     mobileHeader.innerHTML = `
-        <button type="button" id="settings-mobile-back-btn" aria-label="返回">
+        <button type="button" id="settings-mobile-back-btn" aria-label="${escapeHTML(getSettingsText('back', 'Back'))}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
         </button>
         <h2 id="settings-mobile-title">${escapeHTML(getSettingsText('settings', '設定'))}</h2>

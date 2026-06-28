@@ -20,6 +20,8 @@ function getColorName(color) {
   return color.charAt(0).toUpperCase() + color.slice(1);
 }
 
+const DEFAULT_APPEARANCE_MODE = 'light';
+
 export function createSettingsThemeBubbleControls(dependencies = {}) {
   assertRequiredDependencies(dependencies);
 
@@ -37,7 +39,7 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
   const setAiBubbleColor = () => {
     const root = document.documentElement;
     const isWallpaperActive = document.body.classList.contains('custom-wallpaper-active');
-    const mode = config.theme;
+    const mode = DEFAULT_APPEARANCE_MODE;
     const colors = AI_BUBBLE_COLORS[config.aiBubbleColor] || AI_BUBBLE_COLORS.default;
     const hexColor = colors[mode];
     if (isWallpaperActive) {
@@ -51,7 +53,7 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
   const setUserBubbleColor = () => {
     const root = document.documentElement;
     const isWallpaperActive = document.body.classList.contains('custom-wallpaper-active');
-    const mode = config.theme;
+    const mode = DEFAULT_APPEARANCE_MODE;
     const colors = USER_BUBBLE_COLORS[config.userBubbleColor] || USER_BUBBLE_COLORS.default;
     const hexColor = colors[mode];
     if (isWallpaperActive) {
@@ -72,7 +74,7 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
     container.innerHTML = '';
     const currentColor = config[configKey];
     const currentName = getColorName(currentColor);
-    const currentHex = colorMap[currentColor][config.theme];
+    const currentHex = colorMap[currentColor][DEFAULT_APPEARANCE_MODE];
     const btn = document.createElement('button');
     btn.className = 'color-dropdown-btn';
     btn.dataset.color = currentColor;
@@ -89,7 +91,7 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
       option.dataset.color = color;
       const preview = document.createElement('div');
       preview.className = 'color-preview';
-      preview.style.backgroundColor = colorMap[color][config.theme];
+      preview.style.backgroundColor = colorMap[color][DEFAULT_APPEARANCE_MODE];
       const name = getColorName(color);
       option.appendChild(preview);
       option.appendChild(document.createTextNode(name));
@@ -137,26 +139,13 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
     });
   };
 
-  const updateThemeButtons = () => {
-    ALL_ELEMENTS.themeDarkBtn.classList.remove('active');
-    ALL_ELEMENTS.themeLightBtn.classList.remove('active');
-    if (config.theme === 'dark') {
-      ALL_ELEMENTS.themeDarkBtn.classList.add('active');
-    } else {
-      ALL_ELEMENTS.themeLightBtn.classList.add('active');
-    }
-  };
+  const updateThemeButtons = () => {};
 
-  const setTheme = async (theme) => {
-    if (document.body.classList.contains('custom-wallpaper-active')) {
-      return;
-    }
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    config.theme = theme;
+  const setTheme = async () => {
+    delete config.theme;
     setAiBubbleColor();
     setUserBubbleColor();
     await saveConfig();
-    updateThemeButtons();
     if (!ALL_ELEMENTS.settingsModal.classList.contains('hidden')) {
       renderAiBubbleColorDropdown();
       renderUserBubbleColorDropdown();

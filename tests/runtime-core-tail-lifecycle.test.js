@@ -210,12 +210,11 @@ test('theme and wallpaper helpers use injected live state and DOM dependencies',
   const { lifecycle, calls, documentStyle, elements, state } = createHarness();
   lifecycle.applyUiTheme();
   assert.equal(documentStyle.values.get('--button-primary-bg'), '#3b82f6');
-  assert.deepEqual(calls.shift(), ['updateThemeButtons']);
+  assert.deepEqual(calls, []);
 
   lifecycle.applyCustomWallpaper();
   assert.equal(elements.wallpaperContainer.style.backgroundImage, 'none');
   assert.deepEqual(calls, [
-    ['setTheme', 'light'],
     ['setAiBubbleColor'],
     ['setUserBubbleColor']
   ]);

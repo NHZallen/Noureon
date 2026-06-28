@@ -87,14 +87,14 @@ test('mobile settings open to a GPT-style category list before drilling into det
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.settings-section\.active\s*>\s*h3[^{]*\{[^}]*margin-left:\s*0\s*!important;[^}]*width:\s*100%\s*!important;[^}]*text-align:\s*left\s*!important;/s);
 });
 
-test('mobile settings use readable dark surfaces in dark mode', () => {
+test('mobile settings use readable default surfaces without dark mode selectors', () => {
   const css = readUiSource('src/styles/main.css');
 
-  assert.match(css, /\.dark\s+#settings-modal\s*>\s*div,[\s\S]*\.dark\s+#settings-modal\s+#settings-mobile-list,[\s\S]*\.dark\s+#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*background:\s*var\(--modal-bg\)\s*!important;/s);
-  assert.match(css, /\.dark\s+#settings-modal\s+\.settings-mobile-card,[\s\S]*\.dark\s+#settings-modal\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*background:\s*var\(--input-field-bg\)\s*!important;[^}]*color:\s*var\(--text-primary\)\s*!important;/s);
-  assert.match(css, /\.dark\s+#settings-modal\s+\.settings-mobile-row-label[^{]*\{[^}]*color:\s*var\(--text-primary\)\s*!important;/s);
-  assert.match(css, /\.dark\s+#settings-modal\s+\.settings-mobile-group-title[^{]*\{[^}]*color:\s*var\(--text-secondary\)\s*!important;/s);
-  assert.match(css, /\.dark\s+#settings-modal\s+#close-settings-btn[^{]*\{[^}]*background:\s*var\(--input-field-bg\)\s*!important;/s);
+  assert.doesNotMatch(css, /\.dark\b|dark\\:|dark:/);
+  assert.match(css, /#settings-modal\s*>\s*div[^{]*\{[^}]*background:\s*#ffffff\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*background:\s*#ffffff\s*!important;/s);
+  assert.match(css, /#settings-modal\s+\.settings-mobile-list-item,\s*#settings-modal\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*background:\s*#ffffff\s*!important;[^}]*color:\s*#000000\s*!important;/s);
+  assert.match(css, /#settings-modal\s+\.settings-mobile-row-label[^{]*\{[^}]*color:\s*#000000;/s);
 });
 
 test('app typography uses restrained GPT-like system weights and mobile settings sheet motion', () => {
@@ -196,8 +196,7 @@ test('mobile settings CSS surface is explicitly mapped before extraction', () =>
   assert.match(settingsMobileCss, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*padding:\s*0\.25rem\s+1\.15rem\s+1\.4rem\s*!important;/s);
   assert.doesNotMatch(mobileCss, /#settings-mobile-|\.settings-mobile-/);
   assert.doesNotMatch(mobileCss, /settings-mobile-detail-open|settings-mobile-returning/);
-  assert.match(settingsMobileCss, /\.dark\s+#settings-modal\s+#settings-mobile-list/);
-  assert.match(settingsMobileCss, /\.dark\s+#settings-modal\s+\.settings-mobile-card/);
+  assert.doesNotMatch(settingsMobileCss, /\.dark\b|dark\\:|dark:/);
 });
 
 test('provider and model management selectors are scoped to the provider management surface', () => {
@@ -382,16 +381,12 @@ test('theme bubble extraction keeps global and shared selectors out of the new s
   assert.doesNotMatch(settingsThemeBubbleCss, /\[data-theme/);
   assert.doesNotMatch(settingsThemeBubbleCss, /\.modal\s+(?:input|select|textarea)/);
   assertSelectorHits(':root', ['src/styles/settings.css', 'src/styles/typography.css']);
-  assertSelectorHits('.dark #settings-modal', [
-    'src/styles/settings.css',
-    'src/styles/settings-mobile.css',
-    'src/styles/personalization.css'
-  ]);
   assertSelectorHits('.modal input', ['src/styles/settings.css', 'src/styles/personalization.css']);
   assertSelectorHits('.modal select', ['src/styles/settings.css', 'src/styles/personalization.css']);
   assertSelectorHits('.modal textarea', ['src/styles/settings.css', 'src/styles/personalization.css']);
 
   const fullCss = readUiSource('src/styles/main.css');
+  assert.doesNotMatch(fullCss, /\.dark\b|dark\\:|dark:/);
   assert.doesNotMatch(fullCss, /\[data-theme/);
 });
 
@@ -409,12 +404,7 @@ test('shared settings-adjacent selectors are classified as shared, not settings-
   }
 });
 
-test('dark mode, root variables, typography, and regression overrides remain classified as shared surfaces', () => {
-  assertSelectorHits('.dark #settings-modal', [
-    'src/styles/settings.css',
-    'src/styles/settings-mobile.css',
-    'src/styles/personalization.css'
-  ]);
+test('root variables, typography, and regression overrides remain classified as shared surfaces', () => {
   assertSelectorHits(':root', ['src/styles/settings.css', 'src/styles/typography.css']);
   assertSelectorHits('#settings-modal .settings-mobile-group-title', ['src/styles/typography.css']);
   assertSelectorHits('#settings-modal .settings-sidebar', ['src/styles/regression-overrides.css']);
@@ -423,6 +413,7 @@ test('dark mode, root variables, typography, and regression overrides remain cla
   ]);
 
   const fullCss = readUiSource('src/styles/main.css');
+  assert.doesNotMatch(fullCss, /\.dark\b|dark\\:|dark:/);
   assert.doesNotMatch(
     fullCss,
     /\[data-theme/,
@@ -494,8 +485,8 @@ test('settings CSS surface stays within its post-mobile-extraction budget', () =
   const mobileCssSettingsHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css']);
   const typographySurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/typography.css']);
 
-  assert.ok(stats.lines > 800, 'settings.css should still be tracked as the base settings surface after extraction');
-  assert.ok(settingsMobileStats.lines > 300, 'settings-mobile.css should own the mobile settings shell surface');
+  assert.ok(stats.lines > 700, 'settings.css should still be tracked as the base settings surface after extraction');
+  assert.ok(settingsMobileStats.lines > 250, 'settings-mobile.css should own the mobile settings shell surface');
   assert.ok(mobileStats.lines > 100, 'mobile.css should keep generic mobile app rules');
   assert.ok(apiKeyStats.lines > 0, 'settings-api-keys.css should own API key control styles');
   assert.ok(outputTranslatorStats.lines > 0, 'settings-output-translator.css should own output/translator control styles');

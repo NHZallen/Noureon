@@ -72,7 +72,7 @@ test('imports received Astras, resolves duplicate ids, and runs success handoffs
   await lifecycle.processReceivedData(['chunk'], 'astras');
 
   assert.deepEqual(astras.map(({ id, name, officialId }) => ({ id, name, officialId })), [
-    { id: 'new-a', name: 'Nova (匯入)', officialId: null },
+    { id: 'new-a', name: 'Nova (Imported)', officialId: null },
     { id: 'a-1', name: 'Existing', officialId: undefined }
   ]);
   assert.deepEqual(calls.map((call) => call[0]), [
@@ -106,7 +106,7 @@ test('imports conversations and folders with new ids, duplicate folder suffixes,
   assert.equal(conversations[0].folderId, 'new-folder');
   assert.equal(conversations[0].astrasId, null);
   assert.equal(folders[1].id, 'new-folder');
-  assert.equal(folders[1].name, 'Work (分享)');
+  assert.equal(folders[1].name, 'Work (Shared)');
   assert.equal(folders[1].color, '#123');
   assert.equal(folders[1].icon, 'briefcase');
   assert.equal(folders[1].textColor, '#eee');

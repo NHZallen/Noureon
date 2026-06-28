@@ -16,7 +16,7 @@ export function createUploadedFilePreviewLifecycle({
 
         files.forEach(file => {
             const previewElement = document.createElement('div');
-            previewElement.className = 'relative w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden file-preview-item';
+            previewElement.className = 'relative w-16 h-16 bg-gray-200 rounded-lg overflow-hidden file-preview-item';
             if (file.type.startsWith('image/')) {
                 previewElement.innerHTML = `<img src="${file.base64}" class="w-full h-full object-cover">`;
                 previewElement.onclick = () => openMediaPreview({

@@ -143,7 +143,7 @@ test('scanner start failures preserve logging and notification handoffs', async 
 
   assert.deepEqual(calls, [
     ['error', error],
-    ['notify', '無法啟動相機', 'error']
+    ['notify', 'Cannot start camera, please check permissions.', 'error']
   ]);
 });
 

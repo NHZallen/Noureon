@@ -67,7 +67,7 @@ export function redactApiKeys(apiKeys, options = {}) {
 
 export function removeSensitiveConfig(config) {
   if (!config || typeof config !== 'object') return {};
-  const { apiKeys, ...safeConfig } = config;
+  const { apiKeys, theme: _retiredTheme, ...safeConfig } = config;
   return { ...safeConfig };
 }
 

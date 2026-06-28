@@ -20,6 +20,7 @@ export function createLegacyP2PLifecycle({
   showNotification,
   toggleModal,
   escapeHTML,
+  getText = (_key, fallback) => fallback,
   randomUUID,
   random,
   scheduleTimeout,
@@ -28,7 +29,6 @@ export function createLegacyP2PLifecycle({
   let p2pPeer = null;
   let p2pConn = null;
   let p2pType = null;
-  let p2pMode = null;
 
   const getElement = (id) => getElementById(id);
   const log = logger ?? console;
@@ -39,7 +39,8 @@ export function createLegacyP2PLifecycle({
   function initP2P(type) {
     p2pType = type;
     resetP2PUI();
-    getElement('p2p-modal-title').textContent = `P2P 分享 ${type === 'astras' ? 'Astras' : '資料夾'}`;
+    getElement('p2p-modal-title').textContent = getText('p2pShareTitle', 'P2P Share {type}')
+      .replace('{type}', type === 'astras' ? 'Astras' : getText('folders', 'Folders'));
     toggleModal(getElement('p2p-share-modal'), true);
   }
 
@@ -67,9 +68,7 @@ export function createLegacyP2PLifecycle({
     return result;
   }
 
-  function setP2PMode(mode) {
-    p2pMode = mode;
-  }
+  function setP2PMode(_mode) {}
 
   function showP2PSelection() {
     getElement('p2p-step-role').classList.add('hidden');
@@ -77,15 +76,12 @@ export function createLegacyP2PLifecycle({
     const list = getElement('p2p-item-list');
     list.innerHTML = '';
 
-    let items = [];
-    if (p2pType === 'astras') {
-      items = getAstras().filter((astra) => !astra.officialId);
-    } else {
-      items = getFolders();
-    }
+    const items = p2pType === 'astras'
+      ? getAstras().filter((astra) => !astra.officialId)
+      : getFolders();
 
     if (items.length === 0) {
-      list.innerHTML = '<p class="text-center text-[var(--text-secondary)] p-4">沒有可分享的項目</p>';
+      list.innerHTML = `<p class="text-center text-[var(--text-secondary)] p-4">${escapeHTML(getText('p2pNoShareItems', 'No shareable items.'))}</p>`;
       getElement('p2p-confirm-selection-btn').disabled = true;
       return;
     }
@@ -105,7 +101,7 @@ export function createLegacyP2PLifecycle({
   async function startP2PSender() {
     const checkboxes = document.querySelectorAll('.p2p-item-checkbox:checked');
     if (checkboxes.length === 0) {
-      showNotification('請先選擇要分享的項目', 'warning');
+      showNotification(getText('p2pSelectItemsWarning', 'Select at least one item to share.'), 'warning');
       return;
     }
 
@@ -144,7 +140,7 @@ export function createLegacyP2PLifecycle({
         p2pPeer.destroy();
         startP2PSender();
       } else {
-        showNotification(`P2P 錯誤: ${err.type}`, 'error');
+        showNotification(`${getText('p2pError', 'P2P error')}: ${err.type}`, 'error');
       }
     });
   }
@@ -152,7 +148,7 @@ export function createLegacyP2PLifecycle({
   async function setupSenderConnection(selectedIds) {
     getElement('p2p-step-wait').classList.add('hidden');
     getElement('p2p-step-progress').classList.remove('hidden');
-    updateP2PProgress(0, '正在打包資料...');
+    updateP2PProgress(0, getText('p2pPreparingData', 'Preparing data...'));
 
     const zip = new JSZip();
 
@@ -195,7 +191,7 @@ export function createLegacyP2PLifecycle({
       function sendNextChunk() {
         if (offset >= totalSize) {
           p2pConn.send({ type: 'end' });
-          updateP2PProgress(100, '傳送完成！');
+          updateP2PProgress(100, getText('p2pSentSuccess', 'Sent successfully!'));
           return;
         }
 
@@ -208,7 +204,7 @@ export function createLegacyP2PLifecycle({
 
         offset += chunk.byteLength;
         const percent = (offset / totalSize) * 100;
-        updateP2PProgress(percent, `正在傳送... ${Math.round(percent)}%`);
+        updateP2PProgress(percent, `${getText('p2pSending', 'Sending...')} ${Math.round(percent)}%`);
 
         schedule(sendNextChunk, 5);
       }
@@ -231,7 +227,7 @@ export function createLegacyP2PLifecycle({
 
     getElement('p2p-step-connect').classList.add('hidden');
     getElement('p2p-step-progress').classList.remove('hidden');
-    updateP2PProgress(5, '正在連線...');
+    updateP2PProgress(5, getText('p2pConnecting', 'Connecting...'));
 
     p2pPeer.on('open', () => {
       p2pConn = p2pPeer.connect(peerId);
@@ -240,7 +236,7 @@ export function createLegacyP2PLifecycle({
 
     p2pPeer.on('error', (err) => {
       log.error(err);
-      showNotification('連線失敗，請確認代碼', 'error');
+      showNotification(getText('p2pConnectionFailed', 'Connection failed. Check the code.'), 'error');
       resetP2PUI();
       startP2PReceiverUI();
     });
@@ -253,7 +249,7 @@ export function createLegacyP2PLifecycle({
     let dataType = '';
 
     p2pConn.on('open', () => {
-      updateP2PProgress(10, '已連線，等待資料...');
+      updateP2PProgress(10, getText('p2pConnectedReceiving', 'Connected, receiving data...'));
     });
 
     p2pConn.on('data', async (data) => {
@@ -262,21 +258,21 @@ export function createLegacyP2PLifecycle({
         dataType = data.dataType;
         receivedBuffer = [];
         receivedSize = 0;
-        updateP2PProgress(10, '開始接收...');
+        updateP2PProgress(10, getText('p2pReceiving', 'Receiving...'));
       } else if (data.type === 'chunk') {
         receivedBuffer.push(data.data);
         receivedSize += data.data.byteLength;
         const percent = (receivedSize / totalSize) * 100;
-        updateP2PProgress(percent, `正在接收... ${Math.round(percent)}%`);
+        updateP2PProgress(percent, `${getText('p2pReceiving', 'Receiving...')} ${Math.round(percent)}%`);
       } else if (data.type === 'end') {
-        updateP2PProgress(100, '接收完成，正在處理...');
+        updateP2PProgress(100, getText('p2pProcessingReceived', 'Received. Processing...'));
         await processReceivedData(receivedBuffer, dataType);
       }
     });
 
     p2pConn.on('close', () => {
       if (receivedSize < totalSize && totalSize > 0) {
-        showNotification('連線中斷', 'error');
+        showNotification(getText('p2pConnectionInterrupted', 'Connection interrupted.'), 'error');
       }
     });
   }
@@ -293,6 +289,7 @@ export function createLegacyP2PLifecycle({
     renderAll,
     showNotification,
     toggleModal,
+    getText,
     getP2pShareModal: () => getElement('p2p-share-modal'),
     scheduleTimeout: schedule,
     logger: log
@@ -304,6 +301,7 @@ export function createLegacyP2PLifecycle({
     createScanner: (elementId) => new Html5Qrcode(elementId),
     connectToSender,
     showNotification,
+    getText,
     logger: log
   });
   const updateP2PProgress = (...args) => p2pScannerLifecycle.updateP2PProgress(...args);

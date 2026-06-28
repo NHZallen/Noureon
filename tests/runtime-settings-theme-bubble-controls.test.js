@@ -71,15 +71,12 @@ function createFixture(overrides = {}) {
   const styleWrites = [];
   const calls = [];
   const config = {
-    theme: 'dark',
     aiBubbleColor: 'default',
     userBubbleColor: 'default'
   };
   const elements = {
     aiBubbleColorDropdown: createElement(),
     userBubbleColorDropdown: createElement(),
-    themeDarkBtn: createElement('button'),
-    themeLightBtn: createElement('button'),
     settingsModal: createElement()
   };
   elements.settingsModal.classList.add('hidden');
@@ -106,12 +103,12 @@ function createFixture(overrides = {}) {
     elements,
     config,
     aiBubbleColors: {
-      default: { dark: '#111111', light: '#eeeeee' },
-      blue: { dark: '#0000ff', light: '#88aaff' }
+      default: {light: '#eeeeee'},
+      blue: {light: '#88aaff'}
     },
     userBubbleColors: {
-      default: { dark: '#222222', light: '#dddddd' },
-      green: { dark: '#00ff00', light: '#88ff88' }
+      default: {light: '#dddddd'},
+      green: {light: '#88ff88'}
     },
     hexToRgba: (hex, alpha) => `rgba(${hex}, ${alpha})`,
     saveConfig: async () => calls.push('saveConfig')
@@ -131,30 +128,32 @@ test('factory validates required dependencies', () => {
   );
 });
 
-test('setTheme updates config, theme button state, bubble colors, and saves', async () => {
-  const { calls, config, controls, document, elements, styleWrites } = createFixture();
+test('setTheme compatibility clears retired theme config, refreshes bubble colors, and saves', async () => {
+  const { calls, config, controls, styleWrites } = createFixture();
+  config.theme = 'dark';
 
   await controls.setTheme('light');
 
-  assert.equal(config.theme, 'light');
-  assert.equal(document.documentElement.classList.contains('dark'), false);
+  assert.equal('theme' in config, false);
   assert.deepEqual(styleWrites, [
     ['--ai-bubble-bg', 'transparent'],
     ['--user-bubble-bg', '#dddddd']
   ]);
   assert.deepEqual(calls, ['saveConfig']);
-  assert.equal(elements.themeDarkBtn.classList.contains('active'), false);
-  assert.equal(elements.themeLightBtn.classList.contains('active'), true);
 });
 
-test('setTheme is inert while custom wallpaper is active', async () => {
+test('setTheme compatibility still clears retired theme config while custom wallpaper is active', async () => {
   const { calls, config, controls, styleWrites } = createFixture({ wallpaper: true });
+  config.theme = 'dark';
 
   await controls.setTheme('light');
 
-  assert.equal(config.theme, 'dark');
-  assert.deepEqual(styleWrites, []);
-  assert.deepEqual(calls, []);
+  assert.equal('theme' in config, false);
+  assert.deepEqual(styleWrites, [
+    ['--ai-bubble-bg', 'rgba(#eeeeee, 0.75)'],
+    ['--user-bubble-bg', 'rgba(#dddddd, 0.7)']
+  ]);
+  assert.deepEqual(calls, ['saveConfig']);
 });
 
 test('bubble color setters preserve wallpaper and non-wallpaper behavior', () => {
@@ -163,15 +162,15 @@ test('bubble color setters preserve wallpaper and non-wallpaper behavior', () =>
   normal.controls.setUserBubbleColor();
   assert.deepEqual(normal.styleWrites, [
     ['--ai-bubble-bg', 'transparent'],
-    ['--user-bubble-bg', '#222222']
+    ['--user-bubble-bg', '#dddddd']
   ]);
 
   const wallpaper = createFixture({ wallpaper: true });
   wallpaper.controls.setAiBubbleColor();
   wallpaper.controls.setUserBubbleColor();
   assert.deepEqual(wallpaper.styleWrites, [
-    ['--ai-bubble-bg', 'rgba(#111111, 0.75)'],
-    ['--user-bubble-bg', 'rgba(#222222, 0.7)']
+    ['--ai-bubble-bg', 'rgba(#eeeeee, 0.75)'],
+    ['--user-bubble-bg', 'rgba(#dddddd, 0.7)']
   ]);
 });
 
@@ -205,7 +204,7 @@ test('user bubble color dropdown renders options and writes selected color', () 
   greenOption.dispatch('click');
 
   assert.equal(config.userBubbleColor, 'green');
-  assert.deepEqual(styleWrites.at(-1), ['--user-bubble-bg', '#00ff00']);
+  assert.deepEqual(styleWrites.at(-1), ['--user-bubble-bg', '#88ff88']);
   assert.equal(menu.classList.contains('show'), false);
 });
 

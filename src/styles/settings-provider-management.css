@@ -95,18 +95,7 @@
     color: #000000 !important;
 }
 
-.dark .model-management-item .model-row-action:hover,
-.dark #settings-modal .model-management-item .model-row-action:hover {
-    background: rgba(255, 255, 255, 0.12) !important;
-    color: #ffffff !important;
-}
-
 .model-management-item .model-row-action:active,
 #settings-modal .model-management-item .model-row-action:active {
     background: #eeeeee !important;
-}
-
-.dark .model-management-item .model-row-action:active,
-.dark #settings-modal .model-management-item .model-row-action:active {
-    background: rgba(255, 255, 255, 0.18) !important;
 }

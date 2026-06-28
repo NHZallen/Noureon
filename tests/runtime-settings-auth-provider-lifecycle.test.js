@@ -185,8 +185,8 @@ const createDependencies = (overrides = {}) => {
     councilResponseCharLimit: 1000,
     councilRetryDelayMs: 1,
     councilMaxModels: 3,
-    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
-    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
+    aiBubbleColors: { default: {light: '#eeeeee'} },
+    userBubbleColors: { default: {light: '#dddddd'} },
     getActiveConversation: () => null,
     normalizeConversationModel: (model) => model,
     getModelApiId: (model) => model?.id || '',
@@ -552,7 +552,7 @@ test('settings config proxy reads and mutates the latest state config pointer', 
 
   assert.equal(lifecycle.getTavilySearchDepth(), 'advanced');
   await lifecycle.setTheme('light');
-  assert.equal(replacement.theme, 'light');
+  assert.equal('theme' in replacement, false);
   assert.equal(staleConfig.theme, 'dark');
   assert.equal(calls.includes('saveConfig'), true);
 });
@@ -913,8 +913,8 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
       },
       querySelectorAll: () => []
     },
-    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
-    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
+    aiBubbleColors: { default: {light: '#eeeeee'} },
+    userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
   });
@@ -1000,8 +1000,8 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
       },
       querySelectorAll: () => []
     },
-    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
-    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
+    aiBubbleColors: { default: {light: '#eeeeee'} },
+    userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
   });
@@ -1041,8 +1041,8 @@ test('saveSettings writes new and cleared API key intents through sensitive call
       },
       querySelectorAll: () => []
     },
-    aiBubbleColors: { default: { dark: '#111111', light: '#eeeeee' } },
-    userBubbleColors: { default: { dark: '#222222', light: '#dddddd' } },
+    aiBubbleColors: { default: {light: '#eeeeee'} },
+    userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
   });

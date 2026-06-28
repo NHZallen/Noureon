@@ -200,12 +200,6 @@
     background: #ffffff !important;
 }
 
-.dark .council-enable-pill,
-.dark .council-search-toggle,
-.dark .council-model-search-field {
-    background: var(--input-field-bg) !important;
-}
-
 .council-enable-pill:hover,
 .council-search-toggle:hover,
 .council-model-search-field:focus-within {
@@ -216,10 +210,6 @@
     border-color: var(--border-color) !important;
     background: #ffffff !important;
     color: var(--button-primary-bg) !important;
-}
-
-.dark .council-enable-pill.is-active {
-    background: var(--input-field-bg) !important;
 }
 
 .council-enable-pill.is-active svg,
@@ -233,10 +223,6 @@
     border-color: var(--border-color) !important;
     background: #ffffff !important;
     color: var(--button-primary-bg) !important;
-}
-
-.dark .council-search-toggle.is-active {
-    background: var(--input-field-bg) !important;
 }
 
 .council-search-toggle.is-active svg,
@@ -315,12 +301,6 @@
     border-color: #000000 !important;
     background: #ffffff !important;
     color: #111827 !important;
-}
-
-.dark .council-mode-tabs button.active {
-    border-color: color-mix(in srgb, var(--text-primary) 72%, transparent) !important;
-    background: var(--input-field-bg) !important;
-    color: var(--text-primary) !important;
 }
 
 .council-section {

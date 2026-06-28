@@ -57,8 +57,8 @@ function createHarness({
       return activeConversation;
     },
     getMessageTypeIcon: (message) => `[${message.role}] `,
-    userBubbleColors: { default: { light: '#ffffff', dark: '#111111' } },
-    aiBubbleColors: { default: { light: '#eeeeee', dark: '#222222' } },
+    userBubbleColors: { default: {light: '#ffffff'} },
+    aiBubbleColors: { default: {light: '#eeeeee'} },
     getConfig: () => config,
     hexToRgba: (color, alpha) => color === '#ffffff'
       ? `rgba(255, 255, 255, ${alpha})`

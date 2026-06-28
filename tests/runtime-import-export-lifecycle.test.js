@@ -299,7 +299,7 @@ test('performImport preserves replacement, app persistence, sensitive key merge,
     'saveSensitiveConfig',
     'saveConfig'
   ]);
-  assert.equal(config.theme, 'light');
+  assert.equal('theme' in config, false);
   assert.deepEqual(config.apiKeys, { keep: 'yes' });
   assert.deepEqual(harness.sensitiveApiKeys, { keep: 'yes', imported: 'key' });
 });

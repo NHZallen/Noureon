@@ -7,7 +7,7 @@ import { highlightText } from '../src/app/legacy-runtime/features/search-text-fo
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
-const mark = (text) => `<mark class="bg-yellow-300 dark:bg-yellow-500 rounded px-1">${text}</mark>`;
+const mark = (text) => `<mark class="bg-yellow-300 rounded px-1">${text}</mark>`;
 
 test('search highlight returns original text for an empty query', () => {
   assert.equal(highlightText('Alpha beta', ''), 'Alpha beta');

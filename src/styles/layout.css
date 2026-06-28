@@ -16,21 +16,6 @@
         --button-primary-hover-bg: #3f7ee6;
         --button-primary-text: #ffffff;
     }
-    .dark {
-        --chat-bg: #111111;
-        --sidebar-bg: #1c1c1c;
-        --input-bar-bg: #1c1c1c;
-        --input-field-bg: #2d2d2d;
-        --text-primary: #f9fafb;
-        --text-secondary: #9ca3af;
-        --border-color: #374151;
-        --hover-bg: #374151;
-        --active-bg: #4b5563;
-        --modal-bg: #1f2937;
-        --shadow-color: rgba(0, 0, 0, 0.4);
-        --ai-bubble-bg: transparent;
-        --user-bubble-bg: #223958;
-    }
     @keyframes subtleFadeInUp {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }

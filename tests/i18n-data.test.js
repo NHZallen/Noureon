@@ -4,12 +4,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr'];
-const EXPECTED_LOCALE_KEY_COUNT = 440;
-const EXPECTED_SHELL_LANG_KEY_COUNT = 164;
+const EXPECTED_LOCALE_KEY_COUNT = 469;
+const EXPECTED_SHELL_LANG_KEY_COUNT = 171;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': 'f3c3836744d755a27f97e293a3a6cec7f228e798c0185788aff73ccfa6bcce53',
-  en: '08a0ed171c48087e59a7cdaf2fe82dda2d8aa11ebdef4794b57037ffc9a4b224',
-  fr: 'dbccfe5ee071a6c1c14a2c9a66865131d8885edf8ad4d17d980651e7e059c264'
+  'zh-TW': 'b032abec81aec240495aa128748a1a67ba584420d91b6c5abfdf299e8b314c44',
+  en: '94dfaf4457c6f4e95514fec6a518a4290903804a0c73a2c2d5b8043885330566',
+  fr: '34e5f7a32ff5820e6e076540e84b8d96c379deb8abe80cba7bc7699808cc7fde'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -132,6 +132,37 @@ test('shell template language keys are covered by every locale', async () => {
   for (const locale of EXPECTED_LOCALES) {
     const missingKeys = shellKeys.filter((key) => !(key in i18n[locale]));
     assert.deepEqual(missingKeys, [], `${locale} should cover every shell data-lang-key`);
+  }
+});
+
+test('recent runtime UI strings stay covered by locale keys', async () => {
+  const { default: i18n } = await importI18n('runtime-gaps');
+  const requiredRuntimeKeys = [
+    'back',
+    'closePreview',
+    'download',
+    'share',
+    'p2pConnect',
+    'p2pInvalidCode',
+    'p2pReceivedAstrasSuccess',
+    'p2pReceivedFoldersSuccess',
+    'p2pDataParseFailed'
+  ];
+
+  for (const locale of EXPECTED_LOCALES) {
+    const missingKeys = requiredRuntimeKeys.filter((key) => !(key in i18n[locale]));
+    assert.deepEqual(missingKeys, [], `${locale} should cover recent runtime UI keys`);
+  }
+
+  const sourceChecks = [
+    ['src/app/runtime/legacy-core/settings-mobile-shell-helper.js', /getSettingsText\('back'/],
+    ['src/app/legacy-runtime/features/media-preview-lifecycle.js', /getText\('closePreview'/],
+    ['src/app/legacy-runtime/features/app-bootstrap-composition.js', /getText\('p2pInvalidCode'/],
+    ['src/app/legacy-runtime/features/received-data-lifecycle.js', /getText\('p2pReceivedAstrasSuccess'/]
+  ];
+
+  for (const [sourcePath, pattern] of sourceChecks) {
+    assert.match(readFileSync(projectFile(sourcePath), 'utf8'), pattern, `${sourcePath} should use i18n`);
   }
 });
 

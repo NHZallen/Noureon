@@ -12,6 +12,7 @@ export function createAppBootstrapComposition({
   startP2PSender,
   getP2PCodeInputValue,
   showNotification,
+  getText = (_key, fallback) => fallback,
   connectToSender,
   startQRScanner
 }) {
@@ -55,7 +56,7 @@ export function createAppBootstrapComposition({
       getElementById('p2p-connect-btn').addEventListener('click', () => {
         const code = getP2PCodeInputValue().trim();
         if (code.length !== 5) {
-          showNotification("請輸入正確的 5 碼代碼", "warning");
+          showNotification(getText('p2pInvalidCode', 'Enter a valid 5-character code.'), 'warning');
           return;
         }
         connectToSender(code);

@@ -74,7 +74,7 @@ test('redactSensitiveConfig masks all known provider keys and unknown keys safel
   for (const secret of Object.values(config.apiKeys)) {
     assert.equal(serialized.includes(secret), false);
   }
-  assert.equal(redacted.theme, 'dark');
+  assert.equal('theme' in redacted, false);
   assert.equal(Object.keys(redacted.apiKeys).sort().join(','), Object.keys(config.apiKeys).sort().join(','));
   assert.match(redacted.apiKeys.gemini, /\*{4,}/);
   assert.match(redacted.apiKeys.extraProvider, /\*{4,}/);

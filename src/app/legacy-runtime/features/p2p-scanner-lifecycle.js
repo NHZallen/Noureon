@@ -3,6 +3,7 @@ export function createP2PScannerLifecycle({
   createScanner,
   connectToSender,
   showNotification,
+  getText = (_key, fallback) => fallback,
   logger = console
 }) {
   let scanner = null;
@@ -44,7 +45,7 @@ export function createP2PScannerLifecycle({
       });
     }).catch((error) => {
       logger.error(error);
-      showNotification('無法啟動相機', 'error');
+      showNotification(getText('cameraPermissionError', 'Cannot start camera, please check permissions.'), 'error');
     });
   };
 

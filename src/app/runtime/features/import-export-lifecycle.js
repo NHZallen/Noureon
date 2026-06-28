@@ -60,8 +60,10 @@ export function createLegacyImportExportLifecycle({
 
   function applySettings(settings) {
     if (!settings) return;
+    const { theme: _retiredTheme, ...safeSettings } = settings;
     mutateConfig((config) => {
-      Object.assign(config, settings);
+      delete config.theme;
+      Object.assign(config, safeSettings);
       return config;
     });
   }
@@ -94,7 +96,6 @@ export function createLegacyImportExportLifecycle({
     if (elements.exportSettingsCheck.checked) {
       rawData.settings = createExportSafeConfig({
         defaultModel: config.defaultModel,
-        theme: config.theme,
         modelSettings: config.modelSettings,
         aiBubbleColor: config.aiBubbleColor,
         userBubbleColor: config.userBubbleColor,

@@ -2,7 +2,6 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
   let config = {
     apiKeys: { gemini: '', openrouter: '', stepPlan: '', nvidia: '', tavily: '' },
     defaultModel: defaultModelId,
-    theme: 'light',
     modelSettings: [],
     enableAutoWebSearch: false,
     tavilySearchDepth: 'basic',
