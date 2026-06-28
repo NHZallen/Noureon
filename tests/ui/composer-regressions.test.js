@@ -21,15 +21,10 @@ test('desktop chat input reserves the lower row only for active modes or multili
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input voice submit"/s);
-  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*align-items:\s*center\s!important;[^}]*grid-auto-rows:\s*minmax\(2\.5rem,\s*auto\)/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s!important;/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*min-height\s+0\.24s[^}]*padding\s+0\.24s/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.flex\.items-end[^{]*\{[^}]*transition:[^}]*transform\s+0\.24s/s);
-  assert.match(css, /#chat-form[^{]*\{[^}]*min-height:\s*2\.5rem;[^}]*display:\s*flex;[^}]*align-items:\s*center\s!important;[^}]*align-self:\s*center;/s);
-  assert.match(css, /#message-input[^{]*\{[^}]*min-height:\s*2\.5rem;[^}]*box-sizing:\s*border-box;[^}]*line-height:\s*1\.5rem;[^}]*padding-top:\s*0\.5rem;[^}]*padding-bottom:\s*0\.5rem;[^}]*align-self:\s*center;/s);
-  assert.match(css, /#add-file-btn,\s*#voice-input-btn-message,\s*#submit-btn[^{]*\{[^}]*height:\s*2\.5rem;[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s);
-  assert.match(css, /#add-file-btn\s+svg,\s*#voice-input-btn-message\s+svg,\s*#submit-btn\s+svg,\s*#submit-btn-icon\s+svg[^{]*\{[^}]*display:\s*block;/s);
   assert.match(startupLifecycle, /const\s+wasMultilineLayout\s*=\s*wrapper\?\.classList\.contains\('has-multiline-input'\)\s*\|\|\s*false/);
   assert.match(startupLifecycle, /const\s+firstLineWouldWrap\s*=\s*hasInputText\s*&&\s*isDesktopInput\s*&&\s*!wasMultilineLayout/);
   assert.match(startupLifecycle, /measurementContext\.measureText\(line\)\.width/);

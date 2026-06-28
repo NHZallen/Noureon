@@ -6,7 +6,6 @@
         grid-template-columns: auto minmax(0, 1fr) auto auto auto;
         grid-template-areas: "file input input voice submit";
         align-items: center !important;
-        grid-auto-rows: minmax(2.5rem, auto);
         gap: 0.15rem 0.35rem !important;
         min-height: 3.55rem !important;
         padding: 0.5rem 0.7rem !important;
@@ -56,13 +55,11 @@
     #chat-form {
         grid-area: input;
         width: 100%;
-        align-self: center;
     }
 
     #file-input-container {
         grid-area: file;
         margin-right: 0 !important;
-        align-self: center;
     }
 
     #input-indicator-container {
@@ -79,12 +76,10 @@
 
     #voice-input-btn-message {
         grid-area: voice;
-        align-self: center;
     }
 
     #submit-btn {
         grid-area: submit;
-        align-self: center;
     }
 
     #input-indicator-container:empty {
