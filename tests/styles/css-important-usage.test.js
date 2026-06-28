@@ -55,11 +55,11 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-danger.css': {
-    max: 33,
+    max: 26,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-desktop.css': {
-    max: 67,
+    max: 57,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-mobile.css': {
@@ -67,7 +67,7 @@ const documentedImportantUsage = {
     category: 'required: mobile override'
   },
   'src/styles/settings-output-translator.css': {
-    max: 91,
+    max: 61,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-provider-management.css': {

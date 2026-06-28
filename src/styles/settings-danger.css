@@ -17,24 +17,8 @@
     box-shadow: none !important;
 }
 
-#delete-all-data-btn:hover {
-    background: var(--gpt-subtle) !important;
-    border-color: var(--gpt-border) !important;
-}
-
 #delete-all-data-btn {
     width: 100% !important;
-}
-
-#delete-all-data-btn {
-    background: var(--gpt-control-bg) !important;
-    color: var(--gpt-control-text) !important;
-    border-color: var(--gpt-control-border) !important;
-}
-
-#delete-all-data-btn:hover {
-    background: var(--gpt-control-bg) !important;
-    color: var(--gpt-control-text) !important;
 }
 
 #settings-modal #delete-all-data-btn {
