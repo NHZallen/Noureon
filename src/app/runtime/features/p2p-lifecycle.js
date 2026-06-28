@@ -41,6 +41,8 @@ export function createLegacyP2PLifecycle({
     resetP2PUI();
     getElement('p2p-modal-title').textContent = getText('p2pShareTitle', 'P2P Share {type}')
       .replace('{type}', type === 'astras' ? 'Astras' : getText('folders', 'Folders'));
+    const rolePrompt = document.querySelector?.('#p2p-step-role > p');
+    if (rolePrompt) rolePrompt.textContent = getText('p2pChooseRole', 'Please choose your role:');
     toggleModal(getElement('p2p-share-modal'), true);
   }
 

@@ -100,6 +100,7 @@
     }
 
     #settings-modal .settings-section.active::before {
+        content: attr(data-section-title);
         display: block;
         margin: 0 0 1.7rem 0;
         padding-bottom: 1.35rem;
@@ -108,14 +109,6 @@
         font-size: 1.05rem;
         font-weight: 500;
     }
-
-    #personalization-section.active::before { content: "個人化"; }
-    #memory-section.active::before { content: "記憶管理"; }
-    #model-management-section.active::before { content: "模型管理"; }
-    #data-management-section.active::before { content: "資料管理"; }
-    #accessibility-section.active::before { content: "輔助功能"; }
-    #trash-section.active::before { content: "垃圾桶"; }
-    #about-section.active::before { content: "關於"; }
 
     #settings-modal nav {
         padding-top: 3rem !important;

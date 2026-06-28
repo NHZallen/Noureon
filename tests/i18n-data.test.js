@@ -4,12 +4,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr'];
-const EXPECTED_LOCALE_KEY_COUNT = 469;
+const EXPECTED_LOCALE_KEY_COUNT = 483;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 171;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': 'b032abec81aec240495aa128748a1a67ba584420d91b6c5abfdf299e8b314c44',
-  en: '94dfaf4457c6f4e95514fec6a518a4290903804a0c73a2c2d5b8043885330566',
-  fr: '34e5f7a32ff5820e6e076540e84b8d96c379deb8abe80cba7bc7699808cc7fde'
+  'zh-TW': '372a1d5e92aaa647ee6f3f94eeea44a1d6a2e17a87f3ff1d9153678ad613c598',
+  en: 'ed252ee85d8a2053da33143fabdd8b463770c308ef0185317272af23ac6dd4ed',
+  fr: '81af28f30b7c03715470b5b2a36a0d4c37052362fc5118fc87b5c14df73010fe'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -143,10 +143,24 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
     'download',
     'share',
     'p2pConnect',
+    'p2pChooseRole',
     'p2pInvalidCode',
     'p2pReceivedAstrasSuccess',
     'p2pReceivedFoldersSuccess',
-    'p2pDataParseFailed'
+    'p2pDataParseFailed',
+    'folderIconLineColor',
+    'folderTextColor',
+    'folderTextColorGray',
+    'folderTextColorBlack',
+    'folderTextColorWhite',
+    'astrasCategoryProductivity',
+    'astrasCategoryPlanning',
+    'astrasCategoryLanguageLearning',
+    'astrasCategoryMentalHealth',
+    'astrasCategoryGames',
+    'languageNameZhTW',
+    'languageNameEn',
+    'languageNameFr'
   ];
 
   for (const locale of EXPECTED_LOCALES) {
@@ -158,7 +172,14 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
     ['src/app/runtime/legacy-core/settings-mobile-shell-helper.js', /getSettingsText\('back'/],
     ['src/app/legacy-runtime/features/media-preview-lifecycle.js', /getText\('closePreview'/],
     ['src/app/legacy-runtime/features/app-bootstrap-composition.js', /getText\('p2pInvalidCode'/],
-    ['src/app/legacy-runtime/features/received-data-lifecycle.js', /getText\('p2pReceivedAstrasSuccess'/]
+    ['src/app/legacy-runtime/features/received-data-lifecycle.js', /getText\('p2pReceivedAstrasSuccess'/],
+    ['src/app/runtime/features/p2p-lifecycle.js', /getText\('p2pChooseRole'/],
+    ['src/app/runtime/features/folder-lifecycle.js', /getTexts\(\)\.folderIconLineColor/],
+    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /astrasCategoryProductivity/],
+    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /translations\.languageNameZhTW/],
+    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /settings-mobile-title/],
+    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /section\.dataset\.sectionTitle\s*=\s*translations\[sectionTitleKey\]/],
+    ['src/styles/settings-desktop.css', /content:\s*attr\(data-section-title\)/]
   ];
 
   for (const [sourcePath, pattern] of sourceChecks) {

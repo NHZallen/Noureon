@@ -278,7 +278,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             ALL_ELEMENTS.appContainer.addEventListener('transitionend', () => {
                 ALL_ELEMENTS.appContainer.classList.add('hidden');
             }, { once: true });
-            state.currentStoreCategory = '全部';
+            state.currentStoreCategory = 'all';
     const mainContent = document.querySelector('#store-main-content');
     if (mainContent) {
         mainContent.scrollTop = 0;
@@ -311,14 +311,26 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         description: translations['astras_' + ast.id.replace(/-/g, '_') + '_desc'] || ast.description
     }));
     const userCreatedAstras = state.astras.filter(a => !a.officialId);
-    const allCategories = ['全部', ...new Set([
+    const categoryTranslationKeys = {
+        '生產力': 'astrasCategoryProductivity',
+        '規劃': 'astrasCategoryPlanning',
+        '語言學習': 'astrasCategoryLanguageLearning',
+        '心理健康': 'astrasCategoryMentalHealth',
+        '遊戲': 'astrasCategoryGames'
+    };
+    const getCategoryLabel = (category) => {
+        if (category === 'all') return translations.all || 'All';
+        const translationKey = categoryTranslationKeys[category];
+        return translationKey ? (translations[translationKey] || category) : category;
+    };
+    const allCategories = ['all', ...new Set([
         ...translatedOfficialAstras.map(a => a.category),
         ...userCreatedAstras.map(a => a.category)
     ].filter(Boolean))];
     allCategories.forEach(category => {
         const btn = document.createElement('button');
         btn.className = 'store-category-btn';
-        btn.textContent = category;
+        btn.textContent = getCategoryLabel(category);
         if (category === state.currentStoreCategory) {
             btn.classList.add('active');
         }
@@ -329,7 +341,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         categoryList.appendChild(btn);
     });
     const allStoreAstras = [...translatedOfficialAstras, ...userCreatedAstras];
-    const filteredAstras = state.currentStoreCategory === '全部'
+    const filteredAstras = state.currentStoreCategory === 'all'
         ? allStoreAstras
         : allStoreAstras.filter(a => a.category === state.currentStoreCategory);
     filteredAstras.forEach(ast => {
@@ -451,6 +463,29 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                     el.title = translations[key];
                 }
             });
+            const replyLanguageLabels = {
+                'zh-TW': translations.languageNameZhTW || 'Traditional Chinese',
+                en: translations.languageNameEn || 'English',
+                fr: translations.languageNameFr || 'French'
+            };
+            ALL_ELEMENTS.aiLanguageSelect?.querySelectorAll('option').forEach(option => {
+                if (replyLanguageLabels[option.value]) {
+                    option.textContent = replyLanguageLabels[option.value];
+                }
+            });
+            document.querySelectorAll('#settings-nav .settings-nav-item[data-section]').forEach(item => {
+                const section = document.getElementById(`${item.dataset.section}-section`);
+                const sectionTitleKey = item.dataset.langKey;
+                if (section && translations[sectionTitleKey]) {
+                    section.dataset.sectionTitle = translations[sectionTitleKey];
+                }
+            });
+            const mobileSettingsTitle = document.getElementById('settings-mobile-title');
+            const activeSettingsItem = document.querySelector('#settings-nav .settings-nav-item.active');
+            if (mobileSettingsTitle && activeSettingsItem) {
+                const activeTitleKey = activeSettingsItem.dataset.langKey;
+                mobileSettingsTitle.textContent = translations[activeTitleKey] || translations.settings || 'Settings';
+            }
             if(ALL_ELEMENTS.loginLangLabel) {
                 ALL_ELEMENTS.loginLangLabel.textContent = translations.currentLanguageName || '繁體中文';
             }

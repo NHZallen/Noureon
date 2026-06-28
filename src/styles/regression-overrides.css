@@ -511,6 +511,20 @@
     fill: currentColor !important;
 }
 
+#input-indicator-container #search-indicator .input-indicator-mode-icon,
+#input-indicator-container #learning-mode-indicator .input-indicator-mode-icon,
+#input-indicator-container #model-council-indicator .input-indicator-mode-icon {
+    color: var(--button-primary-bg) !important;
+    stroke: currentColor !important;
+}
+
+#input-indicator-container #close-search-btn-input,
+#input-indicator-container #close-learning-mode-btn-input,
+#input-indicator-container #close-model-council-btn-input,
+#input-indicator-container #close-astras-btn-input {
+    color: var(--button-primary-bg) !important;
+}
+
 .btn-outline-white {
     background: #ffffff !important;
     color: #000000 !important;

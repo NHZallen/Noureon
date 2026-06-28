@@ -90,7 +90,7 @@ export function createLegacyFolderLifecycle({
 
     elements.colorSwatchesContainer.innerHTML = '';
     const colorTitle = elements.colorSwatchesContainer.parentElement.querySelector('h3');
-    if (colorTitle) colorTitle.textContent = '設定圖示線條顏色';
+    if (colorTitle) colorTitle.textContent = getTexts().folderIconLineColor || 'Set icon line color';
 
     Object.entries(folderColors).forEach(([name, hex]) => {
       const swatch = document.createElement('div');
@@ -151,7 +151,7 @@ export function createLegacyFolderLifecycle({
       container.id = 'text-color-container';
       container.className = 'mt-6 border-t border-[var(--border-color)] pt-4';
       container.innerHTML = `
-        <h3 class="text-sm font-medium mb-3">選擇文字顏色</h3>
+        <h3 class="text-sm font-medium mb-3">${getTexts().folderTextColor || 'Select text color'}</h3>
         <div id="text-color-options" class="flex gap-4"></div>
       `;
       elements.iconOptionsContainer.parentElement.after(container);
@@ -161,9 +161,9 @@ export function createLegacyFolderLifecycle({
     const textColorOptions = document.getElementById('text-color-options');
     textColorOptions.innerHTML = '';
     const textColorMap = {
-      gray: { label: '預設灰', bg: '#6b7280', border: 'transparent' },
-      black: { label: '深邃黑', bg: '#111827', border: 'transparent' },
-      white: { label: '純淨白', bg: '#ffffff', border: '#e5e7eb' }
+      gray: { label: getTexts().folderTextColorGray || 'Default gray', bg: '#6b7280', border: 'transparent' },
+      black: { label: getTexts().folderTextColorBlack || 'Deep black', bg: '#111827', border: 'transparent' },
+      white: { label: getTexts().folderTextColorWhite || 'Pure white', bg: '#ffffff', border: '#e5e7eb' }
     };
 
     Object.entries(textColorMap).forEach(([key, info]) => {
