@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { Window } from 'happy-dom';
 
 import { runCouncilResponseRenderLifecycle } from '../src/app/legacy-runtime/features/council-response-render-lifecycle.js';
 
@@ -11,13 +10,14 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 const createHarness = ({
   outputMode = 'realtime',
   runModelCouncil,
-  gradualAppend,
-  renderProgressMarkup
+  gradualAppend
 } = {}) => {
   const calls = [];
   const renderers = [];
-  const contentDiv = new Window().document.createElement('div');
-  contentDiv.innerHTML = 'loading';
+  const contentDiv = {
+    dataset: {},
+    innerHTML: 'loading'
+  };
   let tickerCallback;
   const harness = {
     calls,
@@ -36,7 +36,7 @@ const createHarness = ({
         }),
         renderCouncilProgress: (progress) => {
           calls.push(['renderProgress', progress.stage, progress.elapsedMs]);
-          return renderProgressMarkup?.(progress) || `progress:${progress.stage}:${progress.elapsedMs}`;
+          return `progress:${progress.stage}:${progress.elapsedMs}`;
         },
         createStreamingMarkdownRenderer: (target, options) => {
           const renderer = {
@@ -136,33 +136,6 @@ test('council lifecycle stops progress ticker and propagates errors', async () =
     harness.calls.filter(([name]) => name === 'stopTicker'),
     [['stopTicker', 'ticker']]
   );
-});
-
-test('council disclosure state survives progress rerenders', async () => {
-  const harness = createHarness({
-    outputMode: 'buffered',
-    renderProgressMarkup: (progress) => `
-      <div class="council-status-group is-open" data-council-status-group="models">
-        <button type="button" data-council-status-toggle="models" aria-expanded="true">Models</button>
-        <div data-council-status-body="models" aria-hidden="false">${progress.stage}</div>
-      </div>
-    `
-  });
-
-  await harness.run();
-  const toggle = harness.contentDiv.querySelector('[data-council-status-toggle="models"]');
-  toggle.click();
-
-  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
-  assert.equal(harness.contentDiv.querySelector('[data-council-status-body="models"]').getAttribute('aria-hidden'), 'true');
-
-  harness.tick();
-
-  assert.equal(
-    harness.contentDiv.querySelector('[data-council-status-toggle="models"]').getAttribute('aria-expanded'),
-    'false'
-  );
-  assert.equal(harness.contentDiv.querySelector('[data-council-status-group="models"]').classList.contains('is-open'), false);
 });
 
 test('council response render lifecycle source avoids provider parser, storage, package, and Vite coupling', () => {

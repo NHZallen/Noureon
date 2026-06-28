@@ -4,12 +4,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr'];
-const EXPECTED_LOCALE_KEY_COUNT = 495;
+const EXPECTED_LOCALE_KEY_COUNT = 483;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 171;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': '12ddd044fc7610c0509ef80f7b222b74aa10d30ec2821dcc92b261722bd2491c',
-  en: '13a785b84ee9482207ab9b3ac97e4d8b83ff4c427bfd06e02a1a3e704f06f493',
-  fr: 'd2ab3c872a7832c331a8185fb19dbc02c1b331511cfd4f4bcd06848bdf6661b9'
+  'zh-TW': '372a1d5e92aaa647ee6f3f94eeea44a1d6a2e17a87f3ff1d9153678ad613c598',
+  en: 'ed252ee85d8a2053da33143fabdd8b463770c308ef0185317272af23ac6dd4ed',
+  fr: '81af28f30b7c03715470b5b2a36a0d4c37052362fc5118fc87b5c14df73010fe'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -160,19 +160,7 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
     'astrasCategoryGames',
     'languageNameZhTW',
     'languageNameEn',
-    'languageNameFr',
-    'thinkingStatus',
-    'councilPreparationGroup',
-    'councilModelStatusGroup',
-    'councilDocumentTranslation',
-    'councilWebSearch',
-    'councilSynthesizer',
-    'councilStatusWaiting',
-    'councilStatusThinking',
-    'councilStatusResponding',
-    'councilStatusDone',
-    'councilStatusError',
-    'councilStatusInProgress'
+    'languageNameFr'
   ];
 
   for (const locale of EXPECTED_LOCALES) {

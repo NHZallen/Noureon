@@ -147,10 +147,6 @@ test('council lifecycle aggregates multiple model results in order and synthesiz
   assert.ok(progressEvents.some((event) => event.stage === 'firstRound'));
   assert.ok(progressEvents.some((event) => event.stage === 'synthesis'));
   assert.ok(progressEvents.some((event) => event.stage === 'completed'));
-  assert.ok(progressEvents.every((event) => event.synthesizerModelName === 'Synth'));
-  assert.ok(progressEvents.some((event) => event.modelStates.some((model) => model.responseStarted === true)));
-  assert.equal(progressEvents.find((event) => event.stage === 'synthesis').synthesizerStatus, 'responding');
-  assert.equal(progressEvents.find((event) => event.stage === 'completed').synthesizerStatus, 'done');
 });
 
 test('council lifecycle preserves participant failure boundary and still synthesizes usable results', async () => {

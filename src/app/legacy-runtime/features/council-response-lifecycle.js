@@ -321,15 +321,13 @@ export function createCouncilResponseLifecycle({
               modelId: model.id,
               modelName: model.name,
               status: isSkipped ? 'skipped' : 'pending',
-              detail: isSkipped ? runtimeTexts.skippedVisualReason : runtimeTexts.pending,
-              responseStarted: false
+              detail: isSkipped ? runtimeTexts.skippedVisualReason : runtimeTexts.pending
           });
       });
       const searchState = conv.isWebSearchEnabled
           ? { status: 'pending', label: runtimeTexts.sharedSearch, detail: runtimeTexts.pending }
           : null;
       const startedAt = Date.now();
-      let synthesizerStatus = 'pending';
       let progressTick = 0;
       const progress = (stage, message = stage, extra = {}) => {
           if (typeof onProgress !== 'function') return;
@@ -345,8 +343,6 @@ export function createCouncilResponseLifecycle({
               activeParticipants: activeParticipants.length,
               modelStates: Array.from(modelStates.values()),
               search: searchState ? { ...searchState } : null,
-              synthesizerModelName: synthesizer.name,
-              synthesizerStatus,
               ...extra
           });
       };
@@ -355,7 +351,6 @@ export function createCouncilResponseLifecycle({
           let lastUpdateAt = 0;
           return (chunk = '') => {
               receivedChars += String(chunk || '').length;
-              if (state) state.responseStarted = true;
               const now = Date.now();
               if (!state || now - lastUpdateAt < 850) return;
               lastUpdateAt = now;
@@ -432,7 +427,6 @@ export function createCouncilResponseLifecycle({
           if (state) {
               state.status = 'running';
               state.detail = runtimeTexts.running;
-              state.responseStarted = false;
               progress('firstRound', `${runtimeTexts.firstRound}: ${modelInfo.name}`);
           }
           const councilParts = buildCouncilRequestPartsForModel(parts, sharedSearchPacket, attachmentTranslation, modelInfo);
@@ -542,7 +536,6 @@ export function createCouncilResponseLifecycle({
               if (state) {
                   state.status = 'running';
                   state.detail = runtimeTexts.deliberation;
-                  state.responseStarted = false;
                   progress('deliberation', `${runtimeTexts.deliberation}: ${result.modelName}`);
               }
               const text = await streamCouncilApiCallWithRetry(
@@ -593,7 +586,6 @@ export function createCouncilResponseLifecycle({
           });
       }
   
-      synthesizerStatus = 'responding';
       progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name}`);
       const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, combinedSearchPacket, firstRoundResults, finalRoundResults, failures, mode);
       const synthesisParts = buildCouncilSynthesisPartsForModel(synthesisPrompt, parts, attachmentTranslation, synthesizer);
@@ -624,10 +616,8 @@ export function createCouncilResponseLifecycle({
                   onRetry: () => progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name} · ${runtimeTexts.retrying}`)
               }
           );
-          synthesizerStatus = 'done';
       } catch (error) {
           synthesisError = error;
-          synthesizerStatus = 'failed';
           finalText = `模型理事會已完成成員回答，但統整模型 ${synthesizer.name} 未能完成統整：${error.message}\n\n以下提供可用模型觀點供參考。\n\n${formatCouncilResponses(finalRoundResults)}`;
       }
       if (council.showRawResponses) {

@@ -486,8 +486,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   } = createResponseProgressRenderers({
     escapeHTML,
     getUiLanguage: () => getLiveConfig().uiLanguage,
-    getCouncilRuntimeTexts,
-    getTranslations: () => i18n[getLiveConfig().uiLanguage] || i18n['zh-TW']
+    getCouncilRuntimeTexts
   });
 
   const isCouncilDeferredSectionVisible = (text = '') => /<details\b|共識與差異整理|模型理事會紀錄|Model council record|Compte rendu du conseil/i.test(String(text || ''));

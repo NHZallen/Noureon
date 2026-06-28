@@ -17,8 +17,7 @@ const dependencies = {
     previewMediaParts: [...mediaParts]
   }),
   formatTimestamp: () => '2026-06-24 10:30',
-  copyTitle: 'Copy content',
-  thinkingLabel: 'Thinking…'
+  copyTitle: 'Copy content'
 };
 
 test('builds the user message role, text markup, and bubble classes', () => {
@@ -85,7 +84,7 @@ test('keeps media grid data and text part ordering in the render view', () => {
   assert.match(view.messageHTML, /USER:First\nSecond/);
 });
 
-test('renders the localized loading state as an accessible inline assistant status without card chrome', () => {
+test('preserves loading, empty, and unknown-role rendering boundaries', () => {
   const loading = buildMessageRenderView({
     message: { role: 'model', parts: [{ text: '...' }] },
     ...dependencies
@@ -99,11 +98,7 @@ test('renders the localized loading state as an accessible inline assistant stat
     ...dependencies
   });
 
-  assert.match(loading.messageHTML, /class="assistant-thinking-indicator"/);
-  assert.match(loading.messageHTML, /role="status"/);
-  assert.match(loading.messageHTML, /aria-live="polite"/);
-  assert.match(loading.messageHTML, />Thinking…<\/span>/);
-  assert.doesNotMatch(loading.messageHTML, /message-bubble|rounded-lg|shadow-sm|typing-cursor|loading-dots/);
+  assert.match(loading.messageHTML, /<div class="typing-cursor">&nbsp;<\/div>/);
   assert.doesNotMatch(empty.messageHTML, /message-bubble/);
   assert.equal(unknown.isUser, false);
   assert.match(unknown.messageClassName, /model-message$/);

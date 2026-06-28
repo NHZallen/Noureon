@@ -24,29 +24,13 @@ const runtimeTexts = {
   skippedStatus: 'Skipped'
 };
 
-const translations = {
-  thinkingStatus: 'Thinking…',
-  councilPreparationGroup: 'Translation and search',
-  councilModelStatusGroup: 'Model status',
-  councilDocumentTranslation: 'Document translation',
-  councilWebSearch: 'Web search',
-  councilSynthesizer: 'Synthesizer',
-  councilStatusWaiting: 'Waiting',
-  councilStatusThinking: 'Thinking',
-  councilStatusResponding: 'Responding',
-  councilStatusDone: 'Done',
-  councilStatusError: 'Error',
-  councilStatusInProgress: 'In progress'
-};
-
 const createHarness = ({ uiLanguage = 'en' } = {}) => createResponseProgressRenderers({
   escapeHTML,
   getUiLanguage: () => uiLanguage,
-  getCouncilRuntimeTexts: () => runtimeTexts,
-  getTranslations: () => translations
+  getCouncilRuntimeTexts: () => runtimeTexts
 });
 
-test('council progress renders compact collapsible preparation and model status groups', () => {
+test('council progress renders escaped stage, search, stats, and model rows', () => {
   const { renderCouncilProgress } = createHarness();
 
   const html = renderCouncilProgress({
@@ -54,43 +38,35 @@ test('council progress renders compact collapsible preparation and model status 
     elapsedMs: 2400,
     message: 'Working <now>',
     modelStates: [
-      { detail: 'Chunk 1', modelName: 'Astra <One>', responseStarted: true, status: 'running' },
+      { detail: 'Thinking', modelName: 'Astra <One>', status: 'running' },
       { modelName: 'Astra Two', status: 'done' }
     ],
     search: { detail: 'query <x>', label: 'Shared', status: 'running' },
-    synthesizerModelName: 'Astra Synth',
     stage: 'firstRound',
-    totalParticipants: 3,
-    translation: { status: 'done' }
+    totalParticipants: 3
   });
 
-  assert.match(html, /class="council-status" role="status" aria-live="polite"/);
-  assert.match(html, /data-council-status-toggle="preparation"/);
-  assert.match(html, /data-council-status-toggle="models"/);
-  assert.match(html, /aria-expanded="true"/);
-  assert.match(html, /Translation and search/);
-  assert.match(html, /Document translation/);
-  assert.match(html, /Web search/);
-  assert.match(html, /In progress/);
+  assert.match(html, /council-progress-panel/);
+  assert.match(html, /Independent round/);
+  assert.match(html, /2s/);
+  assert.match(html, /Working &lt;now&gt;/);
+  assert.match(html, /2\/3 models/);
+  assert.match(html, /1 done/);
+  assert.match(html, /1 running/);
+  assert.match(html, /query &lt;x&gt;/);
   assert.match(html, /Astra &lt;One&gt;/);
-  assert.match(html, /Responding/);
-  assert.match(html, /Astra Synth/);
-  assert.match(html, /Synthesizer/);
-  assert.match(html, /Waiting 1 · Responding 1 · Done 1/);
-  assert.doesNotMatch(html, /Error 0|Thinking 0/);
-  assert.doesNotMatch(html, /2s|Working &lt;now&gt;|2\/3 models|query &lt;x&gt;|Chunk 1|council-progress-panel|council-progress-note|council-progress-stats/);
 });
 
-test('council string progress fallback stays localized and metadata-free', () => {
+test('council progress preserves string progress fallback', () => {
   const { renderCouncilProgress } = createHarness();
 
-  const html = renderCouncilProgress('Loading <state>');
-
-  assert.match(html, /Thinking…/);
-  assert.doesNotMatch(html, /Loading|state|council-progress-panel/);
+  assert.equal(
+    renderCouncilProgress('Loading <state>'),
+    '<div class="council-progress-panel"><div class="council-progress-heading">Loading &lt;state&gt;</div></div>'
+  );
 });
 
-test('single-model progress only renders the localized thinking status', () => {
+test('single-model progress and error render localized escaped output', () => {
   const { renderSingleModelError, renderSingleModelProgress } = createHarness({ uiLanguage: 'zh-TW' });
 
   const progressHTML = renderSingleModelProgress({
@@ -103,10 +79,10 @@ test('single-model progress only renders the localized thinking status', () => {
   });
   const errorHTML = renderSingleModelError({ elapsedMs: 999, modelName: '模型 B' }, '爆炸 <err>');
 
-  assert.match(progressHTML, /class="assistant-thinking-indicator"/);
-  assert.match(progressHTML, /role="status"/);
-  assert.match(progressHTML, />Thinking…<\/span>/);
-  assert.doesNotMatch(progressHTML, /模型 A|模型作答|串流|已接收字元|Translator|single-progress-panel|council-progress/);
+  assert.match(progressHTML, /模型作答/);
+  assert.match(progressHTML, /串流 &lt;中&gt;/);
+  assert.match(progressHTML, /已接收字元: 42/);
+  assert.match(progressHTML, /Translator &lt;T&gt;/);
   assert.match(errorHTML, /single-progress-panel-error/);
   assert.match(errorHTML, /請求失敗/);
   assert.match(errorHTML, /爆炸 &lt;err&gt;/);
