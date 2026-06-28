@@ -3,6 +3,7 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 
 import { renderDonutChart } from '../../../src/app/ui/charts/donut-chart.js';
+import { createChartFixture, dispatchChartPointer } from './chart-test-helpers.js';
 
 test('renders donut chart with segments and legend percentages', () => {
   const window = new Window({ url: 'https://example.test/' });
@@ -29,6 +30,60 @@ test('renders donut chart with segments and legend percentages', () => {
       '10%'
     ]);
     assert.match(element.querySelector('.ac-chart-donut-segment').getAttribute('d'), /^M /);
+  } finally {
+    window.close();
+  }
+});
+
+test('donut segment state syncs active and faded legend items', () => {
+  const { window, article } = createChartFixture({
+    type: 'donut',
+    title: 'Share',
+    data: [
+      { label: 'A', value: 40 },
+      { label: 'B', value: 30 },
+      { label: 'C', value: 20 },
+      { label: 'D', value: 10 }
+    ]
+  });
+
+  try {
+    const segment = article.querySelector('.ac-chart-donut-segment[data-chart-index="1"]');
+    const legend = article.querySelector('.ac-chart-legend-item[data-chart-index="1"]');
+    const fadedLegend = article.querySelector('.ac-chart-legend-item[data-chart-index="0"]');
+    dispatchChartPointer(window, segment, 'pointermove', { x: 280, y: 150 });
+
+    assert.equal(segment.classList.contains('is-active'), true);
+    assert.equal(legend.classList.contains('is-active'), true);
+    assert.equal(fadedLegend.classList.contains('is-faded'), true);
+    assert.match(article.querySelector('.ac-chart-tooltip').textContent, /B/);
+    assert.match(article.querySelector('.ac-chart-tooltip').textContent, /30%/);
+  } finally {
+    window.close();
+  }
+});
+
+test('donut legend state syncs back to its segment', () => {
+  const { window, article } = createChartFixture({
+    type: 'donut',
+    title: 'Share',
+    data: [
+      { label: 'A', value: 40 },
+      { label: 'B', value: 30 },
+      { label: 'C', value: 20 },
+      { label: 'D', value: 10 }
+    ]
+  });
+
+  try {
+    const legend = article.querySelector('.ac-chart-legend-item[data-chart-index="2"]');
+    const segment = article.querySelector('.ac-chart-donut-segment[data-chart-index="2"]');
+    const fadedSegment = article.querySelector('.ac-chart-donut-segment[data-chart-index="0"]');
+    dispatchChartPointer(window, legend, 'pointermove', { x: 180, y: 340 });
+
+    assert.equal(legend.classList.contains('is-active'), true);
+    assert.equal(segment.classList.contains('is-active'), true);
+    assert.equal(fadedSegment.classList.contains('is-faded'), true);
   } finally {
     window.close();
   }

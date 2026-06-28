@@ -37,7 +37,10 @@ export function renderScatterChart(document, chart, options = {}) {
       r: 7,
       tabindex: 0,
       'aria-label': `${row.label}: ${formatChartNumber(row.x)}, ${formatChartNumber(row.y)}${chart.unit ? ` ${chart.unit}` : ''}`,
-      'data-chart-index': index
+      'data-chart-index': index,
+      'data-chart-label': row.label,
+      'data-chart-x': row.x,
+      'data-chart-y': row.y
     });
     point.appendChild(document.createElementNS(point.namespaceURI, 'title')).textContent =
       `${row.label}: ${formatChartNumber(row.x)}, ${formatChartNumber(row.y)}${chart.unit ? ` ${chart.unit}` : ''}`;

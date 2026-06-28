@@ -35,6 +35,8 @@ test('mounts a valid placeholder into a static SVG chart', () => {
     assert.ok(document.querySelector('.ac-chart.ac-chart-bar'));
     assert.ok(document.querySelector('svg.ac-chart-svg-bar'));
     assert.equal(document.querySelector('.ac-chart-title').textContent, 'Sales');
+    assert.equal(document.querySelector('.ac-chart').dataset.chartInteractions, 'true');
+    assert.ok(document.querySelector('.ac-chart-tooltip'));
   } finally {
     window.close();
   }

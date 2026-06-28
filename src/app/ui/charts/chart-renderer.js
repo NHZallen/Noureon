@@ -2,6 +2,7 @@ import { renderBarChart } from './bar-chart.js';
 import { renderDonutChart } from './donut-chart.js';
 import { renderLineChart } from './line-chart.js';
 import { renderScatterChart } from './scatter-chart.js';
+import { attachChartInteractions } from './chart-interactions.js';
 import { getPrimaryColor } from './chart-utils.js';
 
 const RENDERERS = Object.freeze({
@@ -54,6 +55,7 @@ function createChartArticle(document, chart, { chartLabel = 'Chart' } = {}) {
   }
   body.appendChild(renderer(document, chart, { labelledBy: titleId }));
   article.append(caption, body);
+  attachChartInteractions(article, chart);
   return article;
 }
 

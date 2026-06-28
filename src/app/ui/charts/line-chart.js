@@ -60,7 +60,10 @@ export function renderLineChart(document, chart, options = {}) {
       r: 5,
       tabindex: 0,
       'aria-label': `${point.label}: ${formatChartNumber(point.value)}${chart.unit ? ` ${chart.unit}` : ''}`,
-      'data-chart-index': point.index
+      'data-chart-index': point.index,
+      'data-chart-label': point.label,
+      'data-chart-value': point.value,
+      'data-chart-x': rows[point.index]?.x ?? point.index
     });
   });
 

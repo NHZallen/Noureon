@@ -44,7 +44,9 @@ export function renderBarChart(document, chart, options = {}) {
       ry: 12,
       tabindex: 0,
       'aria-label': `${row.label}: ${formatChartNumber(row.value)}${chart.unit ? ` ${chart.unit}` : ''}`,
-      'data-chart-index': index
+      'data-chart-index': index,
+      'data-chart-label': row.label,
+      'data-chart-value': row.value
     });
     appendSvgElement(layer, 'text', {
       class: 'ac-chart-value-label ac-chart-bar-value',

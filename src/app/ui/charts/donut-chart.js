@@ -44,7 +44,10 @@ export function renderDonutChart(document, chart, options = {}) {
       fill: color,
       tabindex: 0,
       'aria-label': `${row.label}: ${formatPercent(percent)}`,
-      'data-chart-index': index
+      'data-chart-index': index,
+      'data-chart-label': row.label,
+      'data-chart-value': row.value,
+      'data-chart-percentage': percent
     });
     segment.appendChild(document.createElementNS(segment.namespaceURI, 'title')).textContent =
       `${row.label}: ${formatPercent(percent)}`;
@@ -56,6 +59,12 @@ export function renderDonutChart(document, chart, options = {}) {
     const valueText = document.createElement('strong');
     item.className = 'ac-chart-legend-item';
     item.dataset.chartIndex = String(index);
+    item.dataset.chartLabel = row.label;
+    item.dataset.chartValue = String(row.value);
+    item.dataset.chartPercentage = String(percent);
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
+    item.setAttribute('aria-label', `${row.label}: ${formatPercent(percent)}`);
     swatch.className = 'ac-chart-legend-swatch';
     swatch.style.backgroundColor = color;
     text.className = 'ac-chart-legend-text';
