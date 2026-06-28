@@ -34,7 +34,7 @@ export function renderScatterChart(document, chart, options = {}) {
       class: 'ac-chart-point ac-chart-scatter-point',
       cx: xScale(row.x),
       cy: yScale(row.y),
-      r: 7,
+      r: 6.5,
       tabindex: 0,
       'aria-label': `${row.label}: ${formatChartNumber(row.x)}, ${formatChartNumber(row.y)}${chart.unit ? ` ${chart.unit}` : ''}`,
       'data-chart-index': index,

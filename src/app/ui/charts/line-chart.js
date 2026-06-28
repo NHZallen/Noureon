@@ -57,7 +57,7 @@ export function renderLineChart(document, chart, options = {}) {
       class: 'ac-chart-point ac-chart-line-point',
       cx: point.x,
       cy: point.y,
-      r: 5,
+      r: 4.6,
       tabindex: 0,
       'aria-label': `${point.label}: ${formatChartNumber(point.value)}${chart.unit ? ` ${chart.unit}` : ''}`,
       'data-chart-index': point.index,

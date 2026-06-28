@@ -51,7 +51,7 @@ export function renderBarChart(document, chart, options = {}) {
     appendSvgElement(layer, 'text', {
       class: 'ac-chart-value-label ac-chart-bar-value',
       x: x + barWidth / 2,
-      y: Math.max(plotBox.y + 12, y - 14),
+      y: Math.max(plotBox.y + 12, y - 16),
       'text-anchor': 'middle'
     }, formatChartNumber(row.value));
   });

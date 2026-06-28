@@ -19,8 +19,8 @@ test('tooltip boundary helper keeps tooltip inside chart bounds', () => {
     containerWidth: 320,
     containerHeight: 240
   }), {
-    left: 176,
-    top: 34
+    left: 172,
+    top: 38
   });
 });
 
@@ -77,4 +77,21 @@ test('charts css keeps interaction styles free of important and dark selectors',
   const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
   assert.doesNotMatch(css, /!important\b/);
   assert.doesNotMatch(css, /\.dark\b|data-theme=['"]dark|prefers-color-scheme:\s*dark/i);
+});
+
+test('charts css defines separate desktop tablet and mobile sizing', () => {
+  const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
+
+  assert.match(css, /@media\s*\(min-width:\s*1025px\)[\s\S]*?\.ac-chart-svg\s*\{[\s\S]*?height:\s*23rem;/);
+  assert.match(css, /@media\s*\(min-width:\s*641px\)\s*and\s*\(max-width:\s*1024px\)[\s\S]*?\.ac-chart-svg\s*\{[\s\S]*?height:\s*19\.5rem;/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.ac-chart-svg\s*\{[\s\S]*?height:\s*16\.5rem;/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.ac-chart-tooltip\s*\{[\s\S]*?max-width:\s*min\(12rem,\s*calc\(100% - 0\.75rem\)\);/);
+});
+
+test('charts css keeps donut legend stable as a two-column mobile layout', () => {
+  const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
+
+  assert.match(css, /\.ac-chart-legend\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.ac-chart-legend\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.ac-chart-legend-item\s*\{[\s\S]*?min-height:\s*2\.55rem;/);
 });

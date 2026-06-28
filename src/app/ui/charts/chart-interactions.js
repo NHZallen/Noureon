@@ -77,7 +77,7 @@ export function getBoundedTooltipPosition({
   tooltipHeight,
   containerWidth,
   containerHeight,
-  offset = 14
+  offset = 18
 }) {
   const width = Math.max(0, Number(containerWidth) || 0);
   const height = Math.max(0, Number(containerHeight) || 0);
