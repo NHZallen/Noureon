@@ -1,4 +1,5 @@
 import { applyChartMarkdownPlaceholders } from '../../ui/charts/chart-markdown-placeholders.js';
+import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
 
 export function createMarkdownRenderingHelpers({
   marked,
@@ -30,6 +31,11 @@ export function createMarkdownRenderingHelpers({
       document: documentFragment,
       root: documentFragment.body,
       chartLabel: getText('chart', getUiLanguage() === 'fr' ? 'Graphique' : (getUiLanguage() === 'en' ? 'Chart' : '圖表'))
+    });
+
+    mountChartPlaceholders({
+      root: documentFragment.body,
+      chartLabel: getText('chart', getUiLanguage() === 'fr' ? 'Graphique' : (getUiLanguage() === 'en' ? 'Chart' : 'Chart'))
     });
 
     return documentFragment.body.innerHTML;

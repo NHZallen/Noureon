@@ -69,7 +69,7 @@ test('valid chart fenced block becomes placeholder', () => {
   }
 });
 
-test('valid json chart fenced block becomes placeholder', () => {
+test('valid json chart fenced block becomes rendered chart', () => {
   const { helpers, window } = createMarkdownHarness();
 
   try {
@@ -77,9 +77,10 @@ test('valid json chart fenced block becomes placeholder', () => {
 { "type": "donut", "title": "Share", "data": [{ "label": "A", "value": 1 }] }
 \`\`\``);
 
-    assert.match(html, /class="ac-chart-placeholder"/);
+    assert.match(html, /class="ac-chart ac-chart-donut"/);
     assert.match(html, /data-chart-type="donut"/);
-    assert.match(html, />Chart: Share<\/span>/);
+    assert.match(html, /class="ac-chart-svg ac-chart-svg-donut"/);
+    assert.match(html, />Share<\/div>/);
   } finally {
     window.close();
   }
@@ -123,6 +124,34 @@ After`);
 });
 
 test('placeholder escapes title, description, and labels safely', () => {
+  const { document, window } = createDocumentFromMarkdown(`\`\`\`chart
+{
+  "type": "bar",
+  "title": "<img src=x onerror=alert(1)>",
+  "description": "<script>alert(2)</script>",
+  "data": [{ "label": "<b>A</b>", "value": "120" }]
+}
+\`\`\``);
+
+  try {
+    applyChartMarkdownPlaceholders({ document, root: document.body, chartLabel: 'Chart' });
+    const html = document.body.innerHTML;
+    const placeholder = document.querySelector('.ac-chart-placeholder');
+    const payload = JSON.parse(decodeURIComponent(placeholder.dataset.chartPayload));
+
+    assert.ok(placeholder);
+    assert.doesNotMatch(html, /<img src=x/);
+    assert.doesNotMatch(html, /<script>/);
+    assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+    assert.equal(payload.title, '<img src=x onerror=alert(1)>');
+    assert.equal(payload.description, '<script>alert(2)</script>');
+    assert.equal(payload.data[0].label, '<b>A</b>');
+  } finally {
+    window.close();
+  }
+});
+
+test('rendered chart escapes title, description, and labels safely', () => {
   const { helpers, window } = createMarkdownHarness();
 
   try {
@@ -134,18 +163,12 @@ test('placeholder escapes title, description, and labels safely', () => {
   "data": [{ "label": "<b>A</b>", "value": "120" }]
 }
 \`\`\``);
-    const document = window.document.implementation.createHTMLDocument('');
-    document.body.innerHTML = html;
-    const placeholder = document.querySelector('.ac-chart-placeholder');
-    const payload = JSON.parse(decodeURIComponent(placeholder.dataset.chartPayload));
 
-    assert.ok(placeholder);
+    assert.match(html, /class="ac-chart ac-chart-bar"/);
     assert.doesNotMatch(html, /<img src=x/);
     assert.doesNotMatch(html, /<script>/);
     assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
-    assert.equal(payload.title, '<img src=x onerror=alert(1)>');
-    assert.equal(payload.description, '<script>alert(2)</script>');
-    assert.equal(payload.data[0].label, '<b>A</b>');
+    assert.match(html, /&lt;script&gt;alert\(2\)&lt;\/script&gt;/);
   } finally {
     window.close();
   }

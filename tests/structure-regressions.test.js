@@ -2718,6 +2718,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'personalization.css',
     'input-polish.css',
     'model-council.css',
+    'charts.css',
     'settings.css',
     'settings-mobile.css',
     'settings-api-keys.css',
