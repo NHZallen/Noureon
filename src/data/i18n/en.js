@@ -53,6 +53,7 @@ const en = {
         howCanIHelp: 'How can I help you?',
         viewingArchived: 'Viewing an archived chat. Cannot send messages.',
         messageDirectory: 'Message Directory',
+        chart: 'Chart',
         // Model Switcher
         moreModels: 'More Models',
         betaModels: 'Beta Models',

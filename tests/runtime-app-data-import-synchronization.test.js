@@ -70,7 +70,12 @@ const getFunctionDeclarationBody = (source, name) => {
 const assertMarkersInOrder = (source, markers, context) => {
   let cursor = -1;
   for (const marker of markers) {
-    const next = source.indexOf(marker, cursor + 1);
+    const next = marker instanceof RegExp
+      ? (() => {
+          const match = marker.exec(source.slice(cursor + 1));
+          return match ? cursor + 1 + match.index : -1;
+        })()
+      : source.indexOf(marker, cursor + 1);
     assert.notEqual(next, -1, `${context} should contain ${marker}`);
     assert.ok(next > cursor, `${marker} should remain in legacy order for ${context}`);
     cursor = next;
@@ -131,9 +136,9 @@ test('handleImport keeps validation before clear and chunk mutations on active l
 
 test('handleImport preserves partial-state behavior without rollback', () => {
   assertMarkersInOrder(handleImportBody, [
-    "catch (error) {\n              logger.warn('Astra",
+    /catch \(error\) \{\r?\n\s+logger\.warn\('Astra/,
     'activeAppData.astras.push(astra)',
-    "catch (error) {\n                    logger.warn('",
+    /catch \(error\) \{\r?\n\s+logger\.warn\('/,
     'activeAppData.conversations.push(conversation)'
   ], 'handleImport recoverable transform failures');
 

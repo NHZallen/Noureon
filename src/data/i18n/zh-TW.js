@@ -53,6 +53,7 @@ const zhTW = {
         howCanIHelp: '有什麼可以為您服務的嗎？',
         viewingArchived: '正在檢視封存的對話，無法傳送訊息。',
         messageDirectory: '訊息目錄',
+        chart: '圖表',
         // Model Switcher
         moreModels: '更多模型',
         betaModels: '測試版模型',

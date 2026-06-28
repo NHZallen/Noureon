@@ -1,9 +1,12 @@
+import { applyChartMarkdownPlaceholders } from '../../ui/charts/chart-markdown-placeholders.js';
+
 export function createMarkdownRenderingHelpers({
   marked,
   sanitizer,
   DOMParser,
   katex,
   getUiLanguage,
+  getText = (_key, fallback) => fallback,
   logger
 }) {
   function renderMarkdown(text) {
@@ -21,6 +24,12 @@ export function createMarkdownRenderingHelpers({
       wrapper.className = 'table-scroll-container';
       table.replaceWith(wrapper);
       wrapper.appendChild(table);
+    });
+
+    applyChartMarkdownPlaceholders({
+      document: documentFragment,
+      root: documentFragment.body,
+      chartLabel: getText('chart', getUiLanguage() === 'fr' ? 'Graphique' : (getUiLanguage() === 'en' ? 'Chart' : '圖表'))
     });
 
     return documentFragment.body.innerHTML;

@@ -53,6 +53,7 @@ const fr = {
         howCanIHelp: 'Comment puis-je vous aider ?',
         viewingArchived: 'Consultation d\'un chat archivé. Impossible d\'envoyer des messages.',
         messageDirectory: 'Répertoire des Messages',
+        chart: 'Graphique',
         // Model Switcher
         moreModels: 'Plus de modèles',
         betaModels: 'Modèles Bêta',

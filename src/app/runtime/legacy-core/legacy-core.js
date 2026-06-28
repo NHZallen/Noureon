@@ -626,6 +626,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             DOMParser,
             katex,
             getUiLanguage: () => runtimeConfigAccess.getConfig().uiLanguage,
+            getText: (key, fallback) => i18n[runtimeConfigAccess.getConfig().uiLanguage]?.[key] || fallback,
             logger: console
         });
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
