@@ -63,7 +63,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-mobile.css': {
-    max: 175,
+    max: 137,
     category: 'required: mobile override'
   },
   'src/styles/settings-output-translator.css': {

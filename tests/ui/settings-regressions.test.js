@@ -191,9 +191,9 @@ test('mobile settings CSS surface is explicitly mapped before extraction', () =>
   const settingsMobileCss = readUiSource('src/styles/settings-mobile.css');
   const mobileCss = readUiSource('src/styles/mobile.css');
   assert.doesNotMatch(settingsCss, /#settings-modal\.visible[^{]*\{[^}]*padding:\s*0\.75rem\s*!important;/s);
-  assert.match(settingsMobileCss, /#settings-modal\.visible[^{]*\{[^}]*padding:\s*0\.75rem\s*!important;/s);
+  assert.match(settingsMobileCss, /#settings-modal\.visible[^{]*\{[^}]*padding:\s*0\s*!important;/s);
   assert.match(settingsMobileCss, /#settings-modal\s+nav[^{]*\{[^}]*display:\s*none\s*!important;/s);
-  assert.match(settingsMobileCss, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*padding:\s*1rem\s*!important;/s);
+  assert.match(settingsMobileCss, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*padding:\s*0\.25rem\s+1\.15rem\s+1\.4rem\s*!important;/s);
   assert.doesNotMatch(mobileCss, /#settings-mobile-|\.settings-mobile-/);
   assert.doesNotMatch(mobileCss, /settings-mobile-detail-open|settings-mobile-returning/);
   assert.match(settingsMobileCss, /\.dark\s+#settings-modal\s+#settings-mobile-list/);
