@@ -67,6 +67,40 @@ export function getPlotBox() {
   };
 }
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+export function createSmoothPathData(points, bounds = getPlotBox()) {
+  const safePoints = Array.from(points || []).filter((point) =>
+    Number.isFinite(point?.x) && Number.isFinite(point?.y)
+  );
+  if (!safePoints.length) return '';
+  if (safePoints.length === 1) return `M ${safePoints[0].x} ${safePoints[0].y}`;
+
+  const minX = bounds.x;
+  const maxX = bounds.right ?? bounds.x + bounds.width;
+  const minY = bounds.y;
+  const maxY = bounds.bottom ?? bounds.y + bounds.height;
+  const commands = [`M ${safePoints[0].x} ${safePoints[0].y}`];
+
+  for (let index = 0; index < safePoints.length - 1; index += 1) {
+    const previous = safePoints[index - 1] || safePoints[index];
+    const current = safePoints[index];
+    const next = safePoints[index + 1];
+    const following = safePoints[index + 2] || next;
+    const control1 = {
+      x: clamp(current.x + (next.x - previous.x) / 6, minX, maxX),
+      y: clamp(current.y + (next.y - previous.y) / 6, minY, maxY)
+    };
+    const control2 = {
+      x: clamp(next.x - (following.x - current.x) / 6, minX, maxX),
+      y: clamp(next.y - (following.y - current.y) / 6, minY, maxY)
+    };
+    commands.push(`C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${next.x} ${next.y}`);
+  }
+
+  return commands.join(' ');
+}
+
 export function getNumberRange(values, { includeZero = false } = {}) {
   const finiteValues = values.filter(Number.isFinite);
   let min = finiteValues.length ? Math.min(...finiteValues) : 0;

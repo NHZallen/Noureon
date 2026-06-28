@@ -36,6 +36,7 @@ export function renderScatterChart(document, chart, options = {}) {
       cy: yScale(row.y),
       r: 6.5,
       tabindex: 0,
+      'data-chart-interactive': 'true',
       'aria-label': `${row.label}: ${formatChartNumber(row.x)}, ${formatChartNumber(row.y)}${chart.unit ? ` ${chart.unit}` : ''}`,
       'data-chart-index': index,
       'data-chart-label': row.label,

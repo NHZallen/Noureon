@@ -1,4 +1,9 @@
-import { CHART_VIEWBOX, formatChartNumber } from './chart-utils.js';
+import {
+  CHART_VIEWBOX,
+  createSmoothPathData,
+  formatChartNumber,
+  getPlotBox
+} from './chart-utils.js';
 
 const INTERACTIVE_SELECTORS = Object.freeze({
   scatter: '.ac-chart-scatter-point',
@@ -36,13 +41,30 @@ export function getSvgPointerPoint(svg, event) {
   const rect = svg.getBoundingClientRect?.() || { left: 0, top: 0, width: 0, height: 0 };
   const viewBox = parseViewBox(svg);
   const client = getClientPointFromEvent(event);
+  if (svg?.createSVGPoint && svg?.getScreenCTM) {
+    const matrix = svg.getScreenCTM();
+    if (matrix?.inverse && Number.isFinite(client.x) && Number.isFinite(client.y)) {
+      const svgPoint = svg.createSVGPoint();
+      if (typeof svgPoint?.matrixTransform === 'function') {
+        svgPoint.x = client.x;
+        svgPoint.y = client.y;
+        const transformed = svgPoint.matrixTransform(matrix.inverse());
+        return { x: transformed.x, y: transformed.y };
+      }
+    }
+  }
   const width = rect.width || viewBox.width || 1;
   const height = rect.height || viewBox.height || 1;
   const left = rect.left || 0;
   const top = rect.top || 0;
+  const scale = Math.min(width / viewBox.width, height / viewBox.height) || 1;
+  const renderedWidth = viewBox.width * scale;
+  const renderedHeight = viewBox.height * scale;
+  const offsetX = (width - renderedWidth) / 2;
+  const offsetY = (height - renderedHeight) / 2;
   return {
-    x: viewBox.x + ((client.x ?? 0) - left) / width * viewBox.width,
-    y: viewBox.y + ((client.y ?? 0) - top) / height * viewBox.height
+    x: viewBox.x + ((client.x ?? 0) - left - offsetX) / scale,
+    y: viewBox.y + ((client.y ?? 0) - top - offsetY) / scale
   };
 }
 
@@ -112,6 +134,8 @@ const removeStateClasses = (element) => {
   setClassFlag(element, 'is-active', false);
   setClassFlag(element, 'is-selected', false);
   setClassFlag(element, 'is-faded', false);
+  delete element.dataset.chartActive;
+  element.removeAttribute('aria-pressed');
 };
 
 const getElementsForType = (article, type) => {
@@ -247,15 +271,21 @@ const setGuideLine = (line, attributes) => {
   if (!line) return;
   Object.entries(attributes).forEach(([key, value]) => line.setAttribute(key, String(value)));
   line.classList.remove('is-hidden');
+  line.dataset.chartActive = 'true';
 };
 
 const clearGuides = (article) => {
-  article.querySelectorAll('.ac-chart-guide-line').forEach((line) => line.classList.add('is-hidden'));
+  article.querySelectorAll('.ac-chart-guide-line').forEach((line) => {
+    line.classList.add('is-hidden');
+    line.dataset.chartActive = 'false';
+  });
 };
 
 const createSvgLine = (svg, className) => {
   const line = svg.ownerDocument.createElementNS(svg.namespaceURI, 'line');
   line.setAttribute('class', `ac-chart-guide-line ${className} is-hidden`);
+  line.setAttribute('aria-hidden', 'true');
+  line.dataset.chartGuide = className.endsWith('-x') ? 'x' : 'y';
   const series = svg.querySelector('.ac-chart-series');
   svg.insertBefore(line, series || null);
   return line;
@@ -281,23 +311,19 @@ const ensureGuides = (article, type) => {
 const updateGuides = (article, type, element) => {
   const svg = article.querySelector('svg');
   if (!svg || !element) return;
-  const viewBox = parseViewBox(svg);
+  const plotBox = getPlotBox();
   const cx = Number(element.getAttribute('cx'));
   const cy = Number(element.getAttribute('cy'));
   if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
   const guides = ensureGuides(article, type);
   if (type === 'scatter') {
-    setGuideLine(guides.x, { x1: cx, x2: cx, y1: viewBox.y + 28, y2: viewBox.height - 54 });
-    setGuideLine(guides.y, { x1: 64, x2: viewBox.width - 28, y1: cy, y2: cy });
+    setGuideLine(guides.x, { x1: cx, x2: cx, y1: plotBox.y, y2: plotBox.bottom });
+    setGuideLine(guides.y, { x1: plotBox.x, x2: plotBox.right, y1: cy, y2: cy });
   }
   if (type === 'line') {
-    setGuideLine(guides.x, { x1: cx, x2: cx, y1: viewBox.y + 28, y2: viewBox.height - 54 });
+    setGuideLine(guides.x, { x1: cx, x2: cx, y1: plotBox.y, y2: plotBox.bottom });
   }
 };
-
-const createPathData = (points) => points
-  .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-  .join(' ');
 
 const updateLineSegments = (article, activeIndex) => {
   const points = [...article.querySelectorAll('.ac-chart-line-point')].map((point) => ({
@@ -306,16 +332,17 @@ const updateLineSegments = (article, activeIndex) => {
   }));
   const past = article.querySelector('.ac-chart-line-past');
   const future = article.querySelector('.ac-chart-line-future');
+  const plotBox = getPlotBox();
   if (!past || !future || !points.length) return;
   if (!Number.isFinite(activeIndex)) {
-    past.setAttribute('d', createPathData(points));
-    future.setAttribute('d', createPathData(points));
+    past.setAttribute('d', createSmoothPathData(points, plotBox));
+    future.setAttribute('d', createSmoothPathData(points, plotBox));
     future.classList.add('is-faded');
     return;
   }
   const boundedIndex = Math.min(Math.max(0, activeIndex), points.length - 1);
-  past.setAttribute('d', createPathData(points.slice(0, boundedIndex + 1)));
-  future.setAttribute('d', createPathData(points.slice(boundedIndex)));
+  past.setAttribute('d', createSmoothPathData(points.slice(0, boundedIndex + 1), plotBox));
+  future.setAttribute('d', createSmoothPathData(points.slice(boundedIndex), plotBox));
   future.classList.add('is-faded');
 };
 
@@ -340,6 +367,10 @@ const applyActiveState = ({ article, chart, tooltip, type, index, sourceElement,
     setClassFlag(element, 'is-active', isMatch);
     setClassFlag(element, 'is-selected', isMatch);
     setClassFlag(element, 'is-faded', !isMatch);
+    element.dataset.chartActive = isMatch ? 'true' : 'false';
+    if (element.getAttribute('role') === 'button') {
+      element.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+    }
   });
   updateGuides(article, type, sourceElement.matches?.('.ac-chart-legend-item')
     ? article.querySelector(`.ac-chart-donut-segment[data-chart-index="${index}"]`) || sourceElement
@@ -384,6 +415,11 @@ const handleNearestActive = ({ article, chart, tooltip, type, event }) => {
   const svg = article.querySelector('svg');
   if (!svg) return false;
   const point = getSvgPointerPoint(svg, event);
+  const plotBox = getPlotBox();
+  if (
+    point.x < plotBox.x || point.x > plotBox.right ||
+    point.y < plotBox.y || point.y > plotBox.bottom
+  ) return false;
   const elements = getPrimaryElementsForType(article, type);
   const nearest = findNearestPoint(elements, point, { axis: type === 'line' ? 'x' : 'xy' });
   if (!nearest?.element) return false;
@@ -406,6 +442,7 @@ export function attachChartInteractions(article, chart) {
   const type = chart.type;
   const tooltip = article.querySelector('.ac-chart-tooltip') || createTooltip(article);
   article.dataset.chartInteractions = 'true';
+  let ignoreNextClick = false;
 
   const activateFromEvent = (event) => {
     if (type === 'scatter' || type === 'line') {
@@ -416,18 +453,25 @@ export function attachChartInteractions(article, chart) {
 
   article.addEventListener('pointermove', activateFromEvent);
   article.addEventListener('pointerdown', (event) => {
-    if (!activateFromEvent(event)) {
+    ignoreNextClick = activateFromEvent(event);
+    if (!ignoreNextClick) {
       clearActiveState(article, chart);
       clearTooltip(tooltip);
     }
   });
   article.addEventListener('click', (event) => {
+    if (ignoreNextClick) {
+      ignoreNextClick = false;
+      return;
+    }
     if (!handleDirectActive({ article, chart, tooltip, type, event })) {
       clearActiveState(article, chart);
       clearTooltip(tooltip);
     }
   });
+  article.addEventListener('touchmove', activateFromEvent, { passive: true });
   article.addEventListener('pointerleave', () => {
+    ignoreNextClick = false;
     clearActiveState(article, chart);
     clearTooltip(tooltip);
   });

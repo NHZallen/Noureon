@@ -51,11 +51,14 @@ test('donut segment state syncs active and faded legend items', () => {
     const segment = article.querySelector('.ac-chart-donut-segment[data-chart-index="1"]');
     const legend = article.querySelector('.ac-chart-legend-item[data-chart-index="1"]');
     const fadedLegend = article.querySelector('.ac-chart-legend-item[data-chart-index="0"]');
-    dispatchChartPointer(window, segment, 'pointermove', { x: 280, y: 150 });
+    dispatchChartPointer(window, segment, 'click', { x: 280, y: 150 });
 
     assert.equal(segment.classList.contains('is-active'), true);
     assert.equal(legend.classList.contains('is-active'), true);
     assert.equal(fadedLegend.classList.contains('is-faded'), true);
+    assert.equal(segment.dataset.chartActive, 'true');
+    assert.equal(legend.dataset.chartActive, 'true');
+    assert.equal(legend.getAttribute('aria-pressed'), 'true');
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /B/);
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /30%/);
   } finally {
@@ -79,11 +82,13 @@ test('donut legend state syncs back to its segment', () => {
     const legend = article.querySelector('.ac-chart-legend-item[data-chart-index="2"]');
     const segment = article.querySelector('.ac-chart-donut-segment[data-chart-index="2"]');
     const fadedSegment = article.querySelector('.ac-chart-donut-segment[data-chart-index="0"]');
-    dispatchChartPointer(window, legend, 'pointermove', { x: 180, y: 340 });
+    dispatchChartPointer(window, legend, 'click', { x: 180, y: 340 });
 
     assert.equal(legend.classList.contains('is-active'), true);
     assert.equal(segment.classList.contains('is-active'), true);
     assert.equal(fadedSegment.classList.contains('is-faded'), true);
+    assert.equal(legend.classList.contains('is-selected'), true);
+    assert.equal(legend.getAttribute('aria-pressed'), 'true');
   } finally {
     window.close();
   }

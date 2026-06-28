@@ -58,6 +58,12 @@ test('scatter pointer movement selects nearest point, fades peers, and shows gui
     assert.equal(peer.classList.contains('is-faded'), true);
     assert.equal(article.querySelector('.ac-chart-guide-x').classList.contains('is-hidden'), false);
     assert.equal(article.querySelector('.ac-chart-guide-y').classList.contains('is-hidden'), false);
+    assert.equal(article.querySelector('.ac-chart-guide-x').getAttribute('y1'), '28');
+    assert.equal(article.querySelector('.ac-chart-guide-x').getAttribute('y2'), '306');
+    assert.equal(article.querySelector('.ac-chart-guide-y').getAttribute('x1'), '64');
+    assert.equal(article.querySelector('.ac-chart-guide-y').getAttribute('x2'), '612');
+    assert.equal(point.dataset.chartActive, 'true');
+    assert.equal(peer.dataset.chartActive, 'false');
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /B/);
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /170 kg/);
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /65 kg/);

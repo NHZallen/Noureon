@@ -23,7 +23,37 @@ test('renders bar chart with rounded bars and value labels', () => {
     assert.equal(bars.length, 2);
     assert.equal(bars[0].getAttribute('rx'), '12');
     assert.match(bars[0].getAttribute('aria-label'), /A: 120 items/);
-    assert.deepEqual([...svg.querySelectorAll('.ac-chart-bar-value')].map((node) => node.textContent), ['120', '95']);
+    const labels = [...svg.querySelectorAll('.ac-chart-bar-value')];
+    assert.deepEqual(labels.map((node) => node.textContent), ['120', '95']);
+    labels.forEach((label) => {
+      assert.equal(label.dataset.chartLabelPlacement, 'outside');
+      assert.ok(Number(label.getAttribute('x')) >= Number(label.dataset.chartSafeMinX));
+      assert.ok(Number(label.getAttribute('x')) <= Number(label.dataset.chartSafeMaxX));
+      assert.ok(Number(label.getAttribute('y')) < Number(label.dataset.chartBarTop));
+      assert.ok(Number(label.getAttribute('y')) >= 42);
+    });
+  } finally {
+    window.close();
+  }
+});
+
+test('bar labels constrain long values and short bars keep a natural radius', () => {
+  const window = new Window({ url: 'https://example.test/' });
+
+  try {
+    const svg = renderBarChart(window.document, {
+      type: 'bar',
+      data: [
+        { label: 'Tiny', value: 1 },
+        { label: 'Large', value: 123456789012 }
+      ]
+    });
+    const tinyBar = svg.querySelector('.ac-chart-bar[data-chart-index="0"]');
+    const longLabel = svg.querySelector('.ac-chart-bar-value[data-chart-label-placement="outside"]:last-of-type');
+
+    assert.ok(Number(tinyBar.getAttribute('rx')) <= Number(tinyBar.getAttribute('height')) / 2);
+    assert.ok(Number(longLabel.getAttribute('textLength')) <= 72);
+    assert.equal(longLabel.getAttribute('lengthAdjust'), 'spacingAndGlyphs');
   } finally {
     window.close();
   }

@@ -6,7 +6,8 @@ import { Window } from 'happy-dom';
 
 import {
   findNearestPoint,
-  getBoundedTooltipPosition
+  getBoundedTooltipPosition,
+  getSvgPointerPoint
 } from '../../../src/app/ui/charts/chart-interactions.js';
 import { createChartFixture, dispatchChartPointer } from './chart-test-helpers.js';
 
@@ -39,6 +40,23 @@ test('nearest-point helper supports xy and x-axis snapping', () => {
 
     assert.equal(findNearestPoint([a, b], { x: 76, y: 190 }, { axis: 'x' }).index, 1);
     assert.equal(findNearestPoint([a, b], { x: 12, y: 198 }).index, 0);
+  } finally {
+    window.close();
+  }
+});
+
+test('SVG pointer coordinates account for preserveAspectRatio letterboxing', () => {
+  const window = new Window({ url: 'https://example.test/' });
+
+  try {
+    const svg = window.document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 640 360');
+    svg.getBoundingClientRect = () => ({ left: 10, top: 20, width: 800, height: 360 });
+
+    assert.deepEqual(getSvgPointerPoint(svg, { clientX: 154, clientY: 120 }), {
+      x: 64,
+      y: 100
+    });
   } finally {
     window.close();
   }
@@ -94,4 +112,14 @@ test('charts css keeps donut legend stable as a two-column mobile layout', () =>
   assert.match(css, /\.ac-chart-legend\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.ac-chart-legend\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.ac-chart-legend-item\s*\{[\s\S]*?min-height:\s*2\.55rem;/);
+});
+
+test('chart focus and typography avoid black focus frames and heavy inherited SVG text', () => {
+  const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
+
+  assert.match(css, /\.ac-chart\s+svg,\s*\.model-message \.ac-chart\s+text\s*\{[^}]*font-weight:\s*400;/s);
+  assert.match(css, /\.ac-chart-axis-label,[^{]*\.ac-chart-axis-title\s*\{[^}]*font-weight:\s*400;/s);
+  assert.match(css, /\.ac-chart-value-label\s*\{[^}]*font-weight:\s*500;/s);
+  assert.match(css, /\[data-chart-interactive="true"\]:focus-visible\s*\{[^}]*drop-shadow/s);
+  assert.doesNotMatch(css, /outline:\s*[^;]*(?:black|#000|#000000)/i);
 });

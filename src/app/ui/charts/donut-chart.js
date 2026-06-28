@@ -43,6 +43,7 @@ export function renderDonutChart(document, chart, options = {}) {
       }),
       fill: color,
       tabindex: 0,
+      'data-chart-interactive': 'true',
       'aria-label': `${row.label}: ${formatPercent(percent)}`,
       'data-chart-index': index,
       'data-chart-label': row.label,
@@ -63,6 +64,7 @@ export function renderDonutChart(document, chart, options = {}) {
     item.dataset.chartValue = String(row.value);
     item.dataset.chartPercentage = String(percent);
     item.tabIndex = 0;
+    item.dataset.chartInteractive = 'true';
     item.setAttribute('role', 'button');
     item.setAttribute('aria-label', `${row.label}: ${formatPercent(percent)}`);
     swatch.className = 'ac-chart-legend-swatch';

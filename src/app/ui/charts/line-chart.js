@@ -3,6 +3,7 @@ import {
   createChartSvg,
   createGrid,
   createXAxisLabels,
+  createSmoothPathData,
   formatChartNumber,
   getLineValue,
   getNumberRange,
@@ -11,10 +12,6 @@ import {
   scaleLinear,
   appendSvgElement
 } from './chart-utils.js';
-
-const createPathData = (points) => points
-  .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-  .join(' ');
 
 export function renderLineChart(document, chart, options = {}) {
   const svg = createChartSvg(document, {
@@ -44,12 +41,12 @@ export function renderLineChart(document, chart, options = {}) {
   const layer = appendSvgElement(svg, 'g', { class: 'ac-chart-series ac-chart-line-series' });
   appendSvgElement(layer, 'path', {
     class: 'ac-chart-line ac-chart-line-past',
-    d: createPathData(points),
+    d: createSmoothPathData(points, plotBox),
     fill: 'none'
   });
   appendSvgElement(layer, 'path', {
     class: 'ac-chart-line ac-chart-line-future is-faded',
-    d: createPathData(points),
+    d: createSmoothPathData(points, plotBox),
     fill: 'none'
   });
   points.forEach((point) => {
@@ -59,6 +56,7 @@ export function renderLineChart(document, chart, options = {}) {
       cy: point.y,
       r: 4.6,
       tabindex: 0,
+      'data-chart-interactive': 'true',
       'aria-label': `${point.label}: ${formatChartNumber(point.value)}${chart.unit ? ` ${chart.unit}` : ''}`,
       'data-chart-index': point.index,
       'data-chart-label': point.label,

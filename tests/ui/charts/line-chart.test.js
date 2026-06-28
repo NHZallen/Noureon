@@ -24,7 +24,10 @@ test('renders line chart with line paths, point hooks, and faded future hook', (
     assert.ok(svg.querySelector('.ac-chart-line-future.is-faded'));
     assert.equal(svg.querySelectorAll('.ac-chart-line-point').length, 3);
     assert.match(svg.querySelector('.ac-chart-line-point').getAttribute('aria-label'), /Jan: 12 k/);
-    assert.match(svg.querySelector('.ac-chart-line-past').getAttribute('d'), /^M /);
+    const path = svg.querySelector('.ac-chart-line-past').getAttribute('d');
+    assert.match(path, /^M /);
+    assert.match(path, / C /);
+    assert.doesNotMatch(path, / L /);
   } finally {
     window.close();
   }
@@ -56,7 +59,13 @@ test('line pointer movement snaps to nearest point and shows active guide', () =
     assert.equal(peer.classList.contains('is-faded'), true);
     assert.equal(article.classList.contains('has-active'), true);
     assert.equal(article.querySelector('.ac-chart-guide-x').classList.contains('is-hidden'), false);
+    assert.equal(article.querySelector('.ac-chart-guide-x').getAttribute('y1'), '28');
+    assert.equal(article.querySelector('.ac-chart-guide-x').getAttribute('y2'), '306');
+    assert.equal(article.querySelector('.ac-chart-guide-x').dataset.chartActive, 'true');
+    assert.equal(point.dataset.chartActive, 'true');
+    assert.equal(peer.dataset.chartActive, 'false');
     assert.notEqual(article.querySelector('.ac-chart-line-past').getAttribute('d'), fullPath);
+    assert.match(article.querySelector('.ac-chart-line-future').getAttribute('d'), / C /);
     assert.equal(article.querySelector('.ac-chart-line-future').classList.contains('is-faded'), true);
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /Mar/);
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /12.8 k/);
