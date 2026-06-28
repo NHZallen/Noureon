@@ -525,18 +525,6 @@
     color: var(--button-primary-bg) !important;
 }
 
-#input-indicator-container #close-search-btn-input svg,
-#input-indicator-container #close-learning-mode-btn-input svg,
-#input-indicator-container #close-model-council-btn-input svg,
-#input-indicator-container #close-astras-btn-input svg,
-#input-indicator-container #close-search-btn-input svg *,
-#input-indicator-container #close-learning-mode-btn-input svg *,
-#input-indicator-container #close-model-council-btn-input svg *,
-#input-indicator-container #close-astras-btn-input svg * {
-    color: var(--button-primary-bg) !important;
-    stroke: currentColor !important;
-}
-
 .btn-outline-white {
     background: #ffffff !important;
     color: #000000 !important;
