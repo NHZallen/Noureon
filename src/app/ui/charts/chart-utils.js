@@ -4,10 +4,10 @@ export const CHART_VIEWBOX = Object.freeze({
   width: 640,
   height: 360,
   plot: Object.freeze({
-    left: 64,
+    left: 82,
     right: 28,
     top: 28,
-    bottom: 54
+    bottom: 72
   })
 });
 
@@ -52,6 +52,21 @@ export function createChartSvg(document, { className = '', labelledBy } = {}) {
     viewBox: `0 0 ${CHART_VIEWBOX.width} ${CHART_VIEWBOX.height}`,
     role: 'img',
     'aria-labelledby': labelledBy
+  });
+}
+
+export function createInteractionOverlay(svg, { plotBox = getPlotBox(), className = '' } = {}) {
+  return appendSvgElement(svg, 'rect', {
+    class: `ac-chart-interaction-overlay ${className}`.trim(),
+    x: plotBox.x,
+    y: plotBox.y,
+    width: plotBox.width,
+    height: plotBox.height,
+    fill: 'transparent',
+    stroke: 'none',
+    'pointer-events': 'all',
+    'aria-hidden': 'true',
+    'data-chart-hit-area': 'plot'
   });
 }
 
@@ -165,7 +180,7 @@ export function createGrid(svg, { yTicks, yScale, plotBox = getPlotBox() }) {
     });
     appendSvgElement(svg, 'text', {
       class: 'ac-chart-axis-label ac-chart-y-tick',
-      x: plotBox.x - 16,
+      x: plotBox.x - 14,
       y: y + 4,
       'text-anchor': 'end'
     }, formatChartNumber(tick));
@@ -181,7 +196,7 @@ export function createXAxisLabels(svg, labels, { plotBox = getPlotBox(), maxLabe
     appendSvgElement(svg, 'text', {
       class: 'ac-chart-axis-label ac-chart-x-tick',
       x: labels.length > 1 ? plotBox.x + step * index : plotBox.x + plotBox.width / 2,
-      y: plotBox.bottom + 30,
+      y: plotBox.bottom + 25,
       'text-anchor': 'middle'
     }, label);
   });
@@ -192,18 +207,18 @@ export function createAxisTitles(svg, chart, { plotBox = getPlotBox() } = {}) {
     appendSvgElement(svg, 'text', {
       class: 'ac-chart-axis-title ac-chart-x-title',
       x: plotBox.x + plotBox.width / 2,
-      y: CHART_VIEWBOX.height - 10,
+      y: CHART_VIEWBOX.height - 8,
       'text-anchor': 'middle'
     }, chart.xLabel);
   }
   if (chart.yLabel) {
     const label = appendSvgElement(svg, 'text', {
       class: 'ac-chart-axis-title ac-chart-y-title',
-      x: 16,
+      x: 20,
       y: plotBox.y + plotBox.height / 2,
       'text-anchor': 'middle'
     }, chart.yLabel);
-    label.setAttribute('transform', `rotate(-90 16 ${plotBox.y + plotBox.height / 2})`);
+    label.setAttribute('transform', `rotate(-90 20 ${plotBox.y + plotBox.height / 2})`);
   }
 }
 

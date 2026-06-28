@@ -20,6 +20,13 @@
     font-weight: 400;
 }
 
+.model-message .ac-chart text {
+    stroke: none;
+    stroke-width: 0;
+    paint-order: normal;
+    text-shadow: none;
+}
+
 .model-message .ac-chart-caption {
     margin-bottom: 0.55rem;
 }
@@ -66,7 +73,26 @@
 }
 
 .model-message .ac-chart-axis-title {
-    font-weight: 500;
+    font-weight: 400;
+}
+
+.model-message .ac-chart-x-title {
+    transform: translateY(1px);
+}
+
+.model-message .ac-chart-y-title {
+    transform-box: fill-box;
+}
+
+.model-message .ac-chart-interaction-overlay {
+    fill: transparent;
+    stroke: none;
+    pointer-events: all;
+}
+
+.model-message .ac-chart-line-hit-area,
+.model-message .ac-chart-scatter-hit-area {
+    cursor: crosshair;
 }
 
 .model-message .ac-chart-point,
@@ -93,10 +119,11 @@
 
 .model-message .ac-chart-bar {
     opacity: 0.86;
+    stroke: none;
     cursor: pointer;
 }
 
-.model-message .ac-chart-value-label {
+.model-message .ac-chart text.ac-chart-value-label {
     fill: var(--ac-chart-text);
     font-size: 16px;
     font-weight: 500;
@@ -122,8 +149,8 @@
 }
 
 .model-message .ac-chart-guide-line {
-    stroke: rgba(107, 114, 128, 0.52);
-    stroke-width: 1;
+    stroke: rgba(107, 114, 128, 0.62);
+    stroke-width: 1.15;
     opacity: 1;
     pointer-events: none;
     vector-effect: non-scaling-stroke;
@@ -146,6 +173,13 @@
 
 .model-message .ac-chart-point.is-active {
     transform: scale(1.22);
+    stroke: var(--ac-chart-primary);
+    stroke-width: 2.5;
+}
+
+.model-message .ac-chart-scatter-point.is-faded,
+.model-message .ac-chart-line-point.is-faded {
+    opacity: 0.42;
 }
 
 .model-message .ac-chart-bar.is-active {
@@ -156,6 +190,11 @@
 .model-message .ac-chart :focus,
 .model-message .ac-chart :focus-visible {
     outline: none;
+}
+
+.model-message .ac-chart,
+.model-message .ac-chart * {
+    -webkit-tap-highlight-color: transparent;
 }
 
 .model-message .ac-chart [data-chart-interactive="true"]:focus-visible {
@@ -227,8 +266,8 @@
 }
 
 .model-message .ac-chart-donut-segment.is-faded {
-    opacity: 0.24;
-    filter: saturate(0.48);
+    opacity: 0.32;
+    filter: grayscale(0.38) saturate(0.35);
 }
 
 .model-message .ac-chart-donut-segment.is-active,
@@ -236,6 +275,16 @@
     opacity: 1;
     filter: saturate(1.08);
     transform: scale(1.035);
+}
+
+.model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-donut-segment[data-chart-active="false"] {
+    opacity: 0.32;
+    filter: grayscale(0.38) saturate(0.35);
+}
+
+.model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-donut-segment[data-chart-active="true"] {
+    opacity: 1;
+    filter: saturate(1.08);
 }
 
 .model-message .ac-chart-legend {
@@ -254,17 +303,47 @@
     border-radius: 0.8rem;
     transition: background 220ms ease, opacity 220ms ease;
     cursor: pointer;
+    position: relative;
+}
+
+.model-message .ac-chart-legend-item::before {
+    position: absolute;
+    inset: 0.32rem auto 0.32rem 0;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--ac-chart-primary);
+    content: "";
+    opacity: 0;
+    transition: opacity 220ms ease;
+    pointer-events: none;
 }
 
 .model-message .ac-chart-legend-item.is-selected,
 .model-message .ac-chart-legend-item.is-active {
     background: rgba(17, 24, 39, 0.055);
-    box-shadow: inset 3px 0 0 var(--ac-chart-primary);
+    opacity: 1;
+}
+
+.model-message .ac-chart-legend-item.is-selected::before,
+.model-message .ac-chart-legend-item.is-active::before {
     opacity: 1;
 }
 
 .model-message .ac-chart-legend-item.is-faded {
     opacity: 0.42;
+}
+
+.model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-legend-item[data-chart-active="false"] {
+    opacity: 0.42;
+}
+
+.model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-legend-item[data-chart-active="true"] {
+    background: rgba(17, 24, 39, 0.075);
+    opacity: 1;
+}
+
+.model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-legend-item[data-chart-active="true"]::before {
+    opacity: 1;
 }
 
 .model-message .ac-chart-legend-swatch {
@@ -363,7 +442,7 @@
         font-size: 12px;
     }
 
-    .model-message .ac-chart-value-label {
+    .model-message .ac-chart text.ac-chart-value-label {
         font-size: 13px;
     }
 

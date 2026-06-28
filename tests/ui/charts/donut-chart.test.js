@@ -21,6 +21,7 @@ test('renders donut chart with segments and legend percentages', () => {
     });
 
     assert.ok(element.querySelector('.ac-chart-svg-donut'));
+    assert.ok(element.querySelector('.ac-chart-donut-hit-area[data-chart-hit-area="plot"]'));
     assert.equal(element.querySelectorAll('.ac-chart-donut-segment').length, 4);
     assert.equal(element.querySelectorAll('.ac-chart-legend-item').length, 4);
     assert.deepEqual([...element.querySelectorAll('.ac-chart-legend-value')].map((node) => node.textContent), [
@@ -58,6 +59,9 @@ test('donut segment state syncs active and faded legend items', () => {
     assert.equal(fadedLegend.classList.contains('is-faded'), true);
     assert.equal(segment.dataset.chartActive, 'true');
     assert.equal(legend.dataset.chartActive, 'true');
+    assert.equal(article.dataset.chartActiveIndex, '1');
+    assert.equal(article.querySelector('svg').dataset.chartActiveIndex, '1');
+    assert.equal(fadedLegend.dataset.chartActive, 'false');
     assert.equal(legend.getAttribute('aria-pressed'), 'true');
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /B/);
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /30%/);
@@ -87,6 +91,8 @@ test('donut legend state syncs back to its segment', () => {
     assert.equal(legend.classList.contains('is-active'), true);
     assert.equal(segment.classList.contains('is-active'), true);
     assert.equal(fadedSegment.classList.contains('is-faded'), true);
+    assert.equal(fadedSegment.dataset.chartActive, 'false');
+    assert.equal(article.dataset.chartActiveIndex, '2');
     assert.equal(legend.classList.contains('is-selected'), true);
     assert.equal(legend.getAttribute('aria-pressed'), 'true');
   } finally {

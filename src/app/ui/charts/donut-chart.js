@@ -26,6 +26,19 @@ export function renderDonutChart(document, chart, options = {}) {
   container.className = 'ac-chart-donut-layout';
   legend.className = 'ac-chart-legend';
 
+  appendSvgElement(svg, 'rect', {
+    class: 'ac-chart-interaction-overlay ac-chart-donut-hit-area',
+    x: 0,
+    y: 0,
+    width: DONUT_VIEWBOX.width,
+    height: DONUT_VIEWBOX.height,
+    fill: 'transparent',
+    stroke: 'none',
+    'pointer-events': 'all',
+    'aria-hidden': 'true',
+    'data-chart-hit-area': 'plot'
+  });
+
   chart.data.forEach((row, index) => {
     const value = Math.max(0, row.value);
     const percent = value / total * 100;

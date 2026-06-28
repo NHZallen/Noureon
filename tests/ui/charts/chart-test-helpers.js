@@ -19,9 +19,10 @@ export const createChartFixture = (chart) => {
   return { window, document, article, svg };
 };
 
-export const dispatchChartPointer = (window, target, type, { x = 0, y = 0 } = {}) => {
+export const dispatchChartPointer = (window, target, type, { x = 0, y = 0, pointerType = '' } = {}) => {
   const event = new window.Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, 'clientX', { value: x });
   Object.defineProperty(event, 'clientY', { value: y });
+  Object.defineProperty(event, 'pointerType', { value: pointerType });
   target.dispatchEvent(event);
 };

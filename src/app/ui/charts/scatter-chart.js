@@ -2,6 +2,7 @@ import {
   createAxisTitles,
   createChartSvg,
   createGrid,
+  createInteractionOverlay,
   createXAxisLabels,
   formatChartNumber,
   getNumberRange,
@@ -27,6 +28,7 @@ export function renderScatterChart(document, chart, options = {}) {
   createGrid(svg, { yTicks, yScale, plotBox });
   createXAxisLabels(svg, xTicks.map(formatChartNumber), { plotBox, maxLabels: 5 });
   createAxisTitles(svg, chart, { plotBox });
+  createInteractionOverlay(svg, { plotBox, className: 'ac-chart-scatter-hit-area' });
 
   const layer = appendSvgElement(svg, 'g', { class: 'ac-chart-series ac-chart-scatter-series' });
   chart.data.forEach((row, index) => {

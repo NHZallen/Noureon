@@ -20,6 +20,8 @@ test('renders bar chart with rounded bars and value labels', () => {
     });
 
     const bars = svg.querySelectorAll('.ac-chart-bar');
+    const overlay = svg.querySelector('.ac-chart-bar-hit-area[data-chart-hit-area="plot"]');
+    assert.ok(overlay);
     assert.equal(bars.length, 2);
     assert.equal(bars[0].getAttribute('rx'), '12');
     assert.match(bars[0].getAttribute('aria-label'), /A: 120 items/);
@@ -32,6 +34,7 @@ test('renders bar chart with rounded bars and value labels', () => {
       assert.ok(Number(label.getAttribute('y')) < Number(label.dataset.chartBarTop));
       assert.ok(Number(label.getAttribute('y')) >= 42);
     });
+    assert.ok(Number(svg.querySelector('.ac-chart-x-title')?.getAttribute('y') || 352) - Number(svg.querySelector('.ac-chart-x-tick').getAttribute('y')) >= 30);
   } finally {
     window.close();
   }

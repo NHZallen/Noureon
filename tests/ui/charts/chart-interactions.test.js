@@ -91,6 +91,37 @@ test('pointerleave and empty click clear active state and tooltip', () => {
   }
 });
 
+test('touch pointerleave keeps selection until a blank tap clears it', () => {
+  const { window, article, svg } = createChartFixture({
+    type: 'line',
+    title: 'Revenue',
+    data: [
+      { label: 'Jan', value: 12 },
+      { label: 'Feb', value: 14 }
+    ]
+  });
+
+  try {
+    const overlay = article.querySelector('.ac-chart-line-hit-area');
+    const point = article.querySelector('.ac-chart-line-point[data-chart-index="1"]');
+    dispatchChartPointer(window, overlay, 'pointerdown', {
+      x: Number(point.getAttribute('cx')),
+      y: Number(point.getAttribute('cy')),
+      pointerType: 'touch'
+    });
+    dispatchChartPointer(window, overlay, 'click', { pointerType: 'touch' });
+    dispatchChartPointer(window, article, 'pointerleave', { pointerType: 'touch' });
+
+    assert.equal(article.dataset.chartActiveIndex, '1');
+    assert.equal(article.querySelector('.ac-chart-guide-x').classList.contains('is-hidden'), false);
+
+    dispatchChartPointer(window, svg, 'click', { x: 4, y: 4, pointerType: 'touch' });
+    assert.equal(article.dataset.chartActiveIndex, '');
+  } finally {
+    window.close();
+  }
+});
+
 test('charts css keeps interaction styles free of important and dark selectors', () => {
   const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
   assert.doesNotMatch(css, /!important\b/);
@@ -119,7 +150,20 @@ test('chart focus and typography avoid black focus frames and heavy inherited SV
 
   assert.match(css, /\.ac-chart\s+svg,\s*\.model-message \.ac-chart\s+text\s*\{[^}]*font-weight:\s*400;/s);
   assert.match(css, /\.ac-chart-axis-label,[^{]*\.ac-chart-axis-title\s*\{[^}]*font-weight:\s*400;/s);
-  assert.match(css, /\.ac-chart-value-label\s*\{[^}]*font-weight:\s*500;/s);
+  assert.match(css, /\.ac-chart\s+text\.ac-chart-value-label\s*\{[^}]*font-weight:\s*500;/s);
+  assert.match(css, /\.ac-chart-bar\s*\{[^}]*stroke:\s*none;/s);
+  assert.match(css, /\.ac-chart\s+text\s*\{[^}]*stroke:\s*none;[^}]*text-shadow:\s*none;/s);
+  assert.match(css, /\.ac-chart-axis-title\s*\{[^}]*font-weight:\s*400;/s);
   assert.match(css, /\[data-chart-interactive="true"\]:focus-visible\s*\{[^}]*drop-shadow/s);
   assert.doesNotMatch(css, /outline:\s*[^;]*(?:black|#000|#000000)/i);
+});
+
+test('charts css exposes visible plot hit areas guides and durable donut active states', () => {
+  const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
+
+  assert.match(css, /\.ac-chart-interaction-overlay\s*\{[^}]*pointer-events:\s*all;/s);
+  assert.match(css, /\.ac-chart-guide-line\s*\{[^}]*stroke:\s*rgba\([^)]*0\.62\);[^}]*opacity:\s*1;/s);
+  assert.match(css, /data-chart-active-index[^}]*\.ac-chart-donut-segment\[data-chart-active="false"\][^{]*\{[^}]*opacity:\s*0\.32;[^}]*grayscale/s);
+  assert.match(css, /data-chart-active-index[^}]*\.ac-chart-legend-item\[data-chart-active="true"\][^{]*\{[^}]*background:[^;]+;[^}]*opacity:\s*1;/s);
+  assert.match(css, /\.ac-chart-legend-item\[data-chart-active="true"\]::before\s*\{[^}]*opacity:\s*1;/s);
 });

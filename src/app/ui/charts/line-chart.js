@@ -2,6 +2,7 @@ import {
   createAxisTitles,
   createChartSvg,
   createGrid,
+  createInteractionOverlay,
   createXAxisLabels,
   createSmoothPathData,
   formatChartNumber,
@@ -37,6 +38,7 @@ export function renderLineChart(document, chart, options = {}) {
   createGrid(svg, { yTicks: niceTicks(yRange.min, yRange.max, 4), yScale, plotBox });
   createXAxisLabels(svg, rows.map((row) => row.label), { plotBox, maxLabels: 6 });
   createAxisTitles(svg, chart, { plotBox });
+  createInteractionOverlay(svg, { plotBox, className: 'ac-chart-line-hit-area' });
 
   const layer = appendSvgElement(svg, 'g', { class: 'ac-chart-series ac-chart-line-series' });
   appendSvgElement(layer, 'path', {

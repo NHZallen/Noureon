@@ -348,6 +348,8 @@ const updateLineSegments = (article, activeIndex) => {
 
 const clearActiveState = (article, chart) => {
   article.dataset.chartActiveIndex = '';
+  const svg = article.querySelector('svg');
+  if (svg) svg.dataset.chartActiveIndex = '';
   article.classList.remove('has-active');
   getElementsForType(article, chart.type).forEach((element) => {
     removeStateClasses(element);
@@ -356,10 +358,12 @@ const clearActiveState = (article, chart) => {
   if (chart.type === 'line') updateLineSegments(article, null);
 };
 
-const applyActiveState = ({ article, chart, tooltip, type, index, sourceElement, event }) => {
+const setActiveIndex = ({ article, chart, tooltip, type, index, sourceElement, event }) => {
   const datum = getChartDatum(chart, index, type);
   if (!datum || !sourceElement) return;
   article.dataset.chartActiveIndex = String(index);
+  const svg = article.querySelector('svg');
+  if (svg) svg.dataset.chartActiveIndex = String(index);
   article.classList.add('has-active');
   const elements = getElementsForType(article, type);
   elements.forEach((element) => {
@@ -407,7 +411,7 @@ const handleDirectActive = ({ article, chart, tooltip, type, event }) => {
   const sourceElement = type === 'donut' && target.classList.contains('ac-chart-legend-item')
     ? article.querySelector(`.ac-chart-donut-segment[data-chart-index="${index}"]`) || target
     : target;
-  applyActiveState({ article, chart, tooltip, type, index, sourceElement, event });
+  setActiveIndex({ article, chart, tooltip, type, index, sourceElement, event });
   return true;
 };
 
@@ -423,7 +427,7 @@ const handleNearestActive = ({ article, chart, tooltip, type, event }) => {
   const elements = getPrimaryElementsForType(article, type);
   const nearest = findNearestPoint(elements, point, { axis: type === 'line' ? 'x' : 'xy' });
   if (!nearest?.element) return false;
-  applyActiveState({
+  setActiveIndex({
     article,
     chart,
     tooltip,
@@ -441,8 +445,11 @@ export function attachChartInteractions(article, chart) {
   }
   const type = chart.type;
   const tooltip = article.querySelector('.ac-chart-tooltip') || createTooltip(article);
+  const svg = article.querySelector('svg');
+  const moveTarget = type === 'scatter' || type === 'line' ? svg : article;
   article.dataset.chartInteractions = 'true';
   let ignoreNextClick = false;
+  let lastPointerType = '';
 
   const activateFromEvent = (event) => {
     if (type === 'scatter' || type === 'line') {
@@ -451,8 +458,9 @@ export function attachChartInteractions(article, chart) {
     return handleDirectActive({ article, chart, tooltip, type, event });
   };
 
-  article.addEventListener('pointermove', activateFromEvent);
+  moveTarget?.addEventListener('pointermove', activateFromEvent);
   article.addEventListener('pointerdown', (event) => {
+    lastPointerType = event.pointerType || '';
     ignoreNextClick = activateFromEvent(event);
     if (!ignoreNextClick) {
       clearActiveState(article, chart);
@@ -469,8 +477,9 @@ export function attachChartInteractions(article, chart) {
       clearTooltip(tooltip);
     }
   });
-  article.addEventListener('touchmove', activateFromEvent, { passive: true });
-  article.addEventListener('pointerleave', () => {
+  moveTarget?.addEventListener('touchmove', activateFromEvent, { passive: true });
+  article.addEventListener('pointerleave', (event) => {
+    if (event.pointerType === 'touch' || lastPointerType === 'touch') return;
     ignoreNextClick = false;
     clearActiveState(article, chart);
     clearTooltip(tooltip);

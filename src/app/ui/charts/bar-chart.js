@@ -2,6 +2,7 @@ import {
   createAxisTitles,
   createChartSvg,
   createGrid,
+  createInteractionOverlay,
   createXAxisLabels,
   formatChartNumber,
   getNumberRange,
@@ -32,6 +33,7 @@ export function renderBarChart(document, chart, options = {}) {
   createGrid(svg, { yTicks, yScale, plotBox });
   createXAxisLabels(svg, chart.data.map((row) => row.label), { plotBox, maxLabels: 8 });
   createAxisTitles(svg, chart, { plotBox });
+  createInteractionOverlay(svg, { plotBox, className: 'ac-chart-bar-hit-area' });
 
   const layer = appendSvgElement(svg, 'g', { class: 'ac-chart-series ac-chart-bar-series' });
   chart.data.forEach((row, index) => {
