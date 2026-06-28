@@ -480,10 +480,10 @@
 .assistant-thinking-indicator {
     display: inline-flex;
     align-items: center;
-    min-height: 1.55rem;
+    min-height: 1.35rem;
     color: var(--text-secondary);
-    font-size: 1rem;
-    line-height: 1.6;
+    font-size: 0.88rem;
+    line-height: 1.5;
 }
 
 .assistant-thinking-text {
@@ -496,25 +496,25 @@
         #ffffff 54%,
         var(--text-secondary) 78%
     );
-    background-size: 260% 100%;
-    background-position: -120% 0;
+    background-size: 240% 100%;
+    background-position: 100% 0;
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: thinking-highlight 1.65s linear infinite;
+    animation: thinking-highlight 2.2s ease-in-out infinite;
 }
 
 @keyframes thinking-highlight {
-    0% {
-        background-position: -120% 0;
-        opacity: 0.7;
+    0%, 18% {
+        background-position: 100% 0;
+        opacity: 0.72;
     }
-    45%, 55% {
+    52% {
         opacity: 1;
     }
-    100% {
-        background-position: 120% 0;
-        opacity: 0.7;
+    82%, 100% {
+        background-position: -100% 0;
+        opacity: 0.72;
     }
 }
 
@@ -626,12 +626,11 @@
     word-break: break-all;  /* ---> 新增：強制過長的單詞(如URL)也能被斷開 <--- */
 }
     .prose pre code { background-color: transparent; padding: 0; color: inherit; border: none; }
-    .prose h1, .prose h2, .prose h3 { margin-top: 1.75em; margin-bottom: 0.85em; font-weight: bold; }
+    .prose h1, .prose h2, .prose h3 { margin-top: 1.5em; margin-bottom: 0.5em; font-weight: bold; }
     .prose h1 { font-size: 1.875rem; }
-    .prose h2 { font-size: 1.5rem; border-bottom: 0; padding-bottom: 0; }
+    .prose h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
     .prose h3 { font-size: 1.25rem; }
-    .prose p { margin-bottom: 1.18em; line-height: 1.85; }
-    .prose hr { display: none; }
+    .prose p { margin-bottom: 1em; }
     .prose table {
     width: 100%;
     border-collapse: collapse;
@@ -671,14 +670,14 @@
     .prose table th, .prose table td { border: 1px solid var(--border-color); padding: 0.75rem; text-align: left; }
     .prose table thead { background-color: var(--hover-bg); }
     .prose table tr:nth-child(even) { background-color: var(--hover-bg); }
-    .prose ul, .prose ol { margin-bottom: 1.18em; padding-left: 1.5em; }
+    .prose ul, .prose ol { margin-bottom: 1em; padding-left: 1.5em; }
     .prose ul, .prose ol, .prose li {
     color: var(--text-primary);
 }
 .prose strong, .prose b {
     color: var(--text-primary); /* 確保粗體字也是深色 */
 }
-    .prose ul li, .prose ol li { margin-bottom: 0.68em; }
+    .prose ul li, .prose ol li { margin-bottom: 0.5em; }
     /* --- 1. 淺色模式 (Light Mode) --- */
     
     /* 針對所有標題 (h1-h6)、段落 (p)、列表 (ul, ol, li)、粗體 (strong, b) */
