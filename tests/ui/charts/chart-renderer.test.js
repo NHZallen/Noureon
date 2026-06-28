@@ -30,7 +30,10 @@ test('mounts a valid placeholder into a static SVG chart', () => {
     });
     document.body.appendChild(placeholder);
 
-    assert.equal(mountChartPlaceholder(placeholder, { chartLabel: 'Chart' }), true);
+    assert.equal(mountChartPlaceholder(placeholder, {
+      chartLabel: 'Chart',
+      messageRole: 'assistant'
+    }), true);
     assert.equal(document.querySelector('.ac-chart-placeholder'), null);
     assert.ok(document.querySelector('.ac-chart.ac-chart-bar'));
     assert.ok(document.querySelector('svg.ac-chart-svg-bar'));
@@ -59,12 +62,40 @@ test('mountChartPlaceholders reports mounted and skipped placeholders', () => {
     broken.dataset.chartPayload = '%7Bbad';
     document.body.appendChild(broken);
 
-    assert.deepEqual(mountChartPlaceholders({ root: document.body, chartLabel: 'Chart' }), {
+    assert.deepEqual(mountChartPlaceholders({
+      root: document.body,
+      chartLabel: 'Chart',
+      messageRole: 'assistant'
+    }), {
       mounted: 1,
       skipped: 1
     });
     assert.ok(document.querySelector('.ac-chart-scatter'));
     assert.ok(document.querySelector('.ac-chart-placeholder'));
+  } finally {
+    window.close();
+  }
+});
+
+test('renderer refuses to mount a chart for a user message', () => {
+  const { document, window } = createDocument();
+
+  try {
+    const placeholder = createChartPlaceholderElement({
+      document,
+      chart: {
+        type: 'bar',
+        data: [{ label: 'A', value: 120 }]
+      }
+    });
+    const userMessage = document.createElement('div');
+    userMessage.className = 'user-message';
+    userMessage.appendChild(placeholder);
+    document.body.appendChild(userMessage);
+
+    assert.equal(mountChartPlaceholder(placeholder, { messageRole: 'assistant' }), false);
+    assert.ok(document.querySelector('.ac-chart-placeholder'));
+    assert.equal(document.querySelector('.ac-chart'), null);
   } finally {
     window.close();
   }

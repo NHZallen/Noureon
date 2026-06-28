@@ -8,7 +8,10 @@ export const createChartFixture = (chart) => {
   const document = window.document;
   const placeholder = createChartPlaceholderElement({ document, chart, chartLabel: 'Chart' });
   document.body.appendChild(placeholder);
-  mountChartPlaceholder(placeholder, { chartLabel: 'Chart' });
+  mountChartPlaceholder(placeholder, {
+    chartLabel: 'Chart',
+    messageRole: 'assistant'
+  });
   const article = document.querySelector('.ac-chart');
   article.getBoundingClientRect = () => ({ left: 0, top: 0, width: 640, height: 420 });
   const svg = article.querySelector('svg');

@@ -30,11 +30,13 @@ export function createMarkdownRenderingHelpers({
     applyChartMarkdownPlaceholders({
       document: documentFragment,
       root: documentFragment.body,
+      messageRole: 'assistant',
       chartLabel: getText('chart', getUiLanguage() === 'fr' ? 'Graphique' : (getUiLanguage() === 'en' ? 'Chart' : '圖表'))
     });
 
     mountChartPlaceholders({
       root: documentFragment.body,
+      messageRole: 'assistant',
       chartLabel: getText('chart', getUiLanguage() === 'fr' ? 'Graphique' : (getUiLanguage() === 'en' ? 'Chart' : 'Chart'))
     });
 

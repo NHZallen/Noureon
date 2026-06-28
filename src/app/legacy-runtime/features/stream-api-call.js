@@ -1,4 +1,5 @@
 import { appendStepPlanAttachmentContent } from './model-request-formatting.js';
+import { CHART_AUTHORING_GUIDANCE } from '../../ui/charts/chart-authoring-guidance.js';
 
 const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/v1/chat/completions';
 
@@ -165,6 +166,7 @@ const buildSystemInstruction = ({
     }
   }
 
+  systemInstruction = appendInstructionText(systemInstruction, CHART_AUTHORING_GUIDANCE);
   return appendInstructionText(systemInstruction, additionalSystemInstruction);
 };
 

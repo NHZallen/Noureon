@@ -197,13 +197,17 @@
         background-color: var(--ai-bubble-bg);
     }
     .user-message .message-content {
-        white-space: pre-line;
+        min-width: 0;
+        max-width: 100%;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     .user-message .message-bubble::before {
         background-color: var(--user-bubble-bg);
     }
     .user-message .message-bubble::before {
-        border-radius: 9999px;
+        border-radius: 1.25rem;
     }
     .message-item {
         gap: 0 !important;
@@ -212,6 +216,7 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+        min-width: 0;
         max-width: min(42rem, 92vw);
     }
     .message-stack-user {
@@ -224,13 +229,25 @@
     }
     .user-message .message-bubble {
         color: var(--text-primary) !important;
+        display: inline-block;
+        min-width: 0;
         width: fit-content;
         padding: 0.72rem 1.05rem !important;
-        max-width: min(34rem, 78vw);
+        max-width: min(34rem, 88vw);
     }
     .user-message .message-content {
         color: var(--text-primary) !important;
         line-height: 1.55;
+    }
+    .user-message .message-content > div {
+        min-width: 0;
+        max-width: 100%;
+    }
+    .user-message .message-content pre,
+    .user-message .message-content .table-scroll-container {
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
     }
     .model-message .message-bubble {
         max-width: min(44rem, 92vw);

@@ -39,15 +39,18 @@ export function applyChartMarkdownPlaceholders({
   document,
   root,
   chartLabel = 'Chart',
+  messageRole,
   normalizeChart = parseAndNormalizeChartSchema
 } = {}) {
   if (!document || !root?.querySelectorAll) return { converted: 0, skipped: 0 };
+  if (messageRole !== 'assistant') return { converted: 0, skipped: 0 };
 
   let converted = 0;
   let skipped = 0;
   const codeBlocks = [...root.querySelectorAll('pre > code')];
 
   codeBlocks.forEach((codeElement) => {
+    if (codeElement.closest?.('.user-message')) return;
     const language = getCodeBlockLanguage(codeElement);
     if (language !== 'chart' && language !== 'json') return;
 

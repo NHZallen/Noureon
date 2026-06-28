@@ -1,4 +1,4 @@
-.ac-chart {
+.model-message .ac-chart {
     --ac-chart-primary: var(--button-primary-bg, #60A5FA);
     --ac-chart-grid: rgba(156, 163, 175, 0.22);
     --ac-chart-text: #111827;
@@ -13,11 +13,11 @@
     position: relative;
 }
 
-.ac-chart-caption {
+.model-message .ac-chart-caption {
     margin-bottom: 0.55rem;
 }
 
-.ac-chart-title {
+.model-message .ac-chart-title {
     font-size: 0.98rem;
     font-weight: 760;
     line-height: 1.35;
@@ -25,18 +25,18 @@
     color: var(--ac-chart-text);
 }
 
-.ac-chart-description {
+.model-message .ac-chart-description {
     margin-top: 0.16rem;
     font-size: 0.88rem;
     line-height: 1.45;
     color: var(--ac-chart-muted);
 }
 
-.ac-chart-body {
+.model-message .ac-chart-body {
     width: 100%;
 }
 
-.ac-chart-svg {
+.model-message .ac-chart-svg {
     display: block;
     width: 100%;
     height: 20.5rem;
@@ -44,93 +44,93 @@
     touch-action: pan-y;
 }
 
-.ac-chart-grid-line {
+.model-message .ac-chart-grid-line {
     stroke: var(--ac-chart-grid);
     stroke-width: 1;
     stroke-dasharray: 4 8;
 }
 
-.ac-chart-axis-label,
-.ac-chart-axis-title {
+.model-message .ac-chart-axis-label,
+.model-message .ac-chart-axis-title {
     fill: var(--ac-chart-muted);
     font-size: 14px;
     letter-spacing: 0;
 }
 
-.ac-chart-axis-title {
+.model-message .ac-chart-axis-title {
     font-weight: 650;
 }
 
-.ac-chart-point,
-.ac-chart-bar,
-.ac-chart-line,
-.ac-chart-donut-segment,
-.ac-chart-legend-item,
-.ac-chart-tooltip {
+.model-message .ac-chart-point,
+.model-message .ac-chart-bar,
+.model-message .ac-chart-line,
+.model-message .ac-chart-donut-segment,
+.model-message .ac-chart-legend-item,
+.model-message .ac-chart-tooltip {
     transition: opacity 220ms ease, transform 220ms ease, stroke 220ms ease, fill 220ms ease;
     transform-box: fill-box;
     transform-origin: center;
 }
 
-.ac-chart-point,
-.ac-chart-bar {
+.model-message .ac-chart-point,
+.model-message .ac-chart-bar {
     fill: var(--ac-chart-primary);
 }
 
-.ac-chart-point {
+.model-message .ac-chart-point {
     stroke: #ffffff;
     stroke-width: 2;
     cursor: pointer;
 }
 
-.ac-chart-bar {
+.model-message .ac-chart-bar {
     opacity: 0.78;
     cursor: pointer;
 }
 
-.ac-chart-value-label {
+.model-message .ac-chart-value-label {
     fill: var(--ac-chart-text);
     font-size: 16px;
     font-weight: 760;
 }
 
-.ac-chart-line {
+.model-message .ac-chart-line {
     stroke: var(--ac-chart-primary);
     stroke-width: 3.25;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
 
-.ac-chart-line-future {
+.model-message .ac-chart-line-future {
     opacity: 0;
 }
 
-.ac-chart:not(.has-active) .ac-chart-line-future.is-faded {
+.model-message .ac-chart:not(.has-active) .ac-chart-line-future.is-faded {
     opacity: 0;
 }
 
-.ac-chart-guide-line {
+.model-message .ac-chart-guide-line {
     stroke: rgba(107, 114, 128, 0.38);
     stroke-width: 1.15;
     pointer-events: none;
 }
 
-.ac-chart-guide-line.is-hidden {
+.model-message .ac-chart-guide-line.is-hidden {
     opacity: 0;
 }
 
-.ac-chart .is-faded,
-.ac-chart .is-dimmed {
+.model-message .ac-chart .is-faded,
+.model-message .ac-chart .is-dimmed {
     opacity: 0.42;
 }
 
-.ac-chart .is-selected,
-.ac-chart .is-active {
+.model-message .ac-chart .is-selected,
+.model-message .ac-chart .is-active {
     opacity: 1;
     transform: scale(1.055);
 }
 
-.ac-chart-tooltip {
+.model-message .ac-chart-tooltip {
     position: absolute;
     z-index: 2;
     min-width: 7.4rem;
@@ -145,12 +145,12 @@
     pointer-events: none;
 }
 
-.ac-chart-tooltip.is-visible {
+.model-message .ac-chart-tooltip.is-visible {
     opacity: 1;
     transform: translateY(0);
 }
 
-.ac-chart-tooltip-row {
+.model-message .ac-chart-tooltip-row {
     display: flex;
     justify-content: space-between;
     gap: 0.75rem;
@@ -159,30 +159,30 @@
     white-space: nowrap;
 }
 
-.ac-chart-tooltip-row + .ac-chart-tooltip-row {
+.model-message .ac-chart-tooltip-row + .ac-chart-tooltip-row {
     margin-top: 0.25rem;
 }
 
-.ac-chart-tooltip-label {
+.model-message .ac-chart-tooltip-label {
     color: rgba(255, 255, 255, 0.72);
 }
 
-.ac-chart-tooltip-value {
+.model-message .ac-chart-tooltip-value {
     color: #ffffff;
 }
 
-.ac-chart-donut-layout {
+.model-message .ac-chart-donut-layout {
     display: grid;
     gap: 0.85rem;
 }
 
-.ac-chart-svg-donut {
+.model-message .ac-chart-svg-donut {
     height: 19.75rem;
     max-width: 27rem;
     margin: 0 auto;
 }
 
-.ac-chart-donut-segment {
+.model-message .ac-chart-donut-segment {
     stroke: #ffffff;
     stroke-width: 4.5;
     transform-box: fill-box;
@@ -190,13 +190,13 @@
     cursor: pointer;
 }
 
-.ac-chart-legend {
+.model-message .ac-chart-legend {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.55rem 0.95rem;
 }
 
-.ac-chart-legend-item {
+.model-message .ac-chart-legend-item {
     display: grid;
     grid-template-columns: 0.3rem minmax(0, 1fr);
     gap: 0.5rem;
@@ -208,24 +208,24 @@
     cursor: pointer;
 }
 
-.ac-chart-legend-item.is-selected,
-.ac-chart-legend-item.is-active {
+.model-message .ac-chart-legend-item.is-selected,
+.model-message .ac-chart-legend-item.is-active {
     background: rgba(17, 24, 39, 0.055);
 }
 
-.ac-chart-legend-swatch {
+.model-message .ac-chart-legend-swatch {
     width: 0.3rem;
     height: 2.3rem;
     border-radius: 999px;
 }
 
-.ac-chart-legend-text {
+.model-message .ac-chart-legend-text {
     display: grid;
     min-width: 0;
     gap: 0.1rem;
 }
 
-.ac-chart-legend-label {
+.model-message .ac-chart-legend-label {
     color: var(--ac-chart-muted);
     font-size: 0.8rem;
     line-height: 1.1;
@@ -234,14 +234,14 @@
     white-space: nowrap;
 }
 
-.ac-chart-legend-value {
+.model-message .ac-chart-legend-value {
     color: var(--ac-chart-text);
     font-size: 1rem;
     line-height: 1.1;
 }
 
 @media (min-width: 1025px) {
-    .ac-chart {
+    .model-message .ac-chart {
         margin-top: 1.15rem;
         margin-bottom: 1.55rem;
         padding: 0.65rem 0.8rem 0.85rem;
@@ -249,83 +249,83 @@
         background: rgba(255, 255, 255, 0.58);
     }
 
-    .ac-chart-svg {
+    .model-message .ac-chart-svg {
         height: 23rem;
     }
 
-    .ac-chart-svg-donut {
+    .model-message .ac-chart-svg-donut {
         height: 20.75rem;
     }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
-    .ac-chart {
+    .model-message .ac-chart {
         max-width: 100%;
         margin: 1rem 0 1.35rem;
         padding: 0.35rem 0.25rem 0.25rem;
     }
 
-    .ac-chart-svg {
+    .model-message .ac-chart-svg {
         height: 19.5rem;
     }
 
-    .ac-chart-svg-donut {
+    .model-message .ac-chart-svg-donut {
         height: 18.75rem;
     }
 
-    .ac-chart-axis-label,
-    .ac-chart-axis-title {
+    .model-message .ac-chart-axis-label,
+    .model-message .ac-chart-axis-title {
         font-size: 13px;
     }
 }
 
 @media (max-width: 640px) {
-    .ac-chart {
+    .model-message .ac-chart {
         max-width: 100%;
         margin: 0.85rem 0 1.2rem;
         padding: 0.08rem 0;
     }
 
-    .ac-chart-title {
+    .model-message .ac-chart-title {
         font-size: 0.92rem;
     }
 
-    .ac-chart-description {
+    .model-message .ac-chart-description {
         font-size: 0.82rem;
     }
 
-    .ac-chart-svg {
+    .model-message .ac-chart-svg {
         height: 16.5rem;
     }
 
-    .ac-chart-svg-donut {
+    .model-message .ac-chart-svg-donut {
         height: 16.75rem;
     }
 
-    .ac-chart-axis-label,
-    .ac-chart-axis-title {
+    .model-message .ac-chart-axis-label,
+    .model-message .ac-chart-axis-title {
         font-size: 12px;
     }
 
-    .ac-chart-value-label {
+    .model-message .ac-chart-value-label {
         font-size: 13px;
     }
 
-    .ac-chart-tooltip {
+    .model-message .ac-chart-tooltip {
         max-width: min(12rem, calc(100% - 0.75rem));
         padding: 0.48rem 0.58rem;
     }
 
-    .ac-chart-tooltip-row {
+    .model-message .ac-chart-tooltip-row {
         font-size: 0.76rem;
     }
 
-    .ac-chart-legend {
+    .model-message .ac-chart-legend {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.4rem 0.55rem;
     }
 
-    .ac-chart-legend-item {
+    .model-message .ac-chart-legend-item {
         grid-template-columns: 0.24rem minmax(0, 1fr);
         gap: 0.42rem;
         min-height: 2.55rem;
@@ -333,27 +333,27 @@
         border-radius: 0.65rem;
     }
 
-    .ac-chart-legend-swatch {
+    .model-message .ac-chart-legend-swatch {
         width: 0.24rem;
         height: 2rem;
     }
 
-    .ac-chart-legend-label {
+    .model-message .ac-chart-legend-label {
         font-size: 0.76rem;
     }
 
-    .ac-chart-legend-value {
+    .model-message .ac-chart-legend-value {
         font-size: 0.95rem;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .ac-chart-point,
-    .ac-chart-bar,
-    .ac-chart-line,
-    .ac-chart-donut-segment,
-    .ac-chart-legend-item,
-    .ac-chart-tooltip {
+    .model-message .ac-chart-point,
+    .model-message .ac-chart-bar,
+    .model-message .ac-chart-line,
+    .model-message .ac-chart-donut-segment,
+    .model-message .ac-chart-legend-item,
+    .model-message .ac-chart-tooltip {
         transition-duration: 1ms;
     }
 }

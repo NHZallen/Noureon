@@ -131,9 +131,13 @@ test('OpenRouter requests preserve payload, headers, attachments, and streamed d
     'Content-Type': 'application/json'
   });
   const payload = JSON.parse(requests[0].options.body);
+  const systemMessage = payload.messages.find((message) => message.role === 'system');
   assert.equal(payload.model, 'openrouter/model');
   assert.equal(payload.stream, true);
   assert.deepEqual(payload.plugins, [{ id: 'file-parser', pdf: { engine: 'mistral-ocr' } }]);
+  assert.match(systemMessage.content, /# Chart output rules/);
+  assert.match(systemMessage.content, /```chart/);
+  assert.match(systemMessage.content, /Do not use Mermaid/);
   assert.deepEqual(received, ['Hello']);
   assert.equal(finalText, 'Hello');
 });

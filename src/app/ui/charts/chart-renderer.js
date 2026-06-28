@@ -63,18 +63,19 @@ export function mountChartPlaceholder(placeholder, options = {}) {
   const document = placeholder?.ownerDocument;
   const chart = decodeChartPayload(placeholder?.dataset?.chartPayload);
   const renderer = chart?.type ? RENDERERS[chart.type] : null;
-  if (!document || !renderer) return false;
+  const isUserMessage = Boolean(placeholder?.closest?.('.user-message'));
+  if (!document || !renderer || isUserMessage || options.messageRole !== 'assistant') return false;
 
   placeholder.replaceWith(createChartArticle(document, chart, options));
   return true;
 }
 
-export function mountChartPlaceholders({ root, chartLabel = 'Chart' } = {}) {
+export function mountChartPlaceholders({ root, chartLabel = 'Chart', messageRole } = {}) {
   if (!root?.querySelectorAll) return { mounted: 0, skipped: 0 };
   let mounted = 0;
   let skipped = 0;
   [...root.querySelectorAll('.ac-chart-placeholder')].forEach((placeholder) => {
-    if (mountChartPlaceholder(placeholder, { chartLabel })) mounted += 1;
+    if (mountChartPlaceholder(placeholder, { chartLabel, messageRole })) mounted += 1;
     else skipped += 1;
   });
   return { mounted, skipped };

@@ -416,8 +416,8 @@ button:active:not(:disabled),
 }
 
 body svg {
-    color: #000000 !important;
-    stroke: currentColor !important;
+    color: #000000;
+    stroke: currentColor;
 }
 
 #submit-btn svg {

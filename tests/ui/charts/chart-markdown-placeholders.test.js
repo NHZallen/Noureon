@@ -53,6 +53,7 @@ test('valid chart fenced block becomes placeholder', () => {
     const result = applyChartMarkdownPlaceholders({
       document,
       root: document.body,
+      messageRole: 'assistant',
       chartLabel: 'Chart'
     });
     const placeholder = document.querySelector('.ac-chart-placeholder');
@@ -104,6 +105,43 @@ test('non-chart JSON code block remains normal code block', () => {
   }
 });
 
+test('user chart fence remains a normal code block and is not converted', () => {
+  const { document, window } = createDocumentFromMarkdown(`\`\`\`chart
+{ "type": "bar", "data": [{ "label": "A", "value": 120 }] }
+\`\`\``);
+
+  try {
+    const result = applyChartMarkdownPlaceholders({
+      document,
+      root: document.body,
+      messageRole: 'user',
+      chartLabel: 'Chart'
+    });
+
+    assert.deepEqual(result, { converted: 0, skipped: 0 });
+    assert.ok(document.querySelector('pre > code.language-chart'));
+    assert.equal(document.querySelector('.ac-chart-placeholder'), null);
+  } finally {
+    window.close();
+  }
+});
+
+test('Mermaid code block remains a normal code block', () => {
+  const { helpers, window } = createMarkdownHarness();
+
+  try {
+    const html = helpers.renderMarkdown(`\`\`\`mermaid
+graph TD
+  A --> B
+\`\`\``);
+
+    assert.match(html, /<pre><code class="language-mermaid">/);
+    assert.doesNotMatch(html, /ac-chart(?:-placeholder)?/);
+  } finally {
+    window.close();
+  }
+});
+
 test('malformed chart JSON does not crash markdown rendering', () => {
   const { helpers, window } = createMarkdownHarness();
 
@@ -136,7 +174,12 @@ test('placeholder escapes title, description, and labels safely', () => {
 \`\`\``);
 
   try {
-    applyChartMarkdownPlaceholders({ document, root: document.body, chartLabel: 'Chart' });
+    applyChartMarkdownPlaceholders({
+      document,
+      root: document.body,
+      messageRole: 'assistant',
+      chartLabel: 'Chart'
+    });
     const html = document.body.innerHTML;
     const placeholder = document.querySelector('.ac-chart-placeholder');
     const payload = JSON.parse(decodeURIComponent(placeholder.dataset.chartPayload));
