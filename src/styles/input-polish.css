@@ -244,3 +244,104 @@ body.custom-wallpaper-active .input-indicator-item {
         background-color: var(--hover-bg);
     }
 
+#input-indicator-container .input-indicator-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.35rem;
+    padding: 0 0.75rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--button-primary-bg);
+    box-shadow: none;
+    line-height: 1;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#input-indicator-container .input-indicator-item:hover {
+    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
+}
+
+#input-indicator-container .input-indicator-item button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    min-height: 1.35rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+#search-indicator,
+#learning-mode-indicator,
+#model-council-indicator,
+#astras-input-indicator {
+    color: var(--button-primary-bg);
+}
+
+#input-indicator-container .input-indicator-item svg,
+#input-indicator-container .input-indicator-item svg *,
+#search-indicator svg,
+#learning-mode-indicator svg,
+#model-council-indicator svg,
+#astras-input-indicator svg,
+#search-indicator svg *,
+#learning-mode-indicator svg *,
+#model-council-indicator svg *,
+#astras-input-indicator svg * {
+    color: inherit;
+    stroke: currentColor;
+}
+
+#input-indicator-container .input-indicator-leading {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.9rem;
+    height: 0.9rem;
+    flex: 0 0 0.9rem;
+}
+
+#input-indicator-container .input-indicator-mode-icon {
+    display: block;
+}
+
+#input-indicator-container #close-search-btn-input,
+#input-indicator-container #close-learning-mode-btn-input,
+#input-indicator-container #close-model-council-btn-input {
+    margin-left: 0.25rem;
+}
+
+#input-indicator-container #close-astras-btn-input {
+    color: inherit;
+}
+
+#attachment-menu .menu-item.is-active,
+#file-options-popover #web-search-popover-btn.is-active,
+#file-options-popover #learning-mode-btn.is-active,
+#file-options-popover #model-council-menu-btn.is-active {
+    color: var(--button-primary-bg);
+    background: transparent;
+}
+
+#attachment-menu .menu-item.is-active:hover,
+#file-options-popover #web-search-popover-btn.is-active:hover,
+#file-options-popover #learning-mode-btn.is-active:hover,
+#file-options-popover #model-council-menu-btn.is-active:hover {
+    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
+}
+
+#attachment-menu .menu-item.is-active svg,
+#attachment-menu .menu-item.is-active svg *,
+#file-options-popover #web-search-popover-btn.is-active svg,
+#file-options-popover #web-search-popover-btn.is-active svg *,
+#file-options-popover #learning-mode-btn.is-active svg,
+#file-options-popover #learning-mode-btn.is-active svg *,
+#file-options-popover #model-council-menu-btn.is-active svg,
+#file-options-popover #model-council-menu-btn.is-active svg * {
+    color: inherit;
+    stroke: currentColor;
+}

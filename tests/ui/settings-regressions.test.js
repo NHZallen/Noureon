@@ -238,7 +238,7 @@ test('settings control selectors stay visible and scoped by surface', () => {
     ['.translator-picker-button', ['src/styles/settings-output-translator.css']],
     ['.translator-picker-option', ['src/styles/settings-output-translator.css']],
     ['.custom-output-mode-select', ['src/styles/settings-output-translator.css']],
-    ['.custom-output-mode-option', ['src/styles/settings-output-translator.css', 'src/styles/regression-overrides.css']],
+    ['.custom-output-mode-option', ['src/styles/settings-output-translator.css']],
     ['#settings-modal #delete-all-data-btn', ['src/styles/settings-danger.css']],
     ['#settings-modal .model-management-item .model-row-action', ['src/styles/settings-provider-management.css']]
   ];
@@ -314,13 +314,13 @@ test('provider-adjacent and desktop-adjacent risky selectors remain classified a
 test('settings theme and bubble color selectors are scoped to the theme bubble surface', () => {
   const themeBubbleSelectors = [
     ['.theme-button-group', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css']],
-    ['.theme-btn', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css', 'src/styles/regression-overrides.css']],
+    ['.theme-btn', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css']],
     ['.theme-btn:hover', ['src/styles/settings-theme-bubble.css']],
-    ['.theme-btn.active', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css', 'src/styles/regression-overrides.css']],
-    ['#settings-modal .theme-btn.active', ['src/styles/settings-theme-bubble.css', 'src/styles/regression-overrides.css']],
-    ['.theme-btn:not(.active)', ['src/styles/settings-theme-bubble.css', 'src/styles/regression-overrides.css']],
-    ['.theme-btn:not(.active):hover', ['src/styles/settings-theme-bubble.css', 'src/styles/regression-overrides.css']],
-    ['.theme-btn:not(.active):active', ['src/styles/settings-theme-bubble.css', 'src/styles/regression-overrides.css']],
+    ['.theme-btn.active', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css']],
+    ['#settings-modal .theme-btn.active', ['src/styles/settings-theme-bubble.css']],
+    ['.theme-btn:not(.active)', ['src/styles/settings-theme-bubble.css']],
+    ['.theme-btn:not(.active):hover', ['src/styles/settings-theme-bubble.css']],
+    ['.theme-btn:not(.active):active', ['src/styles/settings-theme-bubble.css']],
     ['.color-dropdown-menu', ['src/styles/settings-theme-bubble.css']],
     ['.color-dropdown-btn', ['src/styles/settings-theme-bubble.css']],
     ['.color-dropdown-btn:hover', ['src/styles/settings-theme-bubble.css']],
@@ -347,7 +347,6 @@ test('theme button selectors are shared-adjacent and not a pure settings-only su
     themeButtonHits.sort(),
     [
       'src/styles/modals.css',
-      'src/styles/regression-overrides.css',
       'src/styles/settings-theme-bubble.css'
     ].sort(),
     `.theme-btn should stay documented as shared-adjacent; hits: ${themeButtonHits.join(', ')}`
@@ -360,14 +359,20 @@ test('theme button selectors are shared-adjacent and not a pure settings-only su
   assert.doesNotMatch(settingsCss, /\.theme-btn/);
 });
 
-test('theme button final overrides remain visible in the regression override layer', () => {
+test('theme and output button overrides live in their owner surfaces instead of the final override layer', () => {
   const regressionOverridesCss = readUiSource('src/styles/regression-overrides.css');
+  const settingsThemeBubbleCss = readUiSource('src/styles/settings-theme-bubble.css');
+  const settingsOutputTranslatorCss = readUiSource('src/styles/settings-output-translator.css');
 
-  assert.match(regressionOverridesCss, /\.theme-btn:not\(\.active\),\s*\.custom-output-mode-option:not\(\.active\),/);
-  assert.match(regressionOverridesCss, /\.theme-btn:not\(\.active\):hover,\s*\.custom-output-mode-option:not\(\.active\):hover,/);
-  assert.match(regressionOverridesCss, /\.theme-btn:not\(\.active\):active,\s*\.custom-output-mode-option:not\(\.active\):active,/);
-  assert.match(regressionOverridesCss, /\.theme-btn\.active,\s*\.custom-output-mode-option\.active,/);
-  assert.match(regressionOverridesCss, /#settings-modal\s+\.theme-btn\.active,\s*#settings-modal\s+\.custom-output-mode-option\.active,/);
+  assert.match(settingsThemeBubbleCss, /\.theme-btn:not\(\.active\)\s*\{/);
+  assert.match(settingsThemeBubbleCss, /\.theme-btn:not\(\.active\):hover\s*\{/);
+  assert.match(settingsThemeBubbleCss, /\.theme-btn:not\(\.active\):active\s*\{/);
+  assert.match(settingsThemeBubbleCss, /\.theme-btn\.active,\s*#settings-modal\s+\.theme-btn\.active\s*\{/);
+  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option:not\(\.active\)\s*\{/);
+  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option:not\(\.active\):hover\s*\{/);
+  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option:not\(\.active\):active\s*\{/);
+  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option\.active,\s*#settings-modal\s+\.custom-output-mode-option\.active\s*\{/);
+  assert.doesNotMatch(regressionOverridesCss, /\.theme-btn:not\(\.active\),\s*\.custom-output-mode-option:not\(\.active\),/);
 });
 
 test('theme bubble extraction keeps global and shared selectors out of the new surface', () => {
@@ -393,11 +398,10 @@ test('theme bubble extraction keeps global and shared selectors out of the new s
 
 test('shared settings-adjacent selectors are classified as shared, not settings-only', () => {
   const sharedSelectors = [
-    ['.theme-btn', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css', 'src/styles/regression-overrides.css']],
+    ['.theme-btn', ['src/styles/settings-theme-bubble.css', 'src/styles/modals.css']],
     ['.modal input', ['src/styles/settings.css', 'src/styles/personalization.css']],
     ['.modal select', ['src/styles/settings.css', 'src/styles/personalization.css']],
-    ['.modal textarea', ['src/styles/settings.css', 'src/styles/personalization.css']],
-    ['#archived-chats-modal', ['src/styles/settings.css', 'src/styles/regression-overrides.css']]
+    ['.modal textarea', ['src/styles/settings.css', 'src/styles/personalization.css']]
   ];
 
   for (const [selector, expectedFiles] of sharedSelectors) {
@@ -416,8 +420,7 @@ test('dark mode, root variables, typography, and regression overrides remain cla
   assertSelectorHits('#settings-modal .settings-mobile-group-title', ['src/styles/typography.css']);
   assertSelectorHits('#settings-modal .settings-sidebar', ['src/styles/regression-overrides.css']);
   assertSelectorHits('#settings-modal .theme-btn.active', [
-    'src/styles/settings-theme-bubble.css',
-    'src/styles/regression-overrides.css'
+    'src/styles/settings-theme-bubble.css'
   ]);
 
   const fullCss = readUiSource('src/styles/main.css');
