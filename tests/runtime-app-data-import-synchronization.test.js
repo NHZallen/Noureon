@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+const readSource = (path) => readFileSync(projectFile(path), 'utf8').replace(/\r\n?/g, '\n');
 
 const findMatchingBrace = (source, openIndex) => {
   let state = 'code';

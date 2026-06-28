@@ -4,7 +4,8 @@ export function buildMessageRenderView({
     renderMarkdownWithFormulas,
     buildMediaAttachmentView,
     formatTimestamp,
-    copyTitle
+    copyTitle,
+    thinkingLabel = 'Thinking…'
 }) {
     const isUser = message.role === 'user';
     const messageClassName = `message-item flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
@@ -16,7 +17,11 @@ export function buildMessageRenderView({
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
     if (isLoadingMessage) {
-        contentHTML = '<div class="typing-cursor">&nbsp;</div>';
+        contentHTML = `
+            <div class="assistant-thinking-indicator" role="status" aria-live="polite">
+                <span class="assistant-thinking-text">${thinkingLabel}</span>
+            </div>
+        `;
     } else {
         const textParts = [];
         const mediaParts = [];
@@ -51,15 +56,18 @@ export function buildMessageRenderView({
     }
 
     const hasBubbleContent = isLoadingMessage || contentHTML.trim();
+    const renderedContent = isLoadingMessage
+        ? `<div class="message-content">${contentHTML}</div>`
+        : `
+            <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
+                <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
+                ${actionButtons}
+            </div>
+        `;
     const messageHTML = `
                 <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
                     ${mediaGridHTML}
-                    ${hasBubbleContent ? `
-                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
-                            <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
-                            ${actionButtons}
-                        </div>
-                    ` : ''}
+                    ${hasBubbleContent ? renderedContent : ''}
                 </div>`;
 
     return {

@@ -477,6 +477,55 @@
     animation: fadeInChar 0.25s ease-out forwards;
 }
 
+.assistant-thinking-indicator {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.35rem;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.assistant-thinking-text {
+    display: inline-block;
+    color: var(--text-secondary);
+    background: linear-gradient(
+        105deg,
+        var(--text-secondary) 22%,
+        #ffffff 46%,
+        #ffffff 54%,
+        var(--text-secondary) 78%
+    );
+    background-size: 240% 100%;
+    background-position: 100% 0;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: thinking-highlight 2.2s ease-in-out infinite;
+}
+
+@keyframes thinking-highlight {
+    0%, 18% {
+        background-position: 100% 0;
+        opacity: 0.72;
+    }
+    52% {
+        opacity: 1;
+    }
+    82%, 100% {
+        background-position: -100% 0;
+        opacity: 0.72;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .assistant-thinking-text {
+        animation: none;
+        background: none;
+        -webkit-text-fill-color: currentColor;
+    }
+}
+
 
 /* ✨ 新增：打字機游標效果 (可選) */
 .typing-cursor::after {

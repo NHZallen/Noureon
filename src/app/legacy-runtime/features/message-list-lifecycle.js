@@ -49,7 +49,8 @@ export function createMessageListLifecycle({
             renderMarkdownWithFormulas,
             buildMediaAttachmentView,
             formatTimestamp,
-            copyTitle: getText('copyContent')
+            copyTitle: getText('copyContent'),
+            thinkingLabel: getText('thinkingStatus')
         });
         messageElement.className = messageView.messageClassName;
         messageElement.innerHTML = messageView.messageHTML;
