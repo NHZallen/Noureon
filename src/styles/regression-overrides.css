@@ -260,27 +260,27 @@
 
 .council-model-search-field svg,
 .council-model-search-field svg * {
-    flex: 0 0 auto !important;
-    color: inherit !important;
-    stroke: currentColor !important;
+    flex: 0 0 auto;
+    color: inherit;
+    stroke: currentColor;
 }
 
 .council-model-search-field input {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    width: 100% !important;
-    border: 0 !important;
-    outline: 0 !important;
-    background: transparent !important;
-    color: var(--text-primary) !important;
-    font: inherit !important;
-    font-weight: 700 !important;
-    padding: 0 !important;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 700;
+    padding: 0;
 }
 
 .council-model-search-field input::placeholder {
-    color: var(--text-secondary) !important;
-    opacity: 0.85 !important;
+    color: var(--text-secondary);
+    opacity: 0.85;
 }
 
 .council-mode-tabs {
@@ -335,34 +335,34 @@
     position: sticky !important;
     top: 0 !important;
     z-index: 6 !important;
-    margin: 0 0 0.35rem !important;
-    padding: 0.35rem 0.05rem !important;
-    border-bottom: 1px solid var(--border-color) !important;
-    background: var(--modal-bg) !important;
-    color: var(--text-secondary) !important;
-    font-size: 0.76rem !important;
-    font-weight: 800 !important;
+    margin: 0 0 0.35rem;
+    padding: 0.35rem 0.05rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--modal-bg);
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    font-weight: 800;
     text-transform: none !important;
 }
 
 .council-model-list {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 0.4rem !important;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
     touch-action: pan-y !important;
 }
 
 .council-model-group {
-    min-width: 0 !important;
+    min-width: 0;
 }
 
 .council-model-family-row {
-    align-items: center !important;
-    min-width: 0 !important;
+    align-items: center;
+    min-width: 0;
 }
 
 .council-family-provider-list {
-    display: none !important;
+    display: none;
 }
 
 .council-provider-variant-list {
@@ -370,38 +370,38 @@
 }
 
 .council-model-row {
-    position: relative !important;
-    gap: 0.55rem !important;
-    min-width: 0 !important;
-    padding: 0.5rem !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 0.5rem !important;
-    background: color-mix(in srgb, var(--input-field-bg) 86%, transparent) !important;
-    color: var(--text-primary) !important;
-    cursor: pointer !important;
+    position: relative;
+    gap: 0.55rem;
+    min-width: 0;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--input-field-bg) 86%, transparent);
+    color: var(--text-primary);
+    cursor: pointer;
 }
 
 .council-model-row.selected {
-    border-color: var(--accent-color, var(--button-primary-bg)) !important;
-    background: var(--active-bg) !important;
+    border-color: var(--accent-color, var(--button-primary-bg));
+    background: var(--active-bg);
 }
 
 .council-capability-badge,
 .model-council-popover .model-capability-pill {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.18rem !important;
-    max-width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    padding: 0.12rem 0.38rem !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    color: var(--text-secondary) !important;
-    font-size: 0.68rem !important;
-    font-weight: 800 !important;
-    line-height: 1.2 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.18rem;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 0.12rem 0.38rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.2;
 }
 
 .council-popover-scroll-area {
