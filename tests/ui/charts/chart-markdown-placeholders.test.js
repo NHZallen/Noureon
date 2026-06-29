@@ -219,18 +219,26 @@ test('rendered chart escapes title, description, and labels safely', () => {
   }
 });
 
-test('sample chart markdown renders all four chart types for manual QA', () => {
+test('sample chart markdown renders all twelve fixture chart types for manual QA', () => {
   const { helpers, window } = createMarkdownHarness();
 
   try {
     const sample = readFileSync(join(process.cwd(), 'tests/ui/charts/fixtures/sample-message-charts.md'), 'utf8');
     const html = helpers.renderMarkdown(sample);
 
-    assert.equal((html.match(/class="ac-chart ac-chart-/g) || []).length, 4);
+    assert.equal((html.match(/class="ac-chart ac-chart-/g) || []).length, 12);
     assert.match(html, /data-chart-type="scatter"/);
     assert.match(html, /data-chart-type="bar"/);
     assert.match(html, /data-chart-type="line"/);
     assert.match(html, /data-chart-type="donut"/);
+    assert.match(html, /data-chart-type="heatmap"/);
+    assert.match(html, /data-chart-type="treemap"/);
+    assert.match(html, /data-chart-type="radar"/);
+    assert.match(html, /data-chart-type="funnel"/);
+    assert.match(html, /data-chart-type="waterfall"/);
+    assert.match(html, /data-chart-type="sankey"/);
+    assert.match(html, /data-chart-type="boxplot"/);
+    assert.match(html, /data-chart-type="gantt"/);
     assert.match(html, /class="ac-chart-legend"/);
   } finally {
     window.close();

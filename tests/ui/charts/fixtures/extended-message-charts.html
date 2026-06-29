@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extended message charts visual QA</title>
+  <link rel="stylesheet" href="/src/styles/base.css">
+  <link rel="stylesheet" href="/src/styles/charts.css">
+  <style>
+    body { margin: 0; padding: 24px; background: #f6f7f9; color: #111827; font-family: Inter, system-ui, sans-serif; }
+    .model-message { max-width: 760px; margin: 0 auto; padding: 20px; background: #fff; border-radius: 20px; }
+    @media (max-width: 640px) { body { padding: 8px; } .model-message { padding: 12px; border-radius: 12px; } }
+  </style>
+</head>
+<body>
+  <main class="model-message" id="charts"></main>
+  <script type="module">
+    import { createChartPlaceholderElement } from '/src/app/ui/charts/chart-markdown-placeholders.js';
+    import { mountChartPlaceholder } from '/src/app/ui/charts/chart-renderer.js';
+    import { normalizeChartSchema } from '/src/app/ui/charts/chart-schema.js';
+
+    const samples = [
+      { type: 'stackedBar', title: 'Monthly sources', unit: 'items', series: [{ key: 'direct', label: 'Direct' }, { key: 'organic', label: 'Organic' }, { key: 'ads', label: 'Ads' }], data: [{ label: 'Jan', direct: 120, organic: 80, ads: 40 }, { label: 'Feb', direct: 104, organic: 96, ads: 54 }, { label: 'Mar', direct: 142, organic: 84, ads: 48 }] },
+      { type: 'area', title: 'Monthly revenue trend', xLabel: 'Month', yLabel: 'Revenue', unit: 'k', data: [{ label: 'Jan', value: 120 }, { label: 'Feb', value: 150 }, { label: 'Mar', value: 138 }, { label: 'Apr', value: 176 }] },
+      { type: 'bubble', title: 'Price, sales, and revenue', xLabel: 'Price', yLabel: 'Sales', sizeLabel: 'Revenue', data: [{ label: 'Product A', x: 120, y: 300, size: 50000 }, { label: 'Product B', x: 180, y: 220, size: 28000 }, { label: 'Product C', x: 145, y: 265, size: 41000 }] },
+      { type: 'histogram', title: 'Score distribution', xLabel: 'Score range', yLabel: 'People', unit: 'people', bins: [{ label: '0–20', min: 0, max: 20, count: 3 }, { label: '20–40', min: 20, max: 40, count: 8 }, { label: '40–60', min: 40, max: 60, count: 16 }, { label: '60–80', min: 60, max: 80, count: 11 }, { label: '80–100', min: 80, max: 100, count: 5 }] },
+      { type: 'kpi', title: 'Core metrics', data: [{ label: 'Revenue', value: 1280000, unit: 'USD', delta: 12.5, trend: 'up' }, { label: 'Conversion', value: 7.8, unit: '%', delta: -0.4, trend: 'down' }, { label: 'Users', value: 24800, unit: '', delta: 5.2, trend: 'up' }] },
+      { type: 'gauge', title: 'Target attainment', label: 'Complete', value: 72, min: 0, max: 100, unit: '%' },
+      { type: 'heatmap', title: 'Weekly activity', xLabel: 'Time', yLabel: 'Day', unit: 'events', data: [{ x: 'Morning', y: 'Monday', value: 24 }, { x: 'Afternoon', y: 'Monday', value: 42 }, { x: 'Evening', y: 'Monday', value: 65 }, { x: 'Morning', y: 'Tuesday', value: 31 }, { x: 'Afternoon', y: 'Tuesday', value: 58 }, { x: 'Evening', y: 'Tuesday', value: 47 }, { x: 'Morning', y: 'Wednesday', value: 28 }, { x: 'Afternoon', y: 'Wednesday', value: 51 }, { x: 'Evening', y: 'Wednesday', value: 70 }] },
+      { type: 'treemap', title: 'Product revenue mix', unit: 'USD', data: [{ label: 'Product A', value: 520000, group: 'Core' }, { label: 'Product B', value: 310000, group: 'Core' }, { label: 'Product C', value: 180000, group: 'Growth' }, { label: 'Long-tail product that must hide its label', value: 12000, group: 'Growth' }] },
+      { type: 'radar', title: 'Product capabilities', unit: 'points', min: 0, max: 100, series: [{ key: 'a', label: 'Product A' }, { key: 'b', label: 'Product B' }], data: [{ label: 'Speed', a: 82, b: 76 }, { label: 'Stability', a: 74, b: 88 }, { label: 'Usability', a: 90, b: 80 }, { label: 'Cost', a: 68, b: 79 }, { label: 'Extensibility', a: 76, b: 84 }] },
+      { type: 'funnel', title: 'Signup conversion funnel', unit: 'people', data: [{ label: 'Visits', value: 10000 }, { label: 'Signups', value: 4200 }, { label: 'Activated', value: 2600 }, { label: 'Paid', value: 680 }] },
+      { type: 'waterfall', title: 'Profit bridge', unit: 'USD', data: [{ label: 'Revenue', value: 1200000, kind: 'start' }, { label: 'Cost', value: -420000 }, { label: 'Marketing', value: -160000 }, { label: 'Other income', value: 80000 }, { label: 'Net profit', value: 700000, kind: 'end' }] },
+      { type: 'sankey', title: 'Traffic flow', unit: 'people', nodes: [{ id: 'search', label: 'Search' }, { id: 'social', label: 'Social' }, { id: 'signup', label: 'Signup' }, { id: 'paid', label: 'Paid' }], links: [{ source: 'search', target: 'signup', value: 1200 }, { source: 'social', target: 'signup', value: 800 }, { source: 'signup', target: 'paid', value: 420 }] },
+      { type: 'boxplot', title: 'Score distribution by class', xLabel: 'Class', yLabel: 'Score', unit: 'points', data: [{ label: 'Class A', min: 52, q1: 68, median: 76, q3: 88, max: 96, outliers: [42, 99] }, { label: 'Class B', min: 48, q1: 62, median: 72, q3: 84, max: 93, outliers: [35] }, { label: 'Class C', min: 58, q1: 69, median: 78, q3: 88, max: 95 }] },
+      { type: 'gantt', title: 'Project timeline', xLabel: 'Date', yLabel: 'Task', data: [{ label: 'Requirements', start: '2026-07-01', end: '2026-07-05', progress: 100, group: 'Planning' }, { label: 'UI design', start: '2026-07-04', end: '2026-07-12', progress: 65, group: 'Design' }, { label: 'Frontend build', start: '2026-07-10', end: '2026-07-24', progress: 30, group: 'Build' }, { label: 'Beta release', date: '2026-07-18', kind: 'milestone' }] }
+    ];
+
+    const root = document.querySelector('#charts');
+    samples.forEach((sample) => {
+      const result = normalizeChartSchema(sample);
+      if (!result.ok) throw new Error(`Invalid sample: ${sample.type}`);
+      const placeholder = createChartPlaceholderElement({ document, chart: result.chart, chartLabel: 'Chart' });
+      root.appendChild(placeholder);
+      mountChartPlaceholder(placeholder, { chartLabel: 'Chart', messageRole: 'assistant' });
+    });
+  </script>
+</body>
+</html>

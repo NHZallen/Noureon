@@ -151,6 +151,11 @@ test('renderer refuses to mount a chart for a user message', () => {
   }
 });
 
-test('renderer exposes the four supported chart types', () => {
-  assert.deepEqual(SUPPORTED_RENDERED_CHART_TYPES, ['scatter', 'bar', 'line', 'donut']);
+test('renderer exposes the supported chart types', () => {
+  assert.deepEqual(SUPPORTED_RENDERED_CHART_TYPES, [
+    'scatter', 'bar', 'line', 'donut',
+    'stackedBar', 'area', 'bubble', 'histogram', 'kpi', 'gauge',
+    'heatmap', 'treemap', 'radar', 'funnel', 'waterfall',
+    'sankey', 'boxplot', 'gantt'
+  ]);
 });

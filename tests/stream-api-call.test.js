@@ -135,11 +135,45 @@ test('OpenRouter requests preserve payload, headers, attachments, and streamed d
   assert.equal(payload.model, 'openrouter/model');
   assert.equal(payload.stream, true);
   assert.deepEqual(payload.plugins, [{ id: 'file-parser', pdf: { engine: 'mistral-ocr' } }]);
-  assert.match(systemMessage.content, /# Chart output rules/);
-  assert.match(systemMessage.content, /```chart/);
-  assert.match(systemMessage.content, /Do not use Mermaid/);
+  assert.doesNotMatch(systemMessage.content, /# Chart output rules/);
+  assert.doesNotMatch(systemMessage.content, /```chart/);
   assert.deepEqual(received, ['Hello']);
   assert.equal(finalText, 'Hello');
+});
+
+test('stream prompt injects compact chart guidance only for chartable requests', async () => {
+  const { streamApiCall, requests } = createHarness();
+
+  await streamApiCall(
+    [{ text: '請用圖表比較 A: 10\\nB: 20\\nC: 15' }],
+    () => {},
+    undefined
+  );
+
+  const payload = JSON.parse(requests[0].options.body);
+  const systemMessage = payload.messages.find((message) => message.role === 'system');
+  assert.match(systemMessage.content, /# Chart output rules/);
+  assert.match(systemMessage.content, /Selection policy/);
+  assert.match(systemMessage.content, /```chart/);
+  assert.doesNotMatch(systemMessage.content, /Chart type: gantt/);
+});
+
+test('stream prompt injects only requested chart type guidance for explicit chart requests', async () => {
+  const { streamApiCall, requests } = createHarness();
+
+  await streamApiCall(
+    [{ text: '請做甘特圖：需求 2026-07-01 到 2026-07-05' }],
+    () => {},
+    undefined
+  );
+
+  const payload = JSON.parse(requests[0].options.body);
+  const systemMessage = payload.messages.find((message) => message.role === 'system');
+  assert.match(systemMessage.content, /Chart type: gantt/);
+  assert.match(systemMessage.content, /start/);
+  assert.match(systemMessage.content, /end/);
+  assert.doesNotMatch(systemMessage.content, /Selection policy/);
+  assert.doesNotMatch(systemMessage.content, /Chart type: sankey/);
 });
 
 test('NVIDIA requests preserve proxy payload, authorization, vision attachments, and SSE deltas', async () => {

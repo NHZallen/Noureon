@@ -8,14 +8,42 @@ const INTERACTIVE_SELECTORS = Object.freeze({
   scatter: '.ac-chart-scatter-point',
   bar: '.ac-chart-bar',
   line: '.ac-chart-line-point',
-  donut: '.ac-chart-donut-segment, .ac-chart-legend-item'
+  donut: '.ac-chart-donut-segment, .ac-chart-legend-item',
+  stackedBar: '.ac-chart-stacked-segment, .ac-chart-stacked-legend-item',
+  area: '.ac-chart-area-point',
+  bubble: '.ac-chart-bubble-point',
+  histogram: '.ac-chart-histogram-bar',
+  kpi: '.ac-chart-kpi-item',
+  gauge: '.ac-chart-gauge-progress',
+  heatmap: '.ac-chart-heatmap-cell',
+  treemap: '.ac-chart-treemap-node',
+  radar: '.ac-chart-radar-point, .ac-chart-radar-legend-item',
+  funnel: '.ac-chart-funnel-stage',
+  waterfall: '.ac-chart-waterfall-bar',
+  sankey: '.ac-chart-sankey-node, .ac-chart-sankey-link',
+  boxplot: '.ac-chart-boxplot-group, .ac-chart-boxplot-outlier',
+  gantt: '.ac-chart-gantt-item'
 });
 
 const INTERACTIVE_CLASSES = Object.freeze({
   scatter: ['ac-chart-scatter-point'],
   bar: ['ac-chart-bar'],
   line: ['ac-chart-line-point'],
-  donut: ['ac-chart-donut-segment', 'ac-chart-legend-item']
+  donut: ['ac-chart-donut-segment', 'ac-chart-legend-item'],
+  stackedBar: ['ac-chart-stacked-segment', 'ac-chart-stacked-legend-item'],
+  area: ['ac-chart-area-point'],
+  bubble: ['ac-chart-bubble-point'],
+  histogram: ['ac-chart-histogram-bar'],
+  kpi: ['ac-chart-kpi-item'],
+  gauge: ['ac-chart-gauge-progress'],
+  heatmap: ['ac-chart-heatmap-cell'],
+  treemap: ['ac-chart-treemap-node'],
+  radar: ['ac-chart-radar-point', 'ac-chart-radar-legend-item'],
+  funnel: ['ac-chart-funnel-stage'],
+  waterfall: ['ac-chart-waterfall-bar'],
+  sankey: ['ac-chart-sankey-node', 'ac-chart-sankey-link'],
+  boxplot: ['ac-chart-boxplot-group', 'ac-chart-boxplot-outlier'],
+  gantt: ['ac-chart-gantt-item']
 });
 
 const BOUND_CHARTS = new WeakSet();
@@ -147,11 +175,26 @@ const getElementsForType = (article, type) => {
       ...article.querySelectorAll('.ac-chart-legend-item')
     ];
   }
+  if (type === 'stackedBar') {
+    return [
+      ...article.querySelectorAll('.ac-chart-stacked-segment'),
+      ...article.querySelectorAll('.ac-chart-stacked-legend-item')
+    ];
+  }
+  if (type === 'radar') {
+    return [
+      ...article.querySelectorAll('.ac-chart-radar-polygon'),
+      ...article.querySelectorAll('.ac-chart-radar-point'),
+      ...article.querySelectorAll('.ac-chart-radar-legend-item')
+    ];
+  }
   return [...article.querySelectorAll(getTypeSelector(type))];
 };
 
 const getPrimaryElementsForType = (article, type) => {
   if (type === 'donut') return [...article.querySelectorAll('.ac-chart-donut-segment')];
+  if (type === 'stackedBar') return [...article.querySelectorAll('.ac-chart-stacked-segment')];
+  if (type === 'radar') return [...article.querySelectorAll('.ac-chart-radar-point')];
   return getElementsForType(article, type);
 };
 
@@ -199,6 +242,121 @@ const getTooltipRows = (chart, datum, type) => {
       [chart.yLabel || 'y', `${formatChartNumber(datum.y)}${unit}`]
     ];
   }
+  if (type === 'bubble') {
+    return [
+      ['', label, true],
+      [chart.xLabel || 'x', formatChartNumber(datum.x)],
+      [chart.yLabel || 'y', formatChartNumber(datum.y)],
+      [chart.sizeLabel || 'size', `${formatChartNumber(datum.size)}${unit}`]
+    ];
+  }
+  if (type === 'stackedBar') {
+    return [
+      ['', datum.categoryLabel || label, true],
+      [datum.seriesLabel || 'series', `${formatChartNumber(datum.value)}${unit}`],
+      ['total', `${formatChartNumber(datum.total)}${unit}`]
+    ];
+  }
+  if (type === 'histogram') {
+    return [
+      ['', datum.label, true],
+      [chart.yLabel || 'count', `${formatChartNumber(datum.count)}${unit}`]
+    ];
+  }
+  if (type === 'kpi') {
+    const rowUnit = datum.unit ? ` ${datum.unit}` : unit;
+    const rows = [['', datum.label, true], ['', `${formatChartNumber(datum.value)}${rowUnit}`]];
+    if (datum.delta !== undefined) rows.push(['delta', `${datum.delta > 0 ? '+' : ''}${formatChartNumber(datum.delta)}%`]);
+    return rows;
+  }
+  if (type === 'gauge') {
+    return [
+      ['', datum.label, true],
+      ['', `${formatChartNumber(datum.value)}${unit}`],
+      ['range', `${formatChartNumber(datum.min)}–${formatChartNumber(datum.max)}`]
+    ];
+  }
+  if (type === 'heatmap') {
+    return [
+      [chart.yLabel || 'y', datum.y, true],
+      [chart.xLabel || 'x', datum.x],
+      ['', `${formatChartNumber(datum.value)}${unit}`]
+    ];
+  }
+  if (type === 'treemap') {
+    const rows = [['', datum.label, true]];
+    if (datum.group) rows.push(['group', datum.group]);
+    rows.push(['value', `${formatChartNumber(datum.value)}${unit}`]);
+    rows.push(['share', `${formatChartNumber(datum.percentage)}%`]);
+    return rows;
+  }
+  if (type === 'radar') {
+    const rows = [['', datum.axisLabel || datum.seriesLabel, true]];
+    if (datum.axisLabel && datum.seriesLabel) rows.push(['series', datum.seriesLabel]);
+    rows.push([datum.axisLabel ? 'value' : 'average', `${formatChartNumber(datum.value)}${unit}`]);
+    return rows;
+  }
+  if (type === 'funnel') {
+    return [
+      ['', datum.label, true],
+      ['value', `${formatChartNumber(datum.value)}${unit}`],
+      ['conversion', `${formatChartNumber(datum.conversion)}%`],
+      ['drop-off', `${formatChartNumber(datum.dropOff)}%`]
+    ];
+  }
+  if (type === 'waterfall') {
+    return [
+      ['', datum.label, true],
+      ['value', `${datum.value > 0 && datum.kind === 'delta' ? '+' : ''}${formatChartNumber(datum.value)}${unit}`],
+      ['cumulative', `${formatChartNumber(datum.cumulative)}${unit}`]
+    ];
+  }
+  if (type === 'sankey') {
+    if (datum.sourceLabel && datum.targetLabel) {
+      return [
+        ['source', datum.sourceLabel, true],
+        ['target', datum.targetLabel],
+        ['value', `${formatChartNumber(datum.value)}${unit}`]
+      ];
+    }
+    return [
+      ['', datum.label, true],
+      ['flow', `${formatChartNumber(datum.value)}${unit}`]
+    ];
+  }
+  if (type === 'boxplot') {
+    if (datum.outlier !== undefined) {
+      return [
+        ['', datum.label, true],
+        ['outlier', `${formatChartNumber(datum.outlier)}${unit}`]
+      ];
+    }
+    return [
+      ['', datum.label, true],
+      ['min', `${formatChartNumber(datum.min)}${unit}`],
+      ['q1', `${formatChartNumber(datum.q1)}${unit}`],
+      ['median', `${formatChartNumber(datum.median)}${unit}`],
+      ['q3', `${formatChartNumber(datum.q3)}${unit}`],
+      ['max', `${formatChartNumber(datum.max)}${unit}`]
+    ];
+  }
+  if (type === 'gantt') {
+    if (datum.kind === 'milestone') {
+      return [
+        ['', datum.label, true],
+        ['date', datum.date]
+      ];
+    }
+    const rows = [
+      ['', datum.label, true],
+      ['start', datum.start],
+      ['end', datum.end],
+      ['duration', `${datum.duration} days`],
+      ['progress', `${formatChartNumber(datum.progress)}%`]
+    ];
+    if (datum.group) rows.push(['group', datum.group]);
+    return rows;
+  }
   if (type === 'donut') {
     return [
       ['', label, true],
@@ -238,7 +396,64 @@ const showTooltip = ({ article, tooltip, chart, datum, type, anchor }) => {
   tooltip.classList.add('is-visible');
 };
 
-const getChartDatum = (chart, index, type) => {
+const getChartDatum = (chart, index, type, sourceElement) => {
+  if (type === 'gauge') return { label: chart.label, value: chart.value, min: chart.min, max: chart.max };
+  if (type === 'stackedBar') {
+    const seriesIndex = Number(sourceElement?.dataset?.chartSeriesIndex);
+    const categoryIndex = Number(sourceElement?.dataset?.chartCategoryIndex);
+    const series = chart.series[seriesIndex];
+    if (!series) return null;
+    if (!Number.isFinite(categoryIndex)) {
+      return {
+        label: series.label,
+        categoryLabel: series.label,
+        seriesLabel: series.label,
+        value: chart.data.reduce((sum, row) => sum + row[series.key], 0),
+        total: chart.data.reduce((sum, row) => sum + row[series.key], 0)
+      };
+    }
+    const row = chart.data[categoryIndex];
+    if (!row) return null;
+    return {
+      label: row.label,
+      categoryLabel: row.label,
+      seriesLabel: series.label,
+      value: row[series.key],
+      total: chart.series.reduce((sum, item) => sum + row[item.key], 0)
+    };
+  }
+  if (type === 'radar') {
+    const seriesIndex = Number(sourceElement?.dataset?.chartSeriesIndex);
+    const axisIndex = Number(sourceElement?.dataset?.chartAxisIndex);
+    const series = chart.series?.[seriesIndex] || { key: 'value', label: chart.title || 'Value' };
+    if (!series) return null;
+    if (!Number.isFinite(axisIndex)) {
+      const values = chart.data.map((row) => row[series.key]);
+      return {
+        seriesLabel: series.label,
+        value: values.reduce((sum, value) => sum + value, 0) / values.length
+      };
+    }
+    const row = chart.data[axisIndex];
+    if (!row) return null;
+    return { axisLabel: row.label, seriesLabel: series.label, value: row[series.key] };
+  }
+  if (type === 'sankey') {
+    if (sourceElement?.classList?.contains('ac-chart-sankey-link')) {
+      const link = chart.links[index];
+      if (!link) return null;
+      const source = chart.nodes.find((node) => node.id === link.source);
+      const target = chart.nodes.find((node) => node.id === link.target);
+      return { ...link, sourceLabel: source?.label || link.source, targetLabel: target?.label || link.target };
+    }
+    const nodeId = sourceElement?.dataset?.chartNodeId;
+    const node = chart.nodes.find((item) => item.id === nodeId) || chart.nodes[index];
+    if (!node) return null;
+    const value = chart.links
+      .filter((link) => link.source === node.id || link.target === node.id)
+      .reduce((sum, link) => sum + link.value, 0);
+    return { ...node, value };
+  }
   const row = chart.data[index];
   if (!row) return null;
   if (type === 'donut') {
@@ -247,6 +462,37 @@ const getChartDatum = (chart, index, type) => {
       ...row,
       percentage: Math.max(0, row.value) / total * 100
     };
+  }
+  if (type === 'treemap') {
+    const total = chart.data.reduce((sum, item) => sum + Math.max(0, item.value), 0) || 1;
+    return { ...row, percentage: Math.max(0, row.value) / total * 100 };
+  }
+  if (type === 'funnel') {
+    const previous = index > 0 ? chart.data[index - 1].value : row.value;
+    return {
+      ...row,
+      conversion: chart.data[0].value ? row.value / chart.data[0].value * 100 : 0,
+      dropOff: previous ? Math.max(0, (previous - row.value) / previous * 100) : 0
+    };
+  }
+  if (type === 'waterfall') {
+    let cumulative = 0;
+    let datum = null;
+    chart.data.forEach((item, itemIndex) => {
+      cumulative = item.kind === 'start' || item.kind === 'end' ? item.value : cumulative + item.value;
+      if (itemIndex === index) datum = { ...item, cumulative };
+    });
+    return datum;
+  }
+  if (type === 'boxplot') {
+    if (sourceElement?.dataset?.chartOutlier !== undefined) {
+      return { ...row, outlier: Number(sourceElement.dataset.chartOutlier) };
+    }
+    return row;
+  }
+  if (type === 'gantt') {
+    if (row.kind === 'milestone') return row;
+    return { ...row, duration: Number(sourceElement?.dataset?.chartDuration) || 1 };
   }
   return row;
 };
@@ -294,13 +540,13 @@ const createSvgLine = (svg, className) => {
 const ensureGuides = (article, type) => {
   const svg = article.querySelector('svg');
   if (!svg) return {};
-  if (type === 'scatter') {
+  if (type === 'scatter' || type === 'bubble') {
     return {
       x: article.querySelector('.ac-chart-guide-x') || createSvgLine(svg, 'ac-chart-guide-x'),
       y: article.querySelector('.ac-chart-guide-y') || createSvgLine(svg, 'ac-chart-guide-y')
     };
   }
-  if (type === 'line') {
+  if (type === 'line' || type === 'area') {
     return {
       x: article.querySelector('.ac-chart-guide-x') || createSvgLine(svg, 'ac-chart-guide-x')
     };
@@ -316,22 +562,23 @@ const updateGuides = (article, type, element) => {
   const cy = Number(element.getAttribute('cy'));
   if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
   const guides = ensureGuides(article, type);
-  if (type === 'scatter') {
+  if (type === 'scatter' || type === 'bubble') {
     setGuideLine(guides.x, { x1: cx, x2: cx, y1: plotBox.y, y2: plotBox.bottom });
     setGuideLine(guides.y, { x1: plotBox.x, x2: plotBox.right, y1: cy, y2: cy });
   }
-  if (type === 'line') {
+  if (type === 'line' || type === 'area') {
     setGuideLine(guides.x, { x1: cx, x2: cx, y1: plotBox.y, y2: plotBox.bottom });
   }
 };
 
-const updateLineSegments = (article, activeIndex) => {
-  const points = [...article.querySelectorAll('.ac-chart-line-point')].map((point) => ({
+const updateContinuousSegments = (article, type, activeIndex) => {
+  const prefix = type === 'area' ? 'area' : 'line';
+  const points = [...article.querySelectorAll(`.ac-chart-${prefix}-point`)].map((point) => ({
     x: Number(point.getAttribute('cx')),
     y: Number(point.getAttribute('cy'))
   }));
-  const pastClip = article.querySelector('.ac-chart-line-past-clip');
-  const futureClip = article.querySelector('.ac-chart-line-future-clip');
+  const pastClip = article.querySelector(`.ac-chart-${prefix}-past-clip`);
+  const futureClip = article.querySelector(`.ac-chart-${prefix}-future-clip`);
   const plotBox = getPlotBox();
   if (!pastClip || !futureClip || !points.length) return;
   if (!Number.isFinite(activeIndex)) {
@@ -359,19 +606,34 @@ const clearActiveState = (article, chart) => {
     removeStateClasses(element);
   });
   clearGuides(article);
-  if (chart.type === 'line') updateLineSegments(article, null);
+  if (chart.type === 'line' || chart.type === 'area') updateContinuousSegments(article, chart.type, null);
 };
 
 const setActiveIndex = ({ article, chart, tooltip, type, index, sourceElement, event }) => {
-  const datum = getChartDatum(chart, index, type);
+  const datum = getChartDatum(chart, index, type, sourceElement);
   if (!datum || !sourceElement) return;
   article.dataset.chartActiveIndex = String(index);
   const svg = article.querySelector('svg');
   if (svg) svg.dataset.chartActiveIndex = String(index);
   article.classList.add('has-active');
   const elements = getElementsForType(article, type);
+  const sourceSeriesIndex = Number(sourceElement?.dataset?.chartSeriesIndex);
+  const sourceIsLegend = sourceElement?.classList?.contains('ac-chart-stacked-legend-item') ||
+    sourceElement?.classList?.contains('ac-chart-radar-legend-item');
   elements.forEach((element) => {
-    const isMatch = getElementIndex(element) === index;
+    let isMatch = (type === 'stackedBar' || type === 'radar') && sourceIsLegend
+      ? Number(element.dataset.chartSeriesIndex) === sourceSeriesIndex
+      : getElementIndex(element) === index;
+    if (type === 'sankey') {
+      const nodeId = sourceElement.dataset.chartNodeId;
+      if (nodeId) {
+        isMatch = element === sourceElement ||
+          element.dataset.chartSource === nodeId ||
+          element.dataset.chartTarget === nodeId;
+      } else {
+        isMatch = element === sourceElement;
+      }
+    }
     setClassFlag(element, 'is-active', isMatch);
     setClassFlag(element, 'is-selected', isMatch);
     setClassFlag(element, 'is-faded', !isMatch);
@@ -383,7 +645,7 @@ const setActiveIndex = ({ article, chart, tooltip, type, index, sourceElement, e
   updateGuides(article, type, sourceElement.matches?.('.ac-chart-legend-item')
     ? article.querySelector(`.ac-chart-donut-segment[data-chart-index="${index}"]`) || sourceElement
     : sourceElement);
-  if (type === 'line') updateLineSegments(article, index);
+  if (type === 'line' || type === 'area') updateContinuousSegments(article, type, index);
   showTooltip({
     article,
     tooltip,
@@ -429,7 +691,7 @@ const handleNearestActive = ({ article, chart, tooltip, type, event }) => {
     point.y < plotBox.y || point.y > plotBox.bottom
   ) return false;
   const elements = getPrimaryElementsForType(article, type);
-  const nearest = findNearestPoint(elements, point, { axis: type === 'line' ? 'x' : 'xy' });
+  const nearest = findNearestPoint(elements, point, { axis: type === 'line' || type === 'area' ? 'x' : 'xy' });
   if (!nearest?.element) return false;
   setActiveIndex({
     article,
@@ -450,7 +712,9 @@ export function attachChartInteractions(article, chart) {
   const type = chart.type;
   const tooltip = article.querySelector('.ac-chart-tooltip') || createTooltip(article);
   const svg = article.querySelector('svg');
-  const moveTarget = type === 'scatter' || type === 'line' ? svg : article;
+  const nearestTypes = ['scatter', 'line', 'area', 'bubble'];
+  const pinnableTypes = ['donut', 'stackedBar', 'radar'];
+  const moveTarget = nearestTypes.includes(type) ? svg : article;
   BOUND_CHARTS.add(article);
   article.dataset.chartInteractions = 'true';
   let ignoreNextClick = false;
@@ -458,10 +722,10 @@ export function attachChartInteractions(article, chart) {
   let pinnedIndex = null;
 
   const activateFromEvent = (event) => {
-    if (type === 'scatter' || type === 'line') {
+    if (nearestTypes.includes(type)) {
       return handleNearestActive({ article, chart, tooltip, type, event });
     }
-    if (type === 'donut' && event.type === 'pointermove' && pinnedIndex !== null) return true;
+    if (pinnableTypes.includes(type) && event.type === 'pointermove' && pinnedIndex !== null) return true;
     return handleDirectActive({ article, chart, tooltip, type, event });
   };
 
@@ -469,7 +733,7 @@ export function attachChartInteractions(article, chart) {
   article.addEventListener('pointerdown', (event) => {
     lastPointerType = event.pointerType || '';
     ignoreNextClick = activateFromEvent(event);
-    if (type === 'donut') {
+    if (pinnableTypes.includes(type)) {
       const target = getTargetElement(article, type, event.target);
       pinnedIndex = target ? getElementIndex(target) : null;
     }
@@ -479,7 +743,7 @@ export function attachChartInteractions(article, chart) {
     }
   });
   article.addEventListener('click', (event) => {
-    if (type === 'donut') {
+    if (pinnableTypes.includes(type)) {
       const target = getTargetElement(article, type, event.target);
       if (target) {
         pinnedIndex = getElementIndex(target);
@@ -500,7 +764,7 @@ export function attachChartInteractions(article, chart) {
   });
   moveTarget?.addEventListener('touchmove', activateFromEvent, { passive: true });
   article.addEventListener('pointerleave', (event) => {
-    if (type === 'donut' && pinnedIndex !== null) return;
+    if (pinnableTypes.includes(type) && pinnedIndex !== null) return;
     if (event.pointerType === 'touch' || lastPointerType === 'touch') return;
     ignoreNextClick = false;
     clearActiveState(article, chart);
@@ -512,7 +776,7 @@ export function attachChartInteractions(article, chart) {
     if (target) handleDirectActive({ article, chart, tooltip, type, event });
   });
   article.addEventListener('focusout', () => {
-    if (type === 'donut' && pinnedIndex !== null) return;
+    if (pinnableTypes.includes(type) && pinnedIndex !== null) return;
     clearActiveState(article, chart);
     clearTooltip(tooltip);
   });

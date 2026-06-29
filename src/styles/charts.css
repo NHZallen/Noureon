@@ -91,14 +91,19 @@
 }
 
 .model-message .ac-chart-line-hit-area,
-.model-message .ac-chart-scatter-hit-area {
+.model-message .ac-chart-scatter-hit-area,
+.model-message .ac-chart-area-hit-area,
+.model-message .ac-chart-bubble-hit-area {
     cursor: crosshair;
 }
 
 .model-message .ac-chart-point,
 .model-message .ac-chart-bar,
 .model-message .ac-chart-line,
+.model-message .ac-chart-area-fill,
 .model-message .ac-chart-donut-segment,
+.model-message .ac-chart-gauge-progress,
+.model-message .ac-chart-kpi-item,
 .model-message .ac-chart-legend-item,
 .model-message .ac-chart-tooltip {
     transition: opacity 220ms ease, transform 220ms ease, stroke 220ms ease, fill 220ms ease, filter 220ms ease;
@@ -119,6 +124,15 @@
 
 .model-message .ac-chart .ac-chart-line-point:not(.is-active) {
     opacity: 0;
+}
+
+.model-message .ac-chart .ac-chart-area-point:not(.is-active) {
+    opacity: 0;
+}
+
+.model-message .ac-chart .ac-chart-area-point.is-active,
+.model-message .ac-chart .ac-chart-area-point:focus-visible {
+    opacity: 1;
 }
 
 .model-message .ac-chart .ac-chart-line-point.is-active,
@@ -146,6 +160,23 @@
 }
 
 .model-message .ac-chart-line-future {
+    opacity: 0;
+}
+
+.model-message .ac-chart-area-fill {
+    fill: color-mix(in srgb, var(--ac-chart-primary) 20%, transparent);
+    stroke: none;
+}
+
+.model-message .ac-chart-area-future {
+    opacity: 0;
+}
+
+.model-message .ac-chart.has-active .ac-chart-area-future.is-faded {
+    opacity: 0.3;
+}
+
+.model-message .ac-chart:not(.has-active) .ac-chart-area-future.is-faded {
     opacity: 0;
 }
 
@@ -187,8 +218,41 @@
 }
 
 .model-message .ac-chart-scatter-point.is-faded,
-.model-message .ac-chart-line-point.is-faded {
+.model-message .ac-chart-line-point.is-faded,
+.model-message .ac-chart-area-point.is-faded,
+.model-message .ac-chart-bubble-point.is-faded {
     opacity: 0.42;
+}
+
+.model-message .ac-chart-bubble-point {
+    fill: color-mix(in srgb, var(--ac-chart-primary) 66%, transparent);
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 82%, #ffffff);
+    stroke-width: 1.5;
+}
+
+.model-message .ac-chart-bubble-point.is-active {
+    opacity: 0.92;
+    transform: scale(1.16);
+}
+
+.model-message .ac-chart-stacked-segment {
+    cursor: pointer;
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 1;
+}
+
+.model-message .ac-chart-stacked-segment.is-faded {
+    opacity: 0.3;
+    filter: saturate(0.55);
+}
+
+.model-message .ac-chart-stacked-segment.is-active {
+    opacity: 1;
+    filter: saturate(1.08);
+}
+
+.model-message .ac-chart-histogram-bar {
+    opacity: 0.82;
 }
 
 .model-message .ac-chart-bar.is-active {
@@ -363,6 +427,396 @@
     line-height: 1.1;
 }
 
+.model-message .ac-chart-stacked-layout {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.model-message .ac-chart-stacked-legend {
+    padding-inline: 0.5rem;
+}
+
+.model-message .ac-chart-stacked-legend-item {
+    min-height: 2.35rem;
+}
+
+.model-message .ac-chart-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 0.7rem;
+    padding: 0.35rem 0;
+}
+
+.model-message .ac-chart-kpi-item {
+    min-width: 0;
+    padding: 0.72rem 0.78rem;
+    border-left: 3px solid color-mix(in srgb, var(--ac-chart-primary) 48%, transparent);
+    border-radius: 0.45rem;
+    background: rgba(255, 255, 255, 0.34);
+    cursor: pointer;
+}
+
+.model-message .ac-chart-kpi-item.is-faded {
+    opacity: 0.42;
+}
+
+.model-message .ac-chart-kpi-item.is-active {
+    opacity: 1;
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.model-message .ac-chart-kpi-label {
+    color: var(--ac-chart-muted);
+    font-size: 0.8rem;
+    font-weight: 400;
+}
+
+.model-message .ac-chart-kpi-value {
+    margin-top: 0.18rem;
+    color: var(--ac-chart-text);
+    font-size: clamp(1.25rem, 3vw, 1.7rem);
+    font-weight: 500;
+    line-height: 1.18;
+}
+
+.model-message .ac-chart-kpi-unit {
+    margin-left: 0.25rem;
+    color: var(--ac-chart-muted);
+    font-size: 0.78em;
+    font-weight: 400;
+}
+
+.model-message .ac-chart-kpi-delta {
+    margin-top: 0.28rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.model-message .ac-chart-kpi-delta.is-up {
+    color: #27835e;
+}
+
+.model-message .ac-chart-kpi-delta.is-down {
+    color: #b45353;
+}
+
+.model-message .ac-chart-kpi-delta.is-flat {
+    color: var(--ac-chart-muted);
+}
+
+.model-message .ac-chart-svg-gauge {
+    height: 18rem;
+    max-width: 31rem;
+    margin: 0 auto;
+}
+
+.model-message .ac-chart-gauge-track {
+    fill: rgba(156, 163, 175, 0.2);
+}
+
+.model-message .ac-chart-gauge-progress {
+    fill: var(--ac-chart-primary);
+    cursor: pointer;
+    transform-origin: center;
+}
+
+.model-message .ac-chart-gauge-progress.is-active {
+    filter: saturate(1.08) drop-shadow(0 3px 5px rgba(17, 24, 39, 0.12));
+    transform: scale(1.012);
+}
+
+.model-message .ac-chart-gauge-value {
+    fill: var(--ac-chart-text);
+    font-size: 30px;
+    font-weight: 500;
+}
+
+.model-message .ac-chart-gauge-label {
+    fill: var(--ac-chart-muted);
+    font-size: 15px;
+    font-weight: 400;
+}
+
+.model-message .ac-chart-heatmap-cell,
+.model-message .ac-chart-treemap-node,
+.model-message .ac-chart-radar-polygon,
+.model-message .ac-chart-radar-point,
+.model-message .ac-chart-funnel-stage,
+.model-message .ac-chart-waterfall-bar,
+.model-message .ac-chart-sankey-node,
+.model-message .ac-chart-sankey-link,
+.model-message .ac-chart-boxplot-group,
+.model-message .ac-chart-boxplot-outlier,
+.model-message .ac-chart-gantt-item {
+    transition: opacity 220ms ease, transform 220ms ease, stroke 220ms ease, fill 220ms ease, filter 220ms ease;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.model-message .ac-chart-heatmap-cell,
+.model-message .ac-chart-treemap-node,
+.model-message .ac-chart-radar-point,
+.model-message .ac-chart-funnel-stage,
+.model-message .ac-chart-waterfall-bar,
+.model-message .ac-chart-sankey-node,
+.model-message .ac-chart-sankey-link,
+.model-message .ac-chart-boxplot-group,
+.model-message .ac-chart-boxplot-outlier,
+.model-message .ac-chart-gantt-item {
+    cursor: pointer;
+}
+
+.model-message .ac-chart-heatmap-cell {
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 1;
+}
+
+.model-message .ac-chart-heatmap-cell.is-faded {
+    opacity: 0.56;
+}
+
+.model-message .ac-chart-heatmap-cell.is-active {
+    opacity: 1;
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 70%, #ffffff);
+    stroke-width: 2.5;
+    transform: scale(1.035);
+}
+
+.model-message .ac-chart-treemap-node {
+    stroke: rgba(255, 255, 255, 0.82);
+    stroke-width: 2;
+    opacity: 0.78;
+}
+
+.model-message .ac-chart-treemap-node.is-faded {
+    opacity: 0.28;
+    filter: saturate(0.56);
+}
+
+.model-message .ac-chart-treemap-node.is-active {
+    opacity: 0.96;
+    filter: saturate(1.05);
+    transform: scale(1.012);
+}
+
+.model-message .ac-chart-treemap-label,
+.model-message .ac-chart-treemap-value,
+.model-message .ac-chart-funnel-label {
+    fill: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    pointer-events: none;
+}
+
+.model-message .ac-chart-treemap-value {
+    font-size: 13px;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+.model-message .ac-chart-radar-grid {
+    fill: none;
+    stroke: var(--ac-chart-grid);
+    stroke-width: 1;
+}
+
+.model-message .ac-chart-radar-axis {
+    stroke: color-mix(in srgb, var(--ac-chart-muted) 24%, transparent);
+    stroke-width: 1;
+}
+
+.model-message .ac-chart-radar-polygon {
+    fill-opacity: 0.17;
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+
+.model-message .ac-chart-radar-polygon.is-faded {
+    opacity: 0.2;
+}
+
+.model-message .ac-chart-radar-polygon.is-active {
+    opacity: 1;
+    fill-opacity: 0.24;
+}
+
+.model-message .ac-chart-radar-point {
+    stroke: #ffffff;
+    stroke-width: 2;
+}
+
+.model-message .ac-chart-radar-point.is-faded {
+    opacity: 0.28;
+}
+
+.model-message .ac-chart-radar-point.is-active {
+    opacity: 1;
+    transform: scale(1.45);
+}
+
+.model-message .ac-chart-radar-legend {
+    max-width: 28rem;
+    margin-inline: auto;
+}
+
+.model-message .ac-chart-funnel-stage {
+    stroke: rgba(255, 255, 255, 0.74);
+    stroke-width: 2;
+}
+
+.model-message .ac-chart-funnel-stage.is-faded {
+    opacity: 0.27;
+}
+
+.model-message .ac-chart-funnel-stage.is-active {
+    opacity: 0.92;
+    filter: saturate(1.08);
+    transform: scale(1.012);
+}
+
+.model-message .ac-chart-waterfall-bar {
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 1;
+}
+
+.model-message .ac-chart-waterfall-bar.is-total {
+    fill: var(--ac-chart-primary);
+    opacity: 0.86;
+}
+
+.model-message .ac-chart-waterfall-bar.is-positive {
+    fill: #5aa987;
+    opacity: 0.84;
+}
+
+.model-message .ac-chart-waterfall-bar.is-negative {
+    fill: #d48787;
+    opacity: 0.84;
+}
+
+.model-message .ac-chart-waterfall-bar.is-faded {
+    opacity: 0.3;
+}
+
+.model-message .ac-chart-waterfall-bar.is-active {
+    opacity: 1;
+    transform: scale(1.025);
+}
+
+.model-message .ac-chart-waterfall-connector {
+    stroke: color-mix(in srgb, var(--ac-chart-muted) 34%, transparent);
+    stroke-width: 1;
+    stroke-dasharray: 3 5;
+}
+
+.model-message .ac-chart-sankey-link {
+    stroke: var(--ac-chart-primary);
+    stroke-linecap: round;
+    opacity: 0.28;
+    fill: none;
+}
+
+.model-message .ac-chart-sankey-link.is-faded {
+    opacity: 0.08;
+}
+
+.model-message .ac-chart-sankey-link.is-active {
+    opacity: 0.58;
+    filter: saturate(1.08);
+}
+
+.model-message .ac-chart-sankey-node {
+    fill: color-mix(in srgb, var(--ac-chart-primary) 72%, #ffffff);
+    opacity: 0.92;
+}
+
+.model-message .ac-chart-sankey-node.is-faded {
+    opacity: 0.34;
+}
+
+.model-message .ac-chart-sankey-node.is-active {
+    opacity: 1;
+    filter: saturate(1.08);
+    transform: scale(1.025);
+}
+
+.model-message .ac-chart-sankey-label,
+.model-message .ac-chart-gantt-task-label,
+.model-message .ac-chart-gantt-date-label {
+    font-weight: 400;
+}
+
+.model-message .ac-chart-boxplot-whisker,
+.model-message .ac-chart-boxplot-cap {
+    stroke: color-mix(in srgb, var(--ac-chart-muted) 64%, transparent);
+    stroke-width: 1.4;
+    vector-effect: non-scaling-stroke;
+}
+
+.model-message .ac-chart-boxplot-box {
+    fill: color-mix(in srgb, var(--ac-chart-primary) 22%, transparent);
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 70%, #ffffff);
+    stroke-width: 1.4;
+}
+
+.model-message .ac-chart-boxplot-median {
+    stroke: var(--ac-chart-primary);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.model-message .ac-chart-boxplot-outlier {
+    fill: #ffffff;
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 82%, #111827);
+    stroke-width: 1.5;
+}
+
+.model-message .ac-chart-boxplot-group.is-faded,
+.model-message .ac-chart-boxplot-outlier.is-faded {
+    opacity: 0.28;
+}
+
+.model-message .ac-chart-boxplot-group.is-active .ac-chart-boxplot-box,
+.model-message .ac-chart-boxplot-outlier.is-active {
+    filter: saturate(1.08);
+}
+
+.model-message .ac-chart-boxplot-group.is-active .ac-chart-boxplot-median {
+    stroke-width: 2.5;
+}
+
+.model-message .ac-chart-gantt-track {
+    fill: rgba(156, 163, 175, 0.22);
+}
+
+.model-message .ac-chart-gantt-progress {
+    fill: var(--ac-chart-primary);
+    opacity: 0.72;
+    pointer-events: none;
+}
+
+.model-message .ac-chart-gantt-task {
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 56%, transparent);
+    stroke-width: 1.2;
+}
+
+.model-message .ac-chart-gantt-milestone {
+    fill: color-mix(in srgb, var(--ac-chart-primary) 72%, #ffffff);
+    stroke: #ffffff;
+    stroke-width: 1.4;
+}
+
+.model-message .ac-chart-gantt-item.is-faded,
+.model-message .ac-chart-gantt-track.is-faded,
+.model-message .ac-chart-gantt-progress.is-faded {
+    opacity: 0.28;
+}
+
+.model-message .ac-chart-gantt-item.is-active {
+    filter: saturate(1.1) drop-shadow(0 3px 5px rgba(17, 24, 39, 0.12));
+}
+
 @media (min-width: 1025px) {
     .model-message .ac-chart {
         margin-top: 1.15rem;
@@ -379,6 +833,10 @@
     .model-message .ac-chart-svg-donut {
         height: 20.75rem;
     }
+
+    .model-message .ac-chart-svg-gauge {
+        height: 19rem;
+    }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
@@ -394,6 +852,10 @@
 
     .model-message .ac-chart-svg-donut {
         height: 18.75rem;
+    }
+
+    .model-message .ac-chart-svg-gauge {
+        height: 16rem;
     }
 
     .model-message .ac-chart-axis-label,
@@ -423,6 +885,10 @@
 
     .model-message .ac-chart-svg-donut {
         height: 16.75rem;
+    }
+
+    .model-message .ac-chart-svg-gauge {
+        height: 14rem;
     }
 
     .model-message .ac-chart-axis-label,
@@ -468,13 +934,66 @@
     .model-message .ac-chart-legend-value {
         font-size: 0.95rem;
     }
+
+    .model-message .ac-chart-stacked-legend {
+        display: flex;
+        gap: 0.4rem;
+        overflow-x: auto;
+        padding: 0 0 0.25rem;
+        scrollbar-width: thin;
+    }
+
+    .model-message .ac-chart-stacked-legend-item {
+        flex: 0 0 min(9rem, 46%);
+        min-height: 2.35rem;
+    }
+
+    .model-message .ac-chart-kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 0.45rem;
+    }
+
+    .model-message .ac-chart-kpi-item {
+        padding: 0.58rem 0.65rem;
+    }
+
+    .model-message .ac-chart-heatmap-x-label,
+    .model-message .ac-chart-heatmap-y-label,
+    .model-message .ac-chart-radar-axis-label {
+        font-size: 11px;
+    }
+
+    .model-message .ac-chart-radar-legend {
+        display: flex;
+        gap: 0.4rem;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+    }
+
+    .model-message .ac-chart-radar-legend-item {
+        flex: 0 0 min(9rem, 46%);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .model-message .ac-chart-point,
     .model-message .ac-chart-bar,
     .model-message .ac-chart-line,
+    .model-message .ac-chart-area-fill,
     .model-message .ac-chart-donut-segment,
+    .model-message .ac-chart-gauge-progress,
+    .model-message .ac-chart-heatmap-cell,
+    .model-message .ac-chart-treemap-node,
+    .model-message .ac-chart-radar-polygon,
+    .model-message .ac-chart-radar-point,
+    .model-message .ac-chart-funnel-stage,
+    .model-message .ac-chart-waterfall-bar,
+    .model-message .ac-chart-sankey-node,
+    .model-message .ac-chart-sankey-link,
+    .model-message .ac-chart-boxplot-group,
+    .model-message .ac-chart-boxplot-outlier,
+    .model-message .ac-chart-gantt-item,
+    .model-message .ac-chart-kpi-item,
     .model-message .ac-chart-legend-item,
     .model-message .ac-chart-tooltip {
         transition-duration: 1ms;

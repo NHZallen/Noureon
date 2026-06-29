@@ -2,14 +2,61 @@ import { renderBarChart } from './bar-chart.js';
 import { renderDonutChart } from './donut-chart.js';
 import { renderLineChart } from './line-chart.js';
 import { renderScatterChart } from './scatter-chart.js';
+import { renderStackedBarChart } from './stacked-bar-chart.js';
+import { renderAreaChart } from './area-chart.js';
+import { renderBubbleChart } from './bubble-chart.js';
+import { renderHistogramChart } from './histogram-chart.js';
+import { renderKpiCard } from './kpi-card.js';
+import { renderGaugeChart } from './gauge-chart.js';
+import { renderHeatmapChart } from './heatmap-chart.js';
+import { renderTreemapChart } from './treemap-chart.js';
+import { renderRadarChart } from './radar-chart.js';
+import { renderFunnelChart } from './funnel-chart.js';
+import { renderWaterfallChart } from './waterfall-chart.js';
 import { attachChartInteractions } from './chart-interactions.js';
 import { getPrimaryColor } from './chart-utils.js';
+
+const COMPLEX_RENDERER_LOADERS = Object.freeze({
+  sankey: () => import('./sankey-chart.js').then((module) => module.renderSankeyChart),
+  boxplot: () => import('./boxplot-chart.js').then((module) => module.renderBoxplotChart),
+  gantt: () => import('./gantt-chart.js').then((module) => module.renderGanttChart)
+});
+
+function renderDeferredComplexChart(document, chart, options = {}) {
+  const placeholder = document.createElement('div');
+  placeholder.className = 'ac-chart-deferred';
+  placeholder.dataset.chartDeferred = 'true';
+  placeholder.setAttribute('aria-hidden', 'true');
+  Promise.resolve().then(async () => {
+    const renderer = await COMPLEX_RENDERER_LOADERS[chart.type]?.();
+    const article = placeholder.closest?.('.ac-chart');
+    if (!renderer || !article || !placeholder.isConnected) return;
+    placeholder.replaceWith(renderer(document, chart, options));
+    attachChartInteractions(article, chart);
+    article.dataset.chartDeferred = 'false';
+  });
+  return placeholder;
+}
 
 const RENDERERS = Object.freeze({
   scatter: renderScatterChart,
   bar: renderBarChart,
   line: renderLineChart,
-  donut: renderDonutChart
+  donut: renderDonutChart,
+  stackedBar: renderStackedBarChart,
+  area: renderAreaChart,
+  bubble: renderBubbleChart,
+  histogram: renderHistogramChart,
+  kpi: renderKpiCard,
+  gauge: renderGaugeChart,
+  heatmap: renderHeatmapChart,
+  treemap: renderTreemapChart,
+  radar: renderRadarChart,
+  funnel: renderFunnelChart,
+  waterfall: renderWaterfallChart,
+  sankey: renderDeferredComplexChart,
+  boxplot: renderDeferredComplexChart,
+  gantt: renderDeferredComplexChart
 });
 
 const decodeChartPayload = (payload) => {
@@ -57,9 +104,14 @@ function createChartArticle(document, chart, { chartLabel = 'Chart' } = {}) {
   } else {
     caption.appendChild(title);
   }
-  body.appendChild(renderer(document, chart, { labelledBy: titleId }));
+  const renderedChart = renderer(document, chart, { labelledBy: titleId });
+  body.appendChild(renderedChart);
   article.append(caption, body);
-  attachChartInteractions(article, chart);
+  if (renderedChart.dataset?.chartDeferred === 'true') {
+    article.dataset.chartDeferred = 'true';
+  } else {
+    attachChartInteractions(article, chart);
+  }
   return article;
 }
 

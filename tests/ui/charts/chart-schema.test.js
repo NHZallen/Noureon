@@ -110,13 +110,119 @@ test('valid donut chart schema passes and normalizes', () => {
 
 test('invalid type fails gracefully', () => {
   const result = normalizeChartSchema({
-    type: 'area',
+    type: 'candlestick',
     data: [{ label: 'A', value: 1 }]
   });
 
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'invalid-type');
-  assert.deepEqual(SUPPORTED_CHART_TYPES, ['scatter', 'bar', 'line', 'donut']);
+  assert.deepEqual(SUPPORTED_CHART_TYPES, [
+    'scatter', 'bar', 'line', 'donut',
+    'stackedBar', 'area', 'bubble', 'histogram', 'kpi', 'gauge',
+    'heatmap', 'treemap', 'radar', 'funnel', 'waterfall',
+    'sankey', 'boxplot', 'gantt'
+  ]);
+});
+
+test('complex chart schemas normalize safely', () => {
+  const sankey = normalizeChartSchema({
+    type: 'sankey',
+    nodes: [
+      { id: 'search', label: 'Search' },
+      { id: 'signup', label: 'Signup' }
+    ],
+    links: [{ source: 'search', target: 'signup', value: '120' }]
+  });
+  const boxplot = normalizeChartSchema({
+    type: 'boxplot',
+    data: [{ label: 'A', min: 1, q1: 2, median: 3, q3: 4, max: 5, outliers: ['9'] }]
+  });
+  const gantt = normalizeChartSchema({
+    type: 'gantt',
+    data: [
+      { label: 'Build', start: '2026-07-01', end: '2026-07-05', progress: '75', group: 'Dev' },
+      { label: 'Launch', date: '2026-07-08', kind: 'milestone' }
+    ]
+  });
+
+  assert.deepEqual([sankey.ok, boxplot.ok, gantt.ok], [true, true, true]);
+  assert.equal(sankey.chart.links[0].value, 120);
+  assert.equal(boxplot.chart.data[0].outliers[0], 9);
+  assert.equal(gantt.chart.data[0].progress, 75);
+  assert.equal(gantt.chart.data[1].kind, 'milestone');
+});
+
+test('invalid complex schemas fall back safely', () => {
+  assert.equal(normalizeChartSchema({ type: 'sankey', nodes: [{ id: 'a', label: 'A' }], links: [{ source: 'a', target: 'b', value: 1 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'boxplot', data: [{ label: 'A', min: 1, q1: 4, median: 3, q3: 5, max: 6 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'boxplot', data: [{ label: 'A', values: [1, 2, 3, 4] }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'gantt', data: [{ label: 'A', start: '2026-07-05', end: '2026-07-01' }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'gantt', data: [{ label: 'A', date: '2026-99-01', kind: 'milestone' }] }).ok, false);
+});
+
+test('sankey cycles normalize without crashing so the renderer can safely cap layout depth', () => {
+  const result = normalizeChartSchema({
+    type: 'sankey',
+    nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+    links: [{ source: 'a', target: 'b', value: 1 }, { source: 'b', target: 'a', value: 1 }]
+  });
+  assert.equal(result.ok, true);
+});
+
+test('analytical chart schemas normalize safely', () => {
+  const samples = [
+    { type: 'heatmap', data: [{ x: 'Morning', y: 'Monday', value: '24' }] },
+    { type: 'treemap', data: [{ label: 'A', value: '52', group: 'Core' }] },
+    { type: 'radar', min: 0, max: 100, data: [{ label: 'Speed', value: '82' }] },
+    { type: 'radar', min: 0, max: 100, series: [{ key: 'a', label: 'A' }], data: [{ label: 'Speed', a: '82' }] },
+    { type: 'funnel', data: [{ label: 'Visit', value: '100' }] },
+    { type: 'waterfall', data: [{ label: 'Revenue', value: '120', kind: 'start' }, { label: 'Cost', value: '-20' }] }
+  ];
+  const results = samples.map((sample) => normalizeChartSchema(sample));
+  assert.deepEqual(results.map((result) => result.ok), Array(6).fill(true));
+  assert.deepEqual(results[0].chart.data[0], { x: 'Morning', y: 'Monday', value: 24, label: 'Monday / Morning' });
+  assert.equal(results[1].chart.data[0].group, 'Core');
+  assert.equal(results[3].chart.data[0].a, 82);
+  assert.equal(results[5].chart.data[1].kind, 'delta');
+});
+
+test('invalid analytical schemas fall back safely', () => {
+  assert.equal(normalizeChartSchema({ type: 'heatmap', data: [{ x: '', y: 'Monday', value: 1 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'treemap', data: [{ label: 'A', value: -1 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'radar', min: 5, max: 5, data: [{ label: 'A', value: 5 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'funnel', data: [{ label: 'A', value: -1 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'waterfall', data: [{ label: 'A', value: 1, kind: 'subtotal' }] }).ok, false);
+});
+
+test('extended chart schemas normalize safely', () => {
+  const samples = [
+    { type: 'stackedBar', series: [{ key: 'a', label: 'A' }], data: [{ label: 'Jan', a: '4' }] },
+    { type: 'area', data: [{ label: 'Jan', value: '12' }] },
+    { type: 'bubble', data: [{ label: 'A', x: '1', y: '2', size: '30' }] },
+    { type: 'histogram', bins: [{ label: '0–10', min: 0, max: 10, count: '3' }] },
+    { type: 'kpi', data: [{ label: 'Revenue', value: '12', delta: '-2', trend: 'down' }] },
+    { type: 'gauge', label: 'Done', value: '72', min: 0, max: 100 }
+  ];
+  assert.deepEqual(samples.map((sample) => normalizeChartSchema(sample).ok), Array(6).fill(true));
+  assert.equal(normalizeChartSchema(samples[0]).chart.data[0].a, 4);
+  assert.equal(normalizeChartSchema(samples[2]).chart.data[0].size, 30);
+  assert.equal(normalizeChartSchema(samples[3]).chart.data[0].count, 3);
+  assert.equal(normalizeChartSchema(samples[5]).chart.value, 72);
+});
+
+test('histogram raw values are normalized into bins', () => {
+  const result = normalizeChartSchema({ type: 'histogram', data: [1, 2, 2, 8, 9] });
+  assert.equal(result.ok, true);
+  assert.ok(result.chart.data.length >= 2);
+  assert.equal(result.chart.data.reduce((sum, bin) => sum + bin.count, 0), 5);
+});
+
+test('invalid extended schemas fall back safely', () => {
+  assert.equal(normalizeChartSchema({ type: 'stackedBar', series: [], data: [{ label: 'A' }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'bubble', data: [{ x: 1, y: 2, size: -1 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'histogram', bins: [{ min: 10, max: 0, count: 2 }] }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'kpi', data: Array.from({ length: 5 }, (_, i) => ({ label: i, value: i })) }).ok, false);
+  assert.equal(normalizeChartSchema({ type: 'gauge', value: 2, min: 5, max: 5 }).ok, false);
 });
 
 test('empty data fails gracefully', () => {

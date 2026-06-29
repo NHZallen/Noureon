@@ -1,6 +1,4 @@
 import { appendStepPlanAttachmentContent } from './model-request-formatting.js';
-import { CHART_AUTHORING_GUIDANCE } from '../../ui/charts/chart-authoring-guidance.js';
-
 const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/v1/chat/completions';
 
 const LANGUAGE_INSTRUCTIONS = {
@@ -130,12 +128,33 @@ const appendInstructionText = (systemInstruction, text) => {
   return { parts: [{ text }] };
 };
 
+const getMessageTextForGuidance = (message) => (
+  (message?.parts || [])
+    .filter((part) => part?.text)
+    .map((part) => part.text)
+    .join('\n')
+);
+
+const mayNeedChartGuidance = (text) => (
+  /圖表|統計圖|視覺化|趨勢|比較|分布|占比|比例|漏斗|排程|時程|儀表|折線圖|長條圖|柱狀圖|面積圖|散點圖|散佈圖|氣泡圖|環圈圖|甜甜圈圖|圓餅圖|餅圖|直方圖|熱力圖|樹狀圖|雷達圖|瀑布圖|桑基圖|箱型圖|盒鬚圖|甘特圖|用圖呈現|畫成圖|幫我分析這組數據|\b(?:chart|visuali[sz]e|trend|compare|comparison|distribution|percentage|share|schedule|timeline|funnel|KPI|gauge|stacked\s*bar|box\s*plot|boxplot|histogram|waterfall|heat\s*map|heatmap|treemap|scatter|bubble|donut|doughnut|pie|radar|sankey|gantt|area\s*chart|line\s*chart|bar\s*chart)\b/i.test(text) ||
+  /\|[^\n]*\|[^\n]*\n\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?/m.test(text) ||
+  /(?:\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?|(?:\d{1,2}|[一二三四五六七八九十]+)月)[^\n\d-]{0,16}[-+]?\d[\d,]*(?:\.\d+)?/u.test(text) ||
+  text.split(/\r?\n/).filter((line) => /^[-*]?\s*[\p{L}\p{N}\s./年月日-]{1,40}[:：,\t ]+[-+]?\d[\d,]*(?:\.\d+)?\s*%?$/u.test(line.trim())).length >= 2
+);
+
+const getRuntimeChartAuthoringGuidance = async (inputText) => {
+  if (!mayNeedChartGuidance(String(inputText || ''))) return '';
+  const { getChartAuthoringGuidance } = await import('../../ui/charts/chart-selection-policy.js');
+  return getChartAuthoringGuidance(inputText);
+};
+
 const buildSystemInstruction = ({
   config,
   conversation,
   astras,
   personalMemories,
-  additionalSystemInstruction
+  additionalSystemInstruction,
+  chartAuthoringGuidance
 }) => {
   let baseInstructionText = LANGUAGE_INSTRUCTIONS[config.aiDefaultLanguage] || '';
 
@@ -166,7 +185,10 @@ const buildSystemInstruction = ({
     }
   }
 
-  systemInstruction = appendInstructionText(systemInstruction, CHART_AUTHORING_GUIDANCE);
+  systemInstruction = appendInstructionText(
+    systemInstruction,
+    chartAuthoringGuidance
+  );
   return appendInstructionText(systemInstruction, additionalSystemInstruction);
 };
 
@@ -523,12 +545,16 @@ export function createStreamApiCall({
     const historyForApi = requestOptions.historyForApi || conversation.messages.slice(0, -1);
     const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
+    const chartAuthoringGuidance = await getRuntimeChartAuthoringGuidance(
+      getMessageTextForGuidance(currentMessageForApi)
+    );
     const systemInstruction = buildSystemInstruction({
       config: getConfig(),
       conversation,
       astras: getAstras(),
       personalMemories: getPersonalMemories(),
-      additionalSystemInstruction: requestOptions.additionalSystemInstruction
+      additionalSystemInstruction: requestOptions.additionalSystemInstruction,
+      chartAuthoringGuidance
     });
 
     const request = provider === 'gemini'
