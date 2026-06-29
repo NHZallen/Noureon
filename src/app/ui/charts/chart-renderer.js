@@ -23,17 +23,27 @@ const COMPLEX_RENDERER_LOADERS = Object.freeze({
 });
 
 function renderDeferredComplexChart(document, chart, options = {}) {
-  const placeholder = document.createElement('div');
-  placeholder.className = 'ac-chart-deferred';
-  placeholder.dataset.chartDeferred = 'true';
-  placeholder.setAttribute('aria-hidden', 'true');
+  const placeholder = options.placeholder || document.createElement('div');
+  if (!options.placeholder) {
+    placeholder.className = 'ac-chart-deferred';
+    placeholder.dataset.chartDeferred = 'true';
+    placeholder.setAttribute('aria-hidden', 'true');
+  }
+  if (placeholder.acChartLoading) return placeholder;
+  placeholder.acChartLoading = true;
   Promise.resolve().then(async () => {
-    const renderer = await COMPLEX_RENDERER_LOADERS[chart.type]?.();
-    const article = placeholder.closest?.('.ac-chart');
-    if (!renderer || !article || !placeholder.isConnected) return;
-    placeholder.replaceWith(renderer(document, chart, options));
-    attachChartInteractions(article, chart);
-    article.dataset.chartDeferred = 'false';
+    try {
+      const renderer = await COMPLEX_RENDERER_LOADERS[chart.type]?.();
+      const article = placeholder.closest?.('.ac-chart');
+      if (!renderer || !article || !placeholder.isConnected) return;
+      placeholder.replaceWith(renderer(document, chart, options));
+      attachChartInteractions(article, chart);
+      article.dataset.chartDeferred = 'false';
+    } catch {
+      if (!placeholder.isConnected) return;
+      placeholder.removeAttribute('aria-hidden');
+      placeholder.textContent = 'Unable to render chart.';
+    }
   });
   return placeholder;
 }
@@ -119,6 +129,14 @@ export function hydrateChartArticle(article) {
   const chart = decodeChartPayload(article?.dataset?.chartPayload);
   const isUserMessage = Boolean(article?.closest?.('.user-message'));
   if (!chart?.type || isUserMessage) return false;
+  const placeholder = article.querySelector?.('.ac-chart-deferred');
+  if (placeholder) {
+    renderDeferredComplexChart(placeholder.ownerDocument, chart, {
+      labelledBy: article.querySelector?.('.ac-chart-title')?.id,
+      placeholder
+    });
+    return true;
+  }
   return attachChartInteractions(article, chart);
 }
 

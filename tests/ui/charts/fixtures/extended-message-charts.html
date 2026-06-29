@@ -16,7 +16,7 @@
   <main class="model-message" id="charts"></main>
   <script type="module">
     import { createChartPlaceholderElement } from '/src/app/ui/charts/chart-markdown-placeholders.js';
-    import { mountChartPlaceholder } from '/src/app/ui/charts/chart-renderer.js';
+    import { mountChartPlaceholder, observeMessageCharts } from '/src/app/ui/charts/chart-renderer.js';
     import { normalizeChartSchema } from '/src/app/ui/charts/chart-schema.js';
 
     const samples = [
@@ -37,13 +37,16 @@
     ];
 
     const root = document.querySelector('#charts');
-    samples.forEach((sample) => {
+    root.innerHTML = samples.map((sample) => {
       const result = normalizeChartSchema(sample);
       if (!result.ok) throw new Error(`Invalid sample: ${sample.type}`);
-      const placeholder = createChartPlaceholderElement({ document, chart: result.chart, chartLabel: 'Chart' });
-      root.appendChild(placeholder);
+      const detachedDocument = document.implementation.createHTMLDocument('');
+      const placeholder = createChartPlaceholderElement({ document: detachedDocument, chart: result.chart, chartLabel: 'Chart' });
+      detachedDocument.body.appendChild(placeholder);
       mountChartPlaceholder(placeholder, { chartLabel: 'Chart', messageRole: 'assistant' });
-    });
+      return detachedDocument.body.innerHTML;
+    }).join('');
+    observeMessageCharts({ root, chartLabel: 'Chart' });
   </script>
 </body>
 </html>

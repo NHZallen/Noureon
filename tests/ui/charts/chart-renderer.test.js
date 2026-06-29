@@ -95,6 +95,55 @@ test('message observer rehydrates interactions lost through HTML serialization',
   }
 });
 
+test('message observer resumes deferred complex renderers after detached HTML serialization', async () => {
+  const { document, window } = createDocument();
+  const messageList = document.createElement('div');
+  document.body.appendChild(messageList);
+  const observer = observeMessageCharts({ root: messageList, chartLabel: 'Chart' });
+  const charts = [
+    {
+      type: 'boxplot',
+      data: [{ label: 'Group A', min: 10, q1: 20, median: 30, q3: 40, max: 50, outliers: [] }]
+    },
+    {
+      type: 'sankey',
+      nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      links: [{ source: 'a', target: 'b', value: 10 }]
+    },
+    {
+      type: 'gantt',
+      data: [{ label: 'Plan', kind: 'task', start: '2026-07-01', end: '2026-07-05', progress: 0 }]
+    }
+  ];
+
+  try {
+    const serialized = charts.map((chart) => {
+      const detachedDocument = document.implementation.createHTMLDocument('');
+      const placeholder = createChartPlaceholderElement({ document: detachedDocument, chart });
+      detachedDocument.body.appendChild(placeholder);
+      mountChartPlaceholder(placeholder, { messageRole: 'assistant' });
+      return detachedDocument.body.innerHTML;
+    }).join('');
+
+    assert.equal((serialized.match(/data-chart-deferred="true"/g) || []).length, 6);
+
+    const message = document.createElement('div');
+    message.className = 'model-message';
+    message.innerHTML = serialized;
+    messageList.appendChild(message);
+    await new Promise((resolve) => window.setTimeout(resolve, 20));
+
+    assert.ok(message.querySelector('svg.ac-chart-svg-boxplot'));
+    assert.ok(message.querySelector('svg.ac-chart-svg-sankey'));
+    assert.ok(message.querySelector('svg.ac-chart-svg-gantt'));
+    assert.equal(message.querySelector('.ac-chart-deferred'), null);
+    assert.equal(message.querySelectorAll('[data-chart-deferred="false"]').length, 3);
+  } finally {
+    observer?.disconnect();
+    window.close();
+  }
+});
+
 test('mountChartPlaceholders reports mounted and skipped placeholders', () => {
   const { document, window } = createDocument();
 
