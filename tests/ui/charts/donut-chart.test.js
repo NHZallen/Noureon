@@ -65,6 +65,40 @@ test('donut segment state syncs active and faded legend items', () => {
     assert.equal(legend.getAttribute('aria-pressed'), 'true');
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /B/);
     assert.match(article.querySelector('.ac-chart-tooltip').textContent, /30%/);
+    assert.equal(article.querySelectorAll('.ac-chart-tooltip-row').length, 2);
+  } finally {
+    window.close();
+  }
+});
+
+test('donut segment and legend clicks pin and switch the same selected state', () => {
+  const { window, article, svg } = createChartFixture({
+    type: 'donut',
+    title: 'Share',
+    data: [
+      { label: 'A', value: 40 },
+      { label: 'B', value: 30 },
+      { label: 'C', value: 20 }
+    ]
+  });
+
+  try {
+    const segment = article.querySelector('.ac-chart-donut-segment[data-chart-index="1"]');
+    const legend = article.querySelector('.ac-chart-legend-item[data-chart-index="2"]');
+    dispatchChartPointer(window, segment, 'pointerdown', { x: 260, y: 150, pointerType: 'mouse' });
+    dispatchChartPointer(window, segment, 'click', { x: 260, y: 150, pointerType: 'mouse' });
+    dispatchChartPointer(window, article, 'pointerleave', { pointerType: 'mouse' });
+    assert.equal(article.dataset.chartActiveIndex, '1');
+
+    dispatchChartPointer(window, legend, 'pointerdown', { x: 180, y: 340, pointerType: 'mouse' });
+    dispatchChartPointer(window, legend, 'click', { x: 180, y: 340, pointerType: 'mouse' });
+    assert.equal(article.dataset.chartActiveIndex, '2');
+    assert.equal(legend.classList.contains('is-selected'), true);
+    assert.equal(article.querySelector('.ac-chart-donut-segment[data-chart-index="2"]').classList.contains('is-active'), true);
+
+    dispatchChartPointer(window, svg, 'pointerdown', { x: 4, y: 4, pointerType: 'mouse' });
+    dispatchChartPointer(window, svg, 'click', { x: 4, y: 4, pointerType: 'mouse' });
+    assert.equal(article.dataset.chartActiveIndex, '');
   } finally {
     window.close();
   }

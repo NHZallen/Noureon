@@ -251,8 +251,9 @@
     color: #ffffff;
 }
 
-.model-message .ac-chart-tooltip strong {
+.model-message .ac-chart-tooltip-value.is-strong {
     font-weight: 600;
+    color: #ffffff;
 }
 
 .model-message .ac-chart-donut-layout {
@@ -312,29 +313,11 @@
     border-radius: 0.8rem;
     transition: background 220ms ease, opacity 220ms ease;
     cursor: pointer;
-    position: relative;
-}
-
-.model-message .ac-chart-legend-item::before {
-    position: absolute;
-    inset: 0.32rem auto 0.32rem 0;
-    width: 3px;
-    border-radius: 999px;
-    background: var(--ac-chart-primary);
-    content: "";
-    opacity: 0;
-    transition: opacity 220ms ease;
-    pointer-events: none;
 }
 
 .model-message .ac-chart-legend-item.is-selected,
 .model-message .ac-chart-legend-item.is-active {
     background: rgba(17, 24, 39, 0.055);
-    opacity: 1;
-}
-
-.model-message .ac-chart-legend-item.is-selected::before,
-.model-message .ac-chart-legend-item.is-active::before {
     opacity: 1;
 }
 
@@ -348,10 +331,6 @@
 
 .model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-legend-item[data-chart-active="true"] {
     background: rgba(17, 24, 39, 0.075);
-    opacity: 1;
-}
-
-.model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-legend-item[data-chart-active="true"]::before {
     opacity: 1;
 }
 

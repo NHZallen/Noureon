@@ -1,6 +1,5 @@
 import {
   CHART_VIEWBOX,
-  createSmoothPathData,
   formatChartNumber,
   getPlotBox
 } from './chart-utils.js';
@@ -176,9 +175,9 @@ const clearTooltip = (tooltip) => {
 
 const appendTooltipRow = (document, tooltip, label, value, { strong = false } = {}) => {
   const row = document.createElement('div');
-  const valueNode = document.createElement(strong ? 'strong' : 'span');
+  const valueNode = document.createElement('span');
   row.className = 'ac-chart-tooltip-row';
-  valueNode.className = 'ac-chart-tooltip-value';
+  valueNode.className = `ac-chart-tooltip-value${strong ? ' is-strong' : ''}`;
   if (label) {
     const labelNode = document.createElement('span');
     labelNode.className = 'ac-chart-tooltip-label';
@@ -203,7 +202,6 @@ const getTooltipRows = (chart, datum, type) => {
   if (type === 'donut') {
     return [
       ['', label, true],
-      ['', `${formatChartNumber(datum.value)}${unit}`],
       ['', `${formatChartNumber(datum.percentage)}%`]
     ];
   }
@@ -332,20 +330,24 @@ const updateLineSegments = (article, activeIndex) => {
     x: Number(point.getAttribute('cx')),
     y: Number(point.getAttribute('cy'))
   }));
-  const past = article.querySelector('.ac-chart-line-past');
-  const future = article.querySelector('.ac-chart-line-future');
+  const pastClip = article.querySelector('.ac-chart-line-past-clip');
+  const futureClip = article.querySelector('.ac-chart-line-future-clip');
   const plotBox = getPlotBox();
-  if (!past || !future || !points.length) return;
+  if (!pastClip || !futureClip || !points.length) return;
   if (!Number.isFinite(activeIndex)) {
-    past.setAttribute('d', createSmoothPathData(points, plotBox));
-    future.setAttribute('d', createSmoothPathData(points, plotBox));
-    future.classList.add('is-faded');
+    pastClip.setAttribute('x', String(plotBox.x));
+    pastClip.setAttribute('width', String(plotBox.width));
+    futureClip.setAttribute('x', String(plotBox.right));
+    futureClip.setAttribute('width', '0');
     return;
   }
   const boundedIndex = Math.min(Math.max(0, activeIndex), points.length - 1);
-  past.setAttribute('d', createSmoothPathData(points.slice(0, boundedIndex + 1), plotBox));
-  future.setAttribute('d', createSmoothPathData(points.slice(boundedIndex), plotBox));
-  future.classList.add('is-faded');
+  const activeX = points[boundedIndex].x;
+  const overlap = 1;
+  pastClip.setAttribute('x', String(plotBox.x));
+  pastClip.setAttribute('width', String(Math.max(0, activeX - plotBox.x + overlap)));
+  futureClip.setAttribute('x', String(Math.max(plotBox.x, activeX - overlap)));
+  futureClip.setAttribute('width', String(Math.max(0, plotBox.right - activeX + overlap)));
 };
 
 const clearActiveState = (article, chart) => {
@@ -453,11 +455,13 @@ export function attachChartInteractions(article, chart) {
   article.dataset.chartInteractions = 'true';
   let ignoreNextClick = false;
   let lastPointerType = '';
+  let pinnedIndex = null;
 
   const activateFromEvent = (event) => {
     if (type === 'scatter' || type === 'line') {
       return handleNearestActive({ article, chart, tooltip, type, event });
     }
+    if (type === 'donut' && event.type === 'pointermove' && pinnedIndex !== null) return true;
     return handleDirectActive({ article, chart, tooltip, type, event });
   };
 
@@ -465,12 +469,26 @@ export function attachChartInteractions(article, chart) {
   article.addEventListener('pointerdown', (event) => {
     lastPointerType = event.pointerType || '';
     ignoreNextClick = activateFromEvent(event);
+    if (type === 'donut') {
+      const target = getTargetElement(article, type, event.target);
+      pinnedIndex = target ? getElementIndex(target) : null;
+    }
     if (!ignoreNextClick) {
       clearActiveState(article, chart);
       clearTooltip(tooltip);
     }
   });
   article.addEventListener('click', (event) => {
+    if (type === 'donut') {
+      const target = getTargetElement(article, type, event.target);
+      if (target) {
+        pinnedIndex = getElementIndex(target);
+        ignoreNextClick = false;
+        handleDirectActive({ article, chart, tooltip, type, event });
+        return;
+      }
+      pinnedIndex = null;
+    }
     if (ignoreNextClick) {
       ignoreNextClick = false;
       return;
@@ -482,6 +500,7 @@ export function attachChartInteractions(article, chart) {
   });
   moveTarget?.addEventListener('touchmove', activateFromEvent, { passive: true });
   article.addEventListener('pointerleave', (event) => {
+    if (type === 'donut' && pinnedIndex !== null) return;
     if (event.pointerType === 'touch' || lastPointerType === 'touch') return;
     ignoreNextClick = false;
     clearActiveState(article, chart);
@@ -493,11 +512,13 @@ export function attachChartInteractions(article, chart) {
     if (target) handleDirectActive({ article, chart, tooltip, type, event });
   });
   article.addEventListener('focusout', () => {
+    if (type === 'donut' && pinnedIndex !== null) return;
     clearActiveState(article, chart);
     clearTooltip(tooltip);
   });
   article.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      pinnedIndex = null;
       clearActiveState(article, chart);
       clearTooltip(tooltip);
     }

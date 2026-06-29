@@ -14,6 +14,8 @@ import {
   appendSvgElement
 } from './chart-utils.js';
 
+let lineChartId = 0;
+
 export function renderLineChart(document, chart, options = {}) {
   const svg = createChartSvg(document, {
     className: 'ac-chart-svg-line',
@@ -40,16 +42,39 @@ export function renderLineChart(document, chart, options = {}) {
   createAxisTitles(svg, chart, { plotBox });
   createInteractionOverlay(svg, { plotBox, className: 'ac-chart-line-hit-area' });
 
+  lineChartId += 1;
+  const pastClipId = `ac-chart-line-past-clip-${lineChartId}`;
+  const futureClipId = `ac-chart-line-future-clip-${lineChartId}`;
+  const defs = appendSvgElement(svg, 'defs');
+  const pastClip = appendSvgElement(defs, 'clipPath', { id: pastClipId });
+  const futureClip = appendSvgElement(defs, 'clipPath', { id: futureClipId });
+  appendSvgElement(pastClip, 'rect', {
+    class: 'ac-chart-line-past-clip',
+    x: plotBox.x,
+    y: plotBox.y,
+    width: plotBox.width,
+    height: plotBox.height
+  });
+  appendSvgElement(futureClip, 'rect', {
+    class: 'ac-chart-line-future-clip',
+    x: plotBox.right,
+    y: plotBox.y,
+    width: 0,
+    height: plotBox.height
+  });
+
   const layer = appendSvgElement(svg, 'g', { class: 'ac-chart-series ac-chart-line-series' });
   appendSvgElement(layer, 'path', {
     class: 'ac-chart-line ac-chart-line-past',
     d: createSmoothPathData(points, plotBox),
-    fill: 'none'
+    fill: 'none',
+    'clip-path': `url(#${pastClipId})`
   });
   appendSvgElement(layer, 'path', {
     class: 'ac-chart-line ac-chart-line-future is-faded',
     d: createSmoothPathData(points, plotBox),
-    fill: 'none'
+    fill: 'none',
+    'clip-path': `url(#${futureClipId})`
   });
   points.forEach((point) => {
     appendSvgElement(layer, 'circle', {
