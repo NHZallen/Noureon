@@ -271,3 +271,39 @@ test('malformed JSON fails without throwing', () => {
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'malformed-json');
 });
+
+test('common Chart.js-shaped model output is adapted for all supported chart types', () => {
+  const samples = [
+    { type: 'line', data: { labels: ['Jan', 'Feb'], datasets: [{ label: 'Sales', data: [12, 19] }] } },
+    { type: 'area', data: { labels: ['Jan', 'Feb'], datasets: [{ data: [5, 7] }] } },
+    { type: 'bar', data: { labels: ['A', 'B'], datasets: [{ data: [10, 20] }] } },
+    { type: 'stackedBar', data: { labels: ['Q1'], datasets: [{ label: 'Online', data: [12] }, { label: 'Store', data: [8] }] } },
+    { type: 'donut', data: { labels: ['Direct', 'Search'], datasets: [{ data: [30, 50] }] } },
+    { type: 'treemap', data: [{ label: 'A', value: 40 }] },
+    { type: 'scatter', data: { datasets: [{ label: 'Points', data: [{ x: 10, y: 20 }] }] } },
+    { type: 'bubble', data: { datasets: [{ label: 'Markets', data: [{ x: 20, y: 30, r: 10 }] }] } },
+    { type: 'histogram', data: { bins: [0, 10, 20], datasets: [{ data: [5, 15] }] } },
+    { type: 'boxplot', data: { labels: ['A'], datasets: [{ data: [{ min: 10, q1: 20, median: 30, q3: 40, max: 50 }] }] } },
+    { type: 'heatmap', data: { xLabels: ['Mon', 'Tue'], yLabels: ['AM'], datasets: [{ data: [[10, 20]] }] } },
+    { type: 'radar', data: { labels: ['Speed', 'Power'], datasets: [{ label: 'A', data: [80, 70] }, { label: 'B', data: [70, 85] }] } },
+    { type: 'funnel', data: { stages: ['Visit', 'Buy'], datasets: [{ data: [1000, 100] }] } },
+    { type: 'waterfall', data: { labels: ['Start', 'Gain', 'End'], datasets: [{ data: [100, 50, 150] }] } },
+    { type: 'sankey', data: { nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], links: [{ source: 'a', target: 'b', value: 10 }] } },
+    { type: 'gantt', data: { tasks: [{ name: 'Plan', start: '2026-07-01', end: '2026-07-05' }] } },
+    { type: 'kpi', data: { indicators: [{ label: 'Revenue', value: 125, change: 12.5 }] } },
+    { type: 'gauge', data: { value: 75, min: 0, max: 100, label: 'Done' } }
+  ];
+
+  const results = samples.map((sample) => normalizeChartSchema(sample));
+  assert.deepEqual(results.map((result) => result.ok), Array(18).fill(true));
+  assert.deepEqual(results[0].chart.data[0], { label: 'Jan', value: 12 });
+  assert.equal(results[3].chart.series.length, 2);
+  assert.equal(results[7].chart.data[0].size, 10);
+  assert.equal(results[8].chart.data[1].count, 15);
+  assert.equal(results[11].chart.series.length, 2);
+  assert.equal(results[13].chart.data[2].kind, 'end');
+  assert.equal(results[14].chart.links[0].target, 'b');
+  assert.equal(results[15].chart.data[0].label, 'Plan');
+  assert.equal(results[16].chart.data[0].delta, 12.5);
+  assert.equal(results[17].chart.value, 75);
+});

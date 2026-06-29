@@ -355,7 +355,121 @@ const copyTextFields = (input, normalized, keys) => {
   return { ok: true };
 };
 
+const legacySeriesKey = (index) => `series${index + 1}`;
+
+const legacyLabelValueRows = (labels, values) => {
+  if (!Array.isArray(labels) || !Array.isArray(values) || labels.length !== values.length) return null;
+  return labels.map((label, index) => ({ label, value: values[index] }));
+};
+
+// Models commonly know the Chart.js-shaped `data.labels/datasets` format. The
+// message chart API intentionally uses a smaller schema, so translate only
+// recognized legacy shapes before applying the normal strict validation.
+const adaptLegacyNestedSchema = (input) => {
+  if (!isRecord(input) || !isRecord(input.data)) return input;
+  const payload = input.data;
+  const datasets = Array.isArray(payload.datasets) ? payload.datasets.filter(isRecord) : [];
+  const firstDataset = datasets[0];
+  const labels = Array.isArray(payload.labels) ? payload.labels : null;
+  const adapted = { ...input };
+
+  if (['bar', 'line', 'area', 'donut'].includes(input.type)) {
+    const rows = legacyLabelValueRows(labels, firstDataset?.data);
+    if (rows) adapted.data = rows;
+  } else if (input.type === 'stackedBar' && labels && datasets.length) {
+    adapted.series = datasets.map((dataset, index) => ({
+      key: legacySeriesKey(index),
+      label: dataset.label ?? `Series ${index + 1}`
+    }));
+    adapted.data = labels.map((label, labelIndex) => {
+      const row = { label };
+      datasets.forEach((dataset, datasetIndex) => {
+        row[legacySeriesKey(datasetIndex)] = Array.isArray(dataset.data) ? dataset.data[labelIndex] : undefined;
+      });
+      return row;
+    });
+  } else if (['scatter', 'bubble'].includes(input.type) && datasets.length) {
+    adapted.data = datasets.flatMap((dataset, datasetIndex) => (
+      Array.isArray(dataset.data)
+        ? dataset.data.map((point, pointIndex) => ({
+          ...(isRecord(point) ? point : {}),
+          label: isRecord(point) && point.label != null
+            ? point.label
+            : `${dataset.label ?? `Series ${datasetIndex + 1}`} ${pointIndex + 1}`,
+          ...(input.type === 'bubble' && isRecord(point) && point.size == null && point.r != null ? { size: point.r } : {})
+        }))
+        : []
+    ));
+  } else if (input.type === 'histogram' && Array.isArray(payload.bins) && Array.isArray(firstDataset?.data)) {
+    if (payload.bins.length === firstDataset.data.length + 1) {
+      adapted.bins = firstDataset.data.map((count, index) => ({
+        label: `${payload.bins[index]}–${payload.bins[index + 1]}`,
+        min: payload.bins[index],
+        max: payload.bins[index + 1],
+        count
+      }));
+    }
+  } else if (input.type === 'boxplot' && labels && Array.isArray(firstDataset?.data)) {
+    adapted.data = firstDataset.data.map((summary, index) => ({
+      ...(isRecord(summary) ? summary : {}),
+      label: labels[index] ?? `Group ${index + 1}`
+    }));
+  } else if (input.type === 'heatmap' && Array.isArray(payload.xLabels) && Array.isArray(payload.yLabels)) {
+    const matrix = firstDataset?.data;
+    if (Array.isArray(matrix)) {
+      adapted.data = payload.yLabels.flatMap((y, yIndex) => (
+        Array.isArray(matrix[yIndex])
+          ? payload.xLabels.map((x, xIndex) => ({ x, y, value: matrix[yIndex][xIndex] }))
+          : []
+      ));
+    }
+  } else if (input.type === 'radar' && labels && datasets.length) {
+    if (datasets.length === 1) {
+      adapted.data = legacyLabelValueRows(labels, firstDataset.data) ?? payload;
+    } else {
+      adapted.series = datasets.map((dataset, index) => ({
+        key: legacySeriesKey(index),
+        label: dataset.label ?? `Series ${index + 1}`
+      }));
+      adapted.data = labels.map((label, labelIndex) => {
+        const row = { label };
+        datasets.forEach((dataset, datasetIndex) => {
+          row[legacySeriesKey(datasetIndex)] = Array.isArray(dataset.data) ? dataset.data[labelIndex] : undefined;
+        });
+        return row;
+      });
+    }
+  } else if (input.type === 'funnel' && Array.isArray(payload.stages)) {
+    const rows = legacyLabelValueRows(payload.stages, firstDataset?.data);
+    if (rows) adapted.data = rows;
+  } else if (input.type === 'waterfall' && labels && Array.isArray(firstDataset?.data)) {
+    const rows = legacyLabelValueRows(labels, firstDataset.data);
+    if (rows) adapted.data = rows.map((row, index) => ({
+      ...row,
+      kind: index === 0 ? 'start' : (index === rows.length - 1 ? 'end' : 'delta')
+    }));
+  } else if (input.type === 'sankey' && Array.isArray(payload.nodes) && Array.isArray(payload.links)) {
+    adapted.nodes = payload.nodes;
+    adapted.links = payload.links;
+  } else if (input.type === 'gantt' && Array.isArray(payload.tasks)) {
+    adapted.data = payload.tasks.map((task) => ({
+      ...(isRecord(task) ? task : {}),
+      label: isRecord(task) ? (task.label ?? task.name) : undefined
+    }));
+  } else if (input.type === 'kpi' && Array.isArray(payload.indicators)) {
+    adapted.data = payload.indicators.map((indicator) => ({
+      ...(isRecord(indicator) ? indicator : {}),
+      ...(isRecord(indicator) && indicator.delta == null && indicator.change != null ? { delta: indicator.change } : {})
+    }));
+  } else if (input.type === 'gauge') {
+    Object.assign(adapted, payload);
+  }
+
+  return adapted;
+};
+
 export function normalizeChartSchema(input, options = {}) {
+  input = adaptLegacyNestedSchema(input);
   if (!isRecord(input)) return fail('invalid-chart');
   const type = normalizeString(input.type, { required: true, maxLength: 20 });
   if (!type.ok || !CHART_TYPES.has(type.value)) return fail('invalid-type');

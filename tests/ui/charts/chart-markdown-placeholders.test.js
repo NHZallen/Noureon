@@ -244,3 +244,36 @@ test('sample chart markdown renders all twelve fixture chart types for manual QA
     window.close();
   }
 });
+
+test('nested model-generated chart payloads render instead of remaining code blocks', () => {
+  const { helpers, window } = createMarkdownHarness();
+
+  try {
+    const html = helpers.renderMarkdown(`\`\`\`chart
+{
+  "type": "bar",
+  "data": {
+    "labels": ["A", "B"],
+    "datasets": [{ "label": "Sales", "data": [100, 200] }]
+  }
+}
+\`\`\`
+
+\`\`\`chart
+{
+  "type": "sankey",
+  "data": {
+    "nodes": [{ "id": "a", "label": "A" }, { "id": "b", "label": "B" }],
+    "links": [{ "source": "a", "target": "b", "value": 10 }]
+  }
+}
+\`\`\``);
+
+    assert.equal((html.match(/class="ac-chart ac-chart-/g) || []).length, 2);
+    assert.match(html, /data-chart-type="bar"/);
+    assert.match(html, /data-chart-type="sankey"/);
+    assert.doesNotMatch(html, /<code class="language-chart">/);
+  } finally {
+    window.close();
+  }
+});

@@ -28,6 +28,7 @@ Output charts only as fenced JSON:
 { "type": "...", "...": "..." }
 \`\`\`
 Do not use Mermaid, ASCII charts, raw HTML/SVG, or ordinary \`json\` fences for chart payloads. Use numeric JSON values for numeric fields.
+Use this app's native schema at the chart root. Never use Chart.js-style \`data.labels\`, \`data.datasets\`, \`data.tasks\`, or nested \`data.nodes/links\`. Most charts use root \`data: [{ "label": "...", "value": 0 }]\`; scatter/bubble use root x/y/size rows. Sankey uses root nodes+links, gauge uses root value/min/max, and histogram uses root bins.
 
 Selection policy: line=time trend; area=trend with volume emphasis; bar=category comparison; stackedBar=category comparison split by series; donut=simple part-to-whole with few categories; treemap=part-to-whole with many categories; scatter=x/y relationship; bubble=x/y plus size; histogram=numeric distribution; boxplot=distribution comparison with quartiles/outliers; heatmap=two categorical dimensions; radar=multi-dimensional scores; funnel=stage conversion/drop-off; waterfall=start plus positive/negative contributions plus end; sankey=flow between nodes only; gantt=tasks with start/end dates or milestones only; kpi=few headline metrics; gauge=one bounded progress/score.
 
