@@ -19,6 +19,8 @@ const INTERACTIVE_CLASSES = Object.freeze({
   donut: ['ac-chart-donut-segment', 'ac-chart-legend-item']
 });
 
+const BOUND_CHARTS = new WeakSet();
+
 const parseViewBox = (svg) => {
   const values = String(svg?.getAttribute?.('viewBox') || '')
     .split(/\s+/)
@@ -440,13 +442,14 @@ const handleNearestActive = ({ article, chart, tooltip, type, event }) => {
 };
 
 export function attachChartInteractions(article, chart) {
-  if (!article?.querySelector || !chart?.type || article.dataset.chartInteractions === 'true') {
+  if (!article?.querySelector || !chart?.type || BOUND_CHARTS.has(article)) {
     return false;
   }
   const type = chart.type;
   const tooltip = article.querySelector('.ac-chart-tooltip') || createTooltip(article);
   const svg = article.querySelector('svg');
   const moveTarget = type === 'scatter' || type === 'line' ? svg : article;
+  BOUND_CHARTS.add(article);
   article.dataset.chartInteractions = 'true';
   let ignoreNextClick = false;
   let lastPointerType = '';

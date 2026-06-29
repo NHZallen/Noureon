@@ -23,7 +23,9 @@ test('renders bar chart with rounded bars and value labels', () => {
     const overlay = svg.querySelector('.ac-chart-bar-hit-area[data-chart-hit-area="plot"]');
     assert.ok(overlay);
     assert.equal(bars.length, 2);
-    assert.equal(bars[0].getAttribute('rx'), '12');
+    assert.equal(bars[0].tagName.toLowerCase(), 'path');
+    assert.equal(bars[0].dataset.chartShape, 'top-rounded');
+    assert.match(bars[0].getAttribute('d'), /Q .* L .* Z$/);
     assert.match(bars[0].getAttribute('aria-label'), /A: 120 items/);
     const labels = [...svg.querySelectorAll('.ac-chart-bar-value')];
     assert.deepEqual(labels.map((node) => node.textContent), ['120', '95']);
@@ -54,7 +56,7 @@ test('bar labels constrain long values and short bars keep a natural radius', ()
     const tinyBar = svg.querySelector('.ac-chart-bar[data-chart-index="0"]');
     const longLabel = svg.querySelector('.ac-chart-bar-value[data-chart-label-placement="outside"]:last-of-type');
 
-    assert.ok(Number(tinyBar.getAttribute('rx')) <= Number(tinyBar.getAttribute('height')) / 2);
+    assert.ok(Number(tinyBar.dataset.chartBarRadius) <= Number(tinyBar.dataset.chartBarHeight));
     assert.ok(Number(longLabel.getAttribute('textLength')) <= 72);
     assert.equal(longLabel.getAttribute('lengthAdjust'), 'spacingAndGlyphs');
   } finally {

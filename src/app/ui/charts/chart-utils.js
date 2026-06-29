@@ -116,6 +116,21 @@ export function createSmoothPathData(points, bounds = getPlotBox()) {
   return commands.join(' ');
 }
 
+export function createTopRoundedRectPath({ x, y, width, height, radius }) {
+  const safeRadius = Math.min(Math.max(0, radius), width / 2, height);
+  const right = x + width;
+  const bottom = y + height;
+  return [
+    `M ${x} ${bottom}`,
+    `L ${x} ${y + safeRadius}`,
+    `Q ${x} ${y} ${x + safeRadius} ${y}`,
+    `L ${right - safeRadius} ${y}`,
+    `Q ${right} ${y} ${right} ${y + safeRadius}`,
+    `L ${right} ${bottom}`,
+    'Z'
+  ].join(' ');
+}
+
 export function getNumberRange(values, { includeZero = false } = {}) {
   const finiteValues = values.filter(Number.isFinite);
   let min = finiteValues.length ? Math.min(...finiteValues) : 0;

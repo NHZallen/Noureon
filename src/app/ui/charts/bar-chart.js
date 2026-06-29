@@ -3,6 +3,7 @@ import {
   createChartSvg,
   createGrid,
   createInteractionOverlay,
+  createTopRoundedRectPath,
   createXAxisLabels,
   formatChartNumber,
   getNumberRange,
@@ -41,7 +42,7 @@ export function renderBarChart(document, chart, options = {}) {
     const y = yScale(Math.max(row.value, 0));
     const baseY = yScale(0);
     const height = Math.max(2, baseY - y);
-    const radius = Math.min(12, barWidth / 2, height / 2);
+    const radius = Math.min(12, barWidth / 2, height);
     const valueText = formatChartNumber(row.value);
     const estimatedTextWidth = Math.max(8, valueText.length * 8);
     const maxTextWidth = Math.max(12, Math.min(slotWidth - 8, 72));
@@ -51,20 +52,21 @@ export function renderBarChart(document, chart, options = {}) {
       plotBox.right - labelHalfWidth
     );
     const labelY = Math.min(plotBox.bottom - 8, Math.max(plotBox.y + 14, y - 10));
-    appendSvgElement(layer, 'rect', {
+    appendSvgElement(layer, 'path', {
       class: 'ac-chart-bar',
-      x,
-      y,
-      width: barWidth,
-      height,
-      rx: radius,
-      ry: radius,
+      d: createTopRoundedRectPath({ x, y, width: barWidth, height, radius }),
       tabindex: 0,
       'data-chart-interactive': 'true',
       'aria-label': `${row.label}: ${formatChartNumber(row.value)}${chart.unit ? ` ${chart.unit}` : ''}`,
       'data-chart-index': index,
       'data-chart-label': row.label,
-      'data-chart-value': row.value
+      'data-chart-value': row.value,
+      'data-chart-bar-x': x,
+      'data-chart-bar-y': y,
+      'data-chart-bar-width': barWidth,
+      'data-chart-bar-height': height,
+      'data-chart-bar-radius': radius,
+      'data-chart-shape': 'top-rounded'
     });
     const label = appendSvgElement(layer, 'text', {
       class: 'ac-chart-value-label ac-chart-bar-value',

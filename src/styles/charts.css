@@ -117,6 +117,15 @@
     cursor: pointer;
 }
 
+.model-message .ac-chart .ac-chart-line-point:not(.is-active) {
+    opacity: 0;
+}
+
+.model-message .ac-chart .ac-chart-line-point.is-active,
+.model-message .ac-chart .ac-chart-line-point:focus-visible {
+    opacity: 1;
+}
+
 .model-message .ac-chart-bar {
     opacity: 0.86;
     stroke: none;

@@ -38,6 +38,7 @@ import {
 } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
 import { createHistorySidebarHelpers } from '/src/app/runtime/legacy-core/history-sidebar-helpers.js';
 import { createMarkdownRenderingHelpers } from '/src/app/runtime/legacy-core/markdown-rendering-helpers.js';
+import { observeMessageCharts } from '/src/app/ui/charts/chart-renderer.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
@@ -628,6 +629,10 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getUiLanguage: () => runtimeConfigAccess.getConfig().uiLanguage,
             getText: (key, fallback) => i18n[runtimeConfigAccess.getConfig().uiLanguage]?.[key] || fallback,
             logger: console
+        });
+        observeMessageCharts({
+            root: ALL_ELEMENTS.messageList,
+            chartLabel: i18n[runtimeConfigAccess.getConfig().uiLanguage]?.chart || 'Chart'
         });
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
         const loadConfig = async () => {

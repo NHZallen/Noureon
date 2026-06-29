@@ -152,6 +152,7 @@ test('chart focus and typography avoid black focus frames and heavy inherited SV
   assert.match(css, /\.ac-chart-axis-label,[^{]*\.ac-chart-axis-title\s*\{[^}]*font-weight:\s*400;/s);
   assert.match(css, /\.ac-chart\s+text\.ac-chart-value-label\s*\{[^}]*font-weight:\s*500;/s);
   assert.match(css, /\.ac-chart-bar\s*\{[^}]*stroke:\s*none;/s);
+  assert.match(css, /\.ac-chart\s+\.ac-chart-line-point:not\(\.is-active\)\s*\{[^}]*opacity:\s*0;/s);
   assert.match(css, /\.ac-chart\s+text\s*\{[^}]*stroke:\s*none;[^}]*text-shadow:\s*none;/s);
   assert.match(css, /\.ac-chart-axis-title\s*\{[^}]*font-weight:\s*400;/s);
   assert.match(css, /\[data-chart-interactive="true"\]:focus-visible\s*\{[^}]*drop-shadow/s);
