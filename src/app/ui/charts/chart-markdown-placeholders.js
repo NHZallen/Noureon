@@ -1,6 +1,7 @@
 import { parseAndNormalizeChartSchema } from './chart-schema.js';
+import { parseAndNormalizeEChartsOption } from './echarts-option-adapter.js';
 
-const CHART_CODE_CLASS_PATTERN = /(?:^|\s)language-(chart|json)(?:\s|$)/;
+const CHART_CODE_CLASS_PATTERN = /(?:^|\s)language-(chart|json|javascript|js)(?:\s|$)/;
 
 const getCodeBlockLanguage = (codeElement) => {
   const className = codeElement?.getAttribute?.('class') || '';
@@ -52,9 +53,15 @@ export function applyChartMarkdownPlaceholders({
   codeBlocks.forEach((codeElement) => {
     if (codeElement.closest?.('.user-message')) return;
     const language = getCodeBlockLanguage(codeElement);
-    if (language !== 'chart' && language !== 'json') return;
+    if (!['chart', 'json', 'javascript', 'js'].includes(language)) return;
 
-    const result = normalizeChart(codeElement.textContent || '');
+    const source = codeElement.textContent || '';
+    const result = (language === 'javascript' || language === 'js')
+      ? parseAndNormalizeEChartsOption(source)
+      : (() => {
+        const normalized = normalizeChart(source);
+        return normalized.ok ? normalized : parseAndNormalizeEChartsOption(source);
+      })();
     if (!result.ok) {
       skipped += 1;
       return;

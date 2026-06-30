@@ -89,6 +89,29 @@ test('valid json chart fenced block becomes rendered chart', () => {
   }
 });
 
+test('ECharts javascript option fenced block becomes rendered chart', () => {
+  const { helpers, window } = createMarkdownHarness();
+
+  try {
+    const html = helpers.renderMarkdown(`\`\`\`javascript
+option = {
+  title: { text: '2024年各產品線銷售額對比' },
+  tooltip: { trigger: 'axis' },
+  xAxis: { type: 'category', data: ['消費電子','智能家居'] },
+  yAxis: { type: 'value', name: '銷售額（萬元）' },
+  series: [{ type: 'bar', data: [3200,1800] }]
+};
+\`\`\``);
+
+    assert.match(html, /class="ac-chart ac-chart-bar"/);
+    assert.match(html, /data-chart-type="bar"/);
+    assert.doesNotMatch(html, /language-javascript/);
+    assert.match(html, /2024年各產品線銷售額對比/);
+  } finally {
+    window.close();
+  }
+});
+
 test('non-chart JSON code block remains normal code block', () => {
   const { helpers, window } = createMarkdownHarness();
 
