@@ -601,11 +601,21 @@
     }
 .generated-image-card {
     position: relative;
-    width: min(100%, 40rem);
+    width: min(100%, 48rem);
     overflow: hidden;
     border-radius: 1.5rem;
     background: var(--input-field-bg);
     border: 1px solid var(--border-color);
+}
+
+.image-message-stack {
+    width: min(52rem, calc(100vw - 3rem));
+    max-width: 100%;
+}
+
+.generated-image-stage {
+    width: 100%;
+    max-width: 48rem;
 }
 
 .generated-image-card img {
@@ -646,7 +656,9 @@
 
 .generated-image-skeleton {
     position: relative;
-    width: min(100%, 36rem);
+    width: 100%;
+    min-height: 24rem;
+    max-height: 72vh;
     aspect-ratio: 1 / 1;
     overflow: hidden;
     border-radius: 1.5rem;
@@ -669,9 +681,17 @@
 }
 
 @media (max-width: 640px) {
+    .image-message-stack {
+        width: calc(100vw - 1.5rem);
+    }
+
     .generated-image-card,
     .generated-image-skeleton {
         width: 100%;
         border-radius: 1.1rem;
+    }
+
+    .generated-image-skeleton {
+        min-height: min(22rem, calc(100vw - 1.5rem));
     }
 }

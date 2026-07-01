@@ -107,10 +107,15 @@ export function createSubmitInputPreparationLifecycle({
     adjustTextareaHeight();
     renderFilePreviews();
     const loadingParts = isImageConversation(conversation)
-      ? [{ imageGenerationLoading: true }]
+      ? [{
+          imageGenerationLoading: true,
+          imageAspectRatio: conversation.imageConfig?.aspectRatio || '1:1'
+        }]
       : [{ text: '...' }];
     const loadingMessageDiv = addMessageToUI({ role: 'model', parts: loadingParts, createdAt: new Date().toISOString() }, conversation.messages.length, false);
-    const contentDiv = loadingMessageDiv.querySelector('.message-content');
+    const contentDiv = loadingMessageDiv.querySelector('[data-image-generation-stage]')
+      || loadingMessageDiv.querySelector('.message-content')
+      || loadingMessageDiv;
     requestFrame(() => {
       loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
     });

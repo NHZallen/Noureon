@@ -19,10 +19,19 @@ export function buildMessageRenderView({
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
     if (isImageGenerationLoading) {
+        const requestedRatio = message.parts.find(part => part.imageGenerationLoading)?.imageAspectRatio;
+        const imageAspectRatio = {
+            '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
+            '3:2': '3 / 2', '2:3': '2 / 3', '4:5': '4 / 5', '5:4': '5 / 4',
+            '1:2': '1 / 2', '2:1': '2 / 1', '1:4': '1 / 4', '4:1': '4 / 1',
+            '1:8': '1 / 8', '8:1': '8 / 1', '9:21': '9 / 21', '21:9': '21 / 9'
+        }[requestedRatio] || '1 / 1';
         generatedImageHTML = `
-            <div class="generated-image-skeleton" role="status" aria-live="polite">
-                <span>正在建立圖像</span>
-                <div class="generated-image-skeleton-shimmer"></div>
+            <div class="generated-image-stage message-content" data-image-generation-stage>
+                <div class="generated-image-skeleton" role="status" aria-live="polite" style="aspect-ratio: ${imageAspectRatio}">
+                    <span>正在建立圖像</span>
+                    <div class="generated-image-skeleton-shimmer"></div>
+                </div>
             </div>`;
     } else if (isLoadingMessage) {
         contentHTML = '<div class="typing-cursor">&nbsp;</div>';
@@ -72,8 +81,9 @@ export function buildMessageRenderView({
     }
 
     const hasBubbleContent = isLoadingMessage || contentHTML.trim();
+    const imageStackClass = generatedImageHTML ? ' image-message-stack' : '';
     const messageHTML = `
-                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
+                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}${imageStackClass}">
                     ${mediaGridHTML}
                     ${generatedImageHTML}
                     ${hasBubbleContent ? `

@@ -31,9 +31,13 @@ test('renders durable generated images with download and edit actions', () => {
 test('renders an image-generation skeleton for loading messages', () => {
   const view = render({
     role: 'model',
-    parts: [{ imageGenerationLoading: true }],
+    parts: [{ imageGenerationLoading: true, imageAspectRatio: '16:9' }],
     createdAt: '2026-07-01T15:52:00.000Z'
   });
   assert.match(view.messageHTML, /generated-image-skeleton/);
+  assert.match(view.messageHTML, /data-image-generation-stage/);
+  assert.match(view.messageHTML, /message-content/);
+  assert.match(view.messageHTML, /aspect-ratio: 16 \/ 9/);
+  assert.match(view.messageHTML, /image-message-stack/);
   assert.match(view.messageHTML, /正在建立圖像/);
 });
