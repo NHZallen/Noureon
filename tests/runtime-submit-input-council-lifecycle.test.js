@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { createDom } from './behaviours/helpers/create-dom.js';
 import { createLegacySubmitInputCouncilLifecycle } from '../src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -141,4 +142,60 @@ test('factory keeps live state bridge for uploaded files and abort controller', 
 
   assert.deepEqual(dependencies.state.uploadedFiles, [{ name: 'before.txt' }]);
   assert.equal(dependencies.state.abortController, null);
+});
+
+test('image generation mode exposes camera and image upload while hiding generic files', () => {
+  const { document, cleanup } = createDom(`
+    <div id="file-options-popover">
+      <button id="camera-btn"></button>
+      <button id="upload-image-btn"></button>
+      <button id="upload-file-btn"></button>
+      <div class="border-t"></div>
+      <button id="web-search-popover-btn"></button>
+      <button id="learning-mode-btn"></button>
+    </div>
+  `);
+  const elements = {
+    cameraBtn: document.getElementById('camera-btn'),
+    uploadImageBtn: document.getElementById('upload-image-btn'),
+    uploadFileBtn: document.getElementById('upload-file-btn'),
+    webSearchPopoverBtn: document.getElementById('web-search-popover-btn'),
+    learningModeBtn: document.getElementById('learning-mode-btn'),
+    fileOptionsPopover: document.getElementById('file-options-popover')
+  };
+  const conversation = {
+    archived: false,
+    imageConfig: { aspectRatio: '1:1', resolution: '1K' },
+    isWebSearchEnabled: false,
+    model: 'openai/gpt-image-2',
+    provider: 'openrouter'
+  };
+  const model = {
+    id: 'openai/gpt-image-2',
+    outputModality: 'image',
+    provider: 'openrouter'
+  };
+  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+    document,
+    elements,
+    getActiveConversation: () => conversation,
+    normalizeConversationModel: () => model,
+    hasSingleDocumentAccess: () => true,
+    hasSingleWebSearchAccess: () => true,
+    modelGeneratesImages: (candidate) => candidate?.outputModality === 'image',
+    modelSupportsVision: (candidate) => candidate?.outputModality === 'image'
+  }));
+
+  lifecycle.updateFunctionButtonsState();
+
+  assert.equal(elements.cameraBtn.style.display, 'flex');
+  assert.equal(elements.uploadImageBtn.style.display, 'flex');
+  assert.equal(elements.uploadFileBtn.style.display, 'none');
+  assert.equal(elements.webSearchPopoverBtn.style.display, 'flex');
+  assert.equal(elements.learningModeBtn.style.display, 'none');
+  assert.equal(document.getElementById('model-council-menu-btn').style.display, 'none');
+  assert.equal(document.getElementById('image-aspect-ratio-control').style.display, 'flex');
+  assert.equal(document.getElementById('image-resolution-control').style.display, 'flex');
+
+  cleanup();
 });

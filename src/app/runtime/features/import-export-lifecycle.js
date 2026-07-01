@@ -52,6 +52,8 @@ export function createLegacyImportExportLifecycle({
   resolveSearchSetupSettingsModal,
   i18n,
   randomUUID,
+  getGeneratedImageBlob = async () => null,
+  saveGeneratedImageBlob = async () => {},
   delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   logger = console
 } = {}) {
@@ -176,6 +178,17 @@ export function createLegacyImportExportLifecycle({
                     part.inlineData._zipRef = `files/${attachmentName}`;
                   }
                   delete part.inlineData.data;
+                } else if (part.generatedImage) {
+                  const blob = await getGeneratedImageBlob(part.generatedImage);
+                  if (blob) {
+                    const extension = part.generatedImage.mediaType === 'image/webp'
+                      ? 'webp'
+                      : part.generatedImage.mediaType === 'image/jpeg' ? 'jpg'
+                        : part.generatedImage.mediaType === 'image/svg+xml' ? 'svg' : 'png';
+                    const imageName = `generated_${part.generatedImage.id}.${extension}`;
+                    imagesFolder.file(imageName, blob);
+                    part.generatedImage._zipRef = `images/${imageName}`;
+                  }
                 }
               }
             }
@@ -398,6 +411,18 @@ export function createLegacyImportExportLifecycle({
                     }
                   } catch (error) {
                     logger.warn('附件還原失敗', error);
+                  }
+                }
+                if (part.generatedImage?._zipRef && zip) {
+                  try {
+                    const fileInZip = zip.file(part.generatedImage._zipRef);
+                    if (fileInZip) {
+                      const blob = await fileInZip.async('blob');
+                      await saveGeneratedImageBlob(part.generatedImage, blob);
+                      delete part.generatedImage._zipRef;
+                    }
+                  } catch (error) {
+                    logger.warn('Generated image import failed', error);
                   }
                 }
               }

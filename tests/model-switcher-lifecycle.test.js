@@ -57,9 +57,10 @@ const createHarness = (overrides = {}) => {
     model: 'stepfun/model-a',
     provider: 'stepfun'
   };
+  const activeModels = overrides.models ?? MODELS;
   const config = {
     lastUsedModel: 'stepfun/model-a',
-    modelSettings: [
+    modelSettings: overrides.modelSettings ?? [
       { hidden: false, id: 'stepfun/model-a', order: 1 },
       { hidden: false, id: 'gemini-pro', order: 2 },
       { hidden: false, id: 'openai/beta', order: 3 }
@@ -72,6 +73,7 @@ const createHarness = (overrides = {}) => {
       betaModels: 'Beta models',
       betaModelsDesc: 'Preview models',
       categoryGeneral: 'General',
+      categoryImageGeneration: 'Image generation',
       freeModels: 'Free models',
       paidModels: 'Paid models',
       search: 'Search',
@@ -98,7 +100,7 @@ const createHarness = (overrides = {}) => {
     modelSupportsDocumentUpload: (model) => model.id === 'gemini-pro',
     modelSupportsVision: (model) => model.id === 'gemini-pro',
     modelSupportsWebSearch: (model) => model.provider === 'stepfun',
-    models: MODELS,
+    models: activeModels,
     renderAll: () => calls.push(['renderAll']),
     renderCouncilControls: () => calls.push(['renderCouncilControls']),
     requestFrame: (callback) => {
@@ -156,6 +158,51 @@ test('renders model switcher navigation and persists selected model', async () =
       ['saveConfig'],
       ['renderAll']
     ]);
+  } finally {
+    cleanup();
+  }
+});
+
+test('renders snake_case model categories with translated labels', () => {
+  const imageModels = [
+    ...MODELS,
+    {
+      id: 'openai/chat',
+      name: 'OpenAI Chat',
+      provider: 'openrouter',
+      descriptionKey: 'openaiChat',
+      tier: ['paid'],
+      category: 'general'
+    },
+    {
+      id: 'openai/image',
+      name: 'OpenAI Image',
+      provider: 'openrouter',
+      descriptionKey: 'openaiImage',
+      tier: ['paid'],
+      category: 'image_generation'
+    }
+  ];
+  const { cleanup, document, lifecycle } = createHarness({
+    models: imageModels,
+    modelSettings: imageModels.map((model, index) => ({
+      hidden: false,
+      id: model.id,
+      order: index + 1
+    }))
+  });
+  try {
+    lifecycle.renderModelSwitcher();
+
+    document.querySelector('#current-model-btn').click();
+    document.querySelector('[data-provider="openrouter"]').click();
+    document.querySelector('[data-tier="paid"]').click();
+    document.querySelector('[data-company="openai"]').click();
+
+    const labels = Array.from(document.querySelectorAll('#category-view .category-btn'))
+      .map(button => button.textContent.trim());
+    assert.ok(labels.includes('Image generation'));
+    assert.ok(!labels.includes('image_generation'));
   } finally {
     cleanup();
   }

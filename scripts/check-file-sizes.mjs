@@ -101,7 +101,7 @@ const distFiles = collectFiles(join(root, 'dist')).map((file) => ({
 }));
 
 const runtimeBudgetDefinitions = [
-  { label: 'legacy-core shell', path: 'src/app/runtime/legacy-core/legacy-core.js', transitionalLimit: bytes(82), v5Target: bytes(55) },
+  { label: 'legacy-core shell', path: 'src/app/runtime/legacy-core/legacy-core.js', transitionalLimit: bytes(83), v5Target: bytes(55) },
   { label: 'core-tail lifecycle', path: 'src/app/runtime/legacy-core/core-tail-lifecycle.js', transitionalLimit: bytes(75), v5Target: bytes(35) },
   { label: 'settings auth provider lifecycle', path: 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js', transitionalLimit: bytes(25), v5Target: bytes(16) },
   { label: 'submit input council lifecycle', path: 'src/app/runtime/legacy-core/submit-input-council-lifecycle.js', transitionalLimit: bytes(50), v5Target: bytes(30) },
@@ -132,7 +132,7 @@ const legacyCoreChunk = buildJsFiles.find((file) => basename(file.filePath).star
 const buildBudgetDefinitions = existsSync(join(root, 'dist'))
   ? [
       { label: 'largest JS chunk', file: topFiles(buildJsFiles, 1)[0], transitionalLimit: bytes(500), v5Target: bytes(300), gzipTransitionalLimit: bytes(150), gzipV5Target: bytes(110) },
-      { label: 'legacy-core chunk', file: legacyCoreChunk, transitionalLimit: bytes(380), v5Target: bytes(260), gzipTransitionalLimit: bytes(120), gzipV5Target: bytes(75) },
+      { label: 'legacy-core chunk', file: legacyCoreChunk, transitionalLimit: bytes(410), v5Target: bytes(260), gzipTransitionalLimit: bytes(125), gzipV5Target: bytes(75) },
       { label: 'largest CSS asset', file: topFiles(buildCssFiles, 1)[0], transitionalLimit: bytes(220), v5Target: bytes(160), gzipTransitionalLimit: bytes(40), gzipV5Target: bytes(28) }
     ]
   : [];

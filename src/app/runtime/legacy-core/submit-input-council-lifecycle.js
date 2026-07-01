@@ -12,6 +12,7 @@ import { runSubmitFinalCleanupLifecycle } from '../../legacy-runtime/features/su
 import { applyModelMessagePostResponseActions } from '../../legacy-runtime/features/model-message-post-response-actions.js';
 import { appendRendererTextGradually } from '../../legacy-runtime/features/renderer-gradual-append-controller.js';
 import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails } from '../../legacy-runtime/features/streaming-council-details.js';
+import { createImageModeControls } from '../../legacy-runtime/features/image-mode-controls.js';
 
 const REQUIRED_DEPENDENCIES = [
   'document',
@@ -79,6 +80,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     modelSupportsDocumentUpload = () => false,
     modelSupportsVision = () => false,
     modelSupportsWebSearch = () => false,
+    modelGeneratesImages = () => false,
+    imageGenerationResponseLifecycle = null,
     normalizeCouncilConfig = (value) => value,
     cloneCouncilConfig = (value) => ({ ...(value || {}) }),
     normalizeConversationModel,
@@ -116,9 +119,20 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
   const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
   const getIsAutoScrolling = () => Boolean(state.isAutoScrolling);
+  const isImageConversation = (conversation = getActiveConversation()) => modelGeneratesImages(
+    normalizeConversationModel(conversation)
+  );
 
   let renderCouncilControls = () => {};
   let renderModelSwitcher = () => {};
+  const imageModeControls = createImageModeControls({
+    document,
+    getActiveConversation,
+    getActiveModel: () => normalizeConversationModel(getActiveConversation()),
+    modelGeneratesImages,
+    saveAppData,
+    onChange: (...args) => renderInputIndicators(...args)
+  });
 
   const openCouncilPopoverFromAttachmentMenu = () => {
     const config = getLiveConfig();
@@ -165,12 +179,13 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     if (!conv) return;
     const modelInfo = normalizeConversationModel(conv);
     const { participants, synthesizer } = getCouncilSelectedModels(conv);
-    const councilActive = isCouncilEnabled(conv);
+    const imageMode = isImageConversation(conv);
+    const councilActive = !imageMode && isCouncilEnabled(conv);
     const provider = modelInfo?.provider;
     const supportsVision = councilActive
       ? participants.some(modelSupportsVision)
       : modelSupportsVision(modelInfo);
-    const supportsDocumentUpload = councilActive ? true : hasSingleDocumentAccess(modelInfo);
+    const supportsDocumentUpload = imageMode ? false : (councilActive ? true : hasSingleDocumentAccess(modelInfo));
     const supportsWebSearch = councilActive
       ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
       : hasSingleWebSearchAccess(modelInfo);
@@ -190,16 +205,17 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       uploadFileBtn.style.display = supportsDocumentUpload ? 'flex' : 'none';
     }
     if (learningModeBtn) {
-      learningModeBtn.style.display = councilActive ? 'none' : 'flex';
+      learningModeBtn.style.display = (!imageMode && !councilActive) ? 'flex' : 'none';
       learningModeBtn.classList.toggle('is-active', Boolean(config.isLearningMode));
     }
     const councilMenuButton = ensureCouncilMenuButton();
     if (councilMenuButton) {
-      councilMenuButton.style.display = (config.isLearningMode && !councilActive) ? 'none' : 'flex';
+      councilMenuButton.style.display = (!imageMode && !(config.isLearningMode && !councilActive)) ? 'flex' : 'none';
       councilMenuButton.classList.toggle('is-active', councilActive);
     }
+    imageModeControls.sync();
     if (!councilActive && provider === 'openrouter') {
-      const openRouterSupportsVision = openRouterVisionModels.includes(modelInfo?.id);
+      const openRouterSupportsVision = supportsVision || openRouterVisionModels.includes(modelInfo?.id);
       if (webSearchPopoverBtn) webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
       if (uploadFileBtn) uploadFileBtn.style.display = supportsDocumentUpload ? 'flex' : 'none';
       [cameraBtn, uploadImageBtn]
@@ -250,7 +266,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
     const activeIndicators = new Map();
     const astrasId = getActiveAstrasId();
-    if (config.isLearningMode) {
+    if (config.isLearningMode && !isImageConversation(conv)) {
       activeIndicators.set('learning-mode-indicator', {
         id: 'learning-mode-indicator',
         html: `
@@ -310,7 +326,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         })
       });
     }
-    if (isCouncilEnabled(conv)) {
+    if (isCouncilEnabled(conv) && !isImageConversation(conv)) {
       const { council } = getCouncilSelectedModels(conv);
       const texts = getCouncilTexts();
       const validation = getCouncilValidation(conv);
@@ -454,7 +470,9 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getCouncilModelList,
     getCouncilRuntimeTexts,
     getCouncilTexts,
-    getCouncilValidation,
+    getCouncilValidation: (conversation, files) => isImageConversation(conversation)
+      ? { ok: true, message: '' }
+      : getCouncilValidation(conversation, files),
     getI18n: () => i18n,
     getFileInputContainer,
     getIsCouncilRunning,
@@ -506,7 +524,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getModelRetirementLabel,
     getModelTiers,
     getSingleDocumentTranslatorModel,
-    isCouncilEnabled,
+    isCouncilEnabled: conversation => !isImageConversation(conversation) && isCouncilEnabled(conversation),
     modelSupportsDocumentUpload,
     modelSupportsVision,
     modelSupportsWebSearch,
@@ -707,7 +725,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     renderInputIndicators,
     adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
     renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
-    requestFrame: (callback) => requestAnimationFrame(callback)
+    requestFrame: (callback) => requestAnimationFrame(callback),
+    isImageConversation
   });
 
   const handleFormSubmit = async (event) => {
@@ -729,6 +748,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
       let councilMetadata = null;
       let responseRenderedInRealtime = false;
+      let generatedImageParts = null;
 
       if (responseUsesCouncil) {
         const councilResult = await runCouncilResponseRenderLifecycle({
@@ -752,20 +772,34 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         councilMetadata = councilResult.metadata;
       } else {
         const modelInfo = normalizeConversationModel(conv);
-        const singleResult = await singleModelResponseLifecycle.run({
-          targetElement: contentDiv,
-          userParts,
-          modelInfo,
-          conversation: conv,
-          signal: submitAbortController.signal,
-          uiLanguage: getLiveConfig().uiLanguage
-        });
-        fullResponse = singleResult.fullResponse;
-        responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
+        if (modelGeneratesImages(modelInfo)) {
+          if (!imageGenerationResponseLifecycle) throw new Error('圖片生成功能尚未初始化');
+          const imageResult = await imageGenerationResponseLifecycle.run({
+            targetElement: contentDiv,
+            userParts,
+            modelInfo,
+            conversation: conv,
+            signal: submitAbortController.signal,
+            uiLanguage: getLiveConfig().uiLanguage
+          });
+          generatedImageParts = imageResult.parts;
+        } else {
+          const singleResult = await singleModelResponseLifecycle.run({
+            targetElement: contentDiv,
+            userParts,
+            modelInfo,
+            conversation: conv,
+            signal: submitAbortController.signal,
+            uiLanguage: getLiveConfig().uiLanguage
+          });
+          fullResponse = singleResult.fullResponse;
+          responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
+        }
       }
 
       await finalizeAssistantResponse({
         fullResponse,
+        finalParts: generatedImageParts,
         finalAiMessage,
         councilMetadata,
         includeCouncilMetadata: responseUsesCouncil,
@@ -785,7 +819,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
         renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
-        extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse)
+        extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
+        completeImageView: generatedImageParts ? () => {
+          const loadingElement = contentDiv.closest('.message-item');
+          loadingElement?.remove();
+          addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
+        } : null
       });
     } catch (error) {
       await persistAssistantResponseError({

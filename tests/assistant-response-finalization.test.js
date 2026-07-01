@@ -136,6 +136,35 @@ test('finalization rejects empty responses before persistence or side effects', 
   assert.deepEqual(calls, []);
 });
 
+test('image finalization persists asset parts without mail or learning-memory side effects', async () => {
+  const calls = [];
+  const finalAiMessage = { role: 'model', parts: [], createdAt: 'created' };
+  const finalParts = [{ generatedImage: { id: 'asset-1', storageKey: 'key', mediaType: 'image/png' } }];
+  await finalizeAssistantResponse({
+    fullResponse: '',
+    finalParts,
+    finalAiMessage,
+    conversation: { messages: [] },
+    userMessageObject: {},
+    userMessageText: 'draw it',
+    signal: new AbortController().signal,
+    responseUsesCouncil: false,
+    responseRenderedInRealtime: false,
+    targetElement: { dataset: {} },
+    uiLanguage: 'en',
+    memoryEnabled: true,
+    autoMemoryEnabled: true,
+    sendConversationToMail: () => calls.push('mail'),
+    persistAppData: async () => calls.push('persist'),
+    completeSingleModelView: async () => calls.push('singleView'),
+    completeImageView: async () => calls.push('imageView'),
+    extractPersonalMemory: async () => calls.push('memory'),
+    nowIso: () => 'now'
+  });
+  assert.deepEqual(finalAiMessage.parts, finalParts);
+  assert.deepEqual(calls, ['persist', 'imageView']);
+});
+
 test('error finalization persists non-abort errors and skips aborted requests', async () => {
   const calls = [];
   const conversation = { model: 'fallback', messages: [] };

@@ -13,9 +13,18 @@ export function buildMessageRenderView({
     let actionButtons = '';
     let contentPaddingClass = '';
     let previewMediaParts = [];
+    let generatedImageAssets = [];
+    let generatedImageHTML = '';
+    const isImageGenerationLoading = !isUser && message.parts.some(part => part.imageGenerationLoading);
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
-    if (isLoadingMessage) {
+    if (isImageGenerationLoading) {
+        generatedImageHTML = `
+            <div class="generated-image-skeleton" role="status" aria-live="polite">
+                <span>正在建立圖像</span>
+                <div class="generated-image-skeleton-shimmer"></div>
+            </div>`;
+    } else if (isLoadingMessage) {
         contentHTML = '<div class="typing-cursor">&nbsp;</div>';
     } else {
         const textParts = [];
@@ -25,6 +34,8 @@ export function buildMessageRenderView({
                 textParts.push(part.text);
             } else if (part.inlineData) {
                 mediaParts.push(part.inlineData);
+            } else if (part.generatedImage) {
+                generatedImageAssets.push(part.generatedImage);
             }
         });
 
@@ -37,7 +48,17 @@ export function buildMessageRenderView({
             previewMediaParts = mediaView.previewMediaParts;
             mediaGridHTML = mediaView.html;
         }
-        if (!isUser) {
+        if (generatedImageAssets.length > 0) {
+            generatedImageHTML = generatedImageAssets.map(asset => `
+                <figure class="generated-image-card" data-generated-image-card="${asset.id}">
+                    <img data-generated-image-id="${asset.id}" alt="AI 生成圖片" loading="lazy">
+                    <div class="generated-image-actions">
+                        <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn">編輯</button>
+                        <a data-generated-image-download="${asset.id}" class="generated-image-action-btn" title="下載原始圖片">下載</a>
+                    </div>
+                </figure>`).join('');
+        }
+        if (!isUser && generatedImageAssets.length === 0) {
             const timeString = formatTimestamp(message.createdAt);
             actionButtons = `
                         <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
@@ -54,6 +75,7 @@ export function buildMessageRenderView({
     const messageHTML = `
                 <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}">
                     ${mediaGridHTML}
+                    ${generatedImageHTML}
                     ${hasBubbleContent ? `
                         <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
                             <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
@@ -66,6 +88,7 @@ export function buildMessageRenderView({
         isUser,
         messageClassName,
         messageHTML,
-        previewMediaParts
+        previewMediaParts,
+        generatedImageAssets
     };
 }

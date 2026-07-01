@@ -92,6 +92,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     renderInputIndicators = () => {},
     renderCouncilControls = () => {},
     setupMessageIntersectionObserver = () => {},
+    bindGeneratedImageAssets = async () => {},
     requestAnimationFrame = (callback) => callback(),
     crypto = globalThis.crypto
   } = dependencies;
@@ -504,6 +505,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     renderMarkdownWithFormulas,
     formatTimestamp: formatFullTimestamp,
     bindMediaPreviewButtons: bindMessageMediaPreviewButtons,
+    bindGeneratedImageAssets,
     saveAppData,
     renderModelSwitcher,
     renderInputIndicators,

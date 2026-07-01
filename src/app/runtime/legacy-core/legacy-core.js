@@ -68,7 +68,8 @@ import {
     COUNCIL_TEXT,
     MODELS,
     OPENROUTER_VISION_MODELS,
-    createLegacyModelRegistry
+    createLegacyModelRegistry,
+    modelGeneratesImages
 } from '/src/app/runtime/legacy-core/model-registry.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
@@ -456,6 +457,53 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             version: 1
         });
         const { getItem, setItem, removeItem } = runtimeStorageAdapter;
+        let generatedImageRuntimePromise;
+        const getGeneratedImageRuntime = () => {
+            if (!generatedImageRuntimePromise) {
+                generatedImageRuntimePromise = Promise.all([
+                    import('/src/app/legacy-runtime/features/generated-image-assets.js'),
+                    import('/src/app/legacy-runtime/features/openrouter-image-generation.js'),
+                    import('/src/app/legacy-runtime/features/image-generation-response-lifecycle.js')
+                ]).then(([assetsModule, apiModule, lifecycleModule]) => {
+                    const assetStore = assetsModule.createGeneratedImageAssetStore({
+                        getItem,
+                        setItem,
+                        getUserName: () => currentUser?.username || 'anonymous'
+                    });
+                    const generateImage = apiModule.createOpenRouterImageGenerator({ fetchImpl: fetch });
+                    const responseLifecycle = lifecycleModule.createImageGenerationResponseLifecycle({
+                        buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
+                        generateImage,
+                        saveImageAsset: image => assetStore.save(image),
+                        getStoredImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
+                        getApiKey: provider => getApiKeyForProvider(provider)
+                    });
+                    return { assetStore, responseLifecycle };
+                });
+            }
+            return generatedImageRuntimePromise;
+        };
+        const bindGeneratedImageAssets = async (root, assets) => {
+            const { assetStore } = await getGeneratedImageRuntime();
+            await assetStore.bind(root, assets);
+            root.querySelectorAll('[data-generated-image-edit]').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const descriptor = assets.find(asset => asset.id === button.dataset.generatedImageEdit);
+                    if (!descriptor) return;
+                    const base64 = await assetStore.getDataUrl(descriptor);
+                    if (!base64) return;
+                    uploadedFiles = [{
+                        name: `astra-generated-${descriptor.id}.${descriptor.mediaType === 'image/webp' ? 'webp' : descriptor.mediaType === 'image/jpeg' ? 'jpg' : 'png'}`,
+                        type: descriptor.mediaType,
+                        size: descriptor.size,
+                        base64
+                    }];
+                    legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')();
+                    ALL_ELEMENTS.messageInput?.focus();
+                    showNotification(i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || '圖片已加入，可繼續描述修改內容', 'success');
+                });
+            });
+        };
         const sensitiveConfigStore = createSensitiveConfigStore({
             initialApiKeys: runtimeConfigAccess.getConfig().apiKeys,
             normalizeApiKeyValue
@@ -720,6 +768,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 createdAt: now,
                 lastUpdatedAt: now,
                 genConfig: getDefaultGenConfig(),
+                imageConfig: { aspectRatio: '1:1', resolution: '1K' },
                 council: cloneCouncilConfig(currentConfig.lastCouncilConfig),
                 isRenamed: false,
                 folderId: null,
@@ -1011,6 +1060,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             set isCouncilRunning(next) { isCouncilRunning = next; },
             get isAutoScrolling() { return isAutoScrolling; }
         };
+        const imageGenerationResponseLifecycle = {
+            run: async options => (await getGeneratedImageRuntime()).responseLifecycle.run(options)
+        };
         const submitInputCouncilLifecycle = createLegacySubmitInputCouncilLifecycle({
             window,
             document,
@@ -1057,6 +1109,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             modelSupportsDocumentUpload,
             modelSupportsVision,
             modelSupportsWebSearch,
+            modelGeneratesImages,
+            imageGenerationResponseLifecycle,
             normalizeCouncilConfig,
             cloneCouncilConfig,
             normalizeConversationModel,
@@ -1329,6 +1383,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             renderInputIndicators,
             renderCouncilControls,
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args),
+            bindGeneratedImageAssets,
             replaceAstras: (nextAstras) => runtimeAppDataStore.replaceAstras(nextAstras)
         });
         ({
@@ -1531,6 +1586,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             hasSingleWebSearchAccess,
             hasSingleDocumentAccess,
             modelSupportsVision,
+            getGeneratedImageBlob: async descriptor => (await getGeneratedImageRuntime()).assetStore.getBlob(descriptor),
+            saveGeneratedImageBlob: async (descriptor, blob) => {
+                descriptor.storageKey = `generatedImage:${currentUser?.username || 'anonymous'}:${descriptor.id}`;
+                await setItem(descriptor.storageKey, blob);
+            },
             getCouncilTexts,
             renderInputIndicators,
             toggleLearningMode,

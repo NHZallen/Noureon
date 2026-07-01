@@ -4,6 +4,7 @@ const getEmptyResponseMessage = (uiLanguage) => uiLanguage === 'en'
 
 export async function finalizeAssistantResponse({
   fullResponse,
+  finalParts = null,
   finalAiMessage,
   councilMetadata,
   includeCouncilMetadata = false,
@@ -24,15 +25,17 @@ export async function finalizeAssistantResponse({
   renderRealtimeCouncilFinal,
   playbackCouncilResponse,
   extractPersonalMemory,
+  completeImageView = null,
   nowIso = () => new Date().toISOString()
 }) {
-  if (!String(fullResponse || '').trim()) {
+  const hasFinalParts = Array.isArray(finalParts) && finalParts.length > 0;
+  if (!hasFinalParts && !String(fullResponse || '').trim()) {
     throw new Error(getEmptyResponseMessage(uiLanguage));
   }
 
-  sendConversationToMail(userMessageObject, fullResponse);
+  if (!hasFinalParts) sendConversationToMail(userMessageObject, fullResponse);
 
-  finalAiMessage.parts = [{ text: fullResponse }];
+  finalAiMessage.parts = hasFinalParts ? finalParts : [{ text: fullResponse }];
   if (includeCouncilMetadata) {
     finalAiMessage.council = councilMetadata;
   }
@@ -40,7 +43,9 @@ export async function finalizeAssistantResponse({
   conversation.lastUpdatedAt = nowIso();
   await persistAppData();
 
-  if (!responseUsesCouncil) {
+  if (hasFinalParts && completeImageView) {
+    await completeImageView({ targetElement, finalAiMessage });
+  } else if (!responseUsesCouncil) {
     await completeSingleModelView({
       targetElement,
       fullResponse,
@@ -55,7 +60,7 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
 
-  if (!signal.aborted && memoryEnabled && autoMemoryEnabled) {
+  if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
     await extractPersonalMemory(userMessageText, fullResponse);
   }
 

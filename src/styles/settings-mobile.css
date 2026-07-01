@@ -284,7 +284,15 @@
         display: block !important;
     }
 
+    #settings-modal:not(.settings-mobile-detail-open) .settings-section {
+        display: none !important;
+    }
+
     #settings-modal:not(.settings-mobile-detail-open) .settings-section.active {
+        display: none !important;
+    }
+
+    #settings-modal.settings-mobile-detail-open .settings-section {
         display: none !important;
     }
 

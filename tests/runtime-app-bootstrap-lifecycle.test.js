@@ -423,3 +423,20 @@ test('app bootstrap lifecycle module avoids startup, storage, auth ownership, fr
   assert.match(source, /createAppBootstrapComposition\(\{/);
   assert.match(source, /createLegacyP2PLifecycle\(\{/);
 });
+
+test('mobile attachment trigger reuses the desktop file options popover', async () => {
+  const harness = createLifecycleHarness();
+  harness.window.innerWidth = 599;
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+
+  await initChatApp();
+  harness.calls.length = 0;
+  findListener(harness.listeners, 'addFileBtn', 'click')({ stopPropagation: () => harness.calls.push('stopPropagation') });
+
+  assert.deepEqual(harness.calls, [
+    'stopPropagation',
+    'updateFunctionButtonsState',
+    'closeAllPopovers',
+    'class:fileOptionsPopover:add:visible'
+  ]);
+});

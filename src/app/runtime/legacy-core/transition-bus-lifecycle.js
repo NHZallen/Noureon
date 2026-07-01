@@ -110,6 +110,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         hasSingleWebSearchAccess,
         hasSingleDocumentAccess,
         modelSupportsVision,
+        getGeneratedImageBlob = async () => null,
+        saveGeneratedImageBlob = async () => {},
         getCouncilTexts,
         renderInputIndicators,
         toggleLearningMode,
@@ -283,6 +285,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         },
         i18n,
         randomUUID: () => crypto.randomUUID(),
+        getGeneratedImageBlob,
+        saveGeneratedImageBlob,
         scheduleTimeout: (callback, ms) => setTimeout(callback, ms),
         delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         logger

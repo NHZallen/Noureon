@@ -54,9 +54,6 @@ export function createLegacyAppBootstrapLifecycle({
     isCouncilEnabled,
     hasCouncilWebSearchAccess,
     hasSingleWebSearchAccess,
-    hasSingleDocumentAccess,
-    modelSupportsVision,
-    getCouncilTexts,
     renderInputIndicators,
     toggleLearningMode,
     toggleSelectionMode,
@@ -87,7 +84,6 @@ export function createLegacyAppBootstrapLifecycle({
     handleEmptyTrash,
     updateFileInputUI,
     postJsonWithReadableError,
-    openCouncilPopoverFromAttachmentMenu,
     setupHistorySidebarInteractions,
     setupHistorySidebarTriggers,
     escapeHTML,
@@ -255,6 +251,7 @@ export function createLegacyAppBootstrapLifecycle({
                     ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
                     const conv = getActiveConversation();
                     const modelInfo = normalizeConversationModel(conv);
+                    const imageMode = modelInfo?.outputModality === 'image';
                     const { synthesizer } = getCouncilSelectedModels(conv);
                     const supportsWebSearch = isCouncilEnabled(conv)
                         ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
@@ -595,147 +592,17 @@ export function createLegacyAppBootstrapLifecycle({
                 });
     
     
-                // ✨ START: 新增的附件上彈視窗函式與按鈕邏輯
-    
-    
-                // 這個函式專門用來建立和顯示手機版的上彈視窗
-                const showAttachmentMenu = () => {
-                    // 檢查是否已經存在，避免重複建立
-                    if (document.getElementById('attachment-menu')) return;
-    
-    
-                    const wrapper = document.getElementById('attachment-menu-wrapper');
-                    wrapper.innerHTML = ''; // 清空舊內容
-    
-    
-                    const overlay = document.createElement('div');
-                    overlay.id = 'attachment-menu-overlay';
-    
-    
-                    const menu = document.createElement('div');
-                    menu.id = 'attachment-menu';
-    
-    
-                    // 取得當前模型資訊
-                    const conv = getActiveConversation();
-                    const modelInfo = normalizeConversationModel(conv);
-                    const { participants, synthesizer } = getCouncilSelectedModels(conv);
-                    const councilActive = isCouncilEnabled(conv);
-                    const supportsVision = councilActive
-                        ? participants.some(modelSupportsVision)
-                        : modelSupportsVision(modelInfo);
-                    const supportsDocumentUpload = councilActive
-                        ? true
-                        : hasSingleDocumentAccess(modelInfo);
-                    const supportsWebSearch = councilActive
-                        ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
-                        : hasSingleWebSearchAccess(modelInfo);
-    
-    
-                    const allMenuItems = [
-                        { id: 'camera-btn', svg: `<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle>`, textKey: 'camera', originalElement: ALL_ELEMENTS.cameraBtn },
-                        { id: 'upload-image-btn', svg: `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>`, textKey: 'image', originalElement: ALL_ELEMENTS.uploadImageBtn },
-                        { id: 'upload-file-btn', svg: `<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline>`, textKey: 'file', originalElement: ALL_ELEMENTS.uploadFileBtn },
-                        { type: 'divider' },
-                        { id: 'model-council-menu-btn', svg: `<path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path>`, text: getCouncilTexts().title },
-                        { id: 'web-search-popover-btn', svg: `<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>`, textKey: 'search', originalElement: ALL_ELEMENTS.webSearchPopoverBtn },
-                        { id: 'learning-mode-btn', svg: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"/>`, textKey: 'learning', originalElement: ALL_ELEMENTS.learningModeBtn }
-                    ];
-    
-    
-                    let visibleMenuItems = allMenuItems.filter(item => {
-                        if (item.type === 'divider') return true;
-                        if (item.id === 'camera-btn' || item.id === 'upload-image-btn') return supportsVision;
-                        if (item.id === 'upload-file-btn') return supportsDocumentUpload;
-                        if (item.id === 'model-council-menu-btn') return !config.isLearningMode || councilActive;
-                        if (item.id === 'web-search-popover-btn') return supportsWebSearch;
-                        if (item.id === 'learning-mode-btn') return !councilActive;
-                        return true;
-                    });
-    
-                    let itemsHTML = '';
-                    visibleMenuItems.forEach((item, index) => {
-                        if (item.type === 'divider') {
-                            if (index > 0 && index < visibleMenuItems.length - 1 && visibleMenuItems[index - 1].type !== 'divider') {
-                                // 這是用來在視覺上分隔選項的，在手機選單中是透過 CSS 的 border-bottom 實現
-                            }
-                        } else {
-                            const isActive = (item.id === 'web-search-popover-btn' && getActiveConversation()?.isWebSearchEnabled)
-                                || (item.id === 'learning-mode-btn' && config.isLearningMode)
-                                || (item.id === 'model-council-menu-btn' && councilActive);
-                            itemsHTML += `
-                                <div class="menu-item${isActive ? ' is-active' : ''}" data-trigger-id="${item.id}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${item.svg}</svg>
-                                    <span ${item.textKey ? `data-lang-key="${item.textKey}"` : ''}>${item.text || i18n[config.uiLanguage][item.textKey] || item.textKey}</span>
-                                </div>
-                            `;
-                        }
-                    });
-    
-    
-                    menu.innerHTML = `
-                        <div class="menu-header" data-lang-key="attachFile">${i18n[config.uiLanguage].attachFile || '附加檔案'}</div>
-                        <div class="menu-options">${itemsHTML}</div>
-                    `;
-                    
-                    wrapper.appendChild(overlay);
-                    wrapper.appendChild(menu);
-    
-    
-                    scheduleAnimationFrame(() => {
-                        overlay.classList.add('visible');
-                        menu.classList.add('visible');
-                    });
-                    
-                    const closeMenu = () => {
-                        overlay.classList.remove('visible');
-                        menu.classList.remove('visible');
-                        menu.addEventListener('transitionend', () => wrapper.innerHTML = '', { once: true });
-                    };
-    
-    
-                    overlay.addEventListener('click', closeMenu);
-    
-    
-                    menu.querySelectorAll('.menu-item').forEach(menuItem => {
-                        menuItem.addEventListener('click', () => {
-                            const triggerId = menuItem.dataset.triggerId;
-                            if (triggerId === 'model-council-menu-btn') {
-                                closeMenu();
-                                scheduleTimeout(openCouncilPopoverFromAttachmentMenu, 180);
-                                return;
-                            }
-                            const originalElement = allMenuItems.find(i => i.id === triggerId)?.originalElement;
-                            if (originalElement) {
-                                originalElement.click();
-                            }
-                            closeMenu();
-                        });
-                    });
-                };
-                // 這是新的「附加檔案」按鈕點擊事件
                 ALL_ELEMENTS.addFileBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // 防止事件冒泡
-                    
-                    // 判斷螢幕寬度
-                    if (window.innerWidth <= 768) { 
-                        // 如果是手機，顯示上彈視窗
-                        showAttachmentMenu();
-                    } else { 
-                        // 如果是電腦，維持舊的小視窗
-                        updateFunctionButtonsState();
-                        const popover = ALL_ELEMENTS.fileOptionsPopover;
-                        if (popover.classList.contains('visible')) {
-                            popover.classList.remove('visible');
-                        } else {
-                            closeAllPopovers();
-                            popover.classList.add('visible');
-                        }
+                    e.stopPropagation();
+                    updateFunctionButtonsState();
+                    const popover = ALL_ELEMENTS.fileOptionsPopover;
+                    if (popover.classList.contains('visible')) {
+                        popover.classList.remove('visible');
+                    } else {
+                        closeAllPopovers();
+                        popover.classList.add('visible');
                     }
                 });
-    
-    
-                // ✨ END: 新增的附件上彈視窗函式與按鈕邏輯
                 // ==========================================
         // ✨ P2P 分享功能 (PeerJS Implementation)
         // ==========================================

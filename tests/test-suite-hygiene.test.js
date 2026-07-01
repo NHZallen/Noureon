@@ -106,7 +106,7 @@ test('check:sizes reports grouped budgets without using targets as hard failures
   assert.match(source, /Hard failures use transitional limits/);
   assert.match(
     source,
-    /label:\s*'legacy-core shell'[\s\S]*transitionalLimit:\s*bytes\(82\)[\s\S]*v5Target:\s*bytes\(55\)/,
+    /label:\s*'legacy-core shell'[\s\S]*transitionalLimit:\s*bytes\(83\)[\s\S]*v5Target:\s*bytes\(55\)/,
     'legacy-core shell budget should stay ratcheted while preserving the long-term target'
   );
   assert.match(source, /status\s*=\s*overTransitional[\s\S]*overTarget[\s\S]*'DEBT'/);

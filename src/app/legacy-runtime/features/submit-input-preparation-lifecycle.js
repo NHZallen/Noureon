@@ -24,6 +24,7 @@ export function createSubmitInputPreparationLifecycle({
   adjustTextareaHeight,
   renderFilePreviews,
   requestFrame
+  ,isImageConversation = () => false
 }) {
   const buildUserParts = (userMessage, uploadedFiles) => {
     const userParts = [];
@@ -105,7 +106,10 @@ export function createSubmitInputPreparationLifecycle({
     setUploadedFiles([]);
     adjustTextareaHeight();
     renderFilePreviews();
-    const loadingMessageDiv = addMessageToUI({ role: 'model', parts: [{ text: '...' }], createdAt: new Date().toISOString() }, conversation.messages.length, false);
+    const loadingParts = isImageConversation(conversation)
+      ? [{ imageGenerationLoading: true }]
+      : [{ text: '...' }];
+    const loadingMessageDiv = addMessageToUI({ role: 'model', parts: loadingParts, createdAt: new Date().toISOString() }, conversation.messages.length, false);
     const contentDiv = loadingMessageDiv.querySelector('.message-content');
     requestFrame(() => {
       loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });

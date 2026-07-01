@@ -11,6 +11,7 @@ export function createMessageListLifecycle({
     renderMarkdownWithFormulas,
     formatTimestamp,
     bindMediaPreviewButtons,
+    bindGeneratedImageAssets = async () => {},
     saveAppData,
     renderModelSwitcher,
     renderInputIndicators,
@@ -54,6 +55,8 @@ export function createMessageListLifecycle({
         messageElement.className = messageView.messageClassName;
         messageElement.innerHTML = messageView.messageHTML;
         bindMediaPreviewButtons(messageElement, messageView.previewMediaParts);
+        void bindGeneratedImageAssets(messageElement, messageView.generatedImageAssets || [])
+            .catch(error => logError('Failed to bind generated image assets:', error));
         if (elements.messageList.querySelector('.text-center')) {
             elements.messageList.innerHTML = '';
         }

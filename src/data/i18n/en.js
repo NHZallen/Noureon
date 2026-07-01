@@ -458,6 +458,11 @@ const en = {
         model_nex_n2_pro_desc_tier_free: 'Cost - Free',
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Cost - Free',
         // OpenAI Paid
+        model_gpt_image_2_desc_tier_paid: 'OpenRouter image generation and editing model',
+        model_gemini_3_pro_image_desc_tier_paid: 'High-quality image generation and reference editing',
+        model_gemini_3_1_flash_image_desc_tier_paid: 'Fast image generation and iterative editing',
+        model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Lightweight, fast image generation',
+        imageReadyToEdit: 'Image attached. Describe the changes you want.',
         model_gpt_5_5_desc_tier_paid: '$5/M input, $30/M output',
         model_gpt_5_4_desc_tier_paid: '$2.5/M input, $15/M output',
         model_gpt_5_4_mini_desc_tier_paid: '$0.75/M input, $4.5/M output',

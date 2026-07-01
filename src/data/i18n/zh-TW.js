@@ -458,6 +458,11 @@ const zhTW = {
         model_nex_n2_pro_desc_tier_free: '費用-免費',
         model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
         // OpenAI Paid
+        model_gpt_image_2_desc_tier_paid: 'OpenRouter 圖片生成與編輯模型',
+        model_gemini_3_pro_image_desc_tier_paid: '高品質圖片生成與參考圖編輯',
+        model_gemini_3_1_flash_image_desc_tier_paid: '快速圖片生成與多輪修改',
+        model_gemini_3_1_flash_lite_image_desc_tier_paid: '輕量快速圖片生成',
+        imageReadyToEdit: '圖片已加入，可繼續描述修改內容',
         model_gpt_5_5_desc_tier_paid: '百萬輸入/5$、百萬輸出/30$',
         model_gpt_5_4_desc_tier_paid: '百萬輸入/2.5$、百萬輸出/15$',
         model_gpt_5_4_mini_desc_tier_paid: '百萬輸入/0.75$、百萬輸出/4.5$',

@@ -286,6 +286,18 @@
 #file-options-popover button:hover {
     background-color: rgba(255, 255, 255, 0.15);
 }
+
+#file-options-popover .image-mode-select {
+    background: transparent;
+    box-shadow: none;
+}
+
+#file-options-popover .image-mode-select:hover,
+#file-options-popover .image-mode-select:focus {
+    background: rgba(255, 255, 255, 0.45);
+    outline: none;
+}
+
     .folder-summary .folder-arrow {
         transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
         transform: rotate(-90deg); /* 預設向右指 */
@@ -320,84 +332,6 @@
         opacity: 1;
         visibility: visible;
     }
-    #settings-modal .flex-1.p-6.overflow-y-auto {
-    position: relative; /* 這是為了讓子元素可以相對於它定位，非常重要！ */
-    padding: 0; /* 移除舊的內邊距，我們把它移到子元素上 */
-    overflow-y: hidden; /* <-- ✨ 就是加上這一行！ */
-}
-
-
-/* --- ✨ 修改：設定所有區塊的基礎樣式 --- */
-.settings-section {
-    /* 讓所有區塊都疊在同一個位置 */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-
-
-    /* 預設都透明且不可點擊 */
-    opacity: 0;
-    pointer-events: none;
-    
-    /* 讓區塊內部可以滾動 */
-    overflow-y: auto; 
-    
-    /* 將原本父容器的內邊距加到這裡，讓每個區塊都有自己的邊距 */
-    padding: 1.5rem; /* 1.5rem 等於 Tailwind CSS 的 p-6 */
-    
-    /* 過渡動畫：從 display 改為 opacity，效果更平滑 */
-    transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
-    visibility: hidden;
-
-
-    /* 保留您原本漂亮的入場動畫 */
-    animation: subtleFadeInUp 0.4s ease-out;
-}
-
-
-/* --- ✨ 修改：設定作用中區塊的樣式 --- */
-.settings-section.active {
-    /* 不再使用 display: block，而是讓它變得可見且可互動 */
-    opacity: 1;
-    pointer-events: auto;
-    visibility: visible;
-}
-
-
-/* --- ✨ 新增：針對手機版佈局的特殊處理 --- */
-@media (max-width: 768px) {
-    /* 在手機上，我們恢復原本的佈局方式，而不是疊在一起 */
-    #settings-modal .flex-1.p-6.overflow-y-auto {
-    position: static; 
-    padding: 1.5rem; 
-    overflow-y: auto; /* <--- 就是加上這一行！ */
-}
-    .settings-section {
-        position: static; /* 恢復靜態定位 */
-        height: auto;     /* 高度自動 */
-        opacity: 1;
-        pointer-events: auto;
-        visibility: visible;
-        overflow-y: visible; /* 不需要內部滾動 */
-        padding: 0; /* 移除內邊距 */
-        
-        /* 恢復您原本為手機版設計的樣式 */
-        display: block !important;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    .settings-section:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-    }
-    /* 在手機上，我們不需要 .active 來切換可見度，所以把它重置 */
-    .settings-section.active {
-       /* 不需要額外樣式 */
-    }
-}
     :root {
         --chat-bg: #ffffff;
         --sidebar-bg: #f7f7f8;
@@ -665,3 +599,79 @@
     #sidebar.open {
         transform: translateX(0);
     }
+.generated-image-card {
+    position: relative;
+    width: min(100%, 40rem);
+    overflow: hidden;
+    border-radius: 1.5rem;
+    background: var(--input-field-bg);
+    border: 1px solid var(--border-color);
+}
+
+.generated-image-card img {
+    display: block;
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    background: var(--input-field-bg);
+}
+
+.generated-image-card + .generated-image-card {
+    margin-top: .75rem;
+}
+
+.generated-image-actions {
+    position: absolute;
+    right: .75rem;
+    bottom: .75rem;
+    display: flex;
+    gap: .5rem;
+}
+
+.generated-image-action-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: .45rem .8rem;
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(15, 23, 42, .76);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+}
+
+.generated-image-action-btn:hover {
+    background: rgba(15, 23, 42, .92);
+}
+
+.generated-image-skeleton {
+    position: relative;
+    width: min(100%, 36rem);
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    padding: 1.25rem;
+    color: var(--text-secondary);
+    background: var(--input-field-bg);
+    border: 1px solid var(--border-color);
+}
+
+.generated-image-skeleton-shimmer {
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+    animation: generated-image-shimmer 1.5s infinite;
+}
+
+@keyframes generated-image-shimmer {
+    100% { transform: translateX(100%); }
+}
+
+@media (max-width: 640px) {
+    .generated-image-card,
+    .generated-image-skeleton {
+        width: 100%;
+        border-radius: 1.1rem;
+    }
+}

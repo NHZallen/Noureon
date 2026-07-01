@@ -108,6 +108,8 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         setCurrentVoiceTarget,
         i18n,
         randomUUID,
+        getGeneratedImageBlob = async () => null,
+        saveGeneratedImageBlob = async () => {},
         scheduleTimeout = (callback, ms) => setTimeout(callback, ms),
         delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         logger = console
@@ -256,6 +258,8 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         resolveSearchSetupSettingsModal,
         i18n,
         randomUUID,
+        getGeneratedImageBlob,
+        saveGeneratedImageBlob,
         delay,
         logger,
     });

@@ -326,7 +326,11 @@ export function createModelSwitcherLifecycle({
 
 
                                     categoryView.innerHTML += categories.map(cat => {
-                                        const categoryNameKey = `category${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+                                        const categorySuffix = cat
+                                            .split('_')
+                                            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                                            .join('');
+                                        const categoryNameKey = `category${categorySuffix}`;
                                         const categoryName = translations[categoryNameKey] || cat;
                                         return `<div class="model-option-btn-container category-btn" data-category="${cat}">
                                                     <h4 class="font-semibold">${categoryName}</h4>
@@ -389,6 +393,9 @@ export function createModelSwitcherLifecycle({
         if (newModelInfo) {
             conv.model = newModelInfo.id;
             conv.provider = newModelInfo.provider;
+            if (newModelInfo.outputModality === 'image' && conv.council) {
+                conv.council.enabled = false;
+            }
             config.lastUsedModel = newModelId;
             await saveAppData();
             await saveConfig();

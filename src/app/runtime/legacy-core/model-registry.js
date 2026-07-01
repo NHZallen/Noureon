@@ -34,10 +34,16 @@ export const MODELS = [
     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
 
     // OpenRouter Paid Models (OpenAI)
+    { id: 'openai/gpt-image-2', name: 'OpenAI GPT Image 2', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
     { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },
     { id: 'openai/gpt-5.4', name: 'OpenAI GPT-5.4', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_desc', category: 'general' },
     { id: 'openai/gpt-5.4-mini', name: 'OpenAI GPT-5.4 Mini', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_mini_desc', category: 'general' },
     { id: 'openai/gpt-5.4-nano', name: 'OpenAI GPT-5.4 Nano', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_nano_desc', category: 'general' },
+
+    // OpenRouter Image Models (Google)
+    { id: 'google/gemini-3-pro-image', name: 'Gemini 3 Pro Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_pro_image_desc', category: 'image_generation', outputModality: 'image' },
+    { id: 'google/gemini-3.1-flash-image', name: 'Gemini 3.1 Flash Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_image_desc', category: 'image_generation', outputModality: 'image' },
+    { id: 'google/gemini-3.1-flash-lite-image', name: 'Gemini 3.1 Flash Lite Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_lite_image_desc', category: 'image_generation', outputModality: 'image' },
 
     // OpenRouter Paid Models (Anthropic)
     { id: 'anthropic/claude-opus-4.8', name: 'Claude 4.8 Opus', provider: 'openrouter', descriptionKey: 'model_claude_opus_4_8_desc' },
@@ -67,6 +73,12 @@ export const MODELS = [
     { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code', provider: 'openrouter', descriptionKey: 'model_kimi_k2_7_code_desc', category: 'coding' },
     { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: 'openrouter', descriptionKey: 'model_kimi_k2_6_desc', category: 'general' },
 ];
+export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
+    'openai/gpt-image-2',
+    'google/gemini-3-pro-image',
+    'google/gemini-3.1-flash-image',
+    'google/gemini-3.1-flash-lite-image'
+]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash';
 export const OPENROUTER_VISION_MODELS = [
     'nex-agi/nex-n2-pro:free',
@@ -226,11 +238,16 @@ export const getModelTiers = (model) => {
 };
 
 export const modelSupportsVision = (model) => Boolean(model && (
+    model.outputModality === 'image' ||
     model.provider === 'gemini' ||
     (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
     (model.provider === 'stepfun' && STEP_PLAN_VISION_MODELS.includes(getModelApiId(model))) ||
     (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model)))
 ));
+
+export const modelGeneratesImages = (model) => Boolean(
+    model && model.outputModality === 'image' && IMAGE_GENERATION_MODEL_IDS.includes(model.id)
+);
 
 export const modelSupportsDocumentUpload = (model) => Boolean(model && (
     (model.provider === 'gemini' && GEMINI_DOCUMENT_MODELS.includes(model.id)) ||
