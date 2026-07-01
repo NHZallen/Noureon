@@ -43,8 +43,12 @@ export function createImageGenerationResponseLifecycle({
         if (label && message) label.textContent = message;
       }
     );
-    const prompt = getTextPrompt(requestParts);
-    if (!prompt) throw new Error('請輸入圖片描述');
+    const basePrompt = getTextPrompt(requestParts);
+    if (!basePrompt) throw new Error('請輸入圖片描述');
+    const hasTargetedEditReference = requestParts.some(part => part.inlineData?.targetedEdit);
+    const prompt = hasTargetedEditReference
+      ? `${basePrompt}\n\nThe colored hand-drawn marks indicate the exact target area to edit. Apply the requested change only where indicated, preserve the rest of the image, and remove all annotation marks from the final image.`
+      : basePrompt;
 
     let inputReferences = getInlineReferences(requestParts);
     if (inputReferences.length === 0) {
@@ -65,7 +69,9 @@ export function createImageGenerationResponseLifecycle({
       signal
     };
     if (!generationRequest.apiKey) throw new Error('請先在設定中輸入 OpenRouter API 金鑰');
-    if (modelInfo.supportsImageStreaming) {
+    // OpenRouter accepts image streaming for generation, but not for edit requests
+    // that include input_references. Keep edits buffered to avoid provider rejection.
+    if (modelInfo.supportsImageStreaming && inputReferences.length === 0) {
       generationRequest.onPartial = partial => {
         targetElement.innerHTML = `<img class="generated-image-partial" alt="圖片生成預覽" src="data:${partial.mediaType};base64,${partial.b64Json}">`;
       };

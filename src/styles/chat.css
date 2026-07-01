@@ -608,6 +608,13 @@
     border: 1px solid var(--border-color);
 }
 
+.model-message .image-message-stack,
+.model-message .generated-image-card {
+    align-self: flex-start;
+    margin-left: 0;
+    margin-right: auto;
+}
+
 .image-message-stack {
     width: min(52rem, calc(100vw - 3rem));
     max-width: 100%;
@@ -626,16 +633,29 @@
     background: var(--input-field-bg);
 }
 
+.generated-image-preview-btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+
 .generated-image-card + .generated-image-card {
     margin-top: .75rem;
 }
 
 .generated-image-actions {
     position: absolute;
+    left: .75rem;
     right: .75rem;
     bottom: .75rem;
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: .5rem;
+    pointer-events: none;
 }
 
 .generated-image-action-btn {
@@ -645,13 +665,25 @@
     padding: .45rem .8rem;
     border-radius: 999px;
     color: #fff;
-    background: rgba(15, 23, 42, .76);
+    background: rgba(15, 23, 42, .42);
     backdrop-filter: blur(10px);
     cursor: pointer;
+    pointer-events: auto;
 }
 
 .generated-image-action-btn:hover {
-    background: rgba(15, 23, 42, .92);
+    background: rgba(15, 23, 42, .58);
+}
+
+.generated-image-download-btn {
+    justify-content: center;
+    width: 2.5rem;
+    min-width: 2.5rem;
+    padding: .45rem;
+}
+
+.generated-image-action-btn svg {
+    flex: none;
 }
 
 .generated-image-skeleton {

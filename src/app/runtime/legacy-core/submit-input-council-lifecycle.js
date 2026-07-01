@@ -737,6 +737,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       abortController: submitAbortController,
       contentDiv,
       conversation: conv,
+      loadingMessageDiv,
       responseUsesCouncil,
       userMessage,
       userMessageObject,
@@ -821,8 +822,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
         extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
         completeImageView: generatedImageParts ? () => {
-          const loadingElement = contentDiv.closest('.message-item');
-          loadingElement?.remove();
+          loadingMessageDiv?.remove();
           addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
         } : null
       });

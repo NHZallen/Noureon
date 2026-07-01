@@ -2714,6 +2714,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'store.css',
     'layout.css',
     'chat.css',
+    'generated-image-editor.css',
     'modals.css',
     'personalization.css',
     'input-polish.css',

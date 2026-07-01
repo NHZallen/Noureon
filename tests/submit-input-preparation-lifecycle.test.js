@@ -146,6 +146,26 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
   ]);
 });
 
+test('preserves targeted edit metadata on annotated image attachments', () => {
+  const harness = createHarness();
+  assert.deepEqual(harness.lifecycle.buildUserParts('change the marked area', [{
+    base64: 'data:image/png;base64,marked',
+    name: 'targeted.png',
+    size: 123,
+    type: 'image/png',
+    targetedEdit: true
+  }]), [
+    { text: 'change the marked area' },
+    { inlineData: {
+      data: 'marked',
+      mimeType: 'image/png',
+      name: 'targeted.png',
+      size: 123,
+      targetedEdit: true
+    } }
+  ]);
+});
+
 test('invalid council validation resets submit state and does not add messages', async () => {
   const harness = createHarness({
     getCouncilValidation: () => ({ ok: false, message: 'bad council' })

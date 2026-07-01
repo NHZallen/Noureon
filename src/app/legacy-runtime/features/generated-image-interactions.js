@@ -1,0 +1,213 @@
+import { createMediaPreviewLifecycle } from './media-preview-lifecycle.js';
+
+const EDITOR_COLORS = Object.freeze([
+  { value: '#ef4444', label: '紅色' },
+  { value: '#3b82f6', label: '藍色' },
+  { value: '#22c55e', label: '綠色' },
+  { value: '#facc15', label: '黃色' },
+  { value: '#ffffff', label: '白色' }
+]);
+
+const getEditorTexts = (language) => {
+  if (language === 'en') return {
+    title: 'Targeted edit', hint: 'Mark the area you want changed, then confirm and describe the edit.',
+    close: 'Cancel targeted edit', brush: 'Brush', eraser: 'Eraser', confirm: 'Confirm selection'
+  };
+  if (language === 'fr') return {
+    title: 'Retouche ciblée', hint: 'Marquez la zone à modifier, confirmez, puis décrivez la retouche.',
+    close: 'Annuler la retouche ciblée', brush: 'Pinceau', eraser: 'Gomme', confirm: 'Confirmer la zone'
+  };
+  return {
+    title: '指定編輯', hint: '圈出要修改的位置，確認後再到輸入欄描述修改內容。',
+    close: '取消指定編輯', brush: '畫筆', eraser: '橡皮擦', confirm: '確認範圍'
+  };
+};
+
+const getCanvasPoint = (canvas, event) => {
+  const bounds = canvas.getBoundingClientRect();
+  return {
+    x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
+    y: (event.clientY - bounds.top) * (canvas.height / bounds.height)
+  };
+};
+
+export function createGeneratedImageInteractions({
+  document,
+  getImageDataUrl,
+  openPreview = null,
+  attachAnnotatedImage,
+  getUiLanguage = () => 'zh-TW',
+  navigator = globalThis.navigator,
+  fetchImpl = globalThis.fetch,
+  FileCtor = globalThis.File,
+  escapeHTML = value => String(value ?? ''),
+  getText = (_key, fallback) => fallback,
+  logWarn = (...args) => console.warn(...args)
+}) {
+  const previewLifecycle = openPreview ? null : createMediaPreviewLifecycle({
+      document,
+      navigator,
+      fetch: fetchImpl,
+      File: FileCtor,
+      escapeHTML,
+      getInlineMediaSrc: item => item.src,
+      getUiLanguage,
+      getText,
+      logWarn
+    });
+  const preview = openPreview || ((media) => {
+    previewLifecycle.openMediaPreview(media);
+    document.querySelector('.media-lightbox')?.classList.add('generated-image-lightbox');
+  });
+  const closeExistingEditor = () => document.querySelector('.generated-image-editor')?.remove();
+
+  const openEditor = async (descriptor) => {
+    const dataUrl = await getImageDataUrl(descriptor);
+    if (!dataUrl) return;
+    closeExistingEditor();
+    const texts = getEditorTexts(getUiLanguage());
+    const overlay = document.createElement('div');
+    overlay.className = 'generated-image-editor';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', texts.title);
+    overlay.innerHTML = `
+      <header class="generated-image-editor-header">
+        <div><strong>${texts.title}</strong><span>${texts.hint}</span></div>
+        <button type="button" class="generated-image-editor-close" aria-label="${texts.close}">&times;</button>
+      </header>
+      <div class="generated-image-editor-stage">
+        <div class="generated-image-editor-canvas-wrap">
+          <img class="generated-image-editor-photo" alt="${texts.title}">
+          <canvas class="generated-image-editor-canvas"></canvas>
+        </div>
+      </div>
+      <footer class="generated-image-editor-toolbar">
+        <div class="generated-image-editor-tools" aria-label="${texts.brush}">
+          ${EDITOR_COLORS.map(({ value, label }, index) => `
+            <button type="button" class="generated-image-editor-color${index === 0 ? ' active' : ''}" data-editor-color="${value}" aria-label="${texts.brush}：${label}" style="--editor-color:${value}"></button>
+          `).join('')}
+          <button type="button" class="generated-image-editor-eraser" data-editor-tool="eraser" aria-label="${texts.eraser}">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4-4L14.5 5.5a2.12 2.12 0 0 1 3 0l1 1a2.12 2.12 0 0 1 0 3L7 21Z"/><path d="m5 15 4 4"/><path d="M14 21h7"/></svg>
+          </button>
+        </div>
+        <button type="button" class="generated-image-editor-confirm" disabled>${texts.confirm}</button>
+      </footer>`;
+
+    const image = overlay.querySelector('.generated-image-editor-photo');
+    const canvas = overlay.querySelector('.generated-image-editor-canvas');
+    const confirmButton = overlay.querySelector('.generated-image-editor-confirm');
+    const context = canvas?.getContext?.('2d');
+    let drawing = false;
+    let ready = false;
+    let annotated = false;
+    let currentColor = EDITOR_COLORS[0].value;
+    let eraseMode = false;
+
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKeyDown);
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') close();
+    };
+    const selectBrush = (button) => {
+      currentColor = button.dataset.editorColor;
+      eraseMode = false;
+      overlay.querySelectorAll('.generated-image-editor-color, .generated-image-editor-eraser')
+        .forEach(item => item.classList.toggle('active', item === button));
+    };
+    const beginStroke = (event) => {
+      if (!ready || !context) return;
+      drawing = true;
+      annotated = true;
+      confirmButton.disabled = false;
+      canvas.setPointerCapture?.(event.pointerId);
+      const point = getCanvasPoint(canvas, event);
+      context.beginPath();
+      context.moveTo(point.x, point.y);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.lineWidth = Math.max(8, Math.min(canvas.width, canvas.height) * 0.018);
+      context.globalCompositeOperation = eraseMode ? 'destination-out' : 'source-over';
+      context.strokeStyle = currentColor;
+    };
+    const continueStroke = (event) => {
+      if (!drawing || !context) return;
+      const point = getCanvasPoint(canvas, event);
+      context.lineTo(point.x, point.y);
+      context.stroke();
+    };
+    const endStroke = () => { drawing = false; };
+
+    image.addEventListener('load', () => {
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      ready = Boolean(context && canvas.width && canvas.height);
+    }, { once: true });
+    canvas.addEventListener('pointerdown', beginStroke);
+    canvas.addEventListener('pointermove', continueStroke);
+    canvas.addEventListener('pointerup', endStroke);
+    canvas.addEventListener('pointercancel', endStroke);
+    overlay.querySelectorAll('.generated-image-editor-color').forEach(button => {
+      button.addEventListener('click', () => selectBrush(button));
+    });
+    overlay.querySelector('.generated-image-editor-eraser')?.addEventListener('click', event => {
+      eraseMode = true;
+      overlay.querySelectorAll('.generated-image-editor-color, .generated-image-editor-eraser')
+        .forEach(item => item.classList.toggle('active', item === event.currentTarget));
+    });
+    overlay.querySelector('.generated-image-editor-close')?.addEventListener('click', close);
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) close();
+    });
+    confirmButton.addEventListener('click', async () => {
+      if (!ready || !annotated) return;
+      confirmButton.disabled = true;
+      try {
+        const output = document.createElement('canvas');
+        output.width = canvas.width;
+        output.height = canvas.height;
+        const outputContext = output.getContext('2d');
+        outputContext.drawImage(image, 0, 0, output.width, output.height);
+        outputContext.drawImage(canvas, 0, 0);
+        await attachAnnotatedImage({
+          dataUrl: output.toDataURL('image/png'),
+          descriptor
+        });
+        close();
+      } catch (error) {
+        confirmButton.disabled = false;
+        logWarn('Targeted image edit preparation failed:', error);
+      }
+    });
+
+    document.addEventListener('keydown', onKeyDown);
+    document.body.appendChild(overlay);
+    image.src = dataUrl;
+  };
+
+  const bind = (root, descriptors = []) => {
+    descriptors.forEach(descriptor => {
+      root.querySelectorAll(`[data-generated-image-preview="${descriptor.id}"]`).forEach(button => {
+        button.addEventListener('click', async event => {
+          event.stopPropagation();
+          const src = await getImageDataUrl(descriptor);
+          if (src) preview({
+            src,
+            mimeType: descriptor.mediaType || 'image/png',
+            name: `astra-generated-${descriptor.id}.png`
+          });
+        });
+      });
+      root.querySelectorAll(`[data-generated-image-edit="${descriptor.id}"]`).forEach(button => {
+        button.addEventListener('click', event => {
+          event.stopPropagation();
+          void openEditor(descriptor).catch(error => logWarn('Targeted image editor failed:', error));
+        });
+      });
+    });
+  };
+
+  return { bind, closeExistingEditor, openEditor };
+}

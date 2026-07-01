@@ -463,8 +463,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 generatedImageRuntimePromise = Promise.all([
                     import('/src/app/legacy-runtime/features/generated-image-assets.js'),
                     import('/src/app/legacy-runtime/features/openrouter-image-generation.js'),
-                    import('/src/app/legacy-runtime/features/image-generation-response-lifecycle.js')
-                ]).then(([assetsModule, apiModule, lifecycleModule]) => {
+                    import('/src/app/legacy-runtime/features/image-generation-response-lifecycle.js'),
+                    import('/src/app/legacy-runtime/features/generated-image-interactions.js')
+                ]).then(([assetsModule, apiModule, lifecycleModule, interactionsModule]) => {
                     const assetStore = assetsModule.createGeneratedImageAssetStore({
                         getItem,
                         setItem,
@@ -478,31 +479,39 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                         getStoredImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
                         getApiKey: provider => getApiKeyForProvider(provider)
                     });
-                    return { assetStore, responseLifecycle };
+                    const interactions = interactionsModule.createGeneratedImageInteractions({
+                        document,
+                        getImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
+                        attachAnnotatedImage: async ({ dataUrl, descriptor }) => {
+                            const blob = await (await fetch(dataUrl)).blob();
+                            uploadedFiles = [{
+                                name: `astra-targeted-edit-${descriptor.id}.png`,
+                                type: 'image/png',
+                                size: blob.size,
+                                base64: dataUrl,
+                                targetedEdit: true
+                            }];
+                            legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')();
+                            ALL_ELEMENTS.messageInput?.focus();
+                            showNotification(i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || '圖片已加入，可繼續描述修改內容', 'success');
+                        },
+                        getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
+                        navigator,
+                        fetchImpl: fetch,
+                        FileCtor: File,
+                        escapeHTML,
+                        getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback,
+                        logWarn: (...args) => console.warn(...args)
+                    });
+                    return { assetStore, interactions, responseLifecycle };
                 });
             }
             return generatedImageRuntimePromise;
         };
         const bindGeneratedImageAssets = async (root, assets) => {
-            const { assetStore } = await getGeneratedImageRuntime();
+            const { assetStore, interactions } = await getGeneratedImageRuntime();
             await assetStore.bind(root, assets);
-            root.querySelectorAll('[data-generated-image-edit]').forEach(button => {
-                button.addEventListener('click', async () => {
-                    const descriptor = assets.find(asset => asset.id === button.dataset.generatedImageEdit);
-                    if (!descriptor) return;
-                    const base64 = await assetStore.getDataUrl(descriptor);
-                    if (!base64) return;
-                    uploadedFiles = [{
-                        name: `astra-generated-${descriptor.id}.${descriptor.mediaType === 'image/webp' ? 'webp' : descriptor.mediaType === 'image/jpeg' ? 'jpg' : 'png'}`,
-                        type: descriptor.mediaType,
-                        size: descriptor.size,
-                        base64
-                    }];
-                    legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')();
-                    ALL_ELEMENTS.messageInput?.focus();
-                    showNotification(i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || '圖片已加入，可繼續描述修改內容', 'success');
-                });
-            });
+            interactions.bind(root, assets);
         };
         const sensitiveConfigStore = createSensitiveConfigStore({
             initialApiKeys: runtimeConfigAccess.getConfig().apiKeys,

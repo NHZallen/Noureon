@@ -63,3 +63,57 @@ test('falls back to the latest generated image when there is no new attachment',
 
   assert.deepEqual(references, ['data:image/png;base64,latest']);
 });
+
+test('keeps image-to-image requests buffered even when the model supports generation streaming', async () => {
+  let request;
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      request = value;
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'edited', storageKey: 'edited-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'secret'
+  });
+
+  await lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: [
+      { text: 'make it winter' },
+      { inlineData: { mimeType: 'image/png', data: 'reference' } }
+    ],
+    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter', supportsImageStreaming: true },
+    conversation: { messages: [] }
+  });
+
+  assert.equal(request.onPartial, undefined);
+  assert.deepEqual(request.inputReferences, ['data:image/png;base64,reference']);
+});
+
+test('adds precise edit guidance for annotated references', async () => {
+  let prompt;
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      prompt = value.prompt;
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'targeted', storageKey: 'targeted-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'secret'
+  });
+
+  await lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: [
+      { text: 'replace this fruit with flowers' },
+      { inlineData: { mimeType: 'image/png', data: 'annotated', targetedEdit: true } }
+    ],
+    modelInfo: { id: 'google/gemini-3.1-flash-image', provider: 'openrouter' },
+    conversation: { messages: [] }
+  });
+
+  assert.match(prompt, /exact target area/);
+  assert.match(prompt, /remove all annotation marks/);
+});

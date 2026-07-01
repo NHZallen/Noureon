@@ -24,6 +24,8 @@ test('renders durable generated images with download and edit actions', () => {
   assert.match(view.messageHTML, /data-generated-image-id="asset-1"/);
   assert.match(view.messageHTML, /data-generated-image-download="asset-1"/);
   assert.match(view.messageHTML, /data-generated-image-edit="asset-1"/);
+  assert.match(view.messageHTML, /data-generated-image-preview="asset-1"/);
+  assert.match(view.messageHTML, /<svg/);
   assert.equal(view.generatedImageAssets.length, 1);
   assert.equal(view.messageHTML.includes('copy-content-btn'), false);
 });

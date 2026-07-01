@@ -32,13 +32,15 @@ export function createSubmitInputPreparationLifecycle({
       userParts.push({ text: userMessage });
     }
     uploadedFiles.forEach(file => {
+      const inlineData = {
+        mimeType: file.type,
+        data: file.base64.split(',')[1],
+        size: file.size,
+        name: file.name
+      };
+      if (file.targetedEdit) inlineData.targetedEdit = true;
       userParts.push({
-        inlineData: {
-          mimeType: file.type,
-          data: file.base64.split(',')[1],
-          size: file.size,
-          name: file.name
-        }
+        inlineData
       });
     });
     return userParts;
