@@ -17,7 +17,7 @@ test('renders durable generated images with download and edit actions', () => {
     role: 'model',
     createdAt: '2026-07-01T15:52:00.000Z',
     parts: [{ generatedImage: {
-      id: 'asset-1', storageKey: 'key', mediaType: 'image/png', size: 5
+      id: 'asset-1', storageKey: 'key', mediaType: 'image/png', size: 5, aspectRatio: '4:5'
     }}]
   });
 
@@ -26,6 +26,9 @@ test('renders durable generated images with download and edit actions', () => {
   assert.match(view.messageHTML, /data-generated-image-edit="asset-1"/);
   assert.match(view.messageHTML, /data-generated-image-preview="asset-1"/);
   assert.match(view.messageHTML, /<svg/);
+  assert.match(view.messageHTML, /aspect-ratio: 4 \/ 5/);
+  assert.match(view.messageHTML, />編輯</);
+  assert.equal(view.messageHTML.includes('指定編輯'), false);
   assert.equal(view.generatedImageAssets.length, 1);
   assert.equal(view.messageHTML.includes('copy-content-btn'), false);
 });

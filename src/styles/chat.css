@@ -633,6 +633,11 @@
     background: var(--input-field-bg);
 }
 
+.generated-image-card.has-known-aspect .generated-image-preview-btn,
+.generated-image-card.has-known-aspect img {
+    height: 100%;
+}
+
 .generated-image-preview-btn {
     display: block;
     width: 100%;
@@ -684,6 +689,8 @@
 
 .generated-image-action-btn svg {
     flex: none;
+    color: #fff;
+    stroke: #fff;
 }
 
 .generated-image-skeleton {
@@ -700,21 +707,65 @@
     border: 1px solid var(--border-color);
 }
 
+.generated-image-skeleton::before {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    opacity: .58;
+    background-image:
+        radial-gradient(circle, rgba(255, 255, 255, .78) 0 1.5px, transparent 2px),
+        radial-gradient(circle, rgba(255, 255, 255, .46) 0 1px, transparent 1.6px),
+        radial-gradient(circle, rgba(255, 255, 255, .3) 0 2px, transparent 2.6px);
+    background-size: 53px 61px, 79px 71px, 113px 97px;
+    background-position: 0 0, 17px 29px, 43px 11px;
+    animation: generated-image-particles 7s linear infinite;
+    pointer-events: none;
+}
+
+.generated-image-skeleton > span {
+    position: relative;
+    z-index: 2;
+}
+
 .generated-image-skeleton-shimmer {
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
     background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
     animation: generated-image-shimmer 1.5s infinite;
+    z-index: 1;
 }
 
 @keyframes generated-image-shimmer {
     100% { transform: translateX(100%); }
 }
 
+@keyframes generated-image-particles {
+    0% { transform: translate3d(-2%, 4%, 0) rotate(0deg); }
+    50% { transform: translate3d(5%, -4%, 0) rotate(2deg); }
+    100% { transform: translate3d(11%, -12%, 0) rotate(4deg); }
+}
+
+.generated-image-result-enter .generated-image-card {
+    opacity: 0;
+    transform: scale(.965);
+    filter: blur(5px);
+    clip-path: inset(2% round 1.5rem);
+}
+
+.generated-image-result-enter.generated-image-result-visible .generated-image-card {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+    clip-path: inset(0 round 1.5rem);
+    transition: opacity .46s ease, transform .52s cubic-bezier(.2, .8, .2, 1), filter .42s ease, clip-path .52s cubic-bezier(.2, .8, .2, 1);
+}
+
 @media (max-width: 640px) {
     .image-message-stack {
-        width: calc(100vw - 1.5rem);
+        width: calc(100vw - 3.5rem);
+        max-width: calc(100% - 1.1rem);
+        margin-right: 1.1rem !important;
     }
 
     .generated-image-card,
@@ -724,6 +775,6 @@
     }
 
     .generated-image-skeleton {
-        min-height: min(22rem, calc(100vw - 1.5rem));
+        min-height: min(22rem, calc(100vw - 3.5rem));
     }
 }

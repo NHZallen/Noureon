@@ -118,6 +118,26 @@
     background: rgba(255, 255, 255, .12);
 }
 
+.generated-image-editor-eraser svg,
+.generated-image-editor-eraser svg * {
+    color: #fff;
+    stroke: #fff;
+}
+
+.generated-image-editor-size {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 10rem;
+    color: rgba(255, 255, 255, .78);
+    font-size: .82rem;
+}
+
+.generated-image-editor-size input {
+    width: 8rem;
+    accent-color: #fff;
+}
+
 .generated-image-editor-confirm {
     min-height: 2.8rem;
     padding: .65rem 1.15rem;
@@ -163,6 +183,15 @@
         gap: .65rem;
     }
 
+    .generated-image-editor-size {
+        width: min(100%, 19rem);
+        justify-content: center;
+    }
+
+    .generated-image-editor-size input {
+        width: min(70vw, 14rem);
+    }
+
     .generated-image-editor-color,
     .generated-image-editor-eraser {
         width: 2.15rem;
@@ -195,4 +224,3 @@
         display: none;
     }
 }
-

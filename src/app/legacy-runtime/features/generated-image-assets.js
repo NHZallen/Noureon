@@ -27,7 +27,7 @@ export function createGeneratedImageAssetStore({
   randomUUID = () => crypto.randomUUID(),
   createObjectURL = (blob) => URL.createObjectURL(blob)
 } = {}) {
-  const save = async ({ b64Json, mediaType = 'image/png' }) => {
+  const save = async ({ b64Json, mediaType = 'image/png', aspectRatio = '' }) => {
     const id = randomUUID();
     const bytes = decodeBase64(b64Json);
     const blob = new Blob([bytes], { type: mediaType });
@@ -37,6 +37,7 @@ export function createGeneratedImageAssetStore({
       size: blob.size,
       storageKey: `generatedImage:${getUserName() || 'anonymous'}:${id}`
     };
+    if (aspectRatio) descriptor.aspectRatio = aspectRatio;
     await setItem(descriptor.storageKey, blob);
     return descriptor;
   };

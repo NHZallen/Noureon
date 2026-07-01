@@ -36,6 +36,8 @@ test('binds generated image preview and opens targeted editor controls', async (
   assert.ok(editor);
   assert.equal(editor.querySelectorAll('.generated-image-editor-color').length, 5);
   assert.ok(editor.querySelector('.generated-image-editor-eraser'));
+  assert.ok(editor.querySelector('.generated-image-editor-eraser path[d="M22 21H7"]'));
+  assert.equal(editor.querySelector('.generated-image-editor-size input').value, '14');
   assert.ok(editor.querySelector('.generated-image-editor-confirm'));
   assert.equal(editor.querySelector('.media-lightbox-toolbar'), null);
 
@@ -43,4 +45,3 @@ test('binds generated image preview and opens targeted editor controls', async (
   assert.equal(document.querySelector('.generated-image-editor'), null);
   window.close();
 });
-

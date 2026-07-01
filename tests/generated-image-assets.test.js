@@ -38,6 +38,22 @@ test('loads stored images as data URLs for image-to-image references', async () 
   );
 });
 
+test('keeps the requested aspect ratio on generated image descriptors', async () => {
+  const store = createGeneratedImageAssetStore({
+    setItem: async () => {},
+    getItem: async () => null,
+    getUserName: () => 'alice',
+    randomUUID: () => 'asset-ratio'
+  });
+
+  const descriptor = await store.save({
+    b64Json: 'aGVsbG8=',
+    mediaType: 'image/png',
+    aspectRatio: '16:9'
+  });
+  assert.equal(descriptor.aspectRatio, '16:9');
+});
+
 test('binds an object URL and original download name to generated image elements', async () => {
   const blob = new Blob(['hello'], { type: 'image/png' });
   const attrs = new Map();

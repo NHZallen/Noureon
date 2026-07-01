@@ -1,3 +1,10 @@
+const resolveImageAspectRatio = (requestedRatio) => ({
+    '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
+    '3:2': '3 / 2', '2:3': '2 / 3', '4:5': '4 / 5', '5:4': '5 / 4',
+    '1:2': '1 / 2', '2:1': '2 / 1', '1:4': '1 / 4', '4:1': '4 / 1',
+    '1:8': '1 / 8', '8:1': '8 / 1', '9:21': '9 / 21', '21:9': '21 / 9'
+}[requestedRatio] || '');
+
 export function buildMessageRenderView({
     message,
     renderUserText,
@@ -20,12 +27,7 @@ export function buildMessageRenderView({
 
     if (isImageGenerationLoading) {
         const requestedRatio = message.parts.find(part => part.imageGenerationLoading)?.imageAspectRatio;
-        const imageAspectRatio = {
-            '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
-            '3:2': '3 / 2', '2:3': '2 / 3', '4:5': '4 / 5', '5:4': '5 / 4',
-            '1:2': '1 / 2', '2:1': '2 / 1', '1:4': '1 / 4', '4:1': '4 / 1',
-            '1:8': '1 / 8', '8:1': '8 / 1', '9:21': '9 / 21', '21:9': '21 / 9'
-        }[requestedRatio] || '1 / 1';
+        const imageAspectRatio = resolveImageAspectRatio(requestedRatio) || '1 / 1';
         generatedImageHTML = `
             <div class="generated-image-stage message-content" data-image-generation-stage>
                 <div class="generated-image-skeleton" role="status" aria-live="polite" style="aspect-ratio: ${imageAspectRatio}">
@@ -58,21 +60,23 @@ export function buildMessageRenderView({
             mediaGridHTML = mediaView.html;
         }
         if (generatedImageAssets.length > 0) {
-            generatedImageHTML = generatedImageAssets.map(asset => `
-                <figure class="generated-image-card" data-generated-image-card="${asset.id}">
+            generatedImageHTML = generatedImageAssets.map(asset => {
+                const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
+                return `
+                <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
                     <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="預覽生成圖片">
                         <img data-generated-image-id="${asset.id}" alt="AI 生成圖片" loading="lazy">
                     </button>
                     <div class="generated-image-actions">
                         <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn generated-image-edit-btn">
-                            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                            <span>指定編輯</span>
+                            <span>編輯</span>
                         </button>
                         <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="下載原始圖片" aria-label="下載原始圖片">
                             <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
                         </a>
                     </div>
-                </figure>`).join('');
+                </figure>`;
+            }).join('');
         }
         if (!isUser && generatedImageAssets.length === 0) {
             const timeString = formatTimestamp(message.createdAt);

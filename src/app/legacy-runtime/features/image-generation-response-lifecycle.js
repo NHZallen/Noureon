@@ -57,12 +57,13 @@ export function createImageGenerationResponseLifecycle({
       if (dataUrl) inputReferences = [dataUrl];
     }
 
+    const normalizedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
     const generationRequest = {
       apiKey: getApiKey(modelInfo.provider),
       model: modelInfo.id,
       prompt,
       config: {
-        ...normalizeImageGenerationConfig(conversation.imageConfig),
+        ...normalizedConfig,
         ...(conversation.imageAdvancedConfig || {})
       },
       inputReferences,
@@ -78,7 +79,10 @@ export function createImageGenerationResponseLifecycle({
     }
     const result = await generateImage(generationRequest);
     if (!result.images?.length) throw new Error('圖片生成完成，但服務沒有回傳圖片');
-    const descriptors = await Promise.all(result.images.map(saveImageAsset));
+    const descriptors = await Promise.all(result.images.map(image => saveImageAsset({
+      ...image,
+      aspectRatio: normalizedConfig.aspectRatio
+    })));
     return {
       parts: descriptors.map(generatedImage => ({ generatedImage })),
       descriptors

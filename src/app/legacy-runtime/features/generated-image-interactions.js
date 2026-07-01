@@ -11,15 +11,15 @@ const EDITOR_COLORS = Object.freeze([
 const getEditorTexts = (language) => {
   if (language === 'en') return {
     title: 'Targeted edit', hint: 'Mark the area you want changed, then confirm and describe the edit.',
-    close: 'Cancel targeted edit', brush: 'Brush', eraser: 'Eraser', confirm: 'Confirm selection'
+    close: 'Cancel targeted edit', brush: 'Brush', eraser: 'Eraser', size: 'Size', confirm: 'Confirm selection'
   };
   if (language === 'fr') return {
     title: 'Retouche ciblée', hint: 'Marquez la zone à modifier, confirmez, puis décrivez la retouche.',
-    close: 'Annuler la retouche ciblée', brush: 'Pinceau', eraser: 'Gomme', confirm: 'Confirmer la zone'
+    close: 'Annuler la retouche ciblée', brush: 'Pinceau', eraser: 'Gomme', size: 'Taille', confirm: 'Confirmer la zone'
   };
   return {
     title: '指定編輯', hint: '圈出要修改的位置，確認後再到輸入欄描述修改內容。',
-    close: '取消指定編輯', brush: '畫筆', eraser: '橡皮擦', confirm: '確認範圍'
+    close: '取消指定編輯', brush: '畫筆', eraser: '橡皮擦', size: '粗細', confirm: '確認範圍'
   };
 };
 
@@ -88,9 +88,13 @@ export function createGeneratedImageInteractions({
             <button type="button" class="generated-image-editor-color${index === 0 ? ' active' : ''}" data-editor-color="${value}" aria-label="${texts.brush}：${label}" style="--editor-color:${value}"></button>
           `).join('')}
           <button type="button" class="generated-image-editor-eraser" data-editor-tool="eraser" aria-label="${texts.eraser}">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4-4L14.5 5.5a2.12 2.12 0 0 1 3 0l1 1a2.12 2.12 0 0 1 0 3L7 21Z"/><path d="m5 15 4 4"/><path d="M14 21h7"/></svg>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4L14.6 3.4a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L9 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
           </button>
         </div>
+        <label class="generated-image-editor-size">
+          <span>${texts.size}</span>
+          <input type="range" min="4" max="48" value="14" step="1" aria-label="${texts.size}">
+        </label>
         <button type="button" class="generated-image-editor-confirm" disabled>${texts.confirm}</button>
       </footer>`;
 
@@ -103,6 +107,7 @@ export function createGeneratedImageInteractions({
     let annotated = false;
     let currentColor = EDITOR_COLORS[0].value;
     let eraseMode = false;
+    let brushSize = 14;
 
     const close = () => {
       overlay.remove();
@@ -128,7 +133,8 @@ export function createGeneratedImageInteractions({
       context.moveTo(point.x, point.y);
       context.lineCap = 'round';
       context.lineJoin = 'round';
-      context.lineWidth = Math.max(8, Math.min(canvas.width, canvas.height) * 0.018);
+      const bounds = canvas.getBoundingClientRect();
+      context.lineWidth = brushSize * (canvas.width / bounds.width);
       context.globalCompositeOperation = eraseMode ? 'destination-out' : 'source-over';
       context.strokeStyle = currentColor;
     };
@@ -156,6 +162,9 @@ export function createGeneratedImageInteractions({
       eraseMode = true;
       overlay.querySelectorAll('.generated-image-editor-color, .generated-image-editor-eraser')
         .forEach(item => item.classList.toggle('active', item === event.currentTarget));
+    });
+    overlay.querySelector('.generated-image-editor-size input')?.addEventListener('input', event => {
+      brushSize = Number(event.currentTarget.value) || 14;
     });
     overlay.querySelector('.generated-image-editor-close')?.addEventListener('click', close);
     overlay.addEventListener('click', event => {

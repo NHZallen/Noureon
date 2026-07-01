@@ -822,8 +822,16 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
         extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
         completeImageView: generatedImageParts ? () => {
-          loadingMessageDiv?.remove();
-          addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
+          const finalMessageElement = addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
+          if (loadingMessageDiv?.isConnected) {
+            loadingMessageDiv.replaceWith(finalMessageElement);
+          } else {
+            loadingMessageDiv?.remove();
+          }
+          finalMessageElement.classList.add('generated-image-result-enter');
+          requestAnimationFrame(() => {
+            finalMessageElement.classList.add('generated-image-result-visible');
+          });
         } : null
       });
     } catch (error) {
