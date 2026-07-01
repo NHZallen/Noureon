@@ -65,6 +65,13 @@ test('settings navigation starts below the modal header divider on desktop', () 
   assert.match(css, /#settings-modal\s+\.settings-sidebar\s*\{[^}]*height:\s*calc\(100%\s*-\s*4\.5rem\)(?:\s*!important)?;/s);
 });
 
+test('settings close control centers the x glyph inside the circular button', () => {
+  const css = readUiSource('src/styles/main.css');
+
+  assert.match(css, /#close-settings-btn\s*\{[\s\S]*display:\s*inline-flex\s*!important;[\s\S]*align-items:\s*center\s*!important;[\s\S]*justify-content:\s*center\s*!important;/s);
+  assert.match(css, /#close-settings-btn::before\s*\{[\s\S]*display:\s*flex\s*!important;[\s\S]*align-items:\s*center\s*!important;[\s\S]*justify-content:\s*center\s*!important;[\s\S]*height:\s*100%\s*!important;/s);
+});
+
 test('mobile settings open to a GPT-style category list before drilling into details', () => {
   const css = readUiSource('src/styles/main.css');
 

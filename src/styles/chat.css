@@ -601,11 +601,13 @@
     }
 .generated-image-card {
     position: relative;
-    width: min(100%, 48rem);
-    overflow: hidden;
-    border-radius: 1.5rem;
-    background: var(--input-field-bg);
-    border: 1px solid var(--border-color);
+    display: inline-block;
+    width: auto;
+    max-width: min(100%, 48rem);
+    overflow: visible;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
 }
 
 .model-message .image-message-stack,
@@ -631,15 +633,22 @@
 
 .generated-image-card img {
     display: block;
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    height: auto;
     max-height: 70vh;
     object-fit: contain;
-    background: var(--input-field-bg);
+    border-radius: 1.2rem;
+    background: transparent;
 }
 
 .generated-image-card.has-known-aspect .generated-image-preview-btn,
 .generated-image-card.has-known-aspect img {
-    height: 100%;
+    height: auto;
+}
+
+.generated-image-card.has-natural-aspect {
+    aspect-ratio: auto !important;
 }
 
 .generated-image-preview-btn {
@@ -806,6 +815,10 @@
     .generated-image-skeleton {
         width: 100%;
         border-radius: 1.1rem;
+    }
+
+    .generated-image-card {
+        border-radius: 0;
     }
 
     .generated-image-skeleton {

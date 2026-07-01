@@ -7,6 +7,8 @@ test('generated image cards keep mobile AI spacing, white controls, particles, a
   const lifecycle = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
 
   assert.match(css, /\.generated-image-action-btn\s+svg[^{]*\{[^}]*stroke:\s*#fff;/s);
+  assert.match(css, /\.generated-image-card\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/s);
+  assert.match(css, /\.generated-image-card\.has-natural-aspect\s*\{[\s\S]*aspect-ratio:\s*auto\s*!important;/s);
   assert.match(css, /\.generated-image-skeleton::before[^{]*\{[^}]*radial-gradient[\s\S]*animation:\s*generated-image-particles/s);
   assert.match(css, /\.generated-image-skeleton::after[^{]*\{[^}]*radial-gradient[\s\S]*animation:\s*generated-image-particles-reverse/s);
   assert.match(css, /@keyframes\s+generated-image-particles/);
@@ -29,6 +31,10 @@ test('targeted editor exposes a shared thickness slider and a recognizable white
   assert.match(source, /generated-image-editor-brush-cursor/);
   assert.match(source, /data-drawing-area-label/);
   assert.match(source, /<path d="M22 21H7"\/>/);
+  assert.match(css, /\.generated-image-editor\s*\{[\s\S]*background:\s*rgba\(0,\s*0,\s*0,\s*\.88\);[\s\S]*backdrop-filter:\s*none;/s);
+  assert.match(css, /\.generated-image-editor-close::before\s*\{[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*height:\s*100%;/s);
+  assert.match(css, /\.generated-image-editor-photo\s*\{[\s\S]*border-radius:\s*0;/s);
+  assert.match(css, /\.generated-image-lightbox\s+\.media-lightbox-stage\s+img[\s\S]*border-radius:\s*0;/s);
   assert.match(css, /\.generated-image-editor-eraser\s+svg[\s\S]*stroke:\s*#fff;/s);
   assert.match(css, /\.generated-image-editor-canvas-wrap::before[^{]*\{[^}]*border:\s*2px dashed/s);
   assert.match(css, /\.generated-image-editor-brush-cursor[^{]*\{[^}]*--brush-size/s);

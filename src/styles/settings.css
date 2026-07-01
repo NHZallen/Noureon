@@ -542,11 +542,16 @@ body svg {
 
 #close-settings-btn::before {
     content: "\00d7" !important;
-    display: block !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
     color: var(--gpt-icon) !important;
     font-size: 1.9rem !important;
     font-weight: 300 !important;
     line-height: 1 !important;
+    transform: translateY(-0.04em) !important;
 }
 
 .store-category-btn,

@@ -5,8 +5,8 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     color: #fff;
-    background: rgba(4, 7, 14, .94);
-    backdrop-filter: blur(18px);
+    background: rgba(0, 0, 0, .88);
+    backdrop-filter: none;
 }
 
 .generated-image-editor-header {
@@ -32,16 +32,34 @@
 }
 
 .generated-image-editor-close {
-    display: grid;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     place-items: center;
     width: 2.6rem;
     height: 2.6rem;
     flex: none;
+    padding: 0;
+    border: 0;
     border-radius: 999px;
     color: #fff;
     background: rgba(255, 255, 255, .1);
-    font-size: 1.8rem;
+    font-size: 0;
     line-height: 1;
+}
+
+.generated-image-editor-close::before {
+    content: "\00d7";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: currentColor;
+    font-size: 1.9rem;
+    font-weight: 300;
+    line-height: 1;
+    transform: translateY(-0.04em);
 }
 
 .generated-image-editor-stage {
@@ -57,7 +75,7 @@
     display: inline-grid;
     max-width: min(74rem, 96vw);
     max-height: 72vh;
-    border-radius: 1rem;
+    border-radius: 0;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 24px 90px rgba(0, 0, 0, .42);
 }
 
@@ -81,7 +99,7 @@
     max-width: 100%;
     max-height: 72vh;
     object-fit: contain;
-    border-radius: 1rem;
+    border-radius: 0;
     z-index: 1;
 }
 
@@ -215,7 +233,7 @@
     .generated-image-editor-photo {
         max-width: 100vw;
         max-height: calc(100vh - 12.5rem);
-        border-radius: .85rem;
+        border-radius: 0;
     }
 
     .generated-image-editor-canvas-wrap::before {
@@ -273,4 +291,11 @@
     .generated-image-lightbox .media-lightbox-action span {
         display: none;
     }
+}
+
+.generated-image-lightbox .media-lightbox img,
+.generated-image-lightbox .media-lightbox video,
+.generated-image-lightbox .media-lightbox-stage img,
+.generated-image-lightbox .media-lightbox-stage video {
+    border-radius: 0;
 }
