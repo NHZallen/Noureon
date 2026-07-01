@@ -461,10 +461,15 @@
     }
     .media-lightbox-close {
         position: absolute;
-        top: 1.1rem;
+        top: 1.15rem;
         right: 1.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         width: 2.5rem;
         height: 2.5rem;
+        padding: 0;
+        border: 0;
         border-radius: 999px;
         color: white;
         background: transparent;

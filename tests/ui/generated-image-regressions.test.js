@@ -30,9 +30,11 @@ test('targeted editor exposes a shared thickness slider and a recognizable white
   assert.match(source, /brushSize\s*\*\s*\(canvas\.width\s*\/\s*bounds\.width\)/);
   assert.match(source, /generated-image-editor-brush-cursor/);
   assert.match(source, /data-drawing-area-label/);
+  assert.match(source, /generated-image-editor-close[\s\S]*<svg[^>]*viewBox="0 0 24 24"[\s\S]*M18 6 6 18/s);
   assert.match(source, /<path d="M22 21H7"\/>/);
   assert.match(css, /\.generated-image-editor\s*\{[\s\S]*background:\s*rgba\(0,\s*0,\s*0,\s*\.88\);[\s\S]*backdrop-filter:\s*none;/s);
-  assert.match(css, /\.generated-image-editor-close::before\s*\{[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*height:\s*100%;/s);
+  assert.match(css, /\.generated-image-editor-close\s*\{[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/s);
+  assert.match(css, /\.generated-image-editor-close\s+svg[\s\S]*stroke:\s*currentColor;/s);
   assert.match(css, /\.generated-image-editor-photo\s*\{[\s\S]*border-radius:\s*0;/s);
   assert.match(css, /\.generated-image-lightbox\s+\.media-lightbox-stage\s+img[\s\S]*border-radius:\s*0;/s);
   assert.match(css, /\.generated-image-editor-eraser\s+svg[\s\S]*stroke:\s*#fff;/s);

@@ -85,7 +85,9 @@ export function createGeneratedImageInteractions({
     overlay.innerHTML = `
       <header class="generated-image-editor-header">
         <div><strong>${texts.title}</strong><span>${texts.hint}</span></div>
-        <button type="button" class="generated-image-editor-close" aria-label="${texts.close}">&times;</button>
+        <button type="button" class="generated-image-editor-close" aria-label="${texts.close}">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
       </header>
       <div class="generated-image-editor-stage">
         <div class="generated-image-editor-canvas-wrap" data-drawing-area-label="${texts.drawingArea}">

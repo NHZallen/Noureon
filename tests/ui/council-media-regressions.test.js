@@ -8,6 +8,8 @@ test('media preview download and share icons stay white over dark media', () => 
   assert.match(css, /\.media-lightbox-action,\s*\.media-lightbox-action\s+svg,\s*\.media-lightbox-action\s+svg\s+\*[^{]*\{[^}]*color:\s*#ffffff\s!important;[^}]*stroke:\s*#ffffff\s!important;/s);
   assert.match(css, /\.media-lightbox-action\s+svg\s*\{[^}]*fill:\s*none\s!important;/s);
   assert.match(css, /\.media-lightbox-action\s+svg\s+\[fill\]:not\(\[fill="none"\]\)[^{]*\{[^}]*fill:\s*#ffffff\s!important;/s);
+  assert.match(css, /\.media-lightbox-close\s*\{[\s\S]*top:\s*1\.15rem;[\s\S]*display:\s*inline-flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/s);
+  assert.match(css, /\.media-lightbox-toolbar\s*\{[\s\S]*top:\s*1\.15rem;/s);
 });
 
 test('model council manager uses compact pills and a bounded scroll area', () => {
