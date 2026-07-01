@@ -20,6 +20,16 @@ const encodeBase64 = (bytes) => {
   return btoa(binary);
 };
 
+const applyNaturalImageAspect = (imageElement) => {
+  const width = Number(imageElement?.naturalWidth);
+  const height = Number(imageElement?.naturalHeight);
+  if (!width || !height) return;
+  const card = imageElement.closest?.('.generated-image-card');
+  if (!card) return;
+  card.style.aspectRatio = `${width} / ${height}`;
+  card.classList.add('has-natural-aspect');
+};
+
 export function createGeneratedImageAssetStore({
   setItem,
   getItem,
@@ -61,7 +71,13 @@ export function createGeneratedImageAssetStore({
       if (!blob) return;
       const objectUrl = createObjectURL(blob);
       root.querySelectorAll(`[data-generated-image-id="${descriptor.id}"]`)
-        .forEach(element => { element.src = objectUrl; });
+        .forEach(element => {
+          if (typeof element.addEventListener === 'function') {
+            element.addEventListener('load', () => applyNaturalImageAspect(element), { once: true });
+          }
+          element.src = objectUrl;
+          applyNaturalImageAspect(element);
+        });
       root.querySelectorAll(`[data-generated-image-download="${descriptor.id}"]`)
         .forEach(element => {
           element.href = objectUrl;
