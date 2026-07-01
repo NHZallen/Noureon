@@ -1,5 +1,20 @@
 import { normalizeImageGenerationConfig } from './image-generation-config.js';
 
+const resolveImageAspectRatio = (requestedRatio) => ({
+  '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
+  '3:2': '3 / 2', '2:3': '2 / 3', '4:5': '4 / 5', '5:4': '5 / 4',
+  '1:2': '1 / 2', '2:1': '2 / 1', '1:4': '1 / 4', '4:1': '4 / 1',
+  '1:8': '1 / 8', '8:1': '8 / 1', '9:21': '9 / 21', '21:9': '21 / 9'
+}[requestedRatio] || '1 / 1');
+
+const scheduleFrame = (callback) => {
+  if (typeof globalThis.requestAnimationFrame === 'function') {
+    globalThis.requestAnimationFrame(callback);
+    return;
+  }
+  setTimeout(callback, 0);
+};
+
 const findLatestGeneratedImage = (conversation) => {
   const messages = conversation?.messages || [];
   for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
@@ -29,10 +44,20 @@ export function createImageGenerationResponseLifecycle({
   getApiKey
 }) {
   const run = async ({ targetElement, userParts, modelInfo, conversation, signal }) => {
+    const normalizedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
+    const imageAspectRatio = resolveImageAspectRatio(normalizedConfig.aspectRatio);
     targetElement.innerHTML = `
-      <div class="generated-image-skeleton" role="status" aria-live="polite">
+      <div class="generated-image-skeleton generated-image-skeleton-preparing" role="status" aria-live="polite" data-target-aspect-ratio="${normalizedConfig.aspectRatio}">
         <span>正在建立圖像</span><div class="generated-image-skeleton-shimmer"></div>
       </div>`;
+    const skeleton = targetElement.querySelector?.('.generated-image-skeleton');
+    if (skeleton) {
+      scheduleFrame(() => {
+        if (!skeleton.isConnected) return;
+        skeleton.style.aspectRatio = imageAspectRatio;
+        skeleton.classList.add('generated-image-skeleton-sized');
+      });
+    }
 
     const requestParts = await buildSingleModelTranslatedRequestParts(
       userParts,
@@ -44,7 +69,7 @@ export function createImageGenerationResponseLifecycle({
       }
     );
     const basePrompt = getTextPrompt(requestParts);
-    if (!basePrompt) throw new Error('請輸入圖片描述');
+    if (!basePrompt) throw new Error('請輸入要生成的圖像描述');
     const hasTargetedEditReference = requestParts.some(part => part.inlineData?.targetedEdit);
     const prompt = hasTargetedEditReference
       ? `${basePrompt}\n\nThe colored hand-drawn marks indicate the exact target area to edit. Apply the requested change only where indicated, preserve the rest of the image, and remove all annotation marks from the final image.`
@@ -57,7 +82,6 @@ export function createImageGenerationResponseLifecycle({
       if (dataUrl) inputReferences = [dataUrl];
     }
 
-    const normalizedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
     const generationRequest = {
       apiKey: getApiKey(modelInfo.provider),
       model: modelInfo.id,
@@ -74,11 +98,11 @@ export function createImageGenerationResponseLifecycle({
     // that include input_references. Keep edits buffered to avoid provider rejection.
     if (modelInfo.supportsImageStreaming && inputReferences.length === 0) {
       generationRequest.onPartial = partial => {
-        targetElement.innerHTML = `<img class="generated-image-partial" alt="圖片生成預覽" src="data:${partial.mediaType};base64,${partial.b64Json}">`;
+        targetElement.innerHTML = `<img class="generated-image-partial" alt="圖像生成預覽" src="data:${partial.mediaType};base64,${partial.b64Json}">`;
       };
     }
     const result = await generateImage(generationRequest);
-    if (!result.images?.length) throw new Error('圖片生成完成，但服務沒有回傳圖片');
+    if (!result.images?.length) throw new Error('圖像生成完成，但沒有收到可顯示的圖片');
     const descriptors = await Promise.all(result.images.map(image => saveImageAsset({
       ...image,
       aspectRatio: normalizedConfig.aspectRatio

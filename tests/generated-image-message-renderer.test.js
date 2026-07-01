@@ -43,6 +43,7 @@ test('renders an image-generation skeleton for loading messages', () => {
   assert.match(view.messageHTML, /data-image-generation-stage/);
   assert.match(view.messageHTML, /message-content/);
   assert.match(view.messageHTML, /aspect-ratio: 16 \/ 9/);
+  assert.match(view.messageHTML, /data-target-aspect-ratio="16:9"/);
   assert.match(view.messageHTML, /image-message-stack/);
   assert.match(view.messageHTML, /正在建立圖像/);
 });

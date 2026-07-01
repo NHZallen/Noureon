@@ -823,15 +823,33 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
         completeImageView: generatedImageParts ? () => {
           const finalMessageElement = addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
-          if (loadingMessageDiv?.isConnected) {
-            loadingMessageDiv.replaceWith(finalMessageElement);
-          } else {
-            loadingMessageDiv?.remove();
-          }
           finalMessageElement.classList.add('generated-image-result-enter');
-          requestAnimationFrame(() => {
-            finalMessageElement.classList.add('generated-image-result-visible');
-          });
+          finalMessageElement.hidden = true;
+          const revealFinalImage = () => {
+            finalMessageElement.hidden = false;
+            requestAnimationFrame(() => {
+              finalMessageElement.classList.add('generated-image-result-visible');
+            });
+          };
+          const replaceLoadingWithFinal = () => {
+            if (loadingMessageDiv?.isConnected) {
+              loadingMessageDiv.replaceWith(finalMessageElement);
+            } else {
+              loadingMessageDiv?.remove();
+            }
+            revealFinalImage();
+          };
+          const skeleton = loadingMessageDiv?.querySelector?.('.generated-image-skeleton');
+          const finalCard = finalMessageElement.querySelector?.('.generated-image-card');
+          const targetAspectRatio = finalCard?.style?.aspectRatio;
+          if (loadingMessageDiv?.isConnected && skeleton && targetAspectRatio) {
+            loadingMessageDiv.classList.add('generated-image-stage-morphing');
+            skeleton.classList.add('generated-image-skeleton-finalizing');
+            skeleton.style.aspectRatio = targetAspectRatio;
+            globalThis.setTimeout(replaceLoadingWithFinal, 420);
+          } else {
+            replaceLoadingWithFinal();
+          }
         } : null
       });
     } catch (error) {

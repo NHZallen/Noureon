@@ -30,7 +30,7 @@ export function buildMessageRenderView({
         const imageAspectRatio = resolveImageAspectRatio(requestedRatio) || '1 / 1';
         generatedImageHTML = `
             <div class="generated-image-stage message-content" data-image-generation-stage>
-                <div class="generated-image-skeleton" role="status" aria-live="polite" style="aspect-ratio: ${imageAspectRatio}">
+                <div class="generated-image-skeleton generated-image-skeleton-sized" role="status" aria-live="polite" data-target-aspect-ratio="${requestedRatio || '1:1'}" style="aspect-ratio: ${imageAspectRatio}">
                     <span>正在建立圖像</span>
                     <div class="generated-image-skeleton-shimmer"></div>
                 </div>

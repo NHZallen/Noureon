@@ -10,16 +10,19 @@ const EDITOR_COLORS = Object.freeze([
 
 const getEditorTexts = (language) => {
   if (language === 'en') return {
-    title: 'Targeted edit', hint: 'Mark the area you want changed, then confirm and describe the edit.',
-    close: 'Cancel targeted edit', brush: 'Brush', eraser: 'Eraser', size: 'Size', confirm: 'Confirm selection'
+    title: 'Edit', hint: 'Mark the area you want changed, then confirm and describe the edit.',
+    close: 'Cancel edit', brush: 'Brush', eraser: 'Eraser', size: 'Size', confirm: 'Confirm selection',
+    drawingArea: 'Drawable area'
   };
   if (language === 'fr') return {
-    title: 'Retouche ciblée', hint: 'Marquez la zone à modifier, confirmez, puis décrivez la retouche.',
-    close: 'Annuler la retouche ciblée', brush: 'Pinceau', eraser: 'Gomme', size: 'Taille', confirm: 'Confirmer la zone'
+    title: 'Modifier', hint: 'Marquez la zone à modifier, confirmez, puis décrivez la retouche.',
+    close: 'Annuler la retouche', brush: 'Pinceau', eraser: 'Gomme', size: 'Taille', confirm: 'Confirmer la zone',
+    drawingArea: 'Zone de dessin'
   };
   return {
-    title: '指定編輯', hint: '圈出要修改的位置，確認後再到輸入欄描述修改內容。',
-    close: '取消指定編輯', brush: '畫筆', eraser: '橡皮擦', size: '粗細', confirm: '確認範圍'
+    title: '編輯', hint: '圈起想修改的區域，確認後再於輸入欄描述要怎麼改。',
+    close: '取消編輯', brush: '畫筆', eraser: '橡皮擦', size: '粗細', confirm: '確認區域',
+    drawingArea: '可繪畫區域'
   };
 };
 
@@ -28,6 +31,14 @@ const getCanvasPoint = (canvas, event) => {
   return {
     x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
     y: (event.clientY - bounds.top) * (canvas.height / bounds.height)
+  };
+};
+
+const getLocalPoint = (element, event) => {
+  const bounds = element.getBoundingClientRect();
+  return {
+    x: event.clientX - bounds.left,
+    y: event.clientY - bounds.top
   };
 };
 
@@ -77,9 +88,10 @@ export function createGeneratedImageInteractions({
         <button type="button" class="generated-image-editor-close" aria-label="${texts.close}">&times;</button>
       </header>
       <div class="generated-image-editor-stage">
-        <div class="generated-image-editor-canvas-wrap">
+        <div class="generated-image-editor-canvas-wrap" data-drawing-area-label="${texts.drawingArea}">
           <img class="generated-image-editor-photo" alt="${texts.title}">
           <canvas class="generated-image-editor-canvas"></canvas>
+          <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
         </div>
       </div>
       <footer class="generated-image-editor-toolbar">
@@ -100,6 +112,8 @@ export function createGeneratedImageInteractions({
 
     const image = overlay.querySelector('.generated-image-editor-photo');
     const canvas = overlay.querySelector('.generated-image-editor-canvas');
+    const canvasWrap = overlay.querySelector('.generated-image-editor-canvas-wrap');
+    const brushCursor = overlay.querySelector('.generated-image-editor-brush-cursor');
     const confirmButton = overlay.querySelector('.generated-image-editor-confirm');
     const context = canvas?.getContext?.('2d');
     let drawing = false;
@@ -109,6 +123,23 @@ export function createGeneratedImageInteractions({
     let eraseMode = false;
     let brushSize = 14;
 
+    const updateBrushCursorStyle = () => {
+      if (!brushCursor) return;
+      brushCursor.style.setProperty('--brush-size', `${brushSize}px`);
+      brushCursor.style.setProperty('--brush-color', currentColor);
+      brushCursor.classList.toggle('is-erasing', eraseMode);
+    };
+    const moveBrushCursor = (event) => {
+      if (!ready || !brushCursor || !canvasWrap) return;
+      const point = getLocalPoint(canvasWrap, event);
+      brushCursor.style.left = `${point.x}px`;
+      brushCursor.style.top = `${point.y}px`;
+      brushCursor.classList.add('is-visible');
+      updateBrushCursorStyle();
+    };
+    const hideBrushCursor = () => {
+      brushCursor?.classList.remove('is-visible');
+    };
     const close = () => {
       overlay.remove();
       document.removeEventListener('keydown', onKeyDown);
@@ -121,9 +152,11 @@ export function createGeneratedImageInteractions({
       eraseMode = false;
       overlay.querySelectorAll('.generated-image-editor-color, .generated-image-editor-eraser')
         .forEach(item => item.classList.toggle('active', item === button));
+      updateBrushCursorStyle();
     };
     const beginStroke = (event) => {
       if (!ready || !context) return;
+      moveBrushCursor(event);
       drawing = true;
       annotated = true;
       confirmButton.disabled = false;
@@ -139,6 +172,7 @@ export function createGeneratedImageInteractions({
       context.strokeStyle = currentColor;
     };
     const continueStroke = (event) => {
+      moveBrushCursor(event);
       if (!drawing || !context) return;
       const point = getCanvasPoint(canvas, event);
       context.lineTo(point.x, point.y);
@@ -150,9 +184,12 @@ export function createGeneratedImageInteractions({
       canvas.width = image.naturalWidth;
       canvas.height = image.naturalHeight;
       ready = Boolean(context && canvas.width && canvas.height);
+      updateBrushCursorStyle();
     }, { once: true });
     canvas.addEventListener('pointerdown', beginStroke);
     canvas.addEventListener('pointermove', continueStroke);
+    canvas.addEventListener('pointerenter', moveBrushCursor);
+    canvas.addEventListener('pointerleave', hideBrushCursor);
     canvas.addEventListener('pointerup', endStroke);
     canvas.addEventListener('pointercancel', endStroke);
     overlay.querySelectorAll('.generated-image-editor-color').forEach(button => {
@@ -162,9 +199,11 @@ export function createGeneratedImageInteractions({
       eraseMode = true;
       overlay.querySelectorAll('.generated-image-editor-color, .generated-image-editor-eraser')
         .forEach(item => item.classList.toggle('active', item === event.currentTarget));
+      updateBrushCursorStyle();
     });
     overlay.querySelector('.generated-image-editor-size input')?.addEventListener('input', event => {
       brushSize = Number(event.currentTarget.value) || 14;
+      updateBrushCursorStyle();
     });
     overlay.querySelector('.generated-image-editor-close')?.addEventListener('click', close);
     overlay.addEventListener('click', event => {
