@@ -84,13 +84,12 @@ export function createGeneratedImageInteractions({
     overlay.setAttribute('aria-label', texts.title);
     overlay.innerHTML = `
       <header class="generated-image-editor-header">
-        <div><strong>${texts.title}</strong><span>${texts.hint}</span></div>
         <button type="button" class="generated-image-editor-close" aria-label="${texts.close}">
           <svg aria-hidden="true" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
         </button>
       </header>
       <div class="generated-image-editor-stage">
-        <div class="generated-image-editor-canvas-wrap" data-drawing-area-label="${texts.drawingArea}">
+        <div class="generated-image-editor-canvas-wrap">
           <img class="generated-image-editor-photo" alt="${texts.title}">
           <canvas class="generated-image-editor-canvas"></canvas>
           <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
