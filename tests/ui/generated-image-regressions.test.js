@@ -52,6 +52,7 @@ test('targeted editor exposes history controls, thickness preview, and complete 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-stage\s*\{[\s\S]*place-items:\s*center;[\s\S]*overflow:\s*hidden;/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-canvas-wrap,\s*[\r\n\s]*\.generated-image-editor-photo\s*\{[\s\S]*max-height:\s*min\(68vh,\s*calc\(100dvh\s*-\s*11\.4rem\)\);/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-toolbar\s*\{[\s\S]*grid-template-areas:\s*[\s\S]*"tools history confirm"[\s\S]*"size size size"/s);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-tools\s*\{[\s\S]*padding:\s*\.24rem;[\s\S]*overflow:\s*visible;/s);
   assert.match(css, /\.generated-image-editor-photo\s*\{[\s\S]*border-radius:\s*0;/s);
   assert.match(css, /\.generated-image-lightbox\s+\.media-lightbox-stage\s+img[\s\S]*border-radius:\s*0;/s);
   assert.match(css, /\.generated-image-editor-eraser\s+svg[\s\S]*stroke:\s*#fff;/s);

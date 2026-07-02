@@ -302,9 +302,9 @@
         grid-area: tools;
         min-width: 0;
         justify-content: flex-start;
-        gap: .34rem;
-        padding: 0;
-        overflow: hidden;
+        gap: .3rem;
+        padding: .24rem;
+        overflow: visible;
     }
 
     .generated-image-editor-history {
