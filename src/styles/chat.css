@@ -713,7 +713,7 @@
     min-height: 24rem;
     max-height: 72vh;
     aspect-ratio: 1 / 1;
-    transition: aspect-ratio .42s cubic-bezier(.2, .8, .2, 1), min-height .42s cubic-bezier(.2, .8, .2, 1), border-radius .42s cubic-bezier(.2, .8, .2, 1);
+    transition: width .46s cubic-bezier(.2, .8, .2, 1), height .46s cubic-bezier(.2, .8, .2, 1), aspect-ratio .46s cubic-bezier(.2, .8, .2, 1), min-height .46s cubic-bezier(.2, .8, .2, 1), border-radius .46s cubic-bezier(.2, .8, .2, 1);
     overflow: hidden;
     border-radius: 1.5rem;
     padding: 1.25rem;

@@ -38,7 +38,10 @@ test('binds generated image preview and opens targeted editor controls', async (
   assert.ok(editor.querySelector('.generated-image-editor-eraser'));
   assert.ok(editor.querySelector('.generated-image-editor-eraser path[d="M22 21H7"]'));
   assert.equal(editor.querySelector('.generated-image-editor-size input').value, '14');
+  assert.equal(editor.querySelectorAll('.generated-image-editor-history-btn').length, 3);
+  assert.ok(editor.querySelector('.generated-image-editor-size-preview'));
   assert.ok(editor.querySelector('.generated-image-editor-confirm'));
+  assert.ok(editor.querySelector('.generated-image-editor-confirm path[d="m5 12 4 4L19 6"]'));
   assert.equal(editor.querySelector('.media-lightbox-toolbar'), null);
 
   editor.querySelector('.generated-image-editor-close').click();

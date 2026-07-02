@@ -77,6 +77,7 @@ export function createGeneratedImageInteractions({
     if (!dataUrl) return;
     closeExistingEditor();
     const texts = getEditorTexts(getUiLanguage());
+    const actionLabels = { undo: '返回上一步', redo: '返回下一步', clear: '全部刪除' };
     const overlay = document.createElement('div');
     overlay.className = 'generated-image-editor';
     overlay.setAttribute('role', 'dialog');
@@ -104,11 +105,25 @@ export function createGeneratedImageInteractions({
             <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4L14.6 3.4a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L9 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
           </button>
         </div>
+        <div class="generated-image-editor-history">
+          <button type="button" class="generated-image-editor-history-btn" data-editor-history="undo" aria-label="${actionLabels.undo}" disabled>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+          </button>
+          <button type="button" class="generated-image-editor-history-btn" data-editor-history="redo" aria-label="${actionLabels.redo}" disabled>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
+          </button>
+          <button type="button" class="generated-image-editor-history-btn" data-editor-history="clear" aria-label="${actionLabels.clear}" disabled>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-.8 14H5.8L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
+          </button>
+        </div>
         <label class="generated-image-editor-size">
           <span>${texts.size}</span>
+          <span class="generated-image-editor-size-preview" aria-hidden="true"></span>
           <input type="range" min="4" max="48" value="14" step="1" aria-label="${texts.size}">
         </label>
-        <button type="button" class="generated-image-editor-confirm" disabled>${texts.confirm}</button>
+        <button type="button" class="generated-image-editor-confirm" aria-label="${texts.confirm}" title="${texts.confirm}" disabled>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>
+        </button>
       </footer>`;
 
     const image = overlay.querySelector('.generated-image-editor-photo');
@@ -116,6 +131,11 @@ export function createGeneratedImageInteractions({
     const canvasWrap = overlay.querySelector('.generated-image-editor-canvas-wrap');
     const brushCursor = overlay.querySelector('.generated-image-editor-brush-cursor');
     const confirmButton = overlay.querySelector('.generated-image-editor-confirm');
+    const undoButton = overlay.querySelector('[data-editor-history="undo"]');
+    const redoButton = overlay.querySelector('[data-editor-history="redo"]');
+    const clearButton = overlay.querySelector('[data-editor-history="clear"]');
+    const sizePreview = overlay.querySelector('.generated-image-editor-size-preview');
+    const sizeInput = overlay.querySelector('.generated-image-editor-size input');
     const context = canvas?.getContext?.('2d');
     let drawing = false;
     let ready = false;
@@ -123,13 +143,66 @@ export function createGeneratedImageInteractions({
     let currentColor = EDITOR_COLORS[0].value;
     let eraseMode = false;
     let brushSize = 14;
+    let history = [null];
+    let historyIndex = 0;
 
     const updateBrushCursorStyle = () => {
       if (!brushCursor) return;
       brushCursor.style.setProperty('--brush-size', `${brushSize}px`);
       brushCursor.style.setProperty('--brush-color', currentColor);
       brushCursor.classList.toggle('is-erasing', eraseMode);
+      if (sizePreview) {
+        sizePreview.style.setProperty('--brush-size', `${brushSize}px`);
+        sizePreview.style.setProperty('--brush-color', eraseMode ? '#fff' : currentColor);
+        sizePreview.classList.toggle('is-erasing', eraseMode);
+      }
     };
+    const hasCanvasMarks = () => {
+      if (!context || !canvas.width || !canvas.height) return false;
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let index = 3; index < pixels.length; index += 4) {
+        if (pixels[index] > 0) return true;
+      }
+      return false;
+    };
+    const syncEditorState = () => {
+      annotated = ready && hasCanvasMarks();
+      confirmButton.disabled = !ready || !annotated;
+      if (undoButton) undoButton.disabled = historyIndex <= 0;
+      if (redoButton) redoButton.disabled = historyIndex >= history.length - 1;
+      if (clearButton) clearButton.disabled = !annotated;
+      updateBrushCursorStyle();
+    };
+    const captureHistory = () => {
+      if (!ready || !canvas) return;
+      const snapshot = hasCanvasMarks() ? canvas.toDataURL('image/png') : null;
+      history = history.slice(0, historyIndex + 1);
+      history.push(snapshot);
+      if (history.length > 24) history.shift();
+      historyIndex = history.length - 1;
+      syncEditorState();
+    };
+    const restoreSnapshot = (snapshot) => new Promise(resolve => {
+      if (!context) return resolve();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      if (!snapshot) {
+        syncEditorState();
+        resolve();
+        return;
+      }
+      const historyImage = document.createElement('img');
+      historyImage.onload = () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(historyImage, 0, 0, canvas.width, canvas.height);
+        syncEditorState();
+        resolve();
+      };
+      historyImage.onerror = () => {
+        syncEditorState();
+        resolve();
+      };
+      historyImage.src = snapshot;
+    });
     const moveBrushCursor = (event) => {
       if (!ready || !brushCursor || !canvasWrap) return;
       const point = getLocalPoint(canvasWrap, event);
@@ -159,8 +232,6 @@ export function createGeneratedImageInteractions({
       if (!ready || !context) return;
       moveBrushCursor(event);
       drawing = true;
-      annotated = true;
-      confirmButton.disabled = false;
       canvas.setPointerCapture?.(event.pointerId);
       const point = getCanvasPoint(canvas, event);
       context.beginPath();
@@ -171,6 +242,8 @@ export function createGeneratedImageInteractions({
       context.lineWidth = brushSize * (canvas.width / bounds.width);
       context.globalCompositeOperation = eraseMode ? 'destination-out' : 'source-over';
       context.strokeStyle = currentColor;
+      context.lineTo(point.x + 0.01, point.y + 0.01);
+      context.stroke();
     };
     const continueStroke = (event) => {
       moveBrushCursor(event);
@@ -179,13 +252,20 @@ export function createGeneratedImageInteractions({
       context.lineTo(point.x, point.y);
       context.stroke();
     };
-    const endStroke = () => { drawing = false; };
+    const endStroke = () => {
+      if (!drawing) return;
+      drawing = false;
+      captureHistory();
+    };
 
     image.addEventListener('load', () => {
       canvas.width = image.naturalWidth;
       canvas.height = image.naturalHeight;
       ready = Boolean(context && canvas.width && canvas.height);
+      history = [null];
+      historyIndex = 0;
       updateBrushCursorStyle();
+      syncEditorState();
     }, { once: true });
     canvas.addEventListener('pointerdown', beginStroke);
     canvas.addEventListener('pointermove', continueStroke);
@@ -202,9 +282,24 @@ export function createGeneratedImageInteractions({
         .forEach(item => item.classList.toggle('active', item === event.currentTarget));
       updateBrushCursorStyle();
     });
-    overlay.querySelector('.generated-image-editor-size input')?.addEventListener('input', event => {
+    sizeInput?.addEventListener('input', event => {
       brushSize = Number(event.currentTarget.value) || 14;
       updateBrushCursorStyle();
+    });
+    undoButton?.addEventListener('click', () => {
+      if (historyIndex <= 0) return;
+      historyIndex -= 1;
+      void restoreSnapshot(history[historyIndex]);
+    });
+    redoButton?.addEventListener('click', () => {
+      if (historyIndex >= history.length - 1) return;
+      historyIndex += 1;
+      void restoreSnapshot(history[historyIndex]);
+    });
+    clearButton?.addEventListener('click', () => {
+      if (!ready || !context) return;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      captureHistory();
     });
     overlay.querySelector('.generated-image-editor-close')?.addEventListener('click', close);
     overlay.addEventListener('click', event => {

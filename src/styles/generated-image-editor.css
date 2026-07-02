@@ -49,8 +49,8 @@
     display: grid;
     place-items: center;
     min-height: 0;
-    padding: clamp(4.5rem, 9vh, 5.5rem) 1rem 1rem;
-    overflow: auto;
+    padding: clamp(4.2rem, 8vh, 5.2rem) 1rem .85rem;
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -58,7 +58,7 @@
     position: relative;
     display: inline-grid;
     max-width: min(74rem, calc(100vw - 2rem));
-    max-height: calc(100dvh - 13rem);
+    max-height: min(72vh, calc(100dvh - 10.5rem));
     border-radius: 0;
     box-shadow: 0 24px 90px rgba(0, 0, 0, .34);
 }
@@ -66,7 +66,7 @@
 .generated-image-editor-photo {
     display: block;
     max-width: 100%;
-    max-height: calc(100dvh - 13rem);
+    max-height: min(72vh, calc(100dvh - 10.5rem));
     object-fit: contain;
     border-radius: 0;
     z-index: 1;
@@ -112,10 +112,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: .85rem;
+    gap: .65rem;
     width: min(calc(100% - 2rem), 46rem);
     margin: 0 auto max(1rem, env(safe-area-inset-bottom));
-    padding: .75rem;
+    padding: .58rem;
     border: 1px solid rgba(255, 255, 255, .12);
     border-radius: 1.45rem;
     background: rgba(18, 18, 18, .72);
@@ -163,13 +163,66 @@
     stroke: #fff;
 }
 
+.generated-image-editor-history {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+}
+
+.generated-image-editor-history-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    color: #fff;
+    background: transparent;
+}
+
+.generated-image-editor-history-btn:disabled {
+    opacity: .34;
+    cursor: not-allowed;
+}
+
 .generated-image-editor-size {
     display: flex;
     align-items: center;
-    gap: .65rem;
-    min-width: 10rem;
+    gap: .55rem;
+    min-width: 11rem;
     color: rgba(255, 255, 255, .78);
     font-size: .82rem;
+}
+
+.generated-image-editor-size-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+}
+
+.generated-image-editor-size-preview::before {
+    content: '';
+    width: min(var(--brush-size, 14px), 28px);
+    height: min(var(--brush-size, 14px), 28px);
+    border: 2px solid var(--brush-color, #ef4444);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brush-color, #ef4444) 18%, transparent);
+}
+
+.generated-image-editor-size-preview.is-erasing::before {
+    border-color: #fff;
+    border-style: dashed;
+    background: rgba(255, 255, 255, .12);
 }
 
 .generated-image-editor-size input {
@@ -178,8 +231,13 @@
 }
 
 .generated-image-editor-confirm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.8rem;
+    height: 2.8rem;
     min-height: 2.8rem;
-    padding: .65rem 1.15rem;
+    padding: 0;
     border-radius: 999px;
     color: #fff;
     background: var(--theme-color, #3b82f6);
@@ -203,16 +261,15 @@
     }
 
     .generated-image-editor-stage {
-        place-items: start center;
-        padding: 4.35rem .9rem .85rem;
-        overflow-y: auto;
+        place-items: center;
+        padding: 4.1rem .9rem .75rem;
+        overflow: hidden;
     }
 
     .generated-image-editor-canvas-wrap,
     .generated-image-editor-photo {
-        width: min(100%, calc(100vw - 1.8rem));
         max-width: calc(100vw - 1.8rem);
-        max-height: none;
+        max-height: max(18rem, calc(100dvh - 15.25rem));
         border-radius: 0;
     }
 
@@ -232,6 +289,11 @@
         padding: 0;
     }
 
+    .generated-image-editor-history {
+        flex: 1 1 auto;
+        justify-content: flex-start;
+    }
+
     .generated-image-editor-size {
         flex: 1 1 100%;
         width: 100%;
@@ -246,13 +308,13 @@
 
     .generated-image-editor-color,
     .generated-image-editor-eraser {
-        width: 2.25rem;
-        height: 2.25rem;
+        width: 2.1rem;
+        height: 2.1rem;
     }
 
     .generated-image-editor-confirm {
-        flex: 1 1 100%;
-        width: 100%;
+        flex: 0 0 2.8rem;
+        width: 2.8rem;
     }
 
     .generated-image-lightbox .media-lightbox-toolbar {
