@@ -6,7 +6,7 @@ const EDITOR_COLORS = Object.freeze([
   { value: '#22c55e', label: '綠色' },
   { value: '#facc15', label: '黃色' },
   { value: '#ffffff', label: '白色' }
-]);
+].filter(({ value }) => value !== '#22c55e'));
 
 const getEditorTexts = (language) => {
   if (language === 'en') return {

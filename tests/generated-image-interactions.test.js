@@ -34,7 +34,7 @@ test('binds generated image preview and opens targeted editor controls', async (
   await flush();
   const editor = document.querySelector('.generated-image-editor');
   assert.ok(editor);
-  assert.equal(editor.querySelectorAll('.generated-image-editor-color').length, 5);
+  assert.equal(editor.querySelectorAll('.generated-image-editor-color').length, 4);
   assert.ok(editor.querySelector('.generated-image-editor-eraser'));
   assert.ok(editor.querySelector('.generated-image-editor-eraser path[d="M22 21H7"]'));
   assert.equal(editor.querySelector('.generated-image-editor-size input').value, '14');

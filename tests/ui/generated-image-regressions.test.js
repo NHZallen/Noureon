@@ -31,6 +31,7 @@ test('targeted editor exposes history controls, thickness preview, and complete 
 
   assert.match(source, /generated-image-editor-size/);
   assert.match(source, /generated-image-editor-history/);
+  assert.match(source, /\(\{\s*value\s*\}\)\s*=>\s*value\s*!==\s*'#22c55e'/);
   assert.match(source, /data-editor-history="undo"[\s\S]*data-editor-history="redo"[\s\S]*data-editor-history="clear"/s);
   assert.match(source, /type="range"\s+min="4"\s+max="48"\s+value="14"/);
   assert.match(source, /generated-image-editor-size-preview/);
