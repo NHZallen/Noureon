@@ -91,7 +91,7 @@ export function createGeneratedImageInteractions({
       </header>
       <div class="generated-image-editor-stage">
         <div class="generated-image-editor-canvas-wrap">
-          <img class="generated-image-editor-photo" alt="${texts.title}">
+          <img class="generated-image-editor-photo" alt="${texts.title}" draggable="false">
           <canvas class="generated-image-editor-canvas"></canvas>
           <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
         </div>
@@ -137,6 +137,8 @@ export function createGeneratedImageInteractions({
     const sizePreview = overlay.querySelector('.generated-image-editor-size-preview');
     const sizeInput = overlay.querySelector('.generated-image-editor-size input');
     const context = canvas?.getContext?.('2d');
+    const blockedEditorEvents = ['copy', 'cut', 'contextmenu', 'selectstart', 'dragstart'];
+    const blockEditorCopy = (event) => event.preventDefault();
     let drawing = false;
     let ready = false;
     let annotated = false;
@@ -217,6 +219,7 @@ export function createGeneratedImageInteractions({
     const close = () => {
       overlay.remove();
       document.removeEventListener('keydown', onKeyDown);
+      blockedEditorEvents.forEach(type => overlay.removeEventListener(type, blockEditorCopy));
     };
     const onKeyDown = (event) => {
       if (event.key === 'Escape') close();
@@ -305,6 +308,7 @@ export function createGeneratedImageInteractions({
     overlay.addEventListener('click', event => {
       if (event.target === overlay) close();
     });
+    blockedEditorEvents.forEach(type => overlay.addEventListener(type, blockEditorCopy));
     confirmButton.addEventListener('click', async () => {
       if (!ready || !annotated) return;
       confirmButton.disabled = true;
