@@ -45,6 +45,7 @@ test('binds preview buttons and opens the media item selected by dataset index',
 
     const overlay = document.querySelector('.media-lightbox');
     assert.ok(overlay);
+    assert.equal(overlay.classList.contains('media-lightbox-enter'), true);
     assert.equal(overlay.querySelector('img').getAttribute('src'), 'data:image/png;base64,second');
     assert.equal(overlay.querySelector('img').getAttribute('alt'), 'second.png');
   } finally {
@@ -56,16 +57,28 @@ test('opens video preview with download metadata and replaces an existing lightb
   const { window, document, cleanup } = createDom('<div class="media-lightbox"></div>');
   try {
     const lifecycle = createLifecycle(window);
+    const source = document.createElement('button');
+    source.getBoundingClientRect = () => ({
+      left: 20,
+      top: 40,
+      width: 80,
+      height: 60,
+      right: 100,
+      bottom: 100
+    });
 
-    lifecycle.openMediaPreview({ name: 'clip.mp4', mimeType: 'video/mp4', data: 'video' });
+    lifecycle.openMediaPreview({ name: 'clip.mp4', mimeType: 'video/mp4', data: 'video' }, source);
 
+    const overlay = document.querySelector('.media-lightbox');
     assert.equal(document.querySelectorAll('.media-lightbox').length, 1);
     assert.equal(
-      document.querySelector('.media-lightbox video').getAttribute('src'),
+      overlay.querySelector('video').getAttribute('src'),
       'data:video/mp4;base64,video'
     );
-    assert.equal(document.querySelector('.media-lightbox-download').getAttribute('download'), 'clip.mp4');
-    assert.equal(document.querySelector('.media-lightbox-close').getAttribute('aria-label'), 'Close preview');
+    assert.match(overlay.style.getPropertyValue('--media-enter-x'), /px$/);
+    assert.match(overlay.style.getPropertyValue('--media-enter-y'), /px$/);
+    assert.equal(overlay.querySelector('.media-lightbox-download').getAttribute('download'), 'clip.mp4');
+    assert.equal(overlay.querySelector('.media-lightbox-close').getAttribute('aria-label'), 'Close preview');
   } finally {
     cleanup();
   }

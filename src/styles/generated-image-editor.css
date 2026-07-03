@@ -12,6 +12,21 @@
     -webkit-touch-callout: none;
 }
 
+.generated-image-editor-enter {
+    animation: generated-image-editor-fade-in .34s cubic-bezier(.2, .82, .2, 1) both;
+}
+
+.generated-image-editor-enter .generated-image-editor-canvas-wrap {
+    animation: generated-image-editor-suck-in .42s cubic-bezier(.18, .92, .18, 1) both;
+    transform-origin: center;
+    will-change: transform, opacity, filter;
+}
+
+.generated-image-editor-enter .generated-image-editor-toolbar,
+.generated-image-editor-enter .generated-image-editor-close {
+    animation: generated-image-editor-controls-in .28s ease-out .12s both;
+}
+
 .generated-image-editor-header {
     position: absolute;
     top: max(1rem, env(safe-area-inset-top));
@@ -258,6 +273,49 @@
 .generated-image-editor-confirm:disabled {
     opacity: .42;
     cursor: not-allowed;
+}
+
+@keyframes generated-image-editor-fade-in {
+    from { background: rgba(0, 0, 0, 0); }
+    to { background: rgba(0, 0, 0, .84); }
+}
+
+@keyframes generated-image-editor-suck-in {
+    0% {
+        opacity: .2;
+        filter: blur(10px);
+        transform: translate3d(var(--editor-enter-x, 0), var(--editor-enter-y, 0), 0) scale(var(--editor-enter-scale, .96));
+    }
+    72% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translate3d(0, 0, 0) scale(1.018);
+    }
+    100% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes generated-image-editor-controls-in {
+    from {
+        opacity: 0;
+        transform: translateY(.4rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .generated-image-editor-enter,
+    .generated-image-editor-enter .generated-image-editor-canvas-wrap,
+    .generated-image-editor-enter .generated-image-editor-toolbar,
+    .generated-image-editor-enter .generated-image-editor-close {
+        animation: none;
+    }
 }
 
 @media (max-width: 640px) {

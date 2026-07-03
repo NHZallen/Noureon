@@ -9,7 +9,29 @@ export function createMediaPreviewLifecycle({
     getText = (_key, fallback) => fallback,
     logWarn = (...args) => console.warn(...args)
 }) {
-    const openMediaPreview = (media) => {
+    const applyPreviewMotionOrigin = (overlay, sourceElement) => {
+        const rect = sourceElement?.getBoundingClientRect?.();
+        const viewportWidth = document.defaultView?.innerWidth || 1;
+        const viewportHeight = document.defaultView?.innerHeight || 1;
+        if (!rect || rect.width <= 0 || rect.height <= 0) {
+            overlay.style.setProperty('--media-enter-x', '0px');
+            overlay.style.setProperty('--media-enter-y', '0px');
+            overlay.style.setProperty('--media-enter-scale', '.96');
+            overlay.classList.add('media-lightbox-enter');
+            return;
+        }
+        const originX = rect.left + (rect.width / 2) - (viewportWidth / 2);
+        const originY = rect.top + (rect.height / 2) - (viewportHeight / 2);
+        const scaleBasisWidth = Math.min(viewportWidth * 0.88, 920);
+        const scaleBasisHeight = Math.min(viewportHeight * 0.82, 720);
+        const originScale = Math.max(0.08, Math.min(0.88, rect.width / scaleBasisWidth, rect.height / scaleBasisHeight));
+        overlay.style.setProperty('--media-enter-x', `${originX}px`);
+        overlay.style.setProperty('--media-enter-y', `${originY}px`);
+        overlay.style.setProperty('--media-enter-scale', String(originScale));
+        overlay.classList.add('media-lightbox-enter');
+    };
+
+    const openMediaPreview = (media, sourceElement = null) => {
         if (!media) return;
         document.querySelector('.media-lightbox')?.remove();
         const mimeType = media.mimeType || 'application/octet-stream';
@@ -67,6 +89,7 @@ export function createMediaPreviewLifecycle({
             }
         });
         document.addEventListener('keydown', onKeyDown);
+        applyPreviewMotionOrigin(overlay, sourceElement);
         document.body.appendChild(overlay);
         overlay.querySelector('video')?.play?.().catch(() => {});
     };
@@ -75,7 +98,7 @@ export function createMediaPreviewLifecycle({
         root.querySelectorAll('.message-media-thumb').forEach(button => {
             button.addEventListener('click', () => {
                 const mediaIndex = Number(button.dataset.mediaIndex);
-                openMediaPreview(mediaParts[mediaIndex]);
+                openMediaPreview(mediaParts[mediaIndex], button);
             });
         });
     };

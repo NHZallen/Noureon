@@ -42,6 +42,33 @@ const getLocalPoint = (element, event) => {
   };
 };
 
+const getSafeImageDimension = (value) => {
+  const dimension = Number(value);
+  return Number.isFinite(dimension) && dimension > 0 ? Math.floor(dimension) : 0;
+};
+
+const applyEditorMotionOrigin = (document, overlay, sourceElement) => {
+  const rect = sourceElement?.getBoundingClientRect?.();
+  const viewportWidth = document.defaultView?.innerWidth || 1;
+  const viewportHeight = document.defaultView?.innerHeight || 1;
+  if (!rect || rect.width <= 0 || rect.height <= 0) {
+    overlay.style.setProperty('--editor-enter-x', '0px');
+    overlay.style.setProperty('--editor-enter-y', '0px');
+    overlay.style.setProperty('--editor-enter-scale', '.96');
+    overlay.classList.add('generated-image-editor-enter');
+    return;
+  }
+  const originX = rect.left + (rect.width / 2) - (viewportWidth / 2);
+  const originY = rect.top + (rect.height / 2) - (viewportHeight / 2);
+  const scaleBasisWidth = Math.min(viewportWidth * 0.86, 980);
+  const scaleBasisHeight = Math.min(viewportHeight * 0.72, 680);
+  const originScale = Math.max(0.08, Math.min(0.88, rect.width / scaleBasisWidth, rect.height / scaleBasisHeight));
+  overlay.style.setProperty('--editor-enter-x', `${originX}px`);
+  overlay.style.setProperty('--editor-enter-y', `${originY}px`);
+  overlay.style.setProperty('--editor-enter-scale', String(originScale));
+  overlay.classList.add('generated-image-editor-enter');
+};
+
 export function createGeneratedImageInteractions({
   document,
   getImageDataUrl,
@@ -66,13 +93,13 @@ export function createGeneratedImageInteractions({
       getText,
       logWarn
     });
-  const preview = openPreview || ((media) => {
-    previewLifecycle.openMediaPreview(media);
+  const preview = openPreview || ((media, sourceElement = null) => {
+    previewLifecycle.openMediaPreview(media, sourceElement);
     document.querySelector('.media-lightbox')?.classList.add('generated-image-lightbox');
   });
   const closeExistingEditor = () => document.querySelector('.generated-image-editor')?.remove();
 
-  const openEditor = async (descriptor) => {
+  const openEditor = async (descriptor, sourceElement = null) => {
     const dataUrl = await getImageDataUrl(descriptor);
     if (!dataUrl) return;
     closeExistingEditor();
@@ -161,9 +188,24 @@ export function createGeneratedImageInteractions({
     };
     const hasCanvasMarks = () => {
       if (!context || !canvas.width || !canvas.height) return false;
-      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      for (let index = 3; index < pixels.length; index += 4) {
-        if (pixels[index] > 0) return true;
+      const pixelCount = canvas.width * canvas.height;
+      if (pixelCount > 4000000) {
+        const xStep = Math.max(1, Math.floor(canvas.width / 96));
+        const yStep = Math.max(1, Math.floor(canvas.height / 96));
+        for (let y = 0; y < canvas.height; y += yStep) {
+          for (let x = 0; x < canvas.width; x += xStep) {
+            if (context.getImageData(x, y, 1, 1).data[3] > 0) return true;
+          }
+        }
+        return false;
+      }
+      try {
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (let index = 3; index < pixels.length; index += 4) {
+          if (pixels[index] > 0) return true;
+        }
+      } catch (_error) {
+        return false;
       }
       return false;
     };
@@ -262,8 +304,8 @@ export function createGeneratedImageInteractions({
     };
 
     image.addEventListener('load', () => {
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
+      canvas.width = getSafeImageDimension(image.naturalWidth);
+      canvas.height = getSafeImageDimension(image.naturalHeight);
       ready = Boolean(context && canvas.width && canvas.height);
       history = [null];
       historyIndex = 0;
@@ -331,6 +373,7 @@ export function createGeneratedImageInteractions({
     });
 
     document.addEventListener('keydown', onKeyDown);
+    applyEditorMotionOrigin(document, overlay, sourceElement);
     document.body.appendChild(overlay);
     image.src = dataUrl;
   };
@@ -345,13 +388,13 @@ export function createGeneratedImageInteractions({
             src,
             mimeType: descriptor.mediaType || 'image/png',
             name: `astra-generated-${descriptor.id}.png`
-          });
+          }, event.currentTarget);
         });
       });
       root.querySelectorAll(`[data-generated-image-edit="${descriptor.id}"]`).forEach(button => {
         button.addEventListener('click', event => {
           event.stopPropagation();
-          void openEditor(descriptor).catch(error => logWarn('Targeted image editor failed:', error));
+          void openEditor(descriptor, event.currentTarget).catch(error => logWarn('Targeted image editor failed:', error));
         });
       });
     });

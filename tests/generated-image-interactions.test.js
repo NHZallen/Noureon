@@ -5,10 +5,20 @@ import { Window } from 'happy-dom';
 import { createGeneratedImageInteractions } from '../src/app/legacy-runtime/features/generated-image-interactions.js';
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+const lightweightPng = 'data:image/png;base64,aGVsbG8=';
 
 test('binds generated image preview and opens targeted editor controls', async () => {
   const window = new Window();
   const { document } = window;
+  window.HTMLCanvasElement.prototype.getContext = () => ({
+    clearRect: () => {},
+    drawImage: () => {},
+    beginPath: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    stroke: () => {},
+    getImageData: () => ({ data: new Uint8ClampedArray(4) })
+  });
   const previews = [];
   const root = document.createElement('div');
   root.innerHTML = `
@@ -18,8 +28,8 @@ test('binds generated image preview and opens targeted editor controls', async (
 
   const lifecycle = createGeneratedImageInteractions({
     document,
-    getImageDataUrl: async () => 'data:image/png;base64,aGVsbG8=',
-    openPreview: media => previews.push(media),
+    getImageDataUrl: async () => lightweightPng,
+    openPreview: (media, sourceElement) => previews.push({ media, sourceElement }),
     attachAnnotatedImage: async () => {},
     getUiLanguage: () => 'zh-TW'
   });
@@ -28,12 +38,14 @@ test('binds generated image preview and opens targeted editor controls', async (
   root.querySelector('[data-generated-image-preview]').click();
   await flush();
   assert.equal(previews.length, 1);
-  assert.equal(previews[0].src, 'data:image/png;base64,aGVsbG8=');
+  assert.equal(previews[0].media.src, lightweightPng);
+  assert.equal(previews[0].sourceElement, root.querySelector('[data-generated-image-preview]'));
 
   root.querySelector('[data-generated-image-edit]').click();
   await flush();
   const editor = document.querySelector('.generated-image-editor');
   assert.ok(editor);
+  assert.equal(editor.classList.contains('generated-image-editor-enter'), true);
   assert.equal(editor.querySelectorAll('.generated-image-editor-color').length, 4);
   assert.ok(editor.querySelector('.generated-image-editor-eraser'));
   assert.ok(editor.querySelector('.generated-image-editor-eraser path[d="M22 21H7"]'));

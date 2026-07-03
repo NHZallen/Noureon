@@ -442,11 +442,23 @@
         padding: 4.5rem 2rem 2rem;
         background: rgba(0, 0, 0, 0.88);
     }
+    .media-lightbox-enter {
+        animation: media-lightbox-fade-in .34s cubic-bezier(.2, .82, .2, 1) both;
+    }
     .media-lightbox-stage {
         display: grid;
         max-width: 88vw;
         max-height: 82vh;
         justify-items: center;
+    }
+    .media-lightbox-enter .media-lightbox-stage {
+        animation: media-lightbox-suck-in .42s cubic-bezier(.18, .92, .18, 1) both;
+        transform-origin: center;
+        will-change: transform, opacity, filter;
+    }
+    .media-lightbox-enter .media-lightbox-toolbar,
+    .media-lightbox-enter .media-lightbox-close {
+        animation: media-lightbox-controls-in .28s ease-out .12s both;
     }
     .media-lightbox img,
     .media-lightbox video {
@@ -508,4 +520,43 @@
     }
     .media-lightbox-action svg [fill]:not([fill="none"]) {
         fill: #ffffff !important;
+    }
+    @keyframes media-lightbox-fade-in {
+        from { background: rgba(0, 0, 0, 0); }
+        to { background: rgba(0, 0, 0, 0.88); }
+    }
+    @keyframes media-lightbox-suck-in {
+        0% {
+            opacity: .2;
+            filter: blur(10px);
+            transform: translate3d(var(--media-enter-x, 0), var(--media-enter-y, 0), 0) scale(var(--media-enter-scale, .96));
+        }
+        72% {
+            opacity: 1;
+            filter: blur(0);
+            transform: translate3d(0, 0, 0) scale(1.018);
+        }
+        100% {
+            opacity: 1;
+            filter: blur(0);
+            transform: translate3d(0, 0, 0) scale(1);
+        }
+    }
+    @keyframes media-lightbox-controls-in {
+        from {
+            opacity: 0;
+            transform: translateY(-.35rem);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .media-lightbox-enter,
+        .media-lightbox-enter .media-lightbox-stage,
+        .media-lightbox-enter .media-lightbox-toolbar,
+        .media-lightbox-enter .media-lightbox-close {
+            animation: none;
+        }
     }
