@@ -429,7 +429,7 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
         color: var(--text-primary);
         line-height: 1.25;
     }
-    .model-suffix {
+    .sidebar .model-suffix {
         font-size: 0.72rem;
         font-weight: 400;
         line-height: 1.2;
