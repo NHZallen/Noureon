@@ -324,6 +324,7 @@
         pointer-events: none;
     }
     #sidebar-overlay {
+        background-color: rgba(255, 255, 255, 0.38) !important;
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), visibility 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);

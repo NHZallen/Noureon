@@ -5,7 +5,7 @@
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     color: #fff;
-    background: rgba(0, 0, 0, .84);
+    background: rgba(0, 0, 0, 0.88);
     backdrop-filter: none;
     user-select: none;
     -webkit-user-select: none;
@@ -277,7 +277,7 @@
 
 @keyframes generated-image-editor-fade-in {
     from { background: rgba(0, 0, 0, 0); }
-    to { background: rgba(0, 0, 0, .84); }
+    to { background: rgba(0, 0, 0, 0.88); }
 }
 
 @keyframes generated-image-editor-suck-in {
