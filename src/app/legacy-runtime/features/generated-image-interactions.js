@@ -384,11 +384,12 @@ export function createGeneratedImageInteractions({
         button.addEventListener('click', async event => {
           event.stopPropagation();
           const src = await getImageDataUrl(descriptor);
+          const sourceElement = root.querySelector(`[data-generated-image-id="${descriptor.id}"]`) || event.currentTarget;
           if (src) preview({
             src,
             mimeType: descriptor.mediaType || 'image/png',
             name: `astra-generated-${descriptor.id}.png`
-          }, event.currentTarget);
+          }, sourceElement);
         });
       });
       root.querySelectorAll(`[data-generated-image-edit="${descriptor.id}"]`).forEach(button => {

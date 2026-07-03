@@ -22,7 +22,7 @@ test('binds generated image preview and opens targeted editor controls', async (
   const previews = [];
   const root = document.createElement('div');
   root.innerHTML = `
-    <button data-generated-image-preview="asset-1"></button>
+    <button data-generated-image-preview="asset-1"><img data-generated-image-id="asset-1"></button>
     <button data-generated-image-edit="asset-1"></button>`;
   document.body.appendChild(root);
 
@@ -39,7 +39,7 @@ test('binds generated image preview and opens targeted editor controls', async (
   await flush();
   assert.equal(previews.length, 1);
   assert.equal(previews[0].media.src, lightweightPng);
-  assert.equal(previews[0].sourceElement, root.querySelector('[data-generated-image-preview]'));
+  assert.equal(previews[0].sourceElement, root.querySelector('[data-generated-image-id]'));
 
   root.querySelector('[data-generated-image-edit]').click();
   await flush();

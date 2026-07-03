@@ -442,16 +442,14 @@
         padding: 4.5rem 2rem 2rem;
         background: rgba(0, 0, 0, 0.88);
     }
-    .media-lightbox-enter {
-        animation: media-lightbox-fade-in .34s cubic-bezier(.2, .82, .2, 1) both;
-    }
     .media-lightbox-stage {
         display: grid;
         max-width: 88vw;
         max-height: 82vh;
         justify-items: center;
     }
-    .media-lightbox-enter .media-lightbox-stage {
+    .media-lightbox-enter .media-lightbox-stage img,
+    .media-lightbox-enter .media-lightbox-stage video {
         animation: media-lightbox-suck-in .42s cubic-bezier(.18, .92, .18, 1) both;
         transform-origin: center;
         will-change: transform, opacity, filter;
@@ -521,10 +519,6 @@
     .media-lightbox-action svg [fill]:not([fill="none"]) {
         fill: #ffffff !important;
     }
-    @keyframes media-lightbox-fade-in {
-        from { background: rgba(0, 0, 0, 0); }
-        to { background: rgba(0, 0, 0, 0.88); }
-    }
     @keyframes media-lightbox-suck-in {
         0% {
             opacity: .2;
@@ -548,8 +542,8 @@
         }
     }
     @media (prefers-reduced-motion: reduce) {
-        .media-lightbox-enter,
-        .media-lightbox-enter .media-lightbox-stage,
+        .media-lightbox-enter .media-lightbox-stage img,
+        .media-lightbox-enter .media-lightbox-stage video,
         .media-lightbox-enter .media-lightbox-toolbar,
         .media-lightbox-enter .media-lightbox-close {
             animation: none;
