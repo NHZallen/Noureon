@@ -129,6 +129,13 @@ export function createModelSwitcherLifecycle({
         
         <!-- ▼▼▼ 就是這一行被修改了！我們把 left-0 改成了 left-2 md:left-3 ▼▼▼ -->
         <div id="model-options-popover" class="popover absolute left-2 md:left-3 mt-6 w-72 md:w-80 rounded-lg border border-[var(--border-color)] z-50">
+            <div class="model-switcher-search">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                <input id="model-search-input" type="search" autocomplete="off" placeholder="${escapeHTML(translations.searchModels || (config.uiLanguage === 'zh-TW' ? '搜尋模型' : 'Search models'))}">
+                <button id="model-search-clear-btn" class="model-search-clear-btn hidden" type="button" aria-label="${escapeHTML(translations.clearSearch || 'Clear search')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+            </div>
             <div id="model-views-container" style="width: 500%; display: flex; transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); align-items: flex-start;">
                 <div id="provider-view" class="model-view" style="width: 20%; flex-shrink: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;"></div>
                 <div id="tier-view" class="model-view" style="width: 20%; flex-shrink: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;"></div>
@@ -148,6 +155,8 @@ export function createModelSwitcherLifecycle({
     const companyView = document.getElementById('company-view');
     const categoryView = document.getElementById('category-view');
     const modelListView = document.getElementById('model-list-view');
+    const modelSearchInput = document.getElementById('model-search-input');
+    const modelSearchClearBtn = document.getElementById('model-search-clear-btn');
 
 
     // ✨✨✨ 核心修正 1：修改 adjustPopoverHeight 函式 ✨✨✨
@@ -161,7 +170,8 @@ export function createModelSwitcherLifecycle({
             const maxHeightInPixels = window.innerHeight - 150; 
             
             // 取得當前內容實際需要的高度
-            const contentHeight = targetView.scrollHeight;
+            const searchHeight = popover.querySelector('.model-switcher-search')?.offsetHeight || 0;
+            const contentHeight = targetView.scrollHeight + searchHeight;
             
             // 比較「需要的高度」和「允許的最大高度」，取較小者
             const newHeight = Math.min(contentHeight, maxHeightInPixels);
@@ -169,7 +179,7 @@ export function createModelSwitcherLifecycle({
 
             // 只設定最外層彈窗的高度，內部容器會自動適應
             popover.style.height = `${newHeight}px`;
-            viewsContainer.style.height = `${newHeight}px`; 
+            viewsContainer.style.height = `${Math.max(0, newHeight - searchHeight)}px`;
             // 我們不再需要手動設定 viewsContainer 的高度了
         });
     };
@@ -217,6 +227,40 @@ export function createModelSwitcherLifecycle({
                 <p class="model-description">${descriptionText}</p>
             </div>
         `;
+    };
+
+    const searchableModels = [...visibleModels, ...betaModels.filter(model => !visibleModels.some(visibleModel => visibleModel.id === model.id))];
+    const renderSearchResults = (query) => {
+        const normalizedQuery = query.trim().toLowerCase();
+        modelSearchClearBtn?.classList.toggle('hidden', normalizedQuery.length === 0);
+        if (!normalizedQuery) {
+            navigateToView(0);
+            return;
+        }
+
+        const matchedModels = searchableModels.filter(model => {
+            const descriptionText = translations[model.descriptionKey] || '';
+            return [
+                model.name,
+                model.provider,
+                model.company,
+                ...(model.tier || []),
+                model.category || '',
+                descriptionText
+            ].join(' ').toLowerCase().includes(normalizedQuery);
+        });
+
+        modelListView.innerHTML = `<div class="model-search-results-title">${escapeHTML(translations.searchResults || (config.uiLanguage === 'zh-TW' ? '搜尋結果' : 'Search results'))}</div>`;
+        modelListView.innerHTML += matchedModels.length
+            ? matchedModels.map(model => {
+                const descriptionText = translations[model.descriptionKey] || '';
+                return createModelOptionHTML(model, descriptionText);
+            }).join('')
+            : `<p class="model-search-empty">${escapeHTML(translations.noModelsFound || (config.uiLanguage === 'zh-TW' ? '找不到符合的模型' : 'No matching models'))}</p>`;
+        modelListView.classList.remove('model-search-results-enter');
+        void modelListView.offsetWidth;
+        modelListView.classList.add('model-search-results-enter');
+        navigateToView(4);
     };
     
     const createBackButtonHTML = (textKey, targetViewIndex) => {
@@ -404,10 +448,30 @@ export function createModelSwitcherLifecycle({
         popover.classList.remove('visible');
     });
 
+    modelSearchInput?.addEventListener('input', () => {
+        renderSearchResults(modelSearchInput.value);
+    });
+
+    modelSearchInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modelSearchInput.value) {
+            modelSearchInput.value = '';
+            renderSearchResults('');
+            event.stopPropagation();
+        }
+    });
+
+    modelSearchClearBtn?.addEventListener('click', () => {
+        modelSearchInput.value = '';
+        renderSearchResults('');
+        modelSearchInput.focus();
+    });
+
 
     document.getElementById('current-model-btn').addEventListener('click', () => {
         const isVisible = popover.classList.toggle('visible');
         if (isVisible) {
+            if (modelSearchInput) modelSearchInput.value = '';
+            modelSearchClearBtn?.classList.add('hidden');
             navigateToView(0);
         } else {
             // ✨✨✨ 核心修正 2：關閉時，同時重置內外兩個容器的高度 ✨✨✨

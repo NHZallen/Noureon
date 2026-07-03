@@ -1,6 +1,8 @@
 /* Final UI correction layer: restore legacy model menus, rebuild pill buttons, and keep icon colors intentional. */
 /* important-audit: required: regression override / legacy compatibility - this final correction layer intentionally outranks split CSS during staged refactors. */
 #model-options-popover {
+    display: flex !important;
+    flex-direction: column !important;
     padding: 0 !important;
     overflow: hidden !important;
     max-height: calc(100vh - 150px) !important;
@@ -10,10 +12,20 @@
     box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: scale(0.98) translateY(-8px) !important;
     transform-origin: top right !important;
+    transition:
+        opacity 0.2s ease,
+        visibility 0.2s ease,
+        transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+        height 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 #model-options-popover.visible {
+    opacity: 1 !important;
+    visibility: visible !important;
     transform: scale(1) translateY(0) !important;
 }
 
@@ -21,7 +33,11 @@
     width: 500% !important;
     display: flex !important;
     align-items: flex-start !important;
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), height 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    min-height: 0 !important;
+    will-change: transform, height !important;
+    transition:
+        transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        height 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 #model-options-popover .model-view {
@@ -30,6 +46,60 @@
     padding-top: 0.5rem !important;
     padding-bottom: 0.5rem !important;
     overflow-y: auto !important;
+}
+
+#model-options-popover .model-switcher-search {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    flex: 0 0 auto !important;
+    padding: 0.55rem 0.65rem !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-secondary) !important;
+}
+
+#model-options-popover .model-switcher-search svg,
+#model-options-popover .model-switcher-search svg * {
+    flex: 0 0 auto !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
+}
+
+#model-options-popover #model-search-input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 2rem !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    font: inherit !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+}
+
+#model-options-popover #model-search-input::placeholder {
+    color: var(--text-secondary) !important;
+    opacity: 0.85 !important;
+}
+
+#model-options-popover .model-search-results-title,
+#model-options-popover .model-search-empty {
+    padding: 0.65rem 1rem !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.76rem !important;
+    font-weight: 700 !important;
+}
+
+#model-options-popover .model-search-empty {
+    text-align: center !important;
+    font-weight: 500 !important;
+}
+
+#model-options-popover .model-search-results-enter .model-option-btn-container,
+#model-options-popover .model-search-results-enter .model-search-empty {
+    animation: model-search-result-in 0.18s ease-out both;
 }
 
 #model-options-popover button,
@@ -52,6 +122,30 @@
 #model-options-popover .model-option-btn-container:hover,
 #model-options-popover .back-btn:hover {
     background: var(--hover-bg) !important;
+}
+
+#model-options-popover .model-search-clear-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 1.65rem !important;
+    width: 1.65rem !important;
+    min-width: 1.65rem !important;
+    height: 1.65rem !important;
+    min-height: 1.65rem !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    color: var(--text-secondary) !important;
+    text-align: center !important;
+}
+
+#model-options-popover .model-search-clear-btn.hidden {
+    display: none !important;
+}
+
+#model-options-popover .model-search-clear-btn:hover {
+    background: var(--hover-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 #model-options-popover .model-option-title,
@@ -87,6 +181,27 @@
     font-size: 0.68rem !important;
     font-weight: 800 !important;
     line-height: 1.2 !important;
+}
+
+@keyframes model-search-result-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #model-options-popover,
+    #model-options-popover #model-views-container,
+    #model-options-popover .model-search-results-enter .model-option-btn-container,
+    #model-options-popover .model-search-results-enter .model-search-empty {
+        animation: none !important;
+        transition: none !important;
+    }
 }
 
 .model-council-popover {

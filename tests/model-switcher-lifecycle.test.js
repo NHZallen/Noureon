@@ -163,6 +163,39 @@ test('renders model switcher navigation and persists selected model', async () =
   }
 });
 
+test('model switcher search filters models and persists selected result', async () => {
+  const { calls, cleanup, config, conversation, document, lifecycle } = createHarness();
+  try {
+    lifecycle.renderModelSwitcher();
+
+    document.querySelector('#current-model-btn').click();
+    const searchInput = document.querySelector('#model-search-input');
+    searchInput.value = 'gemini';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const modelListView = document.querySelector('#model-list-view');
+    assert.match(modelListView.textContent, /Search results/);
+    assert.match(modelListView.textContent, /Gemini Pro/);
+    assert.doesNotMatch(modelListView.textContent, /Step A/);
+    assert.ok(!document.querySelector('#model-search-clear-btn').classList.contains('hidden'));
+
+    document.querySelector('[data-model-id="gemini-pro"]').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(conversation.model, 'gemini-pro');
+    assert.equal(conversation.provider, 'gemini');
+    assert.equal(config.lastUsedModel, 'gemini-pro');
+    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderAll'].includes(name)), [
+      ['saveAppData'],
+      ['saveConfig'],
+      ['renderAll']
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
 test('renders snake_case model categories with translated labels', () => {
   const imageModels = [
     ...MODELS,
