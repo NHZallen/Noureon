@@ -2,11 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readUiSource } from '../helpers/source-guards.js';
 
-test('sidebar search and history model pills use solid white surfaces', () => {
+test('sidebar search stays solid while history models render as inline gray metadata', () => {
   const css = readUiSource('src/styles/main.css');
+  const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
 
   assert.match(css, /#open-search-btn[^{]*\{[^}]*background:\s*#ffffff\s!important;/s);
-  assert.match(css, /\.model-suffix[^{]*\{[^}]*background-color:\s*#ffffff;/s);
+  assert.match(css, /\.conversation-sidebar-copy[^{]*\{[^}]*flex-direction:\s*column;/s);
+  assert.match(css, /\.model-suffix[^{]*\{[^}]*color:\s*var\(--text-secondary\);/s);
+  assert.doesNotMatch(css, /\.sidebar-item:hover\s+\.model-suffix[^{]*\{[^}]*display:\s*none;/s);
+  assert.match(sidebarChatAstraRenderSource, /const\s+modelDisplayName\s*=\s*isCouncilEnabled\(conv\)\s*\?\s*getCouncilTexts\(\)\.title\s*:\s*\(modelInfo\?\.name\s*\|\|\s*''\)/);
+  assert.doesNotMatch(sidebarChatAstraRenderSource, /modelInfo\.name\.split\(' \('\)/);
   assert.doesNotMatch(css, /\.dark\b|dark\\:|dark:/);
 });
 
