@@ -286,11 +286,6 @@
         filter: blur(10px);
         transform: translate3d(var(--editor-enter-x, 0), var(--editor-enter-y, 0), 0) scale(var(--editor-enter-scale, .96));
     }
-    72% {
-        opacity: 1;
-        filter: blur(0);
-        transform: translate3d(0, 0, 0) scale(1.018);
-    }
     100% {
         opacity: 1;
         filter: blur(0);

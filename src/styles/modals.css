@@ -531,11 +531,6 @@
             filter: blur(10px);
             transform: translate3d(var(--media-enter-x, 0), var(--media-enter-y, 0), 0) scale(var(--media-enter-scale, .96));
         }
-        72% {
-            opacity: 1;
-            filter: blur(0);
-            transform: translate3d(0, 0, 0) scale(1.018);
-        }
         100% {
             opacity: 1;
             filter: blur(0);
@@ -545,7 +540,7 @@
     @keyframes media-lightbox-controls-in {
         from {
             opacity: 0;
-            transform: translateY(-.35rem);
+            transform: translateY(.4rem);
         }
         to {
             opacity: 1;
