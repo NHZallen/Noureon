@@ -445,7 +445,7 @@ const en = {
         model_nvidia_minimax_m2_7_desc_tier_free: 'Cost - Free',
         model_nvidia_minimax_m3_desc_tier_free: 'Cost - Free',
         model_nvidia_kimi_k2_6_desc_tier_free: 'Cost - Free',
-        model_nvidia_glm_5_1_desc_tier_free: 'Cost - Free',
+        model_nvidia_glm_5_2_desc_tier_free: 'Cost - Free',
         model_nvidia_qwen3_5_397b_a17b_desc_tier_free: 'Cost - Free',
         model_nvidia_step_3_7_flash_desc_tier_free: 'Cost - Free',
         model_nvidia_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
@@ -469,8 +469,9 @@ const en = {
         model_gpt_5_4_nano_desc_tier_paid: '$0.2/M input, $1.25/M output',
         // Anthropic Paid
         model_claude_opus_4_8_desc_tier_paid: '$5/M input, $25/M output',
-        model_claude_sonnet_4_6_desc_tier_paid: '$3/M input, $15/M output',
+        model_claude_sonnet_5_desc_tier_paid: '$2/M input, $10/M output',
         model_claude_haiku_4_5_desc_tier_paid: '$1/M input, $5/M output',
+        model_claude_fable_5_desc_tier_paid: '$10/M input, $50/M output',
         // Qwen Paid
         model_qwen3_7_max_desc_tier_paid: '$1.25/M input, $3.75/M output',
         model_qwen3_7_plus_desc_tier_paid: '$0.32/M input, $1.28/M output',

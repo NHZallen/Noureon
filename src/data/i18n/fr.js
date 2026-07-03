@@ -445,7 +445,7 @@ const fr = {
         model_nvidia_minimax_m2_7_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_minimax_m3_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_kimi_k2_6_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_glm_5_1_desc_tier_free: 'Coût - Gratuit',
+        model_nvidia_glm_5_2_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_qwen3_5_397b_a17b_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_step_3_7_flash_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
@@ -469,8 +469,9 @@ const fr = {
         model_gpt_5_4_nano_desc_tier_paid: '0,20 $/M entrée, 1,25 $/M sortie',
         // Anthropic Paid
         model_claude_opus_4_8_desc_tier_paid: '5 $/M entrée, 25 $/M sortie',
-        model_claude_sonnet_4_6_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
+        model_claude_sonnet_5_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
         model_claude_haiku_4_5_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
+        model_claude_fable_5_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
         // Qwen Paid
         model_qwen3_7_max_desc_tier_paid: '1,25 $/M entrée, 3,75 $/M sortie',
         model_qwen3_7_plus_desc_tier_paid: '0,32 $/M entrée, 1,28 $/M sortie',

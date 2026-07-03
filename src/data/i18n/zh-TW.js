@@ -445,7 +445,7 @@ const zhTW = {
         model_nvidia_minimax_m2_7_desc_tier_free: '費用-免費',
         model_nvidia_minimax_m3_desc_tier_free: '費用-免費',
         model_nvidia_kimi_k2_6_desc_tier_free: '費用-免費',
-        model_nvidia_glm_5_1_desc_tier_free: '費用-免費',
+        model_nvidia_glm_5_2_desc_tier_free: '費用-免費',
         model_nvidia_qwen3_5_397b_a17b_desc_tier_free: '費用-免費',
         model_nvidia_step_3_7_flash_desc_tier_free: '費用-免費',
         model_nvidia_nemotron_3_ultra_550b_a55b_desc_tier_free: '費用-免費',
@@ -469,8 +469,9 @@ const zhTW = {
         model_gpt_5_4_nano_desc_tier_paid: '百萬輸入/0.2$、百萬輸出/1.25$',
         // Anthropic Paid
         model_claude_opus_4_8_desc_tier_paid: '百萬輸入/5$、百萬輸出/25$',
-        model_claude_sonnet_4_6_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
+        model_claude_sonnet_5_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
         model_claude_haiku_4_5_desc_tier_paid: '百萬輸入/1$、百萬輸出/5$',
+        model_claude_fable_5_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',
         // Qwen Paid
         model_qwen3_7_max_desc_tier_paid: '百萬輸入/1.25$、百萬輸出/3.75$',
         model_qwen3_7_plus_desc_tier_paid: '百萬輸入/0.32$、百萬輸出/1.28$',
