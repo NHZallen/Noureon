@@ -25,28 +25,38 @@ test('cloud users receive a stable private local storage namespace', () => {
   assert.equal('password' in record, false);
 });
 
-test('auth shell enhancement adds cloud and local entry points', () => {
+test('auth shell enhancement adds cloud, local, and import entry points', () => {
   const window = new Window();
   window.document.body.innerHTML = `
     <form id="auth-form">
       <label for="username-input" data-lang-key="username">Username</label>
       <input id="username-input" data-lang-key-placeholder="usernamePlaceholder">
       <input id="password-input" type="password" data-lang-key-placeholder="passwordPlaceholder">
-      <div><button id="register-btn" type="submit" data-lang-key="loginRegisterButton">Login</button></div>
+      <div>
+        <button id="register-btn" type="submit" data-lang-key="loginRegisterButton">Login</button>
+        <button id="import-btn-auth" type="button" disabled data-lang-key="importRecords">Import</button>
+      </div>
     </form>
   `;
 
   const elements = enhanceAuthShell(window.document);
 
   assert.ok(elements);
+  assert.equal(elements.form.dataset.authMode, 'cloud');
   assert.equal(elements.emailInput.type, 'email');
   assert.equal(elements.emailInput.autocomplete, 'email');
-  assert.equal(elements.loginButton.textContent, '登入');
-  assert.ok(window.document.getElementById('supabase-signup-btn'));
+  assert.equal(elements.loginButton.textContent, '登入 / 建立帳號');
   assert.ok(window.document.getElementById('supabase-google-btn'));
   assert.ok(window.document.getElementById('supabase-forgot-password-btn'));
   assert.ok(window.document.getElementById('local-mode-btn'));
+  assert.equal(window.document.getElementById('import-btn-auth').disabled, false);
   assert.ok(window.document.getElementById('supabase-recovery-form'));
+
+  elements.setLocalMode();
+  assert.equal(elements.form.dataset.authMode, 'local');
+  assert.equal(elements.emailInput.type, 'text');
+  assert.equal(elements.loginButton.textContent, '登入 / 註冊本機帳號');
+  assert.ok(window.document.getElementById('supabase-google-btn').classList.contains('hidden'));
 });
 
 test('auth bridge keeps secrets out of browser source and wires required flows', () => {

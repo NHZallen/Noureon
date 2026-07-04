@@ -102,6 +102,22 @@ export function createLegacyAppBootstrapLifecycle({
     const ALL_ELEMENTS = elements;
     const resolveEventsUpdateInputState = updateInputState;
     const resolveEventsSetupSettingsModal = setupSettingsModal;
+    const ensureSettingsDesktopLogoutButton = () => {
+        const nav = ALL_ELEMENTS.settingsNav;
+        if (!nav) return null;
+        const existing = document.getElementById('settings-desktop-logout-btn');
+        if (existing) return existing;
+        const item = document.createElement('li');
+        item.className = 'mt-3 pt-3 border-t border-[var(--border-color)]';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.id = 'settings-desktop-logout-btn';
+        button.className = 'settings-nav-item w-full p-3 rounded-md text-left text-red-600';
+        button.textContent = i18n[getConfig().uiLanguage]?.logout || '登出';
+        item.appendChild(button);
+        nav.appendChild(item);
+        return button;
+    };
     const enhanceSettingsLogoutButton = () => {
         const button = ALL_ELEMENTS.logoutBtn;
         if (!button || button.querySelector('.settings-logout-label')) return;
@@ -135,6 +151,7 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;
                 document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
                 enhanceSettingsLogoutButton();
+                const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
                 if (!conversations.find(c => !c.archived && !c.deletedAt)) startNewChat();
                 renderAll();
                 updateFunctionButtonsState();
@@ -240,6 +257,7 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.cancelImportBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.importDataModal, false));
                 ALL_ELEMENTS.confirmImportBtn.addEventListener('click', handleImport);
                 ALL_ELEMENTS.logoutBtn.addEventListener('click', handleLogout);
+                settingsDesktopLogoutBtn?.addEventListener('click', handleLogout);
                 ALL_ELEMENTS.userProfileBtn.addEventListener('click', openDashboard);
                 ALL_ELEMENTS.closeDashboardBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.dataDashboardModal, false));
                 ALL_ELEMENTS.messageList.addEventListener('click', (e) => {

@@ -117,11 +117,23 @@ export function createLegacyAuthImportLifecycle({
         }
       }
 
-      const userKey = getUserKey(username);
-      const nextUser = await createPasswordRecord(username, password);
-      const persistedUser = setCurrentUser(nextUser);
-      await setItem(userKey, JSON.stringify(persistedUser));
-      await setItem('chat_lastUser', username);
+      const importTargetUserJson = elements.authForm?.dataset?.importTargetUser;
+      let persistedUserForImport;
+      if (importTargetUserJson) {
+        persistedUserForImport = setCurrentUser(JSON.parse(importTargetUserJson));
+        await setItem(getUserKey(persistedUserForImport.username), JSON.stringify(persistedUserForImport));
+        await setItem('chat_lastUser', persistedUserForImport.username);
+      } else {
+        const userKey = getUserKey(username);
+        const nextUser = await createPasswordRecord(username, password);
+        const persistedUser = setCurrentUser(nextUser);
+        persistedUserForImport = persistedUser;
+        await setItem(userKey, JSON.stringify(persistedUser));
+        await setItem('chat_lastUser', username);
+      }
+      if (elements.authForm?.dataset?.importTargetUser) {
+        delete elements.authForm.dataset.importTargetUser;
+      }
 
       updateProgress(30, 'Identity verified. Restoring data...');
 
