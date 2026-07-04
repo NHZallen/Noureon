@@ -24,12 +24,14 @@ test('English and Traditional Chinese READMEs display the project logo', async (
   const englishReadme = await readFile(projectFile('README.md'), 'utf8');
   const chineseReadme = await readFile(projectFile('README.zh-TW.md'), 'utf8');
 
-  assert.match(englishReadme, /<img src="\.\/public\/logo\.png" alt="AstraChat logo"/);
-  assert.match(chineseReadme, /<img src="\.\/public\/logo\.png" alt="AstraChat logo"/);
+  for (const readme of [englishReadme, chineseReadme]) {
+    assert.match(readme, /<img src="\.\/public\/logo\.png" alt="AstraChat logo" width="220">/);
+    assert.match(readme, /<h1 align="center">AstraChat<\/h1>/);
+  }
 });
 
 test('project logo and PWA icons have their declared square dimensions', async () => {
-  assert.deepEqual(await readPngDimensions('public/logo.png'), { width: 1024, height: 1024 });
+  assert.deepEqual(await readPngDimensions('public/logo.png'), { width: 640, height: 640 });
   assert.deepEqual(await readPngDimensions('public/icon-192.png'), { width: 192, height: 192 });
   assert.deepEqual(await readPngDimensions('public/icon-512.png'), { width: 512, height: 512 });
 });
@@ -37,6 +39,6 @@ test('project logo and PWA icons have their declared square dimensions', async (
 test('service worker refreshes and precaches the new logo asset', async () => {
   const serviceWorker = await readFile(projectFile('public/service-worker.js'), 'utf8');
 
-  assert.match(serviceWorker, /astra-chat-vite-cache-v2/);
+  assert.match(serviceWorker, /astra-chat-vite-cache-v3/);
   assert.match(serviceWorker, /'\/logo\.png'/);
 });

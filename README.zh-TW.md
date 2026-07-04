@@ -1,17 +1,27 @@
 <p align="center">
-  <img src="./public/logo.png" alt="AstraChat logo" width="180">
+  <img src="./public/logo.png" alt="AstraChat logo" width="220">
 </p>
 
-# AstraChat
+<h1 align="center">AstraChat</h1>
 
-[![CI](https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-6D5CE7.svg)](./LICENSE)
+<p align="center"><strong>不只與一個模型思考。</strong></p>
 
-**Think beyond one model.**
+<p align="center">
+  一個 local-first AI 工作空間，整合多模型對話、模型協作、網路搜尋、圖片生成與可重複使用的助手。
+</p>
 
-AstraChat 是一個 local-first 的 AI 工作空間，將多家 AI 供應商、模型協作、網路搜尋、圖片生成與可重複使用的 AI 助手整合在同一個專注的介面中。
+<p align="center">
+  <a href="https://astranos-chatbot.vercel.app/">線上體驗</a>
+  ·
+  <a href="#快速開始">快速開始</a>
+  ·
+  <a href="./README.md">English</a>
+</p>
 
-[開啟線上版本](https://astranos-chatbot.vercel.app/) · [快速開始](#快速開始) · [English](./README.md)
+<p align="center">
+  <a href="https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml"><img src="https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-6D5CE7.svg" alt="MIT License"></a>
+</p>
 
 ---
 

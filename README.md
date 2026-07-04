@@ -1,17 +1,27 @@
 <p align="center">
-  <img src="./public/logo.png" alt="AstraChat logo" width="180">
+  <img src="./public/logo.png" alt="AstraChat logo" width="220">
 </p>
 
-# AstraChat
+<h1 align="center">AstraChat</h1>
 
-[![CI](https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-6D5CE7.svg)](./LICENSE)
+<p align="center"><strong>Think beyond one model.</strong></p>
 
-**Think beyond one model.**
+<p align="center">
+  A local-first AI workspace for multi-model chat, collaboration, search, image generation, and reusable assistants.
+</p>
 
-AstraChat is a local-first AI workspace that brings multiple AI providers, model collaboration, web search, image generation, and reusable AI assistants into one focused interface.
+<p align="center">
+  <a href="https://astranos-chatbot.vercel.app/">Live Demo</a>
+  ·
+  <a href="#quick-start">Quick Start</a>
+  ·
+  <a href="./README.zh-TW.md">繁體中文</a>
+</p>
 
-[Try the live demo](https://astranos-chatbot.vercel.app/) · [Quick start](#quick-start) · [繁體中文](./README.zh-TW.md)
+<p align="center">
+  <a href="https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml"><img src="https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-6D5CE7.svg" alt="MIT License"></a>
+</p>
 
 ---
 
