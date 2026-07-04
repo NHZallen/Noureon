@@ -160,11 +160,11 @@ body.custom-wallpaper-active .input-indicator-item {
     justify-content: center;
 }
 .reasoning-depth-btn {
-    min-height: 2.5rem;
-    max-width: 6.75rem;
-    padding: 0 0.3rem;
+    min-height: 2rem;
+    max-width: 7rem;
+    padding: 0 0.45rem;
     border: 0;
-    border-radius: 999px;
+    border-radius: 0.35rem;
     background: transparent;
     color: var(--text-secondary);
     display: inline-flex;
@@ -174,7 +174,7 @@ body.custom-wallpaper-active .input-indicator-item {
     font-size: 0.95rem;
     line-height: 1;
     white-space: nowrap;
-    transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+    transition: opacity 0.15s ease;
 }
 .reasoning-depth-btn span {
     min-width: 0;
@@ -188,8 +188,8 @@ body.custom-wallpaper-active .input-indicator-item {
 }
 .reasoning-depth-btn.is-adjustable:hover,
 .reasoning-depth-btn[aria-expanded="true"] {
-    background: color-mix(in srgb, var(--button-primary-bg) 10%, transparent);
-    color: var(--button-primary-bg);
+    background: transparent;
+    color: var(--text-secondary);
 }
 .reasoning-depth-btn.is-disabled {
     cursor: default;
@@ -222,8 +222,8 @@ body.custom-wallpaper-active .input-indicator-item {
 }
 .reasoning-depth-option:hover,
 .reasoning-depth-option.active {
-    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
-    color: var(--button-primary-bg);
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 .reasoning-depth-option small {
     color: var(--text-secondary);

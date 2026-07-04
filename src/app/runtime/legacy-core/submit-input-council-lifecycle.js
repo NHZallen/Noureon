@@ -158,7 +158,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       control.innerHTML = `
         <button type="button" id="reasoning-depth-btn" class="reasoning-depth-btn" aria-haspopup="true" aria-expanded="false" title="思考深度">
           <span id="reasoning-depth-label">預設</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"></polyline></svg>
         </button>
         <div id="reasoning-depth-popover" class="popover reasoning-depth-popover absolute bottom-full right-0 mb-2 z-30"></div>
       `;

@@ -480,7 +480,7 @@ export function createLegacyAppBootstrapLifecycle({
         }
         
         // ✨ 使用我們統一的 Google Apps Script 網址
-        const FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
+        const FORM_ENDPOINT = '/api/google-form-submit';
     
     
         const originalButtonText = sendButton.textContent;
@@ -543,7 +543,7 @@ export function createLegacyAppBootstrapLifecycle({
         }
         
         // ✨ 同樣使用我們統一的 Google Apps Script 網址
-        const FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
+        const FORM_ENDPOINT = '/api/google-form-submit';
     
     
         const originalButtonText = submitButton.textContent;

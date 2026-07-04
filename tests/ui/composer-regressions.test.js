@@ -23,6 +23,9 @@ test('desktop chat input reserves the lower row only for active modes or multili
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s!important;/s);
   assert.match(css, /#reasoning-depth-control[^{]*\{[^}]*grid-area:\s*reasoning;/s);
   assert.match(css, /\.reasoning-depth-popover[^{]*\{/);
+  assert.match(css, /\.reasoning-depth-btn[^{]*\{[^}]*border-radius:\s*0\.35rem;[^}]*background:\s*transparent;/s);
+  assert.match(css, /\.reasoning-depth-btn\.is-adjustable:hover,\s*\.reasoning-depth-btn\[aria-expanded="true"\][^{]*\{[^}]*background:\s*transparent;[^}]*color:\s*var\(--text-secondary\);/s);
+  assert.doesNotMatch(css, /\.reasoning-depth-btn\.is-adjustable:hover,\s*\.reasoning-depth-btn\[aria-expanded="true"\][^{]*\{[^}]*button-primary-bg/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*min-height\s+0\.24s[^}]*padding\s+0\.24s/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.flex\.items-end[^{]*\{[^}]*transition:[^}]*transform\s+0\.24s/s);
   assert.match(startupLifecycle, /const\s+wasMultilineLayout\s*=\s*wrapper\?\.classList\.contains\('has-multiline-input'\)\s*\|\|\s*false/);

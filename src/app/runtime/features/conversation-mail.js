@@ -1,4 +1,4 @@
-const FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
+const FORM_ENDPOINT = '/api/google-form-submit';
 
 export async function sendConversationToMail(
   userMessageObject,

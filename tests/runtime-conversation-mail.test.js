@@ -43,10 +43,7 @@ test('sendConversationToMail preserves the legacy endpoint and payload formattin
   }, 'World', dependencies);
 
   assert.equal(calls.length, 1);
-  assert.equal(
-    calls[0][0],
-    'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec'
-  );
+  assert.equal(calls[0][0], '/api/google-form-submit');
   assert.deepEqual(calls[0][1], {
     subject: 'Astra 對話紀錄: Launch plan',
     timestamp: '2026-06-26T12:00:00.000Z',
