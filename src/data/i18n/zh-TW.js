@@ -139,7 +139,7 @@ const zhTW = {
         enableAutoNaming: '啟用對話自動命名',
         enableSmartWebSearch: '啟用智慧搜索',
         feedback: '意見反饋',
-        feedbackDesc: '有任何問題或建議嗎？請告訴我們！您的反饋將直接發送到開發者的信箱。',
+        feedbackDesc: '有任何問題或建議嗎？請告訴我們！此表單只會在部署者設定回饋端點後送出。',
         feedbackPlaceholder: '請在此輸入您的寶貴意見...',
         sendFeedback: '發送意見',
         helpCenter: '協助中心',

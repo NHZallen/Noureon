@@ -139,7 +139,7 @@ const fr = {
         enableAutoNaming: 'Activer le Nommage Automatique',
         enableSmartWebSearch: 'Activer la Recherche Intelligente',
         feedback: 'Commentaires',
-        feedbackDesc: 'Avez-vous des questions ou des suggestions ? Dites-le nous ! Vos commentaires seront envoyés directement à la boîte de réception du développeur.',
+        feedbackDesc: 'Avez-vous des questions ou des suggestions ? Dites-le nous ! Ce formulaire n\'est envoyé qu\'après la configuration d\'un point de terminaison de retour par le déployeur.',
         feedbackPlaceholder: 'Veuillez saisir vos précieux commentaires ici...',
         sendFeedback: 'Envoyer les commentaires',
         helpCenter: 'Centre d\'Aide',

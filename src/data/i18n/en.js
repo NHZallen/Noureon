@@ -139,7 +139,7 @@ const en = {
         enableAutoNaming: 'Enable Automatic Chat Naming',
         enableSmartWebSearch: 'Enable Smart Search',
         feedback: 'Feedback',
-        feedbackDesc: 'Have any questions or suggestions? Please let us know! Your feedback will be sent directly to the developer\'s mailbox.',
+        feedbackDesc: 'Have any questions or suggestions? Please let us know! This form only submits after the deployer configures a feedback endpoint.',
         feedbackPlaceholder: 'Please enter your valuable feedback here...',
         sendFeedback: 'Send Feedback',
         helpCenter: 'Help Center',

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -7,6 +8,7 @@ import {
   assertFileWithinBudget,
   countLines,
   fileStats,
+  projectFile,
   readSource
 } from './helpers/source-guards.js';
 
@@ -100,7 +102,12 @@ test('check:sizes reports grouped budgets without using targets as hard failures
   assert.match(output, /Runtime source budgets: PASS/);
   assert.match(output, /CSS budgets: PASS/);
   assert.match(output, /Test file budgets: PASS/);
-  assert.match(output, /Build output budgets: PASS/);
+  if (existsSync(projectFile('dist'))) {
+    assert.match(output, /Build output budgets: PASS/);
+  } else {
+    assert.doesNotMatch(output, /Build output budgets:/);
+  }
+  assert.match(output, /dist\/ is ignored as review source and reported only as generated build output when present\./);
   assert.match(output, /above target/);
   assert.match(output, /OK: all grouped size budgets are within transitional limits/);
   assert.match(source, /Hard failures use transitional limits/);
