@@ -1,7 +1,7 @@
 {
   "name": "AstraChat",
   "short_name": "AstraChat",
-  "description": "??????????????????????? AI ???",
+  "description": "A local-first multi-provider AI chat client with model council, image generation, PWA support, and searchable conversations.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

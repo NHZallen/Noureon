@@ -6,9 +6,11 @@ export const config = {
   }
 };
 
-const GOOGLE_FORM_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDz8mauVmRsJtSxpXbfMiMCnx0Mofqh0r3YV_riwRTwugf8EUgzsD_gCwfwSvmOqV4yg/exec';
+export const getGoogleFormEndpoint = () => process.env.GOOGLE_FORM_ENDPOINT?.trim() || '';
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'content-type');
@@ -22,9 +24,15 @@ export default async function handler(req, res) {
     return;
   }
 
+  const endpoint = getGoogleFormEndpoint();
+  if (!endpoint) {
+    res.status(501).json({ error: 'Google form endpoint is not configured' });
+    return;
+  }
+
   try {
     const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
-    const upstream = await fetch(GOOGLE_FORM_ENDPOINT, {
+    const upstream = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8'
@@ -33,7 +41,6 @@ export default async function handler(req, res) {
     });
     const text = await upstream.text();
     res.status(upstream.status);
-    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', upstream.headers.get('content-type') || 'text/plain; charset=utf-8');
     res.end(text);
   } catch (error) {

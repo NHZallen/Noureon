@@ -479,7 +479,7 @@ export function createLegacyAppBootstrapLifecycle({
             return;
         }
         
-        // ✨ 使用我們統一的 Google Apps Script 網址
+        // Send through the optional same-origin form proxy.
         const FORM_ENDPOINT = '/api/google-form-submit';
     
     
@@ -507,7 +507,13 @@ export function createLegacyAppBootstrapLifecycle({
     
         } catch (error) {
             logger.error('發送反饋時出錯:', error);
-            showNotification('發送失敗，請檢查您的網路連線。', 'error');
+            const message = String(error?.message || '');
+            showNotification(
+                message.includes('Google form endpoint is not configured')
+                    ? '意見反饋端點尚未設定，請在伺服器設定 GOOGLE_FORM_ENDPOINT。'
+                    : '發送失敗，請檢查您的網路連線。',
+                'error'
+            );
         } finally {
             sendButton.disabled = false;
             sendButton.textContent = originalButtonText;
@@ -542,7 +548,7 @@ export function createLegacyAppBootstrapLifecycle({
             return;
         }
         
-        // ✨ 同樣使用我們統一的 Google Apps Script 網址
+        // Send through the optional same-origin form proxy.
         const FORM_ENDPOINT = '/api/google-form-submit';
     
     
@@ -570,7 +576,13 @@ export function createLegacyAppBootstrapLifecycle({
             
         } catch (error) {
             logger.error('提交提案時出錯:', error);
-            showNotification('提交失敗，請檢查您的網路連線。', 'error');
+            const message = String(error?.message || '');
+            showNotification(
+                message.includes('Google form endpoint is not configured')
+                    ? 'Astra 提案端點尚未設定，請在伺服器設定 GOOGLE_FORM_ENDPOINT。'
+                    : '提交失敗，請檢查您的網路連線。',
+                'error'
+            );
         } finally {
             submitButton.disabled = false;
             submitButton.textContent = originalButtonText;

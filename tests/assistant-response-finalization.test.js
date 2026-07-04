@@ -10,7 +10,7 @@ import {
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
-test('successful finalization persists final assistant text, email, view completion, and memory in order', async () => {
+test('successful finalization persists final assistant text, view completion, and memory in order', async () => {
   const calls = [];
   const conversation = { messages: [], lastUpdatedAt: 'old' };
   const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: 'created' };
@@ -30,7 +30,6 @@ test('successful finalization persists final assistant text, email, view complet
     memoryEnabled: true,
     autoMemoryEnabled: true,
     councilMetadata: null,
-    sendConversationToMail: (message, response) => calls.push(['mail', message.role, response]),
     persistAppData: async () => calls.push(['persist']),
     completeSingleModelView: async ({ fullResponse, responseRenderedInRealtime }) => calls.push(['singleView', fullResponse, responseRenderedInRealtime]),
     restoreRealtimeCouncilDetails: () => calls.push(['restoreCouncil']),
@@ -44,7 +43,6 @@ test('successful finalization persists final assistant text, email, view complet
   assert.equal(conversation.messages[0], finalAiMessage);
   assert.equal(conversation.lastUpdatedAt, 'now');
   assert.deepEqual(calls, [
-    ['mail', 'user', 'Hello Astra'],
     ['persist'],
     ['singleView', 'Hello Astra', true],
     ['memory', 'Hi', 'Hello Astra']
@@ -67,7 +65,6 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
     uiLanguage: 'en',
     councilMetadata: { models: ['a', 'b'] },
     includeCouncilMetadata: true,
-    sendConversationToMail: () => realtimeCalls.push('mail'),
     persistAppData: async () => realtimeCalls.push('persist'),
     completeSingleModelView: async () => realtimeCalls.push('singleView'),
     restoreRealtimeCouncilDetails: ({ targetElement }) => realtimeCalls.push(['restore', targetElement === realtimeElement]),
@@ -76,7 +73,7 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
     extractPersonalMemory: async () => realtimeCalls.push('memory'),
     nowIso: () => 'now'
   });
-  assert.deepEqual(realtimeCalls, ['mail', 'persist', ['restore', true]]);
+  assert.deepEqual(realtimeCalls, ['persist', ['restore', true]]);
 
   const bufferedCalls = [];
   const message = { role: 'model', parts: [{ text: '' }], createdAt: 'created' };
@@ -93,7 +90,6 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
     uiLanguage: 'en',
     councilMetadata: { models: ['x'] },
     includeCouncilMetadata: true,
-    sendConversationToMail: () => bufferedCalls.push('mail'),
     persistAppData: async () => bufferedCalls.push('persist'),
     completeSingleModelView: async () => bufferedCalls.push('singleView'),
     restoreRealtimeCouncilDetails: () => bufferedCalls.push('restore'),
@@ -104,7 +100,7 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
   });
 
   assert.deepEqual(message.council, { models: ['x'] });
-  assert.deepEqual(bufferedCalls, ['mail', 'persist', 'playback']);
+  assert.deepEqual(bufferedCalls, ['persist', 'playback']);
 });
 
 test('finalization rejects empty responses before persistence or side effects', async () => {
@@ -122,7 +118,6 @@ test('finalization rejects empty responses before persistence or side effects', 
       responseRenderedInRealtime: false,
       targetElement: { dataset: {} },
       uiLanguage: 'en',
-      sendConversationToMail: () => calls.push('mail'),
       persistAppData: async () => calls.push('persist'),
       completeSingleModelView: async () => calls.push('singleView'),
       restoreRealtimeCouncilDetails: () => calls.push('restore'),
@@ -154,7 +149,6 @@ test('image finalization persists asset parts without mail or learning-memory si
     uiLanguage: 'en',
     memoryEnabled: true,
     autoMemoryEnabled: true,
-    sendConversationToMail: () => calls.push('mail'),
     persistAppData: async () => calls.push('persist'),
     completeSingleModelView: async () => calls.push('singleView'),
     completeImageView: async () => calls.push('imageView'),
@@ -263,4 +257,5 @@ test('assistant response finalization source avoids provider parser, storage sch
   ]) {
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
+  assert.doesNotMatch(source, /sendConversationToMail|conversation-mail|google-form-submit/);
 });

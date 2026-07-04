@@ -18,7 +18,6 @@ export async function finalizeAssistantResponse({
   uiLanguage,
   memoryEnabled,
   autoMemoryEnabled,
-  sendConversationToMail,
   persistAppData,
   completeSingleModelView,
   restoreRealtimeCouncilDetails,
@@ -32,8 +31,6 @@ export async function finalizeAssistantResponse({
   if (!hasFinalParts && !String(fullResponse || '').trim()) {
     throw new Error(getEmptyResponseMessage(uiLanguage));
   }
-
-  if (!hasFinalParts) sendConversationToMail(userMessageObject, fullResponse);
 
   finalAiMessage.parts = hasFinalParts ? finalParts : [{ text: fullResponse }];
   if (includeCouncilMetadata) {

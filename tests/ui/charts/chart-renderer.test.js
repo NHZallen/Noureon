@@ -16,6 +16,16 @@ const createDocument = () => {
   return { document, window };
 };
 
+const waitForSelector = async (window, root, selector, timeoutMs = 750) => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const node = root.querySelector(selector);
+    if (node) return node;
+    await new Promise((resolve) => window.setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for selector: ${selector}`);
+};
+
 test('mounts a valid placeholder into a static SVG chart', () => {
   const { document, window } = createDocument();
 
@@ -131,7 +141,9 @@ test('message observer resumes deferred complex renderers after detached HTML se
     message.className = 'model-message';
     message.innerHTML = serialized;
     messageList.appendChild(message);
-    await new Promise((resolve) => window.setTimeout(resolve, 20));
+    await waitForSelector(window, message, 'svg.ac-chart-svg-boxplot');
+    await waitForSelector(window, message, 'svg.ac-chart-svg-sankey');
+    await waitForSelector(window, message, 'svg.ac-chart-svg-gantt');
 
     assert.ok(message.querySelector('svg.ac-chart-svg-boxplot'));
     assert.ok(message.querySelector('svg.ac-chart-svg-sankey'));

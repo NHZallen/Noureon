@@ -19,11 +19,31 @@ export const createChartFixture = (chart) => {
   return { window, document, article, svg };
 };
 
-export const createChartFixtureAsync = async (chart) => {
+export const waitForChartHydration = async (
+  fixture,
+  {
+    selector = 'svg',
+    timeoutMs = 750,
+    intervalMs = 10
+  } = {}
+) => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const node = fixture.article.querySelector(selector);
+    if (node && fixture.article.dataset.chartDeferred !== 'true') {
+      if (node.getBoundingClientRect) {
+        node.getBoundingClientRect = () => ({ left: 0, top: 0, width: 640, height: 360 });
+      }
+      return node;
+    }
+    await new Promise((resolve) => fixture.window.setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`Timed out waiting for chart hydration: ${selector}`);
+};
+
+export const createChartFixtureAsync = async (chart, options = {}) => {
   const fixture = createChartFixture(chart);
-  await new Promise((resolve) => fixture.window.setTimeout(resolve, 0));
-  const svg = fixture.article.querySelector('svg');
-  if (svg) svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 640, height: 360 });
+  const svg = await waitForChartHydration(fixture, options);
   return { ...fixture, svg };
 };
 

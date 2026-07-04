@@ -36,17 +36,10 @@ async function bootstrap() {
   await import('./data/update-logs.js');
   await loadVendorScript('/vendor/mhchem.min.js');
   await import('./app/legacy-app.js');
-
-  if (import.meta.env.PROD) {
-    const analyticsScript = document.createElement('script');
-    analyticsScript.defer = true;
-    analyticsScript.src = '/_vercel/insights/script.js';
-    document.head.appendChild(analyticsScript);
-  }
 }
 
 bootstrap().catch((error) => {
   console.error('AstraChat failed to bootstrap:', error);
-  document.body.innerHTML = '<main style="padding:2rem;font-family:system-ui,sans-serif"><h1>AstraChat ????</h1><pre></pre></main>';
+  document.body.innerHTML = '<main style="padding:2rem;font-family:system-ui,sans-serif"><h1>AstraChat failed to start</h1><pre></pre></main>';
   document.querySelector('pre').textContent = error?.stack || String(error);
 });

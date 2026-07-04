@@ -115,7 +115,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     }
 }
     document.addEventListener('DOMContentLoaded', () => {
-        // 直接讓登入/註冊畫面顯示出來
+        // Show the auth shell before the app finishes runtime startup.
         document.getElementById('auth-container').classList.add('visible');
         setupDemoModelHomepage({ document, demoConversations });
     });
@@ -233,22 +233,21 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             const label = uiLanguage === 'en'
                 ? 'Retires'
-                : (uiLanguage === 'fr' ? 'Retrait' : '下架');
+                : (uiLanguage === 'fr' ? 'Retrait' : 'Retires');
             return `${label} ${retirementDate}`;
         };
         const getModelPriceLabel = (model) => {
             if (!model) return '';
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            if (getModelTiers(model).includes('free')) return uiLanguage === 'en' ? 'Free' : '免費';
+            if (getModelTiers(model).includes('free')) return uiLanguage === 'en' ? 'Free' : 'Free';
             const priceKey = model.descriptionKey ? `${model.descriptionKey}_tier_paid` : '';
             const localizedPrice = priceKey ? i18n[uiLanguage]?.[priceKey] : '';
             if (localizedPrice) return localizedPrice;
-            if (model.provider === 'gemini') return uiLanguage === 'en' ? 'Google API pricing' : 'Google API 計費';
-            if (model.provider === 'openrouter') return uiLanguage === 'en' ? 'OpenRouter pricing' : 'OpenRouter 計費';
+            if (model.provider === 'gemini') return uiLanguage === 'en' ? 'Google API pricing' : 'Google API pricing';
+            if (model.provider === 'openrouter') return uiLanguage === 'en' ? 'OpenRouter pricing' : 'OpenRouter pricing';
             if (model.provider === 'stepfun') return 'Step Plan credits';
-            return uiLanguage === 'en' ? 'Provider pricing' : '供應商計費';
-        };
-        const getCouncilRuntimeTexts = () => {
+            return uiLanguage === 'en' ? 'Provider pricing' : 'Provider pricing';
+        };        const getCouncilRuntimeTexts = () => {
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             if (uiLanguage === 'en') {
                 return {
@@ -279,55 +278,55 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             }
             if (uiLanguage === 'fr') {
                 return {
-                    visualOnly: 'participants visuels',
-                    skipped: 'ignoré',
-                    noVisionParticipants: 'Au moins un modèle participant doit prendre en charge les images pour cette demande',
-                    skippedVisualReason: 'Ignoré car ce modèle ne prend pas en charge l’image/vidéo jointe',
-                    sharedSearch: 'Dossier de recherche partagé',
-                    searchRunning: 'Recherche unique du contexte partagé du conseil',
-                    searchDone: 'Dossier de recherche partagé prêt',
-                    searchFailed: 'La recherche partagée a échoué; poursuite sans elle',
-                    firstRound: 'Les membres du conseil réfléchissent',
-                    deliberation: 'Les membres du conseil révisent',
-                    synthesis: 'Le synthétiseur combine le conseil',
-                    completed: 'Conseil terminé',
-                    pending: 'En attente',
-                    running: 'Réflexion',
-                    done: 'Terminé',
-                    failed: 'Échec',
-                    skippedStatus: 'Ignoré',
-                    activeVisionNote: 'Seuls les membres capables de traiter les images répondront à cette demande.',
-                    comparisonToggle: 'Résumer les accords et différences',
-                    retrying: 'Nouvelle tentative',
-                    councilLocked: 'Le conseil est en cours; les réglages sont verrouillés jusqu’à la fin de la réponse.',
-                    searchManualNotice: 'Le mode conseil n’active pas la recherche automatiquement. Activez Recherche avant l’envoi si la question demande des informations actuelles.',
-                    searchEnabledNote: 'Recherche activée : le conseil utilisera un seul dossier de recherche partagé.'
+                    visualOnly: 'visual participants',
+                    skipped: 'skipped',
+                    noVisionParticipants: 'At least one participant model must support images for this council request',
+                    skippedVisualReason: 'Skipped because this model does not support the attached image/video',
+                    sharedSearch: 'Shared search packet',
+                    searchRunning: 'Searching once for shared council context',
+                    searchDone: 'Shared search packet ready',
+                    searchFailed: 'Shared search failed; continuing without it',
+                    firstRound: 'Council members are thinking',
+                    deliberation: 'Council members are revising',
+                    synthesis: 'Synthesizer is combining the council',
+                    completed: 'Council completed',
+                    pending: 'Waiting',
+                    running: 'Thinking',
+                    done: 'Done',
+                    failed: 'Failed',
+                    skippedStatus: 'Skipped',
+                    activeVisionNote: 'Only image-capable members will answer this image request.',
+                    comparisonToggle: 'Summarize agreements and differences',
+                    retrying: 'Retrying once',
+                    councilLocked: 'Council is running; settings are locked until this reply finishes.',
+                    searchManualNotice: 'Council mode does not enable Search automatically. Turn on Search before sending if this question needs current web information.',
+                    searchEnabledNote: 'Search is on: the council will use one shared search packet.'
                 };
             }
             return {
-                visualOnly: '可看圖理事',
-                skipped: '略過',
-                noVisionParticipants: '這次含圖片，至少要有一個支援圖片的理事模型',
-                skippedVisualReason: '此模型不支援圖片/影片附件，因此本輪略過',
-                sharedSearch: '共同搜尋資料包',
-                searchRunning: '正在先搜尋一次，建立理事會共同資料包',
-                searchDone: '共同搜尋資料包已完成',
-                searchFailed: '共同搜尋失敗，將不帶搜尋資料繼續',
-                firstRound: '理事正在各自思考',
-                deliberation: '理事正在第二輪修正',
-                synthesis: '統整模型正在整理結論',
-                completed: '理事會完成',
-                pending: '等待',
-                running: '思考中',
-                done: '完成',
-                failed: '失敗',
-                skippedStatus: '略過',
-                activeVisionNote: '這次含圖片，只有支援圖片的理事會回答。',
-                comparisonToggle: '整理共識與差異',
-                retrying: '重試一次中',
-                councilLocked: '理事會運作中，回覆完成前不能變更設定。',
-                searchManualNotice: '模型理事會不會自動開啟搜尋；如果問題需要最新資訊，請送出前手動開啟搜尋。',
-                searchEnabledNote: '搜尋已開啟：理事會會共用同一份搜尋資料包。'
+                visualOnly: 'visual participants',
+                skipped: 'skipped',
+                noVisionParticipants: 'At least one participant model must support images for this council request',
+                skippedVisualReason: 'Skipped because this model does not support the attached image/video',
+                sharedSearch: 'Shared search packet',
+                searchRunning: 'Searching once for shared council context',
+                searchDone: 'Shared search packet ready',
+                searchFailed: 'Shared search failed; continuing without it',
+                firstRound: 'Council members are thinking',
+                deliberation: 'Council members are revising',
+                synthesis: 'Synthesizer is combining the council',
+                completed: 'Council completed',
+                pending: 'Waiting',
+                running: 'Thinking',
+                done: 'Done',
+                failed: 'Failed',
+                skippedStatus: 'Skipped',
+                activeVisionNote: 'Only image-capable members will answer this image request.',
+                comparisonToggle: 'Summarize agreements and differences',
+                retrying: 'Retrying once',
+                councilLocked: 'Council is running; settings are locked until this reply finishes.',
+                searchManualNotice: 'Council mode does not enable Search automatically. Turn on Search before sending if this question needs current web information.',
+                searchEnabledNote: 'Search is on: the council will use one shared search packet.'
             };
         };
         const isVisualUploadedFile = (file) => {
@@ -369,7 +368,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         };
         const getCouncilValidation = (conv, files = uploadedFiles) => {
             const texts = getCouncilTexts();
-            const runtimeTexts = getCouncilRuntimeTexts();
             if (!isCouncilEnabled(conv)) {
                 return { ok: true, message: '' };
             }
@@ -404,22 +402,18 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 return {
                     ok: false,
                     reason: 'missingCouncilTranslator',
-                    message: runtimeConfigAccess.getConfig().uiLanguage === 'en'
-                        ? 'Council attachments need a translator model that supports both vision and file upload. Choose one in Settings.'
-                        : '理事會附件需要同時支援視覺與文件上傳的轉譯模型，請先到設定中選擇。'
+                    message: 'Council attachments need a translator model that supports both vision and file upload. Choose one in Settings.'
                 };
             }
-
             if (translationNeed.needsAnyPacket) {
                 return {
                     ok: true,
                     reason: 'readyWithAttachmentTranslation',
-                    message: `${texts.ready} · ${runtimeConfigAccess.getConfig().uiLanguage === 'en' ? 'attachment translator' : '附件轉譯模型'}: ${translatorModel.name}`
+                    message: `${texts.ready} with attachment translator: ${translatorModel.name}`
                 };
             }
             return { ok: true, reason: 'ready', message: texts.ready };
-        };
-        let itemToRename = { id: null, type: null };
+        };        let itemToRename = { id: null, type: null };
         let currentUser = null;
         let abortController = null;
         let isCouncilRunning = false;
@@ -484,7 +478,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                             }];
                             legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')();
                             ALL_ELEMENTS.messageInput?.focus();
-                            showNotification(i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || '圖片已加入，可繼續描述修改內容', 'success');
+                            showNotification(i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || 'Image is ready for targeted editing.', 'success');
                         },
                         getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
                         navigator,
@@ -733,7 +727,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     runtimeAppDataStore.replaceAll(normalizedData);
                 } catch (e) {
                     console.error("Failed to parse app data:", e);
-                    showNotification("讀取對話紀錄失敗，資料可能已損毀。", "error");
+                    showNotification("Stored app data could not be read and was reset.", "error");
                     runtimeAppDataStore.replaceAll({
                         conversations: [],
                         folders: [],
@@ -830,6 +824,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     const conv = currentConversations.find(c => c.id === id);
     if (conv) {
         conv.deletedAt = new Date().toISOString();
+        conv.archived = false;
         if (conv.folderId) {
             const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId);
             if (folder) {
@@ -839,19 +834,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         }
         await saveAppData();
 
-
-
-
-        // ↓↓↓↓↓↓ 就是這裡被修改了 ↓↓↓↓↓↓
         if (conversationStateAccess.getCurrentConversationId() === id) {
             startNewChat();
-        } 
-        // ↑↑↑↑↑↑ 就是這裡被修改了 ↑↑↑↑↑↑
-        
-        else {
+        } else {
             runtimeRenderCoordinator.renderAll();
         }
-        runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || '對話已移至垃圾桶。', 'success');
+        runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || 'Chat moved to trash.', 'success');
     }
 };
         const archiveChat = async (id, event) => {
@@ -912,7 +900,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             archivedConversationViewRenderer.renderConversationMessages({
                 conversation: conv,
                 contentContainer,
-                emptyHTML: '<p class="text-center text-[var(--text-secondary)]">此對話沒有訊息。</p>'
+                emptyHTML: '<p class="text-center text-[var(--text-secondary)]">No messages in this archived chat.</p>'
             });
             toggleModal(ALL_ELEMENTS.viewArchivedChatModal, true);
         };
@@ -938,7 +926,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 const folder = runtimeAppDataStore.getFolders().find(f => f.id === id);
                 if (folder) currentTitle = folder.name;
             }
-            ALL_ELEMENTS.renameModal.querySelector('h2').textContent = `重新命名${type === 'folder' ? '資料夾' : '對話'}`;
+            ALL_ELEMENTS.renameModal.querySelector('h2').textContent = type === 'folder' ? 'Rename folder' : 'Rename chat';
             ALL_ELEMENTS.renameInput.value = currentTitle;
             toggleModal(ALL_ELEMENTS.renameModal, true);
             ALL_ELEMENTS.renameInput.focus();
@@ -977,7 +965,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getTextColorForBackground,
             getConversations: () => liveConversationsBridge.getConversations(),
             createConversationElement: (...args) => createConversationElement(...args),
-            getNamingText: () => i18n[runtimeConfigAccess.getUiLanguage()].naming || 'AI思考中...',
+            getNamingText: () => i18n[runtimeConfigAccess.getUiLanguage()].naming || 'AI is naming...',
             requestAnimationFrame,
             setTimeout,
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args)
@@ -1023,18 +1011,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
 
 
         import { createLegacySidebarChatAstraRenderLifecycle } from '/src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
-        import { createLegacyConversationMailSender } from '/src/app/runtime/features/conversation-mail.js';
         import { createLegacySubmitInputCouncilLifecycle } from '/src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
         import { createLegacySettingsAuthProviderLifecycle } from '/src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
-
-        const sendConversationToMail = createLegacyConversationMailSender({
-            getActiveConversation,
-            getModels: () => MODELS,
-            isCouncilEnabled,
-            getCouncilTexts,
-            postJsonWithReadableError,
-            logger: console,
-        });
 
         let renderFolders;
         let createConversationElement;
@@ -1128,7 +1106,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             extractPersonalMemory: (...args) => extractPersonalMemory(...args),
             saveAppData,
             saveConfig,
-            sendConversationToMail,
             showNotification,
             updateApiKeyWarningBadge: (...args) => updateApiKeyWarningBadge(...args),
             getFileInputContainer: () => ALL_ELEMENTS.fileInputContainer,
@@ -1443,17 +1420,13 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     isSelectionMode = !isSelectionMode;
     selectedConversationIds.clear();
 
-
-    // ???�??�格?��?�???��??��???�???��???? 'active' CSS ?�??    ALL_ELEMENTS.selectionModeBtn.classList.toggle('active', isSelectionMode);
-
-
-    // ??????�??�?????��???�?????�箸???
+    // Selection mode state is rendered by renderAll().
+    // Update the tooltip for the selection mode toggle.
     if (isSelectionMode) {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].cancelBatchSelect || '?�??寞活?�?';
+        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].cancelBatchSelect || 'Cancel batch select';
     } else {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].batchSelect || '?寞活?�?';
+        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].batchSelect || 'Batch select';
     }
-
 
     renderAll();
 };

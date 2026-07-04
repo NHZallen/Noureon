@@ -25,11 +25,11 @@ export function registerServiceWorker() {
 
     if (typeof dialog === 'function') {
       const shouldReload = await dialog({
-        title: '????????',
-        message: 'AstraChat ????????????????????',
+        title: 'New version available',
+        message: 'A new AstraChat version is ready. Reload to update.',
         buttons: [
-          { text: '??', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false },
-          { text: '????', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
+          { text: 'Later', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false },
+          { text: 'Reload', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
         ]
       });
 

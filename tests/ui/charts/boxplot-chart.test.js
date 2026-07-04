@@ -24,7 +24,7 @@ test('boxplot accepts summary data', () => {
 });
 
 test('boxplot renders whiskers boxes median lines and outliers', async () => {
-  const { window, article } = await createChartFixtureAsync(chart);
+  const { window, article } = await createChartFixtureAsync(chart, { selector: 'svg.ac-chart-svg-boxplot' });
   try {
     assert.equal(article.querySelectorAll('.ac-chart-boxplot-group').length, 2);
     assert.equal(article.querySelectorAll('.ac-chart-boxplot-whisker').length, 2);
@@ -35,7 +35,7 @@ test('boxplot renders whiskers boxes median lines and outliers', async () => {
 });
 
 test('boxplot group interaction exposes complete summary tooltip', async () => {
-  const { window, article } = await createChartFixtureAsync(chart);
+  const { window, article } = await createChartFixtureAsync(chart, { selector: 'svg.ac-chart-svg-boxplot' });
   try {
     const group = article.querySelector('.ac-chart-boxplot-group[data-chart-index="0"]');
     dispatchChartPointer(window, group, 'pointermove', { x: 180, y: 130 });
@@ -49,7 +49,7 @@ test('boxplot group interaction exposes complete summary tooltip', async () => {
 });
 
 test('boxplot outlier interaction exposes outlier tooltip', async () => {
-  const { window, article } = await createChartFixtureAsync(chart);
+  const { window, article } = await createChartFixtureAsync(chart, { selector: 'svg.ac-chart-svg-boxplot' });
   try {
     const outlier = article.querySelector('.ac-chart-boxplot-outlier[data-chart-outlier="99"]');
     dispatchChartPointer(window, outlier, 'pointermove', { x: 180, y: 40 });

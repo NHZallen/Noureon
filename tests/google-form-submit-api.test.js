@@ -29,6 +29,7 @@ const createResponse = () => {
 
 test('google form proxy forwards POST bodies to Apps Script server-side', async () => {
   const originalFetch = globalThis.fetch;
+  const originalEndpoint = process.env.GOOGLE_FORM_ENDPOINT;
   const calls = [];
   globalThis.fetch = async (url, options) => {
     calls.push({ url, options });
@@ -41,21 +42,56 @@ test('google form proxy forwards POST bodies to Apps Script server-side', async 
   const res = createResponse();
 
   try {
+    process.env.GOOGLE_FORM_ENDPOINT = 'https://forms.example.test/submit';
     await handler({ method: 'POST', body: { formType: 'feedback', message: 'hello' }, headers: {} }, res);
   } finally {
     globalThis.fetch = originalFetch;
+    if (originalEndpoint === undefined) {
+      delete process.env.GOOGLE_FORM_ENDPOINT;
+    } else {
+      process.env.GOOGLE_FORM_ENDPOINT = originalEndpoint;
+    }
   }
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body, 'ok');
-  assert.match(calls[0].url, /^https:\/\/script\.google\.com\/macros\/s\//);
+  assert.equal(calls[0].url, 'https://forms.example.test/submit');
   assert.equal(calls[0].options.method, 'POST');
   assert.equal(calls[0].options.headers['Content-Type'], 'text/plain;charset=utf-8');
   assert.equal(calls[0].options.body, JSON.stringify({ formType: 'feedback', message: 'hello' }));
 });
 
+test('google form proxy refuses to forward when endpoint env is missing', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEndpoint = process.env.GOOGLE_FORM_ENDPOINT;
+  const calls = [];
+  globalThis.fetch = async (...args) => {
+    calls.push(args);
+    throw new Error('fetch should not be called');
+  };
+  const res = createResponse();
+
+  try {
+    delete process.env.GOOGLE_FORM_ENDPOINT;
+    await handler({ method: 'POST', body: { message: 'blocked' }, headers: {} }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalEndpoint === undefined) {
+      delete process.env.GOOGLE_FORM_ENDPOINT;
+    } else {
+      process.env.GOOGLE_FORM_ENDPOINT = originalEndpoint;
+    }
+  }
+
+  assert.equal(res.statusCode, 501);
+  assert.match(res.body, /Google form endpoint is not configured/);
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  assert.equal(calls.length, 0);
+});
+
 test('google form proxy preserves upstream errors as readable same-origin responses', async () => {
   const originalFetch = globalThis.fetch;
+  const originalEndpoint = process.env.GOOGLE_FORM_ENDPOINT;
   globalThis.fetch = async () => ({
     status: 403,
     headers: { get: () => 'text/plain' },
@@ -64,9 +100,15 @@ test('google form proxy preserves upstream errors as readable same-origin respon
   const res = createResponse();
 
   try {
+    process.env.GOOGLE_FORM_ENDPOINT = 'https://forms.example.test/submit';
     await handler({ method: 'POST', body: '{"message":"blocked"}', headers: {} }, res);
   } finally {
     globalThis.fetch = originalFetch;
+    if (originalEndpoint === undefined) {
+      delete process.env.GOOGLE_FORM_ENDPOINT;
+    } else {
+      process.env.GOOGLE_FORM_ENDPOINT = originalEndpoint;
+    }
   }
 
   assert.equal(res.statusCode, 403);
@@ -75,10 +117,22 @@ test('google form proxy preserves upstream errors as readable same-origin respon
 });
 
 test('google form proxy rejects non-POST methods', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (...args) => {
+    calls.push(args);
+    throw new Error('fetch should not be called');
+  };
   const res = createResponse();
 
-  await handler({ method: 'GET', headers: {} }, res);
+  try {
+    await handler({ method: 'GET', headers: {} }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 
   assert.equal(res.statusCode, 405);
   assert.match(res.body, /Method not allowed/);
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  assert.equal(calls.length, 0);
 });

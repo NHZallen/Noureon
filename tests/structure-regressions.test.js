@@ -529,9 +529,7 @@ test('production runtime entry composes the explicit legacy dependency facade', 
 });
 
 test('runtime entry cutover helpers no longer rely on 05 lexical ownership', () => {
-  const conversationMailPath = 'src/app/runtime/features/conversation-mail.js';
   const imageCompressionPath = 'src/app/runtime/utils/image-compression.js';
-  const conversationMailSource = readSource(conversationMailPath);
   const imageCompressionSource = readSource(imageCompressionPath);
   const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
@@ -542,23 +540,15 @@ test('runtime entry cutover helpers no longer rely on 05 lexical ownership', () 
   const legacyEntrySource = readSource('src/app/legacy-app.js');
   const viteSource = readSource('vite.config.js');
 
-  assert.equal(existsSync(projectFile(conversationMailPath)), true);
+  assert.equal(existsSync(projectFile('src/app/runtime/features/conversation-mail.js')), false);
   assert.equal(existsSync(projectFile(imageCompressionPath)), true);
-  assert.match(conversationMailSource, /export\s+async\s+function\s+sendConversationToMail/);
   assert.match(imageCompressionSource, /export\s+function\s+compressImage/);
   assert.doesNotMatch(
-    `${conversationMailSource}\n${imageCompressionSource}`,
+    imageCompressionSource,
     /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/
   );
 
-  assert.match(
-    fragment01Source,
-    /import\s+\{\s*createLegacyConversationMailSender\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/conversation-mail\.js['"]/
-  );
-  assert.match(
-    fragment01Source,
-    /const\s+sendConversationToMail\s*=\s*createLegacyConversationMailSender\(\{/
-  );
+  assert.doesNotMatch(fragment01Source, /conversation-mail|createLegacyConversationMailSender|sendConversationToMail/);
   assert.match(
     batchImportVoiceSource,
     /import\s+\{\s*compressImage\s*\}\s+from\s+['"]\.\.\/utils\/image-compression\.js['"]/
@@ -3417,7 +3407,9 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
     assert.doesNotMatch(submitFlowSource, removedFinalizationCore);
   }
 
-  assert.match(helperSource, /sendConversationToMail\(userMessageObject,\s*fullResponse\)/);
+  assert.doesNotMatch(helperSource, /sendConversationToMail|conversation-mail|google-form-submit/);
+  assert.doesNotMatch(fragment00Source, /conversation-mail|createLegacyConversationMailSender|sendConversationToMail/);
+  assert.doesNotMatch(fragment01Source, /sendConversationToMail/);
   assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
   assert.match(helperSource, /await\s+extractPersonalMemory\(userMessageText,\s*fullResponse\)/);
   assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
