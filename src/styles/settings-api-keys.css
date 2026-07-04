@@ -1,6 +1,6 @@
 .api-key-input-group {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 0.5rem;
     align-items: center;
 }
@@ -10,6 +10,7 @@
     grid-column: 1 / -1;
 }
 
+.api-key-visibility-btn,
 .api-key-clear-btn,
 .api-key-clear-all-btn {
     border: 1px solid var(--border-color);
@@ -22,6 +23,26 @@
     white-space: nowrap;
 }
 
+.api-key-visibility-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+}
+
+.api-key-visibility-btn svg {
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+.api-key-visibility-btn[aria-pressed="true"] {
+    color: var(--text-primary);
+    border-color: var(--accent-color);
+}
+
+.api-key-visibility-btn:hover,
 .api-key-clear-btn:hover,
 .api-key-clear-all-btn:hover {
     color: var(--text-primary);

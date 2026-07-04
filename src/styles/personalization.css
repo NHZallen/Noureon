@@ -822,6 +822,30 @@ body.custom-wallpaper-active .store-category-btn.active {
         background-position: 50% 50%;
         transform: translateX(-50%) scale(1.05);
     }
+    @keyframes jelly-bounce-centered {
+        0%, 100% { transform: scale(1); }
+        25% { transform: scale(0.9, 1.1); }
+        50% { transform: scale(1.1, 0.9); }
+        75% { transform: scale(0.95, 1.05); }
+    }
+    @media (max-width: 768px) {
+        #scroll-to-bottom-btn {
+            left: 0;
+            right: 0;
+            margin-left: auto;
+            margin-right: auto;
+            transform: scale(0.8);
+        }
+        #scroll-to-bottom-btn.visible {
+            transform: scale(1);
+        }
+        #scroll-to-bottom-btn.jelly-animate {
+            animation-name: jelly-bounce-centered;
+        }
+        body.custom-wallpaper-active #scroll-to-bottom-btn:hover {
+            transform: scale(1.05);
+        }
+    }
     .search-view-btn {
         display: inline-flex;
     }

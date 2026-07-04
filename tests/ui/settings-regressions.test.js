@@ -43,19 +43,20 @@ test('settings API key controls use masked intent helpers and scoped clear butto
   assert.match(settingsApiKeyControls, /prepareApiKeyInput\(input,\s*\{/);
   assert.match(settingsApiKeyControls, /readApiKeyInputIntent\(input\)/);
   assert.match(settingsApiKeyControls, /markApiKeyInputCleared\(input\)/);
+  assert.match(settingsApiKeyControls, /createApiKeyVisibilityButton/);
   assert.match(settingsApiKeyControls, /id\s*=\s*'clear-all-api-keys-btn'/);
   assert.doesNotMatch(settingsAuthProviderLifecycle, /ALL_ELEMENTS\.geminiApiKeyInput\.value\s*=\s*getApiKeyForProvider/);
   assert.doesNotMatch(settingsApiKeyControls, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
 
   assert.match(css, /\.api-key-input-group\s*\{/);
-  assert.match(css, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
+  assert.match(css, /\.api-key-visibility-btn,\s*\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
   assert.match(css, /\.api-key-clear-all-btn\s*\{[^}]*width:\s*100%;/s);
 
   const settingsCss = readUiSource('src/styles/settings.css');
   const settingsApiKeysCss = readUiSource('src/styles/settings-api-keys.css');
   assert.doesNotMatch(settingsCss, /\.api-key-input-group\s*\{/);
   assert.match(settingsApiKeysCss, /\.api-key-input-group\s*\{/);
-  assert.match(settingsApiKeysCss, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
+  assert.match(settingsApiKeysCss, /\.api-key-visibility-btn,\s*\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
 });
 
 test('settings navigation starts below the modal header divider on desktop', () => {
@@ -70,6 +71,13 @@ test('settings close control centers the x glyph inside the circular button', ()
 
   assert.match(css, /#close-settings-btn\s*\{[\s\S]*display:\s*inline-flex\s*!important;[\s\S]*align-items:\s*center\s*!important;[\s\S]*justify-content:\s*center\s*!important;/s);
   assert.match(css, /#close-settings-btn::before\s*\{[\s\S]*display:\s*flex\s*!important;[\s\S]*align-items:\s*center\s*!important;[\s\S]*justify-content:\s*center\s*!important;[\s\S]*height:\s*100%\s*!important;/s);
+});
+
+test('mobile scroll-to-bottom button is centered without horizontal translate', () => {
+  const css = readUiSource('src/styles/main.css');
+
+  assert.match(css, /@media\s*\(max-width:\s*768px\)\s*\{[\s\S]*#scroll-to-bottom-btn\s*\{[^}]*left:\s*0;[^}]*right:\s*0;[^}]*margin-left:\s*auto;[^}]*margin-right:\s*auto;[^}]*transform:\s*scale\(0\.8\);/s);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)\s*\{[\s\S]*#scroll-to-bottom-btn\.visible\s*\{[^}]*transform:\s*scale\(1\);/s);
 });
 
 test('mobile settings open to a GPT-style category list before drilling into details', () => {
@@ -240,6 +248,7 @@ test('provider and model management selectors are scoped to the provider managem
 test('settings control selectors stay visible and scoped by surface', () => {
   const controlSelectors = [
     ['.api-key-input-group', ['src/styles/settings-api-keys.css']],
+    ['.api-key-visibility-btn', ['src/styles/settings-api-keys.css']],
     ['.api-key-clear-btn', ['src/styles/settings-api-keys.css']],
     ['.api-key-clear-all-btn', ['src/styles/settings-api-keys.css']],
     ['.translator-picker-menu', ['src/styles/settings-output-translator.css']],
@@ -256,11 +265,12 @@ test('settings control selectors stay visible and scoped by surface', () => {
   }
 
   const css = readUiSource('src/styles/main.css');
-  assert.match(css, /\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
+  assert.match(css, /\.api-key-visibility-btn,\s*\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
   assert.match(css, /\.translator-picker-button[^{]*\{/);
   assert.match(css, /\.custom-output-mode-option[^{]*\{/);
 
   const settingsCss = readUiSource('src/styles/settings.css');
+  assert.doesNotMatch(settingsCss, /\.api-key-visibility-btn/);
   assert.doesNotMatch(settingsCss, /\.api-key-clear-btn/);
   assert.doesNotMatch(settingsCss, /\.api-key-clear-all-btn/);
   assert.doesNotMatch(settingsCss, /\.translator-picker-/);

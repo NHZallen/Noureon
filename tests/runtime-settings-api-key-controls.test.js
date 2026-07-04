@@ -34,10 +34,19 @@ function createElement(id = '') {
     wrapper,
     type: '',
     className: '',
+    innerHTML: '',
     textContent: '',
+    title: '',
+    attributes: {},
     classList: {
       add() {},
       contains() { return false; }
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    },
+    getAttribute(name) {
+      return this.attributes[name];
     },
     addEventListener(type, handler) {
       listeners[type] = handler;
@@ -150,7 +159,7 @@ test('clear single provider button clears the matching provider and saves', asyn
   const { controls, calls, elements } = createHarness();
 
   controls.ensureApiKeyInputSecurityControls();
-  const clearButton = elements.geminiApiKeyInput.wrapper.children[0];
+  const clearButton = elements.geminiApiKeyInput.wrapper.children.find(child => child.className === 'api-key-clear-btn');
   await clearButton.listeners.click({ preventDefault() {} });
 
   assert.deepEqual(calls, [
@@ -159,6 +168,44 @@ test('clear single provider button clears the matching provider and saves', asyn
   ]);
   assert.equal(elements.geminiApiKeyInput.value, '');
   assert.equal(JSON.stringify(elements.geminiApiKeyInput.dataset).includes('secret-value'), false);
+});
+
+test('visibility button reveals stored API key without placing raw key in dataset', () => {
+  const { controls, elements } = createHarness();
+
+  controls.prepareApiKeyInputsForSettings();
+  const visibilityButton = elements.geminiApiKeyInput.wrapper.children.find(child => child.className === 'api-key-visibility-btn');
+  visibilityButton.listeners.click({ preventDefault() {} });
+
+  assert.equal(elements.geminiApiKeyInput.type, 'text');
+  assert.equal(elements.geminiApiKeyInput.value, 'gemini-secret-value-abcd');
+  assert.equal(visibilityButton.getAttribute('aria-pressed'), 'true');
+  assert.equal(JSON.stringify(elements.geminiApiKeyInput.dataset).includes('gemini-secret-value-abcd'), false);
+
+  visibilityButton.listeners.click({ preventDefault() {} });
+
+  assert.equal(elements.geminiApiKeyInput.type, 'password');
+  assert.notEqual(elements.geminiApiKeyInput.value, 'gemini-secret-value-abcd');
+  assert.match(elements.geminiApiKeyInput.value, /\*+/);
+});
+
+test('visibility button keeps a newly typed API key editable and persistable', async () => {
+  const { controls, calls, elements } = createHarness();
+
+  controls.prepareApiKeyInputsForSettings();
+  elements.geminiApiKeyInput.value = 'new-gemini-key';
+  elements.geminiApiKeyInput.listeners.input();
+  const visibilityButton = elements.geminiApiKeyInput.wrapper.children.find(child => child.className === 'api-key-visibility-btn');
+  visibilityButton.listeners.click({ preventDefault() {} });
+  visibilityButton.listeners.click({ preventDefault() {} });
+  await controls.persistApiKeyInputIntents();
+
+  assert.equal(elements.geminiApiKeyInput.type, 'password');
+  assert.equal(elements.geminiApiKeyInput.value, 'new-gemini-key');
+  assert.deepEqual(calls, [
+    ['setApiKeyForProvider', 'gemini', 'new-gemini-key'],
+    'saveSensitiveConfig'
+  ]);
 });
 
 test('clear all button clears all providers and saves', async () => {
