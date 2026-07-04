@@ -13,6 +13,9 @@ const requiredDependencies = [
     'runtimeDialogCoordinator',
     'i18n',
     'models',
+    'getSensitiveApiKeys',
+    'mergeSensitiveApiKeys',
+    'saveSensitiveConfig',
     'saveConfig',
     'saveAppData',
     'renderAll',
@@ -68,6 +71,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         updateLogs,
         uiThemeColors,
         models: MODELS,
+        getSensitiveApiKeys,
+        mergeSensitiveApiKeys,
+        saveSensitiveConfig,
         setTheme,
         updateThemeButtons,
         setAiBubbleColor,
@@ -212,11 +218,13 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         elements: ALL_ELEMENTS,
         legacyRuntimeContext,
         getConfig: () => state.config,
+        getSensitiveApiKeys,
         mutateConfig: (mutator) => {
             if (typeof mutator === 'function') return mutator(state.config);
             Object.assign(state.config, mutator);
             return state.config;
         },
+        mergeSensitiveApiKeys,
         getCurrentUser: () => state.currentUser,
         setCurrentUser: (nextUser) => {
             state.currentUser = nextUser;
@@ -247,6 +255,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         runtimeDialogCoordinator,
         saveAppData,
         saveConfig,
+        saveSensitiveConfig,
         toggleSelectionMode,
         toggleModal,
         showNotification,

@@ -394,12 +394,14 @@ test('handleImport pushes imported conversations into the active replaceAll conv
   assert.ok(harness.calls.some((call) => call[0] === 'loadChat' && call[1] === 'conv-1'));
 });
 
-test('handleExport uses live getters and packages selected data without leaving the export button disabled', async () => {
-  const { calls, elements, lifecycle } = createHarness({
+test('handleExport uses live getters and packages every selected data group', async () => {
+  const sensitiveApiKeys = { gemini: 'sensitive-gemini-key', openrouter: 'sensitive-openrouter-key' };
+  const { calls, elements, FakeJSZip, lifecycle } = createHarness({
     conversations: [{ id: 'conv-1', messages: [] }],
     folders: [{ id: 'folder-1' }],
     astras: [{ id: 'astra-1', name: 'Astra One' }],
-    personalMemories: [{ id: 'memory-1' }]
+    personalMemories: [{ id: 'memory-1' }],
+    sensitiveApiKeys
   });
   elements.exportHistoryCheck.checked = true;
   elements.exportAstrasCheck.checked = true;
@@ -409,6 +411,15 @@ test('handleExport uses live getters and packages selected data without leaving 
 
   await lifecycle.handleExport();
 
+  const zip = FakeJSZip.instances.at(-1);
+  const exportedData = JSON.parse(await zip.files['data.json'].async('string'));
+
+  assert.deepEqual(exportedData.conversations, [{ id: 'conv-1', messages: [] }]);
+  assert.deepEqual(exportedData.folders, [{ id: 'folder-1' }]);
+  assert.deepEqual(exportedData.astras, [{ id: 'astra-1', name: 'Astra One' }]);
+  assert.deepEqual(exportedData.personalMemories, [{ id: 'memory-1' }]);
+  assert.equal(exportedData.settings.defaultModel, 'model-a');
+  assert.deepEqual(exportedData.apiKeys, sensitiveApiKeys);
   assert.equal(calls.some((call) => call[0] === 'zipFile' && call[1] === 'data.json'), true);
   assert.equal(calls.some((call) => call[0] === 'zipGenerate'), true);
   assert.equal(calls.some((call) => call[0] === 'createObjectURL'), true);
@@ -460,16 +471,16 @@ test('handleExport excludes apiKeys from normal settings exports by default', as
 });
 
 test('handleExport preserves explicit opt-in full apiKeys export', async () => {
-  const { config, calls, elements, FakeJSZip, lifecycle } = createHarness({
+  const sensitiveApiKeys = {
+    gemini: 'gemini-secret',
+    openrouter: 'openrouter-secret',
+    nvidia: 'nvidia-secret',
+    stepPlan: 'step-plan-secret',
+    tavily: 'tavily-secret'
+  };
+  const { calls, elements, FakeJSZip, lifecycle } = createHarness({
     config: {
       uiLanguage: 'en',
-      apiKeys: {
-        gemini: 'gemini-secret',
-        openrouter: 'openrouter-secret',
-        nvidia: 'nvidia-secret',
-        stepPlan: 'step-plan-secret',
-        tavily: 'tavily-secret'
-      },
       defaultModel: 'model-a',
       theme: 'dark',
       modelSettings: [],
@@ -484,7 +495,8 @@ test('handleExport preserves explicit opt-in full apiKeys export', async () => {
       uiTheme: {},
       aiDefaultLanguage: 'en',
       isLearningMode: false
-    }
+    },
+    sensitiveApiKeys
   });
   elements.exportSettingsCheck.checked = true;
   elements.exportApiCheck.checked = true;
@@ -494,7 +506,7 @@ test('handleExport preserves explicit opt-in full apiKeys export', async () => {
   const zip = FakeJSZip.instances.at(-1);
   const exportedData = JSON.parse(await zip.files['data.json'].async('string'));
 
-  assert.deepEqual(exportedData.apiKeys, config.apiKeys);
+  assert.deepEqual(exportedData.apiKeys, sensitiveApiKeys);
   assert.equal(calls.some((call) => call[0] === 'confirm'), true);
 });
 

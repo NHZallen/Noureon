@@ -93,11 +93,13 @@ function createHarness(overrides = {}) {
       }
     },
     getConfig: () => config,
+    getSensitiveApiKeys: () => ({ gemini: 'sensitive-gemini-key' }),
     mutateConfig: (mutator) => {
       if (typeof mutator === 'function') return mutator(config);
       Object.assign(config, mutator);
       return config;
     },
+    mergeSensitiveApiKeys: (...args) => calls.push(['mergeSensitiveApiKeys', ...args]),
     getCurrentUser: () => currentUser,
     setCurrentUser: (nextUser) => {
       currentUser = nextUser;
@@ -136,6 +138,7 @@ function createHarness(overrides = {}) {
     },
     saveAppData: async () => calls.push(['saveAppData']),
     saveConfig: async () => calls.push(['saveConfig']),
+    saveSensitiveConfig: async () => calls.push(['saveSensitiveConfig']),
     toggleSelectionMode: () => calls.push(['toggleSelectionMode']),
     toggleModal: (...args) => calls.push(['toggleModal', ...args]),
     showNotification: (...args) => calls.push(['showNotification', ...args]),
@@ -375,6 +378,9 @@ test('import and auth-import composition remains in real lifecycles and module h
   assert.match(source, /createLegacyImportExportLifecycle\(\{/);
   assert.match(source, /createLegacyAuthImportLifecycle\(\{/);
   assert.match(source, /replaceAllAppData,/);
+  assert.match(source, /getSensitiveApiKeys,/);
+  assert.equal((source.match(/mergeSensitiveApiKeys,/g) || []).length >= 2, true);
+  assert.equal((source.match(/saveSensitiveConfig,/g) || []).length >= 2, true);
   assert.match(source, /initChatApp:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });

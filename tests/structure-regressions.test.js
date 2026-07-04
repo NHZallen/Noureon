@@ -362,6 +362,8 @@ test('sensitive config export redaction boundary is explicit', () => {
   const inputIntentPath = 'src/app/runtime/security/api-key-input-intent.js';
   const apiKeyControlsPath = 'src/app/runtime/legacy-core/settings-api-key-controls.js';
   const exportLifecycleSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
+  const batchImportVoiceSource = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
+  const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
@@ -404,6 +406,11 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(exportLifecycleSource, /saveSensitiveConfig/);
   assert.match(exportLifecycleSource, /createExportSafeConfig\(\s*\{\s*apiKeys:\s*getSensitiveApiKeys\(\)\s*\},\s*\{\s*includeSecrets:\s*true\s*\}\s*\)\.apiKeys/);
   assert.match(exportLifecycleSource, /exportApiKeysWarning/);
+  for (const source of [batchImportVoiceSource, transitionBusSource, legacyCoreSource]) {
+    assert.match(source, /getSensitiveApiKeys/);
+    assert.match(source, /mergeSensitiveApiKeys/);
+    assert.match(source, /saveSensitiveConfig/);
+  }
   assert.match(sensitiveStoreSource, /export\s+function\s+createSensitiveConfigStore/);
   assert.match(sensitiveStoreSource, /export\s+function\s+createSensitiveConfigPersistence/);
   assert.match(sensitiveStoreSource, /chatSensitiveConfig_v1_\$\{user\.username\}/);
@@ -1302,7 +1309,9 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
     'const importExportLifecycle = createLegacyImportExportLifecycle({',
     'getCurrentUser',
     'getConfig',
+    'getSensitiveApiKeys',
     'mutateConfig',
+    'mergeSensitiveApiKeys',
     'getConversations',
     'getFolders',
     'getAstras',
@@ -1312,12 +1321,15 @@ test('normal import/export lifecycle ownership moves out of 03 into a real runti
     'replacePersonalMemories',
     'saveAppData',
     'saveConfig',
+    'saveSensitiveConfig',
     'const authImportLifecycle = createLegacyAuthImportLifecycle({'
   ], 'batch/import/voice lifecycle import/export composition and auth split');
   assertMarkersInOrder(fragment03Source, [
     'const batchImportVoiceLifecycle = createLegacyBatchImportVoiceLifecycle({',
     'getConfig: () => state.config',
+    'getSensitiveApiKeys',
     'mutateConfig: (mutator) => {',
+    'mergeSensitiveApiKeys',
     'getCurrentUser: () => state.currentUser',
     'getConversations: () => state.conversations',
     'getFolders: () => state.folders',
