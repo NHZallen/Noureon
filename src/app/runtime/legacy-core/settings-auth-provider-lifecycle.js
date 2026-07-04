@@ -403,8 +403,33 @@ const {
     bindDesktopSettingsSections,
     syncSettingsSectionForViewport
 } = desktopSectionHelper;
+const ensureAutoWebSearchSettingsControl = () => {
+    if (document.getElementById('auto-web-search-toggle-switch')) {
+        ALL_ELEMENTS.autoWebSearchToggleSwitch = document.getElementById('auto-web-search-toggle-switch');
+        return;
+    }
+    const section = document.getElementById('accessibility-section');
+    if (!section) return;
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between mt-4';
+    row.innerHTML = `
+        <label for="auto-web-search-toggle-switch" class="flex-1 text-sm font-medium" data-lang-key="enableSmartWebSearch">Enable Smart Search</label>
+        <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+            <input type="checkbox" name="auto-web-search-toggle-switch" id="auto-web-search-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+            <label for="auto-web-search-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+        </div>
+    `;
+    const namingRow = section.querySelector('#auto-naming-toggle-switch')?.closest('.flex.items-center.justify-between');
+    if (namingRow) {
+        namingRow.after(row);
+    } else {
+        section.appendChild(row);
+    }
+    ALL_ELEMENTS.autoWebSearchToggleSwitch = row.querySelector('#auto-web-search-toggle-switch');
+};
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
+    ensureAutoWebSearchSettingsControl();
     ensureCouncilTranslatorSettingsControls();
     ensureOutputModeSettingsControls();
     prepareApiKeyInputsForSettings();

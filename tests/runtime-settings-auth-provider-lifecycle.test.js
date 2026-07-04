@@ -986,6 +986,69 @@ test('setupSettingsModal displays masked API keys without putting raw secrets in
   assert.equal(JSON.stringify(dependencies.elements.openrouterApiKeyInputAll.dataset).includes(rawKeys.openrouter), false);
 });
 
+test('setupSettingsModal restores missing auto web search toggle control', () => {
+  const insertedRows = [];
+  let createdAutoSearchInput = null;
+  const makeElement = (id = '') => ({
+    id,
+    value: '',
+    checked: false,
+    dataset: {},
+    style: {},
+    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+    addEventListener() {},
+    appendChild(child) { insertedRows.push(child); },
+    after(child) { insertedRows.push(child); },
+    querySelector(selector) {
+      if (selector === '#auto-web-search-toggle-switch') {
+        if (!createdAutoSearchInput) {
+          createdAutoSearchInput = makeElement('auto-web-search-toggle-switch');
+        }
+        return createdAutoSearchInput;
+      }
+      if (selector === '.custom-output-mode-select') return makeElement('custom-output-mode-select');
+      if (selector === '#output-mode-label' || selector === 'p') return makeElement(selector);
+      if (selector === '[data-output-mode-option="typewriter"]') return makeElement('typewriter-output-mode');
+      if (selector === '[data-output-mode-option="realtime"]') return makeElement('realtime-output-mode');
+      return null;
+    },
+    querySelectorAll() { return []; },
+    closest() { return makeElement('auto-naming-row'); },
+    focus() {},
+    getBoundingClientRect: () => ({ bottom: 0, height: 0 })
+  });
+  const namingInput = makeElement('auto-naming-toggle-switch');
+  const accessibilitySection = makeElement('accessibility-section');
+  accessibilitySection.querySelector = (selector) => {
+    if (selector === '#auto-naming-toggle-switch') return namingInput;
+    if (selector === '#auto-web-search-toggle-switch') return createdAutoSearchInput;
+    return null;
+  };
+  const { dependencies } = createDependencies({
+    document: {
+      body: { classList: { contains() { return false; } } },
+      documentElement: { style: { setProperty() {} } },
+      createElement: () => makeElement(),
+      createTextNode: (text) => ({ textContent: text }),
+      getElementById: (id) => {
+        if (id === 'auto-web-search-toggle-switch') return null;
+        if (id === 'accessibility-section') return accessibilitySection;
+        if (id === 'output-mode-setting-row') return makeElement('output-mode-setting-row');
+        return makeElement(id);
+      },
+      addEventListener() {},
+      querySelector: () => makeElement(),
+      querySelectorAll: () => []
+    }
+  });
+
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  lifecycle.setupSettingsModal();
+
+  assert.equal(insertedRows.length > 0, true);
+  assert.equal(dependencies.elements.autoWebSearchToggleSwitch.id, 'auto-web-search-toggle-switch');
+});
+
 test('saveSettings preserves unchanged masked keys and never stores masked placeholders', async () => {
   const { dependencies, calls } = createDependencies({
     document: {
