@@ -19,6 +19,7 @@ export function createSubmitInputPreparationLifecycle({
   saveAppData,
   getAutoWebSearchEnabled,
   shouldPerformWebSearch,
+  canAutoEnableWebSearch = () => true,
   getAutoSearchNotice,
   renderInputIndicators,
   adjustTextareaHeight,
@@ -91,7 +92,7 @@ export function createSubmitInputPreparationLifecycle({
       await saveAppData();
     }
 
-    if (!responseUsesCouncil && getAutoWebSearchEnabled() && conversation.provider === 'gemini' && !conversation.isWebSearchEnabled) {
+    if (!responseUsesCouncil && getAutoWebSearchEnabled() && canAutoEnableWebSearch(conversation) && !conversation.isWebSearchEnabled) {
       try {
         const needsSearch = await shouldPerformWebSearch(userMessage);
         if (needsSearch) {

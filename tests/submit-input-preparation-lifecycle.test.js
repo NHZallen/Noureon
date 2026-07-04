@@ -65,6 +65,7 @@ const createHarness = (overrides = {}) => {
     saveAppData: async () => calls.push(['saveAppData']),
     getAutoWebSearchEnabled: () => overrides.autoWebSearch ?? false,
     shouldPerformWebSearch: overrides.shouldPerformWebSearch || (async () => false),
+    canAutoEnableWebSearch: overrides.canAutoEnableWebSearch || (() => true),
     getAutoSearchNotice: () => 'auto search on',
     renderInputIndicators: () => calls.push(['renderInputIndicators']),
     adjustTextareaHeight: () => calls.push(['adjustTextareaHeight']),
@@ -144,6 +145,53 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
     'requestFrame',
     'scrollIntoView'
   ]);
+});
+
+test('auto web search can be enabled for Tavily-backed providers through the runtime predicate', async () => {
+  for (const provider of ['openrouter', 'nvidia', 'stepfun']) {
+    let checkedPrompt = '';
+    const harness = createHarness({
+      autoWebSearch: true,
+      conversation: {
+        archived: false,
+        isTemporary: false,
+        isWebSearchEnabled: false,
+        messages: [],
+        provider,
+        unsentMessage: 'draft'
+      },
+      canAutoEnableWebSearch: (conversation) => conversation.provider === provider,
+      shouldPerformWebSearch: async (prompt) => {
+        checkedPrompt = prompt;
+        return true;
+      }
+    });
+
+    const result = await harness.lifecycle.prepareSubmitResponse();
+
+    assert.equal(result.shouldContinue, true);
+    assert.equal(checkedPrompt, 'Hello');
+    assert.equal(harness.conversation.isWebSearchEnabled, true);
+    assert.ok(harness.calls.some(call => call[0] === 'showNotification' && call[1] === 'auto search on'));
+  }
+});
+
+test('auto web search skips the classifier when the current model cannot use search', async () => {
+  let classifierCalled = false;
+  const harness = createHarness({
+    autoWebSearch: true,
+    canAutoEnableWebSearch: () => false,
+    shouldPerformWebSearch: async () => {
+      classifierCalled = true;
+      return true;
+    }
+  });
+
+  const result = await harness.lifecycle.prepareSubmitResponse();
+
+  assert.equal(result.shouldContinue, true);
+  assert.equal(classifierCalled, false);
+  assert.equal(harness.conversation.isWebSearchEnabled, false);
 });
 
 test('preserves targeted edit metadata on annotated image attachments', () => {

@@ -69,6 +69,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getModelRetirementLabel = () => '',
     getModelTiers = () => [],
     getModelsByIds = () => [],
+    getApiKeyForProvider = () => '',
     getOutputMode = () => 'typewriter',
     getProviderLabel = (provider) => provider || '',
     getSingleDocumentTranslatorModel = () => null,
@@ -80,6 +81,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     modelSupportsDocumentUpload = () => false,
     modelSupportsVision = () => false,
     modelSupportsWebSearch = () => false,
+    modelUsesTavilySearch = () => false,
     modelGeneratesImages = () => false,
     imageGenerationResponseLifecycle = null,
     normalizeCouncilConfig = (value) => value,
@@ -721,6 +723,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     saveAppData,
     getAutoWebSearchEnabled: () => getLiveConfig().enableAutoWebSearch,
     shouldPerformWebSearch: (...args) => legacyRuntimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
+    canAutoEnableWebSearch: (conversation) => {
+      const modelInfo = normalizeConversationModel(conversation);
+      if (!hasSingleWebSearchAccess(modelInfo)) return false;
+      if (modelUsesTavilySearch(modelInfo) && !getApiKeyForProvider('tavily')) return false;
+      return true;
+    },
     getAutoSearchNotice: () => i18n[getLiveConfig().uiLanguage].autoSearchNotice || '自動啟用網路搜尋。',
     renderInputIndicators,
     adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
