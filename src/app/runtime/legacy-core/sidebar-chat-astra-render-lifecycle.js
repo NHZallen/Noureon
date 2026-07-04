@@ -103,6 +103,10 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
   const getAstras = () => state.astras;
   const setAstras = (nextAstras) => { state.astras = nextAstras; return state.astras; };
   const getCurrentUser = () => state.currentUser;
+  const getCurrentUserDisplayName = () => {
+    const user = getCurrentUser();
+    return user?.displayName || user?.email || user?.username || 'User';
+  };
   const getEditingAstrasId = () => state.editingAstrasId;
   const setEditingAstrasId = (nextId) => { state.editingAstrasId = nextId; };
   const getSelectedConversationIds = () => state.selectedConversationIds;
@@ -492,7 +496,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     },
     getActiveConversation,
     getAutoNaming: () => getConfig().autoNaming,
-    getCurrentUserName: () => getCurrentUser().username,
+    getCurrentUserName: getCurrentUserDisplayName,
     getText: (key) => ({
       newChat: i18n[getConfig().uiLanguage].newChat,
       archived: i18n[getConfig().uiLanguage].archived || '已封存',

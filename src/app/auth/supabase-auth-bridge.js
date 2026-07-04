@@ -165,6 +165,18 @@ async function clearStaleCloudUser(storage) {
   }
 }
 
+async function hasCachedCloudUser(storage) {
+  const lastUsername = await storage.getItem('chat_lastUser');
+  if (!lastUsername?.startsWith(CLOUD_USER_PREFIX)) return false;
+  const savedUser = await storage.getItem(`chatUser_${lastUsername}`);
+  if (!savedUser) return false;
+  try {
+    return JSON.parse(savedUser)?.authProvider === 'supabase';
+  } catch {
+    return false;
+  }
+}
+
 function isPasswordRecoveryUrl(window) {
   return window.location.hash.includes('type=recovery')
     || window.location.search.includes('type=recovery');
@@ -340,13 +352,17 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
   });
 
   document.addEventListener('click', async (event) => {
-    const logoutButton = event.target.closest?.('#logout-btn');
+    const logoutButton = event.target.closest?.('#logout-btn, #settings-mobile-logout-btn');
     if (!logoutButton) return;
-    if (!activeCloudSession) return;
+    if (!activeCloudSession && !(await hasCachedCloudUser(storage))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     if (!window.confirm('確定要登出嗎？')) return;
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.warn('Supabase sign out failed; clearing local session marker anyway.', error);
+    }
     activeCloudSession = null;
     await storage.removeItem('chat_lastUser');
     window.location.reload();

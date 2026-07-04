@@ -102,6 +102,16 @@ export function createLegacyAppBootstrapLifecycle({
     const ALL_ELEMENTS = elements;
     const resolveEventsUpdateInputState = updateInputState;
     const resolveEventsSetupSettingsModal = setupSettingsModal;
+    const enhanceSettingsLogoutButton = () => {
+        const button = ALL_ELEMENTS.logoutBtn;
+        if (!button || button.querySelector('.settings-logout-label')) return;
+        button.classList.add('flex', 'items-center', 'gap-2', 'px-3');
+        button.title = i18n[getConfig().uiLanguage]?.logout || '登出';
+        const label = document.createElement('span');
+        label.className = 'settings-logout-label text-sm font-medium';
+        label.textContent = i18n[getConfig().uiLanguage]?.logout || '登出';
+        button.appendChild(label);
+    };
 
     async function initChatApp() {
                 const turnstile = createTurnstileClient({ window, document });
@@ -124,6 +134,7 @@ export function createLegacyAppBootstrapLifecycle({
                 const currentUserLabel = currentUser.displayName || currentUser.email || currentUser.username;
                 ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;
                 document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
+                enhanceSettingsLogoutButton();
                 if (!conversations.find(c => !c.archived && !c.deletedAt)) startNewChat();
                 renderAll();
                 updateFunctionButtonsState();
