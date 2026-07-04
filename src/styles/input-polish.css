@@ -90,6 +90,7 @@ body.custom-wallpaper-active .input-indicator-item {
     margin: 0;
 }
 #file-input-container,
+#reasoning-depth-control,
 #voice-input-btn-message,
 #submit-btn {
     flex: 0 0 auto;
@@ -97,6 +98,12 @@ body.custom-wallpaper-active .input-indicator-item {
 #file-input-container {
     display: flex;
     align-items: center;
+}
+#reasoning-depth-control {
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    position: relative;
 }
 #add-file-btn,
 #voice-input-btn-message,
@@ -151,6 +158,82 @@ body.custom-wallpaper-active .input-indicator-item {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+.reasoning-depth-btn {
+    min-height: 2.5rem;
+    max-width: 6.75rem;
+    padding: 0 0.3rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    font-size: 0.95rem;
+    line-height: 1;
+    white-space: nowrap;
+    transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+.reasoning-depth-btn span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.reasoning-depth-btn svg,
+.reasoning-depth-btn svg * {
+    color: inherit;
+    stroke: currentColor;
+}
+.reasoning-depth-btn.is-adjustable:hover,
+.reasoning-depth-btn[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--button-primary-bg) 10%, transparent);
+    color: var(--button-primary-bg);
+}
+.reasoning-depth-btn.is-disabled {
+    cursor: default;
+    opacity: 0.62;
+}
+.reasoning-depth-popover {
+    width: 9.5rem;
+    padding: 0.35rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+    border-radius: 0.75rem;
+    background: var(--modal-bg);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+    overflow: hidden;
+    transform-origin: bottom right;
+}
+.reasoning-depth-option {
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0 0.7rem;
+    border: 0;
+    border-radius: 0.55rem;
+    background: transparent;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.92rem;
+    text-align: left;
+}
+.reasoning-depth-option:hover,
+.reasoning-depth-option.active {
+    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
+    color: var(--button-primary-bg);
+}
+.reasoning-depth-option small {
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+}
+.reasoning-depth-empty {
+    padding: 0.65rem 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.35;
 }
 #message-input {
     outline: none !important;

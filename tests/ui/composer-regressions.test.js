@@ -18,9 +18,11 @@ test('desktop chat input reserves the lower row only for active modes or multili
   const css = readUiSource('src/styles/main.css');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
-  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input voice submit"/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
+  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input input"\s*"file indicators spacer reasoning voice submit"/s);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s!important;/s);
+  assert.match(css, /#reasoning-depth-control[^{]*\{[^}]*grid-area:\s*reasoning;/s);
+  assert.match(css, /\.reasoning-depth-popover[^{]*\{/);
   assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*min-height\s+0\.24s[^}]*padding\s+0\.24s/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.flex\.items-end[^{]*\{[^}]*transition:[^}]*transform\s+0\.24s/s);
   assert.match(startupLifecycle, /const\s+wasMultilineLayout\s*=\s*wrapper\?\.classList\.contains\('has-multiline-input'\)\s*\|\|\s*false/);
@@ -36,8 +38,8 @@ test('composer upload previews occupy a full-width row above desktop input contr
   const previewLifecycle = readUiSource('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js');
 
   assert.match(inputMediaPlacement, /inputMediaPreview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(inputMediaPreview,\s*wrapper\.firstChild\)/);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"file input input voice submit"/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"input input input input input"\s*"file indicators spacer voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"file input input reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"input input input input input input"\s*"file indicators spacer reasoning voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*grid-area:\s*preview;[^}]*align-self:\s*stretch;[^}]*width:\s*100%;/s);
   assert.doesNotMatch(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*position:\s*absolute/s);
   assert.match(previewLifecycle, /removeButton\.innerHTML\s*=\s*'&times;';[\s\S]*event\.stopPropagation\(\);[\s\S]*removeFile\(file\.id\)/);

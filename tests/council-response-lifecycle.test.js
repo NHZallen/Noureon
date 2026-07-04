@@ -143,6 +143,7 @@ test('council lifecycle aggregates multiple model results in order and synthesiz
   ]);
   assert.deepEqual(result.metadata.failures, []);
   assert.deepEqual(calls.map((call) => call.id), ['alpha', 'beta', 'synth']);
+  assert.equal(calls.every((call) => call.options.disableReasoning === true), true);
   assert.deepEqual(finalChunks, ['synth:1:chunk']);
   assert.ok(progressEvents.some((event) => event.stage === 'firstRound'));
   assert.ok(progressEvents.some((event) => event.stage === 'synthesis'));
@@ -178,6 +179,7 @@ test('deliberation mode runs a second round before synthesis', async () => {
 
   assert.equal(result.metadata.mode, 'deliberation');
   assert.deepEqual(calls.map((call) => call.id), ['alpha', 'beta', 'alpha', 'beta', 'synth']);
+  assert.equal(calls.every((call) => call.options.disableReasoning === true), true);
   assert.deepEqual(result.metadata.finalRoundResults.map((item) => item.roundTwo), [
     'Alpha round 2',
     'Beta round 2'
@@ -198,6 +200,7 @@ test('web search branch uses native model search for the shared packet', async (
   assert.deepEqual(calls.map((call) => call.id), ['synth', 'alpha', 'beta', 'synth']);
   assert.equal(calls[0].options.forceWebSearch, true);
   assert.equal(calls[0].options.ignoreConversationWebSearch, true);
+  assert.equal(calls[0].options.disableReasoning, true);
   assert.deepEqual(calls[0].options.historyForApi, []);
   assert.match(calls[0].parts[0].text, /shared web research packet/i);
   assert.ok(progressEvents.some((event) => event.stage === 'search' && event.search?.status === 'done'));

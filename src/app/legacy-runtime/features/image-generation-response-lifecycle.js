@@ -41,7 +41,9 @@ export function createImageGenerationResponseLifecycle({
   generateImage,
   saveImageAsset,
   getStoredImageDataUrl,
-  getApiKey
+  getApiKey,
+  getModelReasoningConfig = () => null,
+  normalizeReasoningEffort = () => null
 }) {
   const run = async ({ targetElement, userParts, modelInfo, conversation, signal }) => {
     const normalizedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
@@ -93,6 +95,13 @@ export function createImageGenerationResponseLifecycle({
       inputReferences,
       signal
     };
+    const reasoningConfig = getModelReasoningConfig(modelInfo);
+    const reasoningEffort = reasoningConfig
+      ? normalizeReasoningEffort(modelInfo, conversation.reasoningEffort)
+      : null;
+    if (reasoningEffort) {
+      generationRequest.config.reasoningEffort = reasoningEffort;
+    }
     if (!generationRequest.apiKey) throw new Error('請先在設定中輸入 OpenRouter API 金鑰');
     // OpenRouter accepts image streaming for generation, but not for edit requests
     // that include input_references. Keep edits buffered to avoid provider rejection.

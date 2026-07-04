@@ -49,12 +49,14 @@ export function createModelSwitcherLifecycle({
     getModelApiId,
     getModelSwitcherContainer = () => undefined,
     getModelRetirementLabel,
+    getModelReasoningConfig = () => null,
     getModelTiers,
     getSingleDocumentTranslatorModel,
     isCouncilEnabled,
     modelSupportsDocumentUpload,
     modelSupportsVision,
     modelSupportsWebSearch,
+    normalizeReasoningEffort = () => null,
     models,
     renderAll,
     renderCouncilControls,
@@ -437,6 +439,14 @@ export function createModelSwitcherLifecycle({
         if (newModelInfo) {
             conv.model = newModelInfo.id;
             conv.provider = newModelInfo.provider;
+            const defaultReasoningEffort = getModelReasoningConfig(newModelInfo)
+                ? normalizeReasoningEffort(newModelInfo, null)
+                : null;
+            if (defaultReasoningEffort) {
+                conv.reasoningEffort = defaultReasoningEffort;
+            } else {
+                delete conv.reasoningEffort;
+            }
             if (newModelInfo.outputModality === 'image' && conv.council) {
                 conv.council.enabled = false;
             }

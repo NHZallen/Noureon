@@ -199,6 +199,8 @@ const buildGeminiRequest = ({
   historyForApi,
   currentMessageForApi,
   generationConfig,
+  reasoningEffort,
+  reasoningConfig,
   systemInstruction,
   conversation,
   isWebSearchForced,
@@ -219,6 +221,12 @@ const buildGeminiRequest = ({
   };
   if (systemInstruction) {
     payload.systemInstruction = systemInstruction;
+  }
+  if (reasoningConfig?.providerParameter === 'geminiThinkingLevel' && reasoningEffort) {
+    payload.generationConfig.thinkingConfig = {
+      ...(payload.generationConfig.thinkingConfig || {}),
+      thinkingLevel: reasoningEffort
+    };
   }
   const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch && conversation.isWebSearchEnabled;
   if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
@@ -304,6 +312,9 @@ const buildOpenAiCompatibleRequest = ({
   historyForApi,
   currentMessageForApi,
   generationConfig,
+  reasoningEffort,
+  reasoningConfig,
+  disableReasoning = false,
   systemInstruction,
   modelSupportsVision
 }) => {
@@ -327,8 +338,13 @@ const buildOpenAiCompatibleRequest = ({
     ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
     ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens })
   };
-  if (provider === 'stepfun' && modelInfo.reasoningEffort) {
-    payload.reasoning_effort = modelInfo.reasoningEffort;
+  const stepfunReasoningEffort = disableReasoning
+    ? null
+    : (reasoningConfig?.providerParameter === 'stepfunReasoningEffort'
+      ? reasoningEffort
+      : modelInfo.reasoningEffort);
+  if (provider === 'stepfun' && stepfunReasoningEffort) {
+    payload.reasoning_effort = stepfunReasoningEffort;
   }
   return {
     url: hasStepPlanVideo
@@ -350,6 +366,8 @@ const buildOpenRouterRequest = ({
   historyForApi,
   currentMessageForApi,
   generationConfig,
+  reasoningEffort,
+  reasoningConfig,
   systemInstruction
 }) => {
   const messages = [];
@@ -411,6 +429,9 @@ const buildOpenRouterRequest = ({
       id: 'file-parser',
       pdf: { engine: 'mistral-ocr' }
     }];
+  }
+  if (reasoningConfig?.providerParameter === 'openrouterReasoningEffort' && reasoningEffort) {
+    payload.reasoning = { effort: reasoningEffort };
   }
   return {
     url: 'https://openrouter.ai/api/v1/chat/completions',
@@ -520,6 +541,8 @@ export function createStreamApiCall({
   getPersonalMemories,
   modelSupportsUploadedFile,
   modelSupportsVision,
+  getModelReasoningConfig = () => null,
+  normalizeReasoningEffort = () => null,
   fetchImpl = fetch,
   TextDecoderImpl = TextDecoder,
   warn = (...args) => console.warn(...args)
@@ -545,6 +568,11 @@ export function createStreamApiCall({
     const historyForApi = requestOptions.historyForApi || conversation.messages.slice(0, -1);
     const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
+    const disableReasoning = requestOptions.disableReasoning === true;
+    const reasoningConfig = disableReasoning ? null : getModelReasoningConfig(modelInfo);
+    const reasoningEffort = reasoningConfig
+      ? normalizeReasoningEffort(modelInfo, requestOptions.reasoningEffort ?? conversation.reasoningEffort)
+      : null;
     const chartAuthoringGuidance = await getRuntimeChartAuthoringGuidance(
       getMessageTextForGuidance(currentMessageForApi)
     );
@@ -565,6 +593,8 @@ export function createStreamApiCall({
         historyForApi,
         currentMessageForApi,
         generationConfig,
+        reasoningEffort,
+        reasoningConfig,
         systemInstruction,
         conversation,
         isWebSearchForced,
@@ -580,6 +610,9 @@ export function createStreamApiCall({
           historyForApi,
           currentMessageForApi,
           generationConfig,
+          reasoningEffort,
+          reasoningConfig,
+          disableReasoning,
           systemInstruction,
           modelSupportsVision
         })
@@ -589,6 +622,8 @@ export function createStreamApiCall({
           historyForApi,
           currentMessageForApi,
           generationConfig,
+          reasoningEffort,
+          reasoningConfig,
           systemInstruction
         });
 

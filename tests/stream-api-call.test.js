@@ -46,7 +46,9 @@ const createHarness = ({
   astras = [],
   personalMemories = [],
   warn = () => {},
-  fetchImpl
+  fetchImpl,
+  getModelReasoningConfig = () => null,
+  normalizeReasoningEffort = () => null
 } = {}) => {
   const resolvedModel = {
     id: `${provider}-model`,
@@ -88,6 +90,8 @@ const createHarness = ({
     getPersonalMemories: () => personalMemories,
     modelSupportsUploadedFile: () => true,
     modelSupportsVision: () => true,
+    getModelReasoningConfig,
+    normalizeReasoningEffort,
     fetchImpl: async (url, options) => {
       requests.push({ url, options });
       return runtimeFetch(url, options);
@@ -270,6 +274,24 @@ test('Gemini requests preserve native payload, headers, web search, and partial 
   assert.equal(warnings[0].at(-1), '{"candidates":[}');
 });
 
+test('Gemini requests include selected thinking level when the model supports it', async () => {
+  const { streamApiCall, requests } = createHarness({
+    provider: 'gemini',
+    conversation: { reasoningEffort: 'low' },
+    getModelReasoningConfig: () => ({
+      providerParameter: 'geminiThinkingLevel',
+      options: ['minimal', 'low', 'medium', 'high'],
+      defaultEffort: 'medium'
+    }),
+    normalizeReasoningEffort: (_model, value) => value || 'medium'
+  });
+
+  await streamApiCall([{ text: 'Think lightly' }], () => {}, undefined);
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.deepEqual(payload.generationConfig.thinkingConfig, { thinkingLevel: 'low' });
+});
+
 test('OpenAI-compatible streaming buffers partial lines and silently skips malformed JSON', async () => {
   const { streamApiCall } = createHarness({
     fetchImpl: async () => createResponse({
@@ -330,6 +352,50 @@ test('StepFun normal requests preserve proxy streaming, reasoning effort, and de
   assert.equal(finalText, 'Step Plan');
 });
 
+test('StepFun requests use the selected reasoning effort over the model default', async () => {
+  const { streamApiCall, requests } = createHarness({
+    provider: 'stepfun',
+    modelInfo: { reasoningEffort: 'medium' },
+    conversation: { reasoningEffort: 'high' },
+    getModelReasoningConfig: () => ({
+      providerParameter: 'stepfunReasoningEffort',
+      options: ['low', 'medium', 'high'],
+      defaultEffort: 'medium'
+    }),
+    normalizeReasoningEffort: (_model, value) => value || 'medium'
+  });
+
+  await streamApiCall([{ text: 'Create a sharper plan' }], () => {}, undefined);
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.equal(payload.reasoning_effort, 'high');
+});
+
+test('reasoning effort can be disabled so council requests use provider defaults', async () => {
+  const { streamApiCall, requests, modelInfo } = createHarness({
+    provider: 'stepfun',
+    modelInfo: { reasoningEffort: 'medium' },
+    conversation: { reasoningEffort: 'high' },
+    getModelReasoningConfig: () => ({
+      providerParameter: 'stepfunReasoningEffort',
+      options: ['low', 'medium', 'high'],
+      defaultEffort: 'medium'
+    }),
+    normalizeReasoningEffort: (_model, value) => value || 'medium'
+  });
+
+  await streamApiCall(
+    [{ text: 'Council default only' }],
+    () => {},
+    undefined,
+    false,
+    { modelInfo, disableReasoning: true }
+  );
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.equal('reasoning_effort' in payload, false);
+});
+
 test('StepFun direct video requests preserve non-stream response handling', async () => {
   const requests = [];
   const { streamApiCall, modelInfo } = createHarness({
@@ -372,6 +438,24 @@ test('StepFun direct video requests preserve non-stream response handling', asyn
   assert.equal(requests[0].options.headers.Accept, 'application/json');
   assert.deepEqual(received, ['Video answer']);
   assert.equal(finalText, 'Video answer');
+});
+
+test('OpenRouter requests include selected reasoning effort for compatible models', async () => {
+  const { streamApiCall, requests } = createHarness({
+    provider: 'openrouter',
+    conversation: { reasoningEffort: 'xhigh' },
+    getModelReasoningConfig: () => ({
+      providerParameter: 'openrouterReasoningEffort',
+      options: ['high', 'xhigh'],
+      defaultEffort: 'high'
+    }),
+    normalizeReasoningEffort: (_model, value) => value || 'high'
+  });
+
+  await streamApiCall([{ text: 'Reason deeply' }], () => {}, undefined);
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.deepEqual(payload.reasoning, { effort: 'xhigh' });
 });
 
 test('provider HTTP errors are normalized from JSON and text response bodies', async () => {

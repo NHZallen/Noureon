@@ -16,6 +16,7 @@ export function buildOpenRouterImagePayload({ model, prompt, config = {}, inputR
   copyIfDefined(payload, 'output_compression', config.outputCompression);
   copyIfDefined(payload, 'seed', config.seed);
   if (config.provider) payload.provider = config.provider;
+  if (config.reasoningEffort) payload.reasoning = { effort: config.reasoningEffort };
   if (stream) payload.stream = true;
   if (inputReferences.length > 0) {
     payload.input_references = inputReferences.map(url => ({

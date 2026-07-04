@@ -106,6 +106,37 @@ export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.5-flash',
     'gemini-3.1-pro-preview'
 ];
+const REASONING_EFFORT_LABELS = Object.freeze({
+    none: ['快速模式', 'Fast', 'Rapide'],
+    minimal: ['低', 'Low', 'Bas'],
+    low: ['低', 'Low', 'Bas'],
+    medium: ['中', 'Medium', 'Moyen'],
+    high: ['高', 'High', 'Eleve'],
+    xhigh: ['超高', 'Extra high', 'Tres eleve'],
+    max: ['極致', 'Max', 'Maximum'],
+    highest: ['最高', 'Highest', 'Le plus eleve']
+});
+const REASONING_LANGUAGE_INDEX = Object.freeze({ 'zh-TW': 0, en: 1, fr: 2 });
+const createReasoningConfigs = (rows) => Object.freeze(Object.fromEntries(rows.flatMap(([providerParameter, options, defaultEffort, modelIds, extra]) =>
+    modelIds.map(id => [id, { providerParameter, options, defaultEffort, ...(extra || {}) }])
+)));
+const GEMINI_THINKING_LEVEL = 'geminiThinkingLevel';
+const STEPFUN_REASONING_EFFORT = 'stepfunReasoningEffort';
+const OPENROUTER_REASONING_EFFORT = 'openrouterReasoningEffort';
+const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
+const HIGH_XHIGH = ['high', 'xhigh'];
+export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
+    [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'medium', ['gemini-3.5-flash']],
+    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'high', ['gemini-3.1-pro-preview']],
+    [STEPFUN_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['step-plan/step-3.7-flash', 'step-plan/step-3.5-flash']],
+    [STEPFUN_REASONING_EFFORT, ['low', 'high'], 'low', ['step-plan/step-3.5-flash-2603']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-fable-5', 'anthropic/claude-sonnet-5', 'anthropic/claude-opus-4.8']],
+    [OPENROUTER_REASONING_EFFORT, HIGH_XHIGH, 'high', ['deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro']],
+    [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-3.1-flash-lite-image', 'google/gemini-3.1-flash-image']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
+    [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.4-nano', 'openai/gpt-5.4-mini', 'openai/gpt-5.4', 'openai/gpt-5.5']]
+]);
 export const COUNCIL_MIN_MODELS = 2;
 export const COUNCIL_MAX_MODELS = 5;
 export const COUNCIL_RESPONSE_CHAR_LIMIT = 8000;
@@ -201,6 +232,32 @@ export const getModelsByIds = (modelIds = []) => modelIds
     .filter(Boolean);
 
 export const getModelApiId = (model) => model?.apiId || model?.id || '';
+
+export const getModelReasoningConfig = (model) => {
+    const config = model ? MODEL_REASONING_CONFIGS[model.id] : null;
+    if (!config) return null;
+    return {
+        ...config,
+        options: [...config.options]
+    };
+};
+
+export const modelSupportsReasoningSelection = (model) => Boolean(getModelReasoningConfig(model));
+
+export const normalizeReasoningEffort = (model, value) => {
+    const config = getModelReasoningConfig(model);
+    if (!config) return null;
+    return config.options.includes(value) ? value : config.defaultEffort;
+};
+
+export const getReasoningEffortLabel = (value, uiLanguage = 'zh-TW') => {
+    const labels = REASONING_EFFORT_LABELS[value];
+    return labels?.[REASONING_LANGUAGE_INDEX[uiLanguage] ?? 1] || labels?.[1] || String(value || '');
+};
+
+export const getDefaultReasoningLabel = (uiLanguage = 'zh-TW') => (
+    uiLanguage === 'zh-TW' ? '預設' : (uiLanguage === 'fr' ? 'Defaut' : 'Default')
+);
 
 export const getProviderLabel = (provider) => {
     if (provider === 'gemini') return 'Gemini';

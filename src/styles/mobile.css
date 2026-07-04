@@ -3,8 +3,8 @@
 @media (min-width: 769px) {
     #input-bar-container .input-wrapper {
         display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-        grid-template-areas: "file input input voice submit";
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+        grid-template-areas: "file input input reasoning voice submit";
         align-items: center !important;
         gap: 0.15rem 0.35rem !important;
         min-height: 3.55rem !important;
@@ -14,10 +14,10 @@
 
     #input-bar-container .input-wrapper.has-indicators,
     #input-bar-container .input-wrapper.has-multiline-input {
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
         grid-template-areas:
-            "input input input input input"
-            "file indicators spacer voice submit";
+            "input input input input input input"
+            "file indicators spacer reasoning voice submit";
         min-height: 5.9rem !important;
         padding-top: 0.65rem !important;
         padding-bottom: 0.65rem !important;
@@ -25,16 +25,16 @@
 
     #input-bar-container .input-wrapper.has-file-previews {
         grid-template-areas:
-            "preview preview preview preview preview"
-            "file input input voice submit";
+            "preview preview preview preview preview preview"
+            "file input input reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-indicators,
     #input-bar-container .input-wrapper.has-file-previews.has-multiline-input {
         grid-template-areas:
-            "preview preview preview preview preview"
-            "input input input input input"
-            "file indicators spacer voice submit";
+            "preview preview preview preview preview preview"
+            "input input input input input input"
+            "file indicators spacer reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper > .input-media-preview {
@@ -76,6 +76,10 @@
 
     #voice-input-btn-message {
         grid-area: voice;
+    }
+
+    #reasoning-depth-control {
+        grid-area: reasoning;
     }
 
     #submit-btn {

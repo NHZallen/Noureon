@@ -59,18 +59,7 @@ import {
     createSensitiveConfigStore
 } from '/src/app/runtime/security/sensitive-config-store.js';
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
-import {
-    CHEAP_MODEL_ID,
-    COUNCIL_MAX_MODELS,
-    COUNCIL_MIN_MODELS,
-    COUNCIL_RESPONSE_CHAR_LIMIT,
-    COUNCIL_RETRY_DELAY_MS,
-    COUNCIL_TEXT,
-    MODELS,
-    OPENROUTER_VISION_MODELS,
-    createLegacyModelRegistry,
-    modelGeneratesImages
-} from '/src/app/runtime/legacy-core/model-registry.js';
+import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -477,7 +466,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                         generateImage,
                         saveImageAsset: image => assetStore.save(image),
                         getStoredImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
-                        getApiKey: provider => getApiKeyForProvider(provider)
+                        getApiKey: provider => getApiKeyForProvider(provider),
+                        getModelReasoningConfig,
+                        normalizeReasoningEffort
                     });
                     const interactions = interactionsModule.createGeneratedImageInteractions({
                         document,

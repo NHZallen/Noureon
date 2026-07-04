@@ -17,6 +17,7 @@ import { createSettingsDesktopSectionHelper } from './settings-desktop-section-h
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
+import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
 
 const requiredDependencies = [
     'window',
@@ -201,7 +202,9 @@ const streamApiCall = createStreamApiCall({
     getAstras: () => astras,
     getPersonalMemories: () => personalMemories,
     modelSupportsUploadedFile,
-    modelSupportsVision
+    modelSupportsVision,
+    getModelReasoningConfig,
+    normalizeReasoningEffort
 });
 const providerRequestSupport = createProviderRequestSupport({
     buildTavilySearchQuery,

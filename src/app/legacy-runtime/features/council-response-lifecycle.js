@@ -100,6 +100,7 @@ export function createCouncilResponseLifecycle({
                   historyForApi: [],
                   forceWebSearch: true,
                   ignoreConversationWebSearch: true,
+                  disableReasoning: true,
                   additionalSystemInstruction: options.systemInstruction || 'Prepare shared web research context. Do not answer the user directly.',
                   onRetry: options.onRetry
               }
@@ -178,6 +179,7 @@ export function createCouncilResponseLifecycle({
                   modelInfo: translatorModel,
                   historyForApi: [],
                   ignoreConversationWebSearch: true,
+                  disableReasoning: true,
                   additionalSystemInstruction: 'You are only translating attachments into detailed neutral text packets for a model council. Do not answer the user.',
               }
           );
@@ -438,6 +440,7 @@ export function createCouncilResponseLifecycle({
               {
                   modelInfo,
                   ignoreConversationWebSearch: true,
+                  disableReasoning: true,
                   additionalSystemInstruction: buildCouncilMemberInstruction(mode),
                   onRetry: () => {
                       if (state) {
@@ -552,6 +555,7 @@ export function createCouncilResponseLifecycle({
                       modelInfo,
                       historyForApi: [],
                       ignoreConversationWebSearch: true,
+                      disableReasoning: true,
                       additionalSystemInstruction: '你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把共同搜尋資料稱為使用者提供的資料。',
                       onRetry: () => {
                           if (state) {
@@ -612,6 +616,7 @@ export function createCouncilResponseLifecycle({
                   modelInfo: synthesizer,
                   historyForApi: [],
                   ignoreConversationWebSearch: true,
+                  disableReasoning: true,
                   additionalSystemInstruction: synthesisInstruction,
                   onRetry: () => progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name} · ${runtimeTexts.retrying}`)
               }

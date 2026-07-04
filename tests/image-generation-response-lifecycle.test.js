@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createImageGenerationResponseLifecycle } from '../src/app/legacy-runtime/features/image-generation-response-lifecycle.js';
+import { buildOpenRouterImagePayload } from '../src/app/legacy-runtime/features/openrouter-image-generation.js';
 
 test('uses translated search context and new image attachments for generation', async () => {
   let request;
@@ -91,6 +92,35 @@ test('keeps image-to-image requests buffered even when the model supports genera
   assert.deepEqual(request.inputReferences, ['data:image/png;base64,reference']);
 });
 
+test('passes selected image reasoning effort into generation requests', async () => {
+  let request;
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      request = value;
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'reasoned', storageKey: 'reasoned-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'secret',
+    getModelReasoningConfig: () => ({
+      providerParameter: 'openrouterReasoningEffort',
+      options: ['minimal', 'high'],
+      defaultEffort: 'minimal'
+    }),
+    normalizeReasoningEffort: (_model, value) => value || 'minimal'
+  });
+
+  await lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: [{ text: 'make the lighting more cinematic' }],
+    modelInfo: { id: 'google/gemini-3.1-flash-image', provider: 'openrouter' },
+    conversation: { reasoningEffort: 'high', messages: [] }
+  });
+
+  assert.equal(request.config.reasoningEffort, 'high');
+});
+
 test('adds precise edit guidance for annotated references', async () => {
   let prompt;
   const lifecycle = createImageGenerationResponseLifecycle({
@@ -116,4 +146,21 @@ test('adds precise edit guidance for annotated references', async () => {
 
   assert.match(prompt, /exact target area/);
   assert.match(prompt, /remove all annotation marks/);
+});
+
+test('OpenRouter image payload emits reasoning effort without changing image config fields', () => {
+  const payload = buildOpenRouterImagePayload({
+    model: 'google/gemini-3.1-flash-image',
+    prompt: 'paint a neon alley',
+    config: {
+      aspectRatio: '16:9',
+      resolution: '2K',
+      reasoningEffort: 'minimal'
+    }
+  });
+
+  assert.deepEqual(payload.reasoning, { effort: 'minimal' });
+  assert.equal(payload.aspect_ratio, '16:9');
+  assert.equal(payload.resolution, '2K');
+  assert.equal(payload.image_config, undefined);
 });

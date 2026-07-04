@@ -9,10 +9,14 @@ import {
   MODELS,
   createLegacyModelRegistry,
   getModelApiId,
+  getModelReasoningConfig,
+  getReasoningEffortLabel,
   getModelTiers,
   getProviderLabel,
+  modelSupportsReasoningSelection,
   modelSupportsDocumentUpload,
-  modelSupportsVision
+  modelSupportsVision,
+  normalizeReasoningEffort
 } from '../src/app/runtime/legacy-core/model-registry.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -59,6 +63,46 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsDocumentUpload(geminiModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterTextModel), true);
   assert.equal(modelSupportsDocumentUpload(nvidiaVisionModel), false);
+});
+
+test('model registry exposes precise reasoning depth options for supported models only', () => {
+  const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-pro');
+  const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-5.4');
+  const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
+
+  assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['high', 'xhigh']);
+  assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'high');
+  assert.equal(getReasoningEffortLabel('xhigh', 'zh-TW'), '超高');
+
+  assert.deepEqual(getModelReasoningConfig(openAiModel)?.options, ['none', 'low', 'medium', 'high', 'xhigh']);
+  assert.equal(normalizeReasoningEffort(openAiModel, 'none'), 'none');
+  assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');
+
+  assert.deepEqual(getModelReasoningConfig(imageModel)?.options, ['minimal', 'high']);
+  assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '低');
+});
+
+test('model registry leaves excluded models on default reasoning', () => {
+  const excludedIds = [
+    'step-plan/step-router-v1',
+    'anthropic/claude-haiku-4.5',
+    'google/gemini-3-pro-image',
+    'minimax/minimax-m3',
+    'moonshotai/kimi-k2.7-code',
+    'moonshotai/kimi-k2.6',
+    'qwen/qwen3.5-flash-02-23',
+    'qwen/qwen3.7-plus',
+    'qwen/qwen3.7-max',
+    'xiaomi/mimo-v2.5',
+    'xiaomi/mimo-v2.5-pro',
+    'openai/gpt-image-2'
+  ];
+
+  for (const id of excludedIds) {
+    const model = MODELS.find((candidate) => candidate.id === id);
+    assert.equal(modelSupportsReasoningSelection(model), false, `${id} should not be selectable`);
+    assert.equal(getModelReasoningConfig(model), null, `${id} should use the provider default`);
+  }
 });
 
 test('model registry keeps council and translator helpers live-config backed', () => {
