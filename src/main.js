@@ -15,6 +15,7 @@ import { installVendorBridge } from './app/bootstrap/vendor-bridge.js';
 import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
 import { mountAppShell } from './app/bootstrap/mount-shell.js';
 import appShell from './templates/app-shell.js';
+import { initializeSupabaseAuthBridge } from './app/auth/supabase-auth-bridge.js';
 
 async function bootstrap() {
   installVendorBridge({
@@ -29,6 +30,7 @@ async function bootstrap() {
     Html5Qrcode
   });
   mountAppShell(appShell);
+  await initializeSupabaseAuthBridge({ window, document });
 
   await import('./data/i18n.js');
   await import('./data/demo-conversations.js');

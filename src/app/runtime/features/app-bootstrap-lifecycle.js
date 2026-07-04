@@ -121,8 +121,9 @@ export function createLegacyAppBootstrapLifecycle({
             ALL_ELEMENTS.sidebar.classList.remove('open');
             ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
         }
-                ALL_ELEMENTS.usernameDisplay.textContent = currentUser.username;
-                document.querySelector('.user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
+                const currentUserLabel = currentUser.displayName || currentUser.email || currentUser.username;
+                ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;
+                document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
                 if (!conversations.find(c => !c.archived && !c.deletedAt)) startNewChat();
                 renderAll();
                 updateFunctionButtonsState();
