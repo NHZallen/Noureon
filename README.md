@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./public/logo.png" alt="AstraChat logo" width="180">
+</p>
+
 # AstraChat
 
 [![CI](https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml)
