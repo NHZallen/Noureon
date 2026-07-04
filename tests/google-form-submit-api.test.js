@@ -136,3 +136,87 @@ test('google form proxy rejects non-POST methods', async () => {
   assert.equal(res.headers.get('cache-control'), 'no-store');
   assert.equal(calls.length, 0);
 });
+
+test('google form proxy verifies Turnstile and never forwards the token', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEndpoint = process.env.GOOGLE_FORM_ENDPOINT;
+  const originalSecret = process.env.TURNSTILE_SECRET_KEY;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    if (url.includes('/turnstile/v0/siteverify')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true })
+      };
+    }
+    return {
+      status: 200,
+      headers: { get: () => 'text/plain; charset=utf-8' },
+      text: async () => 'ok'
+    };
+  };
+  const res = createResponse();
+
+  try {
+    process.env.GOOGLE_FORM_ENDPOINT = 'https://forms.example.test/submit';
+    process.env.TURNSTILE_SECRET_KEY = 'server-secret';
+    await handler({
+      method: 'POST',
+      body: { formType: 'feedback', message: 'hello', turnstileToken: 'browser-token' },
+      headers: { 'x-forwarded-for': '203.0.113.10, 10.0.0.1' }
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalEndpoint === undefined) delete process.env.GOOGLE_FORM_ENDPOINT;
+    else process.env.GOOGLE_FORM_ENDPOINT = originalEndpoint;
+    if (originalSecret === undefined) delete process.env.TURNSTILE_SECRET_KEY;
+    else process.env.TURNSTILE_SECRET_KEY = originalSecret;
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, 'https://challenges.cloudflare.com/turnstile/v0/siteverify');
+  const verificationBody = new URLSearchParams(calls[0].options.body);
+  assert.equal(verificationBody.get('secret'), 'server-secret');
+  assert.equal(verificationBody.get('response'), 'browser-token');
+  assert.equal(verificationBody.get('remoteip'), '203.0.113.10');
+  assert.equal(calls[1].options.body, JSON.stringify({ formType: 'feedback', message: 'hello' }));
+});
+
+test('google form proxy rejects invalid Turnstile tokens before forwarding', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEndpoint = process.env.GOOGLE_FORM_ENDPOINT;
+  const originalSecret = process.env.TURNSTILE_SECRET_KEY;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ success: false, 'error-codes': ['invalid-input-response'] })
+    };
+  };
+  const res = createResponse();
+
+  try {
+    process.env.GOOGLE_FORM_ENDPOINT = 'https://forms.example.test/submit';
+    process.env.TURNSTILE_SECRET_KEY = 'server-secret';
+    await handler({
+      method: 'POST',
+      body: { message: 'blocked', turnstileToken: 'invalid-token' },
+      headers: {}
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalEndpoint === undefined) delete process.env.GOOGLE_FORM_ENDPOINT;
+    else process.env.GOOGLE_FORM_ENDPOINT = originalEndpoint;
+    if (originalSecret === undefined) delete process.env.TURNSTILE_SECRET_KEY;
+    else process.env.TURNSTILE_SECRET_KEY = originalSecret;
+  }
+
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body, /Turnstile verification failed/);
+  assert.equal(calls.length, 1);
+});

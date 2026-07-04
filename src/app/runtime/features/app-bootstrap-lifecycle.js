@@ -1,6 +1,7 @@
 import { createAppBootstrapComposition } from '../../legacy-runtime/features/app-bootstrap-composition.js';
 import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/store-navigation-lifecycle.js';
 import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
+import { createTurnstileClient } from '../security/turnstile-client.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -103,6 +104,15 @@ export function createLegacyAppBootstrapLifecycle({
     const resolveEventsSetupSettingsModal = setupSettingsModal;
 
     async function initChatApp() {
+                const turnstile = createTurnstileClient({ window, document });
+                const getTurnstileRequiredMessage = () => i18n[getConfig().uiLanguage]?.turnstileRequired || '請完成安全驗證後再送出。';
+                const mountTurnstile = (name, anchorElement) => {
+                    if (!turnstile.enabled) return;
+                    turnstile.mount(name, anchorElement).catch((error) => {
+                        logger.error('Cloudflare Turnstile failed to initialize:', error);
+                        showNotification(i18n[getConfig().uiLanguage]?.turnstileLoadError || '安全驗證載入失敗，請重新整理後再試。', 'error');
+                    });
+                };
                 const config = getConfig();
                 const currentUser = getCurrentUser();
                 const conversations = getConversations();
@@ -456,6 +466,7 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.emptyTrashBtn.addEventListener('click', handleEmptyTrash);
                 updateFileInputUI();
                 startNewChat();
+                mountTurnstile('feedback', ALL_ELEMENTS.sendFeedbackBtn);
                 const initializeSpotlightEffect = () => {
                     const spotlightElements = document.querySelectorAll('.spotlight-effect');
                     spotlightElements.forEach(el => {
@@ -473,9 +484,14 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.sendFeedbackBtn.addEventListener('click', async () => {
         const feedbackContent = ALL_ELEMENTS.feedbackTextarea.value.trim();
         const sendButton = ALL_ELEMENTS.sendFeedbackBtn;
+        const turnstileToken = turnstile.getToken('feedback');
         
         if (!feedbackContent) {
             showNotification('請先輸入您的意見！', 'warning');
+            return;
+        }
+        if (turnstile.enabled && !turnstileToken) {
+            showNotification(getTurnstileRequiredMessage(), 'warning');
             return;
         }
         
@@ -494,11 +510,12 @@ export function createLegacyAppBootstrapLifecycle({
                 formType: 'feedback', // <-- 關鍵識別碼！
                 subject: '來自 Astra 的新意見反饋',
                 timestamp: new Date().toISOString(),
-                message: feedbackContent
+                message: feedbackContent,
+                ...(turnstileToken ? { turnstileToken } : {})
             };
     
     
-            await postJsonWithReadableError(FORM_ENDPOINT, dataToSend);
+            await postJsonWithReadableError(FORM_ENDPOINT, dataToSend, { allowOpaqueFallback: false });
     
     
             showNotification('反饋已成功發送，感謝您！', 'success');
@@ -515,6 +532,7 @@ export function createLegacyAppBootstrapLifecycle({
                 'error'
             );
         } finally {
+            turnstile.reset('feedback');
             sendButton.disabled = false;
             sendButton.textContent = originalButtonText;
         }
@@ -524,6 +542,7 @@ export function createLegacyAppBootstrapLifecycle({
                     ALL_ELEMENTS.proposalDescInput.value = '';
                     ALL_ELEMENTS.proposalInstructionsInput.value = '';
                     toggleModal(ALL_ELEMENTS.astrasProposalModal, true);
+                    mountTurnstile('astra-proposal', ALL_ELEMENTS.submitProposalBtn);
                 });
     
     
@@ -541,10 +560,15 @@ export function createLegacyAppBootstrapLifecycle({
         const description = ALL_ELEMENTS.proposalDescInput.value.trim();
         const instructions = ALL_ELEMENTS.proposalInstructionsInput.value.trim();
         const submitButton = ALL_ELEMENTS.submitProposalBtn;
+        const turnstileToken = turnstile.getToken('astra-proposal');
     
     
         if (!name || !instructions) {
             showNotification('提案的「名稱」和「指令」是必填的喔！', 'warning');
+            return;
+        }
+        if (turnstile.enabled && !turnstileToken) {
+            showNotification(getTurnstileRequiredMessage(), 'warning');
             return;
         }
         
@@ -565,10 +589,11 @@ export function createLegacyAppBootstrapLifecycle({
                 timestamp: new Date().toISOString(),
                 proposal_name: name,
                 proposal_desc: description,
-                proposal_instructions: instructions
+                proposal_instructions: instructions,
+                ...(turnstileToken ? { turnstileToken } : {})
             };
         
-            await postJsonWithReadableError(FORM_ENDPOINT, dataToSend);
+            await postJsonWithReadableError(FORM_ENDPOINT, dataToSend, { allowOpaqueFallback: false });
     
     
             toggleModal(ALL_ELEMENTS.astrasProposalModal, false);
@@ -584,6 +609,7 @@ export function createLegacyAppBootstrapLifecycle({
                 'error'
             );
         } finally {
+            turnstile.reset('astra-proposal');
             submitButton.disabled = false;
             submitButton.textContent = originalButtonText;
         }
