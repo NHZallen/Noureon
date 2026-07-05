@@ -53,6 +53,15 @@ export function enhanceAuthShell(document) {
     text: '使用 Google 登入',
     className: 'w-full p-3 rounded-lg font-semibold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors'
   });
+  googleButton.classList.add('flex', 'items-center', 'justify-center', 'gap-2');
+  const googleLogo = document.createElement('img');
+  googleLogo.src = '/google-g-logo.png';
+  googleLogo.width = 20;
+  googleLogo.height = 20;
+  googleLogo.alt = '';
+  googleLogo.className = 'flex-shrink-0 object-contain';
+  googleLogo.setAttribute('aria-hidden', 'true');
+  googleButton.prepend(googleLogo);
   const forgotButton = createButton(document, {
     id: 'supabase-forgot-password-btn',
     text: '忘記密碼？',

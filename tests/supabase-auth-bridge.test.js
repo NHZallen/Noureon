@@ -46,7 +46,15 @@ test('auth shell enhancement adds cloud, local, and import entry points', () => 
   assert.equal(elements.emailInput.type, 'email');
   assert.equal(elements.emailInput.autocomplete, 'email');
   assert.equal(elements.loginButton.textContent, '登入 / 建立帳號');
-  assert.ok(window.document.getElementById('supabase-google-btn'));
+  const googleButton = window.document.getElementById('supabase-google-btn');
+  assert.ok(googleButton);
+  const googleLogo = googleButton.querySelector('img');
+  assert.ok(googleLogo);
+  assert.equal(googleLogo.getAttribute('src'), '/google-g-logo.png');
+  assert.equal(googleLogo.getAttribute('width'), '20');
+  assert.equal(googleLogo.getAttribute('height'), '20');
+  assert.equal(googleLogo.getAttribute('alt'), '');
+  assert.equal(googleLogo.getAttribute('aria-hidden'), 'true');
   assert.ok(window.document.getElementById('supabase-forgot-password-btn'));
   assert.ok(window.document.getElementById('local-mode-btn'));
   assert.equal(window.document.getElementById('import-btn-auth').disabled, false);
