@@ -145,6 +145,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         renderStore,
         updateApiKeyWarningBadge,
         applyUiTheme,
+        applyCustomWallpaper = () => {},
         applyLanguage,
         togglePinChat,
         archiveChat,
@@ -159,6 +160,8 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         toggleModal,
         saveConfig,
         saveAppData,
+        loadConfig = async () => {},
+        loadAppData = async () => {},
         getUserKey,
         getItem,
         setItem,
@@ -370,7 +373,11 @@ const authActionsHelper = createSettingsAuthActionsHelper({
     removeItem,
     verifyPasswordRecord,
     upgradeLegacyPasswordRecord,
-    createPasswordRecord
+    createPasswordRecord,
+    loadConfig,
+    loadAppData,
+    applyCustomWallpaper,
+    applyUiTheme
 });
 const {
     handleLogin,

@@ -23,7 +23,11 @@ export function createSettingsAuthActionsHelper({
     removeItem,
     verifyPasswordRecord,
     upgradeLegacyPasswordRecord,
-    createPasswordRecord
+    createPasswordRecord,
+    loadConfig = async () => {},
+    loadAppData = async () => {},
+    applyCustomWallpaper = () => {},
+    applyUiTheme = () => {}
 }) {
     const getText = (key, fallback) => {
         const config = getConfig();
@@ -59,6 +63,10 @@ export function createSettingsAuthActionsHelper({
             storageAdapter: runtimeStorageAdapter
         });
         await setItem('chat_lastUser', username);
+        await loadConfig();
+        await loadAppData();
+        applyCustomWallpaper();
+        applyUiTheme();
 
 
         // --- ✨ 這是唯一的修改處 START ---

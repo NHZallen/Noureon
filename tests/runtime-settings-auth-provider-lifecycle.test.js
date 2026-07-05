@@ -1200,6 +1200,9 @@ test('source keeps settings save ownership and composes auth actions helper', ()
   assert.match(source, /const\s+saveSettings\s*=\s*async\s*\(\{\s*close\s*=\s*true,\s*notify\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>\s*\{/);
   assert.match(source, /import\s+\{\s*createSettingsAuthActionsHelper\s*\}\s+from\s+['"]\.\/settings-auth-actions-helper\.js['"]/);
   assert.match(source, /const\s+authActionsHelper\s*=\s*createSettingsAuthActionsHelper\(\{/);
+  assert.match(source, /loadConfig,/);
+  assert.match(source, /loadAppData,/);
+  assert.match(source, /applyCustomWallpaper,/);
   assert.match(source, /handleLogin,\s*\n\s*handleLogout,\s*\n\s*handleDeleteAllData\s*\n?\}\s*=\s*authActionsHelper/);
   assert.doesNotMatch(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
   assert.doesNotMatch(source, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
@@ -1216,6 +1219,10 @@ test('source keeps settings save ownership and composes auth actions helper', ()
   assert.match(authActionsHelperSource, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
   assertMarkersInOrder(handleLoginBody, [
     'await setItem(\'chat_lastUser\', username);',
+    'await loadConfig();',
+    'await loadAppData();',
+    'applyCustomWallpaper();',
+    'applyUiTheme();',
     'elements.authContainer.classList.remove(\'visible\');',
     'elements.authContainer.classList.add(\'fade-out\');',
     'elements.appContainer.classList.remove(\'hidden\');',

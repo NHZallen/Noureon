@@ -2099,6 +2099,10 @@ test('initChatApp callers use the required runtime handoff without changing lega
 
   assertMarkersInOrder(handleLoginBody, [
     "await setItem('chat_lastUser', username)",
+    'await loadConfig()',
+    'await loadAppData()',
+    'applyCustomWallpaper()',
+    'applyUiTheme()',
     "elements.authContainer.classList.add('fade-out')",
     "elements.appContainer.classList.remove('hidden')",
     'requestAnimationFrame(() =>',

@@ -90,6 +90,10 @@ const createHarness = (overrides = {}) => {
       calls.push(['createPasswordRecord', username, password]);
       return { username, passwordHash: 'new-hash' };
     },
+    loadConfig: async () => calls.push('loadConfig'),
+    loadAppData: async () => calls.push('loadAppData'),
+    applyCustomWallpaper: () => calls.push('applyCustomWallpaper'),
+    applyUiTheme: () => calls.push('applyUiTheme'),
     ...overrides
   };
   return {
@@ -125,6 +129,17 @@ test('login success writes auth storage, transitions containers, and initializes
   assert.equal(elements.authContainer.hasClass('fade-out'), true);
   assert.equal(elements.appContainer.hasClass('hidden'), false);
   assert.equal(elements.appContainer.hasClass('visible'), true);
+  assert.deepEqual(calls.filter((call) => typeof call === 'string' && [
+    'loadConfig',
+    'loadAppData',
+    'applyCustomWallpaper',
+    'applyUiTheme'
+  ].includes(call)), [
+    'loadConfig',
+    'loadAppData',
+    'applyCustomWallpaper',
+    'applyUiTheme'
+  ]);
   assert.deepEqual(calls.slice(-2), [
     ['resolveBinding', 'app.initChatApp'],
     ['binding', 'app.initChatApp']
