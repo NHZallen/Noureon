@@ -98,6 +98,7 @@ function createDependencies(overrides = {}) {
     i18n: { en: { noArchivedChats: 'No archived', createAstras: 'Create Astra', confirmDeleteAstras: 'Delete?' } },
     getActiveConversation: () => state.conversations[0] || null,
     saveAppData: async () => calls.push('saveAppData'),
+    saveFolderUiState: async () => calls.push('saveFolderUiState'),
     renderAstras: () => calls.push('renderAstras'),
     renderAll: () => calls.push('renderAllDirect'),
     renderBatchActionBar: () => calls.push('renderBatchActionBar'),
@@ -177,6 +178,16 @@ test('renderFolders reads live folders and conversations', () => {
   lifecycle.renderFolders();
 
   assert.equal(dependencies._folderList.children.length, 1);
+});
+
+test('folder expansion persists device-local UI state instead of app data', () => {
+  const source = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
+  const renderFoldersStart = source.indexOf('const renderFolders = () => {');
+  const createConversationStart = source.indexOf('const createConversationElement =', renderFoldersStart);
+  const renderFoldersBody = source.slice(renderFoldersStart, createConversationStart);
+
+  assert.match(renderFoldersBody, /await\s+saveFolderUiState\(getFolders\(\)\)/);
+  assert.doesNotMatch(renderFoldersBody, /await\s+saveAppData\(\)/);
 });
 
 test('Astra delete path uses injected replacement bridge and live conversations', async () => {

@@ -20,6 +20,7 @@ const REQUIRED_DEPENDENCIES = [
   'i18n',
   'getActiveConversation',
   'saveAppData',
+  'saveFolderUiState',
   'renderAstras',
   'renderAll',
   'renderBatchActionBar',
@@ -67,6 +68,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     resolveFolderColor = (color, _palette, fallback) => color || fallback,
     folderColors = {},
     saveAppData,
+    saveFolderUiState,
     renderAstras,
     renderAll,
     renderBatchActionBar,
@@ -183,7 +185,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
           if (folderObj) {
             folderObj.isOpen = !folderObj.isOpen;
             folderItem.dataset.open = folderObj.isOpen;
-            await saveAppData();
+            await saveFolderUiState(getFolders());
           }
         }
       };

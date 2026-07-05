@@ -15,7 +15,8 @@ test('stored user workspace keys cover account config app data sensitive config 
     'chatAppData_v8.6_alice',
     'chatSensitiveConfig_v1_alice',
     'chatSyncVault_v1_alice',
-    'chatRecoveryBackup_v1_alice'
+    'chatRecoveryBackup_v1_alice',
+    'chatFolderUiState_v1_alice'
   ]);
 });
 
@@ -58,6 +59,7 @@ test('switching workspace owner removes the previous account namespace', async (
     ['removeItem', 'chatSensitiveConfig_v1_alice'],
     ['removeItem', 'chatSyncVault_v1_alice'],
     ['removeItem', 'chatRecoveryBackup_v1_alice'],
+    ['removeItem', 'chatFolderUiState_v1_alice'],
     ['removeItemsByPrefix', 'generatedImage:alice:'],
     ['setItem', STORAGE_OWNER_KEY, 'bob']
   ]);

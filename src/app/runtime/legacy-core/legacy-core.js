@@ -55,6 +55,7 @@ import {
 } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
+import { createFolderUiStatePersistence } from '/src/app/runtime/kernel/folder-ui-state.js';
 import {
     createSensitiveConfigPersistence,
     createSensitiveConfigStore
@@ -441,6 +442,12 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             version: 1
         });
         const { getItem, setItem, removeItem } = runtimeStorageAdapter;
+        const folderUiStatePersistence = createFolderUiStatePersistence({
+            getUsername: () => currentUser?.username || null,
+            getItem,
+            setItem
+        });
+        const saveFolderUiState = (folders) => folderUiStatePersistence.save(folders);
         let generatedImageRuntimePromise;
         const getGeneratedImageRuntime = () => {
             if (!generatedImageRuntimePromise) {
@@ -752,6 +759,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     personalMemories: []
                 });
             }
+            await folderUiStatePersistence.restore(runtimeAppDataStore.getFolders());
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
         const getDefaultFolder = () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false});
@@ -1357,6 +1365,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             resolveFolderColor,
             folderColors: FOLDER_COLORS,
             saveAppData,
+            saveFolderUiState,
             renderAstras,
             renderAll,
             renderBatchActionBar: (...args) => renderBatchActionBar(...args),
