@@ -11,6 +11,7 @@ const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const expectedSections = [
+  'user',
   'personalization',
   'memory',
   'model-management',
@@ -26,7 +27,7 @@ test('settings mobile metadata preserves section order', () => {
 
   assert.deepEqual(sections, expectedSections);
   assert.deepEqual(groups.map((group) => group.items.map((item) => item.section)), [
-    ['personalization', 'memory', 'model-management'],
+    ['user', 'personalization', 'memory', 'model-management'],
     ['data-management', 'accessibility', 'trash'],
     ['about']
   ]);
@@ -44,6 +45,7 @@ test('settings mobile icon map preserves the expected keys', () => {
 test('settings mobile labels use injected text resolution without DOM access', () => {
   const calls = [];
   const translations = {
+    userSettings: 'User',
     personalization: 'Personalization',
     appSettings: 'Application settings',
     about: 'About'
@@ -57,10 +59,12 @@ test('settings mobile labels use injected text resolution without DOM access', (
   );
 
   assert.equal(labelsBySection.personalization, 'Personalization');
+  assert.equal(labelsBySection.user, 'User');
   assert.equal(labelsBySection.about, 'About');
   assert.equal(groups[1].title, 'Application settings');
   assert.equal(labelsBySection.memory, '記憶管理');
   assert.deepEqual(calls.map(([key]) => key), [
+    'userSettings',
     'personalization',
     'memoryManagement',
     'modelManagement',

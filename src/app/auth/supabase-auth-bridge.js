@@ -1,6 +1,8 @@
 import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
-import { reconcileStoredWorkspaceOwner } from '../runtime/kernel/user-data-retention.js';
+import { reconcileStoredWorkspaceOwner, STORAGE_OWNER_KEY } from '../runtime/kernel/user-data-retention.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
+import { migrateSyncVaultRecord } from '../sync/sync-vault.js';
+import { completePendingCloudAccountLink } from './account-linking.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
 const CLOUD_USER_PREFIX = 'supabase:';
@@ -324,6 +326,14 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     elements.recoveryPanel.classList.remove('hidden');
     setStatus(elements, '請設定您的新密碼。');
   } else if (session?.user) {
+    const completedLink = await completePendingCloudAccountLink({
+      storage,
+      cloudUserRecord: createCloudUserRecord(session.user)
+    });
+    if (completedLink) {
+      window.location.reload();
+      return { enabled: true, session };
+    }
     const lastUsername = await storage.getItem('chat_lastUser');
     if (lastUsername === getCloudUsername(session.user)) {
       await persistCloudUser(storage, session.user);
@@ -341,6 +351,12 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
       event.preventDefault();
       event.stopImmediatePropagation();
       const targetUser = JSON.parse(importTarget);
+      const previousUsername = await storage.getItem(STORAGE_OWNER_KEY);
+      await migrateSyncVaultRecord({
+        storage,
+        fromUsername: previousUsername,
+        toUsername: targetUser.username
+      });
       await reconcileStoredWorkspaceOwner({
         nextUsername: targetUser.username,
         getItem: (...args) => storage.getItem(...args),

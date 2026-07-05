@@ -95,7 +95,8 @@ test('auth bridge keeps secrets out of browser source and wires required flows',
   assert.match(source, /signInWithOAuth/);
   assert.match(source, /resetPasswordForEmail/);
   assert.match(source, /updateUser/);
-  assert.match(source, /import\s+\{\s*reconcileStoredWorkspaceOwner\s*\}/);
+  assert.match(source, /import\s+\{\s*reconcileStoredWorkspaceOwner,\s*STORAGE_OWNER_KEY\s*\}/);
+  assert.match(source, /migrateSyncVaultRecord/);
   assert.match(source, /await\s+reconcileStoredWorkspaceOwner\(\{/);
   assert.match(source, /nextUsername:\s*record\.username/);
   assert.match(source, /nextUsername:\s*targetUser\.username/);

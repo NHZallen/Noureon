@@ -8,12 +8,13 @@ import {
   removeStoredUserWorkspace
 } from '../src/app/runtime/kernel/user-data-retention.js';
 
-test('stored user workspace keys cover account config app data and sensitive config', () => {
+test('stored user workspace keys cover account config app data sensitive config and sync vault', () => {
   assert.deepEqual(getStoredUserWorkspaceKeys('alice'), [
     'chatUser_alice',
     'chatConfig_v_v8.6_alice',
     'chatAppData_v8.6_alice',
-    'chatSensitiveConfig_v1_alice'
+    'chatSensitiveConfig_v1_alice',
+    'chatSyncVault_v1_alice'
   ]);
 });
 
@@ -54,6 +55,7 @@ test('switching workspace owner removes the previous account namespace', async (
     ['removeItem', 'chatConfig_v_v8.6_alice'],
     ['removeItem', 'chatAppData_v8.6_alice'],
     ['removeItem', 'chatSensitiveConfig_v1_alice'],
+    ['removeItem', 'chatSyncVault_v1_alice'],
     ['removeItemsByPrefix', 'generatedImage:alice:'],
     ['setItem', STORAGE_OWNER_KEY, 'bob']
   ]);

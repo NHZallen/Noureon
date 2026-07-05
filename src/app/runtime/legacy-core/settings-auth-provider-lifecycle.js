@@ -413,6 +413,22 @@ const {
     bindDesktopSettingsSections,
     syncSettingsSectionForViewport
 } = desktopSectionHelper;
+let syncVaultControlsPromise;
+const loadSyncVaultControls = () => {
+    if (!syncVaultControlsPromise) {
+        syncVaultControlsPromise = import('./settings-sync-vault-controls.js').then(({ createSettingsSyncVaultControls }) => (
+            createSettingsSyncVaultControls({
+                window,
+                document,
+                storage: runtimeStorageAdapter,
+                getCurrentUser: () => state.currentUser,
+                getText: getSettingsText,
+                showNotification
+            })
+        ));
+    }
+    return syncVaultControlsPromise;
+};
 const ensureAutoWebSearchSettingsControl = () => {
     if (document.getElementById('auto-web-search-toggle-switch')) {
         ALL_ELEMENTS.autoWebSearchToggleSwitch = document.getElementById('auto-web-search-toggle-switch');
@@ -481,6 +497,14 @@ const setupSettingsModal = () => {
     renderSettingsMobileList();
     const navItems = bindDesktopSettingsSections();
     syncSettingsSectionForViewport(navItems);
+    void loadSyncVaultControls().then(async (controls) => {
+        controls.ensureSyncVaultSettings();
+        applyLanguage(config.uiLanguage);
+        renderSettingsMobileList();
+        const nextNavItems = bindDesktopSettingsSections();
+        syncSettingsSectionForViewport(nextNavItems);
+        await controls.refreshSyncVaultControls();
+    }).catch(error => console.error('Failed to load sync vault settings:', error));
 };
 const saveSettings = async ({ close = true, notify = true } = {}) => {
     await persistApiKeyInputIntents();

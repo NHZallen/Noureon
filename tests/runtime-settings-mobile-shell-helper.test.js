@@ -167,6 +167,7 @@ test('mobile settings groups preserve the expected section order', () => {
     .flatMap((group) => group.items.map((item) => item.section));
 
   assert.deepEqual(sections, [
+    'user',
     'personalization',
     'memory',
     'model-management',
