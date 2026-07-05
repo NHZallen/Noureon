@@ -35,7 +35,11 @@ function createStorage(initial = {}) {
 test('pending cloud account link migrates the complete local workspace to the cloud namespace', async () => {
   const storage = createStorage({
     'chatConfig_v_v8.6_alice': '{"theme":"dark"}',
-    'chatAppData_v8.6_alice': '{"conversations":[{"id":"1"}]}',
+    'chatAppData_v8.6_alice': JSON.stringify({
+      conversations: [{ id: '1', messages: [{ parts: [{ generatedImage: {
+        id: 'image-1', storageKey: 'generatedImage:alice:image-1', mediaType: 'image/png'
+      } }] }] }]
+    }),
     'chatSensitiveConfig_v1_alice': '{"apiKeys":{"gemini":"secret"}}',
     'generatedImage:alice:image-1': new Blob(['image'])
   });
@@ -52,7 +56,11 @@ test('pending cloud account link migrates the complete local workspace to the cl
 
   assert.equal(completed, true);
   assert.equal(storage.values.get('chatConfig_v_v8.6_supabase:user-123'), '{"theme":"dark"}');
-  assert.equal(storage.values.get('chatAppData_v8.6_supabase:user-123'), '{"conversations":[{"id":"1"}]}');
+  const migratedAppData = JSON.parse(storage.values.get('chatAppData_v8.6_supabase:user-123'));
+  assert.equal(
+    migratedAppData.conversations[0].messages[0].parts[0].generatedImage.storageKey,
+    'generatedImage:supabase:user-123:image-1'
+  );
   assert.equal(storage.values.get('chatSensitiveConfig_v1_supabase:user-123'), '{"apiKeys":{"gemini":"secret"}}');
   assert.ok(storage.values.get('generatedImage:supabase:user-123:image-1') instanceof Blob);
   assert.equal(storage.values.has('chatConfig_v_v8.6_alice'), false);

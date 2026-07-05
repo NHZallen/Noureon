@@ -43,6 +43,10 @@ function getMarker(value) {
   return value && typeof value === 'object' && value[ASSET_MARKER] ? value[ASSET_MARKER] : null;
 }
 
+function isBlobLike(value) {
+  return value instanceof Blob || Boolean(value && typeof value.arrayBuffer === 'function' && typeof value.size === 'number');
+}
+
 export function createCloudAssetTransport({
   supabase,
   storage,
@@ -100,10 +104,17 @@ export function createCloudAssetTransport({
     }
 
     if (value.generatedImage?.storageKey) {
-      const blob = await storage.getItem(value.generatedImage.storageKey);
-      if (blob instanceof Blob) {
+      const expectedKey = `generatedImage:supabase:${userId}:${value.generatedImage.id}`;
+      let storageKey = value.generatedImage.storageKey;
+      let blob = await storage.getItem(storageKey);
+      if (!isBlobLike(blob) && storageKey !== expectedKey) {
+        blob = await storage.getItem(expectedKey);
+        if (isBlobLike(blob)) storageKey = expectedKey;
+      }
+      if (isBlobLike(blob)) {
         output.generatedImage = {
           ...output.generatedImage,
+          storageKey,
           cloudAsset: await uploadBlob(blob, 'blob')
         };
       }

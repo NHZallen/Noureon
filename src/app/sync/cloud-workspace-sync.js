@@ -9,6 +9,7 @@ import {
   takePreviousSyncVaultKey
 } from './sync-vault.js';
 import { createCloudAssetTransport } from './cloud-assets.js';
+import { repairGeneratedImageStorageKeys } from './generated-image-key-repair.js';
 
 const TABLE = 'user_workspaces';
 const SYNC_DEBOUNCE_MS = 750;
@@ -54,6 +55,15 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   let syncing = false;
   let realtimeWork = Promise.resolve();
   const pending = new Set();
+
+  const savedAppData = parseJson(await storage.getItem(keys.appData));
+  if (savedAppData && await repairGeneratedImageStorageKeys({ value: savedAppData, storage, username })) {
+    const repairedAt = new Date().toISOString();
+    await storage.setItem(keys.appData, JSON.stringify(savedAppData));
+    meta.appData = { ...(meta.appData || {}), localUpdatedAt: repairedAt, dirty: true };
+    await storage.setItem(metaKey, JSON.stringify(meta));
+    pending.add('appData');
+  }
 
   const saveMeta = () => storage.setItem(metaKey, JSON.stringify(meta));
   const setMeta = async (kind, values) => {

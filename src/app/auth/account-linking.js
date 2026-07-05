@@ -3,6 +3,7 @@ import {
   getStoredUserWorkspaceKeys,
   removeStoredUserWorkspace
 } from '../runtime/kernel/user-data-retention.js';
+import { repairGeneratedImageStorageKeys } from '../sync/generated-image-key-repair.js';
 
 export const PENDING_CLOUD_LINK_KEY = 'chat_pendingCloudLink_v1';
 
@@ -48,6 +49,15 @@ export async function completePendingCloudAccountLink({
     const image = await storage.getItem(sourceKey);
     const targetKey = `generatedImage:${targetUsername}:${String(sourceKey).slice(imagePrefix.length)}`;
     if (image != null) await storage.setItem(targetKey, image);
+  }
+
+  const targetAppDataKey = `chatAppData_v8.6_${targetUsername}`;
+  const savedAppData = await storage.getItem(targetAppDataKey);
+  if (savedAppData) {
+    const appData = JSON.parse(savedAppData);
+    if (await repairGeneratedImageStorageKeys({ value: appData, storage, username: targetUsername })) {
+      await storage.setItem(targetAppDataKey, JSON.stringify(appData));
+    }
   }
 
   await storage.setItem(`chatUser_${targetUsername}`, JSON.stringify(cloudUserRecord));
