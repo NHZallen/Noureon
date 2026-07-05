@@ -1534,6 +1534,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             runtimeAppDataStore,
             runtimeDialogCoordinator,
             i18n,
+            getCurrentConversationId: () => conversationStateAccess.getCurrentConversationId(),
+            setCurrentConversationId: (id) => conversationStateAccess.setCurrentConversationId(id),
             officialAstras: OFFICIAL_ASTRAS,
             updateLogs,
             uiThemeColors: UI_THEME_COLORS,

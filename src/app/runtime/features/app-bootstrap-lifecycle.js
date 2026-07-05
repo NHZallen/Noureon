@@ -2,6 +2,7 @@ import { createAppBootstrapComposition } from '../../legacy-runtime/features/app
 import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/store-navigation-lifecycle.js';
 import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
+import { selectActiveConversationId } from '../kernel/active-conversation-reconciliation.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -18,6 +19,8 @@ export function createLegacyAppBootstrapLifecycle({
     getFolders,
     getAstras,
     getPersonalMemories,
+    getCurrentConversationId,
+    setCurrentConversationId,
     setSidebarOpen,
     setSendConfirmed,
     getAbortController,
@@ -149,7 +152,15 @@ export function createLegacyAppBootstrapLifecycle({
                 document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
                 enhanceSettingsLogoutButton();
                 const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
-                if (!conversations.find(c => !c.archived && !c.deletedAt)) startNewChat();
+                const activeConversationId = selectActiveConversationId({
+                    currentId: getCurrentConversationId(),
+                    conversations
+                });
+                if (activeConversationId) {
+                    setCurrentConversationId(activeConversationId);
+                } else {
+                    await startNewChat();
+                }
                 renderAll();
                 updateFunctionButtonsState();
                 resolveEventsUpdateInputState();
@@ -492,7 +503,6 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.trashBatchDeleteBtn.addEventListener('click', handleBatchDeleteFromTrash);
                 ALL_ELEMENTS.emptyTrashBtn.addEventListener('click', handleEmptyTrash);
                 updateFileInputUI();
-                startNewChat();
                 mountTurnstile('feedback', ALL_ELEMENTS.sendFeedbackBtn);
                 const initializeSpotlightEffect = () => {
                     const spotlightElements = document.querySelectorAll('.spotlight-effect');

@@ -168,6 +168,8 @@ function createHarness(overrides = {}) {
     },
     runtimeDialogCoordinator: { showNotification: (...args) => calls.push(['dialogNotification', ...args]) },
     i18n: { en: {} },
+    getCurrentConversationId: () => state.conversationStateAccess.getCurrentConversationId(),
+    setCurrentConversationId: (id) => state.conversationStateAccess.setCurrentConversationId(id),
     officialAstras: [],
     updateLogs: [],
     uiThemeColors: {},
@@ -311,7 +313,7 @@ test('factory exposes former 04 bridge functions with clear missing-binding erro
 });
 
 test('registers sidebar.toggleSidebar and runtime.coreTailDependencies with live state', () => {
-  const { bindings, lifecycle, state } = createHarness();
+  const { bindings, calls, lifecycle, state } = createHarness();
   lifecycle.registerSidebarBindings();
   lifecycle.registerCoreTailDependencies();
 
@@ -322,6 +324,9 @@ test('registers sidebar.toggleSidebar and runtime.coreTailDependencies with live
   assert.equal(dependencies.state.config.uiLanguage, 'fr');
   dependencies.state.sidebarOpen = true;
   assert.equal(state.sidebarOpen, true);
+  assert.equal(dependencies.getCurrentConversationId(), 'c1');
+  dependencies.setCurrentConversationId('c2');
+  assert.deepEqual(calls.at(-1), ['setCurrentConversationId', 'c2']);
 });
 
 test('module owns transition wiring without fragments or virtual runtime imports', () => {

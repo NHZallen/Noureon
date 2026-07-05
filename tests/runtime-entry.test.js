@@ -181,6 +181,8 @@ const createCompleteCoreTailDependencies = ({
     },
     runtimeDialogCoordinator: { showNotification: noop },
     legacyRuntimeContext: runtimeContext,
+    getCurrentConversationId: () => null,
+    setCurrentConversationId: noop,
     i18n: { 'zh-TW': {} },
     OFFICIAL_ASTRAS: [],
     updateLogs: [],

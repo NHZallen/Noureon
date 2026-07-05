@@ -93,6 +93,13 @@ test('runtime entry composes initChatApp while preserving late bootstrap event b
   assert.match(runtimeEntrySource, /startupLifecycle\.bindAuthStartupListeners\(\)/);
   assert.match(runtimeEntrySource, /startupLifecycle\.initializeApp\(\)/);
   assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);
+  assert.match(appBootstrapLifecycleSource, /selectActiveConversationId/);
+  assert.match(initBody, /const\s+activeConversationId\s*=\s*selectActiveConversationId\(\{/);
+  assert.match(initBody, /currentId:\s*getCurrentConversationId\(\)/);
+  assert.match(initBody, /setCurrentConversationId\(activeConversationId\)/);
+  assert.match(initBody, /else\s*\{\s*await\s+startNewChat\(\);/);
+  assert.doesNotMatch(initBody, /if\s*\(!conversations\.find\(c\s*=>\s*!c\.archived\s*&&\s*!c\.deletedAt\)\)\s*startNewChat\(\);/);
+  assert.doesNotMatch(initBody, /updateFileInputUI\(\);\s*startNewChat\(\);/);
   assert.match(p2pLifecycleSource, /createP2PScannerLifecycle\(\{/);
   assert.match(initBody, /\bprocessReceivedData\b/);
   assert.match(initBody, /\bupdateP2PProgress\b/);

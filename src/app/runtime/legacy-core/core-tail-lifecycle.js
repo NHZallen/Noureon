@@ -14,6 +14,8 @@ const REQUIRED_DEPENDENCIES = [
     'runtimeAppDataStore',
     'runtimeDialogCoordinator',
     'legacyRuntimeContext',
+    'getCurrentConversationId',
+    'setCurrentConversationId',
     'i18n'
 ];
 
@@ -61,6 +63,8 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         runtimeAppDataStore,
         runtimeDialogCoordinator,
         legacyRuntimeContext,
+        getCurrentConversationId,
+        setCurrentConversationId,
         i18n,
         OFFICIAL_ASTRAS,
         updateLogs,
@@ -944,6 +948,8 @@ function setupMessageIntersectionObserver() {
                 getFolders: () => state.folders,
                 getAstras: () => state.astras,
                 getPersonalMemories: () => state.personalMemories,
+                getCurrentConversationId,
+                setCurrentConversationId,
                 setSidebarOpen: (next) => {
                     state.sidebarOpen = next;
                     return state.sidebarOpen;

@@ -13,6 +13,8 @@ const REQUIRED_APP_BOOTSTRAP_FIELDS = [
   'getFolders',
   'getAstras',
   'getPersonalMemories',
+  'getCurrentConversationId',
+  'setCurrentConversationId',
   'setSidebarOpen',
   'setSendConfirmed',
   'getAbortController',
