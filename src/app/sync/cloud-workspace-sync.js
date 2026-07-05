@@ -12,7 +12,13 @@ import { createCloudAssetTransport } from './cloud-assets.js';
 import { repairGeneratedImageStorageKeys } from './generated-image-key-repair.js';
 import { ensureWorkspaceRecoveryBackup } from './workspace-recovery-backup.js';
 import {
+  mergeWorkspaceAppDataForCloud,
+  prepareWorkspaceAppDataForCloud,
+  preserveLocalFolderUiState
+} from './cloud-workspace-app-data.js';
+import {
   canCommitHydratedRemote,
+  cloudValuesEqual,
   enqueueRecoveringTask,
   settleCloudUpload,
   shouldApplyCloudRemote
@@ -20,9 +26,10 @@ import {
 
 const TABLE = 'user_workspaces';
 const SYNC_DEBOUNCE_MS = 750;
-const SYNC_META_VERSION = 4;
+const SYNC_META_VERSION = 5;
 
 export const CLOUD_SYNC_KINDS = Object.freeze({
+  appData: { column: 'app_data', timestamp: 'app_data_updated_at' },
   config: { column: 'config', timestamp: 'config_updated_at' },
   sensitive: { column: 'sensitive_config', timestamp: 'sensitive_config_updated_at' },
   vault: { column: 'vault_record', timestamp: 'vault_record_updated_at' }
@@ -30,9 +37,11 @@ export const CLOUD_SYNC_KINDS = Object.freeze({
 
 const REMOTE_SYNC_COLUMNS = [
   'user_id',
+  'app_data',
   'config',
   'sensitive_config',
   'vault_record',
+  'app_data_updated_at',
   'config_updated_at',
   'sensitive_config_updated_at',
   'vault_record_updated_at',
@@ -67,6 +76,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     vault: getSyncVaultStorageKey(username)
   };
   const metaKey = `chatCloudSyncMeta_v1_${username}`;
+  const appDataBaseKey = `chatCloudAppDataBase_v1_${username}`;
   const assets = createCloudAssetTransport({ supabase, storage, userId: user.id });
   let meta = parseJson(await storage.getItem(metaKey)) || {};
   const upgradingMeta = meta.version !== SYNC_META_VERSION;
@@ -111,8 +121,21 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     return parseJson(await storage.getItem(keys[kind]));
   }
 
+  async function readAppDataBase() {
+    return parseJson(await storage.getItem(appDataBaseKey)) || {};
+  }
+
   async function prepareUpload(kind) {
     const value = await readLocal(kind);
+    if (kind === 'appData') {
+      await fetchRemote();
+      const merged = mergeWorkspaceAppDataForCloud({
+        base: await readAppDataBase(),
+        local: value || {},
+        remote: remote?.app_data || {}
+      });
+      return assets.externalize(merged);
+    }
     if (kind === 'config') return value ? assets.externalize(value) : null;
     if (kind === 'vault') return value;
     if (!await readLocal('vault')) return null;
@@ -147,6 +170,10 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       const remoteUpdatedAt = data[definition.timestamp] || data.updated_at || clientTimestamp;
       const settled = settleCloudUpload(meta[kind], localRevision, remoteUpdatedAt);
       meta[kind] = settled.state;
+      if (kind === 'appData') {
+        const uploaded = data[definition.column] ?? value;
+        await storage.setItem(appDataBaseKey, JSON.stringify(uploaded || {}));
+      }
       await saveMeta();
       return { complete: settled.complete, localRevision };
     } finally {
@@ -160,9 +187,20 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     const remoteSnapshot = remote;
     const startedRevision = meta[kind]?.localRevision;
     const value = remoteSnapshot?.[definition.column];
+    let appDataRemoteWorkspace = null;
     if (value == null && !remoteSnapshot?.[definition.timestamp]) return false;
     let hydrated = value;
     if (kind === 'config') hydrated = await assets.hydrate(value);
+    if (kind === 'appData') {
+      const local = await readLocal('appData') || {};
+      const remoteWorkspace = value ? await assets.hydrate(value) : {};
+      appDataRemoteWorkspace = remoteWorkspace || {};
+      hydrated = preserveLocalFolderUiState(local, mergeWorkspaceAppDataForCloud({
+        base: await readAppDataBase(),
+        local,
+        remote: appDataRemoteWorkspace
+      }));
+    }
     if (kind === 'sensitive') {
       const key = getUnlockedSyncVaultKey(username);
       if (value != null) {
@@ -183,7 +221,14 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     const timestamp = remoteSnapshot[definition.timestamp] || remoteSnapshot.updated_at;
     if (hydrated == null) await storage.removeItem(keys[kind]);
     else await storage.setItem(keys[kind], JSON.stringify(hydrated));
+    if (kind === 'appData') await storage.setItem(appDataBaseKey, JSON.stringify(value || {}));
     await setMeta(kind, { remoteUpdatedAt: timestamp, dirty: false });
+    if (kind === 'appData') {
+      window.dispatchEvent(new window.CustomEvent('astra:cloud-app-data', { detail: hydrated }));
+      const localCloudShape = prepareWorkspaceAppDataForCloud(hydrated || {});
+      const remoteCloudShape = prepareWorkspaceAppDataForCloud(appDataRemoteWorkspace || {});
+      if (!cloudValuesEqual(localCloudShape, remoteCloudShape)) await queueLocalChange('appData');
+    }
     if (kind === 'config') window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: hydrated }));
     if (kind === 'sensitive') window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: hydrated }));
     if (kind === 'vault') {
@@ -222,7 +267,6 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
 
   async function upgradeSyncMetadata() {
     if (!upgradingMeta) return;
-    delete meta.appData;
     for (const state of Object.values(meta)) {
       if (state && typeof state === 'object') delete state.remoteUpdatedAt;
     }

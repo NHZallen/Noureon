@@ -86,8 +86,17 @@ export function mergeRemoteWorkspaceAppData(live = {}, remote = {}, protectedCon
     if (!liveConversation) return remoteConversation;
     return preferLocalConversation(liveConversation, remoteConversation) ? liveConversation : remoteConversation;
   });
-  if (protectedConversation?.id && !conversations.some(conversation => conversation?.id === protectedConversation.id)) {
-    conversations.push(protectedConversation);
+  const deviceOnlyDrafts = [...liveConversations.values()].filter(conversation => (
+    conversation?.id
+    && conversation.isTemporary
+    && !conversation.archived
+    && !conversation.deletedAt
+    && (conversation.messages?.length || 0) === 0
+  ));
+  for (const conversation of [protectedConversation, ...deviceOnlyDrafts]) {
+    if (conversation?.id && !conversations.some(item => item?.id === conversation.id)) {
+      conversations.push(conversation);
+    }
   }
   return {
     ...remote,

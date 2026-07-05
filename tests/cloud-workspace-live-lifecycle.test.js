@@ -104,3 +104,78 @@ test('cloud workspace update preserves an active conversation reference and defe
   assert.equal(renders, 1);
   assert.equal(appDataStore.getConversations()[0].messages[1].parts[0].text, 'Completed answer');
 });
+
+test('cloud workspace update preserves local folder expansion state', () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialFolders: [{ id: 'folder-1', name: 'Local', isOpen: true }]
+  });
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root', isOpen: false }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {}
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-app-data', {
+    conversations: [],
+    folders: [{ id: 'folder-1', name: 'Remote', isOpen: false }],
+    astras: [],
+    personalMemories: []
+  });
+
+  assert.equal(appDataStore.getFolders()[0].name, 'Remote');
+  assert.equal(appDataStore.getFolders()[0].isOpen, true);
+});
+
+test('cloud workspace update keeps the fresh local draft selected after reload', () => {
+  const window = createWindowFixture();
+  const localDraft = {
+    id: 'fresh-draft',
+    isTemporary: true,
+    archived: false,
+    deletedAt: null,
+    messages: []
+  };
+  const appDataStore = createLegacyRuntimeAppDataStore({ initialConversations: [localDraft] });
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {}
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-app-data', {
+    conversations: [{ id: 'history', isTemporary: false, messages: [{ role: 'user' }] }],
+    folders: [],
+    astras: [],
+    personalMemories: []
+  });
+
+  assert.equal(appDataStore.getConversations().find(item => item.id === 'fresh-draft'), localDraft);
+  assert.equal(appDataStore.getConversations().some(item => item.id === 'history'), true);
+});

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astra-chat-vite-cache-v8';
+const CACHE_NAME = 'astra-chat-vite-cache-v9';
 
 const STATIC_ASSETS = [
   '/',

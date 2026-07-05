@@ -2,7 +2,6 @@ import { createAppBootstrapComposition } from '../../legacy-runtime/features/app
 import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/store-navigation-lifecycle.js';
 import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
-import { selectActiveConversationId } from '../kernel/active-conversation-reconciliation.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -19,8 +18,6 @@ export function createLegacyAppBootstrapLifecycle({
     getFolders,
     getAstras,
     getPersonalMemories,
-    getCurrentConversationId,
-    setCurrentConversationId,
     setSidebarOpen,
     setSendConfirmed,
     getAbortController,
@@ -141,7 +138,6 @@ export function createLegacyAppBootstrapLifecycle({
                 };
                 const config = getConfig();
                 const currentUser = getCurrentUser();
-                const conversations = getConversations();
                 if (window.innerWidth >= 1024) {
             setSidebarOpen(false);
             ALL_ELEMENTS.sidebar.classList.remove('open');
@@ -152,15 +148,7 @@ export function createLegacyAppBootstrapLifecycle({
                 document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
                 enhanceSettingsLogoutButton();
                 const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
-                const activeConversationId = selectActiveConversationId({
-                    currentId: getCurrentConversationId(),
-                    conversations
-                });
-                if (activeConversationId) {
-                    setCurrentConversationId(activeConversationId);
-                } else {
-                    await startNewChat();
-                }
+                await startNewChat();
                 renderAll();
                 updateFunctionButtonsState();
                 resolveEventsUpdateInputState();

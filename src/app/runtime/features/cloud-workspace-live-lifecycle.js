@@ -2,6 +2,7 @@ import { normalizeLoadedLegacyAppData } from '../kernel/app-data-normalization.j
 import { normalizeLoadedLegacyConfig } from '../kernel/config-normalization.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
 import { mergeRemoteWorkspaceAppData } from '../../sync/cloud-sync-versioning.js';
+import { preserveLocalFolderUiState } from '../../sync/cloud-workspace-app-data.js';
 
 function preserveItemIdentity(currentItems = [], nextItems = []) {
   const currentById = new Map(currentItems.map(item => [item?.id, item]));
@@ -74,7 +75,8 @@ export function createCloudWorkspaceLiveLifecycle({
       normalizeConversationModel
     });
     const current = appDataStore.getSnapshot?.() || {};
-    const protectedRemote = mergeRemoteWorkspaceAppData(current, normalizedRemote, protectedConversation);
+    const remoteWithLocalUi = preserveLocalFolderUiState(current, normalizedRemote);
+    const protectedRemote = mergeRemoteWorkspaceAppData(current, remoteWithLocalUi, protectedConversation);
     protectedConversation = null;
     appDataStore.replaceAll({
       conversations: preserveItemIdentity(current.conversations, protectedRemote.conversations),

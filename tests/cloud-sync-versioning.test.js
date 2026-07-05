@@ -124,16 +124,17 @@ test('live remote merge cannot remove a more complete local assistant response',
   assert.equal(merged.conversations[0].messages[1].parts[0].text, 'Completed answer');
 });
 
-test('live remote merge retains only explicitly protected local-only conversations', () => {
+test('live remote merge retains protected responses and device-only empty drafts', () => {
   const protectedConversation = { id: 'active', messages: [{ role: 'model', parts: [{ text: 'Answer' }] }] };
+  const deviceOnlyDraft = { id: 'draft', isTemporary: true, deletedAt: null, messages: [] };
   const staleConversation = { id: 'deleted', messages: [] };
   const merged = mergeRemoteWorkspaceAppData(
-    { conversations: [protectedConversation, staleConversation] },
+    { conversations: [protectedConversation, deviceOnlyDraft, staleConversation] },
     { conversations: [], folders: [], astras: [], personalMemories: [] },
     protectedConversation
   );
 
-  assert.deepEqual(merged.conversations, [protectedConversation]);
+  assert.deepEqual(merged.conversations, [protectedConversation, deviceOnlyDraft]);
 });
 
 test('equal-content remote conversations win so folder metadata can synchronize', () => {

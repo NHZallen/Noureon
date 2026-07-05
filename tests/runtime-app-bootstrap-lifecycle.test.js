@@ -323,8 +323,8 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
   const expectedOrder = [
     'getConfig',
     'getCurrentUser',
-    'getConversations',
     'setSidebarOpen:false',
+    'startNewChat',
     'renderAll',
     'updateFunctionButtonsState',
     'updateInputState',
