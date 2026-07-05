@@ -1009,8 +1009,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             maxCouncilModels: COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates, getSingleTranslatorCandidates,
             applyCustomWallpaper: () => applyCustomWallpaper(),
-            applyUiTheme: () => applyUiTheme(),
-            renderAll
+            applyUiTheme: () => applyUiTheme(), renderAll, busy:()=>abortController
         });
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,

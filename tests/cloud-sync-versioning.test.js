@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { cloudValuesEqual, mergeWorkspaceAppData, settleCloudUpload, shouldApplyCloudRemote } from '../src/app/sync/cloud-sync-versioning.js';
+import {
+  cloudValuesEqual,
+  mergeRemoteWorkspaceAppData,
+  mergeWorkspaceAppData,
+  settleCloudUpload,
+  shouldApplyCloudRemote
+} from '../src/app/sync/cloud-sync-versioning.js';
 
 test('an older in-flight upload cannot clear a newer local dirty revision', () => {
   const settled = settleCloudUpload({
@@ -57,6 +63,32 @@ test('sync metadata upgrade preserves a completed local answer over a remote nam
   assert.equal(merged.conversations[0].title, 'Greeting');
   assert.equal(merged.conversations[0].isNaming, false);
   assert.equal(merged.conversations[0].messages.length, 2);
+});
+
+test('live remote merge cannot remove a more complete local assistant response', () => {
+  const liveConversation = {
+    id: 'conversation-1',
+    title: 'Question',
+    isNaming: true,
+    messages: [
+      { role: 'user', parts: [{ text: 'Question' }] },
+      { role: 'model', parts: [{ text: 'Completed answer' }] }
+    ]
+  };
+  const remoteConversation = {
+    id: 'conversation-1',
+    title: 'Remote title',
+    isNaming: false,
+    messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+  };
+
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [liveConversation] },
+    { conversations: [remoteConversation], folders: [], astras: [], personalMemories: [] }
+  );
+
+  assert.equal(merged.conversations[0], liveConversation);
+  assert.equal(merged.conversations[0].messages[1].parts[0].text, 'Completed answer');
 });
 
 test('cloud value comparison ignores object property insertion order', () => {

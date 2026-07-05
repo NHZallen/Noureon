@@ -1,6 +1,20 @@
 import { normalizeLoadedLegacyAppData } from '../kernel/app-data-normalization.js';
 import { normalizeLoadedLegacyConfig } from '../kernel/config-normalization.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
+import { mergeRemoteWorkspaceAppData } from '../../sync/cloud-sync-versioning.js';
+
+function preserveItemIdentity(currentItems = [], nextItems = []) {
+  const currentById = new Map(currentItems.map(item => [item?.id, item]));
+  return nextItems.map(nextItem => {
+    const currentItem = currentById.get(nextItem?.id);
+    if (!currentItem || currentItem === nextItem) return nextItem;
+    for (const key of Object.keys(currentItem)) {
+      if (!(key in nextItem)) delete currentItem[key];
+    }
+    Object.assign(currentItem, nextItem);
+    return currentItem;
+  });
+}
 
 export function createCloudWorkspaceLiveLifecycle({
   window,
@@ -16,26 +30,54 @@ export function createCloudWorkspaceLiveLifecycle({
   getSingleTranslatorCandidates,
   applyCustomWallpaper,
   applyUiTheme,
-  renderAll
+  renderAll,
+  busy = () => false,
+  schedule = (callback, delay) => globalThis.setTimeout(callback, delay)
 } = {}) {
   let ready = false;
   let pendingAppData = null;
   let pendingConfig = null;
+  let deferredRenderTimer = null;
+
+  const renderWhenResponseSettles = () => {
+    if (!busy()) {
+      deferredRenderTimer = null;
+      renderAll();
+      return;
+    }
+    deferredRenderTimer = schedule(renderWhenResponseSettles, 100);
+  };
+
+  const renderWorkspace = () => {
+    if (!busy()) {
+      if (deferredRenderTimer == null) renderAll();
+      return;
+    }
+    if (deferredRenderTimer == null) deferredRenderTimer = schedule(renderWhenResponseSettles, 100);
+  };
 
   const applyAppData = (rawData) => {
     if (!rawData || !ready) {
       pendingAppData = rawData;
       return;
     }
-    appDataStore.replaceAll(normalizeLoadedLegacyAppData({
+    const normalizedRemote = normalizeLoadedLegacyAppData({
       rawData,
       defaultFolder: getDefaultFolder(),
       defaultGenConfig: getDefaultGenConfig(),
       lastCouncilConfig: configAccess.getConfig().lastCouncilConfig,
       normalizeCouncilConfig,
       normalizeConversationModel
-    }));
-    renderAll();
+    });
+    const current = appDataStore.getSnapshot?.() || {};
+    const protectedRemote = mergeRemoteWorkspaceAppData(current, normalizedRemote);
+    appDataStore.replaceAll({
+      conversations: preserveItemIdentity(current.conversations, protectedRemote.conversations),
+      folders: preserveItemIdentity(current.folders, protectedRemote.folders),
+      astras: preserveItemIdentity(current.astras, protectedRemote.astras),
+      personalMemories: protectedRemote.personalMemories
+    });
+    renderWorkspace();
   };
 
   const applyConfig = (savedConfig) => {
@@ -53,7 +95,7 @@ export function createCloudWorkspaceLiveLifecycle({
     }));
     applyCustomWallpaper();
     applyUiTheme();
-    renderAll();
+    renderWorkspace();
   };
 
   const markReady = () => {

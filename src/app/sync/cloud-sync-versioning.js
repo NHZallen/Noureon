@@ -63,6 +63,18 @@ export function mergeWorkspaceAppData(local = {}, remote = {}) {
   };
 }
 
+export function mergeRemoteWorkspaceAppData(live = {}, remote = {}) {
+  const liveConversations = new Map((live.conversations || []).map(conversation => [conversation?.id, conversation]));
+  return {
+    ...remote,
+    conversations: (remote.conversations || []).map(remoteConversation => {
+      const liveConversation = liveConversations.get(remoteConversation?.id);
+      if (!liveConversation) return remoteConversation;
+      return preferLocalConversation(liveConversation, remoteConversation) ? liveConversation : remoteConversation;
+    })
+  };
+}
+
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (!value || typeof value !== 'object') return value;
