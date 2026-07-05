@@ -33,6 +33,22 @@ function includesLocalRows(localRows, remoteRows) {
   return localRows.every(local => shadowRowsEqual(local, remoteById.get(local.id)));
 }
 
+function describeShadowError(error) {
+  if (!error || typeof error !== 'object') return { error: String(error) };
+  return {
+    error: error.message || String(error),
+    code: error.code || undefined,
+    status: error.status || error.statusCode || undefined,
+    details: error.details || undefined,
+    hint: error.hint || undefined
+  };
+}
+
+function exposeConversationShadowSync(window, sync) {
+  if (window) window.__astraCloudSyncV2 = sync;
+  if (typeof globalThis !== 'undefined') globalThis.__astraCloudSyncV2 = sync;
+}
+
 export function createConversationShadowRepository({ supabase, userId } = {}) {
   async function probe() {
     const { data, error } = await supabase
@@ -167,7 +183,7 @@ export function createConversationShadowSync({
     } catch (error) {
       if (isMissingSchemaError(error)) return setStatus({ state: 'migration-required' });
       logger.warn('AstraChat Sync V2 shadow probe failed; local mode remains active.', error);
-      return setStatus({ state: 'retry', error: error?.message || String(error) });
+      return setStatus({ state: 'retry', ...describeShadowError(error) });
     }
     enabled = true;
     const workspace = await readWorkspace();
@@ -175,7 +191,7 @@ export function createConversationShadowSync({
       return await captureNow(workspace || {});
     } catch (error) {
       logger.warn('AstraChat Sync V2 shadow initialization failed; local data was not changed.', error);
-      return setStatus({ state: 'retry', error: error?.message || String(error) });
+      return setStatus({ state: 'retry', ...describeShadowError(error) });
     }
   }
 
@@ -214,7 +230,7 @@ export function initializeConversationShadowSync({
     userId: user.id,
     logger
   });
-  window.__astraCloudSyncV2 = sync;
+  exposeConversationShadowSync(window, sync);
   void sync.initialize();
   return sync;
 }

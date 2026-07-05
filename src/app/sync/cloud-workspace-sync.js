@@ -42,17 +42,19 @@ const REMOTE_SYNC_COLUMNS = [
 ].join(',');
 
 function installConversationShadowStatus(window, status) {
-  if (!window || window.__astraCloudSyncV2) return;
+  if (window?.__astraCloudSyncV2 || globalThis.__astraCloudSyncV2) return;
   const frozenStatus = Object.freeze({
     state: 'disabled',
     ...status
   });
-  window.__astraCloudSyncV2 = Object.freeze({
+  const api = Object.freeze({
     captureWorkspace: () => false,
     flush: async () => frozenStatus,
     stop: () => {},
     getStatus: () => frozenStatus
   });
+  if (window) window.__astraCloudSyncV2 = api;
+  globalThis.__astraCloudSyncV2 = api;
 }
 
 function parseJson(value) {

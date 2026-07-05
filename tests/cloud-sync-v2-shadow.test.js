@@ -86,6 +86,31 @@ test('upload failure remains retryable and cannot reject app startup', async () 
   assert.equal(warnings.length, 1);
 });
 
+test('probe failure exposes Supabase error metadata for debugging', async () => {
+  const sync = createConversationShadowSync({
+    repository: {
+      probe: async () => {
+        throw {
+          message: 'permission denied for table sync_profiles',
+          code: '42501',
+          status: 403
+        };
+      }
+    },
+    readWorkspace: async () => workspace,
+    userId,
+    cryptoProvider: webcrypto,
+    logger: { warn: () => {} }
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'retry');
+  assert.equal(status.code, '42501');
+  assert.equal(status.status, 403);
+  assert.match(status.error, /permission denied/);
+});
+
 test('successful local save is debounced and captured without waiting in the UI', async () => {
   let scheduled;
   let uploads = 0;
