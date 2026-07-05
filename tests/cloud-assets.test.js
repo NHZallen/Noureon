@@ -7,6 +7,7 @@ import { createCloudAssetTransport } from '../src/app/sync/cloud-assets.js';
 function createFixture() {
   const remoteFiles = new Map();
   const localFiles = new Map();
+  const downloadCounts = new Map();
   const bucket = {
     async upload(path, blob) {
       if (remoteFiles.has(path)) return { error: { statusCode: '409', message: 'already exists' } };
@@ -14,6 +15,7 @@ function createFixture() {
       return { error: null };
     },
     async download(path) {
+      downloadCounts.set(path, (downloadCounts.get(path) || 0) + 1);
       return remoteFiles.has(path)
         ? { data: remoteFiles.get(path), error: null }
         : { data: null, error: new Error('missing') };
@@ -22,6 +24,7 @@ function createFixture() {
   return {
     remoteFiles,
     localFiles,
+    downloadCounts,
     supabase: { storage: { from: () => bucket } },
     storage: {
       getItem: async key => localFiles.get(key) ?? null,
@@ -96,4 +99,5 @@ test('missing cloud assets do not block workspace hydration or retry the same pa
   assert.equal(first.conversations[0].messages[0].parts[0].inlineData.data, null);
   assert.equal(second.conversations[0].messages[0].parts[0].inlineData.data, null);
   assert.equal(warnings.length, 1);
+  assert.equal(fixture.downloadCounts.get('user-1/missing'), 1);
 });

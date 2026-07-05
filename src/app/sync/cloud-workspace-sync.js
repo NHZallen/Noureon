@@ -13,6 +13,7 @@ import { repairGeneratedImageStorageKeys } from './generated-image-key-repair.js
 import {
   canCommitHydratedRemote,
   cloudValuesEqual,
+  enqueueRecoveringTask,
   mergeWorkspaceAppData,
   settleCloudUpload,
   shouldApplyCloudRemote
@@ -66,6 +67,10 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   let realtimeDeferred = false;
   const pending = new Set();
   const activeUploads = new Map();
+  const reportRealtimeError = error => console.warn('AstraChat realtime queue recovered after an error:', error);
+  const queueRealtimeWork = task => {
+    realtimeWork = enqueueRecoveringTask(realtimeWork, task, reportRealtimeError);
+  };
 
   const savedAppData = parseJson(await storage.getItem(keys.appData));
   if (savedAppData && await repairGeneratedImageStorageKeys({ value: savedAppData, storage, username })) {
@@ -244,7 +249,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       syncing = false;
       if (realtimeDeferred) {
         realtimeDeferred = false;
-        realtimeWork = realtimeWork.then(async () => {
+        queueRealtimeWork(async () => {
           await fetchRemote();
           await reconcileRemoteKinds();
         });
@@ -303,7 +308,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       table: TABLE,
       filter: `user_id=eq.${user.id}`
     }, payload => {
-      realtimeWork = realtimeWork.then(async () => {
+      queueRealtimeWork(async () => {
         remote = payload.new;
         if (activeUploads.size) {
           realtimeDeferred = true;
@@ -312,7 +317,11 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
         await reconcileRemoteKinds();
       });
     })
-    .subscribe();
+    .subscribe(status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('AstraChat realtime subscription needs to reconnect:', status);
+      }
+    });
 
   try {
     await fetchRemote();

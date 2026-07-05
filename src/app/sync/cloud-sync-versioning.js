@@ -47,7 +47,11 @@ function preferLocalConversation(local, remote) {
   for (let index = 0; index < localScore.length; index += 1) {
     if (localScore[index] !== remoteScore[index]) return localScore[index] > remoteScore[index];
   }
-  return true;
+  return false;
+}
+
+export function enqueueRecoveringTask(previous, task, onError = () => {}) {
+  return previous.catch(onError).then(task).catch(onError);
 }
 
 function mergeById(remoteItems = [], localItems = [], select = (_local, remote) => remote) {

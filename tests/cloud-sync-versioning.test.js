@@ -4,11 +4,26 @@ import test from 'node:test';
 import {
   canCommitHydratedRemote,
   cloudValuesEqual,
+  enqueueRecoveringTask,
   mergeRemoteWorkspaceAppData,
   mergeWorkspaceAppData,
   settleCloudUpload,
   shouldApplyCloudRemote
 } from '../src/app/sync/cloud-sync-versioning.js';
+
+test('realtime task queue continues after an earlier task rejects', async () => {
+  const errors = [];
+  let ran = false;
+  const recovered = enqueueRecoveringTask(
+    Promise.reject(new Error('temporary realtime failure')),
+    async () => { ran = true; },
+    error => errors.push(error.message)
+  );
+
+  await recovered;
+  assert.equal(ran, true);
+  assert.deepEqual(errors, ['temporary realtime failure']);
+});
 
 test('hydrated remote snapshot cannot commit after a newer local revision starts', () => {
   assert.equal(canCommitHydratedRemote({
@@ -118,6 +133,18 @@ test('live remote merge retains only explicitly protected local-only conversatio
   );
 
   assert.deepEqual(merged.conversations, [protectedConversation]);
+});
+
+test('equal-content remote conversations win so folder metadata can synchronize', () => {
+  const local = { id: 'conversation-1', folderId: null, messages: [{ role: 'user', parts: [{ text: 'Hi' }] }] };
+  const remote = { ...local, folderId: 'folder-1' };
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [local] },
+    { conversations: [remote], folders: [], astras: [], personalMemories: [] }
+  );
+
+  assert.equal(merged.conversations[0], remote);
+  assert.equal(merged.conversations[0].folderId, 'folder-1');
 });
 
 test('cloud value comparison ignores object property insertion order', () => {

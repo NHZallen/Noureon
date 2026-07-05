@@ -63,6 +63,7 @@ export function createCloudAssetTransport({
   const hydratedValues = new Map();
   const restoredGeneratedImages = new Set();
   const unavailablePaths = new Set();
+  const pendingDownloads = new Map();
   const storageBucket = supabase.storage.from(bucket);
 
   async function uploadBlob(blob, encoding) {
@@ -84,14 +85,20 @@ export function createCloudAssetTransport({
   async function downloadMarker(assetMarker) {
     if (unavailablePaths.has(assetMarker.path)) return null;
     if (!downloadedBlobs.has(assetMarker.path)) {
-      const { data, error } = await storageBucket.download(assetMarker.path);
+      if (!pendingDownloads.has(assetMarker.path)) {
+        pendingDownloads.set(assetMarker.path, storageBucket.download(assetMarker.path));
+      }
+      const { data, error } = await pendingDownloads.get(assetMarker.path);
+      pendingDownloads.delete(assetMarker.path);
       if (error) {
-        unavailablePaths.add(assetMarker.path);
-        logger.warn('AstraChat cloud asset is unavailable; continuing workspace sync without it.', {
-          path: assetMarker.path,
-          status: error.statusCode || error.status,
-          message: error.message || String(error)
-        });
+        if (!unavailablePaths.has(assetMarker.path)) {
+          unavailablePaths.add(assetMarker.path);
+          logger.warn('AstraChat cloud asset is unavailable; continuing workspace sync without it.', {
+            path: assetMarker.path,
+            status: error.statusCode || error.status,
+            message: error.message || String(error)
+          });
+        }
         return null;
       }
       downloadedBlobs.set(assetMarker.path, data);
