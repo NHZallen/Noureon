@@ -83,25 +83,20 @@ test('cloud workspace update preserves an active conversation reference and defe
     applyCustomWallpaper: () => {},
     applyUiTheme: () => {},
     renderAll: () => { renders += 1; },
-    busy: () => responseActive,
+    busy: () => responseActive && activeConversation,
     schedule: callback => { scheduled = callback; return 1; }
   });
   window.__astraCloudRuntimeReady();
 
   window.emit('astra:cloud-app-data', {
-    conversations: [{
-      id: 'conversation-1',
-      title: 'Remote title',
-      isNaming: false,
-      messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
-    }],
+    conversations: [],
     folders: [],
     astras: [],
     personalMemories: []
   });
 
   assert.equal(appDataStore.getConversations()[0], activeConversation);
-  assert.equal(activeConversation.title, 'Remote title');
+  assert.equal(activeConversation.title, 'Question');
   assert.equal(renders, 0);
   activeConversation.messages.push({ role: 'model', parts: [{ text: 'Completed answer' }] });
   responseActive = false;

@@ -91,6 +91,18 @@ test('live remote merge cannot remove a more complete local assistant response',
   assert.equal(merged.conversations[0].messages[1].parts[0].text, 'Completed answer');
 });
 
+test('live remote merge retains only explicitly protected local-only conversations', () => {
+  const protectedConversation = { id: 'active', messages: [{ role: 'model', parts: [{ text: 'Answer' }] }] };
+  const staleConversation = { id: 'deleted', messages: [] };
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [protectedConversation, staleConversation] },
+    { conversations: [], folders: [], astras: [], personalMemories: [] },
+    protectedConversation
+  );
+
+  assert.deepEqual(merged.conversations, [protectedConversation]);
+});
+
 test('cloud value comparison ignores object property insertion order', () => {
   assert.equal(cloudValuesEqual(
     { conversations: [{ id: '1', title: 'Hello' }], folders: [] },

@@ -63,15 +63,19 @@ export function mergeWorkspaceAppData(local = {}, remote = {}) {
   };
 }
 
-export function mergeRemoteWorkspaceAppData(live = {}, remote = {}) {
+export function mergeRemoteWorkspaceAppData(live = {}, remote = {}, protectedConversation = null) {
   const liveConversations = new Map((live.conversations || []).map(conversation => [conversation?.id, conversation]));
+  const conversations = (remote.conversations || []).map(remoteConversation => {
+    const liveConversation = liveConversations.get(remoteConversation?.id);
+    if (!liveConversation) return remoteConversation;
+    return preferLocalConversation(liveConversation, remoteConversation) ? liveConversation : remoteConversation;
+  });
+  if (protectedConversation?.id && !conversations.some(conversation => conversation?.id === protectedConversation.id)) {
+    conversations.push(protectedConversation);
+  }
   return {
     ...remote,
-    conversations: (remote.conversations || []).map(remoteConversation => {
-      const liveConversation = liveConversations.get(remoteConversation?.id);
-      if (!liveConversation) return remoteConversation;
-      return preferLocalConversation(liveConversation, remoteConversation) ? liveConversation : remoteConversation;
-    })
+    conversations
   };
 }
 

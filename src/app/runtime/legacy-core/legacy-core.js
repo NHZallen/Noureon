@@ -1005,11 +1005,10 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         createCloudWorkspaceLiveLifecycle({
             window, configAccess: runtimeConfigAccess, appDataStore: runtimeAppDataStore,
             getDefaultFolder, getDefaultGenConfig, normalizeCouncilConfig, normalizeConversationModel,
-            models: MODELS,
-            maxCouncilModels: COUNCIL_MAX_MODELS,
-            getCouncilTranslatorCandidates, getSingleTranslatorCandidates,
-            applyCustomWallpaper: () => applyCustomWallpaper(),
-            applyUiTheme: () => applyUiTheme(), renderAll, busy:()=>abortController
+            models:MODELS,
+            maxCouncilModels:COUNCIL_MAX_MODELS,
+            getCouncilTranslatorCandidates,getSingleTranslatorCandidates,applyCustomWallpaper:()=>applyCustomWallpaper(),
+            applyUiTheme:()=>applyUiTheme(),renderAll,busy:()=>abortController&&getActiveConversation()
         });
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,

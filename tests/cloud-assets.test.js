@@ -70,3 +70,30 @@ test('cloud assets restore generated image blobs to their IndexedDB storage key'
     new Uint8Array([7, 8, 9])
   );
 });
+
+test('missing cloud assets do not block workspace hydration or retry the same path', async () => {
+  const fixture = createFixture();
+  const warnings = [];
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto,
+    logger: { warn: (...args) => warnings.push(args) }
+  });
+  const value = {
+    conversations: [{
+      id: 'conversation-1',
+      messages: [{ role: 'user', parts: [{ inlineData: {
+        mimeType: 'image/png',
+        data: { __astraCloudAsset: { path: 'user-1/missing', encoding: 'base64' } }
+      } }] }]
+    }]
+  };
+
+  const first = await transport.hydrate(value);
+  const second = await transport.hydrate(value);
+
+  assert.equal(first.conversations[0].messages[0].parts[0].inlineData.data, null);
+  assert.equal(second.conversations[0].messages[0].parts[0].inlineData.data, null);
+  assert.equal(warnings.length, 1);
+});

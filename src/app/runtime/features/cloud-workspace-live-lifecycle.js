@@ -38,27 +38,31 @@ export function createCloudWorkspaceLiveLifecycle({
   let pendingAppData = null;
   let pendingConfig = null;
   let deferredRenderTimer = null;
+  let protectedConversation = null;
 
   const renderWhenResponseSettles = () => {
-    if (!busy()) {
-      deferredRenderTimer = null;
-      renderAll();
+    if (busy()) {
+      deferredRenderTimer = schedule(renderWhenResponseSettles, 100);
       return;
     }
-    deferredRenderTimer = schedule(renderWhenResponseSettles, 100);
-  };
-
-  const renderWorkspace = () => {
-    if (!busy()) {
-      if (deferredRenderTimer == null) renderAll();
-      return;
+    deferredRenderTimer = null;
+    if (pendingAppData) {
+      const nextAppData = pendingAppData;
+      pendingAppData = null;
+      applyAppData(nextAppData);
     }
-    if (deferredRenderTimer == null) deferredRenderTimer = schedule(renderWhenResponseSettles, 100);
   };
 
   const applyAppData = (rawData) => {
     if (!rawData || !ready) {
       pendingAppData = rawData;
+      return;
+    }
+    const activeConversation = busy();
+    if (activeConversation) {
+      pendingAppData = rawData;
+      protectedConversation = activeConversation;
+      if (deferredRenderTimer == null) deferredRenderTimer = schedule(renderWhenResponseSettles, 100);
       return;
     }
     const normalizedRemote = normalizeLoadedLegacyAppData({
@@ -70,14 +74,15 @@ export function createCloudWorkspaceLiveLifecycle({
       normalizeConversationModel
     });
     const current = appDataStore.getSnapshot?.() || {};
-    const protectedRemote = mergeRemoteWorkspaceAppData(current, normalizedRemote);
+    const protectedRemote = mergeRemoteWorkspaceAppData(current, normalizedRemote, protectedConversation);
+    protectedConversation = null;
     appDataStore.replaceAll({
       conversations: preserveItemIdentity(current.conversations, protectedRemote.conversations),
-      folders: preserveItemIdentity(current.folders, protectedRemote.folders),
-      astras: preserveItemIdentity(current.astras, protectedRemote.astras),
+      folders: protectedRemote.folders,
+      astras: protectedRemote.astras,
       personalMemories: protectedRemote.personalMemories
     });
-    renderWorkspace();
+    renderAll();
   };
 
   const applyConfig = (savedConfig) => {
@@ -85,6 +90,7 @@ export function createCloudWorkspaceLiveLifecycle({
       pendingConfig = savedConfig;
       return;
     }
+    const responseActive = Boolean(busy());
     configAccess.replaceConfig(normalizeLoadedLegacyConfig({
       currentConfig: configAccess.getConfig(),
       savedConfig: removeSensitiveConfig(savedConfig),
@@ -95,7 +101,7 @@ export function createCloudWorkspaceLiveLifecycle({
     }));
     applyCustomWallpaper();
     applyUiTheme();
-    renderWorkspace();
+    if (!responseActive) renderAll();
   };
 
   const markReady = () => {

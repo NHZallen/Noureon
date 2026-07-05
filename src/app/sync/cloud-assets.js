@@ -52,7 +52,8 @@ export function createCloudAssetTransport({
   storage,
   userId,
   bucket = DEFAULT_BUCKET,
-  cryptoProvider = globalThis.crypto
+  cryptoProvider = globalThis.crypto,
+  logger = console
 } = {}) {
   const uploadedPaths = new Set();
   const downloadedBlobs = new Map();
@@ -61,6 +62,7 @@ export function createCloudAssetTransport({
   const generatedImageMarkers = new Map();
   const hydratedValues = new Map();
   const restoredGeneratedImages = new Set();
+  const unavailablePaths = new Set();
   const storageBucket = supabase.storage.from(bucket);
 
   async function uploadBlob(blob, encoding) {
@@ -80,12 +82,22 @@ export function createCloudAssetTransport({
   }
 
   async function downloadMarker(assetMarker) {
+    if (unavailablePaths.has(assetMarker.path)) return null;
     if (!downloadedBlobs.has(assetMarker.path)) {
       const { data, error } = await storageBucket.download(assetMarker.path);
-      if (error) throw error;
+      if (error) {
+        unavailablePaths.add(assetMarker.path);
+        logger.warn('AstraChat cloud asset is unavailable; continuing workspace sync without it.', {
+          path: assetMarker.path,
+          status: error.statusCode || error.status,
+          message: error.message || String(error)
+        });
+        return null;
+      }
       downloadedBlobs.set(assetMarker.path, data);
     }
     const source = downloadedBlobs.get(assetMarker.path);
+    if (!source) return null;
     return source.type ? source : new Blob([source], { type: assetMarker.mimeType || 'application/octet-stream' });
   }
 
@@ -148,6 +160,7 @@ export function createCloudAssetTransport({
     const assetMarker = getMarker(value);
     if (assetMarker) {
       const blob = await downloadMarker(assetMarker);
+      if (!blob) return null;
       if (assetMarker.encoding === 'blob') return blob;
       const cacheKey = `${assetMarker.path}:${assetMarker.encoding}`;
       if (!hydratedValues.has(cacheKey)) hydratedValues.set(cacheKey, blobToEncodedValue(blob, assetMarker.encoding));
@@ -161,11 +174,13 @@ export function createCloudAssetTransport({
       if (key === 'generatedImage' && child?.cloudAsset && child?.storageKey) {
         const generatedImage = { ...child };
         const generatedMarker = getMarker(child.cloudAsset);
-        const restoreKey = `${generatedMarker.path}:${child.storageKey}`;
-        if (!restoredGeneratedImages.has(restoreKey)) {
+        const restoreKey = generatedMarker && `${generatedMarker.path}:${child.storageKey}`;
+        if (restoreKey && !restoredGeneratedImages.has(restoreKey)) {
           const blob = await downloadMarker(generatedMarker);
-          await storage.setItem(child.storageKey, blob);
-          restoredGeneratedImages.add(restoreKey);
+          if (blob) {
+            await storage.setItem(child.storageKey, blob);
+            restoredGeneratedImages.add(restoreKey);
+          }
         }
         delete generatedImage.cloudAsset;
         output[key] = await hydrate(generatedImage);
