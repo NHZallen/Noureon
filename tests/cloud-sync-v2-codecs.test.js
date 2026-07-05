@@ -90,6 +90,31 @@ test('conversation shadow codec includes folders and restores folder membership'
   assert.equal(decoded.conversations[0].folderId, folderId);
 });
 
+test('conversation shadow codec never persists transient naming or streaming state', async () => {
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Transient state',
+        model: 'model-1',
+        provider: 'provider-1',
+        isNaming: true,
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [{ role: 'model', status: 'streaming', parts: [{ text: 'Done' }] }]
+      }]
+    }
+  });
+
+  assert.equal(encoded.conversations[0].metadata.isNaming, false);
+
+  const decoded = decodeWorkspaceConversationShadow(encoded);
+
+  assert.equal(decoded.conversations[0].isNaming, false);
+  assert.equal(decoded.conversations[0].messages[0].status, 'complete');
+});
+
 test('shadow codec skips empty drafts and invalid legacy conversation IDs without mutating input', async () => {
   const workspace = {
     conversations: [

@@ -48,7 +48,7 @@ function conversationMetadata(conversation = {}) {
     astrasId: conversation.astrasId || null,
     isWebSearchEnabled: Boolean(conversation.isWebSearchEnabled),
     isTemporary: Boolean(conversation.isTemporary),
-    isNaming: Boolean(conversation.isNaming),
+    isNaming: false,
     legacyFolderId: conversation.folderId || null,
     clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null
   };
@@ -88,7 +88,7 @@ function conversationFromRow(row = {}, messages = []) {
     astrasId: metadata.astrasId || null,
     isWebSearchEnabled: Boolean(metadata.isWebSearchEnabled),
     isTemporary: Boolean(metadata.isTemporary),
-    isNaming: Boolean(metadata.isNaming)
+    isNaming: false
   };
 }
 
@@ -97,7 +97,7 @@ function messageFromRow(row = {}) {
     id: row.id,
     role: MESSAGE_ROLES.has(row.role) ? row.role : 'model',
     parts: Array.isArray(row.parts) ? row.parts : [],
-    status: MESSAGE_STATUSES.has(row.status) ? row.status : 'complete',
+    status: row.status === 'error' ? 'error' : 'complete',
     createdAt: canonicalizeTimestamp(row.created_at) || new Date(0).toISOString(),
     deletedAt: row.deleted_at || null
   };
