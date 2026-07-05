@@ -22,7 +22,7 @@ import {
 
 const TABLE = 'user_workspaces';
 const SYNC_DEBOUNCE_MS = 750;
-const SYNC_META_VERSION = 2;
+const SYNC_META_VERSION = 3;
 
 const KINDS = Object.freeze({
   appData: { column: 'app_data', timestamp: 'app_data_updated_at' },
