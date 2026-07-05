@@ -15,6 +15,18 @@ export function shouldApplyCloudRemote(state = {}, remoteUpdatedAt) {
   return Date.parse(remoteUpdatedAt || 0) > Date.parse(state.remoteUpdatedAt || 0);
 }
 
+export function canCommitHydratedRemote({
+  startedRevision,
+  currentState = {},
+  activeUpload = false,
+  remoteUnchanged = true
+} = {}) {
+  return remoteUnchanged
+    && !activeUpload
+    && !currentState.dirty
+    && currentState.localRevision === startedRevision;
+}
+
 function conversationScore(conversation = {}) {
   const messages = conversation.messages || [];
   const contentSize = messages.reduce((total, message) => total + (message.parts || []).reduce(

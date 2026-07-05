@@ -10,7 +10,13 @@ import {
 } from './sync-vault.js';
 import { createCloudAssetTransport } from './cloud-assets.js';
 import { repairGeneratedImageStorageKeys } from './generated-image-key-repair.js';
-import { cloudValuesEqual, mergeWorkspaceAppData, settleCloudUpload, shouldApplyCloudRemote } from './cloud-sync-versioning.js';
+import {
+  canCommitHydratedRemote,
+  cloudValuesEqual,
+  mergeWorkspaceAppData,
+  settleCloudUpload,
+  shouldApplyCloudRemote
+} from './cloud-sync-versioning.js';
 
 const TABLE = 'user_workspaces';
 const SYNC_DEBOUNCE_MS = 750;
@@ -131,8 +137,10 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
 
   async function applyRemote(kind) {
     const definition = KINDS[kind];
-    const value = remote?.[definition.column];
-    if (value == null && !remote?.[definition.timestamp]) return false;
+    const remoteSnapshot = remote;
+    const startedRevision = meta[kind]?.localRevision;
+    const value = remoteSnapshot?.[definition.column];
+    if (value == null && !remoteSnapshot?.[definition.timestamp]) return false;
     let hydrated = value;
     if (kind === 'appData' || kind === 'config') hydrated = await assets.hydrate(value);
     if (kind === 'sensitive') {
@@ -142,7 +150,17 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
         hydrated = await decryptSyncVaultPayload(value, key);
       }
     }
-    const timestamp = remote[definition.timestamp] || remote.updated_at;
+    if (!canCommitHydratedRemote({
+      startedRevision,
+      currentState: meta[kind],
+      activeUpload: activeUploads.has(kind),
+      remoteUnchanged: remote === remoteSnapshot
+    })) {
+      realtimeDeferred = true;
+      console.info('AstraChat discarded a stale hydrated workspace snapshot.', { kind });
+      return false;
+    }
+    const timestamp = remoteSnapshot[definition.timestamp] || remoteSnapshot.updated_at;
     if (hydrated == null) await storage.removeItem(keys[kind]);
     else await storage.setItem(keys[kind], JSON.stringify(hydrated));
     await setMeta(kind, { remoteUpdatedAt: timestamp, dirty: false });

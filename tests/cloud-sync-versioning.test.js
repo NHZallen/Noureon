@@ -2,12 +2,29 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  canCommitHydratedRemote,
   cloudValuesEqual,
   mergeRemoteWorkspaceAppData,
   mergeWorkspaceAppData,
   settleCloudUpload,
   shouldApplyCloudRemote
 } from '../src/app/sync/cloud-sync-versioning.js';
+
+test('hydrated remote snapshot cannot commit after a newer local revision starts', () => {
+  assert.equal(canCommitHydratedRemote({
+    startedRevision: 'revision-1',
+    currentState: { localRevision: 'revision-2', dirty: true }
+  }), false);
+  assert.equal(canCommitHydratedRemote({
+    startedRevision: 'revision-1',
+    currentState: { localRevision: 'revision-1', dirty: false }
+  }), true);
+  assert.equal(canCommitHydratedRemote({
+    startedRevision: 'revision-1',
+    currentState: { localRevision: 'revision-1', dirty: false },
+    activeUpload: true
+  }), false);
+});
 
 test('an older in-flight upload cannot clear a newer local dirty revision', () => {
   const settled = settleCloudUpload({
