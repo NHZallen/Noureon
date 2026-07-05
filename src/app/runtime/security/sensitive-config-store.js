@@ -122,7 +122,7 @@ export function createSensitiveConfigPersistence({
     const key = getSensitiveConfigKey();
     if (!key) return;
     await setItem(key, JSON.stringify({ apiKeys: getApiKeys() }));
-    await onSaved();
+    onSaved();
   }
 
   async function clearSensitiveConfig() {

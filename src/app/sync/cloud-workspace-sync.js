@@ -10,9 +10,11 @@ import {
 } from './sync-vault.js';
 import { createCloudAssetTransport } from './cloud-assets.js';
 import { repairGeneratedImageStorageKeys } from './generated-image-key-repair.js';
+import { cloudValuesEqual, mergeWorkspaceAppData, settleCloudUpload, shouldApplyCloudRemote } from './cloud-sync-versioning.js';
 
 const TABLE = 'user_workspaces';
 const SYNC_DEBOUNCE_MS = 750;
+const SYNC_META_VERSION = 2;
 
 const KINDS = Object.freeze({
   appData: { column: 'app_data', timestamp: 'app_data_updated_at' },
@@ -50,17 +52,20 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   const metaKey = `chatCloudSyncMeta_v1_${username}`;
   const assets = createCloudAssetTransport({ supabase, storage, userId: user.id });
   let meta = parseJson(await storage.getItem(metaKey)) || {};
+  const upgradingMeta = meta.version !== SYNC_META_VERSION;
   let remote = null;
   let timer = null;
   let syncing = false;
   let realtimeWork = Promise.resolve();
+  let realtimeDeferred = false;
   const pending = new Set();
+  const activeUploads = new Map();
 
   const savedAppData = parseJson(await storage.getItem(keys.appData));
   if (savedAppData && await repairGeneratedImageStorageKeys({ value: savedAppData, storage, username })) {
     const repairedAt = new Date().toISOString();
     await storage.setItem(keys.appData, JSON.stringify(savedAppData));
-    meta.appData = { ...(meta.appData || {}), localUpdatedAt: repairedAt, dirty: true };
+    meta.appData = { ...(meta.appData || {}), localRevision: repairedAt, dirty: true };
     await storage.setItem(metaKey, JSON.stringify(meta));
     pending.add('appData');
   }
@@ -93,37 +98,54 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   }
 
   async function uploadKind(kind) {
+    if (activeUploads.has(kind)) return { complete: false };
     const definition = KINDS[kind];
-    const value = await prepareUpload(kind);
-    if (value === undefined) return false;
-    const updatedAt = meta[kind]?.localUpdatedAt || new Date().toISOString();
-    const payload = {
-      user_id: user.id,
-      [definition.column]: value,
-      [definition.timestamp]: updatedAt,
-      updated_at: new Date().toISOString()
-    };
-    const { data, error } = await supabase.from(TABLE).upsert(payload, { onConflict: 'user_id' }).select().single();
-    if (error) throw error;
-    remote = data;
-    await setMeta(kind, { localUpdatedAt: updatedAt, remoteUpdatedAt: updatedAt, dirty: false });
-    return updatedAt;
+    let localRevision = meta[kind]?.localRevision;
+    if (!localRevision) {
+      localRevision = crypto.randomUUID();
+      await setMeta(kind, { localRevision, dirty: true });
+    }
+    activeUploads.set(kind, localRevision);
+    try {
+      const value = await prepareUpload(kind);
+      if (value === undefined) return { complete: false };
+      const clientTimestamp = new Date().toISOString();
+      const payload = {
+        user_id: user.id,
+        [definition.column]: value,
+        [definition.timestamp]: clientTimestamp,
+        updated_at: clientTimestamp
+      };
+      const { data, error } = await supabase.from(TABLE).upsert(payload, { onConflict: 'user_id' }).select().single();
+      if (error) throw error;
+      remote = data;
+      const remoteUpdatedAt = data[definition.timestamp] || data.updated_at || clientTimestamp;
+      const settled = settleCloudUpload(meta[kind], localRevision, remoteUpdatedAt);
+      meta[kind] = settled.state;
+      await saveMeta();
+      return { complete: settled.complete, localRevision };
+    } finally {
+      activeUploads.delete(kind);
+    }
   }
 
   async function applyRemote(kind) {
     const definition = KINDS[kind];
     const value = remote?.[definition.column];
-    if (value == null) return false;
+    if (value == null && !remote?.[definition.timestamp]) return false;
     let hydrated = value;
     if (kind === 'appData' || kind === 'config') hydrated = await assets.hydrate(value);
     if (kind === 'sensitive') {
       const key = getUnlockedSyncVaultKey(username);
-      if (!key) return false;
-      hydrated = await decryptSyncVaultPayload(value, key);
+      if (value != null) {
+        if (!key) return false;
+        hydrated = await decryptSyncVaultPayload(value, key);
+      }
     }
-    await storage.setItem(keys[kind], JSON.stringify(hydrated));
     const timestamp = remote[definition.timestamp] || remote.updated_at;
-    await setMeta(kind, { localUpdatedAt: timestamp, remoteUpdatedAt: timestamp, dirty: false });
+    if (hydrated == null) await storage.removeItem(keys[kind]);
+    else await storage.setItem(keys[kind], JSON.stringify(hydrated));
+    await setMeta(kind, { remoteUpdatedAt: timestamp, dirty: false });
     if (kind === 'appData') window.dispatchEvent(new window.CustomEvent('astra:cloud-app-data', { detail: hydrated }));
     if (kind === 'config') window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: hydrated }));
     if (kind === 'sensitive') window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: hydrated }));
@@ -138,18 +160,55 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     const definition = KINDS[kind];
     const local = await readLocal(kind);
     const remoteValue = remote?.[definition.column];
-    const localTimestamp = Date.parse(meta[kind]?.localUpdatedAt || 0);
-    const remoteTimestamp = Date.parse(remote?.[definition.timestamp] || remote?.updated_at || 0);
+    const remoteUpdatedAt = remote?.[definition.timestamp] || remote?.updated_at;
 
-    if (meta[kind]?.dirty && localTimestamp === remoteTimestamp) {
-      pending.delete(kind);
-      await setMeta(kind, { remoteUpdatedAt: remote?.[definition.timestamp], dirty: false });
+    if (activeUploads.has(kind) || meta[kind]?.dirty) return false;
+    if (remoteValue == null) {
+      if (remote?.[definition.timestamp] && shouldApplyCloudRemote(meta[kind], remoteUpdatedAt)) return applyRemote(kind);
+      if (local != null) return uploadKind(kind);
       return false;
     }
-    if (meta[kind]?.dirty && localTimestamp > remoteTimestamp) return uploadKind(kind);
-    if (remoteValue != null && remoteTimestamp > localTimestamp) return applyRemote(kind);
-    if (local != null && remoteValue == null) return uploadKind(kind);
+    if (shouldApplyCloudRemote(meta[kind], remoteUpdatedAt)) return applyRemote(kind);
     return false;
+  }
+
+  async function reconcileRemoteKinds() {
+    for (const kind of ['vault', 'appData', 'config', 'sensitive']) {
+      try {
+        await reconcileKind(kind);
+      } catch (error) {
+        console.warn(`AstraChat realtime ${kind} sync failed:`, error);
+      }
+    }
+  }
+
+  async function upgradeSyncMetadata() {
+    if (!upgradingMeta) return;
+    for (const state of Object.values(meta)) {
+      if (state && typeof state === 'object') delete state.remoteUpdatedAt;
+    }
+    const localAppData = await readLocal('appData');
+    const remoteAppData = remote?.app_data ? await assets.hydrate(remote.app_data) : null;
+    if (localAppData || remoteAppData) {
+      const merged = mergeWorkspaceAppData(localAppData || {}, remoteAppData || {});
+      await storage.setItem(keys.appData, JSON.stringify(merged));
+      if (!cloudValuesEqual(merged, remoteAppData || {})) {
+        meta.appData = {
+          ...(meta.appData || {}),
+          localRevision: crypto.randomUUID(),
+          dirty: true
+        };
+        pending.add('appData');
+      } else {
+        meta.appData = {
+          ...(meta.appData || {}),
+          remoteUpdatedAt: remote?.app_data_updated_at || remote?.updated_at,
+          dirty: false
+        };
+      }
+    }
+    meta.version = SYNC_META_VERSION;
+    await saveMeta();
   }
 
   async function flush() {
@@ -158,13 +217,20 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     try {
       const kinds = [...pending];
       for (const kind of kinds) {
-        const syncedTimestamp = await uploadKind(kind);
-        if (syncedTimestamp && meta[kind]?.localUpdatedAt === syncedTimestamp) pending.delete(kind);
+        const result = await uploadKind(kind);
+        if (result.complete && meta[kind]?.localRevision === result.localRevision) pending.delete(kind);
       }
     } catch (error) {
       console.warn('AstraChat cloud sync is waiting to retry:', error);
     } finally {
       syncing = false;
+      if (realtimeDeferred) {
+        realtimeDeferred = false;
+        realtimeWork = realtimeWork.then(async () => {
+          await fetchRemote();
+          await reconcileRemoteKinds();
+        });
+      }
       if (pending.size) {
         clearTimeout(timer);
         timer = setTimeout(flush, SYNC_DEBOUNCE_MS);
@@ -174,11 +240,15 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
 
   async function queueLocalChange(kind) {
     if (!KINDS[kind]) return;
-    const timestamp = new Date().toISOString();
-    pending.add(kind);
-    await setMeta(kind, { localUpdatedAt: timestamp, dirty: true });
-    clearTimeout(timer);
-    timer = setTimeout(flush, SYNC_DEBOUNCE_MS);
+    try {
+      const localRevision = crypto.randomUUID();
+      pending.add(kind);
+      await setMeta(kind, { localRevision, dirty: true });
+      clearTimeout(timer);
+      timer = setTimeout(flush, SYNC_DEBOUNCE_MS);
+    } catch (error) {
+      console.warn(`AstraChat could not queue ${kind} for cloud sync:`, error);
+    }
   }
 
   const api = { enabled: true, queueLocalChange, flush, refresh: async () => {
@@ -217,19 +287,18 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     }, payload => {
       realtimeWork = realtimeWork.then(async () => {
         remote = payload.new;
-        for (const kind of ['vault', 'appData', 'config', 'sensitive']) {
-          try {
-            await reconcileKind(kind);
-          } catch (error) {
-            console.warn(`AstraChat realtime ${kind} sync failed:`, error);
-          }
+        if (activeUploads.size) {
+          realtimeDeferred = true;
+          return;
         }
+        await reconcileRemoteKinds();
       });
     })
     .subscribe();
 
   try {
     await fetchRemote();
+    await upgradeSyncMetadata();
     for (const kind of ['vault', 'appData', 'config']) await reconcileKind(kind);
     for (const [kind, state] of Object.entries(meta)) if (state?.dirty) pending.add(kind);
     if (pending.size) timer = setTimeout(flush, 0);

@@ -56,6 +56,11 @@ export function createCloudAssetTransport({
 } = {}) {
   const uploadedPaths = new Set();
   const downloadedBlobs = new Map();
+  const dataUrlMarkers = new Map();
+  const base64Markers = new Map();
+  const generatedImageMarkers = new Map();
+  const hydratedValues = new Map();
+  const restoredGeneratedImages = new Set();
   const storageBucket = supabase.storage.from(bucket);
 
   async function uploadBlob(blob, encoding) {
@@ -86,8 +91,12 @@ export function createCloudAssetTransport({
 
   async function externalize(value) {
     if (typeof value === 'string' && value.startsWith('data:')) {
+      if (dataUrlMarkers.has(value)) return dataUrlMarkers.get(value);
       const blob = dataUrlToBlob(value);
-      return blob ? uploadBlob(blob, 'data-url') : value;
+      if (!blob) return value;
+      const assetMarker = await uploadBlob(blob, 'data-url');
+      dataUrlMarkers.set(value, assetMarker);
+      return assetMarker;
     }
     if (!value || typeof value !== 'object' || value instanceof Blob) return value;
     if (getMarker(value)) return value;
@@ -96,8 +105,16 @@ export function createCloudAssetTransport({
     const output = {};
     for (const [key, child] of Object.entries(value)) {
       if (key === 'data' && typeof child === 'string' && typeof value.mimeType === 'string') {
-        const blob = new Blob([base64ToBytes(child)], { type: value.mimeType || 'application/octet-stream' });
-        output[key] = await uploadBlob(blob, 'base64');
+        let markersForMime = base64Markers.get(value.mimeType);
+        if (!markersForMime) {
+          markersForMime = new Map();
+          base64Markers.set(value.mimeType, markersForMime);
+        }
+        if (!markersForMime.has(child)) {
+          const blob = new Blob([base64ToBytes(child)], { type: value.mimeType || 'application/octet-stream' });
+          markersForMime.set(child, await uploadBlob(blob, 'base64'));
+        }
+        output[key] = markersForMime.get(child);
       } else {
         output[key] = await externalize(child);
       }
@@ -112,10 +129,15 @@ export function createCloudAssetTransport({
         if (isBlobLike(blob)) storageKey = expectedKey;
       }
       if (isBlobLike(blob)) {
+        let assetMarker = generatedImageMarkers.get(storageKey);
+        if (!assetMarker) {
+          assetMarker = await uploadBlob(blob, 'blob');
+          generatedImageMarkers.set(storageKey, assetMarker);
+        }
         output.generatedImage = {
           ...output.generatedImage,
           storageKey,
-          cloudAsset: await uploadBlob(blob, 'blob')
+          cloudAsset: assetMarker
         };
       }
     }
@@ -127,7 +149,9 @@ export function createCloudAssetTransport({
     if (assetMarker) {
       const blob = await downloadMarker(assetMarker);
       if (assetMarker.encoding === 'blob') return blob;
-      return blobToEncodedValue(blob, assetMarker.encoding);
+      const cacheKey = `${assetMarker.path}:${assetMarker.encoding}`;
+      if (!hydratedValues.has(cacheKey)) hydratedValues.set(cacheKey, blobToEncodedValue(blob, assetMarker.encoding));
+      return hydratedValues.get(cacheKey);
     }
     if (!value || typeof value !== 'object' || value instanceof Blob) return value;
     if (Array.isArray(value)) return Promise.all(value.map(hydrate));
@@ -136,8 +160,13 @@ export function createCloudAssetTransport({
     for (const [key, child] of Object.entries(value)) {
       if (key === 'generatedImage' && child?.cloudAsset && child?.storageKey) {
         const generatedImage = { ...child };
-        const blob = await downloadMarker(getMarker(child.cloudAsset));
-        await storage.setItem(child.storageKey, blob);
+        const generatedMarker = getMarker(child.cloudAsset);
+        const restoreKey = `${generatedMarker.path}:${child.storageKey}`;
+        if (!restoredGeneratedImages.has(restoreKey)) {
+          const blob = await downloadMarker(generatedMarker);
+          await storage.setItem(child.storageKey, blob);
+          restoredGeneratedImages.add(restoreKey);
+        }
         delete generatedImage.cloudAsset;
         output[key] = await hydrate(generatedImage);
       } else {

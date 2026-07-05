@@ -9,7 +9,7 @@ export function createLegacyRuntimeAppDataPersistence({
     const currentUser = getCurrentUser();
     if (currentUser) {
       await setItem(getAppDataKey(), JSON.stringify(getAppData()));
-      await onSaved();
+      onSaved();
     }
   }
 
