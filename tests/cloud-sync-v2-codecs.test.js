@@ -5,7 +5,8 @@ import test from 'node:test';
 import {
   deterministicUuid,
   encodeWorkspaceConversationShadow,
-  isUuid
+  isUuid,
+  shadowRowsEqual
 } from '../src/app/sync/cloud-sync-v2-codecs.js';
 
 const userId = '11111111-1111-4111-8111-111111111111';
@@ -66,4 +67,11 @@ test('shadow codec skips empty drafts and invalid legacy conversation IDs withou
   assert.deepEqual(encoded.messages, []);
   assert.deepEqual(encoded.skippedConversationIds, ['invalid']);
   assert.deepEqual(workspace, original);
+});
+
+test('shadow row comparison treats equivalent timestamptz formats as equal', () => {
+  assert.equal(shadowRowsEqual(
+    { id: conversationId, created_at: '2026-07-06T01:00:00.000Z', deleted_at: null },
+    { id: conversationId, created_at: '2026-07-06T01:00:00+00:00', deleted_at: null }
+  ), true);
 });

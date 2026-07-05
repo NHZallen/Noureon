@@ -13,6 +13,19 @@ function canonicalize(value) {
   return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize(value[key])]));
 }
 
+function canonicalizeTimestamp(value) {
+  const parsed = Date.parse(value || '');
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : value;
+}
+
+function canonicalizeShadowRow(value) {
+  const row = canonicalize(value || {});
+  for (const key of ['created_at', 'updated_at', 'deleted_at']) {
+    if (row[key]) row[key] = canonicalizeTimestamp(row[key]);
+  }
+  return row;
+}
+
 function sanitizePartForShadow(part = {}) {
   const output = { ...part };
   if (part.inlineData) {
@@ -136,5 +149,5 @@ export async function encodeWorkspaceConversationShadow({
 }
 
 export function shadowRowsEqual(left, right) {
-  return JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
+  return JSON.stringify(canonicalizeShadowRow(left)) === JSON.stringify(canonicalizeShadowRow(right));
 }

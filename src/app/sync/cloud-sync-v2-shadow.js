@@ -138,6 +138,12 @@ export function createConversationShadowSync({
         count: encoded.skippedConversationIds.length
       });
     }
+    setStatus({
+      state: 'uploading',
+      conversations: encoded.conversations.length,
+      messages: encoded.messages.length,
+      skipped: encoded.skippedConversationIds.length
+    });
     await repository.setMigrationState('shadow', backupMarker);
     backupMarker = null;
     if (encoded.conversations.length) await repository.upsertConversations(encoded.conversations);
