@@ -173,14 +173,11 @@ test('legacy core keeps startup wiring while the helper owns demo rendering with
   assert.equal(existsSync(projectFile(demoModulePath)), true);
   assert.equal(typeof setupDemoModelHomepage, 'function');
   assert.match(legacyCoreSource, /document\.addEventListener\('DOMContentLoaded',\s*\(\)\s*=>\s*\{/);
-  assert.match(
-    legacyCoreSource,
-    /import\s+\{\s*setupDemoModelHomepage\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/demo-model-homepage\.js['"]/
-  );
+  assert.doesNotMatch(legacyCoreSource, /import\s+\{\s*setupDemoModelHomepage\s*\}\s+from/);
   assert.match(demoSetupBody, /getElementById\('auth-container'\)\.classList\.add\('visible'\)/);
   assert.match(
     demoSetupBody,
-    /setupDemoModelHomepage\(\{\s*document,\s*demoConversations\s*\}\)/
+    /import\(['"]\/src\/app\/runtime\/features\/demo-model-homepage\.js['"]\)\.then\(\(\{\s*setupDemoModelHomepage\s*\}\)\s*=>\s*setupDemoModelHomepage\(\{\s*document,\s*demoConversations\s*\}\)\)/
   );
   assert.doesNotMatch(demoSetupBody, /const\s+demoModels\s*=|\.demo-model-selector|contentDiv/);
   assert.match(demoModuleSource, /export\s+function\s+setupDemoModelHomepage\s*\(/);

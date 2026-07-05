@@ -138,6 +138,7 @@ function createLifecycleHarness(overrides = {}) {
   let cropperInstance = { destroy: () => { cropperDestroyed = true; calls.push('cropper:destroy'); } };
   let editingAstraForAvatarId = 'astra-1';
   let abortController = null;
+  let currentConversationId = overrides.currentConversationId ?? 'conv-1';
 
   const dependencies = {
     window: dom.window,
@@ -163,6 +164,12 @@ function createLifecycleHarness(overrides = {}) {
     getFolders: () => folders,
     getAstras: () => astras,
     getPersonalMemories: () => personalMemories,
+    getCurrentConversationId: () => currentConversationId,
+    setCurrentConversationId: (nextId) => {
+      currentConversationId = nextId;
+      calls.push(`setCurrentConversationId:${nextId}`);
+      return currentConversationId;
+    },
     setSidebarOpen: (next) => {
       sidebarOpen = next;
       calls.push(`setSidebarOpen:${next}`);

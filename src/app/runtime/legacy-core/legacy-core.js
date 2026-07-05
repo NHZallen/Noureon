@@ -28,14 +28,7 @@ import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/
 import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
-import {
-    createTrustedHtmlSanitizer,
-    escapeHTML,
-    getErrorMessage,
-    hexToRgba,
-    readErrorBody,
-    renderUserText
-} from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
+import { createTrustedHtmlSanitizer, escapeHTML, getErrorMessage, hexToRgba, readErrorBody, renderUserText } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
 import { createHistorySidebarHelpers } from '/src/app/runtime/legacy-core/history-sidebar-helpers.js';
 import { createMarkdownRenderingHelpers } from '/src/app/runtime/legacy-core/markdown-rendering-helpers.js';
 import { observeMessageCharts } from '/src/app/ui/charts/chart-renderer.js';
@@ -43,23 +36,15 @@ import { createActiveConversationStore } from '/src/app/runtime/kernel/active-co
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
 import { createLegacyRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
 import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
-import { setupDemoModelHomepage } from '/src/app/runtime/features/demo-model-homepage.js';
 import { createDialogNotificationLifecycle } from '/src/app/runtime/features/dialog-notification-lifecycle.js';
 import { arrangeInputMediaPreview } from '/src/app/runtime/features/input-media-placement.js';
 import { createCloudWorkspaceLiveLifecycle } from '/src/app/runtime/features/cloud-workspace-live-lifecycle.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
-import {
-    normalizeApiKeyValue,
-    normalizeLoadedLegacyConfig
-} from '/src/app/runtime/kernel/config-normalization.js';
+import { normalizeApiKeyValue, normalizeLoadedLegacyConfig } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
-import { createFolderUiStatePersistence } from '/src/app/runtime/kernel/folder-ui-state.js';
-import {
-    createSensitiveConfigPersistence,
-    createSensitiveConfigStore
-} from '/src/app/runtime/security/sensitive-config-store.js';
+import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/src/app/runtime/security/sensitive-config-store.js';
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
 import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
 
@@ -117,9 +102,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     }
 }
     document.addEventListener('DOMContentLoaded', () => {
-        // Show the auth shell before the app finishes runtime startup.
         document.getElementById('auth-container').classList.add('visible');
-        setupDemoModelHomepage({ document, demoConversations });
+        import('/src/app/runtime/features/demo-model-homepage.js').then(({ setupDemoModelHomepage }) => setupDemoModelHomepage({ document, demoConversations }));
     });
         const ALL_ELEMENTS = createLegacyRuntimeDomRegistry();
         const runtimeDomAccess = createRuntimeDomAccess({
@@ -132,42 +116,10 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             settingsButton: runtimeDomAccess.getOptionalElement('settingsBtn')
         });
         import { compareVersions } from '/src/app/legacy-runtime/features/version-compare.js';
-        const FOLDER_COLORS = {
-            black: '#000000',gray: '#808080', red: '#f87171', yellow: '#facc15', green: '#4ade80',
-            blue: '#60a5fa', indigo: '#818cf8', purple: '#a78bfa', pink: '#f472b6',
-        };
-        const AI_BUBBLE_COLORS = {
-            default: {light: '#f7f7f8'},
-            gray: {light: '#f3f4f6'},
-            blue: {light: '#eef6ff'},
-            green: {light: '#eef8f1'},
-            yellow: {light: '#fff9db'},
-            orange: {light: '#fff3e8'},
-            red: {light: '#fff1f2'},
-            purple: {light: '#f6f0ff'},
-            pink: {light: '#fff0f6'},
-            teal: {light: '#ecfdf7'},
-        };
-        const USER_BUBBLE_COLORS = {
-            default: {light: '#e8f3ff'},
-            gray: {light: '#eef0f3'},
-            blue: {light: '#e8f3ff'},
-            green: {light: '#eaf7ef'},
-            yellow: {light: '#fff7d6'},
-            orange: {light: '#fff0e3'},
-            red: {light: '#ffedf0'},
-            purple: {light: '#f2ecff'},
-            pink: {light: '#ffedf5'},
-            teal: {light: '#e7f8f5'},
-        };
-        const UI_THEME_COLORS = {
-            Red: '#ef4444', Orange: '#f97316', Amber: '#f59e0b',
-            Yellow: '#eab308', Lime: '#84cc16', Green: '#22c55e',
-            Emerald: '#10b981', Teal: '#14b8a6', Cyan: '#06b6d4',
-            Sky: '#0ea5e9', Blue: '#3b82f6', Indigo: '#6366f1',
-            Violet: '#8b5cf6', Purple: '#a855f7', Fuchsia: '#d946ef',
-            Pink: '#ec4899', Rose: '#f43f5e', Slate: '#64748b'
-        };
+        const FOLDER_COLORS = { black: '#000000',gray: '#808080', red: '#f87171', yellow: '#facc15', green: '#4ade80', blue: '#60a5fa', indigo: '#818cf8', purple: '#a78bfa', pink: '#f472b6' };
+        const AI_BUBBLE_COLORS = { default: {light: '#f7f7f8'}, gray: {light: '#f3f4f6'}, blue: {light: '#eef6ff'}, green: {light: '#eef8f1'}, yellow: {light: '#fff9db'}, orange: {light: '#fff3e8'}, red: {light: '#fff1f2'}, purple: {light: '#f6f0ff'}, pink: {light: '#fff0f6'}, teal: {light: '#ecfdf7'} };
+        const USER_BUBBLE_COLORS = { default: {light: '#e8f3ff'}, gray: {light: '#eef0f3'}, blue: {light: '#e8f3ff'}, green: {light: '#eaf7ef'}, yellow: {light: '#fff7d6'}, orange: {light: '#fff0e3'}, red: {light: '#ffedf0'}, purple: {light: '#f2ecff'}, pink: {light: '#ffedf5'}, teal: {light: '#e7f8f5'} };
+        const UI_THEME_COLORS = { Red: '#ef4444', Orange: '#f97316', Amber: '#f59e0b', Yellow: '#eab308', Lime: '#84cc16', Green: '#22c55e', Emerald: '#10b981', Teal: '#14b8a6', Cyan: '#06b6d4', Sky: '#0ea5e9', Blue: '#3b82f6', Indigo: '#6366f1', Violet: '#8b5cf6', Purple: '#a855f7', Fuchsia: '#d946ef', Pink: '#ec4899', Rose: '#f43f5e', Slate: '#64748b' };
         const runtimeAppKernel = createRuntimeAppKernel({
             elements: ALL_ELEMENTS,
             defaultModelId: MODELS[0].id
@@ -442,12 +394,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             version: 1
         });
         const { getItem, setItem, removeItem } = runtimeStorageAdapter;
-        const folderUiStatePersistence = createFolderUiStatePersistence({
-            getUsername: () => currentUser?.username || null,
-            getItem,
-            setItem
-        });
-        const saveFolderUiState = (folders) => folderUiStatePersistence.save(folders);
+        let folderUiStatePersistencePromise;
+        const getFolderUiStatePersistence = () => folderUiStatePersistencePromise ||= import('/src/app/runtime/kernel/folder-ui-state.js').then(({ createFolderUiStatePersistence }) => createFolderUiStatePersistence({ getUsername: () => currentUser?.username || null, getItem, setItem }));
+        const saveFolderUiState = async (folders) => (await getFolderUiStatePersistence()).save(folders);
         let generatedImageRuntimePromise;
         const getGeneratedImageRuntime = () => {
             if (!generatedImageRuntimePromise) {
@@ -759,7 +708,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                     personalMemories: []
                 });
             }
-            await folderUiStatePersistence.restore(runtimeAppDataStore.getFolders());
+            await (await getFolderUiStatePersistence()).restore(runtimeAppDataStore.getFolders());
         };
         const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
         const getDefaultFolder = () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false});
@@ -1448,8 +1397,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     isSelectionMode = !isSelectionMode;
     selectedConversationIds.clear();
 
-    // Selection mode state is rendered by renderAll().
-    // Update the tooltip for the selection mode toggle.
     if (isSelectionMode) {
         ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].cancelBatchSelect || 'Cancel batch select';
     } else {
@@ -1543,8 +1490,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             runtimeAppDataStore,
             runtimeDialogCoordinator,
             i18n,
-            getCurrentConversationId: () => conversationStateAccess.getCurrentConversationId(),
-            setCurrentConversationId: (id) => conversationStateAccess.setCurrentConversationId(id),
             officialAstras: OFFICIAL_ASTRAS,
             updateLogs,
             uiThemeColors: UI_THEME_COLORS,
