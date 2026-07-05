@@ -6,13 +6,17 @@ import {
   changeSyncVaultPassword,
   createAndUnlockSyncVault,
   createSyncVaultRecord,
+  decryptSyncVaultPayload,
+  encryptSyncVaultPayload,
   getSyncVaultStorageKey,
+  getUnlockedSyncVaultKey,
   isSyncVaultUnlocked,
   lockSyncVault,
   migrateSyncVaultRecord,
   readSyncVaultRecord,
   removeSyncVault,
   syncVaultPolicy,
+  takePreviousSyncVaultKey,
   unlockSyncVault,
   unlockSyncVaultRecord
 } from '../src/app/sync/sync-vault.js';
@@ -93,4 +97,47 @@ test('sync vault enforces a meaningful minimum password length', async () => {
     () => createSyncVaultRecord('short', { cryptoProvider: webcrypto }),
     new RegExp(`at least ${syncVaultPolicy.minimumPasswordLength}`)
   );
+});
+
+test('sync vault encrypts and decrypts private cloud payloads without exposing plaintext', async () => {
+  const { key } = await createSyncVaultRecord('payload encryption password', { cryptoProvider: webcrypto });
+  const payload = { apiKeys: { gemini: 'secret-api-key' } };
+  const encrypted = await encryptSyncVaultPayload(payload, key, { cryptoProvider: webcrypto });
+
+  assert.equal(encrypted.algorithm, 'AES-GCM');
+  assert.equal(JSON.stringify(encrypted).includes('secret-api-key'), false);
+  assert.deepEqual(
+    await decryptSyncVaultPayload(encrypted, key, { cryptoProvider: webcrypto }),
+    payload
+  );
+});
+
+test('changing the sync password exposes the previous key exactly once for cloud re-encryption', async () => {
+  const storage = createStorage();
+  const username = 'supabase:rotation-user';
+  await createAndUnlockSyncVault({
+    storage,
+    username,
+    password: 'old encryption password',
+    cryptoProvider: webcrypto
+  });
+  const encrypted = await encryptSyncVaultPayload(
+    { apiKeys: { tavily: 'preserved-secret' } },
+    getUnlockedSyncVaultKey(username),
+    { cryptoProvider: webcrypto }
+  );
+  await changeSyncVaultPassword({
+    storage,
+    username,
+    currentPassword: 'old encryption password',
+    nextPassword: 'new encryption password',
+    cryptoProvider: webcrypto
+  });
+
+  const previousKey = takePreviousSyncVaultKey(username);
+  assert.deepEqual(
+    await decryptSyncVaultPayload(encrypted, previousKey, { cryptoProvider: webcrypto }),
+    { apiKeys: { tavily: 'preserved-secret' } }
+  );
+  assert.equal(takePreviousSyncVaultKey(username), null);
 });

@@ -16,6 +16,7 @@ import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
 import { mountAppShell } from './app/bootstrap/mount-shell.js';
 import appShell from './templates/app-shell.js';
 import { initializeSupabaseAuthBridge } from './app/auth/supabase-auth-bridge.js';
+import { initializeCloudWorkspaceSync } from './app/sync/cloud-workspace-sync.js';
 
 async function bootstrap() {
   installVendorBridge({
@@ -30,7 +31,8 @@ async function bootstrap() {
     Html5Qrcode
   });
   mountAppShell(appShell);
-  await initializeSupabaseAuthBridge({ window, document });
+  const auth = await initializeSupabaseAuthBridge({ window, document });
+  await initializeCloudWorkspaceSync({ window, session: auth.session });
 
   await import('./data/i18n.js');
   await import('./data/demo-conversations.js');

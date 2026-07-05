@@ -508,13 +508,18 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             setItem,
             removeItem,
             getApiKeys: () => sensitiveConfigStore.getApiKeys(),
-            replaceApiKeys: (apiKeys) => sensitiveConfigStore.replaceApiKeys(apiKeys)
+            replaceApiKeys: (apiKeys) => sensitiveConfigStore.replaceApiKeys(apiKeys),
+            onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('sensitive')
         });
         const getSensitiveApiKeys = () => sensitiveConfigStore.getApiKeys();
         const setApiKeyForProvider = (provider, value) => sensitiveConfigStore.setApiKey(provider, value);
         const mergeSensitiveApiKeys = (apiKeys) => sensitiveConfigStore.mergeApiKeys(apiKeys);
         const clearSensitiveApiKeys = () => sensitiveConfigStore.clearApiKeys();
         const saveSensitiveConfig = async () => { await runtimeSensitiveConfigPersistence.saveSensitiveConfig(); };
+        window.addEventListener('astra:cloud-sensitive-config', (event) => {
+            const apiKeys = event.detail?.apiKeys || event.detail;
+            if (apiKeys && typeof apiKeys === 'object') mergeSensitiveApiKeys(apiKeys);
+        });
         function getApiKeyForProvider(provider) {
             return sensitiveConfigStore.getApiKey(provider);
         }
@@ -615,13 +620,15 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getCurrentUser: () => currentUser,
             getAppData: () => runtimeAppDataStore.getSnapshot(),
             getAppDataKey,
-            setItem
+            setItem,
+            onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('appData')
         });
         const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
             getCurrentUser: () => currentUser,
             getConfig: () => runtimeConfigStore.getConfig(),
             getConfigKey,
-            setItem
+            setItem,
+            onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('config')
         });
         const {
             showNotification,

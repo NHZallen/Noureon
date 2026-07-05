@@ -4,12 +4,14 @@ export function createLegacyRuntimeConfigPersistence({
   getCurrentUser,
   getConfig,
   getConfigKey,
-  setItem
+  setItem,
+  onSaved = () => {}
 } = {}) {
   async function saveConfig() {
     const currentUser = getCurrentUser();
     if (currentUser) {
       await setItem(getConfigKey(), JSON.stringify(removeSensitiveConfig(getConfig())));
+      await onSaved();
     }
   }
 

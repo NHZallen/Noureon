@@ -548,6 +548,8 @@ export function createSettingsSyncVaultControls({
         return;
       }
       await removeSyncVault({ storage, username: user.username });
+      globalThis.__astraCloudWorkspaceSync?.queueLocalChange('vault');
+      globalThis.__astraCloudWorkspaceSync?.queueLocalChange('sensitive');
       showNotification(text('cloudSyncPasswordRemoved', '同步密碼已清除。'));
       await refreshSyncVaultControls();
     });

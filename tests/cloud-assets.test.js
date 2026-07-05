@@ -1,0 +1,72 @@
+import assert from 'node:assert/strict';
+import { webcrypto } from 'node:crypto';
+import test from 'node:test';
+
+import { createCloudAssetTransport } from '../src/app/sync/cloud-assets.js';
+
+function createFixture() {
+  const remoteFiles = new Map();
+  const localFiles = new Map();
+  const bucket = {
+    async upload(path, blob) {
+      if (remoteFiles.has(path)) return { error: { statusCode: '409', message: 'already exists' } };
+      remoteFiles.set(path, blob);
+      return { error: null };
+    },
+    async download(path) {
+      return remoteFiles.has(path)
+        ? { data: remoteFiles.get(path), error: null }
+        : { data: null, error: new Error('missing') };
+    }
+  };
+  return {
+    remoteFiles,
+    localFiles,
+    supabase: { storage: { from: () => bucket } },
+    storage: {
+      getItem: async key => localFiles.get(key) ?? null,
+      setItem: async (key, value) => localFiles.set(key, value)
+    }
+  };
+}
+
+test('cloud assets externalize and restore data URLs and inline attachment bytes', async () => {
+  const fixture = createFixture();
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+  const value = {
+    avatarUrl: 'data:image/png;base64,AQID',
+    part: { mimeType: 'application/pdf', data: 'BAUG' }
+  };
+
+  const cloudValue = await transport.externalize(value);
+  assert.equal(fixture.remoteFiles.size, 2);
+  assert.ok(cloudValue.avatarUrl.__astraCloudAsset);
+  assert.ok(cloudValue.part.data.__astraCloudAsset);
+  assert.deepEqual(await transport.hydrate(cloudValue), value);
+});
+
+test('cloud assets restore generated image blobs to their IndexedDB storage key', async () => {
+  const fixture = createFixture();
+  const storageKey = 'generatedImage:supabase:user-1:image-1';
+  fixture.localFiles.set(storageKey, new Blob([new Uint8Array([7, 8, 9])], { type: 'image/webp' }));
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+  const localValue = { generatedImage: { id: 'image-1', storageKey, mediaType: 'image/webp' } };
+  const cloudValue = await transport.externalize(localValue);
+
+  assert.ok(cloudValue.generatedImage.cloudAsset.__astraCloudAsset);
+  fixture.localFiles.delete(storageKey);
+  const restored = await transport.hydrate(cloudValue);
+  assert.equal('cloudAsset' in restored.generatedImage, false);
+  assert.deepEqual(
+    new Uint8Array(await fixture.localFiles.get(storageKey).arrayBuffer()),
+    new Uint8Array([7, 8, 9])
+  );
+});

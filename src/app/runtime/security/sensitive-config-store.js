@@ -97,7 +97,8 @@ export function createSensitiveConfigPersistence({
   setItem,
   removeItem,
   getApiKeys,
-  replaceApiKeys
+  replaceApiKeys,
+  onSaved = () => {}
 } = {}) {
   function getSensitiveConfigKey(user = getCurrentUser?.()) {
     return user?.username ? `chatSensitiveConfig_v1_${user.username}` : null;
@@ -121,6 +122,7 @@ export function createSensitiveConfigPersistence({
     const key = getSensitiveConfigKey();
     if (!key) return;
     await setItem(key, JSON.stringify({ apiKeys: getApiKeys() }));
+    await onSaved();
   }
 
   async function clearSensitiveConfig() {

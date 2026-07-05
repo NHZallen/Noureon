@@ -3,6 +3,7 @@ const VAULT_ITERATIONS = 310000;
 const VAULT_MIN_PASSWORD_LENGTH = 10;
 const VAULT_CHECK_TEXT = 'ASTRACHAT_SYNC_VAULT_V1';
 const unlockedVaultKeys = new Map();
+const previousVaultKeys = new Map();
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -112,6 +113,7 @@ export async function createAndUnlockSyncVault({ storage, username, password, cr
   if (!storageKey) throw new TypeError('A user is required to create a sync vault.');
   const { record, key } = await createSyncVaultRecord(password, { cryptoProvider });
   await storage.setItem(storageKey, JSON.stringify(record));
+  previousVaultKeys.delete(username);
   unlockedVaultKeys.set(username, key);
   return record;
 }
@@ -120,6 +122,7 @@ export async function unlockSyncVault({ storage, username, password, cryptoProvi
   const record = await readSyncVaultRecord(storage, username);
   if (!record) throw new Error('No sync vault password has been configured.');
   const key = await unlockSyncVaultRecord(password, record, { cryptoProvider });
+  previousVaultKeys.delete(username);
   unlockedVaultKeys.set(username, key);
   return key;
 }
@@ -131,8 +134,10 @@ export async function changeSyncVaultPassword({
   nextPassword,
   cryptoProvider
 } = {}) {
-  await unlockSyncVault({ storage, username, password: currentPassword, cryptoProvider });
-  return createAndUnlockSyncVault({ storage, username, password: nextPassword, cryptoProvider });
+  const previousKey = await unlockSyncVault({ storage, username, password: currentPassword, cryptoProvider });
+  const record = await createAndUnlockSyncVault({ storage, username, password: nextPassword, cryptoProvider });
+  previousVaultKeys.set(username, previousKey);
+  return record;
 }
 
 export async function removeSyncVault({ storage, username } = {}) {
@@ -140,6 +145,7 @@ export async function removeSyncVault({ storage, username } = {}) {
   if (!storageKey) return;
   await storage.removeItem(storageKey);
   unlockedVaultKeys.delete(username);
+  previousVaultKeys.delete(username);
 }
 
 export async function migrateSyncVaultRecord({ storage, fromUsername, toUsername } = {}) {
@@ -159,6 +165,42 @@ export async function migrateSyncVaultRecord({ storage, fromUsername, toUsername
 
 export function getUnlockedSyncVaultKey(username) {
   return unlockedVaultKeys.get(username) || null;
+}
+
+export function takePreviousSyncVaultKey(username) {
+  const key = previousVaultKeys.get(username) || null;
+  previousVaultKeys.delete(username);
+  return key;
+}
+
+export async function encryptSyncVaultPayload(payload, key, {
+  cryptoProvider = globalThis.crypto
+} = {}) {
+  if (!key) throw new TypeError('An unlocked sync vault key is required.');
+  const iv = cryptoProvider.getRandomValues(new Uint8Array(12));
+  const plaintext = encoder.encode(JSON.stringify(payload));
+  const ciphertext = await cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+  return {
+    version: VAULT_VERSION,
+    algorithm: 'AES-GCM',
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+  };
+}
+
+export async function decryptSyncVaultPayload(encryptedPayload, key, {
+  cryptoProvider = globalThis.crypto
+} = {}) {
+  if (!key) throw new TypeError('An unlocked sync vault key is required.');
+  if (!encryptedPayload || encryptedPayload.version !== VAULT_VERSION || encryptedPayload.algorithm !== 'AES-GCM') {
+    throw new TypeError('Unsupported encrypted sync payload.');
+  }
+  const plaintext = await cryptoProvider.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(encryptedPayload.iv) },
+    key,
+    base64ToBytes(encryptedPayload.ciphertext)
+  );
+  return JSON.parse(decoder.decode(plaintext));
 }
 
 export function isSyncVaultUnlocked(username) {

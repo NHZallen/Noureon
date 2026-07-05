@@ -1,0 +1,142 @@
+const ASSET_MARKER = '__astraCloudAsset';
+const DEFAULT_BUCKET = 'user-assets';
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value);
+  return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+
+function dataUrlToBlob(value) {
+  const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(value);
+  if (!match) return null;
+  const mimeType = match[1] || 'application/octet-stream';
+  const bytes = match[2]
+    ? base64ToBytes(match[3])
+    : new TextEncoder().encode(decodeURIComponent(match[3]));
+  return new Blob([bytes], { type: mimeType });
+}
+
+async function blobToEncodedValue(blob, encoding) {
+  const base64 = bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
+  return encoding === 'data-url' ? `data:${blob.type || 'application/octet-stream'};base64,${base64}` : base64;
+}
+
+async function sha256(blob, cryptoProvider) {
+  const digest = await cryptoProvider.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function marker(path, mimeType, encoding) {
+  return { [ASSET_MARKER]: { path, mimeType, encoding } };
+}
+
+function getMarker(value) {
+  return value && typeof value === 'object' && value[ASSET_MARKER] ? value[ASSET_MARKER] : null;
+}
+
+export function createCloudAssetTransport({
+  supabase,
+  storage,
+  userId,
+  bucket = DEFAULT_BUCKET,
+  cryptoProvider = globalThis.crypto
+} = {}) {
+  const uploadedPaths = new Set();
+  const downloadedBlobs = new Map();
+  const storageBucket = supabase.storage.from(bucket);
+
+  async function uploadBlob(blob, encoding) {
+    const hash = await sha256(blob, cryptoProvider);
+    const path = `${userId}/${hash}`;
+    if (!uploadedPaths.has(path)) {
+      const { error } = await storageBucket.upload(path, blob, {
+        cacheControl: '31536000',
+        contentType: blob.type || 'application/octet-stream',
+        upsert: false
+      });
+      const duplicate = error && (String(error.statusCode) === '409' || /already exists|duplicate/i.test(error.message || ''));
+      if (error && !duplicate) throw error;
+      uploadedPaths.add(path);
+    }
+    return marker(path, blob.type || 'application/octet-stream', encoding);
+  }
+
+  async function downloadMarker(assetMarker) {
+    if (!downloadedBlobs.has(assetMarker.path)) {
+      const { data, error } = await storageBucket.download(assetMarker.path);
+      if (error) throw error;
+      downloadedBlobs.set(assetMarker.path, data);
+    }
+    const source = downloadedBlobs.get(assetMarker.path);
+    return source.type ? source : new Blob([source], { type: assetMarker.mimeType || 'application/octet-stream' });
+  }
+
+  async function externalize(value) {
+    if (typeof value === 'string' && value.startsWith('data:')) {
+      const blob = dataUrlToBlob(value);
+      return blob ? uploadBlob(blob, 'data-url') : value;
+    }
+    if (!value || typeof value !== 'object' || value instanceof Blob) return value;
+    if (getMarker(value)) return value;
+    if (Array.isArray(value)) return Promise.all(value.map(externalize));
+
+    const output = {};
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'data' && typeof child === 'string' && typeof value.mimeType === 'string') {
+        const blob = new Blob([base64ToBytes(child)], { type: value.mimeType || 'application/octet-stream' });
+        output[key] = await uploadBlob(blob, 'base64');
+      } else {
+        output[key] = await externalize(child);
+      }
+    }
+
+    if (value.generatedImage?.storageKey) {
+      const blob = await storage.getItem(value.generatedImage.storageKey);
+      if (blob instanceof Blob) {
+        output.generatedImage = {
+          ...output.generatedImage,
+          cloudAsset: await uploadBlob(blob, 'blob')
+        };
+      }
+    }
+    return output;
+  }
+
+  async function hydrate(value) {
+    const assetMarker = getMarker(value);
+    if (assetMarker) {
+      const blob = await downloadMarker(assetMarker);
+      if (assetMarker.encoding === 'blob') return blob;
+      return blobToEncodedValue(blob, assetMarker.encoding);
+    }
+    if (!value || typeof value !== 'object' || value instanceof Blob) return value;
+    if (Array.isArray(value)) return Promise.all(value.map(hydrate));
+
+    const output = {};
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'generatedImage' && child?.cloudAsset && child?.storageKey) {
+        const generatedImage = { ...child };
+        const blob = await downloadMarker(getMarker(child.cloudAsset));
+        await storage.setItem(child.storageKey, blob);
+        delete generatedImage.cloudAsset;
+        output[key] = await hydrate(generatedImage);
+      } else {
+        output[key] = await hydrate(child);
+      }
+    }
+    return output;
+  }
+
+  return { externalize, hydrate };
+}
+
+export const cloudAssetPolicy = Object.freeze({ bucket: DEFAULT_BUCKET, marker: ASSET_MARKER });
