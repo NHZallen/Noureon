@@ -56,8 +56,16 @@ test('auth shell enhancement adds cloud, local, and import entry points', () => 
   assert.equal(googleLogo.getAttribute('alt'), '');
   assert.equal(googleLogo.getAttribute('aria-hidden'), 'true');
   assert.ok(window.document.getElementById('supabase-forgot-password-btn'));
-  assert.ok(window.document.getElementById('local-mode-btn'));
-  assert.equal(window.document.getElementById('import-btn-auth').disabled, false);
+  const localButton = window.document.getElementById('local-mode-btn');
+  const importButton = window.document.getElementById('import-btn-auth');
+  assert.ok(localButton);
+  assert.equal(localButton.textContent, '使用舊版本機登入 / 匯入');
+  assert.equal(localButton.classList.contains('bg-gray-800'), true);
+  assert.equal(localButton.classList.contains('text-white'), true);
+  assert.equal(localButton.classList.contains('focus:outline-none'), true);
+  assert.equal(localButton.classList.contains('focus:ring-gray-500'), false);
+  assert.equal(importButton.disabled, false);
+  assert.equal(importButton.classList.contains('hidden'), true);
   assert.ok(window.document.getElementById('supabase-recovery-form'));
 
   elements.setLocalMode();
@@ -65,11 +73,22 @@ test('auth shell enhancement adds cloud, local, and import entry points', () => 
   assert.equal(elements.emailInput.type, 'text');
   assert.equal(elements.loginButton.textContent, '登入 / 註冊本機帳號');
   assert.ok(window.document.getElementById('supabase-google-btn').classList.contains('hidden'));
+  assert.equal(importButton.classList.contains('hidden'), false);
+  assert.equal(importButton.classList.contains('bg-gray-800'), true);
+  assert.equal(importButton.classList.contains('bg-green-600'), false);
+  assert.equal(importButton.classList.contains('focus:ring-gray-500'), false);
+  assert.equal(localButton.textContent, '返回 Email / Google 登入');
+  assert.equal(localButton.classList.contains('bg-gray-800'), false);
+  assert.equal(localButton.classList.contains('hover:underline'), true);
 });
 
 test('auth bridge keeps secrets out of browser source and wires required flows', () => {
   const source = readFileSync(new URL('../src/app/auth/supabase-auth-bridge.js', import.meta.url), 'utf8');
   const clientSource = readFileSync(new URL('../src/app/auth/supabase-client.js', import.meta.url), 'utf8');
+  const shellSource = readFileSync(
+    new URL('../src/templates/fragments/00-shell.fragment.js', import.meta.url),
+    'utf8'
+  );
 
   assert.match(source, /signInWithPassword/);
   assert.match(source, /signUp/);
@@ -84,4 +103,6 @@ test('auth bridge keeps secrets out of browser source and wires required flows',
   assert.doesNotMatch(source, /service_role|sb_secret_/);
   assert.doesNotMatch(clientSource, /service_role|sb_secret_/);
   assert.match(clientSource, /VITE_SUPABASE_PUBLISHABLE_KEY/);
+  assert.doesNotMatch(shellSource, /id=\\"import-btn-auth\\"[^>]*bg-green-/);
+  assert.doesNotMatch(`${source}\n${shellSource}`, /中原標準時間|2026\/8\/1/);
 });

@@ -4,6 +4,9 @@ import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
 const CLOUD_USER_PREFIX = 'supabase:';
+const LEGACY_ENTRY_BUTTON_CLASS = 'w-full p-3 rounded-lg font-semibold text-white bg-gray-800 hover:bg-gray-900 focus:outline-none transition-colors';
+const LEGACY_IMPORT_BUTTON_CLASS = 'w-full p-3 rounded-lg font-semibold text-white bg-gray-800 hover:bg-gray-900 focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed';
+const LEGACY_RETURN_LINK_CLASS = 'w-full text-sm text-gray-600 hover:text-gray-900 hover:underline';
 
 const getCloudUsername = (user) => `${CLOUD_USER_PREFIX}${user.id}`;
 
@@ -70,7 +73,7 @@ export function enhanceAuthShell(document) {
   const localButton = createButton(document, {
     id: 'local-mode-btn',
     text: '使用舊版本機登入 / 匯入',
-    className: 'w-full text-sm text-gray-600 hover:text-gray-900 hover:underline'
+    className: LEGACY_ENTRY_BUTTON_CLASS
   });
   const divider = document.createElement('div');
   divider.className = 'flex items-center gap-3 py-1 text-xs text-gray-400';
@@ -120,11 +123,12 @@ export function enhanceAuthShell(document) {
     forgotButton.classList.remove('hidden');
     divider.classList.remove('hidden');
     localButton.textContent = '使用舊版本機登入 / 匯入';
+    localButton.className = LEGACY_ENTRY_BUTTON_CLASS;
     if (importButton) {
       importButton.removeAttribute('data-lang-key');
       importButton.textContent = '匯入舊版紀錄';
       importButton.disabled = false;
-      importButton.classList.remove('disabled:bg-gray-400', 'disabled:cursor-not-allowed');
+      importButton.className = `${LEGACY_IMPORT_BUTTON_CLASS} hidden`;
       localButton.after(importButton);
     }
   };
@@ -148,10 +152,11 @@ export function enhanceAuthShell(document) {
     forgotButton.classList.add('hidden');
     divider.classList.add('hidden');
     localButton.textContent = '返回 Email / Google 登入';
+    localButton.className = LEGACY_RETURN_LINK_CLASS;
     if (importButton) {
       importButton.removeAttribute('data-lang-key');
       importButton.textContent = '匯入紀錄';
-      importButton.classList.add('disabled:bg-gray-400', 'disabled:cursor-not-allowed');
+      importButton.className = LEGACY_IMPORT_BUTTON_CLASS;
       localButton.before(importButton);
       updateLocalImportButton();
     }
