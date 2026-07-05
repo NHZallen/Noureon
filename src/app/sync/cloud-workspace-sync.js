@@ -41,6 +41,20 @@ const REMOTE_SYNC_COLUMNS = [
   'updated_at'
 ].join(',');
 
+function installConversationShadowStatus(window, status) {
+  if (!window || window.__astraCloudSyncV2) return;
+  const frozenStatus = Object.freeze({
+    state: 'disabled',
+    ...status
+  });
+  window.__astraCloudSyncV2 = Object.freeze({
+    captureWorkspace: () => false,
+    flush: async () => frozenStatus,
+    stop: () => {},
+    getStatus: () => frozenStatus
+  });
+}
+
 function parseJson(value) {
   if (!value) return null;
   if (typeof value !== 'string') return value;
@@ -55,11 +69,26 @@ function hasApiKeys(value) {
 export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   const supabase = getSupabaseClient();
   const user = session?.user;
-  if (!supabase || !user) return { enabled: false };
+  if (!supabase) {
+    installConversationShadowStatus(window, { reason: 'supabase-not-configured' });
+    return { enabled: false };
+  }
+  if (!user) {
+    installConversationShadowStatus(window, { reason: 'no-session' });
+    return { enabled: false };
+  }
 
   const storage = createLegacyRuntimeStorageAdapter();
   const username = `supabase:${user.id}`;
-  if (await storage.getItem('chat_lastUser') !== username) return { enabled: false };
+  const lastUsername = await storage.getItem('chat_lastUser');
+  if (lastUsername !== username) {
+    installConversationShadowStatus(window, {
+      reason: 'cloud-user-not-active',
+      expectedUser: username,
+      activeUser: lastUsername || null
+    });
+    return { enabled: false };
+  }
 
   const keys = {
     appData: `chatAppData_v8.6_${username}`,
