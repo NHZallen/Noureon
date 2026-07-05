@@ -14,6 +14,7 @@ import {
   canCommitHydratedRemote,
   cloudValuesEqual,
   enqueueRecoveringTask,
+  mergeConcurrentWorkspaceAppData,
   mergeWorkspaceAppData,
   settleCloudUpload,
   shouldApplyCloudRemote
@@ -65,6 +66,8 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   let syncing = false;
   let realtimeWork = Promise.resolve();
   let realtimeDeferred = false;
+  let appDataBase = null;
+  let preparedAppData = null;
   const pending = new Set();
   const activeUploads = new Map();
   const reportRealtimeError = error => console.warn('AstraChat realtime queue recovered after an error:', error);
@@ -100,7 +103,17 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
 
   async function prepareUpload(kind) {
     const value = await readLocal(kind);
-    if (kind === 'appData' || kind === 'config') return value ? assets.externalize(value) : null;
+    if (kind === 'appData') {
+      await fetchRemote();
+      if (!remote?.app_data) {
+        preparedAppData = value;
+      } else {
+        const remoteAppData = await assets.hydrate(remote.app_data);
+        preparedAppData = mergeConcurrentWorkspaceAppData(appDataBase || value || {}, value || {}, remoteAppData || {});
+      }
+      return preparedAppData ? assets.externalize(preparedAppData) : null;
+    }
+    if (kind === 'config') return value ? assets.externalize(value) : null;
     if (kind === 'vault') return value;
     if (!await readLocal('vault')) return null;
     const key = getUnlockedSyncVaultKey(username);
@@ -134,8 +147,16 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       const settled = settleCloudUpload(meta[kind], localRevision, remoteUpdatedAt);
       meta[kind] = settled.state;
       await saveMeta();
+      if (kind === 'appData' && preparedAppData) {
+        appDataBase = preparedAppData;
+        if (settled.complete) {
+          await storage.setItem(keys.appData, JSON.stringify(preparedAppData));
+          window.dispatchEvent(new window.CustomEvent('astra:cloud-app-data', { detail: preparedAppData }));
+        }
+      }
       return { complete: settled.complete, localRevision };
     } finally {
+      if (kind === 'appData') preparedAppData = null;
       activeUploads.delete(kind);
     }
   }
@@ -168,6 +189,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     const timestamp = remoteSnapshot[definition.timestamp] || remoteSnapshot.updated_at;
     if (hydrated == null) await storage.removeItem(keys[kind]);
     else await storage.setItem(keys[kind], JSON.stringify(hydrated));
+    if (kind === 'appData') appDataBase = hydrated || {};
     await setMeta(kind, { remoteUpdatedAt: timestamp, dirty: false });
     if (kind === 'appData') window.dispatchEvent(new window.CustomEvent('astra:cloud-app-data', { detail: hydrated }));
     if (kind === 'config') window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: hydrated }));
@@ -212,6 +234,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     }
     const localAppData = await readLocal('appData');
     const remoteAppData = remote?.app_data ? await assets.hydrate(remote.app_data) : null;
+    appDataBase = remoteAppData || {};
     if (localAppData || remoteAppData) {
       const merged = mergeWorkspaceAppData(localAppData || {}, remoteAppData || {});
       await storage.setItem(keys.appData, JSON.stringify(merged));
@@ -327,6 +350,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     await fetchRemote();
     await upgradeSyncMetadata();
     for (const kind of ['vault', 'appData', 'config']) await reconcileKind(kind);
+    if (!appDataBase) appDataBase = await readLocal('appData') || {};
     for (const [kind, state] of Object.entries(meta)) if (state?.dirty) pending.add(kind);
     if (pending.size) timer = setTimeout(flush, 0);
   } catch (error) {

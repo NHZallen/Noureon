@@ -5,6 +5,7 @@ import {
   canCommitHydratedRemote,
   cloudValuesEqual,
   enqueueRecoveringTask,
+  mergeConcurrentWorkspaceAppData,
   mergeRemoteWorkspaceAppData,
   mergeWorkspaceAppData,
   settleCloudUpload,
@@ -145,6 +146,36 @@ test('equal-content remote conversations win so folder metadata can synchronize'
 
   assert.equal(merged.conversations[0], remote);
   assert.equal(merged.conversations[0].folderId, 'folder-1');
+});
+
+test('three-way workspace merge keeps remote AI and move-out while preserving unrelated local folder state', () => {
+  const baseConversation = {
+    id: 'conversation-1',
+    folderId: 'folder-1',
+    messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+  };
+  const baseFolder = { id: 'folder-1', isOpen: false, conversationIds: ['conversation-1'] };
+  const base = { conversations: [baseConversation], folders: [baseFolder], astras: [], personalMemories: [] };
+  const local = {
+    ...base,
+    folders: [{ ...baseFolder, isOpen: true }]
+  };
+  const remote = {
+    ...base,
+    conversations: [{
+      ...baseConversation,
+      folderId: null,
+      messages: [...baseConversation.messages, { role: 'model', parts: [{ text: 'Answer' }] }]
+    }],
+    folders: [{ ...baseFolder, conversationIds: [] }]
+  };
+
+  const merged = mergeConcurrentWorkspaceAppData(base, local, remote);
+
+  assert.equal(merged.conversations[0].folderId, null);
+  assert.equal(merged.conversations[0].messages[1].parts[0].text, 'Answer');
+  assert.equal(merged.folders[0].isOpen, true);
+  assert.deepEqual(merged.folders[0].conversationIds, []);
 });
 
 test('cloud value comparison ignores object property insertion order', () => {

@@ -95,6 +95,84 @@ export function mergeRemoteWorkspaceAppData(live = {}, remote = {}, protectedCon
   };
 }
 
+function mergeConcurrentRecord(base = {}, local = {}, remote = {}, resolveConflict = (_key, _local, remoteValue) => remoteValue) {
+  const output = {};
+  for (const key of new Set([...Object.keys(base || {}), ...Object.keys(local || {}), ...Object.keys(remote || {})])) {
+    const baseValue = base?.[key];
+    const localValue = local?.[key];
+    const remoteValue = remote?.[key];
+    const localChanged = !cloudValuesEqual(localValue, baseValue);
+    const remoteChanged = !cloudValuesEqual(remoteValue, baseValue);
+    const selected = localChanged && !remoteChanged
+      ? localValue
+      : localChanged && remoteChanged
+        ? resolveConflict(key, localValue, remoteValue)
+        : remoteValue;
+    if (selected !== undefined) output[key] = selected;
+  }
+  return output;
+}
+
+function mergeConcurrentItems(baseItems = [], localItems = [], remoteItems = [], mergeRecord = mergeConcurrentRecord) {
+  const baseById = new Map(baseItems.map(item => [item?.id, item]));
+  const localById = new Map(localItems.map(item => [item?.id, item]));
+  const remoteById = new Map(remoteItems.map(item => [item?.id, item]));
+  const orderedIds = [...new Set([...remoteById.keys(), ...localById.keys(), ...baseById.keys()])];
+  const output = [];
+  for (const id of orderedIds) {
+    const base = baseById.get(id);
+    const local = localById.get(id);
+    const remote = remoteById.get(id);
+    const localChanged = !cloudValuesEqual(local, base);
+    const remoteChanged = !cloudValuesEqual(remote, base);
+    let selected;
+    if (localChanged && !remoteChanged) selected = local;
+    else if (remoteChanged && !localChanged) selected = remote;
+    else if (!localChanged && !remoteChanged) selected = remote ?? local;
+    else if (local && remote) selected = mergeRecord(base, local, remote);
+    else selected = remote ?? local;
+    if (selected) output.push(selected);
+  }
+  return output;
+}
+
+export function mergeConcurrentWorkspaceAppData(base = {}, local = {}, remote = {}) {
+  const conversations = mergeConcurrentItems(
+    base.conversations,
+    local.conversations,
+    remote.conversations,
+    (baseConversation, localConversation, remoteConversation) => mergeConcurrentRecord(
+      baseConversation,
+      localConversation,
+      remoteConversation,
+      (key, localValue, remoteValue) => {
+        if (key !== 'messages') return remoteValue;
+        return preferLocalConversation(localConversation, remoteConversation) ? localValue : remoteValue;
+      }
+    )
+  );
+  const folders = mergeConcurrentItems(base.folders, local.folders, remote.folders);
+  const folderIds = new Set(folders.map(folder => folder.id));
+  for (const conversation of conversations) {
+    if (conversation.folderId && !folderIds.has(conversation.folderId)) conversation.folderId = null;
+  }
+  for (const folder of folders) {
+    folder.conversationIds = conversations
+      .filter(conversation => conversation.folderId === folder.id && !conversation.deletedAt)
+      .map(conversation => conversation.id);
+  }
+  const memories = new Map();
+  for (const memory of [...(remote.personalMemories || []), ...(local.personalMemories || [])]) {
+    memories.set(JSON.stringify(memory), memory);
+  }
+  return {
+    conversations,
+    folders,
+    astras: mergeConcurrentItems(base.astras, local.astras, remote.astras),
+    personalMemories: [...memories.values()]
+  };
+}
+
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (!value || typeof value !== 'object') return value;
