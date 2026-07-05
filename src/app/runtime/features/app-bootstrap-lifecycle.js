@@ -726,6 +726,7 @@ export function createLegacyAppBootstrapLifecycle({
             startQRScanner: () => startQRScanner()
         });
         appBootstrapComposition.runLateBootstrapBindings();
+        window.__astraCloudRuntimeReady?.();
             }
 
     return {

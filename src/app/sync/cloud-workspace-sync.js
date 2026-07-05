@@ -5,6 +5,7 @@ import {
   encryptSyncVaultPayload,
   getSyncVaultStorageKey,
   getUnlockedSyncVaultKey,
+  lockSyncVault,
   takePreviousSyncVaultKey
 } from './sync-vault.js';
 import { createCloudAssetTransport } from './cloud-assets.js';
@@ -51,6 +52,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   let remote = null;
   let timer = null;
   let syncing = false;
+  let realtimeWork = Promise.resolve();
   const pending = new Set();
 
   const saveMeta = () => storage.setItem(metaKey, JSON.stringify(meta));
@@ -112,8 +114,12 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     await storage.setItem(keys[kind], JSON.stringify(hydrated));
     const timestamp = remote[definition.timestamp] || remote.updated_at;
     await setMeta(kind, { localUpdatedAt: timestamp, remoteUpdatedAt: timestamp, dirty: false });
-    if (kind === 'sensitive') {
-      window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: hydrated }));
+    if (kind === 'appData') window.dispatchEvent(new window.CustomEvent('astra:cloud-app-data', { detail: hydrated }));
+    if (kind === 'config') window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: hydrated }));
+    if (kind === 'sensitive') window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: hydrated }));
+    if (kind === 'vault') {
+      lockSyncVault(username);
+      window.dispatchEvent(new window.CustomEvent('astra:cloud-vault', { detail: hydrated }));
     }
     return true;
   }
@@ -125,8 +131,13 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     const localTimestamp = Date.parse(meta[kind]?.localUpdatedAt || 0);
     const remoteTimestamp = Date.parse(remote?.[definition.timestamp] || remote?.updated_at || 0);
 
-    if (meta[kind]?.dirty && localTimestamp >= remoteTimestamp) return uploadKind(kind);
-    if (remoteValue != null && remoteTimestamp >= localTimestamp) return applyRemote(kind);
+    if (meta[kind]?.dirty && localTimestamp === remoteTimestamp) {
+      pending.delete(kind);
+      await setMeta(kind, { remoteUpdatedAt: remote?.[definition.timestamp], dirty: false });
+      return false;
+    }
+    if (meta[kind]?.dirty && localTimestamp > remoteTimestamp) return uploadKind(kind);
+    if (remoteValue != null && remoteTimestamp > localTimestamp) return applyRemote(kind);
     if (local != null && remoteValue == null) return uploadKind(kind);
     return false;
   }
@@ -186,6 +197,27 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     }
   });
 
+  const realtimeChannel = supabase
+    .channel(`user-workspace:${user.id}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: TABLE,
+      filter: `user_id=eq.${user.id}`
+    }, payload => {
+      realtimeWork = realtimeWork.then(async () => {
+        remote = payload.new;
+        for (const kind of ['vault', 'appData', 'config', 'sensitive']) {
+          try {
+            await reconcileKind(kind);
+          } catch (error) {
+            console.warn(`AstraChat realtime ${kind} sync failed:`, error);
+          }
+        }
+      });
+    })
+    .subscribe();
+
   try {
     await fetchRemote();
     for (const kind of ['vault', 'appData', 'config']) await reconcileKind(kind);
@@ -194,5 +226,6 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   } catch (error) {
     console.warn('AstraChat cloud sync is unavailable until its database migration is installed:', error);
   }
+  api.stop = () => supabase.removeChannel(realtimeChannel);
   return api;
 }

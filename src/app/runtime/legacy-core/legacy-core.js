@@ -46,6 +46,7 @@ import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
 import { setupDemoModelHomepage } from '/src/app/runtime/features/demo-model-homepage.js';
 import { createDialogNotificationLifecycle } from '/src/app/runtime/features/dialog-notification-lifecycle.js';
 import { arrangeInputMediaPreview } from '/src/app/runtime/features/input-media-placement.js';
+import { createCloudWorkspaceLiveLifecycle } from '/src/app/runtime/features/cloud-workspace-live-lifecycle.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 import {
@@ -1001,6 +1002,16 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             logger: console
         });
         const renderAll = (...args) => runtimeRenderCoordinator.renderAll(...args);
+        createCloudWorkspaceLiveLifecycle({
+            window, configAccess: runtimeConfigAccess, appDataStore: runtimeAppDataStore,
+            getDefaultFolder, getDefaultGenConfig, normalizeCouncilConfig, normalizeConversationModel,
+            models: MODELS,
+            maxCouncilModels: COUNCIL_MAX_MODELS,
+            getCouncilTranslatorCandidates, getSingleTranslatorCandidates,
+            applyCustomWallpaper: () => applyCustomWallpaper(),
+            applyUiTheme: () => applyUiTheme(),
+            renderAll
+        });
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,
             getAstras: () => runtimeAppDataStore.getAstras(),

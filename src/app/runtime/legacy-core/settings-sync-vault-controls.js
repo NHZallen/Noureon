@@ -555,6 +555,10 @@ export function createSettingsSyncVaultControls({
     });
   };
 
+  window.addEventListener('astra:cloud-vault', () => {
+    refreshSyncVaultControls().catch(error => console.warn('Cloud sync password status refresh failed:', error));
+  });
+
   return {
     ensureSyncVaultSettings,
     refreshSyncVaultControls
