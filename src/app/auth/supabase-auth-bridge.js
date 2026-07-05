@@ -1,4 +1,5 @@
 import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
+import { reconcileStoredWorkspaceOwner } from '../runtime/kernel/user-data-retention.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
@@ -192,8 +193,17 @@ function getAuthValues(elements) {
   };
 }
 
-async function persistCloudUser(storage, user, { remember = true } = {}) {
+async function persistCloudUser(storage, user, { remember = true, reconcileOwner = true } = {}) {
   const record = createCloudUserRecord(user);
+  if (reconcileOwner) {
+    await reconcileStoredWorkspaceOwner({
+      nextUsername: record.username,
+      getItem: (...args) => storage.getItem(...args),
+      setItem: (...args) => storage.setItem(...args),
+      removeItem: (...args) => storage.removeItem(...args),
+      storageAdapter: storage
+    });
+  }
   await storage.setItem(`chatUser_${record.username}`, JSON.stringify(record));
   if (remember) {
     await storage.setItem('chat_lastUser', record.username);
@@ -236,7 +246,7 @@ function isPasswordRecoveryUrl(window) {
 }
 
 async function prepareCloudImport({ window, elements, storage, user }) {
-  const record = await persistCloudUser(storage, user, { remember: false });
+  const record = await persistCloudUser(storage, user, { remember: false, reconcileOwner: false });
   await storage.removeItem('chat_lastUser');
   elements.setLocalMode({ importTargetUser: record });
   elements.emailInput.value = '';
@@ -317,6 +327,13 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
       event.preventDefault();
       event.stopImmediatePropagation();
       const targetUser = JSON.parse(importTarget);
+      await reconcileStoredWorkspaceOwner({
+        nextUsername: targetUser.username,
+        getItem: (...args) => storage.getItem(...args),
+        setItem: (...args) => storage.setItem(...args),
+        removeItem: (...args) => storage.removeItem(...args),
+        storageAdapter: storage
+      });
       await storage.setItem(`chatUser_${targetUser.username}`, JSON.stringify(targetUser));
       await storage.setItem('chat_lastUser', targetUser.username);
       window.location.reload();

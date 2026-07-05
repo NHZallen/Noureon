@@ -59,7 +59,7 @@ function createFixture({ mobile = false } = {}) {
   settingsModal.classList.add('settings-mobile-detail-open', 'settings-mobile-returning');
   const settingsNav = {
     querySelectorAll(selector) {
-      assert.equal(selector, '.settings-nav-item');
+      assert.equal(selector, '.settings-nav-item[data-section]');
       return navItems;
     },
     querySelector(selector) {

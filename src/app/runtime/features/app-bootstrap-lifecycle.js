@@ -107,15 +107,12 @@ export function createLegacyAppBootstrapLifecycle({
         if (!nav) return null;
         const existing = document.getElementById('settings-desktop-logout-btn');
         if (existing) return existing;
-        const item = document.createElement('li');
-        item.className = 'mt-3 pt-3 border-t border-[var(--border-color)]';
         const button = document.createElement('button');
         button.type = 'button';
         button.id = 'settings-desktop-logout-btn';
-        button.className = 'settings-nav-item w-full p-3 rounded-md text-left text-red-600';
+        button.className = 'settings-nav-item settings-desktop-logout-btn w-full p-3 rounded-md text-left text-red-600';
         button.textContent = i18n[getConfig().uiLanguage]?.logout || '登出';
-        item.appendChild(button);
-        nav.appendChild(item);
+        nav.closest('nav')?.appendChild(button);
         return button;
     };
     const enhanceSettingsLogoutButton = () => {

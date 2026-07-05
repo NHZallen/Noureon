@@ -66,11 +66,34 @@ export function createLegacyRuntimeStorageAdapter({
     });
   }
 
+  async function getKeys() {
+    const idb = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = idb.transaction(storeName, 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.getAllKeys();
+      request.onsuccess = () => resolve(Array.from(request.result || []));
+      request.onerror = reject;
+    });
+  }
+
+  async function removeItemsByPrefix(prefix) {
+    if (!prefix) return;
+    const keys = await getKeys();
+    for (const key of keys) {
+      if (String(key).startsWith(prefix)) {
+        await removeItem(key);
+      }
+    }
+  }
+
   return {
     openDB,
     getItem,
     setItem,
     removeItem,
-    clear
+    clear,
+    getKeys,
+    removeItemsByPrefix
   };
 }

@@ -422,6 +422,9 @@ test('app bootstrap lifecycle module avoids startup, storage, auth ownership, fr
   assert.match(source, /export\s+function\s+createLegacyAppBootstrapLifecycle/);
   assert.match(source, /createAppBootstrapComposition\(\{/);
   assert.match(source, /createLegacyP2PLifecycle\(\{/);
+  assert.match(source, /settings-desktop-logout-btn/);
+  assert.match(source, /nav\.closest\('nav'\)\?\.appendChild\(button\)/);
+  assert.doesNotMatch(source, /nav\.appendChild\(item\)/);
 });
 
 test('mobile attachment trigger reuses the desktop file options popover', async () => {

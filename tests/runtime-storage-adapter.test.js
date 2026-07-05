@@ -21,6 +21,7 @@ function createFakeIndexedDB({
     createObjectStore: [],
     transactions: [],
     get: [],
+    getAllKeys: 0,
     put: [],
     delete: [],
     clear: 0,
@@ -47,6 +48,15 @@ function createFakeIndexedDB({
                   return;
                 }
                 request.result = values.has(key) ? { key, value: values.get(key) } : undefined;
+                request.onsuccess?.();
+              });
+              return request;
+            },
+            getAllKeys() {
+              calls.getAllKeys += 1;
+              const request = {};
+              queueMicrotask(() => {
+                request.result = Array.from(values.keys());
                 request.onsuccess?.();
               });
               return request;
@@ -201,6 +211,28 @@ test('storage adapter clear preserves request success completion semantics', asy
   assert.deepEqual(fake.calls.transactions.slice(-1), [['keyValue', 'readwrite']]);
 });
 
+test('storage adapter removes records by key prefix', async () => {
+  const fake = createFakeIndexedDB({
+    initialValues: {
+      'generatedImage:alice:1': 'one',
+      'generatedImage:alice:2': 'two',
+      'generatedImage:bob:1': 'three',
+      saved: 'value'
+    }
+  });
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
+
+  await adapter.removeItemsByPrefix('generatedImage:alice:');
+
+  assert.equal(fake.calls.getAllKeys, 1);
+  assert.equal(fake.values.has('generatedImage:alice:1'), false);
+  assert.equal(fake.values.has('generatedImage:alice:2'), false);
+  assert.equal(fake.values.get('generatedImage:bob:1'), 'three');
+  assert.equal(fake.values.get('saved'), 'value');
+});
+
 test('storage adapter propagates open, request, transaction, and clear failures', async () => {
   const openError = new Error('open failed');
   const getError = new Error('get failed');
@@ -284,5 +316,6 @@ test('storage adapter source preserves legacy IndexedDB semantics', () => {
   assert.match(source, /transaction\.onerror\s*=\s*reject/);
   assert.match(source, /request\.onsuccess\s*=\s*resolve/);
   assert.match(source, /request\.onerror\s*=\s*reject/);
+  assert.match(source, /getAllKeys\(\)/);
   assert.doesNotMatch(source, /currentUser|loadConfig|loadAppData|showNotification|renderAll/);
 });

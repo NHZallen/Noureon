@@ -1961,7 +1961,7 @@ test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
   assert.match(storageAdapterSource, /storeName\s*=\s*['"]keyValue['"]/);
   assert.match(storageAdapterSource, /version\s*=\s*1/);
   assert.match(storageAdapterSource, /createObjectStore\(storeName,\s*\{\s*keyPath:\s*['"]key['"]\s*\}\)/);
-  assert.match(storageAdapterSource, /return\s*\{\s*openDB,\s*getItem,\s*setItem,\s*removeItem,\s*clear\s*\}/);
+  assert.match(storageAdapterSource, /return\s*\{\s*openDB,\s*getItem,\s*setItem,\s*removeItem,\s*clear,\s*getKeys,\s*removeItemsByPrefix\s*\}/);
   assert.doesNotMatch(storageAdapterSource, /objectStoreNames\.contains/);
   assert.match(fragment00Source, /import\s+\{\s*createLegacyRuntimeStorageAdapter\s*\}/);
   assertMarkersInOrder(fragment00Source, [

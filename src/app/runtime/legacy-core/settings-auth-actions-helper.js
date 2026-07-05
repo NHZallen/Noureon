@@ -1,3 +1,8 @@
+import {
+    STORAGE_OWNER_KEY,
+    reconcileStoredWorkspaceOwner
+} from '../kernel/user-data-retention.js';
+
 export function createSettingsAuthActionsHelper({
     window,
     requestAnimationFrame,
@@ -46,6 +51,13 @@ export function createSettingsAuthActionsHelper({
             state.currentUser = await createPasswordRecord(username, password);
             await setItem(userKey, JSON.stringify(state.currentUser));
         }
+        await reconcileStoredWorkspaceOwner({
+            nextUsername: username,
+            getItem,
+            setItem,
+            removeItem,
+            storageAdapter: runtimeStorageAdapter
+        });
         await setItem('chat_lastUser', username);
 
 
@@ -68,6 +80,9 @@ export function createSettingsAuthActionsHelper({
 
     const handleLogout = async () => {
         if (await showCustomConfirm(getText('confirmLogout', '您確定要登出嗎？'), getText('logoutConfirmation', '登出確認'))) {
+            if (state.currentUser?.username) {
+                await setItem(STORAGE_OWNER_KEY, state.currentUser.username);
+            }
             await removeItem('chat_lastUser');
             window.location.reload();
         }

@@ -159,6 +159,7 @@ test('desktop settings nav and section selectors are scoped to the desktop setti
     ['#settings-nav', ['src/styles/settings-desktop.css']],
     ['.settings-sidebar', ['src/styles/regression-overrides.css']],
     ['.settings-nav-item', ['src/styles/settings-desktop.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
+    ['.settings-desktop-logout-btn', ['src/styles/settings-desktop.css']],
     ['.settings-nav-item.active', ['src/styles/settings-desktop.css']],
     ['#settings-modal .settings-section', ['src/styles/settings-desktop.css', 'src/styles/settings-mobile.css', 'src/styles/typography.css']],
     ['#settings-modal .settings-section.active', ['src/styles/settings-desktop.css', 'src/styles/settings-mobile.css']],
@@ -178,6 +179,8 @@ test('desktop settings nav and section selectors are scoped to the desktop setti
   assert.doesNotMatch(settingsCss, /#settings-modal\s+\.settings-section\.active::before\s*\{/);
   assert.match(settingsDesktopCss, /@media\s*\(min-width:\s*769px\)/);
   assert.match(settingsDesktopCss, /#settings-modal\s+#settings-nav\s*\{/);
+  assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-desktop-logout-btn\s*\{/);
+  assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-desktop-logout-btn[^{]*\{[^}]*margin:\s*auto\s+0\.5rem\s+1rem\s*!important;[^}]*color:\s*#dc2626\s*!important;/s);
   assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-section\.active::before\s*\{/);
   assert.match(
     regressionOverridesCss,

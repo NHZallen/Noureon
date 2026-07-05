@@ -187,9 +187,9 @@ test('processAuthImport keeps user persistence before app data mutation and pers
 
 test('processAuthImport preserves partial-state behavior without rollback', () => {
   assertMarkersInOrder(processAuthImportBody, [
-    "catch (error) {\n              logger.warn('Astra",
+    /catch \(error\) \{\r?\n\s+logger\.warn\('Astra/,
     'activeAppData.astras.push(astra)',
-    "catch (error) {\n                    logger.warn('Attachment",
+    /catch \(error\) \{\r?\n\s+logger\.warn\('Attachment/,
     'activeAppData.conversations.push(conversation)'
   ], 'processAuthImport recoverable transform failures');
 

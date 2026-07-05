@@ -117,6 +117,7 @@ test('login success writes auth storage, transitions containers, and initializes
   ]);
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setItem'), [
     ['setItem', 'user:alice', JSON.stringify({ username: 'alice', passwordHash: 'new-hash' })],
+    ['setItem', 'chat_storageOwnerUser', 'alice'],
     ['setItem', 'chat_lastUser', 'alice']
   ]);
   assert.deepEqual(state.currentUser, { username: 'alice', passwordHash: 'new-hash' });
@@ -160,6 +161,49 @@ test('logout accepted removes last user and reloads', async () => {
     'confirmLogout',
     ['removeItem', 'chat_lastUser'],
     'reload'
+  ]);
+});
+
+test('logout remembers current owner before clearing active session marker', async () => {
+  const { helper, calls, state } = createHarness({
+    showCustomConfirm: async () => {
+      calls.push('confirmLogout');
+      return true;
+    }
+  });
+  state.currentUser = { username: 'alice' };
+
+  await helper.handleLogout();
+
+  assert.deepEqual(calls, [
+    'confirmLogout',
+    ['setItem', 'chat_storageOwnerUser', 'alice'],
+    ['removeItem', 'chat_lastUser'],
+    'reload'
+  ]);
+});
+
+test('login as another stored owner removes the previous workspace data', async () => {
+  const { helper, calls, elements } = createHarness({
+    getItem: async (key) => (key === 'chat_storageOwnerUser' ? 'alice' : null),
+    runtimeStorageAdapter: {
+      clear: async () => calls.push('clear'),
+      removeItemsByPrefix: async (...args) => calls.push(['removeItemsByPrefix', ...args])
+    }
+  });
+  elements.usernameInput.value = 'bob';
+  elements.passwordInput.value = 'correct-password';
+
+  await helper.handleLogin({ preventDefault: () => calls.push('preventDefault') });
+
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'removeItem'), [
+    ['removeItem', 'chatUser_alice'],
+    ['removeItem', 'chatConfig_v_v8.6_alice'],
+    ['removeItem', 'chatAppData_v8.6_alice'],
+    ['removeItem', 'chatSensitiveConfig_v1_alice']
+  ]);
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'removeItemsByPrefix'), [
+    ['removeItemsByPrefix', 'generatedImage:alice:']
   ]);
 });
 

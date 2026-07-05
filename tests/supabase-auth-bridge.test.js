@@ -68,6 +68,10 @@ test('auth bridge keeps secrets out of browser source and wires required flows',
   assert.match(source, /signInWithOAuth/);
   assert.match(source, /resetPasswordForEmail/);
   assert.match(source, /updateUser/);
+  assert.match(source, /import\s+\{\s*reconcileStoredWorkspaceOwner\s*\}/);
+  assert.match(source, /await\s+reconcileStoredWorkspaceOwner\(\{/);
+  assert.match(source, /nextUsername:\s*record\.username/);
+  assert.match(source, /nextUsername:\s*targetUser\.username/);
   assert.match(source, /captchaToken/);
   assert.doesNotMatch(source, /service_role|sb_secret_/);
   assert.doesNotMatch(clientSource, /service_role|sb_secret_/);

@@ -793,6 +793,7 @@ test('login success preserves auth storage, visibility transitions, and init han
   ]);
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setItem'), [
     ['setItem', 'user:alice', JSON.stringify({ username: 'alice', passwordHash: 'new-hash' })],
+    ['setItem', 'chat_storageOwnerUser', 'alice'],
     ['setItem', 'chat_lastUser', 'alice']
   ]);
   assert.deepEqual(state.currentUser, { username: 'alice', passwordHash: 'new-hash' });

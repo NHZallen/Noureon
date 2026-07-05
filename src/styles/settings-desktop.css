@@ -39,9 +39,12 @@
         width: 15.5rem !important;
         padding-top: 4rem !important;
         background: var(--gpt-surface) !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     #settings-modal #settings-nav {
+        flex: 1 1 auto !important;
         padding: 0 0.5rem 1rem 0.5rem !important;
     }
 
@@ -124,5 +127,18 @@
         min-height: 2.35rem !important;
         padding: 0.45rem 1rem !important;
         line-height: 1.15 !important;
+    }
+
+    #settings-modal .settings-desktop-logout-btn {
+        width: calc(100% - 1rem) !important;
+        margin: auto 0.5rem 1rem !important;
+        border-top: 1px solid color-mix(in srgb, var(--gpt-border) 70%, transparent) !important;
+        border-radius: 0 !important;
+        color: #dc2626 !important;
+        font-weight: 500 !important;
+    }
+
+    #settings-modal .settings-desktop-logout-btn:hover {
+        color: #b91c1c !important;
     }
 }

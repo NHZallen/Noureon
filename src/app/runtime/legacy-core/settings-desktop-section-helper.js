@@ -24,7 +24,7 @@ export function createSettingsDesktopSectionHelper(dependencies = {}) {
     clearSettingsMobileViewTransition
   } = dependencies;
 
-  const getNavItems = () => Array.from(ALL_ELEMENTS.settingsNav.querySelectorAll('.settings-nav-item'));
+  const getNavItems = () => Array.from(ALL_ELEMENTS.settingsNav.querySelectorAll('.settings-nav-item[data-section]'));
 
   const activateDesktopSettingsSection = (item, navItems = getNavItems()) => {
     navItems.forEach(i => i.classList.remove('active'));
