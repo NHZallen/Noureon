@@ -1,10 +1,15 @@
 import {
+  decodeWorkspaceConversationShadow,
   encodeWorkspaceConversationShadow,
   shadowRowsEqual
 } from './cloud-sync-v2-codecs.js';
+import { mergeWorkspaceAppData } from './cloud-sync-versioning.js';
 
 const SCHEMA_VERSION = 2;
 const CAPTURE_DEBOUNCE_MS = 1000;
+const FOLDER_COLUMNS = [
+  'id', 'user_id', 'name', 'color', 'icon', 'text_color', 'deleted_at'
+].join(',');
 const CONVERSATION_COLUMNS = [
   'id', 'user_id', 'folder_id', 'title', 'summary', 'model', 'provider', 'metadata',
   'archived', 'pinned', 'created_at', 'deleted_at'
@@ -13,6 +18,8 @@ const MESSAGE_COLUMNS = [
   'id', 'user_id', 'conversation_id', 'role', 'parts', 'status', 'sequence',
   'created_at', 'deleted_at'
 ].join(',');
+const CONVERSATION_FETCH_COLUMNS = `${CONVERSATION_COLUMNS},updated_at`;
+const MESSAGE_FETCH_COLUMNS = `${MESSAGE_COLUMNS},updated_at`;
 
 function isMissingSchemaError(error) {
   const code = String(error?.code || '');
@@ -78,6 +85,13 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     });
   }
 
+  async function upsertFolders(rows) {
+    await runInChunks(rows, 100, async chunk => {
+      const { error } = await supabase.from('workspace_folders').upsert(chunk, { onConflict: 'id' });
+      if (error) throw error;
+    });
+  }
+
   async function upsertMessages(rows) {
     await runInChunks(rows, 200, async chunk => {
       const { error } = await supabase.from('workspace_messages').upsert(chunk, { onConflict: 'id' });
@@ -85,7 +99,7 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     });
   }
 
-  async function verify({ conversations, messages }) {
+  async function verify({ folders, conversations, messages }) {
     const verifyRows = async (table, columns, localRows) => {
       for (let index = 0; index < localRows.length; index += 200) {
         const chunk = localRows.slice(index, index + 200);
@@ -99,11 +113,27 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
       }
       return true;
     };
-    return await verifyRows('workspace_conversations', CONVERSATION_COLUMNS, conversations)
+    return await verifyRows('workspace_folders', FOLDER_COLUMNS, folders)
+      && await verifyRows('workspace_conversations', CONVERSATION_COLUMNS, conversations)
       && await verifyRows('workspace_messages', MESSAGE_COLUMNS, messages);
   }
 
-  return { probe, setMigrationState, upsertConversations, upsertMessages, verify };
+  async function fetchWorkspace() {
+    const selectRows = async (table, columns) => {
+      const { data, error } = await supabase
+        .from(table)
+        .select(columns)
+        .eq('user_id', userId);
+      if (error) throw error;
+      return data || [];
+    };
+    const folders = await selectRows('workspace_folders', FOLDER_COLUMNS);
+    const conversations = await selectRows('workspace_conversations', CONVERSATION_FETCH_COLUMNS);
+    const messages = await selectRows('workspace_messages', MESSAGE_FETCH_COLUMNS);
+    return { folders, conversations, messages };
+  }
+
+  return { probe, setMigrationState, upsertFolders, upsertConversations, upsertMessages, verify, fetchWorkspace };
 }
 
 export function createConversationShadowSync({
@@ -142,10 +172,12 @@ export function createConversationShadowSync({
       state: 'uploading',
       conversations: encoded.conversations.length,
       messages: encoded.messages.length,
+      folders: encoded.folders.length,
       skipped: encoded.skippedConversationIds.length
     });
     await repository.setMigrationState('shadow', backupMarker);
     backupMarker = null;
+    if (encoded.folders.length) await repository.upsertFolders(encoded.folders);
     if (encoded.conversations.length) await repository.upsertConversations(encoded.conversations);
     if (encoded.messages.length) await repository.upsertMessages(encoded.messages);
     const verified = await repository.verify(encoded);
@@ -155,9 +187,16 @@ export function createConversationShadowSync({
       state: 'ready',
       conversations: encoded.conversations.length,
       messages: encoded.messages.length,
+      folders: encoded.folders.length,
       skipped: encoded.skippedConversationIds.length,
       lastCompletedAt: now()
     });
+  }
+
+  async function pullWorkspace(localWorkspace = {}) {
+    const rows = await repository.fetchWorkspace();
+    const remoteWorkspace = decodeWorkspaceConversationShadow(rows);
+    return mergeWorkspaceAppData(localWorkspace, remoteWorkspace);
   }
 
   function drain() {
@@ -211,6 +250,7 @@ export function createConversationShadowSync({
   return {
     initialize,
     captureWorkspace,
+    pullWorkspace,
     flush: drain,
     stop,
     getStatus: () => status
@@ -237,7 +277,15 @@ export function initializeConversationShadowSync({
     logger
   });
   exposeConversationShadowSync(window, sync);
-  void sync.initialize();
+  void sync.initialize().then(async status => {
+    if (status?.state !== 'ready') return;
+    const raw = await storage.getItem(`chatAppData_v8.6_${username}`);
+    const localWorkspace = raw ? JSON.parse(raw) : {};
+    const mergedWorkspace = await sync.pullWorkspace(localWorkspace);
+    await storage.setItem(`chatAppData_v8.6_${username}`, JSON.stringify(mergedWorkspace));
+  }).catch(error => {
+    logger.warn('AstraChat Sync V2 refresh pull failed; local workspace remains active.', error);
+  });
   return sync;
 }
 

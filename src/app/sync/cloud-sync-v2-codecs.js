@@ -54,6 +54,55 @@ function conversationMetadata(conversation = {}) {
   };
 }
 
+function folderFromRow(row = {}, conversationIds = []) {
+  return {
+    id: row.id,
+    name: row.name || 'Folder',
+    conversationIds,
+    color: row.color || 'gray',
+    icon: row.icon || 'default',
+    textColor: row.text_color || row.textColor || 'gray',
+    deletedAt: row.deleted_at || null
+  };
+}
+
+function conversationFromRow(row = {}, messages = []) {
+  const metadata = row.metadata || {};
+  return {
+    id: row.id,
+    title: row.title || 'New chat',
+    summary: row.summary || '',
+    model: row.model || 'unknown',
+    provider: row.provider || 'unknown',
+    messages,
+    archived: Boolean(row.archived),
+    pinned: Boolean(row.pinned),
+    folderId: row.folder_id || metadata.legacyFolderId || null,
+    createdAt: canonicalizeTimestamp(row.created_at) || new Date(0).toISOString(),
+    lastUpdatedAt: canonicalizeTimestamp(metadata.clientUpdatedAt || row.updated_at || row.created_at),
+    deletedAt: row.deleted_at || null,
+    genConfig: metadata.genConfig || null,
+    imageConfig: metadata.imageConfig || null,
+    council: metadata.council || null,
+    isRenamed: Boolean(metadata.isRenamed),
+    astrasId: metadata.astrasId || null,
+    isWebSearchEnabled: Boolean(metadata.isWebSearchEnabled),
+    isTemporary: Boolean(metadata.isTemporary),
+    isNaming: Boolean(metadata.isNaming)
+  };
+}
+
+function messageFromRow(row = {}) {
+  return {
+    id: row.id,
+    role: MESSAGE_ROLES.has(row.role) ? row.role : 'model',
+    parts: Array.isArray(row.parts) ? row.parts : [],
+    status: MESSAGE_STATUSES.has(row.status) ? row.status : 'complete',
+    createdAt: canonicalizeTimestamp(row.created_at) || new Date(0).toISOString(),
+    deletedAt: row.deleted_at || null
+  };
+}
+
 export function isUuid(value) {
   return UUID_PATTERN.test(String(value || ''));
 }
@@ -132,6 +181,20 @@ export async function encodeWorkspaceConversationShadow({
   userId,
   cryptoProvider = globalThis.crypto
 } = {}) {
+  const folderIds = new Set((workspace.folders || [])
+    .map(folder => folder?.id)
+    .filter(isUuid));
+  const folders = (workspace.folders || [])
+    .filter(folder => isUuid(folder?.id))
+    .map(folder => ({
+      id: folder.id,
+      user_id: userId,
+      name: String(folder.name || 'Folder'),
+      color: String(folder.color || 'gray'),
+      icon: String(folder.icon || 'default'),
+      text_color: String(folder.textColor || folder.text_color || 'gray'),
+      deleted_at: folder.deletedAt || null
+    }));
   const conversations = [];
   const messages = [];
   const skippedConversationIds = [];
@@ -142,12 +205,47 @@ export async function encodeWorkspaceConversationShadow({
       skippedConversationIds.push(conversation?.id || null);
       continue;
     }
+    encoded.conversation.folder_id = folderIds.has(conversation.folderId) ? conversation.folderId : null;
     conversations.push(encoded.conversation);
     messages.push(...encoded.messages);
   }
-  return { conversations, messages, skippedConversationIds };
+  return { folders, conversations, messages, skippedConversationIds };
 }
 
 export function shadowRowsEqual(left, right) {
   return JSON.stringify(canonicalizeShadowRow(left)) === JSON.stringify(canonicalizeShadowRow(right));
+}
+
+export function decodeWorkspaceConversationShadow({
+  folders = [],
+  conversations = [],
+  messages = []
+} = {}) {
+  const messagesByConversation = new Map();
+  for (const row of [...messages].sort((left, right) => (left.sequence || 0) - (right.sequence || 0))) {
+    if (!row?.conversation_id) continue;
+    const list = messagesByConversation.get(row.conversation_id) || [];
+    list.push(messageFromRow(row));
+    messagesByConversation.set(row.conversation_id, list);
+  }
+  const decodedConversations = conversations.map(row => conversationFromRow(
+    row,
+    messagesByConversation.get(row.id) || []
+  ));
+  const visibleConversations = decodedConversations.filter(conversation => !conversation.deletedAt);
+  const decodedFolders = folders
+    .filter(row => !row?.deleted_at)
+    .map(row => folderFromRow(
+      row,
+      visibleConversations
+        .filter(conversation => conversation.folderId === row.id)
+        .map(conversation => conversation.id)
+    ));
+
+  return {
+    conversations: decodedConversations,
+    folders: decodedFolders,
+    astras: [],
+    personalMemories: []
+  };
 }

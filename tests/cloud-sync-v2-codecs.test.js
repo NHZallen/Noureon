@@ -3,6 +3,7 @@ import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 
 import {
+  decodeWorkspaceConversationShadow,
   deterministicUuid,
   encodeWorkspaceConversationShadow,
   isUuid,
@@ -51,6 +52,42 @@ test('conversation shadow codec keeps text but never uploads attachment bytes', 
   assert.equal('data' in encoded.messages[0].parts[1].inlineData, false);
   assert.equal(encoded.messages[0].parts[1].inlineData.cloudAssetPending, true);
   assert.equal(JSON.stringify(encoded).includes('BASE64_BYTES'), false);
+});
+
+test('conversation shadow codec includes folders and restores folder membership', async () => {
+  const folderId = '33333333-3333-4333-8333-333333333333';
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      folders: [{
+        id: folderId,
+        name: 'Work',
+        color: 'blue',
+        icon: 'star',
+        textColor: 'white',
+        conversationIds: [conversationId]
+      }],
+      conversations: [{
+        id: conversationId,
+        title: 'Foldered chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        folderId,
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [{ role: 'user', parts: [{ text: 'Hello' }] }]
+      }]
+    }
+  });
+
+  assert.equal(encoded.folders.length, 1);
+  assert.equal(encoded.conversations[0].folder_id, folderId);
+
+  const decoded = decodeWorkspaceConversationShadow(encoded);
+
+  assert.equal(decoded.folders[0].id, folderId);
+  assert.deepEqual(decoded.folders[0].conversationIds, [conversationId]);
+  assert.equal(decoded.conversations[0].folderId, folderId);
 });
 
 test('shadow codec skips empty drafts and invalid legacy conversation IDs without mutating input', async () => {
