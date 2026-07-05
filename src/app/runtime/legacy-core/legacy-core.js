@@ -578,7 +578,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getAppData: () => runtimeAppDataStore.getSnapshot(),
             getAppDataKey,
             setItem,
-            onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('appData')
+            onSaved: (snapshot) => globalThis.__astraCloudSyncV2?.captureWorkspace(snapshot)
         });
         const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
             getCurrentUser: () => currentUser,

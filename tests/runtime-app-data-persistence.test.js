@@ -94,6 +94,22 @@ test('missing user does not read key, app data, or storage adapter', async () =>
   await persistence.saveAppData();
 });
 
+test('successful local persistence hands the exact saved snapshot to shadow sync', async () => {
+  const snapshot = { conversations: [{ id: 'conversation-1' }], folders: [], astras: [], personalMemories: [] };
+  const calls = [];
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getAppData: () => snapshot,
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async () => calls.push('saved'),
+    onSaved: value => calls.push(value)
+  });
+
+  await persistence.saveAppData();
+
+  assert.deepEqual(calls, ['saved', snapshot]);
+});
+
 test('serialized app data persistence preserves rejection and stringify error boundaries', async () => {
   const setItemError = new Error('storage failed');
   const rejectingPersistence = createLegacyRuntimeAppDataPersistence({

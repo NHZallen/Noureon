@@ -11,6 +11,7 @@ import {
 import { createCloudAssetTransport } from './cloud-assets.js';
 import { repairGeneratedImageStorageKeys } from './generated-image-key-repair.js';
 import { ensureWorkspaceRecoveryBackup } from './workspace-recovery-backup.js';
+import { initializeConversationShadowSync } from './cloud-sync-v2-shadow.js';
 import {
   canCommitHydratedRemote,
   enqueueRecoveringTask,
@@ -328,6 +329,16 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   } catch (error) {
     console.warn('AstraChat cloud sync is unavailable until its database migration is installed:', error);
   }
-  api.stop = () => supabase.removeChannel(realtimeChannel);
+  const conversationShadowSync = initializeConversationShadowSync({
+    window,
+    supabase,
+    storage,
+    user,
+    username
+  });
+  api.stop = () => {
+    conversationShadowSync.stop();
+    return supabase.removeChannel(realtimeChannel);
+  };
   return api;
 }
