@@ -241,6 +241,11 @@ test('sync permanent deletion matches remote aliases by conversation snapshot be
     permanentlyDeleteConversations: async ids => {
       calls.push(['delete', ids]);
       deletedIds = ids;
+      remoteRows = {
+        ...remoteRows,
+        conversations: (remoteRows.conversations || []).filter(row => !ids.includes(row.id)),
+        messages: (remoteRows.messages || []).filter(row => !ids.includes(row.conversation_id))
+      };
     }
   };
   const sync = createConversationShadowSync({
@@ -288,6 +293,80 @@ test('sync permanent deletion matches remote aliases by conversation snapshot be
   assert.deepEqual(calls.at(-1), ['delete', [localConversationId, remoteConversationId]]);
   assert.deepEqual(sync.getStatus().lastPermanentDeleteMatchedRemoteIds, [remoteConversationId]);
   assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 2);
+});
+
+test('sync permanent deletion rejects when matching remote rows remain after RPC', async () => {
+  const localConversationId = conversationId;
+  const snapshot = {
+    id: localConversationId,
+    title: 'Still remote',
+    createdAt: '2026-07-06T02:00:00.000Z',
+    messages: [{
+      role: 'user',
+      createdAt: '2026-07-06T02:00:01.000Z',
+      parts: [{ text: 'this row must not survive' }]
+    }]
+  };
+  const remoteRows = {
+    folders: [],
+    conversations: [{
+      id: localConversationId,
+      user_id: userId,
+      folder_id: null,
+      title: snapshot.title,
+      summary: '',
+      model: 'unknown',
+      provider: 'unknown',
+      metadata: {},
+      archived: false,
+      pinned: false,
+      created_at: snapshot.createdAt,
+      updated_at: snapshot.createdAt,
+      deleted_at: snapshot.deletedAt || '2026-07-06T02:10:00.000Z'
+    }],
+    messages: [{
+      id: '77777777-7777-4777-8777-777777777777',
+      user_id: userId,
+      conversation_id: localConversationId,
+      role: 'user',
+      parts: snapshot.messages[0].parts,
+      status: 'complete',
+      sequence: 0,
+      created_at: snapshot.messages[0].createdAt,
+      updated_at: snapshot.messages[0].createdAt,
+      deleted_at: null
+    }]
+  };
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => [{ entity_type: 'conversation', entity_id: localConversationId }],
+    fetchWorkspace: async () => remoteRows,
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async () => {}
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await sync.initialize();
+  await assert.rejects(
+    () => sync.permanentlyDeleteConversations([localConversationId], { conversations: [snapshot] }),
+    /left matching remote conversations/
+  );
+
+  assert.equal(sync.getStatus().state, 'retry');
+  assert.equal(sync.getStatus().lastPermanentDeleteError.code, 'ASTRA_REMOTE_DELETE_VERIFY_FAILED');
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteError.details, {
+    remainingConversationIds: [localConversationId]
+  });
 });
 
 test('sync permanent deletion exposes protected RPC errors in status', async () => {
@@ -1021,6 +1100,7 @@ test('diagnose reports local and remote shadow counts with current status', asyn
     verifiedCount: 0,
     mappedIds: [],
     matchedRemoteIds: [],
+    residualRemoteIds: [],
     skippedIds: [],
     error: null
   });

@@ -118,11 +118,15 @@ function stableDeleteTimestamp(value) {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : '';
 }
 
+function normalizeDeleteText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+}
+
 function stableDeletePart(part = {}) {
   const inlineData = part.inlineData || null;
   const generatedImage = part.generatedImage || null;
   return {
-    text: String(part.text || ''),
+    text: normalizeDeleteText(part.text),
     inlineData: inlineData ? {
       mimeType: inlineData.mimeType || inlineData.mime_type || '',
       displayName: inlineData.displayName || inlineData.name || inlineData.fileName || '',
@@ -137,22 +141,52 @@ function stableDeletePart(part = {}) {
   };
 }
 
-function conversationDeleteFingerprint(conversation = {}) {
-  if (!conversation) return null;
+function conversationDeleteSignature(conversation = {}) {
   const messages = (conversation.messages || []).map(message => ({
     role: message.role || '',
     createdAt: stableDeleteTimestamp(message.createdAt),
     parts: (message.parts || []).map(stableDeletePart)
   }));
-  if (!conversation.createdAt && !messages.length && !conversation.title) return null;
-  return JSON.stringify({
-    title: String(conversation.title || ''),
-    summary: String(conversation.summary || ''),
+  return {
+    id: conversation.id || '',
+    title: normalizeDeleteText(conversation.title),
+    summary: normalizeDeleteText(conversation.summary),
     model: String(conversation.model || ''),
     provider: String(conversation.provider || ''),
     createdAt: stableDeleteTimestamp(conversation.createdAt),
+    messages,
+    textMessages: messages
+      .map(message => `${message.role}:${message.parts.map(part => part.text).filter(Boolean).join('\n')}`)
+      .filter(value => /:\S/.test(value))
+  };
+}
+
+function conversationDeleteFingerprint(conversation = {}) {
+  if (!conversation) return null;
+  const signature = conversationDeleteSignature(conversation);
+  const { messages } = signature;
+  if (!conversation.createdAt && !messages.length && !conversation.title) return null;
+  return JSON.stringify({
+    title: signature.title,
+    summary: signature.summary,
+    model: signature.model,
+    provider: signature.provider,
+    createdAt: signature.createdAt,
     messages
   });
+}
+
+function conversationDeleteMatchKeys(conversation = {}) {
+  const signature = conversationDeleteSignature(conversation);
+  const keys = new Set();
+  const messageText = signature.textMessages.join('\n---\n');
+  const firstText = signature.textMessages[0] || '';
+  if (signature.title && signature.createdAt) keys.add(`title-created:${signature.title}\n${signature.createdAt}`);
+  if (signature.createdAt && messageText) keys.add(`created-messages:${signature.createdAt}\n${messageText}`);
+  if (signature.title && messageText) keys.add(`title-messages:${signature.title}\n${messageText}`);
+  if (signature.title && firstText) keys.add(`title-first:${signature.title}\n${firstText}`);
+  if (messageText && signature.textMessages.length >= 2) keys.add(`messages:${messageText}`);
+  return keys;
 }
 
 function exposeConversationShadowSync(window, sync) {
@@ -459,32 +493,65 @@ export function createConversationShadowSync({
     if (!ids.length) return status;
     if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
     const matchedRemoteIds = [];
+    const residualRemoteIds = [];
     const conversationSnapshots = Array.isArray(options.conversations) ? options.conversations : [];
     const selectedFingerprints = new Set(
       conversationSnapshots
         .map(conversationDeleteFingerprint)
         .filter(Boolean)
     );
-    if (selectedFingerprints.size) {
+    const selectedMatchKeys = new Set(
+      conversationSnapshots
+        .flatMap(conversation => [...conversationDeleteMatchKeys(conversation)])
+        .filter(Boolean)
+    );
+    const collectMatchingRemoteIds = async () => {
+      if (!selectedFingerprints.size && !selectedMatchKeys.size) return [];
       const remoteWorkspace = decodeWorkspaceConversationShadow(await repository.fetchWorkspace());
+      const matches = [];
       for (const remoteConversation of remoteWorkspace.conversations || []) {
-        if (!remoteConversation?.id || validIds.has(remoteConversation.id)) continue;
-        if (selectedFingerprints.has(conversationDeleteFingerprint(remoteConversation))) {
-          validIds.add(remoteConversation.id);
-          matchedRemoteIds.push(remoteConversation.id);
+        if (!remoteConversation?.id) continue;
+        const fingerprint = conversationDeleteFingerprint(remoteConversation);
+        const matchKeys = conversationDeleteMatchKeys(remoteConversation);
+        const matched = (fingerprint && selectedFingerprints.has(fingerprint))
+          || [...matchKeys].some(key => selectedMatchKeys.has(key));
+        if (matched) {
+          matches.push(remoteConversation.id);
         }
       }
+      return [...new Set(matches)];
+    };
+    for (const remoteId of await collectMatchingRemoteIds()) {
+      if (validIds.has(remoteId)) continue;
+      validIds.add(remoteId);
+      matchedRemoteIds.push(remoteId);
     }
     const deleteIds = [...validIds];
     try {
       await repository.permanentlyDeleteConversations(deleteIds);
+      for (const remoteId of await collectMatchingRemoteIds()) {
+        if (validIds.has(remoteId)) continue;
+        validIds.add(remoteId);
+        residualRemoteIds.push(remoteId);
+      }
+      if (residualRemoteIds.length) {
+        await repository.permanentlyDeleteConversations(residualRemoteIds);
+      }
+      const finalResidualRemoteIds = await collectMatchingRemoteIds();
+      if (finalResidualRemoteIds.length) {
+        const error = new Error('Cloud permanent delete left matching remote conversations behind.');
+        error.code = 'ASTRA_REMOTE_DELETE_VERIFY_FAILED';
+        error.details = { remainingConversationIds: finalResidualRemoteIds.slice(0, 10) };
+        throw error;
+      }
+      const finalDeleteIds = [...validIds];
       const tombstones = await repository.fetchTombstones();
       const tombstoneIds = new Set(
         tombstones
           .filter(row => row?.entity_type === 'conversation')
           .map(row => String(row.entity_id))
       );
-      const missingTombstoneIds = deleteIds.filter(id => !tombstoneIds.has(String(id)));
+      const missingTombstoneIds = finalDeleteIds.filter(id => !tombstoneIds.has(String(id)));
       if (missingTombstoneIds.length) {
         const error = new Error('Cloud permanent delete did not create tombstones.');
         error.code = 'ASTRA_TOMBSTONE_VERIFY_FAILED';
@@ -497,10 +564,11 @@ export function createConversationShadowSync({
         enabled,
         pending: false,
         lastPermanentDeleteAt: now(),
-        lastPermanentDeleteCount: deleteIds.length,
-        lastPermanentDeleteVerifiedCount: deleteIds.length,
+        lastPermanentDeleteCount: finalDeleteIds.length,
+        lastPermanentDeleteVerifiedCount: finalDeleteIds.length,
         lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
         lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
+        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
         lastPermanentDeleteSkippedIds: [],
         lastCompletedAt: now(),
         lastPermanentDeleteError: undefined
@@ -511,9 +579,10 @@ export function createConversationShadowSync({
         enabled,
         pending: false,
         lastPermanentDeleteAt: now(),
-        lastPermanentDeleteCount: deleteIds.length,
+        lastPermanentDeleteCount: validIds.size,
         lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
         lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
+        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
         lastPermanentDeleteSkippedIds: [],
         lastPermanentDeleteError: describeShadowError(error),
         lastErrorAt: now(),
@@ -532,6 +601,7 @@ export function createConversationShadowSync({
         verifiedCount: status.lastPermanentDeleteVerifiedCount || 0,
         mappedIds: status.lastPermanentDeleteMappedIds || [],
         matchedRemoteIds: status.lastPermanentDeleteMatchedRemoteIds || [],
+        residualRemoteIds: status.lastPermanentDeleteResidualRemoteIds || [],
         skippedIds: status.lastPermanentDeleteSkippedIds || [],
         error: status.lastPermanentDeleteError || null
       },
