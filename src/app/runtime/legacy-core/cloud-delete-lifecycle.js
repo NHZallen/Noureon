@@ -69,6 +69,25 @@ export function createCloudAstraDeletion({
   });
 }
 
+export function createCloudFolderDeletion({ getCurrentUser, getSync } = {}) {
+  return async function deleteFolderFromCloud(folderId) {
+    if (!folderId) return;
+    const isCloudUser = getCurrentUser?.()?.authProvider === 'supabase';
+    const sync = getSync?.();
+    if (!sync?.permanentlyDeleteFolder) {
+      if (isCloudUser) throw new Error('Cloud folder sync is not ready yet.');
+      return;
+    }
+    if (sync.ready) await sync.ready;
+    const status = sync.getStatus?.();
+    if (status?.state === 'disabled' || status?.enabled === false) {
+      if (isCloudUser) throw new Error(status.error || 'Cloud folder sync is not ready yet.');
+      return;
+    }
+    await sync.permanentlyDeleteFolder(folderId);
+  };
+}
+
 export function createCloudDeletionLifecycle({
   getCurrentUser,
   getConversations,
@@ -77,6 +96,7 @@ export function createCloudDeletionLifecycle({
 } = {}) {
   return {
     deleteConversations: createCloudConversationDeletion({ getCurrentUser, getConversations, getSync }),
-    deleteAstras: createCloudAstraDeletion({ getCurrentUser, getAstras, getSync })
+    deleteAstras: createCloudAstraDeletion({ getCurrentUser, getAstras, getSync }),
+    deleteFolder: createCloudFolderDeletion({ getCurrentUser, getSync })
   };
 }

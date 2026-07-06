@@ -685,6 +685,8 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             (await cloudDeletionLifecycle).deleteConversations(...args);
         const deleteAstrasFromCloud = async (...args) =>
             (await cloudDeletionLifecycle).deleteAstras(...args);
+        const deleteFolderFromCloud = async (...args) =>
+            (await cloudDeletionLifecycle).deleteFolder(...args);
         const loadAppData = async () => {
             if (!currentUser) return;
             const saved = await getItem(getAppDataKey());
@@ -1391,6 +1393,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders),
             getDefaultFolder,
             saveAppData,
+            deleteFolderFromCloud,
             renderFolders,
             renderAll,
             showCustomConfirm,

@@ -344,6 +344,14 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     if (error) throw error;
   }
 
+  async function permanentlyDeleteFolder(folderId) {
+    if (!folderId) return;
+    const { error } = await supabase.rpc('permanently_delete_workspace_folder', {
+      p_folder_id: folderId
+    });
+    if (error) throw error;
+  }
+
   async function permanentlyDeleteAstras(rows, deletedAt = new Date().toISOString()) {
     const tombstoneRows = (rows || []).map(row => ({ ...row, deleted_at: deletedAt }));
     await runInChunks(tombstoneRows, 100, async chunk => {
@@ -365,6 +373,7 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     fetchWorkspace,
     fetchTombstones,
     permanentlyDeleteConversations,
+    permanentlyDeleteFolder,
     permanentlyDeleteAstras
   };
 }
@@ -801,6 +810,55 @@ export function createConversationShadowSync({
     }
   }
 
+  async function permanentlyDeleteFolder(folderId) {
+    const requestedId = String(folderId || '');
+    if (!requestedId) return status;
+    if (!enabled) throw new Error('Cloud folder sync is not ready yet.');
+    if (timer != null) cancel(timer);
+    timer = null;
+    pendingWorkspace = null;
+    setStatus({ pending: false });
+    await work.catch(() => {});
+
+    const cloudFolderId = isUuid(requestedId)
+      ? requestedId
+      : await deterministicUuid(`astra-sync-v2:${userId}:folder:${requestedId}`, cryptoProvider);
+
+    try {
+      await repository.permanentlyDeleteFolder(cloudFolderId);
+      const refreshedTombstones = await repository.fetchTombstones();
+      const refreshedTombstoneIndex = createTombstoneIndex(refreshedTombstones);
+      if (!refreshedTombstoneIndex.folders.has(cloudFolderId)) {
+        const error = new Error('Cloud folder delete did not create a durable deletion marker.');
+        error.code = 'ASTRA_FOLDER_TOMBSTONE_VERIFY_FAILED';
+        error.details = { missingFolderId: cloudFolderId };
+        throw error;
+      }
+      tombstoneIndex = refreshedTombstoneIndex;
+      return setStatus({
+        state: 'ready',
+        enabled,
+        pending: false,
+        lastFolderDeleteAt: now(),
+        lastFolderDeleteCount: 1,
+        lastFolderDeleteError: undefined,
+        lastCompletedAt: now()
+      });
+    } catch (error) {
+      setStatus({
+        state: 'retry',
+        enabled,
+        pending: false,
+        lastFolderDeleteAt: now(),
+        lastFolderDeleteCount: 0,
+        lastFolderDeleteError: describeShadowError(error),
+        lastErrorAt: now(),
+        ...describeShadowError(error)
+      });
+      throw error;
+    }
+  }
+
   async function diagnose() {
     const diagnosis = {
       status,
@@ -930,6 +988,7 @@ export function createConversationShadowSync({
     initialize,
     captureWorkspace,
     permanentlyDeleteConversations,
+    permanentlyDeleteFolder,
     permanentlyDeleteAstras,
     pullWorkspace,
     diagnose,

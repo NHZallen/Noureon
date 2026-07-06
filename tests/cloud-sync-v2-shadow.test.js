@@ -125,6 +125,21 @@ test('repository permanently deletes conversations through the protected RPC', a
   ]);
 });
 
+test('repository permanently deletes folders through the protected RPC', async () => {
+  const calls = [];
+  const supabase = {
+    async rpc(name, args) { calls.push(['rpc', name, args]); return { error: null }; }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  await repository.permanentlyDeleteFolder('folder-1');
+  await repository.permanentlyDeleteFolder('');
+
+  assert.deepEqual(calls, [
+    ['rpc', 'permanently_delete_workspace_folder', { p_folder_id: 'folder-1' }]
+  ]);
+});
+
 test('repository permanent delete rejects instead of bypassing tombstones when the RPC is unavailable', async () => {
   const calls = [];
   const supabase = {
@@ -218,6 +233,55 @@ test('sync permanent deletion requires ready state, calls RPC, and refreshes tom
   assert.deepEqual(calls.at(-1), ['tombstones']);
   assert.equal(sync.getStatus().state, 'ready');
   assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 1);
+});
+
+test('sync folder deletion calls RPC and verifies durable folder tombstone', async () => {
+  const calls = [];
+  const deletedFolderId = workspace.folders[0].id;
+  let deletedId = null;
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => {
+      calls.push(['tombstones']);
+      return deletedId ? [{
+        entity_type: 'folder',
+        entity_id: deletedId,
+        deleted_at: '2026-07-06T00:00:00.000Z'
+      }] : [];
+    },
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteFolder: async id => {
+      calls.push(['deleteFolder', id]);
+      deletedId = id;
+    }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => workspace,
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    now: () => '2026-07-06T02:30:00.000Z'
+  });
+
+  await assert.rejects(
+    () => sync.permanentlyDeleteFolder(deletedFolderId),
+    /not ready/
+  );
+
+  await sync.initialize();
+  await sync.permanentlyDeleteFolder(deletedFolderId);
+
+  assert.deepEqual(calls.at(-2), ['deleteFolder', deletedFolderId]);
+  assert.deepEqual(calls.at(-1), ['tombstones']);
+  assert.equal(sync.getStatus().state, 'ready');
+  assert.equal(sync.getStatus().lastFolderDeleteCount, 1);
+  assert.equal(sync.getStatus().lastFolderDeleteError, undefined);
 });
 
 test('sync permanent deletion refuses to clear local trash when required snapshots are missing', async () => {

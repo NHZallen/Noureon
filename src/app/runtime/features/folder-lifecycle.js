@@ -6,6 +6,7 @@ export function createLegacyFolderLifecycle({
   replaceFolders,
   getDefaultFolder,
   saveAppData,
+  deleteFolderFromCloud = async () => {},
   renderFolders,
   renderAll,
   showCustomConfirm,
@@ -71,6 +72,13 @@ export function createLegacyFolderLifecycle({
       ? getTexts().confirmDeleteFolderWithChats
       : getTexts().confirmDeleteEmptyFolder;
     if (!(await showCustomConfirm(confirmMessage, getTexts().deleteFolderTitle))) return;
+    try {
+      await deleteFolderFromCloud(id, { folder });
+    } catch (error) {
+      try { logger.warn?.('AstraChat cloud folder delete failed; keeping the local folder.', error); } catch {}
+      showNotification(getTexts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。', 'error');
+      return;
+    }
     getConversations().forEach(conversation => {
       if (conversation.folderId === id) {
         conversation.folderId = null;

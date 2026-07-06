@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCloudAstraDeletion } from '../src/app/runtime/legacy-core/cloud-delete-lifecycle.js';
+import {
+  createCloudAstraDeletion,
+  createCloudFolderDeletion
+} from '../src/app/runtime/legacy-core/cloud-delete-lifecycle.js';
 
 test('cloud Astra deletion forwards complete local snapshots to Sync V2', async () => {
   const calls = [];
@@ -29,4 +32,26 @@ test('cloud Astra deletion refuses false local success when Sync V2 is unavailab
   });
 
   await assert.rejects(() => deletion(['astra-1']), /not ready/);
+});
+
+test('cloud folder deletion forwards to Sync V2 and refuses false local success', async () => {
+  const calls = [];
+  const deletion = createCloudFolderDeletion({
+    getCurrentUser: () => ({ authProvider: 'supabase' }),
+    getSync: () => ({
+      ready: Promise.resolve(),
+      getStatus: () => ({ state: 'ready', enabled: true }),
+      permanentlyDeleteFolder: async (...args) => calls.push(args)
+    })
+  });
+
+  await deletion('folder-1');
+
+  assert.deepEqual(calls, [['folder-1']]);
+
+  const unavailable = createCloudFolderDeletion({
+    getCurrentUser: () => ({ authProvider: 'supabase' }),
+    getSync: () => null
+  });
+  await assert.rejects(() => unavailable('folder-1'), /not ready/);
 });

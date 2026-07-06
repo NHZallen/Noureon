@@ -94,6 +94,7 @@ function createHarness(overrides = {}) {
     saveAppData: async () => {
       calls.push(['saveAppData']);
     },
+    deleteFolderFromCloud: overrides.deleteFolderFromCloud || (async (...args) => calls.push(['deleteFolderFromCloud', ...args])),
     renderFolders: () => calls.push(['renderFolders']),
     renderAll: () => calls.push(['renderAll']),
     showCustomConfirm: async (...args) => {
@@ -120,7 +121,10 @@ function createHarness(overrides = {}) {
     getUiLanguage: () => 'zh-TW',
     randomUUID: () => 'folder-id',
     scheduleAnimationFrame: (callback) => callback(),
-    logger: { error: (...args) => calls.push(['error', ...args]) }
+    logger: {
+      error: (...args) => calls.push(['error', ...args]),
+      warn: (...args) => calls.push(['warn', ...args])
+    }
   });
 
   return {
@@ -222,12 +226,33 @@ test('deleteFolder clears linked conversations before replacement and persistenc
   assert.deepEqual(harness.calls.map(call => call[0]), [
     'stop',
     'confirm',
+    'deleteFolderFromCloud',
     'replaceFolders',
     'saveAppData',
     'renderAll',
     'notification'
   ]);
-  assert.equal(harness.calls[2][1], harness.getFolders());
+  assert.deepEqual(harness.calls[2].slice(1), ['folder', { folder }]);
+  assert.equal(harness.calls[3][1], harness.getFolders());
+});
+
+test('deleteFolder keeps local data when durable cloud deletion fails', async () => {
+  const folder = { id: 'folder', conversationIds: ['conv'] };
+  const linkedConversation = { id: 'conv', folderId: 'folder' };
+  const harness = createHarness({
+    folders: [folder],
+    conversations: [linkedConversation],
+    deleteFolderFromCloud: async () => { throw new Error('cloud down'); }
+  });
+
+  await harness.lifecycle.deleteFolder('folder');
+
+  assert.deepEqual(harness.getFolders(), [folder]);
+  assert.equal(linkedConversation.folderId, 'folder');
+  assert.equal(harness.calls.some(call => call[0] === 'replaceFolders'), false);
+  assert.equal(harness.calls.some(call => call[0] === 'saveAppData'), false);
+  assert.equal(harness.calls.some(call => call[0] === 'warn'), true);
+  assert.equal(harness.calls.some(call => call[0] === 'notification' && call[2] === 'error'), true);
 });
 
 test('settings lifecycle keeps folderToCustomize internal and saves the latest live folder', async () => {
