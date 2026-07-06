@@ -172,6 +172,15 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     return data || [];
   }
 
+  async function permanentlyDeleteConversations(conversationIds) {
+    const ids = [...new Set((conversationIds || []).filter(Boolean))];
+    if (!ids.length) return;
+    const { error } = await supabase.rpc('permanently_delete_workspace_conversations', {
+      p_conversation_ids: ids
+    });
+    if (error) throw error;
+  }
+
   return {
     probe,
     setMigrationState,
@@ -180,7 +189,8 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     upsertMessages,
     verify,
     fetchWorkspace,
-    fetchTombstones
+    fetchTombstones,
+    permanentlyDeleteConversations
   };
 }
 
@@ -312,6 +322,19 @@ export function createConversationShadowSync({
     return true;
   }
 
+  async function permanentlyDeleteConversations(conversationIds) {
+    const ids = [...new Set((conversationIds || []).filter(Boolean))];
+    if (!ids.length) return getStatus();
+    if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
+    await repository.permanentlyDeleteConversations(ids);
+    const tombstones = await repository.fetchTombstones();
+    tombstoneIndex = createTombstoneIndex(tombstones);
+    return setStatus({
+      state: 'ready',
+      lastCompletedAt: now()
+    });
+  }
+
   async function initialize() {
     const initializeGeneration = ++generation;
     const assertCurrent = () => {
@@ -391,6 +414,7 @@ export function createConversationShadowSync({
   return {
     initialize,
     captureWorkspace,
+    permanentlyDeleteConversations,
     pullWorkspace,
     flush: drain,
     stop,

@@ -405,6 +405,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
   assertMarkersInOrder(permanentDeleteBody, [
     'showCustomConfirm',
+    'confirmCloudDeletion([conversationId])',
     'replaceConversations(',
     'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
@@ -415,6 +416,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   assertMarkersInOrder(batchDeleteBody, [
     'const count = selectedTrashIds.size',
     'showCustomConfirm',
+    'confirmCloudDeletion(ids)',
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
@@ -426,6 +428,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'showCustomConfirm',
     'const conversations = getConversations()',
     'const count = conversations.filter(conversation => conversation.deletedAt).length',
+    'confirmCloudDeletion(ids)',
     'replaceConversations(',
     'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',

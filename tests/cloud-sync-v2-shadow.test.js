@@ -109,6 +109,56 @@ test('repository uses tombstone select and protected RPC upserts', async () => {
   ]);
 });
 
+test('repository permanently deletes conversations through the protected RPC', async () => {
+  const calls = [];
+  const supabase = {
+    async rpc(name, args) { calls.push(['rpc', name, args]); return { error: null }; }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  await repository.permanentlyDeleteConversations(['a', 'a', '', null, 'b']);
+
+  assert.deepEqual(calls, [[
+    'rpc',
+    'permanently_delete_workspace_conversations',
+    { p_conversation_ids: ['a', 'b'] }
+  ]]);
+});
+
+test('sync permanent deletion requires ready state, calls RPC, and refreshes tombstones', async () => {
+  const calls = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => { calls.push(['tombstones']); return []; },
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async ids => calls.push(['delete', ids])
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await assert.rejects(
+    () => sync.permanentlyDeleteConversations([conversationId]),
+    /not ready/
+  );
+
+  await sync.initialize();
+  await sync.permanentlyDeleteConversations([conversationId, conversationId]);
+
+  assert.deepEqual(calls.at(-2), ['delete', [conversationId]]);
+  assert.deepEqual(calls.at(-1), ['tombstones']);
+  assert.equal(sync.getStatus().state, 'ready');
+});
+
 test('missing migration never reads or changes the local workspace', async () => {
   let localReads = 0;
   const sync = createConversationShadowSync({

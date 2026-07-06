@@ -16,6 +16,7 @@ export function createLegacyTrashLifecycle({
   showCustomConfirm,
   showNotification,
   showCoordinatedNotification,
+  deleteConversationsFromCloud = async () => {},
   toggleModal,
   formatFullTimestamp,
   renderUserText,
@@ -52,6 +53,18 @@ export function createLegacyTrashLifecycle({
     renderMediaAttachmentGrid,
     bindMediaPreviewButtons
   });
+  const confirmCloudDeletion = async (conversationIds) => {
+    try {
+      await deleteConversationsFromCloud(conversationIds);
+      return true;
+    } catch (error) {
+      showNotification(
+        getTexts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。',
+        'error'
+      );
+      return false;
+    }
+  };
 
   const renderTrash = () => {
     const container = elements.trashListContainer;
@@ -149,6 +162,7 @@ export function createLegacyTrashLifecycle({
       getTexts().confirmPermanentDelete || '此操作將永久刪除此對話，無法復原。您確定嗎？',
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
+    if (!await confirmCloudDeletion([conversationId])) return;
     replaceConversations(
       getConversations().filter(conversation => conversation.id !== conversationId)
     );
@@ -217,6 +231,8 @@ export function createLegacyTrashLifecycle({
       `${getTexts().confirmBatchPermanentDelete || '您確定要永久刪除這'} ${count} ${getTexts().items || '個項目嗎？'}`,
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
+    const ids = [...selectedTrashIds];
+    if (!await confirmCloudDeletion(ids)) return;
     replaceConversations(
       getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))
     );
@@ -235,6 +251,8 @@ export function createLegacyTrashLifecycle({
     ))) return;
     const conversations = getConversations();
     const count = conversations.filter(conversation => conversation.deletedAt).length;
+    const ids = conversations.filter(conversation => conversation.deletedAt).map(conversation => conversation.id);
+    if (!await confirmCloudDeletion(ids)) return;
     replaceConversations(
       conversations.filter(conversation => !conversation.deletedAt)
     );

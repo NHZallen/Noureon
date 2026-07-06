@@ -674,6 +674,21 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             }
         };
         const saveAppData = async () => { await runtimeAppDataPersistence.saveAppData(); };
+        const deleteConversationsFromCloud = async (conversationIds = []) => {
+            const ids = [...new Set((conversationIds || []).filter(Boolean))];
+            if (!ids.length) return;
+            if (!String(currentUser?.username || '').startsWith('supabase:')) return;
+            const sync = globalThis.__astraCloudSyncV2 || window.__astraCloudSyncV2;
+            if (!sync?.permanentlyDeleteConversations) {
+                throw new Error('Cloud conversation sync is not ready yet.');
+            }
+            if (sync.ready) await sync.ready;
+            const status = sync.getStatus?.();
+            if (status?.state && status.state !== 'ready') {
+                throw new Error('Cloud conversation sync is not ready yet.');
+            }
+            await sync.permanentlyDeleteConversations(ids);
+        };
         const loadAppData = async () => {
             if (!currentUser) return;
             const saved = await getItem(getAppDataKey());
