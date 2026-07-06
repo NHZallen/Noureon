@@ -127,16 +127,23 @@ test('repository permanently deletes conversations through the protected RPC', a
 
 test('sync permanent deletion requires ready state, calls RPC, and refreshes tombstones', async () => {
   const calls = [];
+  let deletedIds = [];
   const repository = {
     probe: async () => null,
-    fetchTombstones: async () => { calls.push(['tombstones']); return []; },
+    fetchTombstones: async () => {
+      calls.push(['tombstones']);
+      return deletedIds.map(entity_id => ({ entity_type: 'conversation', entity_id, deleted_at: '2026-07-06T00:00:00.000Z' }));
+    },
     fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
     setMigrationState: async () => {},
     upsertFolders: async () => {},
     upsertConversations: async () => {},
     upsertMessages: async () => {},
     verify: async () => true,
-    permanentlyDeleteConversations: async ids => calls.push(['delete', ids])
+    permanentlyDeleteConversations: async ids => {
+      calls.push(['delete', ids]);
+      deletedIds = ids;
+    }
   };
   const sync = createConversationShadowSync({
     repository,
@@ -157,6 +164,7 @@ test('sync permanent deletion requires ready state, calls RPC, and refreshes tom
   assert.deepEqual(calls.at(-2), ['delete', [conversationId]]);
   assert.deepEqual(calls.at(-1), ['tombstones']);
   assert.equal(sync.getStatus().state, 'ready');
+  assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 1);
 });
 
 test('sync permanent deletion skips legacy non-UUID ids that cannot exist in normalized cloud', async () => {
@@ -214,6 +222,39 @@ test('sync permanent deletion exposes protected RPC errors in status', async () 
   assert.equal(sync.getStatus().state, 'retry');
   assert.equal(sync.getStatus().lastPermanentDeleteError.code, 'PGRST202');
   assert.equal(sync.getStatus().lastPermanentDeleteError.status, 404);
+});
+
+test('sync permanent deletion rejects successful RPCs that do not create tombstones', async () => {
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async () => {}
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await sync.initialize();
+  await assert.rejects(
+    () => sync.permanentlyDeleteConversations([conversationId]),
+    /tombstones/
+  );
+
+  assert.equal(sync.getStatus().state, 'retry');
+  assert.equal(sync.getStatus().lastPermanentDeleteError.code, 'ASTRA_TOMBSTONE_VERIFY_FAILED');
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteError.details, {
+    missingConversationIds: [conversationId]
+  });
 });
 
 test('missing migration never reads or changes the local workspace', async () => {

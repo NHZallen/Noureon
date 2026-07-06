@@ -411,6 +411,18 @@ export function createConversationShadowSync({
     try {
       await repository.permanentlyDeleteConversations(validIds);
       const tombstones = await repository.fetchTombstones();
+      const tombstoneIds = new Set(
+        tombstones
+          .filter(row => row?.entity_type === 'conversation')
+          .map(row => String(row.entity_id))
+      );
+      const missingTombstoneIds = validIds.filter(id => !tombstoneIds.has(String(id)));
+      if (missingTombstoneIds.length) {
+        const error = new Error('Cloud permanent delete did not create tombstones.');
+        error.code = 'ASTRA_TOMBSTONE_VERIFY_FAILED';
+        error.details = { missingConversationIds: missingTombstoneIds.slice(0, 10) };
+        throw error;
+      }
       tombstoneIndex = createTombstoneIndex(tombstones);
       return setStatus({
         state: 'ready',
@@ -418,6 +430,7 @@ export function createConversationShadowSync({
         pending: false,
         lastPermanentDeleteAt: now(),
         lastPermanentDeleteCount: validIds.length,
+        lastPermanentDeleteVerifiedCount: validIds.length,
         lastPermanentDeleteSkippedIds: invalidIds.slice(0, 10),
         lastCompletedAt: now(),
         lastPermanentDeleteError: undefined
