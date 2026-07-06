@@ -1,5 +1,6 @@
 import {
   decodeWorkspaceConversationShadow,
+  deterministicUuid,
   encodeWorkspaceConversationShadow,
   isUuid,
   shadowRowsEqual
@@ -398,30 +399,33 @@ export function createConversationShadowSync({
 
   async function permanentlyDeleteConversations(conversationIds) {
     const ids = [...new Set((conversationIds || []).filter(Boolean))];
-    const validIds = ids.filter(isUuid);
-    const invalidIds = ids.filter(id => !isUuid(id));
+    const mappedLegacyIds = [];
+    const validIds = [];
+    for (const id of ids) {
+      const stringId = String(id);
+      if (isUuid(stringId)) {
+        validIds.push(stringId);
+        continue;
+      }
+      const cloudId = await deterministicUuid(
+        `astra-sync-v2:${userId}:conversation:${stringId}`,
+        cryptoProvider
+      );
+      validIds.push(cloudId);
+      mappedLegacyIds.push({ localId: stringId, cloudId });
+    }
+    const deleteIds = [...new Set(validIds)];
     if (!ids.length) return status;
     if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
-    if (!validIds.length) {
-      return setStatus({
-        state: 'ready',
-        enabled,
-        pending: false,
-        lastPermanentDeleteAt: now(),
-        lastPermanentDeleteCount: 0,
-        lastPermanentDeleteSkippedIds: invalidIds.slice(0, 10),
-        lastCompletedAt: now()
-      });
-    }
     try {
-      await repository.permanentlyDeleteConversations(validIds);
+      await repository.permanentlyDeleteConversations(deleteIds);
       const tombstones = await repository.fetchTombstones();
       const tombstoneIds = new Set(
         tombstones
           .filter(row => row?.entity_type === 'conversation')
           .map(row => String(row.entity_id))
       );
-      const missingTombstoneIds = validIds.filter(id => !tombstoneIds.has(String(id)));
+      const missingTombstoneIds = deleteIds.filter(id => !tombstoneIds.has(String(id)));
       if (missingTombstoneIds.length) {
         const error = new Error('Cloud permanent delete did not create tombstones.');
         error.code = 'ASTRA_TOMBSTONE_VERIFY_FAILED';
@@ -434,9 +438,10 @@ export function createConversationShadowSync({
         enabled,
         pending: false,
         lastPermanentDeleteAt: now(),
-        lastPermanentDeleteCount: validIds.length,
-        lastPermanentDeleteVerifiedCount: validIds.length,
-        lastPermanentDeleteSkippedIds: invalidIds.slice(0, 10),
+        lastPermanentDeleteCount: deleteIds.length,
+        lastPermanentDeleteVerifiedCount: deleteIds.length,
+        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
+        lastPermanentDeleteSkippedIds: [],
         lastCompletedAt: now(),
         lastPermanentDeleteError: undefined
       });
@@ -446,8 +451,9 @@ export function createConversationShadowSync({
         enabled,
         pending: false,
         lastPermanentDeleteAt: now(),
-        lastPermanentDeleteCount: validIds.length,
-        lastPermanentDeleteSkippedIds: invalidIds.slice(0, 10),
+        lastPermanentDeleteCount: deleteIds.length,
+        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
+        lastPermanentDeleteSkippedIds: [],
         lastPermanentDeleteError: describeShadowError(error),
         lastErrorAt: now(),
         ...describeShadowError(error)
@@ -463,6 +469,7 @@ export function createConversationShadowSync({
         at: status.lastPermanentDeleteAt || null,
         count: status.lastPermanentDeleteCount || 0,
         verifiedCount: status.lastPermanentDeleteVerifiedCount || 0,
+        mappedIds: status.lastPermanentDeleteMappedIds || [],
         skippedIds: status.lastPermanentDeleteSkippedIds || [],
         error: status.lastPermanentDeleteError || null
       },

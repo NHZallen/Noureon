@@ -7,6 +7,7 @@ import {
   createConversationShadowSync,
   initializeConversationShadowSync
 } from '../src/app/sync/cloud-sync-v2-shadow.js';
+import { deterministicUuid } from '../src/app/sync/cloud-sync-v2-codecs.js';
 import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage-coordinator.js';
 
@@ -167,11 +168,19 @@ test('sync permanent deletion requires ready state, calls RPC, and refreshes tom
   assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 1);
 });
 
-test('sync permanent deletion skips legacy non-UUID ids that cannot exist in normalized cloud', async () => {
+test('sync permanent deletion maps legacy non-UUID ids to repaired cloud ids', async () => {
   const calls = [];
+  const legacyConversationId = 'legacy-chat-id';
+  const cloudConversationId = await deterministicUuid(
+    `astra-sync-v2:${userId}:conversation:${legacyConversationId}`,
+    webcrypto
+  );
   const repository = {
     probe: async () => null,
-    fetchTombstones: async () => { calls.push(['tombstones']); return []; },
+    fetchTombstones: async () => {
+      calls.push(['tombstones']);
+      return [{ entity_type: 'conversation', entity_id: cloudConversationId }];
+    },
     fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
     setMigrationState: async () => {},
     upsertFolders: async () => {},
@@ -189,10 +198,15 @@ test('sync permanent deletion skips legacy non-UUID ids that cannot exist in nor
   });
 
   await sync.initialize();
-  await sync.permanentlyDeleteConversations(['legacy-chat-id']);
+  await sync.permanentlyDeleteConversations([legacyConversationId]);
 
-  assert.equal(calls.some(call => call[0] === 'delete'), false);
-  assert.deepEqual(sync.getStatus().lastPermanentDeleteSkippedIds, ['legacy-chat-id']);
+  assert.deepEqual(calls.at(-2), ['delete', [cloudConversationId]]);
+  assert.deepEqual(calls.at(-1), ['tombstones']);
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteMappedIds, [{
+    localId: legacyConversationId,
+    cloudId: cloudConversationId
+  }]);
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteSkippedIds, []);
 });
 
 test('sync permanent deletion exposes protected RPC errors in status', async () => {
@@ -924,6 +938,7 @@ test('diagnose reports local and remote shadow counts with current status', asyn
     at: null,
     count: 0,
     verifiedCount: 0,
+    mappedIds: [],
     skippedIds: [],
     error: null
   });
