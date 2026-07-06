@@ -159,6 +159,63 @@ test('sync permanent deletion requires ready state, calls RPC, and refreshes tom
   assert.equal(sync.getStatus().state, 'ready');
 });
 
+test('sync permanent deletion skips legacy non-UUID ids that cannot exist in normalized cloud', async () => {
+  const calls = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => { calls.push(['tombstones']); return []; },
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async ids => calls.push(['delete', ids])
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await sync.initialize();
+  await sync.permanentlyDeleteConversations(['legacy-chat-id']);
+
+  assert.equal(calls.some(call => call[0] === 'delete'), false);
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteSkippedIds, ['legacy-chat-id']);
+});
+
+test('sync permanent deletion exposes protected RPC errors in status', async () => {
+  const deleteError = { message: 'Could not find the function', code: 'PGRST202', status: 404 };
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async () => { throw deleteError; }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await sync.initialize();
+  await assert.rejects(() => sync.permanentlyDeleteConversations([conversationId]));
+
+  assert.equal(sync.getStatus().state, 'retry');
+  assert.equal(sync.getStatus().lastPermanentDeleteError.code, 'PGRST202');
+  assert.equal(sync.getStatus().lastPermanentDeleteError.status, 404);
+});
+
 test('missing migration never reads or changes the local workspace', async () => {
   let localReads = 0;
   const sync = createConversationShadowSync({

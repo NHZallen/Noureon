@@ -25,7 +25,8 @@ export function createLegacyTrashLifecycle({
   escapeHTML,
   scheduleTimeout,
   clearScheduledTimeout,
-  createChangeEvent
+  createChangeEvent,
+  logger = console
 } = {}) {
   let isTrashSelectionMode = false;
   const selectedTrashIds = new Set();
@@ -59,6 +60,9 @@ export function createLegacyTrashLifecycle({
       await deleteConversationsFromCloud(conversationIds);
       return true;
     } catch (error) {
+      try {
+        logger.warn('AstraChat cloud permanent delete failed; keeping local trash for safety.', error);
+      } catch {}
       showNotification(
         getTexts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。',
         'error'

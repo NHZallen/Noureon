@@ -1,6 +1,7 @@
 import {
   decodeWorkspaceConversationShadow,
   encodeWorkspaceConversationShadow,
+  isUuid,
   shadowRowsEqual
 } from './cloud-sync-v2-codecs.js';
 import { mergeWorkspaceAppData } from './cloud-sync-versioning.js';
@@ -392,17 +393,49 @@ export function createConversationShadowSync({
 
   async function permanentlyDeleteConversations(conversationIds) {
     const ids = [...new Set((conversationIds || []).filter(Boolean))];
-    if (!ids.length) return getStatus();
+    const validIds = ids.filter(isUuid);
+    const invalidIds = ids.filter(id => !isUuid(id));
+    if (!ids.length) return status;
     if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
-    await repository.permanentlyDeleteConversations(ids);
-    const tombstones = await repository.fetchTombstones();
-    tombstoneIndex = createTombstoneIndex(tombstones);
-    return setStatus({
-      state: 'ready',
-      enabled,
-      pending: false,
-      lastCompletedAt: now()
-    });
+    if (!validIds.length) {
+      return setStatus({
+        state: 'ready',
+        enabled,
+        pending: false,
+        lastPermanentDeleteAt: now(),
+        lastPermanentDeleteCount: 0,
+        lastPermanentDeleteSkippedIds: invalidIds.slice(0, 10),
+        lastCompletedAt: now()
+      });
+    }
+    try {
+      await repository.permanentlyDeleteConversations(validIds);
+      const tombstones = await repository.fetchTombstones();
+      tombstoneIndex = createTombstoneIndex(tombstones);
+      return setStatus({
+        state: 'ready',
+        enabled,
+        pending: false,
+        lastPermanentDeleteAt: now(),
+        lastPermanentDeleteCount: validIds.length,
+        lastPermanentDeleteSkippedIds: invalidIds.slice(0, 10),
+        lastCompletedAt: now(),
+        lastPermanentDeleteError: undefined
+      });
+    } catch (error) {
+      setStatus({
+        state: 'retry',
+        enabled,
+        pending: false,
+        lastPermanentDeleteAt: now(),
+        lastPermanentDeleteCount: validIds.length,
+        lastPermanentDeleteSkippedIds: invalidIds.slice(0, 10),
+        lastPermanentDeleteError: describeShadowError(error),
+        lastErrorAt: now(),
+        ...describeShadowError(error)
+      });
+      throw error;
+    }
   }
 
   async function diagnose() {
