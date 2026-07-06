@@ -86,6 +86,7 @@ function describeShadowError(error) {
 function summarizeWorkspace(workspace = {}) {
   const conversations = Array.isArray(workspace.conversations) ? workspace.conversations : [];
   const folders = Array.isArray(workspace.folders) ? workspace.folders : [];
+  const trashedConversations = conversations.filter(conversation => conversation?.deletedAt);
   const messages = conversations.reduce(
     (total, conversation) => total + (Array.isArray(conversation?.messages) ? conversation.messages.length : 0),
     0
@@ -93,7 +94,11 @@ function summarizeWorkspace(workspace = {}) {
   return {
     conversations: conversations.length,
     activeConversations: conversations.filter(conversation => !conversation?.deletedAt).length,
-    trashedConversations: conversations.filter(conversation => conversation?.deletedAt).length,
+    trashedConversations: trashedConversations.length,
+    trashedConversationIds: trashedConversations
+      .map(conversation => conversation?.id)
+      .filter(Boolean)
+      .slice(0, 10),
     messages,
     folders: folders.length
   };
@@ -454,6 +459,13 @@ export function createConversationShadowSync({
   async function diagnose() {
     const diagnosis = {
       status,
+      permanentDelete: {
+        at: status.lastPermanentDeleteAt || null,
+        count: status.lastPermanentDeleteCount || 0,
+        verifiedCount: status.lastPermanentDeleteVerifiedCount || 0,
+        skippedIds: status.lastPermanentDeleteSkippedIds || [],
+        error: status.lastPermanentDeleteError || null
+      },
       online: online(),
       userId
     };

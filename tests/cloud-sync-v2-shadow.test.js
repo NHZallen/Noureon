@@ -914,11 +914,19 @@ test('diagnose reports local and remote shadow counts with current status', asyn
     conversations: 1,
     activeConversations: 1,
     trashedConversations: 0,
+    trashedConversationIds: [],
     messages: 1,
     folders: 1
   });
   assert.deepEqual(diagnosis.remote, { conversations: 1, messages: 1, folders: 1 });
   assert.deepEqual(diagnosis.tombstones, { total: 1, conversations: 1, folders: 0 });
+  assert.deepEqual(diagnosis.permanentDelete, {
+    at: null,
+    count: 0,
+    verifiedCount: 0,
+    skippedIds: [],
+    error: null
+  });
 });
 
 test('successful local save is debounced and captured without waiting in the UI', async () => {
