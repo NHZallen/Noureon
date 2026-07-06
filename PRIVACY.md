@@ -18,7 +18,7 @@ Sensitive cloud vault or recovery payloads are encrypted with the user's sync ke
 
 ## Authentication And Email
 
-Noureon uses Supabase Auth for sign-in. Authentication and recovery emails are sent through the configured Supabase/Resend mail setup. Cloudflare Turnstile may be used for anti-abuse checks. Support mail sent to support@noureon.com is routed through Cloudflare Email Routing and handled in the support mailbox.
+Noureon supports account sign-in and recovery for users who choose cloud sync. Authentication-related emails are used only for account access and recovery.
 
 ## Provider Requests
 
