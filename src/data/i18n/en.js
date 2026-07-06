@@ -459,6 +459,7 @@
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
         model_nex_n2_pro_desc_tier_free: 'Cost - Free',
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Cost - Free',
+        model_tencent_hy3_desc_tier_free: 'Cost - Free; retires 2026-07-21; no vision support',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter image generation and editing model',
         model_gemini_3_pro_image_desc_tier_paid: 'High-quality image generation and reference editing',

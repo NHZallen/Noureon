@@ -459,6 +459,7 @@
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: '費用-免費',
         model_nex_n2_pro_desc_tier_free: '費用-免費',
         model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
+        model_tencent_hy3_desc_tier_free: '費用-免費；2026-07-21 下架；不支援視覺',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter 圖片生成與編輯模型',
         model_gemini_3_pro_image_desc_tier_paid: '高品質圖片生成與參考圖編輯',
