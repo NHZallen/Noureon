@@ -154,6 +154,7 @@ function conversationDeleteSignature(conversation = {}) {
     model: String(conversation.model || ''),
     provider: String(conversation.provider || ''),
     createdAt: stableDeleteTimestamp(conversation.createdAt),
+    deletedAt: stableDeleteTimestamp(conversation.deletedAt),
     messages,
     textMessages: messages
       .map(message => `${message.role}:${message.parts.map(part => part.text).filter(Boolean).join('\n')}`)
@@ -182,11 +183,29 @@ function conversationDeleteMatchKeys(conversation = {}) {
   const messageText = signature.textMessages.join('\n---\n');
   const firstText = signature.textMessages[0] || '';
   if (signature.title && signature.createdAt) keys.add(`title-created:${signature.title}\n${signature.createdAt}`);
+  if (signature.createdAt && firstText) keys.add(`created-first:${signature.createdAt}\n${firstText}`);
   if (signature.createdAt && messageText) keys.add(`created-messages:${signature.createdAt}\n${messageText}`);
   if (signature.title && messageText) keys.add(`title-messages:${signature.title}\n${messageText}`);
   if (signature.title && firstText) keys.add(`title-first:${signature.title}\n${firstText}`);
+  if (signature.deletedAt && signature.createdAt) keys.add(`trash-created:${signature.createdAt}`);
+  if (signature.deletedAt && firstText) keys.add(`trash-first:${firstText}`);
+  if (signature.deletedAt && messageText) keys.add(`trash-messages:${messageText}`);
   if (messageText && signature.textMessages.length >= 2) keys.add(`messages:${messageText}`);
   return keys;
+}
+
+function uniqueConversationsById(conversations = []) {
+  const seen = new Set();
+  const unique = [];
+  for (const conversation of conversations || []) {
+    if (!conversation) continue;
+    const id = conversation.id ? String(conversation.id) : '';
+    const key = id || conversationDeleteFingerprint(conversation) || JSON.stringify([...conversationDeleteMatchKeys(conversation)]);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(conversation);
+  }
+  return unique;
 }
 
 function exposeConversationShadowSync(window, sync) {
@@ -494,7 +513,22 @@ export function createConversationShadowSync({
     if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
     const matchedRemoteIds = [];
     const residualRemoteIds = [];
-    const conversationSnapshots = Array.isArray(options.conversations) ? options.conversations : [];
+    const optionSnapshots = Array.isArray(options.conversations) ? options.conversations : [];
+    let localSnapshots = [];
+    try {
+      const localWorkspace = await readWorkspace();
+      localSnapshots = (localWorkspace?.conversations || []).filter(conversation => {
+        if (!conversation?.id) return false;
+        const id = String(conversation.id);
+        return ids.includes(id) || validIds.has(id);
+      });
+    } catch (error) {
+      logger.warn('AstraChat Sync V2 shadow could not read local delete snapshots.', error);
+    }
+    const conversationSnapshots = uniqueConversationsById([
+      ...optionSnapshots,
+      ...localSnapshots
+    ]);
     const selectedFingerprints = new Set(
       conversationSnapshots
         .map(conversationDeleteFingerprint)

@@ -295,6 +295,88 @@ test('sync permanent deletion matches remote aliases by conversation snapshot be
   assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 2);
 });
 
+test('sync permanent deletion self-loads local trash snapshots and matches renamed remote aliases', async () => {
+  const localConversationId = conversationId;
+  const remoteConversationId = '88888888-8888-4888-8888-888888888888';
+  const localSnapshot = {
+    id: localConversationId,
+    title: 'Local deleted title',
+    summary: '',
+    model: 'provider-model',
+    provider: 'provider',
+    createdAt: '2026-07-06T03:00:00.000Z',
+    deletedAt: '2026-07-06T03:20:00.000Z',
+    messages: [{
+      role: 'user',
+      createdAt: '2026-07-06T03:00:01.000Z',
+      parts: [{ text: 'delete the same trashed conversation even after title drift' }]
+    }]
+  };
+  let remoteRows = {
+    folders: [],
+    conversations: [{
+      id: remoteConversationId,
+      user_id: userId,
+      folder_id: null,
+      title: 'Remote title drifted',
+      summary: '',
+      model: 'unknown',
+      provider: 'unknown',
+      metadata: {},
+      archived: false,
+      pinned: false,
+      created_at: localSnapshot.createdAt,
+      updated_at: localSnapshot.createdAt,
+      deleted_at: '2026-07-06T03:21:00.000Z'
+    }],
+    messages: [{
+      id: '99999999-9999-4999-8999-999999999999',
+      user_id: userId,
+      conversation_id: remoteConversationId,
+      role: 'user',
+      parts: localSnapshot.messages[0].parts,
+      status: 'complete',
+      sequence: 0,
+      created_at: localSnapshot.messages[0].createdAt,
+      updated_at: localSnapshot.messages[0].createdAt,
+      deleted_at: null
+    }]
+  };
+  let deletedIds = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => deletedIds.map(id => ({ entity_type: 'conversation', entity_id: id })),
+    fetchWorkspace: async () => remoteRows,
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async ids => {
+      deletedIds = ids;
+      remoteRows = {
+        ...remoteRows,
+        conversations: (remoteRows.conversations || []).filter(row => !ids.includes(row.id)),
+        messages: (remoteRows.messages || []).filter(row => !ids.includes(row.conversation_id))
+      };
+    }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [localSnapshot], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await sync.initialize();
+  await sync.permanentlyDeleteConversations([localConversationId]);
+
+  assert.deepEqual(deletedIds, [localConversationId, remoteConversationId]);
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteMatchedRemoteIds, [remoteConversationId]);
+  assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 2);
+});
+
 test('sync permanent deletion rejects when matching remote rows remain after RPC', async () => {
   const localConversationId = conversationId;
   const snapshot = {
