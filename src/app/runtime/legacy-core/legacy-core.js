@@ -1511,6 +1511,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             setUserBubbleColor,
             saveConfig,
             saveAppData,
+            deleteConversationsFromCloud,
             showNotification,
             toggleModal,
             renderAstras,

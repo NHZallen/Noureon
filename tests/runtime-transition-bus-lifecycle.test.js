@@ -183,6 +183,7 @@ function createHarness(overrides = {}) {
     setUserBubbleColor: noop,
     saveConfig: async () => calls.push(['saveConfig']),
     saveAppData: async () => calls.push(['saveAppData']),
+    deleteConversationsFromCloud: async (...args) => calls.push(['deleteConversationsFromCloud', ...args]),
     showNotification: (...args) => calls.push(['showNotification', ...args]),
     toggleModal: (...args) => calls.push(['toggleModal', ...args]),
     renderAstras: noop,
@@ -325,8 +326,17 @@ test('registers sidebar.toggleSidebar and runtime.coreTailDependencies with live
   dependencies.state.sidebarOpen = true;
   assert.equal(state.sidebarOpen, true);
   assert.equal(dependencies.getCurrentConversationId(), 'c1');
+  assert.equal(typeof dependencies.deleteConversationsFromCloud, 'function');
   dependencies.setCurrentConversationId('c2');
   assert.deepEqual(calls.at(-1), ['setCurrentConversationId', 'c2']);
+});
+
+test('legacy core passes cloud deletion through the production transition bus composition', () => {
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  assert.match(
+    source,
+    /createLegacyTransitionBusLifecycle\(\{[\s\S]*?saveAppData,\s*deleteConversationsFromCloud,\s*showNotification,/
+  );
 });
 
 test('module owns transition wiring without fragments or virtual runtime imports', () => {
