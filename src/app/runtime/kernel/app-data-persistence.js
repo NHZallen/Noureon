@@ -5,7 +5,8 @@ export function createLegacyRuntimeAppDataPersistence({
   getAppData,
   getAppDataKey,
   setItem,
-  onSaved = () => {}
+  onSaved = () => {},
+  logger = console
 } = {}) {
   async function saveAppData() {
     return withWorkspaceStorageExclusive(async () => {
@@ -13,7 +14,9 @@ export function createLegacyRuntimeAppDataPersistence({
       if (!currentUser) return;
       const snapshot = getAppData();
       await setItem(getAppDataKey(), JSON.stringify(snapshot));
-      onSaved(snapshot);
+      await Promise.resolve(onSaved(snapshot)).then(undefined, error => {
+        logger.warn('AstraChat cloud conversation sync could not observe a local save.', error);
+      });
     });
   }
 

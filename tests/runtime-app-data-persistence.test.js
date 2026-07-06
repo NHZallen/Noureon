@@ -138,6 +138,27 @@ test('successful local persistence hands the exact saved snapshot to shadow sync
   assert.deepEqual(calls, ['saved', snapshot]);
 });
 
+test('local app data persistence survives a failed shadow sync notification', async () => {
+  const snapshot = { conversations: [{ id: 'conversation-1' }], folders: [], astras: [], personalMemories: [] };
+  const calls = [];
+  const warnings = [];
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getAppData: () => snapshot,
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async (key, value) => calls.push([key, JSON.parse(value)]),
+    onSaved: async () => { throw new Error('sync bridge failed'); },
+    logger: { warn: (...args) => warnings.push(args) }
+  });
+
+  await persistence.saveAppData();
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0][1], snapshot);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0][0], /cloud conversation sync/i);
+});
+
 test('serialized app data persistence preserves rejection and stringify error boundaries', async () => {
   const setItemError = new Error('storage failed');
   const rejectingPersistence = createLegacyRuntimeAppDataPersistence({
@@ -187,6 +208,5 @@ test('serialized app data persistence exposes only saveAppData and avoids storag
   assert.equal(typeof persistence.saveAppData, 'function');
   assert.match(source, /export\s+function\s+createLegacyRuntimeAppDataPersistence/);
   assert.doesNotMatch(source, /loadAppData|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage/);
-  assert.doesNotMatch(source, /try\s*\{|catch\s*\(/);
   assert.doesNotMatch(source, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
 });

@@ -45,13 +45,19 @@ function installConversationShadowStatus(window, status) {
   if (window?.__astraCloudSyncV2 || globalThis.__astraCloudSyncV2) return;
   const frozenStatus = Object.freeze({
     state: 'disabled',
+    enabled: false,
+    pending: false,
     ...status
   });
   const api = Object.freeze({
     captureWorkspace: () => false,
     flush: async () => frozenStatus,
     stop: () => {},
-    getStatus: () => frozenStatus
+    getStatus: () => frozenStatus,
+    diagnose: async () => ({
+      status: frozenStatus,
+      online: globalThis.navigator?.onLine !== false
+    })
   });
   if (window) window.__astraCloudSyncV2 = api;
   globalThis.__astraCloudSyncV2 = api;

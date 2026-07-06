@@ -789,6 +789,40 @@ test('probe failure exposes Supabase error metadata for debugging', async () => 
   assert.match(status.error, /permission denied/);
 });
 
+test('diagnose reports local and remote shadow counts with current status', async () => {
+  const repository = {
+    probe: async () => ({ user_id: userId, schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [
+      { entity_type: 'conversation', entity_id: conversationId, deleted_at: '2026-07-06T01:00:00.000Z' }
+    ],
+    fetchWorkspace: async () => ({
+      folders: [{ id: '33333333-3333-4333-8333-333333333333' }],
+      conversations: [{ id: conversationId }],
+      messages: [{ id: '55555555-5555-4555-8555-555555555555' }]
+    })
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => workspace,
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  const diagnosis = await sync.diagnose();
+
+  assert.equal(diagnosis.status.state, 'idle');
+  assert.equal(diagnosis.status.enabled, false);
+  assert.deepEqual(diagnosis.local, {
+    conversations: 1,
+    activeConversations: 1,
+    trashedConversations: 0,
+    messages: 1,
+    folders: 1
+  });
+  assert.deepEqual(diagnosis.remote, { conversations: 1, messages: 1, folders: 1 });
+  assert.deepEqual(diagnosis.tombstones, { total: 1, conversations: 1, folders: 0 });
+});
+
 test('successful local save is debounced and captured without waiting in the UI', async () => {
   let scheduled;
   let uploads = 0;

@@ -82,6 +82,30 @@ function describeShadowError(error) {
   };
 }
 
+function summarizeWorkspace(workspace = {}) {
+  const conversations = Array.isArray(workspace.conversations) ? workspace.conversations : [];
+  const folders = Array.isArray(workspace.folders) ? workspace.folders : [];
+  const messages = conversations.reduce(
+    (total, conversation) => total + (Array.isArray(conversation?.messages) ? conversation.messages.length : 0),
+    0
+  );
+  return {
+    conversations: conversations.length,
+    activeConversations: conversations.filter(conversation => !conversation?.deletedAt).length,
+    trashedConversations: conversations.filter(conversation => conversation?.deletedAt).length,
+    messages,
+    folders: folders.length
+  };
+}
+
+function summarizeShadowRows(rows = {}) {
+  return {
+    conversations: rows.conversations?.length || 0,
+    messages: rows.messages?.length || 0,
+    folders: rows.folders?.length || 0
+  };
+}
+
 function exposeConversationShadowSync(window, sync) {
   if (window) window.__astraCloudSyncV2 = sync;
   if (typeof globalThis !== 'undefined') globalThis.__astraCloudSyncV2 = sync;
@@ -216,7 +240,14 @@ export function createConversationShadowSync({
   let backupMarker = null;
   let tombstoneIndex = createTombstoneIndex();
   let generation = 0;
-  let status = Object.freeze({ state: 'idle', conversations: 0, messages: 0 });
+  let status = Object.freeze({
+    state: 'idle',
+    enabled: false,
+    pending: false,
+    conversations: 0,
+    messages: 0,
+    folders: 0
+  });
 
   const setStatus = next => {
     status = Object.freeze({ ...status, ...next });
@@ -239,15 +270,25 @@ export function createConversationShadowSync({
     assertCurrent();
     if (encoded.skippedConversationIds.length) {
       logger.warn('AstraChat Sync V2 shadow skipped conversations with invalid IDs.', {
-        count: encoded.skippedConversationIds.length
+        count: encoded.skippedConversationIds.length,
+        ids: encoded.skippedConversationIds.slice(0, 10)
       });
     }
     setStatus({
       state: 'uploading',
+      enabled,
+      pending: false,
       conversations: encoded.conversations.length,
       messages: encoded.messages.length,
       folders: encoded.folders.length,
-      skipped: encoded.skippedConversationIds.length
+      skipped: encoded.skippedConversationIds.length,
+      skippedConversationIds: encoded.skippedConversationIds.slice(0, 10),
+      lastUploadStartedAt: now(),
+      error: undefined,
+      code: undefined,
+      status: undefined,
+      details: undefined,
+      hint: undefined
     });
     assertCurrent();
     await repository.setMigrationState('shadow', backupMarker);
@@ -272,6 +313,8 @@ export function createConversationShadowSync({
     assertCurrent();
     const readyStatus = setStatus({
       state: 'ready',
+      enabled,
+      pending: false,
       conversations: encoded.conversations.length,
       messages: encoded.messages.length,
       folders: encoded.folders.length,
@@ -310,19 +353,40 @@ export function createConversationShadowSync({
       .then(() => captureNow(pending?.workspace, false, assertCurrent))
       .catch(error => {
         if (error instanceof ShadowSyncStoppedError) {
-          return setStatus({ state: 'stopped' });
+          return setStatus({ state: 'stopped', enabled: false, pending: false });
         }
         logger.warn('AstraChat Sync V2 shadow upload will retry after the next local save or reload.', error);
-        setStatus({ state: 'retry', error: error?.message || String(error) });
+        setStatus({
+          state: 'retry',
+          enabled,
+          pending: false,
+          lastErrorAt: now(),
+          ...describeShadowError(error)
+        });
       });
     return work;
   }
 
   function captureWorkspace(workspace) {
-    if (!enabled || !workspace) return false;
+    if (!enabled || !workspace) {
+      setStatus({
+        state: !workspace ? status.state : status.state === 'idle' ? 'disabled' : status.state,
+        enabled,
+        pending: false,
+        lastCaptureRejectedAt: now(),
+        lastCaptureRejectedReason: !workspace ? 'empty-workspace' : 'sync-not-ready'
+      });
+      return false;
+    }
     pendingWorkspace = { workspace, generation };
     if (timer != null) cancel(timer);
     timer = schedule(drain, CAPTURE_DEBOUNCE_MS);
+    setStatus({
+      enabled,
+      pending: true,
+      lastCaptureQueuedAt: now(),
+      local: summarizeWorkspace(workspace)
+    });
     return true;
   }
 
@@ -335,8 +399,44 @@ export function createConversationShadowSync({
     tombstoneIndex = createTombstoneIndex(tombstones);
     return setStatus({
       state: 'ready',
+      enabled,
+      pending: false,
       lastCompletedAt: now()
     });
+  }
+
+  async function diagnose() {
+    const diagnosis = {
+      status,
+      online: online(),
+      userId
+    };
+    try {
+      diagnosis.local = summarizeWorkspace(await readWorkspace() || {});
+    } catch (error) {
+      diagnosis.localError = describeShadowError(error);
+    }
+    try {
+      diagnosis.profile = await repository.probe();
+    } catch (error) {
+      diagnosis.profileError = describeShadowError(error);
+    }
+    try {
+      const tombstones = await repository.fetchTombstones();
+      diagnosis.tombstones = {
+        total: tombstones.length,
+        conversations: tombstones.filter(row => row?.entity_type === 'conversation').length,
+        folders: tombstones.filter(row => row?.entity_type === 'folder').length
+      };
+    } catch (error) {
+      diagnosis.tombstoneError = describeShadowError(error);
+    }
+    try {
+      diagnosis.remote = summarizeShadowRows(await repository.fetchWorkspace());
+    } catch (error) {
+      diagnosis.remoteError = describeShadowError(error);
+    }
+    return diagnosis;
   }
 
   async function initialize() {
@@ -349,10 +449,10 @@ export function createConversationShadowSync({
       assertCurrent();
       backupMarker = profile?.legacy_backup_created_at ? null : now();
     } catch (error) {
-      if (error instanceof ShadowSyncStoppedError) return setStatus({ state: 'stopped' });
-      if (isMissingSchemaError(error)) return setStatus({ state: 'migration-required' });
+      if (error instanceof ShadowSyncStoppedError) return setStatus({ state: 'stopped', enabled: false, pending: false });
+      if (isMissingSchemaError(error)) return setStatus({ state: 'migration-required', enabled: false, pending: false, ...describeShadowError(error) });
       logger.warn('AstraChat Sync V2 shadow probe failed; local mode remains active.', error);
-      return setStatus({ state: 'retry', ...describeShadowError(error) });
+      return setStatus({ state: 'retry', enabled: false, pending: false, lastErrorAt: now(), ...describeShadowError(error) });
     }
     try {
       const workspace = await readWorkspace() || {};
@@ -391,20 +491,21 @@ export function createConversationShadowSync({
       assertCurrent();
       if (result.state === 'ready') {
         enabled = true;
+        setStatus({ enabled: true, pending: false });
         return result;
       }
       return result;
     } catch (error) {
       enabled = false;
       if (error instanceof ShadowSyncStoppedError) {
-        return setStatus({ state: 'stopped' });
+        return setStatus({ state: 'stopped', enabled: false, pending: false });
       }
       if (isMissingSchemaError(error)) {
         enabled = false;
-        return setStatus({ state: 'migration-required' });
+        return setStatus({ state: 'migration-required', enabled: false, pending: false, ...describeShadowError(error) });
       }
       logger.warn('AstraChat Sync V2 shadow initialization is incomplete; local mode remains active.', error);
-      return setStatus({ state: 'retry', ...describeShadowError(error) });
+      return setStatus({ state: 'retry', enabled: false, pending: false, lastErrorAt: now(), ...describeShadowError(error) });
     }
   }
 
@@ -414,7 +515,7 @@ export function createConversationShadowSync({
     if (timer != null) cancel(timer);
     timer = null;
     pendingWorkspace = null;
-    setStatus({ state: 'stopped' });
+    setStatus({ state: 'stopped', enabled: false, pending: false });
   }
 
   return {
@@ -422,6 +523,7 @@ export function createConversationShadowSync({
     captureWorkspace,
     permanentlyDeleteConversations,
     pullWorkspace,
+    diagnose,
     flush: drain,
     stop,
     getStatus: () => status
