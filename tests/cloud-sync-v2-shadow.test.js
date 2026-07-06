@@ -294,6 +294,52 @@ test('local tombstones are applied before remote workspace rows are fetched', as
   assert.deepEqual(calls.slice(0, 3), ['tombstones', 'sanitize-local', 'fetch-workspace']);
 });
 
+test('legacy conversation IDs are repaired before shadow upload instead of being skipped', async () => {
+  const writes = [];
+  const uploads = [];
+  const legacyWorkspace = {
+    folders: [{ id: 'legacy-folder', conversationIds: ['legacy-chat'] }],
+    conversations: [{
+      id: 'legacy-chat',
+      folderId: 'legacy-folder',
+      title: 'Legacy chat',
+      createdAt: '2026-07-06T01:00:00.000Z',
+      messages: [{ role: 'user', parts: [{ text: 'Hello' }] }]
+    }]
+  };
+  const sync = createConversationShadowSync({
+    repository: {
+      probe: async () => null,
+      fetchTombstones: async () => [],
+      fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+      setMigrationState: async () => {},
+      upsertFolders: async rows => uploads.push(['folders', rows]),
+      upsertConversations: async rows => uploads.push(['conversations', rows]),
+      upsertMessages: async rows => uploads.push(['messages', rows]),
+      verify: async () => true
+    },
+    readWorkspace: async () => legacyWorkspace,
+    writeWorkspace: async workspace => writes.push(workspace),
+    normalizeWorkspace: async workspace => {
+      const { repairWorkspaceEntityIds } = await import('../src/app/sync/cloud-sync-v2-id-repair.js');
+      return (await repairWorkspaceEntityIds({ workspace, userId, cryptoProvider: webcrypto })).workspace;
+    },
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  const status = await sync.initialize();
+  const conversationUpload = uploads.find(([kind]) => kind === 'conversations')[1][0];
+  const folderUpload = uploads.find(([kind]) => kind === 'folders')[1][0];
+
+  assert.equal(status.state, 'ready');
+  assert.equal(status.skipped, 0);
+  assert.match(conversationUpload.id, /^[0-9a-f-]{36}$/);
+  assert.match(folderUpload.id, /^[0-9a-f-]{36}$/);
+  assert.equal(conversationUpload.folder_id, folderUpload.id);
+  assert.equal(writes[0].conversations[0].id, conversationUpload.id);
+});
+
 test('missing protected upload RPC keeps merged local data and requires migration', async () => {
   const writes = [];
   const sync = createConversationShadowSync({

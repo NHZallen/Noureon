@@ -9,6 +9,7 @@ import {
   createTombstoneIndex,
   filterEncodedWorkspaceByTombstones
 } from './cloud-sync-v2-deletions.js';
+import { repairWorkspaceEntityIds } from './cloud-sync-v2-id-repair.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
 
 const SCHEMA_VERSION = 2;
@@ -202,6 +203,7 @@ export function createConversationShadowSync({
   userId,
   cryptoProvider = globalThis.crypto,
   online = () => globalThis.navigator?.onLine !== false,
+  normalizeWorkspace = async workspace => workspace,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
   cancel = timer => globalThis.clearTimeout(timer),
   now = () => new Date().toISOString(),
@@ -228,8 +230,10 @@ export function createConversationShadowSync({
     assertCurrent();
     setStatus({ state: 'uploading' });
     assertCurrent();
+    const uploadWorkspace = await normalizeWorkspace(workspace);
+    assertCurrent();
     const encoded = filterEncodedWorkspaceByTombstones(
-      await encodeWorkspaceConversationShadow({ workspace, userId, cryptoProvider }),
+      await encodeWorkspaceConversationShadow({ workspace: uploadWorkspace, userId, cryptoProvider }),
       tombstoneIndex
     );
     assertCurrent();
@@ -353,10 +357,12 @@ export function createConversationShadowSync({
     try {
       const workspace = await readWorkspace() || {};
       assertCurrent();
+      const normalizedWorkspace = await normalizeWorkspace(workspace);
+      assertCurrent();
       const tombstones = await repository.fetchTombstones();
       assertCurrent();
       const nextTombstoneIndex = createTombstoneIndex(tombstones);
-      const sanitizedLocal = applyWorkspaceTombstones(workspace, nextTombstoneIndex);
+      const sanitizedLocal = applyWorkspaceTombstones(normalizedWorkspace, nextTombstoneIndex);
       const rows = await repository.fetchWorkspace();
       assertCurrent();
       const remoteWorkspace = applyWorkspaceTombstones(
@@ -432,6 +438,19 @@ export function initializeConversationShadowSync({
 } = {}) {
   const repository = createConversationShadowRepository({ supabase, userId: user.id });
   const storageKey = `chatAppData_v8.6_${username}`;
+  const normalizeWorkspace = async (workspace) => {
+    const repaired = await repairWorkspaceEntityIds({
+      workspace,
+      userId: user.id
+    });
+    if (repaired.changed) {
+      await storage.setItem(storageKey, JSON.stringify(repaired.workspace));
+      try {
+        logger.info('AstraChat Sync V2 repaired legacy workspace IDs before upload.', repaired.repaired);
+      } catch {}
+    }
+    return repaired.workspace;
+  };
   const sync = createConversationShadowSync({
     repository,
     readWorkspace: async () => {
@@ -439,7 +458,7 @@ export function initializeConversationShadowSync({
       return parseLocalWorkspace(raw);
     },
     commitWorkspace: ({ remoteWorkspace, tombstoneIndex, assertCurrent }) => withWorkspaceStorageExclusive(async () => {
-      const latestWorkspace = parseLocalWorkspace(await storage.getItem(storageKey));
+      const latestWorkspace = await normalizeWorkspace(parseLocalWorkspace(await storage.getItem(storageKey)));
       assertCurrent();
       const sanitizedLatest = applyWorkspaceTombstones(latestWorkspace, tombstoneIndex);
       const committedWorkspace = applyWorkspaceTombstones(
@@ -452,6 +471,7 @@ export function initializeConversationShadowSync({
       return committedWorkspace;
     }),
     userId: user.id,
+    normalizeWorkspace,
     logger
   });
   exposeConversationShadowSync(window, sync);
