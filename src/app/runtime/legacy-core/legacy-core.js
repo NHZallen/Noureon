@@ -47,6 +47,7 @@ import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/a
 import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/src/app/runtime/security/sensitive-config-store.js';
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
 import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
+import { createCloudConversationDeletion } from '/src/app/runtime/legacy-core/cloud-delete-lifecycle.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -674,32 +675,11 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             }
         };
         const saveAppData = async () => { await runtimeAppDataPersistence.saveAppData(); };
-        const deleteConversationsFromCloud = async (conversationIds = []) => {
-            const ids = [...new Set((conversationIds || []).filter(Boolean))];
-            if (!ids.length) return;
-            const isCloudUser = currentUser?.authProvider === 'supabase';
-            const sync = globalThis.__astraCloudSyncV2 || window.__astraCloudSyncV2;
-            if (!sync?.permanentlyDeleteConversations) {
-                if (isCloudUser) {
-                    throw new Error('Cloud conversation sync is not ready yet.');
-                }
-                return;
-            }
-            if (sync.ready) await sync.ready;
-            const status = sync.getStatus?.();
-            if (status?.state === 'disabled') {
-                if (isCloudUser) {
-                    throw new Error(status.error || 'Cloud conversation sync is disabled.');
-                }
-                return;
-            }
-            if (status && status.enabled === false) {
-                throw new Error(status.error || 'Cloud conversation sync is not ready yet.');
-            }
-            const selectedConversationSnapshots = runtimeAppDataStore.getConversations()
-                .filter(conversation => ids.includes(conversation?.id));
-            await sync.permanentlyDeleteConversations(ids, { conversations: selectedConversationSnapshots });
-        };
+        const deleteConversationsFromCloud = createCloudConversationDeletion({
+            getCurrentUser: () => currentUser,
+            getConversations: () => runtimeAppDataStore.getConversations(),
+            getSync: () => globalThis.__astraCloudSyncV2 || window.__astraCloudSyncV2
+        });
         const loadAppData = async () => {
             if (!currentUser) return;
             const saved = await getItem(getAppDataKey());

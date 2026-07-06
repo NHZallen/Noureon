@@ -55,9 +55,12 @@ export function createLegacyTrashLifecycle({
     renderMediaAttachmentGrid,
     bindMediaPreviewButtons
   });
-  const confirmCloudDeletion = async (conversationIds) => {
+  const confirmCloudDeletion = async (conversationIds, conversationSnapshots = []) => {
     try {
-      await deleteConversationsFromCloud(conversationIds);
+      await deleteConversationsFromCloud(conversationIds, {
+        conversations: conversationSnapshots,
+        requireSnapshots: true
+      });
       return true;
     } catch (error) {
       try {
@@ -168,7 +171,8 @@ export function createLegacyTrashLifecycle({
       getTexts().confirmPermanentDelete || '此操作將永久刪除此對話，無法復原。您確定嗎？',
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
-    if (!await confirmCloudDeletion([conversationId])) return;
+    const conversation = getConversations().find(item => item.id === conversationId);
+    if (!await confirmCloudDeletion([conversationId], conversation ? [conversation] : [])) return;
     replaceConversations(
       getConversations().filter(conversation => conversation.id !== conversationId)
     );
@@ -242,7 +246,8 @@ export function createLegacyTrashLifecycle({
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
     const ids = [...selectedTrashIds];
-    if (!await confirmCloudDeletion(ids)) return;
+    const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id));
+    if (!await confirmCloudDeletion(ids, selectedSnapshots)) return;
     replaceConversations(
       getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))
     );
@@ -262,8 +267,9 @@ export function createLegacyTrashLifecycle({
     ))) return;
     const conversations = getConversations();
     const count = conversations.filter(conversation => conversation.deletedAt).length;
-    const ids = conversations.filter(conversation => conversation.deletedAt).map(conversation => conversation.id);
-    if (!await confirmCloudDeletion(ids)) return;
+    const trashSnapshots = conversations.filter(conversation => conversation.deletedAt);
+    const ids = trashSnapshots.map(conversation => conversation.id);
+    if (!await confirmCloudDeletion(ids, trashSnapshots)) return;
     replaceConversations(
       conversations.filter(conversation => !conversation.deletedAt)
     );

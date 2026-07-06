@@ -529,6 +529,29 @@ export function createConversationShadowSync({
       ...optionSnapshots,
       ...localSnapshots
     ]);
+    if (options.requireSnapshots && conversationSnapshots.length < ids.length) {
+      const error = new Error('Cloud permanent delete requires local conversation snapshots.');
+      error.code = 'ASTRA_DELETE_SNAPSHOT_REQUIRED';
+      error.details = {
+        requestedIds: ids.slice(0, 10),
+        snapshotIds: conversationSnapshots.map(conversation => conversation?.id).filter(Boolean).slice(0, 10)
+      };
+      setStatus({
+        state: 'retry',
+        enabled,
+        pending: false,
+        lastPermanentDeleteAt: now(),
+        lastPermanentDeleteCount: validIds.size,
+        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
+        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
+        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
+        lastPermanentDeleteSkippedIds: [],
+        lastPermanentDeleteError: describeShadowError(error),
+        lastErrorAt: now(),
+        ...describeShadowError(error)
+      });
+      throw error;
+    }
     const selectedFingerprints = new Set(
       conversationSnapshots
         .map(conversationDeleteFingerprint)
@@ -539,6 +562,29 @@ export function createConversationShadowSync({
         .flatMap(conversation => [...conversationDeleteMatchKeys(conversation)])
         .filter(Boolean)
     );
+    if (options.requireSnapshots && !selectedFingerprints.size && !selectedMatchKeys.size) {
+      const error = new Error('Cloud permanent delete could not build remote match keys.');
+      error.code = 'ASTRA_DELETE_MATCH_KEYS_REQUIRED';
+      error.details = {
+        requestedIds: ids.slice(0, 10),
+        snapshotIds: conversationSnapshots.map(conversation => conversation?.id).filter(Boolean).slice(0, 10)
+      };
+      setStatus({
+        state: 'retry',
+        enabled,
+        pending: false,
+        lastPermanentDeleteAt: now(),
+        lastPermanentDeleteCount: validIds.size,
+        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
+        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
+        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
+        lastPermanentDeleteSkippedIds: [],
+        lastPermanentDeleteError: describeShadowError(error),
+        lastErrorAt: now(),
+        ...describeShadowError(error)
+      });
+      throw error;
+    }
     const collectMatchingRemoteIds = async () => {
       if (!selectedFingerprints.size && !selectedMatchKeys.size) return [];
       const remoteWorkspace = decodeWorkspaceConversationShadow(await repository.fetchWorkspace());

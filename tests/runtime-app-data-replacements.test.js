@@ -407,7 +407,8 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
   assertMarkersInOrder(permanentDeleteBody, [
     'showCustomConfirm',
-    'confirmCloudDeletion([conversationId])',
+    'const conversation = getConversations().find(item => item.id === conversationId)',
+    'confirmCloudDeletion([conversationId], conversation ? [conversation] : [])',
     'replaceConversations(',
     'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
@@ -419,7 +420,8 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   assertMarkersInOrder(batchDeleteBody, [
     'const count = selectedTrashIds.size',
     'showCustomConfirm',
-    'confirmCloudDeletion(ids)',
+    'const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id))',
+    'confirmCloudDeletion(ids, selectedSnapshots)',
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
@@ -432,7 +434,8 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'showCustomConfirm',
     'const conversations = getConversations()',
     'const count = conversations.filter(conversation => conversation.deletedAt).length',
-    'confirmCloudDeletion(ids)',
+    'const trashSnapshots = conversations.filter(conversation => conversation.deletedAt)',
+    'confirmCloudDeletion(ids, trashSnapshots)',
     'replaceConversations(',
     'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',
@@ -451,18 +454,21 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
 test('cloud permanent delete uses the active shadow sync instead of username prefixes', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const deleteConversationsFromCloudBody = getConstFunctionBody(legacyCoreSource, 'deleteConversationsFromCloud');
+  const cloudDeleteSource = readSource('src/app/runtime/legacy-core/cloud-delete-lifecycle.js');
 
-  assert.match(deleteConversationsFromCloudBody, /__astraCloudSyncV2/);
-  assert.match(deleteConversationsFromCloudBody, /currentUser\?\.authProvider\s*===\s*['"]supabase['"]/);
-  assert.match(deleteConversationsFromCloudBody, /Cloud conversation sync is not ready yet/);
-  assert.match(deleteConversationsFromCloudBody, /Cloud conversation sync is disabled/);
-  assert.match(deleteConversationsFromCloudBody, /sync\.getStatus\?\.\(\)/);
-  assert.match(deleteConversationsFromCloudBody, /runtimeAppDataStore\.getConversations\(\)/);
-  assert.match(deleteConversationsFromCloudBody, /selectedConversationSnapshots/);
-  assert.match(deleteConversationsFromCloudBody, /await\s+sync\.permanentlyDeleteConversations\(ids,\s*\{\s*conversations:\s*selectedConversationSnapshots\s*\}\)/);
-  assert.doesNotMatch(deleteConversationsFromCloudBody, /currentUser\?\.username/);
-  assert.doesNotMatch(deleteConversationsFromCloudBody, /startsWith\(['"]supabase:/);
+  assert.match(legacyCoreSource, /createCloudConversationDeletion\(/);
+  assert.match(legacyCoreSource, /getCurrentUser:\s*\(\)\s*=>\s*currentUser/);
+  assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.match(legacyCoreSource, /__astraCloudSyncV2/);
+  assert.match(cloudDeleteSource, /getCurrentUser\?\.\(\)\?\.authProvider\s*===\s*['"]supabase['"]/);
+  assert.match(cloudDeleteSource, /Cloud conversation sync is not ready yet/);
+  assert.match(cloudDeleteSource, /Cloud conversation sync is disabled/);
+  assert.match(cloudDeleteSource, /sync\.getStatus\?\.\(\)/);
+  assert.match(cloudDeleteSource, /options\.requireSnapshots/);
+  assert.match(cloudDeleteSource, /await\s+sync\.permanentlyDeleteConversations\(ids,\s*\{\s*conversations,/);
+  assert.match(cloudDeleteSource, /requireSnapshots:\s*Boolean\(options\.requireSnapshots\)/);
+  assert.doesNotMatch(cloudDeleteSource, /currentUser\?\.username/);
+  assert.doesNotMatch(cloudDeleteSource, /startsWith\(['"]supabase:/);
 });
 
 test('app data store remains wired while production boot moves through runtime entry', () => {

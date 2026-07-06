@@ -100,7 +100,7 @@ function createHarness(overrides = {}) {
     },
     showNotification: (...args) => calls.push(['notification', ...args]),
     showCoordinatedNotification: (...args) => calls.push(['coordinatedNotification', ...args]),
-    deleteConversationsFromCloud: overrides.deleteConversationsFromCloud || (async ids => calls.push(['deleteConversationsFromCloud', ids])),
+    deleteConversationsFromCloud: overrides.deleteConversationsFromCloud || (async (ids, options) => calls.push(['deleteConversationsFromCloud', ids, options])),
     toggleModal: (...args) => calls.push(['toggleModal', ...args]),
     formatFullTimestamp: value => String(value),
     renderUserText: value => String(value),
@@ -192,6 +192,10 @@ test('single permanent delete preserves confirm, replace, save, render, and noti
     'notification'
   ]);
   assert.deepEqual(harness.calls[1][1], ['delete']);
+  assert.deepEqual(harness.calls[1][2], {
+    conversations: [{ id: 'delete', deletedAt: '2026-06-25T00:00:00.000Z' }],
+    requireSnapshots: true
+  });
   assert.equal(harness.calls[2][1], harness.getConversations());
 });
 
@@ -199,8 +203,8 @@ test('single permanent delete keeps local trash when cloud deletion fails', asyn
   const deleted = { id: 'delete', deletedAt: '2026-06-25T00:00:00.000Z' };
   const harness = createHarness({
     conversations: [deleted],
-    deleteConversationsFromCloud: async ids => {
-      harness.calls.push(['deleteConversationsFromCloud', ids]);
+    deleteConversationsFromCloud: async (ids, options) => {
+      harness.calls.push(['deleteConversationsFromCloud', ids, options]);
       throw new Error('cloud down');
     }
   });
@@ -213,6 +217,7 @@ test('single permanent delete keeps local trash when cloud deletion fails', asyn
     'deleteConversationsFromCloud',
     'notification'
   ]);
+  assert.equal(harness.calls[1][2].requireSnapshots, true);
   assert.equal(harness.calls.at(-1)[2], 'error');
 });
 
@@ -238,6 +243,8 @@ test('empty trash counts before replacement and preserves save and notification 
     'notification'
   ]);
   assert.deepEqual(harness.calls[1][1], ['one', 'two']);
+  assert.deepEqual(harness.calls[1][2].conversations.map(conversation => conversation.id), ['one', 'two']);
+  assert.equal(harness.calls[1][2].requireSnapshots, true);
   assert.match(harness.calls.at(-1)[1], /2/);
 });
 
@@ -245,8 +252,8 @@ test('empty trash keeps local rows when cloud deletion fails', async () => {
   const one = { id: 'one', deletedAt: '2026-06-25T00:00:00.000Z' };
   const harness = createHarness({
     conversations: [one],
-    deleteConversationsFromCloud: async ids => {
-      harness.calls.push(['deleteConversationsFromCloud', ids]);
+    deleteConversationsFromCloud: async (ids, options) => {
+      harness.calls.push(['deleteConversationsFromCloud', ids, options]);
       throw new Error('cloud down');
     }
   });
@@ -259,6 +266,7 @@ test('empty trash keeps local rows when cloud deletion fails', async () => {
     'deleteConversationsFromCloud',
     'notification'
   ]);
+  assert.equal(harness.calls[1][2].requireSnapshots, true);
   assert.equal(harness.calls.at(-1)[2], 'error');
 });
 
@@ -278,7 +286,8 @@ test('batch restore and delete preserve selection, persistence, and notification
     'const handleBatchDeleteFromTrash = async () => {',
     'const count = selectedTrashIds.size',
     'await showCustomConfirm(',
-    'confirmCloudDeletion(ids)',
+    'const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id))',
+    'confirmCloudDeletion(ids, selectedSnapshots)',
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',

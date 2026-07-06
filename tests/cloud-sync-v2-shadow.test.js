@@ -168,6 +168,37 @@ test('sync permanent deletion requires ready state, calls RPC, and refreshes tom
   assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 1);
 });
 
+test('sync permanent deletion refuses to clear local trash when required snapshots are missing', async () => {
+  const calls = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async ids => calls.push(['delete', ids])
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await sync.initialize();
+  await assert.rejects(
+    () => sync.permanentlyDeleteConversations([conversationId], { requireSnapshots: true }),
+    /requires local conversation snapshots/
+  );
+
+  assert.deepEqual(calls, []);
+  assert.equal(sync.getStatus().code, 'ASTRA_DELETE_SNAPSHOT_REQUIRED');
+});
+
 test('sync permanent deletion maps legacy non-UUID ids to repaired cloud ids', async () => {
   const calls = [];
   const legacyConversationId = 'legacy-chat-id';
