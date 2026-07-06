@@ -11,6 +11,7 @@ export function createLegacyTrashLifecycle({
   getConversations,
   replaceConversations,
   saveAppData,
+  renderAll = () => {},
   getI18n,
   getUiLanguage,
   showCustomConfirm,
@@ -151,6 +152,7 @@ export function createLegacyTrashLifecycle({
     const conversation = getConversations().find(item => item.id === conversationId);
     if (conversation) {
       conversation.deletedAt = null;
+      conversation.lastUpdatedAt = new Date().toISOString();
       await saveAppData();
       renderTrash();
       showCoordinatedNotification(getTexts().itemRestored || '項目已還原。', 'success');
@@ -167,6 +169,7 @@ export function createLegacyTrashLifecycle({
       getConversations().filter(conversation => conversation.id !== conversationId)
     );
     await saveAppData();
+    renderAll();
     renderTrash();
     showNotification(getTexts().itemPermanentlyDeleted || '項目已永久刪除。', 'success');
   };
@@ -214,7 +217,10 @@ export function createLegacyTrashLifecycle({
     if (count === 0) return;
     selectedTrashIds.forEach(id => {
       const conversation = getConversations().find(item => item.id === id);
-      if (conversation) conversation.deletedAt = null;
+      if (conversation) {
+        conversation.deletedAt = null;
+        conversation.lastUpdatedAt = new Date().toISOString();
+      }
     });
     await saveAppData();
     toggleTrashSelectionMode();
@@ -237,6 +243,7 @@ export function createLegacyTrashLifecycle({
       getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))
     );
     await saveAppData();
+    renderAll();
     toggleTrashSelectionMode();
     showNotification(
       `${getTexts().batchPermanentlyDeletedSuccess || '已成功永久刪除'} ${count} ${getTexts().items || '個項目'}。`,
@@ -257,6 +264,7 @@ export function createLegacyTrashLifecycle({
       conversations.filter(conversation => !conversation.deletedAt)
     );
     await saveAppData();
+    renderAll();
     renderTrash();
     showNotification(
       `${getTexts().trashEmptiedSuccess || '已成功清空垃圾桶，刪除了'} ${count} ${getTexts().items || '個項目'}。`,

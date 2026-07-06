@@ -997,6 +997,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'replaceConversations(',
     'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
+    'renderAll()',
     'renderTrash()',
     'showNotification'
   ], '04 trash permanent delete store replacement');
@@ -1007,6 +1008,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
+    'renderAll()',
     'toggleTrashSelectionMode()',
     'showNotification'
   ], '04 trash batch delete store replacement');
@@ -1018,6 +1020,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'replaceConversations(',
     'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',
+    'renderAll()',
     'renderTrash()',
     'showNotification'
   ], '04 empty trash store replacement');
@@ -2526,7 +2529,7 @@ test('trash batch selection checkbox click does not bubble into row toggle', () 
   assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*event\s*=>\s*event\.stopPropagation\(\)\);/);
   assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*event\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
   assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
-  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*const\s+ids\s*=\s*\[\.\.\.selectedTrashIds\];\s*if\s*\(!await\s+confirmCloudDeletion\(ids\)\)\s*return;\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
+  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*const\s+ids\s*=\s*\[\.\.\.selectedTrashIds\];\s*if\s*\(!await\s+confirmCloudDeletion\(ids\)\)\s*return;\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*renderAll\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {

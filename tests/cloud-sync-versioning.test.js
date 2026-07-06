@@ -149,6 +149,54 @@ test('equal-content remote conversations win so folder metadata can synchronize'
   assert.equal(merged.conversations[0].folderId, 'folder-1');
 });
 
+test('remote trash move wins over stale local visible conversation', () => {
+  const local = {
+    id: 'conversation-1',
+    title: 'Visible locally',
+    createdAt: '2026-07-06T01:00:00.000Z',
+    lastUpdatedAt: '2026-07-06T01:05:00.000Z',
+    deletedAt: null,
+    messages: [{ role: 'user', parts: [{ text: 'Hi' }] }]
+  };
+  const remote = {
+    ...local,
+    deletedAt: '2026-07-06T01:10:00.000Z',
+    lastUpdatedAt: '2026-07-06T01:10:00.000Z'
+  };
+
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [local] },
+    { conversations: [remote], folders: [], astras: [], personalMemories: [] }
+  );
+
+  assert.equal(merged.conversations[0], remote);
+  assert.equal(merged.conversations[0].deletedAt, '2026-07-06T01:10:00.000Z');
+});
+
+test('remote trash restore wins over stale local trashed conversation', () => {
+  const local = {
+    id: 'conversation-1',
+    title: 'Still trashed locally',
+    createdAt: '2026-07-06T01:00:00.000Z',
+    lastUpdatedAt: '2026-07-06T01:10:00.000Z',
+    deletedAt: '2026-07-06T01:10:00.000Z',
+    messages: [{ role: 'user', parts: [{ text: 'Hi' }] }]
+  };
+  const remote = {
+    ...local,
+    deletedAt: null,
+    lastUpdatedAt: '2026-07-06T01:15:00.000Z'
+  };
+
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [local] },
+    { conversations: [remote], folders: [], astras: [], personalMemories: [] }
+  );
+
+  assert.equal(merged.conversations[0], remote);
+  assert.equal(merged.conversations[0].deletedAt, null);
+});
+
 test('three-way workspace merge keeps remote AI and move-out while preserving unrelated local folder state', () => {
   const baseConversation = {
     id: 'conversation-1',

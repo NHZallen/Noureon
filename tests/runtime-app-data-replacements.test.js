@@ -222,7 +222,9 @@ test('all legacy-core app data mirrors remain retired', () => {
   assert.doesNotMatch(legacyCoreSource, /let\s+conversations\s*=/);
   assert.match(legacyCoreSource, /liveConversationsBridge\.getConversations\(\)\.unshift\(newConv\)/);
   assert.doesNotMatch(legacyCoreSource, /conversations\.unshift\(newConv\)/);
-  assert.match(legacyCoreSource, /conv\.deletedAt\s*=\s*new Date\(\)\.toISOString\(\)/);
+  assert.match(legacyCoreSource, /const\s+deletedAt\s*=\s*new Date\(\)\.toISOString\(\)/);
+  assert.match(legacyCoreSource, /conv\.deletedAt\s*=\s*deletedAt/);
+  assert.match(legacyCoreSource, /conv\.lastUpdatedAt\s*=\s*deletedAt/);
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*true/);
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*false/);
 
@@ -409,6 +411,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'replaceConversations(',
     'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
+    'renderAll()',
     'renderTrash()',
     'showNotification'
   ], 'trash permanent delete replacement order');
@@ -420,6 +423,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
+    'renderAll()',
     'toggleTrashSelectionMode()',
     'showNotification'
   ], 'trash batch delete replacement order');
@@ -432,6 +436,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'replaceConversations(',
     'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',
+    'renderAll()',
     'renderTrash()',
     'showNotification'
   ], 'empty trash replacement order');

@@ -130,10 +130,12 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         const count = selectedConversationIds.size;
         if (count === 0) return;
         if (!(await showCustomConfirm(`${texts.confirmBatchMoveToTrash || '您確定要將這'} ${count} ${texts.conversations || '個對話'} ${texts.moveToTrashConfirmText || '移至垃圾桶嗎？'}`))) return;
+        const deletedAt = new Date().toISOString();
         selectedConversationIds.forEach(id => {
             const conv = conversations.find(c => c.id === id);
             if (conv) {
-                conv.deletedAt = new Date().toISOString();
+                conv.deletedAt = deletedAt;
+                conv.lastUpdatedAt = deletedAt;
             }
         });
         if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {

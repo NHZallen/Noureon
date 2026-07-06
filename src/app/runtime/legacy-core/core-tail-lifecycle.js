@@ -911,6 +911,7 @@ function setupMessageIntersectionObserver() {
                 return state.conversations;
             },
             saveAppData,
+            renderAll,
             getI18n: () => i18n,
             getUiLanguage: () => state.config.uiLanguage,
             showCustomConfirm,

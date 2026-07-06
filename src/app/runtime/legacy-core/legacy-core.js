@@ -683,10 +683,6 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
                 throw new Error('Cloud conversation sync is not ready yet.');
             }
             if (sync.ready) await sync.ready;
-            const status = sync.getStatus?.();
-            if (status?.state && status.state !== 'ready') {
-                throw new Error('Cloud conversation sync is not ready yet.');
-            }
             await sync.permanentlyDeleteConversations(ids);
         };
         const loadAppData = async () => {
@@ -803,7 +799,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     const currentConversations = liveConversationsBridge.getConversations();
     const conv = currentConversations.find(c => c.id === id);
     if (conv) {
-        conv.deletedAt = new Date().toISOString();
+        const deletedAt = new Date().toISOString();
+        conv.deletedAt = deletedAt;
+        conv.lastUpdatedAt = deletedAt;
         conv.archived = false;
         if (conv.folderId) {
             const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId);

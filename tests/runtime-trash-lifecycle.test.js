@@ -79,6 +79,7 @@ function createHarness(overrides = {}) {
       return conversations;
     },
     saveAppData: async () => calls.push(['saveAppData']),
+    renderAll: () => calls.push(['renderAll']),
     getI18n: () => ({
       'zh-TW': {
         confirmPermanentDelete: 'confirm permanent',
@@ -166,6 +167,7 @@ test('single restore mutates the live conversation before save, render, and noti
   await harness.lifecycle.handleRestoreTrashItem('deleted');
 
   assert.equal(conversation.deletedAt, null);
+  assert.match(conversation.lastUpdatedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(harness.calls, [
     ['saveAppData'],
     ['coordinatedNotification', '項目已還原。', 'success']
@@ -186,6 +188,7 @@ test('single permanent delete preserves confirm, replace, save, render, and noti
     'deleteConversationsFromCloud',
     'replaceConversations',
     'saveAppData',
+    'renderAll',
     'notification'
   ]);
   assert.deepEqual(harness.calls[1][1], ['delete']);
@@ -231,6 +234,7 @@ test('empty trash counts before replacement and preserves save and notification 
     'deleteConversationsFromCloud',
     'replaceConversations',
     'saveAppData',
+    'renderAll',
     'notification'
   ]);
   assert.deepEqual(harness.calls[1][1], ['one', 'two']);
@@ -278,6 +282,7 @@ test('batch restore and delete preserve selection, persistence, and notification
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
+    'renderAll()',
     'toggleTrashSelectionMode()',
     'showNotification('
   ]);
