@@ -449,6 +449,17 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   assert.match(fragment03Source, /set\s+conversations\(next\)\s*\{\s*state\.conversations\s*=\s*next;\s*\}/);
 });
 
+test('cloud permanent delete uses the active shadow sync instead of username prefixes', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const deleteConversationsFromCloudBody = getConstFunctionBody(legacyCoreSource, 'deleteConversationsFromCloud');
+
+  assert.match(deleteConversationsFromCloudBody, /__astraCloudSyncV2/);
+  assert.match(deleteConversationsFromCloudBody, /sync\.getStatus\?\.\(\)/);
+  assert.match(deleteConversationsFromCloudBody, /await\s+sync\.permanentlyDeleteConversations\(ids\)/);
+  assert.doesNotMatch(deleteConversationsFromCloudBody, /currentUser\?\.username/);
+  assert.doesNotMatch(deleteConversationsFromCloudBody, /startsWith\(['"]supabase:/);
+});
+
 test('app data store remains wired while production boot moves through runtime entry', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
