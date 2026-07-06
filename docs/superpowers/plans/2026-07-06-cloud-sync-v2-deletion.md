@@ -4,7 +4,7 @@
 
 **Goal:** Add refresh-based, non-resurrecting trash, restore, permanent conversation deletion, and folder deletion to normalized Supabase Sync V2.
 
-**Architecture:** A content-free `workspace_tombstones` table is authoritative for permanent deletion. Pure client reconciliation functions remove tombstoned records before merge or upload; security-definer RPCs atomically write tombstones and delete normalized rows; a persistent client queue retries orphaned Storage object cleanup without restoring deleted content.
+**Architecture:** A content-free `workspace_tombstones` table is authoritative for permanent deletion. Pure client reconciliation functions remove tombstoned records before merge or upload. Security-definer RPCs serialize normalized writes and deletions with shared per-entity transaction locks; browser roles cannot mutate normalized tables directly. Physical Storage cleanup is deferred until normalized asset references exist.
 
 **Tech Stack:** Vite, browser ES modules, Node.js test runner, Supabase JS, PostgreSQL migrations/RLS/RPC, IndexedDB-compatible storage adapter.
 
@@ -13,10 +13,8 @@
 ## File structure
 
 - Create `src/app/sync/cloud-sync-v2-deletions.js`: tombstone indexing and immutable workspace/encoded-row filtering.
-- Create `src/app/sync/cloud-sync-v2-asset-cleanup.js`: persistent retry queue for Storage paths returned by the deletion RPC.
 - Create `supabase/migrations/20260706030000_add_workspace_tombstones.sql`: tombstone table, RLS, anti-resurrection policies, asset-path helper, and deletion RPCs.
 - Create `tests/cloud-sync-v2-deletions.test.js`: pure tombstone behavior.
-- Create `tests/cloud-sync-v2-asset-cleanup.test.js`: cleanup persistence and retry behavior.
 - Create `tests/cloud-sync-v2-deletion-migration.test.js`: static migration security contract.
 - Modify `src/app/sync/cloud-sync-v2-shadow.js`: fetch tombstones first, sanitize before merge/upload, expose deletion methods, drain cleanup.
 - Modify `tests/cloud-sync-v2-shadow.test.js`: repository order, stale-device, RPC, and failure tests.
@@ -316,7 +314,7 @@ with check (
 );
 ```
 
-These replacement policies make stale uploads fail safely instead of recreating deleted content.
+Do not rely on cross-table RLS checks alone for concurrency. Revoke direct `insert`, `update`, and `delete` on folders, conversations, and messages from `authenticated`. Add authenticated security-definer batch RPCs for folder, conversation, and message upserts. Every write RPC and deletion RPC must acquire the same deterministic per-entity `pg_advisory_xact_lock`, then check the tombstone in a following SQL statement before writing. Conversation writes lock a referenced folder before the conversation; message writes lock the parent conversation. Process batch IDs in sorted order to avoid deadlocks. Task 3 must call these RPCs instead of direct `.upsert()` operations.
 
 - [ ] **Step 4: Run migration contract tests**
 
@@ -404,69 +402,6 @@ Expected: PASS.
 ```powershell
 git add -- src/app/sync/cloud-sync-v2-shadow.js tests/cloud-sync-v2-shadow.test.js
 git commit -m "fix: apply tombstones before sync uploads"
-```
-
-### Task 4: Persistent orphaned-asset cleanup
-
-**Files:**
-- Create: `src/app/sync/cloud-sync-v2-asset-cleanup.js`
-- Create: `tests/cloud-sync-v2-asset-cleanup.test.js`
-- Modify: `src/app/sync/cloud-sync-v2-shadow.js`
-- Modify: `tests/cloud-sync-v2-shadow.test.js`
-
-- [ ] **Step 1: Write failing queue tests**
-
-Test that `enqueue(['user/a', 'user/a', 'user/b'])` persists two paths, successful `drain()` clears them, and failed `removeAssets()` leaves both paths persisted without throwing from `enqueue`.
-
-```js
-const queue = createAssetCleanupQueue({ storage, repository, userId: 'user-1', logger });
-await queue.enqueue(['user/a', 'user/a', 'user/b']);
-assert.deepEqual(JSON.parse(await storage.getItem(queue.storageKey)), ['user/a', 'user/b']);
-await queue.drain();
-assert.equal(await storage.getItem(queue.storageKey), null);
-```
-
-- [ ] **Step 2: Run the test and verify the module is missing**
-
-Run: `node --test tests/cloud-sync-v2-asset-cleanup.test.js`
-
-Expected: FAIL with `ERR_MODULE_NOT_FOUND`.
-
-- [ ] **Step 3: Implement the persistent queue**
-
-Export `createAssetCleanupQueue({ storage, repository, userId, logger })` with key `astraSyncV2PendingAssetCleanup:${userId}`. `enqueue()` merges and persists unique non-empty paths, then calls a non-throwing `drain()`. `drain()` removes paths through `repository.removeAssets(paths)` and deletes the key only on success.
-
-Add repository methods:
-
-```js
-async function removeAssets(paths) {
-  if (!paths.length) return;
-  const { error } = await supabase.storage.from('user-assets').remove(paths);
-  if (error) throw error;
-}
-
-async function permanentlyDeleteConversations(ids) {
-  const { data, error } = await supabase.rpc('permanently_delete_workspace_conversations', {
-    p_conversation_ids: ids
-  });
-  if (error) throw error;
-  return (data || []).map(row => row.object_path).filter(Boolean);
-}
-```
-
-Create the queue in `initializeConversationShadowSync`. Drain it after successful initialization. Expose `permanentlyDeleteConversations(ids)` on the Sync V2 API: require `status.state === 'ready'`, call the RPC, add conversation IDs to the in-memory tombstone index, enqueue returned paths, and return only after the database RPC succeeds.
-
-- [ ] **Step 4: Test database success and Storage failure separately**
-
-Run: `node --test tests/cloud-sync-v2-asset-cleanup.test.js tests/cloud-sync-v2-shadow.test.js`
-
-Expected: PASS; a Storage failure leaves a retry queue but the deletion method resolves after database success.
-
-- [ ] **Step 5: Commit cleanup and deletion API**
-
-```powershell
-git add -- src/app/sync/cloud-sync-v2-asset-cleanup.js src/app/sync/cloud-sync-v2-shadow.js tests/cloud-sync-v2-asset-cleanup.test.js tests/cloud-sync-v2-shadow.test.js
-git commit -m "feat: add permanent conversation deletion API"
 ```
 
 ### Task 5: Trash UI uses confirmed cloud deletion

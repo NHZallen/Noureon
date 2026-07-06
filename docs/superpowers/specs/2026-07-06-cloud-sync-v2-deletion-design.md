@@ -16,7 +16,7 @@ Make deletion consistent across signed-in devices without returning to destructi
 ### Permanently delete a conversation
 
 - Permanently remove the conversation's messages and conversation row.
-- Permanently remove assets owned only by that conversation from Supabase Storage and their metadata rows.
+- Leave Supabase Storage objects unchanged in this phase. Safe physical asset cleanup requires a normalized reference table and is deferred to the asset-sync phase.
 - Retain only a content-free tombstone containing the user ID, entity type, entity ID, and deletion time.
 - The operation cannot be restored from the application after completion.
 
@@ -40,7 +40,7 @@ Add a normalized `workspace_tombstones` table with these fields:
 
 Row-level security permits an authenticated user to read only their own tombstones. Tombstones are created by the validated deletion functions and cannot be updated or deleted directly by browser clients. The table is designed to support later entity types such as `astra`, `message`, and `asset` without another deletion architecture.
 
-Permanent deletion is exposed through security-definer database functions rather than several unrelated browser requests. Each function validates `auth.uid()`, writes the tombstone first, and deletes normalized database rows in one database transaction. Storage object cleanup cannot share that transaction, so it runs afterward and is retryable.
+Permanent deletion and normalized writes are exposed through security-definer database functions rather than direct browser mutations. Each function validates `auth.uid()` and takes the same per-entity transaction lock. Deletion writes the tombstone before removing normalized database rows; stale writes wait for the lock and then reject the tombstoned ID. Browser roles have no direct insert, update, or delete grants on folders, conversations, or messages.
 
 ## Synchronization order
 
@@ -60,13 +60,11 @@ During ordinary saves, the client keeps the most recently fetched tombstone set 
 ## Permanent deletion flow
 
 1. Keep the existing confirmation dialog.
-2. Collect the conversation's referenced Storage object paths, then call the permanent-delete database function.
+2. Call the permanent-delete database function.
 3. Remove the deleted entity from local application data only after the database function succeeds.
-4. Delete referenced Storage objects that are no longer used by another active message.
-5. Record failed Storage cleanup locally and retry on the next authenticated refresh.
-6. Refresh the affected UI and persist local data.
+4. Refresh the affected UI and persist local data.
 
-If the database operation fails, the local conversation remains in trash and the user receives an error. If only Storage cleanup fails, the conversation remains permanently deleted and cleanup retries later; content must never reappear because of a Storage failure.
+If the database operation fails, the local conversation remains in trash and the user receives an error.
 
 ## Conflict rules
 
@@ -81,7 +79,7 @@ If the database operation fails, the local conversation remains in trash and the
 
 - Existing trash entries continue using `workspace_conversations.deleted_at` and remain restorable.
 - Existing normalized conversations and messages require no destructive migration.
-- The new migration only adds the tombstone table, its policies, indexes, and deletion functions.
+- The new migration adds the tombstone table, protected normalized-write functions, deletion functions, policies, and indexes.
 - If the migration is missing or permission checks fail, Sync V2 stays in local-safe retry mode and must not modify local data.
 - No realtime subscriptions are added.
 
@@ -96,7 +94,7 @@ Unit tests must cover:
 - Moving a conversation out of a folder does not create a tombstone.
 - A stale offline workspace cannot resurrect a permanently deleted entity.
 - Database failure leaves the local trash item intact.
-- Storage failure schedules cleanup without resurrecting content.
+- Concurrent stale writes wait for deletion and cannot recreate tombstoned entities.
 
 Integration verification must cover two devices using refresh-based synchronization for trash, restore, permanent conversation deletion, folder deletion, and an offline stale-device reconnect.
 
@@ -104,5 +102,5 @@ Integration verification must cover two devices using refresh-based synchronizat
 
 - Realtime synchronization.
 - Automatic tombstone expiry or compaction.
-- Astras, personal memories, API keys, and general asset synchronization beyond cleanup of assets belonging to a permanently deleted conversation.
+- Astras, personal memories, API keys, and physical Storage asset cleanup. Storage cleanup will be designed with normalized asset references so shared content cannot be deleted accidentally.
 - Restoring permanently deleted content.
