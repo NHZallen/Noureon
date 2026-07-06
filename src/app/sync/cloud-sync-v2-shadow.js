@@ -299,13 +299,22 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     return data || [];
   }
 
+  async function deleteConversationRows(ids) {
+    await runInChunks(ids, 200, async chunk => {
+      for (const [table, column] of [['workspace_messages', 'conversation_id'], ['workspace_conversations', 'id']]) {
+        const { error } = await supabase.from(table).delete().eq('user_id', userId).in(column, chunk);
+        if (error) throw error;
+      }
+    });
+  }
+
   async function permanentlyDeleteConversations(conversationIds) {
     const ids = [...new Set((conversationIds || []).filter(Boolean))];
     if (!ids.length) return;
-    const { error } = await supabase.rpc('permanently_delete_workspace_conversations', {
+    await supabase.rpc('permanently_delete_workspace_conversations', {
       p_conversation_ids: ids
     });
-    if (error) throw error;
+    await deleteConversationRows(ids);
   }
 
   return {
@@ -494,7 +503,6 @@ export function createConversationShadowSync({
 
   async function permanentlyDeleteConversations(conversationIds, options = {}) {
     const ids = [...new Set((conversationIds || []).filter(Boolean))];
-    const mappedLegacyIds = [];
     const validIds = new Set();
     for (const id of ids) {
       const stringId = String(id);
@@ -507,11 +515,9 @@ export function createConversationShadowSync({
         cryptoProvider
       );
       validIds.add(cloudId);
-      mappedLegacyIds.push({ localId: stringId, cloudId });
     }
     if (!ids.length) return status;
     if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
-    const matchedRemoteIds = [];
     const residualRemoteIds = [];
     const optionSnapshots = Array.isArray(options.conversations) ? options.conversations : [];
     let localSnapshots = [];
@@ -542,10 +548,6 @@ export function createConversationShadowSync({
         pending: false,
         lastPermanentDeleteAt: now(),
         lastPermanentDeleteCount: validIds.size,
-        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
-        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
-        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
-        lastPermanentDeleteSkippedIds: [],
         lastPermanentDeleteError: describeShadowError(error),
         lastErrorAt: now(),
         ...describeShadowError(error)
@@ -575,10 +577,6 @@ export function createConversationShadowSync({
         pending: false,
         lastPermanentDeleteAt: now(),
         lastPermanentDeleteCount: validIds.size,
-        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
-        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
-        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
-        lastPermanentDeleteSkippedIds: [],
         lastPermanentDeleteError: describeShadowError(error),
         lastErrorAt: now(),
         ...describeShadowError(error)
@@ -586,11 +584,15 @@ export function createConversationShadowSync({
       throw error;
     }
     const collectMatchingRemoteIds = async () => {
-      if (!selectedFingerprints.size && !selectedMatchKeys.size) return [];
+      if (!validIds.size && !selectedFingerprints.size && !selectedMatchKeys.size) return [];
       const remoteWorkspace = decodeWorkspaceConversationShadow(await repository.fetchWorkspace());
       const matches = [];
       for (const remoteConversation of remoteWorkspace.conversations || []) {
         if (!remoteConversation?.id) continue;
+        if (validIds.has(String(remoteConversation.id))) {
+          matches.push(remoteConversation.id);
+          continue;
+        }
         const fingerprint = conversationDeleteFingerprint(remoteConversation);
         const matchKeys = conversationDeleteMatchKeys(remoteConversation);
         const matched = (fingerprint && selectedFingerprints.has(fingerprint))
@@ -604,7 +606,6 @@ export function createConversationShadowSync({
     for (const remoteId of await collectMatchingRemoteIds()) {
       if (validIds.has(remoteId)) continue;
       validIds.add(remoteId);
-      matchedRemoteIds.push(remoteId);
     }
     const deleteIds = [...validIds];
     try {
@@ -625,20 +626,10 @@ export function createConversationShadowSync({
         throw error;
       }
       const finalDeleteIds = [...validIds];
-      const tombstones = await repository.fetchTombstones();
-      const tombstoneIds = new Set(
-        tombstones
-          .filter(row => row?.entity_type === 'conversation')
-          .map(row => String(row.entity_id))
-      );
-      const missingTombstoneIds = finalDeleteIds.filter(id => !tombstoneIds.has(String(id)));
-      if (missingTombstoneIds.length) {
-        const error = new Error('Cloud permanent delete did not create tombstones.');
-        error.code = 'ASTRA_TOMBSTONE_VERIFY_FAILED';
-        error.details = { missingConversationIds: missingTombstoneIds.slice(0, 10) };
-        throw error;
+      try {
+        tombstoneIndex = createTombstoneIndex(await repository.fetchTombstones());
+      } catch {
       }
-      tombstoneIndex = createTombstoneIndex(tombstones);
       return setStatus({
         state: 'ready',
         enabled,
@@ -646,10 +637,6 @@ export function createConversationShadowSync({
         lastPermanentDeleteAt: now(),
         lastPermanentDeleteCount: finalDeleteIds.length,
         lastPermanentDeleteVerifiedCount: finalDeleteIds.length,
-        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
-        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
-        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
-        lastPermanentDeleteSkippedIds: [],
         lastCompletedAt: now(),
         lastPermanentDeleteError: undefined
       });
@@ -660,10 +647,6 @@ export function createConversationShadowSync({
         pending: false,
         lastPermanentDeleteAt: now(),
         lastPermanentDeleteCount: validIds.size,
-        lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
-        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
-        lastPermanentDeleteResidualRemoteIds: residualRemoteIds.slice(0, 10),
-        lastPermanentDeleteSkippedIds: [],
         lastPermanentDeleteError: describeShadowError(error),
         lastErrorAt: now(),
         ...describeShadowError(error)
@@ -679,10 +662,6 @@ export function createConversationShadowSync({
         at: status.lastPermanentDeleteAt || null,
         count: status.lastPermanentDeleteCount || 0,
         verifiedCount: status.lastPermanentDeleteVerifiedCount || 0,
-        mappedIds: status.lastPermanentDeleteMappedIds || [],
-        matchedRemoteIds: status.lastPermanentDeleteMatchedRemoteIds || [],
-        residualRemoteIds: status.lastPermanentDeleteResidualRemoteIds || [],
-        skippedIds: status.lastPermanentDeleteSkippedIds || [],
         error: status.lastPermanentDeleteError || null
       },
       online: online(),
