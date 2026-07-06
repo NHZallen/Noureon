@@ -454,6 +454,9 @@ test('cloud permanent delete uses the active shadow sync instead of username pre
   const deleteConversationsFromCloudBody = getConstFunctionBody(legacyCoreSource, 'deleteConversationsFromCloud');
 
   assert.match(deleteConversationsFromCloudBody, /__astraCloudSyncV2/);
+  assert.match(deleteConversationsFromCloudBody, /currentUser\?\.authProvider\s*===\s*['"]supabase['"]/);
+  assert.match(deleteConversationsFromCloudBody, /Cloud conversation sync is not ready yet/);
+  assert.match(deleteConversationsFromCloudBody, /Cloud conversation sync is disabled/);
   assert.match(deleteConversationsFromCloudBody, /sync\.getStatus\?\.\(\)/);
   assert.match(deleteConversationsFromCloudBody, /await\s+sync\.permanentlyDeleteConversations\(ids\)/);
   assert.doesNotMatch(deleteConversationsFromCloudBody, /currentUser\?\.username/);

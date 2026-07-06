@@ -677,13 +677,22 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
         const deleteConversationsFromCloud = async (conversationIds = []) => {
             const ids = [...new Set((conversationIds || []).filter(Boolean))];
             if (!ids.length) return;
+            const isCloudUser = currentUser?.authProvider === 'supabase';
             const sync = globalThis.__astraCloudSyncV2 || window.__astraCloudSyncV2;
             if (!sync?.permanentlyDeleteConversations) {
+                if (isCloudUser) {
+                    throw new Error('Cloud conversation sync is not ready yet.');
+                }
                 return;
             }
             if (sync.ready) await sync.ready;
             const status = sync.getStatus?.();
-            if (status?.state === 'disabled') return;
+            if (status?.state === 'disabled') {
+                if (isCloudUser) {
+                    throw new Error(status.error || 'Cloud conversation sync is disabled.');
+                }
+                return;
+            }
             if (status && status.enabled === false) {
                 throw new Error(status.error || 'Cloud conversation sync is not ready yet.');
             }
