@@ -1,8 +1,17 @@
 {
-  "name": "astrachat-vite",
+  "name": "noureon",
   "version": "16.4.5",
+  "description": "A multi-provider AI workspace with reusable Nouras, model collaboration, image generation, and cloud sync.",
   "private": true,
   "license": "MIT",
+  "homepage": "https://noureon.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NHZallen/Noureon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NHZallen/Noureon/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

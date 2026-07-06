@@ -93,7 +93,7 @@ export function createCloudAssetTransport({
       if (error) {
         if (!unavailablePaths.has(assetMarker.path)) {
           unavailablePaths.add(assetMarker.path);
-          logger.warn('AstraChat cloud asset is unavailable; continuing workspace sync without it.', {
+          logger.warn('Noureon cloud asset is unavailable; continuing workspace sync without it.', {
             path: assetMarker.path,
             status: error.statusCode || error.status,
             message: error.message || String(error)

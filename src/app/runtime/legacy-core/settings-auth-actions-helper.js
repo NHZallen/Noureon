@@ -99,7 +99,7 @@ export function createSettingsAuthActionsHelper({
     const handleDeleteAllData = async () => {
         const confirmation = await showCustomDialog({
             title: getText('deleteAllDataTitle', '永久刪除所有資料'),
-            message: getText('deleteAllDataMessage', '此操作將會刪除您所有的對話紀錄、設定、Astras 及 API 金鑰。此動作無法復原。請輸入「DELETE」以確認刪除。'),
+            message: getText('deleteAllDataMessage', '此操作將會刪除您所有的對話紀錄、設定、Nouras 及 API 金鑰。此動作無法復原。請輸入「DELETE」以確認刪除。'),
             input: { type: 'text', placeholder: 'DELETE' },
             dialogClass: 'dialog-warning-border',
             buttons: [

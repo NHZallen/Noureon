@@ -115,7 +115,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   let realtimeDeferred = false;
   const pending = new Set();
   const activeUploads = new Map();
-  const reportRealtimeError = error => console.warn('AstraChat realtime queue recovered after an error:', error);
+  const reportRealtimeError = error => console.warn('Noureon realtime queue recovered after an error:', error);
   const queueRealtimeWork = task => {
     realtimeWork = enqueueRecoveringTask(realtimeWork, task, reportRealtimeError);
   };
@@ -215,7 +215,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       remoteUnchanged: remote === remoteSnapshot
     })) {
       realtimeDeferred = true;
-      console.info('AstraChat discarded a stale hydrated workspace snapshot.', { kind });
+      console.info('Noureon discarded a stale hydrated workspace snapshot.', { kind });
       return false;
     }
     const timestamp = remoteSnapshot[definition.timestamp] || remoteSnapshot.updated_at;
@@ -253,7 +253,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       try {
         await reconcileKind(kind);
       } catch (error) {
-        console.warn(`AstraChat realtime ${kind} sync failed:`, error);
+        console.warn(`Noureon realtime ${kind} sync failed:`, error);
       }
     }
   }
@@ -278,7 +278,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
         if (result.complete && meta[kind]?.localRevision === result.localRevision) pending.delete(kind);
       }
     } catch (error) {
-      console.warn('AstraChat cloud sync is waiting to retry:', error);
+      console.warn('Noureon cloud sync is waiting to retry:', error);
     } finally {
       syncing = false;
       if (realtimeDeferred) {
@@ -304,7 +304,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       clearTimeout(timer);
       timer = setTimeout(flush, SYNC_DEBOUNCE_MS);
     } catch (error) {
-      console.warn(`AstraChat could not queue ${kind} for cloud sync:`, error);
+      console.warn(`Noureon could not queue ${kind} for cloud sync:`, error);
     }
   }
 
@@ -330,7 +330,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
         if (!remote?.sensitive_config) await queueLocalChange('sensitive');
       }
     } catch (error) {
-      console.warn('AstraChat encrypted API key sync failed:', error);
+      console.warn('Noureon encrypted API key sync failed:', error);
     }
   });
 
@@ -353,7 +353,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     })
     .subscribe(status => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.warn('AstraChat realtime subscription needs to reconnect:', status);
+        console.warn('Noureon realtime subscription needs to reconnect:', status);
       }
     });
 
@@ -364,7 +364,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     for (const kind of Object.keys(CLOUD_SYNC_KINDS)) if (meta[kind]?.dirty) pending.add(kind);
     if (pending.size) timer = setTimeout(flush, 0);
   } catch (error) {
-    console.warn('AstraChat cloud sync is unavailable until its database migration is installed:', error);
+    console.warn('Noureon cloud sync is unavailable until its database migration is installed:', error);
   }
   const conversationShadowSync = initializeConversationShadowSync({
     window,
@@ -376,7 +376,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   try {
     await conversationShadowSync.ready;
   } catch (error) {
-    console.warn('AstraChat conversation refresh did not block local runtime startup:', error);
+    console.warn('Noureon conversation refresh did not block local runtime startup:', error);
   }
   api.stop = () => {
     conversationShadowSync.stop();

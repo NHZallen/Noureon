@@ -1,4 +1,4 @@
-# AstraChat Testing Guide
+# Noureon Testing Guide
 
 This project uses the Node.js built-in test runner with small DOM fixtures for
 browser-facing behavior.

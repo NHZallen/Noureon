@@ -388,7 +388,7 @@ export function createGeneratedImageInteractions({
           if (src) preview({
             src,
             mimeType: descriptor.mediaType || 'image/png',
-            name: `astra-generated-${descriptor.id}.png`
+            name: `noureon-generated-${descriptor.id}.png`
           }, sourceElement);
         });
       });

@@ -26,7 +26,7 @@ export function registerServiceWorker() {
     if (typeof dialog === 'function') {
       const shouldReload = await dialog({
         title: 'New version available',
-        message: 'A new AstraChat version is ready. Reload to update.',
+        message: 'A new Noureon version is ready. Reload to update.',
         buttons: [
           { text: 'Later', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false },
           { text: 'Reload', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
@@ -39,6 +39,6 @@ export function registerServiceWorker() {
       return;
     }
 
-    console.info('A new AstraChat version is active.');
+    console.info('A new Noureon version is active.');
   });
 }

@@ -138,7 +138,7 @@ test('selecting a demo model updates the active button, visible content, and tit
       fixture.document.querySelector('#demo-chat-window .demo-chat-content.active').id,
       'demo-chat-mini'
     );
-    assert.match(fixture.document.getElementById('demo-chat-title').textContent, /Astra-Mini/);
+    assert.match(fixture.document.getElementById('demo-chat-title').textContent, /Noureon-Mini/);
   } finally {
     fixture.window.close();
   }

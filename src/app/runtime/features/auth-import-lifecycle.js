@@ -158,13 +158,13 @@ export function createLegacyAuthImportLifecycle({
                 delete astra._avatarZipRef;
               }
             } catch (error) {
-              logger.warn('Astra avatar restore failed', error);
+              logger.warn('Noura avatar restore failed', error);
             }
           }
           activeAppData.astras.push(astra);
         }, 10, (current, total) => {
           const percent = 30 + (current / total) * 10;
-          updateProgress(percent, `Restoring Astras (${current}/${total})...`);
+          updateProgress(percent, `Restoring Nouras (${current}/${total})...`);
         });
       }
 

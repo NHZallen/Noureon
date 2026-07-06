@@ -41,7 +41,7 @@ export function createReceivedDataLifecycle({
                         count++;
                     }
                 }
-                showNotification(getText('p2pReceivedAstrasSuccess', 'Received {count} Astras.').replace('{count}', count), 'success');
+                showNotification(getText('p2pReceivedAstrasSuccess', 'Received {count} Nouras.').replace('{count}', count), 'success');
             } else {
                 const foldersContent = await zip.file('folders.json').async("string");
                 const convsContent = await zip.file('conversations.json').async("string");

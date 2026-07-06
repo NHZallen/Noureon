@@ -75,7 +75,7 @@ export function createLegacyFolderLifecycle({
     try {
       await deleteFolderFromCloud(id, { folder });
     } catch (error) {
-      try { logger.warn?.('AstraChat cloud folder delete failed; keeping the local folder.', error); } catch {}
+      try { logger.warn?.('Noureon cloud folder delete failed; keeping the local folder.', error); } catch {}
       showNotification(getTexts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。', 'error');
       return;
     }

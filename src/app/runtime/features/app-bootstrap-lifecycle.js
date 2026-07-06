@@ -533,7 +533,7 @@ export function createLegacyAppBootstrapLifecycle({
             // ✨ 準備要發送的資料，並加入 formType 讓後台知道這是意見反饋
             const dataToSend = {
                 formType: 'feedback', // <-- 關鍵識別碼！
-                subject: '來自 Astra 的新意見反饋',
+                subject: '來自 Noureon 的新意見反饋',
                 timestamp: new Date().toISOString(),
                 message: feedbackContent,
                 ...(turnstileToken ? { turnstileToken } : {})
@@ -607,10 +607,10 @@ export function createLegacyAppBootstrapLifecycle({
     
     
         try {
-            // ✨ 準備要發送的資料，並加入 formType 讓後台知道這是 Astra 提案
+            // 準備要發送的資料，並加入 formType 讓後台知道這是 Noura 提案
             const dataToSend = {
                 formType: 'astra_proposal', // <-- 關鍵識別碼！
-                subject: `新的 Astra 提案: ${name}`,
+                subject: `新的 Noura 提案: ${name}`,
                 timestamp: new Date().toISOString(),
                 proposal_name: name,
                 proposal_desc: description,
@@ -629,7 +629,7 @@ export function createLegacyAppBootstrapLifecycle({
             const message = String(error?.message || '');
             showNotification(
                 message.includes('Google form endpoint is not configured')
-                    ? 'Astra 提案端點尚未設定，請在伺服器設定 GOOGLE_FORM_ENDPOINT。'
+                    ? 'Noura 提案端點尚未設定，請在伺服器設定 GOOGLE_FORM_ENDPOINT。'
                     : '提交失敗，請檢查您的網路連線。',
                 'error'
             );

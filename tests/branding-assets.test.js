@@ -25,8 +25,8 @@ test('English and Traditional Chinese READMEs display the project logo', async (
   const chineseReadme = await readFile(projectFile('README.zh-TW.md'), 'utf8');
 
   for (const readme of [englishReadme, chineseReadme]) {
-    assert.match(readme, /<img src="\.\/public\/logo\.png" alt="AstraChat logo" width="220">/);
-    assert.match(readme, /<h1 align="center">AstraChat<\/h1>/);
+    assert.match(readme, /<img src="\.\/public\/logo\.png" alt="Noureon logo" width="220">/);
+    assert.match(readme, /<h1 align="center">Noureon<\/h1>/);
   }
 });
 
@@ -39,6 +39,6 @@ test('project logo and PWA icons have their declared square dimensions', async (
 test('service worker refreshes and precaches the new logo asset', async () => {
   const serviceWorker = await readFile(projectFile('public/service-worker.js'), 'utf8');
 
-  assert.match(serviceWorker, /astra-chat-vite-cache-v17/);
+  assert.match(serviceWorker, /noureon-cache-v18/);
   assert.match(serviceWorker, /'\/logo\.png'/);
 });

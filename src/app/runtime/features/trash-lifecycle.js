@@ -64,7 +64,7 @@ export function createLegacyTrashLifecycle({
       return true;
     } catch (error) {
       try {
-        logger.warn('AstraChat cloud permanent delete failed; keeping local trash for safety.', error);
+        logger.warn('Noureon cloud permanent delete failed; keeping local trash for safety.', error);
       } catch {}
       showNotification(
         getTexts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。',

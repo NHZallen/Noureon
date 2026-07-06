@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const UPDATE_LOG_COUNT = 83;
 const LATEST_UPDATE_VERSION = '16.4.5';
-const UPDATE_LOGS_CONTENT_HASH = 'e760f221030382062bc721af6dc5bef9a8987cd8eeea31e62a6fcba72a19e9af';
+const UPDATE_LOGS_CONTENT_HASH = '7a2c0dd3e3f7c5f7a84795587e5a122fe27ec0076c84849f5e97ac6b05346cee';
 
 const hashLogs = (logs) => createHash('sha256').update(JSON.stringify(logs)).digest('hex');
 

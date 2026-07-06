@@ -346,7 +346,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       await saveAppData();
       runtimeRenderCoordinator.renderAll();
       legacyRuntimeContext.resolveBinding('input.updateInputState')();
-      runtimeDialogCoordinator.showNotification(i18n[getConfig().uiLanguage].astrasDeactivated || '已關閉 Astras。', 'success');
+      runtimeDialogCoordinator.showNotification(i18n[getConfig().uiLanguage].astrasDeactivated || '已關閉 Noura。', 'success');
     }
   };
 
@@ -373,7 +373,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
         ast.name = name;
         ast.description = description;
         ast.instructions = instructions;
-        showNotification(i18n[getConfig().uiLanguage].astrasUpdated || 'Astras 已更新');
+        showNotification(i18n[getConfig().uiLanguage].astrasUpdated || 'Noura 已更新');
       }
       setEditingAstrasId(null);
     } else {
@@ -386,7 +386,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
         officialId: null
       };
       getAstras().unshift(newAstras);
-      showNotification(i18n[getConfig().uiLanguage].astrasCreated || 'Astras 已創建');
+      showNotification(i18n[getConfig().uiLanguage].astrasCreated || 'Noura 已建立');
     }
     await saveAppData();
     renderAstras();
@@ -398,12 +398,12 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
   };
 
   const deleteAstras = async (id) => {
-    if (!(await showCustomConfirm(i18n[getConfig().uiLanguage].confirmDeleteAstras || '確定刪除此 Astras？'))) return;
+    if (!(await showCustomConfirm(i18n[getConfig().uiLanguage].confirmDeleteAstras || '確定刪除此 Noura？'))) return;
     const astra = getAstras().find(item => item.id === id);
     try {
       await deleteAstrasFromCloud([id], { astras: astra ? [astra] : [] });
     } catch (error) {
-      try { console.warn('AstraChat cloud Astra delete failed; keeping the local Astra.', error); } catch {}
+      try { console.warn('Noureon cloud Noura delete failed; keeping the local Noura.', error); } catch {}
       runtimeDialogCoordinator.showNotification(
         i18n[getConfig().uiLanguage].cloudDeleteFailed || '雲端刪除失敗，請稍後再試。',
         'error'
@@ -418,7 +418,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     });
     await saveAppData();
     runtimeRenderCoordinator.renderAll();
-    runtimeDialogCoordinator.showNotification(i18n[getConfig().uiLanguage].astrasDeleted || 'Astras 已刪除');
+    runtimeDialogCoordinator.showNotification(i18n[getConfig().uiLanguage].astrasDeleted || 'Noura 已刪除');
   };
 
   const createAstrasMenu = (astrasId, targetButton) => {
@@ -467,7 +467,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
           ALL_ELEMENTS.astrasNameInput.value = ast.name;
           ALL_ELEMENTS.astrasDescInput.value = ast.description;
           ALL_ELEMENTS.astrasInstructionsInput.value = ast.instructions;
-          ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = i18n[getConfig().uiLanguage].editAstras || '編輯 Astras';
+          ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = i18n[getConfig().uiLanguage].editAstras || '編輯 Noura';
           toggleModal(ALL_ELEMENTS.astrasCreateModal, true);
         }
         popover.remove();

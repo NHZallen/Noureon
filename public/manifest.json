@@ -1,7 +1,7 @@
 {
-  "name": "AstraChat",
-  "short_name": "AstraChat",
-  "description": "A local-first multi-provider AI chat client with model council, image generation, PWA support, and searchable conversations.",
+  "name": "Noureon",
+  "short_name": "Noureon",
+  "description": "A multi-provider AI workspace with reusable Nouras, model collaboration, image generation, cloud sync, and searchable conversations.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

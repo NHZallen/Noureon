@@ -1,6 +1,6 @@
 # Roadmap
 
-This roadmap captures public project direction for AstraChat. It is intentionally high level and excludes internal agent execution notes.
+This roadmap captures public project direction for Noureon. It is intentionally high level and excludes internal agent execution notes.
 
 ## Current Focus
 

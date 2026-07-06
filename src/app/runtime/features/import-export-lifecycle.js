@@ -146,7 +146,7 @@ export function createLegacyImportExportLifecycle({
     Object.assign(dataToExport, dataClone);
 
     const timestamp = new Date().toISOString().split('T')[0];
-    const fileName = `chatbot_backup_${currentUser.username}_${timestamp}.zip`;
+    const fileName = `noureon_backup_${currentUser.username}_${timestamp}.zip`;
 
     try {
       const zip = new JSZip();
@@ -225,7 +225,7 @@ export function createLegacyImportExportLifecycle({
         try {
           const handle = await window.showSaveFilePicker({
             suggestedName: fileName,
-            types: [{ description: 'Astra Backup (ZIP)', accept: { 'application/zip': ['.zip'] } }]
+            types: [{ description: 'Noureon Backup (ZIP)', accept: { 'application/zip': ['.zip'] } }]
           });
           const writable = await handle.createWritable();
           await writable.write(blob);
@@ -240,7 +240,7 @@ export function createLegacyImportExportLifecycle({
 
       const shareFile = new File([blob], fileName, { type: 'application/zip' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] }) && /Mobi|Android/i.test(navigator.userAgent)) {
-        await navigator.share({ files: [shareFile], title: 'Astra Backup', text: 'Chat backup.' });
+        await navigator.share({ files: [shareFile], title: 'Noureon Backup', text: 'Noureon workspace backup.' });
       } else {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
@@ -376,13 +376,13 @@ export function createLegacyImportExportLifecycle({
                 delete astra._avatarZipRef;
               }
             } catch (error) {
-              logger.warn('Astra 頭像還原失敗', error);
+              logger.warn('Noura 頭像還原失敗', error);
             }
           }
           activeAppData.astras.push(astra);
         }, 10, (current, total) => {
           const percent = 30 + (current / total) * 10;
-          updateProgress(percent, `正在匯入 Astras (${current}/${total})...`);
+          updateProgress(percent, `正在匯入 Nouras (${current}/${total})...`);
         });
       }
 

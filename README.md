@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./public/logo.png" alt="AstraChat logo" width="220">
+  <img src="./public/logo.png" alt="Noureon logo" width="220">
 </p>
 
-<h1 align="center">AstraChat</h1>
+<h1 align="center">Noureon</h1>
 
 <p align="center"><strong>Think beyond one model.</strong></p>
 
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://astranos-chatbot.vercel.app/">Live Demo</a>
+  <a href="https://noureon.com/">Live Demo</a>
   ·
   <a href="#quick-start">Quick Start</a>
   ·
@@ -19,27 +19,27 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml"><img src="https://github.com/NHZallen/Astra-chat/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/NHZallen/Noureon/actions/workflows/ci.yml"><img src="https://github.com/NHZallen/Noureon/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-6D5CE7.svg" alt="MIT License"></a>
 </p>
 
 ---
 
-## Why AstraChat?
+## Why Noureon?
 
-Most AI chat interfaces are built around one model at a time. AstraChat is designed for workflows that benefit from choice, comparison, and collaboration.
+Most AI chat interfaces are built around one model at a time. Noureon is designed for workflows that benefit from choice, comparison, and collaboration.
 
 - **Think with more than one model.** Compare responses or use Model Council to combine multiple perspectives into one synthesized answer.
-- **Keep control of your workspace.** Conversations, preferences, Astras, and API credentials are stored locally in your browser by default.
+- **Keep control of your workspace.** Conversations, preferences, Nouras, and API credentials are stored locally in your browser by default.
 - **Work without switching tools.** Chat, search the web, analyze attachments, generate images, and organize reusable assistants from one interface.
 
 ## Live demo
 
 Open the hosted version:
 
-**https://astranos-chatbot.vercel.app/**
+**https://noureon.com/**
 
-AstraChat uses local browser profiles instead of a hosted account system. The username, password verification data, conversations, settings, and API credentials remain in the current browser environment by default.
+Noureon uses local browser profiles instead of a hosted account system. The username, password verification data, conversations, settings, and API credentials remain in the current browser environment by default.
 
 To send real model requests, add an API key for at least one supported provider in **Settings**.
 
@@ -49,7 +49,7 @@ To send real model requests, add an API key for at least one supported provider 
 
 Use models from different providers without moving conversations between separate applications.
 
-AstraChat currently supports:
+Noureon currently supports:
 
 - Google Gemini
 - OpenRouter
@@ -73,7 +73,7 @@ This makes it easier to examine difficult questions, compare reasoning approache
 
 ### Search and attachments
 
-AstraChat supports workflows involving:
+Noureon supports workflows involving:
 
 - Web search
 - Images
@@ -91,9 +91,9 @@ Supported image models can generate images directly inside a conversation.
 
 Generated images can be previewed, downloaded, reused, or opened in the image editing workflow.
 
-### Astras
+### Nouras
 
-Astras are reusable assistants with their own:
+Nouras are reusable assistants with their own:
 
 - Name
 - Description
@@ -105,7 +105,7 @@ They can be used for writing, planning, language learning, analysis, creative wo
 
 ### Conversation workspace
 
-AstraChat also includes:
+Noureon also includes:
 
 - Conversation folders and archives
 - Temporary conversations
@@ -122,12 +122,12 @@ AstraChat also includes:
 
 ## Local-first by default
 
-AstraChat stores the following data in your browser by default:
+Noureon stores the following data in your browser by default:
 
 - Conversations
 - Folders and archives
 - Application settings
-- Astras
+- Nouras
 - Provider API credentials
 - Appearance preferences
 - Local profile information
@@ -151,8 +151,8 @@ Read the full [Privacy Policy](./PRIVACY.md).
 ### Run locally
 
 ```bash
-git clone https://github.com/NHZallen/Astra-chat.git
-cd Astra-chat
+git clone https://github.com/NHZallen/Noureon.git
+cd Noureon
 npm ci
 npm run dev
 ```
@@ -165,7 +165,7 @@ http://localhost:5173
 
 Then:
 
-1. Create a local AstraChat profile.
+1. Create a local Noureon profile.
 2. Open **Settings**.
 3. Add an API key for the provider you want to use.
 4. Select a model and start a conversation.
@@ -176,21 +176,21 @@ Provider API keys do not need to be added to `.env`.
 
 | Service | Purpose | Configuration |
 | --- | --- | --- |
-| Google Gemini | Native Gemini models and supported search | AstraChat Settings |
-| OpenRouter | Models from multiple AI labs and image generation | AstraChat Settings |
-| NVIDIA | Supported NVIDIA-hosted models | AstraChat Settings |
-| Step Plan | StepFun reasoning models | AstraChat Settings |
-| Tavily | Web search for supported non-native providers | AstraChat Settings |
+| Google Gemini | Native Gemini models and supported search | Noureon Settings |
+| OpenRouter | Models from multiple AI labs and image generation | Noureon Settings |
+| NVIDIA | Supported NVIDIA-hosted models | Noureon Settings |
+| Step Plan | StepFun reasoning models | Noureon Settings |
+| Tavily | Web search for supported non-native providers | Noureon Settings |
 
 Model availability, pricing, rate limits, and regional access are determined by each provider.
 
-AstraChat does not provide or resell model access.
+Noureon does not provide or resell model access.
 
 ## Environment variables
 
 Most installations do not require server-side environment variables.
 
-The optional `.env` configuration is used for self-hosted feedback and Astra proposal forms:
+The optional `.env` configuration is used for self-hosted feedback and Noura proposal forms:
 
 ```env
 GOOGLE_FORM_ENDPOINT=
@@ -215,7 +215,7 @@ npm run preview
 
 The generated frontend is written to `dist/`.
 
-The included serverless API route can optionally proxy feedback and Astra proposal submissions when `GOOGLE_FORM_ENDPOINT` is configured by the deployment platform.
+The included serverless API route can optionally proxy feedback and Noura proposal submissions when `GOOGLE_FORM_ENDPOINT` is configured by the deployment platform.
 
 ## Development
 
@@ -245,7 +245,7 @@ npm audit --omit=dev
 | --- | --- |
 | `src/app/runtime/` | Application runtime, features, state, and UI coordination |
 | `src/app/legacy-runtime/` | Legacy functionality being migrated into smaller modules |
-| `src/data/` | Languages, Astras, demo conversations, and update information |
+| `src/data/` | Languages, Nouras, demo conversations, and update information |
 | `src/styles/` | Application styles organized by feature |
 | `api/` | Optional serverless endpoints |
 | `tests/` | Regression, rendering, security, and behavior tests |
@@ -254,7 +254,7 @@ npm audit --omit=dev
 
 ## Project status
 
-AstraChat is under active development.
+Noureon is under active development.
 
 Core chat, Model Council, search, image, PWA, personalization, and data portability workflows are available. The project is also migrating legacy runtime modules into smaller feature boundaries while maintaining regression coverage.
 
@@ -266,10 +266,10 @@ See the public [Roadmap](./ROADMAP.md) for current direction.
 
 Found a bug or have an idea?
 
-[Open an issue](https://github.com/NHZallen/Astra-chat/issues).
+[Open an issue](https://github.com/NHZallen/Noureon/issues).
 
 For larger changes, please start with an issue so the scope and direction can be discussed before implementation.
 
 ## License
 
-AstraChat is released under the [MIT License](./LICENSE).
+Noureon is released under the [MIT License](./LICENSE).

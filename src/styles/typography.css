@@ -1,4 +1,4 @@
-/* Astra typography system: GPT-like system font, restrained weights, no decorative tracking. */
+/* Noureon typography system: GPT-like system font, restrained weights, no decorative tracking. */
 /* important-audit: required: regression override / legacy compatibility - typography and mobile settings transitions override utility typography defaults. */
 :root {
     --astra-ui-font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;

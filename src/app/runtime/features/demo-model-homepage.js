@@ -1,11 +1,11 @@
 const DEMO_MODELS = [
-  { id: 'proMax', name: 'Astra-Pro Max', title: 'Astra-Pro Max 對話範例', desc: '深度決策，商業研究最佳拍檔' },
-  { id: 'proPV', name: 'Astra-Pro PV', title: 'Astra-Pro PV 對話範例', desc: '預覽新技術，多模態高速體驗' },
-  { id: 'pro', name: 'Astra-Pro', title: 'Astra-Pro 對話範例', desc: '高效多模態，文檔圖像兼擅' },
-  { id: 'plusPV', name: 'Astra-Plus PV', title: 'Astra-Plus PV 對話範例', desc: '輕量快速，日常應用即刻啟動' },
-  { id: 'mini', name: 'Astra-Mini', title: 'Astra-Mini 對話範例', desc: '強大推理，長文與數理皆能' },
-  { id: 'mill', name: 'Astra-Mill', title: 'Astra-Mill 對話範例', desc: '開源高效，短文生成與結構化' },
-  { id: 'nano', name: 'Astra-Nano', title: 'Astra-Nano 對話範例', desc: '程式專精，技術代碼好幫手' }
+  { id: 'proMax', name: 'Noureon-Pro Max', title: 'Noureon-Pro Max 對話範例', desc: '深度決策，商業研究最佳拍檔' },
+  { id: 'proPV', name: 'Noureon-Pro PV', title: 'Noureon-Pro PV 對話範例', desc: '預覽新技術，多模態高速體驗' },
+  { id: 'pro', name: 'Noureon-Pro', title: 'Noureon-Pro 對話範例', desc: '高效多模態，文檔圖像兼擅' },
+  { id: 'plusPV', name: 'Noureon-Plus PV', title: 'Noureon-Plus PV 對話範例', desc: '輕量快速，日常應用即刻啟動' },
+  { id: 'mini', name: 'Noureon-Mini', title: 'Noureon-Mini 對話範例', desc: '強大推理，長文與數理皆能' },
+  { id: 'mill', name: 'Noureon-Mill', title: 'Noureon-Mill 對話範例', desc: '開源高效，短文生成與結構化' },
+  { id: 'nano', name: 'Noureon-Nano', title: 'Noureon-Nano 對話範例', desc: '程式專精，技術代碼好幫手' }
 ];
 
 export function setupDemoModelHomepage({ document, demoConversations } = {}) {

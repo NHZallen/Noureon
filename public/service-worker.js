@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astra-chat-vite-cache-v17';
+const CACHE_NAME = 'noureon-cache-v18';
 
 const STATIC_ASSETS = [
   '/',

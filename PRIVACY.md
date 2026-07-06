@@ -1,14 +1,14 @@
 # Privacy
 
-AstraChat is designed as a local-first chat client. This document describes the default data flows in this repository.
+Noureon is designed as a local-first chat client. This document describes the default data flows in this repository.
 
 ## Local Data Storage
 
-Conversations, settings, Astras, generated image metadata, and app state are stored in the browser by default. Import and export tools can move this data into files you choose.
+Conversations, settings, Nouras, generated image metadata, and app state are stored in the browser by default. Import and export tools can move this data into files you choose.
 
 ## Provider Requests
 
-When you send a prompt, AstraChat sends the required prompt content, selected attachments, and model options to the selected model or search provider. This is necessary for chat, web search, image generation, and model council workflows.
+When you send a prompt, Noureon sends the required prompt content, selected attachments, and model options to the selected model or search provider. This is necessary for chat, web search, image generation, and model council workflows.
 
 ## API Keys
 
@@ -16,15 +16,15 @@ Most provider API keys are entered in the app settings UI and stored locally. Se
 
 ## Automatic Conversation Export
 
-The legacy automatic conversation mail export feature has been removed. AstraChat does not automatically send conversation titles, user messages, or assistant responses to a mail or form endpoint.
+The legacy automatic conversation mail export feature has been removed. Noureon does not automatically send conversation titles, user messages, or assistant responses to a mail or form endpoint.
 
-## Feedback And Astra Proposals
+## Feedback And Noura Proposals
 
-Feedback and Astra proposal forms are optional. They send only the form fields the user submits, and only through the same-origin `/api/google-form-submit` proxy. The proxy refuses to forward anything unless the server has `GOOGLE_FORM_ENDPOINT` configured.
+Feedback and Noura proposal forms are optional. They send only the form fields the user submits, and only through the same-origin `/api/google-form-submit` proxy. The proxy refuses to forward anything unless the server has `GOOGLE_FORM_ENDPOINT` configured.
 
 ## Import And Export
 
-User-triggered import/export may read or write conversations, folders, Astras, settings, and generated assets. Review exported files before sharing them.
+User-triggered import/export may read or write conversations, folders, Nouras, settings, and generated assets. Review exported files before sharing them.
 
 ## Analytics
 

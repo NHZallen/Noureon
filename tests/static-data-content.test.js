@@ -8,7 +8,7 @@ const EXPECTED_FIRST_ASTRA = {
   name: '旅遊小編',
   category: '生產力'
 };
-const EXPECTED_ASTRAS_HASH = 'eb2f62db91e3fdf83939a0271f9b81ba3caa9efd6cc5edc177f7b74d34ef7f94';
+const EXPECTED_ASTRAS_HASH = '5ea9abfcdbf29ba29cd5ff21fa352eed167b1c5cc6a3a198b0e5ebe51845450d';
 const EXPECTED_DEMO_KEYS = ['proMax', 'proPV', 'pro', 'plusPV', 'mini', 'mill', 'nano'];
 const EXPECTED_DEMO_HASH = 'eb83bb2c6ce275d9018d4d44ddc805a1ec0945c01b033c20bf582f366f3dccb7';
 const GLOBAL_KEYS_TO_RESTORE = ['window', 'OFFICIAL_ASTRAS', 'demoConversations'];

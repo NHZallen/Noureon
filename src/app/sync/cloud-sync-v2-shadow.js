@@ -431,7 +431,7 @@ export function createConversationShadowSync({
     );
     assertCurrent();
     if (encoded.skippedConversationIds.length) {
-      logger.warn('AstraChat Sync V2 shadow skipped conversations with invalid IDs.', {
+      logger.warn('Noureon Sync V2 shadow skipped conversations with invalid IDs.', {
         count: encoded.skippedConversationIds.length,
         ids: encoded.skippedConversationIds.slice(0, 10)
       });
@@ -532,7 +532,7 @@ export function createConversationShadowSync({
         if (error instanceof ShadowSyncStoppedError) {
           return setStatus({ state: 'stopped', enabled: false, pending: false });
         }
-        logger.warn('AstraChat Sync V2 shadow upload will retry after the next local save or reload.', error);
+        logger.warn('Noureon Sync V2 shadow upload will retry after the next local save or reload.', error);
         setStatus({
           state: 'retry',
           enabled,
@@ -600,7 +600,7 @@ export function createConversationShadowSync({
         return ids.includes(id) || validIds.has(id);
       });
     } catch (error) {
-      logger.warn('AstraChat Sync V2 shadow could not read local delete snapshots.', error);
+      logger.warn('Noureon Sync V2 shadow could not read local delete snapshots.', error);
     }
     const conversationSnapshots = uniqueConversationsById([
       ...optionSnapshots,
@@ -736,7 +736,7 @@ export function createConversationShadowSync({
   async function permanentlyDeleteAstras(astraIds, options = {}) {
     const requestedIds = [...new Set((astraIds || []).filter(Boolean).map(String))];
     if (!requestedIds.length) return status;
-    if (!enabled) throw new Error('Cloud Astra sync is not ready yet.');
+    if (!enabled) throw new Error('Cloud Noura sync is not ready yet.');
     if (timer != null) cancel(timer);
     timer = null;
     pendingWorkspace = null;
@@ -751,7 +751,7 @@ export function createConversationShadowSync({
         .map(astra => [String(astra.id), astra])
     );
     if (snapshotById.size < requestedIds.length) {
-      const error = new Error('Cloud Astra deletion requires local snapshots.');
+      const error = new Error('Cloud Noura deletion requires local snapshots.');
       error.code = 'ASTRA_ASTRA_DELETE_SNAPSHOT_REQUIRED';
       throw error;
     }
@@ -767,7 +767,7 @@ export function createConversationShadowSync({
       cryptoProvider
     });
     if (encoded.astras.length !== requestedIds.length) {
-      const error = new Error('Cloud Astra deletion could not encode every Astra.');
+      const error = new Error('Cloud Noura deletion could not encode every Noura.');
       error.code = 'ASTRA_ASTRA_DELETE_ENCODE_FAILED';
       throw error;
     }
@@ -780,7 +780,7 @@ export function createConversationShadowSync({
       const deletedIds = encoded.astras.map(row => row.id);
       const missingIds = deletedIds.filter(id => !nextAstraTombstoneIds.has(id));
       if (missingIds.length) {
-        const error = new Error('Cloud Astra deletion did not create durable deletion markers.');
+        const error = new Error('Cloud Noura deletion did not create durable deletion markers.');
         error.code = 'ASTRA_ASTRA_TOMBSTONE_VERIFY_FAILED';
         error.details = { missingAstraIds: missingIds.slice(0, 10) };
         throw error;
@@ -911,7 +911,7 @@ export function createConversationShadowSync({
     } catch (error) {
       if (error instanceof ShadowSyncStoppedError) return setStatus({ state: 'stopped', enabled: false, pending: false });
       if (isMissingSchemaError(error)) return setStatus({ state: 'migration-required', enabled: false, pending: false, ...describeShadowError(error) });
-      logger.warn('AstraChat Sync V2 shadow probe failed; local mode remains active.', error);
+      logger.warn('Noureon Sync V2 shadow probe failed; local mode remains active.', error);
       return setStatus({ state: 'retry', enabled: false, pending: false, lastErrorAt: now(), ...describeShadowError(error) });
     }
     try {
@@ -970,7 +970,7 @@ export function createConversationShadowSync({
         enabled = false;
         return setStatus({ state: 'migration-required', enabled: false, pending: false, ...describeShadowError(error) });
       }
-      logger.warn('AstraChat Sync V2 shadow initialization is incomplete; local mode remains active.', error);
+      logger.warn('Noureon Sync V2 shadow initialization is incomplete; local mode remains active.', error);
       return setStatus({ state: 'retry', enabled: false, pending: false, lastErrorAt: now(), ...describeShadowError(error) });
     }
   }
@@ -1016,7 +1016,7 @@ export function initializeConversationShadowSync({
     if (repaired.changed) {
       await storage.setItem(storageKey, JSON.stringify(repaired.workspace));
       try {
-        logger.info('AstraChat Sync V2 repaired legacy workspace IDs before upload.', repaired.repaired);
+        logger.info('Noureon Sync V2 repaired legacy workspace IDs before upload.', repaired.repaired);
       } catch {}
     }
     return repaired.workspace;
@@ -1050,7 +1050,7 @@ export function initializeConversationShadowSync({
   exposeConversationShadowSync(window, sync);
   sync.ready = sync.initialize().catch(error => {
     try {
-      logger.warn('AstraChat Sync V2 initialization escaped its local fallback boundary.', error);
+      logger.warn('Noureon Sync V2 initialization escaped its local fallback boundary.', error);
     } catch {}
     return sync.getStatus();
   });

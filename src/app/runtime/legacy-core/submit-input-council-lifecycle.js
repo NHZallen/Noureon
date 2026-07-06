@@ -406,7 +406,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
                                 </span>
                                 <span>${ast.name} ${i18n[config.uiLanguage].astrasActive || 'active'}</span>
                             </span>
-                            <button id="close-astras-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${i18n[config.uiLanguage].closeAstras || 'Close Astras'}">
+                            <button id="close-astras-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${i18n[config.uiLanguage].closeAstras || 'Close Noura'}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         `,

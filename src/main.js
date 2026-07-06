@@ -43,7 +43,7 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => {
-  console.error('AstraChat failed to bootstrap:', error);
-  document.body.innerHTML = '<main style="padding:2rem;font-family:system-ui,sans-serif"><h1>AstraChat failed to start</h1><pre></pre></main>';
+  console.error('Noureon failed to bootstrap:', error);
+  document.body.innerHTML = '<main style="padding:2rem;font-family:system-ui,sans-serif"><h1>Noureon failed to start</h1><pre></pre></main>';
   document.querySelector('pre').textContent = error?.stack || String(error);
 });

@@ -18,7 +18,7 @@ export const getSettingsMobileGroups = (getText) => {
 
   return [
     {
-      title: '自訂 ASTRA',
+      title: '自訂 Noureon',
       items: [
         { section: 'user', label: text('userSettings', '使用者') },
         { section: 'personalization', label: text('personalization', '個人化') },

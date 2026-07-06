@@ -392,7 +392,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                         { astras: subscribedAstras }
                     );
                 } catch (error) {
-                    try { console.warn('AstraChat cloud Astra unsubscribe failed; keeping the local Astra.', error); } catch {}
+                    try { console.warn('Noureon cloud Noura unsubscribe failed; keeping the local Noura.', error); } catch {}
                     showNotification(i18n[state.config.uiLanguage].cloudDeleteFailed || '雲端刪除失敗，請稍後再試。', 'error');
                     return;
                 }
@@ -716,7 +716,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                             ALL_ELEMENTS.astrasNameInput.value = astra.name;
                             ALL_ELEMENTS.astrasDescInput.value = astra.description;
                             ALL_ELEMENTS.astrasInstructionsInput.value = astra.instructions;
-                            ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = i18n[state.config.uiLanguage].editAstras || '編輯 Astras';
+                            ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = i18n[state.config.uiLanguage].editAstras || '編輯 Noura';
                             toggleModal(ALL_ELEMENTS.astrasCreateModal, true);
                             break;
                         case 'edit-avatar':

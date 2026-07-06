@@ -33,7 +33,7 @@ function createCloudEntityDeletion({
     );
     const entities = [...snapshotsById.values()];
     if ((snapshotsRequired || options.requireSnapshots) && entities.length < ids.length) {
-      throw new Error(`Cloud ${optionKey === 'astras' ? 'Astra ' : ''}delete is missing local snapshots.`);
+      throw new Error(`Cloud ${optionKey === 'astras' ? 'Noura ' : ''}delete is missing local snapshots.`);
     }
     const payload = { [optionKey]: entities };
     if (optionKey === 'conversations') payload.requireSnapshots = Boolean(options.requireSnapshots);
@@ -64,7 +64,7 @@ export function createCloudAstraDeletion({
     getSync,
     syncMethod: 'permanentlyDeleteAstras',
     optionKey: 'astras',
-    unavailableMessage: 'Cloud Astra sync is not ready yet.',
+    unavailableMessage: 'Cloud Noura sync is not ready yet.',
     snapshotsRequired: true
   });
 }

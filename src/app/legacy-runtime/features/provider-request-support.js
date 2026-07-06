@@ -77,7 +77,7 @@ export function createProviderRequestSupport({
   });
 
   const buildSingleDocumentTranslationPrompt = (parts, targetModel) => `
-You are the single-model document translator for Astranos Chat.
+You are the single-model document translator for Noureon.
 
 Target model that will receive your packet:
 - ${targetModel?.name || 'Unknown model'}

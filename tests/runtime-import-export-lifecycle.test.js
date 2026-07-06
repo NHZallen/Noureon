@@ -278,7 +278,7 @@ test('factory exports the normal import/export lifecycle API', () => {
   assert.equal(typeof lifecycle.handleImport, 'function');
 });
 
-test('performImport preserves replacement, app persistence, sensitive key merge, and config persistence order', async () => {
+test('performImport accepts legacy backups that store Nouras under the astras field', async () => {
   const harness = createHarness();
   const { calls, config, lifecycle } = harness;
 
@@ -300,6 +300,7 @@ test('performImport preserves replacement, app persistence, sensitive key merge,
     'saveConfig'
   ]);
   assert.equal('theme' in config, false);
+  assert.deepEqual(harness.astras, [{ id: 'astra-1' }]);
   assert.deepEqual(config.apiKeys, { keep: 'yes' });
   assert.deepEqual(harness.sensitiveApiKeys, { keep: 'yes', imported: 'key' });
 });
@@ -316,7 +317,7 @@ test('handleImport validates, confirms, clears through bridges, chunks live arra
   };
   const harness = createHarness({
     importFile: {
-      name: 'backup.json',
+      name: 'chatbot_backup_alice_2026-07-01.json',
       type: 'application/json',
       async text() {
         return JSON.stringify(rawData);
@@ -422,6 +423,7 @@ test('handleExport uses live getters and packages every selected data group', as
   assert.deepEqual(exportedData.apiKeys, sensitiveApiKeys);
   assert.equal(calls.some((call) => call[0] === 'zipFile' && call[1] === 'data.json'), true);
   assert.equal(calls.some((call) => call[0] === 'zipGenerate'), true);
+  assert.equal(calls.some((call) => call[0] === 'File' && /^noureon_backup_alice_\d{4}-\d{2}-\d{2}\.zip$/.test(call[1])), true);
   assert.equal(calls.some((call) => call[0] === 'createObjectURL'), true);
   assert.equal(calls.some((call) => call[0] === 'toggleModal' && call[1] === 'importDataModal'), false);
   assert.equal(elements.confirmExportBtn.disabled, false);

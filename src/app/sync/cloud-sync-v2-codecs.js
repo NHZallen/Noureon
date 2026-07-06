@@ -110,7 +110,7 @@ function astraFromRow(row = {}) {
   return {
     ...metadata,
     id: row.id,
-    name: row.name || 'Astra',
+    name: row.name || 'Noura',
     description: row.description || '',
     instructions: row.instructions || '',
     avatarUrl: metadata.avatarUrl ?? null,
@@ -134,7 +134,7 @@ function encodeAstraShadow(astra = {}, userId) {
   return {
     id,
     user_id: userId,
-    name: String(name || 'Astra'),
+    name: String(name || 'Noura'),
     description: String(description || ''),
     instructions: String(instructions || ''),
     metadata: canonicalize(metadata)

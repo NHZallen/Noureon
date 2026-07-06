@@ -136,7 +136,7 @@ test('handleImport keeps validation before clear and chunk mutations on active l
 
 test('handleImport preserves partial-state behavior without rollback', () => {
   assertMarkersInOrder(handleImportBody, [
-    /catch \(error\) \{\r?\n\s+logger\.warn\('Astra/,
+    /catch \(error\) \{\r?\n\s+logger\.warn\('Noura/,
     'activeAppData.astras.push(astra)',
     /catch \(error\) \{\r?\n\s+logger\.warn\('/,
     'activeAppData.conversations.push(conversation)'
@@ -187,7 +187,7 @@ test('processAuthImport keeps user persistence before app data mutation and pers
 
 test('processAuthImport preserves partial-state behavior without rollback', () => {
   assertMarkersInOrder(processAuthImportBody, [
-    /catch \(error\) \{\r?\n\s+logger\.warn\('Astra/,
+    /catch \(error\) \{\r?\n\s+logger\.warn\('Noura/,
     'activeAppData.astras.push(astra)',
     /catch \(error\) \{\r?\n\s+logger\.warn\('Attachment/,
     'activeAppData.conversations.push(conversation)'

@@ -15,7 +15,7 @@ export function createLegacyRuntimeAppDataPersistence({
       const snapshot = getAppData();
       await setItem(getAppDataKey(), JSON.stringify(snapshot));
       await Promise.resolve(onSaved(snapshot)).then(undefined, error => {
-        logger.warn('AstraChat cloud conversation sync could not observe a local save.', error);
+        logger.warn('Noureon cloud conversation sync could not observe a local save.', error);
       });
     });
   }
