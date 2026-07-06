@@ -112,13 +112,7 @@ test('repository uses tombstone select and protected RPC upserts', async () => {
 
 test('repository permanently deletes conversations through the protected RPC', async () => {
   const calls = [];
-  const query = table => ({
-    delete() { calls.push(['delete', table]); return this; },
-    eq(column, value) { calls.push(['eq', table, column, value]); return this; },
-    in(column, values) { calls.push(['in', table, column, values]); return Promise.resolve({ error: null }); }
-  });
   const supabase = {
-    from(table) { calls.push(['from', table]); return query(table); },
     async rpc(name, args) { calls.push(['rpc', name, args]); return { error: null }; }
   };
   const repository = createConversationShadowRepository({ supabase, userId });
@@ -126,27 +120,13 @@ test('repository permanently deletes conversations through the protected RPC', a
   await repository.permanentlyDeleteConversations(['a', 'a', '', null, 'b']);
 
   assert.deepEqual(calls, [
-    ['rpc', 'permanently_delete_workspace_conversations', { p_conversation_ids: ['a', 'b'] }],
-    ['from', 'workspace_messages'],
-    ['delete', 'workspace_messages'],
-    ['eq', 'workspace_messages', 'user_id', userId],
-    ['in', 'workspace_messages', 'conversation_id', ['a', 'b']],
-    ['from', 'workspace_conversations'],
-    ['delete', 'workspace_conversations'],
-    ['eq', 'workspace_conversations', 'user_id', userId],
-    ['in', 'workspace_conversations', 'id', ['a', 'b']]
+    ['rpc', 'permanently_delete_workspace_conversations', { p_conversation_ids: ['a', 'b'] }]
   ]);
 });
 
-test('repository permanent delete falls back to direct row deletes when the RPC is unavailable', async () => {
+test('repository permanent delete rejects instead of bypassing tombstones when the RPC is unavailable', async () => {
   const calls = [];
-  const query = table => ({
-    delete() { calls.push(['delete', table]); return this; },
-    eq(column, value) { calls.push(['eq', table, column, value]); return this; },
-    in(column, values) { calls.push(['in', table, column, values]); return Promise.resolve({ error: null, data: [] }); }
-  });
   const supabase = {
-    from(table) { calls.push(['from', table]); return query(table); },
     async rpc(name, args) {
       calls.push(['rpc', name, args]);
       return { error: { message: 'Could not find the function', code: 'PGRST202', status: 404 } };
@@ -154,11 +134,13 @@ test('repository permanent delete falls back to direct row deletes when the RPC 
   };
   const repository = createConversationShadowRepository({ supabase, userId });
 
-  await repository.permanentlyDeleteConversations([conversationId]);
+  await assert.rejects(
+    () => repository.permanentlyDeleteConversations([conversationId]),
+    error => error?.code === 'PGRST202'
+  );
 
-  assert.deepEqual(calls.map(call => call[0] === 'delete' ? call : null).filter(Boolean), [
-    ['delete', 'workspace_messages'],
-    ['delete', 'workspace_conversations']
+  assert.deepEqual(calls, [
+    ['rpc', 'permanently_delete_workspace_conversations', { p_conversation_ids: [conversationId] }]
   ]);
 });
 
@@ -540,7 +522,7 @@ test('sync permanent deletion exposes protected RPC errors in status', async () 
   assert.equal(sync.getStatus().lastPermanentDeleteError.status, 404);
 });
 
-test('sync permanent deletion succeeds when matching remote rows are gone', async () => {
+test('sync permanent deletion rejects when remote rows are gone without durable tombstones', async () => {
   const repository = {
     probe: async () => null,
     fetchTombstones: async () => [],
@@ -561,10 +543,58 @@ test('sync permanent deletion succeeds when matching remote rows are gone', asyn
   });
 
   await sync.initialize();
-  await sync.permanentlyDeleteConversations([conversationId]);
+  await assert.rejects(
+    () => sync.permanentlyDeleteConversations([conversationId]),
+    error => error?.code === 'ASTRA_TOMBSTONE_VERIFY_FAILED'
+  );
 
-  assert.equal(sync.getStatus().state, 'ready');
-  assert.equal(sync.getStatus().lastPermanentDeleteError, undefined);
+  assert.equal(sync.getStatus().state, 'retry');
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteError.details, {
+    missingConversationIds: [conversationId]
+  });
+});
+
+test('sync permanent deletion cancels a queued pre-delete upload before committing the tombstone', async () => {
+  let scheduled;
+  const cancelled = [];
+  let conversationUploads = 0;
+  let deletedIds = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => deletedIds.map(entity_id => ({
+      entity_type: 'conversation',
+      entity_id,
+      deleted_at: '2026-07-06T00:00:00.000Z'
+    })),
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => { conversationUploads += 1; },
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async ids => { deletedIds = ids; }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => workspace,
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    schedule: callback => { scheduled = callback; return 77; },
+    cancel: timerId => cancelled.push(timerId)
+  });
+
+  await sync.initialize();
+  assert.equal(conversationUploads, 1);
+  assert.equal(sync.captureWorkspace(workspace), true);
+  assert.equal(typeof scheduled, 'function');
+
+  await sync.permanentlyDeleteConversations([conversationId]);
+  await sync.flush();
+
+  assert.deepEqual(cancelled, [77]);
+  assert.equal(conversationUploads, 1);
+  assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 1);
 });
 
 test('missing migration never reads or changes the local workspace', async () => {

@@ -299,22 +299,13 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     return data || [];
   }
 
-  async function deleteConversationRows(ids) {
-    await runInChunks(ids, 200, async chunk => {
-      for (const [table, column] of [['workspace_messages', 'conversation_id'], ['workspace_conversations', 'id']]) {
-        const { error } = await supabase.from(table).delete().eq('user_id', userId).in(column, chunk);
-        if (error) throw error;
-      }
-    });
-  }
-
   async function permanentlyDeleteConversations(conversationIds) {
     const ids = [...new Set((conversationIds || []).filter(Boolean))];
     if (!ids.length) return;
-    await supabase.rpc('permanently_delete_workspace_conversations', {
+    const { error } = await supabase.rpc('permanently_delete_workspace_conversations', {
       p_conversation_ids: ids
     });
-    await deleteConversationRows(ids);
+    if (error) throw error;
   }
 
   return {
@@ -518,6 +509,11 @@ export function createConversationShadowSync({
     }
     if (!ids.length) return status;
     if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
+    if (timer != null) cancel(timer);
+    timer = null;
+    pendingWorkspace = null;
+    setStatus({ pending: false });
+    await work.catch(() => {});
     const residualRemoteIds = [];
     const optionSnapshots = Array.isArray(options.conversations) ? options.conversations : [];
     let localSnapshots = [];
@@ -618,6 +614,17 @@ export function createConversationShadowSync({
       if (residualRemoteIds.length) {
         await repository.permanentlyDeleteConversations(residualRemoteIds);
       }
+      const refreshedTombstones = await repository.fetchTombstones();
+      const refreshedTombstoneIndex = createTombstoneIndex(refreshedTombstones);
+      const missingTombstoneIds = [...validIds]
+        .filter(id => !refreshedTombstoneIndex.conversations.has(id));
+      if (missingTombstoneIds.length) {
+        const error = new Error('Cloud permanent delete did not create durable deletion markers.');
+        error.code = 'ASTRA_TOMBSTONE_VERIFY_FAILED';
+        error.details = { missingConversationIds: missingTombstoneIds.slice(0, 10) };
+        throw error;
+      }
+      tombstoneIndex = refreshedTombstoneIndex;
       const finalResidualRemoteIds = await collectMatchingRemoteIds();
       if (finalResidualRemoteIds.length) {
         const error = new Error('Cloud permanent delete left matching remote conversations behind.');
@@ -626,10 +633,6 @@ export function createConversationShadowSync({
         throw error;
       }
       const finalDeleteIds = [...validIds];
-      try {
-        tombstoneIndex = createTombstoneIndex(await repository.fetchTombstones());
-      } catch {
-      }
       return setStatus({
         state: 'ready',
         enabled,
