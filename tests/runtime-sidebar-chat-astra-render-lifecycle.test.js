@@ -113,6 +113,7 @@ function createDependencies(overrides = {}) {
     toggleModal: noop,
     showNotification: (...args) => calls.push(['notify', ...args]),
     showCustomConfirm: async () => true,
+    deleteAstrasFromCloud: async (...args) => calls.push(['deleteAstrasFromCloud', ...args]),
     buildMessageRenderView: () => ({ role: 'model', html: '' }),
     replaceAstras: (nextAstras) => {
       calls.push('replaceAstras');
@@ -200,7 +201,12 @@ test('Astra delete path uses injected replacement bridge and live conversations'
 
   assert.deepEqual(dependencies.state.astras, []);
   assert.equal(dependencies.state.conversations[0].astrasId, null);
-  assert.deepEqual(dependencies._calls.slice(0, 3), ['replaceAstras', 'saveAppData', 'renderAll']);
+  assert.deepEqual(dependencies._calls.slice(0, 4), [
+    ['deleteAstrasFromCloud', ['astra-1'], { astras: [{ id: 'astra-1', name: 'Astra' }] }],
+    'replaceAstras',
+    'saveAppData',
+    'renderAll'
+  ]);
 });
 
 test('Astra delete path clears astrasId on the latest conversations pointer only', async () => {
@@ -218,5 +224,25 @@ test('Astra delete path clears astrasId on the latest conversations pointer only
 
   assert.equal(activeConversation.astrasId, null);
   assert.equal(staleConversation.astrasId, 'astra-1');
-  assert.deepEqual(dependencies._calls.slice(0, 3), ['replaceAstras', 'saveAppData', 'renderAll']);
+  assert.deepEqual(dependencies._calls.slice(0, 4), [
+    ['deleteAstrasFromCloud', ['astra-1'], { astras: [{ id: 'astra-1', name: 'Astra' }] }],
+    'replaceAstras',
+    'saveAppData',
+    'renderAll'
+  ]);
+});
+
+test('Astra delete path keeps local data when durable cloud deletion fails', async () => {
+  const dependencies = createDependencies({
+    deleteAstrasFromCloud: async () => { throw new Error('cloud down'); }
+  });
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const astra = { id: 'astra-1', name: 'Astra' };
+  dependencies.state.astras = [astra];
+
+  await lifecycle.deleteAstras('astra-1');
+
+  assert.deepEqual(dependencies.state.astras, [astra]);
+  assert.equal(dependencies._calls.some(call => call === 'replaceAstras'), false);
+  assert.equal(dependencies._calls.some(call => Array.isArray(call) && call[0] === 'runtimeNotify'), true);
 });

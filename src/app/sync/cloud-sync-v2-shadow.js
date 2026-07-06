@@ -7,7 +7,9 @@ import {
 } from './cloud-sync-v2-codecs.js';
 import { mergeWorkspaceAppData } from './cloud-sync-versioning.js';
 import {
+  applyAstraTombstones,
   applyWorkspaceTombstones,
+  createAstraTombstoneIndex,
   createTombstoneIndex,
   filterEncodedWorkspaceByTombstones
 } from './cloud-sync-v2-deletions.js';
@@ -29,6 +31,10 @@ const MESSAGE_COLUMNS = [
 ].join(',');
 const CONVERSATION_FETCH_COLUMNS = `${CONVERSATION_COLUMNS},updated_at`;
 const MESSAGE_FETCH_COLUMNS = `${MESSAGE_COLUMNS},updated_at`;
+const ASTRA_COLUMNS = [
+  'id', 'user_id', 'name', 'description', 'instructions', 'metadata'
+].join(',');
+const ASTRA_FETCH_COLUMNS = `${ASTRA_COLUMNS},updated_at,deleted_at`;
 
 export class LocalWorkspaceDataError extends Error {
   constructor(message = 'Local workspace data is invalid.', options) {
@@ -87,6 +93,7 @@ function describeShadowError(error) {
 function summarizeWorkspace(workspace = {}) {
   const conversations = Array.isArray(workspace.conversations) ? workspace.conversations : [];
   const folders = Array.isArray(workspace.folders) ? workspace.folders : [];
+  const astras = Array.isArray(workspace.astras) ? workspace.astras : [];
   const trashedConversations = conversations.filter(conversation => conversation?.deletedAt);
   const messages = conversations.reduce(
     (total, conversation) => total + (Array.isArray(conversation?.messages) ? conversation.messages.length : 0),
@@ -101,7 +108,8 @@ function summarizeWorkspace(workspace = {}) {
       .filter(Boolean)
       .slice(0, 10),
     messages,
-    folders: folders.length
+    folders: folders.length,
+    astras: astras.length
   };
 }
 
@@ -109,7 +117,9 @@ function summarizeShadowRows(rows = {}) {
   return {
     conversations: rows.conversations?.length || 0,
     messages: rows.messages?.length || 0,
-    folders: rows.folders?.length || 0
+    folders: rows.folders?.length || 0,
+    astras: rows.astras?.filter(row => !row?.deleted_at).length || 0,
+    deletedAstras: rows.astras?.filter(row => row?.deleted_at).length || 0
   };
 }
 
@@ -256,7 +266,16 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     });
   }
 
-  async function verify({ folders, conversations, messages }) {
+  async function upsertAstras(rows) {
+    await runInChunks(rows, 100, async chunk => {
+      const { error } = await supabase
+        .from('workspace_astras')
+        .upsert(chunk, { onConflict: 'id' });
+      if (error) throw error;
+    });
+  }
+
+  async function verify({ folders = [], conversations = [], messages = [], astras = [] }) {
     const verifyRows = async (table, columns, localRows) => {
       for (let index = 0; index < localRows.length; index += 200) {
         const chunk = localRows.slice(index, index + 200);
@@ -270,9 +289,25 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
       }
       return true;
     };
+    const verifyAstras = async (localRows) => {
+      for (let index = 0; index < localRows.length; index += 200) {
+        const chunk = localRows.slice(index, index + 200);
+        const { data, error } = await supabase
+          .from('workspace_astras')
+          .select(`${ASTRA_COLUMNS},deleted_at`)
+          .eq('user_id', userId)
+          .in('id', chunk.map(row => row.id));
+        if (error) throw error;
+        if ((data || []).some(row => row.deleted_at)) return false;
+        const comparable = (data || []).map(({ deleted_at: _deletedAt, ...row }) => row);
+        if (!includesLocalRows(chunk, comparable)) return false;
+      }
+      return true;
+    };
     return await verifyRows('workspace_folders', FOLDER_COLUMNS, folders)
       && await verifyRows('workspace_conversations', CONVERSATION_COLUMNS, conversations)
-      && await verifyRows('workspace_messages', MESSAGE_COLUMNS, messages);
+      && await verifyRows('workspace_messages', MESSAGE_COLUMNS, messages)
+      && await verifyAstras(astras);
   }
 
   async function fetchWorkspace() {
@@ -287,7 +322,8 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     const folders = await selectRows('workspace_folders', FOLDER_COLUMNS);
     const conversations = await selectRows('workspace_conversations', CONVERSATION_FETCH_COLUMNS);
     const messages = await selectRows('workspace_messages', MESSAGE_FETCH_COLUMNS);
-    return { folders, conversations, messages };
+    const astras = await selectRows('workspace_astras', ASTRA_FETCH_COLUMNS);
+    return { folders, conversations, messages, astras };
   }
 
   async function fetchTombstones() {
@@ -308,16 +344,28 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     if (error) throw error;
   }
 
+  async function permanentlyDeleteAstras(rows, deletedAt = new Date().toISOString()) {
+    const tombstoneRows = (rows || []).map(row => ({ ...row, deleted_at: deletedAt }));
+    await runInChunks(tombstoneRows, 100, async chunk => {
+      const { error } = await supabase
+        .from('workspace_astras')
+        .upsert(chunk, { onConflict: 'id' });
+      if (error) throw error;
+    });
+  }
+
   return {
     probe,
     setMigrationState,
     upsertFolders,
     upsertConversations,
     upsertMessages,
+    upsertAstras,
     verify,
     fetchWorkspace,
     fetchTombstones,
-    permanentlyDeleteConversations
+    permanentlyDeleteConversations,
+    permanentlyDeleteAstras
   };
 }
 
@@ -341,6 +389,7 @@ export function createConversationShadowSync({
   let work = Promise.resolve();
   let backupMarker = null;
   let tombstoneIndex = createTombstoneIndex();
+  let astraTombstoneIds = new Set();
   let generation = 0;
   let status = Object.freeze({
     state: 'idle',
@@ -348,7 +397,8 @@ export function createConversationShadowSync({
     pending: false,
     conversations: 0,
     messages: 0,
-    folders: 0
+    folders: 0,
+    astras: 0
   });
 
   const setStatus = next => {
@@ -367,7 +417,8 @@ export function createConversationShadowSync({
     assertCurrent();
     const encoded = filterEncodedWorkspaceByTombstones(
       await encodeWorkspaceConversationShadow({ workspace: uploadWorkspace, userId, cryptoProvider }),
-      tombstoneIndex
+      tombstoneIndex,
+      astraTombstoneIds
     );
     assertCurrent();
     if (encoded.skippedConversationIds.length) {
@@ -383,6 +434,7 @@ export function createConversationShadowSync({
       conversations: encoded.conversations.length,
       messages: encoded.messages.length,
       folders: encoded.folders.length,
+      astras: encoded.astras.length,
       skipped: encoded.skippedConversationIds.length,
       skippedConversationIds: encoded.skippedConversationIds.slice(0, 10),
       lastUploadStartedAt: now(),
@@ -408,6 +460,10 @@ export function createConversationShadowSync({
       await repository.upsertMessages(encoded.messages);
       assertCurrent();
     }
+    if (encoded.astras.length) {
+      await repository.upsertAstras(encoded.astras);
+      assertCurrent();
+    }
     const verified = await repository.verify(encoded);
     assertCurrent();
     if (!verified) throw new Error('Sync V2 shadow verification did not match the local workspace.');
@@ -420,6 +476,7 @@ export function createConversationShadowSync({
       conversations: encoded.conversations.length,
       messages: encoded.messages.length,
       folders: encoded.folders.length,
+      astras: encoded.astras.length,
       skipped: encoded.skippedConversationIds.length,
       lastCompletedAt: now()
     });
@@ -430,15 +487,24 @@ export function createConversationShadowSync({
   async function pullWorkspace(localWorkspace = {}) {
     const tombstones = await repository.fetchTombstones();
     const nextTombstoneIndex = createTombstoneIndex(tombstones);
-    const sanitizedLocal = applyWorkspaceTombstones(localWorkspace, nextTombstoneIndex);
+    const conversationSanitizedLocal = applyWorkspaceTombstones(localWorkspace, nextTombstoneIndex);
     const rows = await repository.fetchWorkspace();
-    const remoteWorkspace = applyWorkspaceTombstones(
+    const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
+    const sanitizedLocal = applyAstraTombstones(
+      conversationSanitizedLocal,
+      nextAstraTombstoneIds
+    );
+    const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
       decodeWorkspaceConversationShadow(rows),
       nextTombstoneIndex
-    );
+    ), nextAstraTombstoneIds);
     const merged = mergeWorkspaceAppData(sanitizedLocal, remoteWorkspace);
     tombstoneIndex = nextTombstoneIndex;
-    return applyWorkspaceTombstones(merged, tombstoneIndex);
+    astraTombstoneIds = nextAstraTombstoneIds;
+    return applyAstraTombstones(
+      applyWorkspaceTombstones(merged, tombstoneIndex),
+      astraTombstoneIds
+    );
   }
 
   function drain() {
@@ -658,6 +724,83 @@ export function createConversationShadowSync({
     }
   }
 
+  async function permanentlyDeleteAstras(astraIds, options = {}) {
+    const requestedIds = [...new Set((astraIds || []).filter(Boolean).map(String))];
+    if (!requestedIds.length) return status;
+    if (!enabled) throw new Error('Cloud Astra sync is not ready yet.');
+    if (timer != null) cancel(timer);
+    timer = null;
+    pendingWorkspace = null;
+    setStatus({ pending: false });
+    await work.catch(() => {});
+
+    const localWorkspace = await readWorkspace() || {};
+    const optionSnapshots = Array.isArray(options.astras) ? options.astras : [];
+    const snapshotById = new Map(
+      [...(localWorkspace.astras || []), ...optionSnapshots]
+        .filter(astra => requestedIds.includes(String(astra?.id || '')))
+        .map(astra => [String(astra.id), astra])
+    );
+    if (snapshotById.size < requestedIds.length) {
+      const error = new Error('Cloud Astra deletion requires local snapshots.');
+      error.code = 'ASTRA_ASTRA_DELETE_SNAPSHOT_REQUIRED';
+      throw error;
+    }
+
+    const deletionWorkspace = await normalizeWorkspace({
+      conversations: [],
+      folders: [],
+      astras: [...snapshotById.values()]
+    });
+    const encoded = await encodeWorkspaceConversationShadow({
+      workspace: deletionWorkspace,
+      userId,
+      cryptoProvider
+    });
+    if (encoded.astras.length !== requestedIds.length) {
+      const error = new Error('Cloud Astra deletion could not encode every Astra.');
+      error.code = 'ASTRA_ASTRA_DELETE_ENCODE_FAILED';
+      throw error;
+    }
+
+    try {
+      const deletedAt = now();
+      await repository.permanentlyDeleteAstras(encoded.astras, deletedAt);
+      const rows = await repository.fetchWorkspace();
+      const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
+      const deletedIds = encoded.astras.map(row => row.id);
+      const missingIds = deletedIds.filter(id => !nextAstraTombstoneIds.has(id));
+      if (missingIds.length) {
+        const error = new Error('Cloud Astra deletion did not create durable deletion markers.');
+        error.code = 'ASTRA_ASTRA_TOMBSTONE_VERIFY_FAILED';
+        error.details = { missingAstraIds: missingIds.slice(0, 10) };
+        throw error;
+      }
+      astraTombstoneIds = nextAstraTombstoneIds;
+      return setStatus({
+        state: 'ready',
+        enabled,
+        pending: false,
+        lastAstraDeleteAt: deletedAt,
+        lastAstraDeleteCount: deletedIds.length,
+        lastAstraDeleteError: undefined,
+        lastCompletedAt: now()
+      });
+    } catch (error) {
+      setStatus({
+        state: 'retry',
+        enabled,
+        pending: false,
+        lastAstraDeleteAt: now(),
+        lastAstraDeleteCount: 0,
+        lastAstraDeleteError: describeShadowError(error),
+        lastErrorAt: now(),
+        ...describeShadowError(error)
+      });
+      throw error;
+    }
+  }
+
   async function diagnose() {
     const diagnosis = {
       status,
@@ -721,24 +864,29 @@ export function createConversationShadowSync({
       const tombstones = await repository.fetchTombstones();
       assertCurrent();
       const nextTombstoneIndex = createTombstoneIndex(tombstones);
-      const sanitizedLocal = applyWorkspaceTombstones(normalizedWorkspace, nextTombstoneIndex);
       const rows = await repository.fetchWorkspace();
       assertCurrent();
-      const remoteWorkspace = applyWorkspaceTombstones(
+      const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
+      const sanitizedLocal = applyAstraTombstones(
+        applyWorkspaceTombstones(normalizedWorkspace, nextTombstoneIndex),
+        nextAstraTombstoneIds
+      );
+      const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
         decodeWorkspaceConversationShadow(rows),
         nextTombstoneIndex
-      );
-      const mergedWorkspace = applyWorkspaceTombstones(
+      ), nextAstraTombstoneIds);
+      const mergedWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
         mergeWorkspaceAppData(sanitizedLocal, remoteWorkspace),
         nextTombstoneIndex
-      );
+      ), nextAstraTombstoneIds);
       assertCurrent();
       let committedWorkspace;
       if (commitWorkspace) {
         committedWorkspace = await commitWorkspace({
-          remoteWorkspace,
-          tombstoneIndex: nextTombstoneIndex,
-          assertCurrent
+            remoteWorkspace,
+            tombstoneIndex: nextTombstoneIndex,
+            astraTombstoneIds: nextAstraTombstoneIds,
+            assertCurrent
         });
       } else {
         await writeWorkspace(mergedWorkspace);
@@ -746,6 +894,7 @@ export function createConversationShadowSync({
       }
       assertCurrent();
       tombstoneIndex = nextTombstoneIndex;
+      astraTombstoneIds = nextAstraTombstoneIds;
       const result = await captureNow(committedWorkspace, true, assertCurrent);
       assertCurrent();
       if (result.state === 'ready') {
@@ -781,6 +930,7 @@ export function createConversationShadowSync({
     initialize,
     captureWorkspace,
     permanentlyDeleteConversations,
+    permanentlyDeleteAstras,
     pullWorkspace,
     diagnose,
     flush: drain,
@@ -818,14 +968,17 @@ export function initializeConversationShadowSync({
       const raw = await storage.getItem(storageKey);
       return parseLocalWorkspace(raw);
     },
-    commitWorkspace: ({ remoteWorkspace, tombstoneIndex, assertCurrent }) => withWorkspaceStorageExclusive(async () => {
+    commitWorkspace: ({ remoteWorkspace, tombstoneIndex, astraTombstoneIds, assertCurrent }) => withWorkspaceStorageExclusive(async () => {
       const latestWorkspace = await normalizeWorkspace(parseLocalWorkspace(await storage.getItem(storageKey)));
       assertCurrent();
-      const sanitizedLatest = applyWorkspaceTombstones(latestWorkspace, tombstoneIndex);
-      const committedWorkspace = applyWorkspaceTombstones(
+      const sanitizedLatest = applyAstraTombstones(
+        applyWorkspaceTombstones(latestWorkspace, tombstoneIndex),
+        astraTombstoneIds
+      );
+      const committedWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
         mergeWorkspaceAppData(sanitizedLatest, remoteWorkspace),
         tombstoneIndex
-      );
+      ), astraTombstoneIds);
       assertCurrent();
       await storage.setItem(storageKey, JSON.stringify(committedWorkspace));
       assertCurrent();

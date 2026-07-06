@@ -214,6 +214,12 @@ test('history message content preserves the empty state for absent and empty con
 test('conversation history rendering preserves filtering, pinned ordering, naming state, and source order', () => {
   const conversations = [
     { id: 'newest', createdAt: '2026-06-03T00:00:00.000Z' },
+    {
+      id: 'restored-old',
+      createdAt: '2026-01-02T00:00:00.000Z',
+      lastUpdatedAt: '2026-01-03T00:00:00.000Z',
+      stateUpdatedAt: '2026-07-06T09:00:00.000Z'
+    },
     { id: 'pinned', pinned: true, createdAt: '2026-01-01T00:00:00.000Z' },
     { id: 'naming', isNaming: true, createdAt: '2026-06-02T00:00:00.000Z' },
     { id: 'temporary', isTemporary: true, createdAt: '2026-06-04T00:00:00.000Z' },
@@ -227,12 +233,13 @@ test('conversation history rendering preserves filtering, pinned ordering, namin
     harness.helpers.renderHistorySidebar();
 
     const historyList = harness.document.getElementById('history-list');
-    assert.deepEqual(harness.renderedConversations.map((conversation) => conversation.id), ['pinned', 'newest']);
+    assert.deepEqual(harness.renderedConversations.map((conversation) => conversation.id), ['pinned', 'newest', 'restored-old']);
     assert.deepEqual(conversations.map((conversation) => conversation.id), originalOrder);
-    assert.equal(historyList.children.length, 3);
+    assert.equal(historyList.children.length, 4);
     assert.equal(historyList.children[0].dataset.conversationId, 'pinned');
     assert.equal(historyList.children[1].dataset.conversationId, 'newest');
     assert.match(historyList.children[2].textContent, /Naming\.\.\./);
+    assert.equal(historyList.children[3].dataset.conversationId, 'restored-old');
     assert.equal(historyList.querySelector('[data-conversation-id="temporary"]'), null);
   } finally {
     harness.window.close();

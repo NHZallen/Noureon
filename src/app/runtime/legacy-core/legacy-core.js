@@ -47,7 +47,6 @@ import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/a
 import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/src/app/runtime/security/sensitive-config-store.js';
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
 import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
-import { createCloudConversationDeletion } from '/src/app/runtime/legacy-core/cloud-delete-lifecycle.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -675,11 +674,17 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             }
         };
         const saveAppData = async () => { await runtimeAppDataPersistence.saveAppData(); };
-        const deleteConversationsFromCloud = createCloudConversationDeletion({
-            getCurrentUser: () => currentUser,
-            getConversations: () => runtimeAppDataStore.getConversations(),
-            getSync: () => globalThis.__astraCloudSyncV2 || window.__astraCloudSyncV2
-        });
+        const cloudDeletionLifecycle = import('/src/app/runtime/legacy-core/cloud-delete-lifecycle.js')
+            .then(({ createCloudDeletionLifecycle }) => createCloudDeletionLifecycle({
+                getCurrentUser: () => currentUser,
+                getConversations: runtimeAppDataStore.getConversations,
+                getAstras: runtimeAppDataStore.getAstras,
+                getSync: () => globalThis.__astraCloudSyncV2
+            }));
+        const deleteConversationsFromCloud = async (...args) =>
+            (await cloudDeletionLifecycle).deleteConversations(...args);
+        const deleteAstrasFromCloud = async (...args) =>
+            (await cloudDeletionLifecycle).deleteAstras(...args);
         const loadAppData = async () => {
             if (!currentUser) return;
             const saved = await getItem(getAppDataKey());
@@ -796,7 +801,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
     if (conv) {
         const deletedAt = new Date().toISOString();
         conv.deletedAt = deletedAt;
-        conv.lastUpdatedAt = deletedAt;
+        conv.stateUpdatedAt = deletedAt;
         conv.archived = false;
         if (conv.folderId) {
             const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId);
@@ -1338,6 +1343,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             toggleModal,
             showNotification,
             showCustomConfirm,
+            deleteAstrasFromCloud,
             buildMessageRenderView,
             escapeHTML,
             renderUserText,
@@ -1512,6 +1518,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             saveConfig,
             saveAppData,
             deleteConversationsFromCloud,
+            deleteAstrasFromCloud,
             showNotification,
             toggleModal,
             renderAstras,

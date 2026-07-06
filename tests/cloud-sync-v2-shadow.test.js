@@ -13,6 +13,7 @@ import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage
 
 const userId = '11111111-1111-4111-8111-111111111111';
 const conversationId = '22222222-2222-4222-8222-222222222222';
+const astraId = '44444444-4444-4444-8444-444444444444';
 const workspace = {
   folders: [{
     id: '33333333-3333-4333-8333-333333333333',
@@ -141,6 +142,39 @@ test('repository permanent delete rejects instead of bypassing tombstones when t
 
   assert.deepEqual(calls, [
     ['rpc', 'permanently_delete_workspace_conversations', { p_conversation_ids: [conversationId] }]
+  ]);
+});
+
+test('repository upserts active Astras without clearing tombstones and persists Astra deletions', async () => {
+  const calls = [];
+  const supabase = {
+    from(table) {
+      return {
+        upsert(rows, options) {
+          calls.push([table, rows, options]);
+          return Promise.resolve({ error: null });
+        }
+      };
+    }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+  const row = {
+    id: astraId,
+    user_id: userId,
+    name: 'Synced Astra',
+    description: '',
+    instructions: 'Help',
+    metadata: {}
+  };
+
+  await repository.upsertAstras([row]);
+  await repository.permanentlyDeleteAstras([row], '2026-07-06T08:00:00.000Z');
+
+  assert.equal('deleted_at' in calls[0][1][0], false);
+  assert.equal(calls[1][1][0].deleted_at, '2026-07-06T08:00:00.000Z');
+  assert.deepEqual(calls.map(call => call[2]), [
+    { onConflict: 'id' },
+    { onConflict: 'id' }
   ]);
 });
 
@@ -595,6 +629,52 @@ test('sync permanent deletion cancels a queued pre-delete upload before committi
   assert.deepEqual(cancelled, [77]);
   assert.equal(conversationUploads, 1);
   assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 1);
+});
+
+test('sync uploads active Astras and verifies durable Astra deletion tombstones', async () => {
+  const localAstra = {
+    id: astraId,
+    name: 'Synced Astra',
+    description: 'Shared',
+    instructions: 'Help carefully',
+    avatarUrl: null,
+    officialId: null
+  };
+  let remoteAstras = [];
+  let uploadedAstras = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [], astras: remoteAstras }),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    upsertAstras: async rows => {
+      uploadedAstras = rows;
+      remoteAstras = rows.map(row => ({ ...row, updated_at: '2026-07-06T08:00:00.000Z', deleted_at: null }));
+    },
+    verify: async () => true,
+    permanentlyDeleteAstras: async (rows, deletedAt) => {
+      remoteAstras = rows.map(row => ({ ...row, updated_at: deletedAt, deleted_at: deletedAt }));
+    }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ folders: [], conversations: [], astras: [localAstra] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    now: () => '2026-07-06T08:00:00.000Z'
+  });
+
+  await sync.initialize();
+  assert.equal(uploadedAstras[0].id, astraId);
+
+  await sync.permanentlyDeleteAstras([astraId], { astras: [localAstra] });
+
+  assert.equal(remoteAstras[0].deleted_at, '2026-07-06T08:00:00.000Z');
+  assert.equal(sync.getStatus().lastAstraDeleteCount, 1);
 });
 
 test('missing migration never reads or changes the local workspace', async () => {
@@ -1256,9 +1336,16 @@ test('diagnose reports local and remote shadow counts with current status', asyn
     trashedConversations: 0,
     trashedConversationIds: [],
     messages: 1,
-    folders: 1
+    folders: 1,
+    astras: 0
   });
-  assert.deepEqual(diagnosis.remote, { conversations: 1, messages: 1, folders: 1 });
+  assert.deepEqual(diagnosis.remote, {
+    conversations: 1,
+    messages: 1,
+    folders: 1,
+    astras: 0,
+    deletedAstras: 0
+  });
   assert.deepEqual(diagnosis.tombstones, { total: 1, conversations: 1, folders: 0 });
   assert.deepEqual(diagnosis.permanentDelete, {
     at: null,

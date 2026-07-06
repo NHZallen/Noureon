@@ -224,7 +224,7 @@ test('all legacy-core app data mirrors remain retired', () => {
   assert.doesNotMatch(legacyCoreSource, /conversations\.unshift\(newConv\)/);
   assert.match(legacyCoreSource, /const\s+deletedAt\s*=\s*new Date\(\)\.toISOString\(\)/);
   assert.match(legacyCoreSource, /conv\.deletedAt\s*=\s*deletedAt/);
-  assert.match(legacyCoreSource, /conv\.lastUpdatedAt\s*=\s*deletedAt/);
+  assert.match(legacyCoreSource, /conv\.stateUpdatedAt\s*=\s*deletedAt/);
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*true/);
   assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*false/);
 
@@ -456,7 +456,8 @@ test('cloud permanent delete uses the active shadow sync instead of username pre
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const cloudDeleteSource = readSource('src/app/runtime/legacy-core/cloud-delete-lifecycle.js');
 
-  assert.match(legacyCoreSource, /createCloudConversationDeletion\(/);
+  assert.match(legacyCoreSource, /import\(['"]\/src\/app\/runtime\/legacy-core\/cloud-delete-lifecycle\.js['"]\)/);
+  assert.match(legacyCoreSource, /createCloudDeletionLifecycle\(/);
   assert.match(legacyCoreSource, /getCurrentUser:\s*\(\)\s*=>\s*currentUser/);
   assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
   assert.match(legacyCoreSource, /__astraCloudSyncV2/);
@@ -465,8 +466,9 @@ test('cloud permanent delete uses the active shadow sync instead of username pre
   assert.match(cloudDeleteSource, /Cloud conversation sync is disabled/);
   assert.match(cloudDeleteSource, /sync\.getStatus\?\.\(\)/);
   assert.match(cloudDeleteSource, /options\.requireSnapshots/);
-  assert.match(cloudDeleteSource, /await\s+sync\.permanentlyDeleteConversations\(ids,\s*\{\s*conversations,/);
-  assert.match(cloudDeleteSource, /requireSnapshots:\s*Boolean\(options\.requireSnapshots\)/);
+  assert.match(cloudDeleteSource, /syncMethod:\s*['"]permanentlyDeleteConversations['"]/);
+  assert.match(cloudDeleteSource, /payload\.requireSnapshots\s*=\s*Boolean\(options\.requireSnapshots\)/);
+  assert.match(cloudDeleteSource, /await\s+sync\[syncMethod\]\(ids,\s*payload\)/);
   assert.doesNotMatch(cloudDeleteSource, /currentUser\?\.username/);
   assert.doesNotMatch(cloudDeleteSource, /startsWith\(['"]supabase:/);
 });

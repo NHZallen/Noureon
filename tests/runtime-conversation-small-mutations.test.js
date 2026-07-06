@@ -137,7 +137,7 @@ test('deleteChat preserves deletion and folder unlink mutations', () => {
     'if (conv)',
     'const deletedAt = new Date().toISOString()',
     'conv.deletedAt = deletedAt',
-    'conv.lastUpdatedAt = deletedAt',
+    'conv.stateUpdatedAt = deletedAt',
     'if (conv.folderId)',
     'const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId)',
     'if (folder)',

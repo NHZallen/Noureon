@@ -12,6 +12,7 @@ import {
 
 const userId = '11111111-1111-4111-8111-111111111111';
 const conversationId = '22222222-2222-4222-8222-222222222222';
+const astraId = '44444444-4444-4444-8444-444444444444';
 
 test('deterministic message IDs are stable UUIDs', async () => {
   const first = await deterministicUuid('same-message', webcrypto);
@@ -113,6 +114,44 @@ test('conversation shadow codec never persists transient naming or streaming sta
 
   assert.equal(decoded.conversations[0].isNaming, false);
   assert.equal(decoded.conversations[0].messages[0].status, 'complete');
+});
+
+test('workspace shadow codec round-trips active Astras and filters deleted Astra tombstones', async () => {
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      astras: [{
+        id: astraId,
+        name: 'Researcher',
+        description: 'Finds evidence',
+        instructions: 'Be precise',
+        avatarUrl: 'avatar-marker',
+        officialId: 'official-researcher'
+      }]
+    }
+  });
+
+  assert.deepEqual(encoded.astras, [{
+    id: astraId,
+    user_id: userId,
+    name: 'Researcher',
+    description: 'Finds evidence',
+    instructions: 'Be precise',
+    metadata: { avatarUrl: 'avatar-marker', officialId: 'official-researcher' }
+  }]);
+
+  const active = decodeWorkspaceConversationShadow({
+    astras: [{ ...encoded.astras[0], updated_at: '2026-07-06T08:00:00.000Z', deleted_at: null }]
+  });
+  assert.equal(active.astras[0].name, 'Researcher');
+  assert.equal(active.astras[0].avatarUrl, 'avatar-marker');
+  assert.equal(active.astras[0].officialId, 'official-researcher');
+
+  const deleted = decodeWorkspaceConversationShadow({
+    astras: [{ ...encoded.astras[0], deleted_at: '2026-07-06T08:05:00.000Z' }]
+  });
+  assert.deepEqual(deleted.astras, []);
 });
 
 test('shadow codec skips empty drafts and invalid legacy conversation IDs without mutating input', async () => {

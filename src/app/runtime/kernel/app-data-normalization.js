@@ -31,6 +31,7 @@ export function normalizeConversationRecord(record, {
         ? source.messages[source.messages.length - 1].createdAt
         : source.createdAt
     ),
+    stateUpdatedAt: source.stateUpdatedAt || source.deletedAt || source.lastUpdatedAt || source.updatedAt || source.createdAt,
     messages: (source.messages || []).map(message => ({
       ...message,
       createdAt: message.createdAt || source.createdAt,

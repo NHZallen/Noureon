@@ -35,6 +35,7 @@ const REQUIRED_DEPENDENCIES = [
   'toggleModal',
   'showNotification',
   'showCustomConfirm',
+  'deleteAstrasFromCloud',
   'replaceAstras',
   'buildMessageRenderView'
 ];
@@ -84,6 +85,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     toggleModal,
     showNotification,
     showCustomConfirm,
+    deleteAstrasFromCloud,
     replaceAstras = (nextAstras) => nextAstras,
     buildMessageRenderView,
     escapeHTML = (value = '') => String(value ?? ''),
@@ -397,6 +399,17 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
 
   const deleteAstras = async (id) => {
     if (!(await showCustomConfirm(i18n[getConfig().uiLanguage].confirmDeleteAstras || '確定刪除此 Astras？'))) return;
+    const astra = getAstras().find(item => item.id === id);
+    try {
+      await deleteAstrasFromCloud([id], { astras: astra ? [astra] : [] });
+    } catch (error) {
+      try { console.warn('AstraChat cloud Astra delete failed; keeping the local Astra.', error); } catch {}
+      runtimeDialogCoordinator.showNotification(
+        i18n[getConfig().uiLanguage].cloudDeleteFailed || '雲端刪除失敗，請稍後再試。',
+        'error'
+      );
+      return;
+    }
     setAstras(replaceAstras(
       getAstras().filter(a => a.id !== id)
     ));

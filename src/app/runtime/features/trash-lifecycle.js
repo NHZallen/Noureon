@@ -159,7 +159,7 @@ export function createLegacyTrashLifecycle({
     const conversation = getConversations().find(item => item.id === conversationId);
     if (conversation) {
       conversation.deletedAt = null;
-      conversation.lastUpdatedAt = new Date().toISOString();
+      conversation.stateUpdatedAt = new Date().toISOString();
       await saveAppData();
       renderTrash();
       showCoordinatedNotification(getTexts().itemRestored || '項目已還原。', 'success');
@@ -227,7 +227,7 @@ export function createLegacyTrashLifecycle({
       const conversation = getConversations().find(item => item.id === id);
       if (conversation) {
         conversation.deletedAt = null;
-        conversation.lastUpdatedAt = new Date().toISOString();
+        conversation.stateUpdatedAt = new Date().toISOString();
       }
     });
     await saveAppData();

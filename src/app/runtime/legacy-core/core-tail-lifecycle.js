@@ -76,6 +76,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         saveConfig,
         saveAppData,
         deleteConversationsFromCloud,
+        deleteAstrasFromCloud = async () => {},
         showNotification,
         toggleModal,
         renderAstras,
@@ -384,6 +385,17 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         const handleSubscription = async (officialId) => {
             const isSubscribed = state.astras.some(a => a.officialId === officialId);
             if (isSubscribed) {
+                const subscribedAstras = state.astras.filter(a => a.officialId === officialId);
+                try {
+                    await deleteAstrasFromCloud(
+                        subscribedAstras.map(astra => astra.id),
+                        { astras: subscribedAstras }
+                    );
+                } catch (error) {
+                    try { console.warn('AstraChat cloud Astra unsubscribe failed; keeping the local Astra.', error); } catch {}
+                    showNotification(i18n[state.config.uiLanguage].cloudDeleteFailed || '雲端刪除失敗，請稍後再試。', 'error');
+                    return;
+                }
                 state.astras = runtimeAppDataStore.replaceAstras(
                     state.astras.filter(a => a.officialId !== officialId)
                 );

@@ -246,7 +246,8 @@ test('batch delete uses live selection getters and preserves persistence orderin
   await harness.lifecycle.handleBatchDelete();
 
   assert.equal(harness.conversations[0].deletedAt != null, true);
-  assert.equal(harness.conversations[0].lastUpdatedAt, harness.conversations[0].deletedAt);
+  assert.equal(harness.conversations[0].stateUpdatedAt, harness.conversations[0].deletedAt);
+  assert.equal(harness.conversations[0].lastUpdatedAt, undefined);
   assert.deepEqual(harness.calls.map((call) => call[0]), [
     'showCustomConfirm',
     'setCurrentConversationId',
@@ -270,7 +271,8 @@ test('batch delete falls back to the next live conversation without starting a n
   await harness.lifecycle.handleBatchDelete();
 
   assert.equal(harness.conversations[0].deletedAt != null, true);
-  assert.equal(harness.conversations[0].lastUpdatedAt, harness.conversations[0].deletedAt);
+  assert.equal(harness.conversations[0].stateUpdatedAt, harness.conversations[0].deletedAt);
+  assert.equal(harness.conversations[0].lastUpdatedAt, undefined);
   assert.equal(harness.currentConversationId, 'c2');
   assert.equal(harness.calls.some((call) => call[0] === 'startNewChat'), false);
   assert.deepEqual(harness.calls.map((call) => call[0]), [

@@ -50,7 +50,8 @@ function conversationMetadata(conversation = {}) {
     isTemporary: Boolean(conversation.isTemporary),
     isNaming: false,
     legacyFolderId: conversation.folderId || null,
-    clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null
+    clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null,
+    stateUpdatedAt: conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || null
   };
 }
 
@@ -80,6 +81,7 @@ function conversationFromRow(row = {}, messages = []) {
     folderId: row.folder_id || metadata.legacyFolderId || null,
     createdAt: canonicalizeTimestamp(row.created_at) || new Date(0).toISOString(),
     lastUpdatedAt: canonicalizeTimestamp(metadata.clientUpdatedAt || row.updated_at || row.created_at),
+    stateUpdatedAt: canonicalizeTimestamp(metadata.stateUpdatedAt || metadata.clientUpdatedAt || row.updated_at || row.created_at),
     deletedAt: row.deleted_at || null,
     genConfig: metadata.genConfig || null,
     imageConfig: metadata.imageConfig || null,
@@ -100,6 +102,42 @@ function messageFromRow(row = {}) {
     status: row.status === 'error' ? 'error' : 'complete',
     createdAt: canonicalizeTimestamp(row.created_at) || new Date(0).toISOString(),
     deletedAt: row.deleted_at || null
+  };
+}
+
+function astraFromRow(row = {}) {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  return {
+    ...metadata,
+    id: row.id,
+    name: row.name || 'Astra',
+    description: row.description || '',
+    instructions: row.instructions || '',
+    avatarUrl: metadata.avatarUrl ?? null,
+    officialId: metadata.officialId ?? null,
+    lastUpdatedAt: canonicalizeTimestamp(row.updated_at) || new Date(0).toISOString()
+  };
+}
+
+function encodeAstraShadow(astra = {}, userId) {
+  if (!isUuid(astra.id) || !isUuid(userId)) return null;
+  const {
+    id,
+    name,
+    description,
+    instructions,
+    lastUpdatedAt: _lastUpdatedAt,
+    updatedAt: _updatedAt,
+    deletedAt: _deletedAt,
+    ...metadata
+  } = astra;
+  return {
+    id,
+    user_id: userId,
+    name: String(name || 'Astra'),
+    description: String(description || ''),
+    instructions: String(instructions || ''),
+    metadata: canonicalize(metadata)
   };
 }
 
@@ -197,6 +235,9 @@ export async function encodeWorkspaceConversationShadow({
     }));
   const conversations = [];
   const messages = [];
+  const astras = (workspace.astras || [])
+    .map(astra => encodeAstraShadow(astra, userId))
+    .filter(Boolean);
   const skippedConversationIds = [];
   for (const conversation of workspace.conversations || []) {
     if (conversation?.isTemporary && !(conversation.messages?.length)) continue;
@@ -209,7 +250,7 @@ export async function encodeWorkspaceConversationShadow({
     conversations.push(encoded.conversation);
     messages.push(...encoded.messages);
   }
-  return { folders, conversations, messages, skippedConversationIds };
+  return { folders, conversations, messages, astras, skippedConversationIds };
 }
 
 export function shadowRowsEqual(left, right) {
@@ -219,7 +260,8 @@ export function shadowRowsEqual(left, right) {
 export function decodeWorkspaceConversationShadow({
   folders = [],
   conversations = [],
-  messages = []
+  messages = [],
+  astras = []
 } = {}) {
   const messagesByConversation = new Map();
   for (const row of [...messages].sort((left, right) => (left.sequence || 0) - (right.sequence || 0))) {
@@ -245,7 +287,7 @@ export function decodeWorkspaceConversationShadow({
   return {
     conversations: decodedConversations,
     folders: decodedFolders,
-    astras: [],
+    astras: astras.filter(row => !row?.deleted_at).map(astraFromRow),
     personalMemories: []
   };
 }

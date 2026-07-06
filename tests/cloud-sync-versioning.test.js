@@ -185,7 +185,8 @@ test('remote trash restore wins over stale local trashed conversation', () => {
   const remote = {
     ...local,
     deletedAt: null,
-    lastUpdatedAt: '2026-07-06T01:15:00.000Z'
+    lastUpdatedAt: '2026-07-06T01:05:00.000Z',
+    stateUpdatedAt: '2026-07-06T01:15:00.000Z'
   };
 
   const merged = mergeRemoteWorkspaceAppData(
@@ -195,6 +196,7 @@ test('remote trash restore wins over stale local trashed conversation', () => {
 
   assert.equal(merged.conversations[0], remote);
   assert.equal(merged.conversations[0].deletedAt, null);
+  assert.equal(merged.conversations[0].lastUpdatedAt, '2026-07-06T01:05:00.000Z');
 });
 
 test('three-way workspace merge keeps remote AI and move-out while preserving unrelated local folder state', () => {

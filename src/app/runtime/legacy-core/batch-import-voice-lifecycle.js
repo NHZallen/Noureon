@@ -135,7 +135,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             const conv = conversations.find(c => c.id === id);
             if (conv) {
                 conv.deletedAt = deletedAt;
-                conv.lastUpdatedAt = deletedAt;
+                conv.stateUpdatedAt = deletedAt;
             }
         });
         if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {

@@ -161,13 +161,18 @@ test('renderTrash reads live conversations and preserves empty and list states',
 });
 
 test('single restore mutates the live conversation before save, render, and notification', async () => {
-  const conversation = { id: 'deleted', deletedAt: '2026-06-25T00:00:00.000Z' };
+  const conversation = {
+    id: 'deleted',
+    deletedAt: '2026-06-25T00:00:00.000Z',
+    lastUpdatedAt: '2026-06-20T00:00:00.000Z'
+  };
   const harness = createHarness({ conversations: [conversation] });
 
   await harness.lifecycle.handleRestoreTrashItem('deleted');
 
   assert.equal(conversation.deletedAt, null);
-  assert.match(conversation.lastUpdatedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(conversation.lastUpdatedAt, '2026-06-20T00:00:00.000Z');
+  assert.match(conversation.stateUpdatedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(harness.calls, [
     ['saveAppData'],
     ['coordinatedNotification', '項目已還原。', 'success']

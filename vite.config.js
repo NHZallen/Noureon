@@ -30,6 +30,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('/src/app/runtime/legacy-core/model-registry.js')) return 'legacy-model-registry';
           if (!id.includes('node_modules')) {
             return undefined;
           }

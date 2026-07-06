@@ -45,8 +45,8 @@ function preferLocalConversation(local, remote) {
   const localDeleted = Boolean(local?.deletedAt);
   const remoteDeleted = Boolean(remote?.deletedAt);
   if (localDeleted !== remoteDeleted) {
-    const localStateAt = Date.parse(local?.deletedAt || local?.lastUpdatedAt || local?.updatedAt || local?.createdAt || 0) || 0;
-    const remoteStateAt = Date.parse(remote?.deletedAt || remote?.lastUpdatedAt || remote?.updatedAt || remote?.createdAt || 0) || 0;
+    const localStateAt = Date.parse(local?.deletedAt || local?.stateUpdatedAt || local?.lastUpdatedAt || local?.updatedAt || local?.createdAt || 0) || 0;
+    const remoteStateAt = Date.parse(remote?.deletedAt || remote?.stateUpdatedAt || remote?.lastUpdatedAt || remote?.updatedAt || remote?.createdAt || 0) || 0;
     if (localStateAt !== remoteStateAt) return localStateAt > remoteStateAt;
     return localDeleted;
   }

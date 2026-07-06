@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  applyAstraTombstones,
   applyWorkspaceTombstones,
+  createAstraTombstoneIndex,
   createTombstoneIndex,
   filterEncodedWorkspaceByTombstones
 } from '../src/app/sync/cloud-sync-v2-deletions.js';
@@ -106,6 +108,23 @@ test('workspace tombstone filtering rejects null and id-less conversation rows',
     id: 'folder-a',
     conversationIds: ['valid-conversation']
   }]);
+});
+
+test('Astra tombstones remove deleted local Astras and block stale uploads', () => {
+  const deletedAstraId = '88888888-8888-4888-8888-888888888888';
+  const activeAstraId = '99999999-9999-4999-8999-999999999999';
+  const index = createAstraTombstoneIndex([
+    { id: deletedAstraId, deleted_at: '2026-07-06T08:00:00.000Z' },
+    { id: activeAstraId, deleted_at: null }
+  ]);
+
+  assert.deepEqual([...index], [deletedAstraId]);
+  assert.deepEqual(applyAstraTombstones({
+    astras: [{ id: deletedAstraId }, { id: activeAstraId }]
+  }, index).astras, [{ id: activeAstraId }]);
+  assert.deepEqual(filterEncodedWorkspaceByTombstones({
+    astras: [{ id: deletedAstraId }, { id: activeAstraId }]
+  }, createTombstoneIndex(), index).astras, [{ id: activeAstraId }]);
 });
 
 test('encoded tombstones prevent stale and orphaned rows from uploading without mutating input', () => {
