@@ -17,3 +17,14 @@ test('cloud workspace sync cannot hydrate, upload, or queue monolithic app_data'
   assert.equal(source.includes("'app_data',"), false);
 });
 
+test('cloud workspace initialization awaits the conversation shadow commit before returning', async () => {
+  const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
+  const initializeAt = source.indexOf('initializeConversationShadowSync({');
+  const awaitAt = source.indexOf('await conversationShadowSync.ready;', initializeAt);
+  const returnAt = source.indexOf('return api;', initializeAt);
+
+  assert.ok(initializeAt >= 0);
+  assert.ok(awaitAt > initializeAt);
+  assert.ok(returnAt > awaitAt);
+});
+

@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage-coordinator.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -81,6 +82,33 @@ test('production saveAppData wiring reads the store snapshot at save time', () =
     source,
     /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/
   );
+});
+
+test('queued persistence reads its snapshot only after entering the storage critical section', async () => {
+  let release;
+  let markEntered;
+  const entered = new Promise(resolve => { markEntered = resolve; });
+  const blocker = withWorkspaceStorageExclusive(() => {
+    markEntered();
+    return new Promise(resolve => { release = resolve; });
+  });
+  await entered;
+  let snapshot = { conversations: [{ id: 'old' }] };
+  const writes = [];
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getAppData: () => snapshot,
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async (key, value) => writes.push([key, JSON.parse(value)])
+  });
+
+  const saving = persistence.saveAppData();
+  snapshot = { conversations: [{ id: 'new' }] };
+  release();
+  await blocker;
+  await saving;
+
+  assert.equal(writes[0][1].conversations[0].id, 'new');
 });
 
 test('missing user does not read key, app data, or storage adapter', async () => {

@@ -367,6 +367,11 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     user,
     username
   });
+  try {
+    await conversationShadowSync.ready;
+  } catch (error) {
+    console.warn('AstraChat conversation refresh did not block local runtime startup:', error);
+  }
   api.stop = () => {
     conversationShadowSync.stop();
     return supabase.removeChannel(realtimeChannel);

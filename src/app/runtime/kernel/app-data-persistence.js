@@ -1,3 +1,5 @@
+import { withWorkspaceStorageExclusive } from '../../sync/workspace-storage-coordinator.js';
+
 export function createLegacyRuntimeAppDataPersistence({
   getCurrentUser,
   getAppData,
@@ -6,12 +8,13 @@ export function createLegacyRuntimeAppDataPersistence({
   onSaved = () => {}
 } = {}) {
   async function saveAppData() {
-    const currentUser = getCurrentUser();
-    if (currentUser) {
+    return withWorkspaceStorageExclusive(async () => {
+      const currentUser = getCurrentUser();
+      if (!currentUser) return;
       const snapshot = getAppData();
       await setItem(getAppDataKey(), JSON.stringify(snapshot));
       onSaved(snapshot);
-    }
+    });
   }
 
   return {

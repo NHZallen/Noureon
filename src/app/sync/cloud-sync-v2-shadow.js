@@ -4,6 +4,12 @@ import {
   shadowRowsEqual
 } from './cloud-sync-v2-codecs.js';
 import { mergeWorkspaceAppData } from './cloud-sync-versioning.js';
+import {
+  applyWorkspaceTombstones,
+  createTombstoneIndex,
+  filterEncodedWorkspaceByTombstones
+} from './cloud-sync-v2-deletions.js';
+import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
 
 const SCHEMA_VERSION = 2;
 const CAPTURE_DEBOUNCE_MS = 1000;
@@ -21,12 +27,36 @@ const MESSAGE_COLUMNS = [
 const CONVERSATION_FETCH_COLUMNS = `${CONVERSATION_COLUMNS},updated_at`;
 const MESSAGE_FETCH_COLUMNS = `${MESSAGE_COLUMNS},updated_at`;
 
+export class LocalWorkspaceDataError extends Error {
+  constructor(message = 'Local workspace data is invalid.', options) {
+    super(message, options);
+    this.name = 'LocalWorkspaceDataError';
+  }
+}
+
+class ShadowSyncStoppedError extends Error {
+  constructor() {
+    super('Conversation shadow sync was stopped.');
+    this.name = 'ShadowSyncStoppedError';
+  }
+}
+
+function parseLocalWorkspace(raw) {
+  if (raw == null) return {};
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    throw new LocalWorkspaceDataError('Local workspace JSON is invalid.', { cause: error });
+  }
+}
+
 function isMissingSchemaError(error) {
   const code = String(error?.code || '');
   const message = String(error?.message || error || '');
   return code === '42P01'
+    || code === 'PGRST202'
     || code === 'PGRST205'
-    || /relation .* does not exist|could not find the table/i.test(message);
+    || /relation .* does not exist|could not find the table|function .* does not exist|could not find the function|function .*schema cache|schema cache.*function/i.test(message);
 }
 
 async function runInChunks(items, size, task) {
@@ -80,21 +110,21 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
 
   async function upsertConversations(rows) {
     await runInChunks(rows, 100, async chunk => {
-      const { error } = await supabase.from('workspace_conversations').upsert(chunk, { onConflict: 'id' });
+      const { error } = await supabase.rpc('upsert_workspace_conversations', { p_rows: chunk });
       if (error) throw error;
     });
   }
 
   async function upsertFolders(rows) {
     await runInChunks(rows, 100, async chunk => {
-      const { error } = await supabase.from('workspace_folders').upsert(chunk, { onConflict: 'id' });
+      const { error } = await supabase.rpc('upsert_workspace_folders', { p_rows: chunk });
       if (error) throw error;
     });
   }
 
   async function upsertMessages(rows) {
     await runInChunks(rows, 200, async chunk => {
-      const { error } = await supabase.from('workspace_messages').upsert(chunk, { onConflict: 'id' });
+      const { error } = await supabase.rpc('upsert_workspace_messages', { p_rows: chunk });
       if (error) throw error;
     });
   }
@@ -133,12 +163,32 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     return { folders, conversations, messages };
   }
 
-  return { probe, setMigrationState, upsertFolders, upsertConversations, upsertMessages, verify, fetchWorkspace };
+  async function fetchTombstones() {
+    const { data, error } = await supabase
+      .from('workspace_tombstones')
+      .select('entity_type,entity_id,deleted_at')
+      .eq('user_id', userId);
+    if (error) throw error;
+    return data || [];
+  }
+
+  return {
+    probe,
+    setMigrationState,
+    upsertFolders,
+    upsertConversations,
+    upsertMessages,
+    verify,
+    fetchWorkspace,
+    fetchTombstones
+  };
 }
 
 export function createConversationShadowSync({
   repository,
   readWorkspace,
+  writeWorkspace = async () => {},
+  commitWorkspace,
   userId,
   cryptoProvider = globalThis.crypto,
   online = () => globalThis.navigator?.onLine !== false,
@@ -152,6 +202,8 @@ export function createConversationShadowSync({
   let timer = null;
   let work = Promise.resolve();
   let backupMarker = null;
+  let tombstoneIndex = createTombstoneIndex();
+  let generation = 0;
   let status = Object.freeze({ state: 'idle', conversations: 0, messages: 0 });
 
   const setStatus = next => {
@@ -159,10 +211,18 @@ export function createConversationShadowSync({
     return status;
   };
 
-  async function captureNow(workspace) {
-    if (!enabled || !workspace || !online()) return setStatus({ state: online() ? 'idle' : 'offline' });
+  async function captureNow(workspace, allowDisabled = false, assertCurrent = () => {}) {
+    if ((!enabled && !allowDisabled) || !workspace || !online()) {
+      return setStatus({ state: online() ? 'idle' : 'offline' });
+    }
+    assertCurrent();
     setStatus({ state: 'uploading' });
-    const encoded = await encodeWorkspaceConversationShadow({ workspace, userId, cryptoProvider });
+    assertCurrent();
+    const encoded = filterEncodedWorkspaceByTombstones(
+      await encodeWorkspaceConversationShadow({ workspace, userId, cryptoProvider }),
+      tombstoneIndex
+    );
+    assertCurrent();
     if (encoded.skippedConversationIds.length) {
       logger.warn('AstraChat Sync V2 shadow skipped conversations with invalid IDs.', {
         count: encoded.skippedConversationIds.length
@@ -175,15 +235,28 @@ export function createConversationShadowSync({
       folders: encoded.folders.length,
       skipped: encoded.skippedConversationIds.length
     });
+    assertCurrent();
     await repository.setMigrationState('shadow', backupMarker);
+    assertCurrent();
     backupMarker = null;
-    if (encoded.folders.length) await repository.upsertFolders(encoded.folders);
-    if (encoded.conversations.length) await repository.upsertConversations(encoded.conversations);
-    if (encoded.messages.length) await repository.upsertMessages(encoded.messages);
+    if (encoded.folders.length) {
+      await repository.upsertFolders(encoded.folders);
+      assertCurrent();
+    }
+    if (encoded.conversations.length) {
+      await repository.upsertConversations(encoded.conversations);
+      assertCurrent();
+    }
+    if (encoded.messages.length) {
+      await repository.upsertMessages(encoded.messages);
+      assertCurrent();
+    }
     const verified = await repository.verify(encoded);
+    assertCurrent();
     if (!verified) throw new Error('Sync V2 shadow verification did not match the local workspace.');
     await repository.setMigrationState('ready');
-    return setStatus({
+    assertCurrent();
+    const readyStatus = setStatus({
       state: 'ready',
       conversations: encoded.conversations.length,
       messages: encoded.messages.length,
@@ -191,22 +264,40 @@ export function createConversationShadowSync({
       skipped: encoded.skippedConversationIds.length,
       lastCompletedAt: now()
     });
+    assertCurrent();
+    return readyStatus;
   }
 
   async function pullWorkspace(localWorkspace = {}) {
+    const tombstones = await repository.fetchTombstones();
+    const nextTombstoneIndex = createTombstoneIndex(tombstones);
+    const sanitizedLocal = applyWorkspaceTombstones(localWorkspace, nextTombstoneIndex);
     const rows = await repository.fetchWorkspace();
-    const remoteWorkspace = decodeWorkspaceConversationShadow(rows);
-    return mergeWorkspaceAppData(localWorkspace, remoteWorkspace);
+    const remoteWorkspace = applyWorkspaceTombstones(
+      decodeWorkspaceConversationShadow(rows),
+      nextTombstoneIndex
+    );
+    const merged = mergeWorkspaceAppData(sanitizedLocal, remoteWorkspace);
+    tombstoneIndex = nextTombstoneIndex;
+    return applyWorkspaceTombstones(merged, tombstoneIndex);
   }
 
   function drain() {
     timer = null;
-    const workspace = pendingWorkspace;
+    const pending = pendingWorkspace;
     pendingWorkspace = null;
+    if (!pending) return work;
+    const captureGeneration = pending?.generation;
+    const assertCurrent = () => {
+      if (generation !== captureGeneration) throw new ShadowSyncStoppedError();
+    };
     work = work
       .catch(() => {})
-      .then(() => captureNow(workspace))
+      .then(() => captureNow(pending?.workspace, false, assertCurrent))
       .catch(error => {
+        if (error instanceof ShadowSyncStoppedError) {
+          return setStatus({ state: 'stopped' });
+        }
         logger.warn('AstraChat Sync V2 shadow upload will retry after the next local save or reload.', error);
         setStatus({ state: 'retry', error: error?.message || String(error) });
       });
@@ -215,36 +306,86 @@ export function createConversationShadowSync({
 
   function captureWorkspace(workspace) {
     if (!enabled || !workspace) return false;
-    pendingWorkspace = workspace;
+    pendingWorkspace = { workspace, generation };
     if (timer != null) cancel(timer);
     timer = schedule(drain, CAPTURE_DEBOUNCE_MS);
     return true;
   }
 
   async function initialize() {
+    const initializeGeneration = ++generation;
+    const assertCurrent = () => {
+      if (generation !== initializeGeneration) throw new ShadowSyncStoppedError();
+    };
     try {
       const profile = await repository.probe();
+      assertCurrent();
       backupMarker = profile?.legacy_backup_created_at ? null : now();
     } catch (error) {
+      if (error instanceof ShadowSyncStoppedError) return setStatus({ state: 'stopped' });
       if (isMissingSchemaError(error)) return setStatus({ state: 'migration-required' });
       logger.warn('AstraChat Sync V2 shadow probe failed; local mode remains active.', error);
       return setStatus({ state: 'retry', ...describeShadowError(error) });
     }
-    enabled = true;
-    const workspace = await readWorkspace();
     try {
-      return await captureNow(workspace || {});
+      const workspace = await readWorkspace() || {};
+      assertCurrent();
+      const tombstones = await repository.fetchTombstones();
+      assertCurrent();
+      const nextTombstoneIndex = createTombstoneIndex(tombstones);
+      const sanitizedLocal = applyWorkspaceTombstones(workspace, nextTombstoneIndex);
+      const rows = await repository.fetchWorkspace();
+      assertCurrent();
+      const remoteWorkspace = applyWorkspaceTombstones(
+        decodeWorkspaceConversationShadow(rows),
+        nextTombstoneIndex
+      );
+      const mergedWorkspace = applyWorkspaceTombstones(
+        mergeWorkspaceAppData(sanitizedLocal, remoteWorkspace),
+        nextTombstoneIndex
+      );
+      assertCurrent();
+      let committedWorkspace;
+      if (commitWorkspace) {
+        committedWorkspace = await commitWorkspace({
+          remoteWorkspace,
+          tombstoneIndex: nextTombstoneIndex,
+          assertCurrent
+        });
+      } else {
+        await writeWorkspace(mergedWorkspace);
+        committedWorkspace = mergedWorkspace;
+      }
+      assertCurrent();
+      tombstoneIndex = nextTombstoneIndex;
+      const result = await captureNow(committedWorkspace, true, assertCurrent);
+      assertCurrent();
+      if (result.state === 'ready') {
+        enabled = true;
+        return result;
+      }
+      return result;
     } catch (error) {
-      logger.warn('AstraChat Sync V2 shadow initialization failed; local data was not changed.', error);
+      enabled = false;
+      if (error instanceof ShadowSyncStoppedError) {
+        return setStatus({ state: 'stopped' });
+      }
+      if (isMissingSchemaError(error)) {
+        enabled = false;
+        return setStatus({ state: 'migration-required' });
+      }
+      logger.warn('AstraChat Sync V2 shadow initialization is incomplete; local mode remains active.', error);
       return setStatus({ state: 'retry', ...describeShadowError(error) });
     }
   }
 
   function stop() {
+    generation += 1;
     enabled = false;
     if (timer != null) cancel(timer);
     timer = null;
     pendingWorkspace = null;
+    setStatus({ state: 'stopped' });
   }
 
   return {
@@ -266,31 +407,41 @@ export function initializeConversationShadowSync({
   logger = console
 } = {}) {
   const repository = createConversationShadowRepository({ supabase, userId: user.id });
+  const storageKey = `chatAppData_v8.6_${username}`;
   const sync = createConversationShadowSync({
     repository,
     readWorkspace: async () => {
-      const raw = await storage.getItem(`chatAppData_v8.6_${username}`);
-      if (!raw) return {};
-      try { return JSON.parse(raw); } catch { return {}; }
+      const raw = await storage.getItem(storageKey);
+      return parseLocalWorkspace(raw);
     },
+    commitWorkspace: ({ remoteWorkspace, tombstoneIndex, assertCurrent }) => withWorkspaceStorageExclusive(async () => {
+      const latestWorkspace = parseLocalWorkspace(await storage.getItem(storageKey));
+      assertCurrent();
+      const sanitizedLatest = applyWorkspaceTombstones(latestWorkspace, tombstoneIndex);
+      const committedWorkspace = applyWorkspaceTombstones(
+        mergeWorkspaceAppData(sanitizedLatest, remoteWorkspace),
+        tombstoneIndex
+      );
+      assertCurrent();
+      await storage.setItem(storageKey, JSON.stringify(committedWorkspace));
+      assertCurrent();
+      return committedWorkspace;
+    }),
     userId: user.id,
     logger
   });
   exposeConversationShadowSync(window, sync);
-  void sync.initialize().then(async status => {
-    if (status?.state !== 'ready') return;
-    const raw = await storage.getItem(`chatAppData_v8.6_${username}`);
-    const localWorkspace = raw ? JSON.parse(raw) : {};
-    const mergedWorkspace = await sync.pullWorkspace(localWorkspace);
-    await storage.setItem(`chatAppData_v8.6_${username}`, JSON.stringify(mergedWorkspace));
-  }).catch(error => {
-    logger.warn('AstraChat Sync V2 refresh pull failed; local workspace remains active.', error);
+  sync.ready = sync.initialize().catch(error => {
+    try {
+      logger.warn('AstraChat Sync V2 initialization escaped its local fallback boundary.', error);
+    } catch {}
+    return sync.getStatus();
   });
   return sync;
 }
 
 export const conversationShadowSyncPolicy = Object.freeze({
-  mode: 'write-only',
+  mode: 'refresh-merge',
   realtime: false,
   schemaVersion: SCHEMA_VERSION
 });
