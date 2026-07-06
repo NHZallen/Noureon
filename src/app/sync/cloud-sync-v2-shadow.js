@@ -113,6 +113,48 @@ function summarizeShadowRows(rows = {}) {
   };
 }
 
+function stableDeleteTimestamp(value) {
+  const parsed = Date.parse(value || '');
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : '';
+}
+
+function stableDeletePart(part = {}) {
+  const inlineData = part.inlineData || null;
+  const generatedImage = part.generatedImage || null;
+  return {
+    text: String(part.text || ''),
+    inlineData: inlineData ? {
+      mimeType: inlineData.mimeType || inlineData.mime_type || '',
+      displayName: inlineData.displayName || inlineData.name || inlineData.fileName || '',
+      size: inlineData.size || null
+    } : null,
+    generatedImage: generatedImage ? {
+      id: generatedImage.id || '',
+      mimeType: generatedImage.mimeType || generatedImage.mime_type || '',
+      prompt: generatedImage.prompt || '',
+      aspectRatio: generatedImage.aspectRatio || ''
+    } : null
+  };
+}
+
+function conversationDeleteFingerprint(conversation = {}) {
+  if (!conversation) return null;
+  const messages = (conversation.messages || []).map(message => ({
+    role: message.role || '',
+    createdAt: stableDeleteTimestamp(message.createdAt),
+    parts: (message.parts || []).map(stableDeletePart)
+  }));
+  if (!conversation.createdAt && !messages.length && !conversation.title) return null;
+  return JSON.stringify({
+    title: String(conversation.title || ''),
+    summary: String(conversation.summary || ''),
+    model: String(conversation.model || ''),
+    provider: String(conversation.provider || ''),
+    createdAt: stableDeleteTimestamp(conversation.createdAt),
+    messages
+  });
+}
+
 function exposeConversationShadowSync(window, sync) {
   if (window) window.__astraCloudSyncV2 = sync;
   if (typeof globalThis !== 'undefined') globalThis.__astraCloudSyncV2 = sync;
@@ -397,26 +439,43 @@ export function createConversationShadowSync({
     return true;
   }
 
-  async function permanentlyDeleteConversations(conversationIds) {
+  async function permanentlyDeleteConversations(conversationIds, options = {}) {
     const ids = [...new Set((conversationIds || []).filter(Boolean))];
     const mappedLegacyIds = [];
-    const validIds = [];
+    const validIds = new Set();
     for (const id of ids) {
       const stringId = String(id);
       if (isUuid(stringId)) {
-        validIds.push(stringId);
+        validIds.add(stringId);
         continue;
       }
       const cloudId = await deterministicUuid(
         `astra-sync-v2:${userId}:conversation:${stringId}`,
         cryptoProvider
       );
-      validIds.push(cloudId);
+      validIds.add(cloudId);
       mappedLegacyIds.push({ localId: stringId, cloudId });
     }
-    const deleteIds = [...new Set(validIds)];
     if (!ids.length) return status;
     if (!enabled) throw new Error('Cloud conversation sync is not ready yet.');
+    const matchedRemoteIds = [];
+    const conversationSnapshots = Array.isArray(options.conversations) ? options.conversations : [];
+    const selectedFingerprints = new Set(
+      conversationSnapshots
+        .map(conversationDeleteFingerprint)
+        .filter(Boolean)
+    );
+    if (selectedFingerprints.size) {
+      const remoteWorkspace = decodeWorkspaceConversationShadow(await repository.fetchWorkspace());
+      for (const remoteConversation of remoteWorkspace.conversations || []) {
+        if (!remoteConversation?.id || validIds.has(remoteConversation.id)) continue;
+        if (selectedFingerprints.has(conversationDeleteFingerprint(remoteConversation))) {
+          validIds.add(remoteConversation.id);
+          matchedRemoteIds.push(remoteConversation.id);
+        }
+      }
+    }
+    const deleteIds = [...validIds];
     try {
       await repository.permanentlyDeleteConversations(deleteIds);
       const tombstones = await repository.fetchTombstones();
@@ -441,6 +500,7 @@ export function createConversationShadowSync({
         lastPermanentDeleteCount: deleteIds.length,
         lastPermanentDeleteVerifiedCount: deleteIds.length,
         lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
+        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
         lastPermanentDeleteSkippedIds: [],
         lastCompletedAt: now(),
         lastPermanentDeleteError: undefined
@@ -453,6 +513,7 @@ export function createConversationShadowSync({
         lastPermanentDeleteAt: now(),
         lastPermanentDeleteCount: deleteIds.length,
         lastPermanentDeleteMappedIds: mappedLegacyIds.slice(0, 10),
+        lastPermanentDeleteMatchedRemoteIds: matchedRemoteIds.slice(0, 10),
         lastPermanentDeleteSkippedIds: [],
         lastPermanentDeleteError: describeShadowError(error),
         lastErrorAt: now(),
@@ -470,6 +531,7 @@ export function createConversationShadowSync({
         count: status.lastPermanentDeleteCount || 0,
         verifiedCount: status.lastPermanentDeleteVerifiedCount || 0,
         mappedIds: status.lastPermanentDeleteMappedIds || [],
+        matchedRemoteIds: status.lastPermanentDeleteMatchedRemoteIds || [],
         skippedIds: status.lastPermanentDeleteSkippedIds || [],
         error: status.lastPermanentDeleteError || null
       },

@@ -209,6 +209,87 @@ test('sync permanent deletion maps legacy non-UUID ids to repaired cloud ids', a
   assert.deepEqual(sync.getStatus().lastPermanentDeleteSkippedIds, []);
 });
 
+test('sync permanent deletion matches remote aliases by conversation snapshot before deleting', async () => {
+  const calls = [];
+  const localConversationId = conversationId;
+  const remoteConversationId = '44444444-4444-4444-8444-444444444444';
+  const snapshot = {
+    id: localConversationId,
+    title: 'Same deleted chat',
+    summary: '',
+    model: 'model-1',
+    provider: 'provider-1',
+    createdAt: '2026-07-06T02:00:00.000Z',
+    deletedAt: '2026-07-06T02:10:00.000Z',
+    messages: [{
+      role: 'user',
+      createdAt: '2026-07-06T02:00:00.000Z',
+      parts: [{ text: 'delete this alias too' }]
+    }]
+  };
+  let remoteRows = { folders: [], conversations: [], messages: [] };
+  let deletedIds = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => deletedIds.map(id => ({ entity_type: 'conversation', entity_id: id })),
+    fetchWorkspace: async () => remoteRows,
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async ids => {
+      calls.push(['delete', ids]);
+      deletedIds = ids;
+    }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  await sync.initialize();
+  remoteRows = {
+    folders: [],
+    conversations: [{
+      id: remoteConversationId,
+      user_id: userId,
+      folder_id: null,
+      title: snapshot.title,
+      summary: snapshot.summary,
+      model: snapshot.model,
+      provider: snapshot.provider,
+      metadata: { clientUpdatedAt: snapshot.createdAt },
+      archived: false,
+      pinned: false,
+      created_at: snapshot.createdAt,
+      updated_at: snapshot.createdAt,
+      deleted_at: snapshot.deletedAt
+    }],
+    messages: [{
+      id: '55555555-5555-4555-8555-555555555555',
+      user_id: userId,
+      conversation_id: remoteConversationId,
+      role: 'user',
+      parts: snapshot.messages[0].parts,
+      status: 'complete',
+      sequence: 0,
+      created_at: snapshot.messages[0].createdAt,
+      updated_at: snapshot.messages[0].createdAt,
+      deleted_at: null
+    }]
+  };
+
+  await sync.permanentlyDeleteConversations([localConversationId], { conversations: [snapshot] });
+
+  assert.deepEqual(calls.at(-1), ['delete', [localConversationId, remoteConversationId]]);
+  assert.deepEqual(sync.getStatus().lastPermanentDeleteMatchedRemoteIds, [remoteConversationId]);
+  assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 2);
+});
+
 test('sync permanent deletion exposes protected RPC errors in status', async () => {
   const deleteError = { message: 'Could not find the function', code: 'PGRST202', status: 404 };
   const repository = {
@@ -939,6 +1020,7 @@ test('diagnose reports local and remote shadow counts with current status', asyn
     count: 0,
     verifiedCount: 0,
     mappedIds: [],
+    matchedRemoteIds: [],
     skippedIds: [],
     error: null
   });

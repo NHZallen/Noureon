@@ -696,7 +696,9 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             if (status && status.enabled === false) {
                 throw new Error(status.error || 'Cloud conversation sync is not ready yet.');
             }
-            await sync.permanentlyDeleteConversations(ids);
+            const selectedConversationSnapshots = runtimeAppDataStore.getConversations()
+                .filter(conversation => ids.includes(conversation?.id));
+            await sync.permanentlyDeleteConversations(ids, { conversations: selectedConversationSnapshots });
         };
         const loadAppData = async () => {
             if (!currentUser) return;

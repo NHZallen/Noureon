@@ -458,7 +458,9 @@ test('cloud permanent delete uses the active shadow sync instead of username pre
   assert.match(deleteConversationsFromCloudBody, /Cloud conversation sync is not ready yet/);
   assert.match(deleteConversationsFromCloudBody, /Cloud conversation sync is disabled/);
   assert.match(deleteConversationsFromCloudBody, /sync\.getStatus\?\.\(\)/);
-  assert.match(deleteConversationsFromCloudBody, /await\s+sync\.permanentlyDeleteConversations\(ids\)/);
+  assert.match(deleteConversationsFromCloudBody, /runtimeAppDataStore\.getConversations\(\)/);
+  assert.match(deleteConversationsFromCloudBody, /selectedConversationSnapshots/);
+  assert.match(deleteConversationsFromCloudBody, /await\s+sync\.permanentlyDeleteConversations\(ids,\s*\{\s*conversations:\s*selectedConversationSnapshots\s*\}\)/);
   assert.doesNotMatch(deleteConversationsFromCloudBody, /currentUser\?\.username/);
   assert.doesNotMatch(deleteConversationsFromCloudBody, /startsWith\(['"]supabase:/);
 });
