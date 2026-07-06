@@ -39,9 +39,9 @@ Open the hosted version:
 
 **https://noureon.com/**
 
-Noureon uses local browser profiles instead of a hosted account system. The username, password verification data, conversations, settings, and API credentials remain in the current browser environment by default.
+Noureon can run as a local-first workspace or as a signed-in cloud-sync workspace. By default, conversations, settings, Nouras, and provider API credentials stay in the current browser. Signed-in users can enable Supabase cloud sync to keep conversations, folders, Nouras, and supported assets available across devices.
 
-To send real model requests, add an API key for at least one supported provider in **Settings**.
+Provider API keys are still managed from **Settings** and are not required in `.env` for normal use. To send real model requests, add an API key for at least one supported provider in **Settings**.
 
 ## Features
 
@@ -137,6 +137,8 @@ When you send a message, the required prompt, conversation context, and attachme
 Web search requests may be sent to the configured search provider. Provider requests are governed by the terms and privacy policies of those services.
 
 Local-first means your workspace is controlled from your device. It does not mean every AI request runs offline.
+
+Signed-in cloud sync is optional. When enabled, Supabase stores the workspace records needed for cross-device sync, including conversations, folders, Nouras, messages, sync metadata, deletion markers, and supported uploaded/generated assets. Sensitive cloud vault or recovery payloads are encrypted with the user's sync key/password when configured.
 
 Read the full [Privacy Policy](./PRIVACY.md).
 
@@ -265,6 +267,8 @@ See the public [Roadmap](./ROADMAP.md) for current direction.
 ## Feedback and contributions
 
 Found a bug or have an idea?
+
+For account, sign-in, sync, mail, or data-support questions, email [support@noureon.com](mailto:support@noureon.com).
 
 [Open an issue](https://github.com/NHZallen/Noureon/issues).
 
