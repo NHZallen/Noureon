@@ -371,7 +371,8 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     supabase,
     storage,
     user,
-    username
+    username,
+    assetTransport: assets
   });
   try {
     await conversationShadowSync.ready;

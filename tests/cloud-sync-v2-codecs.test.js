@@ -55,6 +55,56 @@ test('conversation shadow codec keeps text but never uploads attachment bytes', 
   assert.equal(JSON.stringify(encoded).includes('BASE64_BYTES'), false);
 });
 
+test('conversation shadow codec preserves cloud asset markers for attachments and generated images', async () => {
+  const inlineMarker = {
+    __astraCloudAsset: {
+      path: `${userId}/inline-image`,
+      mimeType: 'image/png',
+      encoding: 'base64'
+    }
+  };
+  const generatedMarker = {
+    __astraCloudAsset: {
+      path: `${userId}/generated-image`,
+      mimeType: 'image/webp',
+      encoding: 'blob'
+    }
+  };
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Asset markers',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [{
+          role: 'model',
+          createdAt: '2026-07-06T01:00:01.000Z',
+          parts: [
+            { inlineData: { name: 'photo.png', mimeType: 'image/png', data: inlineMarker } },
+            { generatedImage: {
+              id: 'generated-1',
+              storageKey: `generatedImage:supabase:${userId}:generated-1`,
+              mediaType: 'image/webp',
+              cloudAsset: generatedMarker,
+              _zipRef: 'images/generated-1.webp'
+            } }
+          ]
+        }]
+      }]
+    }
+  });
+
+  assert.deepEqual(encoded.messages[0].parts[0].inlineData.data, inlineMarker);
+  assert.equal('cloudAssetPending' in encoded.messages[0].parts[0].inlineData, false);
+  assert.deepEqual(encoded.messages[0].parts[1].generatedImage.cloudAsset, generatedMarker);
+  assert.equal('cloudAssetPending' in encoded.messages[0].parts[1].generatedImage, false);
+  assert.equal('_zipRef' in encoded.messages[0].parts[1].generatedImage, false);
+});
+
 test('conversation shadow codec includes folders and restores folder membership', async () => {
   const folderId = '33333333-3333-4333-8333-333333333333';
   const encoded = await encodeWorkspaceConversationShadow({

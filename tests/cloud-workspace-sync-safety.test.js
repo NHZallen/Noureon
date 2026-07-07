@@ -28,3 +28,12 @@ test('cloud workspace initialization awaits the conversation shadow commit befor
   assert.ok(returnAt > awaitAt);
 });
 
+test('cloud workspace passes asset transport into record-level conversation sync', async () => {
+  const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
+  const initializeAt = source.indexOf('initializeConversationShadowSync({');
+  const closeAt = source.indexOf('});', initializeAt);
+  const initializer = source.slice(initializeAt, closeAt);
+
+  assert.ok(initializeAt >= 0);
+  assert.match(initializer, /assetTransport:\s*assets/);
+});

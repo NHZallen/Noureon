@@ -1,6 +1,7 @@
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MESSAGE_STATUSES = new Set(['streaming', 'complete', 'error']);
 const MESSAGE_ROLES = new Set(['user', 'model', 'system']);
+const CLOUD_ASSET_MARKER = '__astraCloudAsset';
 
 function toIsoTimestamp(value, fallback) {
   const parsed = Date.parse(value || '');
@@ -26,15 +27,29 @@ function canonicalizeShadowRow(value) {
   return row;
 }
 
+function isCloudAssetMarker(value) {
+  return Boolean(value && typeof value === 'object' && value[CLOUD_ASSET_MARKER]);
+}
+
 function sanitizePartForShadow(part = {}) {
   const output = { ...part };
   if (part.inlineData) {
-    const { data: _data, ...metadata } = part.inlineData;
-    output.inlineData = { ...metadata, cloudAssetPending: Boolean(_data) };
+    const { data, cloudAssetPending, ...metadata } = part.inlineData;
+    output.inlineData = { ...metadata };
+    if (isCloudAssetMarker(data)) {
+      output.inlineData.data = data;
+    } else if (data || cloudAssetPending) {
+      output.inlineData.cloudAssetPending = true;
+    }
   }
   if (part.generatedImage) {
-    const { cloudAsset: _cloudAsset, _zipRef: _zipRef, ...descriptor } = part.generatedImage;
-    output.generatedImage = { ...descriptor, cloudAssetPending: true };
+    const { cloudAsset, _zipRef: _zipRef, cloudAssetPending, ...descriptor } = part.generatedImage;
+    output.generatedImage = { ...descriptor };
+    if (isCloudAssetMarker(cloudAsset)) {
+      output.generatedImage.cloudAsset = cloudAsset;
+    } else if (cloudAsset || cloudAssetPending || descriptor.storageKey) {
+      output.generatedImage.cloudAssetPending = true;
+    }
   }
   return output;
 }

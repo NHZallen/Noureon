@@ -387,6 +387,8 @@ export function createConversationShadowSync({
   cryptoProvider = globalThis.crypto,
   online = () => globalThis.navigator?.onLine !== false,
   normalizeWorkspace = async workspace => workspace,
+  prepareWorkspaceForUpload = async workspace => workspace,
+  hydrateRemoteWorkspace = async workspace => workspace,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
   cancel = timer => globalThis.clearTimeout(timer),
   now = () => new Date().toISOString(),
@@ -422,7 +424,9 @@ export function createConversationShadowSync({
     assertCurrent();
     setStatus({ state: 'uploading' });
     assertCurrent();
-    const uploadWorkspace = await normalizeWorkspace(workspace);
+    const normalizedWorkspace = await normalizeWorkspace(workspace);
+    assertCurrent();
+    const uploadWorkspace = await prepareWorkspaceForUpload(normalizedWorkspace);
     assertCurrent();
     const encoded = filterEncodedWorkspaceByTombstones(
       await encodeWorkspaceConversationShadow({ workspace: uploadWorkspace, userId, cryptoProvider }),
@@ -503,8 +507,10 @@ export function createConversationShadowSync({
       conversationSanitizedLocal,
       nextAstraTombstoneIds
     );
+    const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
+    const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(decodedRemoteWorkspace);
     const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
-      decodeWorkspaceConversationShadow(rows),
+      hydratedRemoteWorkspace,
       nextTombstoneIndex
     ), nextAstraTombstoneIds);
     const merged = mergeWorkspaceAppData(sanitizedLocal, remoteWorkspace);
@@ -929,8 +935,12 @@ export function createConversationShadowSync({
         applyWorkspaceTombstones(normalizedWorkspace, nextTombstoneIndex),
         nextAstraTombstoneIds
       );
+      const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
+      assertCurrent();
+      const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(decodedRemoteWorkspace);
+      assertCurrent();
       const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
-        decodeWorkspaceConversationShadow(rows),
+        hydratedRemoteWorkspace,
         nextTombstoneIndex
       ), nextAstraTombstoneIds);
       const mergedWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
@@ -1004,6 +1014,7 @@ export function initializeConversationShadowSync({
   storage,
   user,
   username,
+  assetTransport,
   logger = console
 } = {}) {
   const repository = createConversationShadowRepository({ supabase, userId: user.id });
@@ -1045,6 +1056,12 @@ export function initializeConversationShadowSync({
     }),
     userId: user.id,
     normalizeWorkspace,
+    prepareWorkspaceForUpload: async workspace => assetTransport?.externalize
+      ? assetTransport.externalize(workspace)
+      : workspace,
+    hydrateRemoteWorkspace: async workspace => assetTransport?.hydrate
+      ? assetTransport.hydrate(workspace)
+      : workspace,
     logger
   });
   exposeConversationShadowSync(window, sync);

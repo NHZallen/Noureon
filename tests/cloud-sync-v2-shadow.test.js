@@ -82,6 +82,112 @@ test('shadow initialization refreshes, writes local, then uploads and verifies',
   assert.equal(calls.at(-1)[1], 'ready');
 });
 
+test('shadow sync externalizes upload assets and hydrates remote image assets', async () => {
+  const inlineMarker = {
+    __astraCloudAsset: {
+      path: `${userId}/inline-image`,
+      mimeType: 'image/png',
+      encoding: 'base64'
+    }
+  };
+  const generatedMarker = {
+    __astraCloudAsset: {
+      path: `${userId}/generated-image`,
+      mimeType: 'image/webp',
+      encoding: 'blob'
+    }
+  };
+  const localWorkspace = {
+    conversations: [{
+      id: conversationId,
+      title: 'Image sync',
+      model: 'model-1',
+      provider: 'provider-1',
+      createdAt: '2026-07-06T01:00:00.000Z',
+      messages: [{
+        role: 'model',
+        createdAt: '2026-07-06T01:00:01.000Z',
+        parts: [
+          { inlineData: { name: 'photo.png', mimeType: 'image/png', data: 'LOCAL_IMAGE_BYTES' } },
+          { generatedImage: {
+            id: 'generated-1',
+            storageKey: `generatedImage:supabase:${userId}:generated-1`,
+            mediaType: 'image/webp'
+          } }
+        ]
+      }]
+    }]
+  };
+  const remoteRows = { folders: [], conversations: [], messages: [], astras: [] };
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => remoteRows,
+    setMigrationState: async () => {},
+    upsertFolders: async rows => { remoteRows.folders = rows; },
+    upsertConversations: async rows => { remoteRows.conversations = rows; },
+    upsertMessages: async rows => { remoteRows.messages = rows; },
+    upsertAstras: async rows => { remoteRows.astras = rows; },
+    verify: async () => true
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => localWorkspace,
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    prepareWorkspaceForUpload: async value => ({
+      ...structuredClone(value),
+      conversations: value.conversations.map(conversation => ({
+        ...structuredClone(conversation),
+        messages: conversation.messages.map(message => ({
+          ...structuredClone(message),
+          parts: message.parts.map(part => {
+            if (part.inlineData) {
+              return { inlineData: { ...part.inlineData, data: inlineMarker } };
+            }
+            if (part.generatedImage) {
+              return { generatedImage: { ...part.generatedImage, cloudAsset: generatedMarker } };
+            }
+            return structuredClone(part);
+          })
+        }))
+      }))
+    }),
+    hydrateRemoteWorkspace: async value => ({
+      ...structuredClone(value),
+      conversations: value.conversations.map(conversation => ({
+        ...structuredClone(conversation),
+        messages: conversation.messages.map(message => ({
+          ...structuredClone(message),
+          parts: message.parts.map(part => {
+            if (part.inlineData?.data?.__astraCloudAsset) {
+              return { inlineData: { ...part.inlineData, data: 'RESTORED_IMAGE_BYTES' } };
+            }
+            if (part.generatedImage?.cloudAsset?.__astraCloudAsset) {
+              const generatedImage = { ...part.generatedImage };
+              delete generatedImage.cloudAsset;
+              return { generatedImage };
+            }
+            return structuredClone(part);
+          })
+        }))
+      }))
+    })
+  });
+
+  assert.equal((await sync.initialize()).state, 'ready');
+  assert.deepEqual(remoteRows.messages[0].parts[0].inlineData.data, inlineMarker);
+  assert.equal(JSON.stringify(remoteRows).includes('LOCAL_IMAGE_BYTES'), false);
+  assert.deepEqual(remoteRows.messages[0].parts[1].generatedImage.cloudAsset, generatedMarker);
+
+  const pulled = await sync.pullWorkspace({ conversations: [], folders: [], astras: [] });
+  const pulledParts = pulled.conversations[0].messages[0].parts;
+  assert.equal(pulledParts[0].inlineData.data, 'RESTORED_IMAGE_BYTES');
+  assert.equal('cloudAsset' in pulledParts[1].generatedImage, false);
+  assert.equal(pulledParts[1].generatedImage.storageKey, `generatedImage:supabase:${userId}:generated-1`);
+});
+
 test('repository uses tombstone select and protected RPC upserts', async () => {
   const calls = [];
   const query = {
