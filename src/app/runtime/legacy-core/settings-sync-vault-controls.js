@@ -30,6 +30,7 @@ export function createSettingsSyncVaultControls({
   let busy = false;
   let accountTurnstile;
   let accountTurnstileMounted = false;
+  let loginRecoveryTurnstileMounted = false;
   let recoveryTurnstileMounted = false;
 
   const getElements = () => ({
@@ -43,6 +44,13 @@ export function createSettingsSyncVaultControls({
     emailConfirmation: document.getElementById('account-link-password-confirmation'),
     emailButton: document.getElementById('account-email-link-btn'),
     googleButton: document.getElementById('account-google-link-btn'),
+    loginPasswordPanel: document.getElementById('login-password-panel'),
+    loginPasswordUnavailable: document.getElementById('login-password-unavailable'),
+    loginCurrentPassword: document.getElementById('login-current-password'),
+    loginNewPassword: document.getElementById('login-new-password'),
+    loginConfirmation: document.getElementById('login-new-password-confirmation'),
+    loginPasswordButton: document.getElementById('login-password-change-btn'),
+    forgotLoginPasswordButton: document.getElementById('login-password-forgot-btn'),
     accountMessage: document.getElementById('account-link-message'),
     account: document.getElementById('sync-vault-account'),
     status: document.getElementById('sync-vault-status'),
@@ -67,6 +75,131 @@ export function createSettingsSyncVaultControls({
     lockButton: document.getElementById('sync-vault-lock-btn'),
     resetButton: document.getElementById('sync-vault-reset-btn')
   });
+
+  const buildUserSectionMarkup = () => `
+      <div class="max-w-3xl">
+        <div class="pb-6">
+          <h3 class="text-lg font-semibold" data-lang-key="accountLinking">帳號綁定</h3>
+          <p class="mt-2 text-sm text-[var(--text-secondary)]" data-lang-key="accountLinkingDesc">綁定 Email、Google 其中一種即可使用雲端功能，也可以兩種都綁定。</p>
+        </div>
+
+        <div class="border-t border-[var(--border-color)]">
+          <div class="flex items-center justify-between gap-4 py-4 border-b border-[var(--border-color)]">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="shrink-0 text-[var(--text-secondary)]" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3.5" y="5.5" width="17" height="13" rx="2"></rect>
+                  <path d="m4 7 8 6 8-6"></path>
+                </svg>
+              </span>
+              <div class="min-w-0">
+                <p class="font-medium">Email</p>
+                <p class="text-xs text-[var(--text-secondary)]" data-lang-key="emailLoginProviderDesc">使用 Email 登入與收取驗證信。</p>
+              </div>
+            </div>
+            <span id="account-email-status" class="text-sm text-[var(--text-secondary)] whitespace-nowrap"></span>
+          </div>
+          <form id="account-email-link-form" class="hidden py-4 border-b border-[var(--border-color)] space-y-3">
+            <input id="account-link-email" type="email" autocomplete="email" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="emailAddress" placeholder="Email 地址">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input id="account-link-password" type="password" minlength="8" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="accountPassword" placeholder="登入密碼（至少 8 碼）">
+              <input id="account-link-password-confirmation" type="password" minlength="8" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="accountPasswordConfirm" placeholder="再次輸入登入密碼">
+            </div>
+            <button id="account-email-link-btn" type="submit" class="px-4 py-2 rounded-md btn-primary" data-lang-key="bindEmail">綁定 Email</button>
+          </form>
+
+          <div class="flex items-center justify-between gap-4 py-4 border-b border-[var(--border-color)]">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="shrink-0" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                  <path fill="#4285F4" d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.5c-.2 1.2-.9 2.3-2 3v2.5h3.2c1.9-1.8 3.1-4.4 3.1-7.3z"></path>
+                  <path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.7-2.5L15.5 17c-.9.6-2 .9-3.5.9-2.7 0-5-1.8-5.8-4.3H2.9v2.6C4.6 19.6 8 22 12 22z"></path>
+                  <path fill="#FBBC05" d="M6.2 13.6c-.2-.6-.3-1.1-.3-1.8s.1-1.2.3-1.8V7.4H2.9C2.3 8.7 2 10.2 2 11.8s.3 3.1.9 4.4l3.3-2.6z"></path>
+                  <path fill="#EA4335" d="M12 5.7c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 2.9 14.7 2 12 2 8 2 4.6 4.4 2.9 7.4l3.3 2.6C7 7.5 9.3 5.7 12 5.7z"></path>
+                </svg>
+              </span>
+              <div class="min-w-0">
+                <p class="font-medium">Google</p>
+                <p class="text-xs text-[var(--text-secondary)]" data-lang-key="googleLoginProviderDesc">使用 Google 帳號登入 Noureon。</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span id="account-google-status" class="text-sm text-[var(--text-secondary)] whitespace-nowrap"></span>
+              <button id="account-google-link-btn" type="button" class="hidden px-4 py-2 rounded-md border border-[var(--border-color)] bg-transparent hover:bg-[var(--hover-bg)]" data-lang-key="bindGoogle">綁定 Google</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-8 pb-6">
+          <h3 class="text-lg font-semibold" data-lang-key="loginPasswordTitle">登入密碼</h3>
+          <p class="mt-2 text-sm text-[var(--text-secondary)]" data-lang-key="loginPasswordDesc">Email 登入使用者可以用目前密碼更新新密碼；忘記密碼時會寄送重設信。</p>
+        </div>
+        <div id="login-password-unavailable" class="hidden border-t border-[var(--border-color)] py-4 text-sm text-[var(--text-secondary)]" data-lang-key="loginPasswordUnavailable">目前沒有 Email 登入密碼。綁定 Email 後即可在這裡更新密碼。</div>
+        <div id="login-password-panel" class="hidden border-t border-[var(--border-color)] py-4 space-y-3">
+          <input id="login-current-password" type="password" minlength="8" autocomplete="current-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="currentLoginPassword" placeholder="目前登入密碼">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input id="login-new-password" type="password" minlength="8" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="newLoginPassword" placeholder="新的登入密碼（至少 8 碼）">
+            <input id="login-new-password-confirmation" type="password" minlength="8" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="accountPasswordConfirm" placeholder="再次輸入登入密碼">
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <button id="login-password-change-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="updateLoginPassword">更新登入密碼</button>
+            <button id="login-password-forgot-btn" type="button" class="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline" data-lang-key="forgotLoginPassword">忘記登入密碼</button>
+          </div>
+        </div>
+
+        <p id="account-link-message" class="hidden mt-4 text-sm text-[var(--text-secondary)]"></p>
+
+        <div class="pt-10 pb-6">
+          <h3 class="text-lg font-semibold" data-lang-key="cloudSyncVault">雲端同步保險庫</h3>
+          <p class="mt-2 text-sm text-[var(--text-secondary)]" data-lang-key="cloudSyncVaultDesc">同步密碼會以伺服器金鑰加密後保存，用於跨裝置與 Email 復原；資料庫不保存明文。</p>
+        </div>
+
+        <div class="border-t border-[var(--border-color)]">
+          <div class="py-4 border-b border-[var(--border-color)]">
+            <p id="sync-vault-account" class="text-sm font-medium"></p>
+            <p id="sync-vault-status" class="text-sm text-[var(--text-secondary)] mt-1"></p>
+          </div>
+          <div id="sync-vault-cloud-only-panel" class="hidden py-4 border-b border-[var(--border-color)] text-[var(--text-secondary)] text-sm" data-lang-key="cloudSyncRequiresCloudAccount">綁定 Email 或 Google 帳號後，才能設定同步密碼並使用雲端同步。</div>
+          <div id="sync-vault-create-panel" class="hidden py-4 border-b border-[var(--border-color)] space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input id="sync-vault-create-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordPlaceholder" placeholder="至少 10 碼的同步密碼">
+              <input id="sync-vault-create-confirmation" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordConfirm" placeholder="再次輸入同步密碼">
+            </div>
+            <button id="sync-vault-create-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="createCloudSyncPassword">建立同步密碼</button>
+          </div>
+          <div id="sync-vault-unlock-panel" class="hidden py-4 border-b border-[var(--border-color)] space-y-3">
+            <input id="sync-vault-unlock-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="current-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPassword" placeholder="同步密碼">
+            <div class="flex flex-wrap items-center gap-3">
+              <button id="sync-vault-unlock-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="unlockCloudSync">解鎖雲端同步</button>
+              <button id="sync-vault-forgot-btn" type="button" class="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline" data-lang-key="forgotCloudSyncPassword">忘記同步密碼</button>
+            </div>
+          </div>
+          <div id="sync-vault-recovery-panel" class="hidden py-4 border-b border-[var(--border-color)] space-y-3">
+            <p class="text-sm text-[var(--text-secondary)]" data-lang-key="cloudSyncRecoveryWarning">Email 驗證成功後可建立新同步密碼，既有加密同步資料會保留。</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input id="sync-vault-recovery-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="newCloudSyncPassword" placeholder="新的同步密碼（至少 10 碼）">
+              <input id="sync-vault-recovery-confirmation" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordConfirm" placeholder="再次輸入同步密碼">
+            </div>
+            <button id="sync-vault-recovery-save-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirmCloudSyncPasswordReset">重設同步密碼</button>
+          </div>
+          <div id="sync-vault-unlocked-panel" class="hidden py-4 space-y-4">
+            <div class="flex flex-wrap gap-2">
+              <button id="sync-vault-lock-btn" type="button" class="px-4 py-2 rounded-md bg-[var(--hover-bg)]" data-lang-key="lockCloudSync">鎖定</button>
+              <button id="sync-vault-reset-btn" type="button" class="px-4 py-2 rounded-md text-red-600 bg-transparent hover:bg-red-50" data-lang-key="resetCloudSyncPassword">清除同步密碼</button>
+            </div>
+            <div class="border-t border-[var(--border-color)] pt-4 space-y-3">
+              <h4 class="font-medium" data-lang-key="changeCloudSyncPassword">變更同步密碼</h4>
+              <input id="sync-vault-current-password" type="password" autocomplete="current-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="currentCloudSyncPassword" placeholder="目前同步密碼">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input id="sync-vault-next-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="newCloudSyncPassword" placeholder="新的同步密碼（至少 10 碼）">
+                <input id="sync-vault-next-confirmation" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordConfirm" placeholder="再次輸入同步密碼">
+              </div>
+              <button id="sync-vault-change-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="saveCloudSyncPassword">儲存新密碼</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
 
   const ensureSyncVaultSettings = () => {
     if (document.getElementById('user-section')) return;
@@ -151,6 +284,7 @@ export function createSettingsSyncVaultControls({
         </div>
       </div>
     `;
+    section.innerHTML = buildUserSectionMarkup();
     personalizationSection.before(section);
     bindEvents();
   };
@@ -158,7 +292,7 @@ export function createSettingsSyncVaultControls({
   const setBusy = (nextBusy) => {
     busy = nextBusy;
     const elements = getElements();
-    for (const button of [elements.emailButton, elements.googleButton, elements.createButton, elements.unlockButton, elements.forgotButton, elements.recoveryButton, elements.changeButton, elements.lockButton, elements.resetButton]) {
+    for (const button of [elements.emailButton, elements.googleButton, elements.loginPasswordButton, elements.forgotLoginPasswordButton, elements.createButton, elements.unlockButton, elements.forgotButton, elements.recoveryButton, elements.changeButton, elements.lockButton, elements.resetButton]) {
       if (button) button.disabled = nextBusy;
     }
   };
@@ -192,6 +326,14 @@ export function createSettingsSyncVaultControls({
     if (!accountTurnstile.enabled) return;
     await accountTurnstile.mount('account-email-link', getElements().emailButton);
     accountTurnstileMounted = true;
+  };
+
+  const ensureLoginRecoveryTurnstile = async () => {
+    if (loginRecoveryTurnstileMounted) return;
+    accountTurnstile ||= createTurnstileClient({ window, document });
+    if (!accountTurnstile.enabled) return;
+    await accountTurnstile.mount('account-login-recovery', getElements().forgotLoginPasswordButton);
+    loginRecoveryTurnstileMounted = true;
   };
 
   const ensureRecoveryTurnstile = async () => {
@@ -245,12 +387,15 @@ export function createSettingsSyncVaultControls({
     }
     const emailBound = providers.includes('email');
     const googleBound = providers.includes('google');
+    const canChangeLoginPassword = isCloudUser && emailBound;
     setProviderStatus(elements.emailStatus, emailBound);
     setProviderStatus(elements.googleStatus, googleBound);
     elements.emailForm.classList.toggle('hidden', emailBound || !isSupabaseConfigured());
     elements.emailInput.classList.toggle('hidden', isCloudUser);
     elements.emailInput.required = !isCloudUser;
     elements.googleButton.classList.toggle('hidden', googleBound || !isSupabaseConfigured());
+    elements.loginPasswordPanel?.classList.toggle('hidden', !canChangeLoginPassword);
+    elements.loginPasswordUnavailable?.classList.toggle('hidden', !isCloudUser || canChangeLoginPassword);
     elements.emailButton.textContent = isCloudUser
       ? text('enableEmailLogin', '設定 Email 登入密碼')
       : text('bindEmail', '綁定 Email');
@@ -261,6 +406,9 @@ export function createSettingsSyncVaultControls({
     }
     if (!isCloudUser) {
       await ensureAccountTurnstile();
+    }
+    if (canChangeLoginPassword) {
+      await ensureLoginRecoveryTurnstile();
     }
   };
 
@@ -299,6 +447,15 @@ export function createSettingsSyncVaultControls({
     }
     if (password !== confirmation) {
       throw new Error(text('cloudSyncPasswordMismatch', '兩次輸入的同步密碼不一致。'));
+    }
+  };
+
+  const requireMatchingLoginPasswords = (password, confirmation) => {
+    if (password.length < 8) {
+      throw new Error(text('accountPasswordTooShort', '登入密碼至少需要 8 碼。'));
+    }
+    if (password !== confirmation) {
+      throw new Error(text('accountPasswordMismatch', '兩次輸入的登入密碼不一致。'));
     }
   };
 
@@ -394,6 +551,67 @@ export function createSettingsSyncVaultControls({
       } catch (error) {
         setBusy(false);
         setAccountMessage(error?.message || text('accountLinkFailed', '帳號綁定失敗。'), 'error');
+      }
+    });
+    elements.loginPasswordButton?.addEventListener('click', async () => {
+      if (busy) return;
+      try {
+        const user = getCurrentUser();
+        if (user.authProvider !== 'supabase') {
+          throw new Error(text('cloudSyncRequiresCloudAccount', '請先綁定 Email 或 Google 帳號。'));
+        }
+        const currentPassword = elements.loginCurrentPassword.value;
+        const nextPassword = elements.loginNewPassword.value;
+        requireMatchingLoginPasswords(nextPassword, elements.loginConfirmation.value);
+        if (!currentPassword) {
+          throw new Error(text('currentLoginPasswordRequired', '請輸入目前登入密碼。'));
+        }
+        setBusy(true);
+        const supabase = getSupabaseClient();
+        const { data, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        const email = data.user?.email || user.email;
+        if (!email) throw new Error(text('recoveryEmailUnavailable', '此帳號沒有可用的 Email。'));
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+        if (signInError) throw signInError;
+        const { error } = await supabase.auth.updateUser({ password: nextPassword });
+        if (error) throw error;
+        elements.loginCurrentPassword.value = '';
+        elements.loginNewPassword.value = '';
+        elements.loginConfirmation.value = '';
+        setAccountMessage(text('loginPasswordChanged', '登入密碼已更新。'));
+      } catch (error) {
+        setAccountMessage(error?.message || text('loginPasswordChangeFailed', '登入密碼更新失敗。'), 'error');
+      } finally {
+        setBusy(false);
+      }
+    });
+    elements.forgotLoginPasswordButton?.addEventListener('click', async () => {
+      if (busy) return;
+      try {
+        const user = getCurrentUser();
+        if (user.authProvider !== 'supabase') {
+          throw new Error(text('cloudSyncRequiresCloudAccount', '請先綁定 Email 或 Google 帳號。'));
+        }
+        setBusy(true);
+        const supabase = getSupabaseClient();
+        const { data, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        const email = data.user?.email || user.email;
+        if (!email) throw new Error(text('recoveryEmailUnavailable', '此帳號沒有可用的 Email。'));
+        const captchaToken = accountTurnstile?.getToken('account-login-recovery');
+        if (accountTurnstile?.enabled && !captchaToken) throw new Error(text('turnstileRequired', '請先完成人機驗證。'));
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+          captchaToken: captchaToken || undefined
+        });
+        accountTurnstile?.reset('account-login-recovery');
+        if (error) throw error;
+        setAccountMessage(text('loginPasswordResetEmailSent', '登入密碼重設信已寄出。'));
+      } catch (error) {
+        setAccountMessage(error?.message || text('loginPasswordResetFailed', '登入密碼重設信寄送失敗。'), 'error');
+      } finally {
+        setBusy(false);
       }
     });
     elements.createButton.addEventListener('click', async () => {
