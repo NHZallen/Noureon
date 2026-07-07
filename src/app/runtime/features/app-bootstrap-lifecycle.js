@@ -102,6 +102,47 @@ export function createLegacyAppBootstrapLifecycle({
     const ALL_ELEMENTS = elements;
     const resolveEventsUpdateInputState = updateInputState;
     const resolveEventsSetupSettingsModal = setupSettingsModal;
+    const enhanceLocalizedFileInput = (input) => {
+        if (!input || input.dataset?.localizedFileInput === 'true') return;
+        if (
+            typeof document?.createElement !== 'function' ||
+            typeof input.insertAdjacentElement !== 'function' ||
+            !input.classList
+        ) return;
+        input.dataset.localizedFileInput = 'true';
+        input.classList.add('sr-only');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'localized-file-input flex flex-wrap items-center gap-3';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'px-4 py-2 rounded-full border-0 text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100';
+        button.dataset.langKey = 'selectFile';
+        button.textContent = '選擇檔案';
+        button.addEventListener('click', () => input.click());
+
+        const fileName = document.createElement('span');
+        fileName.className = 'localized-file-input-name text-sm text-[var(--text-secondary)] truncate';
+        fileName.dataset.langKey = 'noFileSelected';
+        fileName.textContent = '尚未選擇檔案';
+
+        const syncFileName = () => {
+            const selectedFile = input.files?.[0];
+            if (selectedFile) {
+                delete fileName.dataset.langKey;
+                fileName.textContent = selectedFile.name;
+            } else {
+                fileName.dataset.langKey = 'noFileSelected';
+                fileName.textContent = i18n?.[getConfig?.().uiLanguage || 'zh-TW']?.noFileSelected || '尚未選擇檔案';
+            }
+        };
+
+        input.addEventListener('change', syncFileName);
+        wrapper.appendChild(button);
+        wrapper.appendChild(fileName);
+        input.insertAdjacentElement('afterend', wrapper);
+    };
     const ensureSettingsDesktopLogoutButton = () => {
         const nav = ALL_ELEMENTS.settingsNav;
         if (!nav) return null;
@@ -249,7 +290,13 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.exportDataBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.exportDataModal, true));
                 ALL_ELEMENTS.cancelExportBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.exportDataModal, false));
                 ALL_ELEMENTS.confirmExportBtn.addEventListener('click', handleExport);
-                ALL_ELEMENTS.importDataBtn.addEventListener('click', () => { ALL_ELEMENTS.importFileInput.value=''; toggleModal(ALL_ELEMENTS.importDataModal, true); });
+                enhanceLocalizedFileInput(ALL_ELEMENTS.importFileInput);
+                enhanceLocalizedFileInput(ALL_ELEMENTS.importFileInputAuth);
+                ALL_ELEMENTS.importDataBtn.addEventListener('click', () => {
+                    ALL_ELEMENTS.importFileInput.value='';
+                    ALL_ELEMENTS.importFileInput.dispatchEvent(new window.Event('change'));
+                    toggleModal(ALL_ELEMENTS.importDataModal, true);
+                });
                 ALL_ELEMENTS.cancelImportBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.importDataModal, false));
                 ALL_ELEMENTS.confirmImportBtn.addEventListener('click', handleImport);
                 ALL_ELEMENTS.logoutBtn.addEventListener('click', handleLogout);
@@ -463,6 +510,8 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.uiLanguageSelect.addEventListener('change', (e) => {
                     config.uiLanguage = e.target.value;
                     applyLanguage(config.uiLanguage);
+                    renderAll();
+                    renderInputIndicators();
                 });
                 const storeNavigationLifecycle = createStoreNavigationLifecycle({
                     getOpenStoreButton: () => ALL_ELEMENTS.openStoreBtn,

@@ -32,6 +32,51 @@ export const getErrorMessage = (errorBody, fallback = 'API 請求失敗') => (
   fallback
 );
 
+export const postJsonWithReadableError = async (url, data, options = {}) => {
+  const request = {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) },
+    body: JSON.stringify(data),
+    signal: options.signal
+  };
+  let response;
+  try {
+    response = await fetch(url, request);
+  } catch (error) {
+    if (options.allowOpaqueFallback !== false) {
+      await fetch(url, { ...request, mode: 'no-cors' });
+      return { ok: true, opaque: true };
+    }
+    throw error;
+  }
+
+  if (!response.ok) {
+    const errorBody = await readErrorBody(response);
+    throw new Error(getErrorMessage(errorBody, `HTTP ${response.status}`));
+  }
+
+  return response;
+};
+
+export const getBackupUsername = (rawData) => rawData?.backup_identity?.username || rawData?.user_credentials?.username || '';
+
+export async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
+  const total = items.length;
+  let index = 0;
+
+  while (index < total) {
+    const chunk = items.slice(index, index + chunkSize);
+    await Promise.all(chunk.map((item) => processFn(item)));
+    index += chunk.length;
+
+    if (onProgress) {
+      onProgress(index, total);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
 export const hexToRgba = (hex, alpha = 1) => {
   if (!hex) return `rgba(255, 255, 255, ${alpha})`;
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);

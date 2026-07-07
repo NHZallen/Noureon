@@ -1,28 +1,34 @@
 import { createMediaPreviewLifecycle } from './media-preview-lifecycle.js';
 
 const EDITOR_COLORS = Object.freeze([
-  { value: '#ef4444', label: '紅色' },
-  { value: '#3b82f6', label: '藍色' },
-  { value: '#22c55e', label: '綠色' },
-  { value: '#facc15', label: '黃色' },
-  { value: '#ffffff', label: '白色' }
+  { value: '#ef4444', key: 'red' },
+  { value: '#3b82f6', key: 'blue' },
+  { value: '#22c55e', key: 'green' },
+  { value: '#facc15', key: 'yellow' },
+  { value: '#ffffff', key: 'white' }
 ].filter(({ value }) => value !== '#22c55e'));
 
 const getEditorTexts = (language) => {
   if (language === 'en') return {
     title: 'Edit', hint: 'Mark the area you want changed, then confirm and describe the edit.',
     close: 'Cancel edit', brush: 'Brush', eraser: 'Eraser', size: 'Size', confirm: 'Confirm selection',
-    drawingArea: 'Drawable area'
+    drawingArea: 'Drawable area',
+    undo: 'Undo', redo: 'Redo', clear: 'Clear all',
+    colors: { red: 'Red', blue: 'Blue', green: 'Green', yellow: 'Yellow', white: 'White' }
   };
   if (language === 'fr') return {
     title: 'Modifier', hint: 'Marquez la zone à modifier, confirmez, puis décrivez la retouche.',
     close: 'Annuler la retouche', brush: 'Pinceau', eraser: 'Gomme', size: 'Taille', confirm: 'Confirmer la zone',
-    drawingArea: 'Zone de dessin'
+    drawingArea: 'Zone de dessin',
+    undo: 'Annuler', redo: 'Rétablir', clear: 'Tout effacer',
+    colors: { red: 'Rouge', blue: 'Bleu', green: 'Vert', yellow: 'Jaune', white: 'Blanc' }
   };
   return {
     title: '編輯', hint: '圈起想修改的區域，確認後再於輸入欄描述要怎麼改。',
     close: '取消編輯', brush: '畫筆', eraser: '橡皮擦', size: '粗細', confirm: '確認區域',
-    drawingArea: '可繪畫區域'
+    drawingArea: '可繪畫區域',
+    undo: '返回上一步', redo: '返回下一步', clear: '全部刪除',
+    colors: { red: '紅色', blue: '藍色', green: '綠色', yellow: '黃色', white: '白色' }
   };
 };
 
@@ -104,7 +110,7 @@ export function createGeneratedImageInteractions({
     if (!dataUrl) return;
     closeExistingEditor();
     const texts = getEditorTexts(getUiLanguage());
-    const actionLabels = { undo: '返回上一步', redo: '返回下一步', clear: '全部刪除' };
+    const actionLabels = { undo: texts.undo, redo: texts.redo, clear: texts.clear };
     const overlay = document.createElement('div');
     overlay.className = 'generated-image-editor';
     overlay.setAttribute('role', 'dialog');
@@ -125,8 +131,8 @@ export function createGeneratedImageInteractions({
       </div>
       <footer class="generated-image-editor-toolbar">
         <div class="generated-image-editor-tools" aria-label="${texts.brush}">
-          ${EDITOR_COLORS.map(({ value, label }, index) => `
-            <button type="button" class="generated-image-editor-color${index === 0 ? ' active' : ''}" data-editor-color="${value}" aria-label="${texts.brush}：${label}" style="--editor-color:${value}"></button>
+          ${EDITOR_COLORS.map(({ value, key }, index) => `
+            <button type="button" class="generated-image-editor-color${index === 0 ? ' active' : ''}" data-editor-color="${value}" aria-label="${texts.brush}: ${texts.colors[key]}" style="--editor-color:${value}"></button>
           `).join('')}
           <button type="button" class="generated-image-editor-eraser" data-editor-tool="eraser" aria-label="${texts.eraser}">
             <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4L14.6 3.4a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L9 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>

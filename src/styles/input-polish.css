@@ -363,6 +363,14 @@ body.custom-wallpaper-active .input-indicator-item {
     display: block;
 }
 
+#input-indicator-container .astras-sidebar-avatar.input-indicator-mode-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0;
+    overflow: hidden;
+}
+
 #input-indicator-container #close-search-btn-input,
 #input-indicator-container #close-learning-mode-btn-input,
 #input-indicator-container #close-model-council-btn-input {

@@ -169,17 +169,14 @@ test('empty or missing demo data and an absent demo surface are graceful', () =>
   }
 });
 
-test('legacy core keeps startup wiring while the helper owns demo rendering without bindings', () => {
+test('legacy core removes the retired homepage demo section without lazy-loading it', () => {
   assert.equal(existsSync(projectFile(demoModulePath)), true);
   assert.equal(typeof setupDemoModelHomepage, 'function');
   assert.match(legacyCoreSource, /document\.addEventListener\('DOMContentLoaded',\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(legacyCoreSource, /import\s+\{\s*setupDemoModelHomepage\s*\}\s+from/);
   assert.match(demoSetupBody, /getElementById\('auth-container'\)\.classList\.add\('visible'\)/);
-  assert.match(
-    demoSetupBody,
-    /import\(['"]\/src\/app\/runtime\/features\/demo-model-homepage\.js['"]\)\.then\(\(\{\s*setupDemoModelHomepage\s*\}\)\s*=>\s*setupDemoModelHomepage\(\{\s*document,\s*demoConversations\s*\}\)\)/
-  );
-  assert.doesNotMatch(demoSetupBody, /const\s+demoModels\s*=|\.demo-model-selector|contentDiv/);
+  assert.match(demoSetupBody, /document\.querySelector\('\.demo-model-selector'\)\?\.closest\('section'\)\?\.remove\(\)/);
+  assert.doesNotMatch(demoSetupBody, /demo-model-homepage|setupDemoModelHomepage\(\{\s*document,\s*demoConversations\s*\}\)|contentDiv/);
   assert.match(demoModuleSource, /export\s+function\s+setupDemoModelHomepage\s*\(/);
   assert.match(demoModuleSource, /document\.querySelector\('\.demo-model-selector'\)/);
   assert.match(demoModuleSource, /contentDiv\.innerHTML\s*=/);

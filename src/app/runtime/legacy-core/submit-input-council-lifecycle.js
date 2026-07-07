@@ -119,6 +119,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   } = dependencies;
 
   const getLiveConfig = () => getConfig() || state.config || {};
+  const getUiLanguage = () => runtimeConfigAccess.getUiLanguage?.()
+    || getLiveConfig().uiLanguage
+    || 'zh-TW';
+  const getLocalizedText = (key, fallback) => i18n[getUiLanguage()]?.[key] || fallback;
   const getUploadedFiles = () => state.uploadedFiles || [];
   const setUploadedFiles = (files) => { state.uploadedFiles = files; };
   const getAbortController = () => state.abortController || null;
@@ -138,12 +142,20 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getActiveModel: () => normalizeConversationModel(getActiveConversation()),
     modelGeneratesImages,
     saveAppData,
-    onChange: (...args) => renderInputIndicators(...args)
+    onChange: (...args) => renderInputIndicators(...args),
+    getText: getLocalizedText
   });
 
   const getReasoningTitle = () => {
     const uiLanguage = runtimeConfigAccess.getUiLanguage();
     return uiLanguage === 'zh-TW' ? '思考深度' : 'Reasoning';
+  };
+
+  const getLocalizedAstraName = (ast) => {
+    const officialId = ast?.officialId;
+    if (!officialId) return ast?.name || '';
+    const key = `astras_${officialId.replace(/-/g, '_')}_name`;
+    return getLocalizedText(key, ast.name || '');
   };
 
   const ensureReasoningDepthControl = () => {
@@ -395,16 +407,17 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     if (astrasId) {
       const ast = (state.astras || []).find((item) => item.id === astrasId);
       if (ast) {
+        const astraName = getLocalizedAstraName(ast);
         activeIndicators.set('astras-input-indicator', {
           id: 'astras-input-indicator',
           html: `
                             <span class="input-indicator-content flex items-center gap-2">
                                 <span class="input-indicator-leading">
                                     <span class="astras-sidebar-avatar input-indicator-mode-icon" style="width: 18px; height: 18px; font-size: 0.7rem;">
-                                    ${ast.avatarUrl ? `<img src="${ast.avatarUrl}" class="w-full h-full object-cover rounded-full">` : ast.name.charAt(0)}
+                                    ${ast.avatarUrl ? `<img src="${ast.avatarUrl}" class="w-full h-full object-cover rounded-full">` : astraName.charAt(0)}
                                 </span>
                                 </span>
-                                <span>${ast.name} ${i18n[config.uiLanguage].astrasActive || 'active'}</span>
+                                <span>${astraName} <span data-lang-key="astrasActive">${i18n[config.uiLanguage].astrasActive || 'active'}</span></span>
                             </span>
                             <button id="close-astras-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${i18n[config.uiLanguage].closeAstras || 'Close Noura'}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>

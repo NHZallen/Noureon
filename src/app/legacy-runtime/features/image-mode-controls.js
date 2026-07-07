@@ -22,7 +22,7 @@ const createSelectControl = ({ document, id, label, values }) => {
     select.appendChild(option);
   });
   row.append(text, select);
-  return { row, select };
+  return { row, select, text };
 };
 
 export function createImageModeControls({
@@ -31,7 +31,8 @@ export function createImageModeControls({
   getActiveModel,
   modelGeneratesImages,
   saveAppData = async () => {},
-  onChange = () => {}
+  onChange = () => {},
+  getText = (_key, fallback) => fallback
 }) {
   let ratio;
   let resolution;
@@ -68,7 +69,7 @@ export function createImageModeControls({
         : undefined;
       advanced.fields.provider.setCustomValidity('');
     } catch {
-      advanced.fields.provider.setCustomValidity('請輸入有效的 JSON');
+      advanced.fields.provider.setCustomValidity(getText('imageInvalidJson', 'Please enter valid JSON'));
       advanced.fields.provider.reportValidity?.();
       return;
     }
@@ -92,22 +93,24 @@ export function createImageModeControls({
     details.style.display = 'none';
     const summary = document.createElement('summary');
     summary.className = 'cursor-pointer select-none';
-    summary.textContent = '進階設定';
+    summary.textContent = getText('imageAdvancedSettings', 'Advanced settings');
     details.appendChild(summary);
     const body = document.createElement('div');
     body.className = 'image-mode-advanced-grid mt-3 grid grid-cols-2 gap-2';
     const specs = [
-      ['n', '張數', Array.from({ length: 10 }, (_, index) => String(index + 1))],
-      ['quality', '品質', ['auto', 'low', 'medium', 'high']],
-      ['outputFormat', '格式', ['png', 'jpeg', 'webp']],
-      ['background', '背景', ['auto', 'transparent', 'opaque']],
-      ['outputCompression', '壓縮率', Array.from({ length: 11 }, (_, index) => String(index * 10))]
+      ['n', 'imageCount', 'Count', Array.from({ length: 10 }, (_, index) => String(index + 1))],
+      ['quality', 'imageQuality', 'Quality', ['auto', 'low', 'medium', 'high']],
+      ['outputFormat', 'imageFormat', 'Format', ['png', 'jpeg', 'webp']],
+      ['background', 'imageBackground', 'Background', ['auto', 'transparent', 'opaque']],
+      ['outputCompression', 'imageCompression', 'Compression', Array.from({ length: 11 }, (_, index) => String(index * 10))]
     ];
     const fields = {};
-    specs.forEach(([key, label, values]) => {
+    const labels = { summary };
+    specs.forEach(([key, labelKey, fallback, values]) => {
       const field = document.createElement('label');
       field.className = 'flex flex-col gap-1 text-xs text-[var(--text-secondary)]';
-      field.textContent = label;
+      const labelText = document.createElement('span');
+      labelText.textContent = getText(labelKey, fallback);
       const select = document.createElement('select');
       select.id = `image-${key.replace(/[A-Z]/g, value => `-${value.toLowerCase()}`)}-select`;
       select.className = 'p-1.5 rounded-md bg-[var(--input-field-bg)] border border-[var(--border-color)] text-[var(--text-primary)]';
@@ -118,44 +121,63 @@ export function createImageModeControls({
         select.appendChild(option);
       });
       select.addEventListener('change', persistAdvanced);
-      field.appendChild(select);
+      field.append(labelText, select);
       body.appendChild(field);
       fields[key] = select;
+      labels[key] = labelText;
     });
     const seedField = document.createElement('label');
     seedField.className = 'col-span-2 flex flex-col gap-1 text-xs text-[var(--text-secondary)]';
-    seedField.textContent = 'Seed（選填）';
+    const seedLabel = document.createElement('span');
+    seedLabel.textContent = getText('imageSeedOptional', 'Seed (optional)');
     const seed = document.createElement('input');
     seed.id = 'image-seed-input';
     seed.type = 'number';
     seed.min = '0';
     seed.className = 'p-1.5 rounded-md bg-[var(--input-field-bg)] border border-[var(--border-color)] text-[var(--text-primary)]';
     seed.addEventListener('change', persistAdvanced);
-    seedField.appendChild(seed);
+    seedField.append(seedLabel, seed);
     body.appendChild(seedField);
     fields.seed = seed;
+    labels.seed = seedLabel;
     const providerField = document.createElement('label');
     providerField.className = 'col-span-2 flex flex-col gap-1 text-xs text-[var(--text-secondary)]';
-    providerField.textContent = '供應商選項（JSON）';
+    const providerLabel = document.createElement('span');
+    providerLabel.textContent = getText('imageProviderOptions', 'Provider options (JSON)');
     const provider = document.createElement('textarea');
     provider.id = 'image-provider-options-input';
     provider.rows = 2;
     provider.placeholder = '{"options":{"provider-slug":{}}}';
     provider.className = 'p-1.5 rounded-md bg-[var(--input-field-bg)] border border-[var(--border-color)] text-[var(--text-primary)] resize-y';
     provider.addEventListener('change', persistAdvanced);
-    providerField.appendChild(provider);
+    providerField.append(providerLabel, provider);
     body.appendChild(providerField);
     fields.provider = provider;
+    labels.provider = providerLabel;
     details.appendChild(body);
-    return { details, fields };
+    return { details, fields, labels };
+  };
+
+  const syncLabels = () => {
+    if (!ratio || !resolution || !advanced) return;
+    ratio.text.textContent = getText('imageAspectRatio', 'Aspect ratio');
+    resolution.text.textContent = getText('imageResolution', 'Resolution');
+    advanced.labels.summary.textContent = getText('imageAdvancedSettings', 'Advanced settings');
+    advanced.labels.n.textContent = getText('imageCount', 'Count');
+    advanced.labels.quality.textContent = getText('imageQuality', 'Quality');
+    advanced.labels.outputFormat.textContent = getText('imageFormat', 'Format');
+    advanced.labels.background.textContent = getText('imageBackground', 'Background');
+    advanced.labels.outputCompression.textContent = getText('imageCompression', 'Compression');
+    advanced.labels.seed.textContent = getText('imageSeedOptional', 'Seed (optional)');
+    advanced.labels.provider.textContent = getText('imageProviderOptions', 'Provider options (JSON)');
   };
 
   const ensure = () => {
     const popover = document.getElementById('file-options-popover');
     if (!popover) return false;
     if (!ratio) {
-      ratio = createSelectControl({ document, id: 'image-aspect-ratio', label: '圖片比例', values: IMAGE_ASPECT_RATIOS });
-      resolution = createSelectControl({ document, id: 'image-resolution', label: '解析度', values: IMAGE_RESOLUTIONS });
+      ratio = createSelectControl({ document, id: 'image-aspect-ratio', label: getText('imageAspectRatio', 'Aspect ratio'), values: IMAGE_ASPECT_RATIOS });
+      resolution = createSelectControl({ document, id: 'image-resolution', label: getText('imageResolution', 'Resolution'), values: IMAGE_RESOLUTIONS });
       ratio.select.addEventListener('change', persist);
       resolution.select.addEventListener('change', persist);
       const learning = document.getElementById('learning-mode-btn');
@@ -164,6 +186,7 @@ export function createImageModeControls({
       advanced = createAdvanced();
       popover.insertBefore(advanced.details, learning || null);
     }
+    syncLabels();
     return true;
   };
 

@@ -229,7 +229,7 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   assert.doesNotMatch(lifecycleSource, /const\s+conversationHistory\s*=\s*conv\.messages/);
   assert.doesNotMatch(lifecycleSource, /const\s+responseSchema\s*=\s*\{/);
   assert.match(lifecycleSource, /const\s+generateTitleAndSummary\s*=\s*async\s*\(conv\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /const\s+data\s*=\s*await\s+requestTitleSummary\(conv\);/);
+  assert.match(lifecycleSource, /const\s+data\s*=\s*await\s+requestTitleSummary\(conv,\s*undefined,\s*\{\s*language:\s*config\.aiDefaultLanguage\s*\|\|\s*config\.uiLanguage\s*\}\);/);
   assert.match(lifecycleSource, /conv\.title\s*=\s*data\.title/);
   assert.match(lifecycleSource, /conv\.summary\s*=\s*data\.summary/);
   assert.match(lifecycleSource, /await\s+saveAppData\(\);/);

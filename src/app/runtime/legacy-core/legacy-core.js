@@ -28,7 +28,7 @@ import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/
 import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
 import { createRuntimeConfigAccess } from '/src/app/legacy-runtime/runtime/runtime-config-access.js';
 import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-dom-access.js';
-import { createTrustedHtmlSanitizer, escapeHTML, getErrorMessage, hexToRgba, readErrorBody, renderUserText } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
+import { createTrustedHtmlSanitizer, escapeHTML, getBackupUsername, getErrorMessage, hexToRgba, postJsonWithReadableError, processInChunks, readErrorBody, renderUserText } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
 import { createHistorySidebarHelpers } from '/src/app/runtime/legacy-core/history-sidebar-helpers.js';
 import { createMarkdownRenderingHelpers } from '/src/app/runtime/legacy-core/markdown-rendering-helpers.js';
 import { observeMessageCharts } from '/src/app/ui/charts/chart-renderer.js';
@@ -52,58 +52,13 @@ const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
 const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
 const i18n = globalThis.i18n;
-const demoConversations = globalThis.demoConversations;
 const OFFICIAL_ASTRAS = globalThis.OFFICIAL_ASTRAS;
 const updateLogs = globalThis.updateLogs;
 const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify });
 
-const postJsonWithReadableError = async (url, data, options = {}) => {
-    const request = {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) },
-        body: JSON.stringify(data),
-        signal: options.signal
-    };
-    let response;
-    try {
-        response = await fetch(url, request);
-    } catch (error) {
-        if (options.allowOpaqueFallback !== false) {
-            await fetch(url, { ...request, mode: 'no-cors' });
-            return { ok: true, opaque: true };
-        }
-        throw error;
-    }
-
-    if (!response.ok) {
-        const errorBody = await readErrorBody(response);
-        throw new Error(getErrorMessage(errorBody, `HTTP ${response.status}`));
-    }
-
-    return response;
-};
-
-const getBackupUsername = (rawData) => rawData?.backup_identity?.username || rawData?.user_credentials?.username || '';
-
-async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
-    const total = items.length;
-    let index = 0;
-
-    while (index < total) {
-        const chunk = items.slice(index, index + chunkSize);
-        await Promise.all(chunk.map((item) => processFn(item)));
-        index += chunk.length;
-
-        if (onProgress) {
-            onProgress(index, total);
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-}
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-container').classList.add('visible');
-        import('/src/app/runtime/features/demo-model-homepage.js').then(({ setupDemoModelHomepage }) => setupDemoModelHomepage({ document, demoConversations }));
+        document.querySelector('.demo-model-selector')?.closest('section')?.remove();
     });
         const ALL_ELEMENTS = createLegacyRuntimeDomRegistry();
         const runtimeDomAccess = createRuntimeDomAccess({
@@ -987,6 +942,7 @@ async function processInChunks(items, processFn, chunkSize = 50, onProgress) {
             getAstras: () => runtimeAppDataStore.getAstras(),
             getActiveAstrasId: () => getActiveAstrasId(),
             getIsSelectionMode: () => isSelectionMode,
+            getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback,
             setAstrasForConversation: (...args) => setAstrasForConversation(...args),
             toggleSidebar: (...args) => legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(...args),
             createAstrasMenu: (...args) => createAstrasMenu(...args),

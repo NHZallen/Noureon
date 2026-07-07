@@ -22,8 +22,51 @@ export function createLegacyStartupLifecycle({
     showCustomDialog,
     getComputedStyle
 } = {}) {
+    const enhanceLocalizedFileInput = (input) => {
+        if (!input || input.dataset?.localizedFileInput === 'true') return;
+        if (
+            typeof document?.createElement !== 'function' ||
+            typeof input.insertAdjacentElement !== 'function' ||
+            !input.classList
+        ) return;
+        input.dataset.localizedFileInput = 'true';
+        input.classList.add('sr-only');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'localized-file-input flex flex-wrap items-center gap-3';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'px-4 py-2 rounded-full border-0 text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100';
+        button.dataset.langKey = 'selectFile';
+        button.textContent = '選擇檔案';
+        button.addEventListener('click', () => input.click());
+
+        const fileName = document.createElement('span');
+        fileName.className = 'localized-file-input-name text-sm text-[var(--text-secondary)] truncate';
+        fileName.dataset.langKey = 'noFileSelected';
+        fileName.textContent = '尚未選擇檔案';
+
+        input.addEventListener('change', () => {
+            const selectedFile = input.files?.[0];
+            if (selectedFile) {
+                delete fileName.dataset.langKey;
+                fileName.textContent = selectedFile.name;
+            } else {
+                fileName.dataset.langKey = 'noFileSelected';
+                fileName.textContent = '尚未選擇檔案';
+                applyLanguage(getConfig().uiLanguage);
+            }
+        });
+
+        wrapper.appendChild(button);
+        wrapper.appendChild(fileName);
+        input.insertAdjacentElement('afterend', wrapper);
+    };
+
     function bindAuthStartupListeners() {
         elements.authForm.addEventListener('submit', handleLogin);
+        enhanceLocalizedFileInput(elements.importFileInputAuth);
 
         const toggleAuthImportButton = () => {
             const username = elements.usernameInput.value.trim();

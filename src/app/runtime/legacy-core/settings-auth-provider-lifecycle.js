@@ -276,7 +276,9 @@ const {
     requestTitleSummary
 } = titleSummaryHelpers;
 const generateTitleAndSummary = async (conv) => {
-    const data = await requestTitleSummary(conv);
+    const data = await requestTitleSummary(conv, undefined, {
+        language: config.aiDefaultLanguage || config.uiLanguage
+    });
     if (data && data.title && data.summary) {
         conv.title = data.title;
         conv.summary = data.summary;
