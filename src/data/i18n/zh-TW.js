@@ -528,7 +528,7 @@
         enableEmailLogin: '設定 Email 登入密碼',
         emailLoginProviderDesc: '使用 Email 登入與收取驗證信。',
         googleLoginProviderDesc: '使用 Google 帳號登入 Noureon。',
-        loginPasswordTitle: '登入密碼',
+        loginPasswordTitle: '修改登入密碼',
         loginPasswordDesc: 'Email 登入使用者可以用目前密碼更新新密碼；忘記密碼時會寄送重設信。',
         loginPasswordUnavailable: '目前沒有 Email 登入密碼。綁定 Email 後即可在這裡更新密碼。',
         currentLoginPassword: '目前登入密碼',

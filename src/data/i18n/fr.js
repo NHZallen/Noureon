@@ -528,7 +528,7 @@
         enableEmailLogin: 'Définir le mot de passe Email',
         emailLoginProviderDesc: 'Utiliser l’e-mail pour se connecter et recevoir les messages de vérification.',
         googleLoginProviderDesc: 'Utiliser un compte Google pour se connecter à Noureon.',
-        loginPasswordTitle: 'Mot de passe de connexion',
+        loginPasswordTitle: 'Modifier le mot de passe de connexion',
         loginPasswordDesc: 'Les utilisateurs avec connexion par e-mail peuvent le modifier avec le mot de passe actuel ; un e-mail de réinitialisation est disponible si besoin.',
         loginPasswordUnavailable: 'Aucun mot de passe de connexion par e-mail n’est configuré. Associez l’e-mail pour le modifier ici.',
         currentLoginPassword: 'Mot de passe actuel',

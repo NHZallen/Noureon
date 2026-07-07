@@ -528,7 +528,7 @@
         enableEmailLogin: 'Set Email login password',
         emailLoginProviderDesc: 'Use Email to sign in and receive verification emails.',
         googleLoginProviderDesc: 'Use a Google account to sign in to Noureon.',
-        loginPasswordTitle: 'Login password',
+        loginPasswordTitle: 'Change login password',
         loginPasswordDesc: 'Email sign-in users can update their password with the current password; a reset email is available if needed.',
         loginPasswordUnavailable: 'No Email login password is configured yet. Link Email to update it here.',
         currentLoginPassword: 'Current login password',

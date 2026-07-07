@@ -110,14 +110,7 @@ export function createSettingsSyncVaultControls({
 
           <div class="flex items-center justify-between gap-4 py-4 border-b border-[var(--border-color)]">
             <div class="flex items-center gap-3 min-w-0">
-              <span class="shrink-0" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-                  <path fill="#4285F4" d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.5c-.2 1.2-.9 2.3-2 3v2.5h3.2c1.9-1.8 3.1-4.4 3.1-7.3z"></path>
-                  <path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.7-2.5L15.5 17c-.9.6-2 .9-3.5.9-2.7 0-5-1.8-5.8-4.3H2.9v2.6C4.6 19.6 8 22 12 22z"></path>
-                  <path fill="#FBBC05" d="M6.2 13.6c-.2-.6-.3-1.1-.3-1.8s.1-1.2.3-1.8V7.4H2.9C2.3 8.7 2 10.2 2 11.8s.3 3.1.9 4.4l3.3-2.6z"></path>
-                  <path fill="#EA4335" d="M12 5.7c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 2.9 14.7 2 12 2 8 2 4.6 4.4 2.9 7.4l3.3 2.6C7 7.5 9.3 5.7 12 5.7z"></path>
-                </svg>
-              </span>
+              <img src="/google-g-logo.png" width="22" height="22" alt="" aria-hidden="true" class="shrink-0 object-contain">
               <div class="min-w-0">
                 <p class="font-medium">Google</p>
                 <p class="text-xs text-[var(--text-secondary)]" data-lang-key="googleLoginProviderDesc">使用 Google 帳號登入 Noureon。</p>
@@ -131,7 +124,7 @@ export function createSettingsSyncVaultControls({
         </div>
 
         <div class="pt-8 pb-6">
-          <h3 class="text-lg font-semibold" data-lang-key="loginPasswordTitle">登入密碼</h3>
+          <h3 class="text-lg font-semibold" data-lang-key="loginPasswordTitle">修改登入密碼</h3>
           <p class="mt-2 text-sm text-[var(--text-secondary)]" data-lang-key="loginPasswordDesc">Email 登入使用者可以用目前密碼更新新密碼；忘記密碼時會寄送重設信。</p>
         </div>
         <div id="login-password-unavailable" class="hidden border-t border-[var(--border-color)] py-4 text-sm text-[var(--text-secondary)]" data-lang-key="loginPasswordUnavailable">目前沒有 Email 登入密碼。綁定 Email 後即可在這裡更新密碼。</div>
