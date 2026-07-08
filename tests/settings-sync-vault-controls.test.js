@@ -3,8 +3,9 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 import { createSettingsSyncVaultControls } from '../src/app/runtime/legacy-core/settings-sync-vault-controls.js';
+import { ensureUserSettingsSection } from '../src/app/runtime/legacy-core/settings-user-section-shell.js';
 
-function createFixture() {
+function createFixture({ precreateUserSection = false } = {}) {
   const window = new Window();
   window.document.body.innerHTML = `
     <div id="settings-modal">
@@ -14,6 +15,12 @@ function createFixture() {
       <div id="personalization-section" class="settings-section"></div>
     </div>
   `;
+  if (precreateUserSection) {
+    ensureUserSettingsSection({
+      document: window.document,
+      getText: (_key, fallback) => fallback
+    });
+  }
   let currentUser = { username: 'local-user', displayName: 'Local User' };
   const values = new Map();
   const storage = {
@@ -35,6 +42,16 @@ function createFixture() {
     setCurrentUser: user => { currentUser = user; }
   };
 }
+
+test('sync vault settings bind events when the user section already exists', () => {
+  const { window, controls } = createFixture({ precreateUserSection: true });
+
+  controls.ensureSyncVaultSettings();
+
+  assert.equal(window.document.getElementById('user-section').dataset.syncVaultEventsBound, 'true');
+  assert.equal(window.document.querySelectorAll('#user-section-nav').length, 1);
+  assert.equal(window.document.querySelectorAll('#user-section').length, 1);
+});
 
 test('sync vault settings add a user section while keeping local accounts read only', async () => {
   const { window, controls } = createFixture();

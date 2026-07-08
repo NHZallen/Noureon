@@ -14,6 +14,7 @@ import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.
 import { createSettingsThemeBubbleControls } from './settings-theme-bubble-controls.js';
 import { createSettingsMobileShellHelper } from './settings-mobile-shell-helper.js';
 import { createSettingsDesktopSectionHelper } from './settings-desktop-section-helper.js';
+import { ensureUserSettingsSection } from './settings-user-section-shell.js';
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
@@ -415,6 +416,7 @@ const desktopSectionHelper = createSettingsDesktopSectionHelper({
 });
 const {
     bindDesktopSettingsSections,
+    activateDesktopSettingsSection,
     syncSettingsSectionForViewport
 } = desktopSectionHelper;
 let syncVaultControlsPromise;
@@ -459,6 +461,7 @@ const ensureAutoWebSearchSettingsControl = () => {
 };
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
+    ensureUserSettingsSection({ document, getText: getSettingsText });
     ensureAutoWebSearchSettingsControl();
     ensureCouncilTranslatorSettingsControls();
     ensureOutputModeSettingsControls();
@@ -500,14 +503,18 @@ const setupSettingsModal = () => {
     renderTrash();
     renderSettingsMobileList();
     const navItems = bindDesktopSettingsSections();
+    const userNavItem = ALL_ELEMENTS.settingsNav.querySelector('.settings-nav-item[data-section="user"]');
+    if (!isMobileSettingsViewport() && userNavItem) {
+        activateDesktopSettingsSection(userNavItem, navItems);
+    }
     syncSettingsSectionForViewport(navItems);
     void loadSyncVaultControls().then(async (controls) => {
         controls.ensureSyncVaultSettings();
+        await controls.refreshSyncVaultControls();
         applyLanguage(config.uiLanguage);
         renderSettingsMobileList();
         const nextNavItems = bindDesktopSettingsSections();
         syncSettingsSectionForViewport(nextNavItems);
-        await controls.refreshSyncVaultControls();
     }).catch(error => console.error('Failed to load sync vault settings:', error));
 };
 const saveSettings = async ({ close = true, notify = true } = {}) => {

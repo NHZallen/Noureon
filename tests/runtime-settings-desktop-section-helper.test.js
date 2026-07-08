@@ -47,10 +47,12 @@ function createElement({ section, active = false } = {}) {
 function createFixture({ mobile = false } = {}) {
   const calls = [];
   const navItems = [
+    createElement({ section: 'user' }),
     createElement({ section: 'general', active: true }),
     createElement({ section: 'appearance' })
   ];
   const sections = new Map([
+    ['user-section', createElement()],
     ['general-section', createElement()],
     ['appearance-section', createElement()]
   ]);
@@ -107,24 +109,40 @@ test('desktop nav items can be bound with fake DOM', () => {
   assert.deepEqual(boundItems, navItems);
   assert.equal(navItems[0].dataset.settingsDesktopBound, 'true');
   assert.equal(navItems[1].dataset.settingsDesktopBound, 'true');
+  assert.equal(navItems[2].dataset.settingsDesktopBound, 'true');
 });
 
 test('clicking nav item activates expected nav item and section', () => {
   const { helper, navItems, sections } = createFixture();
 
   helper.bindDesktopSettingsSections();
-  navItems[1].dispatch('click');
+  navItems[2].dispatch('click');
 
   assert.equal(navItems[0].classList.contains('active'), false);
-  assert.equal(navItems[1].classList.contains('active'), true);
+  assert.equal(navItems[1].classList.contains('active'), false);
+  assert.equal(navItems[2].classList.contains('active'), true);
   assert.equal(sections.get('general-section').classList.contains('active'), false);
   assert.equal(sections.get('appearance-section').classList.contains('active'), true);
 });
 
+test('desktop default can activate the user section before syncing viewport state', () => {
+  const { calls, helper, navItems, sections } = createFixture();
+
+  const boundItems = helper.bindDesktopSettingsSections();
+  helper.activateDesktopSettingsSection(navItems[0], boundItems);
+  helper.syncSettingsSectionForViewport(boundItems);
+
+  assert.deepEqual(calls, ['clearSettingsMobileViewTransition']);
+  assert.equal(navItems[0].classList.contains('active'), true);
+  assert.equal(navItems[1].classList.contains('active'), false);
+  assert.equal(sections.get('user-section').classList.contains('active'), true);
+  assert.equal(sections.get('general-section').classList.contains('active'), false);
+});
+
 test('desktop sync preserves active nav class and active section class', () => {
   const { calls, helper, navItems, sections, settingsModal } = createFixture();
-  navItems[0].classList.remove('active');
-  navItems[1].classList.add('active');
+  navItems[1].classList.remove('active');
+  navItems[2].classList.add('active');
 
   const boundItems = helper.bindDesktopSettingsSections();
   helper.syncSettingsSectionForViewport(boundItems);
@@ -133,7 +151,8 @@ test('desktop sync preserves active nav class and active section class', () => {
   assert.equal(settingsModal.classList.contains('settings-mobile-detail-open'), false);
   assert.equal(settingsModal.classList.contains('settings-mobile-returning'), false);
   assert.equal(navItems[0].classList.contains('active'), false);
-  assert.equal(navItems[1].classList.contains('active'), true);
+  assert.equal(navItems[1].classList.contains('active'), false);
+  assert.equal(navItems[2].classList.contains('active'), true);
   assert.equal(sections.get('general-section').classList.contains('active'), false);
   assert.equal(sections.get('appearance-section').classList.contains('active'), true);
 });
@@ -156,6 +175,7 @@ test('binding is idempotent for already-bound nav items', () => {
   assert.equal(navItems[0].dataset.settingsDesktopBound, 'true');
   assert.equal(navItems[0].listenerCount('click'), 1);
   assert.equal(navItems[1].listenerCount('click'), 1);
+  assert.equal(navItems[2].listenerCount('click'), 1);
 });
 
 test('import is inert', () => {

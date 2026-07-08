@@ -17,6 +17,7 @@ import {
 } from '../../auth/account-linking.js';
 import { createCloudUserRecord } from '../../auth/supabase-auth-bridge.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
+import { ensureUserSettingsSection } from './settings-user-section-shell.js';
 
 export function createSettingsSyncVaultControls({
   window,
@@ -195,91 +196,14 @@ export function createSettingsSyncVaultControls({
     `;
 
   const ensureSyncVaultSettings = () => {
-    if (document.getElementById('user-section')) return;
-    const settingsNav = document.getElementById('settings-nav');
-    const personalizationNav = settingsNav?.querySelector('[data-section="personalization"]');
-    if (!settingsNav || !personalizationNav) return;
-
-    const nav = document.createElement('li');
-    nav.id = 'user-section-nav';
-    nav.className = 'settings-nav-item p-3 rounded-md';
-    nav.dataset.section = 'user';
-    nav.dataset.langKey = 'userSettings';
-    nav.textContent = text('userSettings', '使用者');
-    personalizationNav.before(nav);
-
-    const personalizationSection = document.getElementById('personalization-section');
-    if (!personalizationSection) return;
-    const section = document.createElement('div');
-    section.id = 'user-section';
-    section.className = 'settings-section';
-    section.innerHTML = `
-      <h3 class="text-lg font-semibold mb-3" data-lang-key="accountLinking">帳號綁定</h3>
-      <div class="space-y-3 max-w-2xl mb-8">
-        <p class="text-sm text-[var(--text-secondary)]" data-lang-key="accountLinkingDesc">綁定 Email、Google 其中一種即可使用雲端功能，也可以兩種都綁定。</p>
-        <div class="p-4 rounded-lg border border-[var(--border-color)] bg-[var(--input-field-bg)] space-y-3">
-          <div class="flex items-center justify-between gap-3">
-            <span class="font-medium">Email</span>
-            <span id="account-email-status" class="text-sm text-[var(--text-secondary)]"></span>
-          </div>
-          <form id="account-email-link-form" class="hidden space-y-3">
-            <input id="account-link-email" type="email" autocomplete="email" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--modal-bg)]" data-lang-key-placeholder="emailAddress" placeholder="Email">
-            <input id="account-link-password" type="password" minlength="8" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--modal-bg)]" data-lang-key-placeholder="accountPassword" placeholder="登入密碼（至少 8 碼）">
-            <input id="account-link-password-confirmation" type="password" minlength="8" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--modal-bg)]" data-lang-key-placeholder="accountPasswordConfirm" placeholder="再次輸入登入密碼">
-            <button id="account-email-link-btn" type="submit" class="px-4 py-2 rounded-md btn-primary" data-lang-key="bindEmail">綁定 Email</button>
-          </form>
-        </div>
-        <div class="p-4 rounded-lg border border-[var(--border-color)] bg-[var(--input-field-bg)] space-y-3">
-          <div class="flex items-center justify-between gap-3">
-            <span class="font-medium">Google</span>
-            <span id="account-google-status" class="text-sm text-[var(--text-secondary)]"></span>
-          </div>
-          <button id="account-google-link-btn" type="button" class="hidden px-4 py-2 rounded-md border border-[var(--border-color)] bg-[var(--modal-bg)]" data-lang-key="bindGoogle">綁定 Google</button>
-        </div>
-        <p id="account-link-message" class="hidden text-sm text-[var(--text-secondary)]"></p>
-      </div>
-      <h3 class="text-lg font-semibold mb-3" data-lang-key="cloudSyncVault">雲端同步保險庫</h3>
-      <div class="space-y-4 max-w-2xl">
-        <div class="p-4 rounded-lg border border-[var(--border-color)] bg-[var(--input-field-bg)]">
-          <p id="sync-vault-account" class="text-sm font-medium"></p>
-          <p id="sync-vault-status" class="text-sm text-[var(--text-secondary)] mt-1"></p>
-        </div>
-        <p class="text-sm text-[var(--text-secondary)]" data-lang-key="cloudSyncVaultDesc">同步密碼只在您的裝置上用來加密 API 金鑰；密碼本身不會上傳或保存。</p>
-        <div id="sync-vault-cloud-only-panel" class="hidden p-4 rounded-lg border border-[var(--border-color)] bg-[var(--input-field-bg)] text-[var(--text-secondary)] text-sm" data-lang-key="cloudSyncRequiresCloudAccount">綁定 Email 或 Google 帳號後，才能設定同步密碼並使用雲端同步。</div>
-        <div id="sync-vault-create-panel" class="hidden space-y-3">
-          <input id="sync-vault-create-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordPlaceholder" placeholder="至少 10 碼的同步密碼">
-          <input id="sync-vault-create-confirmation" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordConfirm" placeholder="再次輸入同步密碼">
-          <button id="sync-vault-create-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="createCloudSyncPassword">建立同步密碼</button>
-        </div>
-        <div id="sync-vault-unlock-panel" class="hidden space-y-3">
-          <input id="sync-vault-unlock-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="current-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPassword" placeholder="同步密碼">
-          <button id="sync-vault-unlock-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="unlockCloudSync">解鎖雲端同步</button>
-          <button id="sync-vault-forgot-btn" type="button" class="block text-sm text-blue-600 hover:underline" data-lang-key="forgotCloudSyncPassword">忘記同步密碼</button>
-        </div>
-        <div id="sync-vault-recovery-panel" class="hidden space-y-3">
-          <p class="text-sm text-[var(--text-secondary)]" data-lang-key="cloudSyncRecoveryWarning">Email 驗證成功後可建立新同步密碼，既有加密同步資料會保留。</p>
-          <input id="sync-vault-recovery-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="newCloudSyncPassword" placeholder="新的同步密碼（至少 10 碼）">
-          <input id="sync-vault-recovery-confirmation" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordConfirm" placeholder="再次輸入同步密碼">
-          <button id="sync-vault-recovery-save-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirmCloudSyncPasswordReset">重設同步密碼</button>
-        </div>
-        <div id="sync-vault-unlocked-panel" class="hidden space-y-3">
-          <div class="flex flex-wrap gap-2">
-            <button id="sync-vault-lock-btn" type="button" class="px-4 py-2 rounded-md bg-[var(--hover-bg)]" data-lang-key="lockCloudSync">鎖定</button>
-            <button id="sync-vault-reset-btn" type="button" class="px-4 py-2 rounded-md text-red-600 bg-red-50" data-lang-key="resetCloudSyncPassword">清除同步密碼</button>
-          </div>
-          <div class="border-t border-[var(--border-color)] pt-4 space-y-3">
-            <h4 class="font-medium" data-lang-key="changeCloudSyncPassword">變更同步密碼</h4>
-            <input id="sync-vault-current-password" type="password" autocomplete="current-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="currentCloudSyncPassword" placeholder="目前同步密碼">
-            <input id="sync-vault-next-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="newCloudSyncPassword" placeholder="新的同步密碼（至少 10 碼）">
-            <input id="sync-vault-next-confirmation" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="cloudSyncPasswordConfirm" placeholder="再次輸入同步密碼">
-            <button id="sync-vault-change-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="saveCloudSyncPassword">儲存新密碼</button>
-          </div>
-        </div>
-      </div>
-    `;
-    section.innerHTML = buildUserSectionMarkup();
-    personalizationSection.before(section);
+    const { section } = ensureUserSettingsSection({
+      document,
+      getText: text,
+      minimumPasswordLength: syncVaultPolicy.minimumPasswordLength
+    });
+    if (!section || section.dataset.syncVaultEventsBound === 'true') return;
     bindEvents();
+    section.dataset.syncVaultEventsBound = 'true';
   };
 
   const setBusy = (nextBusy) => {
@@ -766,7 +690,7 @@ export function createSettingsSyncVaultControls({
     });
   };
 
-  window.addEventListener('astra:cloud-vault', () => {
+  window.addEventListener?.('astra:cloud-vault', () => {
     refreshSyncVaultControls().catch(error => console.warn('Cloud sync password status refresh failed:', error));
   });
 
