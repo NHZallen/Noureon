@@ -95,6 +95,8 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         councilMaxModels: COUNCIL_MAX_MODELS,
         aiBubbleColors: AI_BUBBLE_COLORS,
         userBubbleColors: USER_BUBBLE_COLORS,
+        resolveFolderColor = (color, _palette, fallback) => color || fallback,
+        folderColors = {},
         getActiveConversation,
         normalizeConversationModel,
         getModelApiId,
@@ -580,7 +582,9 @@ const historyMenuHelper = createSettingsHistoryMenuHelper({
     deleteChat,
     moveConversationToFolder,
     createNewFolder,
-    showCustomPrompt
+    showCustomPrompt,
+    resolveFolderColor,
+    folderColors
 });
 const {
     createHistoryMenu

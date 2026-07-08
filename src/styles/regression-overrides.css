@@ -680,7 +680,7 @@
     justify-content: center;
     width: 1rem;
     height: 1rem;
-    color: var(--text-secondary) !important;
+    color: var(--folder-icon-color, var(--text-secondary)) !important;
 }
 
 .folder-menu-icon .folder-icon-svg {

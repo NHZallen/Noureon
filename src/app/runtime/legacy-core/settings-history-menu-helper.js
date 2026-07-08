@@ -41,16 +41,19 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
     deleteChat,
     moveConversationToFolder,
     createNewFolder,
-    showCustomPrompt
+    showCustomPrompt,
+    resolveFolderColor = (color, _palette, fallback) => color || fallback,
+    folderColors = {}
   } = dependencies;
 
   const getTexts = () => i18n[getConfig().uiLanguage] || {};
 
   function renderFolderMoveOption(folder) {
     const svgPath = FOLDER_SVGS[folder.icon] || FOLDER_SVGS.default;
+    const iconColor = resolveFolderColor(folder.color, folderColors, folderColors.gray || '#808080');
     return `
       <button data-folder-id="${folder.id}" class="move-to-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm flex items-center gap-2">
-        <span class="folder-menu-icon flex-shrink-0 text-[var(--text-secondary)]" aria-hidden="true">
+        <span class="folder-menu-icon flex-shrink-0 text-[var(--text-secondary)]" style="--folder-icon-color: ${iconColor};" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="folder-icon-svg">
             ${svgPath}
           </svg>

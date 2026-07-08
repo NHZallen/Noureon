@@ -1139,6 +1139,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             councilMaxModels: COUNCIL_MAX_MODELS,
             aiBubbleColors: AI_BUBBLE_COLORS,
             userBubbleColors: USER_BUBBLE_COLORS,
+            resolveFolderColor,
+            folderColors: FOLDER_COLORS,
             getActiveConversation,
             normalizeConversationModel,
             getModelApiId,

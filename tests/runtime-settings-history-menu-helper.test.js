@@ -98,7 +98,7 @@ function createHarness(overrides = {}) {
     requestAnimationFrame: (callback) => callback(),
     getConfig: () => ({ uiLanguage: 'en' }),
     getConversations: () => [{ id: 'conv-1', pinned: false, folderId: null }],
-    getFolders: () => [{ id: 'folder-1', name: 'Work' }],
+    getFolders: () => [{ id: 'folder-1', name: 'Work', color: 'gray' }],
     i18n: {
       en: {
         pin: 'Pin',
@@ -125,6 +125,8 @@ function createHarness(overrides = {}) {
       calls.push(['prompt', ...args]);
       return 'Ideas';
     },
+    resolveFolderColor: (value, palette, fallback) => palette[value] || value || fallback,
+    folderColors: { gray: '#808080', blue: '#60a5fa' },
     ...overrides.dependencies
   });
   return { helper, calls, document, getPopover: () => existingPopover };
@@ -191,7 +193,7 @@ test('folder move and new folder actions use injected callbacks', async () => {
 test('folder move submenu shows saved folder svg without a new-folder divider', () => {
   const { helper, getPopover } = createHarness({
     dependencies: {
-      getFolders: () => [{ id: 'folder-1', name: 'Work', icon: 'star' }]
+      getFolders: () => [{ id: 'folder-1', name: 'Work', icon: 'star', color: 'blue' }]
     }
   });
   const targetButton = new FakeElement('button');
@@ -203,6 +205,7 @@ test('folder move submenu shows saved folder svg without a new-folder divider', 
 
   assert.match(submenuHtml, /folder-menu-icon/);
   assert.match(submenuHtml, /M11\.049 2\.927/);
+  assert.match(submenuHtml, /--folder-icon-color:\s*#60a5fa/);
   assert.doesNotMatch(submenuHtml, /border-t[\s\S]*new-folder-from-menu-btn/);
 });
 
