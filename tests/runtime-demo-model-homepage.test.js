@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { Window } from 'happy-dom';
 import { projectFile, readSource } from './helpers/source-guards.js';
 
@@ -11,6 +12,8 @@ const demoModuleExists = existsSync(demoModuleUrl);
 const demoModule = demoModuleExists ? await import(demoModuleUrl.href) : {};
 const { setupDemoModelHomepage } = demoModule;
 const demoModuleSource = demoModuleExists ? readSource(demoModulePath) : '';
+const shellFragmentSource = readSource('src/templates/fragments/00-shell.fragment.js');
+const { default: appShell } = await import(pathToFileURL(projectFile('src/templates/app-shell.js')).href);
 const domContentLoadedMarker = "document.addEventListener('DOMContentLoaded', () => {";
 const expectedModelIds = ['proMax', 'proPV', 'pro', 'plusPV', 'mini', 'mill', 'nano'];
 
@@ -188,4 +191,12 @@ test('legacy core removes the retired homepage demo section without lazy-loading
     demoModuleSource,
     /runtime-entry|app-bootstrap|startup-lifecycle|sidebar|settings|submit|input|globalThis/
   );
+});
+
+test('auth homepage shell no longer includes the retired model exploration section', () => {
+  for (const source of [shellFragmentSource, appShell]) {
+    assert.doesNotMatch(source, /data-lang-key=\\"exploreModels\\"|探索我們的 AI 模型/);
+    assert.doesNotMatch(source, /demo-model-selector|demo-chat-title|demo-chat-window/);
+    assert.doesNotMatch(source, /Noureon-ProMax 對話範例/);
+  }
 });
