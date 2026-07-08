@@ -25,6 +25,21 @@ test('cloud users receive a stable private local storage namespace', () => {
   assert.equal('password' in record, false);
 });
 
+test('cloud user records preserve synced profile name and avatar metadata', () => {
+  const record = createCloudUserRecord({
+    id: 'user-456',
+    email: 'profile@example.com',
+    user_metadata: {
+      profile_display_name: 'Synced Name',
+      full_name: 'Older Name',
+      profile_avatar_url: 'data:image/jpeg;base64,AVATAR'
+    }
+  });
+
+  assert.equal(record.displayName, 'Synced Name');
+  assert.equal(record.avatarUrl, 'data:image/jpeg;base64,AVATAR');
+});
+
 test('auth shell enhancement adds cloud, local, and import entry points', () => {
   const window = new Window();
   window.document.body.innerHTML = `

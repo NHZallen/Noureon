@@ -6,7 +6,7 @@ import { ensureUserSettingsSection } from '../src/app/runtime/legacy-core/settin
 import { createSettingsUserProfileControls } from '../src/app/runtime/legacy-core/settings-user-profile-controls.js';
 import { renderUserAvatar } from '../src/app/runtime/legacy-core/user-profile-view.js';
 
-function createFixture() {
+function createFixture(overrides = {}) {
   const window = new Window();
   window.document.body.innerHTML = `
     <div id="settings-modal">
@@ -32,6 +32,7 @@ function createFixture() {
       avatarUrl: 'data:image/png;base64,old-avatar'
     }
   };
+  const cloudSyncCalls = [];
   const controls = createSettingsUserProfileControls({
     window,
     document: window.document,
@@ -43,10 +44,15 @@ function createFixture() {
     setItem: async (key, value) => saved.set(key, value),
     getText: (_key, fallback) => fallback,
     showNotification: () => {},
-    imageCompressor: async (data, mimeType) => ({ data, mimeType })
+    imageCompressor: async (data, mimeType) => ({ data, mimeType }),
+    syncCloudUserProfile: async (payload) => {
+      cloudSyncCalls.push(payload);
+      return true;
+    },
+    ...overrides
   });
 
-  return { window, state, controls, saved };
+  return { window, state, controls, saved, cloudSyncCalls };
 }
 
 test('user settings shell includes display name and avatar controls', () => {
@@ -59,7 +65,7 @@ test('user settings shell includes display name and avatar controls', () => {
 });
 
 test('profile controls persist display name and update the sidebar summary', async () => {
-  const { window, state, controls, saved } = createFixture();
+  const { window, state, controls, saved, cloudSyncCalls } = createFixture();
   controls.bindUserProfileControls();
   controls.syncUserProfileControls();
 
@@ -70,6 +76,9 @@ test('profile controls persist display name and update the sidebar summary', asy
   assert.equal(JSON.parse(saved.get('user:alice')).displayName, 'Alicia');
   assert.equal(window.document.getElementById('username-display').textContent, 'Alicia');
   assert.equal(window.document.querySelector('.user-avatar img').src, 'data:image/png;base64,old-avatar');
+  assert.equal(cloudSyncCalls.length, 1);
+  assert.equal(cloudSyncCalls[0].displayName, 'Alicia');
+  assert.equal(cloudSyncCalls[0].avatarUrl, 'data:image/png;base64,old-avatar');
 });
 
 test('profile controls can remove the current avatar before saving', async () => {
@@ -83,6 +92,17 @@ test('profile controls can remove the current avatar before saving', async () =>
   assert.equal(state.currentUser.avatarUrl, undefined);
   assert.equal(JSON.parse(saved.get('user:alice')).avatarUrl, undefined);
   assert.equal(window.document.querySelector('.user-avatar').textContent, 'A');
+});
+
+test('profile controls create an adjustable avatar crop modal', () => {
+  const { window, controls } = createFixture();
+
+  controls.bindUserProfileControls();
+
+  assert.ok(window.document.getElementById('settings-user-avatar-crop-modal'));
+  assert.ok(window.document.getElementById('settings-user-avatar-crop-image'));
+  assert.ok(window.document.getElementById('settings-user-avatar-zoom-slider'));
+  assert.ok(window.document.getElementById('settings-user-avatar-crop-confirm-btn'));
 });
 
 test('renderUserAvatar falls back to the user initial when no image is set', () => {

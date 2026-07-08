@@ -13,17 +13,28 @@ const LEGACY_RETURN_LINK_CLASS = 'w-full text-sm text-gray-600 hover:text-gray-9
 const getCloudUsername = (user) => `${CLOUD_USER_PREFIX}${user.id}`;
 
 const getDisplayName = (user) => (
-  user.user_metadata?.full_name
+  user.user_metadata?.profile_display_name
+  || user.user_metadata?.display_name
+  || user.user_metadata?.full_name
   || user.user_metadata?.name
   || user.email?.split('@')[0]
   || 'Noureon User'
 );
 
+const getAvatarUrl = (user) => (
+  user.user_metadata?.profile_avatar_url
+  || user.user_metadata?.avatar_url
+  || user.user_metadata?.picture
+  || ''
+);
+
 export function createCloudUserRecord(user) {
+  const avatarUrl = getAvatarUrl(user);
   return {
     username: getCloudUsername(user),
     displayName: getDisplayName(user),
     email: user.email || '',
+    ...(avatarUrl ? { avatarUrl } : {}),
     supabaseUserId: user.id,
     authProvider: 'supabase'
   };
@@ -374,19 +385,24 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     elements.recoveryPanel.classList.remove('hidden');
     setLocalizedStatus(elements, 'authSetNewPasswordPrompt');
   } else if (session?.user) {
+    let activeUser = session.user;
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error && data?.user) activeUser = data.user;
+    } catch {}
     const completedLink = await completePendingCloudAccountLink({
       storage,
-      cloudUserRecord: createCloudUserRecord(session.user)
+      cloudUserRecord: createCloudUserRecord(activeUser)
     });
     if (completedLink) {
       window.location.reload();
       return { enabled: true, session };
     }
     const lastUsername = await storage.getItem('chat_lastUser');
-    if (lastUsername === getCloudUsername(session.user)) {
-      await persistCloudUser(storage, session.user);
+    if (lastUsername === getCloudUsername(activeUser)) {
+      await persistCloudUser(storage, activeUser);
     } else {
-      await finishCloudLogin({ window, elements, storage, user: session.user });
+      await finishCloudLogin({ window, elements, storage, user: activeUser });
     }
   } else {
     await clearStaleCloudUser(storage);
