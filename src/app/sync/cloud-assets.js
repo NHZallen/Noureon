@@ -73,7 +73,7 @@ export function createCloudAssetTransport({
       const { error } = await storageBucket.upload(path, blob, {
         cacheControl: '31536000',
         contentType: blob.type || 'application/octet-stream',
-        upsert: false
+        upsert: true
       });
       const duplicate = error && (String(error.statusCode) === '409' || /already exists|duplicate/i.test(error.message || ''));
       if (error && !duplicate) throw error;

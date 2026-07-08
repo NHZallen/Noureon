@@ -8,9 +8,11 @@ function createFixture() {
   const remoteFiles = new Map();
   const localFiles = new Map();
   const downloadCounts = new Map();
+  const uploadOptions = [];
   const bucket = {
-    async upload(path, blob) {
-      if (remoteFiles.has(path)) return { error: { statusCode: '409', message: 'already exists' } };
+    async upload(path, blob, options = {}) {
+      uploadOptions.push({ path, options });
+      if (remoteFiles.has(path) && !options.upsert) return { error: { statusCode: '409', message: 'already exists' } };
       remoteFiles.set(path, blob);
       return { error: null };
     },
@@ -25,6 +27,7 @@ function createFixture() {
     remoteFiles,
     localFiles,
     downloadCounts,
+    uploadOptions,
     supabase: { storage: { from: () => bucket } },
     storage: {
       getItem: async key => localFiles.get(key) ?? null,
@@ -50,6 +53,29 @@ test('cloud assets externalize and restore data URLs and inline attachment bytes
   assert.ok(cloudValue.avatarUrl.__astraCloudAsset);
   assert.ok(cloudValue.part.data.__astraCloudAsset);
   assert.deepEqual(await transport.hydrate(cloudValue), value);
+});
+
+test('cloud assets uploads are idempotent for existing hashed storage paths', async () => {
+  const fixture = createFixture();
+  const value = { avatarUrl: 'data:image/png;base64,AQID' };
+
+  const firstTransport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+  await firstTransport.externalize(value);
+
+  const secondTransport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+  await secondTransport.externalize(value);
+
+  assert.equal(fixture.remoteFiles.size, 1);
+  assert.equal(fixture.uploadOptions.length, 2);
+  assert.ok(fixture.uploadOptions.every(({ options }) => options.upsert === true));
 });
 
 test('cloud assets restore generated image blobs to their IndexedDB storage key', async () => {
