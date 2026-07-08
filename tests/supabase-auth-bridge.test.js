@@ -55,6 +55,11 @@ test('auth shell enhancement adds cloud, local, and import entry points', () => 
   assert.equal(googleLogo.getAttribute('height'), '20');
   assert.equal(googleLogo.getAttribute('alt'), '');
   assert.equal(googleLogo.getAttribute('aria-hidden'), 'true');
+  assert.equal(googleButton.dataset.langKey, undefined);
+  const googleLabel = googleButton.querySelector('[data-lang-key="authUseGoogleLogin"]');
+  assert.ok(googleLabel);
+  googleLabel.textContent = 'Continue with Google';
+  assert.ok(googleButton.querySelector('img'));
   assert.ok(window.document.getElementById('supabase-forgot-password-btn'));
   const localButton = window.document.getElementById('local-mode-btn');
   const importButton = window.document.getElementById('import-btn-auth');
