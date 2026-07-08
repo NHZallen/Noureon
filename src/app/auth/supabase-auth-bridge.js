@@ -9,6 +9,7 @@ const CLOUD_USER_PREFIX = 'supabase:';
 const LEGACY_ENTRY_BUTTON_CLASS = 'w-full p-3 rounded-lg font-semibold text-white bg-gray-800 hover:bg-gray-900 focus:outline-none transition-colors';
 const LEGACY_IMPORT_BUTTON_CLASS = 'w-full p-3 rounded-lg font-semibold text-white bg-gray-800 hover:bg-gray-900 focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed';
 const LEGACY_RETURN_LINK_CLASS = 'w-full text-sm text-gray-600 hover:text-gray-900 hover:underline';
+const CLOUD_PROFILE_REFRESH_TIMEOUT_MS = 1200;
 
 const getCloudUsername = (user) => `${CLOUD_USER_PREFIX}${user.id}`;
 
@@ -346,6 +347,20 @@ async function finishCloudLogin({ window, elements, storage, user }) {
   window.location.reload();
 }
 
+function refreshCloudUserWithTimeout(supabase, sessionUser, timeoutMs = CLOUD_PROFILE_REFRESH_TIMEOUT_MS) {
+  const refresh = supabase.auth.getUser()
+    .then(({ data, error }) => (error ? sessionUser : data?.user || sessionUser))
+    .catch(() => sessionUser);
+  let timer;
+  const timed = Promise.race([
+    refresh,
+    new Promise(resolve => {
+      timer = setTimeout(() => resolve(sessionUser), timeoutMs);
+    })
+  ]).finally(() => clearTimeout(timer));
+  return { refresh, timed };
+}
+
 export async function initializeSupabaseAuthBridge({ window, document } = globalThis) {
   if (!isSupabaseConfigured()) return { enabled: false };
 
@@ -355,12 +370,10 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
   if (!elements) return { enabled: true };
   const turnstile = createTurnstileClient({ window, document });
   if (turnstile.enabled) {
-    try {
-      await turnstile.mount('supabase-auth', elements.loginButton);
-    } catch (error) {
+    void turnstile.mount('supabase-auth', elements.loginButton).catch((error) => {
       setLocalizedStatus(elements, 'authTurnstileLoadError', 'error');
       console.error('Supabase auth Turnstile failed to initialize:', error);
-    }
+    });
   }
 
   const getCaptchaToken = () => {
@@ -385,11 +398,8 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     elements.recoveryPanel.classList.remove('hidden');
     setLocalizedStatus(elements, 'authSetNewPasswordPrompt');
   } else if (session?.user) {
-    let activeUser = session.user;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error && data?.user) activeUser = data.user;
-    } catch {}
+    const userRefresh = refreshCloudUserWithTimeout(supabase, session.user);
+    const activeUser = await userRefresh.timed;
     const completedLink = await completePendingCloudAccountLink({
       storage,
       cloudUserRecord: createCloudUserRecord(activeUser)
@@ -401,6 +411,10 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     const lastUsername = await storage.getItem('chat_lastUser');
     if (lastUsername === getCloudUsername(activeUser)) {
       await persistCloudUser(storage, activeUser);
+      void userRefresh.refresh.then((freshUser) => {
+        if (getCloudUsername(freshUser) !== lastUsername) return null;
+        return persistCloudUser(storage, freshUser, { reconcileOwner: false });
+      }).catch(() => {});
     } else {
       await finishCloudLogin({ window, elements, storage, user: activeUser });
     }

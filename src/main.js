@@ -32,7 +32,9 @@ async function bootstrap() {
   });
   mountAppShell(appShell);
   const auth = await initializeSupabaseAuthBridge({ window, document });
-  await initializeCloudWorkspaceSync({ window, session: auth.session });
+  void initializeCloudWorkspaceSync({ window, session: auth.session }).catch((error) => {
+    console.warn('Noureon cloud workspace sync will retry after startup:', error);
+  });
 
   await import('./data/i18n.js');
   await import('./data/demo-conversations.js');
