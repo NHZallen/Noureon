@@ -96,7 +96,7 @@ export function createSettingsUserProfileControls({
       <div class="bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-lg p-6">
         <h2 class="text-2xl font-bold mb-4">編輯使用者頭像</h2>
         <p class="text-sm text-[var(--text-secondary)] mb-4">拖曳選框調整頭像範圍，或用縮放滑桿調整圖片尺寸。</p>
-        <div class="w-full h-80 max-h-[55vh] mb-4 bg-gray-200 rounded-md overflow-hidden">
+        <div id="settings-user-avatar-crop-container" class="w-full h-80 max-h-[55vh] mb-4 bg-gray-200 rounded-md overflow-hidden">
           <img id="settings-user-avatar-crop-image" src="" alt="Avatar for cropping">
         </div>
         <label for="settings-user-avatar-zoom-slider" class="block text-sm font-medium mb-2">縮放</label>

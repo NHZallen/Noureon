@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
 import { ensureUserSettingsSection } from '../src/app/runtime/legacy-core/settings-user-section-shell.js';
 import { createSettingsUserProfileControls } from '../src/app/runtime/legacy-core/settings-user-profile-controls.js';
 import { renderUserAvatar } from '../src/app/runtime/legacy-core/user-profile-view.js';
+
+const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 function createFixture(overrides = {}) {
   const window = new Window();
@@ -100,9 +103,18 @@ test('profile controls create an adjustable avatar crop modal', () => {
   controls.bindUserProfileControls();
 
   assert.ok(window.document.getElementById('settings-user-avatar-crop-modal'));
+  assert.ok(window.document.getElementById('settings-user-avatar-crop-container'));
   assert.ok(window.document.getElementById('settings-user-avatar-crop-image'));
   assert.ok(window.document.getElementById('settings-user-avatar-zoom-slider'));
   assert.ok(window.document.getElementById('settings-user-avatar-crop-confirm-btn'));
+});
+
+test('profile avatar cropper uses a circular crop frame', () => {
+  const css = readSource('src/styles/personalization.css');
+
+  assert.match(css, /#settings-user-avatar-crop-container\s+\.cropper-view-box/);
+  assert.match(css, /#settings-user-avatar-crop-container\s+\.cropper-face/);
+  assert.match(css, /border-radius:\s*50%/);
 });
 
 test('renderUserAvatar falls back to the user initial when no image is set', () => {

@@ -559,8 +559,17 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
         flex-shrink: 0;
     }
     #avatar-crop-container .cropper-view-box,
-    #avatar-crop-container .cropper-face {
+    #avatar-crop-container .cropper-face,
+    #settings-user-avatar-crop-container .cropper-view-box,
+    #settings-user-avatar-crop-container .cropper-face {
         border-radius: 50%;
+    }
+    #settings-user-avatar-crop-container .cropper-view-box {
+        outline: 2px solid var(--button-primary-bg);
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+    }
+    #settings-user-avatar-crop-container .cropper-face {
+        background-color: transparent;
     }
     body.custom-wallpaper-active .astras-store-card {
     background-color: rgba(255, 255, 255, 0.65) !important;
