@@ -2,6 +2,7 @@ import { createAppBootstrapComposition } from '../../legacy-runtime/features/app
 import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/store-navigation-lifecycle.js';
 import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
+import { renderUserProfileSummary } from '../legacy-core/user-profile-view.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -184,9 +185,11 @@ export function createLegacyAppBootstrapLifecycle({
             ALL_ELEMENTS.sidebar.classList.remove('open');
             ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
         }
-                const currentUserLabel = currentUser.displayName || currentUser.email || currentUser.username;
-                ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;
-                document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
+                renderUserProfileSummary({
+                    usernameDisplay: ALL_ELEMENTS.usernameDisplay,
+                    avatarElement: document.querySelector('.user-avatar'),
+                    user: currentUser
+                });
                 enhanceSettingsLogoutButton();
                 const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
                 await startNewChat();
@@ -258,11 +261,13 @@ export function createLegacyAppBootstrapLifecycle({
                     };
                 })();
                 ALL_ELEMENTS.settingsModal.addEventListener('change', (event) => {
+                    if (event.target.closest('#settings-user-profile-panel')) return;
                     if (event.target.closest('#settings-modal')) {
                         saveSettings({ close: false, notify: false });
                     }
                 });
                 ALL_ELEMENTS.settingsModal.addEventListener('input', (event) => {
+                    if (event.target.closest('#settings-user-profile-panel')) return;
                     if (event.target.matches('input, textarea')) {
                         scheduleInstantSettingsSave();
                     }

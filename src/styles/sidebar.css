@@ -137,11 +137,20 @@
     align-items: center;
     justify-content: center;
     font-weight: 600;
+    overflow: hidden;
     flex-shrink: 0; /* 防止頭像被壓縮 */
 }
 
 
 /* 獨立的設定圖示按鈕 */
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+
 #settings-btn {
     width: 2.75rem; /* 讓它和使用者卡片差不多高 */
     height: 2.75rem;

@@ -21,10 +21,12 @@ function createFakeDom() {
   const calls = [];
   const listeners = [];
   const elementsById = new Map();
+  let document;
 
   const createElement = (id) => {
     const element = {
       id,
+      ownerDocument: document,
       value: '',
       textContent: '',
       innerHTML: '',
@@ -57,6 +59,11 @@ function createFakeDom() {
         calls.push(`append:${id}:${child.id || 'node'}`);
         return child;
       },
+      replaceChildren(...children) {
+        this.textContent = '';
+        this.innerHTML = '';
+        calls.push(`replaceChildren:${id}:${children.length}`);
+      },
       querySelector(selector) {
         return getElement(`${id}:${selector}`);
       },
@@ -87,7 +94,7 @@ function createFakeDom() {
     }
   });
 
-  const document = {
+  document = {
     body: getElement('body'),
     documentElement: getElement('documentElement'),
     getElementById: getElement,

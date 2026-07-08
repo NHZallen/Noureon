@@ -15,6 +15,7 @@ import { createSettingsThemeBubbleControls } from './settings-theme-bubble-contr
 import { createSettingsMobileShellHelper } from './settings-mobile-shell-helper.js';
 import { createSettingsDesktopSectionHelper } from './settings-desktop-section-helper.js';
 import { ensureUserSettingsSection } from './settings-user-section-shell.js';
+import { createSettingsUserProfileControls } from './settings-user-profile-controls.js';
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
@@ -419,6 +420,20 @@ const {
     activateDesktopSettingsSection,
     syncSettingsSectionForViewport
 } = desktopSectionHelper;
+const userProfileControls = createSettingsUserProfileControls({
+    window,
+    document,
+    elements: ALL_ELEMENTS,
+    state,
+    getUserKey,
+    setItem,
+    getText: getSettingsText,
+    showNotification
+});
+const {
+    bindUserProfileControls,
+    syncUserProfileControls
+} = userProfileControls;
 let syncVaultControlsPromise;
 const loadSyncVaultControls = () => {
     if (!syncVaultControlsPromise) {
@@ -462,6 +477,8 @@ const ensureAutoWebSearchSettingsControl = () => {
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
     ensureUserSettingsSection({ document, getText: getSettingsText });
+    bindUserProfileControls();
+    syncUserProfileControls();
     ensureAutoWebSearchSettingsControl();
     ensureCouncilTranslatorSettingsControls();
     ensureOutputModeSettingsControls();

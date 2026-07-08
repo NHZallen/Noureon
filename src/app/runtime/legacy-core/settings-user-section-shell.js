@@ -7,6 +7,25 @@ const resolveText = (getText, key, fallback) => (
 export function buildUserSettingsSectionMarkup({ minimumPasswordLength = DEFAULT_SYNC_PASSWORD_LENGTH } = {}) {
   return `
       <div class="max-w-3xl">
+        <div id="settings-user-profile-panel" class="pb-8">
+          <div class="pb-4">
+            <h3 class="text-lg font-semibold">使用者資料</h3>
+            <p class="mt-2 text-sm text-[var(--text-secondary)]">更新顯示名稱，或上傳一張會同步顯示在側邊欄的使用者頭像。</p>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-5 border-t border-b border-[var(--border-color)] py-5">
+            <div id="settings-user-avatar-preview" class="w-20 h-20 rounded-full bg-[var(--button-primary-bg)] text-[var(--button-primary-text)] flex items-center justify-center text-2xl font-semibold overflow-hidden shrink-0"></div>
+            <div class="min-w-0 flex-1 space-y-3">
+              <label for="settings-user-display-name-input" class="block text-sm font-medium">顯示名稱</label>
+              <input id="settings-user-display-name-input" type="text" maxlength="64" autocomplete="name" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="使用者名稱">
+              <input id="settings-user-avatar-input" type="file" accept="image/*" class="hidden">
+              <div class="flex flex-wrap items-center gap-3">
+                <button id="settings-user-avatar-upload-btn" type="button" class="px-4 py-2 rounded-md border border-[var(--border-color)] bg-transparent hover:bg-[var(--hover-bg)]">編輯頭像</button>
+                <button id="settings-user-avatar-remove-btn" type="button" class="px-4 py-2 rounded-md bg-transparent text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]">移除頭像</button>
+                <button id="settings-user-profile-save-btn" type="button" class="px-4 py-2 rounded-md btn-primary">儲存</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="pb-6">
           <h3 class="text-lg font-semibold" data-lang-key="accountLinking">帳號綁定</h3>
           <p class="mt-2 text-sm text-[var(--text-secondary)]" data-lang-key="accountLinkingDesc">綁定 Email、Google 其中一種即可使用雲端功能，也可以兩種都綁定。</p>
