@@ -389,7 +389,7 @@
     height: 2.15rem;
     min-height: 2.15rem;
     padding: 0;
-    border: 0;
+    border: 1px solid var(--border-color);
     border-radius: 999px;
     background: #ffffff;
     box-shadow: none;

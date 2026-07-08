@@ -36,7 +36,7 @@ test('model council manager uses compact pills and a bounded scroll area', () =>
   assert.match(css, /\.council-enable-pill\.is-active[^{]*\{[^}]*background:\s*#ffffff\s!important;[^}]*color:\s*var\(--button-primary-bg\)\s!important;/s);
   assert.match(css, /\.council-search-toggle\.is-active[^{]*\{[^}]*background:\s*#ffffff\s!important;[^}]*color:\s*var\(--button-primary-bg\)\s!important;/s);
   assert.match(css, /\.model-council-popover\s+\.council-mode-tabs button:not\(\.active\)[^{]*\{[^}]*border-color:\s*transparent\s!important;[^}]*background:\s*transparent\s!important;/s);
-  assert.match(css, /\.council-mode-tabs[^{]*\{[^}]*height:\s*2\.15rem;[^}]*border:\s*0;[^}]*background:\s*#ffffff;[^}]*box-shadow:\s*none;/s);
+  assert.match(css, /\.council-mode-tabs[^{]*\{[^}]*height:\s*2\.15rem;[^}]*border:\s*1px\s+solid\s+var\(--border-color\);[^}]*background:\s*#ffffff;[^}]*box-shadow:\s*none;/s);
   assert.match(css, /\.council-mode-tabs button\.active[^{]*\{[^}]*border-color:\s*transparent\s!important;[^}]*background:\s*transparent\s!important;[^}]*color:\s*var\(--button-primary-bg\)\s!important;[^}]*box-shadow:\s*none;/s);
   assert.match(css, /\.council-section-title[^{]*\{[^}]*position:\s*sticky\s!important;[^}]*top:\s*0\s!important;[^}]*text-transform:\s*none\s!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-config-row[^{]*\{[^}]*flex-direction:\s*column\s!important;/s);
