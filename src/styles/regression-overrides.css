@@ -415,7 +415,7 @@
 .council-mode-tabs button.active {
     border-color: #000000 !important;
     background: #ffffff !important;
-    color: #111827;
+    color: #111827 !important;
 }
 
 .council-section {

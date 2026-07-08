@@ -38,6 +38,53 @@ function createButton(document, { id, text, className }) {
   return button;
 }
 
+const AUTH_FALLBACK_TEXT = {
+  authEmail: 'Email',
+  authLoginCreateAccount: '登入 / 建立帳號',
+  authUseGoogleLogin: '使用 Google 登入',
+  authUseLegacyLocalLogin: '使用舊版本機登入 / 匯入',
+  authLegacyAccount: '舊版帳號 / 本機名稱',
+  authLegacyAccountPlaceholder: '輸入舊版帳號或新的本機名稱',
+  authLegacyPasswordPlaceholder: '舊版密碼或新的本機密碼',
+  authLocalLoginRegister: '登入 / 註冊本機帳號',
+  authConfirmImportLogin: '確認匯入並登入',
+  authBackToCloudLogin: '返回 Email / Google 登入',
+  authOr: '或',
+  resetLoginPasswordTitle: '重設登入密碼',
+  newLoginPasswordPlaceholder: '新的登入密碼（至少 8 碼）',
+  confirmNewLoginPasswordPlaceholder: '再次輸入新的登入密碼',
+  resetLoginPasswordButton: '重設密碼',
+  accountPassword: '登入密碼（至少 8 碼）',
+  forgotLoginPassword: '忘記登入密碼',
+  importRecords: '匯入紀錄'
+};
+
+function getAuthI18n(document) {
+  return document.defaultView?.i18n || globalThis.i18n || globalThis.window?.i18n || {};
+}
+
+function getAuthLanguage(document) {
+  return document.documentElement?.lang || 'zh-TW';
+}
+
+function getAuthText(document, key) {
+  const i18n = getAuthI18n(document);
+  const language = getAuthLanguage(document);
+  return i18n[language]?.[key] || i18n['zh-TW']?.[key] || AUTH_FALLBACK_TEXT[key] || key;
+}
+
+function setLocalizedText(document, element, key) {
+  if (!element) return;
+  element.dataset.langKey = key;
+  element.textContent = getAuthText(document, key);
+}
+
+function setLocalizedPlaceholder(document, element, key) {
+  if (!element) return;
+  element.dataset.langKeyPlaceholder = key;
+  element.placeholder = getAuthText(document, key);
+}
+
 export function enhanceAuthShell(document) {
   const form = document.getElementById('auth-form');
   const emailInput = document.getElementById('username-input');
@@ -47,18 +94,15 @@ export function enhanceAuthShell(document) {
   if (!form || !emailInput || !passwordInput || !loginButton) return null;
 
   const emailLabel = document.querySelector('label[for="username-input"]');
-  const setAccountLabel = (text) => {
-    if (!emailLabel) return;
-    emailLabel.removeAttribute('data-lang-key');
-    emailLabel.textContent = text;
-  };
 
   const googleButton = createButton(document, {
     id: 'supabase-google-btn',
-    text: '使用 Google 登入',
+    text: getAuthText(document, 'authUseGoogleLogin'),
     className: 'w-full p-3 rounded-lg font-semibold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors'
   });
+  googleButton.dataset.langKey = 'authUseGoogleLogin';
   googleButton.classList.add('flex', 'items-center', 'justify-center', 'gap-2');
+
   const googleLogo = document.createElement('img');
   googleLogo.src = '/google-g-logo.png';
   googleLogo.width = 20;
@@ -67,19 +111,25 @@ export function enhanceAuthShell(document) {
   googleLogo.className = 'flex-shrink-0 object-contain';
   googleLogo.setAttribute('aria-hidden', 'true');
   googleButton.prepend(googleLogo);
+
   const forgotButton = createButton(document, {
     id: 'supabase-forgot-password-btn',
-    text: '忘記密碼？',
+    text: getAuthText(document, 'forgotLoginPassword'),
     className: 'w-full text-sm text-blue-700 hover:underline'
   });
+  forgotButton.dataset.langKey = 'forgotLoginPassword';
+
   const localButton = createButton(document, {
     id: 'local-mode-btn',
-    text: '使用舊版本機登入 / 匯入',
+    text: getAuthText(document, 'authUseLegacyLocalLogin'),
     className: LEGACY_ENTRY_BUTTON_CLASS
   });
+  localButton.dataset.langKey = 'authUseLegacyLocalLogin';
+
   const divider = document.createElement('div');
   divider.className = 'flex items-center gap-3 py-1 text-xs text-gray-400';
-  divider.innerHTML = '<span class="h-px flex-1 bg-gray-200"></span><span>或</span><span class="h-px flex-1 bg-gray-200"></span>';
+  divider.innerHTML = '<span class="h-px flex-1 bg-gray-200"></span><span data-lang-key="authOr"></span><span class="h-px flex-1 bg-gray-200"></span>';
+  setLocalizedText(document, divider.querySelector('[data-lang-key="authOr"]'), 'authOr');
 
   loginButton.after(forgotButton, divider, googleButton, localButton);
 
@@ -92,14 +142,14 @@ export function enhanceAuthShell(document) {
   recoveryPanel.id = 'supabase-recovery-form';
   recoveryPanel.className = 'hidden space-y-4';
   recoveryPanel.innerHTML = `
-    <h3 class="text-xl font-bold text-center text-gray-800">設定新密碼</h3>
+    <h3 class="text-xl font-bold text-center text-gray-800" data-lang-key="resetLoginPasswordTitle">${getAuthText(document, 'resetLoginPasswordTitle')}</h3>
     <input id="supabase-new-password" type="password" minlength="8" autocomplete="new-password" required
       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-      placeholder="新密碼，至少 8 個字元">
+      data-lang-key-placeholder="newLoginPasswordPlaceholder" placeholder="${getAuthText(document, 'newLoginPasswordPlaceholder')}">
     <input id="supabase-confirm-password" type="password" minlength="8" autocomplete="new-password" required
       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-      placeholder="再次輸入新密碼">
-    <button type="submit" class="w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700">更新密碼</button>
+      data-lang-key-placeholder="confirmNewLoginPasswordPlaceholder" placeholder="${getAuthText(document, 'confirmNewLoginPasswordPlaceholder')}">
+    <button type="submit" class="w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700" data-lang-key="resetLoginPasswordButton">${getAuthText(document, 'resetLoginPasswordButton')}</button>
   `;
   status.after(recoveryPanel);
 
@@ -111,24 +161,21 @@ export function enhanceAuthShell(document) {
   const setCloudMode = () => {
     form.dataset.authMode = 'cloud';
     delete form.dataset.importTargetUser;
-    setAccountLabel('Email');
+    setLocalizedText(document, emailLabel, 'authEmail');
     emailInput.type = 'email';
     emailInput.autocomplete = 'email';
     emailInput.placeholder = 'name@example.com';
-    emailInput.removeAttribute('data-lang-key-placeholder');
+    delete emailInput.dataset.langKeyPlaceholder;
     passwordInput.autocomplete = 'current-password';
-    passwordInput.placeholder = '至少 8 個字元';
-    passwordInput.removeAttribute('data-lang-key-placeholder');
-    loginButton.removeAttribute('data-lang-key');
-    loginButton.textContent = '登入 / 建立帳號';
+    setLocalizedPlaceholder(document, passwordInput, 'accountPassword');
+    setLocalizedText(document, loginButton, 'authLoginCreateAccount');
     googleButton.classList.remove('hidden');
     forgotButton.classList.remove('hidden');
     divider.classList.remove('hidden');
-    localButton.textContent = '使用舊版本機登入 / 匯入';
+    setLocalizedText(document, localButton, 'authUseLegacyLocalLogin');
     localButton.className = LEGACY_ENTRY_BUTTON_CLASS;
     if (importButton) {
-      importButton.removeAttribute('data-lang-key');
-      importButton.textContent = '匯入舊版紀錄';
+      setLocalizedText(document, importButton, 'importRecords');
       importButton.disabled = false;
       importButton.className = `${LEGACY_IMPORT_BUTTON_CLASS} hidden`;
       localButton.after(importButton);
@@ -142,22 +189,20 @@ export function enhanceAuthShell(document) {
     } else {
       delete form.dataset.importTargetUser;
     }
-    setAccountLabel('舊版帳號 / 本機名稱');
+    setLocalizedText(document, emailLabel, 'authLegacyAccount');
     emailInput.type = 'text';
     emailInput.autocomplete = 'username';
-    emailInput.placeholder = '輸入舊版帳號或新的本機名稱';
+    setLocalizedPlaceholder(document, emailInput, 'authLegacyAccountPlaceholder');
     passwordInput.autocomplete = 'current-password';
-    passwordInput.placeholder = '舊版密碼或新的本機密碼';
-    loginButton.removeAttribute('data-lang-key');
-    loginButton.textContent = importTargetUser ? '稍後再匯入，直接進入' : '登入 / 註冊本機帳號';
+    setLocalizedPlaceholder(document, passwordInput, 'authLegacyPasswordPlaceholder');
+    setLocalizedText(document, loginButton, importTargetUser ? 'authConfirmImportLogin' : 'authLocalLoginRegister');
     googleButton.classList.add('hidden');
     forgotButton.classList.add('hidden');
     divider.classList.add('hidden');
-    localButton.textContent = '返回 Email / Google 登入';
+    setLocalizedText(document, localButton, 'authBackToCloudLogin');
     localButton.className = LEGACY_RETURN_LINK_CLASS;
     if (importButton) {
-      importButton.removeAttribute('data-lang-key');
-      importButton.textContent = '匯入紀錄';
+      setLocalizedText(document, importButton, 'importRecords');
       importButton.className = LEGACY_IMPORT_BUTTON_CLASS;
       localButton.before(importButton);
       updateLocalImportButton();

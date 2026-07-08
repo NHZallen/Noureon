@@ -101,9 +101,49 @@ export function createCouncilControlsLifecycle(deps) {
         : validation.message)
       : texts.disabled;
     const searchDisabled = isLocked || conversation.archived || !supportsCouncilSearch;
+    const listSeparator = ' · ';
+    const localizedCouncilLabels = {
+      'zh-TW': {
+        ability: '能力',
+        document: '文件',
+        noExtraAbility: '文字 / 檔案',
+        price: '價格',
+        provider: '供應商',
+        providerCount: '個供應商',
+        search: '搜尋',
+        searchModels: '搜尋模型',
+        vision: '視覺'
+      },
+      en: {
+        ability: 'Capabilities',
+        document: 'Documents',
+        noExtraAbility: 'Text / file',
+        price: 'Price',
+        provider: 'Provider',
+        providerCount: 'providers',
+        search: 'Search',
+        searchModels: 'Search models',
+        vision: 'Vision'
+      },
+      fr: {
+        ability: 'Capacités',
+        document: 'Documents',
+        noExtraAbility: 'Texte / fichier',
+        price: 'Prix',
+        provider: 'Fournisseur',
+        providerCount: 'fournisseurs',
+        search: 'Rechercher',
+        searchModels: 'Rechercher des modèles',
+        vision: 'Vision'
+      }
+    };
     const searchTitle = supportsCouncilSearch
       ? (conversation.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : (languageText.search || 'Search'))
       : (languageText.webSearchNotAvailable || 'Web search is not available for this model.');
+    Object.assign(labels, localizedCouncilLabels[language] || localizedCouncilLabels['zh-TW'], {
+      done: languageText.done || languageText.confirm || localizedCouncilLabels[language]?.done || 'Done',
+      search: languageText.search || localizedCouncilLabels[language]?.search || localizedCouncilLabels['zh-TW'].search
+    });
 
     const makeModelTooltip = (model) => {
       const abilities = [
@@ -189,7 +229,7 @@ export function createCouncilControlsLifecycle(deps) {
                 </div>
               </div>
               <div class="council-action-cluster">
-                <button type="button" id="model-council-search-toggle" class="council-search-toggle ${conversation.isWebSearchEnabled ? 'is-active' : ''}" aria-pressed="${conversation.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabled ? 'disabled' : ''}><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg><span>${escapeHTML(labels.search)}</span></button>
+                <button type="button" id="model-council-search-toggle" class="council-search-toggle ${conversation.isWebSearchEnabled ? 'is-active' : ''}" aria-pressed="${conversation.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabled ? 'disabled' : ''}><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg><span>${escapeHTML(labels.search)}</span></button>
                 <label class="council-model-search-field" title="${escapeHTML(labels.searchModels)}"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg><input type="search" data-council-model-search value="${escapeHTML(previousModelSearch)}" placeholder="${escapeHTML(labels.searchModels)}" aria-label="${escapeHTML(labels.searchModels)}" autocomplete="off"></label>
               </div>
             </div>
