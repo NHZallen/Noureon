@@ -388,10 +388,10 @@
     gap: 0.25rem;
     height: 2.15rem;
     min-height: 2.15rem;
-    padding: 0.18rem;
-    border: 1px solid var(--border-color);
+    padding: 0;
+    border: 0;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--input-field-bg) 86%, var(--text-secondary) 6%);
+    background: #ffffff;
     box-shadow: none;
 }
 
@@ -416,8 +416,8 @@
 }
 
 .council-mode-tabs button.active {
-    border-color: var(--border-color) !important;
-    background: #ffffff !important;
+    border-color: transparent !important;
+    background: transparent !important;
     color: var(--button-primary-bg) !important;
     box-shadow: none;
 }
