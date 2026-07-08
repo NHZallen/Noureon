@@ -386,17 +386,19 @@
 
 .council-mode-tabs {
     gap: 0.25rem;
-    padding: 0.2rem;
+    height: 2.15rem;
+    min-height: 2.15rem;
+    padding: 0.18rem;
     border: 1px solid var(--border-color);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--input-field-bg) 78%, var(--text-secondary) 8%);
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+    background: color-mix(in srgb, var(--input-field-bg) 86%, var(--text-secondary) 6%);
+    box-shadow: none;
 }
 
 .council-mode-tabs button {
-    height: auto;
+    height: 100%;
     min-height: 0;
-    padding: 0.3rem 0.65rem;
+    padding: 0 0.75rem;
     border: 1px solid transparent;
     border-radius: 999px;
     background: transparent;
@@ -414,10 +416,10 @@
 }
 
 .council-mode-tabs button.active {
-    border-color: color-mix(in srgb, var(--button-primary-bg) 34%, var(--border-color)) !important;
+    border-color: var(--border-color) !important;
     background: #ffffff !important;
     color: var(--button-primary-bg) !important;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    box-shadow: none;
 }
 
 .council-section {
