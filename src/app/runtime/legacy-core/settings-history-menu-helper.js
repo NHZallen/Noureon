@@ -1,3 +1,5 @@
+import { FOLDER_SVGS } from '../../legacy-runtime/data/folder-metadata.js';
+
 const REQUIRED_DEPENDENCIES = [
   'window',
   'document',
@@ -44,6 +46,20 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
 
   const getTexts = () => i18n[getConfig().uiLanguage] || {};
 
+  function renderFolderMoveOption(folder) {
+    const svgPath = FOLDER_SVGS[folder.icon] || FOLDER_SVGS.default;
+    return `
+      <button data-folder-id="${folder.id}" class="move-to-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm flex items-center gap-2">
+        <span class="folder-menu-icon flex-shrink-0 text-[var(--text-secondary)]" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="folder-icon-svg">
+            ${svgPath}
+          </svg>
+        </span>
+        <span class="min-w-0 truncate">${folder.name}</span>
+      </button>
+    `;
+  }
+
   function createHistoryMenu(convId, targetButton) {
     const existingPopover = document.getElementById('history-popover');
     if (existingPopover) {
@@ -80,9 +96,8 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
                     <span>${texts.moveToFolder || '移至資料夾'}</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </button>
-                <div class="absolute left-full top-0 w-48 rounded-lg border border-[var(--border-color)] bg-[var(--modal-bg)] hidden group-hover:block">
-                    ${folders.map((folder) => `<button data-folder-id="${folder.id}" class="move-to-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${folder.name}</button>`).join('')}
-                        <div class="border-t my-1 border-[var(--border-color)]"></div>
+                <div class="move-folder-submenu absolute left-full top-0 w-48 rounded-lg border border-[var(--border-color)] bg-[var(--modal-bg)] hidden group-hover:block">
+                    ${folders.map((folder) => renderFolderMoveOption(folder)).join('')}
                         <button class="new-folder-from-menu-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.createNewFolder || '建立新資料夾'}</button>
                     </div>
                 </div>

@@ -188,6 +188,24 @@ test('folder move and new folder actions use injected callbacks', async () => {
   ]);
 });
 
+test('folder move submenu shows saved folder svg without a new-folder divider', () => {
+  const { helper, getPopover } = createHarness({
+    dependencies: {
+      getFolders: () => [{ id: 'folder-1', name: 'Work', icon: 'star' }]
+    }
+  });
+  const targetButton = new FakeElement('button');
+  targetButton.id = 'target-folder-icon';
+
+  helper.createHistoryMenu('conv-1', targetButton);
+  const html = getPopover().innerHTML;
+  const submenuHtml = html.match(/<div class="move-folder-submenu[\s\S]*?<\/div>\s*<\/div>/)?.[0] || '';
+
+  assert.match(submenuHtml, /folder-menu-icon/);
+  assert.match(submenuHtml, /M11\.049 2\.927/);
+  assert.doesNotMatch(submenuHtml, /border-t[\s\S]*new-folder-from-menu-btn/);
+});
+
 test('move-out action is wired for foldered conversations', () => {
   const { helper, calls, getPopover } = createHarness({
     dependencies: {
