@@ -491,6 +491,8 @@
         model_qwen3_7_max_desc_tier_paid: '百萬輸入/1.25$、百萬輸出/3.75$',
         model_qwen3_7_plus_desc_tier_paid: '百萬輸入/0.32$、百萬輸出/1.28$',
         model_qwen3_5_flash_02_23_desc_tier_paid: '百萬輸入/0.065$、百萬輸出/0.26$',
+        // xAI Paid
+        model_grok_4_5_desc_tier_paid: '百萬輸入/2$、百萬輸出/6$',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '百萬輸入/0.3$、百萬輸出/1.2$',
         // Z.AI Paid

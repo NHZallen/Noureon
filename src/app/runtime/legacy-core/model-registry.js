@@ -63,6 +63,9 @@ export const MODELS = [
     { id: 'qwen/qwen3.7-plus', name: 'Qwen3.7 Plus', provider: 'openrouter', descriptionKey: 'model_qwen3_7_plus_desc', category: 'general' },
     { id: 'qwen/qwen3.7-max', name: 'Qwen3.7 Max', provider: 'openrouter', descriptionKey: 'model_qwen3_7_max_desc', category: 'general' },
 
+    // OpenRouter Paid Models (xAI)
+    { id: 'x-ai/grok-4.5', name: 'xAI Grok 4.5', provider: 'openrouter', descriptionKey: 'model_grok_4_5_desc', category: 'general' },
+
     // OpenRouter Paid Models (Xiaomi)
     { id: 'xiaomi/mimo-v2.5', name: 'Xiaomi MiMo V2.5', provider: 'openrouter', descriptionKey: 'model_mimo_v2_5_desc', category: 'general' },
     { id: 'xiaomi/mimo-v2.5-pro', name: 'Xiaomi MiMo V2.5 Pro', provider: 'openrouter', descriptionKey: 'model_mimo_v2_5_pro_desc', category: 'general' },
@@ -94,6 +97,7 @@ export const OPENROUTER_VISION_MODELS = [
     'openai/gpt-5.5',
     'qwen/qwen3.5-flash-02-23',
     'qwen/qwen3.7-plus',
+    'x-ai/grok-4.5',
     'xiaomi/mimo-v2.5'
 ];
 export const NVIDIA_VISION_MODELS = [
@@ -138,7 +142,8 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-3.1-flash-lite-image', 'google/gemini-3.1-flash-image']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
-    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.4-nano', 'openai/gpt-5.4-mini', 'openai/gpt-5.4', 'openai/gpt-5.5']]
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.4-nano', 'openai/gpt-5.4-mini', 'openai/gpt-5.4', 'openai/gpt-5.5']],
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'high', ['x-ai/grok-4.5']]
 ]);
 export const COUNCIL_MIN_MODELS = 2;
 export const COUNCIL_MAX_MODELS = 5;

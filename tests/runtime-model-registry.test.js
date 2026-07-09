@@ -28,6 +28,7 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'gemini-3.5-flash' && model.provider === 'gemini'));
   assert.ok(MODELS.some((model) => model.id === 'step-plan/step-3.7-flash' && model.provider === 'stepfun'));
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.5' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'tencent/hy3:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.provider === 'nvidia'));
   assert.ok(MODELS.some((model) => model.id === CHEAP_MODEL_ID));
@@ -49,6 +50,7 @@ test('model registry preserves provider labels and API id aliases', () => {
 test('model registry preserves vision and document capability behavior', () => {
   const geminiModel = MODELS.find((model) => model.id === 'gemini-3.5-flash');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
+  const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
   const openRouterTextModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash');
   const openRouterHy3Model = MODELS.find((model) => model.id === 'tencent/hy3:free');
   const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
@@ -57,6 +59,7 @@ test('model registry preserves vision and document capability behavior', () => {
 
   assert.equal(modelSupportsVision(geminiModel), true);
   assert.equal(modelSupportsVision(openRouterVisionModel), true);
+  assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsVision(openRouterTextModel), false);
   assert.equal(modelSupportsVision(openRouterHy3Model), false);
   assert.equal(modelSupportsVision(nvidiaVisionModel), true);
@@ -64,6 +67,7 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsVision(stepVisionModel), true);
 
   assert.equal(modelSupportsDocumentUpload(geminiModel), true);
+  assert.equal(modelSupportsDocumentUpload(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterTextModel), true);
   assert.deepEqual(getModelTiers(openRouterHy3Model), ['free']);
   assert.equal(openRouterHy3Model.retirementDate, '2026-07-21');
@@ -72,12 +76,16 @@ test('model registry preserves vision and document capability behavior', () => {
 
 test('model registry exposes precise reasoning depth options for supported models only', () => {
   const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-pro');
+  const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-5.4');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['high', 'xhigh']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'high');
   assert.equal(getReasoningEffortLabel('xhigh', 'zh-TW'), '超高');
+
+  assert.deepEqual(getModelReasoningConfig(grokModel)?.options, ['low', 'medium', 'high']);
+  assert.equal(normalizeReasoningEffort(grokModel, 'max'), 'high');
 
   assert.deepEqual(getModelReasoningConfig(openAiModel)?.options, ['none', 'low', 'medium', 'high', 'xhigh']);
   assert.equal(normalizeReasoningEffort(openAiModel, 'none'), 'none');

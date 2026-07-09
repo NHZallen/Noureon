@@ -491,6 +491,8 @@
         model_qwen3_7_max_desc_tier_paid: '$1.25/M input, $3.75/M output',
         model_qwen3_7_plus_desc_tier_paid: '$0.32/M input, $1.28/M output',
         model_qwen3_5_flash_02_23_desc_tier_paid: '$0.065/M input, $0.26/M output',
+        // xAI Paid
+        model_grok_4_5_desc_tier_paid: '$2/M input, $6/M output',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '$0.3/M input, $1.2/M output',
         // Z.AI Paid

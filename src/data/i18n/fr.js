@@ -491,6 +491,8 @@
         model_qwen3_7_max_desc_tier_paid: '1,25 $/M entrée, 3,75 $/M sortie',
         model_qwen3_7_plus_desc_tier_paid: '0,32 $/M entrée, 1,28 $/M sortie',
         model_qwen3_5_flash_02_23_desc_tier_paid: '0,065 $/M entrée, 0,26 $/M sortie',
+        // xAI Paid
+        model_grok_4_5_desc_tier_paid: '2 $/M entrée, 6 $/M sortie',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
         // Z.AI Paid
