@@ -421,8 +421,8 @@
 
 .council-mode-tabs button.active {
     border-color: var(--button-primary-bg) !important;
-    background: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
+    background: #ffffff !important;
+    color: var(--button-primary-bg) !important;
 }
 
 .council-search-toggle svg,
