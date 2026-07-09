@@ -82,6 +82,63 @@ test('auth shell enhancement adds cloud, local, and import entry points', () => 
   assert.equal(localButton.classList.contains('hover:underline'), true);
 });
 
+test('auth shell enhancement localizes dynamic login controls', () => {
+  const window = new Window();
+  window.document.documentElement.lang = 'en';
+  window.i18n = {
+    en: {
+      authEmailLabel: 'Email',
+      authEmailPlaceholder: 'email@example.test',
+      authPasswordPlaceholder: 'Eight or more characters',
+      cloudLoginRegister: 'Cloud sign in',
+      forgotPassword: 'Reset password',
+      authDividerOr: 'OR',
+      supabaseGoogleLogin: 'Continue with Google',
+      localModeEntry: 'Use local account',
+      localModeReturn: 'Back to cloud sign in',
+      importLocalRecords: 'Import local data',
+      localAccountLabel: 'Local account',
+      localUsernamePlaceholder: 'Local username',
+      localPasswordPlaceholder: 'Local password',
+      localLoginRegister: 'Local sign in',
+      resetPasswordTitle: 'Create a new password',
+      newPasswordPlaceholder: 'New password',
+      confirmNewPasswordPlaceholder: 'Confirm password',
+      resetPasswordButton: 'Update password',
+      importRecords: 'Import data'
+    }
+  };
+  window.document.body.innerHTML = `
+    <form id="auth-form">
+      <label for="username-input">Username</label>
+      <input id="username-input">
+      <input id="password-input" type="password">
+      <div>
+        <button id="register-btn" type="submit">Login</button>
+        <button id="import-btn-auth" type="button">Import</button>
+      </div>
+    </form>
+  `;
+
+  const elements = enhanceAuthShell(window.document);
+
+  assert.equal(elements.loginButton.textContent, 'Cloud sign in');
+  assert.equal(elements.emailInput.placeholder, 'email@example.test');
+  assert.equal(elements.passwordInput.placeholder, 'Eight or more characters');
+  assert.equal(window.document.querySelector('label[for="username-input"]').textContent, 'Email');
+  assert.equal(window.document.querySelector('[data-lang-key="authDividerOr"]').textContent, 'OR');
+  assert.equal(window.document.getElementById('supabase-google-btn').textContent.trim(), 'Continue with Google');
+  assert.equal(window.document.getElementById('supabase-forgot-password-btn').textContent, 'Reset password');
+  assert.equal(window.document.querySelector('#supabase-recovery-form h3').textContent, 'Create a new password');
+  assert.equal(window.document.getElementById('supabase-new-password').placeholder, 'New password');
+  assert.equal(window.document.getElementById('supabase-confirm-password').placeholder, 'Confirm password');
+
+  elements.setLocalMode();
+  assert.equal(elements.loginButton.textContent, 'Local sign in');
+  assert.equal(elements.localButton.textContent, 'Back to cloud sign in');
+  assert.equal(elements.importButton.textContent, 'Import data');
+});
+
 test('auth bridge keeps secrets out of browser source and wires required flows', () => {
   const source = readFileSync(new URL('../src/app/auth/supabase-auth-bridge.js', import.meta.url), 'utf8');
   const clientSource = readFileSync(new URL('../src/app/auth/supabase-client.js', import.meta.url), 'utf8');

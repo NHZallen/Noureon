@@ -412,6 +412,7 @@ const desktopSectionHelper = createSettingsDesktopSectionHelper({
     clearSettingsMobileViewTransition
 });
 const {
+    activateDefaultDesktopSettingsSection,
     bindDesktopSettingsSections,
     syncSettingsSectionForViewport
 } = desktopSectionHelper;
@@ -504,6 +505,7 @@ const setupSettingsModal = () => {
         applyLanguage(config.uiLanguage);
         renderSettingsMobileList();
         const nextNavItems = bindDesktopSettingsSections();
+        activateDefaultDesktopSettingsSection(nextNavItems);
         syncSettingsSectionForViewport(nextNavItems);
         await controls.refreshSyncVaultControls();
     }).catch(error => console.error('Failed to load sync vault settings:', error));

@@ -46,11 +46,41 @@ export function enhanceAuthShell(document) {
   const importButton = document.getElementById('import-btn-auth');
   if (!form || !emailInput || !passwordInput || !loginButton) return null;
 
+  const getTranslations = () => {
+    const window = document.defaultView || globalThis;
+    const i18n = window.i18n || globalThis.i18n || {};
+    const lang = document.documentElement?.lang || 'zh-TW';
+    return i18n[lang] || i18n['zh-TW'] || {};
+  };
+  const text = (key, fallback) => getTranslations()[key] || fallback;
+  const setText = (element, key, fallback) => {
+    if (!element) return;
+    if (element.id === 'supabase-google-btn') {
+      Array.from(element.childNodes)
+        .filter((node) => node.nodeType === 3)
+        .forEach((node) => node.remove());
+      let label = element.querySelector('.auth-button-label');
+      if (!label) {
+        label = document.createElement('span');
+        label.className = 'auth-button-label';
+        element.appendChild(label);
+      }
+      label.dataset.langKey = key;
+      label.textContent = text(key, fallback);
+      return;
+    }
+    element.dataset.langKey = key;
+    element.textContent = text(key, fallback);
+  };
+  const setPlaceholder = (element, key, fallback) => {
+    if (!element) return;
+    element.dataset.langKeyPlaceholder = key;
+    element.placeholder = text(key, fallback);
+  };
   const emailLabel = document.querySelector('label[for="username-input"]');
-  const setAccountLabel = (text) => {
+  const setAccountLabel = (key, fallback) => {
     if (!emailLabel) return;
-    emailLabel.removeAttribute('data-lang-key');
-    emailLabel.textContent = text;
+    setText(emailLabel, key, fallback);
   };
 
   const googleButton = createButton(document, {
@@ -58,6 +88,7 @@ export function enhanceAuthShell(document) {
     text: '使用 Google 登入',
     className: 'w-full p-3 rounded-lg font-semibold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors'
   });
+  setText(googleButton, 'supabaseGoogleLogin', '使用 Google 登入');
   googleButton.classList.add('flex', 'items-center', 'justify-center', 'gap-2');
   const googleLogo = document.createElement('img');
   googleLogo.src = '/google-g-logo.png';
@@ -72,15 +103,16 @@ export function enhanceAuthShell(document) {
     text: '忘記密碼？',
     className: 'w-full text-sm text-blue-700 hover:underline'
   });
+  setText(forgotButton, 'forgotPassword', '忘記密碼？');
   const localButton = createButton(document, {
     id: 'local-mode-btn',
     text: '使用舊版本機登入 / 匯入',
     className: LEGACY_ENTRY_BUTTON_CLASS
   });
+  setText(localButton, 'localModeEntry', '使用舊版本機登入 / 匯入');
   const divider = document.createElement('div');
   divider.className = 'flex items-center gap-3 py-1 text-xs text-gray-400';
-  divider.innerHTML = '<span class="h-px flex-1 bg-gray-200"></span><span>或</span><span class="h-px flex-1 bg-gray-200"></span>';
-
+  divider.innerHTML = `<span class="h-px flex-1 bg-gray-200"></span><span data-lang-key="authDividerOr">${text('authDividerOr', 'or')}</span><span class="h-px flex-1 bg-gray-200"></span>`;
   loginButton.after(forgotButton, divider, googleButton, localButton);
 
   const status = document.createElement('p');
@@ -102,6 +134,10 @@ export function enhanceAuthShell(document) {
     <button type="submit" class="w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700">更新密碼</button>
   `;
   status.after(recoveryPanel);
+  setText(recoveryPanel.querySelector('h3'), 'resetPasswordTitle', '設定新密碼');
+  setPlaceholder(recoveryPanel.querySelector('#supabase-new-password'), 'newPasswordPlaceholder', '新密碼（至少 8 個字元）');
+  setPlaceholder(recoveryPanel.querySelector('#supabase-confirm-password'), 'confirmNewPasswordPlaceholder', '再次輸入新密碼');
+  setText(recoveryPanel.querySelector('button[type="submit"]'), 'resetPasswordButton', '更新密碼');
 
   const updateLocalImportButton = () => {
     if (!importButton || form.dataset.authMode !== 'local') return;
@@ -133,6 +169,14 @@ export function enhanceAuthShell(document) {
       importButton.className = `${LEGACY_IMPORT_BUTTON_CLASS} hidden`;
       localButton.after(importButton);
     }
+    setAccountLabel('authEmailLabel', 'Email');
+    setPlaceholder(emailInput, 'authEmailPlaceholder', 'name@example.com');
+    setPlaceholder(passwordInput, 'authPasswordPlaceholder', '至少 8 個字元');
+    setText(loginButton, 'cloudLoginRegister', '登入 / 建立帳號');
+    setText(googleButton, 'supabaseGoogleLogin', '使用 Google 登入');
+    setText(forgotButton, 'forgotPassword', '忘記密碼？');
+    setText(localButton, 'localModeEntry', '使用舊版本機登入 / 匯入');
+    if (importButton) setText(importButton, 'importLocalRecords', '匯入舊紀錄');
   };
 
   const setLocalMode = ({ importTargetUser = null } = {}) => {
@@ -162,6 +206,12 @@ export function enhanceAuthShell(document) {
       localButton.before(importButton);
       updateLocalImportButton();
     }
+    setAccountLabel('localAccountLabel', '舊版帳號 / 本機名稱');
+    setPlaceholder(emailInput, 'localUsernamePlaceholder', '輸入舊版帳號或本機名稱');
+    setPlaceholder(passwordInput, 'localPasswordPlaceholder', '舊版密碼或新的本機密碼');
+    setText(loginButton, importTargetUser ? 'localImportLogin' : 'localLoginRegister', importTargetUser ? '登入並完成匯入' : '登入 / 註冊本機帳號');
+    setText(localButton, 'localModeReturn', '返回 Email / Google 登入');
+    if (importButton) setText(importButton, 'importRecords', '匯入紀錄');
   };
 
   emailInput.addEventListener('input', updateLocalImportButton);
@@ -194,6 +244,14 @@ function setStatus(elements, message, type = 'info') {
       ? ['bg-green-50', 'text-green-700']
       : ['bg-blue-50', 'text-blue-700'];
   elements.status.classList.add(...styles);
+}
+
+function getAuthText(elements, key, fallback) {
+  const document = elements.status?.ownerDocument || globalThis.document;
+  const window = document?.defaultView || globalThis;
+  const i18n = window.i18n || globalThis.i18n || {};
+  const lang = document?.documentElement?.lang || 'zh-TW';
+  return i18n[lang]?.[key] || i18n['zh-TW']?.[key] || fallback;
 }
 
 function setBusy(elements, busy) {
@@ -267,18 +325,14 @@ async function prepareCloudImport({ window, elements, storage, user }) {
   elements.setLocalMode({ importTargetUser: record });
   elements.emailInput.value = '';
   elements.passwordInput.value = '';
-  setStatus(
-    elements,
-    '請輸入舊版帳號密碼，然後按「匯入紀錄」。匯入後資料會放到目前登入的雲端帳號底下。',
-    'info'
-  );
+  setStatus(elements, getAuthText(elements, 'cloudImportPasswordHint', 'Enter the legacy account password; legacy data will be imported after login.'), 'info');
   window.history.replaceState({}, window.document.title, window.location.pathname);
   elements.emailInput.focus();
   return record;
 }
 
 async function finishCloudLogin({ window, elements, storage, user }) {
-  const wantsImport = window.confirm('登入成功。是否要匯入舊版本機紀錄？');
+  const wantsImport = window.confirm(getAuthText(elements, 'cloudLoginImportConfirm', '要匯入舊版本機資料到這個雲端帳號嗎？'));
   if (wantsImport) {
     await prepareCloudImport({ window, elements, storage, user });
     return;
@@ -299,7 +353,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     try {
       await turnstile.mount('supabase-auth', elements.loginButton);
     } catch (error) {
-      setStatus(elements, '安全驗證載入失敗，請重新整理後再試。', 'error');
+      setStatus(elements, getAuthText(elements, 'turnstileInitFailed', '驗證模組載入失敗，請重新整理後再試。'), 'error');
       console.error('Supabase auth Turnstile failed to initialize:', error);
     }
   }
@@ -307,7 +361,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
   const getCaptchaToken = () => {
     const captchaToken = turnstile.getToken('supabase-auth');
     if (turnstile.enabled && !captchaToken) {
-      setStatus(elements, '請先完成人機驗證。', 'error');
+      setStatus(elements, getAuthText(elements, 'turnstileRequired', '請先完成驗證。'), 'error');
       return null;
     }
     return captchaToken || undefined;
@@ -324,7 +378,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
   if (recoveryMode && session) {
     elements.form.classList.add('hidden');
     elements.recoveryPanel.classList.remove('hidden');
-    setStatus(elements, '請設定您的新密碼。');
+    setStatus(elements, getAuthText(elements, 'recoveryReady', '請設定新的登入密碼。'));
   } else if (session?.user) {
     const completedLink = await completePendingCloudAccountLink({
       storage,
@@ -374,13 +428,13 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     event.stopImmediatePropagation();
     const { email, password } = getAuthValues(elements);
     if (!email || password.length < 8) {
-      setStatus(elements, '請輸入 Email，密碼至少 8 個字元。', 'error');
+      setStatus(elements, getAuthText(elements, 'cloudAuthMissingFields', '請輸入 Email，且密碼至少 8 個字元。'), 'error');
       return;
     }
     const captchaToken = getCaptchaToken();
     if (turnstile.enabled && !captchaToken) return;
     setBusy(elements, true);
-    setStatus(elements, '登入中；如果帳號不存在，會自動建立。');
+    setStatus(elements, getAuthText(elements, 'cloudAuthSigningIn', '正在登入，若帳號不存在會自動建立...'));
 
     let result = await supabase.auth.signInWithPassword({
       email,
@@ -408,7 +462,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
       await finishCloudLogin({ window, elements, storage, user: result.data.user });
       return;
     }
-    setStatus(elements, '帳號已建立，請到信箱點擊驗證連結後再登入。', 'success');
+    setStatus(elements, getAuthText(elements, 'cloudAuthCheckEmail', '帳號已建立，請確認信箱完成驗證後再登入。'), 'success');
   }, true);
 
   elements.googleButton.addEventListener('click', async () => {
@@ -426,7 +480,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
   elements.forgotButton.addEventListener('click', async () => {
     const email = elements.emailInput.value.trim();
     if (!email) {
-      setStatus(elements, '請先輸入要重設密碼的 Email。', 'error');
+      setStatus(elements, getAuthText(elements, 'emailRequired', '請輸入 Email。'), 'error');
       return;
     }
     const captchaToken = getCaptchaToken();
@@ -440,7 +494,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     setBusy(elements, false);
     setStatus(
       elements,
-      error ? error.message : '重設密碼信已送出，請查看信箱。',
+      error ? error.message : getAuthText(elements, 'passwordResetSent', 'Password reset email sent. Check your inbox.'),
       error ? 'error' : 'success'
     );
   });
@@ -449,12 +503,12 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     event.preventDefault();
     if (elements.isLocalMode()) {
       elements.setCloudMode();
-      setStatus(elements, '已切回 Email / Google 登入。');
+      setStatus(elements, getAuthText(elements, 'cloudModeReturned', '已切回 Email / Google 登入。'));
       return;
     }
     await supabase.auth.signOut({ scope: 'local' });
     elements.setLocalMode();
-    setStatus(elements, '請輸入舊版帳號密碼；也可以在這裡匯入舊版備份。');
+    setStatus(elements, getAuthText(elements, 'localModeHint', '請輸入舊版帳號密碼；也可以在這裡匯入舊版備份。'));
   });
 
   elements.importButton?.addEventListener('click', (event) => {
@@ -462,7 +516,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     event.preventDefault();
     event.stopImmediatePropagation();
     elements.setLocalMode();
-    setStatus(elements, '請先輸入舊版帳號密碼，再按「匯入紀錄」。');
+    setStatus(elements, getAuthText(elements, 'importCredentialsHint', '請輸入舊版帳號密碼，匯入後會綁定到目前雲端帳號。'));
     elements.emailInput.focus();
   });
 
@@ -471,7 +525,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     const password = document.getElementById('supabase-new-password').value;
     const confirmation = document.getElementById('supabase-confirm-password').value;
     if (password.length < 8 || password !== confirmation) {
-      setStatus(elements, '兩次密碼需一致，且至少 8 個字元。', 'error');
+      setStatus(elements, getAuthText(elements, 'passwordResetMismatch', '兩次密碼需一致，且至少 8 個字元。'), 'error');
       return;
     }
     const { error } = await supabase.auth.updateUser({ password });
@@ -483,7 +537,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     elements.recoveryPanel.classList.add('hidden');
     elements.form.classList.remove('hidden');
     window.history.replaceState({}, document.title, window.location.pathname);
-    setStatus(elements, '密碼已更新，請用新密碼登入。', 'success');
+    setStatus(elements, getAuthText(elements, 'passwordResetUpdated', '密碼已更新，請使用新密碼登入。'), 'success');
   });
 
   document.addEventListener('click', async (event) => {
@@ -492,7 +546,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     if (!activeCloudSession && !(await hasCachedCloudUser(storage))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (!window.confirm('確定要登出嗎？')) return;
+    if (!window.confirm(getAuthText(elements, 'confirmLogout', '您確定要登出嗎？'))) return;
     try {
       await supabase.auth.signOut();
     } catch (error) {

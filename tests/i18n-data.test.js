@@ -4,12 +4,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr'];
-const EXPECTED_LOCALE_KEY_COUNT = 574;
+const EXPECTED_LOCALE_KEY_COUNT = 607;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 173;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': '9844c8b9db001ce58cdbffa1fc3f1edff6463b6141b7f285047b200ae3dfe66b',
-  en: '28704ab26e3f4924fe5faddcc9b1ab7f2f784d54db2448ca7ed24afd6efb5c6b',
-  fr: 'ca35317df8d2a157092814b357c995c5deea285c1bd9e236e1841628a3578f39'
+  'zh-TW': '4825002a30c69793017f8590c1ce33b4a2e36db7c6d18fed35468d6517f5e42e',
+  en: 'a6ec10bc9853f1c3d8d5f139bde18abcda50a70e566d483b4d41fcba1c99ac45',
+  fr: '0ff721e98c7ec68fa1052e135cb7f2870d1acfccbd73197d3402a115f58699d3'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);

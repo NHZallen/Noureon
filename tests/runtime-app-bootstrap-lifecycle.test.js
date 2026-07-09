@@ -430,6 +430,8 @@ test('app bootstrap lifecycle module avoids startup, storage, auth ownership, fr
   assert.match(source, /createAppBootstrapComposition\(\{/);
   assert.match(source, /createLegacyP2PLifecycle\(\{/);
   assert.match(source, /settings-desktop-logout-btn/);
+  assert.match(source, /settings-desktop-logout-icon/);
+  assert.match(source, /<span data-lang-key="logout">/);
   assert.match(source, /nav\.closest\('nav'\)\?\.appendChild\(button\)/);
   assert.doesNotMatch(source, /nav\.appendChild\(item\)/);
 });

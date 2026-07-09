@@ -5,6 +5,7 @@ import { Window } from 'happy-dom';
 import { projectFile, readSource } from './helpers/source-guards.js';
 
 const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+const appShellSource = readSource('src/templates/app-shell.js');
 const demoModulePath = 'src/app/runtime/features/demo-model-homepage.js';
 const demoModuleUrl = new URL(`../${demoModulePath}`, import.meta.url);
 const demoModuleExists = existsSync(demoModuleUrl);
@@ -176,6 +177,8 @@ test('legacy core removes the retired homepage demo section without lazy-loading
   assert.doesNotMatch(legacyCoreSource, /import\s+\{\s*setupDemoModelHomepage\s*\}\s+from/);
   assert.match(demoSetupBody, /getElementById\('auth-container'\)\.classList\.add\('visible'\)/);
   assert.match(demoSetupBody, /document\.querySelector\('\.demo-model-selector'\)\?\.closest\('section'\)\?\.remove\(\)/);
+  assert.match(appShellSource, /appShellWithLegacyDemo\.replace/);
+  assert.match(appShellSource, /demo-chat-window/);
   assert.doesNotMatch(demoSetupBody, /demo-model-homepage|setupDemoModelHomepage\(\{\s*document,\s*demoConversations\s*\}\)|contentDiv/);
   assert.match(demoModuleSource, /export\s+function\s+setupDemoModelHomepage\s*\(/);
   assert.match(demoModuleSource, /document\.querySelector\('\.demo-model-selector'\)/);

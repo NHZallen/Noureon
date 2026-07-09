@@ -46,6 +46,13 @@ export function createSettingsDesktopSectionHelper(dependencies = {}) {
     return navItems;
   };
 
+  const activateDefaultDesktopSettingsSection = (navItems = getNavItems()) => {
+    if (isMobileSettingsViewport()) return null;
+    const defaultNavItem = navItems.find((item) => item.dataset.section === 'user') || navItems[0] || null;
+    if (defaultNavItem) activateDesktopSettingsSection(defaultNavItem, navItems);
+    return defaultNavItem;
+  };
+
   const syncSettingsSectionForViewport = (navItems = bindDesktopSettingsSections()) => {
     if (isMobileSettingsViewport()) {
       showSettingsMobileList({ animate: false });
@@ -63,6 +70,7 @@ export function createSettingsDesktopSectionHelper(dependencies = {}) {
 
   return {
     activateDesktopSettingsSection,
+    activateDefaultDesktopSettingsSection,
     bindDesktopSettingsSections,
     syncSettingsSectionForViewport
   };

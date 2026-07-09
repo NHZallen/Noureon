@@ -7,7 +7,7 @@ import fragment05 from './fragments/05-shell.fragment.js';
 import fragment06 from './fragments/06-shell.fragment.js';
 import fragment07 from './fragments/07-shell.fragment.js';
 
-const appShell = [
+const appShellWithLegacyDemo = [
   fragment00,
   fragment01,
   fragment02,
@@ -17,5 +17,10 @@ const appShell = [
   fragment06,
   fragment07
 ].join('');
+
+const appShell = appShellWithLegacyDemo.replace(
+  /\s*<section class="py-20 lg:py-24 bg-gray-50">[\s\S]*?<div id="demo-chat-window"[\s\S]*?<\/section>/,
+  ''
+);
 
 export default appShell;
