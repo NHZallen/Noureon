@@ -390,32 +390,49 @@
     border: 0;
     border-radius: 999px;
     background: color-mix(in srgb, var(--input-field-bg) 82%, transparent);
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(4.5rem, 1fr));
+    width: max-content;
+    max-width: 100%;
 }
 
 .council-mode-tabs button {
-    height: auto;
-    min-height: 0;
-    padding: 0.3rem 0.65rem;
-    border: 1px solid transparent;
+    height: 2rem !important;
+    min-height: 2rem !important;
+    min-width: 4.5rem;
+    padding: 0 0.75rem !important;
+    border: 1px solid transparent !important;
     border-radius: 999px;
     background: transparent;
     color: var(--text-secondary);
     font-size: 0.78rem;
     font-weight: 700;
+    line-height: 1 !important;
     box-shadow: none;
     outline: 0;
+    white-space: nowrap;
 }
 
 .model-council-popover .council-mode-tabs button:not(.active) {
     border-color: transparent !important;
-    background: transparent !important;
-    color: var(--text-secondary);
+    background: #ffffff !important;
+    color: #111827 !important;
 }
 
 .council-mode-tabs button.active {
-    border-color: #000000 !important;
-    background: #ffffff !important;
-    color: #111827;
+    border-color: var(--button-primary-bg) !important;
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+}
+
+.council-search-toggle svg,
+.council-search-toggle svg * {
+    stroke-width: 1.65 !important;
+}
+
+#login-lang-btn svg,
+#login-lang-btn svg * {
+    stroke-width: 1.65 !important;
 }
 
 .council-section {
@@ -578,11 +595,12 @@
 
     .council-mode-tabs {
         flex: 1 1 auto;
+        display: grid !important;
         min-width: 0;
+        width: 100%;
     }
 
     .council-mode-tabs button {
-        flex: 1 1 0;
         min-width: 0;
     }
 
