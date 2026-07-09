@@ -94,7 +94,7 @@ test('cloud assets prefer authenticated REST raw upload when Supabase session ex
   assert.equal(requests[0].options.headers.Authorization, 'Bearer session-token');
   assert.equal(requests[0].options.headers['content-type'], 'image/png');
   assert.equal(requests[0].options.headers['cache-control'], '31536000');
-  assert.equal(requests[0].options.headers['x-upsert'], 'false');
+  assert.equal(requests[0].options.headers['x-upsert'], 'true');
   assert.ok(requests[0].options.body instanceof Blob);
   assert.ok(cloudValue.part.data.__astraCloudAsset);
 });

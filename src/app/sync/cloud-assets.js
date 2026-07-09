@@ -125,7 +125,7 @@ export function createCloudAssetTransport({
             Authorization: `Bearer ${token}`,
             'content-type': blob.type || 'application/octet-stream',
             'cache-control': '31536000',
-            'x-upsert': 'false'
+            'x-upsert': 'true'
           },
           body: blob
         }
