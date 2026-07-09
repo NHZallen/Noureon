@@ -204,6 +204,63 @@ function uniqueWorkspaceConversations(conversations = []) {
   return unique;
 }
 
+function messageContentSize(row = {}) {
+  return JSON.stringify(row.parts || []).length;
+}
+
+function messageRank(row = {}) {
+  return [
+    row.deleted_at ? 0 : 1,
+    row.status === 'complete' ? 2 : row.status === 'error' ? 1 : 0,
+    messageContentSize(row),
+    Date.parse(row.created_at || 0) || 0
+  ];
+}
+
+function preferMessageRow(left, right) {
+  const leftRank = messageRank(left);
+  const rightRank = messageRank(right);
+  for (let index = 0; index < leftRank.length; index += 1) {
+    if (leftRank[index] !== rightRank[index]) return leftRank[index] > rightRank[index] ? left : right;
+  }
+  return right || left;
+}
+
+async function uniqueWorkspaceMessages(rows = [], cryptoProvider = globalThis.crypto) {
+  const byConversationSequence = new Map();
+  for (const row of rows || []) {
+    if (!row?.conversation_id) continue;
+    const key = `${row.conversation_id}:${row.sequence}`;
+    const existing = byConversationSequence.get(key);
+    byConversationSequence.set(key, existing ? preferMessageRow(existing, row) : row);
+  }
+
+  const seenIds = new Set();
+  const unique = [];
+  for (const row of byConversationSequence.values()) {
+    let nextRow = row;
+    let id = row.id;
+    if (seenIds.has(id)) {
+      let collisionIndex = 0;
+      do {
+        id = await deterministicUuid(JSON.stringify(canonicalize({
+          originalId: row.id,
+          conversationId: row.conversation_id,
+          sequence: row.sequence,
+          role: row.role,
+          createdAt: row.created_at,
+          collisionIndex
+        })), cryptoProvider);
+        collisionIndex += 1;
+      } while (seenIds.has(id));
+      nextRow = { ...row, id };
+    }
+    seenIds.add(id);
+    unique.push(nextRow);
+  }
+  return unique;
+}
+
 export function isUuid(value) {
   return UUID_PATTERN.test(String(value || ''));
 }
@@ -312,7 +369,13 @@ export async function encodeWorkspaceConversationShadow({
     conversations.push(encoded.conversation);
     messages.push(...encoded.messages);
   }
-  return { folders, conversations, messages, astras, skippedConversationIds };
+  return {
+    folders,
+    conversations,
+    messages: await uniqueWorkspaceMessages(messages, cryptoProvider),
+    astras,
+    skippedConversationIds
+  };
 }
 
 export function shadowRowsEqual(left, right) {

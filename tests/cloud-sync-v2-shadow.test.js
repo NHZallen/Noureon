@@ -263,6 +263,56 @@ test('repository reuses remote message ids for existing conversation sequence ro
   ]);
 });
 
+test('repository removes duplicate message ids before protected RPC upload', async () => {
+  const calls = [];
+  const duplicateMessageId = 'message-1';
+  const supabase = {
+    from(table) {
+      calls.push(['from', table]);
+      return {
+        select(columns) { calls.push(['select', columns]); return this; },
+        eq(column, value) { calls.push(['eq', column, value]); return this; },
+        in(column, values) {
+          calls.push(['in', column, values]);
+          return Promise.resolve({ data: [], error: null });
+        }
+      };
+    },
+    async rpc(name, args) { calls.push(['rpc', name, args]); return { error: null }; }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  await repository.upsertMessages([
+    {
+      id: duplicateMessageId,
+      user_id: userId,
+      conversation_id: conversationId,
+      role: 'user',
+      parts: [{ text: 'smaller' }],
+      status: 'complete',
+      sequence: 0,
+      created_at: '2026-07-06T00:00:00.000Z',
+      deleted_at: null
+    },
+    {
+      id: duplicateMessageId,
+      user_id: userId,
+      conversation_id: conversationId,
+      role: 'user',
+      parts: [{ text: 'larger content wins' }],
+      status: 'complete',
+      sequence: 0,
+      created_at: '2026-07-06T00:00:01.000Z',
+      deleted_at: null
+    }
+  ]);
+
+  const rpcCall = calls.find(call => call[0] === 'rpc');
+  assert.equal(rpcCall[1], 'upsert_workspace_messages');
+  assert.equal(rpcCall[2].p_rows.length, 1);
+  assert.equal(rpcCall[2].p_rows[0].parts[0].text, 'larger content wins');
+});
+
 test('repository permanently deletes conversations through the protected RPC', async () => {
   const calls = [];
   const supabase = {

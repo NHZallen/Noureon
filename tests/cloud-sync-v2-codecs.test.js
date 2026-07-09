@@ -188,6 +188,32 @@ test('conversation shadow codec deduplicates repeated conversation ids before RP
   assert.equal(encoded.messages.length, 2);
 });
 
+test('conversation shadow codec repairs duplicate message ids without dropping separate sequence rows', async () => {
+  const duplicateMessageId = '55555555-5555-4555-8555-555555555555';
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Duplicate message IDs',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [
+          { id: duplicateMessageId, role: 'user', createdAt: '2026-07-06T01:00:01.000Z', parts: [{ text: 'first' }] },
+          { id: duplicateMessageId, role: 'model', createdAt: '2026-07-06T01:00:02.000Z', parts: [{ text: 'second' }] }
+        ]
+      }]
+    }
+  });
+  const ids = encoded.messages.map(row => row.id);
+
+  assert.equal(encoded.messages.length, 2);
+  assert.equal(new Set(ids).size, 2);
+  assert.equal(ids.includes(duplicateMessageId), true);
+});
+
 test('conversation shadow codec includes folders and restores folder membership', async () => {
   const folderId = '33333333-3333-4333-8333-333333333333';
   const encoded = await encodeWorkspaceConversationShadow({

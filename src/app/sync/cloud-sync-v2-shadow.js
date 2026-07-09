@@ -294,9 +294,48 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     });
   }
 
+  function messageRowRank(row = {}) {
+    return [
+      row.deleted_at ? 0 : 1,
+      row.status === 'complete' ? 2 : row.status === 'error' ? 1 : 0,
+      JSON.stringify(row.parts || []).length,
+      Date.parse(row.created_at || 0) || 0
+    ];
+  }
+
+  function preferMessageRow(left, right) {
+    const leftRank = messageRowRank(left);
+    const rightRank = messageRowRank(right);
+    for (let index = 0; index < leftRank.length; index += 1) {
+      if (leftRank[index] !== rightRank[index]) return leftRank[index] > rightRank[index] ? left : right;
+    }
+    return right || left;
+  }
+
+  function uniqueMessageRows(rows = []) {
+    const bySequence = new Map();
+    const withoutSequenceKey = [];
+    for (const row of rows || []) {
+      if (!row?.conversation_id) {
+        withoutSequenceKey.push(row);
+        continue;
+      }
+      const key = `${row.conversation_id}:${row.sequence}`;
+      const existing = bySequence.get(key);
+      bySequence.set(key, existing ? preferMessageRow(existing, row) : row);
+    }
+    const byId = new Map();
+    for (const row of [...withoutSequenceKey, ...bySequence.values()]) {
+      const existing = byId.get(row.id);
+      byId.set(row.id, existing ? preferMessageRow(existing, row) : row);
+    }
+    return [...byId.values()];
+  }
+
   async function upsertMessages(rows) {
-    await runInChunks(rows, 200, async chunk => {
-      const payload = await reuseRemoteMessageIds(chunk);
+    const uniqueRows = uniqueMessageRows(rows);
+    await runInChunks(uniqueRows, 200, async chunk => {
+      const payload = uniqueMessageRows(await reuseRemoteMessageIds(chunk));
       const { error } = await supabase.rpc('upsert_workspace_messages', { p_rows: payload });
       if (error) throw error;
     });
