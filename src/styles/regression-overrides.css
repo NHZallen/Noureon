@@ -385,15 +385,16 @@
 }
 
 .council-mode-tabs {
-    gap: 0.25rem;
-    padding: 0.2rem;
-    border: 0;
+    gap: 0;
+    padding: 0;
+    border: 1px solid var(--border-color);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--input-field-bg) 82%, transparent);
+    background: transparent;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(4.5rem, 1fr));
     width: max-content;
     max-width: 100%;
+    overflow: hidden;
 }
 
 .council-mode-tabs button {
@@ -401,8 +402,8 @@
     min-height: 2rem !important;
     min-width: 4.5rem;
     padding: 0 0.75rem !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 999px;
+    border: 0 !important;
+    border-radius: 0;
     background: transparent;
     color: var(--text-secondary);
     font-size: 0.78rem;
@@ -413,15 +414,17 @@
     white-space: nowrap;
 }
 
+.council-mode-tabs button + button {
+    border-left: 1px solid var(--border-color) !important;
+}
+
 .model-council-popover .council-mode-tabs button:not(.active) {
-    border-color: var(--border-color) !important;
-    background: #ffffff !important;
+    background: transparent !important;
     color: #111827 !important;
 }
 
 .council-mode-tabs button.active {
-    border-color: var(--border-color) !important;
-    background: #ffffff !important;
+    background: transparent !important;
     color: var(--button-primary-bg) !important;
 }
 
@@ -495,7 +498,7 @@
 
 .council-model-row.selected {
     border-color: var(--accent-color, var(--button-primary-bg));
-    background: var(--active-bg);
+    background: #ffffff;
 }
 
 .council-capability-badge,
