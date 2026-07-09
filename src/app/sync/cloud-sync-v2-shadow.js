@@ -68,6 +68,12 @@ function isMissingSchemaError(error) {
     || /relation .* does not exist|could not find the table|function .* does not exist|could not find the function|function .*schema cache|schema cache.*function/i.test(message);
 }
 
+function isWorkspaceSyncSequencePermissionError(error) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || error || '');
+  return code === '42501' && /workspace_sync_seq|sequence/i.test(message);
+}
+
 async function runInChunks(items, size, task) {
   for (let index = 0; index < items.length; index += size) {
     await task(items.slice(index, index + size));
@@ -88,6 +94,15 @@ function describeShadowError(error) {
     details: error.details || undefined,
     hint: error.hint || undefined
   };
+}
+
+function withClientSyncSequence(rows = []) {
+  const base = Date.now() * 1000;
+  return rows.map((row, index) => (
+    row && row.sync_seq === undefined
+      ? { ...row, sync_seq: base + index }
+      : row
+  ));
 }
 
 function summarizeWorkspace(workspace = {}) {
@@ -346,6 +361,13 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
       const { error } = await supabase
         .from('workspace_astras')
         .upsert(chunk, { onConflict: 'id' });
+      if (isWorkspaceSyncSequencePermissionError(error)) {
+        const retry = await supabase
+          .from('workspace_astras')
+          .upsert(withClientSyncSequence(chunk), { onConflict: 'id' });
+        if (retry.error) throw retry.error;
+        return;
+      }
       if (error) throw error;
     });
   }
@@ -433,6 +455,13 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
       const { error } = await supabase
         .from('workspace_astras')
         .upsert(chunk, { onConflict: 'id' });
+      if (isWorkspaceSyncSequencePermissionError(error)) {
+        const retry = await supabase
+          .from('workspace_astras')
+          .upsert(withClientSyncSequence(chunk), { onConflict: 'id' });
+        if (retry.error) throw retry.error;
+        return;
+      }
       if (error) throw error;
     });
   }

@@ -395,6 +395,40 @@ test('repository upserts active Astras without clearing tombstones and persists 
   ]);
 });
 
+test('repository retries Astra upserts with client sync sequence when sequence grants are missing', async () => {
+  const calls = [];
+  const supabase = {
+    from(table) {
+      return {
+        upsert(rows, options) {
+          calls.push([table, rows, options]);
+          return Promise.resolve(calls.length === 1
+            ? { error: { code: '42501', message: 'permission denied for sequence workspace_sync_seq' } }
+            : { error: null });
+        }
+      };
+    }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  await repository.upsertAstras([{
+    id: astraId,
+    user_id: userId,
+    name: 'Synced Astra',
+    description: '',
+    instructions: 'Help',
+    metadata: {}
+  }]);
+
+  assert.equal(calls.length, 2);
+  assert.equal('sync_seq' in calls[0][1][0], false);
+  assert.equal(Number.isInteger(calls[1][1][0].sync_seq), true);
+  assert.deepEqual(calls.map(call => call[2]), [
+    { onConflict: 'id' },
+    { onConflict: 'id' }
+  ]);
+});
+
 test('sync permanent deletion requires ready state, calls RPC, and refreshes tombstones', async () => {
   const calls = [];
   let deletedIds = [];
