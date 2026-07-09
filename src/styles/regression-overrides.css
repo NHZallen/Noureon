@@ -691,3 +691,18 @@
     color: var(--folder-icon-color, inherit) !important;
 }
 
+.model-council-popover .council-mode-tabs {
+    border: 1px solid var(--border-color) !important;
+}
+
+.model-council-popover .council-mode-tabs button,
+.model-council-popover .council-mode-tabs button.active,
+.model-council-popover .council-mode-tabs button:not(.active) {
+    border: 0 !important;
+    background: transparent !important;
+}
+
+.model-council-popover .council-mode-tabs button + button {
+    border-left: 1px solid var(--border-color) !important;
+}
+
