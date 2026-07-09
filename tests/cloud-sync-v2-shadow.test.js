@@ -217,6 +217,52 @@ test('repository uses tombstone select and protected RPC upserts', async () => {
   ]);
 });
 
+test('repository reuses remote message ids for existing conversation sequence rows', async () => {
+  const calls = [];
+  const remoteMessageId = 'remote-message-id';
+  const localMessageId = 'local-message-id';
+  const supabase = {
+    from(table) {
+      calls.push(['from', table]);
+      return {
+        select(columns) { calls.push(['select', columns]); return this; },
+        eq(column, value) { calls.push(['eq', column, value]); return this; },
+        in(column, values) {
+          calls.push(['in', column, values]);
+          return Promise.resolve({
+            data: [{ id: remoteMessageId, conversation_id: conversationId, sequence: 0 }],
+            error: null
+          });
+        }
+      };
+    },
+    async rpc(name, args) { calls.push(['rpc', name, args]); return { error: null }; }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  await repository.upsertMessages([{
+    id: localMessageId,
+    user_id: userId,
+    conversation_id: conversationId,
+    role: 'user',
+    parts: [],
+    status: 'complete',
+    sequence: 0,
+    created_at: '2026-07-06T00:00:00.000Z',
+    deleted_at: null
+  }]);
+
+  const rpcCall = calls.find(call => call[0] === 'rpc');
+  assert.equal(rpcCall[1], 'upsert_workspace_messages');
+  assert.equal(rpcCall[2].p_rows[0].id, remoteMessageId);
+  assert.deepEqual(calls.slice(0, 4), [
+    ['from', 'workspace_messages'],
+    ['select', 'id,conversation_id,sequence'],
+    ['eq', 'user_id', userId],
+    ['in', 'conversation_id', [conversationId]]
+  ]);
+});
+
 test('repository permanently deletes conversations through the protected RPC', async () => {
   const calls = [];
   const supabase = {

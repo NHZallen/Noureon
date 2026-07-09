@@ -105,6 +105,89 @@ test('conversation shadow codec preserves cloud asset markers for attachments an
   assert.equal('_zipRef' in encoded.messages[0].parts[1].generatedImage, false);
 });
 
+test('conversation shadow codec keeps message IDs stable when image bytes become cloud markers', async () => {
+  const createdAt = '2026-07-06T01:00:01.000Z';
+  const inlineEncoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Image chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [{
+          role: 'user',
+          createdAt,
+          parts: [{ inlineData: { mimeType: 'image/png', data: 'LOCAL_IMAGE_BYTES' } }]
+        }]
+      }]
+    }
+  });
+  const markerEncoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Image chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [{
+          role: 'user',
+          createdAt,
+          parts: [{
+            inlineData: {
+              mimeType: 'image/png',
+              data: { __astraCloudAsset: { path: `${userId}/image`, mimeType: 'image/png' } }
+            }
+          }]
+        }]
+      }]
+    }
+  });
+
+  assert.equal(inlineEncoded.messages[0].id, markerEncoded.messages[0].id);
+});
+
+test('conversation shadow codec deduplicates repeated conversation ids before RPC upload', async () => {
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [
+        {
+          id: conversationId,
+          title: 'Older copy',
+          model: 'model-1',
+          provider: 'provider-1',
+          createdAt: '2026-07-06T01:00:00.000Z',
+          lastUpdatedAt: '2026-07-06T01:01:00.000Z',
+          messages: [{ role: 'user', parts: [{ text: 'old' }] }]
+        },
+        {
+          id: conversationId,
+          title: 'Newer copy',
+          model: 'model-1',
+          provider: 'provider-1',
+          createdAt: '2026-07-06T01:00:00.000Z',
+          lastUpdatedAt: '2026-07-06T01:02:00.000Z',
+          messages: [
+            { role: 'user', parts: [{ text: 'new' }] },
+            { role: 'model', parts: [{ text: 'answer' }] }
+          ]
+        }
+      ]
+    }
+  });
+
+  assert.equal(encoded.conversations.length, 1);
+  assert.equal(encoded.conversations[0].title, 'Newer copy');
+  assert.equal(encoded.messages.length, 2);
+});
+
 test('conversation shadow codec includes folders and restores folder membership', async () => {
   const folderId = '33333333-3333-4333-8333-333333333333';
   const encoded = await encodeWorkspaceConversationShadow({

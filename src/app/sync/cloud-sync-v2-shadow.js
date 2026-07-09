@@ -259,9 +259,45 @@ export function createConversationShadowRepository({ supabase, userId } = {}) {
     });
   }
 
+  async function reuseRemoteMessageIds(rows = []) {
+    const keyedRows = (rows || []).filter(row => (
+      row?.conversation_id
+      && row.sequence !== undefined
+      && row.sequence !== null
+      && Number.isFinite(Number(row.sequence))
+    ));
+    if (!keyedRows.length) return rows;
+
+    const conversationIds = [...new Set(keyedRows.map(row => row.conversation_id).filter(Boolean))];
+    if (!conversationIds.length) return rows;
+
+    const existingRows = [];
+    for (let index = 0; index < conversationIds.length; index += 100) {
+      const ids = conversationIds.slice(index, index + 100);
+      const { data, error } = await supabase
+        .from('workspace_messages')
+        .select('id,conversation_id,sequence')
+        .eq('user_id', userId)
+        .in('conversation_id', ids);
+      if (error) throw error;
+      existingRows.push(...(data || []));
+    }
+    if (!existingRows.length) return rows;
+
+    const idBySequenceKey = new Map(existingRows.map(row => [
+      `${row.conversation_id}:${row.sequence}`,
+      row.id
+    ]));
+    return rows.map(row => {
+      const remoteId = idBySequenceKey.get(`${row.conversation_id}:${row.sequence}`);
+      return remoteId && remoteId !== row.id ? { ...row, id: remoteId } : row;
+    });
+  }
+
   async function upsertMessages(rows) {
     await runInChunks(rows, 200, async chunk => {
-      const { error } = await supabase.rpc('upsert_workspace_messages', { p_rows: chunk });
+      const payload = await reuseRemoteMessageIds(chunk);
+      const { error } = await supabase.rpc('upsert_workspace_messages', { p_rows: payload });
       if (error) throw error;
     });
   }

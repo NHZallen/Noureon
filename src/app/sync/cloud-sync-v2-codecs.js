@@ -156,6 +156,54 @@ function encodeAstraShadow(astra = {}, userId) {
   };
 }
 
+function conversationRank(conversation = {}) {
+  const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+  const contentSize = messages.reduce((total, message) => total + (message.parts || []).reduce(
+    (partTotal, part) => partTotal
+      + (part.text?.length || 0)
+      + (part.inlineData ? 1 : 0)
+      + (part.generatedImage ? 1 : 0),
+    0
+  ), 0);
+  return [
+    conversation.deletedAt ? 1 : 0,
+    messages.length,
+    contentSize,
+    Date.parse(conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || conversation.createdAt || 0) || 0
+  ];
+}
+
+function preferConversation(left, right) {
+  const leftRank = conversationRank(left);
+  const rightRank = conversationRank(right);
+  for (let index = 0; index < leftRank.length; index += 1) {
+    if (leftRank[index] !== rightRank[index]) return leftRank[index] > rightRank[index] ? left : right;
+  }
+  return right || left;
+}
+
+function uniqueWorkspaceConversations(conversations = []) {
+  const byId = new Map();
+  const unique = [];
+  for (const conversation of conversations || []) {
+    if (!conversation?.id) continue;
+    const id = String(conversation.id);
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, conversation);
+      unique.push(conversation);
+      continue;
+    }
+    const selected = preferConversation(existing, conversation);
+    if (selected !== existing) {
+      byId.set(id, selected);
+      const index = unique.indexOf(existing);
+      if (index >= 0) unique[index] = selected;
+    }
+  }
+  return unique;
+}
+
 export function isUuid(value) {
   return UUID_PATTERN.test(String(value || ''));
 }
@@ -208,8 +256,7 @@ export async function encodeConversationShadow({
       conversationId: conversation.id,
       sequence,
       role,
-      createdAt: messageCreatedAt,
-      parts
+      createdAt: messageCreatedAt
     }));
     const id = isUuid(message.id) ? message.id : await deterministicUuid(seed, cryptoProvider);
     messages.push({
@@ -254,7 +301,7 @@ export async function encodeWorkspaceConversationShadow({
     .map(astra => encodeAstraShadow(astra, userId))
     .filter(Boolean);
   const skippedConversationIds = [];
-  for (const conversation of workspace.conversations || []) {
+  for (const conversation of uniqueWorkspaceConversations(workspace.conversations || [])) {
     if (conversation?.isTemporary && !(conversation.messages?.length)) continue;
     const encoded = await encodeConversationShadow({ conversation, userId, cryptoProvider });
     if (!encoded) {
