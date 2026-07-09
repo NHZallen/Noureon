@@ -47,11 +47,18 @@ function isBlobLike(value) {
   return value instanceof Blob || Boolean(value && typeof value.arrayBuffer === 'function' && typeof value.size === 'number');
 }
 
+function encodeStoragePath(path) {
+  return String(path || '').split('/').map(segment => encodeURIComponent(segment)).join('/');
+}
+
 export function createCloudAssetTransport({
   supabase,
   storage,
   userId,
   bucket = DEFAULT_BUCKET,
+  supabaseUrl = import.meta.env?.VITE_SUPABASE_URL?.trim() || '',
+  supabasePublishableKey = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || '',
+  fetchImpl = globalThis.fetch?.bind(globalThis),
   cryptoProvider = globalThis.crypto,
   logger = console
 } = {}) {
@@ -65,16 +72,78 @@ export function createCloudAssetTransport({
   const unavailablePaths = new Set();
   const pendingDownloads = new Map();
   const storageBucket = supabase.storage.from(bucket);
+  const storageRestBaseUrl = String(supabaseUrl || '').replace(/\/$/, '');
+  const canUseAuthenticatedStorageRest = Boolean(
+    storageRestBaseUrl
+    && supabasePublishableKey
+    && fetchImpl
+    && supabase?.auth?.getSession
+  );
+
+  function describeStorageError(error) {
+    return {
+      status: error?.statusCode || error?.status,
+      code: error?.code || undefined,
+      message: error?.message || String(error),
+      details: error?.details || undefined
+    };
+  }
+
+  async function getAccessToken() {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const token = data?.session?.access_token;
+    if (!token) {
+      const missing = new Error('Supabase session is unavailable for Storage request.');
+      missing.code = 'session_missing';
+      throw missing;
+    }
+    return token;
+  }
+
+  async function storageRestError(response) {
+    const text = await response.text().catch(() => '');
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch {}
+    const error = new Error(json?.message || text || `HTTP ${response.status} error`);
+    error.status = String(response.status);
+    error.statusCode = String(response.status);
+    error.code = json?.code || json?.error || undefined;
+    error.details = json?.details || text || undefined;
+    return error;
+  }
+
+  async function uploadObject(path, blob) {
+    if (canUseAuthenticatedStorageRest) {
+      const token = await getAccessToken();
+      const response = await fetchImpl(
+        `${storageRestBaseUrl}/storage/v1/object/${encodeURIComponent(bucket)}/${encodeStoragePath(path)}`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: supabasePublishableKey,
+            Authorization: `Bearer ${token}`,
+            'content-type': blob.type || 'application/octet-stream',
+            'cache-control': '31536000',
+            'x-upsert': 'false'
+          },
+          body: blob
+        }
+      );
+      return response.ok ? { error: null } : { error: await storageRestError(response) };
+    }
+    return storageBucket.upload(path, blob, {
+      cacheControl: '31536000',
+      contentType: blob.type || 'application/octet-stream',
+      upsert: false
+    });
+  }
 
   async function uploadBlob(blob, encoding) {
     const hash = await sha256(blob, cryptoProvider);
     const path = `${userId}/${hash}`;
     if (!uploadedPaths.has(path)) {
-      const { error } = await storageBucket.upload(path, blob, {
-        cacheControl: '31536000',
-        contentType: blob.type || 'application/octet-stream',
-        upsert: false
-      });
+      const { error } = await uploadObject(path, blob);
       const duplicate = error && (String(error.statusCode) === '409' || /already exists|duplicate/i.test(error.message || ''));
       if (error && !duplicate) throw error;
       uploadedPaths.add(path);
@@ -95,8 +164,7 @@ export function createCloudAssetTransport({
           unavailablePaths.add(assetMarker.path);
           logger.warn('Noureon cloud asset is unavailable; continuing workspace sync without it.', {
             path: assetMarker.path,
-            status: error.statusCode || error.status,
-            message: error.message || String(error)
+            ...describeStorageError(error)
           });
         }
         return null;

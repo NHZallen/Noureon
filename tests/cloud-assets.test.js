@@ -52,6 +52,76 @@ test('cloud assets externalize and restore data URLs and inline attachment bytes
   assert.deepEqual(await transport.hydrate(cloudValue), value);
 });
 
+test('cloud assets prefer authenticated REST raw upload when Supabase session exists', async () => {
+  const fixture = createFixture();
+  let sdkUploadCalled = false;
+  const requests = [];
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    supabase: {
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: 'session-token' } }, error: null })
+      },
+      storage: {
+        from: () => ({
+          upload: async () => {
+            sdkUploadCalled = true;
+            return { error: null };
+          },
+          download: fixture.supabase.storage.from().download
+        })
+      }
+    },
+    userId: 'user-1',
+    supabaseUrl: 'https://project.supabase.co',
+    supabasePublishableKey: 'publishable-key',
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return new Response('', { status: 200 });
+    },
+    cryptoProvider: webcrypto
+  });
+
+  const cloudValue = await transport.externalize({
+    part: { mimeType: 'image/png', data: 'AQID' }
+  });
+
+  assert.equal(sdkUploadCalled, false);
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /^https:\/\/project\.supabase\.co\/storage\/v1\/object\/user-assets\/user-1\//);
+  assert.equal(requests[0].options.method, 'POST');
+  assert.equal(requests[0].options.headers.apikey, 'publishable-key');
+  assert.equal(requests[0].options.headers.Authorization, 'Bearer session-token');
+  assert.equal(requests[0].options.headers['content-type'], 'image/png');
+  assert.equal(requests[0].options.headers['cache-control'], '31536000');
+  assert.equal(requests[0].options.headers['x-upsert'], 'false');
+  assert.ok(requests[0].options.body instanceof Blob);
+  assert.ok(cloudValue.part.data.__astraCloudAsset);
+});
+
+test('cloud assets do not create remote markers when authenticated REST upload fails', async () => {
+  const fixture = createFixture();
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    supabase: {
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: 'session-token' } }, error: null })
+      },
+      storage: fixture.supabase.storage
+    },
+    userId: 'user-1',
+    supabaseUrl: 'https://project.supabase.co',
+    supabasePublishableKey: 'publishable-key',
+    fetchImpl: async () => new Response('<html><body><h1>400 Bad Request</h1></body></html>', { status: 400 }),
+    cryptoProvider: webcrypto
+  });
+
+  await assert.rejects(
+    () => transport.externalize({ part: { mimeType: 'image/png', data: 'AQID' } }),
+    /400 Bad Request/
+  );
+});
+
 test('cloud assets restore generated image blobs to their IndexedDB storage key', async () => {
   const fixture = createFixture();
   const storageKey = 'generatedImage:supabase:user-1:image-1';
