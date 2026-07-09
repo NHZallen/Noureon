@@ -389,7 +389,7 @@
     padding: 0;
     border: 1px solid var(--border-color);
     border-radius: 999px;
-    background: transparent;
+    background: #ffffff;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(4.5rem, 1fr));
     width: max-content;
