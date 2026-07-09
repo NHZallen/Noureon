@@ -99,6 +99,78 @@ test('cloud assets prefer authenticated REST raw upload when Supabase session ex
   assert.ok(cloudValue.part.data.__astraCloudAsset);
 });
 
+test('cloud assets reuse existing Storage objects after duplicate raw upload failures', async () => {
+  const fixture = createFixture();
+  const downloads = [];
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    supabase: {
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: 'session-token' } }, error: null })
+      },
+      storage: {
+        from: () => ({
+          upload: async () => assert.fail('raw upload should be used before SDK upload'),
+          download: async (path) => {
+            downloads.push(path);
+            return { data: new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), error: null };
+          }
+        })
+      }
+    },
+    userId: 'user-1',
+    supabaseUrl: 'https://project.supabase.co',
+    supabasePublishableKey: 'publishable-key',
+    fetchImpl: async () => new Response(JSON.stringify({
+      code: '23505',
+      message: 'duplicate key value violates unique constraint "bucketid_objname"'
+    }), { status: 400 }),
+    cryptoProvider: webcrypto
+  });
+
+  const cloudValue = await transport.externalize({
+    part: { mimeType: 'image/png', data: 'AQID' }
+  });
+
+  assert.equal(downloads.length, 0);
+  assert.ok(cloudValue.part.data.__astraCloudAsset);
+});
+
+test('cloud assets verify object existence before failing ambiguous raw upload errors', async () => {
+  const fixture = createFixture();
+  const downloads = [];
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    supabase: {
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: 'session-token' } }, error: null })
+      },
+      storage: {
+        from: () => ({
+          upload: async () => assert.fail('raw upload should be used before SDK upload'),
+          download: async (path) => {
+            downloads.push(path);
+            return { data: new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), error: null };
+          }
+        })
+      }
+    },
+    userId: 'user-1',
+    supabaseUrl: 'https://project.supabase.co',
+    supabasePublishableKey: 'publishable-key',
+    fetchImpl: async () => new Response('<html><body><h1>400 Bad Request</h1></body></html>', { status: 400 }),
+    cryptoProvider: webcrypto
+  });
+
+  const cloudValue = await transport.externalize({
+    part: { mimeType: 'image/png', data: 'AQID' }
+  });
+
+  assert.equal(downloads.length, 1);
+  assert.match(downloads[0], /^user-1\//);
+  assert.ok(cloudValue.part.data.__astraCloudAsset);
+});
+
 test('cloud assets do not create remote markers when authenticated REST upload fails', async () => {
   const fixture = createFixture();
   const transport = createCloudAssetTransport({

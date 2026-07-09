@@ -44,6 +44,7 @@ import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/co
 import { normalizeApiKeyValue, normalizeLoadedLegacyConfig } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
+import { notifyCloudConversationSave } from '/src/app/runtime/kernel/cloud-conversation-save-observer.js';
 import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/src/app/runtime/security/sensitive-config-store.js';
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
 import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
@@ -533,7 +534,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getAppData: () => runtimeAppDataStore.getSnapshot(),
             getAppDataKey,
             setItem,
-            onSaved: (snapshot) => globalThis.__astraCloudSyncV2?.captureWorkspace(snapshot)
+            onSaved: notifyCloudConversationSave
         });
         const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
             getCurrentUser: () => currentUser,

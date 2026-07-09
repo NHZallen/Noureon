@@ -139,13 +139,22 @@ export function createCloudAssetTransport({
     });
   }
 
+  async function objectAlreadyExists(path) {
+    const { data, error } = await storageBucket.download(path);
+    return Boolean(!error && data);
+  }
+
   async function uploadBlob(blob, encoding) {
     const hash = await sha256(blob, cryptoProvider);
     const path = `${userId}/${hash}`;
     if (!uploadedPaths.has(path)) {
       const { error } = await uploadObject(path, blob);
-      const duplicate = error && (String(error.statusCode) === '409' || /already exists|duplicate/i.test(error.message || ''));
-      if (error && !duplicate) throw error;
+      const duplicate = error && (
+        String(error.statusCode) === '409'
+        || String(error.code) === '23505'
+        || /already exists|duplicate|bucketid_objname/i.test(`${error.message || ''}\n${error.details || ''}`)
+      );
+      if (error && !duplicate && !(await objectAlreadyExists(path))) throw error;
       uploadedPaths.add(path);
     }
     return marker(path, blob.type || 'application/octet-stream', encoding);

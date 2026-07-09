@@ -473,6 +473,17 @@ test('cloud permanent delete uses the active shadow sync instead of username pre
   assert.doesNotMatch(cloudDeleteSource, /startsWith\(['"]supabase:/);
 });
 
+test('local conversation saves request an immediate background shadow flush', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const observerSource = readSource('src/app/runtime/kernel/cloud-conversation-save-observer.js');
+
+  assert.match(legacyCoreSource, /cloud-conversation-save-observer\.js/);
+  assert.match(legacyCoreSource, /onSaved:\s*notifyCloudConversationSave/);
+  assert.match(observerSource, /sync\?\.captureWorkspace\?\.\(snapshot\)/);
+  assert.match(observerSource, /captured\s+&&\s+typeof\s+sync\?\.flush\s+===\s+['"]function['"]/);
+  assert.match(observerSource, /sync\.flush\(\)/);
+});
+
 test('app data store remains wired while production boot moves through runtime entry', () => {
   const runtimeAppSource = readSource('src/app/runtime-app.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
