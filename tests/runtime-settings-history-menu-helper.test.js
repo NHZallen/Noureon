@@ -188,6 +188,42 @@ test('folder move and new folder actions use injected callbacks', async () => {
   ]);
 });
 
+test('empty folder menu omits the create-folder divider', () => {
+  const { helper, getPopover } = createHarness({
+    dependencies: {
+      getFolders: () => []
+    }
+  });
+  const targetButton = new FakeElement('button');
+  targetButton.id = 'target-empty-folders';
+
+  helper.createHistoryMenu('conv-1', targetButton);
+  const popover = getPopover();
+
+  assert.doesNotMatch(popover.innerHTML, /move-to-folder-btn/);
+  assert.doesNotMatch(popover.innerHTML, /border-t my-1 border-\[var\(--border-color\)\][\s\S]*new-folder-from-menu-btn/);
+});
+
+test('folder move options include the saved folder svg and icon color', () => {
+  const { helper, getPopover } = createHarness({
+    dependencies: {
+      getFolders: () => [{ id: 'folder-1', name: 'Work', icon: 'star', color: 'red' }],
+      resolveFolderColor: (color, palette, fallback) => palette[color] || fallback,
+      folderColors: { gray: '#808080', red: '#f87171' }
+    }
+  });
+  const targetButton = new FakeElement('button');
+  targetButton.id = 'target-colored-folder';
+
+  helper.createHistoryMenu('conv-1', targetButton);
+  const popover = getPopover();
+
+  assert.match(popover.innerHTML, /move-to-folder-btn[^"]*[^>]*flex items-center gap-2/);
+  assert.match(popover.innerHTML, /folder-icon-svg/);
+  assert.match(popover.innerHTML, /--folder-icon-color: #f87171/);
+  assert.match(popover.innerHTML, /M11\.049 2\.927/);
+});
+
 test('move-out action is wired for foldered conversations', () => {
   const { helper, calls, getPopover } = createHarness({
     dependencies: {

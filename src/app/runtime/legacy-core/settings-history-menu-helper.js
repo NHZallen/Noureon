@@ -1,3 +1,18 @@
+import { FOLDER_SVGS } from '../../legacy-runtime/data/folder-metadata.js';
+import { resolveFolderColor as resolveSavedFolderColor } from '../../../utils/folder-colors.js';
+
+const FOLDER_MENU_COLORS = {
+  black: '#000000',
+  gray: '#808080',
+  red: '#f87171',
+  yellow: '#facc15',
+  green: '#4ade80',
+  blue: '#60a5fa',
+  indigo: '#818cf8',
+  purple: '#a78bfa',
+  pink: '#f472b6'
+};
+
 const REQUIRED_DEPENDENCIES = [
   'window',
   'document',
@@ -39,10 +54,38 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
     deleteChat,
     moveConversationToFolder,
     createNewFolder,
-    showCustomPrompt
+    showCustomPrompt,
+    resolveFolderColor = resolveSavedFolderColor,
+    folderColors = FOLDER_MENU_COLORS
   } = dependencies;
 
   const getTexts = () => i18n[getConfig().uiLanguage] || {};
+  const escapeHTML = (value = '') => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const buildMoveToFolderOptions = (folders) => {
+    const folderOptionsHTML = folders.map((folder) => {
+      const svgPath = FOLDER_SVGS[folder.icon] || FOLDER_SVGS.default;
+      const iconColor = resolveFolderColor(folder.color, folderColors, folderColors.gray);
+      return `
+                        <button data-folder-id="${escapeHTML(folder.id)}" class="move-to-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm flex items-center gap-2">
+                            <span class="folder-icon flex-shrink-0" style="--folder-icon-color: ${escapeHTML(iconColor)}; color: ${escapeHTML(iconColor)};">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="folder-icon-svg w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    ${svgPath}
+                                </svg>
+                            </span>
+                            <span class="truncate">${escapeHTML(folder.name)}</span>
+                        </button>`;
+    }).join('');
+    const dividerHTML = folders.length > 0
+      ? '<div class="border-t my-1 border-[var(--border-color)]"></div>'
+      : '';
+    return `${folderOptionsHTML}${dividerHTML}`;
+  };
 
   function createHistoryMenu(convId, targetButton) {
     const existingPopover = document.getElementById('history-popover');
@@ -81,8 +124,7 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </button>
                 <div class="absolute left-full top-0 w-48 rounded-lg border border-[var(--border-color)] bg-[var(--modal-bg)] hidden group-hover:block">
-                    ${folders.map((folder) => `<button data-folder-id="${folder.id}" class="move-to-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${folder.name}</button>`).join('')}
-                        <div class="border-t my-1 border-[var(--border-color)]"></div>
+                    ${buildMoveToFolderOptions(folders)}
                         <button class="new-folder-from-menu-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.createNewFolder || '建立新資料夾'}</button>
                     </div>
                 </div>
