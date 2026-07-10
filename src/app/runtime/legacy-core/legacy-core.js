@@ -774,7 +774,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         if (conversationStateAccess.getCurrentConversationId() === id) {
             startNewChat();
         } else {
-            runtimeRenderCoordinator.renderAll();
+            runtimeRenderCoordinator.renderSidebar();
         }
         runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || 'Chat moved to trash.', 'success');
     }
@@ -789,10 +789,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 const latestConversations = liveConversationsBridge.getConversations();
                 const nextConv = latestConversations.find(c => !c.archived && !c.deletedAt);
                 conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
-                if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
+            if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
                 else loadChat(conversationStateAccess.getCurrentConversationId());
             } else {
-                runtimeRenderCoordinator.renderAll();
+                runtimeRenderCoordinator.renderSidebar();
             }
         };
         const unarchiveChat = async (id, event) => {
@@ -801,7 +801,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             const conv = currentConversations.find(c => c.id === id);
             if(conv) conv.archived = false;
             await saveAppData();
-            runtimeRenderCoordinator.renderAll();
+            runtimeRenderCoordinator.renderSidebar();
         };
         const {
             getInlineMediaSrc: getArchivedInlineMediaSrc,
@@ -848,7 +848,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             if (conv) {
                 conv.pinned = !conv.pinned;
                 await saveAppData();
-                runtimeRenderCoordinator.renderAll();
+                runtimeRenderCoordinator.renderSidebar();
             }
         };
         const showRenameModal = (id, type, event) => {
@@ -880,7 +880,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 if (folder) { folder.name = newTitle; }
             }
             await saveAppData();
-            runtimeRenderCoordinator.renderAll();
+            runtimeRenderCoordinator.renderSidebar();
             toggleModal(ALL_ELEMENTS.renameModal, false);
             itemToRename = { id: null, type: null };
         };
@@ -931,6 +931,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             logger: console
         });
         const renderAll = (...args) => runtimeRenderCoordinator.renderAll(...args);
+        const renderSidebar = (...args) => runtimeRenderCoordinator.renderSidebar(...args);
         createCloudWorkspaceLiveLifecycle({
             window, configAccess: runtimeConfigAccess, appDataStore: runtimeAppDataStore,
             getDefaultFolder, getDefaultGenConfig, normalizeCouncilConfig, normalizeConversationModel,
@@ -1376,6 +1377,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deleteFolderFromCloud,
             renderFolders,
             renderAll,
+            renderSidebar,
             showCustomConfirm,
             showNotification,
             toggleModal,
@@ -1400,7 +1402,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].batchSelect || 'Batch select';
     }
 
-    renderAll();
+    renderSidebar();
 };
         const batchActionBarLifecycle = createBatchActionBarLifecycle({
             elements: ALL_ELEMENTS,
@@ -1523,6 +1525,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderMarkdownWithFormulas,
             startNewChat,
             renderAll,
+            renderSidebar,
             updateFunctionButtonsState,
             saveSettings,
             handleLogout,

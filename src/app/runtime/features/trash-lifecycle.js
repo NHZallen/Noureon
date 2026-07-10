@@ -12,6 +12,7 @@ export function createLegacyTrashLifecycle({
   replaceConversations,
   saveAppData,
   renderAll = () => {},
+  renderSidebar = renderAll,
   getI18n,
   getUiLanguage,
   showCustomConfirm,
@@ -161,6 +162,7 @@ export function createLegacyTrashLifecycle({
       conversation.deletedAt = null;
       conversation.stateUpdatedAt = new Date().toISOString();
       await saveAppData();
+      renderSidebar();
       renderTrash();
       showCoordinatedNotification(getTexts().itemRestored || '項目已還原。', 'success');
     }
@@ -177,7 +179,7 @@ export function createLegacyTrashLifecycle({
       getConversations().filter(conversation => conversation.id !== conversationId)
     );
     await saveAppData();
-    renderAll();
+    renderSidebar();
     renderTrash();
     showNotification(getTexts().itemPermanentlyDeleted || '項目已永久刪除。', 'success');
   };
@@ -231,6 +233,7 @@ export function createLegacyTrashLifecycle({
       }
     });
     await saveAppData();
+    renderSidebar();
     toggleTrashSelectionMode();
     showCoordinatedNotification(
       `${getTexts().batchRestoredSuccess || '已成功還原'} ${count} ${getTexts().items || '個項目'}。`,
@@ -252,7 +255,7 @@ export function createLegacyTrashLifecycle({
       getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))
     );
     await saveAppData();
-    renderAll();
+    renderSidebar();
     toggleTrashSelectionMode();
     showNotification(
       `${getTexts().batchPermanentlyDeletedSuccess || '已成功永久刪除'} ${count} ${getTexts().items || '個項目'}。`,
@@ -274,7 +277,7 @@ export function createLegacyTrashLifecycle({
       conversations.filter(conversation => !conversation.deletedAt)
     );
     await saveAppData();
-    renderAll();
+    renderSidebar();
     renderTrash();
     showNotification(
       `${getTexts().trashEmptiedSuccess || '已成功清空垃圾桶，刪除了'} ${count} ${getTexts().items || '個項目'}。`,

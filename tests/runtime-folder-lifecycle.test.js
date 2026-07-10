@@ -97,6 +97,7 @@ function createHarness(overrides = {}) {
     deleteFolderFromCloud: overrides.deleteFolderFromCloud || (async (...args) => calls.push(['deleteFolderFromCloud', ...args])),
     renderFolders: () => calls.push(['renderFolders']),
     renderAll: () => calls.push(['renderAll']),
+    renderSidebar: () => calls.push(['renderSidebar']),
     showCustomConfirm: async (...args) => {
       calls.push(['confirm', ...args]);
       return true;
@@ -187,7 +188,7 @@ test('moveConversationToFolder reads live arrays and preserves save-render order
   assert.deepEqual(firstFolder.conversationIds, []);
   assert.deepEqual(secondFolder.conversationIds, ['conv']);
   assert.equal(conversation.folderId, 'new');
-  assert.deepEqual(harness.calls, [['saveAppData'], ['renderAll']]);
+  assert.deepEqual(harness.calls, [['saveAppData'], ['renderSidebar']]);
 });
 
 test('moveConversationToFolder uses the latest conversations pointer after replacement', async () => {
@@ -207,7 +208,7 @@ test('moveConversationToFolder uses the latest conversations pointer after repla
   assert.deepEqual(folder.conversationIds, ['conv']);
   assert.deepEqual(staleConversations, [staleConversation]);
   assert.equal(staleConversation.folderId, null);
-  assert.deepEqual(harness.calls, [['saveAppData'], ['renderAll']]);
+  assert.deepEqual(harness.calls, [['saveAppData'], ['renderSidebar']]);
 });
 
 test('deleteFolder clears linked conversations before replacement and persistence', async () => {
@@ -229,7 +230,7 @@ test('deleteFolder clears linked conversations before replacement and persistenc
     'deleteFolderFromCloud',
     'replaceFolders',
     'saveAppData',
-    'renderAll',
+    'renderSidebar',
     'notification'
   ]);
   assert.deepEqual(harness.calls[2].slice(1), ['folder', { folder }]);
@@ -278,7 +279,7 @@ test('settings lifecycle keeps folderToCustomize internal and saves the latest l
   assert.deepEqual(harness.calls.map(call => call[0]), [
     'replaceFolders',
     'saveAppData',
-    'renderAll',
+    'renderFolders',
     'toggleModal'
   ]);
   assert.equal(harness.calls[0][1], harness.getFolders());

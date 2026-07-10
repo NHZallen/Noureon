@@ -536,7 +536,6 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.uiLanguageSelect.addEventListener('change', (e) => {
                     config.uiLanguage = e.target.value;
                     applyLanguage(config.uiLanguage);
-                    renderAll();
                     renderInputIndicators();
                 });
                 const storeNavigationLifecycle = createStoreNavigationLifecycle({

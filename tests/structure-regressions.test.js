@@ -916,7 +916,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'getConversations().forEach(c => {',
     'if (c.astrasId === id) c.astrasId = null',
     'await saveAppData()',
-    'runtimeRenderCoordinator.renderAll()',
+    'runtimeRenderCoordinator.renderSidebar()',
     'runtimeDialogCoordinator.showNotification'
   ], '01 deleteAstras linked store replacement');
   assert.match(
@@ -928,7 +928,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'conversation.folderId = null',
     'replaceFolders(folders.filter(item => item.id !== id))',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'showNotification'
   ], 'folder lifecycle deleteFolder linked store replacement');
   assert.match(
@@ -998,7 +998,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'replaceConversations(',
     'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'renderTrash()',
     'showNotification'
   ], '04 trash permanent delete store replacement');
@@ -1010,7 +1010,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'toggleTrashSelectionMode()',
     'showNotification'
   ], '04 trash batch delete store replacement');
@@ -1023,7 +1023,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'replaceConversations(',
     'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'renderTrash()',
     'showNotification'
   ], '04 empty trash store replacement');
@@ -2279,7 +2279,7 @@ test('selected toggleSidebar callers use the required runtime handoff without ch
   assert.match(dependencySource, /'toggleSidebar'/);
 });
 
-test('runtime render coordinator owns renderAll order and selected Astras refresh call sites', () => {
+test('runtime render coordinator keeps sidebar-only updates out of the chat renderer', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -2310,26 +2310,27 @@ test('runtime render coordinator owns renderAll order and selected Astras refres
   assert.match(fragment00Source, /renderFilePreviews:\s*\(\)\s*=>\s*renderFilePreviews\(\)/);
   assert.match(fragment00Source, /applyLanguage:\s*\(\)\s*=>\s*applyLanguage\(runtimeConfigAccess\.getUiLanguage\(\)\)/);
   assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
+  assert.match(fragment00Source, /const\s+renderSidebar\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderSidebar\(\.\.\.args\);/);
 
   for (const body of [setAstrasBody, deactivateAstrasBody, deleteAstrasBody]) {
-    assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
-    assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
+    assert.match(body, /runtimeRenderCoordinator\.renderSidebar\(\)/);
+    assert.doesNotMatch(body, /runtimeRenderCoordinator\.renderAll\(\)/);
   }
 
   for (const body of [deleteChatBody, archiveChatBody, unarchiveChatBody, togglePinChatBody, handleRenameBody]) {
-    assert.match(body, /runtimeRenderCoordinator\.renderAll\(\)/);
-    assert.doesNotMatch(body, /(^|[^\w.])renderAll\(\)/);
+    assert.match(body, /runtimeRenderCoordinator\.renderSidebar\(\)/);
+    assert.doesNotMatch(body, /runtimeRenderCoordinator\.renderAll\(\)/);
   }
 
-  assert.match(handleRenameBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderAll\(\);\s*toggleModal\(ALL_ELEMENTS\.renameModal,\s*false\);\s*itemToRename\s*=\s*\{\s*id:\s*null,\s*type:\s*null\s*\};/);
+  assert.match(handleRenameBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderSidebar\(\);\s*toggleModal\(ALL_ELEMENTS\.renameModal,\s*false\);\s*itemToRename\s*=\s*\{\s*id:\s*null,\s*type:\s*null\s*\};/);
 
   for (const body of [moveConversationToFolderBody, deleteFolderBody]) {
-    assert.match(body, /renderAll\(\)/);
+    assert.match(body, /renderSidebar\(\)/);
     assert.doesNotMatch(body, /runtimeRenderCoordinator/);
   }
 
-  assert.match(deleteFolderBody, /await\s+saveAppData\(\);\s*renderAll\(\);\s*showNotification\(getTexts\(\)\.folderDeleted,\s*'success'\);/);
-  assert.match(fragment02Source, /renderAll,/);
+  assert.match(deleteFolderBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*showNotification\(getTexts\(\)\.folderDeleted,\s*'success'\);/);
+  assert.match(fragment02Source, /renderSidebar,/);
 });
 
 test('runtime dialog coordinator forwards the extracted dialog notification lifecycle', () => {
@@ -2380,13 +2381,13 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
     assert.doesNotMatch(body, /(^|[^\w.])showNotification\(/);
   }
 
-  assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderAll\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[runtimeConfigAccess\.getUiLanguage\(\)\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
-  assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderAll\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderSidebar\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[runtimeConfigAccess\.getUiLanguage\(\)\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
+  assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*renderInputIndicators\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(coreTailSource, /showCoordinatedNotification:\s*\(\.\.\.args\)\s*=>\s*runtimeDialogCoordinator\.showNotification\(\.\.\.args\)/);
-  assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderTrash\(\);\s*showCoordinatedNotification\(/);
-  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*renderTrash\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
   assert.match(defaultModelUpdateBody, /config\.defaultModel\s*=\s*modelId;\s*await\s+saveConfig\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
   assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
   assert.match(fragment03Source, /moveModelOrder,\s*renderPersonalMemoryList,/);
@@ -2531,8 +2532,8 @@ test('trash batch selection checkbox click does not bubble into row toggle', () 
   assert.match(renderTrashBody, /checkbox\.checked\s*=\s*!checkbox\.checked;\s*checkbox\.dispatchEvent\(createChangeEvent\(\)\);/);
   assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*event\s*=>\s*event\.stopPropagation\(\)\);/);
   assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*event\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
-  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
-  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*const\s+ids\s*=\s*\[\.\.\.selectedTrashIds\];\s*const\s+selectedSnapshots\s*=\s*getConversations\(\)\.filter\(conversation\s*=>\s*selectedTrashIds\.has\(conversation\?\.id\)\);\s*if\s*\(!await\s+confirmCloudDeletion\(ids,\s*selectedSnapshots\)\)\s*return;\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*renderAll\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*const\s+ids\s*=\s*\[\.\.\.selectedTrashIds\];\s*const\s+selectedSnapshots\s*=\s*getConversations\(\)\.filter\(conversation\s*=>\s*selectedTrashIds\.has\(conversation\?\.id\)\);\s*if\s*\(!await\s+confirmCloudDeletion\(ids,\s*selectedSnapshots\)\)\s*return;\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {

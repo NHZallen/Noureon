@@ -9,6 +9,10 @@ const RENDER_STEPS = [
   ['applyLanguage', 'applyLanguage']
 ];
 
+const SIDEBAR_RENDER_STEPS = RENDER_STEPS.filter(([name]) => (
+  name !== 'renderChat' && name !== 'renderFilePreviews' && name !== 'applyLanguage'
+));
+
 export function createRuntimeRenderCoordinator({
   renderHistorySidebar,
   renderFolders,
@@ -37,16 +41,23 @@ export function createRuntimeRenderCoordinator({
     }
   };
 
-  return {
-    renderAll() {
-      for (const [name, callbackKey] of RENDER_STEPS) {
+  const renderSteps = (steps) => {
+    for (const [name, callbackKey] of steps) {
         const callback = callbacks[callbackKey];
         if (typeof callback !== 'function') {
           warnMissingCallback(name);
           continue;
         }
         callback();
-      }
+    }
+  };
+
+  return {
+    renderAll() {
+      renderSteps(RENDER_STEPS);
+    },
+    renderSidebar() {
+      renderSteps(SIDEBAR_RENDER_STEPS);
     }
   };
 }

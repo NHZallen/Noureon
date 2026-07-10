@@ -9,6 +9,7 @@ export function createLegacyFolderLifecycle({
   deleteFolderFromCloud = async () => {},
   renderFolders,
   renderAll,
+  renderSidebar = renderAll,
   showCustomConfirm,
   showNotification,
   toggleModal,
@@ -60,7 +61,7 @@ export function createLegacyFolderLifecycle({
       }
     }
     await saveAppData();
-    renderAll();
+    renderSidebar();
   };
 
   const deleteFolder = async (id, event) => {
@@ -86,7 +87,7 @@ export function createLegacyFolderLifecycle({
     });
     replaceFolders(folders.filter(item => item.id !== id));
     await saveAppData();
-    renderAll();
+    renderSidebar();
     showNotification(getTexts().folderDeleted, 'success');
   };
 
@@ -223,7 +224,7 @@ export function createLegacyFolderLifecycle({
     replaceFolders(folders);
 
     await saveAppData();
-    renderAll();
+    renderFolders();
     toggleModal(elements.folderSettingsModal, false);
     folderToCustomize = null;
   };

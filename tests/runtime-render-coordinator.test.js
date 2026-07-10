@@ -58,6 +58,19 @@ test('repeated renderAll calls preserve legacy order', () => {
   ]);
 });
 
+test('renderSidebar refreshes navigation without rebuilding the chat or composer', () => {
+  const calls = [];
+  createOrderedCoordinator(calls).renderSidebar();
+
+  assert.deepEqual(calls, [
+    'renderHistorySidebar',
+    'renderFolders',
+    'renderAstras',
+    'renderArchivedChats',
+    'renderBatchActionBar'
+  ]);
+});
+
 test('missing render callback is skipped with explicit warning', () => {
   const calls = [];
   const warnings = [];

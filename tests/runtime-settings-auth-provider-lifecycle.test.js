@@ -957,6 +957,7 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   assert.ok(calls.indexOf('saveSensitiveConfig') < calls.indexOf('saveConfig'));
   assert.deepEqual(state.config.apiKeys, {});
   assert.equal(state.config.outputMode, 'realtime');
+  assert.equal(calls.includes('renderChat'), false);
 });
 
 test('setupSettingsModal displays masked API keys without putting raw secrets in value or dataset', () => {

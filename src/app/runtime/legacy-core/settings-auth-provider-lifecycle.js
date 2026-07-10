@@ -565,7 +565,6 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
     await saveConfig();
     applyLanguage(config.uiLanguage);
     renderModelSwitcher();
-    renderChat();
     renderStore();
     if (close) {
         toggleModal(ALL_ELEMENTS.settingsModal, false);
