@@ -309,38 +309,24 @@
 .user-message-action { display: inline-grid; width: 1.9rem; height: 1.9rem; padding: .3rem; place-items: center; border: 0; border-radius: .45rem; background: transparent; color: inherit; }
 .user-message-action:hover { background: var(--hover-bg); color: var(--text-primary); }
 .user-message-action svg { width: 1.25rem; height: 1.25rem; }
-.message-edit-inline { width: min(100%, 42rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); }
-.message-edit-panel { padding: 1rem 1.15rem .9rem; }
-.message-edit-textarea { display: block; width: 100%; min-height: 7.5rem; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; line-height: 1.55; }
-.message-edit-attachments { display: flex; flex-wrap: wrap; gap: .5rem; margin: .35rem 0; }
-.message-edit-attachment { display: flex; align-items: center; max-width: 14rem; gap: .4rem; padding: .3rem .45rem; overflow: hidden; border: 1px solid var(--border-color); border-radius: .7rem; background: var(--hover-bg); font-size: .78rem; }
-.message-edit-attachment-image { width: 2rem; height: 2rem; border-radius: .45rem; object-fit: cover; }
-.message-edit-file-icon { padding: .3rem; border-radius: .35rem; background: var(--input-field-bg); font-size: .65rem; }
-.message-edit-attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.message-edit-attachment button { margin-left: auto; border: 0; background: transparent; color: var(--text-secondary); font-size: 1.2rem; }
+.message-edit-inline { width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); }
+.message-edit-panel { display: flex; min-height: 16rem; flex-direction: column; padding: 1rem 1.5rem .9rem; }
+.message-edit-textarea { display: block; flex: 1; width: 100%; min-height: 11rem; resize: none; overflow: auto; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; line-height: 1.55; scrollbar-color: #cbd5e1 transparent; }
+.message-edit-textarea::-webkit-scrollbar { width: .55rem; }
+.message-edit-textarea::-webkit-scrollbar-thumb { border-radius: 999px; background: #cbd5e1; }
+.message-edit-preview-slot { width: 100%; }
+.message-edit-preview-slot #file-preview-container { padding: .3rem 0; }
 .message-edit-footer { display: flex; align-items: center; gap: .7rem; margin-top: .65rem; }
-.message-edit-tools { position: relative; }
-.message-edit-plus { width: 2.25rem; height: 2.25rem; border: 0; border-radius: 999px; background: var(--hover-bg); color: var(--text-primary); font-size: 1.55rem; line-height: 1; }
-.message-edit-tool-menu { position: absolute; z-index: 10; bottom: 2.7rem; left: 0; width: max-content; min-width: 11.5rem; padding: .35rem; border: 1px solid var(--border-color); border-radius: .75rem; background: var(--modal-bg); box-shadow: 0 .8rem 2rem rgba(15,23,42,.14); }
-.message-edit-tool-menu button { display: block; width: 100%; padding: .55rem .7rem; border: 0; border-radius: .45rem; background: transparent; color: var(--text-primary); text-align: left; font: inherit; font-size: .85rem; }
-.message-edit-tool-menu button:hover { background: var(--hover-bg); }
+.message-edit-plus { width: 2.25rem; height: 2.25rem; padding: 0; border: 0; background: transparent; color: var(--text-primary); font-size: 1.8rem; line-height: 1; }
+.message-edit-plus:hover { color: var(--button-primary-bg); }
 .message-edit-warning { flex: 1; margin: 0; color: var(--text-secondary); font-size: .72rem; }
 .message-edit-buttons { display: flex; gap: .5rem; margin-left: auto; }
 .message-edit-buttons button { padding: .5rem .8rem; border-radius: 999px; font: inherit; }
 .message-edit-cancel { border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); }
 .message-edit-send { border: 1px solid #111; background: #111; color: #fff; }
 .message-edit-send:disabled { opacity: .6; }
-.message-edit-header { display: none; }
 @media (max-width: 768px) {
   .user-message-actions { opacity: 1; margin-top: .25rem; }
-  .message-edit-mobile-page { position: fixed; z-index: 200; inset: 0; display: flex; flex-direction: column; background: var(--modal-bg); color: var(--text-primary); }
-  .message-edit-mobile-page .message-edit-header { display: grid; grid-template-columns: 4rem 1fr 4rem; align-items: center; min-height: 5.5rem; padding: 1rem; }
-  .message-edit-mobile-page h2 { margin: 0; text-align: center; font-size: 1.2rem; }
-  .message-edit-close { width: 3rem; height: 3rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-primary); font-size: 2rem; line-height: 1; }
-  .message-edit-mobile-page .message-edit-panel { display: flex; flex: 1; flex-direction: column; padding: 1rem; }
-  .message-edit-mobile-page .message-edit-textarea { flex: 1; min-height: 12rem; padding: .75rem; border: 1px solid var(--border-color); border-radius: 1.35rem; background: var(--input-field-bg); }
-  .message-edit-mobile-page .message-edit-footer { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
-  .message-edit-mobile-page .message-edit-warning { display: none; }
 }
     .folder-icon-svg {
     width: 20px;

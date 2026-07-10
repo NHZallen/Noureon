@@ -973,6 +973,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         let deleteAstras;
         let createAstrasMenu;
         let cancelMessageEditing = () => {};
+        let getComposerEditSubmission = () => null;
         const submitInputCouncilState = {
             get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return liveConversationsBridge.getConversations(); },
@@ -1059,6 +1060,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getActiveAstrasId: () => getActiveAstrasId(),
             deactivateAstras: (...args) => deactivateAstras(...args),
             onRegularSubmit: () => cancelMessageEditing(),
+            getComposerEditSubmission: () => getComposerEditSubmission(),
             logger: console
         });
         const {
@@ -1337,15 +1339,17 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             document,
             elements: ALL_ELEMENTS,
             getActiveConversation,
+            getUploadedFiles: () => uploadedFiles,
+            setUploadedFiles: (files) => { uploadedFiles = files; },
+            renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
             renderChat: (...args) => renderChat(...args),
             saveAppData,
             submitEditedMessage: (...args) => submitEditedMessage(...args),
-            openCouncilPopover: (...args) => openCouncilPopoverFromAttachmentMenu(...args),
-            renderInputIndicators: (...args) => renderInputIndicators(...args),
-            showNotification
+            isMobile: () => window.matchMedia('(max-width: 768px)').matches
         });
         const { startMessageEditing } = messageEditingLifecycle;
         cancelMessageEditing = (...args) => messageEditingLifecycle.cancelMessageEditing(...args);
+        getComposerEditSubmission = (...args) => messageEditingLifecycle.getComposerEditSubmission(...args);
         import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
         import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
         import { createLegacyTransitionBusLifecycle } from '/src/app/runtime/legacy-core/transition-bus-lifecycle.js';

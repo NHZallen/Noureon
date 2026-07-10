@@ -115,6 +115,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getActiveAstrasId = () => getActiveConversation()?.astrasId || null,
     deactivateAstras = () => {},
     onRegularSubmit = () => {},
+    getComposerEditSubmission = () => null,
     showCustomDialog,
     logger = console
   } = dependencies;
@@ -867,9 +868,13 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const handleFormSubmit = async (event, submitOptions = {}) => {
     event?.preventDefault?.();
-    if (!submitOptions.preserveComposer) onRegularSubmit();
-    const preparedSubmit = Object.keys(submitOptions).length > 0
-      ? await submitInputPreparationLifecycle.prepareSubmitResponse(submitOptions)
+    let effectiveSubmitOptions = submitOptions;
+    if (!effectiveSubmitOptions.preserveComposer) {
+      effectiveSubmitOptions = getComposerEditSubmission() || effectiveSubmitOptions;
+      if (!effectiveSubmitOptions.preserveComposer) onRegularSubmit();
+    }
+    const preparedSubmit = Object.keys(effectiveSubmitOptions).length > 0
+      ? await submitInputPreparationLifecycle.prepareSubmitResponse(effectiveSubmitOptions)
       : await prepareDefaultSubmit();
     if (!preparedSubmit.shouldContinue) return;
     const {

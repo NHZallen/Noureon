@@ -3,13 +3,6 @@ const textFromMessage = (message) => (message?.parts || [])
   .map(part => part.text)
   .join('\n');
 
-const escapeHTML = (value = '') => String(value)
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-  .replaceAll("'", '&#039;');
-
 const filesFromMessage = (message) => (message?.parts || [])
   .filter(part => part?.inlineData)
   .map(({ inlineData }) => ({
@@ -20,67 +13,63 @@ const filesFromMessage = (message) => (message?.parts || [])
     targetedEdit: Boolean(inlineData.targetedEdit)
   }));
 
-const attachmentMarkup = (file, index) => {
-  const isImage = String(file.type || '').startsWith('image/');
-  const thumbnail = isImage
-    ? `<img src="${file.base64}" alt="" class="message-edit-attachment-image">`
-    : '<span class="message-edit-file-icon">檔案</span>';
-  return `<div class="message-edit-attachment">
-    ${thumbnail}
-    <span class="message-edit-attachment-name" title="${escapeHTML(file.name)}">${escapeHTML(file.name)}</span>
-    <button type="button" data-edit-remove-file="${index}" aria-label="刪除附件">×</button>
-  </div>`;
-};
+const escapeHTML = (value = '') => String(value)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#039;');
 
 export function createMessageEditingLifecycle({
   document,
   elements,
   getActiveConversation,
+  getUploadedFiles = () => [],
+  setUploadedFiles = () => {},
+  renderFilePreviews = () => {},
   renderChat,
   saveAppData,
   submitEditedMessage,
-  openCouncilPopover = () => {},
-  renderInputIndicators = () => {},
-  showNotification = () => {},
   isMobile = () => globalThis.matchMedia?.('(max-width: 768px)')?.matches
 } = {}) {
   let activeEditor = null;
 
-  const dismissEditor = () => {
-    if (!activeEditor) return;
-    activeEditor.root?.remove();
+  const restoreComposer = (editor) => {
+    if (!editor?.composerDraft) return;
+    const { messageInput, filePreviewContainer } = elements;
+    if (messageInput) messageInput.value = editor.composerDraft.text;
+    setUploadedFiles(editor.composerDraft.files);
+    if (editor.previewParent && filePreviewContainer && !editor.mobile) {
+      editor.previewParent.insertBefore(filePreviewContainer, editor.previewNextSibling);
+    }
+    renderFilePreviews();
+  };
+
+  const dismissEditor = ({ restore = true } = {}) => {
+    const editor = activeEditor;
+    if (!editor) return;
+    if (restore) restoreComposer(editor);
+    editor.root?.remove();
+    document.body.classList.remove('is-editing-mobile-message');
     activeEditor = null;
   };
 
-  const readFiles = async (fileList) => Promise.all([...fileList].map(file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve({ name: file.name, type: file.type, size: file.size, base64: reader.result });
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  })));
+  const openSharedAttachmentMenu = () => {
+    const { addFileBtn } = elements;
+    if (!addFileBtn) return;
+    addFileBtn.click();
+  };
 
-  const renderEditor = () => {
+  const renderDesktopEditor = () => {
     const editor = activeEditor;
-    if (!editor) return;
-    const { root, files, mobile } = editor;
+    if (!editor || editor.mobile) return;
+    const { root, text } = editor;
     root.innerHTML = `
-      <div class="message-edit-header">
-        <button type="button" class="message-edit-close" data-edit-cancel aria-label="關閉編輯">×</button>
-        <h2>編輯訊息</h2>
-      </div>
       <div class="message-edit-panel">
-        <textarea class="message-edit-textarea" aria-label="編輯訊息" placeholder="輸入訊息">${escapeHTML(editor.text)}</textarea>
-        <div class="message-edit-attachments">${files.map(attachmentMarkup).join('')}</div>
-        <input class="message-edit-file-input" type="file" multiple hidden>
+        <textarea class="message-edit-textarea" aria-label="編輯訊息" placeholder="輸入訊息">${escapeHTML(text)}</textarea>
+        <div class="message-edit-preview-slot"></div>
         <div class="message-edit-footer">
-          <div class="message-edit-tools">
-            <button type="button" class="message-edit-plus" data-edit-tools aria-expanded="false" aria-label="新增附件或附加功能">+</button>
-            <div class="message-edit-tool-menu" hidden>
-              <button type="button" data-edit-add-files>新增圖片或檔案</button>
-              <button type="button" data-edit-toggle-search>${editor.conversation.isWebSearchEnabled ? '✓ ' : ''}網路搜尋</button>
-              <button type="button" data-edit-council>模型理事會</button>
-            </div>
-          </div>
+          <button type="button" class="message-edit-plus" data-edit-tools aria-label="附加檔案與功能">+</button>
           <p class="message-edit-warning">傳送後，這則訊息後的對話將被移除。</p>
           <div class="message-edit-buttons">
             <button type="button" class="message-edit-cancel" data-edit-cancel>取消</button>
@@ -88,8 +77,9 @@ export function createMessageEditingLifecycle({
           </div>
         </div>
       </div>`;
-    if (!mobile) root.querySelector('.message-edit-header').hidden = true;
 
+    const previewSlot = root.querySelector('.message-edit-preview-slot');
+    if (elements.filePreviewContainer) previewSlot.appendChild(elements.filePreviewContainer);
     const textarea = root.querySelector('.message-edit-textarea');
     textarea.addEventListener('input', () => { editor.text = textarea.value; });
     textarea.addEventListener('keydown', (event) => {
@@ -99,35 +89,11 @@ export function createMessageEditingLifecycle({
         void sendEditedMessage();
       }
     });
-    root.querySelectorAll('[data-edit-cancel]').forEach(button => button.addEventListener('click', dismissEditor));
-    root.querySelectorAll('[data-edit-remove-file]').forEach(button => button.addEventListener('click', () => {
-      editor.files.splice(Number(button.dataset.editRemoveFile), 1);
-      renderEditor();
-    }));
     root.querySelector('[data-edit-tools]').addEventListener('click', (event) => {
-      const menu = root.querySelector('.message-edit-tool-menu');
-      menu.hidden = !menu.hidden;
-      event.currentTarget.setAttribute('aria-expanded', String(!menu.hidden));
+      event.stopPropagation();
+      openSharedAttachmentMenu();
     });
-    root.querySelector('[data-edit-add-files]').addEventListener('click', () => root.querySelector('.message-edit-file-input').click());
-    root.querySelector('.message-edit-file-input').addEventListener('change', async (event) => {
-      try {
-        editor.files.push(...await readFiles(event.target.files));
-        renderEditor();
-      } catch {
-        showNotification('無法讀取選取的檔案。', 'error');
-      }
-    });
-    root.querySelector('[data-edit-toggle-search]').addEventListener('click', async () => {
-      editor.conversation.isWebSearchEnabled = !editor.conversation.isWebSearchEnabled;
-      renderInputIndicators();
-      await saveAppData();
-      renderEditor();
-    });
-    root.querySelector('[data-edit-council]').addEventListener('click', () => {
-      root.querySelector('.message-edit-tool-menu').hidden = true;
-      openCouncilPopover();
-    });
+    root.querySelector('[data-edit-cancel]').addEventListener('click', () => dismissEditor());
     root.querySelector('[data-edit-send]').addEventListener('click', () => { void sendEditedMessage(); });
     requestAnimationFrame(() => textarea.focus());
   };
@@ -135,22 +101,30 @@ export function createMessageEditingLifecycle({
   const sendEditedMessage = async () => {
     const editor = activeEditor;
     if (!editor || editor.sending) return;
-    const text = editor.text.trim();
-    if (!text && editor.files.length === 0) return;
+    const text = editor.mobile ? String(elements.messageInput?.value || '').trim() : editor.text.trim();
+    const files = [...getUploadedFiles()];
+    if (!text && files.length === 0) return;
     editor.sending = true;
-    const sendButton = editor.root.querySelector('[data-edit-send]');
-    if (sendButton) {
-      sendButton.disabled = true;
-      sendButton.textContent = '傳送中…';
-    }
-
-    const conversation = editor.conversation;
-    // Editing is a branch: discard the edited message and every message after it before resubmitting.
-    conversation.messages.splice(editor.index);
+    const sendButton = editor.root?.querySelector('[data-edit-send]');
+    if (sendButton) sendButton.disabled = true;
+    editor.conversation.messages.splice(editor.index);
     await saveAppData();
     dismissEditor();
     renderChat();
-    await submitEditedMessage({ userMessage: text, uploadedFiles: editor.files });
+    await submitEditedMessage({ userMessage: text, uploadedFiles: files });
+  };
+
+  const getComposerEditSubmission = () => {
+    const editor = activeEditor;
+    if (!editor?.mobile) return null;
+    const text = String(elements.messageInput?.value || '').trim();
+    const files = [...getUploadedFiles()];
+    if (!text && files.length === 0) return null;
+    editor.conversation.messages.splice(editor.index);
+    void saveAppData();
+    dismissEditor();
+    renderChat();
+    return { userMessage: text, uploadedFiles: files, preserveComposer: true };
   };
 
   const startMessageEditing = (messageIndex) => {
@@ -159,27 +133,38 @@ export function createMessageEditingLifecycle({
     if (!message || message.role !== 'user') return;
     dismissEditor();
     const mobile = Boolean(isMobile());
-    const root = document.createElement('section');
-    root.className = mobile ? 'message-edit-mobile-page' : 'message-edit-inline';
+    const root = mobile ? null : document.createElement('section');
+    const filePreviewContainer = elements.filePreviewContainer;
     activeEditor = {
       conversation,
       index: messageIndex,
       text: textFromMessage(message),
-      files: filesFromMessage(message),
       root,
       mobile,
-      sending: false
+      sending: false,
+      composerDraft: {
+        text: elements.messageInput?.value || '',
+        files: [...getUploadedFiles()]
+      },
+      previewParent: filePreviewContainer?.parentNode || null,
+      previewNextSibling: filePreviewContainer?.nextSibling || null
     };
+    setUploadedFiles(filesFromMessage(message));
+    renderFilePreviews();
+
     if (mobile) {
-      document.body.appendChild(root);
-    } else {
-      const messageElement = elements.messageList.querySelector(`.message-item[data-message-index="${messageIndex}"]`);
-      const stack = messageElement?.querySelector('.message-stack-user');
-      if (!stack) return dismissEditor();
-      stack.replaceWith(root);
+      document.body.classList.add('is-editing-mobile-message');
+      elements.messageInput.value = activeEditor.text;
+      elements.messageInput.focus();
+      return;
     }
-    renderEditor();
+    root.className = 'message-edit-inline';
+    const messageElement = elements.messageList.querySelector(`.message-item[data-message-index="${messageIndex}"]`);
+    const stack = messageElement?.querySelector('.message-stack-user');
+    if (!stack) return dismissEditor();
+    stack.replaceWith(root);
+    renderDesktopEditor();
   };
 
-  return { startMessageEditing, cancelMessageEditing: dismissEditor };
+  return { startMessageEditing, cancelMessageEditing: dismissEditor, getComposerEditSubmission };
 }
