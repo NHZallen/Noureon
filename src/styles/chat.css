@@ -310,13 +310,14 @@
 .user-message-action, .user-message-action:hover { color: #6b7280 !important; }
 .user-message-action svg { width: 1.25rem; height: 1.25rem; stroke: #6b7280 !important; }
 .user-message-action svg * { stroke: #6b7280 !important; }
-.message-edit-inline { position: relative; width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); opacity: 0; transition: opacity .42s cubic-bezier(.22, 1, .36, 1); }
-.message-edit-inline.message-edit-visible { opacity: 1; }
-.message-edit-inline.message-edit-closing { overflow: hidden; transition: height .32s cubic-bezier(.22, 1, .36, 1); }
-.message-edit-inline.message-edit-closing .message-edit-panel { opacity: 0; transition: opacity .2s ease; }
+.message-edit-inline { position: relative; width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); opacity: 0; transform: scale(.92); transform-origin: bottom right; filter: blur(3px); transition: opacity .46s cubic-bezier(.16, 1, .3, 1), transform .46s cubic-bezier(.16, 1, .3, 1), filter .34s ease; }
+.message-edit-inline.message-edit-visible { opacity: 1; transform: scale(1); filter: blur(0); }
+.message-edit-inline.message-edit-closing { overflow: hidden; background-color: transparent; transition: height .42s cubic-bezier(.16, 1, .3, 1), background-color .32s ease; }
+.message-edit-panel { display: flex; flex-direction: column; padding: 1rem 1.5rem .9rem; opacity: 0; transform: scale(.9); transform-origin: bottom right; clip-path: inset(10% 0 10% 62% round 1rem); transition: opacity .42s ease, transform .46s cubic-bezier(.16, 1, .3, 1), clip-path .46s cubic-bezier(.16, 1, .3, 1); }
+.message-edit-inline.message-edit-visible .message-edit-panel { opacity: 1; transform: scale(1); clip-path: inset(0 round 1.5rem); }
+.message-edit-inline.message-edit-closing .message-edit-panel { opacity: 0; transform: scale(.82); clip-path: inset(14% 0 14% 66% round 1rem); transition: opacity .26s ease, transform .4s cubic-bezier(.16, 1, .3, 1), clip-path .4s cubic-bezier(.16, 1, .3, 1); }
 .message-edit-inline > .message-edit-returning { position: absolute; inset: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity .3s ease .04s; }
 .message-edit-returning.message-edit-returned { opacity: 1; }
-.message-edit-panel { display: flex; flex-direction: column; padding: 1rem 1.5rem .9rem; }
 .message-edit-textarea { display: block; flex: none; width: 100%; height: 6rem; min-height: 6rem; resize: none; overflow: auto; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; line-height: 1.55; scrollbar-color: #cbd5e1 transparent; }
 .message-edit-textarea::-webkit-scrollbar { width: .55rem; }
 .message-edit-textarea::-webkit-scrollbar-thumb { border-radius: 999px; background: #cbd5e1; }
@@ -349,6 +350,7 @@
   .message-edit-inline,
   .message-edit-inline.message-edit-closing,
   .message-edit-inline.message-edit-closing .message-edit-panel,
+  .message-edit-panel,
   .message-edit-returning,
   .message-edit-mobile-page,
   #input-bar-container.message-edit-composer-returning { transition: none; }

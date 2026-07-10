@@ -27,6 +27,7 @@ export function createMessageEditingLifecycle({
   getUploadedFiles = () => [],
   setUploadedFiles = () => {},
   renderFilePreviews = () => {},
+  renderInputIndicators = () => {},
   updateInputState = () => {},
   renderChat,
   saveAppData,
@@ -50,7 +51,7 @@ export function createMessageEditingLifecycle({
     const onTransitionEnd = (event) => {
       if (event.target === element && event.propertyName === propertyName) finish();
     };
-    const fallback = setTimeout(finish, 380);
+    const fallback = setTimeout(finish, 520);
     element.addEventListener('transitionend', onTransitionEnd);
   });
 
@@ -84,6 +85,7 @@ export function createMessageEditingLifecycle({
       if (!restore || editor.composerRestored) return;
       restoreComposer(editor);
       editor.composerRestored = true;
+      renderInputIndicators();
       updateInputState();
       if (editor.mobile && animate && !prefersReducedMotion()) {
         const composer = elements.inputBarContainer;
@@ -138,6 +140,7 @@ export function createMessageEditingLifecycle({
     }
 
     if (editor.mobile) {
+      document.body.classList.remove('is-editing-mobile-message');
       restoreEditorComposer();
       editor.root?.classList.remove('message-edit-visible');
       editor.closing = waitForTransition(editor.root, 'opacity').then(finish);

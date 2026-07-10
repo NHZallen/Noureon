@@ -1342,6 +1342,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getUploadedFiles: () => uploadedFiles,
             setUploadedFiles: (files) => { uploadedFiles = files; },
             renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
+            renderInputIndicators: (...args) => renderInputIndicators(...args),
             updateInputState: (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
             renderChat: (...args) => renderChat(...args),
             saveAppData,

@@ -60,6 +60,7 @@ test('mobile cancellation restores the composer before the editor fade has compl
     const inputBar = document.querySelector('#input-bar');
     const composerParent = document.querySelector('#composer-parent');
     let updateInputStateCalls = 0;
+    let renderInputIndicatorsCalls = 0;
     const lifecycle = createMessageEditingLifecycle({
       document,
       elements: {
@@ -72,6 +73,7 @@ test('mobile cancellation restores the composer before the editor fade has compl
       },
       getActiveConversation: () => conversation,
       renderChat: () => {},
+      renderInputIndicators: () => { renderInputIndicatorsCalls += 1; },
       updateInputState: () => { updateInputStateCalls += 1; },
       saveAppData: async () => {},
       submitEditedMessage: async () => {},
@@ -83,6 +85,8 @@ test('mobile cancellation restores the composer before the editor fade has compl
 
     assert.equal(inputBar.parentNode, composerParent);
     assert.equal(updateInputStateCalls, 1);
+    assert.equal(renderInputIndicatorsCalls, 1);
+    assert.equal(document.body.classList.contains('is-editing-mobile-message'), false);
     await closing;
     assert.equal(document.querySelector('.message-edit-mobile-page'), null);
   } finally {
