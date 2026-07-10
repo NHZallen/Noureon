@@ -103,15 +103,17 @@ export function createMessageEditingLifecycle({
       const { root, originalStack } = editor;
       if (!root?.parentNode || !originalStack) return false;
       const editorHeight = root.getBoundingClientRect().height;
-      originalStack.classList.add('message-edit-returning');
-      root.appendChild(originalStack);
-      const messageHeight = originalStack.getBoundingClientRect().height;
+      const returningPreview = originalStack.cloneNode(true);
+      returningPreview.classList.add('message-edit-returning');
+      if (editor.originalStackWidth > 0) returningPreview.style.width = `${editor.originalStackWidth}px`;
+      root.appendChild(returningPreview);
+      const messageHeight = returningPreview.getBoundingClientRect().height;
       root.style.height = `${editorHeight}px`;
       void root.offsetHeight;
       root.classList.add('message-edit-closing');
       scheduleFrame(() => {
         root.style.height = `${messageHeight}px`;
-        originalStack.classList.add('message-edit-returned');
+        returningPreview.classList.add('message-edit-returned');
       });
       return true;
     };
@@ -125,7 +127,6 @@ export function createMessageEditingLifecycle({
       if (!editor.mobile && editor.originalStack && editor.root?.parentNode) {
         editor.root.replaceWith(editor.originalStack);
         restoredOriginalMessage = true;
-        editor.originalStack.classList.remove('message-edit-returning', 'message-edit-returned');
       } else {
         editor.root?.remove();
       }
@@ -266,6 +267,7 @@ export function createMessageEditingLifecycle({
       mobile,
       sending: false,
       originalStack: null,
+      originalStackWidth: 0,
       composerRestored: false,
       composerDraft: {
         text: elements.messageInput?.value || '',
@@ -303,6 +305,7 @@ export function createMessageEditingLifecycle({
     const stack = messageElement?.querySelector('.message-stack-user');
     if (!stack) return dismissEditor();
     activeEditor.originalStack = stack;
+    activeEditor.originalStackWidth = stack.getBoundingClientRect().width;
     stack.replaceWith(root);
     renderDesktopEditor();
     scheduleFrame(() => root.classList.add('message-edit-visible'));

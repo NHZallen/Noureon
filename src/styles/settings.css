@@ -283,6 +283,10 @@ button:active:not(:disabled),
     font-weight: 500 !important;
 }
 
+#settings-modal #memory-section > h3[data-lang-key="memorySwitch"] {
+    display: none !important;
+}
+
 #settings-modal .border-red-500\/30,
 #settings-modal .border-red-500,
 #settings-modal .border-blue-500,

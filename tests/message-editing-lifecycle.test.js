@@ -16,6 +16,7 @@ test('cancelling a desktop message edit restores only the original message witho
   try {
     let renderChatCalls = 0;
     const conversation = { messages: [{ role: 'user', parts: [{ text: 'Original message' }] }] };
+    const originalStack = document.querySelector('.message-stack-user');
     const lifecycle = createMessageEditingLifecycle({
       document,
       elements: {
@@ -37,7 +38,15 @@ test('cancelling a desktop message edit restores only the original message witho
     assert.equal(document.querySelectorAll('.message-edit-inline').length, 1);
     assert.equal(document.querySelectorAll('.message-stack-user').length, 0);
 
-    await lifecycle.cancelMessageEditing({ animate: false });
+    const editor = document.querySelector('.message-edit-inline');
+    const closing = lifecycle.cancelMessageEditing();
+    const returningPreview = editor.querySelector('.message-edit-returning');
+    assert.notEqual(returningPreview, originalStack);
+
+    const transitionEnd = new Event('transitionend');
+    Object.defineProperty(transitionEnd, 'propertyName', { value: 'height' });
+    editor.dispatchEvent(transitionEnd);
+    await closing;
 
     assert.equal(renderChatCalls, 0);
     assert.equal(document.querySelectorAll('.message-edit-inline').length, 0);
