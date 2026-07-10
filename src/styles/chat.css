@@ -310,7 +310,11 @@
 .user-message-action, .user-message-action:hover { color: #6b7280 !important; }
 .user-message-action svg { width: 1.25rem; height: 1.25rem; stroke: #6b7280 !important; }
 .user-message-action svg * { stroke: #6b7280 !important; }
-.message-edit-inline { width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); opacity: 0; transform: scale(.965); transform-origin: bottom right; transition: height .32s cubic-bezier(.2, .8, .2, 1), opacity .24s ease, transform .36s cubic-bezier(.2, .8, .2, 1); }
+.message-edit-transition-host { position: relative; overflow: visible; transition: height .36s cubic-bezier(.2, .8, .2, 1); }
+.message-edit-transition-host > .message-stack-user { transition: opacity .18s ease, transform .28s cubic-bezier(.2, .8, .2, 1); }
+.message-edit-transition-host > .message-stack-user.is-transitioning-out { opacity: 0; transform: scale(.985); pointer-events: none; }
+.message-edit-transition-host > .message-edit-inline { position: absolute; top: 0; right: 0; }
+.message-edit-inline { width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); opacity: 0; transform: scale(.965); transform-origin: bottom right; transition: opacity .24s ease, transform .36s cubic-bezier(.2, .8, .2, 1); }
 .message-edit-inline.is-visible { opacity: 1; transform: scale(1); }
 .message-edit-inline.is-closing { opacity: 0; transform: scale(.985); }
 .message-edit-panel { display: flex; flex-direction: column; padding: 1rem 1.5rem .9rem; }
@@ -344,7 +348,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .message-edit-inline, .message-edit-mobile-page, .message-edit-mobile-header { transition: none; }
+  .message-edit-transition-host, .message-edit-transition-host > .message-stack-user, .message-edit-inline, .message-edit-mobile-page, .message-edit-mobile-header { transition: none; }
 }
     .folder-icon-svg {
     width: 20px;

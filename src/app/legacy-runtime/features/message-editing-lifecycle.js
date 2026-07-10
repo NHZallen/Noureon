@@ -59,8 +59,8 @@ export function createMessageEditingLifecycle({
     if (activeEditor !== editor) return;
     if (restore) restoreComposer(editor);
     restoreSharedAttachmentMenu();
-    if (!editor.mobile && editor.originalStack && editor.root?.isConnected) {
-      editor.root.replaceWith(editor.originalStack);
+    if (!editor.mobile && editor.originalStack && editor.host?.isConnected) {
+      editor.host.replaceWith(editor.originalStack);
     } else {
       editor.root?.remove();
     }
@@ -79,12 +79,14 @@ export function createMessageEditingLifecycle({
     }
     editor.closing = true;
     const transitionDuration = editor.mobile ? 220 : 320;
-    if (!editor.mobile) {
-      const currentHeight = editor.root.getBoundingClientRect().height;
-      editor.root.style.height = `${currentHeight}px`;
-      editor.root.style.overflow = 'hidden';
-      void editor.root.offsetHeight;
-      editor.root.style.height = `${editor.originalHeight || 0}px`;
+    if (editor.mobile && restore) {
+      restoreComposer(editor);
+      restore = false;
+      editor.root.style.pointerEvents = 'none';
+    } else if (!editor.mobile && editor.host) {
+      editor.originalStack.hidden = false;
+      editor.originalStack.classList.remove('is-transitioning-out');
+      editor.host.style.height = `${editor.originalHeight || 0}px`;
     }
     editor.root.classList.remove('is-visible');
     editor.root.classList.add('is-closing');
@@ -242,10 +244,21 @@ export function createMessageEditingLifecycle({
     if (!stack) return dismissEditor();
     activeEditor.originalStack = stack;
     activeEditor.originalHeight = stack.getBoundingClientRect().height;
-    stack.replaceWith(root);
+    const host = document.createElement('div');
+    host.className = 'message-edit-transition-host';
+    host.style.height = `${activeEditor.originalHeight}px`;
+    activeEditor.host = host;
+    stack.replaceWith(host);
+    host.append(stack, root);
     renderDesktopEditor();
     requestAnimationFrame(() => {
-      if (activeEditor?.root === root) root.classList.add('is-visible');
+      if (activeEditor?.root !== root) return;
+      root.classList.add('is-visible');
+      stack.classList.add('is-transitioning-out');
+      host.style.height = `${root.getBoundingClientRect().height}px`;
+      globalThis.setTimeout(() => {
+        if (activeEditor?.root === root && !activeEditor.closing) stack.hidden = true;
+      }, 360);
     });
   };
 
