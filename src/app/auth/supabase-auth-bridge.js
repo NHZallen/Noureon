@@ -3,6 +3,7 @@ import { reconcileStoredWorkspaceOwner, STORAGE_OWNER_KEY } from '../runtime/ker
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { migrateSyncVaultRecord } from '../sync/sync-vault.js';
 import { completePendingCloudAccountLink } from './account-linking.js';
+import { openPasswordRecovery } from './password-recovery-page.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
 const CLOUD_USER_PREFIX = 'supabase:';
@@ -120,25 +121,6 @@ export function enhanceAuthShell(document) {
   status.className = 'hidden mt-4 text-sm text-center rounded-lg p-3';
   form.after(status);
 
-  const recoveryPanel = document.createElement('form');
-  recoveryPanel.id = 'supabase-recovery-form';
-  recoveryPanel.className = 'hidden space-y-4';
-  recoveryPanel.innerHTML = `
-    <h3 class="text-xl font-bold text-center text-gray-800">設定新密碼</h3>
-    <input id="supabase-new-password" type="password" minlength="8" autocomplete="new-password" required
-      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-      placeholder="新密碼，至少 8 個字元">
-    <input id="supabase-confirm-password" type="password" minlength="8" autocomplete="new-password" required
-      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-      placeholder="再次輸入新密碼">
-    <button type="submit" class="w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700">更新密碼</button>
-  `;
-  status.after(recoveryPanel);
-  setText(recoveryPanel.querySelector('h3'), 'resetPasswordTitle', '設定新密碼');
-  setPlaceholder(recoveryPanel.querySelector('#supabase-new-password'), 'newPasswordPlaceholder', '新密碼（至少 8 個字元）');
-  setPlaceholder(recoveryPanel.querySelector('#supabase-confirm-password'), 'confirmNewPasswordPlaceholder', '再次輸入新密碼');
-  setText(recoveryPanel.querySelector('button[type="submit"]'), 'resetPasswordButton', '更新密碼');
-
   const updateLocalImportButton = () => {
     if (!importButton || form.dataset.authMode !== 'local') return;
     importButton.disabled = !(emailInput.value.trim() && passwordInput.value);
@@ -228,7 +210,6 @@ export function enhanceAuthShell(document) {
     localButton,
     importButton,
     status,
-    recoveryPanel,
     setCloudMode,
     setLocalMode,
     isLocalMode: () => form.dataset.authMode === 'local'
@@ -314,11 +295,6 @@ async function hasCachedCloudUser(storage) {
   }
 }
 
-function isPasswordRecoveryUrl(window) {
-  return window.location.hash.includes('type=recovery')
-    || window.location.search.includes('type=recovery');
-}
-
 async function prepareCloudImport({ window, elements, storage, user }) {
   const record = await persistCloudUser(storage, user, { remember: false, reconcileOwner: false });
   await storage.removeItem('chat_lastUser');
@@ -367,7 +343,6 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     return captchaToken || undefined;
   };
 
-  const recoveryMode = isPasswordRecoveryUrl(window);
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   let activeCloudSession = session;
   supabase.auth.onAuthStateChange((_event, nextSession) => {
@@ -375,11 +350,7 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
   });
   if (sessionError) setStatus(elements, sessionError.message, 'error');
 
-  if (recoveryMode && session) {
-    elements.form.classList.add('hidden');
-    elements.recoveryPanel.classList.remove('hidden');
-    setStatus(elements, getAuthText(elements, 'recoveryReady', '請設定新的登入密碼。'));
-  } else if (session?.user) {
+  if (session?.user) {
     const completedLink = await completePendingCloudAccountLink({
       storage,
       cloudUserRecord: createCloudUserRecord(session.user)
@@ -477,26 +448,11 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     }
   });
 
-  elements.forgotButton.addEventListener('click', async () => {
-    const email = elements.emailInput.value.trim();
-    if (!email) {
-      setStatus(elements, getAuthText(elements, 'emailRequired', '請輸入 Email。'), 'error');
-      return;
-    }
-    const captchaToken = getCaptchaToken();
-    if (turnstile.enabled && !captchaToken) return;
-    setBusy(elements, true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-      captchaToken
+  elements.forgotButton.addEventListener('click', () => {
+    openPasswordRecovery(window, {
+      email: elements.emailInput.value.trim(),
+      language: document.documentElement.lang
     });
-    turnstile.reset('supabase-auth');
-    setBusy(elements, false);
-    setStatus(
-      elements,
-      error ? error.message : getAuthText(elements, 'passwordResetSent', 'Password reset email sent. Check your inbox.'),
-      error ? 'error' : 'success'
-    );
   });
 
   elements.localButton.addEventListener('click', async (event) => {
@@ -518,26 +474,6 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     elements.setLocalMode();
     setStatus(elements, getAuthText(elements, 'importCredentialsHint', '請輸入舊版帳號密碼，匯入後會綁定到目前雲端帳號。'));
     elements.emailInput.focus();
-  });
-
-  elements.recoveryPanel.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const password = document.getElementById('supabase-new-password').value;
-    const confirmation = document.getElementById('supabase-confirm-password').value;
-    if (password.length < 8 || password !== confirmation) {
-      setStatus(elements, getAuthText(elements, 'passwordResetMismatch', '兩次密碼需一致，且至少 8 個字元。'), 'error');
-      return;
-    }
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) {
-      setStatus(elements, error.message, 'error');
-      return;
-    }
-    await supabase.auth.signOut();
-    elements.recoveryPanel.classList.add('hidden');
-    elements.form.classList.remove('hidden');
-    window.history.replaceState({}, document.title, window.location.pathname);
-    setStatus(elements, getAuthText(elements, 'passwordResetUpdated', '密碼已更新，請使用新密碼登入。'), 'success');
   });
 
   document.addEventListener('click', async (event) => {

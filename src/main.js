@@ -16,6 +16,10 @@ import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
 import { mountAppShell } from './app/bootstrap/mount-shell.js';
 import appShell from './templates/app-shell.js';
 import { initializeSupabaseAuthBridge } from './app/auth/supabase-auth-bridge.js';
+import {
+  initializePasswordRecoveryPage,
+  isPasswordRecoveryRoute
+} from './app/auth/password-recovery-page.js';
 import { initializeCloudWorkspaceSync } from './app/sync/cloud-workspace-sync.js';
 
 async function bootstrap() {
@@ -30,6 +34,11 @@ async function bootstrap() {
     QRCodeGenerator,
     Html5Qrcode
   });
+  if (isPasswordRecoveryRoute(window.location.pathname)) {
+    await initializePasswordRecoveryPage({ window, document });
+    return;
+  }
+
   mountAppShell(appShell);
   const auth = await initializeSupabaseAuthBridge({ window, document });
   await initializeCloudWorkspaceSync({ window, session: auth.session });

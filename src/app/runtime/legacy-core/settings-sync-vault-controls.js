@@ -16,6 +16,7 @@ import {
   markPendingCloudAccountLink
 } from '../../auth/account-linking.js';
 import { createCloudUserRecord } from '../../auth/supabase-auth-bridge.js';
+import { openPasswordRecovery } from '../../auth/password-recovery-page.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
 
 export function createSettingsSyncVaultControls({
@@ -30,7 +31,6 @@ export function createSettingsSyncVaultControls({
   let busy = false;
   let accountTurnstile;
   let accountTurnstileMounted = false;
-  let loginRecoveryTurnstileMounted = false;
   let recoveryTurnstileMounted = false;
 
   const getElements = () => ({
@@ -322,14 +322,6 @@ export function createSettingsSyncVaultControls({
     accountTurnstileMounted = true;
   };
 
-  const ensureLoginRecoveryTurnstile = async () => {
-    if (loginRecoveryTurnstileMounted) return;
-    accountTurnstile ||= createTurnstileClient({ window, document });
-    if (!accountTurnstile.enabled) return;
-    await accountTurnstile.mount('account-login-recovery', getElements().forgotLoginPasswordButton);
-    loginRecoveryTurnstileMounted = true;
-  };
-
   const ensureRecoveryTurnstile = async () => {
     if (recoveryTurnstileMounted) return;
     accountTurnstile ||= createTurnstileClient({ window, document });
@@ -400,9 +392,6 @@ export function createSettingsSyncVaultControls({
     }
     if (!isCloudUser) {
       await ensureAccountTurnstile();
-    }
-    if (canChangeLoginPassword) {
-      await ensureLoginRecoveryTurnstile();
     }
   };
 
@@ -580,33 +569,12 @@ export function createSettingsSyncVaultControls({
         setBusy(false);
       }
     });
-    elements.forgotLoginPasswordButton?.addEventListener('click', async () => {
-      if (busy) return;
-      try {
-        const user = getCurrentUser();
-        if (user.authProvider !== 'supabase') {
-          throw new Error(text('cloudSyncRequiresCloudAccount', '請先綁定 Email 或 Google 帳號。'));
-        }
-        setBusy(true);
-        const supabase = getSupabaseClient();
-        const { data, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        const email = data.user?.email || user.email;
-        if (!email) throw new Error(text('recoveryEmailUnavailable', '此帳號沒有可用的 Email。'));
-        const captchaToken = accountTurnstile?.getToken('account-login-recovery');
-        if (accountTurnstile?.enabled && !captchaToken) throw new Error(text('turnstileRequired', '請先完成人機驗證。'));
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin,
-          captchaToken: captchaToken || undefined
-        });
-        accountTurnstile?.reset('account-login-recovery');
-        if (error) throw error;
-        setAccountMessage(text('loginPasswordResetEmailSent', '登入密碼重設信已寄出。'));
-      } catch (error) {
-        setAccountMessage(error?.message || text('loginPasswordResetFailed', '登入密碼重設信寄送失敗。'), 'error');
-      } finally {
-        setBusy(false);
-      }
+    elements.forgotLoginPasswordButton?.addEventListener('click', () => {
+      const user = getCurrentUser();
+      openPasswordRecovery(window, {
+        email: user?.email || '',
+        language: document.documentElement.lang
+      });
     });
     elements.createButton.addEventListener('click', async () => {
       if (busy) return;

@@ -66,7 +66,7 @@ test('auth shell enhancement adds cloud, local, and import entry points', () => 
   assert.equal(localButton.classList.contains('focus:ring-gray-500'), false);
   assert.equal(importButton.disabled, false);
   assert.equal(importButton.classList.contains('hidden'), true);
-  assert.ok(window.document.getElementById('supabase-recovery-form'));
+  assert.equal(window.document.getElementById('supabase-recovery-form'), null);
 
   elements.setLocalMode();
   assert.equal(elements.form.dataset.authMode, 'local');
@@ -129,10 +129,6 @@ test('auth shell enhancement localizes dynamic login controls', () => {
   assert.equal(window.document.querySelector('[data-lang-key="authDividerOr"]').textContent, 'OR');
   assert.equal(window.document.getElementById('supabase-google-btn').textContent.trim(), 'Continue with Google');
   assert.equal(window.document.getElementById('supabase-forgot-password-btn').textContent, 'Reset password');
-  assert.equal(window.document.querySelector('#supabase-recovery-form h3').textContent, 'Create a new password');
-  assert.equal(window.document.getElementById('supabase-new-password').placeholder, 'New password');
-  assert.equal(window.document.getElementById('supabase-confirm-password').placeholder, 'Confirm password');
-
   elements.setLocalMode();
   assert.equal(elements.loginButton.textContent, 'Local sign in');
   assert.equal(elements.localButton.textContent, 'Back to cloud sign in');
@@ -141,6 +137,7 @@ test('auth shell enhancement localizes dynamic login controls', () => {
 
 test('auth bridge keeps secrets out of browser source and wires required flows', () => {
   const source = readFileSync(new URL('../src/app/auth/supabase-auth-bridge.js', import.meta.url), 'utf8');
+  const passwordRecoverySource = readFileSync(new URL('../src/app/auth/password-recovery-page.js', import.meta.url), 'utf8');
   const clientSource = readFileSync(new URL('../src/app/auth/supabase-client.js', import.meta.url), 'utf8');
   const shellSource = readFileSync(
     new URL('../src/templates/fragments/00-shell.fragment.js', import.meta.url),
@@ -150,8 +147,11 @@ test('auth bridge keeps secrets out of browser source and wires required flows',
   assert.match(source, /signInWithPassword/);
   assert.match(source, /signUp/);
   assert.match(source, /signInWithOAuth/);
-  assert.match(source, /resetPasswordForEmail/);
-  assert.match(source, /updateUser/);
+  assert.match(passwordRecoverySource, /resetPasswordForEmail/);
+  assert.match(passwordRecoverySource, /verifyOtp/);
+  assert.match(passwordRecoverySource, /type:\s*'recovery'/);
+  assert.match(passwordRecoverySource, /updateUser/);
+  assert.match(source, /openPasswordRecovery/);
   assert.match(source, /import\s+\{\s*reconcileStoredWorkspaceOwner,\s*STORAGE_OWNER_KEY\s*\}/);
   assert.match(source, /migrateSyncVaultRecord/);
   assert.match(source, /await\s+reconcileStoredWorkspaceOwner\(\{/);
