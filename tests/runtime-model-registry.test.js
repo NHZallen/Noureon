@@ -50,6 +50,8 @@ test('model registry preserves provider labels and API id aliases', () => {
 test('model registry preserves vision and document capability behavior', () => {
   const geminiModel = MODELS.find((model) => model.id === 'gemini-3.5-flash');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
+  const openRouterGpt56Models = ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']
+    .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
   const openRouterTextModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash');
   const openRouterHy3Model = MODELS.find((model) => model.id === 'tencent/hy3:free');
@@ -59,6 +61,7 @@ test('model registry preserves vision and document capability behavior', () => {
 
   assert.equal(modelSupportsVision(geminiModel), true);
   assert.equal(modelSupportsVision(openRouterVisionModel), true);
+  assert.ok(openRouterGpt56Models.every(modelSupportsVision));
   assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsVision(openRouterTextModel), false);
   assert.equal(modelSupportsVision(openRouterHy3Model), false);
@@ -78,6 +81,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-pro');
   const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-5.4');
+  const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-sol');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['high', 'xhigh']);
@@ -89,6 +93,8 @@ test('model registry exposes precise reasoning depth options for supported model
 
   assert.deepEqual(getModelReasoningConfig(openAiModel)?.options, ['none', 'low', 'medium', 'high', 'xhigh']);
   assert.equal(normalizeReasoningEffort(openAiModel, 'none'), 'none');
+  assert.deepEqual(getModelReasoningConfig(gpt56Model)?.options, ['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(normalizeReasoningEffort(gpt56Model, 'max'), 'max');
   assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');
 
   assert.deepEqual(getModelReasoningConfig(imageModel)?.options, ['minimal', 'high']);
