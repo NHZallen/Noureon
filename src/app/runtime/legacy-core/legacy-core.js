@@ -633,7 +633,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                  unsentMessage: ''
             };
         };
-        const startNewChat = async () => {
+        const startNewChat = async ({ keepSidebarOpen = false } = {}) => {
             const currentConversations = liveConversationsBridge.getConversations();
             const oldTempChatCount = currentConversations.length;
             const cleanedConversations = liveConversationsBridge.replaceConversations(
@@ -649,7 +649,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderAll();
             ALL_ELEMENTS.messageInput.value = '';
             setTimeout(adjustTextareaHeightAlias, 0);
-            legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
+            if (!keepSidebarOpen) {
+                legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
+            }
             resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
         };
@@ -695,7 +697,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         await saveAppData();
 
         if (conversationStateAccess.getCurrentConversationId() === id) {
-            await startNewChat();
+            await startNewChat({ keepSidebarOpen: true });
         } else {
             runtimeRenderCoordinator.renderSidebar();
         }

@@ -152,7 +152,7 @@ test('deleteChat preserves persistence, active fallback, render, and notificatio
   assertMarkersInOrder(body, [
     'await saveAppData()',
     'if (conversationStateAccess.getCurrentConversationId() === id)',
-    'await startNewChat()',
+    'await startNewChat({ keepSidebarOpen: true })',
     'else {',
     'runtimeRenderCoordinator.renderSidebar()',
     'runtimeDialogCoordinator.showNotification('
@@ -166,8 +166,17 @@ test('deleteChat waits for the replacement blank conversation before continuing'
 
   assert.match(
     body,
-    /if\s*\(conversationStateAccess\.getCurrentConversationId\(\)\s*===\s*id\)\s*\{\s*await\s+startNewChat\(\);\s*\}/
+    /if\s*\(conversationStateAccess\.getCurrentConversationId\(\)\s*===\s*id\)\s*\{\s*await\s+startNewChat\(\{\s*keepSidebarOpen:\s*true\s*\}\);\s*\}/
   );
+});
+
+test('deleteChat keeps the sidebar open while switching to its replacement blank conversation', () => {
+  const startNewChatBody = getConstFunctionBody(legacyCoreSource, 'startNewChat');
+  const deleteChatBody = getConstFunctionBody(legacyCoreSource, 'deleteChat');
+
+  assert.match(startNewChatBody, /const\s+startNewChat\s*=\s*async\s*\(\{\s*keepSidebarOpen\s*=\s*false\s*\}\s*=\s*\{\}\s*\)\s*=>/);
+  assert.match(startNewChatBody, /if\s*\(!keepSidebarOpen\)\s*\{\s*legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'\)\(false\);\s*\}/);
+  assert.match(deleteChatBody, /await\s+startNewChat\(\{\s*keepSidebarOpen:\s*true\s*\}\)/);
 });
 
 test('deleteChat uses the live bridge without a legacy conversations mirror', () => {
