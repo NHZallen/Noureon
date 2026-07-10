@@ -521,9 +521,6 @@
         model_gpt_5_6_luna_desc_tier_paid: '1 $/M entrée, 6 $/M sortie',
         model_gpt_5_6_terra_desc_tier_paid: '2,50 $/M entrée, 15 $/M sortie',
         model_gpt_5_6_sol_desc_tier_paid: '5 $/M entrée, 30 $/M sortie',
-        model_gpt_5_4_desc_tier_paid: '2,50 $/M entrée, 15 $/M sortie',
-        model_gpt_5_4_mini_desc_tier_paid: '0,75 $/M entrée, 4,50 $/M sortie',
-        model_gpt_5_4_nano_desc_tier_paid: '0,20 $/M entrée, 1,25 $/M sortie',
         // Anthropic Paid
         model_claude_opus_4_8_desc_tier_paid: '5 $/M entrée, 25 $/M sortie',
         model_claude_sonnet_5_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',

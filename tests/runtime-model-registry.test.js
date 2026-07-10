@@ -80,7 +80,7 @@ test('model registry preserves vision and document capability behavior', () => {
 test('model registry exposes precise reasoning depth options for supported models only', () => {
   const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-pro');
   const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
-  const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-5.4');
+  const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
   const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-sol');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
 

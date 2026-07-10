@@ -52,9 +52,6 @@ export const MODELS = [
     { id: 'tencent/hy3:free', name: 'Tencent HY3', provider: 'openrouter', descriptionKey: 'model_tencent_hy3_desc', category: 'general', retirementDate: '2026-07-21' },
 
     // OpenRouter Paid Models (OpenAI)
-    { id: 'openai/gpt-5.4-nano', name: 'OpenAI GPT-5.4 Nano', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_nano_desc', category: 'general' },
-    { id: 'openai/gpt-5.4-mini', name: 'OpenAI GPT-5.4 Mini', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_mini_desc', category: 'general' },
-    { id: 'openai/gpt-5.4', name: 'OpenAI GPT-5.4', provider: 'openrouter', descriptionKey: 'model_gpt_5_4_desc', category: 'general' },
     { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },
     { id: 'openai/gpt-5.6-luna', name: 'OpenAI GPT-5.6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_luna_desc', category: 'general' },
     { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
@@ -94,9 +91,6 @@ export const OPENROUTER_VISION_MODELS = [
     'minimax/minimax-m3',
     'moonshotai/kimi-k2.6',
     'moonshotai/kimi-k2.7-code',
-    'openai/gpt-5.4-nano',
-    'openai/gpt-5.4-mini',
-    'openai/gpt-5.4',
     'openai/gpt-5.5',
     'openai/gpt-5.6-luna',
     'openai/gpt-5.6-terra',
@@ -148,7 +142,7 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-3.1-flash-lite-image', 'google/gemini-3.1-flash-image']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
-    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.4-nano', 'openai/gpt-5.4-mini', 'openai/gpt-5.4', 'openai/gpt-5.5']],
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']],
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'high', ['x-ai/grok-4.5']]
 ]);
