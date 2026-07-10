@@ -321,7 +321,10 @@ export function createLegacyAppBootstrapLifecycle({
                         const message = conv?.messages?.[messageIndex];
                         if (!message || message.role !== 'user') return;
                         if (userAction.dataset.messageAction === 'copy') {
-                            const textToCopy = message.parts.filter(part => part.text).map(part => part.text).join('\n');
+                            const textToCopy = message.parts
+                                .filter(part => part.text && !part.quoteContext)
+                                .map(part => part.displayText ?? part.text)
+                                .join('\n');
                             copyTextToClipboard(textToCopy)
                                 .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製訊息。', 'success'))
                                 .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '無法複製訊息。', 'error'));

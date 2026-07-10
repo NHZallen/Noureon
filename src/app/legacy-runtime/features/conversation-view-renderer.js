@@ -19,9 +19,10 @@ export function createConversationViewRenderer({
     };
 
     const renderTextParts = (message, isUser) => message.parts
-        .filter(part => part.text)
+        .filter(part => part.text && !part.quoteContext)
         .map(part => {
-            const rendered = isUser ? renderUserText(part.text) : renderModelText(part.text);
+            const text = isUser ? (part.displayText ?? part.text) : part.text;
+            const rendered = isUser ? renderUserText(text) : renderModelText(text);
             return wrapTextParts ? `<div>${rendered}</div>` : rendered;
         })
         .join('');

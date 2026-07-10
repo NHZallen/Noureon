@@ -30,7 +30,8 @@ const createHarness = (overrides = {}) => {
     ...overrides.elements
   };
   const state = {
-    abortController: overrides.abortController ?? null
+    abortController: overrides.abortController ?? null,
+    quoteReference: overrides.quoteReference ?? null
   };
   const config = {
     uiLanguage: 'en',
@@ -129,6 +130,18 @@ test('updateInputState disables input and submit when model provider key is miss
   assert.equal(elements.messageInput.placeholder, 'Enter API key');
   assert.equal(elements.submitButton.disabled, true);
   assertDisabledSubmitIcon(elements.submitButtonIcon.innerHTML);
+});
+
+test('updateInputState allows a quote-only submission with an empty textarea', () => {
+  const { helper, elements } = createHarness({
+    messageValue: '',
+    quoteReference: { text: 'Selected model output', sourceMessageIndex: 1 }
+  });
+
+  helper.updateInputState();
+
+  assert.equal(elements.submitButton.disabled, false);
+  assertSendSubmitIcon(elements.submitButtonIcon.innerHTML);
 });
 
 test('updateInputState blocks submit but keeps input enabled when Tavily key is missing', () => {

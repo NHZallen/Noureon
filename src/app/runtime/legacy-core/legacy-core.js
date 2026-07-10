@@ -18,6 +18,7 @@ import { runSubmitFinalCleanupLifecycle } from '/src/app/legacy-runtime/features
 import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/features/model-message-post-response-actions.js';
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
 import { createMessageEditingLifecycle } from '/src/app/legacy-runtime/features/message-editing-lifecycle.js';
+import { buildQuotedUserParts, createQuoteInquiryLifecycle } from '/src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
@@ -254,6 +255,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         let isSelectionMode = false;
         let selectedConversationIds = new Set();
         let uploadedFiles = [];
+        let quoteReference = null;
+        let quoteInquiryLifecycle = null;
         let sendConfirmed = false;
         let sidebarOpen = false;
         let isFollowUpExpanded = true;
@@ -643,6 +646,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                  await saveAppData();
             }
             uploadedFiles = [];
+            quoteInquiryLifecycle?.clearQuote();
             const newConv = createBaseConversation('新對話');
             liveConversationsBridge.getConversations().unshift(newConv);
             conversationStateAccess.setCurrentConversationId(newConv.id);
@@ -669,6 +673,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 }
                 conversationStateAccess.setCurrentConversationId(id);
                 uploadedFiles = [];
+                quoteInquiryLifecycle?.clearQuote();
                 renderAll();
                 const conv = getActiveConversation();
                 ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
@@ -906,6 +911,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             get astras() { return runtimeAppDataStore.getAstras(); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
+            get quoteReference() { return quoteReference; },
             get abortController() { return abortController; },
             set abortController(next) { abortController = next; },
             get isCouncilRunning() { return isCouncilRunning; },
@@ -987,6 +993,13 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deactivateAstras: (...args) => deactivateAstras(...args),
             onRegularSubmit: () => cancelMessageEditing(),
             getComposerEditSubmission: () => getComposerEditSubmission(),
+            getQuoteReference: () => quoteReference,
+            buildQuotedUserParts: ({ question, quoteReference: reference }) => buildQuotedUserParts({
+                question,
+                quoteReference: reference,
+                getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback
+            }),
+            clearQuoteReference: () => quoteInquiryLifecycle?.clearQuote(),
             logger: console
         });
         const {
@@ -1033,6 +1046,20 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             if (runtimeEntryAdjustTextareaHeight) return runtimeEntryAdjustTextareaHeight;
             return adjustTextareaHeightAlias;
         });
+        quoteInquiryLifecycle = createQuoteInquiryLifecycle({
+            window,
+            document,
+            elements: ALL_ELEMENTS,
+            getActiveConversation,
+            getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback,
+            getQuoteReference: () => quoteReference,
+            setQuoteReference: (value) => { quoteReference = value; },
+            onComposerChange: () => {
+                legacyRuntimeContext.resolveBinding('input.updateInputState')();
+                legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')();
+            }
+        });
+        quoteInquiryLifecycle.init();
         legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const settingsAuthProviderState = {
             get config() { return runtimeConfigAccess.getConfig(); },
@@ -1047,6 +1074,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
+            get quoteReference() { return quoteReference; },
             get currentUser() { return currentUser; },
             set currentUser(next) { currentUser = next; },
             get abortController() { return abortController; },

@@ -1,6 +1,6 @@
 const textFromMessage = (message) => (message?.parts || [])
-  .filter(part => part?.text)
-  .map(part => part.text)
+  .filter(part => part?.text && !part.quoteContext)
+  .map(part => part.displayText ?? part.text)
   .join('\n');
 
 const filesFromMessage = (message) => (message?.parts || [])
@@ -12,6 +12,9 @@ const filesFromMessage = (message) => (message?.parts || [])
     base64: `data:${inlineData.mimeType || 'application/octet-stream'};base64,${inlineData.data || ''}`,
     targetedEdit: Boolean(inlineData.targetedEdit)
   }));
+
+const quoteReferenceFromMessage = (message) => (message?.parts || [])
+  .find(part => part?.quoteReference)?.quoteReference || null;
 
 const escapeHTML = (value = '') => String(value)
   .replaceAll('&', '&amp;')
@@ -238,7 +241,11 @@ export function createMessageEditingLifecycle({
     await saveAppData();
     await dismissEditor({ rerender: false, animate: false });
     renderChat();
-    await submitEditedMessage({ userMessage: text, uploadedFiles: files });
+    await submitEditedMessage({
+      userMessage: text,
+      uploadedFiles: files,
+      quoteReference: editor.quoteReference
+    });
   };
 
   const getComposerEditSubmission = () => {
@@ -251,7 +258,12 @@ export function createMessageEditingLifecycle({
     void saveAppData();
     void dismissEditor({ rerender: false, animate: false });
     renderChat();
-    return { userMessage: text, uploadedFiles: files, preserveComposer: true };
+    return {
+      userMessage: text,
+      uploadedFiles: files,
+      quoteReference: editor.quoteReference,
+      preserveComposer: true
+    };
   };
 
   const startMessageEditing = (messageIndex) => {
@@ -266,6 +278,7 @@ export function createMessageEditingLifecycle({
       conversation,
       index: messageIndex,
       text: textFromMessage(message),
+      quoteReference: quoteReferenceFromMessage(message),
       root,
       mobile,
       sending: false,

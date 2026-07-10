@@ -23,9 +23,34 @@
         padding-bottom: 0.65rem !important;
     }
 
+    #input-bar-container .input-wrapper.has-quote-inquiry {
+        grid-template-areas:
+            "quote quote quote quote quote quote"
+            "file input input reasoning voice submit";
+        min-height: 6.1rem !important;
+        padding-top: 0.42rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+
+    #input-bar-container .input-wrapper.has-quote-inquiry.has-indicators,
+    #input-bar-container .input-wrapper.has-quote-inquiry.has-multiline-input {
+        grid-template-areas:
+            "quote quote quote quote quote quote"
+            "input input input input input input"
+            "file indicators spacer reasoning voice submit";
+        min-height: 8.45rem !important;
+    }
+
     #input-bar-container .input-wrapper.has-file-previews {
         grid-template-areas:
             "preview preview preview preview preview preview"
+            "file input input reasoning voice submit";
+    }
+
+    #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry {
+        grid-template-areas:
+            "preview preview preview preview preview preview"
+            "quote quote quote quote quote quote"
             "file input input reasoning voice submit";
     }
 
@@ -37,11 +62,25 @@
             "file indicators spacer reasoning voice submit";
     }
 
+    #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-indicators,
+    #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-multiline-input {
+        grid-template-areas:
+            "preview preview preview preview preview preview"
+            "quote quote quote quote quote quote"
+            "input input input input input input"
+            "file indicators spacer reasoning voice submit";
+    }
+
     #input-bar-container .input-wrapper > .input-media-preview {
         grid-area: preview;
         align-self: stretch;
         width: 100%;
         min-width: 0;
+    }
+
+    #quote-inquiry-bar {
+        grid-area: quote;
+        align-self: stretch;
     }
 
     #input-bar-container .input-wrapper > .flex.items-end {

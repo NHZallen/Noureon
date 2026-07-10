@@ -109,6 +109,31 @@ test('preserves archived text-first handling when a part also carries inline med
   }
 });
 
+test('archived user messages omit hidden quote context from visible text', () => {
+  const { document, cleanup } = createDom('<div id="content"></div>');
+  try {
+    const { renderer } = createRenderer(document);
+    renderer.renderConversationMessages({
+      conversation: {
+        messages: [{
+          role: 'user',
+          parts: [
+            { text: 'Stored question', displayText: 'Visible question' },
+            { text: 'Hidden quote context', quoteContext: true }
+          ]
+        }]
+      },
+      contentContainer: document.querySelector('#content'),
+      emptyHTML: '<p>empty</p>'
+    });
+
+    assert.match(document.querySelector('#content').innerHTML, /USER:Visible question/);
+    assert.doesNotMatch(document.querySelector('#content').innerHTML, /Hidden quote context/);
+  } finally {
+    cleanup();
+  }
+});
+
 test('renders the supplied empty state and ignores a missing conversation', () => {
   const { document, cleanup } = createDom('<div id="content">stale</div>');
   try {

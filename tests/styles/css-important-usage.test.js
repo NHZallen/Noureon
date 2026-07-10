@@ -31,7 +31,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/mobile.css': {
-    max: 37,
+    max: 41,
     category: 'required: mobile override'
   },
   'src/styles/modals.css': {

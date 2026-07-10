@@ -25,7 +25,10 @@ export function createSubmitInputPreparationLifecycle({
   adjustTextareaHeight,
   renderFilePreviews,
   requestFrame
-  ,isImageConversation = () => false
+  ,isImageConversation = () => false,
+  getQuoteReference = () => null,
+  buildQuotedUserParts = ({ question }) => question ? [{ text: question }] : [],
+  clearQuoteReference = () => {}
 }) {
   const buildUserParts = (userMessage, uploadedFiles) => {
     const userParts = [];
@@ -47,11 +50,22 @@ export function createSubmitInputPreparationLifecycle({
     return userParts;
   };
 
-  const prepareSubmitResponse = async ({ userMessage: suppliedMessage, uploadedFiles: suppliedFiles, preserveComposer = false } = {}) => {
+  const prepareSubmitResponse = async ({
+    userMessage: suppliedMessage,
+    uploadedFiles: suppliedFiles,
+    quoteReference: suppliedQuoteReference,
+    preserveComposer = false
+  } = {}) => {
     if (getAbortController()) return { shouldContinue: false, reason: 'already-generating' };
-    const userMessage = String(suppliedMessage ?? elements.messageInput.value).trim();
+    const composerMessage = String(suppliedMessage ?? elements.messageInput.value).trim();
+    const quoteReference = suppliedQuoteReference === undefined
+      ? getQuoteReference()
+      : suppliedQuoteReference;
+    const hasQuoteReference = Boolean(String(quoteReference?.text || '').trim());
     const uploadedFiles = Array.isArray(suppliedFiles) ? suppliedFiles : getUploadedFiles();
-    if (!userMessage && uploadedFiles.length === 0) return { shouldContinue: false, reason: 'empty' };
+    if (!composerMessage && !hasQuoteReference && uploadedFiles.length === 0) {
+      return { shouldContinue: false, reason: 'empty' };
+    }
 
     const conversation = getActiveConversation();
     if (conversation.archived) return { shouldContinue: false, reason: 'archived' };
@@ -60,7 +74,14 @@ export function createSubmitInputPreparationLifecycle({
     setAbortController(abortController);
     updateSubmitButtonState(true);
 
-    const userParts = buildUserParts(userMessage, uploadedFiles);
+    const userParts = hasQuoteReference
+      ? buildQuotedUserParts({ question: composerMessage, quoteReference })
+      : buildUserParts(composerMessage, []);
+    userParts.push(...buildUserParts('', uploadedFiles));
+    const userMessage = userParts
+      .filter(part => part?.text)
+      .map(part => part.text)
+      .join('\n');
     const councilValidation = getCouncilValidation(conversation, uploadedFiles);
     if (!councilValidation.ok) {
       showNotification(councilValidation.message, 'warning');
@@ -83,6 +104,7 @@ export function createSubmitInputPreparationLifecycle({
     if (!preserveComposer) {
       elements.messageInput.value = '';
       setUploadedFiles([]);
+      clearQuoteReference();
       adjustTextareaHeight();
       renderFilePreviews();
     }

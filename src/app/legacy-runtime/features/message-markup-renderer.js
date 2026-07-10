@@ -23,6 +23,7 @@ export function buildMessageRenderView({
     let generatedImageAssets = [];
     let generatedImageHTML = '';
     let userActionButtons = '';
+    let quoteReferenceHTML = '';
     const isImageGenerationLoading = !isUser && message.parts.some(part => part.imageGenerationLoading);
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
@@ -42,8 +43,8 @@ export function buildMessageRenderView({
         const textParts = [];
         const mediaParts = [];
         message.parts.forEach(part => {
-            if (part.text) {
-                textParts.push(part.text);
+            if (part.text && !part.quoteContext) {
+                textParts.push(isUser ? (part.displayText ?? part.text) : part.text);
             } else if (part.inlineData) {
                 mediaParts.push(part.inlineData);
             } else if (part.generatedImage) {
@@ -90,6 +91,16 @@ export function buildMessageRenderView({
                     `;
             contentPaddingClass = 'pb-8';
         }
+        const quoteReference = isUser
+            ? message.parts.find(part => part.quoteReference)?.quoteReference
+            : null;
+        if (quoteReference?.text) {
+            quoteReferenceHTML = `
+                <button type="button" class="sent-message-quote" data-quote-reference>
+                    <span class="sent-message-quote-icon" aria-hidden="true">↳</span>
+                    <span class="sent-message-quote-text">${renderUserText(quoteReference.text)}</span>
+                </button>`;
+        }
         if (isUser) {
             userActionButtons = `
                 <div class="user-message-actions" aria-label="訊息操作">
@@ -105,10 +116,12 @@ export function buildMessageRenderView({
 
     const hasBubbleContent = isLoadingMessage || contentHTML.trim();
     const imageStackClass = generatedImageHTML ? ' image-message-stack' : '';
+    const quoteStackClass = quoteReferenceHTML ? ' message-stack-has-quote' : '';
     const messageHTML = `
-                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}${imageStackClass}">
+                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}${imageStackClass}${quoteStackClass}">
                     ${mediaGridHTML}
                     ${generatedImageHTML}
+                    ${quoteReferenceHTML}
                     ${hasBubbleContent ? `
                         <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
                             <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>

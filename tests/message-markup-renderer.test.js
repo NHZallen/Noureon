@@ -65,6 +65,30 @@ test('builds model markdown, timestamp, and exact action markup', () => {
   assert.match(view.messageHTML, />2026-06-24 10:30<\/span>/);
 });
 
+test('renders a sent quote above the user bubble without exposing hidden model context', () => {
+  const view = buildMessageRenderView({
+    message: {
+      role: 'user',
+      parts: [
+        { text: 'Question', displayText: 'Question' },
+        {
+          text: 'Hidden request context',
+          quoteContext: true,
+          quoteReference: { text: 'Selected model output', sourceMessageIndex: 2 }
+        }
+      ]
+    },
+    ...dependencies
+  });
+
+  assert.match(view.messageHTML, /message-stack-user message-stack-has-quote/);
+  assert.match(view.messageHTML, /class="sent-message-quote" data-quote-reference/);
+  assert.match(view.messageHTML, /sent-message-quote-text">USER:Selected model output/);
+  assert.match(view.messageHTML, /message-content">\<div>USER:Question<\/div>/);
+  assert.doesNotMatch(view.messageHTML, /Hidden request context/);
+  assert.ok(view.messageHTML.indexOf('sent-message-quote') < view.messageHTML.indexOf('message-bubble'));
+});
+
 test('keeps media grid data and text part ordering in the render view', () => {
   const image = { name: 'image.png', mimeType: 'image/png', data: 'abc' };
   const video = { name: 'clip.mp4', mimeType: 'video/mp4', data: 'def' };

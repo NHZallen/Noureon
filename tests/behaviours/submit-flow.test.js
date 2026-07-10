@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createLegacyRuntimeContext } from '../../src/app/legacy-runtime/runtime/legacy-runtime-context.js';
+import { buildQuotedUserParts } from '../../src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createSubmitInputPreparationLifecycle } from '../../src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
 
-const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } = {}) => {
+const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello', quoteReference = null } = {}) => {
   const calls = [];
   const conversation = {
     archived: false,
@@ -14,6 +15,7 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } 
     provider: 'gemini',
     unsentMessage: 'draft'
   };
+  let activeQuoteReference = quoteReference;
   const elements = {
     messageInput: { value: messageValue }
   };
@@ -66,7 +68,20 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } 
     renderInputIndicators: () => {},
     adjustTextareaHeight: (...args) => runtimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
     renderFilePreviews: (...args) => runtimeContext.resolveBinding('submit.renderFilePreviews')(...args),
-    requestFrame: (callback) => callback()
+    requestFrame: (callback) => callback(),
+    getQuoteReference: () => activeQuoteReference,
+    buildQuotedUserParts: (options) => buildQuotedUserParts({
+      ...options,
+      getText: (key, fallback) => ({
+        quoteInquiryReferenceLabel: 'Quoted text',
+        quoteInquiryContextInstruction: 'Use this quote to answer the user.',
+        quoteInquiryDefaultQuestion: 'Explain this.'
+      })[key] || fallback
+    }),
+    clearQuoteReference: () => {
+      activeQuoteReference = null;
+      calls.push(['clearQuoteReference']);
+    }
   });
 
   updateSubmitButtonState = (isGenerating) => calls.push(['updateSubmitButtonState', isGenerating]);
@@ -87,6 +102,9 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello' } 
     conversation,
     get abortController() {
       return abortController;
+    },
+    get quoteReference() {
+      return activeQuoteReference;
     },
     submit
   };
@@ -129,4 +147,34 @@ test('valid council submit reaches council lifecycle handoff', async () => {
   assert.equal(prepared.responseUsesCouncil, true);
   assert.equal(harness.calls.some(([name]) => name === 'councilLifecycle'), true);
   assert.equal(harness.calls.some(([name]) => name === 'singleModelLifecycle'), false);
+});
+
+test('quote inquiry submits the selected model text as structured context and clears the composer quote', async () => {
+  const harness = createSubmitHarness({
+    messageValue: 'What does this mean?',
+    quoteReference: {
+      text: 'This is the selected model response.',
+      sourceMessageIndex: 3
+    }
+  });
+
+  const prepared = await harness.submit();
+
+  assert.equal(
+    prepared.userMessage,
+    'What does this mean?\nQuoted text:\n「This is the selected model response.」\n\nUse this quote to answer the user.'
+  );
+  assert.deepEqual(prepared.userParts[0], {
+    text: 'What does this mean?',
+    displayText: 'What does this mean?'
+  });
+  assert.equal(prepared.userParts[1].quoteContext, true);
+  assert.deepEqual(prepared.userParts[1].quoteReference, {
+    text: 'This is the selected model response.',
+    sourceMessageIndex: 3,
+    sourceMessageId: null,
+    sourceTextOffset: null
+  });
+  assert.equal(harness.quoteReference, null);
+  assert.equal(harness.calls.some(([name]) => name === 'clearQuoteReference'), true);
 });
