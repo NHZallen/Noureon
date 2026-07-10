@@ -11,7 +11,8 @@ import { readUiSource } from './helpers/source-guards.js';
 
 const getText = (key, fallback) => ({
   quoteInquiryReferenceLabel: 'Reference',
-  quoteInquiryContextInstruction: 'Use the reference to answer.',
+  quoteInquiryQuestionLabel: 'User follow-up',
+  quoteInquiryContextInstruction: 'The user is asking about a selected passage from your earlier reply. Treat it as part of your earlier reply and answer directly.',
   quoteInquiryDefaultQuestion: 'Explain it.'
 })[key] || fallback;
 
@@ -27,20 +28,20 @@ test('quoted user parts keep display text separate from persistent model context
     getText
   });
 
-  assert.deepEqual(parts[0], {
-    text: 'What does it mean?',
-    displayText: 'What does it mean?'
-  });
-  assert.equal(parts[1].text, 'Reference:\n「A selected response.」\n\nUse the reference to answer.');
-  assert.equal(parts[1].quoteContext, true);
-  assert.deepEqual(parts[1].quoteReference, {
+  assert.equal(parts[0].text, 'The user is asking about a selected passage from your earlier reply. Treat it as part of your earlier reply and answer directly.\n\n【Reference】\n「A selected response.」\n\n【User follow-up】');
+  assert.equal(parts[0].quoteContext, true);
+  assert.deepEqual(parts[0].quoteReference, {
     text: 'A selected response.',
     sourceMessageIndex: 4,
     sourceMessageId: 'message-4',
     sourceTextOffset: 120
   });
+  assert.deepEqual(parts[1], {
+    text: 'What does it mean?',
+    displayText: 'What does it mean?'
+  });
   assert.equal(getVisibleUserText({ parts }), 'What does it mean?');
-  assert.deepEqual(getQuoteReferenceFromMessage({ parts }), parts[1].quoteReference);
+  assert.deepEqual(getQuoteReferenceFromMessage({ parts }), parts[0].quoteReference);
 });
 
 test('quote-only submission receives a visible default question', () => {
@@ -49,7 +50,7 @@ test('quote-only submission receives a visible default question', () => {
     getText
   });
 
-  assert.equal(parts[0].displayText, 'Explain it.');
+  assert.equal(parts[1].displayText, 'Explain it.');
   assert.doesNotMatch(getVisibleUserText({ parts }), /Selected model text/);
 });
 
@@ -151,7 +152,11 @@ test('localized quote instructions require direct answers without citation prefa
   const french = readUiSource('src/data/i18n/fr.js');
 
   assert.doesNotMatch(zhTW, /請根據這段引用內容回答/);
-  assert.match(zhTW, /不要以「根據引用內容」/);
-  assert.match(english, /Do not mention the quote or begin with a phrase that describes the source/);
-  assert.match(french, /Ne mentionnez pas la citation et ne commencez pas par une phrase décrivant la source/);
+  assert.match(zhTW, /針對你先前回覆中的選取段落追問/);
+  assert.match(zhTW, /不要提及引用機制、選取文字或回答依據/);
+  assert.match(english, /selected passage from your earlier reply/);
+  assert.match(french, /passage sélectionné de votre réponse précédente/);
+  assert.match(zhTW, /quoteInquiryQuestionLabel: '使用者的追問'/);
+  assert.match(english, /quoteInquiryQuestionLabel: 'User follow-up'/);
+  assert.match(french, /quoteInquiryQuestionLabel: 'Question de suivi de l’utilisateur'/);
 });

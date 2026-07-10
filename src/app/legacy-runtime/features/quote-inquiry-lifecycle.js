@@ -15,9 +15,10 @@ export function buildQuotedUserParts({
     'Explain the relevant meaning or provide direct assistance.'
   );
   const referenceLabel = getText('quoteInquiryReferenceLabel', 'Quoted text');
+  const questionLabel = getText('quoteInquiryQuestionLabel', 'User follow-up');
   const contextInstruction = getText(
     'quoteInquiryContextInstruction',
-    'Answer the user question directly. Do not mention the quote or describe the source of the answer.'
+    'The user is asking about a selected passage from your earlier reply. Treat it as part of your earlier reply, use the full conversation context, and answer the user directly. Do not mention the quote mechanism, selected text, or source of the answer.'
   );
   const sourceMessageIndex = Number(quoteReference.sourceMessageIndex);
   const sourceTextOffset = Number(quoteReference.sourceTextOffset);
@@ -29,12 +30,12 @@ export function buildQuotedUserParts({
   };
 
   return [
-    { text: displayQuestion, displayText: displayQuestion },
     {
-      text: `${referenceLabel}:\n「${quoteText}」\n\n${contextInstruction}`,
+      text: `${contextInstruction}\n\n【${referenceLabel}】\n「${quoteText}」\n\n【${questionLabel}】`,
       quoteContext: true,
       quoteReference: normalizedReference
-    }
+    },
+    { text: displayQuestion, displayText: displayQuestion }
   ];
 }
 

@@ -80,6 +80,7 @@ const createSubmitHarness = ({
       ...options,
       getText: (key, fallback) => ({
         quoteInquiryReferenceLabel: 'Quoted text',
+        quoteInquiryQuestionLabel: 'User follow-up',
         quoteInquiryContextInstruction: 'Use this quote to answer the user.',
         quoteInquiryDefaultQuestion: 'Explain this.'
       })[key] || fallback
@@ -191,18 +192,18 @@ test('quote inquiry submits the selected model text as structured context and cl
 
   assert.equal(
     prepared.userMessage,
-    'What does this mean?\nQuoted text:\n「This is the selected model response.」\n\nUse this quote to answer the user.'
+    'Use this quote to answer the user.\n\n【Quoted text】\n「This is the selected model response.」\n\n【User follow-up】\nWhat does this mean?'
   );
-  assert.deepEqual(prepared.userParts[0], {
-    text: 'What does this mean?',
-    displayText: 'What does this mean?'
-  });
-  assert.equal(prepared.userParts[1].quoteContext, true);
-  assert.deepEqual(prepared.userParts[1].quoteReference, {
+  assert.equal(prepared.userParts[0].quoteContext, true);
+  assert.deepEqual(prepared.userParts[0].quoteReference, {
     text: 'This is the selected model response.',
     sourceMessageIndex: 3,
     sourceMessageId: null,
     sourceTextOffset: null
+  });
+  assert.deepEqual(prepared.userParts[1], {
+    text: 'What does this mean?',
+    displayText: 'What does this mean?'
   });
   assert.equal(harness.quoteReference, null);
   assert.equal(harness.calls.some(([name]) => name === 'clearQuoteReference'), true);
