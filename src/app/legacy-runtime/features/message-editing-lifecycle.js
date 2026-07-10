@@ -34,6 +34,13 @@ export function createMessageEditingLifecycle({
 } = {}) {
   let activeEditor = null;
 
+  const restoreSharedAttachmentMenu = () => {
+    const popover = elements.fileOptionsPopover;
+    if (!popover) return;
+    popover.classList.remove('message-edit-shared-popover');
+    ['position', 'left', 'top', 'bottom', 'transformOrigin'].forEach(property => popover.style.removeProperty(property));
+  };
+
   const restoreComposer = (editor) => {
     if (!editor?.composerDraft) return;
     const { messageInput, filePreviewContainer } = elements;
@@ -42,22 +49,36 @@ export function createMessageEditingLifecycle({
     if (editor.previewParent && filePreviewContainer && !editor.mobile) {
       editor.previewParent.insertBefore(filePreviewContainer, editor.previewNextSibling);
     }
+    if (editor.composerParent && elements.inputBarContainer) {
+      editor.composerParent.insertBefore(elements.inputBarContainer, editor.composerNextSibling);
+    }
     renderFilePreviews();
   };
 
-  const dismissEditor = ({ restore = true } = {}) => {
+  const dismissEditor = ({ restore = true, rerender = true } = {}) => {
     const editor = activeEditor;
     if (!editor) return;
     if (restore) restoreComposer(editor);
+    restoreSharedAttachmentMenu();
     editor.root?.remove();
     document.body.classList.remove('is-editing-mobile-message');
     activeEditor = null;
+    if (rerender && !editor.mobile) renderChat();
   };
 
   const openSharedAttachmentMenu = () => {
-    const { addFileBtn } = elements;
-    if (!addFileBtn) return;
+    const { addFileBtn, fileOptionsPopover } = elements;
+    if (!addFileBtn || !fileOptionsPopover || !activeEditor?.root) return;
     addFileBtn.click();
+    const trigger = activeEditor.root.querySelector('[data-edit-tools]');
+    const rect = trigger?.getBoundingClientRect();
+    if (!rect) return;
+    fileOptionsPopover.classList.add('message-edit-shared-popover');
+    fileOptionsPopover.style.position = 'fixed';
+    fileOptionsPopover.style.bottom = 'auto';
+    fileOptionsPopover.style.left = `${Math.max(12, rect.left)}px`;
+    fileOptionsPopover.style.top = `${Math.max(12, rect.top - fileOptionsPopover.offsetHeight - 10)}px`;
+    fileOptionsPopover.style.transformOrigin = 'bottom left';
   };
 
   const renderDesktopEditor = () => {
@@ -109,7 +130,7 @@ export function createMessageEditingLifecycle({
     if (sendButton) sendButton.disabled = true;
     editor.conversation.messages.splice(editor.index);
     await saveAppData();
-    dismissEditor();
+    dismissEditor({ rerender: false });
     renderChat();
     await submitEditedMessage({ userMessage: text, uploadedFiles: files });
   };
@@ -122,7 +143,7 @@ export function createMessageEditingLifecycle({
     if (!text && files.length === 0) return null;
     editor.conversation.messages.splice(editor.index);
     void saveAppData();
-    dismissEditor();
+    dismissEditor({ rerender: false });
     renderChat();
     return { userMessage: text, uploadedFiles: files, preserveComposer: true };
   };
@@ -133,7 +154,7 @@ export function createMessageEditingLifecycle({
     if (!message || message.role !== 'user') return;
     dismissEditor();
     const mobile = Boolean(isMobile());
-    const root = mobile ? null : document.createElement('section');
+    const root = document.createElement('section');
     const filePreviewContainer = elements.filePreviewContainer;
     activeEditor = {
       conversation,
@@ -147,14 +168,28 @@ export function createMessageEditingLifecycle({
         files: [...getUploadedFiles()]
       },
       previewParent: filePreviewContainer?.parentNode || null,
-      previewNextSibling: filePreviewContainer?.nextSibling || null
+      previewNextSibling: filePreviewContainer?.nextSibling || null,
+      composerParent: elements.inputBarContainer?.parentNode || null,
+      composerNextSibling: elements.inputBarContainer?.nextSibling || null
     };
     setUploadedFiles(filesFromMessage(message));
     renderFilePreviews();
 
     if (mobile) {
       document.body.classList.add('is-editing-mobile-message');
+      root.className = 'message-edit-mobile-page';
+      root.innerHTML = `
+        <header class="message-edit-mobile-header">
+          <button type="button" data-edit-cancel aria-label="取消編輯">×</button>
+          <h2>編輯訊息</h2>
+          <span aria-hidden="true"></span>
+        </header>
+        <div class="message-edit-mobile-composer"></div>`;
+      root.querySelector('[data-edit-cancel]').addEventListener('click', () => dismissEditor());
+      document.body.appendChild(root);
+      root.querySelector('.message-edit-mobile-composer').appendChild(elements.inputBarContainer);
       elements.messageInput.value = activeEditor.text;
+      elements.messageInput.dispatchEvent(new Event('input', { bubbles: true }));
       elements.messageInput.focus();
       return;
     }
