@@ -55,15 +55,32 @@ export function createMessageEditingLifecycle({
     renderFilePreviews();
   };
 
-  const dismissEditor = ({ restore = true, rerender = true } = {}) => {
-    const editor = activeEditor;
-    if (!editor) return;
+  const finishDismissEditor = (editor, { restore = true, rerender = false } = {}) => {
+    if (activeEditor !== editor) return;
     if (restore) restoreComposer(editor);
     restoreSharedAttachmentMenu();
-    editor.root?.remove();
+    if (!editor.mobile && editor.originalStack && editor.root?.isConnected) {
+      editor.root.replaceWith(editor.originalStack);
+    } else {
+      editor.root?.remove();
+    }
     document.body.classList.remove('is-editing-mobile-message');
     activeEditor = null;
     if (rerender && !editor.mobile) renderChat();
+  };
+
+  const dismissEditor = ({ restore = true, rerender = false, animate = true } = {}) => {
+    const editor = activeEditor;
+    if (!editor) return;
+    restoreSharedAttachmentMenu();
+    if (!animate || !editor.root?.isConnected || editor.closing) {
+      if (!editor.closing) finishDismissEditor(editor, { restore, rerender });
+      return;
+    }
+    editor.closing = true;
+    editor.root.classList.remove('is-visible');
+    editor.root.classList.add('is-closing');
+    globalThis.setTimeout(() => finishDismissEditor(editor, { restore, rerender }), 180);
   };
 
   const openSharedAttachmentMenu = () => {
@@ -141,7 +158,7 @@ export function createMessageEditingLifecycle({
     if (sendButton) sendButton.disabled = true;
     editor.conversation.messages.splice(editor.index);
     await saveAppData();
-    dismissEditor({ rerender: false });
+    dismissEditor({ rerender: false, animate: false });
     renderChat();
     await submitEditedMessage({ userMessage: text, uploadedFiles: files });
   };
@@ -154,7 +171,7 @@ export function createMessageEditingLifecycle({
     if (!text && files.length === 0) return null;
     editor.conversation.messages.splice(editor.index);
     void saveAppData();
-    dismissEditor({ rerender: false });
+    dismissEditor({ rerender: false, animate: false });
     renderChat();
     return { userMessage: text, uploadedFiles: files, preserveComposer: true };
   };
@@ -163,7 +180,7 @@ export function createMessageEditingLifecycle({
     const conversation = getActiveConversation();
     const message = conversation?.messages?.[messageIndex];
     if (!message || message.role !== 'user') return;
-    dismissEditor();
+    dismissEditor({ animate: false });
     const mobile = Boolean(isMobile());
     const root = document.createElement('section');
     const filePreviewContainer = elements.filePreviewContainer;
@@ -174,6 +191,7 @@ export function createMessageEditingLifecycle({
       root,
       mobile,
       sending: false,
+      closing: false,
       composerDraft: {
         text: elements.messageInput?.value || '',
         files: [...getUploadedFiles()]
@@ -201,15 +219,24 @@ export function createMessageEditingLifecycle({
       root.querySelector('.message-edit-mobile-composer').appendChild(elements.inputBarContainer);
       elements.messageInput.value = activeEditor.text;
       elements.messageInput.dispatchEvent(new Event('input', { bubbles: true }));
-      elements.messageInput.focus();
+      requestAnimationFrame(() => {
+        if (activeEditor?.root === root) {
+          root.classList.add('is-visible');
+          elements.messageInput.focus();
+        }
+      });
       return;
     }
     root.className = 'message-edit-inline';
     const messageElement = elements.messageList.querySelector(`.message-item[data-message-index="${messageIndex}"]`);
     const stack = messageElement?.querySelector('.message-stack-user');
     if (!stack) return dismissEditor();
+    activeEditor.originalStack = stack;
     stack.replaceWith(root);
     renderDesktopEditor();
+    requestAnimationFrame(() => {
+      if (activeEditor?.root === root) root.classList.add('is-visible');
+    });
   };
 
   return { startMessageEditing, cancelMessageEditing: dismissEditor, getComposerEditSubmission };

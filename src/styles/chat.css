@@ -310,7 +310,9 @@
 .user-message-action, .user-message-action:hover { color: #6b7280 !important; }
 .user-message-action svg { width: 1.25rem; height: 1.25rem; stroke: #6b7280 !important; }
 .user-message-action svg * { stroke: #6b7280 !important; }
-.message-edit-inline { width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); }
+.message-edit-inline { width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); opacity: 0; transform: scale(.975); transform-origin: bottom right; transition: opacity .18s ease, transform .22s cubic-bezier(.2, .8, .2, 1); }
+.message-edit-inline.is-visible { opacity: 1; transform: scale(1); }
+.message-edit-inline.is-closing { opacity: 0; transform: scale(.985); }
 .message-edit-panel { display: flex; flex-direction: column; padding: 1rem 1.5rem .9rem; }
 .message-edit-textarea { display: block; flex: none; width: 100%; height: 6rem; min-height: 6rem; resize: none; overflow: auto; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; line-height: 1.55; scrollbar-color: #cbd5e1 transparent; }
 .message-edit-textarea::-webkit-scrollbar { width: .55rem; }
@@ -328,13 +330,19 @@
 .message-edit-send:disabled { opacity: .6; }
 @media (max-width: 768px) {
   .user-message-actions { opacity: 1; margin-top: .25rem; }
-  .message-edit-mobile-page { position: fixed; z-index: 200; inset: 0; display: flex; flex-direction: column; background: var(--modal-bg); color: var(--text-primary); }
+  .message-edit-mobile-page { position: fixed; z-index: 200; inset: 0; display: flex; flex-direction: column; background: var(--modal-bg); color: var(--text-primary); opacity: 0; transform: scale(.985); transform-origin: center; transition: opacity .18s ease, transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .message-edit-mobile-page.is-visible { opacity: 1; transform: scale(1); }
+  .message-edit-mobile-page.is-closing { opacity: 0; transform: scale(.99); }
   .message-edit-mobile-header { display: grid; grid-template-columns: 4rem 1fr 4rem; align-items: center; min-height: 5.5rem; padding: 1rem; }
   .message-edit-mobile-header h2 { margin: 0; text-align: center; font-size: 1.2rem; }
   .message-edit-mobile-header button { width: 3rem; height: 3rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-primary); font-size: 2rem; line-height: 1; }
   .message-edit-mobile-composer { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; min-height: 0; }
   .message-edit-mobile-composer #input-bar-container { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
   body.is-editing-mobile-message #reasoning-depth-control { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-edit-inline, .message-edit-mobile-page { transition: none; }
 }
     .folder-icon-svg {
     width: 20px;
