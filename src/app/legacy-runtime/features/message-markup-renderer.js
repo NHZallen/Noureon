@@ -94,7 +94,7 @@ export function buildMessageRenderView({
             userActionButtons = `
                 <div class="user-message-actions" aria-label="訊息操作">
                     <button type="button" class="user-message-action" data-message-action="copy" title="複製訊息" aria-label="複製訊息">
-                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9"></path><rect x="3" y="8" width="13" height="13" rx="2"></rect></svg>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><defs><mask id="user-message-copy-mask-${message.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="white"></rect><rect x="3" y="8" width="13" height="13" rx="2" fill="black"></rect></mask></defs><rect x="8" y="3" width="13" height="13" rx="2" mask="url(#user-message-copy-mask-${message.id})"></rect><rect x="3" y="8" width="13" height="13" rx="2"></rect></svg>
                     </button>
                     <button type="button" class="user-message-action" data-message-action="edit" title="編輯訊息" aria-label="編輯訊息">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
