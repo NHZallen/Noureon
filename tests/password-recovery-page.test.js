@@ -68,6 +68,8 @@ test('language links switch both recovery pages and keep a URL fallback', async 
     });
 
     const englishLink = window.document.querySelector('[data-recovery-language="en"]');
+    const header = window.document.querySelector('header');
+    assert.equal(header.classList.contains('z-20'), true);
     assert.equal(englishLink.getAttribute('href'), '?lang=en');
     englishLink.click();
 

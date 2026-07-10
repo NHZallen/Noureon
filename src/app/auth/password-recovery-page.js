@@ -54,7 +54,7 @@ export function openPasswordRecovery(window, { email = '', language } = {}) {
 function commonPageMarkup(content) {
   return `
     <div class="min-h-screen flex flex-col bg-white text-gray-900">
-      <header class="p-4 sm:px-6 lg:px-8 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+      <header class="relative z-20 p-4 sm:px-6 lg:px-8 bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
           <a href="/" class="flex items-center gap-2" aria-label="Noureon">
             <img class="h-8 w-8 rounded-lg object-cover" src="/logo.png" alt="" width="32" height="32">
