@@ -406,14 +406,6 @@ export function createLegacyAppBootstrapLifecycle({
                     }
                 });
                 ALL_ELEMENTS.messageInput.addEventListener('input', adjustTextareaHeight);
-                const expandBtn = document.getElementById('expand-input-btn');
-                if (expandBtn) {
-                    expandBtn.addEventListener('click', () => {
-                        ALL_ELEMENTS.messageInput.classList.toggle('expanded');
-                        expandBtn.classList.toggle('rotated');
-                        adjustTextareaHeight(); // 點擊後重新計算一次高度
-                    });
-                }
                 ALL_ELEMENTS.messageInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
                         e.preventDefault();

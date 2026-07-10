@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import appShell from '../../src/templates/app-shell.js';
 import { readUiSource } from '../helpers/source-guards.js';
 
 test('active input modes use the theme color without black outline chrome', () => {
@@ -33,6 +34,17 @@ test('desktop chat input reserves the lower row only for active modes or multili
   assert.match(startupLifecycle, /measurementContext\.measureText\(line\)\.width/);
   assert.match(startupLifecycle, /const\s+useMultilineLayout\s*=\s*isDesktopInput\s*&&\s*hasInputText\s*&&\s*\(\s*wasMultilineLayout/s);
   assert.match(startupLifecycle, /if\s*\(wrapper\s*&&\s*isDesktopInput\)\s*\{[\s\S]*wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
+});
+
+test('multiline composer no longer exposes or binds the manual expand control', () => {
+  const css = readUiSource('src/styles/main.css');
+  const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
+  const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+
+  assert.doesNotMatch(appShell, /id="expand-input-btn"/);
+  assert.doesNotMatch(css, /#message-input\.expanded|#expand-input-btn\.rotated/);
+  assert.doesNotMatch(startupLifecycle, /expand-input-btn|classList\.contains\('expanded'\)|classList\.remove\('expanded'\)/);
+  assert.doesNotMatch(appBootstrapLifecycle, /expand-input-btn|classList\.toggle\('expanded'\)|classList\.toggle\('rotated'\)/);
 });
 
 test('composer upload previews occupy a full-width row above desktop input controls', () => {

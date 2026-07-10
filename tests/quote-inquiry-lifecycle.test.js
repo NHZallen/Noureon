@@ -133,6 +133,8 @@ test('desktop quote UI uses curved SVG arrows and turns the action blue only on 
   assert.match(css, /\.quote-inquiry-menu-button:hover,\s*\.quote-inquiry-menu-button:focus-visible[^{]*\{[^}]*background:\s*var\(--modal-bg\);[^}]*color:\s*var\(--button-primary-bg\);/s);
   assert.match(css, /\.quote-inquiry-menu-button:active[^{]*\{[^}]*background:\s*var\(--modal-bg\);/s);
   assert.match(css, /\.quote-inquiry-bar[^{]*\{[^}]*color:\s*#8b9098;/s);
+  const quoteBarRule = css.match(/\.quote-inquiry-bar\s*\{([^}]*)\}/s)?.[1] || '';
+  assert.doesNotMatch(quoteBarRule, /border-bottom\s*:/);
   assert.match(css, /\.sent-message-quote[^{]*\{[^}]*width:\s*fit-content;[^}]*margin-left:\s*auto;[^}]*color:\s*#8b9098;[^}]*display:\s*grid;/s);
   assert.match(css, /\.sent-message-quote:hover,\s*\.sent-message-quote:focus-visible[^{]*\{[^}]*color:\s*#111827;/s);
   assert.match(css, /\.quote-inquiry-icon[^{]*\{[^}]*color:\s*#8b9098;/s);

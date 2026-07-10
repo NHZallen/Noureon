@@ -111,8 +111,7 @@ export function createLegacyStartupLifecycle({
 
     function adjustTextareaHeight() {
         const textarea = elements.messageInput;
-        const expandBtn = document.getElementById('expand-input-btn');
-        if (!textarea || !expandBtn) return;
+        if (!textarea) return;
 
         textarea.style.height = 'auto';
 
@@ -165,23 +164,7 @@ export function createLegacyStartupLifecycle({
         }
 
         const scrollHeight = textarea.scrollHeight;
-        if (scrollHeight > maxHeight + 2) {
-            expandBtn.classList.remove('hidden');
-            expandBtn.classList.add('flex');
-        } else {
-            expandBtn.classList.add('hidden');
-            expandBtn.classList.remove('flex');
-            if (textarea.classList.contains('expanded')) {
-                textarea.classList.remove('expanded');
-                expandBtn.classList.remove('rotated');
-            }
-        }
-
-        if (textarea.classList.contains('expanded')) {
-            textarea.style.height = `${scrollHeight}px`;
-        } else {
-            textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
-        }
+        textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
     }
 
     function bindLoginLanguageSwitcher() {

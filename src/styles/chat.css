@@ -79,16 +79,6 @@
 
 
 
-#message-input.expanded {
-    max-height: 50vh; /* 展開後的最大高度，設定為視窗高度的一半 */
-}
-
-
-
-
-#expand-input-btn.rotated {
-    transform: rotate(180deg); /* 讓箭頭旋轉180度，表示可收合 */
-}
     #input-bar-container .input-wrapper.has-indicators > .flex.items-end {
     margin-top: 0.9rem; /* 8px 的間距，您可以依喜好調整這個數值 */
 }

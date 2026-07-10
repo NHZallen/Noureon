@@ -4,11 +4,15 @@ import { readUiSource } from '../helpers/source-guards.js';
 
 test('media preview download and share icons stay white over dark media', () => {
   const css = readUiSource('src/styles/main.css');
+  const mediaPreviewLifecycle = readUiSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
 
   assert.match(css, /\.media-lightbox-action,\s*\.media-lightbox-action\s+svg,\s*\.media-lightbox-action\s+svg\s+\*[^{]*\{[^}]*color:\s*#ffffff\s!important;[^}]*stroke:\s*#ffffff\s!important;/s);
   assert.match(css, /\.media-lightbox-action\s+svg\s*\{[^}]*fill:\s*none\s!important;/s);
   assert.match(css, /\.media-lightbox-action\s+svg\s+\[fill\]:not\(\[fill="none"\]\)[^{]*\{[^}]*fill:\s*#ffffff\s!important;/s);
-  assert.match(css, /\.media-lightbox-close\s*\{[\s\S]*top:\s*1\.15rem;[\s\S]*display:\s*inline-flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/s);
+  assert.match(css, /\.media-lightbox-close\s*\{[^}]*top:\s*1\.15rem;[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*background:\s*rgba\([^)]+\);/s);
+  assert.match(css, /\.media-lightbox-close\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*1\.5rem;[^}]*height:\s*1\.5rem;/s);
+  assert.match(mediaPreviewLifecycle, /class="media-lightbox-close"[^>]*><svg[^>]*aria-hidden="true"/);
+  assert.doesNotMatch(mediaPreviewLifecycle, /media-lightbox-close[^\n]*&times;/);
   assert.match(css, /\.media-lightbox-toolbar\s*\{[\s\S]*top:\s*1\.15rem;/s);
 });
 

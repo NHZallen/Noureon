@@ -47,7 +47,6 @@
     min-height: 2.55rem;
     max-height: 5.15rem;
     padding: 0.38rem 0.28rem 0.38rem 0.42rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
     display: flex;
     align-items: flex-start;
     gap: 0.48rem;

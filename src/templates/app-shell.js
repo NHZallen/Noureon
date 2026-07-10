@@ -18,8 +18,13 @@ const appShellWithLegacyDemo = [
   fragment07
 ].join('');
 
-const appShell = appShellWithLegacyDemo.replace(
+const appShellWithoutLegacyDemo = appShellWithLegacyDemo.replace(
   /\s*<section class="py-20 lg:py-24 bg-gray-50">[\s\S]*?<div id="demo-chat-window"[\s\S]*?<\/section>/,
+  ''
+);
+
+const appShell = appShellWithoutLegacyDemo.replace(
+  /\s*<button(?=[^>]*\bid="expand-input-btn")[\s\S]*?<\/button>/,
   ''
 );
 
