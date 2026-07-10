@@ -695,11 +695,19 @@
     border: 1px solid var(--border-color) !important;
 }
 
-.model-council-popover .council-mode-tabs button,
-.model-council-popover .council-mode-tabs button.active,
-.model-council-popover .council-mode-tabs button:not(.active) {
-    border: 0 !important;
+.model-council-popover .council-mode-tabs button {
+    border: 1px solid transparent !important;
     background: transparent !important;
+}
+
+.model-council-popover .council-mode-tabs button:not(.active) {
+    border-color: transparent !important;
+    background: transparent !important;
+}
+
+.model-council-popover .council-mode-tabs button.active {
+    border-color: #000000 !important;
+    background: #ffffff !important;
 }
 
 .model-council-popover .council-mode-tabs button + button {

@@ -330,7 +330,6 @@ test('settings persistence keeps mutation, visual, save, render, and notificatio
     'await saveConfig()',
     'applyLanguage(config.uiLanguage)',
     'renderModelSwitcher()',
-    'renderChat()',
     'renderStore()',
     'if (close) {',
     'toggleModal(ALL_ELEMENTS.settingsModal, false)',

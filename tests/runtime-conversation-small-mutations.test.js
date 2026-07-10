@@ -73,7 +73,7 @@ test('togglePinChat reads the latest conversations pointer before mutating', () 
     'const conv = currentConversations.find(c => c.id === id)',
     'conv.pinned = !conv.pinned',
     'await saveAppData()',
-    'runtimeRenderCoordinator.renderAll()'
+    'runtimeRenderCoordinator.renderSidebar()'
   ], 'togglePinChat live lookup');
   assert.doesNotMatch(body, /\bconversations\.find\(/);
 });
@@ -88,7 +88,7 @@ test('handleRename reads the latest conversations pointer and preserves cleanup 
     'conv.title = newTitle',
     'conv.isRenamed = true',
     'await saveAppData()',
-    'runtimeRenderCoordinator.renderAll()',
+    'runtimeRenderCoordinator.renderSidebar()',
     'toggleModal(ALL_ELEMENTS.renameModal, false)',
     'itemToRename = { id: null, type: null }'
   ], 'handleRename live lookup and cleanup');
@@ -103,7 +103,7 @@ test('unarchiveChat reads the latest conversations pointer before mutating', () 
     'const conv = currentConversations.find(c => c.id === id)',
     'if(conv) conv.archived = false',
     'await saveAppData()',
-    'runtimeRenderCoordinator.renderAll()'
+    'runtimeRenderCoordinator.renderSidebar()'
   ], 'unarchiveChat live lookup');
   assert.doesNotMatch(body, /\bconversations\.find\(/);
 });

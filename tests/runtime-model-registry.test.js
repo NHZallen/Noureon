@@ -92,7 +92,7 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');
 
   assert.deepEqual(getModelReasoningConfig(imageModel)?.options, ['minimal', 'high']);
-  assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '低');
+  assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '極低');
 });
 
 test('model registry leaves excluded models on default reasoning', () => {

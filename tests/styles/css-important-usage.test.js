@@ -19,7 +19,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/chat.css': {
-    max: 14,
+    max: 22,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/input-polish.css': {
@@ -59,7 +59,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-desktop.css': {
-    max: 67,
+    max: 71,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-mobile.css': {

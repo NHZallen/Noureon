@@ -287,7 +287,7 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
     'getConversations().forEach(c => {',
     'if (c.astrasId === id) c.astrasId = null',
     'await saveAppData()',
-    'runtimeRenderCoordinator.renderAll()',
+    'runtimeRenderCoordinator.renderSidebar()',
     'runtimeDialogCoordinator.showNotification'
   ], 'deleteAstras replacement and cleanup');
 
@@ -297,7 +297,7 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
     'conversation.folderId = null',
     'replaceFolders(folders.filter(item => item.id !== id))',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'showNotification'
   ], 'deleteFolder replacement and cleanup');
 
@@ -412,7 +412,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'replaceConversations(',
     'getConversations().filter(conversation => conversation.id !== conversationId)',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'renderTrash()',
     'showNotification'
   ], 'trash permanent delete replacement order');
@@ -425,7 +425,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'replaceConversations(',
     'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'toggleTrashSelectionMode()',
     'showNotification'
   ], 'trash batch delete replacement order');
@@ -439,7 +439,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     'replaceConversations(',
     'conversations.filter(conversation => !conversation.deletedAt)',
     'await saveAppData()',
-    'renderAll()',
+    'renderSidebar()',
     'renderTrash()',
     'showNotification'
   ], 'empty trash replacement order');

@@ -93,7 +93,7 @@ function createDependencies(overrides = {}) {
     },
     runtimeConfigAccess: { getUiLanguage: () => state.config.uiLanguage },
     conversationStateAccess: { getCurrentConversationId: () => 'active-conv' },
-    runtimeRenderCoordinator: { renderAll: () => calls.push('renderAll') },
+    runtimeRenderCoordinator: { renderSidebar: () => calls.push('renderSidebar') },
     runtimeDialogCoordinator: { showNotification: (...args) => calls.push(['runtimeNotify', ...args]) },
     i18n: { en: { noArchivedChats: 'No archived', createAstras: 'Create Astra', confirmDeleteAstras: 'Delete?' } },
     getActiveConversation: () => state.conversations[0] || null,
@@ -205,7 +205,7 @@ test('Astra delete path uses injected replacement bridge and live conversations'
     ['deleteAstrasFromCloud', ['astra-1'], { astras: [{ id: 'astra-1', name: 'Astra' }] }],
     'replaceAstras',
     'saveAppData',
-    'renderAll'
+    'renderSidebar'
   ]);
 });
 
@@ -228,7 +228,7 @@ test('Astra delete path clears astrasId on the latest conversations pointer only
     ['deleteAstrasFromCloud', ['astra-1'], { astras: [{ id: 'astra-1', name: 'Astra' }] }],
     'replaceAstras',
     'saveAppData',
-    'renderAll'
+    'renderSidebar'
   ]);
 });
 
