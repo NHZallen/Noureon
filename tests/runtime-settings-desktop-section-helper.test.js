@@ -140,16 +140,16 @@ test('desktop sync preserves active nav class and active section class', () => {
   assert.equal(sections.get('appearance-section').classList.contains('active'), true);
 });
 
-test('desktop default section preserves the selection when the async user section is added', () => {
+test('desktop default section selects the user section', () => {
   const { helper, navItems, sections } = createFixture();
 
   const activated = helper.activateDefaultDesktopSettingsSection(navItems);
 
-  assert.equal(activated, navItems[0]);
-  assert.equal(navItems[0].classList.contains('active'), true);
-  assert.equal(navItems[2].classList.contains('active'), false);
-  assert.equal(sections.get('general-section').classList.contains('active'), true);
-  assert.equal(sections.get('user-section').classList.contains('active'), false);
+  assert.equal(activated, navItems[2]);
+  assert.equal(navItems[0].classList.contains('active'), false);
+  assert.equal(navItems[2].classList.contains('active'), true);
+  assert.equal(sections.get('general-section').classList.contains('active'), false);
+  assert.equal(sections.get('user-section').classList.contains('active'), true);
 });
 
 test('mobile viewport delegates section reset to mobile shell helper', () => {

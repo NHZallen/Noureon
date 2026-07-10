@@ -524,6 +524,7 @@ const setupSettingsModal = () => {
     renderTrash();
     renderSettingsMobileList();
     const navItems = bindDesktopSettingsSections();
+    activateDefaultDesktopSettingsSection(navItems);
     syncSettingsSectionForViewport(navItems);
     void loadSyncVaultControls().then(async (controls) => {
         controls.ensureSyncVaultSettings();
