@@ -55,6 +55,30 @@ test('password recovery entry remembers the current language and optional Email'
   assert.equal(values.get(RECOVERY_EMAIL_KEY), 'person@example.com');
 });
 
+test('language links switch both recovery pages and keep a URL fallback', async () => {
+  for (const path of [PASSWORD_RECOVERY_ROUTE, PASSWORD_RESET_ROUTE]) {
+    const window = createWindow(path);
+    window.document.documentElement.lang = 'zh-TW';
+    await initializePasswordRecoveryPage({
+      window,
+      document: window.document,
+      supabase: { auth: {} },
+      turnstile: idleTurnstile,
+      navigate: () => {}
+    });
+
+    const englishLink = window.document.querySelector('[data-recovery-language="en"]');
+    assert.equal(englishLink.getAttribute('href'), '?lang=en');
+    englishLink.click();
+
+    assert.equal(window.document.documentElement.lang, 'en');
+    assert.equal(window.document.getElementById('recovery-language-label').textContent, 'English');
+    assert.match(window.document.querySelector('h1').textContent, /Reset|Verify/);
+    assert.equal(new URL(window.location.href).searchParams.get('lang'), 'en');
+    window.close();
+  }
+});
+
 test('forgot-password sends a recovery code and only opens reset after OTP verification', async () => {
   const window = createWindow(PASSWORD_RECOVERY_ROUTE);
   const calls = [];
@@ -91,14 +115,14 @@ test('forgot-password sends a recovery code and only opens reset after OTP verif
   assert.equal(calls[0].options.captchaToken, 'captcha-token');
   assert.equal(window.document.getElementById('password-recovery-code-form').classList.contains('hidden'), false);
 
-  window.document.getElementById('password-recovery-code').value = '123456';
+  window.document.getElementById('password-recovery-code').value = '12345678';
   window.document.getElementById('password-recovery-code-form')
     .dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
   await flush(window);
 
   assert.deepEqual(calls[1], {
     method: 'verify',
-    payload: { email: 'person@example.com', token: '123456', type: 'recovery' }
+    payload: { email: 'person@example.com', token: '12345678', type: 'recovery' }
   });
   assert.equal(navigations[0].path, PASSWORD_RESET_ROUTE);
   assert.equal(JSON.parse(window.sessionStorage.getItem(RECOVERY_VERIFICATION_KEY)).userId, 'user-123');

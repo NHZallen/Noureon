@@ -25,7 +25,8 @@ function normalizeLanguage(value) {
 
 function getStoredLanguage(window) {
   return normalizeLanguage(
-    window.sessionStorage.getItem(RECOVERY_LANGUAGE_KEY)
+    new URL(window.location.href).searchParams.get('lang')
+    || window.sessionStorage.getItem(RECOVERY_LANGUAGE_KEY)
     || window.document.documentElement.lang
     || window.navigator.language
   );
@@ -65,7 +66,7 @@ function commonPageMarkup(content) {
               <span id="recovery-language-label">繁體中文</span>
             </button>
             <div id="recovery-language-menu" class="hidden absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-white ring-1 ring-black/5 z-30 py-1">
-              ${Object.entries(LANGUAGE_LABELS).map(([value, label]) => `<button type="button" data-recovery-language="${value}" class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">${label}</button>`).join('')}
+              ${Object.entries(LANGUAGE_LABELS).map(([value, label]) => `<a href="?lang=${value}" data-recovery-language="${value}" class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">${label}</a>`).join('')}
             </div>
           </div>
         </div>
@@ -97,7 +98,7 @@ function forgotPasswordMarkup() {
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="14" x="3" y="5" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
     </div>
     <h1 class="text-2xl font-bold text-center text-gray-800" data-lang-key="passwordRecoveryTitle">重設密碼</h1>
-    <p class="mt-2 mb-7 text-center text-sm leading-6 text-gray-500" data-lang-key="passwordRecoveryDescription">輸入綁定的 Email，我們會寄送 6 位數驗證碼。</p>
+    <p class="mt-2 mb-7 text-center text-sm leading-6 text-gray-500" data-lang-key="passwordRecoveryDescription">輸入綁定的 Email，我們會寄送 8 位數驗證碼。</p>
 
     <form id="password-recovery-request-form" novalidate>
       <label for="password-recovery-email" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="authEmailLabel">Email</label>
@@ -107,8 +108,8 @@ function forgotPasswordMarkup() {
 
     <form id="password-recovery-code-form" class="hidden" novalidate>
       <p class="mb-5 rounded-lg bg-blue-50 p-3 text-sm leading-6 text-blue-700" data-lang-key="passwordRecoveryCodeSent">若此 Email 已綁定帳號，驗證碼已寄出。請檢查收件匣與垃圾郵件。</p>
-      <label for="password-recovery-code" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="passwordRecoveryCodeLabel">6 位數驗證碼</label>
-      <input id="password-recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required class="w-full p-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.35em] font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" placeholder="000000">
+      <label for="password-recovery-code" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="passwordRecoveryCodeLabel">8 位數驗證碼</label>
+      <input id="password-recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}" required class="w-full p-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.22em] font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" placeholder="00000000">
       <button id="password-recovery-verify-button" type="submit" class="mt-5 w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300" data-lang-key="passwordRecoveryVerifyCode">驗證並繼續</button>
       <button id="password-recovery-request-again" type="button" class="mt-3 w-full text-sm text-blue-700 hover:underline disabled:text-gray-400 disabled:no-underline" disabled></button>
     </form>
@@ -172,10 +173,14 @@ function bindLanguageSwitcher({ window, document, route, getLanguage, setLanguag
     button.setAttribute('aria-expanded', String(opening));
   });
   document.querySelectorAll('[data-recovery-language]').forEach((option) => {
-    option.addEventListener('click', () => {
+    option.addEventListener('click', (event) => {
+      event.preventDefault();
       const language = normalizeLanguage(option.dataset.recoveryLanguage);
       setLanguage(language);
       window.sessionStorage.setItem(RECOVERY_LANGUAGE_KEY, language);
+      const url = new URL(window.location.href);
+      url.searchParams.set('lang', language);
+      window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
       menu.classList.add('hidden');
       button.setAttribute('aria-expanded', 'false');
       applyLanguage(document, language, route);
@@ -304,8 +309,8 @@ async function initializeForgotPassword({ window, document, supabase, turnstile,
   codeForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const token = codeInput.value.replace(/\s/g, '');
-    if (!/^\d{6}$/.test(token)) {
-      setStatus(status, text('passwordRecoveryCodeInvalidFormat', '請輸入 6 位數驗證碼。'), 'error');
+    if (!/^\d{8}$/.test(token)) {
+      setStatus(status, text('passwordRecoveryCodeInvalidFormat', '請輸入 8 位數驗證碼。'), 'error');
       return;
     }
     setButtonBusy(verifyButton, true);
