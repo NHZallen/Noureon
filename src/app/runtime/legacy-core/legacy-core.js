@@ -695,7 +695,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         await saveAppData();
 
         if (conversationStateAccess.getCurrentConversationId() === id) {
-            startNewChat();
+            await startNewChat();
         } else {
             runtimeRenderCoordinator.renderSidebar();
         }

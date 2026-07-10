@@ -152,13 +152,22 @@ test('deleteChat preserves persistence, active fallback, render, and notificatio
   assertMarkersInOrder(body, [
     'await saveAppData()',
     'if (conversationStateAccess.getCurrentConversationId() === id)',
-    'startNewChat()',
+    'await startNewChat()',
     'else {',
-    'runtimeRenderCoordinator.renderAll()',
+    'runtimeRenderCoordinator.renderSidebar()',
     'runtimeDialogCoordinator.showNotification('
   ], 'deleteChat side effects');
   assert.match(body, /chatMovedToTrash\s*\|\|/);
   assert.match(body, /runtimeDialogCoordinator\.showNotification\([\s\S]*?'success'\)/);
+});
+
+test('deleteChat waits for the replacement blank conversation before continuing', () => {
+  const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
+
+  assert.match(
+    body,
+    /if\s*\(conversationStateAccess\.getCurrentConversationId\(\)\s*===\s*id\)\s*\{\s*await\s+startNewChat\(\);\s*\}/
+  );
 });
 
 test('deleteChat uses the live bridge without a legacy conversations mirror', () => {
