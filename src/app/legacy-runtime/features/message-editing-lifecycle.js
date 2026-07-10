@@ -55,42 +55,15 @@ export function createMessageEditingLifecycle({
     renderFilePreviews();
   };
 
-  const finishDismissEditor = (editor, { restore = true, rerender = false } = {}) => {
-    if (activeEditor !== editor) return;
+  const dismissEditor = ({ restore = true, rerender = true } = {}) => {
+    const editor = activeEditor;
+    if (!editor) return;
     if (restore) restoreComposer(editor);
     restoreSharedAttachmentMenu();
-    if (!editor.mobile && editor.originalStack && editor.host?.isConnected) {
-      editor.host.replaceWith(editor.originalStack);
-    } else {
-      editor.root?.remove();
-    }
+    editor.root?.remove();
     document.body.classList.remove('is-editing-mobile-message');
     activeEditor = null;
     if (rerender && !editor.mobile) renderChat();
-  };
-
-  const dismissEditor = ({ restore = true, rerender = false, animate = true } = {}) => {
-    const editor = activeEditor;
-    if (!editor) return;
-    restoreSharedAttachmentMenu();
-    if (!animate || !editor.root?.isConnected || editor.closing) {
-      if (!editor.closing) finishDismissEditor(editor, { restore, rerender });
-      return;
-    }
-    editor.closing = true;
-    const transitionDuration = editor.mobile ? 220 : 320;
-    if (editor.mobile && restore) {
-      restoreComposer(editor);
-      restore = false;
-      editor.root.style.pointerEvents = 'none';
-    } else if (!editor.mobile && editor.host) {
-      editor.originalStack.hidden = false;
-      editor.originalStack.classList.remove('is-transitioning-out');
-      editor.host.style.height = `${editor.originalHeight || 0}px`;
-    }
-    editor.root.classList.remove('is-visible');
-    editor.root.classList.add('is-closing');
-    globalThis.setTimeout(() => finishDismissEditor(editor, { restore, rerender }), transitionDuration);
   };
 
   const openSharedAttachmentMenu = () => {
@@ -168,7 +141,7 @@ export function createMessageEditingLifecycle({
     if (sendButton) sendButton.disabled = true;
     editor.conversation.messages.splice(editor.index);
     await saveAppData();
-    dismissEditor({ rerender: false, animate: false });
+    dismissEditor({ rerender: false });
     renderChat();
     await submitEditedMessage({ userMessage: text, uploadedFiles: files });
   };
@@ -181,7 +154,7 @@ export function createMessageEditingLifecycle({
     if (!text && files.length === 0) return null;
     editor.conversation.messages.splice(editor.index);
     void saveAppData();
-    dismissEditor({ rerender: false, animate: false });
+    dismissEditor({ rerender: false });
     renderChat();
     return { userMessage: text, uploadedFiles: files, preserveComposer: true };
   };
@@ -190,7 +163,7 @@ export function createMessageEditingLifecycle({
     const conversation = getActiveConversation();
     const message = conversation?.messages?.[messageIndex];
     if (!message || message.role !== 'user') return;
-    dismissEditor({ animate: false });
+    dismissEditor();
     const mobile = Boolean(isMobile());
     const root = document.createElement('section');
     const filePreviewContainer = elements.filePreviewContainer;
@@ -201,7 +174,6 @@ export function createMessageEditingLifecycle({
       root,
       mobile,
       sending: false,
-      closing: false,
       composerDraft: {
         text: elements.messageInput?.value || '',
         files: [...getUploadedFiles()]
@@ -209,8 +181,7 @@ export function createMessageEditingLifecycle({
       previewParent: filePreviewContainer?.parentNode || null,
       previewNextSibling: filePreviewContainer?.nextSibling || null,
       composerParent: elements.inputBarContainer?.parentNode || null,
-      composerNextSibling: elements.inputBarContainer?.nextSibling || null,
-      originalHeight: 0
+      composerNextSibling: elements.inputBarContainer?.nextSibling || null
     };
     setUploadedFiles(filesFromMessage(message));
     renderFilePreviews();
@@ -230,36 +201,15 @@ export function createMessageEditingLifecycle({
       root.querySelector('.message-edit-mobile-composer').appendChild(elements.inputBarContainer);
       elements.messageInput.value = activeEditor.text;
       elements.messageInput.dispatchEvent(new Event('input', { bubbles: true }));
-      requestAnimationFrame(() => {
-        if (activeEditor?.root === root) {
-          root.classList.add('is-visible');
-          elements.messageInput.focus();
-        }
-      });
+      elements.messageInput.focus();
       return;
     }
     root.className = 'message-edit-inline';
     const messageElement = elements.messageList.querySelector(`.message-item[data-message-index="${messageIndex}"]`);
     const stack = messageElement?.querySelector('.message-stack-user');
     if (!stack) return dismissEditor();
-    activeEditor.originalStack = stack;
-    activeEditor.originalHeight = stack.getBoundingClientRect().height;
-    const host = document.createElement('div');
-    host.className = 'message-edit-transition-host';
-    host.style.height = `${activeEditor.originalHeight}px`;
-    activeEditor.host = host;
-    stack.replaceWith(host);
-    host.append(stack, root);
+    stack.replaceWith(root);
     renderDesktopEditor();
-    requestAnimationFrame(() => {
-      if (activeEditor?.root !== root) return;
-      root.classList.add('is-visible');
-      stack.classList.add('is-transitioning-out');
-      host.style.height = `${root.getBoundingClientRect().height}px`;
-      globalThis.setTimeout(() => {
-        if (activeEditor?.root === root && !activeEditor.closing) stack.hidden = true;
-      }, 360);
-    });
   };
 
   return { startMessageEditing, cancelMessageEditing: dismissEditor, getComposerEditSubmission };
