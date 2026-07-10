@@ -42,8 +42,9 @@ export function createUploadedFilePreviewLifecycle({
                 </div>`;
             }
             const removeButton = document.createElement('button');
-            removeButton.className = 'absolute top-0 right-0 m-1 w-5 h-5 bg-black bg-opacity-50 text-white rounded-full flex items-center justify-center text-xs';
-            removeButton.innerHTML = '&times;';
+            removeButton.type = 'button';
+            removeButton.className = 'file-preview-remove';
+            removeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
             removeButton.onclick = (event) => {
                 event.stopPropagation();
                 removeFile(file.id);

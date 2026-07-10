@@ -50,6 +50,8 @@ test('renders image, video, and file previews with stable controls', () => {
     assert.match(previews[1].innerHTML, /file-preview-play/);
     assert.match(previews[2].innerHTML, /class="w-8 h-8 text-gray-500"/);
     assert.equal(fixture.document.querySelectorAll('.file-preview-item > button').length, 3);
+    assert.equal(fixture.document.querySelectorAll('.file-preview-remove > svg').length, 3);
+    assert.equal(fixture.document.querySelector('.file-preview-remove').textContent, '');
     assert.equal(fixture.document.querySelector('.input-wrapper').classList.contains('has-file-previews'), true);
     assert.equal(fixture.document.querySelector('#previews').classList.contains('has-files'), true);
     assert.deepEqual(fixture.calls, ['updateInputState']);

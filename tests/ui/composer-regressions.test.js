@@ -57,7 +57,10 @@ test('composer upload previews occupy a full-width row above desktop input contr
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"input input input input input input"\s*"file indicators spacer reasoning voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*grid-area:\s*preview;[^}]*align-self:\s*stretch;[^}]*width:\s*100%;/s);
   assert.doesNotMatch(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*position:\s*absolute/s);
-  assert.match(previewLifecycle, /removeButton\.innerHTML\s*=\s*'&times;';[\s\S]*event\.stopPropagation\(\);[\s\S]*removeFile\(file\.id\)/);
+  assert.match(previewLifecycle, /removeButton\.className\s*=\s*'file-preview-remove';[\s\S]*removeButton\.innerHTML\s*=\s*'<svg[^']*aria-hidden="true"[^']*<\/svg>';[\s\S]*event\.stopPropagation\(\);[\s\S]*removeFile\(file\.id\)/);
+  assert.doesNotMatch(previewLifecycle, /removeButton\.innerHTML\s*=\s*'&times;'/);
+  assert.match(css, /\.file-preview-remove\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*padding:\s*0;[^}]*line-height:\s*0;/s);
+  assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*0\.8rem;[^}]*height:\s*0\.8rem;/s);
 });
 
 test('desktop active mode and Astras pills swap their leading icon to the themed close icon on hover', () => {
