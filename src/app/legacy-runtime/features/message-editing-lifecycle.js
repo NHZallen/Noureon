@@ -78,9 +78,17 @@ export function createMessageEditingLifecycle({
       return;
     }
     editor.closing = true;
+    const transitionDuration = editor.mobile ? 220 : 320;
+    if (!editor.mobile) {
+      const currentHeight = editor.root.getBoundingClientRect().height;
+      editor.root.style.height = `${currentHeight}px`;
+      editor.root.style.overflow = 'hidden';
+      void editor.root.offsetHeight;
+      editor.root.style.height = `${editor.originalHeight || 0}px`;
+    }
     editor.root.classList.remove('is-visible');
     editor.root.classList.add('is-closing');
-    globalThis.setTimeout(() => finishDismissEditor(editor, { restore, rerender }), 180);
+    globalThis.setTimeout(() => finishDismissEditor(editor, { restore, rerender }), transitionDuration);
   };
 
   const openSharedAttachmentMenu = () => {
@@ -199,7 +207,8 @@ export function createMessageEditingLifecycle({
       previewParent: filePreviewContainer?.parentNode || null,
       previewNextSibling: filePreviewContainer?.nextSibling || null,
       composerParent: elements.inputBarContainer?.parentNode || null,
-      composerNextSibling: elements.inputBarContainer?.nextSibling || null
+      composerNextSibling: elements.inputBarContainer?.nextSibling || null,
+      originalHeight: 0
     };
     setUploadedFiles(filesFromMessage(message));
     renderFilePreviews();
@@ -232,6 +241,7 @@ export function createMessageEditingLifecycle({
     const stack = messageElement?.querySelector('.message-stack-user');
     if (!stack) return dismissEditor();
     activeEditor.originalStack = stack;
+    activeEditor.originalHeight = stack.getBoundingClientRect().height;
     stack.replaceWith(root);
     renderDesktopEditor();
     requestAnimationFrame(() => {
