@@ -51,28 +51,26 @@ export function getVisibleUserText(message) {
     .join('\n');
 }
 
-const rangesMatch = (first, second) => Boolean(
-  first
-  && second
-  && first.startContainer === second.startContainer
-  && first.startOffset === second.startOffset
-  && first.endContainer === second.endContainer
-  && first.endOffset === second.endOffset
-);
+export function highlightRangeTemporarily({
+  window,
+  range,
+  durationMs = 1200,
+  highlightName = 'quote-source-flash'
+} = {}) {
+  const registry = window?.CSS?.highlights;
+  const HighlightCtor = window?.Highlight;
+  if (!registry || typeof HighlightCtor !== 'function' || !range) return () => {};
 
-export function highlightRangeTemporarily({ window, range, durationMs = 1200 } = {}) {
-  const selection = window?.getSelection?.();
-  if (!selection || !range) return () => {};
-
-  selection.removeAllRanges?.();
-  selection.addRange?.(range);
-  const timerId = window.setTimeout?.(() => {
-    const activeRange = selection.rangeCount === 1 ? selection.getRangeAt(0) : null;
-    if (rangesMatch(activeRange, range)) selection.removeAllRanges?.();
-  }, durationMs);
+  const highlight = new HighlightCtor(range);
+  registry.set(highlightName, highlight);
+  const removeHighlight = () => {
+    if (registry.get(highlightName) === highlight) registry.delete(highlightName);
+  };
+  const timerId = window.setTimeout?.(removeHighlight, durationMs);
 
   return () => {
     if (timerId !== undefined && timerId !== null) window.clearTimeout?.(timerId);
+    removeHighlight();
   };
 }
 

@@ -5,7 +5,13 @@ import { createLegacyRuntimeContext } from '../../src/app/legacy-runtime/runtime
 import { buildQuotedUserParts } from '../../src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createSubmitInputPreparationLifecycle } from '../../src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
 
-const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello', quoteReference = null } = {}) => {
+const createSubmitHarness = ({
+  councilEnabled = false,
+  messageValue = 'Hello',
+  quoteReference = null,
+  autoWebSearchEnabled = false,
+  performWebSearch = async () => false
+} = {}) => {
   const calls = [];
   const conversation = {
     archived: false,
@@ -55,14 +61,14 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello', q
       if (shouldSave) conversation.messages.push(message);
       return {
         querySelector: () => ({ id: 'assistant-content' }),
-        scrollIntoView: () => calls.push(['scrollIntoView'])
+        scrollIntoView: () => calls.push(['scrollIntoView', message.role])
       };
     },
     renderHistorySidebar: () => {},
     getAutoNaming: () => false,
     generateTitleAndSummary: (...args) => runtimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
     saveAppData: async () => {},
-    getAutoWebSearchEnabled: () => false,
+    getAutoWebSearchEnabled: () => autoWebSearchEnabled,
     shouldPerformWebSearch: (...args) => runtimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
     getAutoSearchNotice: () => 'auto search',
     renderInputIndicators: () => {},
@@ -86,7 +92,7 @@ const createSubmitHarness = ({ councilEnabled = false, messageValue = 'Hello', q
 
   updateSubmitButtonState = (isGenerating) => calls.push(['updateSubmitButtonState', isGenerating]);
   generateTitleAndSummary = () => calls.push(['generateTitleAndSummary']);
-  shouldPerformWebSearch = async () => false;
+  shouldPerformWebSearch = performWebSearch;
   adjustTextareaHeight = () => calls.push(['adjustTextareaHeight']);
   renderFilePreviews = () => calls.push(['renderFilePreviews']);
 
@@ -125,6 +131,29 @@ test('single-model submit appends user/loading messages before lifecycle handoff
       ['addMessageToUI', 'model', 1, false],
       ['singleModelLifecycle']
     ]
+  );
+});
+
+test('submit scrolls the user message before auto-search classification resolves', async () => {
+  let resolveSearch;
+  const harness = createSubmitHarness({
+    autoWebSearchEnabled: true,
+    performWebSearch: () => new Promise(resolve => { resolveSearch = resolve; })
+  });
+
+  const submitting = harness.submit();
+  await Promise.resolve();
+  const callsBeforeSearchResolution = [...harness.calls];
+  resolveSearch(false);
+  await submitting;
+
+  assert.equal(
+    callsBeforeSearchResolution.some(([name, role]) => name === 'scrollIntoView' && role === 'user'),
+    true
+  );
+  assert.equal(
+    callsBeforeSearchResolution.some(([name, role]) => name === 'addMessageToUI' && role === 'model'),
+    false
   );
 });
 

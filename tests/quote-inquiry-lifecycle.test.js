@@ -53,34 +53,24 @@ test('quote-only submission receives a visible default question', () => {
   assert.doesNotMatch(getVisibleUserText({ parts }), /Selected model text/);
 });
 
-test('temporary source highlight clears its own range without clearing a newer selection', () => {
+test('temporary source highlight changes text color without creating a browser selection', () => {
   assert.equal(typeof quoteInquiryLifecycle.highlightRangeTemporarily, 'function');
 
-  const sourceRange = {
-    startContainer: {},
-    startOffset: 2,
-    endContainer: {},
-    endOffset: 8
-  };
-  const newerRange = {
-    startContainer: {},
-    startOffset: 0,
-    endContainer: {},
-    endOffset: 3
-  };
-  let activeRange = null;
-  let removeCalls = 0;
+  const sourceRange = {};
   let timerId = 0;
   const timers = new Map();
   const clearedTimers = [];
-  const selection = {
-    get rangeCount() { return activeRange ? 1 : 0; },
-    getRangeAt: () => activeRange,
-    addRange: range => { activeRange = range; },
-    removeAllRanges: () => { activeRange = null; removeCalls += 1; }
-  };
+  const highlights = new Map();
+  let selectionCalls = 0;
+  class FakeHighlight {
+    constructor(...ranges) {
+      this.ranges = ranges;
+    }
+  }
   const fakeWindow = {
-    getSelection: () => selection,
+    CSS: { highlights },
+    Highlight: FakeHighlight,
+    getSelection: () => { selectionCalls += 1; },
     setTimeout: (callback, duration) => {
       timerId += 1;
       timers.set(timerId, { callback, duration });
@@ -93,23 +83,26 @@ test('temporary source highlight clears its own range without clearing a newer s
     window: fakeWindow,
     range: sourceRange
   });
-  assert.equal(activeRange, sourceRange);
+  const firstHighlight = highlights.get('quote-source-flash');
+  assert.ok(firstHighlight);
+  assert.equal(firstHighlight.ranges[0], sourceRange);
   assert.equal(timers.get(1).duration, 1200);
+  assert.equal(selectionCalls, 0);
   timers.get(1).callback();
-  assert.equal(activeRange, null);
-  assert.equal(removeCalls, 2);
+  assert.equal(highlights.has('quote-source-flash'), false);
 
   const cancelSecond = quoteInquiryLifecycle.highlightRangeTemporarily({
     window: fakeWindow,
     range: sourceRange
   });
-  activeRange = newerRange;
+  const newerHighlight = { ranges: [{}] };
+  highlights.set('quote-source-flash', newerHighlight);
   timers.get(2).callback();
-  assert.equal(activeRange, newerRange);
-  assert.equal(removeCalls, 3);
+  assert.equal(highlights.get('quote-source-flash'), newerHighlight);
 
   cancelFirst();
   cancelSecond();
+  assert.equal(highlights.get('quote-source-flash'), newerHighlight);
   assert.deepEqual(clearedTimers, [1, 2]);
 });
 
@@ -126,7 +119,7 @@ test('desktop quote UI uses curved SVG arrows and turns the action blue only on 
   assert.doesNotMatch(lifecycle, /\.user-message \.message-content/);
   assert.match(lifecycle, /sourceMessage\?\.role !== 'model'/);
   assert.match(lifecycle, /highlightRangeTemporarily/);
-  assert.match(lifecycle, /addRange/);
+  assert.doesNotMatch(lifecycle, /addRange/);
   assert.match(lifecycle, /quote-inquiry-icon/);
   assert.doesNotMatch(lifecycle, /↳/);
   assert.match(lifecycle, /M6 4v4\.5A4\.5 4\.5 0 0 0 10\.5 13H18/);
@@ -142,6 +135,10 @@ test('desktop quote UI uses curved SVG arrows and turns the action blue only on 
   assert.match(css, /\.quote-inquiry-bar[^{]*\{[^}]*color:\s*#8b9098;/s);
   assert.match(css, /\.sent-message-quote[^{]*\{[^}]*width:\s*fit-content;[^}]*margin-left:\s*auto;[^}]*color:\s*#8b9098;[^}]*display:\s*grid;/s);
   assert.match(css, /\.sent-message-quote:hover,\s*\.sent-message-quote:focus-visible[^{]*\{[^}]*color:\s*#111827;/s);
+  assert.match(css, /\.quote-inquiry-icon[^{]*\{[^}]*color:\s*#8b9098;/s);
+  assert.match(css, /\.sent-message-quote-icon[^{]*\{[^}]*color:\s*#8b9098;/s);
+  assert.match(css, /\.sent-message-quote:hover \.sent-message-quote-icon,\s*\.sent-message-quote:focus-visible \.sent-message-quote-icon[^{]*\{[^}]*color:\s*#111827;/s);
+  assert.match(css, /::highlight\(quote-source-flash\)[^{]*\{[^}]*color:\s*var\(--button-primary-bg\);[^}]*background-color:\s*transparent;/s);
   assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.quote-inquiry-menu,[\s\S]*\.quote-inquiry-bar[^{]*\{[^}]*display:\s*none;/s);
 });
 

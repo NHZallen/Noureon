@@ -57,7 +57,12 @@ const createHarness = (overrides = {}) => {
       calls.push(['addMessageToUI', message.role, index, shouldSave]);
       if (message.role === 'model') return createLoadingMessageElement(calls);
       conversation.messages.push(message);
-      return { id: 'user-message' };
+      return {
+        id: 'user-message',
+        scrollIntoView(options) {
+          calls.push(['scrollIntoView', options]);
+        }
+      };
     },
     renderHistorySidebar: () => calls.push(['renderHistorySidebar']),
     getAutoNaming: () => overrides.autoNaming ?? false,
@@ -132,6 +137,8 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
     'setAbortController',
     'updateSubmitButtonState',
     'addMessageToUI',
+    'requestFrame',
+    'scrollIntoView',
     'setUploadedFiles',
     'adjustTextareaHeight',
     'renderFilePreviews',
@@ -224,6 +231,8 @@ test('clears the composer before the auto web search classifier resolves', async
     'setAbortController',
     'updateSubmitButtonState',
     'addMessageToUI',
+    'requestFrame',
+    'scrollIntoView',
     'setUploadedFiles',
     'adjustTextareaHeight',
     'renderFilePreviews'

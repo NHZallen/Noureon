@@ -59,7 +59,7 @@
     height: 1.15rem;
     flex: 0 0 auto;
     margin-top: 0.22rem;
-    color: inherit;
+    color: #8b9098;
 }
 
 .quote-inquiry-text,
@@ -145,7 +145,13 @@
     width: 1.15rem;
     height: 1.15rem;
     margin-top: 0.18rem;
-    color: inherit;
+    color: #8b9098;
+    transition: color 0.15s ease;
+}
+
+.sent-message-quote:hover .sent-message-quote-icon,
+.sent-message-quote:focus-visible .sent-message-quote-icon {
+    color: #111827;
 }
 
 .quote-inquiry-icon svg,
@@ -157,6 +163,11 @@
 
 .sent-message-quote-text {
     font-size: 1rem;
+}
+
+::highlight(quote-source-flash) {
+    color: var(--button-primary-bg);
+    background-color: transparent;
 }
 
 @media (max-width: 768px) {

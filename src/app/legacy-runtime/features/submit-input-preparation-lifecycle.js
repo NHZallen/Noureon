@@ -97,7 +97,10 @@ export function createSubmitInputPreparationLifecycle({
     }
 
     const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
-    addMessageToUI(userMessageObject, conversation.messages.length, true);
+    const userMessageDiv = addMessageToUI(userMessageObject, conversation.messages.length, true);
+    requestFrame(() => {
+      userMessageDiv?.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
+    });
     conversation.lastUpdatedAt = new Date().toISOString();
     conversation.unsentMessage = '';
 
