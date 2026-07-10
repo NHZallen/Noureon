@@ -52,7 +52,7 @@ test('quote-only submission receives a visible default question', () => {
   assert.doesNotMatch(getVisibleUserText({ parts }), /Selected model text/);
 });
 
-test('desktop quote UI is limited to model output, clamps both previews, and restores the source range', () => {
+test('desktop quote UI scrolls without selecting, uses no arrows, and keeps previews blue', () => {
   const lifecycle = readUiSource('src/app/legacy-runtime/features/quote-inquiry-lifecycle.js');
   const css = readUiSource('src/styles/main.css');
 
@@ -60,9 +60,11 @@ test('desktop quote UI is limited to model output, clamps both previews, and res
   assert.match(lifecycle, /\.model-message \.message-content/);
   assert.doesNotMatch(lifecycle, /\.user-message \.message-content/);
   assert.match(lifecycle, /sourceMessage\?\.role !== 'model'/);
-  assert.match(lifecycle, /selection\?\.addRange\?\.\(range\)/);
+  assert.doesNotMatch(lifecycle, /addRange/);
+  assert.doesNotMatch(lifecycle, /↳/);
   assert.match(lifecycle, /elements\.chatContainer\.scrollTo/);
   assert.match(css, /\.quote-inquiry-text,\s*\.sent-message-quote-text[^{]*\{[^}]*-webkit-line-clamp:\s*3;/s);
-  assert.match(css, /\.sent-message-quote:hover,\s*\.sent-message-quote:focus-visible[^{]*\{[^}]*color:\s*#111827;/s);
+  assert.match(css, /\.sent-message-quote[^{]*\{[^}]*color:\s*#3b82f6;/s);
+  assert.match(css, /\.sent-message-quote:hover,\s*\.sent-message-quote:focus-visible[^{]*\{[^}]*color:\s*#2563eb;/s);
   assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.quote-inquiry-menu,[\s\S]*\.quote-inquiry-bar[^{]*\{[^}]*display:\s*none;/s);
 });

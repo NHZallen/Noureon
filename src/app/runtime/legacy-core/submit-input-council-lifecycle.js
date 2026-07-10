@@ -116,6 +116,9 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     deactivateAstras = () => {},
     onRegularSubmit = () => {},
     getComposerEditSubmission = () => null,
+    getQuoteReference = () => null,
+    buildQuotedUserParts = ({ question }) => question ? [{ text: question }] : [],
+    clearQuoteReference = () => {},
     showCustomDialog,
     logger = console
   } = dependencies;
@@ -858,7 +861,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
     renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
     requestFrame: (callback) => requestAnimationFrame(callback),
-    isImageConversation
+    isImageConversation,
+    getQuoteReference,
+    buildQuotedUserParts,
+    clearQuoteReference
   });
 
   const prepareDefaultSubmit = async () => {

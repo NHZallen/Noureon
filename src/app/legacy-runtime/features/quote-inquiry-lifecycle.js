@@ -257,9 +257,6 @@ export function createQuoteInquiryLifecycle({
       offsetHint: reference.sourceTextOffset
     });
     if (range) {
-      const selection = window.getSelection?.();
-      selection?.removeAllRanges?.();
-      selection?.addRange?.(range);
       const rangeRect = range.getBoundingClientRect?.();
       const containerRect = elements.chatContainer?.getBoundingClientRect?.();
       if (rangeRect && containerRect && typeof elements.chatContainer?.scrollTo === 'function') {
@@ -283,11 +280,6 @@ export function createQuoteInquiryLifecycle({
     quoteBar.className = 'quote-inquiry-bar';
     quoteBar.hidden = true;
 
-    const icon = document.createElement('span');
-    icon.className = 'quote-inquiry-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = '↳';
-
     quoteTextElement = document.createElement('span');
     quoteTextElement.id = 'quote-inquiry-text';
     quoteTextElement.className = 'quote-inquiry-text';
@@ -300,7 +292,7 @@ export function createQuoteInquiryLifecycle({
     removeButton.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
     removeButton.addEventListener('click', () => clearQuote({ focusComposer: true }));
 
-    quoteBar.append(icon, quoteTextElement, removeButton);
+    quoteBar.append(quoteTextElement, removeButton);
     const wrapper = elements.messageInput.closest('.input-wrapper');
     const inputRow = elements.messageInput.closest('#chat-form')?.parentElement;
     if (wrapper && inputRow) wrapper.insertBefore(quoteBar, inputRow);
@@ -315,8 +307,7 @@ export function createQuoteInquiryLifecycle({
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'quote-inquiry-menu-button';
-    button.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
-    button.append(document.createTextNode(getText('quoteInquiry', 'Quote inquiry')));
+    button.textContent = getText('quoteInquiry', 'Quote inquiry');
     button.addEventListener('mousedown', event => event.preventDefault());
     button.addEventListener('click', () => setComposerQuote(menu._quoteReference));
     menu.appendChild(button);

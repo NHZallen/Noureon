@@ -84,6 +84,7 @@ test('renders a sent quote above the user bubble without exposing hidden model c
   assert.match(view.messageHTML, /message-stack-user message-stack-has-quote/);
   assert.match(view.messageHTML, /class="sent-message-quote" data-quote-reference/);
   assert.match(view.messageHTML, /sent-message-quote-text">USER:Selected model output/);
+  assert.doesNotMatch(view.messageHTML, /↳/);
   assert.match(view.messageHTML, /message-content">\<div>USER:Question<\/div>/);
   assert.doesNotMatch(view.messageHTML, /Hidden request context/);
   assert.ok(view.messageHTML.indexOf('sent-message-quote') < view.messageHTML.indexOf('message-bubble'));

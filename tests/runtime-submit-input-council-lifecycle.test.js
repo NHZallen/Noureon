@@ -105,6 +105,19 @@ test('import is inert and module avoids fragments and virtual runtime', () => {
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
 
+test('quote reference dependencies reach the real submit preparation lifecycle', () => {
+  const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const preparationStart = source.indexOf('createSubmitInputPreparationLifecycle({');
+  const preparationSource = source.slice(preparationStart, source.indexOf('\n  });', preparationStart));
+
+  assert.match(source, /getQuoteReference\s*=\s*\(\)\s*=>\s*null/);
+  assert.match(source, /buildQuotedUserParts\s*=\s*\(\{\s*question\s*\}\)/);
+  assert.match(source, /clearQuoteReference\s*=\s*\(\)\s*=>\s*\{\}/);
+  assert.match(preparationSource, /getQuoteReference/);
+  assert.match(preparationSource, /buildQuotedUserParts/);
+  assert.match(preparationSource, /clearQuoteReference/);
+});
+
 test('factory validates required dependencies', () => {
   assert.throws(
     () => createLegacySubmitInputCouncilLifecycle(),
