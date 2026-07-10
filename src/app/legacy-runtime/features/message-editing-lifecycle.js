@@ -36,7 +36,7 @@ export function createMessageEditingLifecycle({
 
   const prefersReducedMotion = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   const scheduleFrame = (callback) => (globalThis.requestAnimationFrame || setTimeout)(callback);
-  const waitForFadeOut = (element) => new Promise((resolve) => {
+  const waitForTransition = (element, propertyName) => new Promise((resolve) => {
     if (!element || prefersReducedMotion()) return resolve();
     let completed = false;
     const finish = () => {
@@ -47,9 +47,9 @@ export function createMessageEditingLifecycle({
       resolve();
     };
     const onTransitionEnd = (event) => {
-      if (event.target === element && event.propertyName === 'opacity') finish();
+      if (event.target === element && event.propertyName === propertyName) finish();
     };
-    const fallback = setTimeout(finish, 260);
+    const fallback = setTimeout(finish, 380);
     element.addEventListener('transitionend', onTransitionEnd);
   });
 
@@ -79,24 +79,49 @@ export function createMessageEditingLifecycle({
     if (!editor) return;
     if (editor.closing) return editor.closing;
 
+    const restoreEditorComposer = () => {
+      if (!restore || editor.composerRestored) return;
+      restoreComposer(editor);
+      editor.composerRestored = true;
+      if (editor.mobile && animate && !prefersReducedMotion()) {
+        const composer = elements.inputBarContainer;
+        composer?.classList.add('message-edit-composer-returning');
+        scheduleFrame(() => {
+          composer?.classList.add('message-edit-composer-returned');
+          composer?.addEventListener('transitionend', () => {
+            composer?.classList.remove('message-edit-composer-returning', 'message-edit-composer-returned');
+          }, { once: true });
+        });
+      }
+    };
+
+    const beginDesktopReturn = () => {
+      const { root, originalStack } = editor;
+      if (!root?.parentNode || !originalStack) return false;
+      const editorHeight = root.getBoundingClientRect().height;
+      originalStack.classList.add('message-edit-returning');
+      root.appendChild(originalStack);
+      const messageHeight = originalStack.getBoundingClientRect().height;
+      root.style.height = `${editorHeight}px`;
+      void root.offsetHeight;
+      root.classList.add('message-edit-closing');
+      scheduleFrame(() => {
+        root.style.height = `${messageHeight}px`;
+        originalStack.classList.add('message-edit-returned');
+      });
+      return true;
+    };
+
     const finish = () => {
       let restoredOriginalMessage = false;
-      if (restore) restoreComposer(editor);
+      restoreEditorComposer();
       restoreSharedAttachmentMenu();
       document.body.classList.remove('is-editing-mobile-message');
 
       if (!editor.mobile && editor.originalStack && editor.root?.parentNode) {
         editor.root.replaceWith(editor.originalStack);
         restoredOriginalMessage = true;
-        if (animate && !prefersReducedMotion()) {
-          editor.originalStack.classList.add('message-edit-returning');
-          scheduleFrame(() => {
-            editor.originalStack?.classList.add('message-edit-returned');
-            editor.originalStack?.addEventListener('transitionend', () => {
-              editor.originalStack?.classList.remove('message-edit-returning', 'message-edit-returned');
-            }, { once: true });
-          });
-        }
+        editor.originalStack.classList.remove('message-edit-returning', 'message-edit-returned');
       } else {
         editor.root?.remove();
       }
@@ -110,8 +135,20 @@ export function createMessageEditingLifecycle({
       return Promise.resolve();
     }
 
+    if (editor.mobile) {
+      restoreEditorComposer();
+      editor.root?.classList.remove('message-edit-visible');
+      editor.closing = waitForTransition(editor.root, 'opacity').then(finish);
+      return editor.closing;
+    }
+
+    if (beginDesktopReturn()) {
+      editor.closing = waitForTransition(editor.root, 'height').then(finish);
+      return editor.closing;
+    }
+
     editor.root?.classList.remove('message-edit-visible');
-    editor.closing = waitForFadeOut(editor.root).then(finish);
+    editor.closing = waitForTransition(editor.root, 'opacity').then(finish);
     return editor.closing;
   };
 
@@ -138,7 +175,7 @@ export function createMessageEditingLifecycle({
       fileOptionsPopover.style.transformOrigin = showAbove ? 'bottom left' : 'top left';
     };
     positionMenu();
-    requestAnimationFrame(positionMenu);
+    scheduleFrame(positionMenu);
   };
 
   const renderDesktopEditor = () => {
@@ -224,6 +261,7 @@ export function createMessageEditingLifecycle({
       mobile,
       sending: false,
       originalStack: null,
+      composerRestored: false,
       composerDraft: {
         text: elements.messageInput?.value || '',
         files: [...getUploadedFiles()]
