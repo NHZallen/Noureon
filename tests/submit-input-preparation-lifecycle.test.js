@@ -132,14 +132,14 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
     'setAbortController',
     'updateSubmitButtonState',
     'addMessageToUI',
+    'setUploadedFiles',
+    'adjustTextareaHeight',
+    'renderFilePreviews',
     'renderHistorySidebar',
     'generateTitleAndSummary',
     'saveAppData',
     'showNotification',
     'renderInputIndicators',
-    'setUploadedFiles',
-    'adjustTextareaHeight',
-    'renderFilePreviews',
     'addMessageToUI',
     'querySelector',
     'requestFrame',
@@ -200,6 +200,37 @@ test('auto web search can be enabled for Tavily-backed providers through the run
     assert.equal(harness.conversation.isWebSearchEnabled, true);
     assert.ok(harness.calls.some(call => call[0] === 'showNotification' && call[1] === 'auto search on'));
   }
+});
+
+test('clears the composer before the auto web search classifier resolves', async () => {
+  let resolveClassifier;
+  const classifierPending = new Promise((resolve) => {
+    resolveClassifier = resolve;
+  });
+  const harness = createHarness({
+    autoWebSearch: true,
+    uploadedFiles: [{
+      base64: 'data:image/png;base64,abc123', name: 'photo.png', size: 99, type: 'image/png'
+    }],
+    shouldPerformWebSearch: () => classifierPending
+  });
+
+  const submission = harness.lifecycle.prepareSubmitResponse();
+  await Promise.resolve();
+
+  assert.equal(harness.elements.messageInput.value, '');
+  assert.deepEqual(harness.uploadedFiles, []);
+  assert.deepEqual(harness.calls.map(([name]) => name), [
+    'setAbortController',
+    'updateSubmitButtonState',
+    'addMessageToUI',
+    'setUploadedFiles',
+    'adjustTextareaHeight',
+    'renderFilePreviews'
+  ]);
+
+  resolveClassifier(false);
+  assert.equal((await submission).shouldContinue, true);
 });
 
 test('auto web search skips the classifier when the current model cannot use search', async () => {

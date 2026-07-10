@@ -30,6 +30,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('/src/app/runtime/legacy-core/council-runtime-texts.js')) return 'legacy-council-texts';
+          if (id.includes('/src/app/runtime/legacy-core/submit-input-council-lifecycle.js')) return 'legacy-submit-input';
           if (id.includes('/src/app/runtime/legacy-core/model-registry.js')) return 'legacy-model-registry';
           if (!id.includes('node_modules')) {
             return undefined;

@@ -2404,6 +2404,7 @@ test('runtime config access owns selected uiLanguage reads through the config st
   const settingsSaveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const accessSource = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
+  const councilRuntimeTextsSource = readSource('src/app/runtime/legacy-core/council-runtime-texts.js');
   const getCouncilTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilTexts');
   const getCouncilRuntimeTextsBody = getConstFunctionBody(fragment00Source, 'getCouncilRuntimeTexts');
   const getModelRetirementLabelBody = getConstFunctionBody(fragment00Source, 'getModelRetirementLabel');
@@ -2438,10 +2439,13 @@ test('runtime config access owns selected uiLanguage reads through the config st
   }
 
   assert.match(getCouncilTextsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);\s*return\s+COUNCIL_TEXT\[uiLanguage\]\s*\|\|\s*COUNCIL_TEXT\['zh-TW'\];/);
+  assert.match(fragment00Source, /import\s+\{\s*getCouncilRuntimeTexts\s+as\s+getCouncilRuntimeTextsForLanguage\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/council-runtime-texts\.js['"]/);
   assert.match(getCouncilRuntimeTextsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
-  assert.match(getCouncilRuntimeTextsBody, /if\s*\(uiLanguage\s*===\s*'en'\)\s*\{\s*return\s*\{/);
-  assert.match(getCouncilRuntimeTextsBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*\{\s*return\s*\{/);
-  assert.ok((getCouncilRuntimeTextsBody.match(/return\s+\{/g) || []).length >= 3);
+  assert.match(getCouncilRuntimeTextsBody, /getCouncilRuntimeTextsForLanguage\(uiLanguage\)/);
+  assert.match(councilRuntimeTextsSource, /export\s+function\s+getCouncilRuntimeTexts\(uiLanguage\)/);
+  assert.match(councilRuntimeTextsSource, /if\s*\(uiLanguage\s*===\s*'en'\)\s*\{\s*return\s*\{/);
+  assert.match(councilRuntimeTextsSource, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*\{\s*return\s*\{/);
+  assert.ok((councilRuntimeTextsSource.match(/return\s+\{/g) || []).length >= 3);
   assert.match(getModelRetirementLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(getModelPriceLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(getCouncilModeLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
@@ -3437,7 +3441,7 @@ test('assistant response finalization is isolated from the 01 runtime submit flo
   assert.doesNotMatch(fragment00Source, /conversation-mail|createLegacyConversationMailSender|sendConversationToMail/);
   assert.doesNotMatch(fragment01Source, /sendConversationToMail/);
   assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
-  assert.match(helperSource, /await\s+extractPersonalMemory\(userMessageText,\s*fullResponse\)/);
+  assert.match(helperSource, /queueBackgroundTask\(\(\)\s*=>\s*extractPersonalMemory\(userMessageText,\s*fullResponse\)\)/);
   assert.match(helperSource, /conversation\.messages\.push\(finalAiMessage\)/);
   assert.match(helperSource, /targetElement\.innerHTML\s*=\s*renderError\(currentProgress,\s*errorMessage\)/);
   assert.doesNotMatch(helperSource, /fetch\s*\(/);

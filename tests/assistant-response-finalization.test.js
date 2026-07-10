@@ -10,8 +10,9 @@ import {
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
-test('successful finalization persists final assistant text, view completion, and memory in order', async () => {
+test('successful finalization completes the view before queuing persistence and memory work', async () => {
   const calls = [];
+  const backgroundTasks = [];
   const conversation = { messages: [], lastUpdatedAt: 'old' };
   const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: 'created' };
   const signal = new AbortController().signal;
@@ -36,15 +37,20 @@ test('successful finalization persists final assistant text, view completion, an
     renderRealtimeCouncilFinal: () => calls.push(['renderCouncilFinal']),
     playbackCouncilResponse: async () => calls.push(['playbackCouncil']),
     extractPersonalMemory: async (message, response) => calls.push(['memory', message, response]),
+    queueBackgroundTask: (task) => backgroundTasks.push(task),
     nowIso: () => 'now'
   });
 
   assert.deepEqual(finalAiMessage.parts, [{ text: 'Hello Astra' }]);
   assert.equal(conversation.messages[0], finalAiMessage);
   assert.equal(conversation.lastUpdatedAt, 'now');
+  assert.deepEqual(calls, [['singleView', 'Hello Astra', true]]);
+  assert.equal(backgroundTasks.length, 2);
+
+  await Promise.all(backgroundTasks.map((task) => task()));
   assert.deepEqual(calls, [
-    ['persist'],
     ['singleView', 'Hello Astra', true],
+    ['persist'],
     ['memory', 'Hi', 'Hello Astra']
   ]);
 });
@@ -73,7 +79,7 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
     extractPersonalMemory: async () => realtimeCalls.push('memory'),
     nowIso: () => 'now'
   });
-  assert.deepEqual(realtimeCalls, ['persist', ['restore', true]]);
+  assert.deepEqual(realtimeCalls, [['restore', true], 'persist']);
 
   const bufferedCalls = [];
   const message = { role: 'model', parts: [{ text: '' }], createdAt: 'created' };
@@ -100,7 +106,7 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
   });
 
   assert.deepEqual(message.council, { models: ['x'] });
-  assert.deepEqual(bufferedCalls, ['persist', 'playback']);
+  assert.deepEqual(bufferedCalls, ['playback', 'persist']);
 });
 
 test('finalization rejects empty responses before persistence or side effects', async () => {
@@ -156,7 +162,7 @@ test('image finalization persists asset parts without mail or learning-memory si
     nowIso: () => 'now'
   });
   assert.deepEqual(finalAiMessage.parts, finalParts);
-  assert.deepEqual(calls, ['persist', 'imageView']);
+  assert.deepEqual(calls, ['imageView', 'persist']);
 });
 
 test('error finalization persists non-abort errors and skips aborted requests', async () => {

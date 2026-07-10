@@ -80,6 +80,13 @@ export function createSubmitInputPreparationLifecycle({
     conversation.lastUpdatedAt = new Date().toISOString();
     conversation.unsentMessage = '';
 
+    if (!preserveComposer) {
+      elements.messageInput.value = '';
+      setUploadedFiles([]);
+      adjustTextareaHeight();
+      renderFilePreviews();
+    }
+
     if (conversation.isTemporary) {
       conversation.isTemporary = false;
       conversation.isNaming = true;
@@ -105,12 +112,6 @@ export function createSubmitInputPreparationLifecycle({
       }
     }
 
-    if (!preserveComposer) {
-      elements.messageInput.value = '';
-      setUploadedFiles([]);
-      adjustTextareaHeight();
-      renderFilePreviews();
-    }
     const loadingParts = isImageConversation(conversation)
       ? [{
           imageGenerationLoading: true,

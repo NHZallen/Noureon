@@ -25,6 +25,11 @@ export async function finalizeAssistantResponse({
   playbackCouncilResponse,
   extractPersonalMemory,
   completeImageView = null,
+  queueBackgroundTask = (task) => {
+    void Promise.resolve()
+      .then(task)
+      .catch((error) => console.error('Assistant response background task failed:', error));
+  },
   nowIso = () => new Date().toISOString()
 }) {
   const hasFinalParts = Array.isArray(finalParts) && finalParts.length > 0;
@@ -38,7 +43,7 @@ export async function finalizeAssistantResponse({
   }
   conversation.messages.push(finalAiMessage);
   conversation.lastUpdatedAt = nowIso();
-  await persistAppData();
+  queueBackgroundTask(() => persistAppData());
 
   if (hasFinalParts && completeImageView) {
     await completeImageView({ targetElement, finalAiMessage });
@@ -58,7 +63,7 @@ export async function finalizeAssistantResponse({
   }
 
   if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
-    await extractPersonalMemory(userMessageText, fullResponse);
+    queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse));
   }
 
   return {
