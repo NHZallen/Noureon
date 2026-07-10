@@ -102,7 +102,7 @@ export function createMessageEditingLifecycle({
         <div class="message-edit-preview-slot"></div>
         <div class="message-edit-footer">
           <button type="button" class="message-edit-plus" data-edit-tools aria-label="附加檔案與功能">+</button>
-          <p class="message-edit-warning">傳送後，這則訊息後的對話將被移除。</p>
+          <span class="message-edit-footer-spacer" aria-hidden="true"></span>
           <div class="message-edit-buttons">
             <button type="button" class="message-edit-cancel" data-edit-cancel>取消</button>
             <button type="button" class="message-edit-send" data-edit-send>傳送</button>
