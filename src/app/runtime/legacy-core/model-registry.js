@@ -115,7 +115,7 @@ export const GEMINI_DOCUMENT_MODELS = [
 ];
 const REASONING_EFFORT_LABELS = Object.freeze({
     none: ['快速模式', 'Fast', 'Rapide'],
-    minimal: ['低', 'Low', 'Bas'],
+    minimal: ['極低', 'Minimal', 'Très bas'],
     low: ['低', 'Low', 'Bas'],
     medium: ['中', 'Medium', 'Moyen'],
     high: ['高', 'High', 'Eleve'],
