@@ -52,19 +52,30 @@ test('quote-only submission receives a visible default question', () => {
   assert.doesNotMatch(getVisibleUserText({ parts }), /Selected model text/);
 });
 
-test('desktop quote UI scrolls without selecting, uses no arrows, and keeps previews blue', () => {
+test('desktop quote UI keeps the action blue on white and quote previews gray with arrows', () => {
   const lifecycle = readUiSource('src/app/legacy-runtime/features/quote-inquiry-lifecycle.js');
   const css = readUiSource('src/styles/main.css');
+  const selectionMenuSource = lifecycle.slice(
+    lifecycle.indexOf('const createSelectionMenu = () => {'),
+    lifecycle.indexOf('const bind = () => {')
+  );
 
   assert.match(lifecycle, /\(hover: hover\) and \(pointer: fine\)/);
   assert.match(lifecycle, /\.model-message \.message-content/);
   assert.doesNotMatch(lifecycle, /\.user-message \.message-content/);
   assert.match(lifecycle, /sourceMessage\?\.role !== 'model'/);
   assert.doesNotMatch(lifecycle, /addRange/);
-  assert.doesNotMatch(lifecycle, /↳/);
+  assert.match(lifecycle, /quote-inquiry-icon/);
+  assert.match(lifecycle, /icon\.textContent = '↳'/);
+  assert.match(lifecycle, /quoteTextElement\.textContent = text \? `“ \$\{text\} ”` : '';/);
+  assert.match(selectionMenuSource, /button\.textContent = getText\('quoteInquiry'/);
+  assert.doesNotMatch(selectionMenuSource, /↳|<svg|button\.innerHTML/);
   assert.match(lifecycle, /elements\.chatContainer\.scrollTo/);
   assert.match(css, /\.quote-inquiry-text,\s*\.sent-message-quote-text[^{]*\{[^}]*-webkit-line-clamp:\s*3;/s);
-  assert.match(css, /\.sent-message-quote[^{]*\{[^}]*color:\s*#3b82f6;/s);
-  assert.match(css, /\.sent-message-quote:hover,\s*\.sent-message-quote:focus-visible[^{]*\{[^}]*color:\s*#2563eb;/s);
+  assert.match(css, /\.quote-inquiry-menu-button[^{]*\{[^}]*background:\s*var\(--modal-bg\);[^}]*color:\s*var\(--button-primary-bg\);/s);
+  assert.match(css, /\.quote-inquiry-menu-button:hover,\s*\.quote-inquiry-menu-button:focus-visible,\s*\.quote-inquiry-menu-button:active[^{]*\{[^}]*background:\s*var\(--modal-bg\);/s);
+  assert.match(css, /\.quote-inquiry-bar[^{]*\{[^}]*color:\s*#8b9098;/s);
+  assert.match(css, /\.sent-message-quote[^{]*\{[^}]*width:\s*fit-content;[^}]*margin-left:\s*auto;[^}]*color:\s*#8b9098;[^}]*display:\s*grid;/s);
+  assert.match(css, /\.sent-message-quote:hover,\s*\.sent-message-quote:focus-visible[^{]*\{[^}]*color:\s*#111827;/s);
   assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.quote-inquiry-menu,[\s\S]*\.quote-inquiry-bar[^{]*\{[^}]*display:\s*none;/s);
 });

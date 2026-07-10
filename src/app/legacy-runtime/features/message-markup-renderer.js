@@ -97,6 +97,7 @@ export function buildMessageRenderView({
         if (quoteReference?.text) {
             quoteReferenceHTML = `
                 <button type="button" class="sent-message-quote" data-quote-reference>
+                    <span class="sent-message-quote-icon" aria-hidden="true">↳</span>
                     <span class="sent-message-quote-text">${renderUserText(quoteReference.text)}</span>
                 </button>`;
         }

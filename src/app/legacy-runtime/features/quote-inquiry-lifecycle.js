@@ -209,7 +209,7 @@ export function createQuoteInquiryLifecycle({
     const text = normalizeQuoteText(reference?.text);
     const wrapper = elements.messageInput.closest('.input-wrapper');
     quoteBar.hidden = !text;
-    quoteTextElement.textContent = text;
+    quoteTextElement.textContent = text ? `“ ${text} ”` : '';
     quoteTextElement.title = text;
     wrapper?.classList.toggle('has-quote-inquiry', Boolean(text));
   };
@@ -280,6 +280,11 @@ export function createQuoteInquiryLifecycle({
     quoteBar.className = 'quote-inquiry-bar';
     quoteBar.hidden = true;
 
+    const icon = document.createElement('span');
+    icon.className = 'quote-inquiry-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '↳';
+
     quoteTextElement = document.createElement('span');
     quoteTextElement.id = 'quote-inquiry-text';
     quoteTextElement.className = 'quote-inquiry-text';
@@ -292,7 +297,7 @@ export function createQuoteInquiryLifecycle({
     removeButton.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
     removeButton.addEventListener('click', () => clearQuote({ focusComposer: true }));
 
-    quoteBar.append(quoteTextElement, removeButton);
+    quoteBar.append(icon, quoteTextElement, removeButton);
     const wrapper = elements.messageInput.closest('.input-wrapper');
     const inputRow = elements.messageInput.closest('#chat-form')?.parentElement;
     if (wrapper && inputRow) wrapper.insertBefore(quoteBar, inputRow);

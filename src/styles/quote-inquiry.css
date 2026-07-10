@@ -18,8 +18,8 @@
     padding: 0 0.78rem;
     border: 0;
     border-radius: 0.58rem;
-    background: transparent;
-    color: var(--text-primary);
+    background: var(--modal-bg);
+    color: var(--button-primary-bg);
     display: inline-flex;
     align-items: center;
     gap: 0.42rem;
@@ -30,10 +30,12 @@
 }
 
 .quote-inquiry-menu-button:hover,
-.quote-inquiry-menu-button:focus-visible {
-    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
+.quote-inquiry-menu-button:focus-visible,
+.quote-inquiry-menu-button:active {
+    background: var(--modal-bg);
     color: var(--button-primary-bg);
     outline: none;
+    box-shadow: none;
 }
 
 .quote-inquiry-bar {
@@ -46,7 +48,15 @@
     display: flex;
     align-items: flex-start;
     gap: 0.48rem;
-    color: #3b82f6;
+    color: #8b9098;
+}
+
+.quote-inquiry-icon {
+    flex: 0 0 auto;
+    margin-top: 0.1rem;
+    color: inherit;
+    font-size: 1.2rem;
+    line-height: 1.35;
 }
 
 .quote-inquiry-text,
@@ -104,14 +114,19 @@
 }
 
 .sent-message-quote {
-    width: 100%;
-    max-width: 52rem;
+    width: fit-content;
+    max-width: min(52rem, 100%);
     margin: 0 0 0.55rem;
+    margin-left: auto;
     padding: 0 0.15rem;
     border: 0;
     background: transparent;
-    color: #3b82f6;
-    display: block;
+    color: #8b9098;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    align-self: flex-end;
+    gap: 0.55rem;
     cursor: pointer;
     font: inherit;
     transition: color 0.15s ease;
@@ -119,8 +134,15 @@
 
 .sent-message-quote:hover,
 .sent-message-quote:focus-visible {
-    color: #2563eb;
+    color: #111827;
     outline: none;
+}
+
+.sent-message-quote-icon {
+    margin-top: 0.05rem;
+    color: inherit;
+    font-size: 1.22rem;
+    line-height: 1.45;
 }
 
 .sent-message-quote-text {
