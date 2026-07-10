@@ -7,7 +7,7 @@ import { createMessageEditingLifecycle } from '../src/app/legacy-runtime/feature
 test('cancelling a desktop message edit restores only the original message without rerendering the chat', async () => {
   const { document, cleanup } = createDom(`
     <main id="messages">
-      <article class="message-item" data-message-index="0"><div class="message-stack-user">Original message</div></article>
+      <article class="message-item" data-message-index="0"><div class="message-stack-user">Original message<div class="user-message-actions"><button type="button" aria-label="Copy"></button></div></div></article>
       <article class="message-item" data-message-index="1">Other message</article>
     </main>
     <div id="composer-parent"><div id="input-bar"><textarea id="message-input"></textarea><div id="previews"></div></div></div>
@@ -42,6 +42,7 @@ test('cancelling a desktop message edit restores only the original message witho
     const closing = lifecycle.cancelMessageEditing();
     const returningPreview = editor.querySelector('.message-edit-returning');
     assert.notEqual(returningPreview, originalStack);
+    assert.notEqual(returningPreview.querySelector('.user-message-actions'), null);
 
     const transitionEnd = new Event('transitionend');
     Object.defineProperty(transitionEnd, 'propertyName', { value: 'height' });

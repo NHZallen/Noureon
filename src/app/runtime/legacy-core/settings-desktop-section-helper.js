@@ -48,7 +48,9 @@ export function createSettingsDesktopSectionHelper(dependencies = {}) {
 
   const activateDefaultDesktopSettingsSection = (navItems = getNavItems()) => {
     if (isMobileSettingsViewport()) return null;
-    const defaultNavItem = navItems.find((item) => item.dataset.section === 'user') || navItems[0] || null;
+    // The user section is inserted asynchronously.  Keep the section that was
+    // already selected instead of treating that insertion as a navigation.
+    const defaultNavItem = navItems.find((item) => item.classList.contains('active')) || navItems[0] || null;
     if (defaultNavItem) activateDesktopSettingsSection(defaultNavItem, navItems);
     return defaultNavItem;
   };
