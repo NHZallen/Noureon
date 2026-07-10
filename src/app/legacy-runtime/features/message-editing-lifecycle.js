@@ -34,6 +34,25 @@ export function createMessageEditingLifecycle({
 } = {}) {
   let activeEditor = null;
 
+  const prefersReducedMotion = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const scheduleFrame = (callback) => (globalThis.requestAnimationFrame || setTimeout)(callback);
+  const waitForFadeOut = (element) => new Promise((resolve) => {
+    if (!element || prefersReducedMotion()) return resolve();
+    let completed = false;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      element.removeEventListener('transitionend', onTransitionEnd);
+      clearTimeout(fallback);
+      resolve();
+    };
+    const onTransitionEnd = (event) => {
+      if (event.target === element && event.propertyName === 'opacity') finish();
+    };
+    const fallback = setTimeout(finish, 260);
+    element.addEventListener('transitionend', onTransitionEnd);
+  });
+
   const restoreSharedAttachmentMenu = () => {
     const popover = elements.fileOptionsPopover;
     if (!popover) return;
@@ -55,15 +74,45 @@ export function createMessageEditingLifecycle({
     renderFilePreviews();
   };
 
-  const dismissEditor = ({ restore = true, rerender = true } = {}) => {
+  const dismissEditor = ({ restore = true, rerender = true, animate = true } = {}) => {
     const editor = activeEditor;
     if (!editor) return;
-    if (restore) restoreComposer(editor);
-    restoreSharedAttachmentMenu();
-    editor.root?.remove();
-    document.body.classList.remove('is-editing-mobile-message');
-    activeEditor = null;
-    if (rerender && !editor.mobile) renderChat();
+    if (editor.closing) return editor.closing;
+
+    const finish = () => {
+      let restoredOriginalMessage = false;
+      if (restore) restoreComposer(editor);
+      restoreSharedAttachmentMenu();
+      document.body.classList.remove('is-editing-mobile-message');
+
+      if (!editor.mobile && editor.originalStack && editor.root?.parentNode) {
+        editor.root.replaceWith(editor.originalStack);
+        restoredOriginalMessage = true;
+        if (animate && !prefersReducedMotion()) {
+          editor.originalStack.classList.add('message-edit-returning');
+          scheduleFrame(() => {
+            editor.originalStack?.classList.add('message-edit-returned');
+            editor.originalStack?.addEventListener('transitionend', () => {
+              editor.originalStack?.classList.remove('message-edit-returning', 'message-edit-returned');
+            }, { once: true });
+          });
+        }
+      } else {
+        editor.root?.remove();
+      }
+
+      activeEditor = null;
+      if (rerender && !editor.mobile && !restoredOriginalMessage) renderChat();
+    };
+
+    if (!animate || prefersReducedMotion()) {
+      finish();
+      return Promise.resolve();
+    }
+
+    editor.root?.classList.remove('message-edit-visible');
+    editor.closing = waitForFadeOut(editor.root).then(finish);
+    return editor.closing;
   };
 
   const openSharedAttachmentMenu = () => {
@@ -127,7 +176,7 @@ export function createMessageEditingLifecycle({
     });
     root.querySelector('[data-edit-cancel]').addEventListener('click', () => dismissEditor());
     root.querySelector('[data-edit-send]').addEventListener('click', () => { void sendEditedMessage(); });
-    requestAnimationFrame(() => textarea.focus());
+    scheduleFrame(() => textarea.focus());
   };
 
   const sendEditedMessage = async () => {
@@ -141,7 +190,7 @@ export function createMessageEditingLifecycle({
     if (sendButton) sendButton.disabled = true;
     editor.conversation.messages.splice(editor.index);
     await saveAppData();
-    dismissEditor({ rerender: false });
+    await dismissEditor({ rerender: false, animate: false });
     renderChat();
     await submitEditedMessage({ userMessage: text, uploadedFiles: files });
   };
@@ -154,7 +203,7 @@ export function createMessageEditingLifecycle({
     if (!text && files.length === 0) return null;
     editor.conversation.messages.splice(editor.index);
     void saveAppData();
-    dismissEditor({ rerender: false });
+    void dismissEditor({ rerender: false, animate: false });
     renderChat();
     return { userMessage: text, uploadedFiles: files, preserveComposer: true };
   };
@@ -163,7 +212,7 @@ export function createMessageEditingLifecycle({
     const conversation = getActiveConversation();
     const message = conversation?.messages?.[messageIndex];
     if (!message || message.role !== 'user') return;
-    dismissEditor();
+    void dismissEditor({ animate: false });
     const mobile = Boolean(isMobile());
     const root = document.createElement('section');
     const filePreviewContainer = elements.filePreviewContainer;
@@ -174,6 +223,7 @@ export function createMessageEditingLifecycle({
       root,
       mobile,
       sending: false,
+      originalStack: null,
       composerDraft: {
         text: elements.messageInput?.value || '',
         files: [...getUploadedFiles()]
@@ -198,6 +248,7 @@ export function createMessageEditingLifecycle({
         <div class="message-edit-mobile-composer"></div>`;
       root.querySelector('[data-edit-cancel]').addEventListener('click', () => dismissEditor());
       document.body.appendChild(root);
+      scheduleFrame(() => root.classList.add('message-edit-visible'));
       root.querySelector('.message-edit-mobile-composer').appendChild(elements.inputBarContainer);
       elements.messageInput.value = activeEditor.text;
       elements.messageInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -208,8 +259,10 @@ export function createMessageEditingLifecycle({
     const messageElement = elements.messageList.querySelector(`.message-item[data-message-index="${messageIndex}"]`);
     const stack = messageElement?.querySelector('.message-stack-user');
     if (!stack) return dismissEditor();
+    activeEditor.originalStack = stack;
     stack.replaceWith(root);
     renderDesktopEditor();
+    scheduleFrame(() => root.classList.add('message-edit-visible'));
   };
 
   return { startMessageEditing, cancelMessageEditing: dismissEditor, getComposerEditSubmission };
