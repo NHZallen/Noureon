@@ -54,11 +54,19 @@
         border: 0 !important;
     }
 
-    .settings-nav-item.active,
-    .settings-nav-item:hover {
+    .settings-nav-item.active {
         color: var(--gpt-control-text) !important;
         background: transparent !important;
         font-weight: 600 !important;
+    }
+
+    .settings-nav-item:hover {
+        color: var(--gpt-control-text) !important;
+        background: transparent !important;
+    }
+
+    #settings-modal .settings-nav-item:not(.active) {
+        font-weight: 400 !important;
     }
 
     #settings-modal #user-section-nav:not(.active) {

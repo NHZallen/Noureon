@@ -195,24 +195,25 @@ export function createSettingsSyncVaultControls({
     `;
 
   const ensureSyncVaultSettings = () => {
-    if (document.getElementById('user-section')) return;
+    if (document.getElementById('user-section')?.dataset.syncVaultSettingsInitialized === 'true') return;
     const settingsNav = document.getElementById('settings-nav');
     const personalizationNav = settingsNav?.querySelector('[data-section="personalization"]');
     if (!settingsNav || !personalizationNav) return;
 
-    const nav = document.createElement('li');
+    const nav = document.getElementById('user-section-nav') || document.createElement('li');
     nav.id = 'user-section-nav';
     nav.className = 'settings-nav-item p-3 rounded-md';
     nav.dataset.section = 'user';
     nav.dataset.langKey = 'userSettings';
     nav.textContent = text('userSettings', '使用者');
-    personalizationNav.before(nav);
+    if (!nav.parentNode) personalizationNav.before(nav);
 
     const personalizationSection = document.getElementById('personalization-section');
     if (!personalizationSection) return;
-    const section = document.createElement('div');
+    const section = document.getElementById('user-section') || document.createElement('div');
     section.id = 'user-section';
     section.className = 'settings-section';
+    section.dataset.syncVaultSettingsInitialized = 'true';
     section.innerHTML = `
       <h3 class="text-lg font-semibold mb-3" data-lang-key="accountLinking">帳號綁定</h3>
       <div class="space-y-3 max-w-2xl mb-8">
@@ -278,7 +279,7 @@ export function createSettingsSyncVaultControls({
       </div>
     `;
     section.innerHTML = buildUserSectionMarkup();
-    personalizationSection.before(section);
+    if (!section.parentNode) personalizationSection.before(section);
     bindEvents();
   };
 

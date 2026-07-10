@@ -416,6 +416,30 @@ const {
     bindDesktopSettingsSections,
     syncSettingsSectionForViewport
 } = desktopSectionHelper;
+const ensureUserSettingsNavigationShell = () => {
+    const settingsNav = ALL_ELEMENTS.settingsNav;
+    const personalizationNav = settingsNav?.querySelector('[data-section="personalization"]');
+    if (!settingsNav || !personalizationNav) return;
+
+    if (!document.getElementById('user-section-nav')) {
+        const nav = document.createElement('li');
+        nav.id = 'user-section-nav';
+        nav.className = 'settings-nav-item p-3 rounded-md';
+        nav.dataset.section = 'user';
+        nav.dataset.langKey = 'userSettings';
+        nav.textContent = getSettingsText('userSettings', 'User settings');
+        personalizationNav.before(nav);
+    }
+
+    if (!document.getElementById('user-section')) {
+        const personalizationSection = document.getElementById('personalization-section');
+        if (!personalizationSection) return;
+        const section = document.createElement('div');
+        section.id = 'user-section';
+        section.className = 'settings-section';
+        personalizationSection.before(section);
+    }
+};
 let syncVaultControlsPromise;
 const loadSyncVaultControls = () => {
     if (!syncVaultControlsPromise) {
@@ -458,6 +482,7 @@ const ensureAutoWebSearchSettingsControl = () => {
 };
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
+    ensureUserSettingsNavigationShell();
     ensureAutoWebSearchSettingsControl();
     ensureCouncilTranslatorSettingsControls();
     ensureOutputModeSettingsControls();

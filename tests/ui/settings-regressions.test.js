@@ -564,6 +564,7 @@ test('settings keeps inactive user navigation regular-weight and omits the memor
   const desktopCss = readUiSource('src/styles/settings-desktop.css');
   const sharedCss = readUiSource('src/styles/settings.css');
 
+  assert.match(desktopCss, /#settings-modal\s+\.settings-nav-item:not\(\.active\)\s*\{[^}]*font-weight:\s*400\s*!important;/s);
   assert.match(desktopCss, /#settings-modal\s+#user-section-nav:not\(\.active\)\s*\{[^}]*font-weight:\s*400\s*!important;/s);
   assert.match(sharedCss, /#settings-modal\s+#memory-section\s*>\s*h3\[data-lang-key="memorySwitch"\]\s*\{[^}]*display:\s*none\s*!important;/s);
 });

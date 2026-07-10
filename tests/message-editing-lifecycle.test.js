@@ -42,6 +42,7 @@ test('cancelling a desktop message edit restores only the original message witho
     const closing = lifecycle.cancelMessageEditing();
     const returningPreview = editor.querySelector('.message-edit-returning');
     assert.notEqual(returningPreview, originalStack);
+    assert.equal(returningPreview.classList.contains('user-message'), true);
     assert.notEqual(returningPreview.querySelector('.user-message-actions'), null);
 
     const transitionEnd = new Event('transitionend');

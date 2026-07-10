@@ -104,7 +104,10 @@ export function createMessageEditingLifecycle({
       if (!root?.parentNode || !originalStack) return false;
       const editorHeight = root.getBoundingClientRect().height;
       const returningPreview = originalStack.cloneNode(true);
-      returningPreview.classList.add('message-edit-returning');
+      // The editor replaces the `.user-message` row, so carry that styling
+      // context onto its temporary return preview. Without it, the bubble
+      // briefly loses its user-specific size, padding, and background.
+      returningPreview.classList.add('message-edit-returning', 'user-message');
       if (editor.originalStackWidth > 0) returningPreview.style.width = `${editor.originalStackWidth}px`;
       root.appendChild(returningPreview);
       const messageHeight = returningPreview.getBoundingClientRect().height;

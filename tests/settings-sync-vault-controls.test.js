@@ -50,6 +50,25 @@ test('sync vault settings add a user section while keeping local accounts read o
   assert.doesNotMatch(window.document.getElementById('sync-vault-cloud-only-panel').className, /amber|yellow/);
 });
 
+test('sync vault settings hydrate an already-rendered user navigation shell', () => {
+  const { window, controls } = createFixture();
+  const nav = window.document.createElement('li');
+  nav.id = 'user-section-nav';
+  nav.className = 'settings-nav-item p-3 rounded-md';
+  nav.dataset.section = 'user';
+  window.document.getElementById('settings-nav').prepend(nav);
+  const section = window.document.createElement('div');
+  section.id = 'user-section';
+  section.className = 'settings-section';
+  window.document.getElementById('personalization-section').before(section);
+
+  controls.ensureSyncVaultSettings();
+
+  assert.equal(window.document.querySelectorAll('#user-section-nav').length, 1);
+  assert.equal(section.dataset.syncVaultSettingsInitialized, 'true');
+  assert.notEqual(window.document.getElementById('sync-vault-account'), null);
+});
+
 test('linked Supabase accounts can create a sync vault password', async () => {
   const { window, controls, setCurrentUser } = createFixture();
   setCurrentUser({

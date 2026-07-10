@@ -445,6 +445,8 @@ test('desktop settings section navigation is composed through the extracted help
   assert.match(source, /clearSettingsMobileViewTransition/);
   assert.match(source, /const\s+navItems\s*=\s*bindDesktopSettingsSections\(\);/);
   assert.match(source, /syncSettingsSectionForViewport\(navItems\);/);
+  assert.match(source, /const\s+ensureUserSettingsNavigationShell\s*=\s*\(\)\s*=>/);
+  assert.match(source, /ensureSettingsMobileShell\(\);\s*ensureUserSettingsNavigationShell\(\);\s*ensureAutoWebSearchSettingsControl\(\);/);
   assert.doesNotMatch(source, /item\.dataset\.settingsDesktopBound\s*=\s*'true'/);
   assert.doesNotMatch(source, /item\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(source, /const\s+activeNavItem\s*=\s*ALL_ELEMENTS\.settingsNav\.querySelector/);
