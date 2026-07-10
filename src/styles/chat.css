@@ -308,7 +308,8 @@
 .user-message:hover .user-message-actions, .user-message:focus-within .user-message-actions { opacity: 1; }
 .user-message-action { display: inline-grid; width: 1.9rem; height: 1.9rem; padding: .3rem; place-items: center; border: 0; border-radius: .45rem; background: transparent; color: inherit; }
 .user-message-action, .user-message-action:hover { color: #6b7280 !important; }
-.user-message-action svg, .user-message-action svg * { width: 1.25rem; height: 1.25rem; stroke: #6b7280 !important; }
+.user-message-action svg { width: 1.25rem; height: 1.25rem; stroke: #6b7280 !important; }
+.user-message-action svg * { stroke: #6b7280 !important; }
 .message-edit-inline { width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); }
 .message-edit-panel { display: flex; flex-direction: column; padding: 1rem 1.5rem .9rem; }
 .message-edit-textarea { display: block; flex: none; width: 100%; height: 6rem; min-height: 6rem; resize: none; overflow: auto; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; line-height: 1.55; scrollbar-color: #cbd5e1 transparent; }
