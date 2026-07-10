@@ -7,9 +7,9 @@ const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr'];
 const EXPECTED_LOCALE_KEY_COUNT = 612;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 173;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': '918d8b62deeab9677ee7950334a2fa4ab4737e9e40fca1f14283a96b4a43bc1e',
-  en: 'f18f5cb3010aea5cdeb363f8082e0df0c2f6f51be74687b953d4ce88320ec06f',
-  fr: 'f5fb00b8bee0f6baeeb43e1cb18dd742c4a391bfbef164c2ed22d56a54ea3509'
+  'zh-TW': 'f0cf9d7454b866773b48fce7e2cf3c80e6b93e7bb5a32a88813e5a7d5351a444',
+  en: 'a2df9def4efc8b42ccfaea723e18dcc4784964b1e2798aa7183b3760bd3cc054',
+  fr: '20353680efa3ef1916abd0b2c21337d194af4f6a2c462c168d353ca78ed95dc3'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);

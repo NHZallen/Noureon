@@ -97,7 +97,7 @@ export function buildMessageRenderView({
         if (quoteReference?.text) {
             quoteReferenceHTML = `
                 <button type="button" class="sent-message-quote" data-quote-reference>
-                    <span class="sent-message-quote-icon" aria-hidden="true">↳</span>
+                    <span class="sent-message-quote-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v4.5A4.5 4.5 0 0 0 10.5 13H18"/><path d="m15 10 3 3-3 3"/></svg></span>
                     <span class="sent-message-quote-text">${renderUserText(quoteReference.text)}</span>
                 </button>`;
         }

@@ -12,12 +12,12 @@ export function buildQuotedUserParts({
 
   const displayQuestion = String(question || '').trim() || getText(
     'quoteInquiryDefaultQuestion',
-    'Please explain this quoted text.'
+    'Explain the relevant meaning or provide direct assistance.'
   );
   const referenceLabel = getText('quoteInquiryReferenceLabel', 'Quoted text');
   const contextInstruction = getText(
     'quoteInquiryContextInstruction',
-    'Answer the user question using this quoted context.'
+    'Answer the user question directly. Do not mention the quote or describe the source of the answer.'
   );
   const sourceMessageIndex = Number(quoteReference.sourceMessageIndex);
   const sourceTextOffset = Number(quoteReference.sourceTextOffset);
@@ -49,6 +49,31 @@ export function getVisibleUserText(message) {
     .filter(part => part?.text && !part.quoteContext)
     .map(getDisplayText)
     .join('\n');
+}
+
+const rangesMatch = (first, second) => Boolean(
+  first
+  && second
+  && first.startContainer === second.startContainer
+  && first.startOffset === second.startOffset
+  && first.endContainer === second.endContainer
+  && first.endOffset === second.endOffset
+);
+
+export function highlightRangeTemporarily({ window, range, durationMs = 1200 } = {}) {
+  const selection = window?.getSelection?.();
+  if (!selection || !range) return () => {};
+
+  selection.removeAllRanges?.();
+  selection.addRange?.(range);
+  const timerId = window.setTimeout?.(() => {
+    const activeRange = selection.rangeCount === 1 ? selection.getRangeAt(0) : null;
+    if (rangesMatch(activeRange, range)) selection.removeAllRanges?.();
+  }, durationMs);
+
+  return () => {
+    if (timerId !== undefined && timerId !== null) window.clearTimeout?.(timerId);
+  };
 }
 
 function findRenderedTextRange({ document, root, text, offsetHint }) {
@@ -119,6 +144,7 @@ export function createQuoteInquiryLifecycle({
   let menu;
   let quoteBar;
   let quoteTextElement;
+  let cancelSourceHighlight = () => {};
   let isBound = false;
 
   const isDesktop = () => desktopMediaQuery?.matches !== false;
@@ -257,6 +283,8 @@ export function createQuoteInquiryLifecycle({
       offsetHint: reference.sourceTextOffset
     });
     if (range) {
+      cancelSourceHighlight();
+      cancelSourceHighlight = highlightRangeTemporarily({ window, range });
       const rangeRect = range.getBoundingClientRect?.();
       const containerRect = elements.chatContainer?.getBoundingClientRect?.();
       if (rangeRect && containerRect && typeof elements.chatContainer?.scrollTo === 'function') {
@@ -283,7 +311,7 @@ export function createQuoteInquiryLifecycle({
     const icon = document.createElement('span');
     icon.className = 'quote-inquiry-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = '↳';
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v4.5A4.5 4.5 0 0 0 10.5 13H18"/><path d="m15 10 3 3-3 3"/></svg>';
 
     quoteTextElement = document.createElement('span');
     quoteTextElement.id = 'quote-inquiry-text';

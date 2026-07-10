@@ -19,7 +19,7 @@
     border: 0;
     border-radius: 0.58rem;
     background: var(--modal-bg);
-    color: var(--button-primary-bg);
+    color: var(--text-primary);
     display: inline-flex;
     align-items: center;
     gap: 0.42rem;
@@ -30,12 +30,15 @@
 }
 
 .quote-inquiry-menu-button:hover,
-.quote-inquiry-menu-button:focus-visible,
-.quote-inquiry-menu-button:active {
+.quote-inquiry-menu-button:focus-visible {
     background: var(--modal-bg);
     color: var(--button-primary-bg);
     outline: none;
     box-shadow: none;
+}
+
+.quote-inquiry-menu-button:active {
+    background: var(--modal-bg);
 }
 
 .quote-inquiry-bar {
@@ -52,11 +55,11 @@
 }
 
 .quote-inquiry-icon {
+    width: 1.15rem;
+    height: 1.15rem;
     flex: 0 0 auto;
-    margin-top: 0.1rem;
+    margin-top: 0.22rem;
     color: inherit;
-    font-size: 1.2rem;
-    line-height: 1.35;
 }
 
 .quote-inquiry-text,
@@ -139,10 +142,17 @@
 }
 
 .sent-message-quote-icon {
-    margin-top: 0.05rem;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-top: 0.18rem;
     color: inherit;
-    font-size: 1.22rem;
-    line-height: 1.45;
+}
+
+.quote-inquiry-icon svg,
+.sent-message-quote-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .sent-message-quote-text {
