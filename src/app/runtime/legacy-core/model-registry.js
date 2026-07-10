@@ -5,6 +5,49 @@ import {
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
 
+const MODEL_RELEASE_METADATA = Object.freeze({
+    'gemini-3.5-flash': { releasedAt: 20260519, outputPricePerMillion: 9 },
+    'gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
+    'nvidia/deepseek-ai/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0 },
+    'nvidia/deepseek-ai/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0 },
+    'nvidia/z-ai/glm-5.2': { releasedAt: 20260616, outputPricePerMillion: 0 },
+    'nvidia/moonshotai/kimi-k2.6': { releasedAt: 20260420, outputPricePerMillion: 0 },
+    'nvidia/minimaxai/minimax-m2.7': { releasedAt: 20260411, outputPricePerMillion: 0 },
+    'nvidia/mistralai/mistral-medium-3.5-128b': { releasedAt: 20260429, outputPricePerMillion: 0 },
+    'nvidia/nvidia/nemotron-3-ultra-550b-a55b': { releasedAt: 20260604, outputPricePerMillion: 0 },
+    'nvidia/qwen/qwen3.5-122b-a10b': { releasedAt: 20260224, outputPricePerMillion: 0 },
+    'nvidia/qwen/qwen3.5-397b-a17b': { releasedAt: 20260216, outputPricePerMillion: 0 },
+    'nvidia/stepfun-ai/step-3.7-flash': { releasedAt: 20260528, outputPricePerMillion: 0 },
+    'anthropic/claude-haiku-4.5': { releasedAt: 20251015, outputPricePerMillion: 5 },
+    'anthropic/claude-sonnet-5': { releasedAt: 20260630, outputPricePerMillion: 10 },
+    'anthropic/claude-opus-4.8': { releasedAt: 20260527, outputPricePerMillion: 25 },
+    'anthropic/claude-fable-5': { releasedAt: 20260609, outputPricePerMillion: 50 },
+    'deepseek/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0.18 },
+    'deepseek/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0.87 },
+    'google/gemini-3.1-flash-lite-image': { releasedAt: 20260630, outputPricePerMillion: 1.5 },
+    'google/gemini-3.1-flash-image': { releasedAt: 20260618, outputPricePerMillion: 3 },
+    'google/gemini-3-pro-image': { releasedAt: 20260618, outputPricePerMillion: 12 },
+    'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
+    'moonshotai/kimi-k2.6': { releasedAt: 20260420, outputPricePerMillion: 3.41 },
+    'moonshotai/kimi-k2.7-code': { releasedAt: 20260612, outputPricePerMillion: 3.49 },
+    'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
+    'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
+    'tencent/hy3:free': { releasedAt: 20260706, outputPricePerMillion: 0 },
+    'openai/gpt-5.5': { releasedAt: 20260424, outputPricePerMillion: 30 },
+    'openai/gpt-5.6-luna': { releasedAt: 20260709, outputPricePerMillion: 6 },
+    'openai/gpt-5.6-terra': { releasedAt: 20260709, outputPricePerMillion: 15 },
+    'openai/gpt-5.6-sol': { releasedAt: 20260709, outputPricePerMillion: 30 },
+    'openai/gpt-image-2': { releasedAt: 20260624, outputPricePerMillion: 8 },
+    'qwen/qwen3.5-flash-02-23': { releasedAt: 20260225, outputPricePerMillion: 0.26 },
+    'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
+    'qwen/qwen3.7-max': { releasedAt: 20260521, outputPricePerMillion: 3.75 },
+    'x-ai/grok-4.5': { releasedAt: 20260708, outputPricePerMillion: 6 },
+    'xiaomi/mimo-v2.5': { releasedAt: 20260422, outputPricePerMillion: 0.28 },
+    'xiaomi/mimo-v2.5-pro': { releasedAt: 20260422, outputPricePerMillion: 0.87 },
+    'step-plan/step-3.7-flash': { releasedAt: 20260528, outputPricePerMillion: 0 },
+    'step-plan/step-3.5-flash': { releasedAt: 20260211, outputPricePerMillion: 0 }
+});
+
 export const MODELS = [
     // Gemini Models (Native)
     { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_desc' },
@@ -53,9 +96,9 @@ export const MODELS = [
 
     // OpenRouter Paid Models (OpenAI)
     { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },
-    { id: 'openai/gpt-5.6-luna', name: 'OpenAI GPT-5.6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_luna_desc', category: 'general', addedOrder: 20260710, outputPricePerMillion: 6 },
-    { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general', addedOrder: 20260710, outputPricePerMillion: 15 },
-    { id: 'openai/gpt-5.6-sol', name: 'OpenAI GPT-5.6 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_sol_desc', category: 'general', addedOrder: 20260710, outputPricePerMillion: 30 },
+    { id: 'openai/gpt-5.6-luna', name: 'OpenAI GPT-5.6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_luna_desc', category: 'general' },
+    { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
+    { id: 'openai/gpt-5.6-sol', name: 'OpenAI GPT-5.6 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_sol_desc', category: 'general' },
     { id: 'openai/gpt-image-2', name: 'OpenAI GPT Image 2', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
 
     // OpenRouter Paid Models (Qwen)
@@ -75,7 +118,7 @@ export const MODELS = [
     { id: 'step-plan/step-3.5-flash-2603', apiId: 'step-3.5-flash-2603', name: 'Step Plan Step 3.5 Flash 2603', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_2603_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'low' },
     { id: 'step-plan/step-3.5-flash', apiId: 'step-3.5-flash', name: 'Step Plan Step 3.5 Flash', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'medium' },
     { id: 'step-plan/step-router-v1', apiId: 'step-router-v1', name: 'Step Plan Router V1', provider: 'stepfun', descriptionKey: 'model_step_plan_router_v1_desc', tier: ['paid'], category: 'thinking' },
-];
+].map((model) => Object.freeze({ ...model, ...MODEL_RELEASE_METADATA[model.id] }));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2',
     'google/gemini-3-pro-image',

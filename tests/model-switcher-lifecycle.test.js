@@ -45,9 +45,9 @@ const MODELS = [
 ];
 
 const SORTED_MODELS = [
-  { id: 'luna', name: 'Luna', provider: 'openrouter', tier: ['paid'], addedOrder: 20260710, outputPricePerMillion: 6 },
-  { id: 'terra', name: 'Terra', provider: 'openrouter', tier: ['paid'], addedOrder: 20260710, outputPricePerMillion: 15 },
-  { id: 'sol', name: 'Sol', provider: 'openrouter', tier: ['paid'], addedOrder: 20260710, outputPricePerMillion: 30 },
+  { id: 'luna', name: 'Luna', provider: 'openrouter', tier: ['paid'], releasedAt: 20260709, outputPricePerMillion: 6 },
+  { id: 'terra', name: 'Terra', provider: 'openrouter', tier: ['paid'], releasedAt: 20260709, outputPricePerMillion: 15 },
+  { id: 'sol', name: 'Sol', provider: 'openrouter', tier: ['paid'], releasedAt: 20260709, outputPricePerMillion: 30 },
   { id: 'older', name: 'Older', provider: 'openrouter', tier: ['paid'] }
 ];
 
@@ -142,7 +142,7 @@ test('prepares visible models with provider-specific company and tier metadata',
   assert.deepEqual(result.betaModels.map((model) => model.id), ['openai/beta']);
 });
 
-test('sorts newer model batches first and uses output price in descending order within a batch', () => {
+test('sorts newer releases first and uses output price in descending order within a release', () => {
   const result = prepareModelSwitcherModels({
     currentModelId: 'older',
     getModelApiId: (model) => model.id,
@@ -171,6 +171,30 @@ test('renders providers in the configured default order', () => {
     assert.deepEqual(
       [...document.querySelectorAll('.provider-btn')].map((button) => button.dataset.provider),
       ['gemini', 'openrouter', 'nvidia', 'stepfun']
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test('sorts provider companies alphabetically', () => {
+  const models = [
+    { id: 'zeta/model', name: 'Zeta', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] },
+    { id: 'alpha/model', name: 'Alpha', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] },
+    { id: 'middle/model', name: 'Middle', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] }
+  ];
+  const { cleanup, document, lifecycle } = createHarness({
+    models,
+    modelSettings: models.map((model, order) => ({ id: model.id, hidden: false, order }))
+  });
+  try {
+    lifecycle.renderModelSwitcher();
+    document.querySelector('#current-model-btn').click();
+    document.querySelector('[data-provider="openrouter"]').click();
+    document.querySelector('[data-tier="paid"]').click();
+    assert.deepEqual(
+      [...document.querySelectorAll('.company-btn')].map((button) => button.dataset.company),
+      ['alpha', 'middle', 'zeta']
     );
   } finally {
     cleanup();

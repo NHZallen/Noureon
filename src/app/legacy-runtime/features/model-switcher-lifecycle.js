@@ -1,7 +1,7 @@
 export const MODEL_PROVIDER_ORDER = Object.freeze(['gemini', 'openrouter', 'nvidia', 'stepfun']);
 
 const compareModelsForPicker = (left, right) => (
-    (right.addedOrder - left.addedOrder) ||
+    (right.releasedAt - left.releasedAt) ||
     (right.outputPricePerMillion - left.outputPricePerMillion) ||
     (right.modelSettingOrder - left.modelSettingOrder) ||
     left.name.localeCompare(right.name)
@@ -38,7 +38,7 @@ export function prepareModelSwitcherModels({
             tier,
             company,
             modelSettingOrder,
-            addedOrder: model.addedOrder ?? modelSettingOrder,
+            releasedAt: model.releasedAt ?? model.addedOrder ?? modelSettingOrder,
             outputPricePerMillion: model.outputPricePerMillion ?? -1
         };
     });
@@ -367,7 +367,7 @@ export function createModelSwitcherLifecycle({
                         const companies = [...new Set(visibleModels
                             .filter(m => m.provider === selectedProvider && m.tier.includes(selectedTier))
                             .map(m => m.company)
-                        )];
+                        )].sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base' }));
                         companyView.innerHTML = createBackButtonHTML('back', 1);
                         companyView.innerHTML += companies.map(company => `
                             <div class="model-option-btn-container company-btn" data-provider="${selectedProvider}" data-tier="${selectedTier}" data-company="${company}">
