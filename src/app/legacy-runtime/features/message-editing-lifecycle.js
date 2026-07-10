@@ -71,14 +71,25 @@ export function createMessageEditingLifecycle({
     if (!addFileBtn || !fileOptionsPopover || !activeEditor?.root) return;
     addFileBtn.click();
     const trigger = activeEditor.root.querySelector('[data-edit-tools]');
-    const rect = trigger?.getBoundingClientRect();
-    if (!rect) return;
-    fileOptionsPopover.classList.add('message-edit-shared-popover');
-    fileOptionsPopover.style.position = 'fixed';
-    fileOptionsPopover.style.bottom = 'auto';
-    fileOptionsPopover.style.left = `${Math.max(12, rect.left)}px`;
-    fileOptionsPopover.style.top = `${Math.max(12, rect.top - fileOptionsPopover.offsetHeight - 10)}px`;
-    fileOptionsPopover.style.transformOrigin = 'bottom left';
+    const positionMenu = () => {
+      const rect = trigger?.getBoundingClientRect();
+      if (!rect) return;
+      const menuRect = fileOptionsPopover.getBoundingClientRect();
+      const viewportHeight = globalThis.innerHeight || document.documentElement.clientHeight;
+      const viewportWidth = globalThis.innerWidth || document.documentElement.clientWidth;
+      const gap = 10;
+      const showAbove = rect.top >= menuRect.height + gap;
+      const top = showAbove ? rect.top - menuRect.height - gap : rect.bottom + gap;
+      const left = Math.min(Math.max(12, rect.left), viewportWidth - menuRect.width - 12);
+      fileOptionsPopover.classList.add('message-edit-shared-popover');
+      fileOptionsPopover.style.position = 'fixed';
+      fileOptionsPopover.style.bottom = 'auto';
+      fileOptionsPopover.style.left = `${left}px`;
+      fileOptionsPopover.style.top = `${Math.max(12, Math.min(top, viewportHeight - menuRect.height - 12))}px`;
+      fileOptionsPopover.style.transformOrigin = showAbove ? 'bottom left' : 'top left';
+    };
+    positionMenu();
+    requestAnimationFrame(positionMenu);
   };
 
   const renderDesktopEditor = () => {
