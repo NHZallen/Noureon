@@ -341,9 +341,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         },
         models: MODELS,
         i18n,
-        getModelTiers,
-        getModelApiId,
-        saveConfig,
         saveAppData,
         runtimeDialogCoordinator,
         showNotification,
@@ -360,8 +357,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     });
 
     const {
-        renderModelManagementUI,
-        moveModelOrder,
         renderPersonalMemoryList,
         refineAndStoreMemories,
         extractPersonalMemory,
@@ -628,8 +623,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     function updateDisplayedVersion(...args) { return resolveCoreTailFunction('updateDisplayedVersion')(...args); }
 
     return {
-        renderModelManagementUI,
-        moveModelOrder,
         renderPersonalMemoryList,
         refineAndStoreMemories,
         extractPersonalMemory,

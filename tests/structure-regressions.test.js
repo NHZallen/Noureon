@@ -704,7 +704,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 12);
+  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 9);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -1510,12 +1510,10 @@ test('model memory dashboard lifecycle moves model usage chart ownership out of 
   assert.match(modelMemoryDashboardSource, /export\s+function\s+createLegacyModelMemoryDashboardLifecycle/);
   assert.match(fragment03Source, /import\s+\{\s*createLegacyModelMemoryDashboardLifecycle\s*\}/);
   assert.match(fragment03Source, /const\s+modelMemoryDashboardLifecycle\s*=\s*createLegacyModelMemoryDashboardLifecycle\(\{/);
-  assert.match(fragment03Source, /renderModelManagementUI,\s*moveModelOrder,\s*renderPersonalMemoryList,/);
   assert.match(fragment03Source, /openDashboard,\s*renderDashboardStats,\s*renderModelUsageChart/);
-  assert.doesNotMatch(fragment03Source, /const\s+renderModelManagementUI\s*=\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(fragment03Source, /const\s+renderPersonalMemoryList\s*=\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(fragment03Source, /const\s+openDashboard\s*=\s*\(\)\s*=>\s*\{/);
-  assert.match(modelMemoryDashboardSource, /const\s+renderModelManagementUI\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(modelMemoryDashboardSource, /renderModelManagementUI|moveModelOrder/);
   assert.match(modelMemoryDashboardSource, /const\s+renderPersonalMemoryList\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(modelMemoryDashboardSource, /const\s+openDashboard\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(chartLifecycleSource, /export\s+function\s+createModelUsageChartLifecycle/);
@@ -2348,8 +2346,6 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
   const deactivateAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deactivateAstras');
   const deleteAstrasBody = getConstFunctionBody(sidebarChatAstraRenderSource, 'deleteAstras');
   const handleBatchArchiveBody = getConstFunctionBody(batchImportVoiceSource, 'handleBatchArchive');
-  const defaultModelUpdateBody = getBlockFromMarker(modelMemoryDashboardSource, 'input[name="default-model-radio"]');
-  const moveModelOrderBody = getConstFunctionBody(modelMemoryDashboardSource, 'moveModelOrder');
   const handleRestoreTrashItemBody = getConstFunctionBody(trashLifecycleSource, 'handleRestoreTrashItem');
   const handleBatchRestoreFromTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchRestoreFromTrash');
 
@@ -2373,9 +2369,7 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
     deleteChatBody,
     deactivateAstrasBody,
     deleteAstrasBody,
-    handleBatchArchiveBody,
-    defaultModelUpdateBody,
-    moveModelOrderBody
+    handleBatchArchiveBody
   ]) {
     assert.match(body, /runtimeDialogCoordinator\.showNotification\(/);
     assert.doesNotMatch(body, /(^|[^\w.])showNotification\(/);
@@ -2388,9 +2382,6 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
   assert.match(coreTailSource, /showCoordinatedNotification:\s*\(\.\.\.args\)\s*=>\s*runtimeDialogCoordinator\.showNotification\(\.\.\.args\)/);
   assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*renderTrash\(\);\s*showCoordinatedNotification\(/);
   assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
-  assert.match(defaultModelUpdateBody, /config\.defaultModel\s*=\s*modelId;\s*await\s+saveConfig\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(moveModelOrderBody, /await\s+saveConfig\(\);\s*renderModelManagementUI\(\);\s*(?:\/\/[^\n]*\s*)?runtimeDialogCoordinator\.showNotification\(/);
-  assert.match(fragment03Source, /moveModelOrder,\s*renderPersonalMemoryList,/);
   assert.match(fragment03Source, /handleBatchArchive,/);
 });
 
@@ -2746,7 +2737,6 @@ test('main css is an ordered split manifest with every imported file under the s
     'settings-api-keys.css',
     'settings-output-translator.css',
     'settings-theme-bubble.css',
-    'settings-provider-management.css',
     'settings-desktop.css',
     'settings-danger.css',
     'regression-overrides.css',

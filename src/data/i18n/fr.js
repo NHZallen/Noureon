@@ -166,8 +166,6 @@
         noSingleTranslatorModels: 'Aucun modèle traducteur admissible',
         document: 'Documents',
         save: 'Enregistrer',
-        modelListManagement: 'Gestion de la Liste des Modèles',
-        modelListManagementDesc: 'Cliquez sur les flèches pour trier, l\'œil pour masquer/afficher, le cercle pour définir par défaut.',
         dataSync: 'Synchronisation des Données',
         exportData: 'Exporter les Données',
         importData: 'Importer les Données',

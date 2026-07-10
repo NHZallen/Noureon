@@ -44,6 +44,13 @@ const MODELS = [
   }
 ];
 
+const SORTED_MODELS = [
+  { id: 'luna', name: 'Luna', provider: 'openrouter', tier: ['paid'], addedOrder: 20260710, outputPricePerMillion: 6 },
+  { id: 'terra', name: 'Terra', provider: 'openrouter', tier: ['paid'], addedOrder: 20260710, outputPricePerMillion: 15 },
+  { id: 'sol', name: 'Sol', provider: 'openrouter', tier: ['paid'], addedOrder: 20260710, outputPricePerMillion: 30 },
+  { id: 'older', name: 'Older', provider: 'openrouter', tier: ['paid'] }
+];
+
 const createHarness = (overrides = {}) => {
   const { document, window, cleanup } = createDom(`
     <div id="model-switcher-container"></div>
@@ -129,10 +136,45 @@ test('prepares visible models with provider-specific company and tier metadata',
   });
 
   assert.equal(result.currentModel.id, 'stepfun/model-a');
-  assert.deepEqual(result.visibleModels.map((model) => model.id), ['gemini-pro', 'stepfun/model-a']);
+  assert.deepEqual(result.visibleModels.map((model) => model.id), ['stepfun/model-a', 'gemini-pro']);
   assert.equal(result.processedModels.find((model) => model.id === 'gemini-pro').company, 'google');
   assert.equal(result.processedModels.find((model) => model.id === 'stepfun/model-a').company, 'stepfun');
   assert.deepEqual(result.betaModels.map((model) => model.id), ['openai/beta']);
+});
+
+test('sorts newer model batches first and uses output price in descending order within a batch', () => {
+  const result = prepareModelSwitcherModels({
+    currentModelId: 'older',
+    getModelApiId: (model) => model.id,
+    getModelTiers: (model) => model.tier || [],
+    modelSettings: SORTED_MODELS.map((model, order) => ({ id: model.id, hidden: false, order })),
+    models: SORTED_MODELS
+  });
+
+  assert.deepEqual(result.visibleModels.map((model) => model.id), ['sol', 'terra', 'luna', 'older']);
+});
+
+test('renders providers in the configured default order', () => {
+  const models = [
+    { id: 'step', name: 'Step', provider: 'stepfun', descriptionKey: 'stepA', tier: ['paid'] },
+    { id: 'nvidia', name: 'NVIDIA', provider: 'nvidia', descriptionKey: 'stepA', tier: ['free'] },
+    { id: 'router', name: 'Router', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] },
+    { id: 'gemini', name: 'Gemini', provider: 'gemini', descriptionKey: 'stepA', tier: ['paid'] }
+  ];
+  const { cleanup, document, lifecycle } = createHarness({
+    models,
+    modelSettings: models.map((model, order) => ({ id: model.id, hidden: false, order }))
+  });
+  try {
+    lifecycle.renderModelSwitcher();
+    document.querySelector('#current-model-btn').click();
+    assert.deepEqual(
+      [...document.querySelectorAll('.provider-btn')].map((button) => button.dataset.provider),
+      ['gemini', 'openrouter', 'nvidia', 'stepfun']
+    );
+  } finally {
+    cleanup();
+  }
 });
 
 test('renders model switcher navigation and persists selected model', async () => {

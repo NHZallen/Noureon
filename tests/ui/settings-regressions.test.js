@@ -13,7 +13,6 @@ const settingsSurfaceCssFiles = [
   'src/styles/settings-api-keys.css',
   'src/styles/settings-output-translator.css',
   'src/styles/settings-theme-bubble.css',
-  'src/styles/settings-provider-management.css',
   'src/styles/settings-desktop.css',
   'src/styles/settings-danger.css',
   'src/styles/mobile.css',
@@ -219,35 +218,6 @@ test('mobile settings CSS surface is explicitly mapped before extraction', () =>
   assert.doesNotMatch(settingsMobileCss, /\.dark\b|dark\\:|dark:/);
 });
 
-test('provider and model management selectors are scoped to the provider management surface', () => {
-  const providerManagementSelectors = [
-    ['#model-management-list', ['src/styles/settings-provider-management.css']],
-    ['#model-management-list .collapsible-section', ['src/styles/settings-provider-management.css']],
-    ['#model-management-list .collapsible-summary', ['src/styles/settings-provider-management.css']],
-    ['#model-management-list .collapsible-content', ['src/styles/settings-provider-management.css']],
-    ['.model-management-item', ['src/styles/settings-provider-management.css']],
-    ['.model-management-name', ['src/styles/settings-provider-management.css', 'src/styles/typography.css']],
-    ['.model-row-action', ['src/styles/settings.css', 'src/styles/settings-provider-management.css']],
-    ['.model-order-controls', ['src/styles/settings-provider-management.css']],
-    ['.model-default-radio', ['src/styles/settings-provider-management.css']]
-  ];
-
-  for (const [selector, expectedFiles] of providerManagementSelectors) {
-    assertSelectorHits(selector, expectedFiles);
-  }
-
-  const settingsCss = readUiSource('src/styles/settings.css');
-  const settingsProviderManagementCss = readUiSource('src/styles/settings-provider-management.css');
-  assert.doesNotMatch(settingsCss, /#model-management-list/);
-  assert.doesNotMatch(settingsCss, /\.model-management-item/);
-  assert.doesNotMatch(settingsCss, /\.model-management-name/);
-  assert.doesNotMatch(settingsCss, /\.model-order-controls/);
-  assert.doesNotMatch(settingsCss, /\.model-default-radio/);
-  assert.match(settingsProviderManagementCss, /#model-management-list\s+\.collapsible-summary\s*\{/);
-  assert.match(settingsProviderManagementCss, /\.model-management-item\s*\{/);
-  assert.match(settingsProviderManagementCss, /\.model-management-item\s+\.model-row-action,\s*#settings-modal\s+\.model-management-item\s+\.model-row-action\s*\{/);
-});
-
 test('settings control selectors stay visible and scoped by surface', () => {
   const controlSelectors = [
     ['.api-key-input-group', ['src/styles/settings-api-keys.css']],
@@ -259,8 +229,7 @@ test('settings control selectors stay visible and scoped by surface', () => {
     ['.translator-picker-option', ['src/styles/settings-output-translator.css']],
     ['.custom-output-mode-select', ['src/styles/settings-output-translator.css']],
     ['.custom-output-mode-option', ['src/styles/settings-output-translator.css']],
-    ['#settings-modal #delete-all-data-btn', ['src/styles/settings-danger.css']],
-    ['#settings-modal .model-management-item .model-row-action', ['src/styles/settings-provider-management.css']]
+    ['#settings-modal #delete-all-data-btn', ['src/styles/settings-danger.css']]
   ];
 
   for (const [selector, expectedFiles] of controlSelectors) {
@@ -280,29 +249,8 @@ test('settings control selectors stay visible and scoped by surface', () => {
   assert.doesNotMatch(settingsCss, /\.custom-output-mode-/);
 });
 
-test('provider controls and desktop sections remain classified separately after provider and desktop extraction', () => {
-  const settingsCss = readUiSource('src/styles/settings.css');
-  const settingsDesktopCss = readUiSource('src/styles/settings-desktop.css');
-  const settingsProviderManagementCss = readUiSource('src/styles/settings-provider-management.css');
-  const desktopSectionIndex = settingsDesktopCss.indexOf('#settings-modal .settings-section');
-  const modelManagementIndex = settingsProviderManagementCss.indexOf('#model-management-list');
-  const modelItemIndex = settingsProviderManagementCss.indexOf('.model-management-item');
-
-  assert.doesNotMatch(settingsCss, /#settings-modal\s+\.settings-section\s*\{/);
-  assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-section\s*\{/);
-  assert.match(settingsCss, /\.model-row-action\s*\{/);
-  assert.match(settingsProviderManagementCss, /#model-management-list\s*\{/);
-  assert.match(settingsProviderManagementCss, /\.model-management-item\s*\{/);
-  assert.match(settingsProviderManagementCss, /\.model-management-item\s+\.model-row-action/);
-  assert.ok(desktopSectionIndex >= 0, 'desktop section rules should stay visible as an extraction candidate');
-  assert.ok(modelManagementIndex >= 0, 'provider/model management list rules should stay visible in the provider management surface');
-  assert.ok(modelItemIndex >= 0, 'provider/model item rules should stay visible in the provider management surface');
-  assert.notEqual(modelManagementIndex, modelItemIndex, 'provider/model list and item rules should be distinct candidates');
-});
-
 test('provider-adjacent and desktop-adjacent risky selectors remain classified as shared or deferred', () => {
   const settingsCss = readUiSource('src/styles/settings.css');
-  const settingsProviderManagementCss = readUiSource('src/styles/settings-provider-management.css');
   const settingsDesktopCss = readUiSource('src/styles/settings-desktop.css');
   const settingsDangerCss = readUiSource('src/styles/settings-danger.css');
 
@@ -325,10 +273,6 @@ test('provider-adjacent and desktop-adjacent risky selectors remain classified a
   assert.doesNotMatch(settingsDangerCss, /#export-data-btn/);
   assert.doesNotMatch(settingsDangerCss, /#import-data-btn/);
   assert.doesNotMatch(settingsDangerCss, /#trash-batch/);
-  assert.match(settingsProviderManagementCss, /\.model-management-item\s+\.model-row-action/);
-  assert.doesNotMatch(settingsProviderManagementCss, /\.store-category-btn/);
-  assert.doesNotMatch(settingsProviderManagementCss, /#settings-modal\s+input\[type="radio"\]/);
-  assert.doesNotMatch(settingsProviderManagementCss, /#settings-modal\s+input\[type="checkbox"\]/);
   assert.doesNotMatch(settingsCss, /\[data-theme/);
 });
 
@@ -474,11 +418,6 @@ test('settings CSS surface stays within its post-mobile-extraction budget', () =
     ['src', 'styles', 'settings-theme-bubble.css'],
     { maxBytes: 7000, maxLines: 240 }
   );
-  const providerManagementStats = assertFileWithinBudget(
-    assert,
-    ['src', 'styles', 'settings-provider-management.css'],
-    { maxBytes: 7000, maxLines: 240 }
-  );
   const desktopStats = assertFileWithinBudget(
     assert,
     ['src', 'styles', 'settings-desktop.css'],
@@ -498,8 +437,6 @@ test('settings CSS surface stays within its post-mobile-extraction budget', () =
   const outputTranslatorSurfaceHits = collectCssSelectorHits(/(?:translator-picker|custom-output-mode)/, ['src/styles/settings-output-translator.css']);
   const settingsCssThemeBubbleHits = collectCssSelectorHits(/(?:theme-btn|theme-button-group|color-dropdown|color-option)/, ['src/styles/settings.css']);
   const themeBubbleSurfaceHits = collectCssSelectorHits(/(?:theme-btn|theme-button-group|color-dropdown|color-option)/, ['src/styles/settings-theme-bubble.css']);
-  const settingsCssProviderManagementHits = collectCssSelectorHits(/(?:#model-management-list|\.model-management-item|\.model-management-name|\.model-order-controls|\.model-default-radio)/, ['src/styles/settings.css']);
-  const providerManagementSurfaceHits = collectCssSelectorHits(/(?:#model-management-list|\.model-management-item|\.model-management-name|\.model-order-controls|\.model-default-radio)/, ['src/styles/settings-provider-management.css']);
   const settingsCssDesktopHits = collectCssSelectorHits(/(?:#settings-modal\s+nav|#settings-modal\s+#settings-nav|\.settings-nav-item|#settings-modal\s+\.settings-section|#settings-nav)/, ['src/styles/settings.css']);
   const desktopSurfaceHits = collectCssSelectorHits(/(?:#settings-modal\s+nav|#settings-modal\s+#settings-nav|\.settings-nav-item|#settings-modal\s+\.settings-section|#settings-nav)/, ['src/styles/settings-desktop.css']);
   const settingsCssDangerHits = collectCssSelectorHits(/#delete-all-data-btn/, ['src/styles/settings.css']);
@@ -513,7 +450,6 @@ test('settings CSS surface stays within its post-mobile-extraction budget', () =
   assert.ok(apiKeyStats.lines > 0, 'settings-api-keys.css should own API key control styles');
   assert.ok(outputTranslatorStats.lines > 0, 'settings-output-translator.css should own output/translator control styles');
   assert.ok(themeBubbleStats.lines > 0, 'settings-theme-bubble.css should own theme and bubble control styles');
-  assert.ok(providerManagementStats.lines > 0, 'settings-provider-management.css should own provider/model management styles');
   assert.ok(desktopStats.lines > 0, 'settings-desktop.css should own desktop settings nav and section styles');
   assert.ok(dangerStats.lines > 0, 'settings-danger.css should own delete-all danger styles');
   assert.equal(settingsModalHits.length, 1);
@@ -524,8 +460,6 @@ test('settings CSS surface stays within its post-mobile-extraction budget', () =
   assert.equal(outputTranslatorSurfaceHits.length, 1);
   assert.equal(settingsCssThemeBubbleHits.length, 0);
   assert.equal(themeBubbleSurfaceHits.length, 1);
-  assert.equal(settingsCssProviderManagementHits.length, 0);
-  assert.equal(providerManagementSurfaceHits.length, 1);
   assert.equal(settingsCssDesktopHits.length, 0);
   assert.equal(desktopSurfaceHits.length, 1);
   assert.equal(settingsCssDangerHits.length, 0);
@@ -541,7 +475,6 @@ test('main css imports settings surface styles before broad overrides', () => {
   const settingsApiKeysIndex = mainCss.indexOf("@import './settings-api-keys.css';");
   const settingsOutputTranslatorIndex = mainCss.indexOf("@import './settings-output-translator.css';");
   const settingsThemeBubbleIndex = mainCss.indexOf("@import './settings-theme-bubble.css';");
-  const settingsProviderManagementIndex = mainCss.indexOf("@import './settings-provider-management.css';");
   const settingsDesktopIndex = mainCss.indexOf("@import './settings-desktop.css';");
   const settingsDangerIndex = mainCss.indexOf("@import './settings-danger.css';");
   const regressionIndex = mainCss.indexOf("@import './regression-overrides.css';");
@@ -551,9 +484,7 @@ test('main css imports settings surface styles before broad overrides', () => {
   assert.ok(settingsApiKeysIndex > settingsMobileIndex, 'settings-api-keys.css should refine settings controls after settings-mobile.css');
   assert.ok(settingsOutputTranslatorIndex > settingsApiKeysIndex, 'settings-output-translator.css should refine output and translator controls after API key styles');
   assert.ok(settingsThemeBubbleIndex > settingsOutputTranslatorIndex, 'settings-theme-bubble.css should refine theme and bubble controls after output/translator styles');
-  assert.ok(settingsProviderManagementIndex > settingsThemeBubbleIndex, 'settings-provider-management.css should load after extracted settings control CSS files');
-  assert.ok(settingsProviderManagementIndex < regressionIndex, 'settings-provider-management.css should load before final regression overrides');
-  assert.ok(settingsDesktopIndex > settingsProviderManagementIndex, 'settings-desktop.css should load after provider management styles');
+  assert.ok(settingsDesktopIndex > settingsThemeBubbleIndex, 'settings-desktop.css should load after extracted settings control styles');
   assert.ok(settingsDesktopIndex < regressionIndex, 'settings-desktop.css should load before final regression overrides');
   assert.ok(settingsDangerIndex > settingsDesktopIndex, 'settings-danger.css should load after desktop settings styles');
   assert.ok(settingsDangerIndex < regressionIndex, 'settings-danger.css should load before final regression overrides');

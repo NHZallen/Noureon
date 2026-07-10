@@ -1,3 +1,12 @@
+export const MODEL_PROVIDER_ORDER = Object.freeze(['gemini', 'openrouter', 'nvidia', 'stepfun']);
+
+const compareModelsForPicker = (left, right) => (
+    (right.addedOrder - left.addedOrder) ||
+    (right.outputPricePerMillion - left.outputPricePerMillion) ||
+    (right.modelSettingOrder - left.modelSettingOrder) ||
+    left.name.localeCompare(right.name)
+);
+
 export function prepareModelSwitcherModels({
     currentModelId,
     getModelApiId,
@@ -5,6 +14,7 @@ export function prepareModelSwitcherModels({
     modelSettings = [],
     models = []
 }) {
+    const modelSettingOrderById = new Map(modelSettings.map(setting => [setting.id, setting.order]));
     const processedModels = models.map(model => {
         const provider = model.provider;
         let tier = [];
@@ -22,7 +32,15 @@ export function prepareModelSwitcherModels({
             tier = getModelTiers(model);
             company = getModelApiId(model).split('/')[0];
         }
-        return { ...model, tier, company };
+        const modelSettingOrder = modelSettingOrderById.get(model.id) ?? -1;
+        return {
+            ...model,
+            tier,
+            company,
+            modelSettingOrder,
+            addedOrder: model.addedOrder ?? modelSettingOrder,
+            outputPricePerMillion: model.outputPricePerMillion ?? -1
+        };
     });
     const betaModels = processedModels.filter(model => model.isBeta);
     const standardModels = processedModels.filter(model => !model.isBeta);
@@ -30,7 +48,8 @@ export function prepareModelSwitcherModels({
         .filter(setting => !setting.hidden)
         .sort((a, b) => a.order - b.order)
         .map(setting => processedModels.find(model => model.id === setting.id))
-        .filter(Boolean);
+        .filter(Boolean)
+        .sort(compareModelsForPicker);
     const currentModel = processedModels.find(model => model.id === currentModelId) || processedModels[0];
 
     return { betaModels, currentModel, processedModels, standardModels, visibleModels };
@@ -276,7 +295,12 @@ export function createModelSwitcherLifecycle({
     };
 
 
-    const providers = [...new Set(standardModels.map(m => m.provider))];
+    const providers = [...new Set(standardModels.map(m => m.provider))]
+        .sort((left, right) => {
+            const leftIndex = MODEL_PROVIDER_ORDER.indexOf(left);
+            const rightIndex = MODEL_PROVIDER_ORDER.indexOf(right);
+            return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) - (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex);
+        });
     providerView.innerHTML = `
         <!-- ✨ 新增的測試版模型按鈕 -->
         ${betaModels.length > 0 ? `

@@ -1136,7 +1136,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             escapeHTML,
             hexToRgba,
             renderPersonalMemoryList: (...args) => renderPersonalMemoryList(...args),
-            renderModelManagementUI: (...args) => renderModelManagementUI(...args),
             renderUiColorOptions: (...args) => renderUiColorOptions(...args),
             renderTrash: (...args) => renderTrash(...args),
             renderModelSwitcher,
@@ -1539,8 +1538,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             logger: console
         });
         const {
-            renderModelManagementUI,
-            moveModelOrder,
             renderPersonalMemoryList,
             refineAndStoreMemories,
             extractPersonalMemory,

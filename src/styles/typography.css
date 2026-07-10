@@ -51,8 +51,7 @@ b {
 .font-medium,
 label,
 .sidebar-section-header .title-group,
-.section-add-btn,
-.model-management-name {
+.section-add-btn {
     font-weight: var(--astra-font-medium) !important;
 }
 

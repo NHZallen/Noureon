@@ -53,9 +53,9 @@ export const MODELS = [
 
     // OpenRouter Paid Models (OpenAI)
     { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },
-    { id: 'openai/gpt-5.6-luna', name: 'OpenAI GPT-5.6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_luna_desc', category: 'general' },
-    { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
-    { id: 'openai/gpt-5.6-sol', name: 'OpenAI GPT-5.6 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_sol_desc', category: 'general' },
+    { id: 'openai/gpt-5.6-luna', name: 'OpenAI GPT-5.6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_luna_desc', category: 'general', addedOrder: 20260710, outputPricePerMillion: 6 },
+    { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general', addedOrder: 20260710, outputPricePerMillion: 15 },
+    { id: 'openai/gpt-5.6-sol', name: 'OpenAI GPT-5.6 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_sol_desc', category: 'general', addedOrder: 20260710, outputPricePerMillion: 30 },
     { id: 'openai/gpt-image-2', name: 'OpenAI GPT Image 2', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
 
     // OpenRouter Paid Models (Qwen)

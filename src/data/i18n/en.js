@@ -166,8 +166,6 @@
         noSingleTranslatorModels: 'No eligible single-model translator models',
         document: 'Documents',
         save: 'Save',
-        modelListManagement: 'Model List Management',
-        modelListManagementDesc: 'Click arrows to sort, eye to hide/show, circle to set as default.',
         dataSync: 'Data Sync',
         exportData: 'Export Data',
         importData: 'Import Data',

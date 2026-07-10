@@ -137,7 +137,6 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         escapeHTML,
         hexToRgba,
         renderPersonalMemoryList,
-        renderModelManagementUI,
         renderUiColorOptions,
         renderTrash,
         renderModelSwitcher,
@@ -503,7 +502,6 @@ const setupSettingsModal = () => {
     ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
     renderPersonalMemoryList();
     updateThemeButtons();
-    renderModelManagementUI();
     const aiBubbleColorTitle = document.querySelector('h3[data-lang-key="aiBubbleColor"]');
     const aiBubbleColorDropdown = ALL_ELEMENTS.aiBubbleColorDropdown;
     if (config.customWallpaper) {

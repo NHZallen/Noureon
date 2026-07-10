@@ -274,7 +274,6 @@ test('factory is inert on import and validates required dependencies', () => {
 test('factory composes extracted lifecycles and exposes former aliases', () => {
   const { lifecycle } = createHarness();
   for (const name of [
-    'renderModelManagementUI',
     'renderPersonalMemoryList',
     'openDashboard',
     'performSearchAndRenderResults',

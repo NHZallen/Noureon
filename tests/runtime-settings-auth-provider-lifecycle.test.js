@@ -218,7 +218,6 @@ const createDependencies = (overrides = {}) => {
     escapeHTML: (value) => String(value),
     hexToRgba: () => '',
     renderPersonalMemoryList: () => calls.push('renderPersonalMemoryList'),
-    renderModelManagementUI: () => calls.push('renderModelManagementUI'),
     renderUiColorOptions: () => calls.push('renderUiColorOptions'),
     renderTrash: () => calls.push('renderTrash'),
     renderModelSwitcher: () => calls.push('renderModelSwitcher'),

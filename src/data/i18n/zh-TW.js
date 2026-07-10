@@ -166,8 +166,6 @@
         noSingleTranslatorModels: '沒有可用的單模型轉譯模型',
         document: '文件',
         save: '儲存',
-        modelListManagement: '模型清單管理',
-        modelListManagementDesc: '點擊箭頭以排序、點擊眼睛以隱藏/顯示、點擊圓圈以設定預設模型。',
         dataSync: '資料同步',
         exportData: '匯出資料',
         importData: '匯入資料',

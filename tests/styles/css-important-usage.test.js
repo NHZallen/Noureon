@@ -70,10 +70,6 @@ const documentedImportantUsage = {
     max: 61,
     category: 'required: regression override / legacy compatibility'
   },
-  'src/styles/settings-provider-management.css': {
-    max: 51,
-    category: 'required: regression override / legacy compatibility'
-  },
   'src/styles/settings-theme-bubble.css': {
     max: 57,
     category: 'required: regression override / legacy compatibility'

@@ -45,16 +45,6 @@ function createDetailsElement() {
 
 function createHarness(overrides = {}) {
   const calls = [];
-  const settingsContent = { scrollTop: 14 };
-  const modelManagementList = {
-    children: [],
-    innerHTML: '',
-    closest: () => settingsContent,
-    querySelectorAll: () => [],
-    appendChild(child) {
-      this.children.push(child);
-    }
-  };
   const memoryCheckboxHandlers = [];
   const memoryDeleteHandlers = [];
   const personalMemoryList = {
@@ -80,7 +70,6 @@ function createHarness(overrides = {}) {
     }
   };
   const elements = {
-    modelManagementList,
     personalMemoryList,
     settingsModal: { classList: createClassList() },
     apiKeyWarningBadge: { classList: createClassList() },
@@ -139,9 +128,6 @@ function createHarness(overrides = {}) {
       { id: 'model-b', name: 'Model B', provider: 'gemini' }
     ],
     i18n: { 'zh-TW': {} },
-    getModelTiers: () => ['free'],
-    getModelApiId: (model) => model.id,
-    saveConfig: async () => calls.push(['saveConfig']),
     saveAppData: async () => calls.push(['saveAppData']),
     runtimeDialogCoordinator: {
       showNotification: (...args) => calls.push(['runtimeDialogCoordinator.showNotification', ...args])
@@ -179,11 +165,9 @@ test('factory is inert on import and validates required dependencies', () => {
   );
 });
 
-test('factory exposes model, memory, and dashboard lifecycle functions', () => {
+test('factory exposes memory and dashboard lifecycle functions', () => {
   const { lifecycle } = createHarness();
   for (const name of [
-    'renderModelManagementUI',
-    'moveModelOrder',
     'renderPersonalMemoryList',
     'extractPersonalMemory',
     'updateApiKeyWarningBadge',
@@ -192,23 +176,8 @@ test('factory exposes model, memory, and dashboard lifecycle functions', () => {
   ]) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
   }
-});
-
-test('model management render path uses injected config and model data', () => {
-  const { elements, lifecycle } = createHarness();
-  lifecycle.renderModelManagementUI();
-  assert.equal(elements.modelManagementList.children.length, 1);
-  assert.match(elements.modelManagementList.children[0].innerHTML, /collapsible-summary/);
-});
-
-test('model order path saves config, rerenders, and notifies in legacy order', async () => {
-  const { calls, config, lifecycle } = createHarness();
-  await lifecycle.moveModelOrder('model-b', 'up');
-  assert.deepEqual(config.modelSettings.map((setting) => setting.id), ['model-b', 'model-a']);
-  assert.deepEqual(calls.map((call) => call[0]), [
-    'saveConfig',
-    'runtimeDialogCoordinator.showNotification'
-  ]);
+  assert.equal('renderModelManagementUI' in lifecycle, false);
+  assert.equal('moveModelOrder' in lifecycle, false);
 });
 
 test('personal memory delete uses injected replacement bridge before save and rerender', async () => {
