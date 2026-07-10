@@ -27,6 +27,7 @@ export function createMessageEditingLifecycle({
   getUploadedFiles = () => [],
   setUploadedFiles = () => {},
   renderFilePreviews = () => {},
+  updateInputState = () => {},
   renderChat,
   saveAppData,
   submitEditedMessage,
@@ -83,6 +84,7 @@ export function createMessageEditingLifecycle({
       if (!restore || editor.composerRestored) return;
       restoreComposer(editor);
       editor.composerRestored = true;
+      updateInputState();
       if (editor.mobile && animate && !prefersReducedMotion()) {
         const composer = elements.inputBarContainer;
         composer?.classList.add('message-edit-composer-returning');

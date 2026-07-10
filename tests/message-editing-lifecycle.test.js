@@ -59,6 +59,7 @@ test('mobile cancellation restores the composer before the editor fade has compl
     const conversation = { messages: [{ role: 'user', parts: [{ text: 'Original message' }] }] };
     const inputBar = document.querySelector('#input-bar');
     const composerParent = document.querySelector('#composer-parent');
+    let updateInputStateCalls = 0;
     const lifecycle = createMessageEditingLifecycle({
       document,
       elements: {
@@ -71,6 +72,7 @@ test('mobile cancellation restores the composer before the editor fade has compl
       },
       getActiveConversation: () => conversation,
       renderChat: () => {},
+      updateInputState: () => { updateInputStateCalls += 1; },
       saveAppData: async () => {},
       submitEditedMessage: async () => {},
       isMobile: () => true
@@ -80,6 +82,7 @@ test('mobile cancellation restores the composer before the editor fade has compl
     const closing = lifecycle.cancelMessageEditing();
 
     assert.equal(inputBar.parentNode, composerParent);
+    assert.equal(updateInputStateCalls, 1);
     await closing;
     assert.equal(document.querySelector('.message-edit-mobile-page'), null);
   } finally {
