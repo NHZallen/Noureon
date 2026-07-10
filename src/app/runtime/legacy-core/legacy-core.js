@@ -17,6 +17,7 @@ import { finalizeAssistantResponse, persistAssistantResponseError } from '/src/a
 import { runSubmitFinalCleanupLifecycle } from '/src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js';
 import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/features/model-message-post-response-actions.js';
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
+import { createMessageEditingLifecycle } from '/src/app/legacy-runtime/features/message-editing-lifecycle.js';
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
@@ -971,6 +972,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         let handleSaveAstras;
         let deleteAstras;
         let createAstrasMenu;
+        let cancelMessageEditing = () => {};
         const submitInputCouncilState = {
             get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return liveConversationsBridge.getConversations(); },
@@ -1056,6 +1058,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getFileInputContainer: () => ALL_ELEMENTS.fileInputContainer,
             getActiveAstrasId: () => getActiveAstrasId(),
             deactivateAstras: (...args) => deactivateAstras(...args),
+            onRegularSubmit: () => cancelMessageEditing(),
             logger: console
         });
         const {
@@ -1080,7 +1083,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             playbackStreamingMarkdownResponse,
             startProgressTicker,
             stopProgressTicker,
-            handleFormSubmit
+            handleFormSubmit,
+            submitEditedMessage
         } = submitInputCouncilLifecycle;
         legacyRuntimeContext.registerLazyBinding('input.updateFunctionButtonsState', () => updateFunctionButtonsState);
         legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
@@ -1329,6 +1333,19 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deleteAstras,
             createAstrasMenu
         } = sidebarChatAstraRenderLifecycle);
+        const messageEditingLifecycle = createMessageEditingLifecycle({
+            document,
+            elements: ALL_ELEMENTS,
+            getActiveConversation,
+            renderChat: (...args) => renderChat(...args),
+            saveAppData,
+            submitEditedMessage: (...args) => submitEditedMessage(...args),
+            openCouncilPopover: (...args) => openCouncilPopoverFromAttachmentMenu(...args),
+            renderInputIndicators: (...args) => renderInputIndicators(...args),
+            showNotification
+        });
+        const { startMessageEditing } = messageEditingLifecycle;
+        cancelMessageEditing = (...args) => messageEditingLifecycle.cancelMessageEditing(...args);
         import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
         import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
         import { createLegacyTransitionBusLifecycle } from '/src/app/runtime/legacy-core/transition-bus-lifecycle.js';
@@ -1508,6 +1525,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             handleSaveFolderSettings,
             loadChat,
             getActiveConversation,
+            startMessageEditing,
             normalizeConversationModel,
             getCouncilSelectedModels,
             isCouncilEnabled,

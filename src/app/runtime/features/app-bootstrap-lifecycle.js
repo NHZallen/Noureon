@@ -49,6 +49,7 @@ export function createLegacyAppBootstrapLifecycle({
     openDashboard,
     getActiveConversation,
     copyTextToClipboard,
+    startMessageEditing = () => {},
     showNotification,
     normalizeConversationModel,
     getCouncilSelectedModels,
@@ -312,6 +313,23 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.userProfileBtn.addEventListener('click', openDashboard);
                 ALL_ELEMENTS.closeDashboardBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.dataDashboardModal, false));
                 ALL_ELEMENTS.messageList.addEventListener('click', (e) => {
+                    const userAction = e.target.closest('[data-message-action]');
+                    if (userAction) {
+                        const messageItem = userAction.closest('.message-item');
+                        const messageIndex = Number(messageItem?.dataset.messageIndex);
+                        const conv = getActiveConversation();
+                        const message = conv?.messages?.[messageIndex];
+                        if (!message || message.role !== 'user') return;
+                        if (userAction.dataset.messageAction === 'copy') {
+                            const textToCopy = message.parts.filter(part => part.text).map(part => part.text).join('\n');
+                            copyTextToClipboard(textToCopy)
+                                .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製訊息。', 'success'))
+                                .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '無法複製訊息。', 'error'));
+                        } else if (userAction.dataset.messageAction === 'edit') {
+                            startMessageEditing(messageIndex);
+                        }
+                        return;
+                    }
                     const copyBtn = e.target.closest('.copy-content-btn');
                     if (copyBtn) {
                         const messageItem = copyBtn.closest('.message-item');

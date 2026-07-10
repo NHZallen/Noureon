@@ -22,6 +22,7 @@ export function buildMessageRenderView({
     let previewMediaParts = [];
     let generatedImageAssets = [];
     let generatedImageHTML = '';
+    let userActionButtons = '';
     const isImageGenerationLoading = !isUser && message.parts.some(part => part.imageGenerationLoading);
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
@@ -89,6 +90,17 @@ export function buildMessageRenderView({
                     `;
             contentPaddingClass = 'pb-8';
         }
+        if (isUser) {
+            userActionButtons = `
+                <div class="user-message-actions" aria-label="訊息操作">
+                    <button type="button" class="user-message-action" data-message-action="copy" title="複製訊息" aria-label="複製訊息">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </button>
+                    <button type="button" class="user-message-action" data-message-action="edit" title="編輯訊息" aria-label="編輯訊息">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                    </button>
+                </div>`;
+        }
     }
 
     const hasBubbleContent = isLoadingMessage || contentHTML.trim();
@@ -103,6 +115,7 @@ export function buildMessageRenderView({
                             ${actionButtons}
                         </div>
                     ` : ''}
+                    ${userActionButtons}
                 </div>`;
 
     return {

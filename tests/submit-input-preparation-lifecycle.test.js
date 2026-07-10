@@ -147,6 +147,32 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
   ]);
 });
 
+test('prepares an edited message without clearing the composer draft or its attachments', async () => {
+  const composerFile = {
+    base64: 'data:image/png;base64,composer', name: 'composer.png', size: 3, type: 'image/png'
+  };
+  const editedFile = {
+    base64: 'data:image/png;base64,edited', name: 'edited.png', size: 4, type: 'image/png'
+  };
+  const harness = createHarness({ messageValue: 'Keep this draft', uploadedFiles: [composerFile] });
+
+  const result = await harness.lifecycle.prepareSubmitResponse({
+    userMessage: 'Replacement message',
+    uploadedFiles: [editedFile],
+    preserveComposer: true
+  });
+
+  assert.equal(result.shouldContinue, true);
+  assert.equal(result.userMessage, 'Replacement message');
+  assert.equal(harness.elements.messageInput.value, 'Keep this draft');
+  assert.deepEqual(harness.uploadedFiles, [composerFile]);
+  assert.deepEqual(result.userParts, [
+    { text: 'Replacement message' },
+    { inlineData: { data: 'edited', mimeType: 'image/png', name: 'edited.png', size: 4 } }
+  ]);
+  assert.equal(harness.calls.some(([name]) => name === 'setUploadedFiles'), false);
+});
+
 test('auto web search can be enabled for Tavily-backed providers through the runtime predicate', async () => {
   for (const provider of ['openrouter', 'nvidia', 'stepfun']) {
     let checkedPrompt = '';

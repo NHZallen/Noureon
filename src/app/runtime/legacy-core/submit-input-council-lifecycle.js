@@ -114,6 +114,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getFileInputContainer = () => ALL_ELEMENTS.fileInputContainer,
     getActiveAstrasId = () => getActiveConversation()?.astrasId || null,
     deactivateAstras = () => {},
+    onRegularSubmit = () => {},
     showCustomDialog,
     logger = console
   } = dependencies;
@@ -859,9 +860,17 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     isImageConversation
   });
 
-  const handleFormSubmit = async (event) => {
-    event.preventDefault();
+  const prepareDefaultSubmit = async () => {
     const preparedSubmit = await submitInputPreparationLifecycle.prepareSubmitResponse();
+    return preparedSubmit;
+  };
+
+  const handleFormSubmit = async (event, submitOptions = {}) => {
+    event?.preventDefault?.();
+    if (!submitOptions.preserveComposer) onRegularSubmit();
+    const preparedSubmit = Object.keys(submitOptions).length > 0
+      ? await submitInputPreparationLifecycle.prepareSubmitResponse(submitOptions)
+      : await prepareDefaultSubmit();
     if (!preparedSubmit.shouldContinue) return;
     const {
       abortController: submitAbortController,
@@ -1069,6 +1078,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     playbackStreamingMarkdownResponse,
     startProgressTicker,
     stopProgressTicker,
-    handleFormSubmit
+    handleFormSubmit,
+    submitEditedMessage: (options) => handleFormSubmit(null, { ...options, preserveComposer: true })
   };
 }

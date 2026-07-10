@@ -47,10 +47,10 @@ export function createSubmitInputPreparationLifecycle({
     return userParts;
   };
 
-  const prepareSubmitResponse = async () => {
+  const prepareSubmitResponse = async ({ userMessage: suppliedMessage, uploadedFiles: suppliedFiles, preserveComposer = false } = {}) => {
     if (getAbortController()) return { shouldContinue: false, reason: 'already-generating' };
-    const userMessage = elements.messageInput.value.trim();
-    const uploadedFiles = getUploadedFiles();
+    const userMessage = String(suppliedMessage ?? elements.messageInput.value).trim();
+    const uploadedFiles = Array.isArray(suppliedFiles) ? suppliedFiles : getUploadedFiles();
     if (!userMessage && uploadedFiles.length === 0) return { shouldContinue: false, reason: 'empty' };
 
     const conversation = getActiveConversation();
@@ -105,10 +105,12 @@ export function createSubmitInputPreparationLifecycle({
       }
     }
 
-    elements.messageInput.value = '';
-    setUploadedFiles([]);
-    adjustTextareaHeight();
-    renderFilePreviews();
+    if (!preserveComposer) {
+      elements.messageInput.value = '';
+      setUploadedFiles([]);
+      adjustTextareaHeight();
+      renderFilePreviews();
+    }
     const loadingParts = isImageConversation(conversation)
       ? [{
           imageGenerationLoading: true,

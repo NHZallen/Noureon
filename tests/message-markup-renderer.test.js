@@ -38,6 +38,8 @@ test('builds the user message role, text markup, and bubble classes', () => {
   assert.match(view.messageHTML, /message-stack message-stack-user/);
   assert.match(view.messageHTML, /message-content">\<div>USER:Hello<\/div>/);
   assert.doesNotMatch(view.messageHTML, /copy-content-btn/);
+  assert.match(view.messageHTML, /data-message-action="copy"/);
+  assert.match(view.messageHTML, /data-message-action="edit"/);
 });
 
 test('builds model markdown, timestamp, and exact action markup', () => {
