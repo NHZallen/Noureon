@@ -683,9 +683,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
         };
         let cancelPendingMemoryCapture = () => {};
+        let invalidateConversationMemory = async () => {};
         const deleteChat = async (id, event) => {
     event?.stopPropagation();
     cancelPendingMemoryCapture(id);
+    await invalidateConversationMemory({ conversationId: id });
     const currentConversations = liveConversationsBridge.getConversations();
     const conv = currentConversations.find(c => c.id === id);
     if (conv) {
@@ -1301,6 +1303,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             updateInputState: (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
             renderChat: (...args) => renderChat(...args),
             saveAppData,
+            invalidateConversationMemory: (...args) => invalidateConversationMemory(...args),
             submitEditedMessage: (...args) => submitEditedMessage(...args),
             isMobile: () => window.matchMedia('(max-width: 768px)').matches
         });
@@ -1605,9 +1608,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             handleBatchDeleteFromTrash,
             handleEmptyTrash,
             updateDisplayedVersion,
-            cancelMemoryCapture: cancelMemoryCaptureWork
+            cancelMemoryCapture: cancelMemoryCaptureWork,
+            invalidateMemoryConversation
         } = transitionBusLifecycle;
         cancelPendingMemoryCapture = cancelMemoryCaptureWork;
+        invalidateConversationMemory = invalidateMemoryConversation;
         transitionBusLifecycle.registerSidebarBindings();
         transitionBusLifecycle.registerCoreTailDependencies();
 

@@ -34,6 +34,7 @@ export function createMessageEditingLifecycle({
   updateInputState = () => {},
   renderChat,
   saveAppData,
+  invalidateConversationMemory = async () => {},
   submitEditedMessage,
   isMobile = () => globalThis.matchMedia?.('(max-width: 768px)')?.matches
 } = {}) {
@@ -238,6 +239,7 @@ export function createMessageEditingLifecycle({
     const sendButton = editor.root?.querySelector('[data-edit-send]');
     if (sendButton) sendButton.disabled = true;
     editor.conversation.messages.splice(editor.index);
+    await invalidateConversationMemory({ conversationId: editor.conversation.id });
     await saveAppData();
     await dismissEditor({ rerender: false, animate: false });
     renderChat();
@@ -255,6 +257,7 @@ export function createMessageEditingLifecycle({
     const files = [...getUploadedFiles()];
     if (!text && files.length === 0) return null;
     editor.conversation.messages.splice(editor.index);
+    void invalidateConversationMemory({ conversationId: editor.conversation.id });
     void saveAppData();
     void dismissEditor({ rerender: false, animate: false });
     renderChat();

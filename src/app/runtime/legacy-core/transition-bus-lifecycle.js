@@ -14,6 +14,7 @@ import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
 import { createHistoryIndexRebuildService } from '../memory/history-index-rebuild-service.js';
 import { createGeminiTopicSummaryClient } from '../memory/gemini-topic-summary-client.js';
 import { createTopicSummaryService } from '../memory/topic-summaries.js';
+import { createMemoryInvalidationService } from '../memory/memory-invalidation-service.js';
 
 const requiredDependencies = [
     'window',
@@ -427,6 +428,16 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         updateTopicSummary: options => topicSummaryService.updateForCapsule(options),
         createId: prefix => `${prefix}:${crypto.randomUUID()}`
     });
+    const memoryInvalidationService = createMemoryInvalidationService({
+        index: historyIndex,
+        persistence: historyIndexPersistence,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        replaceMemoryState
+    });
+    const invalidateMemoryConversation = async options => {
+        memoryWorkScheduler.cancelConversation(options?.conversationId);
+        return memoryInvalidationService.invalidateConversation(options);
+    };
     const historyIndexRebuildService = createHistoryIndexRebuildService({
         getConversations: () => state.conversations,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
@@ -822,6 +833,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         handleEmptyTrash,
         updateDisplayedVersion,
         cancelMemoryCapture: conversationId => memoryWorkScheduler.cancelConversation(conversationId),
+        invalidateMemoryConversation,
         coreTailDependencies,
         registerSidebarBindings,
         registerCoreTailDependencies
