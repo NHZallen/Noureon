@@ -32,6 +32,13 @@ test('does not retrieve history for an ambiguous fragment without usable context
   assert.equal(result.shouldRetrieve, false);
 });
 
+test('does not spend a model resolution call on casual acknowledgements', () => {
+  const result = resolveHistoryQuery({ queryText: '好', allowModelResolution: true });
+
+  assert.equal(result.resolutionMethod, 'low-signal');
+  assert.equal(result.shouldRetrieve, false);
+});
+
 test('keeps a complete query intact without invoking model resolution', () => {
   const result = resolveHistoryQuery({
     queryText: '找我以前討論過 Gemini Embedding 2 成本控制的內容',

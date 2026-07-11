@@ -30,7 +30,8 @@ const getConversationContext = conversation => {
 
   return {
     currentTopic: String(conversation?.title || ''),
-    numberedReferences
+    numberedReferences,
+    recentMessages: messages.slice(-6).map(getMessageText).filter(Boolean)
   };
 };
 
@@ -43,6 +44,7 @@ export function createHistoryRetrievalService({
   embeddingClient,
   getMemoryState,
   resolveQuery = resolveHistoryQuery,
+  modelQueryResolver = null,
   minimumScore = 0.45,
   limit = 3
 } = {}) {
@@ -58,11 +60,24 @@ export function createHistoryRetrievalService({
 
   return {
     async retrieve({ currentMessage, conversation = {} } = {}) {
-      const query = resolveQuery({
+      let query = await resolveQuery({
         queryText: getMessageText(currentMessage),
         conversationContext: getConversationContext(conversation),
-        allowModelResolution: false
+        allowModelResolution: Boolean(modelQueryResolver?.resolve)
       });
+      if (query.resolutionMethod === 'model-resolution-needed' && typeof modelQueryResolver?.resolve === 'function') {
+        const modelResult = await modelQueryResolver.resolve({
+          queryText: query.originalQuery,
+          conversationContext: getConversationContext(conversation)
+        });
+        query = {
+          ...query,
+          resolvedQuery: modelResult.resolvedQuery,
+          confidence: modelResult.confidence,
+          shouldRetrieve: modelResult.shouldRetrieve && modelResult.confidence >= 0.7,
+          resolutionMethod: 'model-fallback'
+        };
+      }
       if (!query.shouldRetrieve || !query.resolvedQuery) return [];
 
       const keywords = extractHistoryTerms(query.resolvedQuery);

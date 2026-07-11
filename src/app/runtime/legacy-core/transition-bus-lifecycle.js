@@ -17,6 +17,7 @@ import { createTopicSummaryService } from '../memory/topic-summaries.js';
 import { createMemoryInvalidationService } from '../memory/memory-invalidation-service.js';
 import { createGeminiMediaMemoryClient } from '../memory/gemini-media-memory-client.js';
 import { createMediaMemoryService } from '../memory/media-memory-service.js';
+import { createGeminiHistoryQueryResolverClient } from '../memory/gemini-history-query-resolver-client.js';
 
 const requiredDependencies = [
     'window',
@@ -378,7 +379,11 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             getApiKey: () => getApiKeyForProvider('gemini'),
             fetchImpl: fetch
         }),
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {}
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        modelQueryResolver: createGeminiHistoryQueryResolverClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        })
     });
     const retrieveHistory = async options => {
         await Promise.all([historyIndexReady, historyRecallConsentReady]);

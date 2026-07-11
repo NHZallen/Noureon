@@ -5,6 +5,8 @@ const isAmbiguousFragment = queryText => (
   || /^(這|那|它|他|她|哪個|這個|那個)/u.test(queryText)
 );
 
+const isAcknowledgement = queryText => /^(?:ok|okay|thanks|thank\s+you|got\s+it|好|嗯|喔|哦|謝謝|謝了)[\s!！。]*$/iu.test(queryText);
+
 export function resolveHistoryQuery({
   queryText,
   conversationContext = {},
@@ -29,7 +31,17 @@ export function resolveHistoryQuery({
     }
   }
 
-  if (!originalQuery || isAmbiguousFragment(originalQuery)) {
+  if (!originalQuery || isAcknowledgement(originalQuery)) {
+    return {
+      originalQuery,
+      resolvedQuery: '',
+      resolutionMethod: 'low-signal',
+      confidence: 0,
+      shouldRetrieve: false
+    };
+  }
+
+  if (isAmbiguousFragment(originalQuery)) {
     return {
       originalQuery,
       resolvedQuery: '',

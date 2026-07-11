@@ -88,3 +88,24 @@ test('returns a matching media description as model-readable historical context'
   assert.equal(results[0].summary, 'image (cat.jpg): A black cat on a sofa.');
   assert.deepEqual(results[0].sourceIds, ['photo-message']);
 });
+
+test('uses the model resolver only for unresolved fragments and requires high confidence', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:old', capsuleId: 'old', conversationId: 'old-chat', vector: [1, 0] });
+  const calls = [];
+  const service = createHistoryRetrievalService({
+    index,
+    embeddingClient: { embedHistoryQuery: async query => { calls.push(['embed', query]); return [1, 0]; } },
+    modelQueryResolver: { resolve: async input => { calls.push(['resolve', input]); return { resolvedQuery: 'compare memory capture and history recall', confidence: 0.9, shouldRetrieve: true }; } },
+    getMemoryState: () => ({ conversationCapsules: [{ id: 'old', summary: 'Previous memory design.' }] })
+  });
+
+  const results = await service.retrieve({
+    currentMessage: { parts: [{ text: 'what?' }] },
+    conversation: { id: 'current-chat', title: 'Memory design', messages: [] }
+  });
+
+  assert.equal(calls[0][0], 'resolve');
+  assert.match(calls[1][1], /compare memory capture/);
+  assert.equal(results.length, 1);
+});

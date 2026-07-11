@@ -87,6 +87,8 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
             const profileEntries = usingV2Memory ? (memoryState.profileEntries || []) : personalMemories;
             const profileCandidates = usingV2Memory ? (memoryState.profileCandidates || []) : [];
             const legacyInbox = usingV2Memory ? (memoryState.legacyInbox || []) : [];
+            const suppressionRules = usingV2Memory ? (memoryState.suppressionRules || []) : [];
+            const topicSummaries = usingV2Memory ? (memoryState.longTermTopicSummaries || []) : [];
             profileEntries.forEach(memory => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
@@ -129,6 +131,41 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 item.querySelectorAll('span')[1].textContent = memory.content;
                 container.appendChild(item);
             });
+            if (usingV2Memory && (suppressionRules.length > 0 || topicSummaries.length > 0)) {
+                const derivedSection = document.createElement('div');
+                derivedSection.className = 'mt-5 pt-4 border-t border-[var(--border-color)] space-y-2';
+                if (topicSummaries.length > 0) {
+                    const heading = document.createElement('p');
+                    heading.className = 'text-xs font-medium text-[var(--text-secondary)]';
+                    heading.textContent = '長期主題摘要';
+                    derivedSection.appendChild(heading);
+                    topicSummaries.forEach(topic => {
+                        const item = document.createElement('div');
+                        item.className = 'flex items-start justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                        item.innerHTML = `<div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-medium"></span><span class="text-xs text-[var(--text-secondary)] word-break: break-word;"></span></div><button class="delete-topic-summary-btn text-red-600 hover:text-red-800 text-sm" data-id="${topic.id}">刪除</button>`;
+                        const spans = item.querySelectorAll('span');
+                        spans[0].textContent = topic.topic || '未命名主題';
+                        spans[1].textContent = topic.summary || '';
+                        derivedSection.appendChild(item);
+                    });
+                }
+                if (suppressionRules.length > 0) {
+                    const heading = document.createElement('p');
+                    heading.className = 'text-xs font-medium text-[var(--text-secondary)] mt-3';
+                    heading.textContent = '不主動使用的記憶規則';
+                    derivedSection.appendChild(heading);
+                    suppressionRules.forEach((rule, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                        item.innerHTML = `<span class="text-sm"></span><button class="delete-suppression-rule-btn text-red-600 hover:text-red-800 text-sm" data-index="${index}">刪除</button>`;
+                        item.querySelector('span').textContent = rule.type === 'do-not-mention' && rule.target === 'profile-name'
+                            ? '不主動使用已儲存的姓名稱呼'
+                            : `${rule.type || 'suppression'}: ${rule.target || ''}`;
+                        derivedSection.appendChild(item);
+                    });
+                }
+                container.appendChild(derivedSection);
+            }
             container.querySelectorAll('.memory-enabled-checkbox').forEach(cb => {
                 cb.addEventListener('change', async (e) => {
                     const id = e.target.dataset.id;
@@ -213,6 +250,28 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                         await saveAppData();
                         renderPersonalMemoryList();
                     }
+                });
+            });
+            container.querySelectorAll('.delete-topic-summary-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    replaceMemoryState({
+                        ...memoryState,
+                        longTermTopicSummaries: topicSummaries.filter(topic => topic.id !== id)
+                    });
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.delete-suppression-rule-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const index = Number(e.currentTarget.dataset.index);
+                    replaceMemoryState({
+                        ...memoryState,
+                        suppressionRules: suppressionRules.filter((_rule, ruleIndex) => ruleIndex !== index)
+                    });
+                    await saveAppData();
+                    renderPersonalMemoryList();
                 });
             });
         };
