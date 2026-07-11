@@ -3,7 +3,8 @@ import test from 'node:test';
 
 import {
   addConfirmedProfileEntry,
-  approveProfileCandidate
+  approveProfileCandidate,
+  removeProfileEntry
 } from '../src/app/runtime/memory/memory-profile-management.js';
 
 test('adds a user-confirmed preference without mutating the existing memory state', () => {
@@ -77,4 +78,55 @@ test('moves an approved candidate into active profile memory with safe identity 
     supersedes: [],
     sourceRefs: [{ messageId: 'user-1', role: 'user', claimType: 'candidate-source' }]
   }]);
+});
+
+test('a newer confirmed preference supersedes the active predecessor and deletion restores it', () => {
+  const state = {
+    profileEntries: [{
+      id: 'brief',
+      kind: 'preference',
+      content: 'Keep replies concise',
+      status: 'active',
+      confirmedByUser: true
+    }]
+  };
+  const replaced = addConfirmedProfileEntry(state, {
+    id: 'detailed',
+    content: 'For this project, explain decisions in detail',
+    supersededEntryIds: ['brief'],
+    now: '2026-07-11T13:00:00.000Z'
+  });
+
+  assert.deepEqual(replaced.profileEntries.map(entry => ({ id: entry.id, status: entry.status, supersededBy: entry.supersededBy, supersedes: entry.supersedes })), [
+    { id: 'brief', status: 'superseded', supersededBy: 'detailed', supersedes: undefined },
+    { id: 'detailed', status: 'active', supersededBy: undefined, supersedes: ['brief'] }
+  ]);
+  const restored = removeProfileEntry(replaced, { entryId: 'detailed', now: '2026-07-11T14:00:00.000Z' });
+  assert.deepEqual(restored.profileEntries, [{
+    id: 'brief',
+    kind: 'preference',
+    content: 'Keep replies concise',
+    status: 'active',
+    confirmedByUser: true,
+    supersededBy: null,
+    updatedAt: '2026-07-11T14:00:00.000Z'
+  }]);
+});
+
+test('supersession rejects missing or inactive predecessors', () => {
+  assert.throws(
+    () => addConfirmedProfileEntry({ profileEntries: [] }, {
+      id: 'next',
+      content: 'New preference',
+      supersededEntryIds: ['missing']
+    }),
+    /not found/
+  );
+  assert.throws(
+    () => addConfirmedProfileEntry({ profileEntries: [{ id: 'existing' }] }, {
+      id: 'existing',
+      content: 'Duplicate id'
+    }),
+    /unique/
+  );
 });

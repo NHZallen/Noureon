@@ -40,7 +40,10 @@ export function createMemoryInvalidationService({
       longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
         .filter(summary => !intersects(summary?.sourceCapsuleIds, invalidCapsuleIds)),
       memoryUsageRecords: asArray(memoryState.memoryUsageRecords)
-        .filter(record => !intersects(record?.sourceIds, invalidCapsuleIds))
+        .filter(record => (
+          record?.conversationId !== conversationId
+          && !intersects(record?.sourceIds, invalidCapsuleIds)
+        ))
     });
     if (persistence?.save) await persistence.save();
     return { invalidatedCapsuleCount: invalidCapsuleIds.size };

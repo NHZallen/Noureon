@@ -18,6 +18,7 @@ import { createMemoryInvalidationService } from '../memory/memory-invalidation-s
 import { createGeminiMediaMemoryClient } from '../memory/gemini-media-memory-client.js';
 import { createMediaMemoryService } from '../memory/media-memory-service.js';
 import { createGeminiHistoryQueryResolverClient } from '../memory/gemini-history-query-resolver-client.js';
+import { appendMemoryUsageRecord } from '../memory/memory-usage-recording.js';
 
 const requiredDependencies = [
     'window',
@@ -413,6 +414,22 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
         return savedMemoryState;
     };
+    const recordMemoryUsage = async ({ conversationId, responseMessageId, sources } = {}) => {
+        if (!conversationId || !responseMessageId) return null;
+        const memoryState = runtimeAppDataStore.getMemoryState?.() || {};
+        const nextMemoryState = appendMemoryUsageRecord(memoryState, {
+            id: `memory-usage:${crypto.randomUUID()}`,
+            conversationId,
+            responseMessageId,
+            sources
+        });
+        if (nextMemoryState === memoryState) return null;
+        // Usage records are intentionally device-local and excluded from memorySync.
+        runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
+        await saveAppData();
+        return nextMemoryState.memoryUsageRecords?.at(-1) || null;
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.recordUsage', () => recordMemoryUsage);
     const memoryCaptureClient = createGeminiMemoryCaptureClient({
         getApiKey: () => getApiKeyForProvider('gemini'),
         fetchImpl: fetch
@@ -507,6 +524,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         runtimeDialogCoordinator,
         showNotification,
         showCustomConfirm,
+        showCustomPrompt,
         toggleModal,
         callApiWithSchema,
         getActiveConversation,

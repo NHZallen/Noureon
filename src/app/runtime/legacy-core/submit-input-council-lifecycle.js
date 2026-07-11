@@ -105,6 +105,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     extractPersonalMemory,
     requestAnimationFrame = (callback) => callback(),
     AbortController = globalThis.AbortController,
+    crypto = globalThis.crypto,
     setTimeout: scheduleTimeout = (callback) => callback(),
     clearTimeout: clearScheduledTimeout = () => {},
     saveAppData,
@@ -871,7 +872,6 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const preparedSubmit = await submitInputPreparationLifecycle.prepareSubmitResponse();
     return preparedSubmit;
   };
-
   const handleFormSubmit = async (event, submitOptions = {}) => {
     event?.preventDefault?.();
     let effectiveSubmitOptions = submitOptions;
@@ -896,7 +896,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
     try {
       let fullResponse = '';
-      const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
+      const finalAiMessage = { id: crypto.randomUUID(), role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
       let councilMetadata = null;
       let responseRenderedInRealtime = false;
       let generatedImageParts = null;
@@ -931,7 +931,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             modelInfo,
             conversation: conv,
             signal: submitAbortController.signal,
-            uiLanguage: getLiveConfig().uiLanguage
+            uiLanguage: getLiveConfig().uiLanguage,
+            memoryUsageTarget: finalAiMessage
           });
           generatedImageParts = imageResult.parts;
         } else {
@@ -970,6 +971,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
         extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
+        recordMemoryUsage: (payload) => {
+          const recordUsage = legacyRuntimeContext.resolveOptionalBinding('memory.recordUsage');
+          return typeof recordUsage === 'function' ? recordUsage(payload) : undefined;
+        },
         completeImageView: generatedImageParts ? () => {
           const finalMessageElement = addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
           finalMessageElement.classList.add('generated-image-result-enter');

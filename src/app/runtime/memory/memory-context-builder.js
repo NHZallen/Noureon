@@ -10,6 +10,13 @@ const isNameSuppressed = rules => asArray(rules).some(rule => (
   && (!rule.scope || rule.scope === 'generic-chat')
 ));
 
+const suppressionInstructions = rules => asArray(rules)
+  .filter(rule => rule?.type === 'custom-instruction' || (
+    rule?.type === 'do-not-mention' && rule?.target === 'profile-name'
+  ))
+  .map(rule => String(rule.instruction || '').trim())
+  .filter(Boolean);
+
 const isHistoryResultSuppressed = (result, rules) => {
   const sourceIds = new Set(asArray(result?.sourceIds));
   return asArray(rules).some(rule => (
@@ -37,9 +44,10 @@ export function buildMemoryContext({
 
   return {
     currentChatSummary: String(currentChatSummary || ''),
-    instructions: suppressName
-      ? ['Do not use stored names as unsolicited forms of address.']
-      : [],
+    instructions: [
+      ...(suppressName ? ['Do not use stored names as unsolicited forms of address.'] : []),
+      ...suppressionInstructions(suppressionRules)
+    ],
     profileEntries: includedProfiles,
     historyResults: asArray(historyResults)
       .filter(result => !isHistoryResultSuppressed(result, suppressionRules))

@@ -13,6 +13,7 @@ const emptyMemoryState = () => ({
   profileEntries: [],
   profileCandidates: [],
   recentConversationStates: [],
+  mediaMemories: [],
   conversationCapsules: [],
   longTermTopicSummaries: [],
   suppressionRules: [],

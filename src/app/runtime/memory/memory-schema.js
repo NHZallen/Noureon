@@ -24,6 +24,7 @@ const normalizeProfileEntry = (entry = {}, now) => {
     createdAt,
     updatedAt: asIsoDate(entry.updatedAt, now),
     supersedes: asArray(entry.supersedes),
+    ...(entry.supersededBy ? { supersededBy: String(entry.supersededBy) } : {}),
     sourceRefs: asArray(entry.sourceRefs)
   };
 };
