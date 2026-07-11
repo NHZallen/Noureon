@@ -6,6 +6,7 @@ import {
 } from '../kernel/config-normalization.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
+    'gemini-3.1-flash-lite': { releasedAt: 20260711, outputPricePerMillion: 0 },
     'gemini-3.5-flash': { releasedAt: 20260519, outputPricePerMillion: 9 },
     'gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
     'nvidia/deepseek-ai/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0 },
@@ -50,6 +51,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
 
 export const MODELS = [
     // Gemini Models (Native)
+    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_1_flash_lite_desc' },
     { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_desc' },
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
 
@@ -125,7 +127,7 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'google/gemini-3.1-flash-image',
     'google/gemini-3.1-flash-lite-image'
 ]);
-export const CHEAP_MODEL_ID = 'gemini-3.5-flash';
+export const CHEAP_MODEL_ID = 'gemini-3.1-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
     'anthropic/claude-haiku-4.5',
     'anthropic/claude-sonnet-5',

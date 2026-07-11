@@ -23,6 +23,7 @@ export function collectSettingsSaveFormValues({
         userBubbleColor: elements.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         autoNaming: elements.autoNamingToggleSwitch.checked,
         memoryEnabled1: elements.memoryToggle1.checked,
+        historyRecallEnabled: elements.historyRecallToggleSwitch?.checked === true,
         enableAutoMemory: elements.autoMemoryToggleSwitch.checked,
         uiLanguage: elements.uiLanguageSelect.value,
         aiDefaultLanguage: elements.aiLanguageSelect.value,

@@ -1,20 +1,25 @@
+import { normalizeMemoryState } from '../memory/memory-schema.js';
+
 export function createLegacyRuntimeAppDataStore({
   initialConversations = [],
   initialFolders = [],
   initialAstras = [],
-  initialPersonalMemories = []
+  initialPersonalMemories = [],
+  initialMemoryState = null
 } = {}) {
   let conversations = initialConversations;
   let folders = initialFolders;
   let astras = initialAstras;
   let personalMemories = initialPersonalMemories;
+  let memoryState = initialMemoryState || normalizeMemoryState();
 
   function getSnapshot() {
     return {
       conversations,
       folders,
       astras,
-      personalMemories
+      personalMemories,
+      memoryState
     };
   }
 
@@ -43,16 +48,24 @@ export function createLegacyRuntimeAppDataStore({
       return personalMemories;
     },
 
+    getMemoryState: () => memoryState,
+    replaceMemoryState: (nextMemoryState) => {
+      memoryState = nextMemoryState;
+      return memoryState;
+    },
+
     replaceAll: ({
       conversations: nextConversations,
       folders: nextFolders,
       astras: nextAstras,
-      personalMemories: nextPersonalMemories
+      personalMemories: nextPersonalMemories,
+      memoryState: nextMemoryState = memoryState
     }) => {
       conversations = nextConversations;
       folders = nextFolders;
       astras = nextAstras;
       personalMemories = nextPersonalMemories;
+      memoryState = nextMemoryState;
       return getSnapshot();
     },
 

@@ -615,7 +615,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             return {
                 id: crypto.randomUUID(),
                 title: title,
-                summary: '',
                 messages: [],
                 model: defaultModelInfo.id,
                 provider: defaultModelInfo.provider,
@@ -683,8 +682,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             updateApiKeyWarningBadge();
             legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
         };
+        let cancelPendingMemoryCapture = () => {};
+        let invalidateConversationMemory = async () => {};
         const deleteChat = async (id, event) => {
     event?.stopPropagation();
+    cancelPendingMemoryCapture(id);
+    await invalidateConversationMemory({ conversationId: id });
     const currentConversations = liveConversationsBridge.getConversations();
     const conv = currentConversations.find(c => c.id === id);
     if (conv) {
@@ -868,7 +871,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             models:MODELS,
             maxCouncilModels:COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates,getSingleTranslatorCandidates,applyCustomWallpaper:()=>applyCustomWallpaper(),
-            applyUiTheme:()=>applyUiTheme(),renderAll,busy:()=>abortController&&getActiveConversation()
+            applyUiTheme:()=>applyUiTheme(),renderAll,saveAppData,busy:()=>abortController&&getActiveConversation()
         });
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,
@@ -1072,6 +1075,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
             set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
+            get memoryState() { return runtimeAppDataStore.getMemoryState(); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
             get quoteReference() { return quoteReference; },
@@ -1299,6 +1303,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             updateInputState: (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
             renderChat: (...args) => renderChat(...args),
             saveAppData,
+            invalidateConversationMemory: (...args) => invalidateConversationMemory(...args),
             submitEditedMessage: (...args) => submitEditedMessage(...args),
             isMobile: () => window.matchMedia('(max-width: 768px)').matches
         });
@@ -1439,6 +1444,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             state: transitionBusState,
             runtimeConfigAccess,
             runtimeAppDataStore,
+            runtimeStorageAdapter,
             runtimeDialogCoordinator,
             i18n,
             officialAstras: OFFICIAL_ASTRAS,
@@ -1601,8 +1607,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             handleBatchRestoreFromTrash,
             handleBatchDeleteFromTrash,
             handleEmptyTrash,
-            updateDisplayedVersion
+            updateDisplayedVersion,
+            cancelMemoryCapture: cancelMemoryCaptureWork,
+            invalidateMemoryConversation
         } = transitionBusLifecycle;
+        cancelPendingMemoryCapture = cancelMemoryCaptureWork;
+        invalidateConversationMemory = invalidateMemoryConversation;
         transitionBusLifecycle.registerSidebarBindings();
         transitionBusLifecycle.registerCoreTailDependencies();
 

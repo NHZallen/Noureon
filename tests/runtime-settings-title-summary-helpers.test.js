@@ -35,26 +35,26 @@ test('factory validates required dependencies', () => {
   );
 });
 
-test('buildTitleSummaryPrompt keeps conversation text and expected JSON contract', () => {
+test('buildTitleSummaryPrompt keeps conversation text and requests only a title', () => {
   const prompt = buildTitleSummaryPrompt(sampleConversation);
 
   assert.match(prompt, /What is the capital of France\?/);
   assert.match(prompt, /Paris\./);
   assert.match(prompt, /"title"/);
-  assert.match(prompt, /"summary"/);
+  assert.doesNotMatch(prompt, /"summary"/);
 });
 
-test('normalizeTitleSummaryResponse accepts valid title summary JSON shape', () => {
+test('normalizeTitleSummaryResponse accepts a title-only JSON shape', () => {
   assert.deepEqual(
-    normalizeTitleSummaryResponse({ title: 'France', summary: 'Capital question' }),
-    { title: 'France', summary: 'Capital question' }
+    normalizeTitleSummaryResponse({ title: 'France' }),
+    { title: 'France' }
   );
 });
 
 test('normalizeTitleSummaryResponse rejects malformed responses as null fallback', () => {
   assert.equal(normalizeTitleSummaryResponse(null), null);
-  assert.equal(normalizeTitleSummaryResponse({ title: 'Only title' }), null);
-  assert.equal(normalizeTitleSummaryResponse({ title: 123, summary: 'Nope' }), null);
+  assert.equal(normalizeTitleSummaryResponse({ summary: 'Only summary' }), null);
+  assert.equal(normalizeTitleSummaryResponse({ title: 123 }), null);
 });
 
 test('requestTitleSummary calls injected structured API helper and returns normalized data', async () => {
@@ -62,17 +62,17 @@ test('requestTitleSummary calls injected structured API helper and returns norma
   const helpers = createSettingsTitleSummaryHelpers({
     callApiWithSchema: async (prompt, schema, signal) => {
       calls.push({ prompt, schema, signal });
-      return { title: 'France', summary: 'Asked about Paris' };
+      return { title: 'France' };
     }
   });
 
   const result = await helpers.requestTitleSummary(sampleConversation, 'signal');
 
-  assert.deepEqual(result, { title: 'France', summary: 'Asked about Paris' });
+  assert.deepEqual(result, { title: 'France' });
   assert.equal(calls.length, 1);
   assert.match(calls[0].prompt, /What is the capital of France\?/);
   assert.equal(calls[0].schema.properties.title.type, 'STRING');
-  assert.equal(calls[0].schema.properties.summary.type, 'STRING');
+  assert.equal('summary' in calls[0].schema.properties, false);
   assert.equal(calls[0].signal, 'signal');
 });
 
@@ -93,7 +93,7 @@ test('title summary request can parse fenced JSON through structured helper tran
         ok: true,
         json: async () => ({
           candidates: [
-            { content: { parts: [{ text: '```json\n{"title":"France","summary":"Asked about Paris"}\n```' }] } }
+            { content: { parts: [{ text: '```json\n{"title":"France"}\n```' }] } }
           ]
         })
       };
@@ -110,7 +110,7 @@ test('title summary request can parse fenced JSON through structured helper tran
 
   const result = await titleHelpers.requestTitleSummary(sampleConversation);
 
-  assert.deepEqual(result, { title: 'France', summary: 'Asked about Paris' });
+  assert.deepEqual(result, { title: 'France' });
   assert.equal(requests.length, 1);
   assert.match(requests[0].url, /\/cheap-model:generateContent$/);
   assert.equal(requests[0].url.includes('?key='), false);

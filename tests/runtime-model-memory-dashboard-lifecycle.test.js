@@ -193,6 +193,40 @@ test('personal memory delete uses injected replacement bridge before save and re
   ]);
 });
 
+test('v2 memory capture sends only turns not already covered by the recent summary', async () => {
+  const captured = [];
+  const memoryState = {
+    recentConversationStates: [{
+      conversationId: 'c1',
+      coveredThroughMessageId: 'c1:1',
+      recentTurnSummary: '舊摘要。'
+    }]
+  };
+  const conversation = {
+    id: 'c1',
+    model: 'model-a',
+    messages: [
+      { role: 'user', parts: [{ text: '舊使用者訊息' }] },
+      { role: 'model', parts: [{ text: '舊助理回答' }] },
+      { role: 'user', parts: [{ text: '新使用者訊息' }] },
+      { role: 'model', parts: [{ text: '新助理回答' }] }
+    ]
+  };
+  const { lifecycle } = createHarness({
+    getConfig: () => ({ uiLanguage: 'zh-TW', memorySystemVersion: 2 }),
+    getActiveConversation: () => conversation,
+    getMemoryState: () => memoryState,
+    hashString: async () => 'new-turn-hash',
+    captureCompletedTurn: async payload => captured.push(payload)
+  });
+
+  await lifecycle.extractPersonalMemory();
+
+  assert.equal(captured.length, 1);
+  assert.deepEqual(captured[0].turns.map(turn => turn.text), ['新使用者訊息', '新助理回答']);
+  assert.equal(captured[0].sourceHash, 'new-turn-hash');
+});
+
 test('openDashboard updates stats and delegates to setupTimeAnalysis before opening modal', () => {
   const { calls, elements, lifecycle } = createHarness();
   lifecycle.openDashboard();

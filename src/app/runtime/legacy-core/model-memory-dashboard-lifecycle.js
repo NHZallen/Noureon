@@ -1,4 +1,15 @@
 import { createModelUsageChartLifecycle } from '../../legacy-runtime/features/model-usage-chart-lifecycle.js';
+import {
+    addConfirmedProfileEntry,
+    approveProfileCandidate,
+    removeProfileEntry
+} from '../memory/memory-profile-management.js';
+import {
+    addCustomSuppressionRule,
+    removeSuppressionRule,
+    updateSuppressionRule
+} from '../memory/memory-suppression-management.js';
+import { removeMemoryUsageRecords } from '../memory/memory-usage-recording.js';
 
 const REQUIRED_DEPENDENCIES = [
     'document',
@@ -37,6 +48,11 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         getFolders,
         getPersonalMemories,
         replacePersonalMemories,
+        getMemoryState = null,
+        replaceMemoryState = () => {},
+        captureCompletedTurn = null,
+        enqueueMemoryCapture = null,
+        hashString = null,
         getModelPieChart = () => null,
         setModelPieChart = () => {},
         models: MODELS,
@@ -45,6 +61,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         runtimeDialogCoordinator,
         showNotification = runtimeDialogCoordinator.showNotification,
         showCustomConfirm = async () => false,
+        showCustomPrompt = async () => null,
         toggleModal = () => {},
         callApiWithSchema = async () => [],
         getActiveConversation = () => null,
@@ -60,11 +77,14 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
     let conversations;
     let folders;
     let personalMemories;
+    let memoryState;
+    let memoryUsageConversationFilter = 'all';
     const syncState = () => {
         config = getConfig();
         conversations = getConversations();
         folders = getFolders();
         personalMemories = getPersonalMemories();
+        memoryState = typeof getMemoryState === 'function' ? getMemoryState() : null;
     };
     syncState();
 
@@ -72,26 +92,183 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
             syncState();
             const container = ALL_ELEMENTS.personalMemoryList;
             container.innerHTML = '';
-            personalMemories.forEach(memory => {
+            const usingV2Memory = Boolean(memoryState);
+            const profileEntries = usingV2Memory ? (memoryState.profileEntries || []) : personalMemories;
+            const profileCandidates = usingV2Memory ? (memoryState.profileCandidates || []) : [];
+            const legacyInbox = usingV2Memory ? (memoryState.legacyInbox || []) : [];
+            const suppressionRules = usingV2Memory ? (memoryState.suppressionRules || []) : [];
+            const topicSummaries = usingV2Memory ? (memoryState.longTermTopicSummaries || []) : [];
+            const memoryUsageRecords = usingV2Memory ? (memoryState.memoryUsageRecords || []) : [];
+            const activeProfileEntries = profileEntries.filter(memory => memory.status === 'active');
+            profileEntries.forEach(memory => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                 item.innerHTML = `
-    <div class="flex items-center gap-2 flex-1 min-w-0"> <!-- ✨ 修改: 加上 min-w-0 確保 flex 容器可被壓縮 -->
-        <input type="checkbox" class="memory-enabled-checkbox w-4 h-4" data-id="${memory.id}" ${memory.enabled ? 'checked' : ''}>
-        <span class="text-sm word-break: break-word;">${memory.content}</span> <!-- ✨ 修改: 移除 truncate 並允許換行 -->
+    <div class="flex items-center gap-2 flex-1 min-w-0">
+        <input type="checkbox" class="memory-enabled-checkbox w-4 h-4" data-id="${memory.id}" ${(usingV2Memory ? memory.status === 'active' : memory.enabled) ? 'checked' : ''} ${usingV2Memory && memory.status === 'superseded' ? 'disabled' : ''}>
+        <span class="text-sm word-break: break-word;"></span>
     </div>
+    ${usingV2Memory && memory.status === 'active' ? `<button class="replace-memory-btn text-[var(--button-primary-bg)] hover:opacity-80 text-sm" data-id="${memory.id}">取代</button>` : ''}
     <button class="delete-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
     </button>
                 `;
+                const contentElement = item.querySelector('span');
+                if (contentElement) contentElement.textContent = memory.status === 'superseded'
+                    ? `已被新記憶取代：${memory.content}`
+                    : memory.content;
                 container.appendChild(item);
             });
+            profileCandidates.forEach(candidate => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                item.innerHTML = `
+    <div class="flex flex-col gap-1 flex-1 min-w-0">
+        <span class="text-xs text-[var(--text-secondary)]">候選記憶 · 請確認</span>
+        <span class="text-sm word-break: break-word;"></span>
+    </div>
+    <button class="approve-memory-candidate-btn text-[var(--button-primary-bg)] text-sm" data-id="${candidate.id}">保留</button>
+    ${candidate.suggestedSupersedes?.length ? `<button class="approve-superseding-candidate-btn text-[var(--button-primary-bg)] text-sm" data-id="${candidate.id}">採用取代建議</button>` : ''}
+    <button class="dismiss-memory-candidate-btn text-red-600 hover:text-red-800" data-id="${candidate.id}">忽略</button>
+    <div class="candidate-replacement-list flex flex-wrap gap-1 basis-full"></div>`;
+                item.querySelectorAll('span')[1].textContent = candidate.content;
+                const replacementList = item.querySelector('.candidate-replacement-list');
+                const suggestedEntries = activeProfileEntries.filter(memory => candidate.suggestedSupersedes?.includes(memory.id));
+                if (replacementList && suggestedEntries.length > 0) {
+                    const suggestion = document.createElement('span');
+                    suggestion.className = 'text-xs text-[var(--text-secondary)] basis-full';
+                    suggestion.textContent = `模型建議取代：${suggestedEntries.map(memory => `「${memory.content}」`).join('、')}（需你確認）`;
+                    replacementList.appendChild(suggestion);
+                }
+                if (replacementList && activeProfileEntries.length > 0) {
+                    const label = document.createElement('span');
+                    label.className = 'text-xs text-[var(--text-secondary)] basis-full';
+                    label.textContent = '若它取代既有偏好，請選擇要停用的舊記憶：';
+                    replacementList.appendChild(label);
+                    activeProfileEntries.forEach(memory => {
+                        const button = document.createElement('button');
+                        button.className = 'replace-candidate-memory-btn text-xs px-2 py-1 rounded border border-[var(--border-color)] hover:bg-[var(--active-bg)]';
+                        button.dataset.candidateId = candidate.id;
+                        button.dataset.supersedeId = memory.id;
+                        button.textContent = `取代「${memory.content.slice(0, 36)}${memory.content.length > 36 ? '…' : ''}」`;
+                        replacementList.appendChild(button);
+                    });
+                }
+                container.appendChild(item);
+            });
+            legacyInbox.forEach(memory => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                item.innerHTML = `
+    <div class="flex flex-col gap-1 flex-1 min-w-0">
+        <span class="text-xs text-[var(--text-secondary)]">待審核的舊記憶</span>
+        <span class="text-sm word-break: break-word;"></span>
+    </div>
+    <button class="review-memory-btn text-[var(--button-primary-bg)] text-sm" data-id="${memory.id}">保留</button>
+    <button class="delete-legacy-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">刪除</button>`;
+                item.querySelectorAll('span')[1].textContent = memory.content;
+                container.appendChild(item);
+            });
+            if (usingV2Memory) {
+                const derivedSection = document.createElement('div');
+                derivedSection.className = 'mt-5 pt-4 border-t border-[var(--border-color)] space-y-2';
+                if (topicSummaries.length > 0) {
+                    const heading = document.createElement('p');
+                    heading.className = 'text-xs font-medium text-[var(--text-secondary)]';
+                    heading.textContent = '長期主題摘要';
+                    derivedSection.appendChild(heading);
+                    topicSummaries.forEach(topic => {
+                        const item = document.createElement('div');
+                        item.className = 'flex items-start justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                        item.innerHTML = `<div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-medium"></span><span class="text-xs text-[var(--text-secondary)] word-break: break-word;"></span></div><button class="delete-topic-summary-btn text-red-600 hover:text-red-800 text-sm" data-id="${topic.id}">刪除</button>`;
+                        const spans = item.querySelectorAll('span');
+                        spans[0].textContent = topic.topic || '未命名主題';
+                        spans[1].textContent = topic.summary || '';
+                        derivedSection.appendChild(item);
+                    });
+                }
+                if (suppressionRules.length > 0) {
+                    const heading = document.createElement('p');
+                    heading.className = 'text-xs font-medium text-[var(--text-secondary)] mt-3';
+                    heading.textContent = '不主動使用的記憶規則';
+                    derivedSection.appendChild(heading);
+                    suppressionRules.forEach((rule, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                        item.innerHTML = `<span class="text-sm"></span>${rule.id ? `<button class="edit-suppression-rule-btn text-[var(--button-primary-bg)] hover:opacity-80 text-sm" data-id="${rule.id}">編輯</button>` : ''}<button class="delete-suppression-rule-btn text-red-600 hover:text-red-800 text-sm" data-id="${rule.id || ''}" data-index="${index}">刪除</button>`;
+                        item.querySelector('span').textContent = rule.instruction || (rule.type === 'do-not-mention' && rule.target === 'profile-name'
+                            ? '不主動使用已儲存的姓名稱呼'
+                            : `${rule.type || 'suppression'}: ${rule.target || ''}`);
+                        derivedSection.appendChild(item);
+                    });
+                }
+                const addRuleButton = document.createElement('button');
+                addRuleButton.className = 'add-suppression-rule-btn text-sm px-3 py-1.5 rounded-md btn-outline-white';
+                addRuleButton.textContent = '新增不主動使用規則';
+                derivedSection.appendChild(addRuleButton);
+                if (memoryUsageRecords.length > 0) {
+                    const heading = document.createElement('p');
+                    heading.className = 'text-xs font-medium text-[var(--text-secondary)] mt-3';
+                    heading.textContent = '回覆的記憶使用紀錄（只在設定頁顯示）';
+                    derivedSection.appendChild(heading);
+                    const conversationIds = [...new Set(memoryUsageRecords.map(record => record?.conversationId).filter(Boolean))];
+                    const controls = document.createElement('div');
+                    controls.className = 'flex items-center gap-2';
+                    const filter = document.createElement('select');
+                    filter.className = 'memory-usage-conversation-filter flex-1 p-1.5 rounded-md border border-[var(--border-color)] bg-[var(--input-field-bg)] text-sm';
+                    filter.innerHTML = '<option value="all">全部聊天室</option>';
+                    conversationIds.forEach(conversationId => {
+                        const conversation = conversations.find(item => item.id === conversationId);
+                        const option = document.createElement('option');
+                        option.value = conversationId;
+                        option.textContent = conversation?.title || `聊天室 ${conversationId.slice(0, 8)}`;
+                        filter.appendChild(option);
+                    });
+                    if (!conversationIds.includes(memoryUsageConversationFilter)) memoryUsageConversationFilter = 'all';
+                    filter.value = memoryUsageConversationFilter;
+                    const clearButton = document.createElement('button');
+                    clearButton.className = 'clear-memory-usage-btn text-red-600 hover:text-red-800 text-sm';
+                    clearButton.textContent = memoryUsageConversationFilter === 'all' ? '清除全部' : '清除目前篩選';
+                    controls.append(filter, clearButton);
+                    derivedSection.appendChild(controls);
+                    memoryUsageRecords
+                        .filter(record => memoryUsageConversationFilter === 'all' || record?.conversationId === memoryUsageConversationFilter)
+                        .slice(-12).reverse().forEach(record => {
+                        const item = document.createElement('div');
+                        item.className = 'flex flex-col gap-1 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                        const response = conversations
+                            .flatMap(conversation => conversation.messages || [])
+                            .find(message => message.id === record.responseMessageId);
+                        const responseText = (response?.parts || [])
+                            .map(part => part.text || '')
+                            .join(' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                        item.innerHTML = '<span class="text-xs text-[var(--text-secondary)]"></span><span class="text-sm font-medium"></span><span class="text-xs word-break: break-word;"></span>';
+                        const spans = item.querySelectorAll('span');
+                        spans[0].textContent = record.createdAt || '';
+                        spans[1].textContent = responseText ? `回覆：${responseText.slice(0, 100)}${responseText.length > 100 ? '…' : ''}` : '已完成的回覆';
+                        spans[2].textContent = (record.sources || []).map(source => source.label).filter(Boolean).join(' · ');
+                        derivedSection.appendChild(item);
+                    });
+                }
+                container.appendChild(derivedSection);
+            }
             container.querySelectorAll('.memory-enabled-checkbox').forEach(cb => {
                 cb.addEventListener('change', async (e) => {
                     const id = e.target.dataset.id;
-                    const memory = personalMemories.find(m => m.id === id);
+                    const memory = profileEntries.find(m => m.id === id);
                     if (memory) {
-                        memory.enabled = e.target.checked;
+                        if (usingV2Memory) {
+                            replaceMemoryState({
+                                ...memoryState,
+                                profileEntries: profileEntries.map(entry => entry.id === id
+                                    ? { ...entry, status: e.target.checked ? 'active' : 'inactive' }
+                                    : entry)
+                            });
+                        } else {
+                            memory.enabled = e.target.checked;
+                        }
                         await saveAppData();
                     }
                 });
@@ -100,12 +277,175 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 btn.addEventListener('click', async (e) => {
                     const id = e.currentTarget.dataset.id;
                     if (await showCustomConfirm(i18n[config.uiLanguage].confirmDeleteMemory || '確定刪除此記憶？')) {
-                        personalMemories = replacePersonalMemories(
-                            personalMemories.filter(m => m.id !== id)
-                        );
+                        if (usingV2Memory) {
+                            replaceMemoryState(removeProfileEntry(memoryState, { entryId: id }));
+                        } else {
+                            personalMemories = replacePersonalMemories(
+                                personalMemories.filter(m => m.id !== id)
+                            );
+                        }
                         await saveAppData();
                         renderPersonalMemoryList();
                     }
+                });
+            });
+            container.querySelectorAll('.replace-memory-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    const memory = profileEntries.find(entry => entry.id === id);
+                    if (!memory) return;
+                    const content = await showCustomPrompt(`目前記憶：${memory.content}\n輸入新的內容後，舊記憶會保留為「已被取代」，不會再影響回覆。`, '取代記憶');
+                    if (!content) return;
+                    replaceMemoryState(addConfirmedProfileEntry(memoryState, {
+                        id: crypto.randomUUID(),
+                        content,
+                        supersededEntryIds: [id]
+                    }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.review-memory-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    const legacy = legacyInbox.find(memory => memory.id === id);
+                    if (!legacy) return;
+                    replaceMemoryState({
+                        ...addConfirmedProfileEntry(memoryState, { id: crypto.randomUUID(), content: legacy.content }),
+                        legacyInbox: legacyInbox.filter(memory => memory.id !== id)
+                    });
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.approve-memory-candidate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    replaceMemoryState(approveProfileCandidate(memoryState, {
+                        candidateId: id,
+                        profileEntryId: crypto.randomUUID()
+                    }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.replace-candidate-memory-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const { candidateId, supersedeId } = e.currentTarget.dataset;
+                    replaceMemoryState(approveProfileCandidate(memoryState, {
+                        candidateId,
+                        profileEntryId: crypto.randomUUID(),
+                        supersededEntryIds: [supersedeId]
+                    }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.approve-superseding-candidate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const candidateId = e.currentTarget.dataset.id;
+                    const candidate = profileCandidates.find(item => item.id === candidateId);
+                    const supersededEntryIds = (candidate?.suggestedSupersedes || [])
+                        .filter(id => activeProfileEntries.some(entry => entry.id === id));
+                    if (!candidate || supersededEntryIds.length === 0) return;
+                    replaceMemoryState(approveProfileCandidate(memoryState, {
+                        candidateId,
+                        profileEntryId: crypto.randomUUID(),
+                        supersededEntryIds
+                    }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.dismiss-memory-candidate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    replaceMemoryState({
+                        ...memoryState,
+                        profileCandidates: profileCandidates.filter(candidate => candidate.id !== id)
+                    });
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.delete-legacy-memory-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    if (await showCustomConfirm(i18n[config.uiLanguage].confirmDeleteMemory || '確定刪除此記憶？')) {
+                        replaceMemoryState({
+                            ...memoryState,
+                            legacyInbox: legacyInbox.filter(memory => memory.id !== id)
+                        });
+                        await saveAppData();
+                        renderPersonalMemoryList();
+                    }
+                });
+            });
+            container.querySelectorAll('.delete-topic-summary-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    replaceMemoryState({
+                        ...memoryState,
+                        longTermTopicSummaries: topicSummaries.filter(topic => topic.id !== id)
+                    });
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.delete-suppression-rule-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const ruleId = e.currentTarget.dataset.id;
+                    const index = Number(e.currentTarget.dataset.index);
+                    replaceMemoryState(ruleId
+                        ? removeSuppressionRule(memoryState, { ruleId })
+                        : {
+                            ...memoryState,
+                            suppressionRules: suppressionRules.filter((_rule, ruleIndex) => ruleIndex !== index)
+                        });
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.add-suppression-rule-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const instruction = await showCustomPrompt('例如：不要主動提起我的姓名、健康資訊或其他私人資料。這條規則只會作為必要的回覆限制。', '新增不主動使用規則');
+                    if (!instruction) return;
+                    replaceMemoryState(addCustomSuppressionRule(memoryState, {
+                        id: crypto.randomUUID(),
+                        instruction
+                    }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.edit-suppression-rule-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const ruleId = e.currentTarget.dataset.id;
+                    const rule = suppressionRules.find(item => item.id === ruleId);
+                    if (!rule) return;
+                    const currentText = rule.instruction || '不主動使用已儲存的姓名稱呼';
+                    const instruction = await showCustomPrompt(`目前規則：${currentText}\n輸入新的規則內容。`, '編輯不主動使用規則');
+                    if (!instruction) return;
+                    replaceMemoryState(updateSuppressionRule(memoryState, { ruleId, instruction }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.memory-usage-conversation-filter').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    memoryUsageConversationFilter = e.target.value || 'all';
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.clear-memory-usage-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const scope = memoryUsageConversationFilter === 'all' ? null : memoryUsageConversationFilter;
+                    const prompt = scope ? '清除這個聊天室的記憶使用紀錄？' : '清除全部記憶使用紀錄？';
+                    if (!await showCustomConfirm(prompt)) return;
+                    replaceMemoryState(removeMemoryUsageRecords(memoryState, { conversationId: scope }));
+                    if (scope) memoryUsageConversationFilter = 'all';
+                    await saveAppData();
+                    renderPersonalMemoryList();
                 });
             });
         };
@@ -238,6 +578,37 @@ ${JSON.stringify(potentialMemories, null, 2)}
         };
         const extractPersonalMemory = async (userMessage, aiResponse) => {
             syncState();
+            if (config.memorySystemVersion === 2 && typeof captureCompletedTurn === 'function' && typeof hashString === 'function') {
+                const conversation = getActiveConversation();
+                const allTurns = (conversation?.messages || []).map((message, index) => ({
+                    id: message.id || `${conversation.id}:${index}`,
+                    role: message.role,
+                    text: (message.parts || []).map(part => part.text || '').join('\n').trim(),
+                    attachments: (message.parts || []).flatMap((part, partIndex) => part?.inlineData?.data ? [{
+                        partIndex,
+                        name: part.inlineData.name || 'attachment',
+                        mimeType: part.inlineData.mimeType || 'application/octet-stream',
+                        data: part.inlineData.data,
+                        size: part.inlineData.size || 0
+                    }] : [])
+                })).filter(turn => turn.text || turn.attachments.length > 0);
+                const previousState = (memoryState?.recentConversationStates || [])
+                    .find(state => state.conversationId === conversation?.id);
+                const coveredIndex = previousState?.coveredThroughMessageId
+                    ? allTurns.findIndex(turn => turn.id === previousState.coveredThroughMessageId)
+                    : -1;
+                const turns = allTurns.slice(coveredIndex + 1);
+                if (turns.length === 0) return;
+                const sourceHash = await hashString(JSON.stringify(turns));
+                const captureOptions = {
+                    conversationId: conversation.id,
+                    sourceHash,
+                    turns
+                };
+                if (typeof enqueueMemoryCapture === 'function') enqueueMemoryCapture(captureOptions);
+                else await captureCompletedTurn(captureOptions);
+                return;
+            }
             const prompt = `# 核心身份：首席用戶畫像分析師
 你的唯一職責是從用戶的發言中，提煉出**永恆的、可獨立存在的用戶特質**。你不是對話記錄員，你是一位為建立長期、精準用戶畫像而服務的分析師。
 

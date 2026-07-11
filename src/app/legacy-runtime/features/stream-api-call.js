@@ -1,4 +1,6 @@
 import { appendStepPlanAttachmentContent } from './model-request-formatting.js';
+import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
+import { snapshotMemoryContextUsage } from '../../runtime/memory/memory-usage-recording.js';
 const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/v1/chat/completions';
 
 const LANGUAGE_INSTRUCTIONS = {
@@ -153,6 +155,7 @@ const buildSystemInstruction = ({
   conversation,
   astras,
   personalMemories,
+  memoryContext,
   additionalSystemInstruction,
   chartAuthoringGuidance
 }) => {
@@ -172,7 +175,12 @@ const buildSystemInstruction = ({
     systemInstruction = { parts: [{ text: baseInstructionText }] };
   }
 
-  if (config.memoryEnabled1) {
+  if (config.memorySystemVersion === 2 && memoryContext) {
+    systemInstruction = appendInstructionText(
+      systemInstruction,
+      formatMemoryContextForModel(memoryContext)
+    );
+  } else if (config.memoryEnabled1) {
     const enabledMemories = personalMemories
       .filter((memory) => memory.enabled)
       .map((memory) => memory.content)
@@ -539,6 +547,7 @@ export function createStreamApiCall({
   getConfig,
   getAstras,
   getPersonalMemories,
+  getMemoryContext = () => null,
   modelSupportsUploadedFile,
   modelSupportsVision,
   getModelReasoningConfig = () => null,
@@ -573,14 +582,41 @@ export function createStreamApiCall({
     const reasoningEffort = reasoningConfig
       ? normalizeReasoningEffort(modelInfo, requestOptions.reasoningEffort ?? conversation.reasoningEffort)
       : null;
+    const config = getConfig();
+    let memoryContext = null;
+    if (config.memorySystemVersion === 2) {
+      try {
+        memoryContext = await getMemoryContext({
+          config,
+          conversation,
+          currentMessage: currentMessageForApi
+        });
+      } catch (error) {
+        warn('Memory context retrieval failed; continuing without it.', error);
+      }
+    }
+    if (memoryContext) {
+      const sources = snapshotMemoryContextUsage(memoryContext);
+      if (requestOptions.memoryUsageTarget) {
+        requestOptions.memoryUsageTarget._memoryUsageSources = sources;
+      } else if (sources.length > 0) {
+        Object.defineProperty(conversation, '_memoryUsageSources', {
+          value: sources,
+          configurable: true,
+          writable: true,
+          enumerable: false
+        });
+      }
+    }
     const chartAuthoringGuidance = await getRuntimeChartAuthoringGuidance(
       getMessageTextForGuidance(currentMessageForApi)
     );
     const systemInstruction = buildSystemInstruction({
-      config: getConfig(),
+      config,
       conversation,
       astras: getAstras(),
       personalMemories: getPersonalMemories(),
+      memoryContext,
       additionalSystemInstruction: requestOptions.additionalSystemInstruction,
       chartAuthoringGuidance
     });

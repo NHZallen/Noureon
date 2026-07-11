@@ -64,6 +64,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     userBubbleColor: 'green',
     autoNaming: true,
     memoryEnabled1: false,
+    historyRecallEnabled: false,
     enableAutoMemory: true,
     uiLanguage: 'en',
     aiDefaultLanguage: 'zh-TW',

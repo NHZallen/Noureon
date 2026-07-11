@@ -55,6 +55,46 @@ test('successful finalization completes the view before queuing persistence and 
   ]);
 });
 
+test('finalization records selected memory context locally and never persists the transient handoff on the chat message', async () => {
+  const backgroundTasks = [];
+  const recorded = [];
+  const finalAiMessage = {
+    id: 'assistant-1',
+    role: 'model',
+    parts: [{ text: '' }],
+    createdAt: 'created',
+    _memoryUsageSources: [{ type: 'profile-entry', id: 'language', label: 'Use Traditional Chinese.' }]
+  };
+  await finalizeAssistantResponse({
+    fullResponse: 'Hello',
+    finalAiMessage,
+    conversation: { id: 'conversation-1', messages: [] },
+    userMessageObject: {},
+    userMessageText: 'Hi',
+    signal: new AbortController().signal,
+    responseUsesCouncil: false,
+    responseRenderedInRealtime: false,
+    targetElement: { dataset: {} },
+    uiLanguage: 'en',
+    persistAppData: async () => {},
+    completeSingleModelView: async () => {},
+    restoreRealtimeCouncilDetails: () => {},
+    renderRealtimeCouncilFinal: () => {},
+    playbackCouncilResponse: async () => {},
+    extractPersonalMemory: async () => {},
+    recordMemoryUsage: async value => recorded.push(value),
+    queueBackgroundTask: task => backgroundTasks.push(task)
+  });
+
+  assert.equal('_memoryUsageSources' in finalAiMessage, false);
+  await Promise.all(backgroundTasks.map(task => task()));
+  assert.deepEqual(recorded, [{
+    conversationId: 'conversation-1',
+    responseMessageId: 'assistant-1',
+    sources: [{ type: 'profile-entry', id: 'language', label: 'Use Traditional Chinese.' }]
+  }]);
+});
+
 test('council finalization attaches metadata and preserves realtime/buffered view handoffs', async () => {
   const realtimeCalls = [];
   const realtimeElement = { dataset: { streamRendered: 'true' } };
