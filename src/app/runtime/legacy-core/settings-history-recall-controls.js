@@ -5,6 +5,7 @@ export function createSettingsHistoryRecallControls({
   getConfig,
   getText = (_key, fallback) => fallback
 } = {}) {
+  let statusUpdatesBound = false;
   const formatText = (key, fallback, values = {}) => Object.entries(values).reduce(
     (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
     getText(key, fallback)
@@ -29,6 +30,12 @@ export function createSettingsHistoryRecallControls({
       ? legacyRuntimeContext.resolveOptionalBinding('memory.rebuildHistoryIndex')
       : null
   );
+  const auditHistoryIndex = () => typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
+    ? legacyRuntimeContext.resolveOptionalBinding('memory.auditHistoryIndex')
+    : null;
+  const optimizeHistoryIndex = () => typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
+    ? legacyRuntimeContext.resolveOptionalBinding('memory.optimizeHistoryIndex')
+    : null;
 
   const ensureHistoryRecallSettingsControl = () => {
     const existingToggle = document.getElementById('history-recall-toggle-switch');
@@ -36,6 +43,7 @@ export function createSettingsHistoryRecallControls({
       elements.historyRecallToggleSwitch = existingToggle;
       elements.historyRecallStatus = document.getElementById('history-recall-status');
       elements.rebuildHistoryIndexButton = document.getElementById('rebuild-history-index-button');
+      elements.auditHistoryIndexButton = document.getElementById('audit-history-index-button');
       const title = document.getElementById('history-recall-title');
       const description = document.getElementById('history-recall-description');
       if (title) {
@@ -49,6 +57,10 @@ export function createSettingsHistoryRecallControls({
       if (elements.rebuildHistoryIndexButton) {
         elements.rebuildHistoryIndexButton.dataset.langKey = 'historyRecallBuildIndex';
         elements.rebuildHistoryIndexButton.textContent = getText('historyRecallBuildIndex', '建立本機索引');
+      }
+      if (elements.auditHistoryIndexButton) {
+        elements.auditHistoryIndexButton.dataset.langKey = 'historyRecallAuditIndex';
+        elements.auditHistoryIndexButton.textContent = getText('historyRecallAuditIndex', '檢查本機索引');
       }
       return;
     }
@@ -67,7 +79,10 @@ export function createSettingsHistoryRecallControls({
       </div>
       <p id="history-recall-description" class="text-xs text-[var(--text-secondary)]" data-lang-key="historyRecallDescription">${getText('historyRecallDescription', '開啟後，這台裝置會把目前問題傳給 Gemini Embedding 2，用本機索引找最多三段相關的舊對話摘要。聊天畫面不會顯示來源。')}</p>
       <p id="history-recall-status" class="text-xs text-[var(--text-secondary)]"></p>
-      <button id="rebuild-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallBuildIndex">${getText('historyRecallBuildIndex', '建立本機索引')}</button>
+      <div class="flex flex-wrap gap-2">
+        <button id="audit-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallAuditIndex">${getText('historyRecallAuditIndex', '檢查本機索引')}</button>
+        <button id="rebuild-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallBuildIndex">${getText('historyRecallBuildIndex', '建立本機完整索引')}</button>
+      </div>
     `;
     const autoMemoryRow = elements.autoMemoryToggleSwitch?.closest?.('.flex.items-center.justify-between');
     if (autoMemoryRow?.after) autoMemoryRow.after(container);
@@ -75,9 +90,10 @@ export function createSettingsHistoryRecallControls({
     elements.historyRecallToggleSwitch = container.querySelector('#history-recall-toggle-switch');
     elements.historyRecallStatus = container.querySelector('#history-recall-status');
     elements.rebuildHistoryIndexButton = container.querySelector('#rebuild-history-index-button');
+    elements.auditHistoryIndexButton = container.querySelector('#audit-history-index-button');
   };
 
-  const refreshHistoryRecallStatus = async () => {
+  const refreshHistoryRecallStatus = async ({ preferCurrentCount = false } = {}) => {
     const statusElement = elements.historyRecallStatus;
     if (!statusElement) return;
     const getStatus = getHistoryRecallStatus();
@@ -91,7 +107,7 @@ export function createSettingsHistoryRecallControls({
       statusElement.textContent = formatText('historyRecallStatusBuilding', '建立索引中：{completed}／{total}。完成 {total}／{total} 才表示全部完成。', rebuild);
       return;
     }
-    if (rebuild.state === 'complete') {
+    if (rebuild.state === 'complete' && !preferCurrentCount) {
       statusElement.textContent = formatText('historyRecallStatusComplete', '索引已完成：{completed}／{total}（新增 {indexed}，略過 {skipped}，失敗 {failed}）。', rebuild);
       return;
     }
@@ -102,6 +118,14 @@ export function createSettingsHistoryRecallControls({
     statusElement.textContent = getConfig().historyRecallEnabled
       ? formatText('historyRecallStatusEnabled', '已啟用，本機索引有 {count} 筆對話膠囊。', { count: status.indexRecordCount })
       : getText('historyRecallStatusDisabled', '目前關閉；不會查詢舊對話或呼叫 Embedding。');
+  };
+
+  const bindHistoryIndexStatusUpdates = () => {
+    if (statusUpdatesBound || typeof document?.addEventListener !== 'function') return;
+    statusUpdatesBound = true;
+    document.addEventListener('noureon:history-index-changed', () => {
+      void refreshHistoryRecallStatus({ preferCurrentCount: true });
+    });
   };
 
   const resolveHistoryRecallEnabled = async ({ requested, showCustomConfirm }) => {
@@ -146,10 +170,59 @@ export function createSettingsHistoryRecallControls({
     });
   };
 
+  const bindHistoryIndexAudit = ({ showCustomDialog }) => {
+    const button = elements.auditHistoryIndexButton;
+    if (!button || button.dataset.memoryAuditBound === 'true') return;
+    button.dataset.memoryAuditBound = 'true';
+    button.addEventListener('click', async () => {
+      const audit = auditHistoryIndex();
+      if (typeof audit !== 'function') return;
+      button.disabled = true;
+      try {
+        const report = await audit();
+        const message = formatText(
+          'historyRecallAuditResult',
+          '正常：{healthy}\n缺少：{missing}\n過期：{outdated}\n重複或孤兒：{extra}',
+          report
+        );
+        if (!report.repairable) {
+          await showCustomDialog({
+            title: getText('historyRecallAuditTitle', '索引檢查結果'),
+            message: `${message}\n\n${getText('historyRecallAuditHealthy', '目前不需要優化。')}`,
+            buttons: [{ text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: () => false }]
+          });
+          return;
+        }
+        const shouldOptimize = await showCustomDialog({
+          title: getText('historyRecallAuditTitle', '索引檢查結果'),
+          message,
+          buttons: [
+            { text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md', value: () => false },
+            { text: getText('historyRecallOptimize', '優化'), class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
+          ]
+        });
+        if (!shouldOptimize) return;
+        const optimize = optimizeHistoryIndex();
+        if (typeof optimize !== 'function') return;
+        const result = await optimize();
+        await showCustomDialog({
+          title: getText('historyRecallOptimizeComplete', '索引優化完成'),
+          message: formatText('historyRecallOptimizeResult', '修復：{repaired}\n移除：{removed}\n未變更：{unchanged}\n失敗：{failed}', result),
+          buttons: [{ text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: () => true }]
+        });
+      } finally {
+        button.disabled = false;
+        await refreshHistoryRecallStatus({ preferCurrentCount: true });
+      }
+    });
+  };
+
   return {
     ensureHistoryRecallSettingsControl,
     refreshHistoryRecallStatus,
     resolveHistoryRecallEnabled,
-    bindHistoryIndexRebuild
+    bindHistoryIndexRebuild,
+    bindHistoryIndexAudit,
+    bindHistoryIndexStatusUpdates
   };
 }

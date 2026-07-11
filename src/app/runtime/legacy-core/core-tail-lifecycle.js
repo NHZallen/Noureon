@@ -934,6 +934,18 @@ function setupMessageIntersectionObserver() {
             showNotification,
             showCoordinatedNotification: (...args) => runtimeDialogCoordinator.showNotification(...args),
             deleteConversationsFromCloud,
+            invalidateConversationMemory: options => {
+                const invalidate = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
+                    ? legacyRuntimeContext.resolveOptionalBinding('memory.invalidateConversation')
+                    : null;
+                return typeof invalidate === 'function' ? invalidate(options) : Promise.resolve();
+            },
+            rebuildHistoryIndex: options => {
+                const rebuild = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
+                    ? legacyRuntimeContext.resolveOptionalBinding('memory.rebuildHistoryIndex')
+                    : null;
+                return typeof rebuild === 'function' ? rebuild(options) : Promise.resolve();
+            },
             toggleModal,
             formatFullTimestamp,
             renderUserText,
