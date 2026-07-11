@@ -1,3 +1,5 @@
+import { normalizeMemoryState } from '../memory/memory-schema.js';
+
 const resolveDefault = (value) => (typeof value === 'function' ? value() : value);
 
 export function normalizeFolderRecord(record, { defaultFolder } = {}) {
@@ -72,6 +74,7 @@ export function normalizeLoadedLegacyAppData({
       normalizeConversationModel
     })),
     astras: (data.astras || []).map(normalizeAstraRecord),
-    personalMemories: data.personalMemories || []
+    personalMemories: data.personalMemories || [],
+    memoryState: normalizeMemoryState(data)
   };
 }
