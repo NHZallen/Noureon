@@ -20,7 +20,9 @@ export function createMemoryCaptureService({
   getMemoryState,
   replaceMemoryState,
   indexCapsule = null,
+  indexMediaMemory = null,
   updateTopicSummary = null,
+  enrichTurns = null,
   createId = prefix => `${prefix}:${crypto.randomUUID()}`,
   now = () => new Date().toISOString()
 } = {}) {
@@ -46,9 +48,13 @@ export function createMemoryCaptureService({
         return { captured: false, reason: 'unchanged-source' };
       }
 
+      const enriched = typeof enrichTurns === 'function'
+        ? await enrichTurns({ conversationId, turns, memoryState, signal })
+        : { turns, mediaMemories: [] };
+      const captureTurns = enriched.turns || turns;
       const capture = await captureClient.capture({
         recentTurnSummary: existingRecentState?.recentTurnSummary || '',
-        turns,
+        turns: captureTurns,
         signal
       });
       const updatedAt = now();
@@ -92,9 +98,16 @@ export function createMemoryCaptureService({
           ...asArray(memoryState.conversationCapsules).filter(item => item.conversationId !== conversationId),
           capsule
         ],
+        mediaMemories: [
+          ...asArray(memoryState.mediaMemories),
+          ...asArray(enriched.mediaMemories)
+        ],
         profileCandidates: [...asArray(memoryState.profileCandidates), ...candidates]
       });
       if (typeof indexCapsule === 'function') await indexCapsule({ capsule, sourceHash });
+      if (typeof indexMediaMemory === 'function') {
+        for (const media of asArray(enriched.mediaForIndex)) await indexMediaMemory(media);
+      }
       if (allowTopicSummary && typeof updateTopicSummary === 'function') {
         await updateTopicSummary({ capsule, signal });
       }

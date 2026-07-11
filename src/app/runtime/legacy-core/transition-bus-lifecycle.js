@@ -15,6 +15,8 @@ import { createHistoryIndexRebuildService } from '../memory/history-index-rebuil
 import { createGeminiTopicSummaryClient } from '../memory/gemini-topic-summary-client.js';
 import { createTopicSummaryService } from '../memory/topic-summaries.js';
 import { createMemoryInvalidationService } from '../memory/memory-invalidation-service.js';
+import { createGeminiMediaMemoryClient } from '../memory/gemini-media-memory-client.js';
+import { createMediaMemoryService } from '../memory/media-memory-service.js';
 
 const requiredDependencies = [
     'window',
@@ -410,6 +412,14 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getApiKey: () => getApiKeyForProvider('gemini'),
         fetchImpl: fetch
     });
+    const mediaMemoryService = createMediaMemoryService({
+        mediaClient: createGeminiMediaMemoryClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        hashString,
+        createId: prefix => `${prefix}:${crypto.randomUUID()}`
+    });
     const topicSummaryService = createTopicSummaryService({
         index: historyIndex,
         topicClient: createGeminiTopicSummaryClient({
@@ -425,7 +435,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         replaceMemoryState,
         indexCapsule: options => historyIndexingService.indexCapsule(options),
+        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options),
         updateTopicSummary: options => topicSummaryService.updateForCapsule(options),
+        enrichTurns: options => mediaMemoryService.enrichTurns(options),
         createId: prefix => `${prefix}:${crypto.randomUUID()}`
     });
     const memoryInvalidationService = createMemoryInvalidationService({

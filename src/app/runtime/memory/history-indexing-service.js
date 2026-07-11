@@ -8,6 +8,13 @@ const capsuleText = capsule => [
   ...(capsule?.openQuestions || [])
 ].filter(Boolean).join('\n');
 
+const supportsMultimodalEmbedding = mimeType => new Set([
+  'image/png', 'image/jpeg',
+  'audio/mpeg', 'audio/mp3', 'audio/wav',
+  'video/mp4', 'video/quicktime',
+  'application/pdf'
+]).has(String(mimeType || '').toLowerCase());
+
 export function createHistoryIndexingService({
   index,
   embeddingClient,
@@ -47,6 +54,40 @@ export function createHistoryIndexingService({
       });
       if (persistence?.save) await persistence.save();
       return { indexed: true, recordId };
+    },
+    async indexMediaMemory({ mediaMemory, attachment } = {}) {
+      if (!mediaMemory?.id || !mediaMemory?.conversationId || !mediaMemory?.sourceHash) {
+        throw new TypeError('Media indexing requires a persisted media memory.');
+      }
+      const recordId = `media:${mediaMemory.id}`;
+      const existing = index.getAll().find(record => record.recordId === recordId);
+      if (existing?.sourceHash === mediaMemory.sourceHash) return { indexed: false, reason: 'unchanged-source' };
+      let vector;
+      let embeddingMode = 'multimodal';
+      try {
+        if (!supportsMultimodalEmbedding(attachment?.mimeType)) throw new Error('unsupported-media-embedding');
+        vector = await embeddingClient.embedMedia({ mimeType: attachment?.mimeType, data: attachment?.data });
+      } catch {
+        embeddingMode = 'text-fallback';
+        vector = await embeddingClient.embedHistoryDocument({
+          title: mediaMemory.name,
+          text: [mediaMemory.summary, ...(mediaMemory.keyFacts || [])].filter(Boolean).join('\n')
+        });
+      }
+      index.put({
+        recordId,
+        recordType: 'media-memory',
+        conversationId: mediaMemory.conversationId,
+        mediaMemoryId: mediaMemory.id,
+        sourceHash: mediaMemory.sourceHash,
+        vector,
+        embeddingMode,
+        normalizedKeywords: [mediaMemory.name, mediaMemory.summary, ...(mediaMemory.keyFacts || [])].filter(Boolean),
+        entities: [],
+        updatedAt: mediaMemory.createdAt || null
+      });
+      if (persistence?.save) await persistence.save();
+      return { indexed: true, recordId, embeddingMode };
     }
   };
 }

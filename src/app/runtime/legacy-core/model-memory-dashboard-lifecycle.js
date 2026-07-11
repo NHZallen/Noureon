@@ -350,8 +350,15 @@ ${JSON.stringify(potentialMemories, null, 2)}
                 const allTurns = (conversation?.messages || []).map((message, index) => ({
                     id: message.id || `${conversation.id}:${index}`,
                     role: message.role,
-                    text: (message.parts || []).map(part => part.text || '').join('\n').trim()
-                })).filter(turn => turn.text);
+                    text: (message.parts || []).map(part => part.text || '').join('\n').trim(),
+                    attachments: (message.parts || []).flatMap((part, partIndex) => part?.inlineData?.data ? [{
+                        partIndex,
+                        name: part.inlineData.name || 'attachment',
+                        mimeType: part.inlineData.mimeType || 'application/octet-stream',
+                        data: part.inlineData.data,
+                        size: part.inlineData.size || 0
+                    }] : [])
+                })).filter(turn => turn.text || turn.attachments.length > 0);
                 const previousState = (memoryState?.recentConversationStates || [])
                     .find(state => state.conversationId === conversation?.id);
                 const coveredIndex = previousState?.coveredThroughMessageId

@@ -33,6 +33,8 @@ export function createMemoryInvalidationService({
       recentConversationStates: asArray(memoryState.recentConversationStates)
         .filter(state => state?.conversationId !== conversationId),
       conversationCapsules: capsules.filter(capsule => capsule?.conversationId !== conversationId),
+      mediaMemories: asArray(memoryState.mediaMemories)
+        .filter(memory => memory?.conversationId !== conversationId && !invalidMessageIds.has(memory?.messageId)),
       profileCandidates: asArray(memoryState.profileCandidates)
         .filter(candidate => !intersects(asArray(candidate?.sourceRefs).map(ref => ref?.messageId), invalidMessageIds)),
       longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)

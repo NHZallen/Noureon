@@ -75,10 +75,21 @@ export function createHistoryRetrievalService({
         limit
       });
       const capsules = asArray(getMemoryState()?.conversationCapsules);
+      const mediaMemories = asArray(getMemoryState()?.mediaMemories);
 
       return matches
         .filter(match => match.score >= minimumScore)
         .map(match => {
+          if (match.recordType === 'media-memory') {
+            const media = mediaMemories.find(item => item.id === match.mediaMemoryId);
+            if (!media?.summary) return null;
+            return {
+              recordId: match.recordId,
+              summary: `${media.kind || 'media'} (${media.name || 'attachment'}): ${media.summary}`,
+              sourceIds: media.messageId ? [media.messageId] : [],
+              score: match.score
+            };
+          }
           const capsule = capsules.find(item => item.id === match.capsuleId);
           if (!capsule?.summary) return null;
           return {

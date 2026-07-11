@@ -47,3 +47,25 @@ test('indexes a changed conversation capsule once and persists the local index',
     updatedAt: null
   });
 });
+
+test('uses a multimodal embedding for supported media and a textual fallback otherwise', async () => {
+  const index = createHistoryIndexStore();
+  const calls = [];
+  const service = createHistoryIndexingService({
+    index,
+    embeddingClient: {
+      embedHistoryDocument: async input => { calls.push(['text', input]); return [0, 1]; },
+      embedMedia: async input => { calls.push(['media', input]); return [1, 0]; }
+    }
+  });
+  const image = { id: 'image-1', conversationId: 'chat-1', sourceHash: 'image-hash', name: 'cat.jpg', mimeType: 'image/jpeg', summary: 'A black cat.', keyFacts: [], createdAt: 'now' };
+  const document = { id: 'doc-1', conversationId: 'chat-1', sourceHash: 'doc-hash', name: 'notes.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', summary: 'Project notes.', keyFacts: [] };
+
+  const direct = await service.indexMediaMemory({ mediaMemory: image, attachment: { mimeType: 'image/jpeg', data: 'YQ==' } });
+  const fallback = await service.indexMediaMemory({ mediaMemory: document, attachment: { mimeType: document.mimeType, data: 'YQ==' } });
+
+  assert.deepEqual(direct, { indexed: true, recordId: 'media:image-1', embeddingMode: 'multimodal' });
+  assert.deepEqual(fallback, { indexed: true, recordId: 'media:doc-1', embeddingMode: 'text-fallback' });
+  assert.deepEqual(calls.map(call => call[0]), ['media', 'text']);
+  assert.equal(index.getAll().find(record => record.recordId === 'media:image-1').embeddingMode, 'multimodal');
+});

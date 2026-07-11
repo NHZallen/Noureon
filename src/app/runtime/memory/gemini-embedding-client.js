@@ -37,6 +37,21 @@ export function createGeminiEmbeddingClient({
     embedHistoryQuery: (query) => embedText(`task: search result | query: ${String(query || '')}`),
     embedHistoryDocument: ({ title = 'none', text = '' } = {}) => (
       embedText(`title: ${String(title || 'none')} | text: ${String(text || '')}`)
-    )
+    ),
+    async embedMedia({ mimeType, data } = {}) {
+      const apiKey = String(getApiKey() || '').trim();
+      if (!apiKey) throw new Error('Gemini API key is required for media embeddings.');
+      if (!mimeType || !data) throw new TypeError('Media embeddings require MIME type and bytes.');
+      const response = await fetchImpl(EMBEDDING_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          content: { parts: [{ inline_data: { mime_type: mimeType, data: String(data).replace(/^data:[^;]+;base64,/u, '') } }] },
+          output_dimensionality: EMBEDDING_DIMENSIONS
+        })
+      });
+      if (!response?.ok) throw new Error(`Gemini media embedding failed: ${response?.status || 'unknown'}`);
+      return asEmbeddingValues(await response.json());
+    }
   };
 }

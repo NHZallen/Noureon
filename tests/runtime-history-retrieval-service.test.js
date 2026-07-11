@@ -70,3 +70,21 @@ test('does not embed an ambiguous short fragment', async () => {
   assert.deepEqual(results, []);
   assert.equal(embeds, 0);
 });
+
+test('returns a matching media description as model-readable historical context', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'media:cat', recordType: 'media-memory', mediaMemoryId: 'cat', conversationId: 'old-chat', vector: [1, 0] });
+  const service = createHistoryRetrievalService({
+    index,
+    embeddingClient: { embedHistoryQuery: async () => [1, 0] },
+    getMemoryState: () => ({ mediaMemories: [{ id: 'cat', messageId: 'photo-message', kind: 'image', name: 'cat.jpg', summary: 'A black cat on a sofa.' }] })
+  });
+
+  const results = await service.retrieve({
+    currentMessage: { parts: [{ text: 'find the cat photo' }] },
+    conversation: { id: 'current-chat' }
+  });
+
+  assert.equal(results[0].summary, 'image (cat.jpg): A black cat on a sofa.');
+  assert.deepEqual(results[0].sourceIds, ['photo-message']);
+});

@@ -4,9 +4,16 @@ const toTurns = conversation => asArray(conversation?.messages)
   .map((message, index) => ({
     id: message?.id || `${conversation.id}:${index}`,
     role: message?.role,
-    text: asArray(message?.parts).map(part => part?.text || '').join('\n').trim()
+    text: asArray(message?.parts).map(part => part?.text || '').join('\n').trim(),
+    attachments: asArray(message?.parts).flatMap((part, partIndex) => part?.inlineData?.data ? [{
+      partIndex,
+      name: part.inlineData.name || 'attachment',
+      mimeType: part.inlineData.mimeType || 'application/octet-stream',
+      data: part.inlineData.data,
+      size: part.inlineData.size || 0
+    }] : [])
   }))
-  .filter(turn => turn.text);
+  .filter(turn => turn.text || turn.attachments.length > 0);
 
 export function createHistoryIndexRebuildService({
   getConversations,
