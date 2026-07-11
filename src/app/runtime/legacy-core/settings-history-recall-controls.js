@@ -44,6 +44,9 @@ export function createSettingsHistoryRecallControls({
       elements.historyRecallStatus = document.getElementById('history-recall-status');
       elements.rebuildHistoryIndexButton = document.getElementById('rebuild-history-index-button');
       elements.auditHistoryIndexButton = document.getElementById('audit-history-index-button');
+      elements.historyIndexProgress = document.getElementById('history-index-progress');
+      elements.historyIndexProgressBar = document.getElementById('history-index-progress-bar');
+      elements.historyIndexProgressText = document.getElementById('history-index-progress-text');
       const title = document.getElementById('history-recall-title');
       const description = document.getElementById('history-recall-description');
       if (title) {
@@ -79,9 +82,15 @@ export function createSettingsHistoryRecallControls({
       </div>
       <p id="history-recall-description" class="text-xs text-[var(--text-secondary)]" data-lang-key="historyRecallDescription">${getText('historyRecallDescription', '開啟後，這台裝置會把目前問題傳給 Gemini Embedding 2，用本機索引找最多三段相關的舊對話摘要。聊天畫面不會顯示來源。')}</p>
       <p id="history-recall-status" class="text-xs text-[var(--text-secondary)]"></p>
+      <div id="history-index-progress" class="hidden space-y-1" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="h-2 overflow-hidden rounded-full bg-[var(--hover-bg)]">
+          <div id="history-index-progress-bar" class="h-full rounded-full bg-[var(--button-primary-bg)] transition-[width] duration-200" style="width:0%"></div>
+        </div>
+        <p id="history-index-progress-text" class="text-xs text-[var(--text-secondary)]">0／0</p>
+      </div>
       <div class="flex flex-wrap gap-2">
-        <button id="audit-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallAuditIndex">${getText('historyRecallAuditIndex', '檢查本機索引')}</button>
         <button id="rebuild-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallBuildIndex">${getText('historyRecallBuildIndex', '建立本機完整索引')}</button>
+        <button id="audit-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallAuditIndex">${getText('historyRecallAuditIndex', '檢查本機索引')}</button>
       </div>
     `;
     const autoMemoryRow = elements.autoMemoryToggleSwitch?.closest?.('.flex.items-center.justify-between');
@@ -91,6 +100,29 @@ export function createSettingsHistoryRecallControls({
     elements.historyRecallStatus = container.querySelector('#history-recall-status');
     elements.rebuildHistoryIndexButton = container.querySelector('#rebuild-history-index-button');
     elements.auditHistoryIndexButton = container.querySelector('#audit-history-index-button');
+    elements.historyIndexProgress = container.querySelector('#history-index-progress');
+    elements.historyIndexProgressBar = container.querySelector('#history-index-progress-bar');
+    elements.historyIndexProgressText = container.querySelector('#history-index-progress-text');
+  };
+
+  const setHistoryIndexControlsBusy = busy => {
+    if (elements.rebuildHistoryIndexButton) elements.rebuildHistoryIndexButton.disabled = busy;
+    if (elements.auditHistoryIndexButton) elements.auditHistoryIndexButton.disabled = busy;
+  };
+
+  const renderHistoryIndexProgress = status => {
+    const optimize = status?.optimize || {};
+    const rebuild = status?.rebuild || {};
+    const progress = optimize.state === 'running' ? optimize : rebuild;
+    const visible = progress.state === 'running' || progress.state === 'complete';
+    elements.historyIndexProgress?.classList.toggle?.('hidden', !visible);
+    if (!visible) return;
+    const total = Number(progress.total) || 0;
+    const completed = Math.min(Number(progress.completed) || 0, total || Number(progress.completed) || 0);
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : (progress.state === 'complete' ? 100 : 0);
+    if (elements.historyIndexProgressBar) elements.historyIndexProgressBar.style.width = `${percentage}%`;
+    if (elements.historyIndexProgressText) elements.historyIndexProgressText.textContent = `${completed}／${total}（${percentage}%）`;
+    elements.historyIndexProgress?.setAttribute('aria-valuenow', String(percentage));
   };
 
   const refreshHistoryRecallStatus = async ({ preferCurrentCount = false } = {}) => {
@@ -98,6 +130,7 @@ export function createSettingsHistoryRecallControls({
     if (!statusElement) return;
     const getStatus = getHistoryRecallStatus();
     const status = typeof getStatus === 'function' ? await getStatus() : null;
+    renderHistoryIndexProgress(status);
     if (!status?.consentLoaded || !status.indexLoaded) {
       statusElement.textContent = getText('historyRecallStatusLoading', '正在讀取此裝置的本機索引…');
       return;
@@ -158,13 +191,13 @@ export function createSettingsHistoryRecallControls({
       }
       const rebuild = rebuildHistoryIndex();
       if (typeof rebuild !== 'function') return;
-      button.disabled = true;
+      setHistoryIndexControlsBusy(true);
       const progressTimer = globalThis.setInterval(() => { void refreshHistoryRecallStatus(); }, 250);
       try {
         await rebuild();
       } finally {
         globalThis.clearInterval(progressTimer);
-        button.disabled = false;
+        setHistoryIndexControlsBusy(false);
         await refreshHistoryRecallStatus();
       }
     });
@@ -177,7 +210,7 @@ export function createSettingsHistoryRecallControls({
     button.addEventListener('click', async () => {
       const audit = auditHistoryIndex();
       if (typeof audit !== 'function') return;
-      button.disabled = true;
+      setHistoryIndexControlsBusy(true);
       try {
         const report = await audit();
         const message = formatText(
@@ -211,7 +244,7 @@ export function createSettingsHistoryRecallControls({
           buttons: [{ text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: () => true }]
         });
       } finally {
-        button.disabled = false;
+        setHistoryIndexControlsBusy(false);
         await refreshHistoryRecallStatus({ preferCurrentCount: true });
       }
     });
