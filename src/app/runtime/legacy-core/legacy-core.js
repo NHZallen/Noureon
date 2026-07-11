@@ -481,7 +481,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             elements: ALL_ELEMENTS,
             setTimeout,
             clearTimeout,
-            requestAnimationFrame
+            requestAnimationFrame,
+            getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback
         });
         const runtimeDialogCoordinator = createRuntimeDialogCoordinator({
             showNotification: (...args) => showNotification(...args),
