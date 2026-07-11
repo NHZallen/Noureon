@@ -38,9 +38,18 @@ export function createSettingsHistoryRecallControls({
       elements.rebuildHistoryIndexButton = document.getElementById('rebuild-history-index-button');
       const title = document.getElementById('history-recall-title');
       const description = document.getElementById('history-recall-description');
-      if (title) title.textContent = getText('historyRecallTitle', '跨對話回憶');
-      if (description) description.textContent = getText('historyRecallDescription', '開啟後，這台裝置會把目前問題傳給 Gemini Embedding 2，用本機索引找最多三段相關的舊對話摘要。聊天畫面不會顯示來源。');
-      if (elements.rebuildHistoryIndexButton) elements.rebuildHistoryIndexButton.textContent = getText('historyRecallBuildIndex', '建立本機索引');
+      if (title) {
+        title.dataset.langKey = 'historyRecallTitle';
+        title.textContent = getText('historyRecallTitle', '跨對話回憶');
+      }
+      if (description) {
+        description.dataset.langKey = 'historyRecallDescription';
+        description.textContent = getText('historyRecallDescription', '開啟後，這台裝置會把目前問題傳給 Gemini Embedding 2，用本機索引找最多三段相關的舊對話摘要。聊天畫面不會顯示來源。');
+      }
+      if (elements.rebuildHistoryIndexButton) {
+        elements.rebuildHistoryIndexButton.dataset.langKey = 'historyRecallBuildIndex';
+        elements.rebuildHistoryIndexButton.textContent = getText('historyRecallBuildIndex', '建立本機索引');
+      }
       return;
     }
     const section = document.getElementById('memory-section');
@@ -50,15 +59,15 @@ export function createSettingsHistoryRecallControls({
     container.className = 'mt-5 pt-5 border-t border-[var(--border-color)] space-y-2';
     container.innerHTML = `
       <div class="flex items-center justify-between">
-        <label id="history-recall-title" for="history-recall-toggle-switch" class="flex-1 text-sm font-medium">${getText('historyRecallTitle', '跨對話回憶')}</label>
+        <label id="history-recall-title" for="history-recall-toggle-switch" class="flex-1 text-sm font-medium" data-lang-key="historyRecallTitle">${getText('historyRecallTitle', '跨對話回憶')}</label>
         <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
           <input type="checkbox" id="history-recall-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
           <label for="history-recall-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
         </div>
       </div>
-      <p id="history-recall-description" class="text-xs text-[var(--text-secondary)]">${getText('historyRecallDescription', '開啟後，這台裝置會把目前問題傳給 Gemini Embedding 2，用本機索引找最多三段相關的舊對話摘要。聊天畫面不會顯示來源。')}</p>
+      <p id="history-recall-description" class="text-xs text-[var(--text-secondary)]" data-lang-key="historyRecallDescription">${getText('historyRecallDescription', '開啟後，這台裝置會把目前問題傳給 Gemini Embedding 2，用本機索引找最多三段相關的舊對話摘要。聊天畫面不會顯示來源。')}</p>
       <p id="history-recall-status" class="text-xs text-[var(--text-secondary)]"></p>
-      <button id="rebuild-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm">${getText('historyRecallBuildIndex', '建立本機索引')}</button>
+      <button id="rebuild-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallBuildIndex">${getText('historyRecallBuildIndex', '建立本機索引')}</button>
     `;
     const autoMemoryRow = elements.autoMemoryToggleSwitch?.closest?.('.flex.items-center.justify-between');
     if (autoMemoryRow?.after) autoMemoryRow.after(container);
