@@ -20,6 +20,7 @@ export function createMemoryCaptureService({
   getMemoryState,
   replaceMemoryState,
   indexCapsule = null,
+  updateTopicSummary = null,
   createId = prefix => `${prefix}:${crypto.randomUUID()}`,
   now = () => new Date().toISOString()
 } = {}) {
@@ -28,7 +29,14 @@ export function createMemoryCaptureService({
   if (typeof replaceMemoryState !== 'function') throw new TypeError('Memory capture service requires replaceMemoryState.');
 
   return {
-    async captureCompletedTurn({ conversationId, sourceHash, turns, signal, collectProfileCandidates = true } = {}) {
+    async captureCompletedTurn({
+      conversationId,
+      sourceHash,
+      turns,
+      signal,
+      collectProfileCandidates = true,
+      allowTopicSummary = true
+    } = {}) {
       if (!conversationId) throw new TypeError('Memory capture requires conversationId.');
       if (!sourceHash) throw new TypeError('Memory capture requires sourceHash.');
       const memoryState = getMemoryState() || {};
@@ -87,6 +95,9 @@ export function createMemoryCaptureService({
         profileCandidates: [...asArray(memoryState.profileCandidates), ...candidates]
       });
       if (typeof indexCapsule === 'function') await indexCapsule({ capsule, sourceHash });
+      if (allowTopicSummary && typeof updateTopicSummary === 'function') {
+        await updateTopicSummary({ capsule, signal });
+      }
       return { captured: true, capsuleId: capsule.id, candidateCount: candidates.length };
     }
   };

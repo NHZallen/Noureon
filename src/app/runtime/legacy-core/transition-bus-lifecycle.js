@@ -12,6 +12,8 @@ import { createHistoryRetrievalService } from '../memory/history-retrieval-servi
 import { createDeviceHistoryRecallConsent } from '../memory/device-history-recall-consent.js';
 import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
 import { createHistoryIndexRebuildService } from '../memory/history-index-rebuild-service.js';
+import { createGeminiTopicSummaryClient } from '../memory/gemini-topic-summary-client.js';
+import { createTopicSummaryService } from '../memory/topic-summaries.js';
 
 const requiredDependencies = [
     'window',
@@ -403,14 +405,26 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
         return savedMemoryState;
     };
-    const memoryCaptureService = createMemoryCaptureService({
-        captureClient: createGeminiMemoryCaptureClient({
+    const memoryCaptureClient = createGeminiMemoryCaptureClient({
+        getApiKey: () => getApiKeyForProvider('gemini'),
+        fetchImpl: fetch
+    });
+    const topicSummaryService = createTopicSummaryService({
+        index: historyIndex,
+        topicClient: createGeminiTopicSummaryClient({
             getApiKey: () => getApiKeyForProvider('gemini'),
             fetchImpl: fetch
         }),
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         replaceMemoryState,
+        createId: prefix => `${prefix}:${crypto.randomUUID()}`
+    });
+    const memoryCaptureService = createMemoryCaptureService({
+        captureClient: memoryCaptureClient,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        replaceMemoryState,
         indexCapsule: options => historyIndexingService.indexCapsule(options),
+        updateTopicSummary: options => topicSummaryService.updateForCapsule(options),
         createId: prefix => `${prefix}:${crypto.randomUUID()}`
     });
     const historyIndexRebuildService = createHistoryIndexRebuildService({

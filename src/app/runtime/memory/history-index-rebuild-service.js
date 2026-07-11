@@ -45,7 +45,8 @@ export function createHistoryIndexRebuildService({
               sourceHash,
               turns,
               signal,
-              collectProfileCandidates: false
+              collectProfileCandidates: false,
+              allowTopicSummary: false
             });
             if (result?.captured) indexed += 1;
             else skipped += 1;
