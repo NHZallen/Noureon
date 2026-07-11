@@ -3,6 +3,7 @@ import { normalizeLoadedLegacyConfig } from '../kernel/config-normalization.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
 import { mergeRemoteWorkspaceAppData } from '../../sync/cloud-sync-versioning.js';
 import { preserveLocalFolderUiState } from '../../sync/cloud-workspace-app-data.js';
+import { mergeSyncedMemoryState } from '../memory/memory-sync-projection.js';
 
 function preserveItemIdentity(currentItems = [], nextItems = []) {
   const currentById = new Map(currentItems.map(item => [item?.id, item]));
@@ -32,6 +33,7 @@ export function createCloudWorkspaceLiveLifecycle({
   applyCustomWallpaper,
   applyUiTheme,
   renderAll,
+  saveAppData = async () => {},
   busy = () => false,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay)
 } = {}) {
@@ -93,14 +95,22 @@ export function createCloudWorkspaceLiveLifecycle({
       return;
     }
     const responseActive = Boolean(busy());
-    configAccess.replaceConfig(normalizeLoadedLegacyConfig({
+    const normalizedConfig = normalizeLoadedLegacyConfig({
       currentConfig: configAccess.getConfig(),
       savedConfig: removeSensitiveConfig(savedConfig),
       models,
       maxCouncilModels,
       councilTranslatorCandidates: getCouncilTranslatorCandidates(),
       singleTranslatorCandidates: getSingleTranslatorCandidates()
-    }));
+    });
+    configAccess.replaceConfig(normalizedConfig);
+    if (normalizedConfig.memorySync) {
+      appDataStore.replaceMemoryState(mergeSyncedMemoryState(
+        appDataStore.getMemoryState?.() || {},
+        normalizedConfig.memorySync
+      ));
+      void saveAppData();
+    }
     applyCustomWallpaper();
     applyUiTheme();
     if (!responseActive) renderAll();

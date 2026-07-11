@@ -76,3 +76,26 @@ test('captures a completed turn once into separate recent state, capsule, and re
   assert.equal(memoryState.profileCandidates[0].status, 'review');
   assert.equal(memoryState.profileCandidates[0].confirmedByUser, false);
 });
+
+test('history rebuild capture never adds profile candidates from old conversations', async () => {
+  let memoryState = { recentConversationStates: [], conversationCapsules: [], profileCandidates: [] };
+  const service = createMemoryCaptureService({
+    captureClient: { capture: async () => ({
+      recentTurnSummary: 'summary',
+      capsule: { topic: 'topic', summary: 'summary', confirmedDecisions: [], openQuestions: [] },
+      profileCandidates: [{ kind: 'preference', content: 'candidate', extractionConfidence: 1, sourceTurnIndexes: [0] }]
+    }) },
+    getMemoryState: () => memoryState,
+    replaceMemoryState: next => { memoryState = next; },
+    createId: prefix => `${prefix}-id`
+  });
+
+  await service.captureCompletedTurn({
+    conversationId: 'old-chat',
+    sourceHash: 'old-hash',
+    turns: [{ id: 'message-1', role: 'user', text: 'old text' }],
+    collectProfileCandidates: false
+  });
+
+  assert.deepEqual(memoryState.profileCandidates, []);
+});

@@ -21,6 +21,7 @@ const expectedConfig = (defaultModelId) => ({
   memorySystemVersion: 2,
   memoryProfileEnabled: true,
   historyRecallEnabled: false,
+  memorySync: { version: 1, profileEntries: [], suppressionRules: [], longTermTopicSummaries: [] },
   memoryEnabled1: true,
   enableAutoMemory: true,
   customWallpaper: null,

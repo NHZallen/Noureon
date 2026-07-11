@@ -32,3 +32,34 @@ test('omits all profile entries when profile memory is disabled', () => {
 
   assert.deepEqual(context.profileEntries, []);
 });
+
+test('retrieves historical summaries only when history recall is enabled', async () => {
+  const calls = [];
+  const getMemoryContext = createCurrentMemoryContextProvider({
+    getMemoryState: () => ({
+      recentConversationStates: [{ conversationId: 'current', recentTurnSummary: 'current summary' }],
+      profileEntries: [],
+      suppressionRules: []
+    }),
+    retrieveHistory: async options => {
+      calls.push(options);
+      return [{ recordId: 'old', summary: 'relevant old discussion', sourceIds: ['message-1'] }];
+    }
+  });
+
+  const disabled = getMemoryContext({
+    config: { historyRecallEnabled: false },
+    conversation: { id: 'current' },
+    currentMessage: { parts: [{ text: 'question' }] }
+  });
+  assert.deepEqual(disabled.historyResults, []);
+
+  const enabled = await getMemoryContext({
+    config: { historyRecallEnabled: true },
+    conversation: { id: 'current' },
+    currentMessage: { parts: [{ text: 'question' }] }
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(enabled.currentChatSummary, 'current summary');
+  assert.deepEqual(enabled.historyResults, [{ recordId: 'old', summary: 'relevant old discussion', sourceIds: ['message-1'] }]);
+});

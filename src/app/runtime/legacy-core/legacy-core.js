@@ -869,7 +869,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             models:MODELS,
             maxCouncilModels:COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates,getSingleTranslatorCandidates,applyCustomWallpaper:()=>applyCustomWallpaper(),
-            applyUiTheme:()=>applyUiTheme(),renderAll,busy:()=>abortController&&getActiveConversation()
+            applyUiTheme:()=>applyUiTheme(),renderAll,saveAppData,busy:()=>abortController&&getActiveConversation()
         });
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,

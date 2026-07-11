@@ -28,7 +28,7 @@ export function createMemoryCaptureService({
   if (typeof replaceMemoryState !== 'function') throw new TypeError('Memory capture service requires replaceMemoryState.');
 
   return {
-    async captureCompletedTurn({ conversationId, sourceHash, turns, signal } = {}) {
+    async captureCompletedTurn({ conversationId, sourceHash, turns, signal, collectProfileCandidates = true } = {}) {
       if (!conversationId) throw new TypeError('Memory capture requires conversationId.');
       if (!sourceHash) throw new TypeError('Memory capture requires sourceHash.');
       const memoryState = getMemoryState() || {};
@@ -64,7 +64,7 @@ export function createMemoryCaptureService({
         sourceRefs: sourceRefsForTurns(turns),
         updatedAt
       };
-      const candidates = asArray(capture.profileCandidates).map(candidate => ({
+      const candidates = (collectProfileCandidates ? asArray(capture.profileCandidates) : []).map(candidate => ({
         id: createId('profile-candidate'),
         kind: candidate.kind,
         content: candidate.content,

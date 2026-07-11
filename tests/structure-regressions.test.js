@@ -704,7 +704,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 9);
+  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 11);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);

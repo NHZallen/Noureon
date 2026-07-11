@@ -4,6 +4,7 @@ import { compareVersions } from '../../legacy-runtime/features/version-compare.j
 import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
 import { createLegacyRuntimeEntryDependencies } from '../runtime-entry-dependencies.js';
+import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
 
 const REQUIRED_DEPENDENCIES = [
     'window',
@@ -967,7 +968,12 @@ function setupMessageIntersectionObserver() {
                 getAstras: () => state.astras,
                 getPersonalMemories: () => state.personalMemories,
                 getMemoryState: () => runtimeAppDataStore.getMemoryState(),
-                replaceMemoryState: (nextMemoryState) => runtimeAppDataStore.replaceMemoryState(nextMemoryState),
+                replaceMemoryState: (nextMemoryState) => {
+                    const savedMemoryState = runtimeAppDataStore.replaceMemoryState(nextMemoryState);
+                    state.config.memorySync = projectMemoryStateForSync(savedMemoryState);
+                    void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+                    return savedMemoryState;
+                },
                 getCurrentConversationId,
                 setCurrentConversationId,
                 setSidebarOpen: (next) => {

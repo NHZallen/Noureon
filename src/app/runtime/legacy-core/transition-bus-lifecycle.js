@@ -8,6 +8,10 @@ import { createGeminiEmbeddingClient } from '../memory/gemini-embedding-client.j
 import { createHistoryIndexStore } from '../memory/history-index-store.js';
 import { createHistoryIndexPersistence } from '../memory/history-index-persistence.js';
 import { createHistoryIndexingService } from '../memory/history-indexing-service.js';
+import { createHistoryRetrievalService } from '../memory/history-retrieval-service.js';
+import { createDeviceHistoryRecallConsent } from '../memory/device-history-recall-consent.js';
+import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
+import { createHistoryIndexRebuildService } from '../memory/history-index-rebuild-service.js';
 
 const requiredDependencies = [
     'window',
@@ -337,9 +341,11 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             storageKey: `noureon:history-index:v1:${state.currentUser?.username || 'anonymous'}`
         })
         : null;
-    const historyIndexReady = historyIndexPersistence
+    let historyIndexLoaded = false;
+    const historyIndexReady = (historyIndexPersistence
         ? historyIndexPersistence.load().catch(error => console.warn('Memory index could not load.', error))
-        : Promise.resolve();
+        : Promise.resolve())
+        .finally(() => { historyIndexLoaded = true; });
     const historyIndexingService = createHistoryIndexingService({
         index: historyIndex,
         embeddingClient: createGeminiEmbeddingClient({
@@ -348,16 +354,79 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         }),
         persistence: historyIndexPersistence
     });
+    const localMemoryStorage = runtimeStorageAdapter?.getItem
+        ? runtimeStorageAdapter
+        : {
+            getItem: async () => null,
+            setItem: async () => {},
+            removeItem: async () => {}
+        };
+    const deviceHistoryRecallConsent = createDeviceHistoryRecallConsent({
+        storage: localMemoryStorage,
+        storageKey: `noureon:history-recall-device-consent:v1:${state.currentUser?.username || 'anonymous'}`
+    });
+    const historyRecallConsentReady = deviceHistoryRecallConsent.load()
+        .catch(error => console.warn('History recall consent could not load.', error));
+    const historyRetrievalService = createHistoryRetrievalService({
+        index: historyIndex,
+        embeddingClient: createGeminiEmbeddingClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {}
+    });
+    const retrieveHistory = async options => {
+        await Promise.all([historyIndexReady, historyRecallConsentReady]);
+        if (!deviceHistoryRecallConsent.isGranted()) return [];
+        return historyRetrievalService.retrieve(options);
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.retrieveHistory', () => retrieveHistory);
+    legacyRuntimeContext.registerLazyBinding('memory.grantHistoryRecallConsent', () => (
+        () => deviceHistoryRecallConsent.grant()
+    ));
+    legacyRuntimeContext.registerLazyBinding('memory.revokeHistoryRecallConsent', () => (
+        () => deviceHistoryRecallConsent.revoke()
+    ));
+    let historyIndexRebuildStatus = { state: 'idle', completed: 0, total: 0, indexed: 0, skipped: 0, failed: 0 };
+    legacyRuntimeContext.registerLazyBinding('memory.getHistoryRecallStatus', () => (
+        () => ({
+            consented: deviceHistoryRecallConsent.isGranted(),
+            consentLoaded: deviceHistoryRecallConsent.isLoaded(),
+            indexLoaded: historyIndexLoaded,
+            indexRecordCount: historyIndex.getAll().length,
+            rebuild: historyIndexRebuildStatus
+        })
+    ));
+    const replaceMemoryState = nextMemoryState => {
+        const savedMemoryState = runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
+        state.config.memorySync = projectMemoryStateForSync(savedMemoryState || nextMemoryState);
+        void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+        return savedMemoryState;
+    };
     const memoryCaptureService = createMemoryCaptureService({
         captureClient: createGeminiMemoryCaptureClient({
             getApiKey: () => getApiKeyForProvider('gemini'),
             fetchImpl: fetch
         }),
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        replaceMemoryState: nextMemoryState => runtimeAppDataStore.replaceMemoryState?.(nextMemoryState),
+        replaceMemoryState,
         indexCapsule: options => historyIndexingService.indexCapsule(options),
         createId: prefix => `${prefix}:${crypto.randomUUID()}`
     });
+    const historyIndexRebuildService = createHistoryIndexRebuildService({
+        getConversations: () => state.conversations,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
+        hashString
+    });
+    const rebuildHistoryIndex = async options => {
+        await historyIndexReady;
+        return historyIndexRebuildService.rebuild({
+            ...options,
+            onProgress: status => { historyIndexRebuildStatus = status; }
+        });
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.rebuildHistoryIndex', () => rebuildHistoryIndex);
     const memoryWorkScheduler = createMemoryWorkScheduler({
         runJob: async job => {
             await historyIndexReady;
@@ -382,7 +451,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             return state.personalMemories;
         },
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || null,
-        replaceMemoryState: (nextMemoryState) => runtimeAppDataStore.replaceMemoryState?.(nextMemoryState),
+        replaceMemoryState,
         captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
         enqueueMemoryCapture: options => memoryWorkScheduler.enqueueCapture(options),
         hashString,

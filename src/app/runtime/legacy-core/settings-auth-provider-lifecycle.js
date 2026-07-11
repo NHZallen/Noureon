@@ -18,6 +18,7 @@ import { createSettingsDesktopSectionHelper } from './settings-desktop-section-h
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
+import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
 import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
 
 const requiredDependencies = [
@@ -180,7 +181,13 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     const personalMemories = createLiveObject(() => state.personalMemories);
     const uploadedFiles = createLiveObject(() => state.uploadedFiles);
     const getMemoryContext = createCurrentMemoryContextProvider({
-        getMemoryState: () => state.memoryState
+        getMemoryState: () => state.memoryState,
+        retrieveHistory: async options => {
+            const retrieve = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
+                ? legacyRuntimeContext.resolveOptionalBinding('memory.retrieveHistory')
+                : null;
+            return typeof retrieve === 'function' ? retrieve(options) : [];
+        }
     });
     const AbortSignal = AbortSignalCtor;
 
@@ -484,10 +491,24 @@ const ensureAutoWebSearchSettingsControl = () => {
     }
     ALL_ELEMENTS.autoWebSearchToggleSwitch = row.querySelector('#auto-web-search-toggle-switch');
 };
+const historyRecallControls = createSettingsHistoryRecallControls({
+    document,
+    elements: ALL_ELEMENTS,
+    legacyRuntimeContext,
+    getConfig: () => config
+});
+const {
+    ensureHistoryRecallSettingsControl,
+    refreshHistoryRecallStatus,
+    resolveHistoryRecallEnabled,
+    bindHistoryIndexRebuild
+} = historyRecallControls;
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
     ensureUserSettingsNavigationShell();
     ensureAutoWebSearchSettingsControl();
+    ensureHistoryRecallSettingsControl();
+    bindHistoryIndexRebuild();
     ensureCouncilTranslatorSettingsControls();
     ensureOutputModeSettingsControls();
     prepareApiKeyInputsForSettings();
@@ -502,6 +523,10 @@ const setupSettingsModal = () => {
     }
     ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
     ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
+    if (ALL_ELEMENTS.historyRecallToggleSwitch) {
+        ALL_ELEMENTS.historyRecallToggleSwitch.checked = config.historyRecallEnabled === true;
+    }
+    void refreshHistoryRecallStatus();
     ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;
     ALL_ELEMENTS.aiLanguageSelect.value = config.aiDefaultLanguage;
     ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
@@ -546,6 +571,13 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         elements: ALL_ELEMENTS,
         config
     });
+    const historyRecallEnabled = await resolveHistoryRecallEnabled({
+        requested: collectedSettings.historyRecallEnabled,
+        showCustomConfirm
+    });
+    if (!historyRecallEnabled && ALL_ELEMENTS.historyRecallToggleSwitch) {
+        ALL_ELEMENTS.historyRecallToggleSwitch.checked = false;
+    }
     Object.assign(config, {
         tavilySearchDepth: collectedSettings.tavilySearchDepth,
         councilTranslatorModelId: collectedSettings.councilTranslatorModelId,
@@ -557,6 +589,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         autoNaming: collectedSettings.autoNaming,
         memoryEnabled1: collectedSettings.memoryEnabled1,
         memoryProfileEnabled: collectedSettings.memoryEnabled1,
+        historyRecallEnabled,
         enableAutoMemory: collectedSettings.enableAutoMemory,
         uiLanguage: collectedSettings.uiLanguage,
         aiDefaultLanguage: collectedSettings.aiDefaultLanguage,
@@ -567,6 +600,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
     setUserBubbleColor();
     applyUiTheme();
     await saveConfig();
+    await refreshHistoryRecallStatus();
     applyLanguage(config.uiLanguage);
     renderModelSwitcher();
     renderStore();
