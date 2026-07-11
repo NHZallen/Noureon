@@ -45,3 +45,22 @@ test('skips an unchanged capsule and records individual failures without abortin
 
   assert.deepEqual(result, { state: 'complete', completed: 2, total: 2, indexed: 0, skipped: 1, failed: 1 });
 });
+
+test('recaptures unchanged memory state when the stable index record is missing', async () => {
+  let captures = 0;
+  const service = createHistoryIndexRebuildService({
+    getConversations: () => [
+      { id: 'chat-1', messages: [{ id: 'one', role: 'user', parts: [{ text: 'Same' }] }] }
+    ],
+    getMemoryState: () => ({ recentConversationStates: [{ conversationId: 'chat-1', sourceHash: 'same-hash' }] }),
+    hashString: async () => 'same-hash',
+    hasIndexedSource: () => false,
+    captureCompletedTurn: async () => { captures += 1; return { captured: true }; }
+  });
+
+  const result = await service.rebuild();
+
+  assert.equal(captures, 1);
+  assert.equal(result.indexed, 1);
+  assert.equal(result.skipped, 0);
+});
