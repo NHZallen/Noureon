@@ -20,7 +20,7 @@ export function createHistoryIndexingService({
   embeddingClient,
   persistence = null
 } = {}) {
-  if (typeof index?.getAll !== 'function' || typeof index?.put !== 'function') {
+  if (typeof index?.getAll !== 'function' || typeof index?.put !== 'function' || typeof index?.removeRecord !== 'function') {
     throw new TypeError('History indexing requires a history index store.');
   }
   if (typeof embeddingClient?.embedHistoryDocument !== 'function') {
@@ -31,9 +31,16 @@ export function createHistoryIndexingService({
     async indexCapsule({ capsule, sourceHash } = {}) {
       if (!capsule?.id || !capsule?.conversationId) throw new TypeError('History indexing requires a conversation capsule.');
       if (!sourceHash) throw new TypeError('History indexing requires sourceHash.');
-      const recordId = `capsule:${capsule.id}`;
+      const recordId = `capsule:${capsule.conversationId}`;
+      const staleRecords = index.getAll().filter(record => record.recordType === 'conversation-capsule'
+        && record.conversationId === capsule.conversationId
+        && record.recordId !== recordId);
+      staleRecords.forEach(record => index.removeRecord(record.recordId));
       const existing = index.getAll().find(record => record.recordId === recordId);
-      if (existing?.sourceHash === sourceHash) return { indexed: false, reason: 'unchanged-source' };
+      if (existing?.sourceHash === sourceHash) {
+        if (staleRecords.length > 0 && persistence?.save) await persistence.save();
+        return { indexed: false, reason: 'unchanged-source' };
+      }
       const text = capsuleText(capsule);
       const vector = await embeddingClient.embedHistoryDocument({ title: capsule.topic, text });
       const normalizedKeywords = [
@@ -59,7 +66,13 @@ export function createHistoryIndexingService({
       if (!mediaMemory?.id || !mediaMemory?.conversationId || !mediaMemory?.sourceHash) {
         throw new TypeError('Media indexing requires a persisted media memory.');
       }
-      const recordId = `media:${mediaMemory.id}`;
+      const recordId = `media:${mediaMemory.conversationId}:${mediaMemory.sourceHash}`;
+      index.getAll()
+        .filter(record => record.recordType === 'media-memory'
+          && record.conversationId === mediaMemory.conversationId
+          && record.sourceHash === mediaMemory.sourceHash
+          && record.recordId !== recordId)
+        .forEach(record => index.removeRecord(record.recordId));
       const existing = index.getAll().find(record => record.recordId === recordId);
       if (existing?.sourceHash === mediaMemory.sourceHash) return { indexed: false, reason: 'unchanged-source' };
       let vector;

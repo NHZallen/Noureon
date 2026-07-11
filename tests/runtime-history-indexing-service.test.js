@@ -30,13 +30,13 @@ test('indexes a changed conversation capsule once and persists the local index',
   const first = await service.indexCapsule({ capsule, sourceHash: 'source-1' });
   const second = await service.indexCapsule({ capsule, sourceHash: 'source-1' });
 
-  assert.deepEqual(first, { indexed: true, recordId: 'capsule:capsule-1' });
+  assert.deepEqual(first, { indexed: true, recordId: 'capsule:chat-1' });
   assert.deepEqual(second, { indexed: false, reason: 'unchanged-source' });
   assert.equal(documents.length, 1);
   assert.match(documents[0].text, /名字不可主動稱呼/);
   assert.equal(saves, 1);
   assert.deepEqual(index.getAll()[0], {
-    recordId: 'capsule:capsule-1',
+    recordId: 'capsule:chat-1',
     recordType: 'conversation-capsule',
     conversationId: 'chat-1',
     capsuleId: 'capsule-1',
@@ -64,8 +64,25 @@ test('uses a multimodal embedding for supported media and a textual fallback oth
   const direct = await service.indexMediaMemory({ mediaMemory: image, attachment: { mimeType: 'image/jpeg', data: 'YQ==' } });
   const fallback = await service.indexMediaMemory({ mediaMemory: document, attachment: { mimeType: document.mimeType, data: 'YQ==' } });
 
-  assert.deepEqual(direct, { indexed: true, recordId: 'media:image-1', embeddingMode: 'multimodal' });
-  assert.deepEqual(fallback, { indexed: true, recordId: 'media:doc-1', embeddingMode: 'text-fallback' });
+  assert.deepEqual(direct, { indexed: true, recordId: 'media:chat-1:image-hash', embeddingMode: 'multimodal' });
+  assert.deepEqual(fallback, { indexed: true, recordId: 'media:chat-1:doc-hash', embeddingMode: 'text-fallback' });
   assert.deepEqual(calls.map(call => call[0]), ['media', 'text']);
-  assert.equal(index.getAll().find(record => record.recordId === 'media:image-1').embeddingMode, 'multimodal');
+  assert.equal(index.getAll().find(record => record.recordId === 'media:chat-1:image-hash').embeddingMode, 'multimodal');
+});
+
+test('replaces legacy random capsule records with one stable conversation record', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:old-random-1', recordType: 'conversation-capsule', conversationId: 'chat-1', sourceHash: 'old-1' });
+  index.put({ recordId: 'capsule:old-random-2', recordType: 'conversation-capsule', conversationId: 'chat-1', sourceHash: 'old-2' });
+  const service = createHistoryIndexingService({
+    index,
+    embeddingClient: { embedHistoryDocument: async () => [1, 0] }
+  });
+
+  await service.indexCapsule({
+    capsule: { id: 'new-random', conversationId: 'chat-1', summary: 'Current summary.' },
+    sourceHash: 'current'
+  });
+
+  assert.deepEqual(index.getAll().map(record => record.recordId), ['capsule:chat-1']);
 });

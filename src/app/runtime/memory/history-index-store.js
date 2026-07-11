@@ -41,6 +41,9 @@ export function createHistoryIndexStore() {
   return {
     put,
     getAll: () => [...records.values()],
+    removeRecord(recordId) {
+      records.delete(recordId);
+    },
     removeConversation(conversationId) {
       for (const [recordId, record] of records) {
         if (record.conversationId === conversationId) records.delete(recordId);

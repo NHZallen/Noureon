@@ -462,6 +462,14 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         enrichTurns: options => mediaMemoryService.enrichTurns(options),
         createId: prefix => `${prefix}:${crypto.randomUUID()}`
     });
+    const captureCompletedTurnAndPersist = async options => {
+        const previousMemoryState = runtimeAppDataStore.getMemoryState?.();
+        try {
+            return await memoryCaptureService.captureCompletedTurn(options);
+        } finally {
+            if (runtimeAppDataStore.getMemoryState?.() !== previousMemoryState) await saveAppData();
+        }
+    };
     const memoryInvalidationService = createMemoryInvalidationService({
         index: historyIndex,
         persistence: historyIndexPersistence,
@@ -476,20 +484,42 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getConversations: () => state.conversations,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
-        hashString
+        hashString,
+        hasIndexedSource: ({ conversationId, sourceHash }) => historyIndex.getAll().some(record => (
+            record.recordId === `capsule:${conversationId}`
+            && record.sourceHash === sourceHash
+        ))
     });
-    const rebuildHistoryIndex = async options => {
-        await historyIndexReady;
-        return historyIndexRebuildService.rebuild({
-            ...options,
-            onProgress: status => { historyIndexRebuildStatus = status; }
-        });
+    let historyIndexRebuildPromise = null;
+    const rebuildHistoryIndex = options => {
+        if (historyIndexRebuildPromise) return historyIndexRebuildPromise;
+        historyIndexRebuildPromise = (async () => {
+            await historyIndexReady;
+            try {
+                const memoryState = runtimeAppDataStore.getMemoryState?.() || {};
+                const expectedRecordIds = new Set([
+                    ...(memoryState.conversationCapsules || []).map(capsule => `capsule:${capsule.conversationId}`),
+                    ...(memoryState.mediaMemories || []).map(media => `media:${media.conversationId}:${media.sourceHash}`)
+                ]);
+                historyIndex.getAll()
+                    .filter(record => !expectedRecordIds.has(record.recordId))
+                    .forEach(record => historyIndex.removeRecord(record.recordId));
+                return await historyIndexRebuildService.rebuild({
+                    ...options,
+                    onProgress: status => { historyIndexRebuildStatus = status; }
+                });
+            } finally {
+                if (historyIndexPersistence?.save) await historyIndexPersistence.save();
+                await saveAppData();
+            }
+        })().finally(() => { historyIndexRebuildPromise = null; });
+        return historyIndexRebuildPromise;
     };
     legacyRuntimeContext.registerLazyBinding('memory.rebuildHistoryIndex', () => rebuildHistoryIndex);
     const memoryWorkScheduler = createMemoryWorkScheduler({
         runJob: async job => {
             await historyIndexReady;
-            return memoryCaptureService.captureCompletedTurn(job);
+            return captureCompletedTurnAndPersist(job);
         },
         schedule: callback => setTimeout(callback, 15_000),
         cancel: timer => clearTimeout(timer)
@@ -511,7 +541,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         },
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || null,
         replaceMemoryState,
-        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
+        captureCompletedTurn: options => captureCompletedTurnAndPersist(options),
         enqueueMemoryCapture: options => memoryWorkScheduler.enqueueCapture(options),
         hashString,
         getModelPieChart: () => state.modelPieChart,

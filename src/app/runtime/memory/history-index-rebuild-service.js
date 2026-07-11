@@ -19,7 +19,8 @@ export function createHistoryIndexRebuildService({
   getConversations,
   getMemoryState,
   captureCompletedTurn,
-  hashString
+  hashString,
+  hasIndexedSource = () => true
 } = {}) {
   if (typeof getConversations !== 'function') throw new TypeError('History index rebuild requires getConversations.');
   if (typeof getMemoryState !== 'function') throw new TypeError('History index rebuild requires getMemoryState.');
@@ -44,7 +45,10 @@ export function createHistoryIndexRebuildService({
           const sourceHash = await hashString(JSON.stringify(turns));
           const recentState = asArray(getMemoryState()?.recentConversationStates)
             .find(state => state?.conversationId === conversation.id);
-          if (recentState?.sourceHash === sourceHash) {
+          if (recentState?.sourceHash === sourceHash && hasIndexedSource({
+            conversationId: conversation.id,
+            sourceHash
+          })) {
             skipped += 1;
           } else {
             const result = await captureCompletedTurn({
