@@ -183,6 +183,7 @@
         historyRecallEnableFirst: 'Activez et enregistrez d’abord le rappel inter-conversations.',
         memoryAddSuppressionRule: 'Ajouter une règle de non-utilisation proactive',
         memorySuppressionRulePrompt: 'Par exemple : ne mentionnez pas spontanément mon nom, mes informations de santé ou d’autres données privées. Cette règle sert uniquement de restriction de réponse lorsque cela est nécessaire.',
+        memoryReplaceAction: 'Remplacer',
         apiKeyManagement: 'Gestion des Clés API',
         geminiApiKey: 'Clé API Gemini',
         geminiApiPlaceholder: 'Entrez votre clé API Google',

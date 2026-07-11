@@ -183,6 +183,7 @@
         historyRecallEnableFirst: '請先開啟並儲存跨對話回憶。',
         memoryAddSuppressionRule: '新增不主動使用規則',
         memorySuppressionRulePrompt: '例如：不要主動提起我的姓名、健康資訊或其他私人資料。這條規則只會作為必要的回覆限制。',
+        memoryReplaceAction: '取代',
         apiKeyManagement: 'API 金鑰管理',
         geminiApiKey: 'Gemini API 金鑰',
         geminiApiPlaceholder: '輸入您的 Google API 金鑰',

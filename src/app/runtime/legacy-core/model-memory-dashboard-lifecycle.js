@@ -92,6 +92,12 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         const renderPersonalMemoryList = () => {
             syncState();
             const container = ALL_ELEMENTS.personalMemoryList;
+            const addMemoryButton = document.getElementById('add-personal-memory-btn');
+            if (addMemoryButton && addMemoryButton.nextElementSibling !== container) {
+                addMemoryButton.classList.remove('mt-4');
+                addMemoryButton.classList.add('mb-3');
+                container.before(addMemoryButton);
+            }
             container.innerHTML = '';
             const usingV2Memory = Boolean(memoryState);
             const profileEntries = usingV2Memory ? (memoryState.profileEntries || []) : personalMemories;
@@ -109,10 +115,12 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         <input type="checkbox" class="memory-enabled-checkbox w-4 h-4" data-id="${memory.id}" ${(usingV2Memory ? memory.status === 'active' : memory.enabled) ? 'checked' : ''} ${usingV2Memory && memory.status === 'superseded' ? 'disabled' : ''}>
         <span class="text-sm word-break: break-word;"></span>
     </div>
-    ${usingV2Memory && memory.status === 'active' ? `<button class="replace-memory-btn text-[var(--button-primary-bg)] hover:opacity-80 text-sm" data-id="${memory.id}">取代</button>` : ''}
-    <button class="delete-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-    </button>
+    <div class="memory-entry-actions flex items-center gap-3 ml-4 shrink-0">
+        ${usingV2Memory && memory.status === 'active' ? `<button class="replace-memory-btn px-3 py-1.5 rounded-md border border-[var(--border-color)] text-[var(--button-primary-bg)] hover:bg-[var(--active-bg)] text-sm" data-id="${memory.id}">${getText('memoryReplaceAction', '取代')}</button>` : ''}
+        <button class="delete-memory-btn inline-flex items-center justify-center w-8 h-8 rounded-md text-red-600 hover:bg-red-50 hover:text-red-800" data-id="${memory.id}" title="${getText('delete', '刪除')}" aria-label="${getText('delete', '刪除')}">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        </button>
+    </div>
                 `;
                 const contentElement = item.querySelector('span');
                 if (contentElement) contentElement.textContent = memory.status === 'superseded'
@@ -196,7 +204,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     suppressionRules.forEach((rule, index) => {
                         const item = document.createElement('div');
                         item.className = 'flex items-center justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
-                        item.innerHTML = `<span class="text-sm"></span>${rule.id ? `<button class="edit-suppression-rule-btn text-[var(--button-primary-bg)] hover:opacity-80 text-sm" data-id="${rule.id}">編輯</button>` : ''}<button class="delete-suppression-rule-btn text-red-600 hover:text-red-800 text-sm" data-id="${rule.id || ''}" data-index="${index}">刪除</button>`;
+                        item.innerHTML = `<span class="text-sm flex-1 min-w-0"></span><div class="flex items-center justify-end gap-2 ml-auto shrink-0">${rule.id ? `<button class="edit-suppression-rule-btn inline-flex items-center justify-center w-8 h-8 rounded-md text-[var(--text-secondary)] hover:bg-[var(--active-bg)]" data-id="${rule.id}" title="${getText('edit', '編輯')}" aria-label="${getText('edit', '編輯')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>` : ''}<button class="delete-suppression-rule-btn inline-flex items-center justify-center w-8 h-8 rounded-md text-red-600 hover:bg-red-50 hover:text-red-800" data-id="${rule.id || ''}" data-index="${index}" title="${getText('delete', '刪除')}" aria-label="${getText('delete', '刪除')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button></div>`;
                         item.querySelector('span').textContent = rule.instruction || (rule.type === 'do-not-mention' && rule.target === 'profile-name'
                             ? '不主動使用已儲存的姓名稱呼'
                             : `${rule.type || 'suppression'}: ${rule.target || ''}`);

@@ -183,6 +183,7 @@
         historyRecallEnableFirst: 'Enable and save cross-conversation recall first.',
         memoryAddSuppressionRule: 'Add a do-not-use-proactively rule',
         memorySuppressionRulePrompt: 'For example: Do not proactively mention my name, health information, or other private details. This rule is used only as a necessary response constraint.',
+        memoryReplaceAction: 'Replace',
         apiKeyManagement: 'API Key Management',
         geminiApiKey: 'Gemini API Key',
         geminiApiPlaceholder: 'Enter your Google API Key',
