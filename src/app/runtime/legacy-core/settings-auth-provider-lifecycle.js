@@ -495,7 +495,8 @@ const historyRecallControls = createSettingsHistoryRecallControls({
     document,
     elements: ALL_ELEMENTS,
     legacyRuntimeContext,
-    getConfig: () => config
+    getConfig: () => config,
+    getText: (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback
 });
 const {
     ensureHistoryRecallSettingsControl,

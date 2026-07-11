@@ -3,7 +3,8 @@ export function createDialogNotificationLifecycle({
   elements,
   setTimeout,
   clearTimeout,
-  requestAnimationFrame
+  requestAnimationFrame,
+  getText = (_key, fallback) => fallback
 }) {
   const showNotification = (message, type = 'success') => {
     const notification = document.createElement('div');
@@ -82,8 +83,8 @@ export function createDialogNotificationLifecycle({
     });
   };
 
-  const showCustomConfirm = (message, title = '請確認') => showCustomDialog({ title, message, buttons: [{ text: '取消', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false }, { text: '確定', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }] });
-  const showCustomPrompt = (message, title = '請輸入', inputType = 'text') => showCustomDialog({ title, message, input: { type: inputType, placeholder: '請在此輸入...' }, buttons: [{ text: '取消', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null }, { text: '確定', class: 'px-4 py-2 rounded-md btn-primary', value: (val) => val }] });
+  const showCustomConfirm = (message, title = null) => showCustomDialog({ title: title || getText('pleaseConfirm', '請確認'), message, buttons: [{ text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false }, { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: () => true }] });
+  const showCustomPrompt = (message, title = null, inputType = 'text') => showCustomDialog({ title: title || getText('dialogPromptTitle', '請輸入'), message, input: { type: inputType, placeholder: getText('dialogInputPlaceholder', '請在此輸入…') }, buttons: [{ text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null }, { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (val) => val }] });
 
   return {
     showNotification,

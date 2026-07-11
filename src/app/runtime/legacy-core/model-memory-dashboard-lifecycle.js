@@ -87,6 +87,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         memoryState = typeof getMemoryState === 'function' ? getMemoryState() : null;
     };
     syncState();
+    const getText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
 
         const renderPersonalMemoryList = () => {
             syncState();
@@ -204,7 +205,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 }
                 const addRuleButton = document.createElement('button');
                 addRuleButton.className = 'add-suppression-rule-btn text-sm px-3 py-1.5 rounded-md btn-outline-white';
-                addRuleButton.textContent = '新增不主動使用規則';
+                addRuleButton.textContent = getText('memoryAddSuppressionRule', '新增不主動使用規則');
                 derivedSection.appendChild(addRuleButton);
                 if (memoryUsageRecords.length > 0) {
                     const heading = document.createElement('p');
@@ -408,7 +409,10 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
             });
             container.querySelectorAll('.add-suppression-rule-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    const instruction = await showCustomPrompt('例如：不要主動提起我的姓名、健康資訊或其他私人資料。這條規則只會作為必要的回覆限制。', '新增不主動使用規則');
+                    const instruction = await showCustomPrompt(
+                        getText('memorySuppressionRulePrompt', '例如：不要主動提起我的姓名、健康資訊或其他私人資料。這條規則只會作為必要的回覆限制。'),
+                        getText('memoryAddSuppressionRule', '新增不主動使用規則')
+                    );
                     if (!instruction) return;
                     replaceMemoryState(addCustomSuppressionRule(memoryState, {
                         id: crypto.randomUUID(),
