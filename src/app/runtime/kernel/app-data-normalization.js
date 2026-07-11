@@ -15,10 +15,9 @@ export function normalizeConversationRecord(record, {
   normalizeCouncilConfig = (value) => value,
   normalizeConversationModel = () => {}
 } = {}) {
-  const source = record || {};
+  const { summary: _legacySummary, ...source } = record || {};
   const normalizedConversation = {
     archived: false,
-    summary: '',
     folderId: null,
     isWebSearchEnabled: false,
     astrasId: null,

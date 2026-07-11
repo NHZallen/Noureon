@@ -962,7 +962,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         responseRenderedInRealtime,
         targetElement: contentDiv,
         uiLanguage: getLiveConfig().uiLanguage,
-        memoryEnabled: getLiveConfig().memoryEnabled1,
+        memoryEnabled: getLiveConfig().memorySystemVersion === 2 || getLiveConfig().memoryEnabled1,
         autoMemoryEnabled: getLiveConfig().enableAutoMemory,
         persistAppData: saveAppData,
         completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),

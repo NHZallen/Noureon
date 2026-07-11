@@ -2,6 +2,7 @@ import { createAppBootstrapComposition } from '../../legacy-runtime/features/app
 import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/store-navigation-lifecycle.js';
 import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
+import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -18,6 +19,8 @@ export function createLegacyAppBootstrapLifecycle({
     getFolders,
     getAstras,
     getPersonalMemories,
+    getMemoryState = () => ({ profileEntries: [] }),
+    replaceMemoryState = () => {},
     setSidebarOpen,
     setSendConfirmed,
     getAbortController,
@@ -509,7 +512,10 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.addPersonalMemoryBtn.addEventListener('click', async () => {
                     const content = await showCustomPrompt(i18n[config.uiLanguage].enterNewMemory, i18n[config.uiLanguage].addMemory);
                     if (content) {
-                        getPersonalMemories().push({ id: randomUUID(), content, enabled: true });
+                        replaceMemoryState(addConfirmedProfileEntry(getMemoryState(), {
+                            id: randomUUID(),
+                            content
+                        }));
                         await saveAppData();
                         renderPersonalMemoryList();
                         showNotification(i18n[config.uiLanguage].memoryAdded);

@@ -1,4 +1,8 @@
 import { createModelUsageChartLifecycle } from '../../legacy-runtime/features/model-usage-chart-lifecycle.js';
+import {
+    addConfirmedProfileEntry,
+    approveProfileCandidate
+} from '../memory/memory-profile-management.js';
 
 const REQUIRED_DEPENDENCIES = [
     'document',
@@ -37,6 +41,11 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         getFolders,
         getPersonalMemories,
         replacePersonalMemories,
+        getMemoryState = null,
+        replaceMemoryState = () => {},
+        captureCompletedTurn = null,
+        enqueueMemoryCapture = null,
+        hashString = null,
         getModelPieChart = () => null,
         setModelPieChart = () => {},
         models: MODELS,
@@ -60,11 +69,13 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
     let conversations;
     let folders;
     let personalMemories;
+    let memoryState;
     const syncState = () => {
         config = getConfig();
         conversations = getConversations();
         folders = getFolders();
         personalMemories = getPersonalMemories();
+        memoryState = typeof getMemoryState === 'function' ? getMemoryState() : null;
     };
     syncState();
 
@@ -72,26 +83,67 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
             syncState();
             const container = ALL_ELEMENTS.personalMemoryList;
             container.innerHTML = '';
-            personalMemories.forEach(memory => {
+            const usingV2Memory = Boolean(memoryState);
+            const profileEntries = usingV2Memory ? (memoryState.profileEntries || []) : personalMemories;
+            const profileCandidates = usingV2Memory ? (memoryState.profileCandidates || []) : [];
+            const legacyInbox = usingV2Memory ? (memoryState.legacyInbox || []) : [];
+            profileEntries.forEach(memory => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                 item.innerHTML = `
-    <div class="flex items-center gap-2 flex-1 min-w-0"> <!-- ✨ 修改: 加上 min-w-0 確保 flex 容器可被壓縮 -->
-        <input type="checkbox" class="memory-enabled-checkbox w-4 h-4" data-id="${memory.id}" ${memory.enabled ? 'checked' : ''}>
-        <span class="text-sm word-break: break-word;">${memory.content}</span> <!-- ✨ 修改: 移除 truncate 並允許換行 -->
+    <div class="flex items-center gap-2 flex-1 min-w-0">
+        <input type="checkbox" class="memory-enabled-checkbox w-4 h-4" data-id="${memory.id}" ${(usingV2Memory ? memory.status === 'active' : memory.enabled) ? 'checked' : ''}>
+        <span class="text-sm word-break: break-word;"></span>
     </div>
     <button class="delete-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
     </button>
                 `;
+                const contentElement = item.querySelector('span');
+                if (contentElement) contentElement.textContent = memory.content;
+                container.appendChild(item);
+            });
+            profileCandidates.forEach(candidate => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                item.innerHTML = `
+    <div class="flex flex-col gap-1 flex-1 min-w-0">
+        <span class="text-xs text-[var(--text-secondary)]">候選記憶 · 請確認</span>
+        <span class="text-sm word-break: break-word;"></span>
+    </div>
+    <button class="approve-memory-candidate-btn text-[var(--button-primary-bg)] text-sm" data-id="${candidate.id}">保留</button>
+    <button class="dismiss-memory-candidate-btn text-red-600 hover:text-red-800" data-id="${candidate.id}">忽略</button>`;
+                item.querySelectorAll('span')[1].textContent = candidate.content;
+                container.appendChild(item);
+            });
+            legacyInbox.forEach(memory => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+                item.innerHTML = `
+    <div class="flex flex-col gap-1 flex-1 min-w-0">
+        <span class="text-xs text-[var(--text-secondary)]">待審核的舊記憶</span>
+        <span class="text-sm word-break: break-word;"></span>
+    </div>
+    <button class="review-memory-btn text-[var(--button-primary-bg)] text-sm" data-id="${memory.id}">保留</button>
+    <button class="delete-legacy-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">刪除</button>`;
+                item.querySelectorAll('span')[1].textContent = memory.content;
                 container.appendChild(item);
             });
             container.querySelectorAll('.memory-enabled-checkbox').forEach(cb => {
                 cb.addEventListener('change', async (e) => {
                     const id = e.target.dataset.id;
-                    const memory = personalMemories.find(m => m.id === id);
+                    const memory = profileEntries.find(m => m.id === id);
                     if (memory) {
-                        memory.enabled = e.target.checked;
+                        if (usingV2Memory) {
+                            replaceMemoryState({
+                                ...memoryState,
+                                profileEntries: profileEntries.map(entry => entry.id === id
+                                    ? { ...entry, status: e.target.checked ? 'active' : 'inactive' }
+                                    : entry)
+                            });
+                        } else {
+                            memory.enabled = e.target.checked;
+                        }
                         await saveAppData();
                     }
                 });
@@ -100,9 +152,64 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 btn.addEventListener('click', async (e) => {
                     const id = e.currentTarget.dataset.id;
                     if (await showCustomConfirm(i18n[config.uiLanguage].confirmDeleteMemory || '確定刪除此記憶？')) {
-                        personalMemories = replacePersonalMemories(
-                            personalMemories.filter(m => m.id !== id)
-                        );
+                        if (usingV2Memory) {
+                            replaceMemoryState({
+                                ...memoryState,
+                                profileEntries: profileEntries.filter(memory => memory.id !== id)
+                            });
+                        } else {
+                            personalMemories = replacePersonalMemories(
+                                personalMemories.filter(m => m.id !== id)
+                            );
+                        }
+                        await saveAppData();
+                        renderPersonalMemoryList();
+                    }
+                });
+            });
+            container.querySelectorAll('.review-memory-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    const legacy = legacyInbox.find(memory => memory.id === id);
+                    if (!legacy) return;
+                    replaceMemoryState({
+                        ...addConfirmedProfileEntry(memoryState, { id: crypto.randomUUID(), content: legacy.content }),
+                        legacyInbox: legacyInbox.filter(memory => memory.id !== id)
+                    });
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.approve-memory-candidate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    replaceMemoryState(approveProfileCandidate(memoryState, {
+                        candidateId: id,
+                        profileEntryId: crypto.randomUUID()
+                    }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.dismiss-memory-candidate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    replaceMemoryState({
+                        ...memoryState,
+                        profileCandidates: profileCandidates.filter(candidate => candidate.id !== id)
+                    });
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.delete-legacy-memory-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    if (await showCustomConfirm(i18n[config.uiLanguage].confirmDeleteMemory || '確定刪除此記憶？')) {
+                        replaceMemoryState({
+                            ...memoryState,
+                            legacyInbox: legacyInbox.filter(memory => memory.id !== id)
+                        });
                         await saveAppData();
                         renderPersonalMemoryList();
                     }
@@ -238,6 +345,30 @@ ${JSON.stringify(potentialMemories, null, 2)}
         };
         const extractPersonalMemory = async (userMessage, aiResponse) => {
             syncState();
+            if (config.memorySystemVersion === 2 && typeof captureCompletedTurn === 'function' && typeof hashString === 'function') {
+                const conversation = getActiveConversation();
+                const allTurns = (conversation?.messages || []).map((message, index) => ({
+                    id: message.id || `${conversation.id}:${index}`,
+                    role: message.role,
+                    text: (message.parts || []).map(part => part.text || '').join('\n').trim()
+                })).filter(turn => turn.text);
+                const previousState = (memoryState?.recentConversationStates || [])
+                    .find(state => state.conversationId === conversation?.id);
+                const coveredIndex = previousState?.coveredThroughMessageId
+                    ? allTurns.findIndex(turn => turn.id === previousState.coveredThroughMessageId)
+                    : -1;
+                const turns = allTurns.slice(coveredIndex + 1);
+                if (turns.length === 0) return;
+                const sourceHash = await hashString(JSON.stringify(turns));
+                const captureOptions = {
+                    conversationId: conversation.id,
+                    sourceHash,
+                    turns
+                };
+                if (typeof enqueueMemoryCapture === 'function') enqueueMemoryCapture(captureOptions);
+                else await captureCompletedTurn(captureOptions);
+                return;
+            }
             const prompt = `# 核心身份：首席用戶畫像分析師
 你的唯一職責是從用戶的發言中，提煉出**永恆的、可獨立存在的用戶特質**。你不是對話記錄員，你是一位為建立長期、精準用戶畫像而服務的分析師。
 

@@ -18,6 +18,7 @@ test('app data store creates empty pointer groups by default', () => {
     version: 2,
     profileEntries: [],
     profileCandidates: [],
+    recentConversationStates: [],
     conversationCapsules: [],
     longTermTopicSummaries: [],
     suppressionRules: [],

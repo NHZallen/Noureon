@@ -4,6 +4,7 @@ import {
     getSearchCurrentDate
 } from '../../legacy-runtime/features/model-request-formatting.js';
 import { createStreamApiCall } from '../../legacy-runtime/features/stream-api-call.js';
+import { createCurrentMemoryContextProvider } from '../memory/current-memory-context-provider.js';
 import { createCouncilResponseLifecycle } from '../../legacy-runtime/features/council-response-lifecycle.js';
 import { createProviderRequestSupport } from '../../legacy-runtime/features/provider-request-support.js';
 import { createSettingsApiKeyControls } from './settings-api-key-controls.js';
@@ -178,6 +179,9 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     const astras = createLiveObject(() => state.astras);
     const personalMemories = createLiveObject(() => state.personalMemories);
     const uploadedFiles = createLiveObject(() => state.uploadedFiles);
+    const getMemoryContext = createCurrentMemoryContextProvider({
+        getMemoryState: () => state.memoryState
+    });
     const AbortSignal = AbortSignalCtor;
 
 function calculateRelevanceScore(summary, keywords) {
@@ -203,6 +207,7 @@ const streamApiCall = createStreamApiCall({
     getConfig: () => config,
     getAstras: () => astras,
     getPersonalMemories: () => personalMemories,
+    getMemoryContext,
     modelSupportsUploadedFile,
     modelSupportsVision,
     getModelReasoningConfig,
@@ -278,9 +283,9 @@ const generateTitleAndSummary = async (conv) => {
     const data = await requestTitleSummary(conv, undefined, {
         language: config.aiDefaultLanguage || config.uiLanguage
     });
-    if (data && data.title && data.summary) {
+    if (data && data.title) {
         conv.title = data.title;
-        conv.summary = data.summary;
+        delete conv.summary;
         conv.isNaming = false;
         await saveAppData();
         renderHistorySidebar();
@@ -495,7 +500,7 @@ const setupSettingsModal = () => {
         ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
         syncOutputModeSettingsControls();
     }
-    ALL_ELEMENTS.memoryToggle1.checked = config.memoryEnabled1;
+    ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
     ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
     ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;
     ALL_ELEMENTS.aiLanguageSelect.value = config.aiDefaultLanguage;
@@ -551,6 +556,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         userBubbleColor: collectedSettings.userBubbleColor,
         autoNaming: collectedSettings.autoNaming,
         memoryEnabled1: collectedSettings.memoryEnabled1,
+        memoryProfileEnabled: collectedSettings.memoryEnabled1,
         enableAutoMemory: collectedSettings.enableAutoMemory,
         uiLanguage: collectedSettings.uiLanguage,
         aiDefaultLanguage: collectedSettings.aiDefaultLanguage,

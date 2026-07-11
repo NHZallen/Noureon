@@ -61,3 +61,20 @@ test('normalizes profile entries with safe identity defaults', () => {
     sourceRefs: []
   }]);
 });
+
+test('preserves separate recent conversation state for capture de-duplication', () => {
+  const recentConversationStates = [{
+    conversationId: 'chat-1',
+    recentTurnSummary: '正在選擇記憶模型。',
+    sourceHash: 'turn-hash',
+    updatedAt: '2026-07-11T00:00:00.000Z'
+  }];
+  const state = normalizeMemoryState({
+    memoryState: {
+      version: MEMORY_SCHEMA_VERSION,
+      recentConversationStates
+    }
+  });
+
+  assert.deepEqual(state.recentConversationStates, recentConversationStates);
+});

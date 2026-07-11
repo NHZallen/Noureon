@@ -51,6 +51,7 @@ export function normalizeMemoryState(raw = {}, { now = () => new Date().toISOStr
     profileEntries: asArray(memoryState.profileEntries)
       .map(entry => normalizeProfileEntry(entry, now)),
     profileCandidates: asArray(memoryState.profileCandidates),
+    recentConversationStates: asArray(memoryState.recentConversationStates),
     conversationCapsules: asArray(memoryState.conversationCapsules),
     longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries),
     suppressionRules: asArray(memoryState.suppressionRules),

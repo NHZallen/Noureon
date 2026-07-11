@@ -87,7 +87,6 @@ function conversationFromRow(row = {}, messages = []) {
   return {
     id: row.id,
     title: row.title || 'New chat',
-    summary: row.summary || '',
     model: row.model || 'unknown',
     provider: row.provider || 'unknown',
     messages,
@@ -291,7 +290,7 @@ export async function encodeConversationShadow({
     user_id: userId,
     folder_id: null,
     title: String(conversation.title || 'New chat'),
-    summary: String(conversation.summary || ''),
+    summary: '',
     model: String(conversation.model || 'unknown'),
     provider: String(conversation.provider || 'unknown'),
     metadata: conversationMetadata(conversation),

@@ -37,3 +37,25 @@ test('cancels queued work when its conversation is deleted', () => {
   assert.deepEqual(cancelled, ['timer-1']);
   assert.equal(scheduler.getPendingJob('conversation-1'), null);
 });
+
+test('preserves the newest capture payload for delayed work', async () => {
+  const jobs = [];
+  let scheduled;
+  const scheduler = createMemoryWorkScheduler({
+    runJob: async job => jobs.push(job),
+    schedule: callback => {
+      scheduled = callback;
+      return 'timer';
+    },
+    cancel: () => {}
+  });
+
+  scheduler.enqueueCapture({
+    conversationId: 'conversation-1',
+    sourceHash: 'turn-hash',
+    turns: [{ id: 'user-1', role: 'user', text: '記憶測試' }]
+  });
+  await scheduled();
+
+  assert.deepEqual(jobs[0].turns, [{ id: 'user-1', role: 'user', text: '記憶測試' }]);
+});

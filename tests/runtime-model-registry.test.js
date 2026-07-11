@@ -32,6 +32,7 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'tencent/hy3:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.provider === 'nvidia'));
   assert.ok(MODELS.some((model) => model.id === CHEAP_MODEL_ID));
+  assert.equal(CHEAP_MODEL_ID, 'gemini-3.1-flash-lite');
 });
 
 test('model registry preserves provider labels and API id aliases', () => {

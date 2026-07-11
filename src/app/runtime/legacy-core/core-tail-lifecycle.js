@@ -966,6 +966,8 @@ function setupMessageIntersectionObserver() {
                 getFolders: () => state.folders,
                 getAstras: () => state.astras,
                 getPersonalMemories: () => state.personalMemories,
+                getMemoryState: () => runtimeAppDataStore.getMemoryState(),
+                replaceMemoryState: (nextMemoryState) => runtimeAppDataStore.replaceMemoryState(nextMemoryState),
                 getCurrentConversationId,
                 setCurrentConversationId,
                 setSidebarOpen: (next) => {

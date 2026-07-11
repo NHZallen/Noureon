@@ -45,6 +45,7 @@ const createHarness = ({
   config = {},
   astras = [],
   personalMemories = [],
+  getMemoryContext,
   warn = () => {},
   fetchImpl,
   getModelReasoningConfig = () => null,
@@ -88,6 +89,7 @@ const createHarness = ({
     }),
     getAstras: () => astras,
     getPersonalMemories: () => personalMemories,
+    getMemoryContext,
     modelSupportsUploadedFile: () => true,
     modelSupportsVision: () => true,
     getModelReasoningConfig,
@@ -101,6 +103,28 @@ const createHarness = ({
 
   return { streamApiCall, requests, modelInfo: resolvedModel, conversation: resolvedConversation };
 };
+
+test('v2 memory injects only its filtered context and never the legacy memory list', async () => {
+  const { streamApiCall, requests } = createHarness({
+    config: { memorySystemVersion: 2 },
+    personalMemories: [{ id: 'legacy-name', content: 'Always call the user Allen', enabled: true }],
+    getMemoryContext: () => ({
+      currentChatSummary: '',
+      instructions: ['Do not use stored names as unsolicited forms of address.'],
+      profileEntries: [{ id: 'language', kind: 'preference', content: '使用繁體中文回答' }],
+      historyResults: []
+    })
+  });
+
+  await streamApiCall([{ text: 'Hello' }], () => {});
+
+  const payload = JSON.parse(requests[0].options.body);
+  const systemMessage = payload.messages.find(message => message.role === 'system');
+  assert.match(systemMessage.content, /使用繁體中文回答/);
+  assert.match(systemMessage.content, /Do not use stored names/);
+  assert.doesNotMatch(systemMessage.content, /Always call the user Allen/);
+  assert.doesNotMatch(systemMessage.content, /legacy-name|language/);
+});
 
 test('OpenRouter requests preserve payload, headers, attachments, and streamed deltas', async () => {
   const { streamApiCall, requests } = createHarness({

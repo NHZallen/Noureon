@@ -77,7 +77,7 @@ test('conversation records preserve legacy defaults and message fallbacks on a n
   assert.equal(normalized.model, 'model-default');
   assert.equal(normalized.provider, 'gemini');
   assert.equal(normalized.archived, false);
-  assert.equal(normalized.summary, '');
+  assert.equal('summary' in normalized, false);
   assert.equal(normalized.folderId, null);
   assert.equal(normalized.isWebSearchEnabled, false);
   assert.equal(normalized.astrasId, null);
@@ -121,6 +121,7 @@ test('loaded app data falls back to empty collections and normalizes every recor
       version: 2,
       profileEntries: [],
       profileCandidates: [],
+      recentConversationStates: [],
       conversationCapsules: [],
       longTermTopicSummaries: [],
       suppressionRules: [],

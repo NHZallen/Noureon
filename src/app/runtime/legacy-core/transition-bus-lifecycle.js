@@ -1,6 +1,13 @@
 import { createLegacyBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createLegacySearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createLegacyModelMemoryDashboardLifecycle } from './model-memory-dashboard-lifecycle.js';
+import { createGeminiMemoryCaptureClient } from '../memory/gemini-memory-capture-client.js';
+import { createMemoryCaptureService } from '../memory/memory-capture-service.js';
+import { createMemoryWorkScheduler } from '../memory/memory-work-scheduler.js';
+import { createGeminiEmbeddingClient } from '../memory/gemini-embedding-client.js';
+import { createHistoryIndexStore } from '../memory/history-index-store.js';
+import { createHistoryIndexPersistence } from '../memory/history-index-persistence.js';
+import { createHistoryIndexingService } from '../memory/history-indexing-service.js';
 
 const requiredDependencies = [
     'window',
@@ -65,6 +72,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         state,
         runtimeConfigAccess,
         runtimeAppDataStore,
+        runtimeStorageAdapter = null,
         runtimeDialogCoordinator,
         i18n,
         getCurrentConversationId = () => state.conversationStateAccess?.getCurrentConversationId?.(),
@@ -321,6 +329,44 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         toggleVoiceInput
     } = batchImportVoiceLifecycle;
 
+    const historyIndex = createHistoryIndexStore();
+    const historyIndexPersistence = runtimeStorageAdapter?.getItem
+        ? createHistoryIndexPersistence({
+            index: historyIndex,
+            storage: runtimeStorageAdapter,
+            storageKey: `noureon:history-index:v1:${state.currentUser?.username || 'anonymous'}`
+        })
+        : null;
+    const historyIndexReady = historyIndexPersistence
+        ? historyIndexPersistence.load().catch(error => console.warn('Memory index could not load.', error))
+        : Promise.resolve();
+    const historyIndexingService = createHistoryIndexingService({
+        index: historyIndex,
+        embeddingClient: createGeminiEmbeddingClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        persistence: historyIndexPersistence
+    });
+    const memoryCaptureService = createMemoryCaptureService({
+        captureClient: createGeminiMemoryCaptureClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        replaceMemoryState: nextMemoryState => runtimeAppDataStore.replaceMemoryState?.(nextMemoryState),
+        indexCapsule: options => historyIndexingService.indexCapsule(options),
+        createId: prefix => `${prefix}:${crypto.randomUUID()}`
+    });
+    const memoryWorkScheduler = createMemoryWorkScheduler({
+        runJob: async job => {
+            await historyIndexReady;
+            return memoryCaptureService.captureCompletedTurn(job);
+        },
+        schedule: callback => setTimeout(callback, 15_000),
+        cancel: timer => clearTimeout(timer)
+    });
+
     const modelMemoryDashboardLifecycle = createLegacyModelMemoryDashboardLifecycle({
         Chart,
         document,
@@ -335,6 +381,11 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             state.personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
             return state.personalMemories;
         },
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || null,
+        replaceMemoryState: (nextMemoryState) => runtimeAppDataStore.replaceMemoryState?.(nextMemoryState),
+        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
+        enqueueMemoryCapture: options => memoryWorkScheduler.enqueueCapture(options),
+        hashString,
         getModelPieChart: () => state.modelPieChart,
         setModelPieChart: (chart) => {
             state.modelPieChart = chart;
@@ -687,6 +738,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         handleBatchDeleteFromTrash,
         handleEmptyTrash,
         updateDisplayedVersion,
+        cancelMemoryCapture: conversationId => memoryWorkScheduler.cancelConversation(conversationId),
         coreTailDependencies,
         registerSidebarBindings,
         registerCoreTailDependencies

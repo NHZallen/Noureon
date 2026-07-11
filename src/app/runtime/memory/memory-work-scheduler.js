@@ -8,14 +8,14 @@ export function createMemoryWorkScheduler({
 
   const pendingByConversation = new Map();
 
-  function enqueueCapture({ conversationId, sourceHash }) {
+  function enqueueCapture({ conversationId, sourceHash, ...payload }) {
     const id = String(conversationId || '');
     if (!id) throw new TypeError('Memory work requires a conversationId.');
 
     const previous = pendingByConversation.get(id);
     if (previous) cancel(previous.timer);
 
-    const job = { conversationId: id, sourceHash: String(sourceHash || '') };
+    const job = { conversationId: id, sourceHash: String(sourceHash || ''), ...payload };
     const entry = { job, timer: null };
     entry.timer = schedule(async () => {
       if (pendingByConversation.get(id) !== entry) return;

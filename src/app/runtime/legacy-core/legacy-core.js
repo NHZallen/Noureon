@@ -615,7 +615,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             return {
                 id: crypto.randomUUID(),
                 title: title,
-                summary: '',
                 messages: [],
                 model: defaultModelInfo.id,
                 provider: defaultModelInfo.provider,
@@ -683,8 +682,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             updateApiKeyWarningBadge();
             legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
         };
+        let cancelPendingMemoryCapture = () => {};
         const deleteChat = async (id, event) => {
     event?.stopPropagation();
+    cancelPendingMemoryCapture(id);
     const currentConversations = liveConversationsBridge.getConversations();
     const conv = currentConversations.find(c => c.id === id);
     if (conv) {
@@ -1072,6 +1073,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             set astras(next) { runtimeAppDataStore.replaceAstras(next); },
             get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
             set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
+            get memoryState() { return runtimeAppDataStore.getMemoryState(); },
             get uploadedFiles() { return uploadedFiles; },
             set uploadedFiles(next) { uploadedFiles = next; },
             get quoteReference() { return quoteReference; },
@@ -1439,6 +1441,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             state: transitionBusState,
             runtimeConfigAccess,
             runtimeAppDataStore,
+            runtimeStorageAdapter,
             runtimeDialogCoordinator,
             i18n,
             officialAstras: OFFICIAL_ASTRAS,
@@ -1601,8 +1604,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             handleBatchRestoreFromTrash,
             handleBatchDeleteFromTrash,
             handleEmptyTrash,
-            updateDisplayedVersion
+            updateDisplayedVersion,
+            cancelMemoryCapture: cancelMemoryCaptureWork
         } = transitionBusLifecycle;
+        cancelPendingMemoryCapture = cancelMemoryCaptureWork;
         transitionBusLifecycle.registerSidebarBindings();
         transitionBusLifecycle.registerCoreTailDependencies();
 

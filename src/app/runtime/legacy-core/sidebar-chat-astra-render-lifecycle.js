@@ -315,7 +315,6 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
                             <button data-id="${conv.id}" class="delete-btn text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200">${i18n[uiLanguage].delete || '刪除'}</button>
                         </div>
                     </div>
-                    ${conv.summary ? `<p class="archived-chat-summary">${conv.summary}</p>` : ''}
                 `;
       archivedChatsContainer.appendChild(item);
     });
