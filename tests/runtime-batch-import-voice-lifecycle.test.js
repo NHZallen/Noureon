@@ -258,6 +258,24 @@ test('batch delete uses live selection getters and preserves persistence orderin
   ]);
 });
 
+test('batch delete invalidates every selected conversation memory before moving to trash', async () => {
+  const invalidated = [];
+  const harness = createHarness({
+    selectedConversationIds: new Set(['c1', 'c2']),
+    legacyRuntimeContext: {
+      resolveOptionalBinding(name) {
+        assert.equal(name, 'memory.invalidateConversation');
+        return async ({ conversationId }) => invalidated.push(conversationId);
+      }
+    }
+  });
+
+  await harness.lifecycle.handleBatchDelete();
+
+  assert.deepEqual(invalidated, ['c1', 'c2']);
+  assert.ok(harness.conversations.every(conversation => conversation.deletedAt));
+});
+
 test('batch delete falls back to the next live conversation without starting a new chat when possible', async () => {
   const harness = createHarness({
     selectedConversationIds: new Set(['c1']),

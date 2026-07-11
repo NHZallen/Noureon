@@ -102,6 +102,8 @@ function createHarness(overrides = {}) {
     showNotification: (...args) => calls.push(['notification', ...args]),
     showCoordinatedNotification: (...args) => calls.push(['coordinatedNotification', ...args]),
     deleteConversationsFromCloud: overrides.deleteConversationsFromCloud || (async (ids, options) => calls.push(['deleteConversationsFromCloud', ids, options])),
+    invalidateConversationMemory: overrides.invalidateConversationMemory || (async () => {}),
+    rebuildHistoryIndex: overrides.rebuildHistoryIndex || (async () => {}),
     toggleModal: (...args) => calls.push(['toggleModal', ...args]),
     formatFullTimestamp: value => String(value),
     renderUserText: value => String(value),
@@ -226,6 +228,24 @@ test('single permanent delete keeps local trash when cloud deletion fails', asyn
   ]);
   assert.equal(harness.calls[1][2].requireSnapshots, true);
   assert.equal(harness.calls.at(-1)[2], 'error');
+});
+
+test('restore rebuilds memory and permanent deletion invalidates it', async () => {
+  const memoryCalls = [];
+  const restored = { id: 'restore', deletedAt: '2026-06-25T00:00:00.000Z' };
+  const restoreHarness = createHarness({
+    conversations: [restored],
+    rebuildHistoryIndex: async () => memoryCalls.push(['rebuild'])
+  });
+  await restoreHarness.lifecycle.handleRestoreTrashItem('restore');
+
+  const deleteHarness = createHarness({
+    conversations: [{ id: 'delete', deletedAt: '2026-06-25T00:00:00.000Z' }],
+    invalidateConversationMemory: async options => memoryCalls.push(['invalidate', options.conversationId])
+  });
+  await deleteHarness.lifecycle.handleDeleteTrashItemPermanently('delete');
+
+  assert.deepEqual(memoryCalls, [['rebuild'], ['invalidate', 'delete']]);
 });
 
 test('empty trash counts before replacement and preserves save and notification order', async () => {

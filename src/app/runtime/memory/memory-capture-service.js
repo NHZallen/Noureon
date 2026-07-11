@@ -41,14 +41,15 @@ export function createMemoryCaptureService({
       turns,
       signal,
       collectProfileCandidates = true,
-      allowTopicSummary = true
+      allowTopicSummary = true,
+      forceCapture = false
     } = {}) {
       if (!conversationId) throw new TypeError('Memory capture requires conversationId.');
       if (!sourceHash) throw new TypeError('Memory capture requires sourceHash.');
       const memoryState = getMemoryState() || {};
       const recentStates = asArray(memoryState.recentConversationStates);
       const existingRecentState = recentStates.find(state => state.conversationId === conversationId);
-      if (existingRecentState?.sourceHash === sourceHash) {
+      if (!forceCapture && existingRecentState?.sourceHash === sourceHash) {
         return { captured: false, reason: 'unchanged-source' };
       }
 

@@ -808,3 +808,6 @@ body svg {
 .memory-action-button svg {
     stroke: currentColor;
 }
+#custom-dialog-message {
+    white-space: pre-line;
+}

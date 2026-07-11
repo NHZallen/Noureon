@@ -19,6 +19,8 @@ export function createLegacyTrashLifecycle({
   showNotification,
   showCoordinatedNotification,
   deleteConversationsFromCloud = async () => {},
+  invalidateConversationMemory = async () => {},
+  rebuildHistoryIndex = async () => {},
   toggleModal,
   formatFullTimestamp,
   renderUserText,
@@ -165,6 +167,7 @@ export function createLegacyTrashLifecycle({
       renderSidebar();
       renderTrash();
       showCoordinatedNotification(getTexts().itemRestored || '項目已還原。', 'success');
+      void rebuildHistoryIndex();
     }
   };
 
@@ -175,6 +178,7 @@ export function createLegacyTrashLifecycle({
     ))) return;
     const conversation = getConversations().find(item => item.id === conversationId);
     if (!await confirmCloudDeletion([conversationId], conversation ? [conversation] : [])) return;
+    await invalidateConversationMemory({ conversationId });
     replaceConversations(
       getConversations().filter(conversation => conversation.id !== conversationId)
     );
@@ -239,6 +243,7 @@ export function createLegacyTrashLifecycle({
       `${getTexts().batchRestoredSuccess || '已成功還原'} ${count} ${getTexts().items || '個項目'}。`,
       'success'
     );
+    void rebuildHistoryIndex();
   };
 
   const handleBatchDeleteFromTrash = async () => {
@@ -251,6 +256,7 @@ export function createLegacyTrashLifecycle({
     const ids = [...selectedTrashIds];
     const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id));
     if (!await confirmCloudDeletion(ids, selectedSnapshots)) return;
+    for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
     replaceConversations(
       getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))
     );
@@ -273,6 +279,7 @@ export function createLegacyTrashLifecycle({
     const trashSnapshots = conversations.filter(conversation => conversation.deletedAt);
     const ids = trashSnapshots.map(conversation => conversation.id);
     if (!await confirmCloudDeletion(ids, trashSnapshots)) return;
+    for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
     replaceConversations(
       conversations.filter(conversation => !conversation.deletedAt)
     );

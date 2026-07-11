@@ -502,7 +502,9 @@ const {
     ensureHistoryRecallSettingsControl,
     refreshHistoryRecallStatus,
     resolveHistoryRecallEnabled,
-    bindHistoryIndexRebuild
+    bindHistoryIndexRebuild,
+    bindHistoryIndexAudit,
+    bindHistoryIndexStatusUpdates
 } = historyRecallControls;
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
@@ -510,6 +512,8 @@ const setupSettingsModal = () => {
     ensureAutoWebSearchSettingsControl();
     ensureHistoryRecallSettingsControl();
     bindHistoryIndexRebuild();
+    bindHistoryIndexAudit({ showCustomDialog });
+    bindHistoryIndexStatusUpdates();
     ensureCouncilTranslatorSettingsControls();
     ensureOutputModeSettingsControls();
     prepareApiKeyInputsForSettings();

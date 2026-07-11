@@ -19,6 +19,7 @@ import { createGeminiMediaMemoryClient } from '../memory/gemini-media-memory-cli
 import { createMediaMemoryService } from '../memory/media-memory-service.js';
 import { createGeminiHistoryQueryResolverClient } from '../memory/gemini-history-query-resolver-client.js';
 import { appendMemoryUsageRecord } from '../memory/memory-usage-recording.js';
+import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
 
 const requiredDependencies = [
     'window',
@@ -341,6 +342,11 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     } = batchImportVoiceLifecycle;
 
     const historyIndex = createHistoryIndexStore();
+    const notifyHistoryIndexChanged = () => {
+        if (typeof document?.dispatchEvent === 'function' && typeof Event === 'function') {
+            document.dispatchEvent(new Event('noureon:history-index-changed'));
+        }
+    };
     const historyIndexPersistence = runtimeStorageAdapter?.getItem
         ? createHistoryIndexPersistence({
             index: historyIndex,
@@ -467,7 +473,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         try {
             return await memoryCaptureService.captureCompletedTurn(options);
         } finally {
-            if (runtimeAppDataStore.getMemoryState?.() !== previousMemoryState) await saveAppData();
+            if (runtimeAppDataStore.getMemoryState?.() !== previousMemoryState) {
+                await saveAppData();
+                notifyHistoryIndexChanged();
+            }
         }
     };
     const memoryInvalidationService = createMemoryInvalidationService({
@@ -478,8 +487,12 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     });
     const invalidateMemoryConversation = async options => {
         memoryWorkScheduler.cancelConversation(options?.conversationId);
-        return memoryInvalidationService.invalidateConversation(options);
+        const result = await memoryInvalidationService.invalidateConversation(options);
+        await saveAppData();
+        notifyHistoryIndexChanged();
+        return result;
     };
+    legacyRuntimeContext.registerLazyBinding('memory.invalidateConversation', () => invalidateMemoryConversation);
     const historyIndexRebuildService = createHistoryIndexRebuildService({
         getConversations: () => state.conversations,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
@@ -497,9 +510,16 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             await historyIndexReady;
             try {
                 const memoryState = runtimeAppDataStore.getMemoryState?.() || {};
+                const activeConversationIds = new Set(state.conversations
+                    .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
+                    .map(conversation => conversation.id));
                 const expectedRecordIds = new Set([
-                    ...(memoryState.conversationCapsules || []).map(capsule => `capsule:${capsule.conversationId}`),
-                    ...(memoryState.mediaMemories || []).map(media => `media:${media.conversationId}:${media.sourceHash}`)
+                    ...(memoryState.conversationCapsules || [])
+                        .filter(capsule => activeConversationIds.has(capsule?.conversationId))
+                        .map(capsule => `capsule:${capsule.conversationId}`),
+                    ...(memoryState.mediaMemories || [])
+                        .filter(media => activeConversationIds.has(media?.conversationId))
+                        .map(media => `media:${media.conversationId}:${media.sourceHash}`)
                 ]);
                 historyIndex.getAll()
                     .filter(record => !expectedRecordIds.has(record.recordId))
@@ -511,11 +531,38 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             } finally {
                 if (historyIndexPersistence?.save) await historyIndexPersistence.save();
                 await saveAppData();
+                notifyHistoryIndexChanged();
             }
         })().finally(() => { historyIndexRebuildPromise = null; });
         return historyIndexRebuildPromise;
     };
     legacyRuntimeContext.registerLazyBinding('memory.rebuildHistoryIndex', () => rebuildHistoryIndex);
+    const historyIndexAuditService = createHistoryIndexAuditService({
+        getConversations: () => state.conversations,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        index: historyIndex,
+        hashString,
+        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
+        indexCapsule: options => historyIndexingService.indexCapsule(options),
+        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options),
+        persistence: historyIndexPersistence,
+        persistMemoryState: saveAppData
+    });
+    let latestHistoryIndexAudit = null;
+    const auditHistoryIndex = async () => {
+        await historyIndexReady;
+        latestHistoryIndexAudit = await historyIndexAuditService.audit();
+        return latestHistoryIndexAudit;
+    };
+    const optimizeHistoryIndex = async () => {
+        const report = latestHistoryIndexAudit || await auditHistoryIndex();
+        const result = await historyIndexAuditService.optimize(report);
+        latestHistoryIndexAudit = null;
+        notifyHistoryIndexChanged();
+        return result;
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.auditHistoryIndex', () => auditHistoryIndex);
+    legacyRuntimeContext.registerLazyBinding('memory.optimizeHistoryIndex', () => optimizeHistoryIndex);
     const memoryWorkScheduler = createMemoryWorkScheduler({
         runJob: async job => {
             await historyIndexReady;
