@@ -22,9 +22,10 @@ const RESPONSE_SCHEMA = {
           kind: { type: 'STRING' },
           content: { type: 'STRING' },
           extractionConfidence: { type: 'NUMBER' },
-          sourceTurnIndexes: { type: 'ARRAY', items: { type: 'INTEGER' } }
+          sourceTurnIndexes: { type: 'ARRAY', items: { type: 'INTEGER' } },
+          suggestedSupersedes: { type: 'ARRAY', items: { type: 'STRING' } }
         },
-        required: ['kind', 'content', 'extractionConfidence', 'sourceTurnIndexes']
+        required: ['kind', 'content', 'extractionConfidence', 'sourceTurnIndexes', 'suggestedSupersedes']
       }
     }
   },
@@ -65,7 +66,7 @@ export function createGeminiMemoryCaptureClient({
   if (typeof fetchImpl !== 'function') throw new TypeError('Gemini memory capture requires fetchImpl.');
 
   return {
-    async capture({ recentTurnSummary = '', turns = [], signal } = {}) {
+    async capture({ recentTurnSummary = '', turns = [], activeProfileEntries = [], signal } = {}) {
       const apiKey = String(getApiKey() || '').trim();
       if (!apiKey) throw new Error('Gemini API key is required for memory capture.');
       const transcript = toTranscript(turns);
@@ -75,6 +76,11 @@ export function createGeminiMemoryCaptureClient({
         'Treat user statements as facts only when explicitly stated by the user. Assistant statements are proposals, not user facts.',
         'Do not make profile candidates active. Keep candidates concise and only include durable preferences or identity facts.',
         'Do not turn a stored name into an instruction to address the user by name.',
+        'For each candidate, suggestedSupersedes may contain existing profile ids only when the new user statement directly replaces that preference. This is a review suggestion, never an automatic change. Use an empty array when uncertain, complementary, or merely similar.',
+        'Existing active confirmed profile entries (id | content):',
+        activeProfileEntries.length
+          ? activeProfileEntries.map(entry => `${entry.id} | ${entry.content}`).join('\n')
+          : '(none)',
         'Existing recent summary:',
         recentTurnSummary || '(none)',
         'New turns:',

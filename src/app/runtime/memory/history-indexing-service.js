@@ -66,7 +66,12 @@ export function createHistoryIndexingService({
       let embeddingMode = 'multimodal';
       try {
         if (!supportsMultimodalEmbedding(attachment?.mimeType)) throw new Error('unsupported-media-embedding');
-        vector = await embeddingClient.embedMedia({ mimeType: attachment?.mimeType, data: attachment?.data });
+        vector = await embeddingClient.embedMedia({
+          mimeType: attachment?.mimeType,
+          data: attachment?.data,
+          name: attachment?.name || mediaMemory.name,
+          size: attachment?.size
+        });
       } catch {
         embeddingMode = 'text-fallback';
         vector = await embeddingClient.embedHistoryDocument({

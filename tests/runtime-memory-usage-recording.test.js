@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   appendMemoryUsageRecord,
+  removeMemoryUsageRecords,
   snapshotMemoryContextUsage
 } from '../src/app/runtime/memory/memory-usage-recording.js';
 
@@ -32,4 +33,5 @@ test('records only the context selected for a completed response and retains his
     responseMessageId: 'assistant-1',
     sources: [{ type: 'profile-entry', id: 'tone', label: 'Be direct.' }]
   }).memoryUsageRecords.length, 1);
+  assert.deepEqual(removeMemoryUsageRecords(next, { conversationId: 'current-chat' }).memoryUsageRecords, []);
 });

@@ -6,6 +6,7 @@ import { createMemoryCaptureService } from '../src/app/runtime/memory/memory-cap
 test('captures a completed turn once into separate recent state, capsule, and review-only candidates', async () => {
   let memoryState = {
     version: 2,
+    profileEntries: [{ id: 'brief', status: 'active', confirmedByUser: true, kind: 'preference', content: '回答要簡短' }],
     recentConversationStates: [],
     conversationCapsules: [],
     profileCandidates: []
@@ -28,7 +29,8 @@ test('captures a completed turn once into separate recent state, capsule, and re
             kind: 'preference',
             content: '使用繁體中文回答',
             extractionConfidence: 0.95,
-            sourceTurnIndexes: [0]
+            sourceTurnIndexes: [0],
+            suggestedSupersedes: ['brief', 'missing']
           }]
         };
       }
@@ -58,6 +60,7 @@ test('captures a completed turn once into separate recent state, capsule, and re
   assert.equal(first.captured, true);
   assert.deepEqual(second, { captured: false, reason: 'unchanged-source' });
   assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].activeProfileEntries, [{ id: 'brief', kind: 'preference', content: '回答要簡短' }]);
   assert.deepEqual(indexed, [{
     capsule: memoryState.conversationCapsules[0],
     sourceHash: 'turn-hash-1'
@@ -75,6 +78,7 @@ test('captures a completed turn once into separate recent state, capsule, and re
   ]);
   assert.equal(memoryState.profileCandidates[0].status, 'review');
   assert.equal(memoryState.profileCandidates[0].confirmedByUser, false);
+  assert.deepEqual(memoryState.profileCandidates[0].suggestedSupersedes, ['brief']);
 });
 
 test('history rebuild capture never adds profile candidates from old conversations', async () => {

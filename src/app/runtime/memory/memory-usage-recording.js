@@ -73,3 +73,13 @@ export function appendMemoryUsageRecord(memoryState = {}, {
     memoryUsageRecords: [...existing, record].slice(-Math.max(1, limit))
   };
 }
+
+export function removeMemoryUsageRecords(memoryState = {}, { conversationId = null } = {}) {
+  const records = asArray(memoryState.memoryUsageRecords);
+  return {
+    ...memoryState,
+    memoryUsageRecords: conversationId
+      ? records.filter(record => record?.conversationId !== conversationId)
+      : []
+  };
+}

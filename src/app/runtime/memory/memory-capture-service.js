@@ -1,5 +1,9 @@
 const asArray = value => Array.isArray(value) ? value : [];
 
+const activeProfileEntryIds = memoryState => new Set(asArray(memoryState.profileEntries)
+  .filter(entry => entry?.status === 'active' && entry?.confirmedByUser === true)
+  .map(entry => String(entry.id)));
+
 const sourceRefsForTurns = turns => asArray(turns).map(turn => ({
   messageId: turn.id,
   role: turn.role === 'user' ? 'user' : 'assistant',
@@ -55,6 +59,9 @@ export function createMemoryCaptureService({
       const capture = await captureClient.capture({
         recentTurnSummary: existingRecentState?.recentTurnSummary || '',
         turns: captureTurns,
+        activeProfileEntries: asArray(memoryState.profileEntries)
+          .filter(entry => entry?.status === 'active' && entry?.confirmedByUser === true)
+          .map(({ id, kind, content }) => ({ id, kind, content })),
         signal
       });
       const updatedAt = now();
@@ -78,6 +85,7 @@ export function createMemoryCaptureService({
         sourceRefs: sourceRefsForTurns(turns),
         updatedAt
       };
+      const activeIds = activeProfileEntryIds(memoryState);
       const candidates = (collectProfileCandidates ? asArray(capture.profileCandidates) : []).map(candidate => ({
         id: createId('profile-candidate'),
         kind: candidate.kind,
@@ -85,6 +93,9 @@ export function createMemoryCaptureService({
         status: 'review',
         confirmedByUser: false,
         extractionConfidence: candidate.extractionConfidence,
+        suggestedSupersedes: asArray(candidate.suggestedSupersedes)
+          .map(String)
+          .filter(id => activeIds.has(id)),
         sourceRefs: candidateSourceRefs(turns, candidate.sourceTurnIndexes),
         createdAt: updatedAt
       }));

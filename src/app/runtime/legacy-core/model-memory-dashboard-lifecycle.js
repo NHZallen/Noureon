@@ -9,6 +9,7 @@ import {
     removeSuppressionRule,
     updateSuppressionRule
 } from '../memory/memory-suppression-management.js';
+import { removeMemoryUsageRecords } from '../memory/memory-usage-recording.js';
 
 const REQUIRED_DEPENDENCIES = [
     'document',
@@ -77,6 +78,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
     let folders;
     let personalMemories;
     let memoryState;
+    let memoryUsageConversationFilter = 'all';
     const syncState = () => {
         config = getConfig();
         conversations = getConversations();
@@ -126,10 +128,18 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         <span class="text-sm word-break: break-word;"></span>
     </div>
     <button class="approve-memory-candidate-btn text-[var(--button-primary-bg)] text-sm" data-id="${candidate.id}">保留</button>
+    ${candidate.suggestedSupersedes?.length ? `<button class="approve-superseding-candidate-btn text-[var(--button-primary-bg)] text-sm" data-id="${candidate.id}">採用取代建議</button>` : ''}
     <button class="dismiss-memory-candidate-btn text-red-600 hover:text-red-800" data-id="${candidate.id}">忽略</button>
     <div class="candidate-replacement-list flex flex-wrap gap-1 basis-full"></div>`;
                 item.querySelectorAll('span')[1].textContent = candidate.content;
                 const replacementList = item.querySelector('.candidate-replacement-list');
+                const suggestedEntries = activeProfileEntries.filter(memory => candidate.suggestedSupersedes?.includes(memory.id));
+                if (replacementList && suggestedEntries.length > 0) {
+                    const suggestion = document.createElement('span');
+                    suggestion.className = 'text-xs text-[var(--text-secondary)] basis-full';
+                    suggestion.textContent = `模型建議取代：${suggestedEntries.map(memory => `「${memory.content}」`).join('、')}（需你確認）`;
+                    replacementList.appendChild(suggestion);
+                }
                 if (replacementList && activeProfileEntries.length > 0) {
                     const label = document.createElement('span');
                     label.className = 'text-xs text-[var(--text-secondary)] basis-full';
@@ -201,7 +211,29 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     heading.className = 'text-xs font-medium text-[var(--text-secondary)] mt-3';
                     heading.textContent = '回覆的記憶使用紀錄（只在設定頁顯示）';
                     derivedSection.appendChild(heading);
-                    memoryUsageRecords.slice(-12).reverse().forEach(record => {
+                    const conversationIds = [...new Set(memoryUsageRecords.map(record => record?.conversationId).filter(Boolean))];
+                    const controls = document.createElement('div');
+                    controls.className = 'flex items-center gap-2';
+                    const filter = document.createElement('select');
+                    filter.className = 'memory-usage-conversation-filter flex-1 p-1.5 rounded-md border border-[var(--border-color)] bg-[var(--input-field-bg)] text-sm';
+                    filter.innerHTML = '<option value="all">全部聊天室</option>';
+                    conversationIds.forEach(conversationId => {
+                        const conversation = conversations.find(item => item.id === conversationId);
+                        const option = document.createElement('option');
+                        option.value = conversationId;
+                        option.textContent = conversation?.title || `聊天室 ${conversationId.slice(0, 8)}`;
+                        filter.appendChild(option);
+                    });
+                    if (!conversationIds.includes(memoryUsageConversationFilter)) memoryUsageConversationFilter = 'all';
+                    filter.value = memoryUsageConversationFilter;
+                    const clearButton = document.createElement('button');
+                    clearButton.className = 'clear-memory-usage-btn text-red-600 hover:text-red-800 text-sm';
+                    clearButton.textContent = memoryUsageConversationFilter === 'all' ? '清除全部' : '清除目前篩選';
+                    controls.append(filter, clearButton);
+                    derivedSection.appendChild(controls);
+                    memoryUsageRecords
+                        .filter(record => memoryUsageConversationFilter === 'all' || record?.conversationId === memoryUsageConversationFilter)
+                        .slice(-12).reverse().forEach(record => {
                         const item = document.createElement('div');
                         item.className = 'flex flex-col gap-1 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                         const response = conversations
@@ -309,6 +341,22 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     renderPersonalMemoryList();
                 });
             });
+            container.querySelectorAll('.approve-superseding-candidate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const candidateId = e.currentTarget.dataset.id;
+                    const candidate = profileCandidates.find(item => item.id === candidateId);
+                    const supersededEntryIds = (candidate?.suggestedSupersedes || [])
+                        .filter(id => activeProfileEntries.some(entry => entry.id === id));
+                    if (!candidate || supersededEntryIds.length === 0) return;
+                    replaceMemoryState(approveProfileCandidate(memoryState, {
+                        candidateId,
+                        profileEntryId: crypto.randomUUID(),
+                        supersededEntryIds
+                    }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
             container.querySelectorAll('.dismiss-memory-candidate-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = e.currentTarget.dataset.id;
@@ -379,6 +427,23 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     const instruction = await showCustomPrompt(`目前規則：${currentText}\n輸入新的規則內容。`, '編輯不主動使用規則');
                     if (!instruction) return;
                     replaceMemoryState(updateSuppressionRule(memoryState, { ruleId, instruction }));
+                    await saveAppData();
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.memory-usage-conversation-filter').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    memoryUsageConversationFilter = e.target.value || 'all';
+                    renderPersonalMemoryList();
+                });
+            });
+            container.querySelectorAll('.clear-memory-usage-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const scope = memoryUsageConversationFilter === 'all' ? null : memoryUsageConversationFilter;
+                    const prompt = scope ? '清除這個聊天室的記憶使用紀錄？' : '清除全部記憶使用紀錄？';
+                    if (!await showCustomConfirm(prompt)) return;
+                    replaceMemoryState(removeMemoryUsageRecords(memoryState, { conversationId: scope }));
+                    if (scope) memoryUsageConversationFilter = 'all';
                     await saveAppData();
                     renderPersonalMemoryList();
                 });
