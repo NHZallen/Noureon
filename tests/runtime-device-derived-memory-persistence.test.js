@@ -31,3 +31,29 @@ test('device-derived memory survives a fresh app-data state', async () => {
   assert.equal(memoryState.conversationCapsules[0].id, 'capsule-1');
   assert.equal(memoryState.mediaMemories[0].id, 'media-1');
 });
+
+test('migrates anonymous derived memory into the current user key', async () => {
+  const values = new Map([['derived:anonymous', {
+    version: 1,
+    recentConversationStates: [{ conversationId: 'chat', sourceHash: 'hash' }],
+    conversationCapsules: [{ id: 'capsule', conversationId: 'chat' }],
+    mediaMemories: []
+  }]]);
+  let memoryState = {};
+  const persistence = createDeviceDerivedMemoryPersistence({
+    storage: {
+      getItem: async key => values.get(key) ?? null,
+      setItem: async (key, value) => values.set(key, value),
+      removeItem: async key => values.delete(key)
+    },
+    storageKey: () => 'derived:alice',
+    fallbackStorageKeys: () => ['derived:anonymous'],
+    getMemoryState: () => memoryState,
+    replaceMemoryState: next => { memoryState = next; }
+  });
+
+  assert.equal(await persistence.load(), true);
+  assert.equal(values.has('derived:alice'), true);
+  assert.equal(values.has('derived:anonymous'), false);
+  assert.equal(memoryState.conversationCapsules[0].id, 'capsule');
+});

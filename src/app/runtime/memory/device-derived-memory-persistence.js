@@ -2,13 +2,31 @@ const asArray = value => Array.isArray(value) ? value : [];
 
 export const DEVICE_DERIVED_MEMORY_VERSION = 1;
 
-export function createDeviceDerivedMemoryPersistence({ storage, storageKey, getMemoryState, replaceMemoryState } = {}) {
+export function createDeviceDerivedMemoryPersistence({ storage, storageKey, fallbackStorageKeys = [], getMemoryState, replaceMemoryState } = {}) {
   if (!storage?.getItem || !storage?.setItem) throw new TypeError('Device memory persistence requires storage.');
   if (typeof getMemoryState !== 'function' || typeof replaceMemoryState !== 'function') throw new TypeError('Device memory persistence requires memory state access.');
 
+  const resolveStorageKey = () => typeof storageKey === 'function' ? storageKey() : storageKey;
+  const resolveFallbackKeys = () => {
+    const keys = typeof fallbackStorageKeys === 'function' ? fallbackStorageKeys() : fallbackStorageKeys;
+    return Array.isArray(keys) ? keys.filter(Boolean) : [];
+  };
+
   return {
     async load() {
-      const saved = await storage.getItem(storageKey);
+      const primaryKey = resolveStorageKey();
+      let loadedKey = primaryKey;
+      let saved = await storage.getItem(primaryKey);
+      if (!saved) {
+        for (const fallbackKey of resolveFallbackKeys()) {
+          if (fallbackKey === primaryKey) continue;
+          saved = await storage.getItem(fallbackKey);
+          if (saved) {
+            loadedKey = fallbackKey;
+            break;
+          }
+        }
+      }
       if (saved?.version !== DEVICE_DERIVED_MEMORY_VERSION) return false;
       const current = getMemoryState() || {};
       replaceMemoryState({
@@ -17,11 +35,15 @@ export function createDeviceDerivedMemoryPersistence({ storage, storageKey, getM
         conversationCapsules: asArray(saved.conversationCapsules),
         mediaMemories: asArray(saved.mediaMemories)
       });
+      if (loadedKey !== primaryKey) {
+        await storage.setItem(primaryKey, saved);
+        await storage.removeItem(loadedKey);
+      }
       return true;
     },
     async save() {
       const memoryState = getMemoryState() || {};
-      await storage.setItem(storageKey, {
+      await storage.setItem(resolveStorageKey(), {
         version: DEVICE_DERIVED_MEMORY_VERSION,
         recentConversationStates: asArray(memoryState.recentConversationStates),
         conversationCapsules: asArray(memoryState.conversationCapsules),

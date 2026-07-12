@@ -40,6 +40,7 @@ export function createHistoryIndexAuditService({
     let healthy = 0;
     let missing = 0;
     let outdated = 0;
+    const orphanRecordIds = new Set();
 
     for (const { conversation, turns } of conversations) {
       const sourceHash = await hashString(JSON.stringify(turns));
@@ -49,7 +50,8 @@ export function createHistoryIndexAuditService({
       const record = records.find(item => item.recordId === recordId);
       expectedRecordIds.add(recordId);
       if (!capsule || recent?.sourceHash !== sourceHash) {
-        (capsule || recent ? outdated += 1 : missing += 1);
+        if (record && !capsule && !recent) orphanRecordIds.add(recordId);
+        else (capsule || recent ? outdated += 1 : missing += 1);
         tasks.push({ type: 'capture', conversationId: conversation.id, sourceHash, turns });
       } else if (!record) {
         missing += 1;
@@ -76,9 +78,12 @@ export function createHistoryIndexAuditService({
       }
     }
 
-    const extraRecordIds = records
+    const extraRecordIds = [...new Set([
+      ...orphanRecordIds,
+      ...records
       .filter(record => !expectedRecordIds.has(record.recordId))
-      .map(record => record.recordId);
+      .map(record => record.recordId)
+    ])];
     return {
       totalConversations: conversations.length,
       healthy,
@@ -116,8 +121,8 @@ export function createHistoryIndexAuditService({
       completed += 1;
       onProgress({ completed, total: tasks.length, repaired, removed: extras.length, failed });
     }
-    if (persistence?.save) await persistence.save();
     await persistMemoryState();
+    if (persistence?.save) await persistence.save();
     return { repaired, removed: extras.length, failed, unchanged: report?.healthy || 0 };
   }
 

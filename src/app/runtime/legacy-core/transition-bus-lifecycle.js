@@ -307,6 +307,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     } = batchImportVoiceLifecycle;
 
     const historyIndex = createHistoryIndexStore();
+    const getMemoryOwner = () => state.currentUser?.username || 'anonymous';
     const notifyHistoryIndexChanged = () => {
         if (typeof document?.dispatchEvent === 'function' && typeof Event === 'function') {
             document.dispatchEvent(new Event('noureon:history-index-changed'));
@@ -316,21 +317,33 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         ? createHistoryIndexPersistence({
             index: historyIndex,
             storage: runtimeStorageAdapter,
-            storageKey: `noureon:history-index:v1:${state.currentUser?.username || 'anonymous'}`
+            storageKey: () => `noureon:history-index:v1:${getMemoryOwner()}`,
+            fallbackStorageKeys: () => getMemoryOwner() === 'anonymous'
+                ? []
+                : ['noureon:history-index:v1:anonymous']
         })
         : null;
     let historyIndexLoaded = false;
-    const historyIndexReady = (historyIndexPersistence
-        ? historyIndexPersistence.load().catch(error => console.warn('Memory index could not load.', error))
-        : Promise.resolve())
-        .finally(() => { historyIndexLoaded = true; });
+    let historyIndexReady = null;
+    const ensureHistoryIndexReady = () => {
+        if (!historyIndexReady) {
+            historyIndexReady = (historyIndexPersistence
+                ? historyIndexPersistence.load().catch(error => console.warn('Memory index could not load.', error))
+                : Promise.resolve())
+                .finally(() => {
+                    historyIndexLoaded = true;
+                    notifyHistoryIndexChanged();
+                });
+        }
+        return historyIndexReady;
+    };
     const historyIndexingService = createHistoryIndexingService({
         index: historyIndex,
         embeddingClient: createGeminiEmbeddingClient({
             getApiKey: () => getApiKeyForProvider('gemini'),
             fetchImpl: fetch
         }),
-        persistence: historyIndexPersistence
+        persistence: null
     });
     const localMemoryStorage = runtimeStorageAdapter?.getItem
         ? runtimeStorageAdapter
@@ -341,7 +354,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         };
     const deviceDerivedMemoryRuntime = createDeviceDerivedMemoryRuntime({
         storage: localMemoryStorage,
-        storageKey: `noureon:derived-memory:v1:${state.currentUser?.username || 'anonymous'}`,
+        storageKey: () => `noureon:derived-memory:v1:${getMemoryOwner()}`,
+        fallbackStorageKeys: () => getMemoryOwner() === 'anonymous'
+            ? []
+            : ['noureon:derived-memory:v1:anonymous'],
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         replaceMemoryState: nextState => runtimeAppDataStore.replaceMemoryState?.(nextState),
         saveAppData,
@@ -368,7 +384,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         })
     });
     const retrieveHistory = async options => {
-        await Promise.all([historyIndexReady, historyRecallConsentReady, ensureDeviceDerivedMemoryReady()]);
+        await Promise.all([ensureHistoryIndexReady(), historyRecallConsentReady, ensureDeviceDerivedMemoryReady()]);
         if (!deviceHistoryRecallConsent.isGranted()) return [];
         return historyRetrievalService.retrieve(options);
     };
@@ -382,14 +398,17 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     let historyIndexRebuildStatus = { state: 'idle', completed: 0, total: 0, indexed: 0, skipped: 0, failed: 0 };
     let historyIndexOptimizeStatus = { state: 'idle', completed: 0, total: 0, repaired: 0, removed: 0, failed: 0 };
     legacyRuntimeContext.registerLazyBinding('memory.getHistoryRecallStatus', () => (
-        () => ({
-            consented: deviceHistoryRecallConsent.isGranted(),
-            consentLoaded: deviceHistoryRecallConsent.isLoaded(),
-            indexLoaded: historyIndexLoaded,
-            indexRecordCount: historyIndex.getAll().length,
-            rebuild: historyIndexRebuildStatus,
-            optimize: historyIndexOptimizeStatus
-        })
+        () => {
+            void ensureHistoryIndexReady();
+            return {
+                consented: deviceHistoryRecallConsent.isGranted(),
+                consentLoaded: deviceHistoryRecallConsent.isLoaded(),
+                indexLoaded: historyIndexLoaded,
+                indexRecordCount: historyIndex.getAll().length,
+                rebuild: historyIndexRebuildStatus,
+                optimize: historyIndexOptimizeStatus
+            };
+        }
     ));
     const replaceMemoryState = nextMemoryState => {
         const savedMemoryState = runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
@@ -436,6 +455,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         } finally {
             if (runtimeAppDataStore.getMemoryState?.() !== previousMemoryState) {
                 await persistMemoryState();
+                if (historyIndexPersistence?.save) await historyIndexPersistence.save();
                 notifyHistoryIndexChanged();
             }
         }
@@ -468,7 +488,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     const rebuildHistoryIndex = options => {
         if (historyIndexWorkPromise) return historyIndexWorkPromise;
         historyIndexWorkPromise = (async () => {
-            await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+            await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
             try {
                 const memoryState = runtimeAppDataStore.getMemoryState?.() || {};
                 const activeConversationIds = new Set(state.conversations
@@ -493,8 +513,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
                     }
                 });
             } finally {
-                if (historyIndexPersistence?.save) await historyIndexPersistence.save();
                 await persistMemoryState();
+                if (historyIndexPersistence?.save) await historyIndexPersistence.save();
                 notifyHistoryIndexChanged();
             }
         })().finally(() => { historyIndexWorkPromise = null; });
@@ -515,14 +535,14 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     let latestHistoryIndexAudit = null;
     const auditHistoryIndex = async () => {
         if (historyIndexWorkPromise) await historyIndexWorkPromise;
-        await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+        await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
         latestHistoryIndexAudit = await historyIndexAuditService.audit();
         return latestHistoryIndexAudit;
     };
     const optimizeHistoryIndex = () => {
         if (historyIndexWorkPromise) return historyIndexWorkPromise;
         historyIndexWorkPromise = (async () => {
-            await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+            await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
             const report = latestHistoryIndexAudit || await historyIndexAuditService.audit();
             try {
                 return await historyIndexAuditService.optimize(report, {
@@ -546,7 +566,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     legacyRuntimeContext.registerLazyBinding('memory.optimizeHistoryIndex', () => optimizeHistoryIndex);
     const memoryWorkScheduler = createMemoryWorkScheduler({
         runJob: async job => {
-            await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+            await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
             return captureCompletedTurnAndPersist(job);
         },
         schedule: callback => setTimeout(callback, 15_000),

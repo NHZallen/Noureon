@@ -3,6 +3,8 @@ import test from 'node:test';
 
 import { createHistoryIndexAuditService } from '../src/app/runtime/memory/history-index-audit-service.js';
 import { createHistoryIndexStore } from '../src/app/runtime/memory/history-index-store.js';
+import { createHistoryIndexPersistence } from '../src/app/runtime/memory/history-index-persistence.js';
+import { createDeviceDerivedMemoryPersistence } from '../src/app/runtime/memory/device-derived-memory-persistence.js';
 
 test('audits healthy, missing, outdated, and extra records without calling models', async () => {
   const index = createHistoryIndexStore();
@@ -56,4 +58,70 @@ test('optimization removes only extras and repairs only reported tasks', async (
   assert.deepEqual(calls, [['capture', 'changed'], ['capsule', 'missing'], ['persist']]);
   assert.deepEqual(result, { repaired: 2, removed: 1, failed: 0, unchanged: 5 });
   assert.equal(index.getAll().length, 0);
+});
+
+test('classifies persisted vectors without derived metadata as orphan records', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:chat', conversationId: 'chat', sourceHash: 'hash:chat' });
+  const service = createHistoryIndexAuditService({
+    getConversations: () => [{ id: 'chat', messages: [{ id: 'm', role: 'user', parts: [{ text: 'hello' }] }] }],
+    getMemoryState: () => ({ recentConversationStates: [], conversationCapsules: [] }),
+    index,
+    hashString: async () => 'hash:chat'
+  });
+
+  const report = await service.audit();
+
+  assert.equal(report.missing, 0);
+  assert.equal(report.extra, 1);
+  assert.deepEqual(report.extraRecordIds, ['capsule:chat']);
+  assert.equal(report.tasks[0].type, 'capture');
+});
+
+test('a completed index remains healthy after simulated page reload', async () => {
+  const values = new Map();
+  const storage = {
+    getItem: async key => values.get(key) ?? null,
+    setItem: async (key, value) => values.set(key, value),
+    removeItem: async key => values.delete(key)
+  };
+  const conversation = { id: 'chat', messages: [{ id: 'm', role: 'user', parts: [{ text: 'hello' }] }] };
+  let memoryState = {
+    recentConversationStates: [{ conversationId: 'chat', sourceHash: 'hash:chat' }],
+    conversationCapsules: [{ id: 'capsule', conversationId: 'chat', summary: 'Greeting' }],
+    mediaMemories: []
+  };
+  const firstIndex = createHistoryIndexStore();
+  firstIndex.put({ recordId: 'capsule:chat', conversationId: 'chat', capsuleId: 'capsule', sourceHash: 'hash:chat', vector: [1, 0] });
+  await Promise.all([
+    createHistoryIndexPersistence({ index: firstIndex, storage, storageKey: 'index:alice' }).save(),
+    createDeviceDerivedMemoryPersistence({
+      storage,
+      storageKey: 'derived:alice',
+      getMemoryState: () => memoryState,
+      replaceMemoryState: next => { memoryState = next; }
+    }).save()
+  ]);
+
+  const reloadedIndex = createHistoryIndexStore();
+  memoryState = { recentConversationStates: [], conversationCapsules: [], mediaMemories: [] };
+  await Promise.all([
+    createHistoryIndexPersistence({ index: reloadedIndex, storage, storageKey: 'index:alice' }).load(),
+    createDeviceDerivedMemoryPersistence({
+      storage,
+      storageKey: 'derived:alice',
+      getMemoryState: () => memoryState,
+      replaceMemoryState: next => { memoryState = next; }
+    }).load()
+  ]);
+  const report = await createHistoryIndexAuditService({
+    getConversations: () => [conversation],
+    getMemoryState: () => memoryState,
+    index: reloadedIndex,
+    hashString: async () => 'hash:chat'
+  }).audit();
+
+  assert.equal(report.healthy, 1);
+  assert.equal(report.missing, 0);
+  assert.equal(report.extra, 0);
 });

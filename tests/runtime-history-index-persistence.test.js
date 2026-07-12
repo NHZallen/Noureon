@@ -50,3 +50,27 @@ test('clearing a local index removes its persisted copy only', async () => {
   assert.deepEqual(index.getAll(), []);
   assert.deepEqual(removedKeys, ['noureon:history-index:v1']);
 });
+
+test('loads after the user is known and migrates the legacy anonymous index', async () => {
+  const values = new Map([['noureon:history-index:v1:anonymous', {
+    schemaVersion: 1,
+    records: [{ recordId: 'capsule:chat', conversationId: 'chat', vector: [1, 0] }]
+  }]]);
+  let username = 'alice';
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage: {
+      getItem: async key => values.get(key) ?? null,
+      setItem: async (key, value) => values.set(key, value),
+      removeItem: async key => values.delete(key)
+    },
+    storageKey: () => `noureon:history-index:v1:${username}`,
+    fallbackStorageKeys: () => ['noureon:history-index:v1:anonymous']
+  });
+
+  assert.equal(await persistence.load(), 1);
+  assert.equal(values.has('noureon:history-index:v1:alice'), true);
+  assert.equal(values.has('noureon:history-index:v1:anonymous'), false);
+  assert.equal(index.getAll()[0].recordId, 'capsule:chat');
+});
