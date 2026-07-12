@@ -931,8 +931,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             modelInfo,
             conversation: conv,
             signal: submitAbortController.signal,
-            uiLanguage: getLiveConfig().uiLanguage,
-            memoryUsageTarget: finalAiMessage
+            uiLanguage: getLiveConfig().uiLanguage
           });
           generatedImageParts = imageResult.parts;
         } else {
@@ -971,10 +970,6 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
         extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
-        recordMemoryUsage: (payload) => {
-          const recordUsage = legacyRuntimeContext.resolveOptionalBinding('memory.recordUsage');
-          return typeof recordUsage === 'function' ? recordUsage(payload) : undefined;
-        },
         completeImageView: generatedImageParts ? () => {
           const finalMessageElement = addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
           finalMessageElement.classList.add('generated-image-result-enter');

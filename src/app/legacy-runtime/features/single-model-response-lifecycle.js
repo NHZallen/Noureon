@@ -49,8 +49,7 @@ export function createSingleModelResponseLifecycle({
     modelInfo,
     conversation,
     signal,
-    uiLanguage,
-    memoryUsageTarget = null
+    uiLanguage
   }) => {
     stop();
     const startedAt = now();
@@ -103,7 +102,7 @@ export function createSingleModelResponseLifecycle({
       onChunk,
       signal,
       false,
-      { modelInfo, ...(memoryUsageTarget ? { memoryUsageTarget } : {}) }
+      { modelInfo }
     );
 
     let fullResponse;

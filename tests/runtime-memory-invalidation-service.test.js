@@ -16,7 +16,6 @@ test('editing or deleting a source conversation removes every derived local reco
     }],
     profileCandidates: [{ id: 'candidate', sourceRefs: [{ messageId: 'edited-message' }] }],
     longTermTopicSummaries: [{ id: 'topic', sourceCapsuleIds: ['changed-capsule'] }],
-    memoryUsageRecords: [{ id: 'usage', sourceIds: ['changed-capsule'] }]
   };
   const index = createHistoryIndexStore();
   index.put({ recordId: 'changed', conversationId: 'changed-chat', vector: [1] });
@@ -40,5 +39,4 @@ test('editing or deleting a source conversation removes every derived local reco
   assert.deepEqual(memoryState.conversationCapsules, []);
   assert.deepEqual(memoryState.profileCandidates, []);
   assert.deepEqual(memoryState.longTermTopicSummaries, []);
-  assert.deepEqual(memoryState.memoryUsageRecords, []);
 });

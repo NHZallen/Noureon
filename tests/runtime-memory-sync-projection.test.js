@@ -6,7 +6,7 @@ import {
   projectMemoryStateForSync
 } from '../src/app/runtime/memory/memory-sync-projection.js';
 
-test('sync projection excludes candidates, capsules, recent state, and local usage records', () => {
+test('sync projection excludes candidates, capsules, and recent state', () => {
   const projection = projectMemoryStateForSync({
     profileEntries: [
       { id: 'confirmed', confirmedByUser: true },
@@ -16,8 +16,7 @@ test('sync projection excludes candidates, capsules, recent state, and local usa
     longTermTopicSummaries: [{ id: 'topic-1', summary: 'A durable topic' }],
     profileCandidates: [{ id: 'review' }],
     conversationCapsules: [{ id: 'capsule' }],
-    recentConversationStates: [{ conversationId: 'chat' }],
-    memoryUsageRecords: [{ id: 'usage' }]
+    recentConversationStates: [{ conversationId: 'chat' }]
   });
 
   assert.deepEqual(projection, {

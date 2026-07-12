@@ -57,7 +57,6 @@ export function normalizeMemoryState(raw = {}, { now = () => new Date().toISOStr
     conversationCapsules: asArray(memoryState.conversationCapsules),
     longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries),
     suppressionRules: asArray(memoryState.suppressionRules),
-    memoryUsageRecords: asArray(memoryState.memoryUsageRecords),
     legacyInbox: [...legacyInbox, ...legacyMemories.map(entry => migrateLegacyMemory(entry, now))]
   };
 }

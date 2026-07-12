@@ -126,27 +126,6 @@ test('v2 memory injects only its filtered context and never the legacy memory li
   assert.doesNotMatch(systemMessage.content, /legacy-name|language/);
 });
 
-test('v2 memory snapshots selected context for internal usage recording without adding chat-visible metadata', async () => {
-  const usageTarget = {};
-  const { streamApiCall } = createHarness({
-    config: { memorySystemVersion: 2 },
-    getMemoryContext: () => ({
-      currentChatSummary: 'Current memory discussion.',
-      instructions: [],
-      profileEntries: [{ id: 'language', kind: 'preference', content: 'Use Traditional Chinese.' }],
-      historyResults: [{ recordId: 'capsule:old', sourceIds: ['old-capsule'], summary: 'Old relevant discussion.' }]
-    })
-  });
-
-  await streamApiCall([{ text: 'Hello' }], () => {}, undefined, false, { memoryUsageTarget: usageTarget });
-
-  assert.deepEqual(usageTarget._memoryUsageSources.map(source => source.type), [
-    'current-conversation-state',
-    'profile-entry',
-    'history-result'
-  ]);
-});
-
 test('OpenRouter requests preserve payload, headers, attachments, and streamed deltas', async () => {
   const { streamApiCall, requests } = createHarness({
     conversation: {

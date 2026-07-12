@@ -38,12 +38,7 @@ export function createMemoryInvalidationService({
       profileCandidates: asArray(memoryState.profileCandidates)
         .filter(candidate => !intersects(asArray(candidate?.sourceRefs).map(ref => ref?.messageId), invalidMessageIds)),
       longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
-        .filter(summary => !intersects(summary?.sourceCapsuleIds, invalidCapsuleIds)),
-      memoryUsageRecords: asArray(memoryState.memoryUsageRecords)
-        .filter(record => (
-          record?.conversationId !== conversationId
-          && !intersects(record?.sourceIds, invalidCapsuleIds)
-        ))
+        .filter(summary => !intersects(summary?.sourceCapsuleIds, invalidCapsuleIds))
     });
     if (persistence?.save) await persistence.save();
     return { invalidatedCapsuleCount: invalidCapsuleIds.size };

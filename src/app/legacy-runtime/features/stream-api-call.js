@@ -1,6 +1,5 @@
 import { appendStepPlanAttachmentContent } from './model-request-formatting.js';
 import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
-import { snapshotMemoryContextUsage } from '../../runtime/memory/memory-usage-recording.js';
 const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/step_plan/v1/chat/completions';
 
 const LANGUAGE_INSTRUCTIONS = {
@@ -593,19 +592,6 @@ export function createStreamApiCall({
         });
       } catch (error) {
         warn('Memory context retrieval failed; continuing without it.', error);
-      }
-    }
-    if (memoryContext) {
-      const sources = snapshotMemoryContextUsage(memoryContext);
-      if (requestOptions.memoryUsageTarget) {
-        requestOptions.memoryUsageTarget._memoryUsageSources = sources;
-      } else if (sources.length > 0) {
-        Object.defineProperty(conversation, '_memoryUsageSources', {
-          value: sources,
-          configurable: true,
-          writable: true,
-          enumerable: false
-        });
       }
     }
     const chartAuthoringGuidance = await getRuntimeChartAuthoringGuidance(

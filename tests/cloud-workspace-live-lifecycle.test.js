@@ -191,7 +191,6 @@ test('cloud config applies only the small synced memory projection and persists 
       conversationCapsules: [{ id: 'local-capsule' }],
       longTermTopicSummaries: [],
       suppressionRules: [],
-      memoryUsageRecords: [],
       legacyInbox: []
     }
   });

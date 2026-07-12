@@ -53,7 +53,6 @@ const CONTRACT_CATEGORIES = new Map([
   ['memory.optimizeHistoryIndex', 'memory'],
   ['memory.retrieveHistory', 'memory'],
   ['memory.rebuildHistoryIndex', 'memory'],
-  ['memory.recordUsage', 'memory'],
   ['memory.revokeHistoryRecallConsent', 'memory'],
   ['runtime.coreTailDependencies', 'core tail'],
   ['runtime.entryDependencies', 'runtime entry'],

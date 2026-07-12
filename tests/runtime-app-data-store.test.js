@@ -23,7 +23,6 @@ test('app data store creates empty pointer groups by default', () => {
     conversationCapsules: [],
     longTermTopicSummaries: [],
     suppressionRules: [],
-    memoryUsageRecords: [],
     legacyInbox: []
   });
   assert.deepEqual(store.getSnapshot(), {
@@ -44,7 +43,6 @@ test('app data store replaces versioned memory state without changing legacy poi
     conversationCapsules: [],
     longTermTopicSummaries: [],
     suppressionRules: [],
-    memoryUsageRecords: [],
     legacyInbox: []
   };
   const store = createLegacyRuntimeAppDataStore({ initialPersonalMemories: legacyMemories });

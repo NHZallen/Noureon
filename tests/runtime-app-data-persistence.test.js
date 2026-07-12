@@ -17,7 +17,6 @@ const emptyMemoryState = () => ({
   conversationCapsules: [],
   longTermTopicSummaries: [],
   suppressionRules: [],
-  memoryUsageRecords: [],
   legacyInbox: []
 });
 
