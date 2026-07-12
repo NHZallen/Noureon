@@ -114,7 +114,10 @@ export function approveProfileCandidate(memoryState = {}, {
   });
   return {
     ...addEntry(memoryState, entry, supersedes, now),
-    profileCandidates: candidates.filter(item => item.id !== candidateId)
+    profileCandidates: candidates.filter(item => item.id !== candidateId),
+    resolvedProfileCandidateIds: [
+      ...new Set([...asArray(memoryState.resolvedProfileCandidateIds), String(candidateId)])
+    ]
   };
 }
 

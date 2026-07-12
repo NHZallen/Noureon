@@ -187,6 +187,7 @@ test('cloud config applies only the small synced memory projection and persists 
       version: 2,
       profileEntries: [],
       profileCandidates: [{ id: 'local-candidate' }],
+      resolvedProfileCandidateIds: [],
       recentConversationStates: [],
       conversationCapsules: [{ id: 'local-capsule' }],
       longTermTopicSummaries: [],
@@ -220,6 +221,8 @@ test('cloud config applies only the small synced memory projection and persists 
     memorySync: {
       version: 1,
       profileEntries: [{ id: 'style', confirmedByUser: true, content: 'Keep replies concise' }],
+      profileCandidates: [{ id: 'remote-candidate', content: 'Use examples' }],
+      resolvedProfileCandidateIds: [],
       suppressionRules: [{ type: 'do-not-mention', target: 'profile-name' }],
       longTermTopicSummaries: []
     }
@@ -227,6 +230,9 @@ test('cloud config applies only the small synced memory projection and persists 
 
   assert.equal(appDataStore.getMemoryState().profileEntries[0].content, 'Keep replies concise');
   assert.deepEqual(appDataStore.getMemoryState().conversationCapsules, [{ id: 'local-capsule' }]);
-  assert.deepEqual(appDataStore.getMemoryState().profileCandidates, [{ id: 'local-candidate' }]);
+  assert.deepEqual(appDataStore.getMemoryState().profileCandidates, [
+    { id: 'local-candidate' },
+    { id: 'remote-candidate', content: 'Use examples' }
+  ]);
   assert.equal(saved, 1);
 });

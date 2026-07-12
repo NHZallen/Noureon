@@ -27,6 +27,9 @@ export function createMemoryInvalidationService({
         for (const id of sourceMessageIds(capsule)) invalidMessageIds.add(id);
       }
     }
+    const invalidCandidateIds = asArray(memoryState.profileCandidates)
+      .filter(candidate => intersects(asArray(candidate?.sourceRefs).map(ref => ref?.messageId), invalidMessageIds))
+      .map(candidate => String(candidate.id));
     index.removeConversation(conversationId);
     replaceMemoryState({
       ...memoryState,
@@ -37,6 +40,9 @@ export function createMemoryInvalidationService({
         .filter(memory => memory?.conversationId !== conversationId && !invalidMessageIds.has(memory?.messageId)),
       profileCandidates: asArray(memoryState.profileCandidates)
         .filter(candidate => !intersects(asArray(candidate?.sourceRefs).map(ref => ref?.messageId), invalidMessageIds)),
+      resolvedProfileCandidateIds: [
+        ...new Set([...asArray(memoryState.resolvedProfileCandidateIds).map(String), ...invalidCandidateIds])
+      ],
       longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
         .filter(summary => !intersects(summary?.sourceCapsuleIds, invalidCapsuleIds))
     });

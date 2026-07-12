@@ -121,6 +121,7 @@ test('loaded app data falls back to empty collections and normalizes every recor
       version: 2,
       profileEntries: [],
       profileCandidates: [],
+      resolvedProfileCandidateIds: [],
       recentConversationStates: [],
       mediaMemories: [],
       conversationCapsules: [],

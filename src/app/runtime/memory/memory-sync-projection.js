@@ -15,6 +15,11 @@ const mergeById = (local = [], remote = []) => {
   return [...records.values()];
 };
 
+const mergeIds = (local = [], remote = []) => [...new Set([
+  ...asArray(local).map(String),
+  ...asArray(remote).map(String)
+])];
+
 const ruleKey = rule => [rule?.id, rule?.type, rule?.target, rule?.scope].join(':');
 
 const mergeRules = (local = [], remote = []) => {
@@ -28,9 +33,14 @@ const mergeRules = (local = [], remote = []) => {
 };
 
 export function projectMemoryStateForSync(memoryState = {}) {
+  const resolvedProfileCandidateIds = mergeIds(memoryState.resolvedProfileCandidateIds);
+  const resolvedIds = new Set(resolvedProfileCandidateIds);
   return {
     version: MEMORY_SYNC_VERSION,
     profileEntries: asArray(memoryState.profileEntries).filter(isConfirmedProfile),
+    profileCandidates: asArray(memoryState.profileCandidates)
+      .filter(candidate => candidate?.id && !resolvedIds.has(String(candidate.id))),
+    resolvedProfileCandidateIds,
     suppressionRules: asArray(memoryState.suppressionRules),
     longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
   };
@@ -38,10 +48,18 @@ export function projectMemoryStateForSync(memoryState = {}) {
 
 export function mergeSyncedMemoryState(memoryState = {}, projection = {}) {
   if (projection?.version !== MEMORY_SYNC_VERSION) return memoryState;
+  const resolvedProfileCandidateIds = mergeIds(
+    memoryState.resolvedProfileCandidateIds,
+    projection.resolvedProfileCandidateIds
+  );
+  const resolvedIds = new Set(resolvedProfileCandidateIds);
   return {
     ...memoryState,
     profileEntries: mergeById(memoryState.profileEntries, projection.profileEntries)
       .filter(isConfirmedProfile),
+    profileCandidates: mergeById(memoryState.profileCandidates, projection.profileCandidates)
+      .filter(candidate => !resolvedIds.has(String(candidate.id))),
+    resolvedProfileCandidateIds,
     suppressionRules: mergeRules(memoryState.suppressionRules, projection.suppressionRules),
     longTermTopicSummaries: mergeById(
       memoryState.longTermTopicSummaries,

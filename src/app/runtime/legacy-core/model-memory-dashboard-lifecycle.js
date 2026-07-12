@@ -325,7 +325,10 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     const id = e.currentTarget.dataset.id;
                     replaceMemoryState({
                         ...memoryState,
-                        profileCandidates: profileCandidates.filter(candidate => candidate.id !== id)
+                        profileCandidates: profileCandidates.filter(candidate => candidate.id !== id),
+                        resolvedProfileCandidateIds: [
+                            ...new Set([...(memoryState.resolvedProfileCandidateIds || []), String(id)])
+                        ]
                     });
                     await saveAppData();
                     renderPersonalMemoryList();
