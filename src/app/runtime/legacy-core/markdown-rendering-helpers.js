@@ -12,9 +12,11 @@ export function createMarkdownRenderingHelpers({
 }) {
   function renderMarkdown(text) {
     const thinkingLabel = getUiLanguage() === 'en' ? 'Model thinking process' : '模型思考過程';
-    const normalizedText = String(text || '').replace(/<think>([\s\S]*?)<\/think>/gi, (_, content) => {
+    const normalizedText = String(text || '')
+      .replace(/(\d)~(?=\d)/g, '$1–')
+      .replace(/<think>([\s\S]*?)<\/think>/gi, (_, content) => {
       return `\n\n<details class="thinking-collapse"><summary>${thinkingLabel}</summary>\n\n${content.trim()}\n\n</details>\n\n`;
-    });
+      });
     const dirty = marked.parse(normalizedText);
     const clean = sanitizer.sanitize(dirty);
     const documentFragment = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html');

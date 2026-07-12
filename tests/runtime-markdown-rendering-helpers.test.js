@@ -76,6 +76,22 @@ test('preserves thinking labels and wraps rendered tables once', () => {
   }
 });
 
+test('renders numeric ranges without turning adjacent ranges into strikethrough', () => {
+  const harness = createHarness();
+  const html = harness.helpers.renderMarkdown('200~300 個，150~200 個，~~刪除~~');
+
+  assert.match(html, /200–300 個，150–200 個/);
+  assert.doesNotMatch(html, /<del>300 個，150<\/del>/);
+  assert.match(html, /<del>刪除<\/del>/);
+});
+
+test('chat prose restores ordered and unordered list markers after the CSS reset', () => {
+  const chatStyles = readSource('src/styles/chat.css');
+
+  assert.match(chatStyles, /\.prose ol\s*\{\s*list-style-type:\s*decimal;/);
+  assert.match(chatStyles, /\.prose ul\s*\{\s*list-style-type:\s*disc;/);
+});
+
 test('keeps the sanitizer handoff between markdown parsing and DOM rendering', () => {
   const calls = [];
   const harness = createHarness({
