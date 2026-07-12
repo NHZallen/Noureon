@@ -8,6 +8,19 @@ import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
+const emptyMemoryState = () => ({
+  version: 2,
+  profileEntries: [],
+  profileCandidates: [],
+  recentConversationStates: [],
+  mediaMemories: [],
+  conversationCapsules: [],
+  longTermTopicSummaries: [],
+  suppressionRules: [],
+  memoryUsageRecords: [],
+  legacyInbox: []
+});
+
 test('serialized app data persistence writes the latest store snapshot for the latest user', async () => {
   const calls = [];
   let currentUser = null;
@@ -32,7 +45,8 @@ test('serialized app data persistence writes the latest store snapshot for the l
       conversations: [{ id: 'initial-conv' }],
       folders: [],
       astras: [],
-      personalMemories: []
+      personalMemories: [],
+      memoryState: emptyMemoryState()
     })
   ]]);
 
@@ -57,7 +71,8 @@ test('serialized app data persistence writes the latest store snapshot for the l
     conversations: [{ id: 'next-conv' }, { id: 'pushed-conv' }],
     folders: [{ id: 'folder-1' }],
     astras: [{ id: 'astra-1' }, { id: 'pushed-astra' }],
-    personalMemories: [{ id: 'memory-1' }, { id: 'pushed-memory' }]
+    personalMemories: [{ id: 'memory-1' }, { id: 'pushed-memory' }],
+    memoryState: emptyMemoryState()
   };
   expectedSnapshot.folders.push({ id: 'pushed-folder' });
 
@@ -69,7 +84,8 @@ test('serialized app data persistence writes the latest store snapshot for the l
     'conversations',
     'folders',
     'astras',
-    'personalMemories'
+    'personalMemories',
+    'memoryState'
   ]);
   assert.equal('activeConversationId' in JSON.parse(calls[1][1]), false);
 });

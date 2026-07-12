@@ -14,12 +14,45 @@ test('app data store creates empty pointer groups by default', () => {
   assert.deepEqual(store.getFolders(), []);
   assert.deepEqual(store.getAstras(), []);
   assert.deepEqual(store.getPersonalMemories(), []);
+  assert.deepEqual(store.getMemoryState(), {
+    version: 2,
+    profileEntries: [],
+    profileCandidates: [],
+    recentConversationStates: [],
+    mediaMemories: [],
+    conversationCapsules: [],
+    longTermTopicSummaries: [],
+    suppressionRules: [],
+    memoryUsageRecords: [],
+    legacyInbox: []
+  });
   assert.deepEqual(store.getSnapshot(), {
     conversations: store.getConversations(),
     folders: store.getFolders(),
     astras: store.getAstras(),
-    personalMemories: store.getPersonalMemories()
+    personalMemories: store.getPersonalMemories(),
+    memoryState: store.getMemoryState()
   });
+});
+
+test('app data store replaces versioned memory state without changing legacy pointers', () => {
+  const legacyMemories = [{ id: 'legacy-memory' }];
+  const memoryState = {
+    version: 2,
+    profileEntries: [{ id: 'profile-1' }],
+    profileCandidates: [],
+    conversationCapsules: [],
+    longTermTopicSummaries: [],
+    suppressionRules: [],
+    memoryUsageRecords: [],
+    legacyInbox: []
+  };
+  const store = createLegacyRuntimeAppDataStore({ initialPersonalMemories: legacyMemories });
+
+  assert.equal(store.replaceMemoryState(memoryState), memoryState);
+  assert.equal(store.getMemoryState(), memoryState);
+  assert.equal(store.getPersonalMemories(), legacyMemories);
+  assert.equal(store.getSnapshot().memoryState, memoryState);
 });
 
 test('app data store preserves custom initial pointer identity', () => {
@@ -77,11 +110,12 @@ test('replaceAll updates all pointers and returns the current pointer snapshot',
 
   const snapshot = store.replaceAll(nextData);
 
-  assert.deepEqual(Object.keys(snapshot), ['conversations', 'folders', 'astras', 'personalMemories']);
+  assert.deepEqual(Object.keys(snapshot), ['conversations', 'folders', 'astras', 'personalMemories', 'memoryState']);
   assert.equal(snapshot.conversations, nextData.conversations);
   assert.equal(snapshot.folders, nextData.folders);
   assert.equal(snapshot.astras, nextData.astras);
   assert.equal(snapshot.personalMemories, nextData.personalMemories);
+  assert.equal(snapshot.memoryState, store.getMemoryState());
   assert.equal(store.getSnapshot().conversations, nextData.conversations);
   assert.equal(store.getSnapshot().folders, nextData.folders);
   assert.equal(store.getSnapshot().astras, nextData.astras);
@@ -194,7 +228,8 @@ test('runtime app kernel creates an independent empty app data store', () => {
     conversations: [],
     folders: [],
     astras: [],
-    personalMemories: []
+    personalMemories: [],
+    memoryState: firstKernel.appDataStore.getMemoryState()
   });
   assert.notEqual(firstKernel.appDataStore, secondKernel.appDataStore);
   assert.notEqual(
@@ -216,6 +251,8 @@ test('app data store source owns pointers only', () => {
     'replaceAstras',
     'getPersonalMemories',
     'replacePersonalMemories',
+    'getMemoryState',
+    'replaceMemoryState',
     'replaceAll',
     'getSnapshot'
   ]);

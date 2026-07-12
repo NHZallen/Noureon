@@ -1,3 +1,5 @@
+import { normalizeMemoryState } from '../memory/memory-schema.js';
+
 const resolveDefault = (value) => (typeof value === 'function' ? value() : value);
 
 export function normalizeFolderRecord(record, { defaultFolder } = {}) {
@@ -13,10 +15,9 @@ export function normalizeConversationRecord(record, {
   normalizeCouncilConfig = (value) => value,
   normalizeConversationModel = () => {}
 } = {}) {
-  const source = record || {};
+  const { summary: _legacySummary, ...source } = record || {};
   const normalizedConversation = {
     archived: false,
-    summary: '',
     folderId: null,
     isWebSearchEnabled: false,
     astrasId: null,
@@ -72,6 +73,7 @@ export function normalizeLoadedLegacyAppData({
       normalizeConversationModel
     })),
     astras: (data.astras || []).map(normalizeAstraRecord),
-    personalMemories: data.personalMemories || []
+    personalMemories: data.personalMemories || [],
+    memoryState: normalizeMemoryState(data)
   };
 }

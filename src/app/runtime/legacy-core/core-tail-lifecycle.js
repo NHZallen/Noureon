@@ -4,6 +4,7 @@ import { compareVersions } from '../../legacy-runtime/features/version-compare.j
 import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
 import { createLegacyRuntimeEntryDependencies } from '../runtime-entry-dependencies.js';
+import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
 
 const REQUIRED_DEPENDENCIES = [
     'window',
@@ -933,6 +934,18 @@ function setupMessageIntersectionObserver() {
             showNotification,
             showCoordinatedNotification: (...args) => runtimeDialogCoordinator.showNotification(...args),
             deleteConversationsFromCloud,
+            invalidateConversationMemory: options => {
+                const invalidate = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
+                    ? legacyRuntimeContext.resolveOptionalBinding('memory.invalidateConversation')
+                    : null;
+                return typeof invalidate === 'function' ? invalidate(options) : Promise.resolve();
+            },
+            rebuildHistoryIndex: options => {
+                const rebuild = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
+                    ? legacyRuntimeContext.resolveOptionalBinding('memory.rebuildHistoryIndex')
+                    : null;
+                return typeof rebuild === 'function' ? rebuild(options) : Promise.resolve();
+            },
             toggleModal,
             formatFullTimestamp,
             renderUserText,
@@ -966,6 +979,13 @@ function setupMessageIntersectionObserver() {
                 getFolders: () => state.folders,
                 getAstras: () => state.astras,
                 getPersonalMemories: () => state.personalMemories,
+                getMemoryState: () => runtimeAppDataStore.getMemoryState(),
+                replaceMemoryState: (nextMemoryState) => {
+                    const savedMemoryState = runtimeAppDataStore.replaceMemoryState(nextMemoryState);
+                    state.config.memorySync = projectMemoryStateForSync(savedMemoryState);
+                    void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+                    return savedMemoryState;
+                },
                 getCurrentConversationId,
                 setCurrentConversationId,
                 setSidebarOpen: (next) => {

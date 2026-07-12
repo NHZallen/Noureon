@@ -704,7 +704,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
   assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 9);
+  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 11);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -809,7 +809,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
     ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource + sidebarChatAstraRenderSource).match(/\bsaveAppData\(\)/g) || []).length,
-    31
+    43
   );
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /app-data-normalization|app-data-persistence/);
@@ -2528,7 +2528,7 @@ test('trash batch selection checkbox click does not bubble into row toggle', () 
   assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*event\s*=>\s*event\.stopPropagation\(\)\);/);
   assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*event\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
   assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
-  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*const\s+ids\s*=\s*\[\.\.\.selectedTrashIds\];\s*const\s+selectedSnapshots\s*=\s*getConversations\(\)\.filter\(conversation\s*=>\s*selectedTrashIds\.has\(conversation\?\.id\)\);\s*if\s*\(!await\s+confirmCloudDeletion\(ids,\s*selectedSnapshots\)\)\s*return;\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
+  assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*const\s+ids\s*=\s*\[\.\.\.selectedTrashIds\];\s*const\s+selectedSnapshots\s*=\s*getConversations\(\)\.filter\(conversation\s*=>\s*selectedTrashIds\.has\(conversation\?\.id\)\);\s*if\s*\(!await\s+confirmCloudDeletion\(ids,\s*selectedSnapshots\)\)\s*return;\s*for\s*\(const\s+conversationId\s+of\s+ids\)\s*await\s+invalidateConversationMemory\(\{\s*conversationId\s*\}\);\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
 });
 
 test('conversation state access owns selected active conversation lookups without stale snapshots', () => {

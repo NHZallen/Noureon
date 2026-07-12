@@ -595,7 +595,6 @@ test('generateTitleAndSummary keeps conversation side effects in lifecycle', asy
   const conversation = {
     id: 'conv-1',
     title: 'Old title',
-    summary: '',
     isNaming: true,
     messages: [
       { role: 'user', parts: [{ text: 'What is the capital of France?' }] },
@@ -610,7 +609,7 @@ test('generateTitleAndSummary keeps conversation side effects in lifecycle', asy
         ok: true,
         json: async () => ({
           candidates: [
-            { content: { parts: [{ text: '{"title":"France","summary":"Asked about Paris"}' }] } }
+            { content: { parts: [{ text: '{"title":"France"}' }] } }
           ]
         })
       };
@@ -623,7 +622,7 @@ test('generateTitleAndSummary keeps conversation side effects in lifecycle', asy
   await lifecycle.generateTitleAndSummary(conversation);
 
   assert.equal(conversation.title, 'France');
-  assert.equal(conversation.summary, 'Asked about Paris');
+  assert.equal('summary' in conversation, false);
   assert.equal(conversation.isNaming, false);
   assert.equal(dependencies.elements.headerTitle.textContent, 'France');
   assert.deepEqual(calls.filter((call) => call === 'saveAppData' || call === 'renderHistorySidebar'), [

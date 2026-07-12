@@ -179,3 +179,55 @@ test('cloud workspace update keeps the fresh local draft selected after reload',
   assert.equal(appDataStore.getConversations().find(item => item.id === 'fresh-draft'), localDraft);
   assert.equal(appDataStore.getConversations().some(item => item.id === 'history'), true);
 });
+
+test('cloud config applies only the small synced memory projection and persists it locally', () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialMemoryState: {
+      version: 2,
+      profileEntries: [],
+      profileCandidates: [{ id: 'local-candidate' }],
+      recentConversationStates: [],
+      conversationCapsules: [{ id: 'local-capsule' }],
+      longTermTopicSummaries: [],
+      suppressionRules: [],
+      memoryUsageRecords: [],
+      legacyInbox: []
+    }
+  });
+  let config = { uiTheme: {}, modelSettings: [], lastCouncilConfig: {} };
+  let saved = 0;
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => config, replaceConfig: next => { config = next; } },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {},
+    saveAppData: async () => { saved += 1; }
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-config', {
+    memorySync: {
+      version: 1,
+      profileEntries: [{ id: 'style', confirmedByUser: true, content: 'Keep replies concise' }],
+      suppressionRules: [{ type: 'do-not-mention', target: 'profile-name' }],
+      longTermTopicSummaries: []
+    }
+  });
+
+  assert.equal(appDataStore.getMemoryState().profileEntries[0].content, 'Keep replies concise');
+  assert.deepEqual(appDataStore.getMemoryState().conversationCapsules, [{ id: 'local-capsule' }]);
+  assert.deepEqual(appDataStore.getMemoryState().profileCandidates, [{ id: 'local-candidate' }]);
+  assert.equal(saved, 1);
+});

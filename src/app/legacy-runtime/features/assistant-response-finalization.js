@@ -24,6 +24,7 @@ export async function finalizeAssistantResponse({
   renderRealtimeCouncilFinal,
   playbackCouncilResponse,
   extractPersonalMemory,
+  recordMemoryUsage = null,
   completeImageView = null,
   queueBackgroundTask = (task) => {
     void Promise.resolve()
@@ -38,12 +39,24 @@ export async function finalizeAssistantResponse({
   }
 
   finalAiMessage.parts = hasFinalParts ? finalParts : [{ text: fullResponse }];
+  const memoryUsageSources = Array.isArray(finalAiMessage._memoryUsageSources)
+    ? finalAiMessage._memoryUsageSources
+    : (Array.isArray(conversation._memoryUsageSources) ? conversation._memoryUsageSources : []);
+  delete finalAiMessage._memoryUsageSources;
+  delete conversation._memoryUsageSources;
   if (includeCouncilMetadata) {
     finalAiMessage.council = councilMetadata;
   }
   conversation.messages.push(finalAiMessage);
   conversation.lastUpdatedAt = nowIso();
   queueBackgroundTask(() => persistAppData());
+  if (memoryUsageSources.length > 0 && typeof recordMemoryUsage === 'function') {
+    queueBackgroundTask(() => recordMemoryUsage({
+      conversationId: conversation.id,
+      responseMessageId: finalAiMessage.id,
+      sources: memoryUsageSources
+    }));
+  }
 
   if (hasFinalParts && completeImageView) {
     await completeImageView({ targetElement, finalAiMessage });
@@ -85,6 +98,7 @@ export async function persistAssistantResponseError({
   persistAppData,
   nowIso = () => new Date().toISOString()
 }) {
+  delete conversation._memoryUsageSources;
   if (error.name === 'AbortError' && signal?.aborted) {
     return { persisted: false };
   }

@@ -786,3 +786,28 @@ body svg {
     background: #ffffff !important;
     color: #000000 !important;
 }
+.memory-action-button {
+    border: 0;
+    background: #fff;
+    color: var(--text-secondary);
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.replace-memory-btn.memory-action-button {
+    color: var(--text-primary);
+}
+
+.memory-action-button:hover,
+.memory-action-button:active,
+.memory-action-button:focus,
+.memory-action-button:focus-visible {
+    background: #fff;
+    color: var(--button-primary-bg);
+}
+
+.memory-action-button svg {
+    stroke: currentColor;
+}
+#custom-dialog-message {
+    white-space: pre-line;
+}

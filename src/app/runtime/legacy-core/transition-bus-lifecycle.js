@@ -1,6 +1,26 @@
 import { createLegacyBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createLegacySearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createLegacyModelMemoryDashboardLifecycle } from './model-memory-dashboard-lifecycle.js';
+import { createGeminiMemoryCaptureClient } from '../memory/gemini-memory-capture-client.js';
+import { createMemoryCaptureService } from '../memory/memory-capture-service.js';
+import { createMemoryWorkScheduler } from '../memory/memory-work-scheduler.js';
+import { createGeminiEmbeddingClient } from '../memory/gemini-embedding-client.js';
+import { createHistoryIndexStore } from '../memory/history-index-store.js';
+import { createHistoryIndexPersistence } from '../memory/history-index-persistence.js';
+import { createHistoryIndexingService } from '../memory/history-indexing-service.js';
+import { createHistoryRetrievalService } from '../memory/history-retrieval-service.js';
+import { createDeviceHistoryRecallConsent } from '../memory/device-history-recall-consent.js';
+import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
+import { createHistoryIndexRebuildService } from '../memory/history-index-rebuild-service.js';
+import { createGeminiTopicSummaryClient } from '../memory/gemini-topic-summary-client.js';
+import { createTopicSummaryService } from '../memory/topic-summaries.js';
+import { createMemoryInvalidationService } from '../memory/memory-invalidation-service.js';
+import { createGeminiMediaMemoryClient } from '../memory/gemini-media-memory-client.js';
+import { createMediaMemoryService } from '../memory/media-memory-service.js';
+import { createGeminiHistoryQueryResolverClient } from '../memory/gemini-history-query-resolver-client.js';
+import { appendMemoryUsageRecord } from '../memory/memory-usage-recording.js';
+import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
+import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
 
 const requiredDependencies = [
     'window',
@@ -65,6 +85,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         state,
         runtimeConfigAccess,
         runtimeAppDataStore,
+        runtimeStorageAdapter = null,
         runtimeDialogCoordinator,
         i18n,
         getCurrentConversationId = () => state.conversationStateAccess?.getCurrentConversationId?.(),
@@ -321,6 +342,268 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         toggleVoiceInput
     } = batchImportVoiceLifecycle;
 
+    const historyIndex = createHistoryIndexStore();
+    const notifyHistoryIndexChanged = () => {
+        if (typeof document?.dispatchEvent === 'function' && typeof Event === 'function') {
+            document.dispatchEvent(new Event('noureon:history-index-changed'));
+        }
+    };
+    const historyIndexPersistence = runtimeStorageAdapter?.getItem
+        ? createHistoryIndexPersistence({
+            index: historyIndex,
+            storage: runtimeStorageAdapter,
+            storageKey: `noureon:history-index:v1:${state.currentUser?.username || 'anonymous'}`
+        })
+        : null;
+    let historyIndexLoaded = false;
+    const historyIndexReady = (historyIndexPersistence
+        ? historyIndexPersistence.load().catch(error => console.warn('Memory index could not load.', error))
+        : Promise.resolve())
+        .finally(() => { historyIndexLoaded = true; });
+    const historyIndexingService = createHistoryIndexingService({
+        index: historyIndex,
+        embeddingClient: createGeminiEmbeddingClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        persistence: historyIndexPersistence
+    });
+    const localMemoryStorage = runtimeStorageAdapter?.getItem
+        ? runtimeStorageAdapter
+        : {
+            getItem: async () => null,
+            setItem: async () => {},
+            removeItem: async () => {}
+        };
+    const deviceDerivedMemoryRuntime = createDeviceDerivedMemoryRuntime({
+        storage: localMemoryStorage,
+        storageKey: `noureon:derived-memory:v1:${state.currentUser?.username || 'anonymous'}`,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        replaceMemoryState: nextState => runtimeAppDataStore.replaceMemoryState?.(nextState),
+        saveAppData,
+        logger: console
+    });
+    const ensureDeviceDerivedMemoryReady = deviceDerivedMemoryRuntime.ensureReady;
+    const persistMemoryState = deviceDerivedMemoryRuntime.persist;
+    const deviceHistoryRecallConsent = createDeviceHistoryRecallConsent({
+        storage: localMemoryStorage,
+        storageKey: `noureon:history-recall-device-consent:v1:${state.currentUser?.username || 'anonymous'}`
+    });
+    const historyRecallConsentReady = deviceHistoryRecallConsent.load()
+        .catch(error => console.warn('History recall consent could not load.', error));
+    const historyRetrievalService = createHistoryRetrievalService({
+        index: historyIndex,
+        embeddingClient: createGeminiEmbeddingClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        modelQueryResolver: createGeminiHistoryQueryResolverClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        })
+    });
+    const retrieveHistory = async options => {
+        await Promise.all([historyIndexReady, historyRecallConsentReady, ensureDeviceDerivedMemoryReady()]);
+        if (!deviceHistoryRecallConsent.isGranted()) return [];
+        return historyRetrievalService.retrieve(options);
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.retrieveHistory', () => retrieveHistory);
+    legacyRuntimeContext.registerLazyBinding('memory.grantHistoryRecallConsent', () => (
+        () => deviceHistoryRecallConsent.grant()
+    ));
+    legacyRuntimeContext.registerLazyBinding('memory.revokeHistoryRecallConsent', () => (
+        () => deviceHistoryRecallConsent.revoke()
+    ));
+    let historyIndexRebuildStatus = { state: 'idle', completed: 0, total: 0, indexed: 0, skipped: 0, failed: 0 };
+    let historyIndexOptimizeStatus = { state: 'idle', completed: 0, total: 0, repaired: 0, removed: 0, failed: 0 };
+    legacyRuntimeContext.registerLazyBinding('memory.getHistoryRecallStatus', () => (
+        () => ({
+            consented: deviceHistoryRecallConsent.isGranted(),
+            consentLoaded: deviceHistoryRecallConsent.isLoaded(),
+            indexLoaded: historyIndexLoaded,
+            indexRecordCount: historyIndex.getAll().length,
+            rebuild: historyIndexRebuildStatus,
+            optimize: historyIndexOptimizeStatus
+        })
+    ));
+    const replaceMemoryState = nextMemoryState => {
+        const savedMemoryState = runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
+        state.config.memorySync = projectMemoryStateForSync(savedMemoryState || nextMemoryState);
+        void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+        return savedMemoryState;
+    };
+    const recordMemoryUsage = async ({ conversationId, responseMessageId, sources } = {}) => {
+        if (!conversationId || !responseMessageId) return null;
+        const memoryState = runtimeAppDataStore.getMemoryState?.() || {};
+        const nextMemoryState = appendMemoryUsageRecord(memoryState, {
+            id: `memory-usage:${crypto.randomUUID()}`,
+            conversationId,
+            responseMessageId,
+            sources
+        });
+        if (nextMemoryState === memoryState) return null;
+        runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
+        await saveAppData();
+        return nextMemoryState.memoryUsageRecords?.at(-1) || null;
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.recordUsage', () => recordMemoryUsage);
+    const memoryCaptureClient = createGeminiMemoryCaptureClient({
+        getApiKey: () => getApiKeyForProvider('gemini'),
+        fetchImpl: fetch
+    });
+    const mediaMemoryService = createMediaMemoryService({
+        mediaClient: createGeminiMediaMemoryClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        hashString,
+        createId: prefix => `${prefix}:${crypto.randomUUID()}`
+    });
+    const topicSummaryService = createTopicSummaryService({
+        index: historyIndex,
+        topicClient: createGeminiTopicSummaryClient({
+            getApiKey: () => getApiKeyForProvider('gemini'),
+            fetchImpl: fetch
+        }),
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        replaceMemoryState,
+        createId: prefix => `${prefix}:${crypto.randomUUID()}`
+    });
+    const memoryCaptureService = createMemoryCaptureService({
+        captureClient: memoryCaptureClient,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        replaceMemoryState,
+        indexCapsule: options => historyIndexingService.indexCapsule(options),
+        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options),
+        updateTopicSummary: options => topicSummaryService.updateForCapsule(options),
+        enrichTurns: options => mediaMemoryService.enrichTurns(options),
+        createId: prefix => `${prefix}:${crypto.randomUUID()}`
+    });
+    const captureCompletedTurnAndPersist = async options => {
+        const previousMemoryState = runtimeAppDataStore.getMemoryState?.();
+        try {
+            return await memoryCaptureService.captureCompletedTurn(options);
+        } finally {
+            if (runtimeAppDataStore.getMemoryState?.() !== previousMemoryState) {
+                await persistMemoryState();
+                notifyHistoryIndexChanged();
+            }
+        }
+    };
+    const memoryInvalidationService = createMemoryInvalidationService({
+        index: historyIndex,
+        persistence: historyIndexPersistence,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        replaceMemoryState
+    });
+    const invalidateMemoryConversation = async options => {
+        memoryWorkScheduler.cancelConversation(options?.conversationId);
+        const result = await memoryInvalidationService.invalidateConversation(options);
+        await persistMemoryState();
+        notifyHistoryIndexChanged();
+        return result;
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.invalidateConversation', () => invalidateMemoryConversation);
+    const historyIndexRebuildService = createHistoryIndexRebuildService({
+        getConversations: () => state.conversations,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
+        hashString,
+        hasIndexedSource: ({ conversationId, sourceHash }) => historyIndex.getAll().some(record => (
+            record.recordId === `capsule:${conversationId}`
+            && record.sourceHash === sourceHash
+        ))
+    });
+    let historyIndexWorkPromise = null;
+    const rebuildHistoryIndex = options => {
+        if (historyIndexWorkPromise) return historyIndexWorkPromise;
+        historyIndexWorkPromise = (async () => {
+            await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+            try {
+                const memoryState = runtimeAppDataStore.getMemoryState?.() || {};
+                const activeConversationIds = new Set(state.conversations
+                    .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
+                    .map(conversation => conversation.id));
+                const expectedRecordIds = new Set([
+                    ...(memoryState.conversationCapsules || [])
+                        .filter(capsule => activeConversationIds.has(capsule?.conversationId))
+                        .map(capsule => `capsule:${capsule.conversationId}`),
+                    ...(memoryState.mediaMemories || [])
+                        .filter(media => activeConversationIds.has(media?.conversationId))
+                        .map(media => `media:${media.conversationId}:${media.sourceHash}`)
+                ]);
+                historyIndex.getAll()
+                    .filter(record => !expectedRecordIds.has(record.recordId))
+                    .forEach(record => historyIndex.removeRecord(record.recordId));
+                return await historyIndexRebuildService.rebuild({
+                    ...options,
+                    onProgress: status => {
+                        historyIndexRebuildStatus = status;
+                        notifyHistoryIndexChanged();
+                    }
+                });
+            } finally {
+                if (historyIndexPersistence?.save) await historyIndexPersistence.save();
+                await persistMemoryState();
+                notifyHistoryIndexChanged();
+            }
+        })().finally(() => { historyIndexWorkPromise = null; });
+        return historyIndexWorkPromise;
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.rebuildHistoryIndex', () => rebuildHistoryIndex);
+    const historyIndexAuditService = createHistoryIndexAuditService({
+        getConversations: () => state.conversations,
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        index: historyIndex,
+        hashString,
+        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
+        indexCapsule: options => historyIndexingService.indexCapsule(options),
+        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options),
+        persistence: historyIndexPersistence,
+        persistMemoryState
+    });
+    let latestHistoryIndexAudit = null;
+    const auditHistoryIndex = async () => {
+        if (historyIndexWorkPromise) await historyIndexWorkPromise;
+        await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+        latestHistoryIndexAudit = await historyIndexAuditService.audit();
+        return latestHistoryIndexAudit;
+    };
+    const optimizeHistoryIndex = () => {
+        if (historyIndexWorkPromise) return historyIndexWorkPromise;
+        historyIndexWorkPromise = (async () => {
+            await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+            const report = latestHistoryIndexAudit || await historyIndexAuditService.audit();
+            try {
+                return await historyIndexAuditService.optimize(report, {
+                    onProgress: status => {
+                        historyIndexOptimizeStatus = { state: 'running', ...status };
+                        notifyHistoryIndexChanged();
+                    }
+                });
+            } finally {
+                historyIndexOptimizeStatus = {
+                    ...historyIndexOptimizeStatus,
+                    state: 'complete'
+                };
+                latestHistoryIndexAudit = null;
+                notifyHistoryIndexChanged();
+            }
+        })().finally(() => { historyIndexWorkPromise = null; });
+        return historyIndexWorkPromise;
+    };
+    legacyRuntimeContext.registerLazyBinding('memory.auditHistoryIndex', () => auditHistoryIndex);
+    legacyRuntimeContext.registerLazyBinding('memory.optimizeHistoryIndex', () => optimizeHistoryIndex);
+    const memoryWorkScheduler = createMemoryWorkScheduler({
+        runJob: async job => {
+            await Promise.all([historyIndexReady, ensureDeviceDerivedMemoryReady()]);
+            return captureCompletedTurnAndPersist(job);
+        },
+        schedule: callback => setTimeout(callback, 15_000),
+        cancel: timer => clearTimeout(timer)
+    });
+
     const modelMemoryDashboardLifecycle = createLegacyModelMemoryDashboardLifecycle({
         Chart,
         document,
@@ -335,6 +618,11 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             state.personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
             return state.personalMemories;
         },
+        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || null,
+        replaceMemoryState,
+        captureCompletedTurn: options => captureCompletedTurnAndPersist(options),
+        enqueueMemoryCapture: options => memoryWorkScheduler.enqueueCapture(options),
+        hashString,
         getModelPieChart: () => state.modelPieChart,
         setModelPieChart: (chart) => {
             state.modelPieChart = chart;
@@ -345,6 +633,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         runtimeDialogCoordinator,
         showNotification,
         showCustomConfirm,
+        showCustomPrompt,
         toggleModal,
         callApiWithSchema,
         getActiveConversation,
@@ -687,6 +976,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         handleBatchDeleteFromTrash,
         handleEmptyTrash,
         updateDisplayedVersion,
+        cancelMemoryCapture: conversationId => memoryWorkScheduler.cancelConversation(conversationId),
+        invalidateMemoryConversation,
         coreTailDependencies,
         registerSidebarBindings,
         registerCoreTailDependencies
