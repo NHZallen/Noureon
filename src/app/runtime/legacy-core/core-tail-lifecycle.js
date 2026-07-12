@@ -4,7 +4,7 @@ import { compareVersions } from '../../legacy-runtime/features/version-compare.j
 import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
 import { createLegacyRuntimeEntryDependencies } from '../runtime-entry-dependencies.js';
-import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
+import { mergeSyncedMemoryState, projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
 
 const REQUIRED_DEPENDENCIES = [
     'window',
@@ -1104,6 +1104,15 @@ function setupMessageIntersectionObserver() {
                 getUserKey,
                 loadConfig,
                 loadAppData,
+                restoreMemorySync: async () => {
+                    const projection = state.config.memorySync;
+                    if (!projection) return;
+                    const currentMemoryState = runtimeAppDataStore.getMemoryState?.() || {};
+                    runtimeAppDataStore.replaceMemoryState(
+                        mergeSyncedMemoryState(currentMemoryState, projection)
+                    );
+                    await saveAppData();
+                },
                 applyLanguage,
                 applyCustomWallpaper,
                 applyUiTheme,

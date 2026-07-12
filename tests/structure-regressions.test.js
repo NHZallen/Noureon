@@ -809,7 +809,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
     ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource + sidebarChatAstraRenderSource).match(/\bsaveAppData\(\)/g) || []).length,
-    42
+    43
   );
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /app-data-normalization|app-data-persistence/);

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createLegacyStartupLifecycle } from '../src/app/runtime/features/startup-lifecycle.js';
+import { mergeSyncedMemoryState } from '../src/app/runtime/memory/memory-sync-projection.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -113,6 +114,7 @@ function createHarness(overrides = {}) {
     },
     loadConfig: async () => calls.push('loadConfig'),
     loadAppData: async () => calls.push('loadAppData'),
+    restoreMemorySync: async () => calls.push('restoreMemorySync'),
     applyLanguage: (language) => calls.push(`applyLanguage:${language}`),
     applyCustomWallpaper: () => calls.push('applyCustomWallpaper'),
     applyUiTheme: () => calls.push('applyUiTheme'),
@@ -216,6 +218,7 @@ test('initializeApp restores the user and preserves load and visual handoff orde
     'setCurrentUser:alice',
     'loadConfig',
     'loadAppData',
+    'restoreMemorySync',
     'applyCustomWallpaper',
     'applyUiTheme',
     'class:appContainer:remove:hidden',
@@ -223,6 +226,45 @@ test('initializeApp restores the user and preserves load and visual handoff orde
     'initChatApp'
   ]);
   assert.equal(harness.elements.authContainer.style.display, 'none');
+});
+
+test('initializeApp restores synced memory before the first app render', async () => {
+  let memoryState = {
+    version: 2,
+    profileEntries: [],
+    profileCandidates: [],
+    resolvedProfileCandidateIds: [],
+    suppressionRules: [],
+    longTermTopicSummaries: [],
+    conversationCapsules: [{ id: 'local-capsule' }]
+  };
+  const projection = {
+    version: 1,
+    profileEntries: [{ id: 'style', confirmedByUser: true, content: 'Use concise replies' }],
+    profileCandidates: [{ id: 'candidate', content: 'Use examples' }],
+    resolvedProfileCandidateIds: ['dismissed'],
+    suppressionRules: [{ id: 'name-rule', type: 'do-not-mention', target: 'profile-name' }],
+    longTermTopicSummaries: [{ id: 'topic', topic: 'Memory rebuild', summary: 'Keep recall relevant.' }]
+  };
+  const harness = createHarness({
+    restoreMemorySync: async () => {
+      harness.calls.push('restoreMemorySync');
+      memoryState = mergeSyncedMemoryState(memoryState, projection);
+    },
+    initChatApp: () => {
+      harness.calls.push('initChatApp');
+      assert.equal(memoryState.profileEntries[0].id, 'style');
+      assert.equal(memoryState.profileCandidates[0].id, 'candidate');
+      assert.deepEqual(memoryState.resolvedProfileCandidateIds, ['dismissed']);
+      assert.equal(memoryState.suppressionRules[0].id, 'name-rule');
+      assert.equal(memoryState.longTermTopicSummaries[0].id, 'topic');
+      assert.deepEqual(memoryState.conversationCapsules, [{ id: 'local-capsule' }]);
+    }
+  });
+
+  await createLegacyStartupLifecycle(harness.dependencies).initializeApp();
+
+  assert.ok(harness.calls.indexOf('restoreMemorySync') < harness.calls.indexOf('initChatApp'));
 });
 
 test('initializeApp preserves missing-user fallback behavior', async () => {

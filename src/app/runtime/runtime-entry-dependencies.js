@@ -113,6 +113,7 @@ const REQUIRED_STARTUP_FIELDS = [
   'getUserKey',
   'loadConfig',
   'loadAppData',
+  'restoreMemorySync',
   'applyLanguage',
   'applyCustomWallpaper',
   'applyUiTheme',

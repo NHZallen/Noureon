@@ -9,6 +9,7 @@ export function createLegacyStartupLifecycle({
     getUserKey,
     loadConfig,
     loadAppData,
+    restoreMemorySync,
     applyLanguage,
     applyCustomWallpaper,
     applyUiTheme,
@@ -93,6 +94,7 @@ export function createLegacyStartupLifecycle({
                 setCurrentUser(JSON.parse(savedUser));
                 await loadConfig();
                 await loadAppData();
+                await restoreMemorySync();
                 applyCustomWallpaper();
                 applyUiTheme();
                 elements.authContainer.style.display = 'none';
