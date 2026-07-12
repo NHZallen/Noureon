@@ -20,7 +20,9 @@ test('folder metadata exports the legacy keys in order', () => {
     'work',
     'tag',
     'heart',
-    'lightning'
+    'lightning',
+    'book',
+    'code'
   ]);
   assert.deepEqual(Object.keys(FOLDER_TEXT_COLORS), ['gray', 'black', 'white']);
 });
@@ -40,12 +42,43 @@ test('folder SVG metadata preserves exact legacy values', () => {
   );
 });
 
+test('folder SVG metadata includes safe rounded outline book and code icons', () => {
+  for (const key of ['book', 'code']) {
+    const markup = FOLDER_SVGS[key];
+
+    assert.match(markup, /^<(?:path|g)\b/);
+    assert.match(markup, /stroke-linecap="round"/);
+    assert.match(markup, /stroke-linejoin="round"/);
+    assert.doesNotMatch(markup, /<svg|<script|onload\s*=|onclick\s*=/i);
+  }
+});
+
 test('folder text color metadata preserves exact legacy values', () => {
   assert.deepEqual(FOLDER_TEXT_COLORS, {
     gray: '#6b7280',
     black: '#111827',
     white: '#ffffff'
   });
+});
+
+test('folder runtime palettes include the seven expanded icon colors', () => {
+  const runtimeSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const historyMenuSource = readSource('src/app/runtime/legacy-core/settings-history-menu-helper.js');
+  const addedFolderColors = {
+    orange: '#fb923c',
+    amber: '#fbbf24',
+    lime: '#a3e635',
+    emerald: '#34d399',
+    teal: '#2dd4bf',
+    cyan: '#22d3ee',
+    rose: '#fb7185'
+  };
+
+  for (const [key, value] of Object.entries(addedFolderColors)) {
+    const entryPattern = new RegExp(`\\b${key}\\s*:\\s*['"]${value}['"]`);
+    assert.match(runtimeSource, entryPattern);
+    assert.match(historyMenuSource, entryPattern);
+  }
 });
 
 test('folder metadata remains plain mutable objects without runtime responsibilities', () => {

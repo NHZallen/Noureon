@@ -10,7 +10,14 @@ const FOLDER_MENU_COLORS = {
   blue: '#60a5fa',
   indigo: '#818cf8',
   purple: '#a78bfa',
-  pink: '#f472b6'
+  pink: '#f472b6',
+  orange: '#fb923c',
+  amber: '#fbbf24',
+  lime: '#a3e635',
+  emerald: '#34d399',
+  teal: '#2dd4bf',
+  cyan: '#22d3ee',
+  rose: '#fb7185'
 };
 
 const REQUIRED_DEPENDENCIES = [

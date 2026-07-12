@@ -12,10 +12,12 @@ const emptyMemoryState = () => ({
   version: 2,
   profileEntries: [],
   profileCandidates: [],
+  resolvedProfileCandidateIds: [],
   recentConversationStates: [],
   mediaMemories: [],
   conversationCapsules: [],
   longTermTopicSummaries: [],
+  resolvedTopicSummaryIds: [],
   suppressionRules: [],
   legacyInbox: []
 });
