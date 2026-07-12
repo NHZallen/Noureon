@@ -8,13 +8,13 @@ For privacy, account, sync, mail, or data questions, contact [support@noureon.co
 
 ## Local Data Storage
 
-By default, Noureon stores conversations, folders, Nouras, app settings, appearance preferences, generated image metadata, and app state in the browser. Provider API keys are session-only by default and are removed from persistent browser storage after a one-time legacy migration. Import/export tools can move data into files you choose. Clearing browser data may remove the local workspace.
+By default, Noureon stores conversations, folders, Nouras, app settings, appearance preferences, generated image metadata, app state, and encrypted provider API keys in the browser. API keys are encrypted with a non-extractable browser-managed AES-GCM key before persistent storage. Import/export tools can move data into files you choose. Clearing browser data may remove the local workspace and saved keys.
 
 ## Optional Sign-In And Cloud Sync
 
 When a user signs in and enables cloud sync, Supabase stores the workspace records required for cross-device sync, including conversations, messages, folders, Nouras, sync metadata, deletion markers/tombstones, and supported uploaded or generated assets in Supabase Storage.
 
-Sensitive cloud vault data is encrypted with the user's sync password when configured. Recovery is disabled until the user explicitly creates and confirms a Recovery Code; the browser encrypts the recovery payload with that user-held code before upload, so the server does not hold a shared key capable of decrypting all recovery records. Provider API keys remain in the current browser session by default unless the user explicitly includes or syncs them through a supported encrypted flow. Session-only storage reduces persistent exposure after the page closes, but it cannot prevent scripts running in the current page from reading keys. Losing both the sync password and Recovery Code makes the encrypted data unrecoverable.
+Sensitive cloud vault data is encrypted with the user's sync password when configured. Recovery is disabled until the user explicitly creates and confirms a Recovery Code; the browser encrypts the recovery payload with that user-held code before upload, so the server does not hold a shared key capable of decrypting all recovery records. Provider API keys persist locally as browser-key ciphertext unless the user clears them, exports them explicitly, or syncs them through a supported encrypted flow. Local encryption protects against direct plaintext inspection of storage, but it cannot prevent scripts running in the current page or a compromised browser profile from using the keys. Losing both the sync password and Recovery Code makes encrypted cloud data unrecoverable.
 
 ## Authentication And Email
 
@@ -32,7 +32,7 @@ Content Security Policy reports contain only the violated directive, disposition
 
 ## API Keys
 
-Most provider API keys are entered in the app settings UI and retained only for the current browser session. Export and sync flows treat keys as sensitive: do not include them unless an explicit encrypted or user-confirmed flow supports it. Never send API keys to support.
+Most provider API keys are entered in the app settings UI and persist locally as browser-key ciphertext until the user clears them. Export and sync flows treat keys as sensitive: do not include them unless an explicit encrypted or user-confirmed flow supports it. Never send API keys to support.
 
 ## Feedback And Noura Proposals
 

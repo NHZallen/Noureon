@@ -6,7 +6,7 @@ import {
   createSensitiveConfigStore
 } from '../src/app/runtime/security/sensitive-config-store.js';
 
-test('sensitive config persistence migrates legacy plaintext into the session and removes it from storage', async () => {
+test('sensitive config persistence migrates plaintext and survives reload as browser-key ciphertext', async () => {
   const savedSnapshots = [];
   const writes = new Map([
     ['chatSensitiveConfig_v1_alice', JSON.stringify({
@@ -33,6 +33,13 @@ test('sensitive config persistence migrates legacy plaintext into the session an
   assert.equal(store.getApiKey('gemini'), 'gemini-key');
   assert.equal(store.getApiKey('openrouter'), 'openrouter-key');
   assert.equal(writes.has('chatSensitiveConfig_v1_alice'), false);
+  const encryptionKey = writes.get('chatSensitiveConfigKey_v2_alice');
+  const encrypted = writes.get('chatSensitiveConfigCiphertext_v2_alice');
+  assert.equal(encryptionKey.extractable, false);
+  assert.equal(encryptionKey.algorithm.name, 'AES-GCM');
+  assert.equal(typeof encrypted, 'string');
+  assert.equal(encrypted.includes('gemini-key'), false);
+  assert.equal(encrypted.includes('openrouter-key'), false);
 
   store.setApiKey('tavily', 'session-only-key');
   await persistence.saveSensitiveConfig();
@@ -40,8 +47,23 @@ test('sensitive config persistence migrates legacy plaintext into the session an
   assert.equal(writes.has('chatSensitiveConfig_v1_alice'), false);
   assert.deepEqual(savedSnapshots, [{ apiKeys: store.getApiKeys() }]);
 
+  const reloadedStore = createSensitiveConfigStore();
+  const reloadedPersistence = createSensitiveConfigPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getItem: async (key) => writes.get(key) ?? null,
+    setItem: async (key, value) => writes.set(key, value),
+    removeItem: async (key) => writes.delete(key),
+    getApiKeys: reloadedStore.getApiKeys,
+    replaceApiKeys: reloadedStore.replaceApiKeys
+  });
+  await reloadedPersistence.loadSensitiveConfig();
+  assert.equal(reloadedStore.getApiKey('gemini'), 'gemini-key');
+  assert.equal(reloadedStore.getApiKey('tavily'), 'session-only-key');
+
   await persistence.clearSensitiveConfig();
   assert.equal(writes.has('chatSensitiveConfig_v1_alice'), false);
+  assert.equal(writes.has('chatSensitiveConfigKey_v2_alice'), false);
+  assert.equal(writes.has('chatSensitiveConfigCiphertext_v2_alice'), false);
   assert.equal(store.getApiKey('gemini'), '');
 });
 

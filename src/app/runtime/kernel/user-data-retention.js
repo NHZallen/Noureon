@@ -7,6 +7,8 @@ export function getStoredUserWorkspaceKeys(username) {
     `chatConfig_v_v8.6_${username}`,
     `chatAppData_v8.6_${username}`,
     `chatSensitiveConfig_v1_${username}`,
+    `chatSensitiveConfigKey_v2_${username}`,
+    `chatSensitiveConfigCiphertext_v2_${username}`,
     `chatSyncVault_v1_${username}`,
     `chatCloudAppDataBase_v1_${username}`,
     `chatRecoveryBackup_v1_${username}`,

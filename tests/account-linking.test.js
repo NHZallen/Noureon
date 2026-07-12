@@ -41,6 +41,8 @@ test('pending cloud account link migrates the complete local workspace to the cl
       } }] }] }]
     }),
     'chatSensitiveConfig_v1_alice': '{"apiKeys":{"gemini":"secret"}}',
+    'chatSensitiveConfigKey_v2_alice': { algorithm: { name: 'AES-GCM' }, extractable: false },
+    'chatSensitiveConfigCiphertext_v2_alice': '{"version":2,"ciphertext":"opaque"}',
     'generatedImage:alice:image-1': new Blob(['image'])
   });
   await markPendingCloudAccountLink(storage, { username: 'alice' });
@@ -62,6 +64,11 @@ test('pending cloud account link migrates the complete local workspace to the cl
     'generatedImage:supabase:user-123:image-1'
   );
   assert.equal(storage.values.has('chatSensitiveConfig_v1_supabase:user-123'), false);
+  assert.equal(storage.values.get('chatSensitiveConfigKey_v2_supabase:user-123').extractable, false);
+  assert.equal(
+    storage.values.get('chatSensitiveConfigCiphertext_v2_supabase:user-123'),
+    '{"version":2,"ciphertext":"opaque"}'
+  );
   assert.ok(storage.values.get('generatedImage:supabase:user-123:image-1') instanceof Blob);
   assert.equal(storage.values.has('chatConfig_v_v8.6_alice'), false);
   assert.equal(storage.values.get('chat_storageOwnerUser'), 'supabase:user-123');

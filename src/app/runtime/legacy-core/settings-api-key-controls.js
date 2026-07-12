@@ -172,7 +172,7 @@ export function createSettingsApiKeyControls(dependencies = {}) {
       notice.id = 'api-key-session-only-notice';
       notice.className = 'api-key-session-only-notice text-sm opacity-80 mt-2';
       notice.setAttribute('role', 'note');
-      notice.textContent = 'API Key 僅保留於目前瀏覽器工作階段，關閉頁面後需重新輸入。這可降低持久化暴露風險，但無法防止目前頁面中的惡意程式碼讀取。';
+      notice.textContent = 'API Key 會以此瀏覽器管理的非匯出金鑰加密後持久保存，重整或重開瀏覽器不需重新輸入。這可避免 IndexedDB 直接暴露明文，但無法防止目前頁面中的惡意程式碼讀取。';
       if (lastKeyWrapper.insertAdjacentElement) {
         lastKeyWrapper.insertAdjacentElement('afterend', notice);
       } else {

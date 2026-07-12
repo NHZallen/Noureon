@@ -349,6 +349,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const runtimeSensitiveConfigPersistence = createSensitiveConfigPersistence({
             getCurrentUser: () => currentUser,
             getItem,
+            setItem,
             removeItem,
             getApiKeys: () => sensitiveConfigStore.getApiKeys(),
             replaceApiKeys: (apiKeys) => sensitiveConfigStore.replaceApiKeys(apiKeys),
