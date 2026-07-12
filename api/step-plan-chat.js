@@ -7,7 +7,7 @@ export const config = {
   }
 };
 
-const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/v1/chat/completions';
+const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/step_plan/v1/chat/completions';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {

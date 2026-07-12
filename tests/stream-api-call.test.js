@@ -476,7 +476,7 @@ test('StepFun direct video requests preserve non-stream response handling', asyn
     }
   );
 
-  assert.equal(requests[0].url, 'https://api.stepfun.com/v1/chat/completions');
+  assert.equal(requests[0].url, 'https://api.stepfun.com/step_plan/v1/chat/completions');
   const payload = JSON.parse(requests[0].options.body);
   assert.equal(payload.stream, false);
   assert.equal(payload.reasoning_effort, 'high');

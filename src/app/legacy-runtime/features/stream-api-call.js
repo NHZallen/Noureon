@@ -1,7 +1,7 @@
 import { appendStepPlanAttachmentContent } from './model-request-formatting.js';
 import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
 import { snapshotMemoryContextUsage } from '../../runtime/memory/memory-usage-recording.js';
-const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/v1/chat/completions';
+const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/step_plan/v1/chat/completions';
 
 const LANGUAGE_INSTRUCTIONS = {
   'zh-TW': '請用繁體中文回覆，除非使用者有特別要求。',

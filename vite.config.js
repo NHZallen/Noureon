@@ -12,7 +12,7 @@ export default defineConfig({
       '/api/step-plan-chat': {
         target: 'https://api.stepfun.com',
         changeOrigin: true,
-        rewrite: () => '/v1/chat/completions'
+        rewrite: () => '/step_plan/v1/chat/completions'
       },
       '/api/tavily-search': {
         target: 'https://api.tavily.com',
