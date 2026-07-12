@@ -1,4 +1,5 @@
 import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
+import { getRuntimeText } from '../i18n/runtime-texts.js';
 
 const IMPORT_CANCELLED = 'IMPORT_CANCELLED';
 
@@ -139,7 +140,7 @@ export function createLegacyImportExportLifecycle({
     }
 
     const originalBtnText = elements.confirmExportBtn.textContent;
-    elements.confirmExportBtn.textContent = '正在處理檔案...';
+    elements.confirmExportBtn.textContent = getRuntimeText(getConfig().uiLanguage, 'processingFile');
     elements.confirmExportBtn.disabled = true;
 
     const dataClone = JSON.parse(JSON.stringify(rawData));
@@ -299,7 +300,7 @@ export function createLegacyImportExportLifecycle({
     importProgressContainer.classList.remove('hidden');
     importWarningText.classList.remove('hidden');
     confirmImportBtn.disabled = true;
-    confirmImportBtn.textContent = '處理中...';
+    confirmImportBtn.textContent = getRuntimeText(getConfig().uiLanguage, 'processing');
 
     const updateProgress = (percent, message) => {
       importProgressBar.style.width = `${percent}%`;
@@ -478,7 +479,7 @@ export function createLegacyImportExportLifecycle({
       else startNewChat();
     } catch (error) {
       if (error.message === IMPORT_CANCELLED) {
-        showNotification('已取消匯入。', 'info');
+        showNotification(getRuntimeText(getConfig().uiLanguage, 'importCancelled'), 'info');
       } else {
         logger.error(error);
         showNotification(`${text('importFailed', '匯入失敗')}: ${error.message}`, 'error');

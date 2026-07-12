@@ -1,3 +1,5 @@
+import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+
 export function createSingleModelResponseLifecycle({
   now = () => Date.now(),
   getOutputMode,
@@ -55,7 +57,7 @@ export function createSingleModelResponseLifecycle({
     const startedAt = now();
     latestProgress = {
       stage: 'preparing',
-      message: uiLanguage === 'en' ? 'Preparing request' : '準備請求',
+      message: getRuntimeText(uiLanguage, 'preparingRequest'),
       modelName: modelInfo?.name || conversation.model,
       startedAt,
       elapsedMs: 0,
@@ -146,9 +148,7 @@ export function createSingleModelResponseLifecycle({
     }
 
     if (!String(fullResponse || '').trim()) {
-      throw new Error(uiLanguage === 'en'
-        ? 'The request ended without any response text. The provider may have timed out or rejected the payload.'
-        : '請求已結束，但模型沒有回傳任何文字。服務可能逾時，或拒絕了這次的 payload。');
+      throw new Error(getRuntimeText(uiLanguage, 'emptyResponse'));
     }
 
     return {

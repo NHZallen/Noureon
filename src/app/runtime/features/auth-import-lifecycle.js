@@ -1,3 +1,5 @@
+import { getRuntimeText } from '../i18n/runtime-texts.js';
+
 const getText = (i18n, language, key, fallback) => i18n?.[language]?.[key] || fallback;
 
 export function createLegacyAuthImportLifecycle({
@@ -62,7 +64,7 @@ export function createLegacyAuthImportLifecycle({
 
     importProgressContainerAuth.classList.remove('hidden');
     confirmImportBtnAuth.disabled = true;
-    confirmImportBtnAuth.textContent = 'Processing...';
+    confirmImportBtnAuth.textContent = getRuntimeText(getConfig().uiLanguage, 'processing');
 
     const updateProgress = (percent, statusText) => {
       importProgressBarAuth.style.width = `${percent}%`;

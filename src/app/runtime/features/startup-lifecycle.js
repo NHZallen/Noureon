@@ -1,3 +1,5 @@
+import { getRuntimeText } from '../i18n/runtime-texts.js';
+
 export function createLegacyStartupLifecycle({
     window,
     document,
@@ -40,13 +42,13 @@ export function createLegacyStartupLifecycle({
         button.type = 'button';
         button.className = 'px-4 py-2 rounded-full border-0 text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100';
         button.dataset.langKey = 'selectFile';
-        button.textContent = '選擇檔案';
+        button.textContent = getRuntimeText(getConfig().uiLanguage, 'chooseFile');
         button.addEventListener('click', () => input.click());
 
         const fileName = document.createElement('span');
         fileName.className = 'localized-file-input-name text-sm text-[var(--text-secondary)] truncate';
         fileName.dataset.langKey = 'noFileSelected';
-        fileName.textContent = '尚未選擇檔案';
+        fileName.textContent = getRuntimeText(getConfig().uiLanguage, 'noFileSelected');
 
         input.addEventListener('change', () => {
             const selectedFile = input.files?.[0];
@@ -55,7 +57,7 @@ export function createLegacyStartupLifecycle({
                 fileName.textContent = selectedFile.name;
             } else {
                 fileName.dataset.langKey = 'noFileSelected';
-                fileName.textContent = '尚未選擇檔案';
+                fileName.textContent = getRuntimeText(getConfig().uiLanguage, 'noFileSelected');
                 applyLanguage(getConfig().uiLanguage);
             }
         });

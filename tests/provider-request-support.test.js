@@ -156,7 +156,7 @@ test('Tavily search packet preserves missing key, empty query, and HTTP error bo
   const { support: emptyQuerySupport } = createHarness();
   await assert.rejects(
     () => emptyQuerySupport.fetchTavilySearchPacket('   ', new AbortController().signal),
-    /No searchable text found/
+    /No searchable text (?:was )?found/
   );
 
   const { support: httpSupport } = createHarness({

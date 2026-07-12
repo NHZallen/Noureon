@@ -9,6 +9,7 @@ import {
     removeSuppressionRule,
     updateSuppressionRule
 } from '../memory/memory-suppression-management.js';
+import { getRuntimeText } from '../i18n/runtime-texts.js';
 
 const REQUIRED_DEPENDENCIES = [
     'document',
@@ -145,20 +146,20 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 if (replacementList && suggestedEntries.length > 0) {
                     const suggestion = document.createElement('span');
                     suggestion.className = 'text-xs text-[var(--text-secondary)] basis-full';
-                    suggestion.textContent = `模型建議取代：${suggestedEntries.map(memory => `「${memory.content}」`).join('、')}（需你確認）`;
+                    suggestion.textContent = getRuntimeText(config.uiLanguage, 'memoryReplacementSuggestion', { items: suggestedEntries.map(memory => `「${memory.content}」`).join('、') });
                     replacementList.appendChild(suggestion);
                 }
                 if (replacementList && activeProfileEntries.length > 0) {
                     const label = document.createElement('span');
                     label.className = 'text-xs text-[var(--text-secondary)] basis-full';
-                    label.textContent = '若它取代既有偏好，請選擇要停用的舊記憶：';
+                    label.textContent = getRuntimeText(config.uiLanguage, 'memoryChooseReplacement');
                     replacementList.appendChild(label);
                     activeProfileEntries.forEach(memory => {
                         const button = document.createElement('button');
                         button.className = 'replace-candidate-memory-btn text-xs px-2 py-1 rounded border border-[var(--border-color)] hover:bg-[var(--active-bg)]';
                         button.dataset.candidateId = candidate.id;
                         button.dataset.supersedeId = memory.id;
-                        button.textContent = `取代「${memory.content.slice(0, 36)}${memory.content.length > 36 ? '…' : ''}」`;
+                        button.textContent = getRuntimeText(config.uiLanguage, 'memoryReplace', { item: `${memory.content.slice(0, 36)}${memory.content.length > 36 ? '…' : ''}` });
                         replacementList.appendChild(button);
                     });
                 }
@@ -183,14 +184,14 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 if (topicSummaries.length > 0) {
                     const heading = document.createElement('p');
                     heading.className = 'text-xs font-medium text-[var(--text-secondary)]';
-                    heading.textContent = '長期主題摘要';
+                    heading.textContent = getRuntimeText(config.uiLanguage, 'memoryTopics');
                     derivedSection.appendChild(heading);
                     topicSummaries.forEach(topic => {
                         const item = document.createElement('div');
                         item.className = 'flex items-start justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                         item.innerHTML = `<div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-medium"></span><span class="text-xs text-[var(--text-secondary)] word-break: break-word;"></span></div><button class="delete-topic-summary-btn text-red-600 hover:text-red-800 text-sm" data-id="${topic.id}">刪除</button>`;
                         const spans = item.querySelectorAll('span');
-                        spans[0].textContent = topic.topic || '未命名主題';
+                        spans[0].textContent = topic.topic || getRuntimeText(config.uiLanguage, 'unnamedTopic');
                         spans[1].textContent = topic.summary || '';
                         derivedSection.appendChild(item);
                     });
@@ -198,7 +199,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 if (suppressionRules.length > 0) {
                     const heading = document.createElement('p');
                     heading.className = 'text-xs font-medium text-[var(--text-secondary)] mt-3';
-                    heading.textContent = '不主動使用的記憶規則';
+                    heading.textContent = getRuntimeText(config.uiLanguage, 'memorySuppressionRules');
                     derivedSection.appendChild(heading);
                     suppressionRules.forEach((rule, index) => {
                         const item = document.createElement('div');
@@ -415,7 +416,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 });
                 await saveAppData();
                 renderPersonalMemoryList();
-                showNotification('已自動添加新的個人記憶。', 'success');
+                showNotification(getRuntimeText(config.uiLanguage, 'memoryAutoAdded'), 'success');
                 return;
             }
             
@@ -524,7 +525,7 @@ ${JSON.stringify(potentialMemories, null, 2)}
                         if (!ALL_ELEMENTS.settingsModal.classList.contains('hidden')) {
                            renderPersonalMemoryList();
                         }
-                        showNotification('AI 已自動整理並更新您的個人記憶。', 'success');
+                        showNotification(getRuntimeText(config.uiLanguage, 'memoryAutoUpdated'), 'success');
                     }
                 }
             } catch (error) {

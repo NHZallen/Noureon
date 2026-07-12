@@ -338,7 +338,8 @@ const apiKeyControls = createSettingsApiKeyControls({
     setApiKeyForProvider,
     mergeSensitiveApiKeys,
     clearSensitiveApiKeys,
-    saveSensitiveConfig
+    saveSensitiveConfig,
+    getUiLanguage: () => config.uiLanguage
 });
 const {
     prepareApiKeyInputsForSettings,

@@ -1,3 +1,5 @@
+import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
   formatTavilySearchPacket,
@@ -114,15 +116,13 @@ Output requirements:
     const config = getConfig();
     const apiKey = getTavilyApiKey();
     if (!apiKey) {
-      throw new Error(config.uiLanguage === 'en'
-        ? 'Tavily API key is required for OpenRouter/NVIDIA/Step Plan search. Add it in Settings.'
-        : 'OpenRouter/NVIDIA 搜索需要 Tavily API 金鑰，請先到設定頁新增。');
+      throw new Error(getRuntimeText(config.uiLanguage, 'tavilyKeyRequired'));
     }
     const query = buildTavilySearchQuery(Array.isArray(querySource)
       ? getSearchQueryFromParts(querySource)
       : querySource);
     if (!query) {
-      throw new Error(config.uiLanguage === 'en' ? 'No searchable text found.' : '找不到可用的搜索文字。');
+      throw new Error(getRuntimeText(config.uiLanguage, 'noSearchableText'));
     }
     const response = await fetchImpl('/api/tavily-search', {
       method: 'POST',
@@ -157,9 +157,7 @@ Output requirements:
     if (documentParts.length > 0) {
       const translatorModel = getSingleDocumentTranslatorModel();
       if (!translatorModel) {
-        throw new Error(config.uiLanguage === 'en'
-          ? 'This model needs a document translator model in Settings.'
-          : '此模型需要先在設定中指定文件轉譯模型。');
+        throw new Error(getRuntimeText(config.uiLanguage, 'documentTranslatorRequired'));
       }
       onProgress?.('documentTranslation', `文件轉譯：${translatorModel.name}`);
       const documentPacket = await streamCouncilApiCallWithRetry(
@@ -181,7 +179,7 @@ Output requirements:
     }
     const conv = getActiveConversation();
     if (conv?.isWebSearchEnabled && modelUsesTavilySearch(modelInfo)) {
-      onProgress?.('searchTranslation', config.uiLanguage === 'en' ? 'Searching with Tavily' : '正在使用 Tavily 搜索');
+      onProgress?.('searchTranslation', getRuntimeText(config.uiLanguage, 'searchingTavily'));
       const searchPacket = await fetchTavilySearchPacket(parts, signal, {
         label: 'Single-model web search packet'
       });

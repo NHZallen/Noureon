@@ -1,3 +1,5 @@
+import { getRuntimeTexts } from '../../runtime/i18n/runtime-texts.js';
+
 export const MODEL_PROVIDER_ORDER = Object.freeze(['gemini', 'openrouter', 'nvidia', 'stepfun']);
 
 const compareModelsForPicker = (left, right) => (
@@ -152,8 +154,8 @@ export function createModelSwitcherLifecycle({
         <div id="model-options-popover" class="popover absolute left-2 md:left-3 mt-6 w-72 md:w-80 rounded-lg border border-[var(--border-color)] z-50">
             <div class="model-switcher-search">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-                <input id="model-search-input" type="search" autocomplete="off" placeholder="${escapeHTML(translations.searchModels || (config.uiLanguage === 'zh-TW' ? '搜尋模型' : 'Search models'))}">
-                <button id="model-search-clear-btn" class="model-search-clear-btn hidden" type="button" aria-label="${escapeHTML(translations.clearSearch || 'Clear search')}">
+                <input id="model-search-input" type="search" autocomplete="off" placeholder="${escapeHTML(translations.searchModels || getRuntimeTexts(config.uiLanguage).searchModels)}">
+                <button id="model-search-clear-btn" class="model-search-clear-btn hidden" type="button" aria-label="${escapeHTML(translations.clearSearch || getRuntimeTexts(config.uiLanguage).clearSearch)}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
                 </button>
             </div>
@@ -213,9 +215,10 @@ export function createModelSwitcherLifecycle({
     };
 
 
-    const modelVisionLabel = config.uiLanguage === 'zh-TW' ? '視覺' : 'Vision';
-    const modelDocumentLabel = config.uiLanguage === 'zh-TW' ? '文件' : 'Documents';
-    const translatedDocumentLabel = config.uiLanguage === 'zh-TW' ? '轉譯文件' : 'Translated documents';
+    const runtimeTexts = getRuntimeTexts(config.uiLanguage);
+    const modelVisionLabel = runtimeTexts.vision;
+    const modelDocumentLabel = runtimeTexts.documents;
+    const translatedDocumentLabel = runtimeTexts.translatedDocuments;
     const modelSearchLabel = i18n[config.uiLanguage]?.search || '搜尋';
     const createModelRetirementHTML = (model) => {
         const retirementLabel = getModelRetirementLabel(model);
@@ -271,13 +274,13 @@ export function createModelSwitcherLifecycle({
             ].join(' ').toLowerCase().includes(normalizedQuery);
         });
 
-        modelListView.innerHTML = `<div class="model-search-results-title">${escapeHTML(translations.searchResults || (config.uiLanguage === 'zh-TW' ? '搜尋結果' : 'Search results'))}</div>`;
+        modelListView.innerHTML = `<div class="model-search-results-title">${escapeHTML(translations.searchResults || runtimeTexts.searchResults)}</div>`;
         modelListView.innerHTML += matchedModels.length
             ? matchedModels.map(model => {
                 const descriptionText = translations[model.descriptionKey] || '';
                 return createModelOptionHTML(model, descriptionText);
             }).join('')
-            : `<p class="model-search-empty">${escapeHTML(translations.noModelsFound || (config.uiLanguage === 'zh-TW' ? '找不到符合的模型' : 'No matching models'))}</p>`;
+            : `<p class="model-search-empty">${escapeHTML(translations.noModelsFound || runtimeTexts.noMatchingModels)}</p>`;
         modelListView.classList.remove('model-search-results-enter');
         void modelListView.offsetWidth;
         modelListView.classList.add('model-search-results-enter');

@@ -1,4 +1,5 @@
 import { createMediaPreviewLifecycle } from './media-preview-lifecycle.js';
+import { getRuntimeTexts } from '../../runtime/i18n/runtime-texts.js';
 
 const EDITOR_COLORS = Object.freeze([
   { value: '#ef4444', key: 'red' },
@@ -9,26 +10,12 @@ const EDITOR_COLORS = Object.freeze([
 ].filter(({ value }) => value !== '#22c55e'));
 
 const getEditorTexts = (language) => {
-  if (language === 'en') return {
-    title: 'Edit', hint: 'Mark the area you want changed, then confirm and describe the edit.',
-    close: 'Cancel edit', brush: 'Brush', eraser: 'Eraser', size: 'Size', confirm: 'Confirm selection',
-    drawingArea: 'Drawable area',
-    undo: 'Undo', redo: 'Redo', clear: 'Clear all',
-    colors: { red: 'Red', blue: 'Blue', green: 'Green', yellow: 'Yellow', white: 'White' }
-  };
-  if (language === 'fr') return {
-    title: 'Modifier', hint: 'Marquez la zone à modifier, confirmez, puis décrivez la retouche.',
-    close: 'Annuler la retouche', brush: 'Pinceau', eraser: 'Gomme', size: 'Taille', confirm: 'Confirmer la zone',
-    drawingArea: 'Zone de dessin',
-    undo: 'Annuler', redo: 'Rétablir', clear: 'Tout effacer',
-    colors: { red: 'Rouge', blue: 'Bleu', green: 'Vert', yellow: 'Jaune', white: 'Blanc' }
-  };
+  const text = getRuntimeTexts(language);
   return {
-    title: '編輯', hint: '圈起想修改的區域，確認後再於輸入欄描述要怎麼改。',
-    close: '取消編輯', brush: '畫筆', eraser: '橡皮擦', size: '粗細', confirm: '確認區域',
-    drawingArea: '可繪畫區域',
-    undo: '返回上一步', redo: '返回下一步', clear: '全部刪除',
-    colors: { red: '紅色', blue: '藍色', green: '綠色', yellow: '黃色', white: '白色' }
+    title: text.edit, hint: text.editHint, close: text.cancelEdit, brush: text.brush,
+    eraser: text.eraser, size: text.size, confirm: text.confirmSelection,
+    drawingArea: text.drawableArea, undo: text.undo, redo: text.redo, clear: text.clearAll,
+    colors: { red: text.red, blue: text.blue, green: text.green, yellow: text.yellow, white: text.white }
   };
 };
 

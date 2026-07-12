@@ -1,3 +1,5 @@
+import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+
 export function createCouncilResponseLifecycle({
   buildTavilySearchQuery,
   getSearchCurrentDate,
@@ -87,7 +89,7 @@ export function createCouncilResponseLifecycle({
   };
   const getSearchPacketFromModel = async (searchModel, promptOrQuery, signal, options = {}) => {
       if (!searchModel) {
-          throw new Error(getConfig().uiLanguage === 'en' ? 'No search-capable council synthesizer selected.' : '尚未選擇可搜索的理事會統整模型。');
+          throw new Error(getRuntimeText(getConfig().uiLanguage, 'noSearchCouncilSynth'));
       }
       if (modelUsesNativeWebSearch(searchModel)) {
           return await streamCouncilApiCallWithRetry(
@@ -151,9 +153,7 @@ export function createCouncilResponseLifecycle({
       }
       const translatorModel = getCouncilTranslatorModel();
       if (!translatorModel) {
-          throw new Error(getConfig().uiLanguage === 'en'
-              ? 'Council attachments require a translator model in Settings.'
-              : '理事會附件需要先在設定中選擇轉譯模型。');
+          throw new Error(getRuntimeText(getConfig().uiLanguage, 'councilTranslatorRequired'));
       }
       const result = {
           visualPacket: '',
@@ -162,9 +162,7 @@ export function createCouncilResponseLifecycle({
           translatorModelName: translatorModel.name
       };
       const runTranslation = async (kind) => {
-          const label = kind === 'visual'
-              ? (getConfig().uiLanguage === 'en' ? 'image translation packet' : '圖片轉譯包')
-              : (getConfig().uiLanguage === 'en' ? 'document translation packet' : '文件轉譯包');
+          const label = getRuntimeText(getConfig().uiLanguage, kind === 'visual' ? 'imageTranslationPacket' : 'documentTranslationPacket');
           progress?.('translation', `${label}: ${translatorModel.name}`);
           const translationParts = [
               { text: buildCouncilAttachmentTranslationPrompt(kind, parts) },
@@ -356,7 +354,7 @@ export function createCouncilResponseLifecycle({
               const now = Date.now();
               if (!state || now - lastUpdateAt < 850) return;
               lastUpdateAt = now;
-              const chunkUnit = getConfig().uiLanguage === 'en' ? 'chunks' : '段內容';
+              const chunkUnit = getRuntimeText(getConfig().uiLanguage, 'chunks');
               state.detail = `${runtimeTexts.running} · ${Math.max(1, Math.round(receivedChars / 100))}${chunkUnit}`;
               progress(stage, `${runtimeTexts.running}: ${modelName}`);
           };

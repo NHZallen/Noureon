@@ -18,6 +18,7 @@ import { runSubmitFinalCleanupLifecycle } from '/src/app/legacy-runtime/features
 import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/features/model-message-post-response-actions.js';
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
 import { createMessageEditingLifecycle } from '/src/app/legacy-runtime/features/message-editing-lifecycle.js';
+import { getRuntimeTexts } from '/src/app/runtime/i18n/runtime-texts.js';
 import { buildQuotedUserParts, createQuoteInquiryLifecycle } from '/src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
@@ -144,22 +145,20 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             const retirementDate = model?.retirementDate || model?.deprecationDate || model?.sunsetDate;
             if (!retirementDate) return '';
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            const label = uiLanguage === 'en'
-                ? 'Retires'
-                : (uiLanguage === 'fr' ? 'Retrait' : 'Retires');
+            const label = getRuntimeTexts(uiLanguage).retirement;
             return `${label} ${retirementDate}`;
         };
         const getModelPriceLabel = (model) => {
             if (!model) return '';
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            if (getModelTiers(model).includes('free')) return uiLanguage === 'en' ? 'Free' : 'Free';
+            if (getModelTiers(model).includes('free')) return 'Free';
             const priceKey = model.descriptionKey ? `${model.descriptionKey}_tier_paid` : '';
             const localizedPrice = priceKey ? i18n[uiLanguage]?.[priceKey] : '';
             if (localizedPrice) return localizedPrice;
-            if (model.provider === 'gemini') return uiLanguage === 'en' ? 'Google API pricing' : 'Google API pricing';
-            if (model.provider === 'openrouter') return uiLanguage === 'en' ? 'OpenRouter pricing' : 'OpenRouter pricing';
+            if (model.provider === 'gemini') return 'Google API pricing';
+            if (model.provider === 'openrouter') return 'OpenRouter pricing';
             if (model.provider === 'stepfun') return 'Step Plan credits';
-            return uiLanguage === 'en' ? 'Provider pricing' : 'Provider pricing';
+            return 'Provider pricing';
         };        const getCouncilRuntimeTexts = () => {
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             return getCouncilRuntimeTextsForLanguage(uiLanguage);
@@ -797,7 +796,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 const folder = runtimeAppDataStore.getFolders().find(f => f.id === id);
                 if (folder) currentTitle = folder.name;
             }
-            ALL_ELEMENTS.renameModal.querySelector('h2').textContent = type === 'folder' ? 'Rename folder' : 'Rename chat';
+            const runtimeTexts = getRuntimeTexts(runtimeConfigAccess.getUiLanguage());
+            ALL_ELEMENTS.renameModal.querySelector('h2').textContent = type === 'folder' ? runtimeTexts.renameFolder : runtimeTexts.renameChat;
             ALL_ELEMENTS.renameInput.value = currentTitle;
             toggleModal(ALL_ELEMENTS.renameModal, true);
             ALL_ELEMENTS.renameInput.focus();

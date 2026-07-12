@@ -1,6 +1,6 @@
-const getEmptyResponseMessage = (uiLanguage) => uiLanguage === 'en'
-  ? 'The request ended without any response text. The provider may have timed out or rejected the payload.'
-  : '請求已結束，但模型沒有回傳任何文字。服務可能逾時，或拒絕了這次的 payload。';
+import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+
+const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
 export async function finalizeAssistantResponse({
   fullResponse,

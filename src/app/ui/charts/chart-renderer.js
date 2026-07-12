@@ -15,6 +15,7 @@ import { renderFunnelChart } from './funnel-chart.js';
 import { renderWaterfallChart } from './waterfall-chart.js';
 import { attachChartInteractions } from './chart-interactions.js';
 import { getPrimaryColor } from './chart-utils.js';
+import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 
 const COMPLEX_RENDERER_LOADERS = Object.freeze({
   sankey: () => import('./sankey-chart.js').then((module) => module.renderSankeyChart),
@@ -42,7 +43,7 @@ function renderDeferredComplexChart(document, chart, options = {}) {
     } catch {
       if (!placeholder.isConnected) return;
       placeholder.removeAttribute('aria-hidden');
-      placeholder.textContent = 'Unable to render chart.';
+      placeholder.textContent = getRuntimeText(options.uiLanguage, 'unableToRenderChart');
     }
   });
   return placeholder;

@@ -13,6 +13,7 @@ import { applyModelMessagePostResponseActions } from '../../legacy-runtime/featu
 import { appendRendererTextGradually } from '../../legacy-runtime/features/renderer-gradual-append-controller.js';
 import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails } from '../../legacy-runtime/features/streaming-council-details.js';
 import { createImageModeControls } from '../../legacy-runtime/features/image-mode-controls.js';
+import { getRuntimeText } from '../i18n/runtime-texts.js';
 import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
@@ -154,7 +155,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const getReasoningTitle = () => {
     const uiLanguage = runtimeConfigAccess.getUiLanguage();
-    return uiLanguage === 'zh-TW' ? '思考深度' : 'Reasoning';
+    return getRuntimeText(uiLanguage, 'reasoning');
   };
 
   const getLocalizedAstraName = (ast) => {
@@ -263,12 +264,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     renderCouncilControls();
     const toggleButton = document.getElementById('model-council-toggle-btn');
     if (!toggleButton) {
-      showNotification(
-        config.uiLanguage === 'en'
-          ? 'Model Council is unavailable while Learning Mode is enabled.'
-          : 'Model Council is unavailable while Learning Mode is enabled.',
-        'warning'
-      );
+      showNotification(getRuntimeText(config.uiLanguage, 'councilUnavailable'), 'warning');
       return;
     }
     closeAllPopovers();
@@ -357,9 +353,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const config = getLiveConfig();
     const conv = getActiveConversation();
     if (!config.isLearningMode && isCouncilEnabled(conv)) {
-      const message = config.uiLanguage === 'en'
-        ? 'Learning Mode is unavailable while Model Council is enabled.'
-        : 'Learning Mode is unavailable while Model Council is enabled.';
+      const message = getRuntimeText(config.uiLanguage, 'learningUnavailable');
       showNotification(message, 'warning');
       return;
     }
@@ -566,12 +560,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getCouncilModeLabel = (council = {}) => {
     const texts = getCouncilTexts();
     const modeLabel = council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
-    const uiLanguage = runtimeConfigAccess.getUiLanguage();
-    if (uiLanguage === 'en') return `Council ${modeLabel}`;
-    if (uiLanguage === 'fr') return `Conseil ${modeLabel}`;
-    if (uiLanguage === 'ru') return `Совет: ${modeLabel}`;
-    if (uiLanguage === 'es') return `Consejo: ${modeLabel}`;
-    return `議會${modeLabel}`;
+    return `${texts.title}: ${modeLabel}`;
   };
 
   const getCouncilModelList = (conv) => {

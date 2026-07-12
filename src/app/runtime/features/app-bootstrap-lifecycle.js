@@ -3,6 +3,7 @@ import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/st
 import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
 import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
+import { getRuntimeText } from '../i18n/runtime-texts.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -123,13 +124,13 @@ export function createLegacyAppBootstrapLifecycle({
         button.type = 'button';
         button.className = 'px-4 py-2 rounded-full border-0 text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100';
         button.dataset.langKey = 'selectFile';
-        button.textContent = '選擇檔案';
+        button.textContent = getRuntimeText(getConfig().uiLanguage, 'chooseFile');
         button.addEventListener('click', () => input.click());
 
         const fileName = document.createElement('span');
         fileName.className = 'localized-file-input-name text-sm text-[var(--text-secondary)] truncate';
         fileName.dataset.langKey = 'noFileSelected';
-        fileName.textContent = '尚未選擇檔案';
+        fileName.textContent = getRuntimeText(getConfig().uiLanguage, 'noFileSelected');
 
         const syncFileName = () => {
             const selectedFile = input.files?.[0];
@@ -138,7 +139,7 @@ export function createLegacyAppBootstrapLifecycle({
                 fileName.textContent = selectedFile.name;
             } else {
                 fileName.dataset.langKey = 'noFileSelected';
-                fileName.textContent = i18n?.[getConfig?.().uiLanguage || 'zh-TW']?.noFileSelected || '尚未選擇檔案';
+                fileName.textContent = i18n?.[getConfig?.().uiLanguage || 'zh-TW']?.noFileSelected || getRuntimeText(getConfig().uiLanguage, 'noFileSelected');
             }
         };
 
@@ -587,7 +588,7 @@ export function createLegacyAppBootstrapLifecycle({
         const turnstileToken = turnstile.getToken('feedback');
         
         if (!feedbackContent) {
-            showNotification('請先輸入您的意見！', 'warning');
+            showNotification(getRuntimeText(getConfig().uiLanguage, 'feedbackRequired'), 'warning');
             return;
         }
         if (turnstile.enabled && !turnstileToken) {
@@ -601,7 +602,7 @@ export function createLegacyAppBootstrapLifecycle({
     
         const originalButtonText = sendButton.textContent;
         sendButton.disabled = true;
-        sendButton.textContent = '發送中...';
+        sendButton.textContent = getRuntimeText(getConfig().uiLanguage, 'sending');
     
     
         try {
@@ -618,7 +619,7 @@ export function createLegacyAppBootstrapLifecycle({
             await postJsonWithReadableError(FORM_ENDPOINT, dataToSend, { allowOpaqueFallback: false });
     
     
-            showNotification('反饋已成功發送，感謝您！', 'success');
+            showNotification(getRuntimeText(getConfig().uiLanguage, 'feedbackSent'), 'success');
             ALL_ELEMENTS.feedbackTextarea.value = '';
     
     
@@ -664,7 +665,7 @@ export function createLegacyAppBootstrapLifecycle({
     
     
         if (!name || !instructions) {
-            showNotification('提案的「名稱」和「指令」是必填的喔！', 'warning');
+            showNotification(getRuntimeText(getConfig().uiLanguage, 'proposalRequired'), 'warning');
             return;
         }
         if (turnstile.enabled && !turnstileToken) {
@@ -678,7 +679,7 @@ export function createLegacyAppBootstrapLifecycle({
     
         const originalButtonText = submitButton.textContent;
         submitButton.disabled = true;
-        submitButton.textContent = '提交中...';
+        submitButton.textContent = getRuntimeText(getConfig().uiLanguage, 'submitting');
     
     
         try {
@@ -697,7 +698,7 @@ export function createLegacyAppBootstrapLifecycle({
     
     
             toggleModal(ALL_ELEMENTS.astrasProposalModal, false);
-            showNotification('感謝您的提案，已成功發送！', 'success');
+            showNotification(getRuntimeText(getConfig().uiLanguage, 'proposalSent'), 'success');
             
         } catch (error) {
             logger.error('提交提案時出錯:', error);

@@ -1,5 +1,6 @@
 import { applyChartMarkdownPlaceholders } from '../../ui/charts/chart-markdown-placeholders.js';
 import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
+import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 export function createMarkdownRenderingHelpers({
   marked,
@@ -11,7 +12,8 @@ export function createMarkdownRenderingHelpers({
   logger
 }) {
   function renderMarkdown(text) {
-    const thinkingLabel = getUiLanguage() === 'en' ? 'Model thinking process' : '模型思考過程';
+    const runtimeTexts = getRuntimeTexts(getUiLanguage());
+    const thinkingLabel = runtimeTexts.modelThinkingProcess;
     const normalizedText = String(text || '')
       .replace(/(\d)~(?=\d)/g, '$1–')
       .replace(/<think>([\s\S]*?)<\/think>/gi, (_, content) => {
@@ -33,13 +35,13 @@ export function createMarkdownRenderingHelpers({
       document: documentFragment,
       root: documentFragment.body,
       messageRole: 'assistant',
-      chartLabel: getText('chart', getUiLanguage() === 'fr' ? 'Graphique' : (getUiLanguage() === 'en' ? 'Chart' : '圖表'))
+      chartLabel: getText('chart', runtimeTexts.chart)
     });
 
     mountChartPlaceholders({
       root: documentFragment.body,
       messageRole: 'assistant',
-      chartLabel: getText('chart', getUiLanguage() === 'fr' ? 'Graphique' : (getUiLanguage() === 'en' ? 'Chart' : 'Chart'))
+      chartLabel: getText('chart', runtimeTexts.chart)
     });
 
     return documentFragment.body.innerHTML;

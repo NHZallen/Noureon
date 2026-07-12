@@ -4,6 +4,7 @@ import {
   prepareApiKeyInput,
   readApiKeyInputIntent
 } from '../security/api-key-input-intent.js';
+import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 const REQUIRED_DEPENDENCIES = [
   'document',
@@ -31,8 +32,10 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     setApiKeyForProvider,
     mergeSensitiveApiKeys,
     clearSensitiveApiKeys,
-    saveSensitiveConfig
+    saveSensitiveConfig,
+    getUiLanguage = () => 'zh-TW'
   } = dependencies;
+  const text = () => getRuntimeTexts(getUiLanguage());
 
   const getApiKeyInputDescriptors = () => [
     { provider: 'gemini', input: elements.geminiApiKeyInput },
@@ -46,7 +49,7 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'api-key-clear-btn';
-    button.textContent = 'Clear';
+    button.textContent = text().clear;
     button.dataset.apiKeyClearProvider = provider;
     button.addEventListener('click', async (event) => {
       event.preventDefault();
@@ -81,8 +84,8 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     button.type = 'button';
     button.className = 'api-key-visibility-btn';
     button.dataset.apiKeyVisibilityProvider = provider;
-    button.setAttribute('aria-label', 'Show API key');
-    button.title = 'Show API key';
+    button.setAttribute('aria-label', text().showApiKey);
+    button.title = text().showApiKey;
     setApiKeyVisibilityButtonState(button, false);
     button.addEventListener('click', (event) => {
       event.preventDefault();
@@ -96,8 +99,8 @@ export function createSettingsApiKeyControls(dependencies = {}) {
           });
         }
         input.type = 'password';
-        button.setAttribute('aria-label', 'Show API key');
-        button.title = 'Show API key';
+        button.setAttribute('aria-label', text().showApiKey);
+        button.title = text().showApiKey;
         setApiKeyVisibilityButtonState(button, false);
         return;
       }
@@ -107,8 +110,8 @@ export function createSettingsApiKeyControls(dependencies = {}) {
         if (rawValue) input.value = rawValue;
       }
       input.type = 'text';
-      button.setAttribute('aria-label', 'Hide API key');
-      button.title = 'Hide API key';
+      button.setAttribute('aria-label', text().hideApiKey);
+      button.title = text().hideApiKey;
       setApiKeyVisibilityButtonState(button, true);
     });
     return button;
@@ -119,8 +122,8 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     input.type = 'password';
     const button = input.id ? document.getElementById(`${input.id}-visibility-btn`) : null;
     if (!button) return;
-    button.setAttribute?.('aria-label', 'Show API key');
-    button.title = 'Show API key';
+    button.setAttribute?.('aria-label', text().showApiKey);
+    button.title = text().showApiKey;
     setApiKeyVisibilityButtonState(button, false);
   };
 
@@ -154,7 +157,7 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     clearAllButton.type = 'button';
     clearAllButton.id = 'clear-all-api-keys-btn';
     clearAllButton.className = 'api-key-clear-all-btn';
-    clearAllButton.textContent = 'Clear all API keys';
+    clearAllButton.textContent = text().clearAllApiKeys;
     clearAllButton.addEventListener('click', async (event) => {
       event.preventDefault();
       getApiKeyInputDescriptors().forEach(({ input }) => markApiKeyInputCleared(input));

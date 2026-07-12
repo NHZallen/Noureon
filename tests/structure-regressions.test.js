@@ -2420,7 +2420,6 @@ test('runtime config access owns selected uiLanguage reads through the config st
     getCouncilRuntimeTextsBody,
     getModelRetirementLabelBody,
     getModelPriceLabelBody,
-    getCouncilModeLabelBody,
     renderArchivedChatsBody,
     setupTimeAnalysisBody,
     updateTimeDistributionChartBody
@@ -2439,11 +2438,8 @@ test('runtime config access owns selected uiLanguage reads through the config st
   assert.ok((councilRuntimeTextsSource.match(/return\s+\{/g) || []).length >= 3);
   assert.match(getModelRetirementLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(getModelPriceLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
-  assert.match(getCouncilModeLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
-  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'en'\)\s*return\s+`Council \$\{modeLabel\}`;/);
-  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*return\s+`Conseil \$\{modeLabel\}`;/);
-  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'ru'\)\s*return\s+`Совет: \$\{modeLabel\}`;/);
-  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'es'\)\s*return\s+`Consejo: \$\{modeLabel\}`;/);
+  assert.match(getCouncilModeLabelBody, /const\s+texts\s*=\s*getCouncilTexts\(\);/);
+  assert.match(getCouncilModeLabelBody, /return\s+`\$\{texts\.title\}:\s*\$\{modeLabel\}`;/);
   assert.match(renderArchivedChatsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   for (const key of ['noArchivedChats', 'view', 'restore', 'delete']) {
     assert.match(renderArchivedChatsBody, new RegExp(`i18n\\[uiLanguage\\]\\.${key}\\s*\\|\\|`));
