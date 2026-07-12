@@ -57,6 +57,7 @@ export function normalizeMemoryState(raw = {}, { now = () => new Date().toISOStr
     mediaMemories: asArray(memoryState.mediaMemories),
     conversationCapsules: asArray(memoryState.conversationCapsules),
     longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries),
+    resolvedTopicSummaryIds: asArray(memoryState.resolvedTopicSummaryIds).map(String),
     suppressionRules: asArray(memoryState.suppressionRules),
     legacyInbox: [...legacyInbox, ...legacyMemories.map(entry => migrateLegacyMemory(entry, now))]
   };

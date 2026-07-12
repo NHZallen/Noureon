@@ -5,6 +5,7 @@ import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
 import { createLegacyRuntimeEntryDependencies } from '../runtime-entry-dependencies.js';
 import { mergeSyncedMemoryState, projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
+import { consolidateOverlappingTopicSummaries } from '../memory/topic-summaries.js';
 
 const REQUIRED_DEPENDENCIES = [
     'window',
@@ -1108,9 +1109,12 @@ function setupMessageIntersectionObserver() {
                     const projection = state.config.memorySync;
                     if (!projection) return;
                     const currentMemoryState = runtimeAppDataStore.getMemoryState?.() || {};
-                    runtimeAppDataStore.replaceMemoryState(
+                    const restoredMemoryState = consolidateOverlappingTopicSummaries(
                         mergeSyncedMemoryState(currentMemoryState, projection)
                     );
+                    runtimeAppDataStore.replaceMemoryState(restoredMemoryState);
+                    state.config.memorySync = projectMemoryStateForSync(restoredMemoryState);
+                    await saveConfig();
                     await saveAppData();
                 },
                 applyLanguage,

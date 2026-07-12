@@ -352,7 +352,10 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     const id = e.currentTarget.dataset.id;
                     replaceMemoryState({
                         ...memoryState,
-                        longTermTopicSummaries: topicSummaries.filter(topic => topic.id !== id)
+                        longTermTopicSummaries: topicSummaries.filter(topic => topic.id !== id),
+                        resolvedTopicSummaryIds: [
+                            ...new Set([...(memoryState.resolvedTopicSummaryIds || []), String(id)])
+                        ]
                     });
                     await saveAppData();
                     renderPersonalMemoryList();

@@ -13,7 +13,7 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     memorySystemVersion: 2,
     memoryProfileEnabled: true,
     historyRecallEnabled: false,
-    memorySync: { version: 1, profileEntries: [], profileCandidates: [], resolvedProfileCandidateIds: [], suppressionRules: [], longTermTopicSummaries: [] },
+    memorySync: { version: 1, profileEntries: [], profileCandidates: [], resolvedProfileCandidateIds: [], resolvedTopicSummaryIds: [], suppressionRules: [], longTermTopicSummaries: [] },
     memoryEnabled1: true,
     enableAutoMemory: true,
     customWallpaper: null,

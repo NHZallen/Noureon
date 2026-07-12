@@ -16,6 +16,7 @@ test('sync projection includes unresolved candidates while excluding capsules an
     longTermTopicSummaries: [{ id: 'topic-1', summary: 'A durable topic' }],
     profileCandidates: [{ id: 'review', content: 'Keep' }, { id: 'dismissed', content: 'Drop' }],
     resolvedProfileCandidateIds: ['dismissed'],
+    resolvedTopicSummaryIds: [],
     conversationCapsules: [{ id: 'capsule' }],
     recentConversationStates: [{ conversationId: 'chat' }]
   });
@@ -25,6 +26,7 @@ test('sync projection includes unresolved candidates while excluding capsules an
     profileEntries: [{ id: 'confirmed', confirmedByUser: true }],
     profileCandidates: [{ id: 'review', content: 'Keep' }],
     resolvedProfileCandidateIds: ['dismissed'],
+    resolvedTopicSummaryIds: [],
     suppressionRules: [{ type: 'do-not-mention', target: 'profile-name' }],
     longTermTopicSummaries: [{ id: 'topic-1', summary: 'A durable topic' }]
   });
@@ -35,12 +37,14 @@ test('merges confirmed preferences and candidates without replacing local-only i
     profileEntries: [{ id: 'language', confirmedByUser: true, content: 'English', updatedAt: '2026-01-01' }],
     conversationCapsules: [{ id: 'local-capsule' }],
     profileCandidates: [{ id: 'local-review' }, { id: 'resolved-remote' }],
-    resolvedProfileCandidateIds: []
+    resolvedProfileCandidateIds: [],
+    resolvedTopicSummaryIds: []
   }, {
     version: 1,
     profileEntries: [{ id: 'language', confirmedByUser: true, content: 'Traditional Chinese', updatedAt: '2026-07-11' }],
     profileCandidates: [{ id: 'remote-review' }],
     resolvedProfileCandidateIds: ['resolved-remote'],
+    resolvedTopicSummaryIds: [],
     suppressionRules: [],
     longTermTopicSummaries: []
   });

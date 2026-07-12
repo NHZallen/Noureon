@@ -35,14 +35,18 @@ const mergeRules = (local = [], remote = []) => {
 export function projectMemoryStateForSync(memoryState = {}) {
   const resolvedProfileCandidateIds = mergeIds(memoryState.resolvedProfileCandidateIds);
   const resolvedIds = new Set(resolvedProfileCandidateIds);
+  const resolvedTopicSummaryIds = mergeIds(memoryState.resolvedTopicSummaryIds);
+  const resolvedTopicIds = new Set(resolvedTopicSummaryIds);
   return {
     version: MEMORY_SYNC_VERSION,
     profileEntries: asArray(memoryState.profileEntries).filter(isConfirmedProfile),
     profileCandidates: asArray(memoryState.profileCandidates)
       .filter(candidate => candidate?.id && !resolvedIds.has(String(candidate.id))),
     resolvedProfileCandidateIds,
+    resolvedTopicSummaryIds,
     suppressionRules: asArray(memoryState.suppressionRules),
     longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
+      .filter(summary => summary?.id && !resolvedTopicIds.has(String(summary.id)))
   };
 }
 
@@ -53,6 +57,11 @@ export function mergeSyncedMemoryState(memoryState = {}, projection = {}) {
     projection.resolvedProfileCandidateIds
   );
   const resolvedIds = new Set(resolvedProfileCandidateIds);
+  const resolvedTopicSummaryIds = mergeIds(
+    memoryState.resolvedTopicSummaryIds,
+    projection.resolvedTopicSummaryIds
+  );
+  const resolvedTopicIds = new Set(resolvedTopicSummaryIds);
   return {
     ...memoryState,
     profileEntries: mergeById(memoryState.profileEntries, projection.profileEntries)
@@ -60,10 +69,11 @@ export function mergeSyncedMemoryState(memoryState = {}, projection = {}) {
     profileCandidates: mergeById(memoryState.profileCandidates, projection.profileCandidates)
       .filter(candidate => !resolvedIds.has(String(candidate.id))),
     resolvedProfileCandidateIds,
+    resolvedTopicSummaryIds,
     suppressionRules: mergeRules(memoryState.suppressionRules, projection.suppressionRules),
     longTermTopicSummaries: mergeById(
       memoryState.longTermTopicSummaries,
       projection.longTermTopicSummaries
-    )
+    ).filter(summary => !resolvedTopicIds.has(String(summary.id)))
   };
 }
