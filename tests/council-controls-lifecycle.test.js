@@ -40,7 +40,7 @@ const createHarness = (overrides = {}) => {
     isWebSearchEnabled: false,
     model: 'model-a'
   };
-  const config = { isLearningMode: false, uiLanguage: 'en' };
+  const config = { isLearningMode: false, uiLanguage: overrides.uiLanguage || 'en' };
   const lifecycle = createCouncilControlsLifecycle({
     closeAllPopovers: () => calls.push(['closeAllPopovers']),
     councilMaxModels: 4,
@@ -71,7 +71,7 @@ const createHarness = (overrides = {}) => {
       tooMany: 'Too many'
     }),
     getCouncilValidation: () => ({ message: 'Ready', ok: true }),
-    getI18n: () => ({ en: { done: 'Done', search: 'Search', webSearchNotAvailable: 'Unavailable' } }),
+    getI18n: () => overrides.i18n || ({ en: { done: 'Done', search: 'Search', webSearchNotAvailable: 'Unavailable' } }),
     getFileInputContainer: () => document.querySelector('#file-input'),
     getIsCouncilRunning: () => overrides.isCouncilRunning ?? false,
     getModelApiId: (model) => model.id,
@@ -168,6 +168,37 @@ test('missing input controls remain a safe no-op boundary', () => {
   });
 
   assert.doesNotThrow(() => lifecycle.renderCouncilControls());
+});
+
+test('renders dynamic council metadata from the active locale', () => {
+  const { cleanup, document, lifecycle } = createHarness({
+    uiLanguage: 'ru',
+    i18n: {
+      ru: {
+        capabilities: 'Возможности',
+        document: 'Документы',
+        done: 'Готово',
+        price: 'Цена',
+        provider: 'Поставщик',
+        providers: 'поставщика',
+        search: 'Поиск',
+        searchModels: 'Поиск моделей',
+        textOrFile: 'Текст / файл',
+        vision: 'Зрение',
+        webSearchNotAvailable: 'Недоступно'
+      }
+    }
+  });
+  try {
+    lifecycle.renderCouncilControls();
+    const container = document.querySelector('#model-council-control');
+    assert.equal(container.querySelector('[data-council-model-search]').placeholder, 'Поиск моделей');
+    assert.match(container.textContent, /Готово/);
+    assert.match(container.textContent, /Цена/);
+    assert.doesNotMatch(container.textContent, /Price|Search models|Done/);
+  } finally {
+    cleanup();
+  }
 });
 
 test('file input container is read lazily from the injected getter', () => {

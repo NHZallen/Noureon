@@ -87,7 +87,7 @@ const ru = {
   "folders": "Папки",
   "addFolder": "Новая папка",
   "settings": "Настройки",
-  "done": "Сделанный",
+  "done": "Готово",
   "delete": "Удалить",
   "archive": "Архив",
   "move": "Двигаться",

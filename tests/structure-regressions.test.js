@@ -2442,7 +2442,8 @@ test('runtime config access owns selected uiLanguage reads through the config st
   assert.match(getCouncilModeLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'en'\)\s*return\s+`Council \$\{modeLabel\}`;/);
   assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*return\s+`Conseil \$\{modeLabel\}`;/);
-  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'fr'\)\s*return\s+`Conseil \$\{modeLabel\}`;\s*return\s+`[^`]*\$\{modeLabel\}`;/);
+  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'ru'\)\s*return\s+`Совет: \$\{modeLabel\}`;/);
+  assert.match(getCouncilModeLabelBody, /if\s*\(uiLanguage\s*===\s*'es'\)\s*return\s+`Consejo: \$\{modeLabel\}`;/);
   assert.match(renderArchivedChatsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   for (const key of ['noArchivedChats', 'view', 'restore', 'delete']) {
     assert.match(renderArchivedChatsBody, new RegExp(`i18n\\[uiLanguage\\]\\.${key}\\s*\\|\\|`));

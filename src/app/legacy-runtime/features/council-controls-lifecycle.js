@@ -83,17 +83,17 @@ export function createCouncilControlsLifecycle(deps) {
     );
     const language = config.uiLanguage;
     const languageText = i18n[language] || {};
+    const localizedLabels = {
+      'zh-TW': { ability: '能力', document: '文件', noExtraAbility: '文字 / 文件', price: '價格', provider: '供應商', providerCount: '個供應商', searchModels: '搜尋模型', vision: '視覺' },
+      en: { ability: 'Capabilities', document: 'Documents', noExtraAbility: 'Text / file', price: 'Price', provider: 'Provider', providerCount: 'providers', searchModels: 'Search models', vision: 'Vision' },
+      fr: { ability: 'Fonctionnalités', document: 'Documents', noExtraAbility: 'Texte / fichier', price: 'Prix', provider: 'Fournisseur', providerCount: 'fournisseurs', searchModels: 'Rechercher des modèles', vision: 'Vision' },
+      ru: { ability: 'Возможности', document: 'Документы', noExtraAbility: 'Текст / файл', price: 'Цена', provider: 'Поставщик', providerCount: 'поставщика', searchModels: 'Поиск моделей', vision: 'Зрение' },
+      es: { ability: 'Capacidades', document: 'Documentos', noExtraAbility: 'Texto / archivo', price: 'Precio', provider: 'Proveedor', providerCount: 'proveedores', searchModels: 'Buscar modelos', vision: 'Visión' }
+    };
     const labels = {
-      ability: language === 'en' ? 'Capabilities' : '能力',
-      document: language === 'en' ? 'Documents' : '文件',
+      ...(localizedLabels[language] || localizedLabels['zh-TW']),
       done: languageText.done || languageText.confirm || '完成',
-      noExtraAbility: language === 'en' ? 'Text / file' : '文字 / 文件',
-      price: language === 'en' ? 'Price' : '價格',
-      provider: language === 'en' ? 'Provider' : '供應商',
-      providerCount: language === 'en' ? 'providers' : '供應商',
-      search: languageText.search || '搜尋',
-      searchModels: language === 'en' ? 'Search models' : '搜尋模型',
-      vision: language === 'en' ? 'Vision' : '視覺'
+      search: languageText.search || '搜尋'
     };
     const statusText = conversation.council.enabled
       ? (validation.ok

@@ -569,6 +569,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const uiLanguage = runtimeConfigAccess.getUiLanguage();
     if (uiLanguage === 'en') return `Council ${modeLabel}`;
     if (uiLanguage === 'fr') return `Conseil ${modeLabel}`;
+    if (uiLanguage === 'ru') return `Совет: ${modeLabel}`;
+    if (uiLanguage === 'es') return `Consejo: ${modeLabel}`;
     return `議會${modeLabel}`;
   };
 

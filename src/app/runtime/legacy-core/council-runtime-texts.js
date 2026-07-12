@@ -53,6 +53,40 @@ export function getCouncilRuntimeTexts(uiLanguage) {
       searchEnabledNote: 'La recherche est activee: le conseil utilisera un paquet de recherche partage.'
     };
   }
+  if (uiLanguage === 'ru') {
+    return {
+      visualOnly: 'участники с поддержкой изображений', skipped: 'пропущено',
+      noVisionParticipants: 'Для этого запроса хотя бы одна модель-участник должна поддерживать изображения',
+      skippedVisualReason: 'Пропущено: модель не поддерживает прикреплённое изображение или видео',
+      sharedSearch: 'Общие результаты поиска', searchRunning: 'Выполняется общий поиск для совета',
+      searchDone: 'Общие результаты поиска готовы', searchFailed: 'Общий поиск не удался; продолжаем без него',
+      firstRound: 'Участники совета обдумывают ответ', deliberation: 'Участники совета уточняют ответы',
+      synthesis: 'Итоговая модель объединяет ответы', completed: 'Работа совета завершена',
+      pending: 'Ожидание', running: 'Обдумывание', done: 'Готово', failed: 'Ошибка', skippedStatus: 'Пропущено',
+      activeVisionNote: 'На запрос с изображением ответят только модели, которые поддерживают изображения.',
+      comparisonToggle: 'Обобщить совпадения и различия', retrying: 'Повторная попытка',
+      councilLocked: 'Совет работает; настройки будут доступны после завершения ответа.',
+      searchManualNotice: 'Режим совета не включает поиск автоматически. Если нужны актуальные данные из интернета, включите поиск перед отправкой.',
+      searchEnabledNote: 'Поиск включён: совет будет использовать общие результаты поиска.'
+    };
+  }
+  if (uiLanguage === 'es') {
+    return {
+      visualOnly: 'participantes con visión', skipped: 'omitido',
+      noVisionParticipants: 'Al menos un modelo participante debe admitir imágenes para esta solicitud',
+      skippedVisualReason: 'Omitido porque este modelo no admite la imagen o el vídeo adjuntos',
+      sharedSearch: 'Resultados de búsqueda compartidos', searchRunning: 'Buscando contexto compartido para el consejo',
+      searchDone: 'Los resultados de búsqueda compartidos están listos', searchFailed: 'La búsqueda compartida falló; se continuará sin ella',
+      firstRound: 'Los miembros del consejo están reflexionando', deliberation: 'Los miembros del consejo están revisando',
+      synthesis: 'El modelo de síntesis está combinando las respuestas', completed: 'Consejo completado',
+      pending: 'En espera', running: 'Reflexionando', done: 'Listo', failed: 'Error', skippedStatus: 'Omitido',
+      activeVisionNote: 'Solo los miembros compatibles con imágenes responderán a esta solicitud.',
+      comparisonToggle: 'Resumir coincidencias y diferencias', retrying: 'Reintentando',
+      councilLocked: 'El consejo está trabajando; la configuración se desbloqueará al terminar la respuesta.',
+      searchManualNotice: 'El modo Consejo no activa la búsqueda automáticamente. Actívala antes de enviar si necesitas información web actualizada.',
+      searchEnabledNote: 'La búsqueda está activada: el consejo utilizará resultados compartidos.'
+    };
+  }
   return {
     visualOnly: '支援圖片的成員',
     skipped: '已略過',
