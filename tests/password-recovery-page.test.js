@@ -81,6 +81,30 @@ test('language links switch both recovery pages and keep a URL fallback', async 
   }
 });
 
+test('password recovery supports ordered Russian Spanish and Arabic links with Arabic RTL', async () => {
+  const window = createWindow(`${PASSWORD_RECOVERY_ROUTE}?lang=ar`);
+  await initializePasswordRecoveryPage({
+    window,
+    document: window.document,
+    supabase: { auth: {} },
+    turnstile: idleTurnstile,
+    navigate: () => {}
+  });
+
+  const links = [...window.document.querySelectorAll('[data-recovery-language]')];
+  assert.deepEqual(links.map(link => link.dataset.recoveryLanguage), ['zh-TW', 'en', 'fr', 'ru', 'es', 'ar']);
+  assert.equal(window.document.documentElement.lang, 'ar');
+  assert.equal(window.document.documentElement.dir, 'rtl');
+  assert.equal(window.document.getElementById('recovery-language-label').textContent, 'العربية');
+  assert.match(window.document.querySelector('h1').textContent, /استعادة|كلمة المرور/);
+
+  const russianLink = window.document.querySelector('[data-recovery-language="ru"]');
+  russianLink.click();
+  assert.equal(window.document.documentElement.lang, 'ru');
+  assert.equal(window.document.documentElement.dir, 'ltr');
+  window.close();
+});
+
 test('forgot-password sends a recovery code and only opens reset after OTP verification', async () => {
   const window = createWindow(PASSWORD_RECOVERY_ROUTE);
   const calls = [];

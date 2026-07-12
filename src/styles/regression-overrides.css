@@ -714,3 +714,57 @@
     border-left: 1px solid var(--border-color) !important;
 }
 
+/* Arabic localization: mirror application chrome while preserving technical LTR content. */
+html[dir="rtl"] body {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir="rtl"] #sidebar {
+    right: 0;
+    left: auto;
+}
+
+html[dir="rtl"] #sidebar-open-handle {
+    right: 0;
+    left: auto;
+}
+
+html[dir="rtl"] #settings-modal .settings-sidebar {
+    border-right: 0;
+    border-left: 1px solid var(--border-color);
+}
+
+html[dir="rtl"] #settings-modal input,
+html[dir="rtl"] #settings-modal textarea,
+html[dir="rtl"] #settings-modal select,
+html[dir="rtl"] .popover,
+html[dir="rtl"] .sidebar-item,
+html[dir="rtl"] .settings-nav-item {
+    text-align: right;
+}
+
+html[dir="rtl"] .popover {
+    transform-origin: top left;
+}
+
+html[dir="rtl"] .folder-arrow,
+html[dir="rtl"] .back-btn svg,
+html[dir="rtl"] #back-to-chat-btn svg,
+html[dir="rtl"] #settings-mobile-back-btn svg {
+    transform: scaleX(-1);
+}
+
+html[dir="rtl"] pre,
+html[dir="rtl"] code,
+html[dir="rtl"] kbd,
+html[dir="rtl"] samp,
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="url"],
+html[dir="rtl"] input[type="password"],
+html[dir="rtl"] .ac-chart,
+html[dir="rtl"] .katex,
+html[dir="rtl"] [data-ltr] {
+    direction: ltr;
+    text-align: left;
+}

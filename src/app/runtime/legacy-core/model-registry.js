@@ -159,16 +159,16 @@ export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.1-pro-preview'
 ];
 const REASONING_EFFORT_LABELS = Object.freeze({
-    none: ['快速模式', 'Fast', 'Rapide'],
-    minimal: ['極低', 'Minimal', 'Très bas'],
-    low: ['低', 'Low', 'Bas'],
-    medium: ['中', 'Medium', 'Moyen'],
-    high: ['高', 'High', 'Eleve'],
-    xhigh: ['超高', 'Extra high', 'Tres eleve'],
-    max: ['極致', 'Max', 'Maximum'],
-    highest: ['最高', 'Highest', 'Le plus eleve']
+    none: ['快速模式', 'Fast', 'Rapide', 'Быстро', 'Rápido', 'سريع'],
+    minimal: ['極低', 'Minimal', 'Très bas', 'Минимальный', 'Mínimo', 'أدنى'],
+    low: ['低', 'Low', 'Bas', 'Низкий', 'Bajo', 'منخفض'],
+    medium: ['中', 'Medium', 'Moyen', 'Средний', 'Medio', 'متوسط'],
+    high: ['高', 'High', 'Eleve', 'Высокий', 'Alto', 'عالٍ'],
+    xhigh: ['超高', 'Extra high', 'Tres eleve', 'Очень высокий', 'Muy alto', 'عالٍ جدًا'],
+    max: ['極致', 'Max', 'Maximum', 'Максимальный', 'Máximo', 'أقصى'],
+    highest: ['最高', 'Highest', 'Le plus eleve', 'Наивысший', 'El más alto', 'الأعلى']
 });
-const REASONING_LANGUAGE_INDEX = Object.freeze({ 'zh-TW': 0, en: 1, fr: 2 });
+const REASONING_LANGUAGE_INDEX = Object.freeze({ 'zh-TW': 0, en: 1, fr: 2, ru: 3, es: 4, ar: 5 });
 const createReasoningConfigs = (rows) => Object.freeze(Object.fromEntries(rows.flatMap(([providerParameter, options, defaultEffort, modelIds, extra]) =>
     modelIds.map(id => [id, { providerParameter, options, defaultEffort, ...(extra || {}) }])
 )));
@@ -309,9 +309,14 @@ export const getReasoningEffortLabel = (value, uiLanguage = 'zh-TW') => {
     return labels?.[REASONING_LANGUAGE_INDEX[uiLanguage] ?? 1] || labels?.[1] || String(value || '');
 };
 
-export const getDefaultReasoningLabel = (uiLanguage = 'zh-TW') => (
-    uiLanguage === 'zh-TW' ? '預設' : (uiLanguage === 'fr' ? 'Defaut' : 'Default')
-);
+export const getDefaultReasoningLabel = (uiLanguage = 'zh-TW') => ({
+    'zh-TW': '預設',
+    en: 'Default',
+    fr: 'Defaut',
+    ru: 'По умолчанию',
+    es: 'Predeterminado',
+    ar: 'افتراضي'
+}[uiLanguage] || 'Default');
 
 export const getProviderLabel = (provider) => {
     if (provider === 'gemini') return 'Gemini';

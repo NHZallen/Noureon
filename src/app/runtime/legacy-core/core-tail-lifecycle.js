@@ -465,7 +465,10 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             state.editingAstraForAvatarId = null;
         };
         const applyLanguage = (lang) => {
-            const translations = i18n[lang] || i18n['zh-TW'];
+            const resolvedLanguage = i18n[lang] ? lang : 'zh-TW';
+            const translations = i18n[resolvedLanguage];
+            document.documentElement.lang = resolvedLanguage;
+            document.documentElement.dir = resolvedLanguage === 'ar' ? 'rtl' : 'ltr';
             document.querySelectorAll('[data-lang-key]').forEach(el => {
                 const key = el.dataset.langKey;
                 if (translations[key]) {
@@ -487,7 +490,10 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             const replyLanguageLabels = {
                 'zh-TW': translations.languageNameZhTW || 'Traditional Chinese',
                 en: translations.languageNameEn || 'English',
-                fr: translations.languageNameFr || 'French'
+                fr: translations.languageNameFr || 'French',
+                ru: translations.languageNameRu || 'Russian',
+                es: translations.languageNameEs || 'Spanish',
+                ar: translations.languageNameAr || 'Arabic'
             };
             ALL_ELEMENTS.aiLanguageSelect?.querySelectorAll('option').forEach(option => {
                 if (replyLanguageLabels[option.value]) {

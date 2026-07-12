@@ -9,17 +9,23 @@ export const RECOVERY_LANGUAGE_KEY = 'noureon_password_recovery_language';
 export const RECOVERY_VERIFICATION_KEY = 'noureon_password_recovery_verified';
 
 const RECOVERY_WINDOW_MS = 10 * 60 * 1000;
-const SUPPORTED_LANGUAGES = new Set(['zh-TW', 'en', 'fr']);
+const SUPPORTED_LANGUAGES = new Set(['zh-TW', 'en', 'fr', 'ru', 'es', 'ar']);
 const LANGUAGE_LABELS = {
   'zh-TW': '繁體中文',
   en: 'English',
-  fr: 'Français'
+  fr: 'Français',
+  ru: 'Русский',
+  es: 'Español',
+  ar: 'العربية'
 };
 
 function normalizeLanguage(value) {
   if (SUPPORTED_LANGUAGES.has(value)) return value;
   if (value?.toLowerCase().startsWith('zh')) return 'zh-TW';
   if (value?.toLowerCase().startsWith('fr')) return 'fr';
+  if (value?.toLowerCase().startsWith('ru')) return 'ru';
+  if (value?.toLowerCase().startsWith('es')) return 'es';
+  if (value?.toLowerCase().startsWith('ar')) return 'ar';
   return 'en';
 }
 
@@ -151,6 +157,7 @@ function resetPasswordMarkup() {
 function applyLanguage(document, language, route) {
   const translations = i18n[language] || i18n.en;
   document.documentElement.lang = language;
+  document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
   document.title = translations[route === PASSWORD_RESET_ROUTE ? 'passwordResetPageTitle' : 'passwordRecoveryPageTitle'] || 'Noureon';
   document.querySelectorAll('[data-lang-key]').forEach((element) => {
     const value = translations[element.dataset.langKey];
