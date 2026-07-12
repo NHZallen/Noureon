@@ -165,6 +165,36 @@ test('factory exposes sidebar chat Astra render API', () => {
   }
 });
 
+test('selecting and deactivating a Noura refreshes its composer indicator', async () => {
+  const dependencies = createDependencies({
+    renderInputIndicators: () => dependencies._calls.push('renderInputIndicators')
+  });
+  const conversation = { id: 'active-conv', astrasId: null };
+  dependencies.state.conversations = [conversation];
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+
+  await lifecycle.setAstrasForConversation('astra-1');
+
+  assert.equal(conversation.astrasId, 'astra-1');
+  assert.deepEqual(dependencies._calls.slice(0, 4), [
+    'saveAppData',
+    'renderSidebar',
+    'renderInputIndicators',
+    'resolve:input.updateInputState'
+  ]);
+
+  dependencies._calls.length = 0;
+  await lifecycle.deactivateAstras();
+
+  assert.equal(conversation.astrasId, null);
+  assert.deepEqual(dependencies._calls.slice(0, 4), [
+    'saveAppData',
+    'renderSidebar',
+    'renderInputIndicators',
+    'resolve:input.updateInputState'
+  ]);
+});
+
 test('renderFolders reads live folders and conversations', () => {
   const dependencies = createDependencies();
   const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);

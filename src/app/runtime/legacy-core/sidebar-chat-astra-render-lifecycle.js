@@ -334,6 +334,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       conv.astrasId = astrasId;
       await saveAppData();
       runtimeRenderCoordinator.renderSidebar();
+      renderInputIndicators();
       legacyRuntimeContext.resolveBinding('input.updateInputState')();
     }
   };
@@ -344,6 +345,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       conv.astrasId = null;
       await saveAppData();
       runtimeRenderCoordinator.renderSidebar();
+      renderInputIndicators();
       legacyRuntimeContext.resolveBinding('input.updateInputState')();
       runtimeDialogCoordinator.showNotification(i18n[getConfig().uiLanguage].astrasDeactivated || '已關閉 Noura。', 'success');
     }

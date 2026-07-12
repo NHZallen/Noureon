@@ -2376,7 +2376,7 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
   }
 
   assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderSidebar\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[runtimeConfigAccess\.getUiLanguage\(\)\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
-  assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
+  assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*renderInputIndicators\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*renderInputIndicators\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(coreTailSource, /showCoordinatedNotification:\s*\(\.\.\.args\)\s*=>\s*runtimeDialogCoordinator\.showNotification\(\.\.\.args\)/);
