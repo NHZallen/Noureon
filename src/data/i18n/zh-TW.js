@@ -149,7 +149,6 @@
         languageNameFr: '法文',
         languageNameRu: '俄文',
         languageNameEs: '西班牙文',
-        languageNameAr: '阿拉伯文',
         primaryButtonColor: '主按鈕顏色',
         colorDefault: '預設 (藍色)',
         colorAdaptive: '自適應 (從桌布提取)',

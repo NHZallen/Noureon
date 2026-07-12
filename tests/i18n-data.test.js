@@ -3,16 +3,15 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
-const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr', 'ru', 'es', 'ar'];
-const EXPECTED_LOCALE_KEY_COUNT = 666;
+const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
+const EXPECTED_LOCALE_KEY_COUNT = 665;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 171;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': 'd66ffb32587a08866bef608bfe077bbee974e949f037bc45fe34023fe77a26d3',
-  en: '45fb16d6a116ef72488cc9b7ddf715c94af8fad18878e2b3bcf0a136ef257cdf',
-  fr: 'fb2d35954eb86cb935c24e0faf2aac9d295c9fafcb2f310ab000859f0cb56864',
-  ru: '931d53d0d088b95c4eed1ab5065ec15313c4ebe3498213e7708621dcba0d02cc',
-  es: 'efc7c1dadd3ceefddcb50a05ce07df90094b3e77aaf2c92074a9430d66446727',
-  ar: '70d794c42944eb3ffd947254aa210f40292270e5674fea24dc594a45c7409a97'
+  'zh-TW': '3ed84a788e6ad3220e1bd8eb2510cb1011251eab7e63df843e7846b353716861',
+  en: '43a28bca0d83ed6771987834b40b5c07737355866d8693b9313db7058fbdc3a5',
+  fr: '79f30a3cd903398abff15888d7ea903f7ec81de85f06797ec60d953fec88b4ba',
+  ru: '95e97cfdf3d8b6a94260065f57da16b833070ab52982c0acbf5d1b0a516fdfdd',
+  es: '518dd250742d76ad4e2ef8c1d332262f2643a92cef192bb7de8ac827377379c2'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -165,8 +164,7 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
     'languageNameEn',
     'languageNameFr',
     'languageNameRu',
-    'languageNameEs',
-    'languageNameAr'
+    'languageNameEs'
   ];
 
   for (const locale of EXPECTED_LOCALES) {

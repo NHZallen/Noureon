@@ -81,8 +81,8 @@ test('language links switch both recovery pages and keep a URL fallback', async 
   }
 });
 
-test('password recovery supports ordered Russian Spanish and Arabic links with Arabic RTL', async () => {
-  const window = createWindow(`${PASSWORD_RECOVERY_ROUTE}?lang=ar`);
+test('password recovery supports ordered Russian and Spanish links', async () => {
+  const window = createWindow(`${PASSWORD_RECOVERY_ROUTE}?lang=es`);
   await initializePasswordRecoveryPage({
     window,
     document: window.document,
@@ -92,11 +92,11 @@ test('password recovery supports ordered Russian Spanish and Arabic links with A
   });
 
   const links = [...window.document.querySelectorAll('[data-recovery-language]')];
-  assert.deepEqual(links.map(link => link.dataset.recoveryLanguage), ['zh-TW', 'en', 'fr', 'ru', 'es', 'ar']);
-  assert.equal(window.document.documentElement.lang, 'ar');
-  assert.equal(window.document.documentElement.dir, 'rtl');
-  assert.equal(window.document.getElementById('recovery-language-label').textContent, 'العربية');
-  assert.match(window.document.querySelector('h1').textContent, /استعادة|كلمة المرور/);
+  assert.deepEqual(links.map(link => link.dataset.recoveryLanguage), ['zh-TW', 'en', 'fr', 'ru', 'es']);
+  assert.equal(window.document.documentElement.lang, 'es');
+  assert.equal(window.document.documentElement.dir, 'ltr');
+  assert.equal(window.document.getElementById('recovery-language-label').textContent, 'Español');
+  assert.match(window.document.querySelector('h1').textContent, /contraseña/i);
 
   const russianLink = window.document.querySelector('[data-recovery-language="ru"]');
   russianLink.click();

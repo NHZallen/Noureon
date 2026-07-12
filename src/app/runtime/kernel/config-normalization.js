@@ -9,6 +9,9 @@ export function normalizeApiKeyValue(value) {
   return '';
 }
 
+const SUPPORTED_LANGUAGE_CODES = new Set(['zh-TW', 'en', 'fr', 'ru', 'es']);
+const normalizeLanguageCode = (value) => SUPPORTED_LANGUAGE_CODES.has(value) ? value : 'en';
+
 export function createModelIdCanonicalizer({ models = [] } = {}) {
   return function getCanonicalModelId(modelId) {
     if (!modelId) return modelId;
@@ -91,6 +94,8 @@ export function normalizeLoadedLegacyConfig({
     };
   }
   delete normalizedConfig.theme;
+  normalizedConfig.uiLanguage = normalizeLanguageCode(normalizedConfig.uiLanguage);
+  normalizedConfig.aiDefaultLanguage = normalizeLanguageCode(normalizedConfig.aiDefaultLanguage);
 
   const allModelIds = new Set(models.map(m => m.id));
   const savedModelSettings = [];

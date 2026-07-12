@@ -202,6 +202,29 @@ test('null saved config returns a normalized object without replacing current in
   ]);
 });
 
+test('unsupported saved Arabic UI and AI languages fall back to English', () => {
+  const normalized = normalizeLoadedLegacyConfig({
+    currentConfig: baseConfig(),
+    savedConfig: { uiLanguage: 'ar', aiDefaultLanguage: 'ar' },
+    models,
+    councilTranslatorCandidates: [],
+    singleTranslatorCandidates: []
+  });
+
+  assert.equal(normalized.uiLanguage, 'en');
+  assert.equal(normalized.aiDefaultLanguage, 'en');
+
+  const supported = normalizeLoadedLegacyConfig({
+    currentConfig: baseConfig(),
+    savedConfig: { uiLanguage: 'ru', aiDefaultLanguage: 'es' },
+    models,
+    councilTranslatorCandidates: [],
+    singleTranslatorCandidates: []
+  });
+  assert.equal(supported.uiLanguage, 'ru');
+  assert.equal(supported.aiDefaultLanguage, 'es');
+});
+
 test('config normalization module remains pure kernel logic', () => {
   const source = readSource('src/app/runtime/kernel/config-normalization.js');
 

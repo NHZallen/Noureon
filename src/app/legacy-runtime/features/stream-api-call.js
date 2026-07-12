@@ -7,8 +7,7 @@ const LANGUAGE_INSTRUCTIONS = {
   en: 'Please respond in English, unless the user specifically requests otherwise.',
   fr: 'Veuillez répondre en français, sauf si l\'utilisateur demande spécifiquement le contraire.',
   ru: 'Отвечайте на русском языке, если пользователь явно не попросит иначе.',
-  es: 'Responde en español, salvo que el usuario solicite expresamente otro idioma.',
-  ar: 'يرجى الرد باللغة العربية، ما لم يطلب المستخدم صراحةً لغة أخرى.'
+  es: 'Responde en español, salvo que el usuario solicite expresamente otro idioma.'
 };
 
 const LEARNING_MODE_PROMPT = `# 序言：認知鷹架架構師誓詞

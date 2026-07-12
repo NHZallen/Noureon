@@ -159,16 +159,16 @@ export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.1-pro-preview'
 ];
 const REASONING_EFFORT_LABELS = Object.freeze({
-    none: ['快速模式', 'Fast', 'Rapide', 'Быстро', 'Rápido', 'سريع'],
-    minimal: ['極低', 'Minimal', 'Très bas', 'Минимальный', 'Mínimo', 'أدنى'],
-    low: ['低', 'Low', 'Bas', 'Низкий', 'Bajo', 'منخفض'],
-    medium: ['中', 'Medium', 'Moyen', 'Средний', 'Medio', 'متوسط'],
-    high: ['高', 'High', 'Eleve', 'Высокий', 'Alto', 'عالٍ'],
-    xhigh: ['超高', 'Extra high', 'Tres eleve', 'Очень высокий', 'Muy alto', 'عالٍ جدًا'],
-    max: ['極致', 'Max', 'Maximum', 'Максимальный', 'Máximo', 'أقصى'],
-    highest: ['最高', 'Highest', 'Le plus eleve', 'Наивысший', 'El más alto', 'الأعلى']
+    none: ['快速模式', 'Fast', 'Rapide', 'Быстро', 'Rápido'],
+    minimal: ['極低', 'Minimal', 'Très bas', 'Минимальный', 'Mínimo'],
+    low: ['低', 'Low', 'Bas', 'Низкий', 'Bajo'],
+    medium: ['中', 'Medium', 'Moyen', 'Средний', 'Medio'],
+    high: ['高', 'High', 'Eleve', 'Высокий', 'Alto'],
+    xhigh: ['超高', 'Extra high', 'Tres eleve', 'Очень высокий', 'Muy alto'],
+    max: ['極致', 'Max', 'Maximum', 'Максимальный', 'Máximo'],
+    highest: ['最高', 'Highest', 'Le plus eleve', 'Наивысший', 'El más alto']
 });
-const REASONING_LANGUAGE_INDEX = Object.freeze({ 'zh-TW': 0, en: 1, fr: 2, ru: 3, es: 4, ar: 5 });
+const REASONING_LANGUAGE_INDEX = Object.freeze({ 'zh-TW': 0, en: 1, fr: 2, ru: 3, es: 4 });
 const createReasoningConfigs = (rows) => Object.freeze(Object.fromEntries(rows.flatMap(([providerParameter, options, defaultEffort, modelIds, extra]) =>
     modelIds.map(id => [id, { providerParameter, options, defaultEffort, ...(extra || {}) }])
 )));
@@ -314,8 +314,7 @@ export const getDefaultReasoningLabel = (uiLanguage = 'zh-TW') => ({
     en: 'Default',
     fr: 'Defaut',
     ru: 'По умолчанию',
-    es: 'Predeterminado',
-    ar: 'افتراضي'
+    es: 'Predeterminado'
 }[uiLanguage] || 'Default');
 
 export const getProviderLabel = (provider) => {

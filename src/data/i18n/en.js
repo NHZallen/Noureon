@@ -149,7 +149,6 @@
         languageNameFr: 'French',
         languageNameRu: 'Russian',
         languageNameEs: 'Spanish',
-        languageNameAr: 'Arabic',
         primaryButtonColor: 'Primary Button Color',
         colorDefault: 'Default (Blue)',
         colorAdaptive: 'Adaptive (from wallpaper)',

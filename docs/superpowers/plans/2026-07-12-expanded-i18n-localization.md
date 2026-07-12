@@ -1,5 +1,7 @@
 # Expanded i18n Localization Implementation Plan
 
+> Superseded for Arabic support by `2026-07-12-remove-arabic-localization.md`. The current supported locale set is `zh-TW`, `en`, `fr`, `ru`, and `es`; Arabic and its RTL implementation have been removed.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver complete, idiomatic Russian, Spanish, and Arabic UI localization, six-language AI reply selection, and a correctly mirrored Arabic RTL experience.

@@ -103,13 +103,11 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '極低');
 });
 
-test('reasoning labels support Russian Spanish and Arabic', () => {
+test('reasoning labels support Russian and Spanish', () => {
   assert.equal(getReasoningEffortLabel('high', 'ru'), 'Высокий');
   assert.equal(getReasoningEffortLabel('high', 'es'), 'Alto');
-  assert.equal(getReasoningEffortLabel('high', 'ar'), 'عالٍ');
   assert.equal(getDefaultReasoningLabel('ru'), 'По умолчанию');
   assert.equal(getDefaultReasoningLabel('es'), 'Predeterminado');
-  assert.equal(getDefaultReasoningLabel('ar'), 'افتراضي');
 });
 
 test('model registry leaves excluded models on default reasoning', () => {

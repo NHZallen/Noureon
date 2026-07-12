@@ -59,7 +59,7 @@ test('i18n data module keeps browser and legacy global compatibility', async () 
     assert.equal(module.i18n, exportedI18n);
     assert.equal(globalThis.i18n, exportedI18n);
     assert.equal(globalThis.window.i18n, exportedI18n);
-    assert.deepEqual(Object.keys(exportedI18n), ['zh-TW', 'en', 'fr', 'ru', 'es', 'ar']);
+    assert.deepEqual(Object.keys(exportedI18n), ['zh-TW', 'en', 'fr', 'ru', 'es']);
   });
 });
 

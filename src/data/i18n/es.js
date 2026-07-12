@@ -145,7 +145,6 @@ const es = {
   "languageNameFr": "Francés",
   "languageNameRu": "Ruso",
   "languageNameEs": "Español",
-  "languageNameAr": "Árabe",
   "primaryButtonColor": "Color del botón principal",
   "colorDefault": "Predeterminado (azul)",
   "colorAdaptive": "Adaptativo (desde fondo de pantalla)",

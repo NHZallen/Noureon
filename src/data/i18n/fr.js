@@ -149,7 +149,6 @@
         languageNameFr: 'Français',
         languageNameRu: 'Russe',
         languageNameEs: 'Espagnol',
-        languageNameAr: 'Arabe',
         primaryButtonColor: 'Couleur du Bouton Principal',
         colorDefault: 'Défaut (Bleu)',
         colorAdaptive: 'Adaptative (du fond d\'écran)',

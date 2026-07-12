@@ -13,18 +13,17 @@ const leafTypes = (value, prefix = '') => Object.entries(value).flatMap(([key, c
     : [[path, typeof child]];
 });
 
-test('i18n registers all six UI locales in the required order', async () => {
+test('i18n registers all five UI locales in the required order', async () => {
   const { i18n } = await import('../src/data/i18n/index.js');
 
-  assert.deepEqual(Object.keys(i18n), ['zh-TW', 'en', 'fr', 'ru', 'es', 'ar']);
+  assert.deepEqual(Object.keys(i18n), ['zh-TW', 'en', 'fr', 'ru', 'es']);
 });
 
-test('Russian Spanish and Arabic locales match the complete English key surface', async () => {
+test('Russian and Spanish locales match the complete English key surface', async () => {
   const englishLeaves = leafTypes(en);
   const locales = await Promise.all([
     import('../src/data/i18n/ru.js'),
-    import('../src/data/i18n/es.js'),
-    import('../src/data/i18n/ar.js')
+    import('../src/data/i18n/es.js')
   ]);
 
   for (const { default: locale } of locales) {
@@ -39,19 +38,16 @@ test('Russian Spanish and Arabic locales match the complete English key surface'
 });
 
 test('new locales use native product language for representative UI copy', async () => {
-  const [{ default: ru }, { default: es }, { default: ar }] = await Promise.all([
+  const [{ default: ru }, { default: es }] = await Promise.all([
     import('../src/data/i18n/ru.js'),
-    import('../src/data/i18n/es.js'),
-    import('../src/data/i18n/ar.js')
+    import('../src/data/i18n/es.js')
   ]);
 
   assert.equal(ru.settings, 'Настройки');
   assert.equal(ru.save, 'Сохранить');
   assert.equal(es.settings, 'Configuración');
   assert.equal(es.save, 'Guardar');
-  assert.equal(ar.settings, 'الإعدادات');
-  assert.equal(ar.save, 'حفظ');
-  for (const locale of [ru, es, ar]) {
+  for (const locale of [ru, es]) {
     for (const key of ['uiLanguage', 'aiReplyLanguage', 'cancel', 'errorPrefix', 'welcome']) {
       assert.notEqual(locale[key], en[key], `${key} must be localized`);
     }
@@ -61,8 +57,7 @@ test('new locales use native product language for representative UI copy', async
 test('localized strings preserve every runtime interpolation token', async () => {
   const locales = await Promise.all([
     import('../src/data/i18n/ru.js'),
-    import('../src/data/i18n/es.js'),
-    import('../src/data/i18n/ar.js')
+    import('../src/data/i18n/es.js')
   ]);
   const tokens = value => [...String(value).matchAll(/\{[^{}]+\}/g)].map(match => match[0]).sort();
 
@@ -77,7 +72,7 @@ test('localized strings preserve every runtime interpolation token', async () =>
 test('login UI and settings selectors expose the required locale order', () => {
   const loginShell = projectSource('src/templates/fragments/00-shell.fragment.js');
   const settingsShell = projectSource('src/templates/fragments/02-shell.fragment.js');
-  const expectedOrder = ['zh-TW', 'en', 'fr', 'ru', 'es', 'ar'];
+  const expectedOrder = ['zh-TW', 'en', 'fr', 'ru', 'es'];
   const assertOrdered = (source, attribute) => {
     const positions = expectedOrder.map(code => source.indexOf(`${attribute}=\\"${code}\\"`));
     assert.ok(positions.every(position => position >= 0));
@@ -88,32 +83,12 @@ test('login UI and settings selectors expose the required locale order', () => {
   assertOrdered(settingsShell, 'value');
   assert.ok((settingsShell.match(/value=\\"ru\\"/g) || []).length >= 2);
   assert.ok((settingsShell.match(/value=\\"es\\"/g) || []).length >= 2);
-  assert.ok((settingsShell.match(/value=\\"ar\\"/g) || []).length >= 2);
 });
 
-test('language application sets Arabic RTL and restores LTR for other locales', () => {
-  const lifecycle = projectSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
-
-  assert.match(lifecycle, /document\.documentElement\.lang\s*=\s*resolvedLanguage/);
-  assert.match(lifecycle, /document\.documentElement\.dir\s*=\s*resolvedLanguage\s*===\s*'ar'\s*\?\s*'rtl'\s*:\s*'ltr'/);
-});
-
-test('RTL CSS mirrors application chrome while keeping technical content LTR', () => {
-  const css = projectSource('src/styles/regression-overrides.css');
-
-  assert.match(css, /html\[dir="rtl"\][\s\S]*?#sidebar/);
-  assert.match(css, /html\[dir="rtl"\][\s\S]*?#settings-modal/);
-  assert.match(css, /html\[dir="rtl"\][\s\S]*?\.popover/);
-  assert.match(css, /html\[dir="rtl"\][\s\S]*?(?:pre|code)[\s\S]*?direction:\s*ltr/);
-  assert.match(css, /html\[dir="rtl"\][\s\S]*?input\[type="email"\][\s\S]*?direction:\s*ltr/);
-  assert.match(css, /html\[dir="rtl"\][\s\S]*?\.ac-chart[\s\S]*?direction:\s*ltr/);
-});
-
-test('AI reply language instructions support Russian Spanish and Arabic', () => {
+test('AI reply language instructions support Russian and Spanish', () => {
   const streamApiCall = projectSource('src/app/legacy-runtime/features/stream-api-call.js');
 
   assert.match(streamApiCall, /ru:\s*'[^']*русском[^']*'/i);
   assert.match(streamApiCall, /es:\s*'[^']*español[^']*'/i);
-  assert.match(streamApiCall, /ar:\s*'[^']*العربية[^']*'/);
   assert.match(streamApiCall, /LANGUAGE_INSTRUCTIONS\[config\.aiDefaultLanguage\]/);
 });

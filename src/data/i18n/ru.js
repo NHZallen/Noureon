@@ -145,7 +145,6 @@ const ru = {
   "languageNameFr": "Французский",
   "languageNameRu": "Русский",
   "languageNameEs": "Испанский",
-  "languageNameAr": "Арабский",
   "primaryButtonColor": "Основной цвет кнопки",
   "colorDefault": "По умолчанию (синий)",
   "colorAdaptive": "Адаптивный (из обоев)",
