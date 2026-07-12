@@ -6,8 +6,13 @@ import {
   createSensitiveConfigStore
 } from '../src/app/runtime/security/sensitive-config-store.js';
 
-test('sensitive config persistence uses the user-scoped sensitive key and apiKeys payload only', async () => {
-  const writes = new Map();
+test('sensitive config persistence migrates legacy plaintext into the session and removes it from storage', async () => {
+  const savedSnapshots = [];
+  const writes = new Map([
+    ['chatSensitiveConfig_v1_alice', JSON.stringify({
+      apiKeys: { gemini: 'gemini-key', openrouter: 'openrouter-key' }
+    })]
+  ]);
   const store = createSensitiveConfigStore({
     initialApiKeys: { gemini: 'gemini-key', openrouter: 'openrouter-key' }
   });
@@ -17,21 +22,23 @@ test('sensitive config persistence uses the user-scoped sensitive key and apiKey
     setItem: async (key, value) => writes.set(key, value),
     removeItem: async (key) => writes.delete(key),
     getApiKeys: store.getApiKeys,
-    replaceApiKeys: store.replaceApiKeys
+    replaceApiKeys: store.replaceApiKeys,
+    onSaved: (value) => savedSnapshots.push(value)
   });
 
   assert.equal(persistence.getSensitiveConfigKey(), 'chatSensitiveConfig_v1_alice');
-
-  await persistence.saveSensitiveConfig();
-  const saved = JSON.parse(writes.get('chatSensitiveConfig_v1_alice'));
-  assert.deepEqual(saved, { apiKeys: store.getApiKeys() });
-  assert.equal('theme' in saved, false);
-  assert.equal('settings' in saved, false);
 
   store.clearApiKeys();
   await persistence.loadSensitiveConfig();
   assert.equal(store.getApiKey('gemini'), 'gemini-key');
   assert.equal(store.getApiKey('openrouter'), 'openrouter-key');
+  assert.equal(writes.has('chatSensitiveConfig_v1_alice'), false);
+
+  store.setApiKey('tavily', 'session-only-key');
+  await persistence.saveSensitiveConfig();
+  assert.equal(store.getApiKey('tavily'), 'session-only-key');
+  assert.equal(writes.has('chatSensitiveConfig_v1_alice'), false);
+  assert.deepEqual(savedSnapshots, [{ apiKeys: store.getApiKeys() }]);
 
   await persistence.clearSensitiveConfig();
   assert.equal(writes.has('chatSensitiveConfig_v1_alice'), false);
@@ -70,4 +77,19 @@ test('missing user or missing sensitive config is safe', async () => {
   });
 
   assert.equal(await missingPersistence.loadSensitiveConfig(), null);
+});
+
+test('malformed legacy sensitive config is deleted without breaking startup', async () => {
+  const writes = new Map([['chatSensitiveConfig_v1_alice', '{invalid-json']]);
+  const store = createSensitiveConfigStore();
+  const persistence = createSensitiveConfigPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getItem: async (key) => writes.get(key) ?? null,
+    removeItem: async (key) => writes.delete(key),
+    getApiKeys: store.getApiKeys,
+    replaceApiKeys: store.replaceApiKeys
+  });
+
+  assert.equal(await persistence.loadSensitiveConfig(), null);
+  assert.equal(writes.has('chatSensitiveConfig_v1_alice'), false);
 });

@@ -39,6 +39,7 @@ export async function completePendingCloudAccountLink({
   const sourceKeys = getStoredUserWorkspaceKeys(sourceUsername);
   const targetKeys = getStoredUserWorkspaceKeys(targetUsername);
   for (let index = 1; index < sourceKeys.length; index += 1) {
+    if (sourceKeys[index].startsWith('chatSensitiveConfig_v1_')) continue;
     const value = await storage.getItem(sourceKeys[index]);
     if (value != null) await storage.setItem(targetKeys[index], value);
   }

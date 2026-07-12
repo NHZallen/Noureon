@@ -41,7 +41,9 @@
 
 Noureon 可以作為 local-first 工作空間使用，也可以登入後啟用雲端同步。預設情況下，對話、設定、Nouras 與供應商 API 憑證會留在目前瀏覽器；登入使用者可啟用 Supabase 雲端同步，讓對話、資料夾、Nouras 與支援的資產跨裝置可用。
 
-供應商 API 金鑰仍在 **設定** 中管理，一般使用不需要放進 `.env`。若要傳送實際的模型請求，請在 **設定** 中加入至少一家支援供應商的 API 金鑰。
+供應商 API 金鑰仍在 **設定** 中管理，一般使用不需要放進 `.env`。金鑰預設只保留於目前瀏覽器工作階段，關閉頁面後需重新輸入；這能降低持久化暴露風險，但無法防止目前頁面中的惡意程式碼讀取。若要傳送實際的模型請求，請在 **設定** 中加入至少一家支援供應商的 API 金鑰。
+
+同步保險庫的復原功能預設不啟用。使用者明確建立並確認保存 Recovery Code 後，瀏覽器才會加密並上傳復原資料；伺服器不持有可集中解密所有使用者資料的共用金鑰。若同步密碼與 Recovery Code 同時遺失，加密資料無法復原。
 
 ## 功能
 
@@ -136,6 +138,8 @@ Noureon 預設將以下資料儲存在你的瀏覽器中：
 
 網路搜尋請求可能會傳送給已設定的搜尋供應商。供應商請求受各服務的條款與隱私權政策約束。
 
+NVIDIA、StepFun 與 Tavily 請求會經過 Noureon 同源代理。代理會驗證獨立的 Supabase 工作階段，並在傳輸期間處理使用者提供的供應商 API Key 與請求內容。請使用可撤銷、有適當消費上限的獨立 Key。代理事件紀錄僅包含 request ID、路由、狀態、結果、延遲與截短的使用者雜湊，不應記錄 Key、Token、Cookie、prompt、附件、request body 或回應內容。Noureon 不對這些代理加入請求次數限制，供應商本身的配額與計費限制仍然適用。
+
 Local-first 代表工作空間由你的裝置控制，不代表所有 AI 請求都在離線環境中執行。
 
 登入後的雲端同步是選用功能。啟用後，Supabase 會保存跨裝置同步所需的工作空間紀錄，包括對話、資料夾、Nouras、訊息、同步中繼資料、刪除標記，以及支援的上傳/生成資產。已設定同步密鑰/密碼時，雲端保險庫或復原資料會以該密鑰加密。
@@ -228,6 +232,7 @@ npm run preview
 | `npm run preview` | 預覽正式版 |
 | `npm test` | 執行回歸測試 |
 | `npm run check:legacy-runtime` | 驗證 legacy runtime 邊界 |
+| `npm run check:security` | 驗證部署 Header、CSP、RLS／匿名權限與 Recovery 金鑰邊界 |
 | `npm run check:sizes` | 檢查原始碼檔案大小預算 |
 | `npm audit --omit=dev` | 稽核正式環境依賴套件 |
 
@@ -237,6 +242,7 @@ npm run preview
 npm run build
 npm test
 npm run check:legacy-runtime
+npm run check:security
 npm run check:sizes
 npm audit --omit=dev
 ```

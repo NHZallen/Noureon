@@ -47,6 +47,7 @@ const createHarness = ({
   personalMemories = [],
   warn = () => {},
   fetchImpl,
+  getProxyAuthHeaders = async () => ({}),
   getModelReasoningConfig = () => null,
   normalizeReasoningEffort = () => null
 } = {}) => {
@@ -92,6 +93,7 @@ const createHarness = ({
     modelSupportsVision: () => true,
     getModelReasoningConfig,
     normalizeReasoningEffort,
+    getProxyAuthHeaders,
     fetchImpl: async (url, options) => {
       requests.push({ url, options });
       return runtimeFetch(url, options);
@@ -229,6 +231,20 @@ test('NVIDIA requests preserve proxy payload, authorization, vision attachments,
   });
   assert.deepEqual(received, ['Vision', ' answer']);
   assert.equal(finalText, 'Vision answer');
+});
+
+test('proxied model requests attach a separate Noureon session header', async () => {
+  const { streamApiCall, requests } = createHarness({
+    provider: 'nvidia',
+    getProxyAuthHeaders: async () => ({
+      'X-Noureon-Authorization': 'Bearer cloud-session'
+    })
+  });
+
+  await streamApiCall([{ text: 'Hello' }], () => {}, undefined);
+
+  assert.equal(requests[0].options.headers.Authorization, 'Bearer nvidia-key');
+  assert.equal(requests[0].options.headers['X-Noureon-Authorization'], 'Bearer cloud-session');
 });
 
 test('Gemini requests preserve native payload, headers, web search, and partial JSON streaming', async () => {

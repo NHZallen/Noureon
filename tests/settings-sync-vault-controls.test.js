@@ -83,4 +83,19 @@ test('linked Supabase accounts can create a sync vault password', async () => {
   assert.equal(window.document.getElementById('sync-vault-cloud-only-panel').classList.contains('hidden'), true);
   assert.equal(window.document.getElementById('sync-vault-create-panel').classList.contains('hidden'), false);
   assert.equal(window.document.getElementById('sync-vault-account').textContent, 'person@example.com');
+  assert.ok(window.document.getElementById('sync-vault-recovery-setup-btn'));
+  assert.ok(window.document.getElementById('sync-vault-recovery-code'));
+});
+
+test('recovery setup requires explicit confirmation and client-side encryption', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/app/runtime/legacy-core/settings-sync-vault-controls.js', import.meta.url), 'utf8');
+  const createStart = source.indexOf("elements.createButton.addEventListener('click'");
+  const unlockStart = source.indexOf("elements.unlockButton.addEventListener('click'", createStart);
+  const createHandler = source.slice(createStart, unlockStart);
+
+  assert.doesNotMatch(createHandler, /storeVaultRecovery|encryptSyncVaultRecovery/);
+  assert.match(source, /recoverySetupSaved\.checked/);
+  assert.match(source, /encryptSyncVaultRecovery\(\{/);
+  assert.match(source, /decryptSyncVaultRecovery\(response\.payload/);
 });

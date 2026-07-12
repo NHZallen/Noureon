@@ -37,3 +37,12 @@ test('cloud workspace passes asset transport into record-level conversation sync
   assert.ok(initializeAt >= 0);
   assert.match(initializer, /assetTransport:\s*assets/);
 });
+
+test('sensitive config remains in memory and is encrypted before cloud upload', async () => {
+  const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
+
+  assert.match(source, /let sensitiveSnapshot = parseJson\(await storage\.getItem\(keys\.sensitive\)\)/);
+  assert.match(source, /await storage\.removeItem\(keys\.sensitive\)/);
+  assert.match(source, /encryptSyncVaultPayload\(value, key\)/);
+  assert.doesNotMatch(source, /storage\.setItem\(keys\.sensitive/);
+});

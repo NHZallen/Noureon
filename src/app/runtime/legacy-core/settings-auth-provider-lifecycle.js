@@ -18,6 +18,7 @@ import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
 import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
+import { getNoureonProxyAuthHeaders } from '../../auth/proxy-auth.js';
 
 const requiredDependencies = [
     'window',
@@ -206,7 +207,8 @@ const streamApiCall = createStreamApiCall({
     modelSupportsUploadedFile,
     modelSupportsVision,
     getModelReasoningConfig,
-    normalizeReasoningEffort
+    normalizeReasoningEffort,
+    getProxyAuthHeaders: getNoureonProxyAuthHeaders
 });
 const providerRequestSupport = createProviderRequestSupport({
     buildTavilySearchQuery,
@@ -221,7 +223,8 @@ const providerRequestSupport = createProviderRequestSupport({
     modelUsesTavilySearch,
     modelSupportsUploadedFile,
     councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
-    councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS
+    councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
+    getProxyAuthHeaders: getNoureonProxyAuthHeaders
 });
 const {
     buildSingleModelTranslatedRequestParts,

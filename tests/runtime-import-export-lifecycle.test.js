@@ -395,6 +395,71 @@ test('handleImport pushes imported conversations into the active replaceAll conv
   assert.ok(harness.calls.some((call) => call[0] === 'loadChat' && call[1] === 'conv-1'));
 });
 
+test('handleImport rejects invalid backup data before confirmation or application mutation', async () => {
+  const harness = createHarness({
+    conversations: [{ id: 'existing-conv', messages: [] }],
+    importFile: {
+      name: 'unsafe-backup.json',
+      type: 'application/json',
+      async text() {
+        return '{"conversations":[{"id":"conv-1","messages":[],"metadata":{"__proto__":{"polluted":true}}}]}';
+      }
+    }
+  });
+
+  await harness.lifecycle.handleImport();
+
+  assert.deepEqual(harness.conversations.map(({ id }) => id), ['existing-conv']);
+  assert.equal(Object.prototype.polluted, undefined);
+  assert.equal(harness.calls.some((call) => call[0] === 'confirm'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'replaceAllAppData'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'mergeSensitiveApiKeys'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'notification' && call[1] === 'error'), true);
+});
+
+test('handleImport rejects oversized files before reading their content', async () => {
+  let read = false;
+  const harness = createHarness({
+    conversations: [{ id: 'existing-conv', messages: [] }],
+    importFile: {
+      name: 'oversized.json',
+      type: 'application/json',
+      size: 10 * 1024 * 1024 + 1,
+      async text() {
+        read = true;
+        return '{}';
+      }
+    }
+  });
+
+  await harness.lifecycle.handleImport();
+
+  assert.equal(read, false);
+  assert.deepEqual(harness.conversations.map(({ id }) => id), ['existing-conv']);
+  assert.equal(harness.calls.some((call) => call[0] === 'confirm'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'replaceAllAppData'), false);
+});
+
+test('handleImport rejects missing or invalid ZIP avatars before confirmation and mutation', async () => {
+  const harness = createHarness({
+    conversations: [{ id: 'existing-conv', messages: [] }],
+    importFile: {
+      name: 'unsafe-avatar-backup.zip',
+      type: 'application/zip',
+      content: JSON.stringify({
+        backup_identity: { username: 'alice' },
+        astras: [{ id: 'astra-1', name: 'Unsafe', _avatarZipRef: 'images/missing.png' }]
+      })
+    }
+  });
+
+  await harness.lifecycle.handleImport();
+
+  assert.deepEqual(harness.conversations.map(({ id }) => id), ['existing-conv']);
+  assert.equal(harness.calls.some((call) => call[0] === 'confirm'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'replaceAllAppData'), false);
+});
+
 test('handleExport uses live getters and packages every selected data group', async () => {
   const sensitiveApiKeys = { gemini: 'sensitive-gemini-key', openrouter: 'sensitive-openrouter-key' };
   const { calls, elements, FakeJSZip, lifecycle } = createHarness({

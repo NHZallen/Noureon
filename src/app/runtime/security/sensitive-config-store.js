@@ -94,7 +94,6 @@ export function createSensitiveConfigStore({
 export function createSensitiveConfigPersistence({
   getCurrentUser,
   getItem,
-  setItem,
   removeItem,
   getApiKeys,
   replaceApiKeys,
@@ -110,19 +109,25 @@ export function createSensitiveConfigPersistence({
     const saved = await getItem(key);
     if (!saved) return null;
 
-    const parsed = JSON.parse(saved);
-    const nextApiKeys = parsed?.apiKeys && typeof parsed.apiKeys === 'object'
-      ? parsed.apiKeys
-      : parsed;
-    replaceApiKeys(nextApiKeys || {});
-    return getApiKeys();
+    try {
+      const parsed = JSON.parse(saved);
+      const nextApiKeys = parsed?.apiKeys && typeof parsed.apiKeys === 'object'
+        ? parsed.apiKeys
+        : parsed;
+      replaceApiKeys(nextApiKeys || {});
+      return getApiKeys();
+    } catch {
+      return null;
+    } finally {
+      await removeItem(key);
+    }
   }
 
   async function saveSensitiveConfig() {
     const key = getSensitiveConfigKey();
     if (!key) return;
-    await setItem(key, JSON.stringify({ apiKeys: getApiKeys() }));
-    onSaved();
+    await removeItem(key);
+    await onSaved({ apiKeys: getApiKeys() });
   }
 
   async function clearSensitiveConfig() {

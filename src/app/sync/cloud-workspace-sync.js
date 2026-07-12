@@ -104,6 +104,8 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     sensitive: `chatSensitiveConfig_v1_${username}`,
     vault: getSyncVaultStorageKey(username)
   };
+  let sensitiveSnapshot = parseJson(await storage.getItem(keys.sensitive));
+  await storage.removeItem(keys.sensitive);
   const metaKey = `chatCloudSyncMeta_v1_${username}`;
   const assets = createCloudAssetTransport({ supabase, storage, userId: user.id });
   let meta = parseJson(await storage.getItem(metaKey)) || {};
@@ -146,6 +148,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   }
 
   async function readLocal(kind) {
+    if (kind === 'sensitive') return sensitiveSnapshot;
     return parseJson(await storage.getItem(keys[kind]));
   }
 
@@ -153,7 +156,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     const value = await readLocal(kind);
     if (kind === 'config') return value ? assets.externalize(value) : null;
     if (kind === 'vault') return value;
-    if (!await readLocal('vault')) return null;
+    if (!await readLocal('vault')) return undefined;
     const key = getUnlockedSyncVaultKey(username);
     if (!key) return undefined;
     return value && hasApiKeys(value) ? encryptSyncVaultPayload(value, key) : null;
@@ -219,7 +222,10 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       return false;
     }
     const timestamp = remoteSnapshot[definition.timestamp] || remoteSnapshot.updated_at;
-    if (hydrated == null) await storage.removeItem(keys[kind]);
+    if (kind === 'sensitive') {
+      sensitiveSnapshot = hydrated;
+      await storage.removeItem(keys.sensitive);
+    } else if (hydrated == null) await storage.removeItem(keys[kind]);
     else await storage.setItem(keys[kind], JSON.stringify(hydrated));
     await setMeta(kind, { remoteUpdatedAt: timestamp, dirty: false });
     if (kind === 'config') window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: hydrated }));
@@ -234,6 +240,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   async function reconcileKind(kind) {
     const definition = CLOUD_SYNC_KINDS[kind];
     if (!definition) return false;
+    if (kind === 'sensitive' && !await readLocal('vault')) return false;
     const local = await readLocal(kind);
     const remoteValue = remote?.[definition.column];
     const remoteUpdatedAt = remote?.[definition.timestamp] || remote?.updated_at;
@@ -308,7 +315,21 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     }
   }
 
-  const api = { enabled: true, queueLocalChange, flush, refresh: async () => {
+  function getSensitiveConfigSnapshot() {
+    if (!sensitiveSnapshot || typeof sensitiveSnapshot !== 'object') return null;
+    const apiKeys = sensitiveSnapshot.apiKeys || sensitiveSnapshot;
+    return { apiKeys: { ...apiKeys } };
+  }
+
+  async function updateSensitiveConfig(value) {
+    const apiKeys = value?.apiKeys || value;
+    sensitiveSnapshot = apiKeys && typeof apiKeys === 'object'
+      ? { apiKeys: { ...apiKeys } }
+      : null;
+    if (await readLocal('vault')) await queueLocalChange('sensitive');
+  }
+
+  const api = { enabled: true, queueLocalChange, getSensitiveConfigSnapshot, updateSensitiveConfig, flush, refresh: async () => {
     await fetchRemote();
     for (const kind of Object.keys(CLOUD_SYNC_KINDS)) await reconcileKind(kind);
   } };
@@ -322,7 +343,8 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       await fetchRemote();
       if (previousKey && remote?.sensitive_config) {
         const decrypted = await decryptSyncVaultPayload(remote.sensitive_config, previousKey);
-        await storage.setItem(keys.sensitive, JSON.stringify(decrypted));
+        sensitiveSnapshot = decrypted;
+        await storage.removeItem(keys.sensitive);
         window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: decrypted }));
         await queueLocalChange('sensitive');
       } else {
@@ -361,7 +383,11 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     await fetchRemote();
     await upgradeSyncMetadata();
     for (const kind of Object.keys(CLOUD_SYNC_KINDS)) await reconcileKind(kind);
-    for (const kind of Object.keys(CLOUD_SYNC_KINDS)) if (meta[kind]?.dirty) pending.add(kind);
+    for (const kind of Object.keys(CLOUD_SYNC_KINDS)) {
+      if (!meta[kind]?.dirty) continue;
+      if (kind === 'sensitive' && !await readLocal('vault')) continue;
+      pending.add(kind);
+    }
     if (pending.size) timer = setTimeout(flush, 0);
   } catch (error) {
     console.warn('Noureon cloud sync is unavailable until its database migration is installed:', error);

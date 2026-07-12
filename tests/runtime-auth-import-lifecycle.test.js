@@ -4,6 +4,8 @@ import test from 'node:test';
 
 import { createLegacyAuthImportLifecycle } from '../src/app/runtime/features/auth-import-lifecycle.js';
 
+const PNG_1X1_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlXcAAAAASUVORK5CYII=';
+
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
@@ -103,7 +105,7 @@ function createHarness({
       zip.files['images/astra.png'] = {
         async async(format) {
           assert.equal(format, 'base64');
-          return 'ASTRA_BASE64';
+          return PNG_1X1_BASE64;
         }
       };
       zip.files['files/message.bin'] = {
@@ -273,7 +275,7 @@ test('processAuthImport preserves auth persistence, app-data import, config save
   await harness.lifecycle.processAuthImport();
 
   assert.equal(harness.currentUser.username, 'alice');
-  assert.equal(harness.astras[0].avatarUrl, 'data:image/png;base64,ASTRA_BASE64');
+  assert.equal(harness.astras[0].avatarUrl, `data:image/png;base64,${PNG_1X1_BASE64}`);
   assert.equal(harness.conversations[0].messages[0].parts[0].inlineData.data, 'MESSAGE_BASE64');
   assert.deepEqual(harness.config.apiKeys, { keep: 'yes' });
   assert.deepEqual(harness.sensitiveApiKeys, { keep: 'yes', imported: 'key' });
@@ -379,6 +381,51 @@ test('processAuthImport validates missing files and backup credential mismatch w
   assert.equal(mismatchHarness.calls.some((call) => call[0] === 'replaceAllAppData'), false);
   assert.equal(mismatchHarness.calls.some((call) => call[0] === 'setItem'), false);
   assert.equal(mismatchHarness.calls.some((call) => call[0] === 'notification' && call[1] === 'error'), true);
+});
+
+test('processAuthImport rejects unsafe backup data before hashing or persisting identity', async () => {
+  const harness = createHarness({
+    file: {
+      name: 'unsafe-auth-backup.json',
+      type: 'application/json',
+      async text() {
+        return '{"backup_identity":{"username":"alice"},"user_credentials":{"passwordHash":"hash:secret"},"settings":{"__proto__":{"polluted":true}}}';
+      }
+    }
+  });
+
+  await harness.lifecycle.processAuthImport();
+
+  assert.equal(harness.currentUser, null);
+  assert.equal(Object.prototype.polluted, undefined);
+  assert.equal(harness.calls.some((call) => call[0] === 'hashString'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'createPasswordRecord'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'setItem'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'replaceAllAppData'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'notification' && call[1] === 'error'), true);
+});
+
+test('processAuthImport rejects oversized files before reading or changing identity', async () => {
+  let read = false;
+  const harness = createHarness({
+    file: {
+      name: 'oversized-auth-backup.json',
+      type: 'application/json',
+      size: 10 * 1024 * 1024 + 1,
+      async text() {
+        read = true;
+        return '{}';
+      }
+    }
+  });
+
+  await harness.lifecycle.processAuthImport();
+
+  assert.equal(read, false);
+  assert.equal(harness.currentUser, null);
+  assert.equal(harness.calls.some((call) => call[0] === 'hashString'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'setItem'), false);
+  assert.equal(harness.calls.some((call) => call[0] === 'replaceAllAppData'), false);
 });
 
 test('auth import lifecycle module avoids fragments, runtime-app, global auth ownership, and direct currentUser assignment', () => {

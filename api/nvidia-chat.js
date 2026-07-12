@@ -1,7 +1,19 @@
+import {
+  applyProxyResponseHeaders,
+  authenticateProxyUser,
+  createProxyRequestContext,
+  parseRequestBody,
+  readProviderAuthorization,
+  requireJsonRequest,
+  recordProxyEvent,
+  sendProxyError,
+  validateChatProxyBody
+} from './_proxy-security.js';
+
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '25mb'
+      sizeLimit: '1mb'
     },
     responseLimit: false
   }
@@ -10,27 +22,29 @@ export const config = {
 const NVIDIA_CHAT_COMPLETIONS_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
 export default async function handler(req, res) {
+  applyProxyResponseHeaders(res);
+  const requestContext = createProxyRequestContext(res, 'nvidia-chat');
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
+    res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, x-noureon-authorization');
     res.status(204).end();
+    recordProxyEvent(requestContext, { status: 204, outcome: 'preflight' });
     return;
   }
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
     res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
-  const authorization = req.headers.authorization;
-  if (!authorization) {
-    res.status(401).json({ error: 'Missing NVIDIA Authorization header' });
+    recordProxyEvent(requestContext, { status: 405, outcome: 'method_rejected' });
     return;
   }
 
   try {
-    const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
+    requireJsonRequest(req);
+    const authorization = readProviderAuthorization(req);
+    const body = JSON.stringify(validateChatProxyBody(parseRequestBody(req, 1024 * 1024)));
+    const user = await authenticateProxyUser(req);
+    requestContext.userId = user.id;
     const upstream = await fetch(NVIDIA_CHAT_COMPLETIONS_URL, {
       method: 'POST',
       headers: {
@@ -38,8 +52,15 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream'
       },
-      body
+      body,
+      signal: AbortSignal.timeout(120_000)
     });
+
+    if (!upstream.ok) {
+      res.status(upstream.status).json({ error: 'NVIDIA upstream request failed', code: 'UPSTREAM_REJECTED' });
+      recordProxyEvent(requestContext, { status: upstream.status, outcome: 'upstream_rejected', userId: user.id });
+      return;
+    }
 
     res.status(upstream.status);
     res.setHeader('Cache-Control', 'no-store');
@@ -48,6 +69,7 @@ export default async function handler(req, res) {
 
     if (!upstream.body) {
       res.end(await upstream.text());
+      recordProxyEvent(requestContext, { status: upstream.status, outcome: 'success' });
       return;
     }
 
@@ -59,10 +81,9 @@ export default async function handler(req, res) {
       res.write(Buffer.from(value));
     }
     res.end();
+    recordProxyEvent(requestContext, { status: upstream.status, outcome: 'success' });
   } catch (error) {
-    res.status(502).json({
-      error: 'NVIDIA proxy request failed',
-      detail: error?.message || 'Unknown error'
-    });
+    const status = sendProxyError(res, error, 'NVIDIA proxy request failed');
+    recordProxyEvent(requestContext, { status, outcome: 'failed' });
   }
 }

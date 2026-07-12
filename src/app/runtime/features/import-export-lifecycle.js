@@ -1,4 +1,11 @@
 import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
+import {
+  EXTERNAL_DATA_LIMITS,
+  parseExternalJson,
+  validateExternalBackup,
+  validateZipFileCount
+} from '../security/external-data-validation.js';
+import { validateBackupAstraAvatars } from '../security/image-content-validation.js';
 
 const IMPORT_CANCELLED = 'IMPORT_CANCELLED';
 
@@ -314,9 +321,14 @@ export function createLegacyImportExportLifecycle({
       let rawData = null;
       let zip = null;
 
+      if (Number.isFinite(file.size) && file.size > EXTERNAL_DATA_LIMITS.maxArchiveBytes) {
+        throw new Error('匯入檔案超過大小限制。');
+      }
+
       if (file.name.endsWith('.zip') || file.type.includes('zip')) {
         updateProgress(10, '正在解壓縮 ZIP...');
         zip = await JSZip.loadAsync(file);
+        validateZipFileCount(zip);
 
         let jsonFile = zip.file('data.json');
         if (!jsonFile) {
@@ -329,12 +341,21 @@ export function createLegacyImportExportLifecycle({
 
         updateProgress(20, '正在解析 JSON 結構...');
         const jsonContent = await jsonFile.async('string');
-        rawData = JSON.parse(jsonContent);
+        rawData = parseExternalJson(jsonContent, {
+          path: 'data.json',
+          maxBytes: EXTERNAL_DATA_LIMITS.maxTotalJsonBytes
+        }).value;
       } else {
         updateProgress(10, '正在解析 JSON...');
         const textContent = await file.text();
-        rawData = JSON.parse(textContent);
+        rawData = parseExternalJson(textContent, {
+          path: file.name || 'backup.json',
+          maxBytes: EXTERNAL_DATA_LIMITS.maxTotalJsonBytes
+        }).value;
       }
+
+      rawData = validateExternalBackup(rawData);
+      await validateBackupAstraAvatars(rawData, zip);
 
       const backupUsername = getBackupUsername(rawData);
       if (backupUsername && backupUsername !== getCurrentUser().username) {

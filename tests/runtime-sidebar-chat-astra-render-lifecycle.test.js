@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { createDom } from './behaviours/helpers/create-dom.js';
 import { createLegacySidebarChatAstraRenderLifecycle } from '../src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -230,6 +231,70 @@ test('Astra delete path clears astrasId on the latest conversations pointer only
     'saveAppData',
     'renderSidebar'
   ]);
+});
+
+test('folder and archived conversation fields render as inert text and safe datasets', () => {
+  const payload = '</span><img src=x onerror="window.__xss=1">';
+  const idPayload = 'conv-1" onclick="window.__idXss=1';
+  const { document, cleanup, window } = createDom(`
+    <div id="folder-list"></div>
+    <div id="archived-chats"></div>
+  `);
+  const folderList = document.querySelector('#folder-list');
+  const archivedChats = document.querySelector('#archived-chats');
+  const state = {
+    config: { uiLanguage: 'en', autoNaming: false },
+    conversations: [{
+      id: idPayload,
+      title: payload,
+      summary: payload,
+      archived: true,
+      createdAt: '2024-01-01'
+    }],
+    folders: [{
+      id: 'folder-1" onclick="window.__folderIdXss=1',
+      name: payload,
+      icon: 'default',
+      color: 'gray',
+      textColor: 'gray',
+      isOpen: true,
+      conversationIds: []
+    }],
+    astras: [],
+    currentUser: { username: 'tester' },
+    editingAstrasId: null,
+    selectedConversationIds: new Set(),
+    isSelectionMode: false,
+    isAutoScrolling: false
+  };
+  const dependencies = createDependencies({
+    document,
+    state,
+    window,
+    runtimeDomAccess: {
+      getRequiredElement: (id) => id === 'folderList' ? folderList : archivedChats
+    }
+  });
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+
+  try {
+    lifecycle.renderFolders();
+    lifecycle.renderArchivedChats();
+
+    assert.equal(folderList.querySelector('.folder-name').textContent, payload);
+    assert.equal(folderList.querySelectorAll('img').length, 0);
+    assert.equal(folderList.querySelector('.folder-options-btn').hasAttribute('onclick'), false);
+    assert.equal(archivedChats.querySelector('.archived-chat-title').textContent, payload);
+    assert.equal(archivedChats.querySelector('.archived-chat-summary').textContent, payload);
+    assert.equal(archivedChats.querySelectorAll('img').length, 0);
+    assert.equal(archivedChats.querySelector('.view-archived-btn').dataset.id, idPayload);
+    assert.equal(archivedChats.querySelector('.view-archived-btn').hasAttribute('onclick'), false);
+    assert.equal(window.__xss, undefined);
+    assert.equal(window.__idXss, undefined);
+    assert.equal(window.__folderIdXss, undefined);
+  } finally {
+    cleanup();
+  }
 });
 
 test('Astra delete path keeps local data when durable cloud deletion fails', async () => {

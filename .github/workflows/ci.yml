@@ -21,5 +21,6 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm run check:legacy-runtime
+      - run: npm run check:security
       - run: npm run check:sizes
       - run: npm audit --omit=dev

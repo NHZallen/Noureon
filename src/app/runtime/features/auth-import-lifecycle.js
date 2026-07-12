@@ -1,3 +1,11 @@
+import {
+  EXTERNAL_DATA_LIMITS,
+  parseExternalJson,
+  validateExternalAuthBackup,
+  validateZipFileCount
+} from '../security/external-data-validation.js';
+import { validateBackupAstraAvatars } from '../security/image-content-validation.js';
+
 const getText = (i18n, language, key, fallback) => i18n?.[language]?.[key] || fallback;
 
 export function createLegacyAuthImportLifecycle({
@@ -77,9 +85,14 @@ export function createLegacyAuthImportLifecycle({
       let rawData = null;
       let zip = null;
 
+      if (Number.isFinite(file.size) && file.size > EXTERNAL_DATA_LIMITS.maxArchiveBytes) {
+        throw new Error('Import file exceeds the size limit.');
+      }
+
       if (file.name.endsWith('.zip') || file.type.includes('zip')) {
         updateProgress(10, 'Extracting ZIP...');
         zip = await JSZip.loadAsync(file);
+        validateZipFileCount(zip);
 
         let jsonFile = zip.file('data.json');
         if (!jsonFile) {
@@ -92,12 +105,21 @@ export function createLegacyAuthImportLifecycle({
 
         updateProgress(15, 'Parsing import data...');
         const jsonContent = await jsonFile.async('string');
-        rawData = JSON.parse(jsonContent);
+        rawData = parseExternalJson(jsonContent, {
+          path: 'data.json',
+          maxBytes: EXTERNAL_DATA_LIMITS.maxTotalJsonBytes
+        }).value;
       } else {
         updateProgress(10, 'Parsing JSON...');
         const fileText = await file.text();
-        rawData = JSON.parse(fileText);
+        rawData = parseExternalJson(fileText, {
+          path: file.name || 'auth-backup.json',
+          maxBytes: EXTERNAL_DATA_LIMITS.maxTotalJsonBytes
+        }).value;
       }
+
+      rawData = validateExternalAuthBackup(rawData);
+      await validateBackupAstraAvatars(rawData, zip);
 
       updateProgress(20, 'Verifying identity...');
 

@@ -1,3 +1,13 @@
+import {
+    EXTERNAL_DATA_LIMITS,
+    parseExternalJson,
+    validateExternalAstra,
+    validateExternalConversation,
+    validateExternalFolder,
+    validateZipFileCount
+} from '../../runtime/security/external-data-validation.js';
+import { validateAvatarSourceContent } from '../../runtime/security/image-content-validation.js';
+
 export function createReceivedDataLifecycle({
     BlobCtor = Blob,
     JSZip,
@@ -18,36 +28,54 @@ export function createReceivedDataLifecycle({
     const processReceivedData = async (buffers, type) => {
         try {
             const blob = new BlobCtor(buffers);
+            if (Number.isFinite(blob.size) && blob.size > EXTERNAL_DATA_LIMITS.maxArchiveBytes) {
+                throw new Error('Received archive exceeds the size limit');
+            }
             const zip = await JSZip.loadAsync(blob);
+            validateZipFileCount(zip);
             const astras = getAstras();
             const conversations = getConversations();
             const folders = getFolders();
+            let totalJsonBytes = 0;
+            const readJson = async (filename) => {
+                const file = zip.file(filename);
+                if (!file) throw new Error(`Missing required file: ${filename}`);
+                const content = await file.async('string');
+                const parsed = parseExternalJson(content, { path: filename });
+                totalJsonBytes += parsed.size;
+                if (totalJsonBytes > EXTERNAL_DATA_LIMITS.maxTotalJsonBytes) {
+                    throw new Error('Received JSON exceeds the total size limit');
+                }
+                return parsed.value;
+            };
 
             if (type === 'astras') {
-                let count = 0;
                 const files = Object.keys(zip.files);
+                const importedAstras = [];
                 for (const filename of files) {
                     if (filename.startsWith('astra_') && filename.endsWith('.json')) {
-                        const content = await zip.file(filename).async("string");
-                        const astraData = JSON.parse(content);
+                        const astraData = validateExternalAstra(await readJson(filename));
+                        astraData.avatarUrl = await validateAvatarSourceContent(astraData.avatarUrl);
 
                         if (astras.some(a => a.id === astraData.id)) {
                             astraData.id = randomUUID();
                             astraData.name += ` (${getText('imported', 'Imported')})`;
                         }
-                        astraData.officialId = null;
-
-                        astras.unshift(astraData);
-                        count++;
+                        importedAstras.push(astraData);
                     }
                 }
+                importedAstras.forEach(astra => astras.unshift(astra));
+                const count = importedAstras.length;
                 showNotification(getText('p2pReceivedAstrasSuccess', 'Received {count} Nouras.').replace('{count}', count), 'success');
             } else {
-                const foldersContent = await zip.file('folders.json').async("string");
-                const convsContent = await zip.file('conversations.json').async("string");
-
-                const importedFolders = JSON.parse(foldersContent);
-                const importedConvs = JSON.parse(convsContent);
+                if (type !== 'conversations') throw new Error('Unsupported received data type');
+                const rawFolders = await readJson('folders.json');
+                const rawConversations = await readJson('conversations.json');
+                if (!Array.isArray(rawFolders) || !Array.isArray(rawConversations)) {
+                    throw new Error('Received folders and conversations must be arrays');
+                }
+                const importedFolders = rawFolders.map(validateExternalFolder);
+                const importedConvs = rawConversations.map(validateExternalConversation);
                 const idMap = {};
 
                 importedConvs.forEach(conv => {

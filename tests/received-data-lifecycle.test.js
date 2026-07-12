@@ -123,6 +123,63 @@ test('invalid received payload reports the legacy error path without saving or r
   assert.equal(calls[2][2], 'error');
 });
 
+test('rejects invalid P2P schema atomically before saving or rendering', async () => {
+  const zip = createZip({
+    'astra_valid.json': JSON.stringify({ id: 'a-valid', name: 'Valid' }),
+    'astra_invalid.json': JSON.stringify({ id: 'a-invalid', name: '' })
+  });
+  const { astras, calls, lifecycle } = createHarness(zip);
+
+  await lifecycle.processReceivedData([], 'astras');
+
+  assert.deepEqual(astras, []);
+  assert.deepEqual(calls.map((call) => call[0]), ['loadAsync', 'error', 'notify']);
+});
+
+test('rejects dangerous keys from P2P JSON without mutating application data', async () => {
+  const zip = createZip({
+    'folders.json': '[{"name":"Work","conversationIds":[]}]',
+    'conversations.json': '[{"id":"conv-1","title":"Shared","metadata":{"__proto__":{"polluted":true}}}]'
+  });
+  const { calls, conversations, folders, lifecycle } = createHarness(zip);
+
+  await lifecycle.processReceivedData([], 'conversations');
+
+  assert.deepEqual(conversations, []);
+  assert.deepEqual(folders, []);
+  assert.equal(Object.prototype.polluted, undefined);
+  assert.deepEqual(calls.map((call) => call[0]), ['loadAsync', 'error', 'notify']);
+});
+
+test('rejects P2P archives with excessive file counts', async () => {
+  const files = Object.fromEntries(Array.from({ length: 257 }, (_, index) => [
+    `astra_${index}.json`,
+    JSON.stringify({ id: `a-${index}`, name: `Astra ${index}` })
+  ]));
+  const { astras, calls, lifecycle } = createHarness(createZip(files));
+
+  await lifecycle.processReceivedData([], 'astras');
+
+  assert.deepEqual(astras, []);
+  assert.deepEqual(calls.map((call) => call[0]), ['loadAsync', 'error', 'notify']);
+});
+
+test('rejects spoofed P2P avatar data before mutating Astras', async () => {
+  const zip = createZip({
+    'astra_unsafe.json': JSON.stringify({
+      id: 'a-unsafe',
+      name: 'Unsafe',
+      avatarUrl: `data:image/png;base64,${btoa('<svg onload="alert(1)"></svg>')}`
+    })
+  });
+  const { astras, calls, lifecycle } = createHarness(zip);
+
+  await lifecycle.processReceivedData([], 'astras');
+
+  assert.deepEqual(astras, []);
+  assert.deepEqual(calls.map((call) => call[0]), ['loadAsync', 'error', 'notify']);
+});
+
 test('missing optional modal dependency keeps success import callbacks safe', async () => {
   const zip = createZip({
     'astra_new.json': JSON.stringify({ id: 'a-2', name: 'Orion' })

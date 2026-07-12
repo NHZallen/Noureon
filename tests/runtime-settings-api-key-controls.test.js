@@ -225,3 +225,16 @@ test('clear all button clears all providers and saves', async () => {
   assert.equal(elements.nvidiaApiKeyInput.value, '');
   assert.equal(elements.tavilyApiKeyInput.value, '');
 });
+
+test('model settings explain the session-only API key boundary', () => {
+  const { controls, elements } = createHarness();
+
+  controls.ensureApiKeyInputSecurityControls();
+
+  const notice = elements.tavilyApiKeyInput.wrapper.inserted
+    .map(([, element]) => element)
+    .find(element => element.id === 'api-key-session-only-notice');
+  assert.ok(notice);
+  assert.match(notice.textContent, /目前瀏覽器工作階段/);
+  assert.match(notice.textContent, /無法防止目前頁面中的惡意程式碼讀取/);
+});

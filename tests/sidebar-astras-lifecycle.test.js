@@ -55,6 +55,30 @@ test('renders sidebar Astras with active state, dataset, labels, and avatar mark
   }
 });
 
+test('renders untrusted Astra fields as inert DOM content', () => {
+  const payload = '</span><img src=x onerror="window.__xss=1">';
+  const { cleanup, document, lifecycle, window } = createHarness({
+    astras: [{
+      id: 'a-unsafe',
+      name: payload,
+      avatarUrl: 'https://example.test/avatar.png" onerror="window.__avatarXss=1'
+    }]
+  });
+
+  try {
+    lifecycle.renderAstras();
+
+    const item = document.querySelector('[data-id="a-unsafe"]');
+    assert.equal(item.querySelector('.astra-name').textContent, payload);
+    assert.equal(item.querySelectorAll('img').length, 1);
+    assert.equal(item.querySelector('img').hasAttribute('onerror'), false);
+    assert.equal(window.__xss, undefined);
+    assert.equal(window.__avatarXss, undefined);
+  } finally {
+    cleanup();
+  }
+});
+
 test('click and options events preserve assignment, sidebar, and menu handoffs', () => {
   const { calls, cleanup, document, lifecycle } = createHarness();
   try {

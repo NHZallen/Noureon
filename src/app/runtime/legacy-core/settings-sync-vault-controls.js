@@ -18,6 +18,11 @@ import {
 import { createCloudUserRecord } from '../../auth/supabase-auth-bridge.js';
 import { openPasswordRecovery } from '../../auth/password-recovery-page.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
+import {
+  decryptSyncVaultRecovery,
+  encryptSyncVaultRecovery,
+  generateSyncVaultRecoveryCode
+} from '../../sync/sync-vault-recovery-code.js';
 
 export function createSettingsSyncVaultControls({
   window,
@@ -68,9 +73,16 @@ export function createSettingsSyncVaultControls({
     unlockButton: document.getElementById('sync-vault-unlock-btn'),
     forgotButton: document.getElementById('sync-vault-forgot-btn'),
     recoveryPanel: document.getElementById('sync-vault-recovery-panel'),
+    recoveryCode: document.getElementById('sync-vault-recovery-code'),
     recoveryPassword: document.getElementById('sync-vault-recovery-password'),
     recoveryConfirmation: document.getElementById('sync-vault-recovery-confirmation'),
     recoveryButton: document.getElementById('sync-vault-recovery-save-btn'),
+    recoverySetupButton: document.getElementById('sync-vault-recovery-setup-btn'),
+    recoverySetupPanel: document.getElementById('sync-vault-recovery-setup-panel'),
+    recoverySetupCode: document.getElementById('sync-vault-recovery-setup-code'),
+    recoverySetupPassword: document.getElementById('sync-vault-recovery-setup-password'),
+    recoverySetupSaved: document.getElementById('sync-vault-recovery-setup-saved'),
+    recoverySetupConfirm: document.getElementById('sync-vault-recovery-setup-confirm'),
     changeButton: document.getElementById('sync-vault-change-btn'),
     lockButton: document.getElementById('sync-vault-lock-btn'),
     resetButton: document.getElementById('sync-vault-reset-btn')
@@ -144,7 +156,7 @@ export function createSettingsSyncVaultControls({
 
         <div class="pt-10 pb-6">
           <h3 class="text-lg font-semibold" data-lang-key="cloudSyncVault">雲端同步保險庫</h3>
-          <p class="mt-2 text-sm text-[var(--text-secondary)]" data-lang-key="cloudSyncVaultDesc">同步密碼會以伺服器金鑰加密後保存，用於跨裝置與 Email 復原；資料庫不保存明文。</p>
+          <p class="mt-2 text-sm text-[var(--text-secondary)]" data-lang-key="cloudSyncVaultDesc">同步密碼只在裝置上使用；復原資料由瀏覽器以使用者持有的 Recovery Code 加密。</p>
         </div>
 
         <div class="border-t border-[var(--border-color)]">
@@ -168,6 +180,8 @@ export function createSettingsSyncVaultControls({
             </div>
           </div>
           <div id="sync-vault-recovery-panel" class="hidden py-4 border-b border-[var(--border-color)] space-y-3">
+            <p class="text-sm text-[var(--text-secondary)]">Email 驗證完成後，仍必須輸入你保存的 Recovery Code 才能重設同步密碼。</p>
+            <input id="sync-vault-recovery-code" type="password" autocomplete="off" spellcheck="false" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="Recovery Code（NR2-…）">
             <p class="text-sm text-[var(--text-secondary)]" data-lang-key="cloudSyncRecoveryWarning">Email 驗證成功後可建立新同步密碼，既有加密同步資料會保留。</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input id="sync-vault-recovery-password" type="password" minlength="${syncVaultPolicy.minimumPasswordLength}" autocomplete="new-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" data-lang-key-placeholder="newCloudSyncPassword" placeholder="新的同步密碼（至少 10 碼）">
@@ -179,6 +193,17 @@ export function createSettingsSyncVaultControls({
             <div class="flex flex-wrap gap-2">
               <button id="sync-vault-lock-btn" type="button" class="px-4 py-2 rounded-md bg-[var(--hover-bg)]" data-lang-key="lockCloudSync">鎖定</button>
               <button id="sync-vault-reset-btn" type="button" class="px-4 py-2 rounded-md text-red-600 bg-transparent hover:bg-red-50" data-lang-key="resetCloudSyncPassword">清除同步密碼</button>
+            </div>
+            <div class="border-t border-[var(--border-color)] pt-4 space-y-3">
+              <h4 class="font-medium">Recovery Code</h4>
+              <p class="text-sm text-[var(--text-secondary)]">選擇啟用後會產生只有你持有的代碼。Noureon 伺服器無法替你取回此代碼。</p>
+              <button id="sync-vault-recovery-setup-btn" type="button" class="px-4 py-2 rounded-md bg-[var(--hover-bg)]">建立新的 Recovery Code</button>
+              <div id="sync-vault-recovery-setup-panel" class="hidden space-y-3">
+                <input id="sync-vault-recovery-setup-code" type="text" readonly spellcheck="false" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)] font-mono text-sm">
+                <input id="sync-vault-recovery-setup-password" type="password" autocomplete="current-password" class="w-full p-3 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="目前的同步密碼">
+                <label class="flex items-start gap-2 text-sm"><input id="sync-vault-recovery-setup-saved" type="checkbox" class="mt-1"><span>我已將 Recovery Code 安全保存；遺失同步密碼與此代碼時，資料將無法復原。</span></label>
+                <button id="sync-vault-recovery-setup-confirm" type="button" class="px-4 py-2 rounded-md btn-primary">確認並啟用復原</button>
+              </div>
             </div>
             <div class="border-t border-[var(--border-color)] pt-4 space-y-3">
               <h4 class="font-medium" data-lang-key="changeCloudSyncPassword">變更同步密碼</h4>
@@ -286,7 +311,7 @@ export function createSettingsSyncVaultControls({
   const setBusy = (nextBusy) => {
     busy = nextBusy;
     const elements = getElements();
-    for (const button of [elements.emailButton, elements.googleButton, elements.loginPasswordButton, elements.forgotLoginPasswordButton, elements.createButton, elements.unlockButton, elements.forgotButton, elements.recoveryButton, elements.changeButton, elements.lockButton, elements.resetButton]) {
+    for (const button of [elements.emailButton, elements.googleButton, elements.loginPasswordButton, elements.forgotLoginPasswordButton, elements.createButton, elements.unlockButton, elements.forgotButton, elements.recoveryButton, elements.recoverySetupButton, elements.recoverySetupConfirm, elements.changeButton, elements.lockButton, elements.resetButton]) {
       if (button) button.disabled = nextBusy;
     }
   };
@@ -353,7 +378,7 @@ export function createSettingsSyncVaultControls({
     return result;
   };
 
-  const storeVaultRecovery = (password, record) => requestVaultRecovery('store', { password, record });
+  const storeVaultRecovery = (payload) => requestVaultRecovery('store', { payload });
 
   const isVerifiedRecoveryMode = async (username) => {
     const recoveryState = new URL(window.location.href).searchParams.get('vault_recovery');
@@ -583,13 +608,7 @@ export function createSettingsSyncVaultControls({
         if (user.authProvider !== 'supabase') throw new Error(text('cloudSyncRequiresCloudAccount', '請先綁定 Email 或 Google 帳號。'));
         requireMatchingPasswords(elements.createPassword.value, elements.createConfirmation.value);
         setBusy(true);
-        const record = await createAndUnlockSyncVault({ storage, username: user.username, password: elements.createPassword.value });
-        try {
-          await storeVaultRecovery(elements.createPassword.value, record);
-        } catch (error) {
-          await removeSyncVault({ storage, username: user.username });
-          throw error;
-        }
+        await createAndUnlockSyncVault({ storage, username: user.username, password: elements.createPassword.value });
         elements.createPassword.value = '';
         elements.createConfirmation.value = '';
         dispatchUnlocked(user.username);
@@ -657,19 +676,21 @@ export function createSettingsSyncVaultControls({
       try {
         requireMatchingPasswords(elements.recoveryPassword.value, elements.recoveryConfirmation.value);
         setBusy(true);
-        const recovered = await requestVaultRecovery('recover');
+        const response = await requestVaultRecovery('recover');
+        const recovered = await decryptSyncVaultRecovery(response.payload, elements.recoveryCode.value, window.crypto);
         await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
-        const nextRecord = await changeSyncVaultPassword({
+        await changeSyncVaultPassword({
           storage,
           username: user.username,
           currentPassword: recovered.password,
           nextPassword: elements.recoveryPassword.value
         });
-        await storeVaultRecovery(elements.recoveryPassword.value, nextRecord);
+        await requestVaultRecovery('delete');
         await storage.removeItem(getRecoveryStorageKey(user.username));
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete('vault_recovery');
         window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+        elements.recoveryCode.value = '';
         elements.recoveryPassword.value = '';
         elements.recoveryConfirmation.value = '';
         dispatchUnlocked(user.username);
@@ -686,31 +707,63 @@ export function createSettingsSyncVaultControls({
       lockSyncVault(user.username);
       await refreshSyncVaultControls();
     });
+    elements.recoverySetupButton.addEventListener('click', () => {
+      elements.recoverySetupCode.value = generateSyncVaultRecoveryCode(window.crypto);
+      elements.recoverySetupPassword.value = '';
+      elements.recoverySetupSaved.checked = false;
+      elements.recoverySetupPanel.classList.remove('hidden');
+      elements.recoverySetupCode.focus();
+      elements.recoverySetupCode.select();
+    });
+    elements.recoverySetupConfirm.addEventListener('click', async () => {
+      if (busy) return;
+      const user = getCurrentUser();
+      try {
+        if (!elements.recoverySetupSaved.checked) {
+          throw new Error(text('cloudSyncRecoveryCodeMustBeSaved', '請先確認你已安全保存 Recovery Code。'));
+        }
+        if (!elements.recoverySetupPassword.value) {
+          throw new Error(text('currentCloudSyncPasswordRequired', '請輸入目前的同步密碼。'));
+        }
+        setBusy(true);
+        await unlockSyncVault({ storage, username: user.username, password: elements.recoverySetupPassword.value });
+        const record = await readSyncVaultRecord(storage, user.username);
+        const payload = await encryptSyncVaultRecovery({
+          password: elements.recoverySetupPassword.value,
+          record,
+          recoveryCode: elements.recoverySetupCode.value,
+          cryptoImpl: window.crypto
+        });
+        await storeVaultRecovery(payload);
+        elements.recoverySetupCode.value = '';
+        elements.recoverySetupPassword.value = '';
+        elements.recoverySetupSaved.checked = false;
+        elements.recoverySetupPanel.classList.add('hidden');
+        showNotification(text('cloudSyncRecoveryEnabled', 'Recovery Code 復原已啟用。'));
+      } catch (error) {
+        notifyError(error);
+      } finally {
+        setBusy(false);
+      }
+    });
     elements.changeButton.addEventListener('click', async () => {
       if (busy) return;
       try {
         const user = getCurrentUser();
         requireMatchingPasswords(elements.nextPassword.value, elements.nextConfirmation.value);
         setBusy(true);
-        const previousRecord = await readSyncVaultRecord(storage, user.username);
-        const nextRecord = await changeSyncVaultPassword({
+        await requestVaultRecovery('delete');
+        await changeSyncVaultPassword({
           storage,
           username: user.username,
           currentPassword: elements.currentPassword.value,
           nextPassword: elements.nextPassword.value
         });
-        try {
-          await storeVaultRecovery(elements.nextPassword.value, nextRecord);
-        } catch (error) {
-          await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(previousRecord));
-          await unlockSyncVault({ storage, username: user.username, password: elements.currentPassword.value });
-          throw error;
-        }
         elements.currentPassword.value = '';
         elements.nextPassword.value = '';
         elements.nextConfirmation.value = '';
         dispatchUnlocked(user.username);
-        showNotification(text('cloudSyncPasswordChanged', '同步密碼已變更。'));
+        showNotification(text('cloudSyncPasswordChangedRecoveryDisabled', '同步密碼已更新；原 Recovery Code 已停用，請視需要重新建立。'));
         await refreshSyncVaultControls();
       } catch (error) {
         notifyError(error);

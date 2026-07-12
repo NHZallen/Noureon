@@ -543,6 +543,7 @@ export function createStreamApiCall({
   modelSupportsVision,
   getModelReasoningConfig = () => null,
   normalizeReasoningEffort = () => null,
+  getProxyAuthHeaders = async () => ({}),
   fetchImpl = fetch,
   TextDecoderImpl = TextDecoder,
   warn = (...args) => console.warn(...args)
@@ -629,9 +630,12 @@ export function createStreamApiCall({
 
     let response;
     try {
+      const proxyAuthHeaders = request.url.startsWith('/api/')
+        ? await getProxyAuthHeaders()
+        : {};
       response = await fetchImpl(request.url, {
         method: 'POST',
-        headers: request.headers,
+        headers: { ...request.headers, ...proxyAuthHeaders },
         body: JSON.stringify(request.payload),
         signal
       });

@@ -14,7 +14,8 @@ export function createProviderRequestSupport({
   councilResponseCharLimit,
   councilRetryDelayMs,
   setTimeoutFn = setTimeout,
-  clearTimeoutFn = clearTimeout
+  clearTimeoutFn = clearTimeout,
+  getProxyAuthHeaders = async () => ({})
 }) {
   const extractTextFromParts = (parts = []) => parts
     .map(part => part.text || (part.inlineData ? `[${part.inlineData.name || part.inlineData.mimeType || 'attachment'}]` : ''))
@@ -128,7 +129,8 @@ Output requirements:
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(await getProxyAuthHeaders())
       },
       body: JSON.stringify({
         query,

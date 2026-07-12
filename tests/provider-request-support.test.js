@@ -28,6 +28,7 @@ const createHarness = ({
   apiKeys = { tavily: 'tavily-key' },
   fetchImpl,
   modelUsesTavilySearch = () => false,
+  getProxyAuthHeaders = async () => ({}),
   streamImpl,
   translatorModel = { id: 'translator', name: 'Translator' }
 } = {}) => {
@@ -62,7 +63,8 @@ const createHarness = ({
       callback();
       return { delay };
     },
-    clearTimeoutFn: () => {}
+    clearTimeoutFn: () => {},
+    getProxyAuthHeaders
   });
 
   return { fetchCalls, streamCalls, support, timers };
@@ -144,6 +146,19 @@ test('Tavily search packet preserves payload, headers, depth, and formatted outp
     include_usage: true,
     topic: 'general'
   });
+});
+
+test('Tavily proxy requests attach Noureon session separately from the provider key', async () => {
+  const { fetchCalls, support } = createHarness({
+    getProxyAuthHeaders: async () => ({
+      'X-Noureon-Authorization': 'Bearer cloud-session'
+    })
+  });
+
+  await support.fetchTavilySearchPacket('facts', new AbortController().signal);
+
+  assert.equal(fetchCalls[0][1].headers.Authorization, 'Bearer tavily-key');
+  assert.equal(fetchCalls[0][1].headers['X-Noureon-Authorization'], 'Bearer cloud-session');
 });
 
 test('Tavily search packet preserves missing key, empty query, and HTTP error boundaries', async () => {

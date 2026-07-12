@@ -44,19 +44,29 @@ export function createSidebarAstrasLifecycle({
             item.dataset.id = ast.id;
             const avatarUrl = ast.avatarUrl;
             const initials = displayAstra.name.charAt(0);
-            const avatarElement = `
-                    <div class="astras-sidebar-avatar">
-                        ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover rounded-full">` : initials}
-                    </div>`;
+
             item.innerHTML = `
                     <div class="flex items-center truncate flex-1">
-                        ${avatarElement}
-                        <span class="truncate pr-2 text-sm">${displayAstra.name}</span>
+                        <div class="astras-sidebar-avatar"></div>
+                        <span class="astra-name truncate pr-2 text-sm"></span>
                     </div>
                     <button class="astras-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--hover-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                     </button>
                 `;
+            const avatar = item.querySelector('.astras-sidebar-avatar');
+            if (avatarUrl) {
+                const image = astrasList.ownerDocument.createElement('img');
+                image.src = avatarUrl;
+                image.alt = '';
+                image.loading = 'lazy';
+                image.referrerPolicy = 'no-referrer';
+                image.className = 'w-full h-full object-cover rounded-full';
+                avatar.appendChild(image);
+            } else {
+                avatar.textContent = initials;
+            }
+            item.querySelector('.astra-name').textContent = displayAstra.name;
             let pressTimer = null;
             let touchMoved = false;
             const startPress = (event) => {

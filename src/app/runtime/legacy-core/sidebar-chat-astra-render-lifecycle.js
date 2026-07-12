@@ -148,15 +148,16 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
                                     ${svgPath}
                                 </svg>
                             </span>
-                            <span class="font-medium truncate" style="color: ${textColor};">${folder.name}</span>
+                            <span class="folder-name font-medium truncate" style="color: ${textColor};"></span>
                         </div>
-                        <button data-id="${folder.id}" class="folder-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--active-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
+                        <button class="folder-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--active-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
                     </div>
                     <div class="folder-content-container">
                         <div class="pl-4 mt-1 space-y-1">
                         </div>
                     </div>
                 `;
+      folderElement.querySelector('.folder-name').textContent = folder.name;
 
       const contentContainer = folderElement.querySelector('.folder-content-container > div');
       folderConvs.forEach(conv => {
@@ -199,6 +200,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       folderSummary.addEventListener('mouseleave', cancelPress);
       folderSummary.addEventListener('click', handleClick);
       const folderOptionsBtn = folderElement.querySelector('.folder-options-btn');
+      folderOptionsBtn.dataset.id = folder.id;
       folderOptionsBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         createFolderMenu(folder.id, folderOptionsBtn);
@@ -308,15 +310,31 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       item.className = 'archived-chat-item';
       item.innerHTML = `
                     <div class="archived-chat-row">
-                        <span class="archived-chat-title">${conv.title}</span>
+                        <span class="archived-chat-title"></span>
                         <div class="archived-chat-actions">
-                            <button data-id="${conv.id}" class="view-archived-btn text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200">${i18n[uiLanguage].view || '查看'}</button>
-                            <button data-id="${conv.id}" class="unarchive-btn text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">${i18n[uiLanguage].restore || '還原'}</button>
-                            <button data-id="${conv.id}" class="delete-btn text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200">${i18n[uiLanguage].delete || '刪除'}</button>
+                            <button class="view-archived-btn text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200"></button>
+                            <button class="unarchive-btn text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200"></button>
+                            <button class="delete-btn text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200"></button>
                         </div>
                     </div>
-                    ${conv.summary ? `<p class="archived-chat-summary">${conv.summary}</p>` : ''}
                 `;
+      item.querySelector('.archived-chat-title').textContent = conv.title;
+      const archivedActions = [
+        ['.view-archived-btn', i18n[uiLanguage].view || '查看'],
+        ['.unarchive-btn', i18n[uiLanguage].restore || '還原'],
+        ['.delete-btn', i18n[uiLanguage].delete || '刪除']
+      ];
+      archivedActions.forEach(([selector, label]) => {
+        const button = item.querySelector(selector);
+        button.dataset.id = conv.id;
+        button.textContent = label;
+      });
+      if (conv.summary) {
+        const summary = document.createElement('p');
+        summary.className = 'archived-chat-summary';
+        summary.textContent = conv.summary;
+        item.appendChild(summary);
+      }
       archivedChatsContainer.appendChild(item);
     });
     archivedChatsContainer.querySelectorAll('.view-archived-btn').forEach(btn => btn.addEventListener('click', (event) => showArchivedChatPreview(event.target.dataset.id, event)));

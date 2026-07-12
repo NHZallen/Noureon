@@ -19,6 +19,7 @@
     "test": "node --test \"tests/**/*.test.js\"",
     "build": "vite build",
     "check:legacy-runtime": "node scripts/check-legacy-runtime-boundaries.mjs",
+    "check:security": "node scripts/check-security-boundaries.mjs",
     "check:sizes": "node scripts/check-file-sizes.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },

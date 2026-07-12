@@ -342,14 +342,17 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             initialApiKeys: runtimeConfigAccess.getConfig().apiKeys,
             normalizeApiKeyValue
         });
+        const cloudSensitiveConfig = globalThis.__astraCloudWorkspaceSync?.getSensitiveConfigSnapshot?.();
+        if (cloudSensitiveConfig) {
+            sensitiveConfigStore.mergeApiKeys(cloudSensitiveConfig.apiKeys || cloudSensitiveConfig);
+        }
         const runtimeSensitiveConfigPersistence = createSensitiveConfigPersistence({
             getCurrentUser: () => currentUser,
             getItem,
-            setItem,
             removeItem,
             getApiKeys: () => sensitiveConfigStore.getApiKeys(),
             replaceApiKeys: (apiKeys) => sensitiveConfigStore.replaceApiKeys(apiKeys),
-            onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('sensitive')
+            onSaved: (value) => globalThis.__astraCloudWorkspaceSync?.updateSensitiveConfig?.(value)
         });
         const getSensitiveApiKeys = () => sensitiveConfigStore.getApiKeys();
         const setApiKeyForProvider = (provider, value) => sensitiveConfigStore.setApiKey(provider, value);
@@ -530,7 +533,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             const saved = await getItem(getConfigKey());
             if (saved) {
                 const savedConfig = JSON.parse(saved);
-                if (savedConfig.apiKeys) {
+                const hadLegacyApiKeys = Boolean(savedConfig.apiKeys);
+                if (hadLegacyApiKeys) {
                     mergeSensitiveApiKeys(savedConfig.apiKeys);
                     await saveSensitiveConfig();
                 }
@@ -544,6 +548,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                     singleTranslatorCandidates: getSingleTranslatorCandidates()
                 });
                 runtimeConfigAccess.replaceConfig(normalizedConfig);
+                if (hadLegacyApiKeys) await saveConfig();
             } else {
                 const normalizedConfig = normalizeLoadedLegacyConfig({
                     currentConfig: runtimeConfigAccess.getConfig(),

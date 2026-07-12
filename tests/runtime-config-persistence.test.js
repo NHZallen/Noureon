@@ -265,7 +265,8 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
 
   assertMarkersInOrder(body, [
     'const savedConfig = JSON.parse(saved)',
-    'if (savedConfig.apiKeys) {',
+    'const hadLegacyApiKeys = Boolean(savedConfig.apiKeys)',
+    'if (hadLegacyApiKeys) {',
     'mergeSensitiveApiKeys(savedConfig.apiKeys)',
     'await saveSensitiveConfig()',
     'const normalSavedConfig = removeSensitiveConfig(savedConfig)',
@@ -273,7 +274,8 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
     'currentConfig: runtimeConfigAccess.getConfig()',
     'savedConfig: normalSavedConfig',
     'models: MODELS',
-    'runtimeConfigAccess.replaceConfig(normalizedConfig)'
+    'runtimeConfigAccess.replaceConfig(normalizedConfig)',
+    'if (hadLegacyApiKeys) await saveConfig()'
   ], 'loadConfig merge precedence');
   assertMarkersInOrder(normalizationSource, [
     'const { apiKeys: _retiredApiKeys, theme: _retiredTheme, ...normalSavedConfig } = savedConfig',
