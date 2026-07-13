@@ -212,3 +212,75 @@ test('image generation mode exposes camera and image upload while hiding generic
 
   cleanup();
 });
+
+test('council indicator close button updates the UI before persistence finishes', async () => {
+  const { document, cleanup } = createDom(`
+    <div class="input-wrapper">
+      <div id="input-indicator-container"></div>
+    </div>
+  `);
+  const conversation = {
+    archived: false,
+    council: {
+      enabled: true,
+      mode: 'consensus',
+      participantModelIds: ['model-a', 'model-b']
+    },
+    model: 'model-a'
+  };
+  const config = {
+    uiLanguage: 'en',
+    isLearningMode: false,
+    lastCouncilConfig: null,
+    modelSettings: [{ id: 'model-a', hidden: false, order: 0 }]
+  };
+  let releaseAppSave;
+  const appSavePending = new Promise((resolve) => { releaseAppSave = resolve; });
+  let saveConfigCalls = 0;
+  const inputUpdates = [];
+  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+    document,
+    elements: {
+      inputIndicatorContainer: document.getElementById('input-indicator-container'),
+      modelSwitcherContainer: createElement()
+    },
+    models: [{ id: 'model-a', name: 'Model A', provider: 'test' }],
+    getActiveConversation: () => conversation,
+    getConfig: () => config,
+    getCouncilSelectedModels: () => ({ council: conversation.council, participants: [], synthesizer: null }),
+    getCouncilTexts: () => ({ title: 'Model Council', consensus: 'Consensus' }),
+    getCouncilValidation: () => ({ ok: true, message: 'Ready' }),
+    isCouncilEnabled: (candidate) => Boolean(candidate?.council?.enabled),
+    normalizeCouncilConfig: (value) => ({ ...value }),
+    cloneCouncilConfig: (value) => ({ ...value }),
+    normalizeConversationModel: () => ({ id: 'model-a' }),
+    saveAppData: () => appSavePending,
+    saveConfig: async () => { saveConfigCalls += 1; },
+    legacyRuntimeContext: {
+      resolveBinding: (name) => name === 'input.updateInputState'
+        ? () => inputUpdates.push(name)
+        : noop
+    }
+  }));
+
+  lifecycle.renderInputIndicators();
+  const closeButton = document.getElementById('close-model-council-btn-input');
+  assert.ok(closeButton);
+  assert.equal(closeButton.type, 'button');
+
+  closeButton.click();
+
+  assert.equal(conversation.council.enabled, false);
+  assert.equal(document.getElementById('model-council-indicator'), null);
+  assert.equal(document.querySelector('.input-wrapper').classList.contains('has-indicators'), false);
+  assert.equal(saveConfigCalls, 0);
+  assert.deepEqual(inputUpdates, ['input.updateInputState']);
+
+  releaseAppSave();
+  await appSavePending;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(saveConfigCalls, 1);
+  assert.equal(config.lastCouncilConfig.enabled, false);
+  cleanup();
+});

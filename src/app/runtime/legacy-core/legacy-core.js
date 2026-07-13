@@ -34,6 +34,7 @@ import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-
 import { createTrustedHtmlSanitizer, escapeHTML, getBackupUsername, getErrorMessage, hexToRgba, postJsonWithReadableError, processInChunks, readErrorBody, renderUserText } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
 import { createHistorySidebarHelpers } from '/src/app/runtime/legacy-core/history-sidebar-helpers.js';
 import { createMarkdownRenderingHelpers } from '/src/app/runtime/legacy-core/markdown-rendering-helpers.js';
+import { createDisabledCouncilConfig, disableConversationCouncil } from '/src/app/runtime/legacy-core/conversation-council-state.js';
 import { observeMessageCharts } from '/src/app/ui/charts/chart-renderer.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
@@ -628,7 +629,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 lastUpdatedAt: now,
                 genConfig: getDefaultGenConfig(),
                 imageConfig: { aspectRatio: '1:1', resolution: '1K' },
-                council: cloneCouncilConfig(currentConfig.lastCouncilConfig),
+                council: createDisabledCouncilConfig(currentConfig.lastCouncilConfig, cloneCouncilConfig),
                 isRenamed: false,
                 folderId: null,
                 astrasId: null,
@@ -678,10 +679,14 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 conversationStateAccess.setCurrentConversationId(id);
                 uploadedFiles = [];
                 quoteInquiryLifecycle?.clearQuote();
-                renderAll();
                 const conv = getActiveConversation();
+                const councilWasEnabled = disableConversationCouncil(conv, cloneCouncilConfig);
+                renderAll();
                 ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
                 setTimeout(adjustTextareaHeightAlias, 0);
+                if (councilWasEnabled) {
+                    saveAppData().catch(error => console.error('Failed to persist council reset after switching conversations:', error));
+                }
             }
             resolveFoundationUpdateInputState();
             updateApiKeyWarningBadge();
