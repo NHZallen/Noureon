@@ -62,16 +62,22 @@ function createDependencies(overrides = {}) {
     isAutoScrolling: false
   };
   const calls = [];
+  const createdElements = [];
+  const document = {
+    body: createElement(),
+    createElement: () => {
+      const element = createElement();
+      createdElements.push(element);
+      return element;
+    },
+    getElementById: () => null,
+    querySelector: () => createElement(),
+    querySelectorAll: () => []
+  };
 
   return {
     window: { innerHeight: 800, innerWidth: 1024 },
-    document: {
-      body: createElement(),
-      createElement,
-      getElementById: () => null,
-      querySelector: () => createElement(),
-      querySelectorAll: () => []
-    },
+    document,
     navigator: {},
     fetch: async () => ({}),
     File: class {},
@@ -121,6 +127,7 @@ function createDependencies(overrides = {}) {
       return state.astras;
     },
     _folderList: folderList,
+    _createdElements: createdElements,
     _calls: calls,
     ...overrides
   };
@@ -209,6 +216,25 @@ test('renderFolders reads live folders and conversations', () => {
   lifecycle.renderFolders();
 
   assert.equal(dependencies._folderList.children.length, 1);
+});
+
+test('sidebar identifies a council conversation by the council label instead of its fallback model', () => {
+  const dependencies = createDependencies({
+    isCouncilEnabled: (conversation) => Boolean(conversation?.council?.enabled),
+    getCouncilTexts: () => ({ title: 'Model Council' }),
+    normalizeConversationModel: () => ({ name: 'Fallback model' })
+  });
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+
+  lifecycle.createConversationElement({
+    id: 'council-conversation',
+    title: 'Council discussion',
+    council: { enabled: true }
+  });
+
+  const renderedContent = dependencies._createdElements.map(element => element.innerHTML).join('\n');
+  assert.match(renderedContent, /Model Council/);
+  assert.doesNotMatch(renderedContent, /Fallback model/);
 });
 
 test('folder expansion persists device-local UI state instead of app data', () => {

@@ -212,8 +212,9 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     const currentConversationId = conversationStateAccess.getCurrentConversationId();
     item.className = `sidebar-item w-full text-left p-3 rounded-lg flex items-center justify-between cursor-pointer ${conv.id === currentConversationId && !getIsSelectionMode() ? 'active' : ''}`;
     item.dataset.id = conv.id;
-    const modelInfo = normalizeConversationModel(conv);
-    const modelDisplayName = isCouncilEnabled(conv) ? getCouncilTexts().title : (modelInfo?.name || '');
+    const modelDisplayName = isCouncilEnabled(conv)
+      ? (getCouncilTexts()?.title || 'Model Council')
+      : (normalizeConversationModel(conv)?.name || '');
     const modelNameSuffix = modelDisplayName ? `<span class="model-suffix" title="${escapeHTML(modelDisplayName)}">${escapeHTML(modelDisplayName)}</span>` : '';
     const contentWrapper = document.createElement('div');
     contentWrapper.className = 'flex-1 flex items-center justify-between min-w-0';
