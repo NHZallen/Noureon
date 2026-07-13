@@ -1,4 +1,5 @@
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+import { authorizeDocumentDerivedAction } from '../../runtime/documents/document-safety-policy.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
@@ -33,6 +34,15 @@ export async function finalizeAssistantResponse({
   nowIso = () => new Date().toISOString()
 }) {
   const hasFinalParts = Array.isArray(finalParts) && finalParts.length > 0;
+  const hasDocumentAttachment = Boolean(userMessageObject?.parts?.some(part => {
+    const mimeType = part?.inlineData?.mimeType || '';
+    return part?.inlineData && !mimeType.startsWith('image/') && !mimeType.startsWith('video/');
+  }));
+  const memoryWriteAllowed = authorizeDocumentDerivedAction({
+    action: 'memory-write',
+    source: hasDocumentAttachment ? 'document' : 'user',
+    explicitlyRequestedByUser: false
+  }).allowed;
   if (!hasFinalParts && !String(fullResponse || '').trim()) {
     throw new Error(getEmptyResponseMessage(uiLanguage));
   }
@@ -62,7 +72,7 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
 
-  if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
+  if (!hasFinalParts && memoryWriteAllowed && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
     queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse));
   }
 

@@ -65,7 +65,8 @@ export function createSingleModelResponseLifecycle({
     };
 
     const hasTranslationInputs = userParts.some((part) => part.inlineData) ||
-      Boolean(conversation.isWebSearchEnabled);
+      Boolean(conversation.isWebSearchEnabled) ||
+      conversation.messages?.some(message => message.parts?.some(part => part.inlineData));
     let requestParts = userParts;
     if (hasTranslationInputs) {
       renderProgress(

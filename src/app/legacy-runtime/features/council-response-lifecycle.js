@@ -21,7 +21,9 @@ export function createCouncilResponseLifecycle({
   streamCouncilApiCallWithRetry,
   modelUsesNativeWebSearch,
   modelSupportsVision,
-  modelSupportsDocumentUpload
+  modelSupportsDocumentUpload,
+  documentContextService = null,
+  buildHierarchicalDocumentEvidence = null
 }) {
   const MODELS = models;
   const COUNCIL_MAX_MODELS = councilMaxModels;
@@ -122,8 +124,11 @@ export function createCouncilResponseLifecycle({
       return `
   You are the Model Council attachment translator.
   
-  Create a detailed, neutral ${title} for council models that cannot directly read ${target}.
-  Do not answer the user's question. Translate the attachment content into faithful text only.
+  ${kind === 'document'
+      ? `Transcribe ${target} as faithfully as possible for council models that cannot read them directly.
+  Do not answer the user's question. Do not translate, summarize, explain, reorganize, improve, or infer missing content.`
+      : `Create a detailed, neutral ${title} for council models that cannot directly read ${target}.
+  Do not answer the user's question. Describe visible and readable content faithfully.`}
   
   User request for context:
   ${requestText}
@@ -134,9 +139,11 @@ export function createCouncilResponseLifecycle({
   - Preserve exact wording, numbers, tables, labels, UI text, filenames, page or section hints, and uncertainty.
   - For images/screenshots: include layout, objects, colors only when meaningful, text/OCR, relationships, and anything needed for reasoning.
   - For documents: include structure, headings, key paragraphs, tables, lists, data, citations, and page/section references when available.
-  - Separate observed content from inference.
-  - Mention unreadable, truncated, missing, low-confidence, or unsupported portions.
+  - Never infer missing document text.
+  - Mark unreadable content as [UNREADABLE] and uncertain text as [UNCERTAIN: ...].
+  - Mention truncated, missing, low-confidence, or unsupported portions.
   - Do not invent content that is not present.
+  - For documents, output only transcribed content and source labels.
   `;
   };
   const filterAttachmentPartsByKind = (parts = [], kind) => parts.filter(part => {
@@ -148,25 +155,58 @@ export function createCouncilResponseLifecycle({
   });
   const buildCouncilAttachmentTranslationPackets = async (parts, selectedModels, signal, progress) => {
       const need = getCouncilAttachmentTranslationNeed(selectedModels, parts);
+      const documentAttachments = filterAttachmentPartsByKind(parts, 'document').filter(part => part.inlineData);
+      const nativeDocumentParts = documentContextService
+          ? documentAttachments.filter(part => documentContextService.supportsAttachment(part.inlineData))
+          : [];
+      let nativeDocumentPacket = '';
+      if (documentContextService && nativeDocumentParts.length > 0) {
+          const conversation = getActiveConversation();
+          const context = await documentContextService.buildContext({
+              parts: nativeDocumentParts,
+              query: extractTextFromParts(parts),
+              conversationId: conversation?.id,
+              messageId: conversation?.messages?.at?.(-1)?.id || null,
+              scopeType: conversation?.isTemporary ? 'temporary' : 'conversation',
+              signal,
+              retrieveContext: need.needsDocumentPacket
+          });
+          if (context.text) {
+              nativeDocumentPacket = `${context.systemInstruction}\n\n${context.text}`;
+          } else if (context.coverageBatchTexts?.length && typeof buildHierarchicalDocumentEvidence === 'function') {
+              nativeDocumentPacket = await buildHierarchicalDocumentEvidence({
+                  batchTexts: context.coverageBatchTexts,
+                  query: extractTextFromParts(parts),
+                  modelInfo: selectedModels.at(-1),
+                  signal,
+                  onProgress: (_stage, message) => progress?.('translation', message)
+              });
+          } else if (context.lowConfidence) {
+              nativeDocumentPacket = 'The indexed document passages were not relevant enough to answer reliably. Do not guess.';
+          }
+      }
       if (!need.needsAnyPacket) {
           return { visualPacket: '', documentPacket: '', translatorModelId: null, translatorModelName: null };
       }
-      const translatorModel = getCouncilTranslatorModel();
-      if (!translatorModel) {
+      const fallbackDocumentParts = documentAttachments.filter(part => !nativeDocumentParts.includes(part));
+      const translatorRequired = need.needsVisualPacket || (need.needsDocumentPacket && fallbackDocumentParts.length > 0);
+      const translatorModel = translatorRequired ? getCouncilTranslatorModel() : null;
+      if (translatorRequired && !translatorModel) {
           throw new Error(getRuntimeText(getConfig().uiLanguage, 'councilTranslatorRequired'));
       }
       const result = {
           visualPacket: '',
           documentPacket: '',
-          translatorModelId: translatorModel.id,
-          translatorModelName: translatorModel.name
+          documentPacketBounded: Boolean(nativeDocumentPacket),
+          translatorModelId: translatorModel?.id || null,
+          translatorModelName: translatorModel?.name || null
       };
-      const runTranslation = async (kind) => {
+      const runTranslation = async (kind, attachmentParts = null) => {
           const label = getRuntimeText(getConfig().uiLanguage, kind === 'visual' ? 'imageTranslationPacket' : 'documentTranslationPacket');
           progress?.('translation', `${label}: ${translatorModel.name}`);
           const translationParts = [
               { text: buildCouncilAttachmentTranslationPrompt(kind, parts) },
-              ...filterAttachmentPartsByKind(parts, kind).filter(part => part.inlineData)
+              ...(attachmentParts || filterAttachmentPartsByKind(parts, kind).filter(part => part.inlineData))
           ];
           return await streamCouncilApiCallWithRetry(
               translationParts,
@@ -178,7 +218,9 @@ export function createCouncilResponseLifecycle({
                   historyForApi: [],
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
-                  additionalSystemInstruction: 'You are only translating attachments into detailed neutral text packets for a model council. Do not answer the user.',
+                  additionalSystemInstruction: kind === 'document'
+                      ? 'You are a document transcription engine. Do not translate, summarize, explain, infer, or answer the user. Output only faithful transcription.'
+                      : 'Describe attached visual content faithfully for a model council. Do not answer the user.',
               }
           );
       };
@@ -186,7 +228,47 @@ export function createCouncilResponseLifecycle({
           result.visualPacket = await runTranslation('visual');
       }
       if (need.needsDocumentPacket) {
-          result.documentPacket = await runTranslation('document');
+          if (fallbackDocumentParts.length > 0 && documentContextService?.indexTranscription) {
+              const conversation = getActiveConversation();
+              for (const part of fallbackDocumentParts) {
+                  const transcription = await runTranslation('document', [part]);
+                  await documentContextService.indexTranscription({
+                      inlineData: part.inlineData,
+                      text: transcription,
+                      conversationId: conversation?.id,
+                      messageId: conversation?.messages?.at?.(-1)?.id || null,
+                      scopeType: conversation?.isTemporary ? 'temporary' : 'conversation',
+                      signal
+                  });
+              }
+              const context = await documentContextService.buildContext({
+                  parts: [],
+                  query: extractTextFromParts(parts),
+                  conversationId: conversation?.id,
+                  messageId: conversation?.messages?.at?.(-1)?.id || null,
+                  scopeType: conversation?.isTemporary ? 'temporary' : 'conversation',
+                  signal,
+                  retrieveContext: true
+              });
+              if (context.text) {
+                  nativeDocumentPacket = `${context.systemInstruction}\n\n${context.text}`;
+              } else if (context.coverageBatchTexts?.length && typeof buildHierarchicalDocumentEvidence === 'function') {
+                  nativeDocumentPacket = await buildHierarchicalDocumentEvidence({
+                      batchTexts: context.coverageBatchTexts,
+                      query: extractTextFromParts(parts),
+                      modelInfo: selectedModels.at(-1),
+                      signal,
+                      onProgress: (_stage, message) => progress?.('translation', message)
+                  });
+              }
+              result.documentPacket = nativeDocumentPacket;
+              result.documentPacketBounded = true;
+          } else {
+              const fallbackPacket = fallbackDocumentParts.length > 0
+                  ? await runTranslation('document', fallbackDocumentParts)
+                  : '';
+              result.documentPacket = [nativeDocumentPacket, fallbackPacket].filter(text => text?.trim()).join('\n\n');
+          }
       }
       return result;
   };
@@ -196,7 +278,8 @@ export function createCouncilResponseLifecycle({
           sections.push(`# 圖片轉譯包\n${truncateCouncilText(packets.visualPacket, 6000)}`);
       }
       if (packets.documentPacket?.trim() && !modelSupportsDocumentUpload(model)) {
-          sections.push(`# 文件轉譯包\n${truncateCouncilText(packets.documentPacket, 6000)}`);
+          const packet = packets.documentPacket;
+          sections.push(`# 文件擷取內容\n${packet}`);
       }
       if (sections.length === 0) return '';
       return `# Attachment translation packet\nThis packet is system-generated by the configured council translator model. It replaces only the attachment types this model cannot read directly. Do not say the user wrote this packet.\n\n${sections.join('\n\n')}\n\n# User request follows`;

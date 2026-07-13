@@ -275,7 +275,22 @@ export function createCloudAssetTransport({
     return output;
   }
 
-  return { externalize, hydrate };
+  async function removePaths(paths = []) {
+    const uniquePaths = [...new Set(paths.filter(path => String(path || '').startsWith(`${userId}/`)))];
+    for (let index = 0; index < uniquePaths.length; index += 100) {
+      const batch = uniquePaths.slice(index, index + 100);
+      const { error } = await storageBucket.remove(batch);
+      if (error) throw error;
+      for (const path of batch) {
+        uploadedPaths.delete(path);
+        downloadedBlobs.delete(path);
+        unavailablePaths.delete(path);
+      }
+    }
+    return uniquePaths.length;
+  }
+
+  return { externalize, hydrate, removePaths };
 }
 
 export const cloudAssetPolicy = Object.freeze({ bucket: DEFAULT_BUCKET, marker: ASSET_MARKER });

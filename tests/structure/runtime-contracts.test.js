@@ -46,6 +46,7 @@ const CONTRACT_CATEGORIES = new Map([
   ['app.initChatApp', 'startup/bootstrap'],
   ['input.updateFunctionButtonsState', 'input'],
   ['input.updateInputState', 'input'],
+  ['documents.removeLinks', 'documents'],
   ['memory.getHistoryRecallStatus', 'memory'],
   ['memory.auditHistoryIndex', 'memory'],
   ['memory.grantHistoryRecallConsent', 'memory'],
@@ -70,6 +71,7 @@ const CONTRACT_CATEGORIES = new Map([
 const KNOWN_CATEGORIES = new Set([
   'settings',
   'input',
+  'documents',
   'memory',
   'submit',
   'sidebar',

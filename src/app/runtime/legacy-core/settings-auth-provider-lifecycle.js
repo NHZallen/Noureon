@@ -18,8 +18,10 @@ import { createSettingsDesktopSectionHelper } from './settings-desktop-section-h
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
+import { buildSettingsConfigPatch } from './settings-save-settings-helper.js';
 import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
 import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
+import { createSettingsDocumentContextBridge } from '../documents/settings-document-context-bridge.js';
 
 const requiredDependencies = [
     'window',
@@ -80,6 +82,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         window,
         document,
         fetch,
+        FileReader: FileReaderCtor = globalThis.FileReader,
         AbortSignal: AbortSignalCtor = globalThis.AbortSignal,
         requestAnimationFrame,
         setTimeout = globalThis.setTimeout,
@@ -220,6 +223,11 @@ const streamApiCall = createStreamApiCall({
     getModelReasoningConfig,
     normalizeReasoningEffort
 });
+const documentContextService = createSettingsDocumentContextBridge({
+    document, fetch, FileReader: FileReaderCtor, state, getConfig: () => config,
+    runtimeStorageAdapter, getApiKeyForProvider, getSingleDocumentTranslatorModel,
+    modelSupportsVision, streamApiCall, getActiveConversation, saveAppData, logger
+});
 const providerRequestSupport = createProviderRequestSupport({
     buildTavilySearchQuery,
     formatTavilySearchPacket,
@@ -232,11 +240,13 @@ const providerRequestSupport = createProviderRequestSupport({
     getSingleDocumentTranslatorModel,
     modelUsesTavilySearch,
     modelSupportsUploadedFile,
+    documentContextService,
     councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
     councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS
 });
 const {
     buildSingleModelTranslatedRequestParts,
+    buildHierarchicalDocumentEvidence,
     extractTextFromParts,
     fetchTavilySearchPacket,
     filterPartsForModelCapability,
@@ -265,7 +275,9 @@ const councilResponseLifecycle = createCouncilResponseLifecycle({
     streamCouncilApiCallWithRetry,
     modelUsesNativeWebSearch,
     modelSupportsVision,
-    modelSupportsDocumentUpload
+    modelSupportsDocumentUpload,
+    documentContextService,
+    buildHierarchicalDocumentEvidence
 });
 const runModelCouncil = (...args) => councilResponseLifecycle.runModelCouncil(...args);
 const structuredHelpers = createSettingsProviderStructuredHelpers({
@@ -363,6 +375,7 @@ const outputTranslatorControls = createSettingsOutputTranslatorControls({
 const {
     ensureCouncilTranslatorSettingsControls,
     ensureOutputModeSettingsControls,
+    ensureDocumentSettingsControls,
     renderTranslatorModelPickers,
     syncOutputModeSettingsControls
 } = outputTranslatorControls;
@@ -517,6 +530,7 @@ const setupSettingsModal = () => {
     bindHistoryIndexStatusUpdates();
     ensureCouncilTranslatorSettingsControls();
     ensureOutputModeSettingsControls();
+    ensureDocumentSettingsControls();
     prepareApiKeyInputsForSettings();
     if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();
     renderTranslatorModelPickers();
@@ -585,21 +599,8 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         ALL_ELEMENTS.historyRecallToggleSwitch.checked = false;
     }
     Object.assign(config, {
-        tavilySearchDepth: collectedSettings.tavilySearchDepth,
-        councilTranslatorModelId: collectedSettings.councilTranslatorModelId,
-        singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,
-        enableAutoWebSearch: collectedSettings.enableAutoWebSearch,
-        outputMode: collectedSettings.outputMode,
-        aiBubbleColor: collectedSettings.aiBubbleColor,
-        userBubbleColor: collectedSettings.userBubbleColor,
-        autoNaming: collectedSettings.autoNaming,
-        memoryEnabled1: collectedSettings.memoryEnabled1,
-        memoryProfileEnabled: collectedSettings.memoryEnabled1,
-        historyRecallEnabled,
-        enableAutoMemory: collectedSettings.enableAutoMemory,
-        uiLanguage: collectedSettings.uiLanguage,
-        aiDefaultLanguage: collectedSettings.aiDefaultLanguage,
-        enableUpdateNotifications: collectedSettings.enableUpdateNotifications
+        ...buildSettingsConfigPatch(collectedSettings, historyRecallEnabled),
+        uiLanguage: collectedSettings.uiLanguage
     });
     Object.assign(config.uiTheme, collectedSettings.uiTheme);
     setAiBubbleColor();
@@ -663,6 +664,7 @@ const {
         providerRequestSupport,
         councilResponseLifecycle,
         buildSingleModelTranslatedRequestParts,
+        buildHierarchicalDocumentEvidence,
         extractTextFromParts,
         fetchTavilySearchPacket,
         filterPartsForModelCapability,
@@ -670,6 +672,7 @@ const {
         streamCouncilApiCallWithRetry,
         truncateCouncilText,
         runModelCouncil,
+        removeDocumentLinks: filters => documentContextService.removeLinks(filters),
         callApiWithSchema,
         shouldPerformWebSearch,
         generateTitleAndSummary,

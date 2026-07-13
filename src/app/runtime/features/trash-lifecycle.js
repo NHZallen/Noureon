@@ -20,6 +20,7 @@ export function createLegacyTrashLifecycle({
   showCoordinatedNotification,
   deleteConversationsFromCloud = async () => {},
   invalidateConversationMemory = async () => {},
+  removeConversationDocuments = async () => {},
   rebuildHistoryIndex = async () => {},
   toggleModal,
   formatFullTimestamp,
@@ -179,6 +180,7 @@ export function createLegacyTrashLifecycle({
     const conversation = getConversations().find(item => item.id === conversationId);
     if (!await confirmCloudDeletion([conversationId], conversation ? [conversation] : [])) return;
     await invalidateConversationMemory({ conversationId });
+    await removeConversationDocuments({ conversationId });
     replaceConversations(
       getConversations().filter(conversation => conversation.id !== conversationId)
     );
@@ -267,6 +269,7 @@ export function createLegacyTrashLifecycle({
       `${getTexts().batchPermanentlyDeletedSuccess || '已成功永久刪除'} ${count} ${getTexts().items || '個項目'}。`,
       'success'
     );
+    for (const conversationId of ids) await removeConversationDocuments({ conversationId });
   };
 
   const handleEmptyTrash = async () => {
@@ -279,7 +282,10 @@ export function createLegacyTrashLifecycle({
     const trashSnapshots = conversations.filter(conversation => conversation.deletedAt);
     const ids = trashSnapshots.map(conversation => conversation.id);
     if (!await confirmCloudDeletion(ids, trashSnapshots)) return;
-    for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
+    for (const conversationId of ids) {
+      await invalidateConversationMemory({ conversationId });
+      await removeConversationDocuments({ conversationId });
+    }
     replaceConversations(
       conversations.filter(conversation => !conversation.deletedAt)
     );

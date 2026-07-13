@@ -43,6 +43,7 @@ import { createDialogNotificationLifecycle } from '/src/app/runtime/features/dia
 import { arrangeInputMediaPreview } from '/src/app/runtime/features/input-media-placement.js';
 import { createCloudWorkspaceLiveLifecycle } from '/src/app/runtime/features/cloud-workspace-live-lifecycle.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
+import { councilNeedsAttachmentTranslator } from '/src/app/runtime/documents/council-document-requirement.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 import { normalizeApiKeyValue, normalizeLoadedLegacyConfig } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
@@ -218,7 +219,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             }
             const selectedCouncilModels = [...participants, synthesizer].filter(Boolean);
             const translationNeed = getCouncilAttachmentTranslationNeed(selectedCouncilModels, files);
-            const translatorModel = translationNeed.needsAnyPacket ? getCouncilTranslatorModel() : null;
+            const translatorRequired = councilNeedsAttachmentTranslator({ files, translationNeed });
+            const translatorModel = translatorRequired ? getCouncilTranslatorModel() : null;
             const tavilySearchModel = conv?.isWebSearchEnabled && modelUsesTavilySearch(synthesizer)
                 ? { id: 'tavily-search', name: 'Tavily Search', provider: 'tavily' }
                 : null;
@@ -232,7 +234,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                     message: `${texts.missingApiKey}: ${missingKeyModels.map(model => model.name).join(', ')}`
                 };
             }
-            if (translationNeed.needsAnyPacket && !translatorModel) {
+            if (translatorRequired && !translatorModel) {
                 return {
                     ok: false,
                     reason: 'missingCouncilTranslator',
@@ -242,8 +244,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             if (translationNeed.needsAnyPacket) {
                 return {
                     ok: true,
-                    reason: 'readyWithAttachmentTranslation',
-                    message: `${texts.ready} with attachment translator: ${translatorModel.name}`
+                    reason: translatorRequired ? 'readyWithAttachmentTranslation' : 'readyWithNativeDocumentExtraction',
+                    message: translatorRequired
+                        ? `${texts.ready} with attachment translator: ${translatorModel.name}`
+                        : `${texts.ready} with native document extraction`
                 };
             }
             return { ok: true, reason: 'ready', message: texts.ready };
@@ -1190,6 +1194,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             streamCouncilApiCallWithRetry,
             truncateCouncilText,
             runModelCouncil,
+            removeDocumentLinks,
             callApiWithSchema,
             shouldPerformWebSearch,
             generateTitleAndSummary,
@@ -1213,6 +1218,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         } = settingsAuthProviderLifecycle;
         legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
         legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
+        legacyRuntimeContext.registerLazyBinding('documents.removeLinks', () => removeDocumentLinks);
         const sidebarChatAstraRenderState = {
             get config() { return runtimeConfigAccess.getConfig(); },
             get conversations() { return liveConversationsBridge.getConversations(); },

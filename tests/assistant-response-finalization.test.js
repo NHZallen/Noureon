@@ -55,6 +55,31 @@ test('successful finalization completes the view before queuing persistence and 
   ]);
 });
 
+test('document attachments never become automatic personal memory', async () => {
+  const backgroundTasks = [];
+  const calls = [];
+  await finalizeAssistantResponse({
+    fullResponse: 'Document answer',
+    finalAiMessage: { role: 'model', parts: [{ text: '' }] },
+    conversation: { messages: [] },
+    userMessageObject: { role: 'user', parts: [{ text: 'Read this' }, { inlineData: { mimeType: 'application/pdf', name: 'private.pdf', data: 'AQID' } }] },
+    userMessageText: 'Read this',
+    signal: new AbortController().signal,
+    responseUsesCouncil: false,
+    responseRenderedInRealtime: true,
+    targetElement: { dataset: { streamRendered: 'true' } },
+    uiLanguage: 'en',
+    memoryEnabled: true,
+    autoMemoryEnabled: true,
+    persistAppData: async () => calls.push('persist'),
+    completeSingleModelView: async () => {},
+    extractPersonalMemory: async () => calls.push('memory'),
+    queueBackgroundTask: task => backgroundTasks.push(task)
+  });
+  await Promise.all(backgroundTasks.map(task => task()));
+  assert.deepEqual(calls, ['persist']);
+});
+
 test('council finalization attaches metadata and preserves realtime/buffered view handoffs', async () => {
   const realtimeCalls = [];
   const realtimeElement = { dataset: { streamRendered: 'true' } };

@@ -946,6 +946,12 @@ function setupMessageIntersectionObserver() {
                     : null;
                 return typeof invalidate === 'function' ? invalidate(options) : Promise.resolve();
             },
+            removeConversationDocuments: options => {
+                const removeLinks = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
+                    ? legacyRuntimeContext.resolveOptionalBinding('documents.removeLinks')
+                    : null;
+                return typeof removeLinks === 'function' ? removeLinks(options) : Promise.resolve();
+            },
             rebuildHistoryIndex: options => {
                 const rebuild = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
                     ? legacyRuntimeContext.resolveOptionalBinding('memory.rebuildHistoryIndex')

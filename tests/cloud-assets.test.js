@@ -8,6 +8,7 @@ function createFixture() {
   const remoteFiles = new Map();
   const localFiles = new Map();
   const downloadCounts = new Map();
+  const removedPaths = [];
   const bucket = {
     async upload(path, blob) {
       if (remoteFiles.has(path)) return { error: { statusCode: '409', message: 'already exists' } };
@@ -19,12 +20,18 @@ function createFixture() {
       return remoteFiles.has(path)
         ? { data: remoteFiles.get(path), error: null }
         : { data: null, error: new Error('missing') };
+    },
+    async remove(paths) {
+      removedPaths.push(...paths);
+      paths.forEach(path => remoteFiles.delete(path));
+      return { error: null };
     }
   };
   return {
     remoteFiles,
     localFiles,
     downloadCounts,
+    removedPaths,
     supabase: { storage: { from: () => bucket } },
     storage: {
       getItem: async key => localFiles.get(key) ?? null,
@@ -50,6 +57,33 @@ test('cloud assets externalize and restore data URLs and inline attachment bytes
   assert.ok(cloudValue.avatarUrl.__astraCloudAsset);
   assert.ok(cloudValue.part.data.__astraCloudAsset);
   assert.deepEqual(await transport.hydrate(cloudValue), value);
+});
+
+test('encrypted document transcription artifacts sync recursively with their attachment', async () => {
+  const fixture = createFixture();
+  const transport = createCloudAssetTransport({ ...fixture, userId: 'user-1', cryptoProvider: webcrypto });
+  const value = { inlineData: {
+    mimeType: 'application/pdf',
+    data: 'BAUG',
+    documentOcrArtifact: {
+      version: 1,
+      mimeType: 'application/vnd.noureon.document-ocr+json',
+      data: 'AQID',
+      encrypted: true
+    }
+  } };
+  const cloudValue = await transport.externalize(value);
+  assert.ok(cloudValue.inlineData.data.__astraCloudAsset);
+  assert.ok(cloudValue.inlineData.documentOcrArtifact.data.__astraCloudAsset);
+  assert.deepEqual(await transport.hydrate(cloudValue), value);
+});
+
+test('cloud asset deletion is deduplicated and restricted to the current user prefix', async () => {
+  const fixture = createFixture();
+  const transport = createCloudAssetTransport({ ...fixture, userId: 'user-1', cryptoProvider: webcrypto });
+  const removed = await transport.removePaths(['user-1/a', 'user-1/a', 'user-2/secret', 'user-1/b']);
+  assert.equal(removed, 2);
+  assert.deepEqual(fixture.removedPaths, ['user-1/a', 'user-1/b']);
 });
 
 test('cloud assets prefer authenticated REST raw upload when Supabase session exists', async () => {

@@ -7,7 +7,7 @@ import {
   createConversationShadowSync,
   initializeConversationShadowSync
 } from '../src/app/sync/cloud-sync-v2-shadow.js';
-import { deterministicUuid } from '../src/app/sync/cloud-sync-v2-codecs.js';
+import { deterministicUuid, encodeWorkspaceConversationShadow } from '../src/app/sync/cloud-sync-v2-codecs.js';
 import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage-coordinator.js';
 
@@ -469,6 +469,50 @@ test('sync permanent deletion requires ready state, calls RPC, and refreshes tom
   assert.deepEqual(calls.at(-1), ['tombstones']);
   assert.equal(sync.getStatus().state, 'ready');
   assert.equal(sync.getStatus().lastPermanentDeleteVerifiedCount, 1);
+});
+
+test('permanent deletion removes only cloud assets with no remaining conversation reference', async () => {
+  const secondConversationId = '77777777-7777-4777-8777-777777777777';
+  const marker = path => ({ __astraCloudAsset: { path, mimeType: 'application/pdf', encoding: 'base64' } });
+  let remote = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: { folders: [], conversations: [
+      { id: conversationId, title: 'Delete me', createdAt: '2026-07-06T00:00:00.000Z', messages: [{ role: 'user', parts: [{ inlineData: { mimeType: 'application/pdf', data: marker(`${userId}/shared`), documentOcrArtifact: { mimeType: 'application/vnd.noureon.document-ocr+json', data: marker(`${userId}/unique`) } } }] }] },
+      { id: secondConversationId, title: 'Keep me', createdAt: '2026-07-06T00:00:00.000Z', messages: [{ role: 'user', parts: [{ inlineData: { mimeType: 'application/pdf', data: marker(`${userId}/shared`) } }] }] }
+    ] }
+  });
+  const deleted = new Set();
+  const removedPaths = [];
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: async () => [...deleted].map(entity_id => ({ entity_type: 'conversation', entity_id, deleted_at: '2026-07-06T00:00:00.000Z' })),
+    fetchWorkspace: async () => structuredClone(remote),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    verify: async () => true,
+    permanentlyDeleteConversations: async ids => {
+      ids.forEach(id => deleted.add(id));
+      remote = {
+        ...remote,
+        conversations: remote.conversations.filter(row => !ids.includes(row.id)),
+        messages: remote.messages.filter(row => !ids.includes(row.conversation_id))
+      };
+    }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    removeCloudAssetPaths: async paths => removedPaths.push(...paths),
+    userId,
+    cryptoProvider: webcrypto
+  });
+  await sync.initialize();
+  await sync.permanentlyDeleteConversations([conversationId]);
+  assert.deepEqual(removedPaths, [`${userId}/unique`]);
 });
 
 test('sync folder deletion calls RPC and verifies durable folder tombstone', async () => {

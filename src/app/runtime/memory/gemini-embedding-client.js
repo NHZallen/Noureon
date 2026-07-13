@@ -45,6 +45,10 @@ export function createGeminiEmbeddingClient({
     embedHistoryDocument: ({ title = 'none', text = '' } = {}) => (
       embedText(`title: ${String(title || 'none')} | text: ${String(text || '')}`)
     ),
+    embedDocumentQuery: (query) => embedText(`task: document retrieval | query: ${String(query || '')}`),
+    embedDocumentChunk: ({ name = 'document', sourceLocator = {}, text = '' } = {}) => (
+      embedText(`title: ${String(name || 'document')} | source: ${JSON.stringify(sourceLocator)} | text: ${String(text || '')}`)
+    ),
     async embedMedia({ mimeType, data, name = 'attachment', size = null, signal } = {}) {
       const apiKey = String(getApiKey() || '').trim();
       if (!apiKey) throw new Error('Gemini API key is required for media embeddings.');

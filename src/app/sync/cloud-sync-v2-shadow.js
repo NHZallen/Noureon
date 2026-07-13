@@ -493,6 +493,7 @@ export function createConversationShadowSync({
   normalizeWorkspace = async workspace => workspace,
   prepareWorkspaceForUpload = async workspace => workspace,
   hydrateRemoteWorkspace = async workspace => workspace,
+  removeCloudAssetPaths = async () => 0,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
   cancel = timer => globalThis.clearTimeout(timer),
   now = () => new Date().toISOString(),
@@ -789,6 +790,22 @@ export function createConversationShadowSync({
       validIds.add(remoteId);
     }
     const deleteIds = [...validIds];
+    const collectCloudAssetPaths = value => {
+      const paths = new Set();
+      const visit = item => {
+        if (!item || typeof item !== 'object') return;
+        const marker = item.__astraCloudAsset;
+        if (marker?.path) paths.add(marker.path);
+        if (Array.isArray(item)) item.forEach(visit);
+        else Object.values(item).forEach(visit);
+      };
+      visit(value);
+      return paths;
+    };
+    const remoteBeforeDelete = await repository.fetchWorkspace();
+    const candidateAssetPaths = collectCloudAssetPaths((remoteBeforeDelete.messages || [])
+      .filter(message => validIds.has(String(message.conversation_id)))
+      .map(message => message.parts));
     try {
       await repository.permanentlyDeleteConversations(deleteIds);
       for (const remoteId of await collectMatchingRemoteIds()) {
@@ -818,6 +835,15 @@ export function createConversationShadowSync({
         throw error;
       }
       const finalDeleteIds = [...validIds];
+      if (candidateAssetPaths.size > 0) {
+        try {
+          const remoteAfterDelete = await repository.fetchWorkspace();
+          const remainingAssetPaths = collectCloudAssetPaths(remoteAfterDelete);
+          await removeCloudAssetPaths([...candidateAssetPaths].filter(path => !remainingAssetPaths.has(path)));
+        } catch (assetError) {
+          logger.warn('Noureon cloud conversation deletion completed, but unreferenced asset cleanup failed.', assetError);
+        }
+      }
       return setStatus({
         state: 'ready',
         enabled,
@@ -1166,6 +1192,9 @@ export function initializeConversationShadowSync({
     hydrateRemoteWorkspace: async workspace => assetTransport?.hydrate
       ? assetTransport.hydrate(workspace)
       : workspace,
+    removeCloudAssetPaths: paths => assetTransport?.removePaths
+      ? assetTransport.removePaths(paths)
+      : 0,
     logger
   });
   exposeConversationShadowSync(window, sync);

@@ -22,6 +22,18 @@ function assertRequiredDependencies(dependencies) {
   }
 }
 
+const getDocumentSettingsText = language => language === 'zh-TW' ? {
+  semanticTitle: '雲端文件語意搜尋',
+  semanticDescription: '開啟後會把文件片段傳給 Gemini Embedding 以改善語意檢索；關閉時仍可使用本機關鍵字搜尋。',
+  syncTitle: '加密同步文件轉錄結果',
+  syncDescription: '同步保險庫解鎖時，會加密同步 OCR 與模型轉錄文字；否則結果只保留在此裝置。'
+} : {
+  semanticTitle: 'Cloud semantic document search',
+  semanticDescription: 'Sends document chunks to Gemini Embedding for semantic retrieval. When off, local keyword search remains available.',
+  syncTitle: 'Encrypted document transcription sync',
+  syncDescription: 'When the sync vault is unlocked, OCR and model transcriptions are encrypted and synced. Otherwise they stay on this device.'
+};
+
 export function createSettingsOutputTranslatorControls(dependencies = {}) {
   assertRequiredDependencies(dependencies);
 
@@ -289,9 +301,79 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
     syncOutputModeSettingsControls();
   };
 
+  const ensureDocumentSemanticSearchControl = () => {
+    const section = document.getElementById('accessibility-section');
+    if (!section) return;
+    const text = getDocumentSettingsText(config.uiLanguage);
+    let row = document.getElementById('document-semantic-search-setting-row');
+    if (!row) {
+      row = document.createElement('div');
+      row.id = 'document-semantic-search-setting-row';
+      row.className = 'flex items-center justify-between mt-4 gap-3';
+      row.innerHTML = `
+        <div class="flex-1">
+          <label for="document-semantic-search-toggle-switch" class="block text-sm font-medium">${escapeHTML(text.semanticTitle)}</label>
+          <p class="text-xs text-[var(--text-secondary)]">${escapeHTML(text.semanticDescription)}</p>
+        </div>
+        <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+          <input type="checkbox" id="document-semantic-search-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer">
+          <label for="document-semantic-search-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+        </div>
+      `;
+      const anchor = document.getElementById('output-mode-setting-row');
+      if (anchor) anchor.after(row);
+      else section.appendChild(row);
+    }
+    const semanticLabel = row.querySelector('label');
+    const semanticDescription = row.querySelector('p');
+    if (semanticLabel) semanticLabel.textContent = text.semanticTitle;
+    if (semanticDescription) semanticDescription.textContent = text.semanticDescription;
+    elements.documentSemanticSearchToggleSwitch = row.querySelector('#document-semantic-search-toggle-switch');
+    if (elements.documentSemanticSearchToggleSwitch) {
+      elements.documentSemanticSearchToggleSwitch.checked = config.documentSemanticSearchEnabled === true;
+    }
+  };
+
+  const ensureDocumentOcrSyncControl = () => {
+    const section = document.getElementById('accessibility-section');
+    if (!section) return;
+    const text = getDocumentSettingsText(config.uiLanguage);
+    let row = document.getElementById('document-ocr-sync-setting-row');
+    if (!row) {
+      row = document.createElement('div');
+      row.id = 'document-ocr-sync-setting-row';
+      row.className = 'flex items-center justify-between mt-4 gap-3';
+      row.innerHTML = `
+        <div class="flex-1">
+          <label for="document-ocr-sync-toggle-switch" class="block text-sm font-medium">${escapeHTML(text.syncTitle)}</label>
+          <p class="text-xs text-[var(--text-secondary)]">${escapeHTML(text.syncDescription)}</p>
+        </div>
+        <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
+          <input type="checkbox" id="document-ocr-sync-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer">
+          <label for="document-ocr-sync-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+        </div>
+      `;
+      const anchor = document.getElementById('document-semantic-search-setting-row');
+      if (anchor) anchor.after(row);
+      else section.appendChild(row);
+    }
+    const syncLabel = row.querySelector('label');
+    const syncDescription = row.querySelector('p');
+    if (syncLabel) syncLabel.textContent = text.syncTitle;
+    if (syncDescription) syncDescription.textContent = text.syncDescription;
+    elements.documentOcrSyncToggleSwitch = row.querySelector('#document-ocr-sync-toggle-switch');
+    if (elements.documentOcrSyncToggleSwitch) {
+      elements.documentOcrSyncToggleSwitch.checked = config.documentOcrSyncEnabled === true;
+    }
+  };
+
   return {
     ensureCouncilTranslatorSettingsControls,
     ensureOutputModeSettingsControls,
+    ensureDocumentSettingsControls: () => {
+      ensureDocumentSemanticSearchControl();
+      ensureDocumentOcrSyncControl();
+    },
     renderTranslatorModelPicker,
     renderTranslatorModelPickers,
     syncOutputModeSettingsControls

@@ -13,7 +13,7 @@ export function collectSettingsSaveFormValues({
             ? `linear-gradient(to right, ${config.uiTheme.adaptivePalette[0]}, ${config.uiTheme.adaptivePalette[1]})`
             : '');
 
-    return {
+    const values = {
         tavilySearchDepth: elements.tavilySearchDepthSelect?.value === 'advanced' ? 'advanced' : 'basic',
         councilTranslatorModelId: elements.councilTranslatorModelSelect?.value || null,
         singleDocumentTranslatorModelId: elements.singleDocumentTranslatorModelSelect?.value || null,
@@ -34,5 +34,40 @@ export function collectSettingsSaveFormValues({
             style: selectedStyle,
             adaptiveGradient: selectedGradient
         }
+    };
+    if (elements.documentSemanticSearchToggleSwitch) {
+        values.documentSemanticSearchEnabled = elements.documentSemanticSearchToggleSwitch.checked === true;
+    }
+    if (elements.documentOcrSyncToggleSwitch) {
+        values.documentOcrSyncEnabled = elements.documentOcrSyncToggleSwitch.checked === true;
+    }
+    return values;
+}
+
+export function collectDocumentSettingsConfigPatch(values = {}) {
+    return Object.fromEntries([
+        ['documentSemanticSearchEnabled', values.documentSemanticSearchEnabled],
+        ['documentOcrSyncEnabled', values.documentOcrSyncEnabled]
+    ].filter(([, value]) => typeof value === 'boolean'));
+}
+
+export function buildSettingsConfigPatch(values = {}, historyRecallEnabled = false) {
+    return {
+        tavilySearchDepth: values.tavilySearchDepth,
+        councilTranslatorModelId: values.councilTranslatorModelId,
+        singleDocumentTranslatorModelId: values.singleDocumentTranslatorModelId,
+        enableAutoWebSearch: values.enableAutoWebSearch,
+        outputMode: values.outputMode,
+        aiBubbleColor: values.aiBubbleColor,
+        userBubbleColor: values.userBubbleColor,
+        autoNaming: values.autoNaming,
+        memoryEnabled1: values.memoryEnabled1,
+        memoryProfileEnabled: values.memoryEnabled1,
+        historyRecallEnabled,
+        ...collectDocumentSettingsConfigPatch(values),
+        enableAutoMemory: values.enableAutoMemory,
+        uiLanguage: values.uiLanguage,
+        aiDefaultLanguage: values.aiDefaultLanguage,
+        enableUpdateNotifications: values.enableUpdateNotifications
     };
 }

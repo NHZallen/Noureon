@@ -37,11 +37,17 @@ export default defineConfig({
             return undefined;
           }
           if (id.includes('chart.js')) return 'vendor-chart';
+          if (id.includes('@kurkle/color')) return 'vendor-chart';
           if (id.includes('katex')) return 'vendor-katex';
           if (id.includes('cropperjs')) return 'vendor-cropper';
+          if (id.includes('pdfjs-dist')) return 'vendor-documents-pdf';
+          if (id.includes('/mammoth/')) return 'vendor-documents-docx';
+          if (id.includes('/jszip/')) return 'vendor-documents-zip';
           if (id.includes('peerjs') || id.includes('html5-qrcode') || id.includes('qrcode')) {
             return 'vendor-sharing';
           }
+          if (id.includes('webrtc-adapter')) return 'vendor-sharing';
+          if (id.includes('@supabase')) return 'vendor-supabase';
           if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
           return 'vendor';
         }

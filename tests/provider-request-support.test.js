@@ -29,7 +29,8 @@ const createHarness = ({
   fetchImpl,
   modelUsesTavilySearch = () => false,
   streamImpl,
-  translatorModel = { id: 'translator', name: 'Translator' }
+  translatorModel = { id: 'translator', name: 'Translator' },
+  documentContextService = null
 } = {}) => {
   const fetchCalls = [];
   const streamCalls = [];
@@ -55,6 +56,7 @@ const createHarness = ({
     getSingleDocumentTranslatorModel: () => translatorModel,
     modelUsesTavilySearch,
     modelSupportsUploadedFile: (model, file) => !file.inlineData?.mimeType?.includes('pdf'),
+    documentContextService,
     councilResponseCharLimit: 20,
     councilRetryDelayMs: 5,
     setTimeoutFn: (callback, delay) => {
@@ -215,6 +217,47 @@ test('single-model translation support preserves missing translator boundary', a
     ),
     /document translator model/
   );
+});
+
+test('native document context bypasses the translator and is not cut by the legacy 7000-character limit', async () => {
+  const longContext = `${'A'.repeat(7600)}END-OF-DOCUMENT`;
+  const calls = [];
+  const documentContextService = {
+    supportsAttachment: () => true,
+    buildContext: async options => {
+      calls.push(options);
+      return options.retrieveContext
+        ? { text: longContext, systemInstruction: 'Untrusted document.', lowConfidence: false, coverageBatchTexts: [] }
+        : { text: '', indexResults: [], indexFailures: [] };
+    }
+  };
+  const { streamCalls, support } = createHarness({ translatorModel: null, documentContextService });
+  const requestParts = await support.buildSingleModelTranslatedRequestParts([
+    { text: 'Read the file' },
+    { inlineData: { mimeType: 'application/pdf', name: 'paper.pdf', data: 'AQID' } }
+  ], { id: 'target', name: 'Target' }, new AbortController().signal);
+  assert.equal(streamCalls.length, 0);
+  assert.equal(calls.length, 2);
+  assert.match(requestParts[0].text, /END-OF-DOCUMENT/);
+  assert.doesNotMatch(requestParts[0].text, /\[truncated\]/);
+});
+
+test('full-document requests process every hierarchical coverage batch before the answering pass', async () => {
+  const documentContextService = {
+    supportsAttachment: () => true,
+    buildContext: async options => options.retrieveContext
+      ? { text: '', systemInstruction: 'Untrusted document.', lowConfidence: false, coverageBatchTexts: ['BATCH-ONE', 'BATCH-TWO'] }
+      : { text: '', indexResults: [], indexFailures: [] }
+  };
+  const { streamCalls, support } = createHarness({ translatorModel: null, documentContextService });
+  const requestParts = await support.buildSingleModelTranslatedRequestParts([
+    { text: 'Summarize the entire document' },
+    { inlineData: { mimeType: 'application/pdf', name: 'large.pdf', data: 'AQID' } }
+  ], { id: 'target', name: 'Target' }, new AbortController().signal);
+  assert.equal(streamCalls.length, 2);
+  assert.match(streamCalls[0].parts[0].text, /BATCH-ONE/);
+  assert.match(streamCalls[1].parts[0].text, /BATCH-TWO/);
+  assert.match(requestParts[0].text, /Hierarchical full-document evidence/);
 });
 
 test('provider request support source avoids DOM, storage schema, package, and Vite coupling', () => {
