@@ -15,14 +15,15 @@ const EXPECTED_MODELS = [
   'openai/gpt-image-2',
   'google/gemini-3-pro-image',
   'google/gemini-3.1-flash-image',
-  'google/gemini-3.1-flash-lite-image'
+  'google/gemini-3.1-flash-lite-image',
+  'step-plan/step-image-edit-2'
 ];
 
-test('registers the curated OpenRouter image generation models', () => {
+test('registers the curated image generation models', () => {
   assert.deepEqual(IMAGE_GENERATION_MODEL_IDS, EXPECTED_MODELS);
   for (const id of EXPECTED_MODELS) {
     const model = MODELS.find(candidate => candidate.id === id);
-    assert.equal(model?.provider, 'openrouter');
+    assert.ok(['openrouter', 'stepfun'].includes(model?.provider));
     assert.equal(model?.outputModality, 'image');
     assert.equal(modelGeneratesImages(model), true);
   }

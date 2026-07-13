@@ -140,6 +140,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const isImageConversation = (conversation = getActiveConversation()) => modelGeneratesImages(
     normalizeConversationModel(conversation)
   );
+  const requiresSingleImageInput = (conversation = getActiveConversation()) => {
+    const modelInfo = normalizeConversationModel(conversation);
+    return modelInfo?.provider === 'stepfun' && modelGeneratesImages(modelInfo);
+  };
 
   let renderCouncilControls = () => {};
   let renderModelSwitcher = () => {};
@@ -854,6 +858,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
     requestFrame: (callback) => requestAnimationFrame(callback),
     isImageConversation,
+    requiresSingleImageInput,
     getQuoteReference,
     buildQuotedUserParts,
     clearQuoteReference

@@ -285,15 +285,20 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 generatedImageRuntimePromise = Promise.all([
                     import('/src/app/legacy-runtime/features/generated-image-assets.js'),
                     import('/src/app/legacy-runtime/features/openrouter-image-generation.js'),
+                    import('/src/app/legacy-runtime/features/stepfun-image-generation.js'),
                     import('/src/app/legacy-runtime/features/image-generation-response-lifecycle.js'),
                     import('/src/app/legacy-runtime/features/generated-image-interactions.js')
-                ]).then(([assetsModule, apiModule, lifecycleModule, interactionsModule]) => {
+                ]).then(([assetsModule, openRouterModule, stepFunModule, lifecycleModule, interactionsModule]) => {
                     const assetStore = assetsModule.createGeneratedImageAssetStore({
                         getItem,
                         setItem,
                         getUserName: () => currentUser?.username || 'anonymous'
                     });
-                    const generateImage = apiModule.createOpenRouterImageGenerator({ fetchImpl: fetch });
+                    const generateOpenRouterImage = openRouterModule.createOpenRouterImageGenerator({ fetchImpl: fetch });
+                    const generateStepFunImage = stepFunModule.createStepFunImageGenerator({ fetchImpl: fetch });
+                    const generateImage = (request) => request.provider === 'stepfun'
+                        ? generateStepFunImage(request)
+                        : generateOpenRouterImage(request);
                     const responseLifecycle = lifecycleModule.createImageGenerationResponseLifecycle({
                         buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
                         generateImage,

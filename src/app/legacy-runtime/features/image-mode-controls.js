@@ -193,12 +193,25 @@ export function createImageModeControls({
   const sync = () => {
     if (!ensure()) return false;
     const conversation = getActiveConversation();
-    const active = Boolean(conversation && modelGeneratesImages(getActiveModel()));
+    const activeModel = getActiveModel();
+    const active = Boolean(conversation && modelGeneratesImages(activeModel));
+    const supportedAspectRatios = activeModel?.supportedImageAspectRatios || IMAGE_ASPECT_RATIOS;
     const config = normalizeImageGenerationConfig(conversation?.imageConfig);
-    ratio.select.value = config.aspectRatio;
+    const aspectRatio = supportedAspectRatios.includes(config.aspectRatio)
+      ? config.aspectRatio
+      : supportedAspectRatios[0];
+    if (conversation && aspectRatio !== config.aspectRatio) {
+      conversation.imageConfig = { ...config, aspectRatio };
+    }
+    Array.from(ratio.select.options).forEach((option) => {
+      const supported = supportedAspectRatios.includes(option.value);
+      option.disabled = !supported;
+      option.hidden = !supported;
+    });
+    ratio.select.value = aspectRatio;
     resolution.select.value = config.resolution;
     ratio.row.style.display = active ? 'flex' : 'none';
-    resolution.row.style.display = active ? 'flex' : 'none';
+    resolution.row.style.display = active && activeModel?.provider !== 'stepfun' ? 'flex' : 'none';
     const advancedConfig = { ...advancedDefaults, ...(conversation?.imageAdvancedConfig || {}) };
     Object.entries(advanced.fields).forEach(([key, field]) => {
       field.value = key === 'provider'

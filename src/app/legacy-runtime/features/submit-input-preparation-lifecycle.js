@@ -26,6 +26,7 @@ export function createSubmitInputPreparationLifecycle({
   renderFilePreviews,
   requestFrame
   ,isImageConversation = () => false,
+  requiresSingleImageInput = () => false,
   getQuoteReference = () => null,
   buildQuotedUserParts = ({ question }) => question ? [{ text: question }] : [],
   clearQuoteReference = () => {}
@@ -69,6 +70,12 @@ export function createSubmitInputPreparationLifecycle({
 
     const conversation = getActiveConversation();
     if (conversation.archived) return { shouldContinue: false, reason: 'archived' };
+    if (requiresSingleImageInput(conversation) && (
+      uploadedFiles.length > 1 || uploadedFiles.some(file => !file.type?.startsWith('image/'))
+    )) {
+      showNotification('Step Image Edit 2 每次只能使用一張圖片附件。', 'warning');
+      return { shouldContinue: false, reason: 'stepfun-image-input' };
+    }
 
     const abortController = createAbortController();
     setAbortController(abortController);

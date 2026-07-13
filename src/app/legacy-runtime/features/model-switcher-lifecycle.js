@@ -387,7 +387,7 @@ export function createModelSwitcherLifecycle({
                                 const finalTier = companyBtn.dataset.tier;
                                 const finalCompany = companyBtn.dataset.company;
                                 const companyModels = visibleModels.filter(m => m.provider === finalProvider && m.tier.includes(finalTier) && m.company === finalCompany);
-                                const hasCategories = finalCompany === 'openai' || finalCompany === 'x-ai' || finalCompany === 'qwen';
+                                const hasCategories = finalCompany === 'openai' || finalCompany === 'x-ai' || finalCompany === 'qwen' || finalCompany === 'stepfun';
 
 
                                 if (hasCategories) {

@@ -86,7 +86,8 @@ export function createImageGenerationResponseLifecycle({
 
     const generationRequest = {
       apiKey: getApiKey(modelInfo.provider),
-      model: modelInfo.id,
+      model: modelInfo.apiId || modelInfo.id,
+      provider: modelInfo.provider,
       prompt,
       config: {
         ...normalizedConfig,

@@ -46,7 +46,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'xiaomi/mimo-v2.5': { releasedAt: 20260422, outputPricePerMillion: 0.28 },
     'xiaomi/mimo-v2.5-pro': { releasedAt: 20260422, outputPricePerMillion: 0.87 },
     'step-plan/step-3.7-flash': { releasedAt: 20260528, outputPricePerMillion: 0 },
-    'step-plan/step-3.5-flash': { releasedAt: 20260211, outputPricePerMillion: 0 }
+    'step-plan/step-3.5-flash': { releasedAt: 20260211, outputPricePerMillion: 0 },
+    'step-plan/step-image-edit-2': { releasedAt: 20260713, outputPricePerMillion: 0 }
 });
 
 export const MODELS = [
@@ -120,12 +121,14 @@ export const MODELS = [
     { id: 'step-plan/step-3.5-flash-2603', apiId: 'step-3.5-flash-2603', name: 'Step Plan Step 3.5 Flash 2603', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_2603_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'low' },
     { id: 'step-plan/step-3.5-flash', apiId: 'step-3.5-flash', name: 'Step Plan Step 3.5 Flash', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'medium' },
     { id: 'step-plan/step-router-v1', apiId: 'step-router-v1', name: 'Step Plan Router V1', provider: 'stepfun', descriptionKey: 'model_step_plan_router_v1_desc', tier: ['paid'], category: 'thinking' },
+    { id: 'step-plan/step-image-edit-2', apiId: 'step-image-edit-2', name: 'Step Image Edit 2', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_7_flash_desc', tier: ['paid'], category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'] },
 ].map((model) => Object.freeze({ ...model, ...MODEL_RELEASE_METADATA[model.id] }));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2',
     'google/gemini-3-pro-image',
     'google/gemini-3.1-flash-image',
-    'google/gemini-3.1-flash-lite-image'
+    'google/gemini-3.1-flash-lite-image',
+    'step-plan/step-image-edit-2'
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.1-flash-lite';
 export const OPENROUTER_VISION_MODELS = [

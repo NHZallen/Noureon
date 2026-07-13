@@ -14,6 +14,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => '/step_plan/v1/chat/completions'
       },
+      '/api/step-plan-images': {
+        target: 'https://api.stepfun.com',
+        changeOrigin: true,
+        rewrite: (path) => path.includes('operation=edits')
+          ? '/step_plan/v1/images/edits'
+          : '/step_plan/v1/images/generations'
+      },
       '/api/tavily-search': {
         target: 'https://api.tavily.com',
         changeOrigin: true,
