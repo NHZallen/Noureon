@@ -1,4 +1,5 @@
 const STEP_PLAN_IMAGE_API_URL = '/api/step-plan-images';
+const STEP_PROMPT_MAX_LENGTH = 512;
 
 const STEP_IMAGE_SIZES = Object.freeze({
   '1:1': '1024x1024',
@@ -27,6 +28,20 @@ const getMediaType = (b64Json = '') => {
   if (b64Json.startsWith('/9j/')) return 'image/jpeg';
   if (b64Json.startsWith('UklGR')) return 'image/webp';
   return 'image/png';
+};
+
+export const countStepPromptUnits = (prompt = '') => (
+  String(prompt).match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]|[A-Za-z0-9]+|[^\sA-Za-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/gu) || []
+).length;
+
+const validateStepPrompt = (prompt) => {
+  const normalized = String(prompt || '').trim();
+  const length = countStepPromptUnits(normalized);
+  if (length === 0) throw new Error('請輸入圖片描述。');
+  if (length > STEP_PROMPT_MAX_LENGTH) {
+    throw new Error(`Step Image Edit 2 的提示詞上限為 ${STEP_PROMPT_MAX_LENGTH}，目前為 ${length}。`);
+  }
+  return normalized;
 };
 
 export function buildStepFunImagePayload({ model, prompt, config = {} }) {
@@ -90,17 +105,18 @@ export function createStepFunImageGenerator({ fetchImpl = fetch } = {}) {
   }) {
     if (!apiKey) throw new Error('請先在設定中填入 Step Plan API Key');
     if (inputReferences.length > 1) throw new Error('Step Image Edit 2 每次只能使用一張圖片附件。');
+    const validatedPrompt = validateStepPrompt(prompt);
 
     const editing = inputReferences.length === 1;
     let body;
     let headers = { Authorization: `Bearer ${apiKey}` };
     if (editing) {
-      const { form, inputReference } = buildStepFunEditForm({ model, prompt, config, inputReference: inputReferences[0] });
+      const { form, inputReference } = buildStepFunEditForm({ model, prompt: validatedPrompt, config, inputReference: inputReferences[0] });
       form.set('image', await makeImageFile(inputReference), 'step-image-input.png');
       body = form;
     } else {
       headers = { ...headers, 'Content-Type': 'application/json' };
-      body = JSON.stringify(buildStepFunImagePayload({ model, prompt, config }));
+      body = JSON.stringify(buildStepFunImagePayload({ model, prompt: validatedPrompt, config }));
     }
 
     const response = await fetchImpl(`${STEP_PLAN_IMAGE_API_URL}?operation=${editing ? 'edits' : 'generations'}`, {

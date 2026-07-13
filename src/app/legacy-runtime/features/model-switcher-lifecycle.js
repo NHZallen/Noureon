@@ -394,7 +394,7 @@ export function createModelSwitcherLifecycle({
                                     const categories = [...new Set(companyModels.map(m => m.category || 'general'))];
                                     categoryView.innerHTML = createBackButtonHTML('back', 2);
                                     
-                                    const categoryOrder = ['general', 'image', 'image_generation', 'thinking', 'coding'];
+                                    const categoryOrder = ['general', 'thinking', 'image', 'image_generation', 'coding'];
                                     categories.sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b));
 
 

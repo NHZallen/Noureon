@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildStepFunImagePayload,
+  countStepPromptUnits,
   createStepFunImageGenerator
 } from '../src/app/legacy-runtime/features/stepfun-image-generation.js';
 
@@ -80,4 +81,19 @@ test('rejects multiple Step Image Edit 2 references before sending a request', a
     /一張圖片附件/
   );
   assert.equal(called, false);
+});
+
+test('counts Step prompt units and rejects prompts that exceed the 512-unit limit', async () => {
+  assert.equal(countStepPromptUnits('兩個中文 words 123'), 6);
+  const generator = createStepFunImageGenerator({
+    fetchImpl: async () => {
+      throw new Error('should not fetch');
+    }
+  });
+  const prompt = Array.from({ length: 513 }, () => 'word').join(' ');
+
+  await assert.rejects(
+    generator({ apiKey: 'step-key', model: 'step-image-edit-2', prompt }),
+    /提示詞上限為 512，目前為 513/
+  );
 });

@@ -61,15 +61,17 @@ export function createImageGenerationResponseLifecycle({
       });
     }
 
-    const requestParts = await buildSingleModelTranslatedRequestParts(
-      userParts,
-      modelInfo,
-      signal,
-      (_stage, message) => {
-        const label = targetElement.querySelector?.('.generated-image-skeleton span');
-        if (label && message) label.textContent = message;
-      }
-    );
+    const requestParts = modelInfo.provider === 'stepfun'
+      ? userParts
+      : await buildSingleModelTranslatedRequestParts(
+        userParts,
+        modelInfo,
+        signal,
+        (_stage, message) => {
+          const label = targetElement.querySelector?.('.generated-image-skeleton span');
+          if (label && message) label.textContent = message;
+        }
+      );
     const basePrompt = getTextPrompt(requestParts);
     if (!basePrompt) throw new Error('請輸入要生成的圖像描述');
     const hasTargetedEditReference = requestParts.some(part => part.inlineData?.targetedEdit);

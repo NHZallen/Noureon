@@ -37,6 +37,30 @@ test('uses translated search context and new image attachments for generation', 
   assert.deepEqual(result.parts, [{ generatedImage: { id: 'new-1', storageKey: 'key', mediaType: 'image/png', size: 5 } }]);
 });
 
+test('keeps Step image prompts free of translated search packets', async () => {
+  let request;
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async () => [{ text: '# Web search packet\n'.padEnd(1200, 'x') }],
+    generateImage: async value => {
+      request = value;
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'step', storageKey: 'step-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'step-key'
+  });
+
+  await lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: [{ text: '畫一隻穿雨衣的柴犬' }],
+    modelInfo: { id: 'step-plan/step-image-edit-2', apiId: 'step-image-edit-2', provider: 'stepfun' },
+    conversation: { messages: [] }
+  });
+
+  assert.equal(request.prompt, '畫一隻穿雨衣的柴犬');
+  assert.equal(request.model, 'step-image-edit-2');
+});
+
 test('falls back to the latest generated image when there is no new attachment', async () => {
   let references;
   const lifecycle = createImageGenerationResponseLifecycle({
