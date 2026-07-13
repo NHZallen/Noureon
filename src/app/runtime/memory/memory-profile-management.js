@@ -69,11 +69,8 @@ const validateSupersession = (memoryState, { entryId, supersededEntryIds }) => {
 const addEntry = (memoryState, entry, supersededEntryIds, now) => ({
   ...memoryState,
   profileEntries: [
-    ...asArray(memoryState.profileEntries).map(existing => (
-      supersededEntryIds.includes(String(existing.id))
-        ? { ...existing, status: 'superseded', supersededBy: entry.id, updatedAt: now }
-        : existing
-    )),
+    ...asArray(memoryState.profileEntries)
+      .filter(existing => !supersededEntryIds.includes(String(existing.id))),
     entry
   ]
 });
@@ -129,12 +126,6 @@ export function removeProfileEntry(memoryState = {}, { entryId, now = new Date()
 
   return {
     ...memoryState,
-    profileEntries: entries
-      .filter(item => item.id !== entryId)
-      .map(item => (
-        item.supersededBy === entryId
-          ? { ...item, status: 'active', supersededBy: null, updatedAt: now }
-          : item
-      ))
+    profileEntries: entries.filter(item => item.id !== entryId)
   };
 }

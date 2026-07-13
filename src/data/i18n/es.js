@@ -181,7 +181,7 @@ const es = {
   "historyRecallStatusBuilding": "Creando el índice: {completed}/{total}. Solo estará completo al llegar a {total}/{total}.",
   "historyRecallStatusComplete": "Índice completo: {completed}/{total} ({indexed} añadidos, {skipped} omitidos, {failed} fallidos).",
   "historyRecallStatusConsentRequired": "Este dispositivo no ha otorgado consentimiento; Las conversaciones anteriores no se buscan ni envían. Puede habilitarlo al guardar la configuración.",
-  "historyRecallStatusEnabled": "Activado. El índice local contiene {count} cápsulas de conversación.",
+  "historyRecallStatusEnabled": "Activado. El índice local contiene {count} registros.",
   "historyRecallStatusDisabled": "Actualmente apagado; Las conversaciones anteriores no se buscan y no se llama a la incrustación.",
   "historyRecallConsentTitle": "Habilitar la recuperación de conversaciones cruzadas",
   "historyRecallConsentMessage": "Cuando la recuperación de conversaciones cruzadas está habilitada, este dispositivo envía su pregunta actual a Gemini Embedding 2 y busca en el índice local conversaciones anteriores relevantes. Los vectores y el índice no están sincronizados. ¿Habilitarlo en este dispositivo?",

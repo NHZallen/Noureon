@@ -103,3 +103,39 @@ test('history rebuild capture never adds profile candidates from old conversatio
 
   assert.deepEqual(memoryState.profileCandidates, []);
 });
+
+test('drops duplicate, assistant-sourced, and cross-kind replacement candidates', async () => {
+  let memoryState = {
+    profileEntries: [
+      { id: 'name', kind: 'identity', content: 'Allen', status: 'active', confirmedByUser: true },
+      { id: 'style', kind: 'preference', content: 'Keep replies concise', status: 'active', confirmedByUser: true }
+    ],
+    recentConversationStates: [],
+    conversationCapsules: [],
+    profileCandidates: []
+  };
+  const service = createMemoryCaptureService({
+    captureClient: { capture: async () => ({
+      recentTurnSummary: 'summary',
+      capsule: { topic: 'topic', summary: 'summary', confirmedDecisions: [], openQuestions: [] },
+      profileCandidates: [
+        { kind: 'identity', content: 'Allen', extractionConfidence: 1, sourceTurnIndexes: [0], suggestedSupersedes: ['name'] },
+        { kind: 'preference', content: 'Prefer detailed answers', extractionConfidence: 1, sourceTurnIndexes: [0], suggestedSupersedes: ['name', 'style'] },
+        { kind: 'preference', content: 'Assistant preference', extractionConfidence: 1, sourceTurnIndexes: [1], suggestedSupersedes: [] }
+      ]
+    }) },
+    getMemoryState: () => memoryState,
+    replaceMemoryState: next => { memoryState = next; },
+    createId: prefix => `${prefix}-id`
+  });
+
+  await service.captureCompletedTurn({
+    conversationId: 'chat',
+    sourceHash: 'hash',
+    turns: [{ id: 'user', role: 'user', text: 'Use detailed answers.' }, { id: 'assistant', role: 'assistant', text: 'Okay.' }]
+  });
+
+  assert.equal(memoryState.profileCandidates.length, 1);
+  assert.equal(memoryState.profileCandidates[0].content, 'Prefer detailed answers');
+  assert.deepEqual(memoryState.profileCandidates[0].suggestedSupersedes, ['style']);
+});

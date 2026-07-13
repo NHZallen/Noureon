@@ -11,13 +11,15 @@ test('creates a derived topic summary only for strongly related capsules', async
   let memoryState = {
     conversationCapsules: [
       { id: 'current', summary: 'Current discussion', sourceRefs: [{ messageId: 'new-user', role: 'user' }] },
-      { id: 'related', summary: 'Related discussion', sourceRefs: [{ messageId: 'old-user', role: 'user' }] }
+      { id: 'related', summary: 'Related discussion', sourceRefs: [{ messageId: 'old-user', role: 'user' }] },
+      { id: 'related-2', summary: 'Another related discussion', sourceRefs: [{ messageId: 'older-user', role: 'user' }] }
     ],
     longTermTopicSummaries: []
   };
   const index = createHistoryIndexStore();
   index.put({ recordId: 'current', capsuleId: 'current', vector: [1, 0] });
   index.put({ recordId: 'related', capsuleId: 'related', vector: [0.99, 0.01] });
+  index.put({ recordId: 'related-2', capsuleId: 'related-2', vector: [0.98, 0.02] });
   const clientCalls = [];
   const service = createTopicSummaryService({
     index,
@@ -36,8 +38,8 @@ test('creates a derived topic summary only for strongly related capsules', async
     id: 'topic-1',
     topic: 'Memory design',
     summary: 'A shared design thread.',
-    sourceCapsuleIds: ['current', 'related'],
-    sourceRefs: [{ messageId: 'new-user', role: 'user' }, { messageId: 'old-user', role: 'user' }],
+    sourceCapsuleIds: ['current', 'related', 'related-2'],
+    sourceRefs: [{ messageId: 'new-user', role: 'user' }, { messageId: 'old-user', role: 'user' }, { messageId: 'older-user', role: 'user' }],
     claimType: 'derived-summary',
     updatedAt: '2026-07-11T00:00:00.000Z'
   }]);
@@ -62,14 +64,14 @@ test('does not call the topic model when no related capsule meets the threshold'
 test('updates an overlapping topic instead of creating a synonymous duplicate', async () => {
   let memoryState = {
     conversationCapsules: [
-      { id: 'a', topic: 'Identity', summary: 'User stated a name.' },
-      { id: 'b', topic: 'Identity', summary: 'User discussed how names should be used.' },
-      { id: 'c', topic: 'Identity', summary: 'User clarified naming preferences.' }
+      { id: 'a', topic: 'Project architecture', summary: 'User discussed the application architecture.' },
+      { id: 'b', topic: 'Project architecture', summary: 'User compared architecture options.' },
+      { id: 'c', topic: 'Project architecture', summary: 'User clarified the preferred architecture.' }
     ],
     longTermTopicSummaries: [{
       id: 'identity-topic',
-      topic: 'User identity verification',
-      summary: 'The user confirmed a name.',
+      topic: 'Project architecture',
+      summary: 'The user is comparing application architecture options.',
       sourceCapsuleIds: ['a', 'b'],
       sourceRefs: [],
       updatedAt: '2026-07-11T00:00:00.000Z'
@@ -78,12 +80,13 @@ test('updates an overlapping topic instead of creating a synonymous duplicate', 
   const index = createHistoryIndexStore();
   index.put({ recordId: 'c', capsuleId: 'c', vector: [1, 0] });
   index.put({ recordId: 'b', capsuleId: 'b', vector: [0.99, 0.01] });
+  index.put({ recordId: 'a', capsuleId: 'a', vector: [0.98, 0.02] });
   const calls = [];
   const service = createTopicSummaryService({
     index,
     topicClient: { summarize: async input => {
       calls.push(input);
-      return { topic: 'User identity and naming preference', summary: 'The user confirmed a name and its appropriate use.' };
+      return { topic: 'Project architecture', summary: 'The user selected an application architecture direction.' };
     } },
     getMemoryState: () => memoryState,
     replaceMemoryState: next => { memoryState = next; },
@@ -96,7 +99,24 @@ test('updates an overlapping topic instead of creating a synonymous duplicate', 
   assert.equal(memoryState.longTermTopicSummaries.length, 1);
   assert.equal(memoryState.longTermTopicSummaries[0].id, 'identity-topic');
   assert.deepEqual(memoryState.longTermTopicSummaries[0].sourceCapsuleIds, ['a', 'b', 'c']);
-  assert.equal(calls[0].existingSummary, 'The user confirmed a name.');
+  assert.equal(calls[0].existingSummary, 'The user is comparing application architecture options.');
+});
+
+test('does not create a long-term topic for assistant identity discussion', async () => {
+  const service = createTopicSummaryService({
+    index: createHistoryIndexStore(),
+    topicClient: { summarize: async () => { throw new Error('should not run'); } },
+    getMemoryState: () => ({ conversationCapsules: [], longTermTopicSummaries: [] }),
+    replaceMemoryState: () => {}
+  });
+
+  const result = await service.updateForCapsule({ capsule: {
+    id: 'assistant-identity',
+    topic: 'Assistant Identity',
+    summary: 'The user asked about the assistant identity and origin.'
+  } });
+
+  assert.deepEqual(result, { updated: false, reason: 'assistant-meta-topic' });
 });
 
 test('consolidates existing overlapping summaries and tombstones the duplicate id', () => {

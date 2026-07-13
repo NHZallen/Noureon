@@ -185,7 +185,7 @@
         historyRecallStatusBuilding: '建立索引中：{completed}／{total}。完成 {total}／{total} 才表示全部完成。',
         historyRecallStatusComplete: '索引已完成：{completed}／{total}（新增 {indexed}，略過 {skipped}，失敗 {failed}）。',
         historyRecallStatusConsentRequired: '此裝置尚未同意；目前不會檢索或傳送舊對話。儲存設定時可啟用。',
-        historyRecallStatusEnabled: '已啟用，本機索引有 {count} 筆對話膠囊。',
+        historyRecallStatusEnabled: '已啟用，本機索引有 {count} 筆索引紀錄。',
         historyRecallStatusDisabled: '目前關閉；不會查詢舊對話或呼叫 Embedding。',
         historyRecallConsentTitle: '啟用跨對話回憶',
         historyRecallConsentMessage: '啟用跨對話回憶後，這台裝置會把你目前的問題傳給 Gemini Embedding 2，並從本機索引找相關舊對話。向量與索引不會同步。要在這台裝置啟用嗎？',

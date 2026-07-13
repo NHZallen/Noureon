@@ -17,6 +17,24 @@ const relatedCapsuleIds = summary => [...new Set(asArray(summary?.sourceCapsuleI
 const sourceRefsFor = capsules => capsules.flatMap(capsule => asArray(capsule?.sourceRefs));
 const intersects = (left, right) => left.some(value => right.has(value));
 const timestamp = value => Date.parse(value || '') || 0;
+const assistantMetaTopicPattern = /(?:\b(?:assistant|ai|model|chatbot|llm)\b.*\b(?:identity|origin|nature|capabilit(?:y|ies)|name)\b)|(?:\b(?:identity|origin|nature|capabilit(?:y|ies)|name)\b.*\b(?:assistant|ai|model|chatbot|llm)\b)|(?:助理|模型|聊天機器人|人工智慧).*(?:身分|身份|起源|來源|本質|能力|名稱)|(?:身分|身份|起源|來源|本質|能力|名稱).*(?:助理|模型|聊天機器人|人工智慧)/iu;
+const identityFactTopicPattern = /(?:\b(?:user|profile|person)\b.*\b(?:identity|name|naming)\b)|(?:\b(?:identity|name|naming)\b.*\b(?:user|profile|person)\b)|(?:使用者|用戶|個人).*(?:身分|身份|名字|名稱|命名)|(?:身分|身份|名字|名稱|命名).*(?:使用者|用戶|個人)/iu;
+
+const isAssistantMetaTopic = capsule => assistantMetaTopicPattern.test([
+  capsule?.topic,
+  capsule?.summary,
+  ...(asArray(capsule?.confirmedDecisions)),
+  ...(asArray(capsule?.openQuestions))
+].filter(Boolean).join('\n'));
+
+const isIdentityFactTopic = capsule => identityFactTopicPattern.test([
+  capsule?.topic,
+  capsule?.summary,
+  ...(asArray(capsule?.confirmedDecisions)),
+  ...(asArray(capsule?.openQuestions))
+].filter(Boolean).join('\n'));
+
+export const isExcludedLongTermTopic = capsule => isAssistantMetaTopic(capsule) || isIdentityFactTopic(capsule);
 
 const mergeSourceRefs = summaries => {
   const refs = new Map();
@@ -72,7 +90,8 @@ export function createTopicSummaryService({
   replaceMemoryState,
   createId = prefix => `${prefix}:${crypto.randomUUID()}`,
   now = () => new Date().toISOString(),
-  similarityThreshold = 0.82
+  similarityThreshold = 0.82,
+  minimumRelatedCapsules = 2
 } = {}) {
   if (typeof index?.getAll !== 'function') throw new TypeError('Topic summaries require a history index.');
   if (typeof topicClient?.summarize !== 'function') throw new TypeError('Topic summaries require a topic client.');
@@ -83,6 +102,8 @@ export function createTopicSummaryService({
   return {
     async updateForCapsule({ capsule, signal } = {}) {
       if (!capsule?.id) throw new TypeError('Topic summaries require a capsule.');
+      if (isAssistantMetaTopic(capsule)) return { updated: false, reason: 'assistant-meta-topic' };
+      if (isIdentityFactTopic(capsule)) return { updated: false, reason: 'identity-fact-topic' };
       const initialMemoryState = getMemoryState() || {};
       const memoryState = consolidateOverlappingTopicSummaries(initialMemoryState);
       const records = index.getAll();
@@ -93,6 +114,7 @@ export function createTopicSummaryService({
         .filter(record => cosineSimilarity(currentRecord.vector, record.vector) >= similarityThreshold)
         .map(record => record.capsuleId);
       if (relatedIds.length === 0) return { updated: false, reason: 'no-related-capsules' };
+      if (relatedIds.length < minimumRelatedCapsules) return { updated: false, reason: 'insufficient-related-capsules' };
       const capsulesById = new Map(asArray(memoryState.conversationCapsules).map(item => [item?.id, item]));
       const capsules = [capsule, ...relatedIds.map(id => capsulesById.get(id)).filter(Boolean)];
       const sourceCapsuleIds = relatedCapsuleIds({ sourceCapsuleIds: capsules.map(item => item.id) });

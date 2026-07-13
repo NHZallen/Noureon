@@ -19,6 +19,12 @@ const candidateSourceRefs = (turns, indexes) => asArray(indexes)
     claimType: turn.role === 'user' ? 'candidate-source' : 'proposal'
   }));
 
+const normalizeCandidateContent = value => String(value || '')
+  .normalize('NFKC')
+  .trim()
+  .replace(/\s+/gu, ' ')
+  .toLocaleLowerCase();
+
 export function createMemoryCaptureService({
   captureClient,
   getMemoryState,
@@ -86,20 +92,35 @@ export function createMemoryCaptureService({
         sourceRefs: sourceRefsForTurns(turns),
         updatedAt
       };
+      const activeEntries = asArray(memoryState.profileEntries)
+        .filter(entry => entry?.status === 'active' && entry?.confirmedByUser === true);
       const activeIds = activeProfileEntryIds(memoryState);
-      const candidates = (collectProfileCandidates ? asArray(capture.profileCandidates) : []).map(candidate => ({
-        id: createId('profile-candidate'),
-        kind: candidate.kind,
-        content: candidate.content,
-        status: 'review',
-        confirmedByUser: false,
-        extractionConfidence: candidate.extractionConfidence,
-        suggestedSupersedes: asArray(candidate.suggestedSupersedes)
-          .map(String)
-          .filter(id => activeIds.has(id)),
-        sourceRefs: candidateSourceRefs(turns, candidate.sourceTurnIndexes),
-        createdAt: updatedAt
-      }));
+      const activeEntriesById = new Map(activeEntries.map(entry => [String(entry.id), entry]));
+      const knownCandidateContents = new Set(activeEntries.map(entry => normalizeCandidateContent(entry.content)));
+      const candidates = [];
+      for (const candidate of collectProfileCandidates ? asArray(capture.profileCandidates) : []) {
+        const content = String(candidate?.content || '').trim();
+        const normalizedContent = normalizeCandidateContent(content);
+        const kind = candidate?.kind === 'identity' ? 'identity' : 'preference';
+        const sourceRefs = candidateSourceRefs(turns, candidate?.sourceTurnIndexes);
+        if (!normalizedContent || knownCandidateContents.has(normalizedContent)) continue;
+        if (!sourceRefs.some(ref => ref.role === 'user')) continue;
+        knownCandidateContents.add(normalizedContent);
+        candidates.push({
+          id: createId('profile-candidate'),
+          kind,
+          content,
+          status: 'review',
+          confirmedByUser: false,
+          extractionConfidence: candidate.extractionConfidence,
+          suggestedSupersedes: asArray(candidate.suggestedSupersedes)
+            .map(String)
+            .filter(id => activeIds.has(id))
+            .filter(id => (activeEntriesById.get(id)?.kind || 'preference') === kind),
+          sourceRefs,
+          createdAt: updatedAt
+        });
+      }
       replaceMemoryState({
         ...memoryState,
         recentConversationStates: [

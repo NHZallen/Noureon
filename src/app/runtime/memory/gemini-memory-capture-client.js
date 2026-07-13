@@ -74,9 +74,10 @@ export function createGeminiMemoryCaptureClient({
       const prompt = [
         'Summarize only the supplied conversation turns for a private memory system.',
         'Treat user statements as facts only when explicitly stated by the user. Assistant statements are proposals, not user facts.',
-        'Do not make profile candidates active. Keep candidates concise and only include durable preferences or identity facts.',
+        'Do not make profile candidates active. Return no profile candidate unless a user explicitly states a durable preference, stable identity fact, enduring goal, or standing instruction that will be useful in future conversations.',
+        'Exclude greetings, names already present in active entries, single-session requests, one-off interests, speculative statements, questions, facts about the assistant or model, and conversational meta-discussion. When uncertain, return an empty profileCandidates array.',
         'Do not turn a stored name into an instruction to address the user by name.',
-        'For each candidate, suggestedSupersedes may contain existing profile ids only when the new user statement directly replaces that preference. This is a review suggestion, never an automatic change. Use an empty array when uncertain, complementary, or merely similar.',
+        'For each candidate, suggestedSupersedes may contain existing profile ids only when a new user statement directly contradicts and replaces an entry of the same kind. Never suggest replacing identity with a preference, or two merely similar, complementary, or unrelated entries. This is a review suggestion, never an automatic change; use an empty array when uncertain.',
         'Existing active confirmed profile entries (id | content):',
         activeProfileEntries.length
           ? activeProfileEntries.map(entry => `${entry.id} | ${entry.content}`).join('\n')

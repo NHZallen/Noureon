@@ -181,7 +181,7 @@ const ru = {
   "historyRecallStatusBuilding": "Индексируется: {completed}/{total}. Полная готовность — только при {total}/{total}.",
   "historyRecallStatusComplete": "Индекс готов: {completed}/{total} (добавлено: {indexed}, пропущено: {skipped}, ошибок: {failed}).",
   "historyRecallStatusConsentRequired": "Это устройство не предоставило согласие; более ранние разговоры не ищутся и не отправляются. Вы можете включить его при сохранении настроек.",
-  "historyRecallStatusEnabled": "Включено. Локальный индекс содержит капсулы бесед: {count}.",
+  "historyRecallStatusEnabled": "Включено. Локальный индекс содержит {count} записей.",
   "historyRecallStatusDisabled": "В настоящее время выключен; более ранние разговоры не ищутся и внедрение не вызывается.",
   "historyRecallConsentTitle": "Включить отзыв в перекрестном разговоре",
   "historyRecallConsentMessage": "Если включен вызов перекрестного разговора, это устройство отправляет ваш текущий вопрос на Gemini Embedding 2 и выполняет поиск в локальном индексе соответствующих предыдущих разговоров. Векторы и индекс не синхронизированы. Включить его на этом устройстве?",

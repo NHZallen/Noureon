@@ -185,7 +185,7 @@
         historyRecallStatusBuilding: 'Création de l’index : {completed}/{total}. L’opération est entièrement terminée à {total}/{total}.',
         historyRecallStatusComplete: 'Index terminé : {completed}/{total} ({indexed} ajoutés, {skipped} ignorés, {failed} échoués).',
         historyRecallStatusConsentRequired: 'Cet appareil n’a pas encore donné son accord ; aucune ancienne conversation n’est recherchée ni envoyée. Vous pouvez l’activer en enregistrant les paramètres.',
-        historyRecallStatusEnabled: 'Activé. L’index local contient {count} capsules de conversation.',
+        historyRecallStatusEnabled: 'Activé. L’index local contient {count} enregistrements.',
         historyRecallStatusDisabled: 'Actuellement désactivé ; aucune ancienne conversation n’est recherchée et Embedding n’est pas appelé.',
         historyRecallConsentTitle: 'Activer le rappel inter-conversations',
         historyRecallConsentMessage: 'Lorsque le rappel inter-conversations est activé, cet appareil envoie votre question actuelle à Gemini Embedding 2 et recherche les anciennes conversations pertinentes dans l’index local. Les vecteurs et l’index ne sont pas synchronisés. L’activer sur cet appareil ?',

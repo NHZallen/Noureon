@@ -149,20 +149,6 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     suggestion.textContent = getRuntimeText(config.uiLanguage, 'memoryReplacementSuggestion', { items: suggestedEntries.map(memory => `「${memory.content}」`).join('、') });
                     replacementList.appendChild(suggestion);
                 }
-                if (replacementList && activeProfileEntries.length > 0) {
-                    const label = document.createElement('span');
-                    label.className = 'text-xs text-[var(--text-secondary)] basis-full';
-                    label.textContent = getRuntimeText(config.uiLanguage, 'memoryChooseReplacement');
-                    replacementList.appendChild(label);
-                    activeProfileEntries.forEach(memory => {
-                        const button = document.createElement('button');
-                        button.className = 'replace-candidate-memory-btn text-xs px-2 py-1 rounded border border-[var(--border-color)] hover:bg-[var(--active-bg)]';
-                        button.dataset.candidateId = candidate.id;
-                        button.dataset.supersedeId = memory.id;
-                        button.textContent = getRuntimeText(config.uiLanguage, 'memoryReplace', { item: `${memory.content.slice(0, 36)}${memory.content.length > 36 ? '…' : ''}` });
-                        replacementList.appendChild(button);
-                    });
-                }
                 container.appendChild(item);
             });
             legacyInbox.forEach(memory => {

@@ -78,6 +78,36 @@ test('classifies persisted vectors without derived metadata as orphan records', 
   assert.equal(report.tasks[0].type, 'capture');
 });
 
+test('counts a valid media index record as healthy', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:chat', conversationId: 'chat', sourceHash: 'hash:chat' });
+  index.put({ recordId: 'media:chat:media-hash', conversationId: 'chat', sourceHash: 'media-hash' });
+  const service = createHistoryIndexAuditService({
+    getConversations: () => [{
+      id: 'chat',
+      messages: [{
+        id: 'm',
+        role: 'user',
+        parts: [{ text: 'hello' }, { inlineData: { data: 'image-data', mimeType: 'image/png' } }]
+      }]
+    }],
+    getMemoryState: () => ({
+      recentConversationStates: [{ conversationId: 'chat', sourceHash: 'hash:chat' }],
+      conversationCapsules: [{ id: 'capsule', conversationId: 'chat', summary: 'Greeting' }],
+      mediaMemories: [{ id: 'media', conversationId: 'chat', messageId: 'm', partIndex: 1, sourceHash: 'media-hash' }]
+    }),
+    index,
+    hashString: async () => 'hash:chat'
+  });
+
+  const report = await service.audit();
+
+  assert.equal(report.healthy, 2);
+  assert.equal(report.missing, 0);
+  assert.equal(report.outdated, 0);
+  assert.equal(report.extra, 0);
+});
+
 test('a completed index remains healthy after simulated page reload', async () => {
   const values = new Map();
   const storage = {

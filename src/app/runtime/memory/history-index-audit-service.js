@@ -69,7 +69,10 @@ export function createHistoryIndexAuditService({
       if (!conversationEntry || !media?.sourceHash) continue;
       const recordId = `media:${media.conversationId}:${media.sourceHash}`;
       expectedRecordIds.add(recordId);
-      if (records.some(record => record.recordId === recordId)) continue;
+      if (records.some(record => record.recordId === recordId)) {
+        healthy += 1;
+        continue;
+      }
       const turn = conversationEntry.turns.find(item => item.id === media.messageId);
       const attachment = turn?.attachments?.find(item => item.partIndex === media.partIndex);
       if (attachment) {

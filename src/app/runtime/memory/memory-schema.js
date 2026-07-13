@@ -1,3 +1,5 @@
+import { isExcludedLongTermTopic } from './topic-summaries.js';
+
 export const MEMORY_SCHEMA_VERSION = 2;
 
 const asArray = (value) => Array.isArray(value) ? value : [];
@@ -50,13 +52,15 @@ export function normalizeMemoryState(raw = {}, { now = () => new Date().toISOStr
   return {
     version: MEMORY_SCHEMA_VERSION,
     profileEntries: asArray(memoryState.profileEntries)
-      .map(entry => normalizeProfileEntry(entry, now)),
+      .map(entry => normalizeProfileEntry(entry, now))
+      .filter(entry => entry.status !== 'superseded'),
     profileCandidates: asArray(memoryState.profileCandidates),
     resolvedProfileCandidateIds: asArray(memoryState.resolvedProfileCandidateIds).map(String),
     recentConversationStates: asArray(memoryState.recentConversationStates),
     mediaMemories: asArray(memoryState.mediaMemories),
     conversationCapsules: asArray(memoryState.conversationCapsules),
-    longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries),
+    longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
+      .filter(summary => !isExcludedLongTermTopic(summary)),
     resolvedTopicSummaryIds: asArray(memoryState.resolvedTopicSummaryIds).map(String),
     suppressionRules: asArray(memoryState.suppressionRules),
     legacyInbox: [...legacyInbox, ...legacyMemories.map(entry => migrateLegacyMemory(entry, now))]

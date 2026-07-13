@@ -27,6 +27,7 @@ export function createGeminiTopicSummaryClient({ getApiKey, fetchImpl = fetch } 
       const prompt = [
         'Create a concise long-term topic summary from related conversation capsules.',
         'Use only supplied capsule facts. Do not create user preferences or confirmed decisions.',
+        'Do not create a long-term topic for names, identity confirmation, assistant identity, model capabilities, or other conversational meta-discussion.',
         'Do not mention stored names unless the current task explicitly requires it.',
         'Existing topic summary:', existingSummary || '(none)',
         'Source capsules:', sourceText

@@ -185,7 +185,7 @@
         historyRecallStatusBuilding: 'Building index: {completed}/{total}. It is fully complete only at {total}/{total}.',
         historyRecallStatusComplete: 'Index complete: {completed}/{total} ({indexed} added, {skipped} skipped, {failed} failed).',
         historyRecallStatusConsentRequired: 'This device has not granted consent; earlier conversations are not searched or sent. You can enable it when saving settings.',
-        historyRecallStatusEnabled: 'Enabled. The local index contains {count} conversation capsules.',
+        historyRecallStatusEnabled: 'Enabled. The local index contains {count} records.',
         historyRecallStatusDisabled: 'Currently off; earlier conversations are not searched and Embedding is not called.',
         historyRecallConsentTitle: 'Enable cross-conversation recall',
         historyRecallConsentMessage: 'When cross-conversation recall is enabled, this device sends your current question to Gemini Embedding 2 and searches the local index for relevant earlier conversations. Vectors and the index are not synced. Enable it on this device?',

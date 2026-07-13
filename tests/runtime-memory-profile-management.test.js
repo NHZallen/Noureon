@@ -80,7 +80,7 @@ test('moves an approved candidate into active profile memory with safe identity 
   }]);
 });
 
-test('a newer confirmed preference supersedes the active predecessor and deletion restores it', () => {
+test('replacing a confirmed preference removes the predecessor permanently', () => {
   const state = {
     profileEntries: [{
       id: 'brief',
@@ -97,20 +97,11 @@ test('a newer confirmed preference supersedes the active predecessor and deletio
     now: '2026-07-11T13:00:00.000Z'
   });
 
-  assert.deepEqual(replaced.profileEntries.map(entry => ({ id: entry.id, status: entry.status, supersededBy: entry.supersededBy, supersedes: entry.supersedes })), [
-    { id: 'brief', status: 'superseded', supersededBy: 'detailed', supersedes: undefined },
-    { id: 'detailed', status: 'active', supersededBy: undefined, supersedes: ['brief'] }
+  assert.deepEqual(replaced.profileEntries.map(entry => ({ id: entry.id, status: entry.status, supersedes: entry.supersedes })), [
+    { id: 'detailed', status: 'active', supersedes: ['brief'] }
   ]);
-  const restored = removeProfileEntry(replaced, { entryId: 'detailed', now: '2026-07-11T14:00:00.000Z' });
-  assert.deepEqual(restored.profileEntries, [{
-    id: 'brief',
-    kind: 'preference',
-    content: 'Keep replies concise',
-    status: 'active',
-    confirmedByUser: true,
-    supersededBy: null,
-    updatedAt: '2026-07-11T14:00:00.000Z'
-  }]);
+  const removed = removeProfileEntry(replaced, { entryId: 'detailed', now: '2026-07-11T14:00:00.000Z' });
+  assert.deepEqual(removed.profileEntries, []);
 });
 
 test('supersession rejects missing or inactive predecessors', () => {

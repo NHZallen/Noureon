@@ -78,3 +78,32 @@ test('preserves separate recent conversation state for capture de-duplication', 
 
   assert.deepEqual(state.recentConversationStates, recentConversationStates);
 });
+
+test('drops legacy superseded profile entries during normalization', () => {
+  const state = normalizeMemoryState({
+    memoryState: {
+      version: MEMORY_SCHEMA_VERSION,
+      profileEntries: [
+        { id: 'removed', content: 'Old preference', status: 'superseded' },
+        { id: 'active', content: 'New preference', status: 'active' }
+      ]
+    }
+  });
+
+  assert.deepEqual(state.profileEntries.map(entry => entry.id), ['active']);
+});
+
+test('drops identity and assistant-meta long-term summaries during normalization', () => {
+  const state = normalizeMemoryState({
+    memoryState: {
+      version: MEMORY_SCHEMA_VERSION,
+      longTermTopicSummaries: [
+        { id: 'identity', topic: 'User identity confirmation', summary: 'The user confirmed a name.' },
+        { id: 'assistant', topic: 'Assistant Identity', summary: 'The user asked about the assistant identity.' },
+        { id: 'project', topic: 'Project architecture', summary: 'The user is designing a project architecture.' }
+      ]
+    }
+  });
+
+  assert.deepEqual(state.longTermTopicSummaries.map(summary => summary.id), ['project']);
+});
