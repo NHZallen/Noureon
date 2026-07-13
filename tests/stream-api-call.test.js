@@ -298,6 +298,45 @@ test('Gemini requests preserve native payload, headers, web search, and partial 
   assert.equal(warnings[0].at(-1), '{"candidates":[}');
 });
 
+test('Gemini streaming ignores chart braces inside text across response objects', async () => {
+  const createGeminiChunk = (text) => JSON.stringify({
+    candidates: [{
+      content: {
+        parts: [{ text }],
+        role: 'model'
+      },
+      index: 0
+    }]
+  });
+  const textChunks = [
+    'Before chart\n\n```chart\n{\n  "type": "bar"',
+    ',\n  "data": [{ "label": "A", "value": 1 }]',
+    '\n}\n```\n\nAfter chart'
+  ];
+  const warnings = [];
+  const { streamApiCall } = createHarness({
+    provider: 'gemini',
+    warn: (...args) => warnings.push(args),
+    fetchImpl: async () => createResponse({
+      streamChunks: [
+        `[\n${createGeminiChunk(textChunks[0])},\n`,
+        `${createGeminiChunk(textChunks[1])},\n`,
+        `${createGeminiChunk(textChunks[2])}\n]`
+      ]
+    })
+  });
+  const received = [];
+
+  const finalText = await streamApiCall(
+    [{ text: 'Compare values in a chart' }],
+    (chunk) => received.push(chunk)
+  );
+
+  assert.deepEqual(received, textChunks);
+  assert.equal(finalText, textChunks.join(''));
+  assert.deepEqual(warnings, []);
+});
+
 test('Gemini requests include selected thinking level when the model supports it', async () => {
   const { streamApiCall, requests } = createHarness({
     provider: 'gemini',

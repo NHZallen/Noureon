@@ -476,6 +476,37 @@ const getProviderErrorMessage = (errorBody, fallback = 'API 請求失敗') => (
   fallback
 );
 
+const findCompleteJsonObjectEnd = (source, startIndex) => {
+  let braceCount = 0;
+  let isInString = false;
+  let isEscaped = false;
+
+  for (let index = startIndex; index < source.length; index += 1) {
+    const character = source[index];
+    if (isInString) {
+      if (isEscaped) {
+        isEscaped = false;
+      } else if (character === '\\') {
+        isEscaped = true;
+      } else if (character === '"') {
+        isInString = false;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      isInString = true;
+    } else if (character === '{') {
+      braceCount += 1;
+    } else if (character === '}') {
+      braceCount -= 1;
+      if (braceCount === 0) return index;
+    }
+  }
+
+  return -1;
+};
+
 const consumeGeminiStream = async ({ reader, decoder, onChunk, warn }) => {
   let buffer = '';
   let fullText = '';
@@ -487,19 +518,7 @@ const consumeGeminiStream = async ({ reader, decoder, onChunk, warn }) => {
       const firstBrace = buffer.indexOf('{');
       if (firstBrace === -1) break;
 
-      let braceCount = 0;
-      let endIndex = -1;
-      for (let index = firstBrace; index < buffer.length; index += 1) {
-        if (buffer[index] === '{') {
-          braceCount += 1;
-        } else if (buffer[index] === '}') {
-          braceCount -= 1;
-        }
-        if (braceCount === 0) {
-          endIndex = index;
-          break;
-        }
-      }
+      const endIndex = findCompleteJsonObjectEnd(buffer, firstBrace);
       if (endIndex === -1) break;
 
       const jsonString = buffer.substring(firstBrace, endIndex + 1);

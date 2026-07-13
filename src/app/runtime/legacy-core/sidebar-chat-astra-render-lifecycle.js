@@ -116,6 +116,12 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
   const getSelectedConversationIds = () => state.selectedConversationIds;
   const getIsSelectionMode = () => Boolean(state.isSelectionMode);
   const getIsAutoScrolling = () => Boolean(state.isAutoScrolling);
+  const isCouncilConversation = (conversation) => (
+    isCouncilEnabled(conversation) ||
+    (conversation?.messages || []).some((message) => (
+      message?.role === 'model' && Boolean(message?.council)
+    ))
+  );
 
   const renderFolders = () => {
     const folderList = runtimeDomAccess.getRequiredElement('folderList');
@@ -212,7 +218,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     const currentConversationId = conversationStateAccess.getCurrentConversationId();
     item.className = `sidebar-item w-full text-left p-3 rounded-lg flex items-center justify-between cursor-pointer ${conv.id === currentConversationId && !getIsSelectionMode() ? 'active' : ''}`;
     item.dataset.id = conv.id;
-    const modelDisplayName = isCouncilEnabled(conv)
+    const modelDisplayName = isCouncilConversation(conv)
       ? (getCouncilTexts()?.title || 'Model Council')
       : (normalizeConversationModel(conv)?.name || '');
     const modelNameSuffix = modelDisplayName ? `<span class="model-suffix" title="${escapeHTML(modelDisplayName)}">${escapeHTML(modelDisplayName)}</span>` : '';

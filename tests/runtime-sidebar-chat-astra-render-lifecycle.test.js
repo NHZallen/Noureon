@@ -237,6 +237,33 @@ test('sidebar identifies a council conversation by the council label instead of 
   assert.doesNotMatch(renderedContent, /Fallback model/);
 });
 
+test('sidebar keeps the council label after the council toggle is disabled', () => {
+  const dependencies = createDependencies({
+    isCouncilEnabled: (conversation) => Boolean(conversation?.council?.enabled),
+    getCouncilTexts: () => ({ title: 'Model Council' }),
+    normalizeConversationModel: () => ({ name: 'Fallback model' })
+  });
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+
+  lifecycle.createConversationElement({
+    id: 'completed-council-conversation',
+    title: 'Completed council discussion',
+    council: { enabled: false },
+    messages: [{
+      role: 'model',
+      parts: [{ text: 'Council answer' }],
+      council: {
+        participantModelIds: ['model-a', 'model-b'],
+        synthesizerModelId: 'model-c'
+      }
+    }]
+  });
+
+  const renderedContent = dependencies._createdElements.map(element => element.innerHTML).join('\n');
+  assert.match(renderedContent, /Model Council/);
+  assert.doesNotMatch(renderedContent, /Fallback model/);
+});
+
 test('folder expansion persists device-local UI state instead of app data', () => {
   const source = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
   const renderFoldersStart = source.indexOf('const renderFolders = () => {');

@@ -10,7 +10,7 @@ test('sidebar search stays solid while history models render as inline gray meta
   assert.match(css, /\.conversation-sidebar-copy[^{]*\{[^}]*flex-direction:\s*column;/s);
   assert.match(css, /\.model-suffix[^{]*\{[^}]*color:\s*var\(--text-secondary\);/s);
   assert.doesNotMatch(css, /\.sidebar-item:hover\s+\.model-suffix[^{]*\{[^}]*display:\s*none;/s);
-  assert.match(sidebarChatAstraRenderSource, /const\s+modelDisplayName\s*=\s*isCouncilEnabled\(conv\)[\s\S]*getCouncilTexts\(\)\?\.title\s*\|\|\s*'Model Council'/);
+  assert.match(sidebarChatAstraRenderSource, /const\s+modelDisplayName\s*=\s*isCouncilConversation\(conv\)[\s\S]*getCouncilTexts\(\)\?\.title\s*\|\|\s*'Model Council'/);
   assert.doesNotMatch(sidebarChatAstraRenderSource, /modelInfo\.name\.split\(' \('\)/);
   assert.doesNotMatch(css, /\.dark\b|dark\\:|dark:/);
 });
