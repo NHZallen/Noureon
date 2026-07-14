@@ -1,3 +1,5 @@
+import { escapeHTML } from '../../runtime/legacy-core/legacy-core-utilities.js';
+
 const EDIT_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>';
 const PIN_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9" /></svg>';
 const MOVE_OUT_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 0 0-2.25 2.25v9a2.25 2.25 0 0 0 2.25 2.25h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25H15m0-3-3-3m0 0-3 3m3-3v11.25" /></svg>';
@@ -13,7 +15,7 @@ export function buildConversationMobileContextMenuMarkup({ title, folderId, pinn
     : `<div class="menu-item" data-action="move-to">${MOVE_TO_ICON_SVG}<span>${text.moveToFolder || '移至資料夾'}</span></div>`;
   const pinText = pinned ? (text.unpin || '取消釘選') : (text.pin || '釘選');
   return `
-                <div class="menu-header">${title}</div>
+                <div class="menu-header">${escapeHTML(title)}</div>
                 <div class="menu-options">
                     <div class="menu-item" data-action="rename">${EDIT_ICON_SVG}<span>${text.rename || '重新命名'}</span></div>
                     <div class="menu-item" data-action="pin">${PIN_ICON_SVG}<span>${pinText}</span></div>
@@ -26,7 +28,7 @@ export function buildConversationMobileContextMenuMarkup({ title, folderId, pinn
 
 export function buildFolderMobileContextMenuMarkup({ name, text = {} } = {}) {
   return `
-                <div class="menu-header">${name}</div>
+                <div class="menu-header">${escapeHTML(name)}</div>
                 <div class="menu-options">
                     <div class="menu-item" data-action="rename-folder">
                         ${EDIT_ICON_SVG}
@@ -60,7 +62,7 @@ export function buildAstraMobileContextMenuMarkup({ name, officialId, text = {} 
                     <div class="menu-item delete" data-action="delete-astras">${DELETE_ICON_SVG}<span>${text.delete || '刪除'}</span></div>
                 `;
   return `
-                <div class="menu-header">${name}</div>
+                <div class="menu-header">${escapeHTML(name)}</div>
                 <div class="menu-options">${menuOptions}</div>
             `;
 }

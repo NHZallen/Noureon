@@ -1,3 +1,5 @@
+import { escapeHTML } from '../../runtime/legacy-core/legacy-core-utilities.js';
+
 export function createSidebarAstrasLifecycle({
     astras,
     clearTimeoutFn = (...args) => globalThis.clearTimeout?.(...args),
@@ -43,15 +45,16 @@ export function createSidebarAstrasLifecycle({
             item.className = `sidebar-item w-full text-left p-2.5 rounded-lg flex items-center justify-between cursor-pointer ${ast.id === activeAstrasId && !getSelectionMode() ? 'active' : ''}`;
             item.dataset.id = ast.id;
             const avatarUrl = ast.avatarUrl;
-            const initials = displayAstra.name.charAt(0);
+            const safeName = escapeHTML(displayAstra.name);
+            const initials = escapeHTML(displayAstra.name.charAt(0));
             const avatarElement = `
                     <div class="astras-sidebar-avatar">
-                        ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover rounded-full">` : initials}
+                        ${avatarUrl ? `<img src="${escapeHTML(avatarUrl)}" class="w-full h-full object-cover rounded-full">` : initials}
                     </div>`;
             item.innerHTML = `
                     <div class="flex items-center truncate flex-1">
                         ${avatarElement}
-                        <span class="truncate pr-2 text-sm">${displayAstra.name}</span>
+                        <span class="truncate pr-2 text-sm">${safeName}</span>
                     </div>
                     <button class="astras-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--hover-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>

@@ -269,6 +269,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         loadChat,
         startNewChat,
         showCustomConfirm,
+        showCustomPrompt,
         showNotification,
         toggleModal,
         getOutputMode,
@@ -277,6 +278,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         randomUUID,
         getGeneratedImageBlob,
         saveGeneratedImageBlob,
+        storage: dependencies.runtimeStorageAdapter,
         delay,
         logger,
     });
@@ -309,6 +311,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         initChatApp: () => legacyRuntimeContext.resolveBinding('app.initChatApp')(),
         i18n,
         logger,
+        resolveImportedApiKeys: importExportLifecycle.resolveImportedApiKeys,
     });
 
     const setupVoiceInput = () => {

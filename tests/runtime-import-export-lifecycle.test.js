@@ -64,6 +64,9 @@ function createHarness({
   astras = [],
   personalMemories = [],
   sensitiveApiKeys = { ...(config.apiKeys || {}) },
+  vaultRecord = { version: 1, salt: 'vault-salt' },
+  vaultUnlocked = true,
+  promptResponses = ['sync-password'],
   importFile
 } = {}) {
   const calls = [];
@@ -224,20 +227,37 @@ function createHarness({
     setUserBubbleColor: () => calls.push(['setUserBubbleColor']),
     loadChat: (id) => calls.push(['loadChat', id]),
     startNewChat: () => calls.push(['startNewChat']),
-    showCustomConfirm: async () => {
-      calls.push(['confirm']);
+    showCustomConfirm: async (message, title) => {
+      calls.push(['confirm', message, title]);
       return true;
+    },
+    showCustomPrompt: async (message, title, inputType) => {
+      calls.push(['prompt', message, title, inputType]);
+      return promptResponses.shift() ?? null;
     },
     showNotification: (message, type) => calls.push(['notification', type, message]),
     toggleModal: (element, open) => calls.push(['toggleModal', element.id, open]),
     getOutputMode: () => 'normal',
     resolveSearchSetupSettingsModal: () => calls.push(['resolveSearchSetupSettingsModal']),
     randomUUID: () => '12345678-1234-1234-1234-123456789abc',
+    storage: {},
+    syncVault: {
+      readRecord: async () => vaultRecord,
+      getUnlockedKey: () => vaultUnlocked ? { id: 'unlocked-key' } : null,
+      unlockRecord: async (password) => {
+        if (password !== 'sync-password') throw new Error('Incorrect sync vault password.');
+        return { id: 'password-key' };
+      },
+      encryptPayload: async () => ({ version: 1, algorithm: 'AES-GCM', ciphertext: 'encrypted-api-keys' }),
+      decryptPayload: async () => ({ apiKeys: { restored: 'restored-secret' } })
+    },
     i18n: {
       en: {
         confirmAndImport: 'Confirm and import',
         exportFailed: 'Export failed',
         exportSuccess: 'Export success',
+        exportApiKeysWarning: 'Localized encrypted export warning',
+        exportApiKeysWarningTitle: 'Localized export title',
         importConfirmation: 'Confirm',
         importFailed: 'Import failed',
         importSuccess: 'Import success',
@@ -420,7 +440,13 @@ test('handleExport uses live getters and packages every selected data group', as
   assert.deepEqual(exportedData.astras, [{ id: 'astra-1', name: 'Astra One' }]);
   assert.deepEqual(exportedData.personalMemories, [{ id: 'memory-1' }]);
   assert.equal(exportedData.settings.defaultModel, 'model-a');
-  assert.deepEqual(exportedData.apiKeys, sensitiveApiKeys);
+  assert.equal('apiKeys' in exportedData, false);
+  assert.equal(JSON.stringify(exportedData).includes('sensitive-gemini-key'), false);
+  assert.deepEqual(exportedData.encryptedApiKeys, {
+    version: 1,
+    vaultRecord: { version: 1, salt: 'vault-salt' },
+    payload: { version: 1, algorithm: 'AES-GCM', ciphertext: 'encrypted-api-keys' }
+  });
   assert.equal(calls.some((call) => call[0] === 'zipFile' && call[1] === 'data.json'), true);
   assert.equal(calls.some((call) => call[0] === 'zipGenerate'), true);
   assert.equal(calls.some((call) => call[0] === 'File' && /^noureon_backup_alice_\d{4}-\d{2}-\d{2}\.zip$/.test(call[1])), true);
@@ -472,7 +498,7 @@ test('handleExport excludes apiKeys from normal settings exports by default', as
   }
 });
 
-test('handleExport preserves explicit opt-in full apiKeys export', async () => {
+test('handleExport encrypts explicit API key exports and uses localized warning copy', async () => {
   const sensitiveApiKeys = {
     gemini: 'gemini-secret',
     openrouter: 'openrouter-secret',
@@ -508,8 +534,48 @@ test('handleExport preserves explicit opt-in full apiKeys export', async () => {
   const zip = FakeJSZip.instances.at(-1);
   const exportedData = JSON.parse(await zip.files['data.json'].async('string'));
 
-  assert.deepEqual(exportedData.apiKeys, sensitiveApiKeys);
+  assert.equal('apiKeys' in exportedData, false);
+  assert.equal(JSON.stringify(exportedData).includes('gemini-secret'), false);
+  assert.equal(exportedData.encryptedApiKeys.payload.ciphertext, 'encrypted-api-keys');
   assert.equal(calls.some((call) => call[0] === 'confirm'), true);
+  assert.equal(calls.some((call) => call[0] === 'confirm' && call[1] === 'Localized encrypted export warning'), true);
+});
+
+test('handleExport asks for the sync password as a password field when the vault is locked', async () => {
+  const { calls, elements, FakeJSZip, lifecycle } = createHarness({ vaultUnlocked: false });
+  elements.exportApiCheck.checked = true;
+
+  await lifecycle.handleExport();
+
+  assert.equal(calls.some((call) => call[0] === 'prompt' && call[3] === 'password'), true);
+  const exportedData = JSON.parse(await FakeJSZip.instances.at(-1).files['data.json'].async('string'));
+  assert.equal(exportedData.encryptedApiKeys.payload.ciphertext, 'encrypted-api-keys');
+});
+
+test('handleExport refuses plaintext API key export when no sync password exists', async () => {
+  const { calls, elements, FakeJSZip, lifecycle } = createHarness({ vaultRecord: null });
+  elements.exportApiCheck.checked = true;
+
+  await lifecycle.handleExport();
+
+  assert.equal(FakeJSZip.instances.length, 0);
+  assert.equal(calls.some((call) => call[0] === 'notification' && call[1] === 'warning'), true);
+});
+
+test('performImport decrypts encrypted API key backups before sensitive persistence', async () => {
+  const harness = createHarness();
+
+  await harness.lifecycle.performImport({
+    encryptedApiKeys: {
+      version: 1,
+      vaultRecord: { version: 1, salt: 'vault-salt' },
+      payload: { version: 1, algorithm: 'AES-GCM', ciphertext: 'encrypted-api-keys' }
+    }
+  });
+
+  assert.equal(harness.sensitiveApiKeys.restored, 'restored-secret');
+  assert.equal(harness.calls.some((call) => call[0] === 'saveSensitiveConfig'), true);
+  assert.equal(harness.calls.some((call) => call[0] === 'prompt'), false);
 });
 
 test('handleImport preserves partial-state behavior without rollback on outer errors', async () => {

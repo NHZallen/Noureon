@@ -5,6 +5,7 @@ import {
 import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer } from '../../legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '../../legacy-runtime/features/media-preview-lifecycle.js';
 import { createMessageListLifecycle } from '../../legacy-runtime/features/message-list-lifecycle.js';
+import { escapeHTML as escapeMarkup } from './legacy-core-utilities.js';
 
 const REQUIRED_DEPENDENCIES = [
   'window',
@@ -154,9 +155,9 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
                                     ${svgPath}
                                 </svg>
                             </span>
-                            <span class="font-medium truncate" style="color: ${textColor};">${folder.name}</span>
+                            <span class="font-medium truncate" style="color: ${textColor};">${escapeMarkup(folder.name)}</span>
                         </div>
-                        <button data-id="${folder.id}" class="folder-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--active-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
+                        <button data-id="${escapeMarkup(folder.id)}" class="folder-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--active-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
                     </div>
                     <div class="folder-content-container">
                         <div class="pl-4 mt-1 space-y-1">
@@ -315,11 +316,11 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       item.className = 'archived-chat-item';
       item.innerHTML = `
                     <div class="archived-chat-row">
-                        <span class="archived-chat-title">${conv.title}</span>
+                        <span class="archived-chat-title">${escapeMarkup(conv.title)}</span>
                         <div class="archived-chat-actions">
-                            <button data-id="${conv.id}" class="view-archived-btn text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200">${i18n[uiLanguage].view || '查看'}</button>
-                            <button data-id="${conv.id}" class="unarchive-btn text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">${i18n[uiLanguage].restore || '還原'}</button>
-                            <button data-id="${conv.id}" class="delete-btn text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200">${i18n[uiLanguage].delete || '刪除'}</button>
+                            <button data-id="${escapeMarkup(conv.id)}" class="view-archived-btn text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200">${i18n[uiLanguage].view || '查看'}</button>
+                            <button data-id="${escapeMarkup(conv.id)}" class="unarchive-btn text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">${i18n[uiLanguage].restore || '還原'}</button>
+                            <button data-id="${escapeMarkup(conv.id)}" class="delete-btn text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200">${i18n[uiLanguage].delete || '刪除'}</button>
                         </div>
                     </div>
                 `;

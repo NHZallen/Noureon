@@ -30,6 +30,7 @@ export function createLegacyAuthImportLifecycle({
   constantTimeEqual,
   showNotification,
   toggleModal,
+  resolveImportedApiKeys = async (data) => data?.apiKeys || null,
   requestAnimationFrame,
   scheduleTimeout,
   delay,
@@ -137,6 +138,8 @@ export function createLegacyAuthImportLifecycle({
         delete elements.authForm.dataset.importTargetUser;
       }
 
+      const importedApiKeys = await resolveImportedApiKeys(rawData);
+
       updateProgress(30, 'Identity verified. Restoring data...');
 
       const activeAppData = replaceAllAppData({
@@ -215,8 +218,8 @@ export function createLegacyAuthImportLifecycle({
           return config;
         });
       }
-      if (rawData.apiKeys) {
-        mergeSensitiveApiKeys(rawData.apiKeys);
+      if (importedApiKeys) {
+        mergeSensitiveApiKeys(importedApiKeys);
         await saveSensitiveConfig();
       }
       await saveConfig();

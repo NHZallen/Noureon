@@ -155,11 +155,20 @@ function createHarness({
       calls.push(['confirm', ...args]);
       return confirmApiKeyExport;
     },
+    showCustomPrompt: async () => 'sync-password',
     showNotification: (...args) => calls.push(['notification', ...args]),
     toggleModal: (...args) => calls.push(['toggleModal', ...args]),
     getOutputMode: () => 'typewriter',
     resolveSearchSetupSettingsModal: () => {},
     randomUUID: () => '12345678-1234-1234-1234-123456789abc',
+    storage: {},
+    syncVault: {
+      readRecord: async () => ({ version: 1, salt: 'vault-salt' }),
+      getUnlockedKey: () => ({ id: 'vault-key' }),
+      unlockRecord: async () => ({ id: 'vault-key' }),
+      encryptPayload: async () => ({ version: 1, algorithm: 'AES-GCM', ciphertext: 'encrypted-api-keys' }),
+      decryptPayload: async () => ({ apiKeys: config.apiKeys })
+    },
     i18n: { en: {} },
     delay: async () => {},
     logger: { error: (...args) => calls.push(['error', ...args]), log: () => {}, warn: () => {} }
@@ -189,14 +198,16 @@ test('normal export data.json excludes apiKeys and full provider secrets', async
   }
 });
 
-test('API key export is explicit opt-in and includes full keys only when confirmed', async () => {
+test('API key export is explicit opt-in and includes only encrypted keys when confirmed', async () => {
   const { calls, config, FakeJSZip, lifecycle } = createHarness({ exportApiKeys: true });
 
   await lifecycle.handleExport();
 
   const exportedData = parseExportedData(FakeJSZip);
 
-  assert.deepEqual(exportedData.apiKeys, config.apiKeys);
+  assert.equal('apiKeys' in exportedData, false);
+  assert.equal(JSON.stringify(exportedData).includes(config.apiKeys.gemini), false);
+  assert.equal(exportedData.encryptedApiKeys.payload.ciphertext, 'encrypted-api-keys');
   assert.equal(calls.some((call) => call[0] === 'confirm' && /API keys/i.test(`${call[1]} ${call[2]}`)), true);
 });
 

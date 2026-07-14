@@ -1,5 +1,12 @@
 import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
+import {
+  decryptSyncVaultPayload,
+  encryptSyncVaultPayload,
+  getUnlockedSyncVaultKey,
+  readSyncVaultRecord,
+  unlockSyncVaultRecord
+} from '../../sync/sync-vault.js';
 
 const IMPORT_CANCELLED = 'IMPORT_CANCELLED';
 
@@ -47,6 +54,7 @@ export function createLegacyImportExportLifecycle({
   loadChat,
   startNewChat,
   showCustomConfirm,
+  showCustomPrompt,
   showNotification,
   toggleModal,
   getOutputMode,
@@ -55,6 +63,14 @@ export function createLegacyImportExportLifecycle({
   randomUUID,
   getGeneratedImageBlob = async () => null,
   saveGeneratedImageBlob = async () => {},
+  storage = null,
+  syncVault = {
+    decryptPayload: decryptSyncVaultPayload,
+    encryptPayload: encryptSyncVaultPayload,
+    getUnlockedKey: getUnlockedSyncVaultKey,
+    readRecord: readSyncVaultRecord,
+    unlockRecord: unlockSyncVaultRecord
+  },
   delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   logger = console
 } = {}) {
@@ -75,6 +91,89 @@ export function createLegacyImportExportLifecycle({
     if (!apiKeys) return;
     mergeSensitiveApiKeys(apiKeys);
     await saveSensitiveConfig();
+  }
+
+  async function promptForVaultKey(record, { mode }) {
+    const isExport = mode === 'export';
+    while (true) {
+      const password = await showCustomPrompt(
+        text(
+          isExport ? 'exportApiKeysPasswordPrompt' : 'importApiKeysPasswordPrompt',
+          isExport
+            ? 'Enter your sync password to encrypt the API keys in this backup.'
+            : 'Enter the sync password used when this backup was created.'
+        ),
+        text(
+          isExport ? 'exportApiKeysPasswordTitle' : 'importApiKeysPasswordTitle',
+          isExport ? 'Unlock API key export' : 'Unlock API keys'
+        ),
+        'password'
+      );
+      if (password == null) return null;
+      try {
+        return await syncVault.unlockRecord(password, record);
+      } catch {
+        showNotification(text('importApiKeysPasswordIncorrect', 'The sync password is incorrect.'), 'error');
+      }
+    }
+  }
+
+  async function createEncryptedApiKeyBackup(apiKeys) {
+    const user = getCurrentUser();
+    const record = storage && user?.username
+      ? await syncVault.readRecord(storage, user.username)
+      : null;
+    if (!record) {
+      showNotification(
+        text('exportApiKeysRequiresSyncVault', 'Create a sync password before exporting API keys.'),
+        'warning'
+      );
+      return null;
+    }
+
+    const key = syncVault.getUnlockedKey(user.username)
+      || await promptForVaultKey(record, { mode: 'export' });
+    if (!key) return null;
+
+    return {
+      version: 1,
+      vaultRecord: record,
+      payload: await syncVault.encryptPayload({ apiKeys }, key)
+    };
+  }
+
+  async function resolveImportedApiKeys(data) {
+    if (!data?.encryptedApiKeys) return data?.apiKeys || null;
+    const encrypted = data.encryptedApiKeys;
+    const currentUsername = getCurrentUser()?.username;
+    const currentKey = currentUsername ? syncVault.getUnlockedKey(currentUsername) : null;
+
+    if (currentKey) {
+      try {
+        const decrypted = await syncVault.decryptPayload(encrypted.payload, currentKey);
+        return decrypted?.apiKeys || null;
+      } catch {
+        // The backup may use an older sync password or come from another device.
+      }
+    }
+
+    while (true) {
+      const key = await promptForVaultKey(encrypted.vaultRecord, { mode: 'import' });
+      if (!key) {
+        const skipApiKeys = await showCustomConfirm(
+          text('importWithoutApiKeysWarning', 'Continue importing the backup without its API keys?'),
+          text('importWithoutApiKeysTitle', 'Skip API keys?')
+        );
+        if (skipApiKeys) return null;
+        throw new Error(IMPORT_CANCELLED);
+      }
+      try {
+        const decrypted = await syncVault.decryptPayload(encrypted.payload, key);
+        return decrypted?.apiKeys || null;
+      } catch {
+        showNotification(text('importApiKeysPasswordIncorrect', 'The sync password is incorrect.'), 'error');
+      }
+    }
   }
 
   async function handleExport() {
@@ -120,15 +219,18 @@ export function createLegacyImportExportLifecycle({
       const confirmed = await showCustomConfirm(
         text(
           'exportApiKeysWarning',
-          'This export will include full API keys. Only continue if you will store the backup securely.'
+          'The API keys will be encrypted with your sync password before they are added to the backup.'
         ),
         text('exportApiKeysWarningTitle', 'Export API keys?')
       );
       if (!confirmed) return;
-      rawData.apiKeys = createExportSafeConfig(
+      const apiKeys = createExportSafeConfig(
         { apiKeys: getSensitiveApiKeys() },
         { includeSecrets: true }
       ).apiKeys || {};
+      const encryptedApiKeys = await createEncryptedApiKeyBackup(apiKeys);
+      if (!encryptedApiKeys) return;
+      rawData.encryptedApiKeys = encryptedApiKeys;
     }
     if (elements.exportMemoryCheck.checked) {
       rawData.personalMemories = getPersonalMemories();
@@ -277,7 +379,7 @@ export function createLegacyImportExportLifecycle({
     });
     await saveAppData();
     applySettings(data.settings);
-    await mergeApiKeys(data.apiKeys);
+    await mergeApiKeys(await resolveImportedApiKeys(data));
     await saveConfig();
   }
 
@@ -350,6 +452,8 @@ export function createLegacyImportExportLifecycle({
         throw new Error(IMPORT_CANCELLED);
       }
 
+      const importedApiKeys = await resolveImportedApiKeys(rawData);
+
       updateProgress(30, '準備匯入資料...');
 
       const activeAppData = replaceAllAppData({
@@ -360,7 +464,7 @@ export function createLegacyImportExportLifecycle({
       });
 
       applySettings(rawData.settings);
-      await mergeApiKeys(rawData.apiKeys);
+      await mergeApiKeys(importedApiKeys);
       await saveConfig();
 
       const astrasToImport = rawData.astras || [];
@@ -495,6 +599,7 @@ export function createLegacyImportExportLifecycle({
   return {
     handleExport,
     performImport,
-    handleImport
+    handleImport,
+    resolveImportedApiKeys
   };
 }

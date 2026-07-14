@@ -55,6 +55,27 @@ test('renders sidebar Astras with active state, dataset, labels, and avatar mark
   }
 });
 
+test('renders imported Astra names and avatar URLs as inert content', () => {
+  const maliciousName = '<img class="injected" src=x onerror="stealKeys()">安全名稱';
+  const maliciousAvatarUrl = 'https://example.test/avatar.png" onerror="stealKeys()';
+  const { cleanup, document, lifecycle } = createHarness({
+    astras: [{ id: 'unsafe-astra', name: maliciousName, avatarUrl: maliciousAvatarUrl }]
+  });
+
+  try {
+    lifecycle.renderAstras();
+
+    const item = document.querySelector('[data-id="unsafe-astra"]');
+    const avatar = item.querySelector('img');
+    assert.equal(item.querySelector('.injected'), null);
+    assert.equal(item.querySelector('span').textContent, maliciousName);
+    assert.equal(avatar.getAttribute('src'), maliciousAvatarUrl);
+    assert.equal(avatar.getAttribute('onerror'), null);
+  } finally {
+    cleanup();
+  }
+});
+
 test('click and options events preserve assignment, sidebar, and menu handoffs', () => {
   const { calls, cleanup, document, lifecycle } = createHarness();
   try {

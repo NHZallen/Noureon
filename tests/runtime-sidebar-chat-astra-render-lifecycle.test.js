@@ -237,6 +237,39 @@ test('sidebar identifies a council conversation by the council label instead of 
   assert.doesNotMatch(renderedContent, /Fallback model/);
 });
 
+test('folder and archived conversation renderers escape imported markup', () => {
+  const dependencies = createDependencies();
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const maliciousText = '<img src=x onerror="stealKeys()">安全名稱';
+  const maliciousId = 'unsafe" onclick="stealKeys()';
+  dependencies.state.folders = [{
+    id: maliciousId,
+    name: maliciousText,
+    icon: 'default',
+    color: 'gray',
+    textColor: 'gray',
+    isOpen: true,
+    conversationIds: []
+  }];
+  dependencies.state.conversations = [{
+    id: maliciousId,
+    title: maliciousText,
+    archived: true,
+    createdAt: '2026-07-14T00:00:00.000Z'
+  }];
+
+  lifecycle.renderFolders();
+  lifecycle.renderArchivedChats();
+
+  const folderMarkup = dependencies._createdElements[0].innerHTML;
+  const archivedMarkup = dependencies._createdElements[1].innerHTML;
+  for (const markup of [folderMarkup, archivedMarkup]) {
+    assert.doesNotMatch(markup, /<img\b/i);
+    assert.doesNotMatch(markup, /onclick="stealKeys\(\)"/i);
+    assert.match(markup, /&lt;img src=x onerror=&quot;stealKeys\(\)&quot;&gt;安全名稱/);
+  }
+});
+
 test('sidebar keeps the council label after the council toggle is disabled', () => {
   const dependencies = createDependencies({
     isCouncilEnabled: (conversation) => Boolean(conversation?.council?.enabled),

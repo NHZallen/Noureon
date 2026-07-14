@@ -20,7 +20,6 @@ import { createMediaMemoryService } from '../memory/media-memory-service.js';
 import { createGeminiHistoryQueryResolverClient } from '../memory/gemini-history-query-resolver-client.js';
 import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
 import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
-
 const requiredDependencies = [
     'window', 'document', 'elements', 'legacyRuntimeContext', 'state',
     'runtimeConfigAccess', 'runtimeAppDataStore', 'runtimeDialogCoordinator',
@@ -207,6 +206,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         JSZip,
         elements: ALL_ELEMENTS,
         legacyRuntimeContext,
+        runtimeStorageAdapter,
         getConfig: () => state.config,
         getSensitiveApiKeys,
         mutateConfig: (mutator) => {

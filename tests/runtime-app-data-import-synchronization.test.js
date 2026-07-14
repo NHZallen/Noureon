@@ -99,7 +99,7 @@ test('performImport keeps four-group replacement before app and config persisten
     'personalMemories: data.personalMemories || []',
     'await saveAppData()',
     'applySettings(data.settings)',
-    'mergeApiKeys(data.apiKeys)',
+    'mergeApiKeys(await resolveImportedApiKeys(data))',
     'await saveConfig()'
   ], 'performImport persistence boundary');
 });

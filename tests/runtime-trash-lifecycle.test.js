@@ -163,6 +163,27 @@ test('renderTrash reads live conversations and preserves empty and list states',
   assert.match(harness.elements.trashListContainer.children[0].innerHTML, /Deleted chat/);
 });
 
+test('renderTrash escapes imported titles and ids before inserting markup', () => {
+  const maliciousTitle = '<img src=x onerror="stealKeys()">安全標題';
+  const maliciousId = 'unsafe" onclick="stealKeys()';
+  const harness = createHarness({
+    conversations: [{
+      id: maliciousId,
+      title: maliciousTitle,
+      deletedAt: '2026-07-14T00:00:00.000Z',
+      messages: []
+    }]
+  });
+
+  harness.lifecycle.renderTrash();
+
+  const markup = harness.elements.trashListContainer.children[0].innerHTML;
+  assert.doesNotMatch(markup, /<img\b/i);
+  assert.doesNotMatch(markup, /onclick="stealKeys\(\)"/i);
+  assert.match(markup, /&lt;img src=x onerror=&quot;stealKeys\(\)&quot;&gt;安全標題/);
+  assert.match(markup, /data-id="unsafe&quot; onclick=&quot;stealKeys\(\)"/);
+});
+
 test('single restore mutates the live conversation before save, render, and notification', async () => {
   const conversation = {
     id: 'deleted',

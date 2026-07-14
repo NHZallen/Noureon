@@ -88,6 +88,21 @@ test('builds Astra mobile menu markup for official and user-created Astras', () 
   assert.match(userMarkup, /<span>Edit Astra<\/span>/);
 });
 
+test('escapes imported names in every mobile context menu header', () => {
+  const maliciousName = '<img src=x onerror="stealKeys()">安全名稱';
+  const markups = [
+    buildConversationMobileContextMenuMarkup({ title: maliciousName }),
+    buildFolderMobileContextMenuMarkup({ name: maliciousName }),
+    buildAstraMobileContextMenuMarkup({ name: maliciousName })
+  ];
+
+  for (const markup of markups) {
+    assert.doesNotMatch(markup, /<img\b/i);
+    assert.doesNotMatch(markup, /onerror="stealKeys\(\)"/i);
+    assert.match(markup, /&lt;img src=x onerror=&quot;stealKeys\(\)&quot;&gt;安全名稱/);
+  }
+});
+
 test('mobile context menu markup helper has no runtime side-effect tokens', () => {
   const source = readSource('src/app/legacy-runtime/features/mobile-context-menu-markup.js');
   const sourceWithoutExportNames = source
