@@ -264,7 +264,7 @@
         importApiKeysPasswordIncorrect: 'The sync password is incorrect. Please try again.',
         importWithoutApiKeysTitle: 'Skip API keys?',
         importWithoutApiKeysWarning: 'Continue importing the rest of the backup without its API keys?',
-        exportPersonalMemory: 'Personal Habits Memory (Type 1)',
+        exportPersonalMemory: 'Confirmed personal preferences',
         cancel: 'Cancel',
         confirmAndExport: 'Confirm & Export',
         importDataDesc: 'Select a previously exported `.json` or `.zip` file. All current data will be overwritten.',

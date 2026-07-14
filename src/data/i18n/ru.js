@@ -259,7 +259,7 @@ const ru = {
   "importApiKeysPasswordIncorrect": "Неверный пароль синхронизации. Повторите попытку.",
   "importWithoutApiKeysTitle": "Пропустить ключи API?",
   "importWithoutApiKeysWarning": "Продолжить импорт остальных данных без ключей API?",
-  "exportPersonalMemory": "Память личных привычек (тип 1)",
+  "exportPersonalMemory": "Подтвержденные личные предпочтения",
   "cancel": "Отмена",
   "confirmAndExport": "Подтвердить и экспортировать",
   "importDataDesc": "Выберите ранее экспортированный файл .json или .zip. Все текущие данные будут перезаписаны.",

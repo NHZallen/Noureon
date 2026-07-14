@@ -128,6 +128,29 @@ test('toggleModal preserves open, transition close, fallback, and missing-elemen
   }
 });
 
+test('reopening a modal cancels the stale close event from its previous dialog', () => {
+  const harness = createHarness();
+  try {
+    const modal = harness.elements.customDialogModal;
+
+    harness.functions.toggleModal(modal, true);
+    harness.functions.toggleModal(modal, false);
+    const staleCloseTimer = harness.timers.at(-1);
+
+    harness.functions.toggleModal(modal, true);
+    assert.equal(staleCloseTimer.cancelled, true);
+
+    modal.dispatchEvent(new harness.window.Event('transitionend'));
+    staleCloseTimer.callback();
+
+    assert.equal(harness.document.body.classList.contains('modal-open'), true);
+    assert.equal(modal.classList.contains('hidden'), false);
+    assert.equal(modal.classList.contains('visible'), true);
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('custom confirm resolves accepted and rejected choices while cleaning dialog state', async () => {
   for (const { buttonIndex, expected } of [
     { buttonIndex: 1, expected: true },

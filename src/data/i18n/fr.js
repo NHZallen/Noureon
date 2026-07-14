@@ -264,7 +264,7 @@
         importApiKeysPasswordIncorrect: 'Le mot de passe de synchronisation est incorrect. Réessayez.',
         importWithoutApiKeysTitle: 'Ignorer les clés API ?',
         importWithoutApiKeysWarning: 'Continuer à importer le reste de la sauvegarde sans les clés API ?',
-        exportPersonalMemory: 'Mémoire des Habitudes (Type 1)',
+        exportPersonalMemory: 'Préférences personnelles confirmées',
         cancel: 'Annuler',
         confirmAndExport: 'Confirmer & Exporter',
         importDataDesc: 'Sélectionnez un fichier `.json` ou `.zip` précédemment exporté. Toutes les données actuelles seront écrasées.',

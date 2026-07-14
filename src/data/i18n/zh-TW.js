@@ -264,7 +264,7 @@
         importApiKeysPasswordIncorrect: '同步密碼不正確，請再試一次。',
         importWithoutApiKeysTitle: '略過 API 金鑰？',
         importWithoutApiKeysWarning: '要略過 API 金鑰，繼續匯入其他備份資料嗎？',
-        exportPersonalMemory: '個人習慣記憶 (類型1)',
+        exportPersonalMemory: '已確認的個人偏好',
         cancel: '取消',
         confirmAndExport: '確認並匯出',
         importDataDesc: '選擇一個之前匯出的 `.json` 或 `.zip` 檔案。目前的所有資料將會被覆蓋。',

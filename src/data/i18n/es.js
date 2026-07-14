@@ -259,7 +259,7 @@ const es = {
   "importApiKeysPasswordIncorrect": "La contraseña de sincronización es incorrecta. Inténtelo de nuevo.",
   "importWithoutApiKeysTitle": "¿Omitir las claves API?",
   "importWithoutApiKeysWarning": "¿Continuar importando el resto de la copia de seguridad sin sus claves API?",
-  "exportPersonalMemory": "Memoria de hábitos personales (tipo 1)",
+  "exportPersonalMemory": "Preferencias personales confirmadas",
   "cancel": "Cancelar",
   "confirmAndExport": "Confirmar y exportar",
   "importDataDesc": "Seleccione un archivo `.json` o `.zip` previamente exportado. Se sobrescribirán todos los datos actuales.",

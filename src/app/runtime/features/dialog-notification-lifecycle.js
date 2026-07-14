@@ -6,6 +6,16 @@ export function createDialogNotificationLifecycle({
   requestAnimationFrame,
   getText = (_key, fallback) => fallback
 }) {
+  const modalCloseStates = new WeakMap();
+
+  const cancelPendingModalClose = (modalElement) => {
+    const closeState = modalCloseStates.get(modalElement);
+    if (!closeState) return;
+    clearTimeout(closeState.timer);
+    modalElement.removeEventListener('transitionend', closeState.onTransitionEnd);
+    modalCloseStates.delete(modalElement);
+  };
+
   const showNotification = (message, type = 'success') => {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
@@ -16,13 +26,8 @@ export function createDialogNotificationLifecycle({
 
   const toggleModal = (modalElement, show) => {
     if (!modalElement) return;
-    const closeTimers = toggleModal.closeTimers || (toggleModal.closeTimers = new WeakMap());
+    cancelPendingModalClose(modalElement);
     if (show) {
-      const existingTimer = closeTimers.get(modalElement);
-      if (existingTimer) {
-        clearTimeout(existingTimer);
-        closeTimers.delete(modalElement);
-      }
       document.body.classList.add('modal-open');
       modalElement.classList.remove('hidden');
       requestAnimationFrame(() => {
@@ -31,18 +36,16 @@ export function createDialogNotificationLifecycle({
     } else {
       document.body.classList.remove('modal-open');
       modalElement.classList.remove('visible');
+      const closeState = {};
       const onTransitionEnd = () => {
+        if (modalCloseStates.get(modalElement) !== closeState) return;
         modalElement.classList.add('hidden');
-        modalElement.removeEventListener('transitionend', onTransitionEnd);
-        const timer = closeTimers.get(modalElement);
-        if (timer) {
-          clearTimeout(timer);
-          closeTimers.delete(modalElement);
-        }
+        cancelPendingModalClose(modalElement);
       };
+      closeState.onTransitionEnd = onTransitionEnd;
       modalElement.addEventListener('transitionend', onTransitionEnd);
-      const fallbackTimer = setTimeout(onTransitionEnd, 350);
-      closeTimers.set(modalElement, fallbackTimer);
+      closeState.timer = setTimeout(onTransitionEnd, 350);
+      modalCloseStates.set(modalElement, closeState);
     }
   };
 
