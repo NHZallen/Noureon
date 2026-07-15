@@ -94,7 +94,12 @@ test('runtime entry composes initChatApp while preserving late bootstrap event b
   assert.match(runtimeEntrySource, /startupLifecycle\.initializeApp\(\)/);
   assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);
   assert.doesNotMatch(appBootstrapLifecycleSource, /selectActiveConversationId/);
-  assert.match(initBody, /const\s+settingsDesktopLogoutBtn[\s\S]*?await\s+startNewChat\(\);\s*renderAll\(\);/);
+  assert.match(initBody, /const\s+settingsDesktopLogoutBtn[\s\S]*?await\s+startNewChat\(\);/);
+  assert.doesNotMatch(
+    initBody,
+    /await\s+startNewChat\(\);\s*renderAll\(\);/,
+    'initChatApp should rely on startNewChat rendering instead of rebuilding the whole UI again'
+  );
   assert.doesNotMatch(initBody, /if\s*\(!conversations\.find\(c\s*=>\s*!c\.archived\s*&&\s*!c\.deletedAt\)\)\s*startNewChat\(\);/);
   assert.doesNotMatch(initBody, /updateFileInputUI\(\);\s*startNewChat\(\);/);
   assert.match(p2pLifecycleSource, /createP2PScannerLifecycle\(\{/);

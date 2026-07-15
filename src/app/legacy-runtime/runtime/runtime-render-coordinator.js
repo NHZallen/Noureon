@@ -22,7 +22,8 @@ export function createRuntimeRenderCoordinator({
   renderBatchActionBar,
   renderFilePreviews,
   applyLanguage,
-  logger
+  logger,
+  diagnostics = false
 } = {}) {
   const callbacks = {
     renderHistorySidebar,
@@ -41,23 +42,30 @@ export function createRuntimeRenderCoordinator({
     }
   };
 
-  const renderSteps = (steps) => {
+  const traceRender = (scope, options) => {
+    if (!diagnostics || !options?.reason || typeof logger?.debug !== 'function') return;
+    logger.debug(`[runtime-render-coordinator] ${scope}`, options);
+  };
+
+  const renderSteps = (steps, options) => {
     for (const [name, callbackKey] of steps) {
         const callback = callbacks[callbackKey];
         if (typeof callback !== 'function') {
           warnMissingCallback(name);
           continue;
         }
-        callback();
+        callback(options);
     }
   };
 
   return {
-    renderAll() {
-      renderSteps(RENDER_STEPS);
+    renderAll(options) {
+      traceRender('renderAll', options);
+      renderSteps(RENDER_STEPS, options);
     },
-    renderSidebar() {
-      renderSteps(SIDEBAR_RENDER_STEPS);
+    renderSidebar(options) {
+      traceRender('renderSidebar', options);
+      renderSteps(SIDEBAR_RENDER_STEPS, options);
     }
   };
 }

@@ -205,7 +205,6 @@ export function createLegacyAppBootstrapLifecycle({
                 enhanceSettingsLogoutButton();
                 const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
                 await startNewChat();
-                renderAll();
                 updateFunctionButtonsState();
                 resolveEventsUpdateInputState();
                 setupVoiceInput();

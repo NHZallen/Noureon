@@ -107,10 +107,18 @@ test('renderChat renders greeting, populated messages, and no-conversation bound
   try {
     fixture.lifecycle.renderChat();
     assert.match(fixture.document.querySelector('#messages').innerHTML, /Astra, How can I help\?/);
+    assert.equal(
+      fixture.document.querySelector('#messages').classList.contains('chat-view-transition'),
+      true
+    );
 
     fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Existing' }] });
-    fixture.lifecycle.renderChat();
+    fixture.lifecycle.renderChat({ animate: true, reason: 'conversation-switch' });
     assert.equal(fixture.document.querySelectorAll('#messages .model-message').length, 1);
+    assert.equal(
+      fixture.document.querySelector('#messages').classList.contains('chat-view-transition'),
+      true
+    );
     assert.deepEqual(
       fixture.calls.filter((call) => ['modelSwitcher', 'inputIndicators', 'councilControls', 'observer', 'inputState'].includes(call)),
       [
@@ -130,6 +138,111 @@ test('renderChat renders greeting, populated messages, and no-conversation bound
     assert.deepEqual(emptyFixture.calls, ['inputIndicators', 'councilControls']);
   } finally {
     emptyFixture.cleanup();
+  }
+});
+
+test('renderChat can update controls without rebuilding or restyling the message list', () => {
+  const fixture = createFixture();
+  try {
+    const messageList = fixture.document.querySelector('#messages');
+    messageList.innerHTML = '<article data-existing-message>Keep this node</article>';
+    messageList.classList.add('chat-view-transition');
+    const existingMessage = messageList.firstElementChild;
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Replacement' }] });
+
+    fixture.lifecycle.renderChat({
+      renderMessages: false,
+      reason: 'cloud-config-changed'
+    });
+
+    assert.equal(messageList.firstElementChild, existingMessage);
+    assert.equal(messageList.textContent, 'Keep this node');
+    assert.equal(messageList.classList.contains('chat-view-transition'), true);
+    assert.deepEqual(fixture.calls, [
+      'modelSwitcher',
+      'inputIndicators',
+      'councilControls',
+      'inputState'
+    ]);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat can refresh without animation and preserves a reader scroll position', () => {
+  let chatContainer;
+  const fixture = createFixture({
+    buildMessageRenderView: ({ message }) => {
+      chatContainer.scrollTop = 0;
+      return {
+        messageClassName: 'model-message',
+        messageHTML: `<div class="message-content">${message.parts[0]?.text || ''}</div>`,
+        previewMediaParts: []
+      };
+    }
+  });
+  try {
+    chatContainer = fixture.document.querySelector('#chat');
+    const messageList = fixture.document.querySelector('#messages');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Existing' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: { configurable: true, value: 1000 },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTop = 250;
+    messageList.classList.add('chat-view-transition');
+
+    fixture.lifecycle.renderChat({
+      animate: false,
+      preserveScroll: true,
+      reason: 'cloud-current-conversation-changed'
+    });
+
+    assert.equal(messageList.classList.contains('chat-view-transition'), false);
+    assert.equal(chatContainer.scrollTop, 250);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat keeps a near-bottom reader pinned after a non-animated refresh', () => {
+  let rebuilt = false;
+  let chatContainer;
+  const fixture = createFixture({
+    buildMessageRenderView: ({ message }) => {
+      rebuilt = true;
+      chatContainer.scrollTop = 0;
+      return {
+        messageClassName: 'model-message',
+        messageHTML: `<div class="message-content">${message.parts[0]?.text || ''}</div>`,
+        previewMediaParts: []
+      };
+    }
+  });
+  try {
+    chatContainer = fixture.document.querySelector('#chat');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Existing' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: {
+        configurable: true,
+        get: () => (rebuilt ? 1200 : 1000)
+      },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTop = 590;
+    chatContainer.scrollTo = (options) => {
+      chatContainer.scrollTop = options.top;
+    };
+
+    fixture.lifecycle.renderChat({
+      animate: false,
+      preserveScroll: true,
+      reason: 'cloud-current-conversation-changed'
+    });
+
+    assert.equal(chatContainer.scrollTop, 1200);
+  } finally {
+    fixture.cleanup();
   }
 });
 

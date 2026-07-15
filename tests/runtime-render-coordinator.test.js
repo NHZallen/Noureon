@@ -71,6 +71,84 @@ test('renderSidebar refreshes navigation without rebuilding the chat or composer
   ]);
 });
 
+test('renderAll forwards diagnostic options to every render callback', () => {
+  const received = [];
+  const options = {
+    reason: 'cloud-current-conversation-changed',
+    animate: false,
+    preserveScroll: true
+  };
+  const record = (name) => (receivedOptions) => received.push([name, receivedOptions]);
+  const coordinator = createRuntimeRenderCoordinator({
+    renderHistorySidebar: record('renderHistorySidebar'),
+    renderFolders: record('renderFolders'),
+    renderAstras: record('renderAstras'),
+    renderChat: record('renderChat'),
+    renderArchivedChats: record('renderArchivedChats'),
+    renderBatchActionBar: record('renderBatchActionBar'),
+    renderFilePreviews: record('renderFilePreviews'),
+    applyLanguage: record('applyLanguage')
+  });
+
+  coordinator.renderAll(options);
+
+  assert.deepEqual(received, [
+    ['renderHistorySidebar', options],
+    ['renderFolders', options],
+    ['renderAstras', options],
+    ['renderChat', options],
+    ['renderArchivedChats', options],
+    ['renderBatchActionBar', options],
+    ['renderFilePreviews', options],
+    ['applyLanguage', options]
+  ]);
+  assert.ok(received.every(([, receivedOptions]) => receivedOptions === options));
+});
+
+test('renderSidebar forwards diagnostic options only to sidebar callbacks', () => {
+  const received = [];
+  const options = { reason: 'cloud-history-changed' };
+  const record = (name) => (receivedOptions) => received.push([name, receivedOptions]);
+  const coordinator = createRuntimeRenderCoordinator({
+    renderHistorySidebar: record('renderHistorySidebar'),
+    renderFolders: record('renderFolders'),
+    renderAstras: record('renderAstras'),
+    renderChat: record('renderChat'),
+    renderArchivedChats: record('renderArchivedChats'),
+    renderBatchActionBar: record('renderBatchActionBar'),
+    renderFilePreviews: record('renderFilePreviews'),
+    applyLanguage: record('applyLanguage')
+  });
+
+  coordinator.renderSidebar(options);
+
+  assert.deepEqual(received, [
+    ['renderHistorySidebar', options],
+    ['renderFolders', options],
+    ['renderAstras', options],
+    ['renderArchivedChats', options],
+    ['renderBatchActionBar', options]
+  ]);
+  assert.ok(received.every(([, receivedOptions]) => receivedOptions === options));
+});
+
+test('diagnostic mode logs an explicit render reason once per render scope', () => {
+  const calls = [];
+  const logs = [];
+  const coordinator = createOrderedCoordinator(calls, {
+    diagnostics: true,
+    logger: { debug: (...args) => logs.push(args) }
+  });
+
+  coordinator.renderSidebar({ reason: 'cloud-sidebar-changed' });
+  coordinator.renderAll();
+
+  assert.deepEqual(logs, [[
+    '[runtime-render-coordinator] renderSidebar',
+    { reason: 'cloud-sidebar-changed' }
+  ]]);
+});
+
 test('missing render callback is skipped with explicit warning', () => {
   const calls = [];
   const warnings = [];

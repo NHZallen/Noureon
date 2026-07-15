@@ -1954,7 +1954,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
   assert.doesNotMatch(fragment00Source, /let\s+activeConversationId\s*=/);
   assert.match(fragment00Source, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
   assert.match(fragment00Source, /showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/);
-  assert.match(fragment00Source, /renderHistorySidebar:\s*\(\)\s*=>\s*renderHistorySidebar\(\)/);
+  assert.match(fragment00Source, /renderHistorySidebar\s*,/);
   assert.match(fragment00Source, /const\s+renderAll\s*=\s*\(\.\.\.args\)\s*=>\s*runtimeRenderCoordinator\.renderAll\(\.\.\.args\);/);
 });
 
@@ -2309,10 +2309,10 @@ test('runtime render coordinator keeps sidebar-only updates out of the chat rend
   assert.match(fragment00Source, /import\s+\{\s*createRuntimeRenderCoordinator\s*\}/);
   assert.equal((fragment00Source.match(/createRuntimeRenderCoordinator\(\{/g) || []).length, 1);
   assert.match(fragment00Source, /const\s+runtimeRenderCoordinator\s*=\s*createRuntimeRenderCoordinator\(\{/);
-  assert.match(fragment00Source, /renderHistorySidebar:\s*\(\)\s*=>\s*renderHistorySidebar\(\)/);
+  assert.match(fragment00Source, /renderHistorySidebar\s*,/);
   assert.match(fragment00Source, /renderFolders:\s*\(\)\s*=>\s*renderFolders\(\)/);
   assert.match(fragment00Source, /renderAstras:\s*\(\)\s*=>\s*renderAstras\(\)/);
-  assert.match(fragment00Source, /renderChat:\s*\(\)\s*=>\s*renderChat\(\)/);
+  assert.match(fragment00Source, /renderChat:\s*options\s*=>\s*renderChat\(options\)/);
   assert.match(fragment00Source, /renderArchivedChats:\s*\(\)\s*=>\s*renderArchivedChats\(\)/);
   assert.match(fragment00Source, /renderBatchActionBar:\s*\(\)\s*=>\s*renderBatchActionBar\(\)/);
   assert.match(fragment00Source, /renderFilePreviews:\s*\(\)\s*=>\s*renderFilePreviews\(\)/);
@@ -3564,7 +3564,7 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   assert.match(messageListSource, /document\.createElement\('div'\)/);
   assert.match(messageListSource, /elements\.messageList\.appendChild\(messageElement\)/);
   assert.match(messageListSource, /elements\.chatContainer\.scrollTo/);
-  assert.match(messageListSource, /scheduleFrame\(\(\)\s*=>\s*setupMessageIntersectionObserver\(\)\)/);
+  assert.match(messageListSource, /scheduleFrame\(\(\)\s*=>\s*\{\s*setupMessageIntersectionObserver\(\);\s*restoreChatPosition\(\);\s*\}\)/);
   assert.match(dependencySource, /'copyTextToClipboard'/);
   assert.match(appBootstrapLifecycleSource, /e\.target\.closest\('\.copy-content-btn'\)/);
 

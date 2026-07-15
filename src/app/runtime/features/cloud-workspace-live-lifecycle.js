@@ -1,8 +1,11 @@
 import { normalizeLoadedLegacyAppData } from '../kernel/app-data-normalization.js';
 import { normalizeLoadedLegacyConfig } from '../kernel/config-normalization.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
-import { mergeRemoteWorkspaceAppData } from '../../sync/cloud-sync-versioning.js';
-import { mergeWorkspaceAppData } from '../../sync/cloud-sync-versioning.js';
+import {
+  cloudValuesEqual,
+  mergeRemoteWorkspaceAppData,
+  mergeWorkspaceAppData
+} from '../../sync/cloud-sync-versioning.js';
 import { preserveLocalFolderUiState } from '../../sync/cloud-workspace-app-data.js';
 import {
   applyAstraTombstones,
@@ -23,6 +26,52 @@ function preserveItemIdentity(currentItems = [], nextItems = []) {
   });
 }
 
+function getConversationSidebarState(conversation = {}) {
+  const {
+    messages: _messages,
+    unsentMessage: _unsentMessage,
+    genConfig: _genConfig,
+    imageConfig: _imageConfig,
+    reasoningEffort: _reasoningEffort,
+    isWebSearchEnabled: _isWebSearchEnabled,
+    astrasId: _astrasId,
+    ...sidebarState
+  } = conversation;
+  return sidebarState;
+}
+
+function getWorkspaceSidebarState(workspace = {}) {
+  return {
+    conversations: (workspace.conversations || []).map(getConversationSidebarState),
+    folders: workspace.folders || [],
+    astras: workspace.astras || []
+  };
+}
+
+function getActiveConversationState(workspace = {}, activeConversationId = null) {
+  if (!activeConversationId) return null;
+  const conversation = (workspace.conversations || [])
+    .find(item => item?.id === activeConversationId);
+  if (!conversation) return null;
+  const {
+    folderId: _folderId,
+    pinned: _pinned,
+    createdAt: _createdAt,
+    lastUpdatedAt: _lastUpdatedAt,
+    stateUpdatedAt: _stateUpdatedAt,
+    isNaming: _isNaming,
+    isRenamed: _isRenamed,
+    unsentMessage: _unsentMessage,
+    ...chatState
+  } = conversation;
+  return chatState;
+}
+
+function getVisibleConfigState(config = {}) {
+  const { memorySync: _memorySync, ...visibleConfig } = config;
+  return visibleConfig;
+}
+
 export function createCloudWorkspaceLiveLifecycle({
   window,
   configAccess,
@@ -38,6 +87,10 @@ export function createCloudWorkspaceLiveLifecycle({
   applyCustomWallpaper,
   applyUiTheme,
   renderAll,
+  renderSidebar,
+  renderChat,
+  applyLanguage = () => {},
+  getActiveConversation = () => null,
   saveAppData = async () => {},
   busy = () => false,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay)
@@ -66,6 +119,30 @@ export function createCloudWorkspaceLiveLifecycle({
     folders: new Set(tombstones.folderIds || [])
   });
 
+  const renderWorkspaceChanges = ({ sidebarChanged, activeConversationChanged, controlsChanged }) => {
+    const hasPreciseRenderers = typeof renderSidebar === 'function' && typeof renderChat === 'function';
+    if (!hasPreciseRenderers) {
+      renderAll?.({ reason: 'cloud-workspace-applied', animate: false, preserveScroll: true });
+      return;
+    }
+    if (sidebarChanged) {
+      renderSidebar({ reason: 'cloud-sidebar-changed' });
+    }
+    if (activeConversationChanged) {
+      renderChat({
+        reason: 'cloud-active-conversation-changed',
+        animate: false,
+        preserveScroll: true
+      });
+    } else if (controlsChanged) {
+      renderChat({
+        reason: 'cloud-conversation-controls-changed',
+        animate: false,
+        renderMessages: false
+      });
+    }
+  };
+
   const applyAppData = (rawData, options = {}) => {
     if (!rawData || !ready) {
       pendingAppData = rawData ? { rawData, options } : null;
@@ -92,8 +169,10 @@ export function createCloudWorkspaceLiveLifecycle({
       normalizeCouncilConfig,
       normalizeConversationModel
     });
+    const liveSnapshot = appDataStore.getSnapshot?.() || {};
+    const activeConversationId = getActiveConversation()?.id || null;
     const current = applyAstraTombstones(
-      applyWorkspaceTombstones(appDataStore.getSnapshot?.() || {}, tombstoneIndex),
+      applyWorkspaceTombstones(liveSnapshot, tombstoneIndex),
       astraTombstoneIds
     );
     const remoteWithLocalUi = preserveLocalFolderUiState(current, normalizedRemote);
@@ -101,13 +180,25 @@ export function createCloudWorkspaceLiveLifecycle({
       ? mergeWorkspaceAppData(current, remoteWithLocalUi)
       : mergeRemoteWorkspaceAppData(current, remoteWithLocalUi, protectedConversation);
     protectedConversation = null;
+    const sidebarChanged = !cloudValuesEqual(
+      getWorkspaceSidebarState(liveSnapshot),
+      getWorkspaceSidebarState(protectedRemote)
+    );
+    const activeConversationChanged = !cloudValuesEqual(
+      getActiveConversationState(liveSnapshot, activeConversationId),
+      getActiveConversationState(protectedRemote, activeConversationId)
+    );
+    const controlsChanged = !cloudValuesEqual(
+      liveSnapshot.astras || [],
+      protectedRemote.astras || []
+    );
     appDataStore.replaceAll({
       conversations: preserveItemIdentity(current.conversations, protectedRemote.conversations),
       folders: protectedRemote.folders,
       astras: protectedRemote.astras,
       personalMemories: protectedRemote.personalMemories
     });
-    renderAll();
+    renderWorkspaceChanges({ sidebarChanged, activeConversationChanged, controlsChanged });
   };
 
   const applyConfig = (savedConfig) => {
@@ -116,14 +207,30 @@ export function createCloudWorkspaceLiveLifecycle({
       return;
     }
     const responseActive = Boolean(busy());
+    const currentConfig = configAccess.getConfig();
+    const syncedConfig = removeSensitiveConfig(savedConfig);
     const normalizedConfig = normalizeLoadedLegacyConfig({
-      currentConfig: configAccess.getConfig(),
-      savedConfig: removeSensitiveConfig(savedConfig),
+      currentConfig,
+      savedConfig: syncedConfig,
       models,
       maxCouncilModels,
       councilTranslatorCandidates: getCouncilTranslatorCandidates(),
       singleTranslatorCandidates: getSingleTranslatorCandidates()
     });
+    const syncedVisibleConfig = getVisibleConfigState(syncedConfig);
+    const changedSyncedKeys = Object.keys(syncedVisibleConfig).filter(key => (
+      !cloudValuesEqual(currentConfig[key], normalizedConfig[key])
+    ));
+    const appearanceKeys = new Set([
+      'customWallpaper',
+      'wallpaperBrightness',
+      'uiTheme',
+      'aiBubbleColor',
+      'userBubbleColor'
+    ]);
+    const appearanceChanged = changedSyncedKeys.some(key => appearanceKeys.has(key));
+    const languageChanged = changedSyncedKeys.includes('uiLanguage');
+    const visibleConfigChanged = changedSyncedKeys.length > 0;
     configAccess.replaceConfig(normalizedConfig);
     if (normalizedConfig.memorySync) {
       appDataStore.replaceMemoryState(mergeSyncedMemoryState(
@@ -132,9 +239,18 @@ export function createCloudWorkspaceLiveLifecycle({
       ));
       void saveAppData();
     }
-    applyCustomWallpaper();
-    applyUiTheme();
-    if (!responseActive) renderAll();
+    if (appearanceChanged) {
+      applyCustomWallpaper();
+      applyUiTheme();
+    }
+    if (languageChanged) applyLanguage(normalizedConfig.uiLanguage);
+    if (!responseActive && visibleConfigChanged) {
+      renderChat?.({
+        reason: 'cloud-config-changed',
+        animate: false,
+        renderMessages: false
+      });
+    }
   };
 
   const markReady = () => {

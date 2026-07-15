@@ -504,7 +504,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
          document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.modal').forEach(m => {
     if (!m.classList.contains('visible')) {
-      m.classList.add('hidden');   // display:none
+      m.classList.add('hidden');
       m.classList.remove('visible');
     }
   });
@@ -872,26 +872,18 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             return historySidebarHelpers.renderHistorySidebar(sortedConversations);
         };
         const runtimeRenderCoordinator = createRuntimeRenderCoordinator({
-            renderHistorySidebar: () => renderHistorySidebar(),
+            renderHistorySidebar,
             renderFolders: () => renderFolders(),
             renderAstras: () => renderAstras(),
-            renderChat: () => renderChat(),
+            renderChat:options=>renderChat(options),
             renderArchivedChats: () => renderArchivedChats(),
             renderBatchActionBar: () => renderBatchActionBar(),
             renderFilePreviews: () => renderFilePreviews(),
             applyLanguage: () => applyLanguage(runtimeConfigAccess.getUiLanguage()),
-            logger: console
+            logger:console,diagnostics:import.meta.env.DEV
         });
-        const renderAll = (...args) => runtimeRenderCoordinator.renderAll(...args);
-        const renderSidebar = (...args) => runtimeRenderCoordinator.renderSidebar(...args);
-        createCloudWorkspaceLiveLifecycle({
-            window, configAccess: runtimeConfigAccess, appDataStore: runtimeAppDataStore,
-            getDefaultFolder, getDefaultGenConfig, normalizeCouncilConfig, normalizeConversationModel,
-            models:MODELS,
-            maxCouncilModels:COUNCIL_MAX_MODELS,
-            getCouncilTranslatorCandidates,getSingleTranslatorCandidates,applyCustomWallpaper:()=>applyCustomWallpaper(),
-            applyUiTheme:()=>applyUiTheme(),renderAll,saveAppData,busy:()=>abortController&&getActiveConversation()
-        });
+        const renderAll=(...args)=>runtimeRenderCoordinator.renderAll(...args);
+        const renderSidebar=(...args)=>runtimeRenderCoordinator.renderSidebar(...args);
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,
             getAstras: () => runtimeAppDataStore.getAstras(),
@@ -1311,6 +1303,13 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deleteAstras,
             createAstrasMenu
         } = sidebarChatAstraRenderLifecycle);
+        createCloudWorkspaceLiveLifecycle({
+            window,configAccess:runtimeConfigAccess,appDataStore:runtimeAppDataStore,
+            getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
+            models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
+            getCouncilTranslatorCandidates,getSingleTranslatorCandidates,applyCustomWallpaper,applyUiTheme,
+            renderSidebar,renderChat,applyLanguage,getActiveConversation,saveAppData,busy:()=>abortController&&getActiveConversation()
+        });
         const messageEditingLifecycle = createMessageEditingLifecycle({
             document,
             elements: ALL_ELEMENTS,

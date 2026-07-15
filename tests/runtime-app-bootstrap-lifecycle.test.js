@@ -325,7 +325,6 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
     'getCurrentUser',
     'setSidebarOpen:false',
     'startNewChat',
-    'renderAll',
     'updateFunctionButtonsState',
     'updateInputState',
     'setupVoiceInput',
@@ -339,6 +338,7 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
     assert.ok(next > cursor, `${marker} should occur in startup order`);
     cursor = next;
   }
+  assert.equal(harness.calls.includes('renderAll'), false);
   assert.equal(harness.elements.usernameDisplay.textContent, 'alice');
   assert.equal(harness.document.querySelector('.user-avatar').textContent, 'A');
   assert.equal(harness.getState().sidebarOpen, false);

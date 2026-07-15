@@ -70,16 +70,39 @@ export function createMessageListLifecycle({
         return messageElement;
     };
 
-    const renderChat = () => {
+    const renderChat = ({ animate = true, preserveScroll = false, renderMessages = true } = {}) => {
         const conversation = getActiveConversation();
         const messageList = elements.messageList;
-        messageList.classList.remove('chat-view-transition');
+        const chatContainer = elements.chatContainer;
+        const shouldPreserveScroll = renderMessages && preserveScroll;
+        const previousScrollTop = shouldPreserveScroll ? chatContainer.scrollTop : 0;
+        const wasNearBottom = shouldPreserveScroll && (
+            chatContainer.scrollHeight - chatContainer.clientHeight - previousScrollTop <= 16
+        );
+        const restoreChatPosition = () => {
+            if (!shouldPreserveScroll) return;
+            if (wasNearBottom) {
+                if (typeof chatContainer.scrollTo === 'function') {
+                    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
+                } else {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+                return;
+            }
+            chatContainer.scrollTop = previousScrollTop;
+        };
         if (!conversation) {
-            messageList.innerHTML = '';
             elements.headerTitle.textContent = getText('newChat');
             elements.modelSwitcherContainer.innerHTML = '';
             renderInputIndicators();
             renderCouncilControls();
+            if (!renderMessages) {
+                updateInputState();
+                return;
+            }
+            messageList.classList.remove('chat-view-transition');
+            messageList.innerHTML = '';
+            restoreChatPosition();
             return;
         }
 
@@ -89,6 +112,11 @@ export function createMessageListLifecycle({
         renderModelSwitcher();
         renderInputIndicators();
         renderCouncilControls();
+        if (!renderMessages) {
+            updateInputState();
+            return;
+        }
+        messageList.classList.remove('chat-view-transition');
         messageList.innerHTML = '';
         if (conversation.messages.length === 0) {
             const greeting = `${getCurrentUserName()}, ${getText('howCanIHelp')}`;
@@ -98,9 +126,14 @@ export function createMessageListLifecycle({
                 addMessageToUI(message, index, false, false);
             });
         }
-        scheduleFrame(() => setupMessageIntersectionObserver());
-        void messageList.offsetWidth;
-        messageList.classList.add('chat-view-transition');
+        scheduleFrame(() => {
+            setupMessageIntersectionObserver();
+            restoreChatPosition();
+        });
+        if (animate) {
+            void messageList.offsetWidth;
+            messageList.classList.add('chat-view-transition');
+        }
         updateInputState();
     };
 

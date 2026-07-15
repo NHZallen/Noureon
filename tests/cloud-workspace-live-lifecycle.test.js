@@ -16,6 +16,58 @@ function createWindowFixture() {
   };
 }
 
+function createPreciseRenderFixture({ initialWorkspace, activeConversationId = null } = {}) {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore();
+  const renderCalls = { all: 0, sidebar: 0, chat: 0 };
+  let responseActive = false;
+  let scheduled = null;
+  let scheduleCalls = 0;
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => { renderCalls.all += 1; },
+    renderSidebar: () => { renderCalls.sidebar += 1; },
+    renderChat: () => { renderCalls.chat += 1; },
+    getActiveConversation: () => appDataStore.getConversations()
+      .find(conversation => conversation.id === activeConversationId) || null,
+    busy: () => responseActive && appDataStore.getConversations()
+      .find(conversation => conversation.id === activeConversationId),
+    schedule: callback => { scheduled = callback; scheduleCalls += 1; return 1; }
+  });
+  window.__astraCloudRuntimeReady();
+  if (initialWorkspace) window.emit('astra:cloud-app-data', initialWorkspace);
+
+  const resetRenderCalls = () => {
+    renderCalls.all = 0;
+    renderCalls.sidebar = 0;
+    renderCalls.chat = 0;
+  };
+  resetRenderCalls();
+
+  return {
+    window,
+    appDataStore,
+    renderCalls,
+    resetRenderCalls,
+    getScheduleCalls: () => scheduleCalls,
+    setResponseActive(value) { responseActive = value; },
+    runScheduled() { scheduled?.(); }
+  };
+}
+
 test('cloud workspace updates wait for runtime readiness and then render hydrated state', () => {
   const window = createWindowFixture();
   const applied = { appData: null, config: null };
@@ -298,6 +350,129 @@ test('record-level cloud commit waits for runtime readiness and keeps its tombst
   assert.deepEqual(appDataStore.getConversations(), []);
 });
 
+test('an unchanged cloud workspace does not render any interface region', () => {
+  const workspace = {
+    conversations: [{
+      id: 'active',
+      title: 'Question',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+    }],
+    folders: [],
+    astras: [],
+    personalMemories: []
+  };
+  const fixture = createPreciseRenderFixture({ initialWorkspace: workspace, activeConversationId: 'active' });
+
+  fixture.window.emit('astra:cloud-workspace-committed', {
+    workspace,
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+
+  assert.deepEqual(fixture.renderCalls, { all: 0, sidebar: 0, chat: 0 });
+});
+
+test('a cloud update to a non-active conversation renders only the sidebar', () => {
+  const activeConversation = {
+    id: 'active',
+    title: 'Active',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    messages: [{ role: 'user', parts: [{ text: 'Active question' }] }]
+  };
+  const otherConversation = {
+    id: 'other',
+    title: 'Old title',
+    createdAt: '2026-01-02T00:00:00.000Z',
+    messages: [{ role: 'user', parts: [{ text: 'Other question' }] }]
+  };
+  const fixture = createPreciseRenderFixture({
+    initialWorkspace: {
+      conversations: [activeConversation, otherConversation],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    activeConversationId: 'active'
+  });
+
+  fixture.window.emit('astra:cloud-workspace-committed', {
+    workspace: {
+      conversations: [activeConversation, { ...otherConversation, title: 'Remote title' }],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+
+  assert.equal(fixture.appDataStore.getConversations().find(item => item.id === 'other').title, 'Remote title');
+  assert.deepEqual(fixture.renderCalls, { all: 0, sidebar: 1, chat: 0 });
+});
+
+test('a cloud update to the active conversation renders the chat', () => {
+  const activeConversation = {
+    id: 'active',
+    title: 'Active',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+  };
+  const fixture = createPreciseRenderFixture({
+    initialWorkspace: {
+      conversations: [activeConversation],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    activeConversationId: 'active'
+  });
+
+  fixture.window.emit('astra:cloud-workspace-committed', {
+    workspace: {
+      conversations: [{
+        ...activeConversation,
+        messages: [
+          ...activeConversation.messages,
+          { role: 'model', parts: [{ text: 'Remote answer' }] }
+        ]
+      }],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+
+  assert.equal(fixture.renderCalls.all, 0);
+  assert.equal(fixture.renderCalls.chat, 1);
+});
+
+test('an unchanged cloud workspace deferred during a response does not render after settling', () => {
+  const workspace = {
+    conversations: [{
+      id: 'active',
+      title: 'Active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+    }],
+    folders: [],
+    astras: [],
+    personalMemories: []
+  };
+  const fixture = createPreciseRenderFixture({ initialWorkspace: workspace, activeConversationId: 'active' });
+  fixture.setResponseActive(true);
+
+  fixture.window.emit('astra:cloud-workspace-committed', {
+    workspace,
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+
+  assert.equal(fixture.getScheduleCalls(), 1);
+  assert.deepEqual(fixture.renderCalls, { all: 0, sidebar: 0, chat: 0 });
+  fixture.setResponseActive(false);
+  fixture.runScheduled();
+  assert.deepEqual(fixture.renderCalls, { all: 0, sidebar: 0, chat: 0 });
+});
+
 test('cloud config applies only the small synced memory projection and persists it locally', () => {
   const window = createWindowFixture();
   const appDataStore = createLegacyRuntimeAppDataStore({
@@ -315,6 +490,7 @@ test('cloud config applies only the small synced memory projection and persists 
   });
   let config = { uiTheme: {}, modelSettings: [], lastCouncilConfig: {} };
   let saved = 0;
+  const renderCalls = { all: 0, sidebar: 0, chat: 0 };
 
   createCloudWorkspaceLiveLifecycle({
     window,
@@ -330,7 +506,9 @@ test('cloud config applies only the small synced memory projection and persists 
     getSingleTranslatorCandidates: () => [],
     applyCustomWallpaper: () => {},
     applyUiTheme: () => {},
-    renderAll: () => {},
+    renderAll: () => { renderCalls.all += 1; },
+    renderSidebar: () => { renderCalls.sidebar += 1; },
+    renderChat: () => { renderCalls.chat += 1; },
     saveAppData: async () => { saved += 1; }
   });
   window.__astraCloudRuntimeReady();
@@ -353,4 +531,5 @@ test('cloud config applies only the small synced memory projection and persists 
     { id: 'remote-candidate', content: 'Use examples' }
   ]);
   assert.equal(saved, 1);
+  assert.deepEqual(renderCalls, { all: 0, sidebar: 0, chat: 0 });
 });
