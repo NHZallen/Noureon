@@ -329,6 +329,14 @@ button:active:not(:disabled),
     border-radius: 0 !important;
 }
 
+#trash-section #trash-batch-select-btn {
+    display: inline-flex !important;
+}
+
+#trash-section #trash-batch-action-bar:not(.hidden) {
+    display: block !important;
+}
+
 #trash-section .flex.gap-2.flex-shrink-0.ml-2 {
     gap: 0.4rem !important;
 }

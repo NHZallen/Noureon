@@ -26,6 +26,7 @@ export function createLegacyTrashLifecycle({
   formatFullTimestamp,
   renderUserText,
   renderModelText,
+  bindGeneratedImageAssets = async () => {},
   escapeHTML,
   scheduleTimeout,
   clearScheduledTimeout,
@@ -57,7 +58,9 @@ export function createLegacyTrashLifecycle({
     renderUserText,
     renderModelText,
     renderMediaAttachmentGrid,
-    bindMediaPreviewButtons
+    bindMediaPreviewButtons,
+    bindGeneratedImageAssets,
+    logError: (...args) => logger.error(...args)
   });
   const confirmCloudDeletion = async (conversationIds, conversationSnapshots = []) => {
     try {

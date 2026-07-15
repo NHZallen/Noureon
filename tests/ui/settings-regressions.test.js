@@ -179,7 +179,8 @@ test('desktop settings nav and section selectors are scoped to the desktop setti
   assert.match(settingsDesktopCss, /@media\s*\(min-width:\s*769px\)/);
   assert.match(settingsDesktopCss, /#settings-modal\s+#settings-nav\s*\{/);
   assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-desktop-logout-btn\s*\{/);
-  assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-desktop-logout-btn[^{]*\{[^}]*margin:\s*auto\s+0\.5rem\s+1rem\s*!important;[^}]*color:\s*#dc2626\s*!important;/s);
+  assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-desktop-logout-btn[^{]*\{[^}]*margin:\s*auto\s+0\.5rem\s+0\.25rem\s*!important;/s);
+  assert.match(settingsDesktopCss, /#settings-modal\s+button\.settings-desktop-logout-btn\s+span,[\s\S]*?#settings-modal\s+button\.settings-desktop-logout-btn\s+svg\s+\*[^{]*\{[^}]*color:\s*#dc2626\s*!important;[^}]*stroke:\s*currentColor\s*!important;/s);
   assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-section\.active::before\s*\{/);
   assert.match(
     regressionOverridesCss,

@@ -10,18 +10,46 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const createRenderer = (document, overrides = {}) => {
   const bound = [];
+  const generatedBound = [];
   const renderer = createConversationViewRenderer({
     document,
     renderUserText: (text) => `USER:${text}`,
     renderModelText: (text) => `MODEL:${text}`,
     renderMediaAttachmentGrid: (media) => `<grid>${media.length}</grid>`,
     bindMediaPreviewButtons: (root, media) => bound.push({ root, media }),
+    bindGeneratedImageAssets: (root, assets) => generatedBound.push({ root, assets }),
     mediaMode: 'wrapped',
     wrapTextParts: false,
     ...overrides
   });
-  return { renderer, bound };
+  return { renderer, bound, generatedBound };
 };
+
+test('renders and binds AI-generated images in archived and trash conversation previews', async () => {
+  const { document, cleanup } = createDom('<div id="content"></div>');
+  try {
+    const { renderer, generatedBound } = createRenderer(document);
+    const generatedImage = { id: 'generated-1', storageKey: 'generatedImage:user:generated-1', aspectRatio: '16:9' };
+
+    renderer.renderConversationMessages({
+      conversation: { messages: [{ role: 'model', parts: [{ generatedImage }] }] },
+      contentContainer: document.querySelector('#content'),
+      emptyHTML: '<p>Empty</p>'
+    });
+    await Promise.resolve();
+
+    const card = document.querySelector('[data-generated-image-card="generated-1"]');
+    assert.ok(card);
+    assert.match(card.className, /has-known-aspect/);
+    assert.equal(card.style.aspectRatio, '16 / 9');
+    assert.ok(card.querySelector('[data-generated-image-preview="generated-1"]'));
+    assert.ok(card.querySelector('[data-generated-image-id="generated-1"]'));
+    assert.ok(card.querySelector('[data-generated-image-download="generated-1"]'));
+    assert.deepEqual(generatedBound[0].assets, [generatedImage]);
+  } finally {
+    cleanup();
+  }
+});
 
 test('renders user and model messages with media in source order', () => {
   const { document, cleanup } = createDom('<div id="content"></div>');

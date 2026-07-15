@@ -775,6 +775,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderModelText: renderMarkdown,
             renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid,
             bindMediaPreviewButtons: bindArchivedMediaPreviewButtons,
+            bindGeneratedImageAssets,
             mediaMode: 'inlineData',
             wrapTextParts: true
         });
@@ -1513,6 +1514,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             hasSingleWebSearchAccess,
             hasSingleDocumentAccess,
             modelSupportsVision,
+            bindGeneratedImageAssets,
             getGeneratedImageBlob: async descriptor => (await getGeneratedImageRuntime()).assetStore.getBlob(descriptor),
             saveGeneratedImageBlob: async (descriptor, blob) => {
                 descriptor.storageKey = `generatedImage:${currentUser?.username || 'anonymous'}:${descriptor.id}`;

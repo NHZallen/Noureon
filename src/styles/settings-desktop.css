@@ -143,14 +143,17 @@
 
     #settings-modal .settings-desktop-logout-btn {
         width: calc(100% - 1rem) !important;
-        margin: auto 0.5rem 1rem !important;
+        margin: auto 0.5rem 0.25rem !important;
         border-top: 1px solid color-mix(in srgb, var(--gpt-border) 70%, transparent) !important;
         border-radius: 0 !important;
-        color: #dc2626 !important;
         font-weight: 500 !important;
     }
 
-    #settings-modal .settings-desktop-logout-btn:hover {
-        color: #b91c1c !important;
+    #settings-modal button.settings-desktop-logout-btn,
+    #settings-modal button.settings-desktop-logout-btn span,
+    #settings-modal button.settings-desktop-logout-btn svg,
+    #settings-modal button.settings-desktop-logout-btn svg * {
+        color: #dc2626 !important;
+        stroke: currentColor !important;
     }
 }
