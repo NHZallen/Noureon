@@ -123,6 +123,72 @@ function createFakeIndexedDB({
   return { indexedDBFactory, db, calls, values };
 }
 
+function createAtomicFakeIndexedDB(initialValues = {}) {
+  const values = new Map(Object.entries(initialValues));
+  const calls = {
+    open: 0,
+    transactions: [],
+    put: [],
+    abort: 0
+  };
+  let activeTransaction = null;
+
+  const db = {
+    createObjectStore() {},
+    transaction(name, mode) {
+      calls.transactions.push([name, mode]);
+      const pending = [];
+      const transaction = {
+        error: null,
+        objectStore(storeName) {
+          assert.equal(storeName, name);
+          return {
+            put(entry) {
+              calls.put.push(entry);
+              pending.push(entry);
+            }
+          };
+        },
+        abort() {
+          calls.abort += 1;
+          transaction.error ||= new Error('aborted');
+          transaction.onabort?.({ target: transaction });
+        }
+      };
+      activeTransaction = {
+        complete() {
+          for (const entry of pending) values.set(entry.key, entry.value);
+          transaction.oncomplete?.();
+        },
+        fail(error) {
+          transaction.error = error;
+          transaction.onerror?.({ target: transaction });
+        }
+      };
+      return transaction;
+    }
+  };
+  const indexedDBFactory = {
+    open() {
+      calls.open += 1;
+      const request = {};
+      queueMicrotask(() => {
+        request.onupgradeneeded?.({ target: { result: db } });
+        request.onsuccess?.({ target: { result: db } });
+      });
+      return request;
+    }
+  };
+
+  return {
+    indexedDBFactory,
+    calls,
+    values,
+    complete: () => activeTransaction.complete(),
+    fail: error => activeTransaction.fail(error)
+  };
+}
+
 test('storage adapter preserves schema defaults, upgrade creation, and lazy connection cache', async () => {
   const fake = createFakeIndexedDB();
   const adapter = createLegacyRuntimeStorageAdapter({
@@ -151,6 +217,23 @@ test('storage adapter getItem preserves readonly lookup and null fallback', asyn
     ['keyValue', 'readonly']
   ]);
   assert.deepEqual(fake.calls.get, ['saved', 'missing']);
+});
+
+test('storage adapter reads related values from one readonly transaction snapshot', async () => {
+  const fake = createFakeIndexedDB({
+    initialValues: { workspace: 'workspace-v1', journal: 'journal-v1' }
+  });
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
+
+  assert.deepEqual(
+    await adapter.readItems(['workspace', 'journal', 'missing']),
+    ['workspace-v1', 'journal-v1', null]
+  );
+  assert.deepEqual(fake.calls.transactions, [['keyValue', 'readonly']]);
+  assert.deepEqual(fake.calls.get, ['workspace', 'journal', 'missing']);
+  await assert.rejects(() => adapter.readItems(null), /array of strings/i);
 });
 
 test('storage adapter setItem and removeItem wait for transaction completion', async () => {
@@ -185,6 +268,69 @@ test('storage adapter setItem and removeItem wait for transaction completion', a
     ['keyValue', 'readwrite'],
     ['keyValue', 'readwrite']
   ]);
+});
+
+test('storage adapter writes multiple items in one atomic readwrite transaction', async () => {
+  const fake = createAtomicFakeIndexedDB({ existing: 'kept' });
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
+
+  let settled = false;
+  const saving = adapter.setItemsAtomic([
+    { key: 'workspace', value: '{"conversations":[]}' },
+    { key: 'journal', value: '{"dirty":true}' }
+  ]).then(() => { settled = true; });
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(settled, false);
+  assert.deepEqual(fake.calls.transactions, [['keyValue', 'readwrite']]);
+  assert.deepEqual(fake.calls.put, [
+    { key: 'workspace', value: '{"conversations":[]}' },
+    { key: 'journal', value: '{"dirty":true}' }
+  ]);
+  assert.equal(fake.values.has('workspace'), false);
+  assert.equal(fake.values.has('journal'), false);
+
+  fake.complete();
+  await saving;
+  assert.equal(settled, true);
+  assert.equal(fake.values.get('existing'), 'kept');
+  assert.equal(fake.values.get('workspace'), '{"conversations":[]}');
+  assert.equal(fake.values.get('journal'), '{"dirty":true}');
+});
+
+test('storage adapter atomic transaction failure leaves every item unchanged', async () => {
+  const fake = createAtomicFakeIndexedDB({ workspace: 'old-workspace', journal: 'old-journal' });
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
+  const transactionError = new Error('atomic transaction failed');
+
+  const saving = adapter.setItemsAtomic([
+    { key: 'workspace', value: 'new-workspace' },
+    { key: 'journal', value: 'new-journal' }
+  ]);
+  await new Promise(resolve => setImmediate(resolve));
+  fake.fail(transactionError);
+
+  await assert.rejects(saving, transactionError);
+  assert.equal(fake.values.get('workspace'), 'old-workspace');
+  assert.equal(fake.values.get('journal'), 'old-journal');
+  assert.deepEqual(fake.calls.transactions, [['keyValue', 'readwrite']]);
+});
+
+test('storage adapter validates atomic entries before opening IndexedDB', async () => {
+  const fake = createAtomicFakeIndexedDB();
+  const adapter = createLegacyRuntimeStorageAdapter({
+    indexedDBFactory: fake.indexedDBFactory
+  });
+
+  await adapter.setItemsAtomic([]);
+  await assert.rejects(() => adapter.setItemsAtomic(null), /must be an array/i);
+  await assert.rejects(() => adapter.setItemsAtomic([{ value: 'missing-key' }]), /include a key/i);
+  assert.equal(fake.calls.open, 0);
+  assert.deepEqual(fake.calls.transactions, []);
 });
 
 test('storage adapter clear preserves request success completion semantics', async () => {
@@ -291,7 +437,7 @@ test('production wiring uses the adapter while persistence modules remain inject
   const runtimeAppSource = readSource('src/app/runtime-app.js');
 
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
-  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
+  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem,\s*readItems,\s*setItemsAtomic\s*\}\s*=\s*runtimeStorageAdapter/);
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
   assert.match(fragment02Source, /runtimeStorageAdapter,/);
   assert.match(settingsAuthProviderSource, /runtimeStorageAdapter,/);

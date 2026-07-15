@@ -4,6 +4,7 @@ const getText = (i18n, language, key, fallback) => i18n?.[language]?.[key] || fa
 
 export function createLegacyAuthImportLifecycle({
   elements,
+  loadArchiveVendor,
   JSZip,
   getConfig,
   mutateConfig,
@@ -40,6 +41,17 @@ export function createLegacyAuthImportLifecycle({
 } = {}) {
   const language = () => getConfig().uiLanguage;
   const text = (key, fallback) => getText(i18n, language(), key, fallback);
+  const resolveArchiveVendor = typeof loadArchiveVendor === 'function'
+    ? loadArchiveVendor
+    : () => Promise.resolve(JSZip);
+  const requireArchiveVendor = async () => {
+    const loadedVendor = await resolveArchiveVendor();
+    const JSZipCtor = loadedVendor?.JSZip || loadedVendor?.default || loadedVendor;
+    if (typeof JSZipCtor !== 'function') {
+      throw new TypeError('JSZip did not expose a usable constructor.');
+    }
+    return JSZipCtor;
+  };
 
   function handleImportOnAuth() {
     toggleModal(elements.importDataModalAuth, true);
@@ -82,7 +94,8 @@ export function createLegacyAuthImportLifecycle({
 
       if (file.name.endsWith('.zip') || file.type.includes('zip')) {
         updateProgress(10, 'Extracting ZIP...');
-        zip = await JSZip.loadAsync(file);
+        const JSZipCtor = await requireArchiveVendor();
+        zip = await JSZipCtor.loadAsync(file);
 
         let jsonFile = zip.file('data.json');
         if (!jsonFile) {

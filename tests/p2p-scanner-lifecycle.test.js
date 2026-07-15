@@ -7,6 +7,16 @@ import { createP2PScannerLifecycle } from '../src/app/legacy-runtime/features/p2
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 const createElements = () => new Map([
   ['p2p-progress-bar', { style: {} }],
   ['p2p-percentage', { textContent: '' }],
@@ -76,7 +86,7 @@ test('starts the scanner, normalizes decoded codes, and preserves the connect ha
   lifecycle.startQRScanner();
   assert.equal(elements.get('p2p-reader').classList.values.has('hidden'), false);
   successHandler('prefix-ABCDE');
-  await Promise.resolve();
+  await new Promise(resolve => setTimeout(resolve, 0));
 
   assert.equal(elements.get('p2p-code-input').value, 'ABCDE');
   assert.equal(elements.get('p2p-reader').classList.values.has('hidden'), true);
@@ -86,6 +96,42 @@ test('starts the scanner, normalizes decoded codes, and preserves the connect ha
     ['stop'],
     ['connect', 'ABCDE']
   ]);
+});
+
+test('closing the scanner while decoded stop is pending cancels the connect handoff', async () => {
+  const elements = createElements();
+  const stopResult = deferred();
+  const connected = [];
+  let successHandler;
+  let stopCalls = 0;
+  const lifecycle = createP2PScannerLifecycle({
+    getElementById: id => elements.get(id),
+    createScanner: () => ({
+      start: (_camera, _config, onSuccess) => {
+        successHandler = onSuccess;
+        return Promise.resolve();
+      },
+      stop: () => {
+        stopCalls += 1;
+        return stopResult.promise;
+      }
+    }),
+    connectToSender: code => connected.push(code),
+    showNotification: () => {}
+  });
+
+  lifecycle.startQRScanner();
+  successHandler('ABCDE');
+  successHandler('FGHIJ');
+  await Promise.resolve();
+  assert.equal(stopCalls, 1, 'only the first decoded frame may start scanner cleanup');
+
+  lifecycle.stopScannerIfActive();
+  stopResult.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(connected, []);
 });
 
 test('scanner cleanup always stops the latest active instance without stale state', async () => {
@@ -116,8 +162,34 @@ test('scanner cleanup always stops the latest active instance without stale stat
   lifecycle.stopScannerIfActive();
   lifecycle.stopScannerIfActive();
   await Promise.resolve();
+  await Promise.resolve();
 
-  assert.deepEqual(stopped, [1, 2]);
+  assert.deepEqual(stopped, [1, 2, 1, 2]);
+});
+
+test('a scanner cancelled while start is pending is stopped again after startup completes', async () => {
+  const elements = createElements();
+  const started = deferred();
+  let stopCalls = 0;
+  const lifecycle = createP2PScannerLifecycle({
+    getElementById: (id) => elements.get(id),
+    createScanner: () => ({
+      start: () => started.promise,
+      stop: async () => {
+        stopCalls += 1;
+      }
+    }),
+    connectToSender: () => {},
+    showNotification: () => {}
+  });
+
+  const startPromise = lifecycle.startQRScanner();
+  lifecycle.stopScannerIfActive();
+  assert.equal(stopCalls, 1);
+
+  started.resolve();
+  await startPromise;
+  assert.equal(stopCalls, 2);
 });
 
 test('scanner start failures preserve logging and notification handoffs', async () => {

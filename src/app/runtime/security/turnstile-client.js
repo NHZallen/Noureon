@@ -1,7 +1,13 @@
 const TURNSTILE_SCRIPT_ID = 'cloudflare-turnstile-script';
 const TURNSTILE_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
-function loadTurnstileScript({ window, document }) {
+function loadTurnstileScript({
+  window,
+  document,
+  timeoutMs,
+  scheduleTimeout,
+  clearScheduledTimeout
+}) {
   if (window.turnstile) return Promise.resolve(window.turnstile);
 
   const existing = document.getElementById(TURNSTILE_SCRIPT_ID);
@@ -11,18 +17,32 @@ function loadTurnstileScript({ window, document }) {
 
   return new Promise((resolve, reject) => {
     const script = existing || document.createElement('script');
+    let settled = false;
+    let timeoutId;
+    const settle = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      clearScheduledTimeout(timeoutId);
+      script.removeEventListener('load', handleLoad);
+      script.removeEventListener('error', handleError);
+      callback(value);
+    };
     const handleLoad = () => {
       script.dataset.loaded = 'true';
       if (window.turnstile) {
-        resolve(window.turnstile);
+        settle(resolve, window.turnstile);
         return;
       }
-      reject(new Error('Cloudflare Turnstile did not initialize.'));
+      settle(reject, new Error('Cloudflare Turnstile did not initialize.'));
     };
-    const handleError = () => reject(new Error('Cloudflare Turnstile failed to load.'));
+    const handleError = () => settle(reject, new Error('Cloudflare Turnstile failed to load.'));
 
-    script.addEventListener('load', handleLoad, { once: true });
-    script.addEventListener('error', handleError, { once: true });
+    script.addEventListener('load', handleLoad);
+    script.addEventListener('error', handleError);
+    timeoutId = scheduleTimeout(
+      () => settle(reject, new Error('Cloudflare Turnstile timed out while loading.')),
+      timeoutMs
+    );
 
     if (!existing) {
       script.id = TURNSTILE_SCRIPT_ID;
@@ -37,7 +57,10 @@ function loadTurnstileScript({ window, document }) {
 export function createTurnstileClient({
   window,
   document,
-  siteKey = import.meta.env?.VITE_TURNSTILE_SITE_KEY?.trim() || ''
+  siteKey = import.meta.env?.VITE_TURNSTILE_SITE_KEY?.trim() || '',
+  scriptTimeoutMs = 8000,
+  scheduleTimeout = globalThis.setTimeout,
+  clearScheduledTimeout = globalThis.clearTimeout
 } = {}) {
   const widgets = new Map();
 
@@ -54,7 +77,13 @@ export function createTurnstileClient({
     widgets.set(name, state);
 
     try {
-      const turnstile = await loadTurnstileScript({ window, document });
+      const turnstile = await loadTurnstileScript({
+        window,
+        document,
+        timeoutMs: scriptTimeoutMs,
+        scheduleTimeout,
+        clearScheduledTimeout
+      });
       state.widgetId = turnstile.render(container, {
         sitekey: siteKey,
         theme: 'auto',

@@ -645,7 +645,6 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(persistenceSource, /export\s+function\s+createLegacyRuntimeConfigPersistence/);
   assert.doesNotMatch(persistenceSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|config-store/);
   assert.doesNotMatch(persistenceSource, /getItem|removeItem|openDB|loadConfig|indexedDB|localStorage|sessionStorage/);
-  assert.doesNotMatch(persistenceSource, /try\s*\{|catch\s*\(/);
   assert.equal(existsSync(projectFile(normalizationPath)), true, 'runtime config normalization module should exist');
   assert.match(normalizationSource, /export\s+function\s+normalizeLoadedLegacyConfig/);
   assert.match(normalizationSource, /export\s+function\s+normalizeApiKeyValue/);
@@ -702,7 +701,10 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
   assert.match(fragment00Source, /runtimeConfigAccess\.mutateConfig\(normalizedConfig\)/);
   assert.match(fragment00Source, /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`/);
   assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
-  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
+  assert.match(
+    fragment00Source,
+    /const\s+\{\s*getItem,\s*setItem,\s*removeItem,\s*readItems,\s*setItemsAtomic\s*\}\s*=\s*runtimeStorageAdapter/
+  );
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
   assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 12);
 
@@ -755,7 +757,11 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(persistenceSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments|app-data-normalization/);
   assert.doesNotMatch(persistenceSource, /getItem|removeItem|openDB|loadAppData|indexedDB|localStorage|sessionStorage/);
   assert.doesNotMatch(persistenceSource, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
-  assert.doesNotMatch(persistenceSource, /try\s*\{|catch\s*\(/);
+  assert.match(
+    persistenceSource,
+    /cloud workspace state could not be read; a full resync will be required/,
+    'journal read failures should retain the local-save recovery boundary'
+  );
 
   assert.match(
     fragment00Source,
@@ -771,9 +777,12 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
     'getCurrentUser: () => currentUser',
     'getAppData: () => runtimeAppDataStore.getSnapshot()',
     'getAppDataKey',
-    'setItem',
     'const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({'
   ], '00 runtime app data persistence wiring');
+  assert.match(
+    fragment00Source,
+    /createLegacyRuntimeAppDataPersistence\(\{[\s\S]*?setItem,\s*readItem:getItem,\s*readItems,\s*setItemsAtomic,/
+  );
   assert.match(fragment00Source, /const\s+loadAppData\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(\);\s*\}/);
   assert.match(fragment00Source, /const\s+getAppDataKey\s*=\s*\(\)\s*=>\s*`chatAppData_v8\.6_\$\{currentUser\.username\}`/);
@@ -803,7 +812,10 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(catchBody, /astras\s*=\s*latestAppData\.astras/);
   assert.match(catchBody, /await\s+removeItem\(getAppDataKey\(\)\)/);
   assert.match(loadAppDataBody, /else\s*\{\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*\}/);
-  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
+  assert.match(
+    fragment00Source,
+    /const\s+\{\s*getItem,\s*setItem,\s*removeItem,\s*readItems,\s*setItemsAtomic\s*\}\s*=\s*runtimeStorageAdapter/
+  );
 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
@@ -1792,10 +1804,8 @@ test('P2P lifecycle owns Peer, QR, scanner, and transfer implementation after 05
     'getAstras',
     'getFolders',
     'getConversations',
-    'Peer',
-    'QRCode',
-    'Html5Qrcode',
-    'JSZip',
+    'loadSharingVendor',
+    'loadArchiveVendor',
     'BlobCtor',
     'randomUUID',
     'random',
@@ -1968,7 +1978,7 @@ test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
   assert.match(storageAdapterSource, /storeName\s*=\s*['"]keyValue['"]/);
   assert.match(storageAdapterSource, /version\s*=\s*1/);
   assert.match(storageAdapterSource, /createObjectStore\(storeName,\s*\{\s*keyPath:\s*['"]key['"]\s*\}\)/);
-  assert.match(storageAdapterSource, /return\s*\{\s*openDB,\s*getItem,\s*setItem,\s*removeItem,\s*clear,\s*getKeys,\s*removeItemsByPrefix\s*\}/);
+  assert.match(storageAdapterSource, /return\s*\{\s*openDB,\s*getItem,\s*readItems,\s*setItem,\s*setItemsAtomic,\s*removeItem,\s*clear,\s*getKeys,\s*removeItemsByPrefix\s*\}/);
   assert.doesNotMatch(storageAdapterSource, /objectStoreNames\.contains/);
   assert.match(fragment00Source, /import\s+\{\s*createLegacyRuntimeStorageAdapter\s*\}/);
   assertMarkersInOrder(fragment00Source, [
@@ -1977,7 +1987,7 @@ test('legacy IndexedDB ownership moves into a narrow storage adapter', () => {
     "dbName: 'ChatAppDB'",
     "storeName: 'keyValue'",
     'version: 1',
-    'const { getItem, setItem, removeItem } = runtimeStorageAdapter'
+    'const { getItem, setItem, removeItem, readItems, setItemsAtomic } = runtimeStorageAdapter'
   ], '00 storage adapter wiring');
   assert.doesNotMatch(fragment00Source, /const\s+(?:DB_NAME|STORE_NAME)\b|async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
   assert.match(fragment00Source, /const\s+getConfigKey\s*=/);
@@ -2658,16 +2668,16 @@ test('main bootstrap delegates vendor bridge, shell mount, and vendor script loa
 
   assert.match(mainSource, /import\s+\{\s*installVendorBridge\s*\}\s+from\s+'\.\/app\/bootstrap\/vendor-bridge\.js';/);
   assert.match(mainSource, /import\s+\{\s*loadVendorScript\s*\}\s+from\s+'\.\/app\/bootstrap\/load-vendor-script\.js';/);
-  assert.match(mainSource, /import\s+\{\s*mountAppShell\s*\}\s+from\s+'\.\/app\/bootstrap\/mount-shell\.js';/);
+  assert.match(mainSource, /import\s+\{[^}]*\bmountAppShell\b[^}]*\}\s+from\s+'\.\/app\/bootstrap\/mount-shell\.js';/);
 
   const orderedBootstrapSteps = [
     'installVendorBridge({',
     'mountAppShell(appShell)',
-    "await import('./data/i18n.js')",
-    "await import('./data/demo-conversations.js')",
-    "await import('./data/astras-data.js')",
-    "await import('./data/update-logs.js')",
-    "await loadVendorScript('/vendor/mhchem.min.js')",
+    "import('./data/i18n.js')",
+    "import('./data/demo-conversations.js')",
+    "import('./data/astras-data.js')",
+    "import('./data/update-logs.js')",
+    "loadVendorScript('/vendor/mhchem.min.js')",
     "await import('./app/legacy-app.js')"
   ];
 

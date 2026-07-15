@@ -180,6 +180,124 @@ test('cloud workspace update keeps the fresh local draft selected after reload',
   assert.equal(appDataStore.getConversations().some(item => item.id === 'history'), true);
 });
 
+test('record-level cloud commit preserves unsynced local rows and applies remote rows', () => {
+  const window = createWindowFixture();
+  const localConversation = {
+    id: 'local-only',
+    isTemporary: false,
+    messages: [{ role: 'user', parts: [{ text: 'Unsynced local message' }] }]
+  };
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialConversations: [localConversation]
+  });
+  let renders = 0;
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => { renders += 1; }
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-workspace-committed', {
+    workspace: {
+      conversations: [{ id: 'remote-only', isTemporary: false, messages: [{ role: 'user' }] }],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+
+  assert.equal(appDataStore.getConversations().find(item => item.id === 'local-only'), localConversation);
+  assert.equal(appDataStore.getConversations().some(item => item.id === 'remote-only'), true);
+  assert.equal(renders, 1);
+});
+
+test('record-level cloud commit removes tombstoned local entities before merging', () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialConversations: [{ id: 'deleted-conversation', folderId: 'deleted-folder', messages: [] }],
+    initialFolders: [{ id: 'deleted-folder', conversationIds: ['deleted-conversation'] }],
+    initialAstras: [{ id: 'deleted-astra' }]
+  });
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {}
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-workspace-committed', {
+    workspace: { conversations: [], folders: [], astras: [], personalMemories: [] },
+    tombstones: {
+      conversationIds: ['deleted-conversation'],
+      folderIds: ['deleted-folder'],
+      astraIds: ['deleted-astra']
+    }
+  });
+
+  assert.deepEqual(appDataStore.getConversations(), []);
+  assert.deepEqual(appDataStore.getFolders(), []);
+  assert.deepEqual(appDataStore.getAstras(), []);
+});
+
+test('record-level cloud commit waits for runtime readiness and keeps its tombstones', () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialConversations: [{ id: 'deleted-conversation', messages: [] }]
+  });
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {}
+  });
+
+  window.emit('astra:cloud-workspace-committed', {
+    workspace: { conversations: [], folders: [], astras: [], personalMemories: [] },
+    tombstones: { conversationIds: ['deleted-conversation'], folderIds: [], astraIds: [] }
+  });
+  assert.equal(appDataStore.getConversations().length, 1);
+
+  window.__astraCloudRuntimeReady();
+  assert.deepEqual(appDataStore.getConversations(), []);
+});
+
 test('cloud config applies only the small synced memory projection and persists it locally', () => {
   const window = createWindowFixture();
   const appDataStore = createLegacyRuntimeAppDataStore({

@@ -33,6 +33,21 @@ export function createLegacyRuntimeStorageAdapter({
     });
   }
 
+  async function readItems(keys) {
+    if (!Array.isArray(keys) || keys.some(key => typeof key !== 'string')) {
+      throw new TypeError('Atomic storage read keys must be an array of strings.');
+    }
+    if (keys.length === 0) return [];
+    const idb = await openDB();
+    const transaction = idb.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    return Promise.all(keys.map(key => new Promise((resolve, reject) => {
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result ? request.result.value : null);
+      request.onerror = event => reject(request.error || event?.target?.error || event);
+    })));
+  }
+
   async function setItem(key, value) {
     const idb = await openDB();
     return new Promise((resolve, reject) => {
@@ -41,6 +56,43 @@ export function createLegacyRuntimeStorageAdapter({
       store.put({ key, value });
       transaction.oncomplete = resolve;
       transaction.onerror = reject;
+    });
+  }
+
+  async function setItemsAtomic(entries) {
+    if (!Array.isArray(entries)) {
+      throw new TypeError('Atomic storage entries must be an array.');
+    }
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object' || !Object.prototype.hasOwnProperty.call(entry, 'key')) {
+        throw new TypeError('Each atomic storage entry must include a key.');
+      }
+    }
+    if (entries.length === 0) return;
+
+    const idb = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = idb.transaction(storeName, 'readwrite');
+      const rejectTransaction = (event) => reject(
+        transaction.error || event?.target?.error || event
+      );
+      transaction.oncomplete = resolve;
+      transaction.onerror = rejectTransaction;
+      transaction.onabort = rejectTransaction;
+
+      try {
+        const store = transaction.objectStore(storeName);
+        for (const { key, value } of entries) {
+          store.put({ key, value });
+        }
+      } catch (error) {
+        reject(error);
+        try {
+          transaction.abort();
+        } catch {
+          // The transaction may already be inactive after a synchronous request failure.
+        }
+      }
     });
   }
 
@@ -90,7 +142,9 @@ export function createLegacyRuntimeStorageAdapter({
   return {
     openDB,
     getItem,
+    readItems,
     setItem,
+    setItemsAtomic,
     removeItem,
     clear,
     getKeys,

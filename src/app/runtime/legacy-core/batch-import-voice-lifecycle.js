@@ -60,6 +60,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         navigator,
         URL,
         File,
+        loadArchiveVendor,
         JSZip,
         elements: ALL_ELEMENTS,
         legacyRuntimeContext,
@@ -239,6 +240,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         navigator,
         URL,
         File,
+        loadArchiveVendor,
         JSZip,
         elements: ALL_ELEMENTS,
         getCurrentUser,
@@ -285,6 +287,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
 
     const authImportLifecycle = createLegacyAuthImportLifecycle({
         elements: ALL_ELEMENTS,
+        loadArchiveVendor,
         JSZip,
         getConfig,
         mutateConfig,

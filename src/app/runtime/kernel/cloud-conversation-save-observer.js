@@ -1,9 +1,7 @@
-export function notifyCloudConversationSave(snapshot, sync = globalThis.__astraCloudSyncV2, logger = console) {
-  const captured = sync?.captureWorkspace?.(snapshot);
-  if (captured && typeof sync?.flush === 'function') {
-    Promise.resolve()
-      .then(() => sync.flush())
-      .catch(error => logger.warn('Noureon cloud conversation sync flush failed after local save:', error));
-  }
-  return captured;
+export function notifyCloudConversationSave(snapshot, syncOrMetadata, logger = console) {
+  const sync = syncOrMetadata?.captureWorkspace
+    ? syncOrMetadata
+    : globalThis.__astraCloudSyncV2;
+  const metadata = syncOrMetadata?.captureWorkspace ? null : syncOrMetadata;
+  return sync?.captureWorkspace?.(snapshot, metadata || undefined);
 }

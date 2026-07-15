@@ -9,6 +9,8 @@ export function createLegacyAppBootstrapLifecycle({
     window,
     document,
     elements,
+    loadSharingVendor,
+    loadArchiveVendor,
     Peer,
     QRCode,
     Html5Qrcode,
@@ -749,6 +751,8 @@ export function createLegacyAppBootstrapLifecycle({
         const p2pLifecycle = createLegacyP2PLifecycle({
             document,
             getElementById: (id) => document.getElementById(id),
+            loadSharingVendor,
+            loadArchiveVendor,
             Peer,
             QRCode,
             Html5Qrcode,

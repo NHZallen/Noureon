@@ -1,21 +1,31 @@
 let isUpdateNotificationShown = false;
 
-export function registerServiceWorker() {
-  if (!('serviceWorker' in navigator) || import.meta.env.DEV) {
+export function registerServiceWorker({
+  windowTarget = globalThis.window,
+  navigatorTarget = globalThis.navigator,
+  development = import.meta.env?.DEV === true,
+  logger = console
+} = {}) {
+  if (!navigatorTarget || !('serviceWorker' in navigatorTarget) || development) {
     return;
   }
 
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+  const install = () => navigatorTarget.serviceWorker.register('/service-worker.js')
       .then((registration) => {
-        console.log('Service Worker registered:', registration);
+        logger.log('Service Worker registered:', registration);
+        return registration;
       })
       .catch((error) => {
-        console.warn('Service Worker registration failed:', error);
+        logger.warn('Service Worker registration failed:', error);
+        return null;
       });
-  });
+  if (windowTarget?.document?.readyState === 'complete') {
+    void install();
+  } else {
+    windowTarget?.addEventListener('load', install, { once: true });
+  }
 
-  navigator.serviceWorker.addEventListener('message', async (event) => {
+  navigatorTarget.serviceWorker.addEventListener('message', async (event) => {
     if (!event.data || event.data.type !== 'NEW_VERSION_ACTIVATED' || isUpdateNotificationShown) {
       return;
     }
@@ -34,11 +44,11 @@ export function registerServiceWorker() {
       });
 
       if (shouldReload) {
-        window.location.reload();
+        windowTarget.location.reload();
       }
       return;
     }
 
-    console.info('A new Noureon version is active.');
+    logger.info('A new Noureon version is active.');
   });
 }

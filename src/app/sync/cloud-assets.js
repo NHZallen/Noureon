@@ -244,7 +244,7 @@ export function createCloudAssetTransport({
     const assetMarker = getMarker(value);
     if (assetMarker) {
       const blob = await downloadMarker(assetMarker);
-      if (!blob) return null;
+      if (!blob) return value;
       if (assetMarker.encoding === 'blob') return blob;
       const cacheKey = `${assetMarker.path}:${assetMarker.encoding}`;
       if (!hydratedValues.has(cacheKey)) hydratedValues.set(cacheKey, blobToEncodedValue(blob, assetMarker.encoding));
@@ -259,14 +259,16 @@ export function createCloudAssetTransport({
         const generatedImage = { ...child };
         const generatedMarker = getMarker(child.cloudAsset);
         const restoreKey = generatedMarker && `${generatedMarker.path}:${child.storageKey}`;
+        let restored = Boolean(restoreKey && restoredGeneratedImages.has(restoreKey));
         if (restoreKey && !restoredGeneratedImages.has(restoreKey)) {
           const blob = await downloadMarker(generatedMarker);
           if (blob) {
             await storage.setItem(child.storageKey, blob);
             restoredGeneratedImages.add(restoreKey);
+            restored = true;
           }
         }
-        delete generatedImage.cloudAsset;
+        if (restored) delete generatedImage.cloudAsset;
         output[key] = await hydrate(generatedImage);
       } else {
         output[key] = await hydrate(child);

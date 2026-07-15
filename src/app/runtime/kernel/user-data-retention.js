@@ -8,6 +8,13 @@ export function getStoredUserWorkspaceKeys(username) {
     `chatAppData_v8.6_${username}`,
     `chatSensitiveConfig_v1_${username}`,
     `chatSyncVault_v1_${username}`,
+    `chatSyncVaultRecovery_v1_${username}`,
+    `chatSyncVaultRotationPending_v1_${username}`,
+    `chatCloudSyncMeta_v1_${username}`,
+    `chatCloudSyncJournal_v1_${username}`,
+    `chatCloudSyncBootstrapPending_v1_${username}_config`,
+    `chatCloudSyncBootstrapPending_v1_${username}_sensitive`,
+    `chatCloudSyncBootstrapPending_v1_${username}_vault`,
     `chatCloudAppDataBase_v1_${username}`,
     `chatRecoveryBackup_v1_${username}`,
     `chatFolderUiState_v1_${username}`

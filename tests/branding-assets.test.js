@@ -39,6 +39,6 @@ test('project logo and PWA icons have their declared square dimensions', async (
 test('service worker refreshes and precaches the new logo asset', async () => {
   const serviceWorker = await readFile(projectFile('public/service-worker.js'), 'utf8');
 
-  assert.match(serviceWorker, /noureon-cache-v18/);
+  assert.match(serviceWorker, /noureon-cache-[\s\S]*v20/);
   assert.match(serviceWorker, /'\/logo\.png'/);
 });

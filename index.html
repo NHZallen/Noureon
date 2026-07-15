@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-TW">
   <head>
+    <script>try{performance.mark('noureon:navigation-start')}catch{}</script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#3b82f6" />
@@ -17,10 +18,99 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <style>
+      [data-startup-skeleton] {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        box-sizing: border-box;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .startup-skeleton__panel {
+        display: grid;
+        justify-items: center;
+        gap: 0.75rem;
+        text-align: center;
+      }
+
+      .startup-skeleton__mark {
+        display: grid;
+        width: 3rem;
+        height: 3rem;
+        place-items: center;
+        border-radius: 1rem;
+        background: #2563eb;
+        color: #ffffff;
+        font-size: 1.25rem;
+        font-weight: 700;
+        box-shadow: 0 12px 28px rgb(37 99 235 / 24%);
+      }
+
+      .startup-skeleton__title,
+      .startup-skeleton__message {
+        margin: 0;
+      }
+
+      .startup-skeleton__title {
+        font-size: 1.125rem;
+        font-weight: 700;
+      }
+
+      .startup-skeleton__message {
+        color: #475569;
+        font-size: 0.875rem;
+      }
+
+      .startup-skeleton__spinner {
+        width: 1.25rem;
+        height: 1.25rem;
+        box-sizing: border-box;
+        border: 2px solid #bfdbfe;
+        border-top-color: #2563eb;
+        border-radius: 9999px;
+        animation: startup-skeleton-spin 800ms linear infinite;
+      }
+
+      @keyframes startup-skeleton-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        [data-startup-skeleton] {
+          background: #0f172a;
+          color: #f8fafc;
+        }
+
+        .startup-skeleton__message {
+          color: #cbd5e1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .startup-skeleton__spinner {
+          animation: none;
+        }
+      }
+    </style>
     <title>Noureon</title>
   </head>
   <body class="font-sans bg-gray-50">
-    <div id="app"></div>
+    <div id="app">
+      <main data-startup-skeleton aria-labelledby="startup-skeleton-title">
+        <div class="startup-skeleton__panel" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
+          <div class="startup-skeleton__mark" aria-hidden="true">N</div>
+          <h1 id="startup-skeleton-title" class="startup-skeleton__title">Noureon</h1>
+          <p class="startup-skeleton__message">正在載入本機工作區…</p>
+          <div class="startup-skeleton__spinner" aria-hidden="true"></div>
+        </div>
+      </main>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

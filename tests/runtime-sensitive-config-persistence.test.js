@@ -71,3 +71,30 @@ test('missing user or missing sensitive config is safe', async () => {
 
   assert.equal(await missingPersistence.loadSensitiveConfig(), null);
 });
+
+test('sensitive config writes and removals mark cloud sync on both sides of storage', async () => {
+  const order = [];
+  const store = createSensitiveConfigStore({ initialApiKeys: { gemini: 'secret' } });
+  const persistence = createSensitiveConfigPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getItem: async () => null,
+    setItem: async () => {
+      order.push('write');
+    },
+    removeItem: async () => {
+      order.push('remove');
+    },
+    getApiKeys: store.getApiKeys,
+    replaceApiKeys: store.replaceApiKeys,
+    onSaved: async () => {
+      order.push('mark');
+    }
+  });
+
+  await persistence.saveSensitiveConfig();
+  assert.deepEqual(order, ['mark', 'write', 'mark']);
+
+  order.length = 0;
+  await persistence.clearSensitiveConfig();
+  assert.deepEqual(order, ['mark', 'remove', 'mark']);
+});

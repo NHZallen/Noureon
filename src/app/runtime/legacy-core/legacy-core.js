@@ -56,7 +56,15 @@ import { getCouncilRuntimeTexts as getCouncilRuntimeTextsForLanguage } from '/sr
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
-const { marked, DOMPurify, Chart, JSZip, Cropper, katex, Peer, QRCode, Html5Qrcode } = globalThis;
+const {
+    marked,
+    DOMPurify,
+    Chart,
+    Cropper,
+    katex,
+    loadArchiveVendor,
+    loadSharingVendor
+} = globalThis;
 const i18n = globalThis.i18n;
 const OFFICIAL_ASTRAS = globalThis.OFFICIAL_ASTRAS;
 const updateLogs = globalThis.updateLogs;
@@ -276,7 +284,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             storeName: 'keyValue',
             version: 1
         });
-        const { getItem, setItem, removeItem } = runtimeStorageAdapter;
+        const { getItem, setItem, removeItem, readItems, setItemsAtomic } = runtimeStorageAdapter;
         let folderUiStatePersistencePromise;
         const getFolderUiStatePersistence = () => folderUiStatePersistencePromise ||= import('/src/app/runtime/kernel/folder-ui-state.js').then(({ createFolderUiStatePersistence }) => createFolderUiStatePersistence({ getUsername: () => currentUser?.username || null, getItem, setItem }));
         const saveFolderUiState = async (folders) => (await getFolderUiStatePersistence()).save(folders);
@@ -462,10 +470,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;
         const getUserKey = (username) => `chatUser_${username}`;
         const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({
+            setItem,readItem:getItem,readItems,setItemsAtomic,
             getCurrentUser: () => currentUser,
             getAppData: () => runtimeAppDataStore.getSnapshot(),
             getAppDataKey,
-            setItem,
             onSaved: notifyCloudConversationSave
         });
         const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
@@ -1437,10 +1445,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             Blob,
             Chart,
             Cropper,
-            Peer,
-            QRCode,
-            Html5Qrcode,
-            JSZip,
+            loadArchiveVendor,
+            loadSharingVendor,
             ResizeObserver,
             IntersectionObserver,
             requestAnimationFrame,

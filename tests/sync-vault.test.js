@@ -3,12 +3,14 @@ import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 
 import {
+  cancelSyncVaultRotation,
   changeSyncVaultPassword,
   createAndUnlockSyncVault,
   createSyncVaultRecord,
   decryptSyncVaultPayload,
   encryptSyncVaultPayload,
   getSyncVaultStorageKey,
+  getSyncVaultRotationStorageKey,
   getUnlockedSyncVaultKey,
   isSyncVaultUnlocked,
   lockSyncVault,
@@ -134,10 +136,55 @@ test('changing the sync password exposes the previous key exactly once for cloud
     cryptoProvider: webcrypto
   });
 
+  const rotation = JSON.parse(storage.values.get(getSyncVaultRotationStorageKey(username)));
+  assert.equal(rotation.state, 'pending');
+  assert.equal(rotation.previousRecord.version, 1);
+
   const previousKey = takePreviousSyncVaultKey(username);
   assert.deepEqual(
     await decryptSyncVaultPayload(encrypted, previousKey, { cryptoProvider: webcrypto }),
     { apiKeys: { tavily: 'preserved-secret' } }
   );
   assert.equal(takePreviousSyncVaultKey(username), null);
+  await cancelSyncVaultRotation({ storage, username });
+  assert.equal(storage.values.has(getSyncVaultRotationStorageKey(username)), false);
+});
+
+test('sync vault creation and removal mark cloud sync before and after storage mutation', async () => {
+  const previousDescriptor = Object.getOwnPropertyDescriptor(globalThis, '__astraCloudWorkspaceSync');
+  const order = [];
+  const storage = {
+    getItem: async () => null,
+    setItem: async () => {
+      order.push('write');
+    },
+    removeItem: async () => {
+      order.push('remove');
+    }
+  };
+  globalThis.__astraCloudWorkspaceSync = {
+    queueLocalChange: async kind => {
+      order.push(`mark:${kind}`);
+    }
+  };
+
+  try {
+    await createAndUnlockSyncVault({
+      storage,
+      username: 'supabase:ordered-vault',
+      password: 'ordered vault password',
+      cryptoProvider: webcrypto
+    });
+    assert.deepEqual(order, ['mark:vault', 'write', 'mark:vault']);
+
+    order.length = 0;
+    await removeSyncVault({ storage, username: 'supabase:ordered-vault' });
+    assert.deepEqual(order, ['mark:vault', 'remove', 'remove', 'mark:vault']);
+  } finally {
+    if (previousDescriptor) {
+      Object.defineProperty(globalThis, '__astraCloudWorkspaceSync', previousDescriptor);
+    } else {
+      delete globalThis.__astraCloudWorkspaceSync;
+    }
+  }
 });

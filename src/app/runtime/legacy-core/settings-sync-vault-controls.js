@@ -1,4 +1,5 @@
 import {
+  cancelSyncVaultRotation,
   changeSyncVaultPassword,
   createAndUnlockSyncVault,
   getSyncVaultStorageKey,
@@ -16,7 +17,7 @@ import {
   markPendingCloudAccountLink
 } from '../../auth/account-linking.js';
 import { createCloudUserRecord } from '../../auth/supabase-auth-bridge.js';
-import { openPasswordRecovery } from '../../auth/password-recovery-page.js';
+import { openPasswordRecovery } from '../../auth/password-recovery-route.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
 
 export function createSettingsSyncVaultControls({
@@ -446,6 +447,14 @@ export function createSettingsSyncVaultControls({
     window.dispatchEvent(new window.CustomEvent('astra:sync-vault-unlocked', { detail: { username } }));
   };
 
+  const queueCloudSyncKind = async (kind) => {
+    try {
+      return await globalThis.__astraCloudWorkspaceSync?.queueLocalChange(kind);
+    } catch {
+      return false;
+    }
+  };
+
   const bindEvents = () => {
     const elements = getElements();
     elements.emailForm.addEventListener('submit', async (event) => {
@@ -658,14 +667,26 @@ export function createSettingsSyncVaultControls({
         requireMatchingPasswords(elements.recoveryPassword.value, elements.recoveryConfirmation.value);
         setBusy(true);
         const recovered = await requestVaultRecovery('recover');
+        await queueCloudSyncKind('vault');
         await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
+        await queueCloudSyncKind('vault');
         const nextRecord = await changeSyncVaultPassword({
           storage,
           username: user.username,
           currentPassword: recovered.password,
           nextPassword: elements.recoveryPassword.value
         });
-        await storeVaultRecovery(elements.recoveryPassword.value, nextRecord);
+        try {
+          await storeVaultRecovery(elements.recoveryPassword.value, nextRecord);
+        } catch (error) {
+          await queueCloudSyncKind('vault');
+          await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
+          await unlockSyncVault({ storage, username: user.username, password: recovered.password });
+          await cancelSyncVaultRotation({ storage, username: user.username });
+          await queueCloudSyncKind('sensitive');
+          await queueCloudSyncKind('vault');
+          throw error;
+        }
         await storage.removeItem(getRecoveryStorageKey(user.username));
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete('vault_recovery');
@@ -702,8 +723,12 @@ export function createSettingsSyncVaultControls({
         try {
           await storeVaultRecovery(elements.nextPassword.value, nextRecord);
         } catch (error) {
+          await queueCloudSyncKind('vault');
           await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(previousRecord));
           await unlockSyncVault({ storage, username: user.username, password: elements.currentPassword.value });
+          await cancelSyncVaultRotation({ storage, username: user.username });
+          await queueCloudSyncKind('sensitive');
+          await queueCloudSyncKind('vault');
           throw error;
         }
         elements.currentPassword.value = '';
@@ -728,8 +753,8 @@ export function createSettingsSyncVaultControls({
         return;
       }
       await removeSyncVault({ storage, username: user.username });
-      globalThis.__astraCloudWorkspaceSync?.queueLocalChange('vault');
-      globalThis.__astraCloudWorkspaceSync?.queueLocalChange('sensitive');
+      await queueCloudSyncKind('vault');
+      await queueCloudSyncKind('sensitive');
       showNotification(text('cloudSyncPasswordRemoved', '同步密碼已清除。'));
       await refreshSyncVaultControls();
     });

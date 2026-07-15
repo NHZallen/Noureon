@@ -217,6 +217,13 @@ test('login as another stored owner removes the previous workspace data', async 
     ['removeItem', 'chatAppData_v8.6_alice'],
     ['removeItem', 'chatSensitiveConfig_v1_alice'],
     ['removeItem', 'chatSyncVault_v1_alice'],
+    ['removeItem', 'chatSyncVaultRecovery_v1_alice'],
+    ['removeItem', 'chatSyncVaultRotationPending_v1_alice'],
+    ['removeItem', 'chatCloudSyncMeta_v1_alice'],
+    ['removeItem', 'chatCloudSyncJournal_v1_alice'],
+    ['removeItem', 'chatCloudSyncBootstrapPending_v1_alice_config'],
+    ['removeItem', 'chatCloudSyncBootstrapPending_v1_alice_sensitive'],
+    ['removeItem', 'chatCloudSyncBootstrapPending_v1_alice_vault'],
     ['removeItem', 'chatCloudAppDataBase_v1_alice'],
     ['removeItem', 'chatRecoveryBackup_v1_alice'],
     ['removeItem', 'chatFolderUiState_v1_alice']

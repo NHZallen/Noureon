@@ -1,3 +1,3 @@
 import { startRuntimeEntry } from './runtime-entry.js';
 
-startRuntimeEntry();
+export const legacyAppReady = startRuntimeEntry();

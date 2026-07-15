@@ -122,12 +122,20 @@ test('demo conversations data module keeps window bridge and export compatibilit
   });
 });
 
-test('main bootstrap keeps legacy data import order', () => {
+test('main bootstrap starts legacy data imports together while preserving their declared order', () => {
   const source = readFileSync(projectFile('src/main.js'), 'utf8');
-  const positions = EXPECTED_DATA_IMPORT_ORDER.map((specifier) => source.indexOf(`await import('${specifier}')`));
+  const parallelStart = source.indexOf('const startupDataReady = Promise.all([');
+  const parallelEnd = source.indexOf(']).then(() => {', parallelStart);
+  const positions = EXPECTED_DATA_IMPORT_ORDER.map((specifier) => source.indexOf(`import('${specifier}')`));
+
+  assert.ok(parallelStart >= 0, 'startup data should use one parallel readiness gate');
+  assert.ok(parallelEnd > parallelStart, 'startup data parallel gate should have a bounded import list');
 
   positions.forEach((position, index) => {
-    assert.notEqual(position, -1, `${EXPECTED_DATA_IMPORT_ORDER[index]} should remain an awaited data import`);
+    assert.ok(
+      position > parallelStart && position < parallelEnd,
+      `${EXPECTED_DATA_IMPORT_ORDER[index]} should remain inside the startup data parallel gate`
+    );
   });
 
   const sortedPositions = [...positions].sort((a, b) => a - b);

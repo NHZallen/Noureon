@@ -118,6 +118,12 @@ function createHarness(overrides = {}) {
     Blob: class {},
     Chart: class {},
     Cropper: class {},
+    loadArchiveVendor: async () => class {},
+    loadSharingVendor: async () => ({
+      Peer: class {},
+      QRCode: class {},
+      Html5Qrcode: class {}
+    }),
     Peer: class {},
     QRCode: class {},
     Html5Qrcode: class {},

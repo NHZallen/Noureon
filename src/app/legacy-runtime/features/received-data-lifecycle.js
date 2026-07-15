@@ -1,5 +1,6 @@
 export function createReceivedDataLifecycle({
     BlobCtor = Blob,
+    loadArchiveVendor,
     JSZip,
     getAstras = () => [],
     getConversations = () => [],
@@ -15,10 +16,19 @@ export function createReceivedDataLifecycle({
     scheduleTimeout = setTimeout,
     logger = console
 } = {}) {
+    const resolveArchiveVendor = typeof loadArchiveVendor === 'function'
+        ? loadArchiveVendor
+        : () => Promise.resolve(JSZip);
+
     const processReceivedData = async (buffers, type) => {
         try {
             const blob = new BlobCtor(buffers);
-            const zip = await JSZip.loadAsync(blob);
+            const loadedVendor = await resolveArchiveVendor();
+            const JSZipCtor = loadedVendor?.JSZip || loadedVendor?.default || loadedVendor;
+            if (typeof JSZipCtor?.loadAsync !== 'function') {
+                throw new TypeError('JSZip did not expose a usable constructor.');
+            }
+            const zip = await JSZipCtor.loadAsync(blob);
             const astras = getAstras();
             const conversations = getConversations();
             const folders = getFolders();

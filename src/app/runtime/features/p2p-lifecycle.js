@@ -6,6 +6,8 @@ const DEFAULT_CHUNK_SIZE = 16 * 1024;
 export function createLegacyP2PLifecycle({
   document,
   getElementById,
+  loadSharingVendor,
+  loadArchiveVendor,
   Peer,
   QRCode,
   Html5Qrcode,
@@ -29,6 +31,16 @@ export function createLegacyP2PLifecycle({
   let p2pPeer = null;
   let p2pConn = null;
   let p2pType = null;
+  let operationGeneration = 0;
+  let activeOperation = null;
+  let sharingVendors = (
+    typeof Peer === 'function'
+    && typeof QRCode === 'function'
+    && typeof Html5Qrcode === 'function'
+  ) ? Object.freeze({ Peer, QRCode, Html5Qrcode }) : null;
+  let sharingVendorPromise;
+  let archiveVendor = typeof JSZip === 'function' ? JSZip : null;
+  let archiveVendorPromise;
 
   const getElement = (id) => getElementById(id);
   const log = logger ?? console;
@@ -36,9 +48,178 @@ export function createLegacyP2PLifecycle({
   const randomValue = random ?? Math.random;
   const generateUuid = randomUUID;
 
+  const createCancellationGate = () => {
+    let resolveCancellation;
+    const gate = {
+      cancelled: false,
+      promise: new Promise((resolve) => {
+        resolveCancellation = resolve;
+      }),
+      cancel() {
+        if (gate.cancelled) return;
+        gate.cancelled = true;
+        resolveCancellation(false);
+      }
+    };
+    return gate;
+  };
+
+  const destroyPeer = (peer) => {
+    if (!peer) return;
+    try {
+      peer.destroy();
+    } catch (error) {
+      log.warn('Failed to destroy P2P peer:', error);
+    }
+  };
+
+  const invalidateActiveOperation = () => {
+    const previousOperation = activeOperation;
+    activeOperation = null;
+    operationGeneration += 1;
+    previousOperation?.connectionAttempt?.cancellation.cancel();
+    previousOperation?.cancellation.cancel();
+    p2pConn = null;
+
+    const previousPeer = p2pPeer;
+    p2pPeer = null;
+    destroyPeer(previousPeer);
+  };
+
+  const beginOperation = (kind, details = {}) => {
+    invalidateActiveOperation();
+    const operation = {
+      ...details,
+      kind,
+      generation: operationGeneration,
+      cancellation: createCancellationGate(),
+      connectionAttempt: null
+    };
+    activeOperation = operation;
+    return operation;
+  };
+
+  const isCurrentOperation = (operation) => (
+    activeOperation === operation
+    && operation?.generation === operationGeneration
+    && !operation?.cancellation.cancelled
+  );
+
+  const closeConnection = (connection) => {
+    if (typeof connection?.close !== 'function') return;
+    try {
+      connection.close();
+    } catch (error) {
+      log.warn('Failed to close stale P2P connection:', error);
+    }
+  };
+
+  const bindOperationConnection = (operation, connection) => {
+    if (!isCurrentOperation(operation)) return null;
+
+    const previousAttempt = operation.connectionAttempt;
+    const attempt = {
+      connection,
+      cancellation: createCancellationGate()
+    };
+    operation.connectionAttempt = attempt;
+    p2pConn = connection;
+
+    if (previousAttempt && previousAttempt.connection !== connection) {
+      previousAttempt.cancellation.cancel();
+      closeConnection(previousAttempt.connection);
+    }
+    return attempt;
+  };
+
+  const isCurrentConnection = (operation, attempt) => (
+    isCurrentOperation(operation)
+    && operation.connectionAttempt === attempt
+    && !attempt?.cancellation.cancelled
+  );
+
+  const releaseOperationConnection = (operation, attempt) => {
+    attempt?.cancellation.cancel();
+    if (operation?.connectionAttempt !== attempt) return;
+    operation.connectionAttempt = null;
+    if (p2pConn === attempt.connection) p2pConn = null;
+  };
+
+  const requireSharingVendors = () => {
+    if (sharingVendors) return sharingVendors;
+    if (sharingVendorPromise) return sharingVendorPromise;
+
+    if (typeof loadSharingVendor !== 'function') {
+      return Promise.reject(new TypeError('A P2P sharing vendor loader is required.'));
+    }
+
+    sharingVendorPromise = Promise.resolve()
+      .then(loadSharingVendor)
+      .then((loadedVendors) => {
+        const resolvedVendors = {
+          Peer: loadedVendors?.Peer,
+          QRCode: loadedVendors?.QRCode,
+          Html5Qrcode: loadedVendors?.Html5Qrcode
+        };
+        if (
+          typeof resolvedVendors.Peer !== 'function'
+          || typeof resolvedVendors.QRCode !== 'function'
+          || typeof resolvedVendors.Html5Qrcode !== 'function'
+        ) {
+          throw new TypeError('P2P sharing vendors did not expose the expected APIs.');
+        }
+        sharingVendors = Object.freeze(resolvedVendors);
+        return sharingVendors;
+      })
+      .catch((error) => {
+        sharingVendorPromise = undefined;
+        throw error;
+      });
+    return sharingVendorPromise;
+  };
+
+  const requireArchiveVendor = () => {
+    if (archiveVendor) return archiveVendor;
+    if (archiveVendorPromise) return archiveVendorPromise;
+
+    if (typeof loadArchiveVendor !== 'function') {
+      return Promise.reject(new TypeError('An archive vendor loader is required.'));
+    }
+
+    archiveVendorPromise = Promise.resolve()
+      .then(loadArchiveVendor)
+      .then((loadedVendor) => {
+        const JSZipCtor = loadedVendor?.JSZip || loadedVendor?.default || loadedVendor;
+        if (typeof JSZipCtor !== 'function') {
+          throw new TypeError('JSZip did not expose a usable constructor.');
+        }
+        archiveVendor = JSZipCtor;
+        return archiveVendor;
+      })
+      .catch((error) => {
+        archiveVendorPromise = undefined;
+        throw error;
+      });
+    return archiveVendorPromise;
+  };
+
+  const reportVendorLoadFailure = (error) => {
+    log.error('Failed to load P2P support:', error);
+    showNotification(
+      `${getText('p2pError', 'P2P error')}: ${error?.message || String(error)}`,
+      'error'
+    );
+  };
+
   function initP2P(type) {
-    p2pType = type;
     resetP2PUI();
+    p2pType = type;
+    const sharingLoad = requireSharingVendors();
+    if (typeof sharingLoad?.then === 'function') {
+      void sharingLoad.catch((error) => {
+        log.warn('P2P sharing support could not be prefetched:', error);
+      });
+    }
     getElement('p2p-modal-title').textContent = getText('p2pShareTitle', 'P2P Share {type}')
       .replace('{type}', type === 'astras' ? 'Nouras' : getText('folders', 'Folders'));
     const rolePrompt = document.querySelector?.('#p2p-step-role > p');
@@ -47,6 +228,7 @@ export function createLegacyP2PLifecycle({
   }
 
   function resetP2PUI() {
+    invalidateActiveOperation();
     getElement('p2p-step-role').classList.remove('hidden');
     getElement('p2p-step-select').classList.add('hidden');
     getElement('p2p-step-wait').classList.add('hidden');
@@ -55,10 +237,6 @@ export function createLegacyP2PLifecycle({
     getElement('p2p-reader').classList.add('hidden');
 
     p2pScannerLifecycle.stopScannerIfActive();
-    if (p2pPeer) {
-      p2pPeer.destroy();
-      p2pPeer = null;
-    }
   }
 
   function generateP2PCode() {
@@ -107,10 +285,27 @@ export function createLegacyP2PLifecycle({
       return;
     }
 
-    const selectedIds = Array.from(checkboxes).map((checkbox) => checkbox.value);
+    const operation = beginOperation('sender', {
+      type: p2pType,
+      selectedIds: Object.freeze(Array.from(checkboxes).map((checkbox) => checkbox.value))
+    });
+    let loadedVendors;
+    try {
+      loadedVendors = await requireSharingVendors();
+    } catch (error) {
+      if (isCurrentOperation(operation)) reportVendorLoadFailure(error);
+      return;
+    }
+    if (!isCurrentOperation(operation)) return;
 
     getElement('p2p-step-select').classList.add('hidden');
     getElement('p2p-step-wait').classList.remove('hidden');
+
+    createSenderPeer(operation, loadedVendors);
+  }
+
+  function createSenderPeer(operation, loadedVendors) {
+    if (!isCurrentOperation(operation)) return;
 
     const code = generateP2PCode();
     const peerId = `astra-p2p-${code}`;
@@ -119,49 +314,106 @@ export function createLegacyP2PLifecycle({
 
     const qrContainer = getElement('p2p-qrcode-container');
     qrContainer.innerHTML = '';
-    new QRCode(qrContainer, {
+    new loadedVendors.QRCode(qrContainer, {
       text: code,
       width: 180,
       height: 180
     });
 
-    p2pPeer = new Peer(peerId);
+    let peer;
+    try {
+      peer = new loadedVendors.Peer(peerId);
+    } catch (error) {
+      if (isCurrentOperation(operation)) reportVendorLoadFailure(error);
+      return;
+    }
+    if (!isCurrentOperation(operation)) {
+      destroyPeer(peer);
+      return;
+    }
+    p2pPeer = peer;
 
-    p2pPeer.on('open', (id) => {
+    peer.on('open', (id) => {
+      if (!isCurrentOperation(operation) || p2pPeer !== peer) return;
       log.log('My peer ID is: ' + id);
     });
 
-    p2pPeer.on('connection', (conn) => {
-      p2pConn = conn;
-      setupSenderConnection(selectedIds);
+    peer.on('connection', (connection) => {
+      if (!isCurrentOperation(operation) || p2pPeer !== peer) {
+        closeConnection(connection);
+        return;
+      }
+      const attempt = bindOperationConnection(operation, connection);
+      if (!attempt) {
+        closeConnection(connection);
+        return;
+      }
+      void setupSenderConnection(operation, attempt);
     });
 
-    p2pPeer.on('error', (err) => {
+    peer.on('error', (err) => {
+      if (!isCurrentOperation(operation) || p2pPeer !== peer) return;
       log.error(err);
       if (err.type === 'unavailable-id') {
-        p2pPeer.destroy();
-        startP2PSender();
+        operation.connectionAttempt?.cancellation.cancel();
+        operation.connectionAttempt = null;
+        p2pConn = null;
+        p2pPeer = null;
+        destroyPeer(peer);
+        createSenderPeer(operation, loadedVendors);
       } else {
         showNotification(`${getText('p2pError', 'P2P error')}: ${err.type}`, 'error');
       }
     });
   }
 
-  async function setupSenderConnection(selectedIds) {
+  async function setupSenderConnection(operation, attempt) {
+    if (!isCurrentConnection(operation, attempt)) return;
+    const { connection } = attempt;
+    let settleOpen;
+    const opened = connection.open === true
+      ? Promise.resolve(true)
+      : new Promise((resolve) => {
+          let settled = false;
+          settleOpen = (value) => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+          };
+          connection.on('open', () => settleOpen(true));
+        });
+    connection.on('close', () => {
+      settleOpen?.(false);
+      releaseOperationConnection(operation, attempt);
+    });
+
     getElement('p2p-step-wait').classList.add('hidden');
     getElement('p2p-step-progress').classList.remove('hidden');
     updateP2PProgress(0, getText('p2pPreparingData', 'Preparing data...'));
 
-    const zip = new JSZip();
+    let JSZipCtor;
+    try {
+      JSZipCtor = await requireArchiveVendor();
+    } catch (error) {
+      if (isCurrentConnection(operation, attempt)) {
+        reportVendorLoadFailure(error);
+        releaseOperationConnection(operation, attempt);
+        closeConnection(connection);
+        resetP2PUI();
+      }
+      return;
+    }
+    if (!isCurrentConnection(operation, attempt)) return;
+    const zip = new JSZipCtor();
 
-    if (p2pType === 'astras') {
-      const selectedAstras = getAstras().filter((astra) => selectedIds.includes(astra.id));
+    if (operation.type === 'astras') {
+      const selectedAstras = getAstras().filter((astra) => operation.selectedIds.includes(astra.id));
       for (const astra of selectedAstras) {
         const astraCopy = JSON.parse(JSON.stringify(astra));
         zip.file(`astra_${astra.id}.json`, JSON.stringify(astraCopy));
       }
     } else {
-      const selectedFolders = getFolders().filter((folder) => selectedIds.includes(folder.id));
+      const selectedFolders = getFolders().filter((folder) => operation.selectedIds.includes(folder.id));
       const folderConvs = [];
 
       selectedFolders.forEach((folder) => {
@@ -177,42 +429,71 @@ export function createLegacyP2PLifecycle({
       zip.file('conversations.json', JSON.stringify(folderConvs));
     }
 
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const arrayBuffer = await blob.arrayBuffer();
+    let arrayBuffer;
+    try {
+      const blob = await zip.generateAsync({ type: 'blob' });
+      if (!isCurrentConnection(operation, attempt)) return;
+      arrayBuffer = await blob.arrayBuffer();
+    } catch (error) {
+      if (isCurrentConnection(operation, attempt)) {
+        reportVendorLoadFailure(error);
+        releaseOperationConnection(operation, attempt);
+        closeConnection(connection);
+        resetP2PUI();
+      }
+      return;
+    }
+    if (!isCurrentConnection(operation, attempt)) return;
 
-    p2pConn.on('open', () => {
-      p2pConn.send({
+    const connectionOpened = await Promise.race([
+      opened,
+      operation.cancellation.promise,
+      attempt.cancellation.promise
+    ]);
+    if (!connectionOpened || !isCurrentConnection(operation, attempt)) return;
+
+    try {
+      connection.send({
         type: 'meta',
         size: arrayBuffer.byteLength,
-        dataType: p2pType
+        dataType: operation.type
       });
 
       const totalSize = arrayBuffer.byteLength;
       let offset = 0;
 
       function sendNextChunk() {
-        if (offset >= totalSize) {
-          p2pConn.send({ type: 'end' });
-          updateP2PProgress(100, getText('p2pSentSuccess', 'Sent successfully!'));
-          return;
+        if (!isCurrentConnection(operation, attempt)) return;
+        try {
+          if (offset >= totalSize) {
+            connection.send({ type: 'end' });
+            updateP2PProgress(100, getText('p2pSentSuccess', 'Sent successfully!'));
+            return;
+          }
+
+          const chunk = arrayBuffer.slice(offset, offset + DEFAULT_CHUNK_SIZE);
+          connection.send({
+            type: 'chunk',
+            data: chunk,
+            offset
+          });
+
+          offset += chunk.byteLength;
+          const percent = (offset / totalSize) * 100;
+          updateP2PProgress(percent, `${getText('p2pSending', 'Sending...')} ${Math.round(percent)}%`);
+
+          schedule(sendNextChunk, 5);
+        } catch (error) {
+          if (!isCurrentConnection(operation, attempt)) return;
+          releaseOperationConnection(operation, attempt);
+          reportVendorLoadFailure(error);
         }
-
-        const chunk = arrayBuffer.slice(offset, offset + DEFAULT_CHUNK_SIZE);
-        p2pConn.send({
-          type: 'chunk',
-          data: chunk,
-          offset
-        });
-
-        offset += chunk.byteLength;
-        const percent = (offset / totalSize) * 100;
-        updateP2PProgress(percent, `${getText('p2pSending', 'Sending...')} ${Math.round(percent)}%`);
-
-        schedule(sendNextChunk, 5);
       }
 
       sendNextChunk();
-    });
+    } catch (error) {
+      if (isCurrentConnection(operation, attempt)) reportVendorLoadFailure(error);
+    }
   }
 
   function startP2PReceiverUI() {
@@ -222,21 +503,34 @@ export function createLegacyP2PLifecycle({
     getElement('p2p-code-input').focus();
   }
 
-  function connectToSender(code) {
-    const peerId = `astra-p2p-${code.toUpperCase()}`;
+  function connectWithPeer(PeerCtor, operation) {
+    if (!isCurrentOperation(operation)) return undefined;
+    const peerId = `astra-p2p-${operation.code}`;
 
-    p2pPeer = new Peer();
+    const peer = new PeerCtor();
+    if (!isCurrentOperation(operation)) {
+      destroyPeer(peer);
+      return undefined;
+    }
+    p2pPeer = peer;
 
     getElement('p2p-step-connect').classList.add('hidden');
     getElement('p2p-step-progress').classList.remove('hidden');
     updateP2PProgress(5, getText('p2pConnecting', 'Connecting...'));
 
-    p2pPeer.on('open', () => {
-      p2pConn = p2pPeer.connect(peerId);
-      setupReceiverConnection();
+    peer.on('open', () => {
+      if (!isCurrentOperation(operation) || p2pPeer !== peer) return;
+      const connection = peer.connect(peerId);
+      const attempt = bindOperationConnection(operation, connection);
+      if (!attempt) {
+        closeConnection(connection);
+        return;
+      }
+      setupReceiverConnection(operation, attempt);
     });
 
-    p2pPeer.on('error', (err) => {
+    peer.on('error', (err) => {
+      if (!isCurrentOperation(operation) || p2pPeer !== peer) return;
       log.error(err);
       showNotification(getText('p2pConnectionFailed', 'Connection failed. Check the code.'), 'error');
       resetP2PUI();
@@ -244,17 +538,37 @@ export function createLegacyP2PLifecycle({
     });
   }
 
-  function setupReceiverConnection() {
+  function connectToSender(code) {
+    const operation = beginOperation('receiver', { code: code.toUpperCase() });
+    const loadedVendors = requireSharingVendors();
+    if (typeof loadedVendors?.then === 'function') {
+      return loadedVendors
+        .then((vendors) => (
+          isCurrentOperation(operation)
+            ? connectWithPeer(vendors.Peer, operation)
+            : undefined
+        ))
+        .catch((error) => {
+          if (isCurrentOperation(operation)) reportVendorLoadFailure(error);
+        });
+    }
+    return connectWithPeer(loadedVendors.Peer, operation);
+  }
+
+  function setupReceiverConnection(operation, attempt) {
+    const { connection } = attempt;
     let receivedBuffer = [];
     let receivedSize = 0;
     let totalSize = 0;
     let dataType = '';
 
-    p2pConn.on('open', () => {
+    connection.on('open', () => {
+      if (!isCurrentConnection(operation, attempt)) return;
       updateP2PProgress(10, getText('p2pConnectedReceiving', 'Connected, receiving data...'));
     });
 
-    p2pConn.on('data', async (data) => {
+    connection.on('data', async (data) => {
+      if (!isCurrentConnection(operation, attempt)) return;
       if (data.type === 'meta') {
         totalSize = data.size;
         dataType = data.dataType;
@@ -272,7 +586,10 @@ export function createLegacyP2PLifecycle({
       }
     });
 
-    p2pConn.on('close', () => {
+    connection.on('close', () => {
+      const wasCurrent = isCurrentConnection(operation, attempt);
+      releaseOperationConnection(operation, attempt);
+      if (!wasCurrent) return;
       if (receivedSize < totalSize && totalSize > 0) {
         showNotification(getText('p2pConnectionInterrupted', 'Connection interrupted.'), 'error');
       }
@@ -281,6 +598,7 @@ export function createLegacyP2PLifecycle({
 
   const receivedDataLifecycle = createReceivedDataLifecycle({
     BlobCtor,
+    loadArchiveVendor: requireArchiveVendor,
     JSZip,
     getAstras,
     getConversations,
@@ -300,7 +618,13 @@ export function createLegacyP2PLifecycle({
 
   const p2pScannerLifecycle = createP2PScannerLifecycle({
     getElementById: getElement,
-    createScanner: (elementId) => new Html5Qrcode(elementId),
+    createScanner: (elementId) => {
+      const loadedVendors = requireSharingVendors();
+      if (typeof loadedVendors?.then === 'function') {
+        return loadedVendors.then((vendors) => new vendors.Html5Qrcode(elementId));
+      }
+      return new loadedVendors.Html5Qrcode(elementId);
+    },
     connectToSender,
     showNotification,
     getText,

@@ -2,7 +2,12 @@ import { normalizeLoadedLegacyAppData } from '../kernel/app-data-normalization.j
 import { normalizeLoadedLegacyConfig } from '../kernel/config-normalization.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
 import { mergeRemoteWorkspaceAppData } from '../../sync/cloud-sync-versioning.js';
+import { mergeWorkspaceAppData } from '../../sync/cloud-sync-versioning.js';
 import { preserveLocalFolderUiState } from '../../sync/cloud-workspace-app-data.js';
+import {
+  applyAstraTombstones,
+  applyWorkspaceTombstones
+} from '../../sync/cloud-sync-v2-deletions.js';
 import { mergeSyncedMemoryState } from '../memory/memory-sync-projection.js';
 
 function preserveItemIdentity(currentItems = [], nextItems = []) {
@@ -52,33 +57,49 @@ export function createCloudWorkspaceLiveLifecycle({
     if (pendingAppData) {
       const nextAppData = pendingAppData;
       pendingAppData = null;
-      applyAppData(nextAppData);
+      applyAppData(nextAppData.rawData, nextAppData.options);
     }
   };
 
-  const applyAppData = (rawData) => {
+  const normalizeTombstones = (tombstones = {}) => ({
+    conversations: new Set(tombstones.conversationIds || []),
+    folders: new Set(tombstones.folderIds || [])
+  });
+
+  const applyAppData = (rawData, options = {}) => {
     if (!rawData || !ready) {
-      pendingAppData = rawData;
+      pendingAppData = rawData ? { rawData, options } : null;
       return;
     }
     const activeConversation = busy();
     if (activeConversation) {
-      pendingAppData = rawData;
+      pendingAppData = { rawData, options };
       protectedConversation = activeConversation;
       if (deferredRenderTimer == null) deferredRenderTimer = schedule(renderWhenResponseSettles, 100);
       return;
     }
+    const tombstoneIndex = normalizeTombstones(options.tombstones);
+    const astraTombstoneIds = new Set(options.tombstones?.astraIds || []);
+    const sanitizedRawData = applyAstraTombstones(
+      applyWorkspaceTombstones(rawData, tombstoneIndex),
+      astraTombstoneIds
+    );
     const normalizedRemote = normalizeLoadedLegacyAppData({
-      rawData,
+      rawData: sanitizedRawData,
       defaultFolder: getDefaultFolder(),
       defaultGenConfig: getDefaultGenConfig(),
       lastCouncilConfig: configAccess.getConfig().lastCouncilConfig,
       normalizeCouncilConfig,
       normalizeConversationModel
     });
-    const current = appDataStore.getSnapshot?.() || {};
+    const current = applyAstraTombstones(
+      applyWorkspaceTombstones(appDataStore.getSnapshot?.() || {}, tombstoneIndex),
+      astraTombstoneIds
+    );
     const remoteWithLocalUi = preserveLocalFolderUiState(current, normalizedRemote);
-    const protectedRemote = mergeRemoteWorkspaceAppData(current, remoteWithLocalUi, protectedConversation);
+    const protectedRemote = options.recordLevel
+      ? mergeWorkspaceAppData(current, remoteWithLocalUi)
+      : mergeRemoteWorkspaceAppData(current, remoteWithLocalUi, protectedConversation);
     protectedConversation = null;
     appDataStore.replaceAll({
       conversations: preserveItemIdentity(current.conversations, protectedRemote.conversations),
@@ -126,11 +147,15 @@ export function createCloudWorkspaceLiveLifecycle({
     if (pendingAppData) {
       const nextAppData = pendingAppData;
       pendingAppData = null;
-      applyAppData(nextAppData);
+      applyAppData(nextAppData.rawData, nextAppData.options);
     }
   };
 
   window.addEventListener('astra:cloud-app-data', event => applyAppData(event.detail));
+  window.addEventListener('astra:cloud-workspace-committed', event => applyAppData(
+    event.detail?.workspace,
+    { recordLevel: true, tombstones: event.detail?.tombstones }
+  ));
   window.addEventListener('astra:cloud-config', event => applyConfig(event.detail));
   window.__astraCloudRuntimeReady = markReady;
 

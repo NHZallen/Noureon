@@ -151,6 +151,28 @@ test('serialized config persistence removes apiKeys from normal config writes', 
   ]);
 });
 
+test('serialized config persistence marks cloud sync before and after the durable write', async () => {
+  const order = [];
+  let markerCalls = 0;
+  const persistence = createLegacyRuntimeConfigPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getConfig: () => ({ outputMode: 'typewriter' }),
+    getConfigKey: () => 'chatConfig_v_v8.6_alice',
+    setItem: async () => {
+      order.push('write');
+    },
+    onSaved: async () => {
+      order.push('mark');
+      markerCalls += 1;
+      if (markerCalls === 1) throw new Error('transient marker failure');
+    }
+  });
+
+  await persistence.saveConfig();
+
+  assert.deepEqual(order, ['mark', 'write', 'mark']);
+});
+
 test('serialized config persistence preserves rejection and stringify error boundaries', async () => {
   const setItemError = new Error('write failed');
   const rejectingPersistence = createLegacyRuntimeConfigPersistence({
@@ -198,7 +220,10 @@ test('config persistence receives the extracted IndexedDB adapter and keeps the 
   const storageSource = readSource('src/app/runtime/kernel/storage-adapter.js');
 
   assert.match(source, /createLegacyRuntimeStorageAdapter/);
-  assert.match(source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem\s*\}\s*=\s*runtimeStorageAdapter/);
+  assert.match(
+    source,
+    /const\s+\{\s*getItem,\s*setItem,\s*removeItem,\s*readItems,\s*setItemsAtomic\s*\}\s*=\s*runtimeStorageAdapter/
+  );
   assert.match(storageSource, /dbName\s*=\s*'ChatAppDB'/);
   assert.match(storageSource, /storeName\s*=\s*'keyValue'/);
   assert.match(storageSource, /indexedDBFactory\.open\(dbName,\s*version\)/);
@@ -224,9 +249,10 @@ test('saveConfig preserves missing-user, serialization, and rejection behavior',
   );
   assert.match(
     persistenceSource,
-    /const\s+currentUser\s*=\s*getCurrentUser\(\);\s*if\s*\(currentUser\)\s*\{\s*await\s+setItem\(getConfigKey\(\),\s*JSON\.stringify\(removeSensitiveConfig\(getConfig\(\)\)\)\);/s
+    /const\s+currentUser\s*=\s*getCurrentUser\(\);\s*if\s*\(currentUser\)\s*\{\s*const\s+serializedConfig\s*=\s*JSON\.stringify\(removeSensitiveConfig\(getConfig\(\)\)\);\s*await\s+markCloudSyncPending\(\);\s*await\s+setItem\(getConfigKey\(\),\s*serializedConfig\);\s*await\s+markCloudSyncPending\(\);/s
   );
-  assert.doesNotMatch(`${body}\n${persistenceSource}`, /\belse\b|try\s*\{|catch\s*\(/);
+  assert.doesNotMatch(body, /\belse\b|try\s*\{|catch\s*\(/);
+  assert.doesNotMatch(persistenceSource, /\belse\b/);
   assert.doesNotMatch(
     `${body}\n${persistenceSource}`,
     /applyUiTheme|applyLanguage|render(?:All|Chat|Store|ModelSwitcher)|showNotification|runtimeDialogCoordinator/

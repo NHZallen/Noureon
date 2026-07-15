@@ -1,17 +1,21 @@
 import { getSupabaseClient } from '../auth/supabase-client.js';
 import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
 import {
+  clearPreviousSyncVaultKeys,
   decryptSyncVaultPayload,
   encryptSyncVaultPayload,
+  getPreviousSyncVaultKeys,
+  getSyncVaultRotationStorageKey,
   getSyncVaultStorageKey,
   getUnlockedSyncVaultKey,
-  lockSyncVault,
-  takePreviousSyncVaultKey
+  lockSyncVault
 } from './sync-vault.js';
 import { createCloudAssetTransport } from './cloud-assets.js';
-import { repairGeneratedImageStorageKeys } from './generated-image-key-repair.js';
+import { repairCloudWorkspaceGeneratedImageKeys } from './cloud-workspace-image-repair.js';
 import { ensureWorkspaceRecoveryBackup } from './workspace-recovery-backup.js';
 import { initializeConversationShadowSync } from './cloud-sync-v2-shadow.js';
+import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js';
+import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
 import {
   canCommitHydratedRemote,
   enqueueRecoveringTask,
@@ -74,7 +78,7 @@ function hasApiKeys(value) {
   return apiKeys && typeof apiKeys === 'object' && Object.values(apiKeys).some(Boolean);
 }
 
-export async function initializeCloudWorkspaceSync({ window, session } = {}) {
+export async function initializeCloudWorkspaceSync({ window, session, bootstrapQueue } = {}) {
   const supabase = getSupabaseClient();
   const user = session?.user;
   if (!supabase) {
@@ -104,15 +108,18 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     sensitive: `chatSensitiveConfig_v1_${username}`,
     vault: getSyncVaultStorageKey(username)
   };
+  const rotationKey = getSyncVaultRotationStorageKey(username);
   const metaKey = `chatCloudSyncMeta_v1_${username}`;
   const assets = createCloudAssetTransport({ supabase, storage, userId: user.id });
   let meta = parseJson(await storage.getItem(metaKey)) || {};
   const upgradingMeta = meta.version !== SYNC_META_VERSION;
   let remote = null;
+  let remoteWriteEpoch = 0;
   let timer = null;
   let syncing = false;
   let realtimeWork = Promise.resolve();
   let realtimeDeferred = false;
+  let remoteRefreshTimer = null;
   const pending = new Set();
   const activeUploads = new Map();
   const reportRealtimeError = error => console.warn('Noureon realtime queue recovered after an error:', error);
@@ -126,23 +133,38 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     appDataKey: keys.appData
   });
 
-  const savedAppData = parseJson(await storage.getItem(keys.appData));
-  if (savedAppData && await repairGeneratedImageStorageKeys({ value: savedAppData, storage, username })) {
-    await storage.setItem(keys.appData, JSON.stringify(savedAppData));
-    await storage.setItem(metaKey, JSON.stringify(meta));
-  }
+  await repairCloudWorkspaceGeneratedImageKeys({
+    storage,
+    username,
+    appDataKey: keys.appData
+  });
 
-  const saveMeta = () => storage.setItem(metaKey, JSON.stringify(meta));
+  const readStoredMeta = async () => parseJson(await storage.getItem(metaKey)) || {};
+  const refreshMeta = () => withWorkspaceStorageExclusive(async () => {
+    meta = await readStoredMeta();
+    return meta;
+  });
+  const mutateMeta = mutator => withWorkspaceStorageExclusive(async () => {
+    const latest = await readStoredMeta();
+    const next = mutator(latest) || latest;
+    meta = next;
+    await storage.setItem(metaKey, JSON.stringify(next));
+    return next;
+  });
   const setMeta = async (kind, values) => {
-    meta[kind] = { ...(meta[kind] || {}), ...values };
-    await saveMeta();
+    const next = await mutateMeta(latest => ({
+      ...latest,
+      [kind]: { ...(latest[kind] || {}), ...values }
+    }));
+    return next[kind];
   };
 
   async function fetchRemote() {
+    const requestEpoch = ++remoteWriteEpoch;
     const { data, error } = await supabase.from(TABLE).select(REMOTE_SYNC_COLUMNS).eq('user_id', user.id).maybeSingle();
     if (error) throw error;
-    remote = data;
-    return data;
+    if (requestEpoch === remoteWriteEpoch) remote = data;
+    return remote;
   }
 
   async function readLocal(kind) {
@@ -152,17 +174,24 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   async function prepareUpload(kind) {
     const value = await readLocal(kind);
     if (kind === 'config') return value ? assets.externalize(value) : null;
-    if (kind === 'vault') return value;
+    const rotation = parseJson(await storage.getItem(rotationKey));
+    if (kind === 'vault') {
+      if (rotation || meta.sensitive?.dirty) return undefined;
+      return value;
+    }
+    if (!value || !hasApiKeys(value)) return null;
     if (!await readLocal('vault')) return null;
+    if (rotation?.state && rotation.state !== 'pending') return undefined;
     const key = getUnlockedSyncVaultKey(username);
     if (!key) return undefined;
-    return value && hasApiKeys(value) ? encryptSyncVaultPayload(value, key) : null;
+    return encryptSyncVaultPayload(value, key);
   }
 
   async function uploadKind(kind) {
     if (activeUploads.has(kind)) return { complete: false };
     const definition = CLOUD_SYNC_KINDS[kind];
     if (!definition) return { complete: true };
+    await refreshMeta();
     let localRevision = meta[kind]?.localRevision;
     if (!localRevision) {
       localRevision = crypto.randomUUID();
@@ -179,13 +208,21 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
         [definition.timestamp]: clientTimestamp,
         updated_at: clientTimestamp
       };
+      const uploadEpoch = ++remoteWriteEpoch;
       const { data, error } = await supabase.from(TABLE).upsert(payload, { onConflict: 'user_id' }).select(REMOTE_SYNC_COLUMNS).single();
       if (error) throw error;
-      remote = data;
+      if (uploadEpoch === remoteWriteEpoch) remote = data;
       const remoteUpdatedAt = data[definition.timestamp] || data.updated_at || clientTimestamp;
-      const settled = settleCloudUpload(meta[kind], localRevision, remoteUpdatedAt);
-      meta[kind] = settled.state;
-      await saveMeta();
+      let settled;
+      await mutateMeta(latest => {
+        settled = settleCloudUpload(latest[kind], localRevision, remoteUpdatedAt);
+        return { ...latest, [kind]: settled.state };
+      });
+      if (kind === 'sensitive' && settled.complete && await storage.getItem(rotationKey)) {
+        await storage.removeItem(rotationKey);
+        clearPreviousSyncVaultKeys(username);
+        await queueLocalChange('vault');
+      }
       return { complete: settled.complete, localRevision };
     } finally {
       activeUploads.delete(kind);
@@ -195,6 +232,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   async function applyRemote(kind) {
     const definition = CLOUD_SYNC_KINDS[kind];
     if (!definition) return false;
+    await refreshMeta();
     const remoteSnapshot = remote;
     const startedRevision = meta[kind]?.localRevision;
     const value = remoteSnapshot?.[definition.column];
@@ -208,20 +246,31 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
         hydrated = await decryptSyncVaultPayload(value, key);
       }
     }
-    if (!canCommitHydratedRemote({
-      startedRevision,
-      currentState: meta[kind],
-      activeUpload: activeUploads.has(kind),
-      remoteUnchanged: remote === remoteSnapshot
-    })) {
-      realtimeDeferred = true;
+    const timestamp = remoteSnapshot[definition.timestamp] || remoteSnapshot.updated_at;
+    let applied = false;
+    await withWorkspaceStorageExclusive(async () => {
+      const latest = await readStoredMeta();
+      meta = latest;
+      if (!canCommitHydratedRemote({
+        startedRevision,
+        currentState: latest[kind],
+        activeUpload: activeUploads.has(kind),
+        remoteUnchanged: remote === remoteSnapshot
+      })) return;
+      if (hydrated == null) await storage.removeItem(keys[kind]);
+      else await storage.setItem(keys[kind], JSON.stringify(hydrated));
+      meta = {
+        ...latest,
+        [kind]: { ...(latest[kind] || {}), remoteUpdatedAt: timestamp, dirty: false }
+      };
+      await storage.setItem(metaKey, JSON.stringify(meta));
+      applied = true;
+    });
+    if (!applied) {
+      scheduleRemoteRefresh();
       console.info('Noureon discarded a stale hydrated workspace snapshot.', { kind });
       return false;
     }
-    const timestamp = remoteSnapshot[definition.timestamp] || remoteSnapshot.updated_at;
-    if (hydrated == null) await storage.removeItem(keys[kind]);
-    else await storage.setItem(keys[kind], JSON.stringify(hydrated));
-    await setMeta(kind, { remoteUpdatedAt: timestamp, dirty: false });
     if (kind === 'config') window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: hydrated }));
     if (kind === 'sensitive') window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: hydrated }));
     if (kind === 'vault') {
@@ -234,6 +283,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   async function reconcileKind(kind) {
     const definition = CLOUD_SYNC_KINDS[kind];
     if (!definition) return false;
+    await refreshMeta();
     const local = await readLocal(kind);
     const remoteValue = remote?.[definition.column];
     const remoteUpdatedAt = remote?.[definition.timestamp] || remote?.updated_at;
@@ -260,12 +310,20 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
 
   async function upgradeSyncMetadata() {
     if (!upgradingMeta) return;
-    delete meta.appData;
-    for (const state of Object.values(meta)) {
-      if (state && typeof state === 'object') delete state.remoteUpdatedAt;
-    }
-    meta.version = SYNC_META_VERSION;
-    await saveMeta();
+    await mutateMeta(latest => {
+      if (latest.version === SYNC_META_VERSION) return latest;
+      const upgraded = { ...latest };
+      delete upgraded.appData;
+      for (const [key, state] of Object.entries(upgraded)) {
+        if (state && typeof state === 'object') {
+          const nextState = { ...state };
+          delete nextState.remoteUpdatedAt;
+          upgraded[key] = nextState;
+        }
+      }
+      upgraded.version = SYNC_META_VERSION;
+      return upgraded;
+    });
   }
 
   async function flush() {
@@ -281,13 +339,7 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       console.warn('Noureon cloud sync is waiting to retry:', error);
     } finally {
       syncing = false;
-      if (realtimeDeferred) {
-        realtimeDeferred = false;
-        queueRealtimeWork(async () => {
-          await fetchRemote();
-          await reconcileRemoteKinds();
-        });
-      }
+      if (realtimeDeferred) scheduleRemoteRefresh();
       if (pending.size) {
         clearTimeout(timer);
         timer = setTimeout(flush, SYNC_DEBOUNCE_MS);
@@ -296,15 +348,97 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
   }
 
   async function queueLocalChange(kind) {
-    if (!CLOUD_SYNC_KINDS[kind]) return;
+    if (!CLOUD_SYNC_KINDS[kind]) return false;
+    const localRevision = crypto.randomUUID();
+    pending.add(kind);
     try {
-      const localRevision = crypto.randomUUID();
-      pending.add(kind);
       await setMeta(kind, { localRevision, dirty: true });
+      const pendingKey = getCloudSyncBootstrapPendingKey(username, kind);
+      if (pendingKey) {
+        try { await storage.removeItem(pendingKey); } catch {}
+      }
       clearTimeout(timer);
       timer = setTimeout(flush, SYNC_DEBOUNCE_MS);
+      return localRevision;
     } catch (error) {
       console.warn(`Noureon could not queue ${kind} for cloud sync:`, error);
+      const pendingKey = getCloudSyncBootstrapPendingKey(username, kind);
+      if (pendingKey) {
+        try { await storage.setItem(pendingKey, '1'); } catch {}
+      }
+      clearTimeout(timer);
+      timer = setTimeout(flush, SYNC_DEBOUNCE_MS);
+      return false;
+    }
+  }
+
+  function scheduleRemoteRefresh() {
+    realtimeDeferred = true;
+    if (remoteRefreshTimer !== null) return;
+    remoteRefreshTimer = setTimeout(() => {
+      remoteRefreshTimer = null;
+      queueRealtimeWork(async () => {
+        if (activeUploads.size) {
+          scheduleRemoteRefresh();
+          return;
+        }
+        try {
+          await fetchRemote();
+          await reconcileRemoteKinds();
+          realtimeDeferred = false;
+        } catch (error) {
+          realtimeDeferred = true;
+          throw error;
+        }
+      });
+    }, SYNC_DEBOUNCE_MS);
+  }
+
+  async function decryptRotatedSensitivePayload(payload, candidateKeys) {
+    let lastError;
+    for (const candidateKey of candidateKeys) {
+      if (!candidateKey) continue;
+      try {
+        return await decryptSyncVaultPayload(payload, candidateKey);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error('No sync-vault key could decrypt the sensitive payload.');
+  }
+
+  async function handleSyncVaultUnlocked(event) {
+    if (event?.detail?.username !== username) return;
+    const rotation = parseJson(await storage.getItem(rotationKey));
+    const previousKeys = getPreviousSyncVaultKeys(username);
+    await queueLocalChange('vault');
+    const rotationSensitiveRevision = rotation || previousKeys.length
+      ? await queueLocalChange('sensitive')
+      : null;
+    try {
+      await fetchRemote();
+      if ((rotation || previousKeys.length) && remote?.sensitive_config) {
+        const decrypted = await decryptRotatedSensitivePayload(
+          remote.sensitive_config,
+          [...previousKeys, getUnlockedSyncVaultKey(username)]
+        );
+        let applied = false;
+        await withWorkspaceStorageExclusive(async () => {
+          const latest = await readStoredMeta();
+          if (!rotationSensitiveRevision || latest.sensitive?.localRevision !== rotationSensitiveRevision) return;
+          await storage.setItem(keys.sensitive, JSON.stringify(decrypted));
+          applied = true;
+        });
+        if (applied) {
+          window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: decrypted }));
+          await queueLocalChange('sensitive');
+        }
+      } else if (!rotation && !previousKeys.length) {
+        await reconcileKind('sensitive');
+        if (!remote?.sensitive_config) await queueLocalChange('sensitive');
+      }
+    } catch (error) {
+      console.warn('Noureon encrypted API key sync failed; the local rotation remains queued:', error);
     }
   }
 
@@ -312,27 +446,16 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
     await fetchRemote();
     for (const kind of Object.keys(CLOUD_SYNC_KINDS)) await reconcileKind(kind);
   } };
-  window.__astraCloudWorkspaceSync = api;
-  window.addEventListener('online', flush);
-  window.addEventListener('astra:sync-vault-unlocked', async event => {
-    if (event.detail?.username !== username) return;
-    const previousKey = takePreviousSyncVaultKey(username);
-    await queueLocalChange('vault');
-    try {
-      await fetchRemote();
-      if (previousKey && remote?.sensitive_config) {
-        const decrypted = await decryptSyncVaultPayload(remote.sensitive_config, previousKey);
-        await storage.setItem(keys.sensitive, JSON.stringify(decrypted));
-        window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: decrypted }));
-        await queueLocalChange('sensitive');
-      } else {
-        await reconcileKind('sensitive');
-        if (!remote?.sensitive_config) await queueLocalChange('sensitive');
-      }
-    } catch (error) {
-      console.warn('Noureon encrypted API key sync failed:', error);
-    }
+  if (bootstrapQueue?.handoff) await bootstrapQueue.handoff(api);
+  else window.__astraCloudWorkspaceSync = api;
+  window.addEventListener('online', () => {
+    void flush();
+    if (realtimeDeferred) scheduleRemoteRefresh();
   });
+  window.addEventListener('astra:sync-vault-unlocked', handleSyncVaultUnlocked);
+  if (bootstrapQueue?.takePendingVaultUnlock?.()) {
+    await handleSyncVaultUnlocked({ detail: { username } });
+  }
 
   const realtimeChannel = supabase
     .channel(`user-workspace:${user.id}`)
@@ -343,9 +466,10 @@ export async function initializeCloudWorkspaceSync({ window, session } = {}) {
       filter: `user_id=eq.${user.id}`
     }, payload => {
       queueRealtimeWork(async () => {
+        remoteWriteEpoch += 1;
         remote = payload.new;
         if (activeUploads.size) {
-          realtimeDeferred = true;
+          scheduleRemoteRefresh();
           return;
         }
         await reconcileRemoteKinds();

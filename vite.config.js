@@ -33,6 +33,7 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
+    manifest: 'build-manifest.json',
     sourcemap: false,
     rollupOptions: {
       output: {
@@ -43,12 +44,14 @@ export default defineConfig({
           if (!id.includes('node_modules')) {
             return undefined;
           }
+          if (id.includes('@supabase')) return undefined;
           if (id.includes('chart.js')) return 'vendor-chart';
           if (id.includes('katex')) return 'vendor-katex';
           if (id.includes('cropperjs')) return 'vendor-cropper';
           if (id.includes('peerjs') || id.includes('html5-qrcode') || id.includes('qrcode')) {
             return 'vendor-sharing';
           }
+          if (id.includes('jszip')) return 'vendor-archive';
           if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
           return 'vendor';
         }

@@ -1,15 +1,26 @@
 import i18n from '../../data/i18n/index.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
-
-export const PASSWORD_RECOVERY_ROUTE = '/forgot-password';
-export const PASSWORD_RESET_ROUTE = '/reset-password';
-export const RECOVERY_EMAIL_KEY = 'noureon_password_recovery_email';
-export const RECOVERY_LANGUAGE_KEY = 'noureon_password_recovery_language';
-export const RECOVERY_VERIFICATION_KEY = 'noureon_password_recovery_verified';
+import {
+  PASSWORD_RECOVERY_ROUTE,
+  PASSWORD_RESET_ROUTE,
+  RECOVERY_EMAIL_KEY,
+  RECOVERY_LANGUAGE_KEY,
+  RECOVERY_VERIFICATION_KEY,
+  isPasswordRecoveryRoute,
+  normalizeRecoveryLanguage as normalizeLanguage
+} from './password-recovery-route.js';
+export {
+  PASSWORD_RECOVERY_ROUTE,
+  PASSWORD_RESET_ROUTE,
+  RECOVERY_EMAIL_KEY,
+  RECOVERY_LANGUAGE_KEY,
+  RECOVERY_VERIFICATION_KEY,
+  isPasswordRecoveryRoute,
+  openPasswordRecovery
+} from './password-recovery-route.js';
 
 const RECOVERY_WINDOW_MS = 10 * 60 * 1000;
-const SUPPORTED_LANGUAGES = new Set(['zh-TW', 'en', 'fr', 'ru', 'es']);
 const LANGUAGE_LABELS = {
   'zh-TW': '繁體中文',
   en: 'English',
@@ -17,15 +28,6 @@ const LANGUAGE_LABELS = {
   ru: 'Русский',
   es: 'Español'
 };
-
-function normalizeLanguage(value) {
-  if (SUPPORTED_LANGUAGES.has(value)) return value;
-  if (value?.toLowerCase().startsWith('zh')) return 'zh-TW';
-  if (value?.toLowerCase().startsWith('fr')) return 'fr';
-  if (value?.toLowerCase().startsWith('ru')) return 'ru';
-  if (value?.toLowerCase().startsWith('es')) return 'es';
-  return 'en';
-}
 
 function getStoredLanguage(window) {
   return normalizeLanguage(
@@ -42,17 +44,6 @@ function defaultNavigate(window, path, { replace = false } = {}) {
     return;
   }
   window.location.assign(path);
-}
-
-export function isPasswordRecoveryRoute(pathname) {
-  return pathname === PASSWORD_RECOVERY_ROUTE || pathname === PASSWORD_RESET_ROUTE;
-}
-
-export function openPasswordRecovery(window, { email = '', language } = {}) {
-  const nextLanguage = normalizeLanguage(language || window.document.documentElement.lang || window.navigator.language);
-  window.sessionStorage.setItem(RECOVERY_LANGUAGE_KEY, nextLanguage);
-  if (email) window.sessionStorage.setItem(RECOVERY_EMAIL_KEY, email.trim());
-  window.location.assign(PASSWORD_RECOVERY_ROUTE);
 }
 
 function commonPageMarkup(content) {

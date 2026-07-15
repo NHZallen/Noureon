@@ -7,7 +7,10 @@ import {
   createConversationShadowSync,
   initializeConversationShadowSync
 } from '../src/app/sync/cloud-sync-v2-shadow.js';
-import { deterministicUuid } from '../src/app/sync/cloud-sync-v2-codecs.js';
+import {
+  deterministicUuid,
+  encodeWorkspaceConversationShadow
+} from '../src/app/sync/cloud-sync-v2-codecs.js';
 import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage-coordinator.js';
 
@@ -49,6 +52,30 @@ function workspaceWithLaterConversation() {
   };
 }
 
+async function remoteRowsFor(localWorkspace = workspace) {
+  const encoded = await encodeWorkspaceConversationShadow({
+    workspace: localWorkspace,
+    userId,
+    cryptoProvider: webcrypto
+  });
+  return {
+    folders: encoded.folders.map(row => ({ ...row })),
+    conversations: encoded.conversations.map(row => ({
+      ...row,
+      updated_at: row.created_at
+    })),
+    messages: encoded.messages.map(row => ({
+      ...row,
+      updated_at: row.created_at
+    })),
+    astras: encoded.astras.map(row => ({
+      ...row,
+      updated_at: '2026-07-06T00:00:00.000Z',
+      deleted_at: null
+    }))
+  };
+}
+
 test('shadow initialization refreshes, writes local, then uploads and verifies', async () => {
   const calls = [];
   const repository = {
@@ -80,6 +107,421 @@ test('shadow initialization refreshes, writes local, then uploads and verifies',
   ]);
   assert.equal(calls[5][1], 'shadow');
   assert.equal(calls.at(-1)[1], 'ready');
+});
+
+test('trusted identical baseline skips every upsert but still verifies the full encoded workspace', async () => {
+  const remoteRows = await remoteRowsFor();
+  const upserts = [];
+  const migrationStates = [];
+  const verified = [];
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async state => migrationStates.push(state),
+    upsertFolders: async rows => upserts.push(['folders', rows]),
+    upsertConversations: async rows => upserts.push(['conversations', rows]),
+    upsertMessages: async rows => upserts.push(['messages', rows]),
+    upsertAstras: async rows => upserts.push(['astras', rows]),
+    verify: async rows => { verified.push(rows); return true; }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'ready');
+  assert.equal(status.uploadedRows, 0);
+  assert.equal(status.fullConversations, 1);
+  assert.equal(status.fullMessages, 1);
+  assert.equal(status.fullFolders, 1);
+  assert.equal(status.fullUpload, false);
+  assert.equal(status.baselineTrusted, true);
+  assert.deepEqual(upserts, []);
+  assert.deepEqual(migrationStates, []);
+  assert.equal(verified.length, 1);
+  assert.equal(verified[0].conversations.length, 1);
+  assert.equal(verified[0].messages.length, 1);
+  assert.equal(verified[0].folders.length, 1);
+});
+
+test('trusted baseline uploads only one new message and then only one new folder', async () => {
+  const remoteRows = await remoteRowsFor();
+  const uploads = [];
+  const verifies = [];
+  let scheduled;
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async state => uploads.push(['state', state]),
+    upsertFolders: async rows => uploads.push(['folders', rows]),
+    upsertConversations: async rows => uploads.push(['conversations', rows]),
+    upsertMessages: async rows => uploads.push(['messages', rows]),
+    upsertAstras: async rows => uploads.push(['astras', rows]),
+    verify: async rows => { verifies.push(rows); return true; }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    canSkipInitialUpload: () => true,
+    schedule: callback => { scheduled = callback; return 1; },
+    cancel: () => {}
+  });
+  assert.equal((await sync.initialize()).uploadSkipped, true);
+
+  const withNewMessage = structuredClone(workspace);
+  withNewMessage.conversations[0].messages.push({
+    role: 'model',
+    parts: [{ text: 'One new message' }]
+  });
+  assert.equal(sync.captureWorkspace(withNewMessage), true);
+  await scheduled();
+  assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [['messages', 1]]);
+  assert.equal(verifies.at(-1).messages.length, 2);
+  assert.equal(sync.getStatus().uploadedMessages, 1);
+
+  uploads.length = 0;
+  const withNewFolder = structuredClone(withNewMessage);
+  withNewFolder.folders.push({
+    id: '99999999-9999-4999-8999-999999999999',
+    name: 'One new folder',
+    color: 'gray',
+    icon: 'folder',
+    textColor: 'gray'
+  });
+  assert.equal(sync.captureWorkspace(withNewFolder), true);
+  await scheduled();
+  assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [['folders', 1]]);
+  assert.equal(verifies.at(-1).folders.length, 2);
+  assert.equal(sync.getStatus().uploadedFolders, 1);
+
+  uploads.length = 0;
+  const withNewAstra = structuredClone(withNewFolder);
+  withNewAstra.astras = [{
+    id: astraId,
+    name: 'One new Noura',
+    description: '',
+    instructions: 'Help safely',
+    metadata: {}
+  }];
+  assert.equal(sync.captureWorkspace(withNewAstra), true);
+  await scheduled();
+  assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [['astras', 1]]);
+
+  uploads.length = 0;
+  assert.equal(sync.captureWorkspace(structuredClone(withNewAstra)), true);
+  await scheduled();
+  assert.deepEqual(uploads, []);
+  assert.equal(sync.getStatus().uploadedRows, 0);
+});
+
+test('journal fullResyncRequired forces a full upload and migration state transition', async () => {
+  const remoteRows = await remoteRowsFor();
+  const uploads = [];
+  const states = [];
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async state => states.push(state),
+    upsertFolders: async rows => uploads.push(['folders', rows]),
+    upsertConversations: async rows => uploads.push(['conversations', rows]),
+    upsertMessages: async rows => uploads.push(['messages', rows]),
+    upsertAstras: async rows => uploads.push(['astras', rows]),
+    verify: async () => true
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    writeWorkspace: async () => {},
+    readCaptureState: async ({ workspace: captured }) => ({
+      workspace: captured,
+      revision: 'full-resync-revision',
+      journal: { fullResyncRequired: true }
+    }),
+    acknowledgeCapture: async () => ({ acknowledged: true }),
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'ready');
+  assert.equal(status.fullUpload, true);
+  assert.equal(status.fullUploadReason, 'journal-full-resync');
+  assert.equal(status.uploadedRows, 3);
+  assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [
+    ['folders', 1],
+    ['conversations', 1],
+    ['messages', 1]
+  ]);
+  assert.deepEqual(states, ['shadow', 'ready']);
+});
+
+test('trusted baseline reconciles message IDs by conversation and sequence before delta and verification', async () => {
+  const remoteRows = await remoteRowsFor();
+  const remoteMessageId = '88888888-8888-4888-8888-888888888888';
+  remoteRows.messages[0].id = remoteMessageId;
+  const messageUploads = [];
+  let verified;
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async rows => messageUploads.push(rows),
+    upsertAstras: async () => {},
+    verify: async rows => { verified = rows; return true; }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'ready');
+  assert.equal(status.uploadedMessages, 0);
+  assert.deepEqual(messageUploads, []);
+  assert.equal(verified.messages[0].id, remoteMessageId);
+});
+
+test('ambiguous baseline message sequences stop conservatively without upload, verify, or ACK', async () => {
+  const remoteRows = await remoteRowsFor();
+  remoteRows.messages.push({
+    ...remoteRows.messages[0],
+    id: '77777777-7777-4777-8777-777777777777'
+  });
+  const calls = [];
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async () => calls.push('state'),
+    upsertFolders: async () => calls.push('folders'),
+    upsertConversations: async () => calls.push('conversations'),
+    upsertMessages: async () => calls.push('messages'),
+    upsertAstras: async () => calls.push('astras'),
+    verify: async () => { calls.push('verify'); return true; }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    readCaptureState: async ({ workspace: captured }) => ({
+      workspace: captured,
+      revision: 'ambiguous-revision',
+      journal: { dirty: true, fullResyncRequired: false }
+    }),
+    acknowledgeCapture: async () => { calls.push('ack'); return { acknowledged: true }; },
+    userId,
+    cryptoProvider: webcrypto,
+    logger: { warn: () => {} }
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'retry');
+  assert.equal(status.code, 'ASTRA_MESSAGE_ID_RECONCILIATION_AMBIGUOUS');
+  assert.deepEqual(calls, []);
+});
+
+test('a newer revision saved during upload is retried as a second delta before acknowledgement', async () => {
+  const remoteRows = await remoteRowsFor();
+  const firstWorkspace = structuredClone(workspace);
+  firstWorkspace.conversations[0].title = 'First revision';
+  const secondWorkspace = structuredClone(workspace);
+  secondWorkspace.conversations[0].title = 'Newer revision';
+  const scheduled = [];
+  const uploadedTitles = [];
+  const acknowledged = [];
+  let captureRead = 0;
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async rows => uploadedTitles.push(...rows.map(row => row.title)),
+    upsertMessages: async () => {},
+    upsertAstras: async () => {},
+    verify: async () => true
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    readCaptureState: async () => {
+      captureRead += 1;
+      if (captureRead === 1) {
+        return {
+          workspace: structuredClone(workspace),
+          journal: { dirty: false, fullResyncRequired: false },
+          revision: null
+        };
+      }
+      if (captureRead === 2) {
+        return {
+          workspace: structuredClone(firstWorkspace),
+          journal: { dirty: true, fullResyncRequired: false },
+          revision: 'revision-1'
+        };
+      }
+      return {
+        workspace: structuredClone(secondWorkspace),
+        journal: { dirty: true, fullResyncRequired: false },
+        revision: 'revision-2'
+      };
+    },
+    acknowledgeCapture: async ({ attemptedRevision }) => {
+      acknowledged.push(attemptedRevision);
+      return { acknowledged: attemptedRevision === 'revision-2' };
+    },
+    canSkipInitialUpload: ({ journal }) => journal?.dirty === false,
+    schedule: callback => { scheduled.push(callback); return scheduled.length; },
+    cancel: () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+  assert.equal((await sync.initialize()).uploadSkipped, true);
+
+  assert.equal(sync.captureWorkspace(firstWorkspace), true);
+  await scheduled.shift()();
+  assert.equal(scheduled.length, 1);
+  await scheduled.shift()();
+
+  assert.deepEqual(uploadedTitles, ['First revision', 'Newer revision']);
+  assert.deepEqual(acknowledged, ['revision-1', 'revision-2']);
+  assert.equal(sync.getStatus().journalAcknowledged, true);
+  assert.equal(sync.getStatus().fullUpload, false);
+  assert.equal(sync.getStatus().uploadedConversations, 1);
+});
+
+test('verification failure never ACKs, invalidates baseline, and makes the next capture full', async () => {
+  const remoteRows = await remoteRowsFor();
+  const recoveredRemoteMessageId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  remoteRows.messages[0].id = recoveredRemoteMessageId;
+  const changedWorkspace = structuredClone(workspace);
+  changedWorkspace.conversations[0].title = 'Needs verification';
+  const scheduled = [];
+  const uploads = [];
+  const states = [];
+  const acknowledged = [];
+  const verifyResults = [false, true];
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async state => states.push(state),
+    upsertFolders: async rows => uploads.push(['folders', rows]),
+    upsertConversations: async rows => uploads.push(['conversations', rows]),
+    upsertMessages: async rows => uploads.push(['messages', rows]),
+    upsertAstras: async rows => uploads.push(['astras', rows]),
+    verify: async () => verifyResults.shift()
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    acknowledgeCapture: async ({ attemptedRevision }) => {
+      acknowledged.push(attemptedRevision);
+      return { acknowledged: true };
+    },
+    canSkipInitialUpload: () => true,
+    schedule: callback => { scheduled.push(callback); return scheduled.length; },
+    cancel: () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    logger: { warn: () => {} }
+  });
+  assert.equal((await sync.initialize()).uploadSkipped, true);
+
+  assert.equal(sync.captureWorkspace(changedWorkspace, { revision: 'failed-revision' }), true);
+  await scheduled.shift()();
+  assert.equal(sync.getStatus().state, 'retry');
+  assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [
+    ['conversations', 1]
+  ]);
+  assert.deepEqual(acknowledged, []);
+
+  uploads.length = 0;
+  assert.equal(sync.captureWorkspace(changedWorkspace, { revision: 'verified-revision' }), true);
+  await scheduled.shift()();
+  assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [
+    ['folders', 1],
+    ['conversations', 1],
+    ['messages', 1]
+  ]);
+  assert.equal(uploads.find(([collection]) => collection === 'messages')[1][0].id, recoveredRemoteMessageId);
+  assert.deepEqual(states, ['shadow', 'ready']);
+  assert.deepEqual(acknowledged, ['verified-revision']);
+  assert.equal(sync.getStatus().state, 'ready');
+  assert.equal(sync.getStatus().fullUpload, true);
+  assert.equal(sync.getStatus().uploadedRows, 3);
+});
+
+test('trusted baseline delta cannot resurrect a conversation covered by a tombstone', async () => {
+  const remoteRows = await remoteRowsFor();
+  const uploads = [];
+  const verified = [];
+  let scheduled;
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [{
+      entity_type: 'conversation',
+      entity_id: conversationId,
+      deleted_at: '2026-07-06T05:00:00.000Z'
+    }],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async () => {},
+    upsertFolders: async rows => uploads.push(['folders', rows]),
+    upsertConversations: async rows => uploads.push(['conversations', rows]),
+    upsertMessages: async rows => uploads.push(['messages', rows]),
+    upsertAstras: async rows => uploads.push(['astras', rows]),
+    verify: async rows => { verified.push(rows); return true; }
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    writeWorkspace: async () => {},
+    canSkipInitialUpload: () => true,
+    schedule: callback => { scheduled = callback; return 1; },
+    cancel: () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+  assert.equal((await sync.initialize()).uploadSkipped, true);
+
+  assert.equal(sync.captureWorkspace(structuredClone(workspace)), true);
+  await scheduled();
+
+  assert.deepEqual(uploads, []);
+  assert.equal(verified.length, 1);
+  assert.equal(verified[0].conversations.length, 0);
+  assert.equal(verified[0].messages.length, 0);
+  assert.equal(sync.getStatus().uploadedRows, 0);
 });
 
 test('shadow sync externalizes upload assets and hydrates remote image assets', async () => {
@@ -192,7 +634,9 @@ test('repository uses tombstone select and protected RPC upserts', async () => {
   const calls = [];
   const query = {
     select(columns) { calls.push(['select', columns]); return this; },
-    eq(column, value) { calls.push(['eq', column, value]); return Promise.resolve({ data: [] }); }
+    eq(column, value) { calls.push(['eq', column, value]); return this; },
+    order(column, options) { calls.push(['order', column, options]); return this; },
+    range(from, to) { calls.push(['range', from, to]); return Promise.resolve({ data: [], error: null }); }
   };
   const supabase = {
     from(table) { calls.push(['from', table]); return query; },
@@ -217,6 +661,165 @@ test('repository uses tombstone select and protected RPC upserts', async () => {
   ]);
 });
 
+test('repository fetches every workspace table concurrently and returns only after all complete', async () => {
+  const tables = [
+    'workspace_folders',
+    'workspace_conversations',
+    'workspace_messages',
+    'workspace_astras'
+  ];
+  const started = [];
+  const controls = new Map();
+  const pageCounts = new Map();
+  const supabase = {
+    from(table) {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return this; },
+        range() {
+          const count = pageCounts.get(table) || 0;
+          pageCounts.set(table, count + 1);
+          if (count > 0) return Promise.resolve({ data: [], error: null });
+          started.push(table);
+          return new Promise(resolve => controls.set(table, resolve));
+        }
+      };
+    }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  let settled = false;
+  const resultPromise = repository.fetchWorkspace().then(result => {
+    settled = true;
+    return result;
+  });
+
+  assert.deepEqual(started, tables);
+  controls.get('workspace_folders')({ data: [{ id: 'folder' }], error: null });
+  controls.get('workspace_conversations')({ data: [{ id: 'conversation' }], error: null });
+  controls.get('workspace_messages')({ data: [{ id: 'message' }], error: null });
+  await Promise.resolve();
+  assert.equal(settled, false);
+
+  controls.get('workspace_astras')({ data: [{ id: 'astra' }], error: null });
+  assert.deepEqual(await resultPromise, {
+    folders: [{ id: 'folder' }],
+    conversations: [{ id: 'conversation' }],
+    messages: [{ id: 'message' }],
+    astras: [{ id: 'astra' }]
+  });
+});
+
+test('repository workspace fetch rejects the whole snapshot when any table query fails', async () => {
+  const queryError = new Error('messages unavailable');
+  const started = [];
+  const supabase = {
+    from(table) {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return this; },
+        range() {
+          started.push(table);
+          return Promise.resolve(table === 'workspace_messages'
+            ? { data: null, error: queryError }
+            : { data: [], error: null });
+        }
+      };
+    }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  await assert.rejects(() => repository.fetchWorkspace(), error => error === queryError);
+  assert.deepEqual(started, [
+    'workspace_folders',
+    'workspace_conversations',
+    'workspace_messages',
+    'workspace_astras'
+  ]);
+});
+
+test('repository range-paginates every workspace table and tombstones to completion', async () => {
+  const tables = {
+    workspace_folders: Array.from({ length: 5 }, (_, index) => ({ id: `folder-${index}` })),
+    workspace_conversations: Array.from({ length: 5 }, (_, index) => ({ id: `conversation-${index}` })),
+    workspace_messages: Array.from({ length: 5 }, (_, index) => ({ id: `message-${index}` })),
+    workspace_astras: Array.from({ length: 5 }, (_, index) => ({ id: `astra-${index}` })),
+    workspace_tombstones: Array.from({ length: 5 }, (_, index) => ({
+      entity_type: index % 2 ? 'folder' : 'conversation',
+      entity_id: `entity-${index}`,
+      deleted_at: '2026-07-06T00:00:00.000Z'
+    }))
+  };
+  const ranges = [];
+  const supabase = {
+    from(table) {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return this; },
+        range(from, to) {
+          ranges.push([table, from, to]);
+          return Promise.resolve({ data: tables[table].slice(from, to + 1), error: null });
+        }
+      };
+    }
+  };
+  const repository = createConversationShadowRepository({
+    supabase,
+    userId,
+    fetchPageSize: 2
+  });
+
+  const rows = await repository.fetchWorkspace();
+  const tombstones = await repository.fetchTombstones();
+
+  assert.deepEqual(rows.folders, tables.workspace_folders);
+  assert.deepEqual(rows.conversations, tables.workspace_conversations);
+  assert.deepEqual(rows.messages, tables.workspace_messages);
+  assert.deepEqual(rows.astras, tables.workspace_astras);
+  assert.deepEqual(tombstones, tables.workspace_tombstones);
+  for (const table of Object.keys(tables)) {
+    assert.deepEqual(ranges.filter(([name]) => name === table).map(([, from, to]) => [from, to]), [
+      [0, 1], [2, 3], [4, 5], [5, 6]
+    ]);
+  }
+  assert.equal(repository.paginatedSnapshotsAreComplete, true);
+});
+
+test('repository rejects a complete snapshot when a later range page fails', async () => {
+  const pageError = new Error('second message page failed');
+  const ranges = [];
+  const supabase = {
+    from(table) {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return this; },
+        range(from, to) {
+          ranges.push([table, from, to]);
+          if (table === 'workspace_messages' && from === 2) {
+            return Promise.resolve({ data: null, error: pageError });
+          }
+          return Promise.resolve({
+            data: from === 0 ? [{ id: `${table}-0` }, { id: `${table}-1` }] : [],
+            error: null
+          });
+        }
+      };
+    }
+  };
+  const repository = createConversationShadowRepository({
+    supabase,
+    userId,
+    fetchPageSize: 2
+  });
+
+  await assert.rejects(() => repository.fetchWorkspace(), error => error === pageError);
+  assert.equal(ranges.some(([table, from]) => table === 'workspace_messages' && from === 2), true);
+});
+
 test('repository reuses remote message ids for existing conversation sequence rows', async () => {
   const calls = [];
   const remoteMessageId = 'remote-message-id';
@@ -229,8 +832,15 @@ test('repository reuses remote message ids for existing conversation sequence ro
         eq(column, value) { calls.push(['eq', column, value]); return this; },
         in(column, values) {
           calls.push(['in', column, values]);
+          return this;
+        },
+        order(column, options) { calls.push(['order', column, options]); return this; },
+        range(from, to) {
+          calls.push(['range', from, to]);
           return Promise.resolve({
-            data: [{ id: remoteMessageId, conversation_id: conversationId, sequence: 0 }],
+            data: from === 0
+              ? [{ id: remoteMessageId, conversation_id: conversationId, sequence: 0 }]
+              : [],
             error: null
           });
         }
@@ -274,6 +884,11 @@ test('repository removes duplicate message ids before protected RPC upload', asy
         eq(column, value) { calls.push(['eq', column, value]); return this; },
         in(column, values) {
           calls.push(['in', column, values]);
+          return this;
+        },
+        order(column, options) { calls.push(['order', column, options]); return this; },
+        range(from, to) {
+          calls.push(['range', from, to]);
           return Promise.resolve({ data: [], error: null });
         }
       };
@@ -1112,6 +1727,92 @@ test('local tombstones are applied before remote workspace rows are fetched', as
   assert.deepEqual(calls.slice(0, 3), ['tombstones', 'sanitize-local', 'fetch-workspace']);
 });
 
+test('shadow initialization waits for tombstones before starting the workspace fetch', async () => {
+  const calls = [];
+  let releaseTombstones;
+  let tombstonesStarted;
+  const tombstoneStarted = new Promise(resolve => { tombstonesStarted = resolve; });
+  const repository = {
+    probe: async () => null,
+    fetchTombstones: () => {
+      calls.push('tombstones-start');
+      tombstonesStarted();
+      return new Promise(resolve => { releaseTombstones = resolve; });
+    },
+    fetchWorkspace: async () => {
+      calls.push('workspace-start');
+      return { folders: [], conversations: [], messages: [], astras: [] };
+    },
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async () => {},
+    upsertAstras: async () => {},
+    verify: async () => true
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => ({ folders: [], conversations: [], astras: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  const initialization = sync.initialize();
+  await tombstoneStarted;
+  assert.deepEqual(calls, ['tombstones-start']);
+
+  releaseTombstones([]);
+  assert.equal((await initialization).state, 'ready');
+  assert.deepEqual(calls.slice(0, 2), ['tombstones-start', 'workspace-start']);
+});
+
+test('shadow initialization hands the committed workspace and tombstones to the live runtime', async () => {
+  const committed = {
+    conversations: [],
+    folders: [],
+    astras: [],
+    personalMemories: []
+  };
+  const handoffs = [];
+  const sync = createConversationShadowSync({
+    repository: {
+      probe: async () => null,
+      fetchTombstones: async () => [
+        { entity_type: 'conversation', entity_id: 'conversation-deleted' },
+        { entity_type: 'folder', entity_id: 'folder-deleted' }
+      ],
+      fetchWorkspace: async () => ({
+        folders: [],
+        conversations: [],
+        messages: [],
+        astras: [{ id: 'astra-deleted', deleted_at: '2026-07-15T00:00:00.000Z' }]
+      }),
+      setMigrationState: async () => {},
+      upsertFolders: async () => {},
+      upsertConversations: async () => {},
+      upsertMessages: async () => {},
+      upsertAstras: async () => {},
+      verify: async () => true
+    },
+    readWorkspace: async () => committed,
+    commitWorkspace: async () => committed,
+    onWorkspaceCommitted: detail => handoffs.push(detail),
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  assert.equal((await sync.initialize()).state, 'ready');
+  assert.deepEqual(handoffs, [{
+    workspace: committed,
+    tombstones: {
+      conversationIds: ['conversation-deleted'],
+      folderIds: ['folder-deleted'],
+      astraIds: ['astra-deleted']
+    }
+  }]);
+});
+
 test('legacy conversation IDs are repaired before shadow upload instead of being skipped', async () => {
   const writes = [];
   const uploads = [];
@@ -1260,6 +1961,36 @@ test('stop during remote fetch prevents commit and upload', async () => {
   assert.equal(writes, 0);
   assert.equal(uploads, 0);
   assert.equal(sync.captureWorkspace(workspace), false);
+});
+
+test('stop during pull prevents tombstone and trusted-baseline state from being restored', async () => {
+  let releaseTombstones;
+  let markTombstonesStarted;
+  const tombstonesStarted = new Promise(resolve => { markTombstonesStarted = resolve; });
+  const tombstoneGate = new Promise(resolve => { releaseTombstones = resolve; });
+  const sync = createConversationShadowSync({
+    repository: {
+      paginatedSnapshotsAreComplete: true,
+      fetchTombstones: async () => {
+        markTombstonesStarted();
+        await tombstoneGate;
+        return [];
+      },
+      fetchWorkspace: async () => remoteRowsFor()
+    },
+    readWorkspace: async () => structuredClone(workspace),
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  const pulling = sync.pullWorkspace(structuredClone(workspace));
+  await tombstonesStarted;
+  sync.stop();
+  releaseTombstones();
+
+  await assert.rejects(pulling, error => error?.name === 'ShadowSyncStoppedError');
+  assert.equal(sync.getStatus().state, 'stopped');
+  assert.equal(sync.getStatus().baselineTrusted, false);
 });
 
 test('stop during upload prevents later upload phases and re-enable', async () => {
@@ -1450,7 +2181,9 @@ test('stop invalidates an in-flight post-init capture before later upload phases
   assert.equal((await sync.initialize()).state, 'ready');
   const baseline = { messageUploads, verifies, readyStates };
 
-  assert.equal(sync.captureWorkspace(workspace), true);
+  const changedWorkspace = structuredClone(workspace);
+  changedWorkspace.conversations[0].title = 'Changed while stopping';
+  assert.equal(sync.captureWorkspace(changedWorkspace), true);
   const capturing = scheduled();
   while (!rejectOrResolveCapture) await new Promise(resolve => setTimeout(resolve, 0));
   sync.stop();
@@ -1526,6 +2259,13 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
   const queryFor = table => ({
     select() { return this; },
     eq() { return this; },
+    order() { return this; },
+    range(from, to) {
+      return Promise.resolve({
+        data: (tables[table] || []).slice(from, to + 1),
+        error: null
+      });
+    },
     async maybeSingle() { return { data: null, error: null }; },
     async upsert() { return { error: null }; },
     in(_column, ids) {
@@ -1553,10 +2293,32 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
       return { error: null };
     }
   };
-  let storedRaw = JSON.stringify({ folders: [], conversations: workspace.conversations });
+  const appDataKey = 'chatAppData_v8.6_ordering';
+  const journalKey = 'chatCloudSyncJournal_v1_ordering';
+  const stored = new Map([
+    [appDataKey, JSON.stringify({ folders: [], conversations: workspace.conversations })],
+    [journalKey, JSON.stringify({
+      version: 1,
+      username: 'ordering',
+      workspaceRevision: 'ordering-revision',
+      lastAcknowledgedRevision: null,
+      dirty: true,
+      dirtySince: '2026-07-06T03:30:00.000Z',
+      dirtyEntities: { unknown: true, conversations: [], folders: [], astras: [] },
+      fullResyncRequired: false,
+      lastRemoteWatermark: null,
+      lastSuccessfulSyncAt: null,
+      lastError: null
+    })]
+  ]);
+  const atomicReads = [];
   const storage = {
-    getItem: async () => storedRaw,
-    setItem: async (_key, value) => { storedRaw = value; }
+    getItem: async key => stored.get(key) ?? null,
+    readItems: async keys => {
+      atomicReads.push(keys);
+      return keys.map(key => stored.get(key) ?? null);
+    },
+    setItem: async (key, value) => { stored.set(key, value); }
   };
   const sync = initializeConversationShadowSync({
     window: {},
@@ -1568,7 +2330,11 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
   });
 
   assert.equal((await sync.ready).state, 'ready');
-  const legacyLoadedWorkspace = JSON.parse(storedRaw);
+  assert.equal(atomicReads.length >= 3, true);
+  assert.equal(atomicReads.every(keys => (
+    keys.length === 2 && keys[0] === appDataKey && keys[1] === journalKey
+  )), true);
+  const legacyLoadedWorkspace = JSON.parse(stored.get(appDataKey));
   assert.deepEqual(legacyLoadedWorkspace.conversations.map(({ id }) => id), [remoteId]);
 
   const persistence = createLegacyRuntimeAppDataPersistence({
@@ -1579,7 +2345,7 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
   });
   await persistence.saveAppData();
 
-  assert.deepEqual(JSON.parse(storedRaw).conversations.map(({ id }) => id), [remoteId]);
+  assert.deepEqual(JSON.parse(stored.get(appDataKey)).conversations.map(({ id }) => id), [remoteId]);
 });
 
 test('probe failure exposes Supabase error metadata for debugging', async () => {

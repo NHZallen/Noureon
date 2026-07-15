@@ -78,6 +78,7 @@ export function mergeWorkspaceAppData(local = {}, remote = {}) {
     memories.set(JSON.stringify(memory), memory);
   }
   return {
+    ...local,
     conversations: mergeById(remote.conversations, local.conversations, (localConversation, remoteConversation) => (
       preferLocalConversation(localConversation, remoteConversation) ? localConversation : remoteConversation
     )),
@@ -183,6 +184,7 @@ export function mergeConcurrentWorkspaceAppData(base = {}, local = {}, remote = 
     memories.set(JSON.stringify(memory), memory);
   }
   return {
+    ...local,
     conversations,
     folders,
     astras: mergeConcurrentItems(base.astras, local.astras, remote.astras),

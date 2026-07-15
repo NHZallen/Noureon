@@ -3,7 +3,7 @@ import { reconcileStoredWorkspaceOwner, STORAGE_OWNER_KEY } from '../runtime/ker
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { migrateSyncVaultRecord } from '../sync/sync-vault.js';
 import { completePendingCloudAccountLink } from './account-linking.js';
-import { openPasswordRecovery } from './password-recovery-page.js';
+import { openPasswordRecovery } from './password-recovery-route.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
 const CLOUD_USER_PREFIX = 'supabase:';
@@ -317,7 +317,7 @@ async function finishCloudLogin({ window, elements, storage, user }) {
   window.location.reload();
 }
 
-export async function initializeSupabaseAuthBridge({ window, document } = globalThis) {
+export async function initializeSupabaseAuthBridge({ window, document, startupIdentity } = globalThis) {
   if (!isSupabaseConfigured()) return { enabled: false };
 
   const supabase = getSupabaseClient();
@@ -325,13 +325,23 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
   const elements = enhanceAuthShell(document);
   if (!elements) return { enabled: true };
   const turnstile = createTurnstileClient({ window, document });
-  if (turnstile.enabled) {
-    try {
-      await turnstile.mount('supabase-auth', elements.loginButton);
-    } catch (error) {
+  const skipTurnstileForLocalStartup = startupIdentity?.mode === 'local';
+
+  const resolvedSession = startupIdentity?.sessionChecked
+    ? {
+        data: { session: startupIdentity.session || null },
+        error: startupIdentity.sessionError || null
+      }
+    : skipTurnstileForLocalStartup
+      ? { data: { session: null }, error: null }
+      : await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = resolvedSession;
+
+  if (turnstile.enabled && !session?.user && !skipTurnstileForLocalStartup) {
+    void turnstile.mount('supabase-auth', elements.loginButton).catch((error) => {
       setStatus(elements, getAuthText(elements, 'turnstileInitFailed', '驗證模組載入失敗，請重新整理後再試。'), 'error');
       console.error('Supabase auth Turnstile failed to initialize:', error);
-    }
+    });
   }
 
   const getCaptchaToken = () => {
@@ -343,7 +353,6 @@ export async function initializeSupabaseAuthBridge({ window, document } = global
     return captchaToken || undefined;
   };
 
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   let activeCloudSession = session;
   supabase.auth.onAuthStateChange((_event, nextSession) => {
     activeCloudSession = nextSession;

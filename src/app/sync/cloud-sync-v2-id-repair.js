@@ -110,7 +110,7 @@ export async function repairWorkspaceEntityIds({
       id: nextId,
       folderId: nextFolderId
     };
-    if (Object.hasOwn(conversation, 'astrasId') || nextAstraId) nextConversation.astrasId = nextAstraId;
+    if (Object.prototype.hasOwnProperty.call(conversation, 'astrasId') || nextAstraId) nextConversation.astrasId = nextAstraId;
     conversations.push(nextConversation);
   }
 
@@ -134,7 +134,7 @@ export async function repairWorkspaceEntityIds({
       ...workspace,
       folders: folders.map(folder => folder?.id && folderById.has(folder.id) ? folderById.get(folder.id) : folder),
       conversations,
-      ...(Object.hasOwn(workspace, 'astras') ? { astras } : {})
+      ...(Object.prototype.hasOwnProperty.call(workspace, 'astras') ? { astras } : {})
     },
     repaired: {
       folders: folderIdMap.size,

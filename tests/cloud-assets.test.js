@@ -216,7 +216,7 @@ test('cloud assets restore generated image blobs to their IndexedDB storage key'
   );
 });
 
-test('missing cloud assets do not block workspace hydration or retry the same path', async () => {
+test('missing cloud assets preserve their retry marker without retrying the same path in-session', async () => {
   const fixture = createFixture();
   const warnings = [];
   const transport = createCloudAssetTransport({
@@ -238,8 +238,49 @@ test('missing cloud assets do not block workspace hydration or retry the same pa
   const first = await transport.hydrate(value);
   const second = await transport.hydrate(value);
 
-  assert.equal(first.conversations[0].messages[0].parts[0].inlineData.data, null);
-  assert.equal(second.conversations[0].messages[0].parts[0].inlineData.data, null);
+  assert.deepEqual(
+    first.conversations[0].messages[0].parts[0].inlineData.data,
+    value.conversations[0].messages[0].parts[0].inlineData.data
+  );
+  assert.deepEqual(
+    second.conversations[0].messages[0].parts[0].inlineData.data,
+    value.conversations[0].messages[0].parts[0].inlineData.data
+  );
   assert.equal(warnings.length, 1);
   assert.equal(fixture.downloadCounts.get('user-1/missing'), 1);
+});
+
+test('missing generated image assets keep their cloud marker for a later retry', async () => {
+  const fixture = createFixture();
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto,
+    logger: { warn() {} }
+  });
+  const cloudAsset = {
+    __astraCloudAsset: {
+      path: 'user-1/missing-generated-image',
+      mimeType: 'image/png',
+      encoding: 'blob'
+    }
+  };
+  const value = {
+    conversations: [{
+      id: 'conversation-1',
+      messages: [{ role: 'model', parts: [{ generatedImage: {
+        id: 'image-1',
+        storageKey: 'generatedImage:supabase:user-1:image-1',
+        cloudAsset
+      } }] }]
+    }]
+  };
+
+  const hydrated = await transport.hydrate(value);
+
+  assert.deepEqual(
+    hydrated.conversations[0].messages[0].parts[0].generatedImage.cloudAsset,
+    cloudAsset
+  );
+  assert.equal(fixture.downloadCounts.get('user-1/missing-generated-image'), 1);
 });

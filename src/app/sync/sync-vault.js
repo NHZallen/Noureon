@@ -8,6 +8,22 @@ const previousVaultKeys = new Map();
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+async function markVaultCloudSyncPending() {
+  try {
+    return await globalThis.__astraCloudWorkspaceSync?.queueLocalChange?.('vault');
+  } catch {
+    return false;
+  }
+}
+
+async function markSensitiveCloudSyncPending() {
+  try {
+    return await globalThis.__astraCloudWorkspaceSync?.queueLocalChange?.('sensitive');
+  } catch {
+    return false;
+  }
+}
+
 function bytesToBase64(bytes) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -44,6 +60,10 @@ async function deriveVaultKey(password, salt, iterations, cryptoProvider) {
 
 export function getSyncVaultStorageKey(username) {
   return username ? `chatSyncVault_v1_${username}` : null;
+}
+
+export function getSyncVaultRotationStorageKey(username) {
+  return username ? `chatSyncVaultRotationPending_v1_${username}` : null;
 }
 
 export async function createSyncVaultRecord(password, {
@@ -112,7 +132,9 @@ export async function createAndUnlockSyncVault({ storage, username, password, cr
   const storageKey = getSyncVaultStorageKey(username);
   if (!storageKey) throw new TypeError('A user is required to create a sync vault.');
   const { record, key } = await createSyncVaultRecord(password, { cryptoProvider });
+  await markVaultCloudSyncPending();
   await storage.setItem(storageKey, JSON.stringify(record));
+  await markVaultCloudSyncPending();
   previousVaultKeys.delete(username);
   unlockedVaultKeys.set(username, key);
   return record;
@@ -122,7 +144,6 @@ export async function unlockSyncVault({ storage, username, password, cryptoProvi
   const record = await readSyncVaultRecord(storage, username);
   if (!record) throw new Error('No sync vault password has been configured.');
   const key = await unlockSyncVaultRecord(password, record, { cryptoProvider });
-  previousVaultKeys.delete(username);
   unlockedVaultKeys.set(username, key);
   return key;
 }
@@ -134,16 +155,26 @@ export async function changeSyncVaultPassword({
   nextPassword,
   cryptoProvider
 } = {}) {
+  const previousRecord = await readSyncVaultRecord(storage, username);
   const previousKey = await unlockSyncVault({ storage, username, password: currentPassword, cryptoProvider });
+  const retainedKeys = previousVaultKeys.get(username) || [];
+  await storage.setItem(getSyncVaultRotationStorageKey(username), JSON.stringify({
+    state: 'pending',
+    previousRecord
+  }));
   const record = await createAndUnlockSyncVault({ storage, username, password: nextPassword, cryptoProvider });
-  previousVaultKeys.set(username, previousKey);
+  previousVaultKeys.set(username, [...retainedKeys, previousKey]);
+  await markSensitiveCloudSyncPending();
   return record;
 }
 
 export async function removeSyncVault({ storage, username } = {}) {
   const storageKey = getSyncVaultStorageKey(username);
   if (!storageKey) return;
+  await markVaultCloudSyncPending();
   await storage.removeItem(storageKey);
+  await storage.removeItem(getSyncVaultRotationStorageKey(username));
+  await markVaultCloudSyncPending();
   unlockedVaultKeys.delete(username);
   previousVaultKeys.delete(username);
 }
@@ -168,9 +199,25 @@ export function getUnlockedSyncVaultKey(username) {
 }
 
 export function takePreviousSyncVaultKey(username) {
-  const key = previousVaultKeys.get(username) || null;
-  previousVaultKeys.delete(username);
+  const keys = previousVaultKeys.get(username) || [];
+  const key = keys.shift() || null;
+  if (keys.length) previousVaultKeys.set(username, keys);
+  else previousVaultKeys.delete(username);
   return key;
+}
+
+export function getPreviousSyncVaultKeys(username) {
+  return [...(previousVaultKeys.get(username) || [])];
+}
+
+export function clearPreviousSyncVaultKeys(username) {
+  previousVaultKeys.delete(username);
+}
+
+export async function cancelSyncVaultRotation({ storage, username } = {}) {
+  const rotationKey = getSyncVaultRotationStorageKey(username);
+  if (rotationKey) await storage.removeItem(rotationKey);
+  clearPreviousSyncVaultKeys(username);
 }
 
 export async function encryptSyncVaultPayload(payload, key, {

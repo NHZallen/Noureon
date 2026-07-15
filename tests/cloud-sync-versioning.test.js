@@ -98,6 +98,29 @@ test('sync metadata upgrade preserves a completed local answer over a remote nam
   assert.equal(merged.conversations[0].messages.length, 2);
 });
 
+test('record-level shadow merge preserves local-only workspace state', () => {
+  const memoryState = { profileEntries: [{ id: 'memory-1' }] };
+  const local = {
+    conversations: [],
+    folders: [],
+    astras: [],
+    personalMemories: [],
+    memoryState,
+    localUiState: { selectedPanel: 'memory' }
+  };
+
+  const merged = mergeWorkspaceAppData(local, {
+    conversations: [{ id: 'remote-conversation', messages: [] }],
+    folders: [],
+    astras: [],
+    personalMemories: []
+  });
+
+  assert.equal(merged.memoryState, memoryState);
+  assert.deepEqual(merged.localUiState, { selectedPanel: 'memory' });
+  assert.equal(merged.conversations[0].id, 'remote-conversation');
+});
+
 test('live remote merge cannot remove a more complete local assistant response', () => {
   const liveConversation = {
     id: 'conversation-1',
@@ -227,6 +250,16 @@ test('three-way workspace merge keeps remote AI and move-out while preserving un
   assert.equal(merged.conversations[0].messages[1].parts[0].text, 'Answer');
   assert.equal(merged.folders[0].isOpen, true);
   assert.deepEqual(merged.folders[0].conversationIds, []);
+});
+
+test('three-way merge also preserves local-only top-level workspace fields', () => {
+  const base = { conversations: [], folders: [], astras: [], personalMemories: [] };
+  const local = { ...base, memoryState: { legacyInbox: [{ id: 'local-only' }] } };
+  const remote = { ...base };
+
+  const merged = mergeConcurrentWorkspaceAppData(base, local, remote);
+
+  assert.deepEqual(merged.memoryState, local.memoryState);
 });
 
 test('cloud value comparison ignores object property insertion order', () => {

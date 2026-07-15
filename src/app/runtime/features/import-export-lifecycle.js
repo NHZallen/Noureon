@@ -18,6 +18,7 @@ export function createLegacyImportExportLifecycle({
   navigator,
   URL,
   File,
+  loadArchiveVendor,
   JSZip,
   elements,
   getCurrentUser,
@@ -76,6 +77,17 @@ export function createLegacyImportExportLifecycle({
 } = {}) {
   const getLanguage = () => getConfig().uiLanguage;
   const text = (key, fallback) => getLocaleText(i18n, getLanguage(), key, fallback);
+  const resolveArchiveVendor = typeof loadArchiveVendor === 'function'
+    ? loadArchiveVendor
+    : () => Promise.resolve(JSZip);
+  const requireArchiveVendor = async () => {
+    const loadedVendor = await resolveArchiveVendor();
+    const JSZipCtor = loadedVendor?.JSZip || loadedVendor?.default || loadedVendor;
+    if (typeof JSZipCtor !== 'function') {
+      throw new TypeError('JSZip did not expose a usable constructor.');
+    }
+    return JSZipCtor;
+  };
 
   function applySettings(settings) {
     if (!settings) return;
@@ -252,7 +264,8 @@ export function createLegacyImportExportLifecycle({
     const fileName = `noureon_backup_${currentUser.username}_${timestamp}.zip`;
 
     try {
-      const zip = new JSZip();
+      const JSZipCtor = await requireArchiveVendor();
+      const zip = new JSZipCtor();
       const imagesFolder = zip.folder('images');
       const filesFolder = zip.folder('files');
 
@@ -419,7 +432,8 @@ export function createLegacyImportExportLifecycle({
 
       if (file.name.endsWith('.zip') || file.type.includes('zip')) {
         updateProgress(10, '正在解壓縮 ZIP...');
-        zip = await JSZip.loadAsync(file);
+        const JSZipCtor = await requireArchiveVendor();
+        zip = await JSZipCtor.loadAsync(file);
 
         let jsonFile = zip.file('data.json');
         if (!jsonFile) {

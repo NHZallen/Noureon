@@ -100,6 +100,14 @@ export function createSensitiveConfigPersistence({
   replaceApiKeys,
   onSaved = () => {}
 } = {}) {
+  async function markCloudSyncPending() {
+    try {
+      return await onSaved();
+    } catch {
+      return false;
+    }
+  }
+
   function getSensitiveConfigKey(user = getCurrentUser?.()) {
     return user?.username ? `chatSensitiveConfig_v1_${user.username}` : null;
   }
@@ -121,15 +129,19 @@ export function createSensitiveConfigPersistence({
   async function saveSensitiveConfig() {
     const key = getSensitiveConfigKey();
     if (!key) return;
-    await setItem(key, JSON.stringify({ apiKeys: getApiKeys() }));
-    onSaved();
+    const serializedConfig = JSON.stringify({ apiKeys: getApiKeys() });
+    await markCloudSyncPending();
+    await setItem(key, serializedConfig);
+    await markCloudSyncPending();
   }
 
   async function clearSensitiveConfig() {
     const key = getSensitiveConfigKey();
     if (!key) return;
+    await markCloudSyncPending();
     await removeItem(key);
     replaceApiKeys({});
+    await markCloudSyncPending();
   }
 
   return {

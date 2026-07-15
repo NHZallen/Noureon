@@ -102,7 +102,7 @@ export function createLegacyStartupLifecycle({
                 elements.authContainer.style.display = 'none';
                 elements.appContainer.classList.remove('hidden');
                 elements.appContainer.classList.add('visible');
-                initChatApp();
+                await initChatApp();
                 return;
             }
         }

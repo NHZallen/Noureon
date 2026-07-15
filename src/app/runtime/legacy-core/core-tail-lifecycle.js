@@ -45,6 +45,8 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         FileReader,
         Chart,
         Cropper,
+        loadArchiveVendor,
+        loadSharingVendor,
         Peer,
         QRCode,
         Html5Qrcode,
@@ -158,6 +160,13 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         registerServiceWorker,
         showCustomDialog
     } = dependencies;
+
+    const resolvedLoadArchiveVendor = typeof loadArchiveVendor === 'function'
+        ? loadArchiveVendor
+        : () => Promise.resolve(JSZip);
+    const resolvedLoadSharingVendor = typeof loadSharingVendor === 'function'
+        ? loadSharingVendor
+        : () => Promise.resolve({ Peer, QRCode, Html5Qrcode });
 
         const setupTimeAnalysis = () => {
             const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
@@ -974,10 +983,8 @@ function setupMessageIntersectionObserver() {
                 window,
                 document,
                 elements: ALL_ELEMENTS,
-                Peer,
-                QRCode,
-                Html5Qrcode,
-                JSZip,
+                loadArchiveVendor: resolvedLoadArchiveVendor,
+                loadSharingVendor: resolvedLoadSharingVendor,
                 BlobCtor: Blob,
                 getCurrentUser: () => state.currentUser,
                 getConfig: () => state.config,

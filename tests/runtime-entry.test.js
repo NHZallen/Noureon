@@ -610,7 +610,7 @@ test('legacy production entry starts runtime-entry without importing the legacy 
     source,
     /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/
   );
-  assert.match(source, /startRuntimeEntry\(\);/);
+  assert.match(source, /export\s+const\s+legacyAppReady\s*=\s*startRuntimeEntry\(\);/);
   assert.doesNotMatch(source, /virtual:legacy-app-runtime/);
   assert.doesNotMatch(source, /legacy-core\/legacy-core\.js/);
 });
