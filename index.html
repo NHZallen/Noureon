@@ -27,29 +27,37 @@
         display: grid;
         place-items: center;
         padding: 1.5rem;
-        background: #f8fafc;
-        color: #0f172a;
+        background: #ffffff;
+        color: #17151f;
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
       .startup-skeleton__panel {
-        display: grid;
-        justify-items: center;
-        gap: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.625rem;
         text-align: center;
       }
 
-      .startup-skeleton__mark {
+      .startup-skeleton__spinner {
+        width: 9.5rem;
+        height: 9.5rem;
+        animation: startup-skeleton-spin 2.15s linear infinite;
+        will-change: transform;
+      }
+
+      .startup-skeleton__logo {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .startup-skeleton__copy {
         display: grid;
-        width: 3rem;
-        height: 3rem;
-        place-items: center;
-        border-radius: 1rem;
-        background: #2563eb;
-        color: #ffffff;
-        font-size: 1.25rem;
-        font-weight: 700;
-        box-shadow: 0 12px 28px rgb(37 99 235 / 24%);
+        justify-items: center;
+        gap: 0.5rem;
       }
 
       .startup-skeleton__title,
@@ -58,42 +66,53 @@
       }
 
       .startup-skeleton__title {
-        font-size: 1.125rem;
-        font-weight: 700;
+        font-size: 0.875rem;
+        font-weight: 650;
+        letter-spacing: 0.06em;
       }
 
       .startup-skeleton__message {
-        color: #475569;
-        font-size: 0.875rem;
+        min-width: 13em;
+        color: #8c8792;
+        font-size: 0.75rem;
       }
 
-      .startup-skeleton__spinner {
-        width: 1.25rem;
-        height: 1.25rem;
-        box-sizing: border-box;
-        border: 2px solid #bfdbfe;
-        border-top-color: #2563eb;
-        border-radius: 9999px;
-        animation: startup-skeleton-spin 800ms linear infinite;
+      .startup-skeleton__message-label {
+        position: relative;
+        display: inline-block;
+      }
+
+      .startup-skeleton__dots {
+        position: absolute;
+        top: 0;
+        left: 100%;
+        white-space: nowrap;
+      }
+
+      .startup-skeleton__dots span {
+        animation: startup-skeleton-dot 1.35s infinite both;
+      }
+
+      .startup-skeleton__dots span:nth-child(2) {
+        animation-delay: 180ms;
+      }
+
+      .startup-skeleton__dots span:nth-child(3) {
+        animation-delay: 360ms;
       }
 
       @keyframes startup-skeleton-spin {
         to { transform: rotate(360deg); }
       }
 
-      @media (prefers-color-scheme: dark) {
-        [data-startup-skeleton] {
-          background: #0f172a;
-          color: #f8fafc;
-        }
-
-        .startup-skeleton__message {
-          color: #cbd5e1;
-        }
+      @keyframes startup-skeleton-dot {
+        0%, 60%, 100% { opacity: 0.2; }
+        30% { opacity: 1; }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .startup-skeleton__spinner {
+        .startup-skeleton__spinner,
+        .startup-skeleton__dots span {
           animation: none;
         }
       }
@@ -104,10 +123,13 @@
     <div id="app">
       <main data-startup-skeleton aria-labelledby="startup-skeleton-title">
         <div class="startup-skeleton__panel" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
-          <div class="startup-skeleton__mark" aria-hidden="true">N</div>
-          <h1 id="startup-skeleton-title" class="startup-skeleton__title">Noureon</h1>
-          <p class="startup-skeleton__message">正在載入本機工作區…</p>
-          <div class="startup-skeleton__spinner" aria-hidden="true"></div>
+          <div class="startup-skeleton__spinner" aria-hidden="true">
+            <img class="startup-skeleton__logo" src="/logo.png" alt="" width="152" height="152" fetchpriority="high" />
+          </div>
+          <div class="startup-skeleton__copy">
+            <h1 id="startup-skeleton-title" class="startup-skeleton__title">正在準備工作空間</h1>
+            <p class="startup-skeleton__message"><span class="startup-skeleton__message-label">請稍候<span class="startup-skeleton__dots"><span>．</span><span>．</span><span>．</span></span></span></p>
+          </div>
         </div>
       </main>
     </div>

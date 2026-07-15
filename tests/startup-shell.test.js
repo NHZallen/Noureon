@@ -24,8 +24,10 @@ test('index provides an accessible static startup status before JavaScript runs'
   assert.equal(status.getAttribute('aria-live'), 'polite');
   assert.equal(status.getAttribute('aria-atomic'), 'true');
   assert.equal(status.getAttribute('aria-busy'), 'true');
-  assert.match(status.textContent, /Noureon/);
-  assert.match(status.textContent, /正在載入本機工作區/);
+  assert.match(status.textContent, /正在準備工作空間/);
+  assert.match(status.textContent, /請稍候/);
+  assert.equal(status.querySelector('.startup-skeleton__logo')?.getAttribute('src'), '/logo.png');
+  assert.equal(status.querySelectorAll('.startup-skeleton__dots span').length, 3);
 });
 
 test('mountAppShell keeps the startup overlay until the runtime is interactive', () => {
