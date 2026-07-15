@@ -141,7 +141,7 @@ test('saveAppData reads the store snapshot while active conversation id uses the
     'setItem'
   ], 'saveAppData store snapshot getter');
 
-  assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(\);\s*\}/);
+  assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(options\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(options\);\s*\}/);
   assert.doesNotMatch(fragment00Source, /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/);
 });
 
@@ -480,7 +480,9 @@ test('local conversation saves preserve the shadow debounce boundary', () => {
   assert.match(legacyCoreSource, /cloud-conversation-save-observer\.js/);
   assert.match(legacyCoreSource, /onSaved:\s*notifyCloudConversationSave/);
   assert.match(observerSource, /sync\?\.captureWorkspace\?\.\(snapshot,\s*metadata\s*\|\|\s*undefined\)/);
-  assert.doesNotMatch(observerSource, /sync\?\.flush|sync\.flush\(\)/);
+  assert.match(observerSource, /metadata\?\.immediate\s*!==\s*true/);
+  assert.match(observerSource, /Promise\.resolve\(sync\.flush\(\)\)\.catch/);
+  assert.match(observerSource, /return captured/);
 });
 
 test('app data store remains wired while production boot moves through runtime entry', () => {

@@ -1,6 +1,7 @@
 import { normalizeMemoryState } from '../memory/memory-schema.js';
 
 const resolveDefault = (value) => (typeof value === 'function' ? value() : value);
+const firstValidTimestamp = (...values) => values.find(value => Number.isFinite(Date.parse(value || ''))) || null;
 
 export function normalizeFolderRecord(record, { defaultFolder } = {}) {
   return {
@@ -33,6 +34,7 @@ export function normalizeConversationRecord(record, {
         : source.createdAt
     ),
     stateUpdatedAt: source.stateUpdatedAt || source.deletedAt || source.lastUpdatedAt || source.updatedAt || source.createdAt,
+    trashStateUpdatedAt: firstValidTimestamp(source.trashStateUpdatedAt, source.deletedAt),
     messages: (source.messages || []).map(message => ({
       ...message,
       createdAt: message.createdAt || source.createdAt,

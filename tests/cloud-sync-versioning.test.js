@@ -209,7 +209,8 @@ test('remote trash restore wins over stale local trashed conversation', () => {
     ...local,
     deletedAt: null,
     lastUpdatedAt: '2026-07-06T01:05:00.000Z',
-    stateUpdatedAt: '2026-07-06T01:15:00.000Z'
+    stateUpdatedAt: '2026-07-06T01:15:00.000Z',
+    trashStateUpdatedAt: '2026-07-06T01:15:00.000Z'
   };
 
   const merged = mergeRemoteWorkspaceAppData(
@@ -217,9 +218,136 @@ test('remote trash restore wins over stale local trashed conversation', () => {
     { conversations: [remote], folders: [], astras: [], personalMemories: [] }
   );
 
-  assert.equal(merged.conversations[0], remote);
   assert.equal(merged.conversations[0].deletedAt, null);
-  assert.equal(merged.conversations[0].lastUpdatedAt, '2026-07-06T01:05:00.000Z');
+  assert.equal(merged.conversations[0].trashStateUpdatedAt, '2026-07-06T01:15:00.000Z');
+  assert.equal(merged.conversations[0].lastUpdatedAt, '2026-07-06T01:10:00.000Z');
+});
+
+test('newer remote trash state wins without discarding richer local messages', () => {
+  const local = {
+    id: 'conversation-1',
+    title: 'Completed locally',
+    folderId: 'folder-1',
+    archived: true,
+    deletedAt: null,
+    trashStateUpdatedAt: '2026-07-06T01:00:00.000Z',
+    messages: [
+      { role: 'user', parts: [{ text: 'Question' }] },
+      { role: 'model', parts: [{ text: 'Completed local answer' }] }
+    ]
+  };
+  const remote = {
+    ...local,
+    title: 'Deleted remotely',
+    folderId: null,
+    archived: false,
+    deletedAt: '2026-07-06T01:10:00.000Z',
+    stateUpdatedAt: '2026-07-06T01:10:00.000Z',
+    trashStateUpdatedAt: '2026-07-06T01:10:00.000Z',
+    messages: [local.messages[0]]
+  };
+
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [local] },
+    { conversations: [remote], folders: [], astras: [], personalMemories: [] }
+  ).conversations[0];
+
+  assert.equal(merged.title, 'Completed locally');
+  assert.equal(merged.messages.length, 2);
+  assert.equal(merged.deletedAt, remote.deletedAt);
+  assert.equal(merged.trashStateUpdatedAt, remote.trashStateUpdatedAt);
+  assert.equal(merged.folderId, null);
+  assert.equal(merged.archived, false);
+});
+
+test('an explicit newer restore wins over an older remote delete', () => {
+  const remote = {
+    id: 'conversation-1',
+    deletedAt: '2026-07-06T01:10:00.000Z',
+    stateUpdatedAt: '2026-07-06T01:10:00.000Z',
+    trashStateUpdatedAt: '2026-07-06T01:10:00.000Z',
+    messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+  };
+  const local = {
+    ...remote,
+    deletedAt: null,
+    stateUpdatedAt: '2026-07-06T01:20:00.000Z',
+    trashStateUpdatedAt: '2026-07-06T01:20:00.000Z'
+  };
+
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [local] },
+    { conversations: [remote], folders: [], astras: [], personalMemories: [] }
+  ).conversations[0];
+
+  assert.equal(merged.deletedAt, null);
+  assert.equal(merged.trashStateUpdatedAt, local.trashStateUpdatedAt);
+});
+
+test('delete wins equal or unknown trash clocks and invalid markers fall back to deletedAt', () => {
+  const active = {
+    id: 'conversation-1',
+    deletedAt: null,
+    trashStateUpdatedAt: '2026-07-06T01:10:00.000Z',
+    messages: []
+  };
+  const equalDelete = {
+    ...active,
+    deletedAt: '2026-07-06T01:10:00.000Z'
+  };
+  const equalMerged = mergeRemoteWorkspaceAppData(
+    { conversations: [active] },
+    { conversations: [equalDelete], folders: [], astras: [], personalMemories: [] }
+  ).conversations[0];
+  assert.equal(equalMerged.deletedAt, equalDelete.deletedAt);
+
+  const unknownActive = { id: 'conversation-2', deletedAt: null, trashStateUpdatedAt: 'invalid', messages: [] };
+  const unknownDelete = { ...unknownActive, deletedAt: 'also-invalid' };
+  const unknownMerged = mergeRemoteWorkspaceAppData(
+    { conversations: [unknownActive] },
+    { conversations: [unknownDelete], folders: [], astras: [], personalMemories: [] }
+  ).conversations[0];
+  assert.equal(unknownMerged.deletedAt, 'also-invalid');
+
+  const newerDelete = {
+    ...active,
+    trashStateUpdatedAt: 'invalid',
+    deletedAt: '2026-07-06T01:20:00.000Z'
+  };
+  const fallbackMerged = mergeRemoteWorkspaceAppData(
+    { conversations: [active] },
+    { conversations: [newerDelete], folders: [], astras: [], personalMemories: [] }
+  ).conversations[0];
+  assert.equal(fallbackMerged.deletedAt, newerDelete.deletedAt);
+});
+
+test('newer same-state trash clock is retained while richer content stays local', () => {
+  const local = {
+    id: 'conversation-1',
+    deletedAt: null,
+    stateUpdatedAt: '2026-07-06T01:10:00.000Z',
+    trashStateUpdatedAt: '2026-07-06T01:10:00.000Z',
+    messages: [
+      { role: 'user', parts: [{ text: 'Question' }] },
+      { role: 'model', parts: [{ text: 'Local answer' }] }
+    ]
+  };
+  const remote = {
+    ...local,
+    stateUpdatedAt: '2026-07-06T01:20:00.000Z',
+    trashStateUpdatedAt: '2026-07-06T01:20:00.000Z',
+    messages: [local.messages[0]]
+  };
+
+  const merged = mergeRemoteWorkspaceAppData(
+    { conversations: [local] },
+    { conversations: [remote], folders: [], astras: [], personalMemories: [] }
+  ).conversations[0];
+
+  assert.equal(merged.messages.length, 2);
+  assert.equal(merged.deletedAt, null);
+  assert.equal(merged.trashStateUpdatedAt, remote.trashStateUpdatedAt);
+  assert.equal(merged.stateUpdatedAt, remote.stateUpdatedAt);
 });
 
 test('three-way workspace merge keeps remote AI and move-out while preserving unrelated local folder state', () => {

@@ -91,6 +91,7 @@ export function createCloudWorkspaceLiveLifecycle({
   renderChat,
   applyLanguage = () => {},
   getActiveConversation = () => null,
+  onActiveConversationUnavailable = () => {},
   saveAppData = async () => {},
   busy = () => false,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay)
@@ -198,6 +199,15 @@ export function createCloudWorkspaceLiveLifecycle({
       astras: protectedRemote.astras,
       personalMemories: protectedRemote.personalMemories
     });
+    const committedActiveConversation = activeConversationId
+      ? appDataStore.getConversations().find(conversation => conversation?.id === activeConversationId)
+      : null;
+    if (activeConversationId && (!committedActiveConversation || committedActiveConversation.deletedAt)) {
+      onActiveConversationUnavailable({
+        conversationId: activeConversationId,
+        workspace: protectedRemote
+      });
+    }
     renderWorkspaceChanges({ sidebarChanged, activeConversationChanged, controlsChanged });
   };
 

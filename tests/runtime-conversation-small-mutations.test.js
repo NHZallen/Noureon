@@ -138,6 +138,7 @@ test('deleteChat preserves deletion and folder unlink mutations', () => {
     'const deletedAt = new Date().toISOString()',
     'conv.deletedAt = deletedAt',
     'conv.stateUpdatedAt = deletedAt',
+    'conv.trashStateUpdatedAt = deletedAt',
     'if (conv.folderId)',
     'const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId)',
     'if (folder)',
@@ -150,7 +151,7 @@ test('deleteChat preserves persistence, active fallback, render, and notificatio
   const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
 
   assertMarkersInOrder(body, [
-    'await saveAppData()',
+    'await saveAppData({ immediateCloudSync: true })',
     'if (conversationStateAccess.getCurrentConversationId() === id)',
     'await startNewChat({ keepSidebarOpen: true })',
     'else {',

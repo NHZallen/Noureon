@@ -30,7 +30,7 @@ export function createLegacyRuntimeAppDataPersistence({
   onSaved = () => {},
   logger = console
 } = {}) {
-  async function saveAppData() {
+  async function saveAppData({ immediateCloudSync = false } = {}) {
     let notification = null;
     await withWorkspaceStorageExclusive(async () => {
       const currentUser = getCurrentUser();
@@ -72,7 +72,11 @@ export function createLegacyRuntimeAppDataPersistence({
               )
         });
         if (workspaceUnchanged && currentJournal.dirty) {
-          syncMetadata = { revision: journal.workspaceRevision, journal };
+          syncMetadata = {
+            revision: journal.workspaceRevision,
+            journal,
+            ...(immediateCloudSync ? { immediate: true } : {})
+          };
           notification = { snapshot, syncMetadata };
           return;
         }
@@ -80,7 +84,11 @@ export function createLegacyRuntimeAppDataPersistence({
           { key: appDataKey, value: serializedSnapshot },
           { key: journalKey, value: JSON.stringify(journal) }
         ]);
-        syncMetadata = { revision: journal.workspaceRevision, journal };
+        syncMetadata = {
+          revision: journal.workspaceRevision,
+          journal,
+          ...(immediateCloudSync ? { immediate: true } : {})
+        };
       } else {
         await setItem(appDataKey, serializedSnapshot);
       }

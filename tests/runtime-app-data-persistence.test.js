@@ -207,6 +207,38 @@ test('cloud app data persistence atomically writes the workspace and dirty journ
   assert.equal(observed[0][0], snapshot);
   assert.equal(observed[0][1].revision, 'revision-1');
   assert.deepEqual(observed[0][1].journal, JSON.parse(journalEntry.value));
+  assert.equal('immediate' in observed[0][1], false);
+});
+
+test('immediate cloud save marks both a new atomic write and an unchanged dirty requeue', async () => {
+  const snapshot = { conversations: [{ id: 'conversation-1', deletedAt: '2026-07-14T02:00:00.000Z' }] };
+  const stored = new Map();
+  const atomicWrites = [];
+  const observed = [];
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'supabase:user-1', authProvider: 'supabase' }),
+    getAppData: () => snapshot,
+    getAppDataKey: () => 'chatAppData_v8.6_supabase:user-1',
+    readItem: async key => stored.get(key) ?? null,
+    setItemsAtomic: async entries => {
+      atomicWrites.push(entries);
+      for (const { key, value } of entries) stored.set(key, value);
+    },
+    createSyncRevision: () => 'revision-immediate',
+    now: () => '2026-07-14T02:00:00.000Z',
+    onSaved: (value, metadata) => observed.push([value, metadata])
+  });
+
+  await persistence.saveAppData({ immediateCloudSync: true });
+  await persistence.saveAppData({ immediateCloudSync: true });
+
+  assert.equal(atomicWrites.length, 1);
+  assert.equal(observed.length, 2);
+  assert.equal(observed[0][1].immediate, true);
+  assert.equal(observed[1][1].immediate, true);
+  assert.equal(observed[0][1].revision, 'revision-immediate');
+  assert.equal(observed[1][1].revision, 'revision-immediate');
+  assert.equal(observed[1][1].journal.dirty, true);
 });
 
 test('cloud persistence prefers one snapshot read for workspace and journal', async () => {

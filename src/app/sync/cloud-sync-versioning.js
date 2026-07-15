@@ -27,7 +27,7 @@ export function canCommitHydratedRemote({
     && currentState.localRevision === startedRevision;
 }
 
-function conversationScore(conversation = {}) {
+function conversationContentScore(conversation = {}) {
   const messages = conversation.messages || [];
   const contentSize = messages.reduce((total, message) => total + (message.parts || []).reduce(
     (partTotal, part) => partTotal + (part.text?.length || 0) + (part.inlineData ? 1 : 0) + (part.generatedImage ? 1 : 0),
@@ -41,21 +41,51 @@ function conversationScore(conversation = {}) {
   ];
 }
 
-function preferLocalConversation(local, remote) {
-  const localDeleted = Boolean(local?.deletedAt);
-  const remoteDeleted = Boolean(remote?.deletedAt);
-  if (localDeleted !== remoteDeleted) {
-    const localStateAt = Date.parse(local?.deletedAt || local?.stateUpdatedAt || local?.lastUpdatedAt || local?.updatedAt || local?.createdAt || 0) || 0;
-    const remoteStateAt = Date.parse(remote?.deletedAt || remote?.stateUpdatedAt || remote?.lastUpdatedAt || remote?.updatedAt || remote?.createdAt || 0) || 0;
-    if (localStateAt !== remoteStateAt) return localStateAt > remoteStateAt;
-    return localDeleted;
-  }
-  const localScore = conversationScore(local);
-  const remoteScore = conversationScore(remote);
+function shouldPreferLocalConversationContent(local, remote) {
+  const localScore = conversationContentScore(local);
+  const remoteScore = conversationContentScore(remote);
   for (let index = 0; index < localScore.length; index += 1) {
     if (localScore[index] !== remoteScore[index]) return localScore[index] > remoteScore[index];
   }
   return false;
+}
+
+function trashStateTimestamp(conversation = {}) {
+  const marker = Date.parse(conversation.trashStateUpdatedAt || '');
+  if (Number.isFinite(marker)) return marker;
+  const deletedAt = Date.parse(conversation.deletedAt || '');
+  return Number.isFinite(deletedAt) ? deletedAt : 0;
+}
+
+function trashStatesEqual(left = {}, right = {}) {
+  return Boolean(left.deletedAt) === Boolean(right.deletedAt)
+    && trashStateTimestamp(left) === trashStateTimestamp(right);
+}
+
+export function shouldPreferLocalConversationState(local = {}, remote = {}) {
+  const localStateAt = trashStateTimestamp(local);
+  const remoteStateAt = trashStateTimestamp(remote);
+  if (localStateAt !== remoteStateAt) return localStateAt > remoteStateAt;
+  if (Boolean(local.deletedAt) !== Boolean(remote.deletedAt)) return Boolean(local.deletedAt);
+  return false;
+}
+
+export function mergeConversationVersions(local = {}, remote = {}) {
+  const contentWinner = shouldPreferLocalConversationContent(local, remote) ? local : remote;
+  const stateWinner = shouldPreferLocalConversationState(local, remote) ? local : remote;
+  if (trashStatesEqual(local, remote)) return contentWinner;
+  if (contentWinner === stateWinner) return contentWinner;
+  const merged = {
+    ...contentWinner,
+    deletedAt: stateWinner.deletedAt || null,
+    stateUpdatedAt: stateWinner.stateUpdatedAt,
+    trashStateUpdatedAt: stateWinner.trashStateUpdatedAt || stateWinner.deletedAt || null
+  };
+  if (Boolean(local.deletedAt) !== Boolean(remote.deletedAt)) {
+    merged.folderId = stateWinner.folderId || null;
+    merged.archived = Boolean(stateWinner.archived);
+  }
+  return merged;
 }
 
 export function enqueueRecoveringTask(previous, task, onError = () => {}) {
@@ -80,7 +110,7 @@ export function mergeWorkspaceAppData(local = {}, remote = {}) {
   return {
     ...local,
     conversations: mergeById(remote.conversations, local.conversations, (localConversation, remoteConversation) => (
-      preferLocalConversation(localConversation, remoteConversation) ? localConversation : remoteConversation
+      mergeConversationVersions(localConversation, remoteConversation)
     )),
     folders: mergeById(remote.folders, local.folders),
     astras: mergeById(remote.astras, local.astras),
@@ -93,7 +123,7 @@ export function mergeRemoteWorkspaceAppData(live = {}, remote = {}, protectedCon
   const conversations = (remote.conversations || []).map(remoteConversation => {
     const liveConversation = liveConversations.get(remoteConversation?.id);
     if (!liveConversation) return remoteConversation;
-    return preferLocalConversation(liveConversation, remoteConversation) ? liveConversation : remoteConversation;
+    return mergeConversationVersions(liveConversation, remoteConversation);
   });
   const deviceOnlyDrafts = [...liveConversations.values()].filter(conversation => (
     conversation?.id
@@ -131,6 +161,35 @@ function mergeConcurrentRecord(base = {}, local = {}, remote = {}, resolveConfli
   return output;
 }
 
+function mergeConcurrentConversation(base = {}, local = {}, remote = {}) {
+  const merged = mergeConcurrentRecord(
+    base,
+    local,
+    remote,
+    (key, localValue, remoteValue) => {
+      if (key !== 'messages') return remoteValue;
+      return shouldPreferLocalConversationContent(local, remote) ? localValue : remoteValue;
+    }
+  );
+  const localChanged = !trashStatesEqual(local, base);
+  const remoteChanged = !trashStatesEqual(remote, base);
+  const stateWinner = localChanged && !remoteChanged
+    ? local
+    : remoteChanged && !localChanged
+      ? remote
+      : localChanged && remoteChanged && shouldPreferLocalConversationState(local, remote)
+        ? local
+        : remote;
+  merged.deletedAt = stateWinner?.deletedAt || null;
+  merged.trashStateUpdatedAt = stateWinner?.trashStateUpdatedAt || stateWinner?.deletedAt || null;
+  if (stateWinner?.stateUpdatedAt !== undefined) merged.stateUpdatedAt = stateWinner.stateUpdatedAt;
+  if (merged.deletedAt) {
+    merged.folderId = null;
+    merged.archived = false;
+  }
+  return merged;
+}
+
 function mergeConcurrentItems(baseItems = [], localItems = [], remoteItems = [], mergeRecord = mergeConcurrentRecord) {
   const baseById = new Map(baseItems.map(item => [item?.id, item]));
   const localById = new Map(localItems.map(item => [item?.id, item]));
@@ -159,15 +218,7 @@ export function mergeConcurrentWorkspaceAppData(base = {}, local = {}, remote = 
     base.conversations,
     local.conversations,
     remote.conversations,
-    (baseConversation, localConversation, remoteConversation) => mergeConcurrentRecord(
-      baseConversation,
-      localConversation,
-      remoteConversation,
-      (key, localValue, remoteValue) => {
-        if (key !== 'messages') return remoteValue;
-        return preferLocalConversation(localConversation, remoteConversation) ? localValue : remoteValue;
-      }
-    )
+    mergeConcurrentConversation
   );
   const folders = mergeConcurrentItems(base.folders, local.folders, remote.folders);
   const folderIds = new Set(folders.map(folder => folder.id));

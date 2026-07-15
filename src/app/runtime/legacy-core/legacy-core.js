@@ -570,7 +570,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 runtimeConfigAccess.mutateConfig(normalizedConfig);
             }
         };
-        const saveAppData = async () => { await runtimeAppDataPersistence.saveAppData(); };
+        const saveAppData = async (options) => { await runtimeAppDataPersistence.saveAppData(options); };
         const cloudDeletionLifecycle = import('/src/app/runtime/legacy-core/cloud-delete-lifecycle.js')
             .then(({ createCloudDeletionLifecycle }) => createCloudDeletionLifecycle({
                 getCurrentUser: () => currentUser,
@@ -712,6 +712,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const deletedAt = new Date().toISOString();
         conv.deletedAt = deletedAt;
         conv.stateUpdatedAt = deletedAt;
+        conv.trashStateUpdatedAt = deletedAt;
         conv.archived = false;
         if (conv.folderId) {
             const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId);
@@ -720,7 +721,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             }
             conv.folderId = null;
         }
-        await saveAppData();
+        await saveAppData({ immediateCloudSync: true });
 
         if (conversationStateAccess.getCurrentConversationId() === id) {
             await startNewChat({ keepSidebarOpen: true });
@@ -1306,7 +1307,15 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
             models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates,getSingleTranslatorCandidates,applyCustomWallpaper,applyUiTheme,
-            renderSidebar,renderChat,applyLanguage,getActiveConversation,saveAppData,busy:()=>abortController&&getActiveConversation()
+            renderSidebar,renderChat,applyLanguage,getActiveConversation,
+            onActiveConversationUnavailable:({conversationId})=>{
+                if (conversationStateAccess.getCurrentConversationId() !== conversationId) return;
+                const nextConversation = runtimeAppDataStore.getConversations()
+                    .find(conversation => !conversation.archived && !conversation.deletedAt && conversation.id !== conversationId);
+                if (nextConversation) loadChat(nextConversation.id);
+                else void startNewChat({keepSidebarOpen:true});
+            },
+            saveAppData,busy:()=>abortController&&getActiveConversation()
         });
         const messageEditingLifecycle = createMessageEditingLifecycle({
             document,

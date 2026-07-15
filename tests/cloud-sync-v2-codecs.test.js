@@ -284,6 +284,90 @@ test('conversation shadow codec includes folders and restores folder membership'
   assert.equal(decoded.conversations[0].folderId, folderId);
 });
 
+test('conversation shadow codec removes a dangling legacy folder reference before verification', async () => {
+  const missingFolderId = '33333333-3333-4333-8333-333333333333';
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      folders: [],
+      conversations: [{
+        id: conversationId,
+        title: 'Orphaned folder chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        folderId: missingFolderId,
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: []
+      }]
+    }
+  });
+
+  const conversation = encoded.conversations[0];
+  assert.equal(conversation.folder_id, null);
+  assert.equal('legacyFolderId' in conversation.metadata, false);
+  assert.equal(shadowRowsEqual(conversation, {
+    ...conversation,
+    metadata: { ...conversation.metadata }
+  }), true);
+});
+
+test('conversation shadow codec round-trips a dedicated trash clock and clears deleted folder state', async () => {
+  const folderId = '33333333-3333-4333-8333-333333333333';
+  const deletedAt = '2026-07-06T01:10:00.000Z';
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      folders: [{ id: folderId, name: 'Work' }],
+      conversations: [{
+        id: conversationId,
+        title: 'Deleted chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        folderId,
+        archived: true,
+        createdAt: '2026-07-06T01:00:00.000Z',
+        deletedAt,
+        stateUpdatedAt: deletedAt,
+        trashStateUpdatedAt: deletedAt,
+        messages: []
+      }]
+    }
+  });
+
+  assert.equal(encoded.conversations[0].folder_id, null);
+  assert.equal(encoded.conversations[0].archived, false);
+  assert.equal('legacyFolderId' in encoded.conversations[0].metadata, false);
+  assert.equal(encoded.conversations[0].metadata.trashStateUpdatedAt, deletedAt);
+
+  const decoded = decodeWorkspaceConversationShadow(encoded);
+  assert.equal(decoded.conversations[0].deletedAt, deletedAt);
+  assert.equal(decoded.conversations[0].trashStateUpdatedAt, deletedAt);
+  assert.equal(decoded.conversations[0].folderId, null);
+});
+
+test('conversation shadow decode falls back to deletedAt when the metadata trash clock is invalid', () => {
+  const deletedAt = '2026-07-06T01:20:00+00:00';
+  const decoded = decodeWorkspaceConversationShadow({
+    conversations: [{
+      id: conversationId,
+      title: 'Deleted chat',
+      model: 'model-1',
+      provider: 'provider-1',
+      metadata: { trashStateUpdatedAt: 'invalid', legacyFolderId: '33333333-3333-4333-8333-333333333333' },
+      archived: false,
+      pinned: false,
+      created_at: '2026-07-06T01:00:00.000Z',
+      updated_at: '2026-07-06T01:20:00.000Z',
+      deleted_at: deletedAt
+    }]
+  });
+
+  assert.equal(decoded.conversations[0].trashStateUpdatedAt, '2026-07-06T01:20:00.000Z');
+  assert.equal(decoded.conversations[0].folderId, null);
+});
+
 test('conversation shadow codec never persists transient naming or streaming state', async () => {
   const encoded = await encodeWorkspaceConversationShadow({
     userId,
@@ -367,5 +451,23 @@ test('shadow row comparison treats equivalent timestamptz formats as equal', () 
   assert.equal(shadowRowsEqual(
     { id: conversationId, created_at: '2026-07-06T01:00:00.000Z', deleted_at: null },
     { id: conversationId, created_at: '2026-07-06T01:00:00+00:00', deleted_at: null }
+  ), true);
+  assert.equal(shadowRowsEqual(
+    {
+      id: conversationId,
+      metadata: {
+        clientUpdatedAt: '2026-07-06T01:00:00.000Z',
+        stateUpdatedAt: '2026-07-06T01:05:00.000Z',
+        trashStateUpdatedAt: '2026-07-06T01:10:00.000Z'
+      }
+    },
+    {
+      id: conversationId,
+      metadata: {
+        clientUpdatedAt: '2026-07-06T01:00:00+00:00',
+        stateUpdatedAt: '2026-07-06T01:05:00+00:00',
+        trashStateUpdatedAt: '2026-07-06T01:10:00+00:00'
+      }
+    }
   ), true);
 });

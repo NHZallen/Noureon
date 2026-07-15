@@ -784,7 +784,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
     /createLegacyRuntimeAppDataPersistence\(\{[\s\S]*?setItem,\s*readItem:getItem,\s*readItems,\s*setItemsAtomic,/
   );
   assert.match(fragment00Source, /const\s+loadAppData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(\);\s*\}/);
+  assert.match(fragment00Source, /const\s+saveAppData\s*=\s*async\s*\(options\)\s*=>\s*\{\s*await\s+runtimeAppDataPersistence\.saveAppData\(options\);\s*\}/);
   assert.match(fragment00Source, /const\s+getAppDataKey\s*=\s*\(\)\s*=>\s*`chatAppData_v8\.6_\$\{currentUser\.username\}`/);
   assertMarkersInOrder(loadAppDataBody, [
     'if (!currentUser) return',
@@ -820,7 +820,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   assert.doesNotMatch(runtimeAppSource, /app-data-normalization|app-data-persistence|loadAppData|saveAppData|indexedDB/);
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
-    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource + sidebarChatAstraRenderSource).match(/\bsaveAppData\(\)/g) || []).length,
+    ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource + sidebarChatAstraRenderSource).match(/\bsaveAppData\(/g) || []).length,
     43
   );
   for (const source of laterFragmentSources) {
@@ -2390,8 +2390,8 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*renderInputIndicators\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(coreTailSource, /showCoordinatedNotification:\s*\(\.\.\.args\)\s*=>\s*runtimeDialogCoordinator\.showNotification\(\.\.\.args\)/);
-  assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*renderTrash\(\);\s*showCoordinatedNotification\(/);
-  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleRestoreTrashItemBody, /await\s+saveAppData\(\{\s*immediateCloudSync:\s*true\s*\}\);\s*renderSidebar\(\);\s*renderTrash\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\{\s*immediateCloudSync:\s*true\s*\}\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
   assert.match(fragment03Source, /handleBatchArchive,/);
 });
 
@@ -2534,7 +2534,7 @@ test('trash batch selection checkbox click does not bubble into row toggle', () 
   assert.match(renderTrashBody, /checkbox\.checked\s*=\s*!checkbox\.checked;\s*checkbox\.dispatchEvent\(createChangeEvent\(\)\);/);
   assert.match(renderTrashBody, /container\.querySelectorAll\('\.trash-select-checkbox'\)\.forEach\(checkbox\s*=>\s*\{\s*checkbox\.addEventListener\('click',\s*event\s*=>\s*event\.stopPropagation\(\)\);/);
   assert.match(renderTrashBody, /checkbox\.addEventListener\('change',\s*event\s*=>\s*\{[\s\S]*selectedTrashIds\.add\(id\);[\s\S]*selectedTrashIds\.delete\(id\);[\s\S]*renderTrashBatchActionBar\(\);[\s\S]*\}\);/);
-  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
+  assert.match(handleBatchRestoreFromTrashBody, /await\s+saveAppData\(\{\s*immediateCloudSync:\s*true\s*\}\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showCoordinatedNotification\(/);
   assert.match(handleBatchDeleteFromTrashBody, /if\s*\(!\(await\s+showCustomConfirm\([\s\S]*?\)\)\)\s*return;\s*const\s+ids\s*=\s*\[\.\.\.selectedTrashIds\];\s*const\s+selectedSnapshots\s*=\s*getConversations\(\)\.filter\(conversation\s*=>\s*selectedTrashIds\.has\(conversation\?\.id\)\);\s*if\s*\(!await\s+confirmCloudDeletion\(ids,\s*selectedSnapshots\)\)\s*return;\s*for\s*\(const\s+conversationId\s+of\s+ids\)\s*await\s+invalidateConversationMemory\(\{\s*conversationId\s*\}\);\s*replaceConversations\(\s*getConversations\(\)\.filter\(conversation\s*=>\s*!selectedTrashIds\.has\(conversation\.id\)\)\s*\);\s*await\s+saveAppData\(\);\s*renderSidebar\(\);\s*toggleTrashSelectionMode\(\);\s*showNotification\(/);
 });
 

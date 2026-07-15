@@ -136,7 +136,7 @@ function createHarness(overrides = {}) {
     runtimeDialogCoordinator: {
       showNotification: (...args) => calls.push(['runtimeDialogCoordinator.showNotification', ...args])
     },
-    saveAppData: async () => calls.push(['saveAppData']),
+    saveAppData: async (...args) => calls.push(['saveAppData', ...args]),
     saveConfig: async () => calls.push(['saveConfig']),
     saveSensitiveConfig: async () => calls.push(['saveSensitiveConfig']),
     toggleSelectionMode: () => calls.push(['toggleSelectionMode']),
@@ -247,7 +247,13 @@ test('batch delete uses live selection getters and preserves persistence orderin
 
   assert.equal(harness.conversations[0].deletedAt != null, true);
   assert.equal(harness.conversations[0].stateUpdatedAt, harness.conversations[0].deletedAt);
+  assert.equal(harness.conversations[0].trashStateUpdatedAt, harness.conversations[0].deletedAt);
+  assert.equal(harness.conversations[0].archived, false);
   assert.equal(harness.conversations[0].lastUpdatedAt, undefined);
+  assert.deepEqual(harness.calls.find(call => call[0] === 'saveAppData'), [
+    'saveAppData',
+    { immediateCloudSync: true }
+  ]);
   assert.deepEqual(harness.calls.map((call) => call[0]), [
     'showCustomConfirm',
     'setCurrentConversationId',
@@ -290,6 +296,7 @@ test('batch delete falls back to the next live conversation without starting a n
 
   assert.equal(harness.conversations[0].deletedAt != null, true);
   assert.equal(harness.conversations[0].stateUpdatedAt, harness.conversations[0].deletedAt);
+  assert.equal(harness.conversations[0].trashStateUpdatedAt, harness.conversations[0].deletedAt);
   assert.equal(harness.conversations[0].lastUpdatedAt, undefined);
   assert.equal(harness.currentConversationId, 'c2');
   assert.equal(harness.calls.some((call) => call[0] === 'startNewChat'), false);
@@ -299,6 +306,27 @@ test('batch delete falls back to the next live conversation without starting a n
     'saveAppData',
     'toggleSelectionMode',
     'showNotification'
+  ]);
+});
+
+test('batch delete clears folder membership before the immediate cloud save', async () => {
+  const folder = { id: 'f1', name: 'Folder One', conversationIds: ['c1', 'c2'] };
+  const deletedConversation = { id: 'c1', folderId: 'f1', archived: true, deletedAt: null };
+  const harness = createHarness({
+    selectedConversationIds: new Set(['c1']),
+    currentConversationId: 'c2',
+    conversations: [deletedConversation, { id: 'c2', folderId: 'f1', archived: false, deletedAt: null }],
+    folders: [folder]
+  });
+
+  await harness.lifecycle.handleBatchDelete();
+
+  assert.equal(deletedConversation.folderId, null);
+  assert.equal(deletedConversation.archived, false);
+  assert.deepEqual(folder.conversationIds, ['c2']);
+  assert.deepEqual(harness.calls.find(call => call[0] === 'saveAppData'), [
+    'saveAppData',
+    { immediateCloudSync: true }
   ]);
 });
 

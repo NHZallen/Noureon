@@ -1,3 +1,5 @@
+import { mergeConversationVersions } from './cloud-sync-versioning.js';
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MESSAGE_STATUSES = new Set(['streaming', 'complete', 'error']);
 const MESSAGE_ROLES = new Set(['user', 'model', 'system']);
@@ -19,10 +21,23 @@ function canonicalizeTimestamp(value) {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : value;
 }
 
+function canonicalizeFirstValidTimestamp(...values) {
+  for (const value of values) {
+    const parsed = Date.parse(value || '');
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+  }
+  return null;
+}
+
 function canonicalizeShadowRow(value) {
   const row = canonicalize(value || {});
   for (const key of ['created_at', 'updated_at', 'deleted_at']) {
     if (row[key]) row[key] = canonicalizeTimestamp(row[key]);
+  }
+  if (row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)) {
+    for (const key of ['clientUpdatedAt', 'stateUpdatedAt', 'trashStateUpdatedAt']) {
+      if (row.metadata[key]) row.metadata[key] = canonicalizeTimestamp(row.metadata[key]);
+    }
   }
   return row;
 }
@@ -64,9 +79,15 @@ function conversationMetadata(conversation = {}) {
     isWebSearchEnabled: Boolean(conversation.isWebSearchEnabled),
     isTemporary: Boolean(conversation.isTemporary),
     isNaming: false,
-    legacyFolderId: conversation.folderId || null,
+    ...(!conversation.deletedAt && conversation.folderId
+      ? { legacyFolderId: conversation.folderId }
+      : {}),
     clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null,
-    stateUpdatedAt: conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || null
+    stateUpdatedAt: conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || null,
+    trashStateUpdatedAt: canonicalizeFirstValidTimestamp(
+      conversation.trashStateUpdatedAt,
+      conversation.deletedAt
+    )
   };
 }
 
@@ -92,10 +113,11 @@ function conversationFromRow(row = {}, messages = []) {
     messages,
     archived: Boolean(row.archived),
     pinned: Boolean(row.pinned),
-    folderId: row.folder_id || metadata.legacyFolderId || null,
+    folderId: row.deleted_at ? null : row.folder_id || metadata.legacyFolderId || null,
     createdAt: canonicalizeTimestamp(row.created_at) || new Date(0).toISOString(),
     lastUpdatedAt: canonicalizeTimestamp(metadata.clientUpdatedAt || row.updated_at || row.created_at),
     stateUpdatedAt: canonicalizeTimestamp(metadata.stateUpdatedAt || metadata.clientUpdatedAt || row.updated_at || row.created_at),
+    trashStateUpdatedAt: canonicalizeFirstValidTimestamp(metadata.trashStateUpdatedAt, row.deleted_at),
     deletedAt: row.deleted_at || null,
     genConfig: metadata.genConfig || null,
     imageConfig: metadata.imageConfig || null,
@@ -155,32 +177,6 @@ function encodeAstraShadow(astra = {}, userId) {
   };
 }
 
-function conversationRank(conversation = {}) {
-  const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
-  const contentSize = messages.reduce((total, message) => total + (message.parts || []).reduce(
-    (partTotal, part) => partTotal
-      + (part.text?.length || 0)
-      + (part.inlineData ? 1 : 0)
-      + (part.generatedImage ? 1 : 0),
-    0
-  ), 0);
-  return [
-    conversation.deletedAt ? 1 : 0,
-    messages.length,
-    contentSize,
-    Date.parse(conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || conversation.createdAt || 0) || 0
-  ];
-}
-
-function preferConversation(left, right) {
-  const leftRank = conversationRank(left);
-  const rightRank = conversationRank(right);
-  for (let index = 0; index < leftRank.length; index += 1) {
-    if (leftRank[index] !== rightRank[index]) return leftRank[index] > rightRank[index] ? left : right;
-  }
-  return right || left;
-}
-
 function uniqueWorkspaceConversations(conversations = []) {
   const byId = new Map();
   const unique = [];
@@ -193,7 +189,7 @@ function uniqueWorkspaceConversations(conversations = []) {
       unique.push(conversation);
       continue;
     }
-    const selected = preferConversation(existing, conversation);
+    const selected = mergeConversationVersions(existing, conversation);
     if (selected !== existing) {
       byId.set(id, selected);
       const index = unique.indexOf(existing);
@@ -294,7 +290,7 @@ export async function encodeConversationShadow({
     model: String(conversation.model || 'unknown'),
     provider: String(conversation.provider || 'unknown'),
     metadata: conversationMetadata(conversation),
-    archived: Boolean(conversation.archived),
+    archived: conversation.deletedAt ? false : Boolean(conversation.archived),
     pinned: Boolean(conversation.pinned),
     created_at: createdAt,
     deleted_at: conversation.deletedAt || null
@@ -364,7 +360,15 @@ export async function encodeWorkspaceConversationShadow({
       skippedConversationIds.push(conversation?.id || null);
       continue;
     }
-    encoded.conversation.folder_id = folderIds.has(conversation.folderId) ? conversation.folderId : null;
+    const encodedFolderId = !conversation.deletedAt && folderIds.has(conversation.folderId)
+      ? conversation.folderId
+      : null;
+    encoded.conversation.folder_id = encodedFolderId;
+    if (encodedFolderId) {
+      encoded.conversation.metadata.legacyFolderId = encodedFolderId;
+    } else {
+      delete encoded.conversation.metadata.legacyFolderId;
+    }
     conversations.push(encoded.conversation);
     messages.push(...encoded.messages);
   }

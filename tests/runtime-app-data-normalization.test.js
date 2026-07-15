@@ -83,6 +83,7 @@ test('conversation records preserve legacy defaults and message fallbacks on a n
   assert.equal(normalized.astrasId, null);
   assert.equal(normalized.pinned, false);
   assert.equal(normalized.deletedAt, null);
+  assert.equal(normalized.trashStateUpdatedAt, null);
   assert.equal(normalized.unsentMessage, '');
   assert.deepEqual(normalized.genConfig, defaultGenConfig());
   assert.deepEqual(normalized.council, { ...lastCouncilConfig, normalized: true });
@@ -100,6 +101,41 @@ test('conversation records preserve legacy defaults and message fallbacks on a n
   });
   assert.notEqual(normalized.messages, rawConversation.messages);
   assert.notEqual(normalized.messages[1].parts, rawConversation.messages[1].parts);
+});
+
+test('conversation normalization preserves explicit trash clocks and safely repairs legacy deleted records', () => {
+  const dependencies = {
+    defaultGenConfig,
+    lastCouncilConfig,
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: () => {}
+  };
+  const deletedAt = '2026-07-06T01:10:00.000Z';
+  const legacyDeleted = normalizeConversationRecord({
+    id: 'legacy-deleted',
+    createdAt: '2026-07-06T01:00:00.000Z',
+    deletedAt,
+    messages: []
+  }, dependencies);
+  const restoredAt = '2026-07-06T01:20:00.000Z';
+  const restored = normalizeConversationRecord({
+    id: 'restored',
+    createdAt: '2026-07-06T01:00:00.000Z',
+    deletedAt: null,
+    trashStateUpdatedAt: restoredAt,
+    messages: []
+  }, dependencies);
+  const malformed = normalizeConversationRecord({
+    id: 'malformed',
+    createdAt: '2026-07-06T01:00:00.000Z',
+    deletedAt,
+    trashStateUpdatedAt: 'invalid',
+    messages: []
+  }, dependencies);
+
+  assert.equal(legacyDeleted.trashStateUpdatedAt, deletedAt);
+  assert.equal(restored.trashStateUpdatedAt, restoredAt);
+  assert.equal(malformed.trashStateUpdatedAt, deletedAt);
 });
 
 test('loaded app data falls back to empty collections and normalizes every record type', () => {

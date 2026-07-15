@@ -661,6 +661,38 @@ test('repository uses tombstone select and protected RPC upserts', async () => {
   ]);
 });
 
+test('repository probe requires the trash-sync database capability before enabling writes', async () => {
+  const profile = { user_id: userId, schema_version: 2, migration_state: 'ready' };
+  const query = {
+    select() { return this; },
+    eq() { return this; },
+    async maybeSingle() { return { data: profile, error: null }; }
+  };
+  const available = createConversationShadowRepository({
+    userId,
+    supabase: {
+      from: () => query,
+      rpc: async name => {
+        assert.equal(name, 'workspace_trash_sync_capability');
+        return { data: 1, error: null };
+      }
+    }
+  });
+  assert.equal(await available.probe(), profile);
+
+  const unavailable = createConversationShadowRepository({
+    userId,
+    supabase: {
+      from: () => query,
+      rpc: async () => ({
+        data: null,
+        error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' }
+      })
+    }
+  });
+  await assert.rejects(() => unavailable.probe(), error => error?.code === 'PGRST202');
+});
+
 test('repository fetches every workspace table concurrently and returns only after all complete', async () => {
   const tables = [
     'workspace_folders',
@@ -2038,7 +2070,11 @@ test('initializer rejects invalid local JSON without commit or upload', async ()
     window: {},
     supabase: {
       from: () => query,
-      rpc: async () => { uploads += 1; return { error: null }; }
+      rpc: async name => {
+        if (name === 'workspace_trash_sync_capability') return { data: 1, error: null };
+        uploads += 1;
+        return { error: null };
+      }
     },
     storage: {
       getItem: async () => '{broken-json',
@@ -2209,7 +2245,11 @@ test('empty local JSON is invalid and remains untouched', async () => {
     window: {},
     supabase: {
       from: () => query,
-      rpc: async () => { uploads += 1; return { error: null }; }
+      rpc: async name => {
+        if (name === 'workspace_trash_sync_capability') return { data: 1, error: null };
+        uploads += 1;
+        return { error: null };
+      }
     },
     storage: {
       getItem: async () => '',
@@ -2285,7 +2325,8 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
   };
   const supabase = {
     from: table => queryFor(table),
-    rpc: async (name, { p_rows }) => {
+    rpc: async (name, { p_rows } = {}) => {
+      if (name === 'workspace_trash_sync_capability') return { data: 1, error: null };
       const table = rpcTables[name];
       const byId = new Map((tables[table] || []).map(row => [row.id, row]));
       for (const row of p_rows) byId.set(row.id, row);
@@ -2449,6 +2490,89 @@ test('successful local save is debounced and captured without waiting in the UI'
   await scheduled();
   assert.equal(uploads, 1);
   assert.equal(sync.getStatus().state, 'ready');
+});
+
+test('flush cancels the debounce timer and uploads the pending trash state immediately', async () => {
+  let scheduled;
+  const cancelled = [];
+  let uploads = 0;
+  const sync = createConversationShadowSync({
+    repository: {
+      probe: async () => null,
+      fetchTombstones: async () => [],
+      fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [] }),
+      setMigrationState: async () => {},
+      upsertFolders: async () => {},
+      upsertConversations: async rows => { uploads += rows.length; },
+      upsertMessages: async () => {},
+      verify: async () => true
+    },
+    readWorkspace: async () => ({ conversations: [], folders: [] }),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    schedule: callback => { scheduled = callback; return 41; },
+    cancel: timerId => cancelled.push(timerId)
+  });
+  await sync.initialize();
+
+  assert.equal(sync.captureWorkspace(workspace), true);
+  assert.equal(typeof scheduled, 'function');
+  assert.equal(uploads, 0);
+
+  assert.equal((await sync.flush()).state, 'ready');
+  assert.deepEqual(cancelled, [41]);
+  assert.equal(uploads, 1);
+});
+
+test('refresh commits a newer remote trash state while preserving richer local content', async () => {
+  let localWorkspace = structuredClone(workspace);
+  let remoteRows = { folders: [], conversations: [], messages: [], astras: [] };
+  const commits = [];
+  const sync = createConversationShadowSync({
+    repository: {
+      probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+      fetchTombstones: async () => [],
+      fetchWorkspace: async () => structuredClone(remoteRows),
+      setMigrationState: async () => {},
+      upsertFolders: async () => {},
+      upsertConversations: async () => {},
+      upsertMessages: async () => {},
+      verify: async () => true
+    },
+    readWorkspace: async () => structuredClone(localWorkspace),
+    writeWorkspace: async value => { localWorkspace = structuredClone(value); },
+    onWorkspaceCommitted: detail => commits.push(detail),
+    userId,
+    cryptoProvider: webcrypto
+  });
+  assert.equal((await sync.initialize()).state, 'ready');
+
+  const deletedAt = '2026-07-06T02:10:00.000Z';
+  const encodedRemote = await encodeWorkspaceConversationShadow({
+    workspace: {
+      conversations: [{
+        ...workspace.conversations[0],
+        folderId: null,
+        archived: false,
+        deletedAt,
+        stateUpdatedAt: deletedAt,
+        trashStateUpdatedAt: deletedAt
+      }]
+    },
+    userId,
+    cryptoProvider: webcrypto
+  });
+  remoteRows = { ...encodedRemote, astras: [] };
+
+  const status = await sync.refresh();
+
+  assert.equal(status.state, 'ready');
+  assert.equal(localWorkspace.conversations[0].deletedAt, deletedAt);
+  assert.equal(localWorkspace.conversations[0].trashStateUpdatedAt, deletedAt);
+  assert.equal(localWorkspace.conversations[0].messages[0].parts[0].text, 'Hello');
+  assert.equal(commits.length, 2);
+  assert.equal(commits.at(-1).workspace.conversations[0].deletedAt, deletedAt);
 });
 
 test('pullWorkspace merges remote shadow rows without dropping local-only chats', async () => {

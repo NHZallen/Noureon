@@ -29,7 +29,7 @@ async function createHarness({
   fetchImpl,
   cacheMatches = new Map(),
   cacheNames = [],
-  currentCacheMatches = new Map([['/__noureon-shell-ready-v20__', createResponse('precache-shell')]])
+  currentCacheMatches = new Map([['/__noureon-shell-ready-v21__', createResponse('precache-shell')]])
 } = {}) {
   const source = await readFile(serviceWorkerUrl, 'utf8');
   const handlers = new Map();
@@ -212,21 +212,21 @@ test('a missing hashed asset is fetched once and stored in the current version c
 
 test('activation removes only stale Noureon caches and notifies open clients', async () => {
   const harness = await createHarness({
-    cacheNames: ['noureon-cache-v18', 'noureon-cache-v19', 'noureon-cache-v20', 'another-app-cache']
+    cacheNames: ['noureon-cache-v19', 'noureon-cache-v20', 'noureon-cache-v21', 'another-app-cache']
   });
   const completion = [];
 
   harness.handlers.get('activate')({ waitUntil: value => completion.push(Promise.resolve(value)) });
   await Promise.all(completion);
 
-  assert.deepEqual(harness.cacheDeletes, ['noureon-cache-v18']);
+  assert.deepEqual(harness.cacheDeletes, ['noureon-cache-v19']);
   assert.equal(harness.clientMessages.length, 1);
   assert.equal(harness.clientMessages[0].type, 'NEW_VERSION_ACTIVATED');
 });
 
 test('activation retains the previous Noureon cache when the new shell was not precached', async () => {
   const harness = await createHarness({
-    cacheNames: ['noureon-cache-v19', 'noureon-cache-v20'],
+    cacheNames: ['noureon-cache-v20', 'noureon-cache-v21'],
     currentCacheMatches: new Map()
   });
   const completion = [];
@@ -263,5 +263,5 @@ test('install precaches every manifest code asset before activating the new work
   assert.ok(harness.cacheAddAll[0].includes('/assets/index-Zx98_yw7.css'));
   assert.ok(harness.cacheAddAll[0].includes('/assets/cloud-Qw12_er3.js'));
   assert.equal(harness.cacheAddAll[0].includes('/assets/ui-font-Aa12_bb3.woff2'), false);
-  assert.ok(harness.cachePuts.some(([key]) => key === '/__noureon-shell-ready-v20__'));
+  assert.ok(harness.cachePuts.some(([key]) => key === '/__noureon-shell-ready-v21__'));
 });

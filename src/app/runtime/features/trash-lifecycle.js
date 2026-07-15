@@ -165,9 +165,11 @@ export function createLegacyTrashLifecycle({
   const handleRestoreTrashItem = async (conversationId) => {
     const conversation = getConversations().find(item => item.id === conversationId);
     if (conversation) {
+      const restoredAt = new Date().toISOString();
       conversation.deletedAt = null;
-      conversation.stateUpdatedAt = new Date().toISOString();
-      await saveAppData();
+      conversation.stateUpdatedAt = restoredAt;
+      conversation.trashStateUpdatedAt = restoredAt;
+      await saveAppData({ immediateCloudSync: true });
       renderSidebar();
       renderTrash();
       showCoordinatedNotification(getTexts().itemRestored || '項目已還原。', 'success');
@@ -236,11 +238,13 @@ export function createLegacyTrashLifecycle({
     selectedTrashIds.forEach(id => {
       const conversation = getConversations().find(item => item.id === id);
       if (conversation) {
+        const restoredAt = new Date().toISOString();
         conversation.deletedAt = null;
-        conversation.stateUpdatedAt = new Date().toISOString();
+        conversation.stateUpdatedAt = restoredAt;
+        conversation.trashStateUpdatedAt = restoredAt;
       }
     });
-    await saveAppData();
+    await saveAppData({ immediateCloudSync: true });
     renderSidebar();
     toggleTrashSelectionMode();
     showCoordinatedNotification(

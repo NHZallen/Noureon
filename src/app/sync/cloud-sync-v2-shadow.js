@@ -5,7 +5,10 @@ import {
   isUuid,
   shadowRowsEqual
 } from './cloud-sync-v2-codecs.js';
-import { mergeWorkspaceAppData } from './cloud-sync-versioning.js';
+import {
+  mergeConversationVersions,
+  mergeWorkspaceAppData,
+} from './cloud-sync-versioning.js';
 import {
   applyAstraTombstones,
   applyWorkspaceTombstones,
@@ -31,6 +34,7 @@ import {
 } from './cloud-sync-journal.js';
 
 const SCHEMA_VERSION = 2;
+const TRASH_SYNC_CAPABILITY = 1;
 const CAPTURE_DEBOUNCE_MS = 1000;
 const REMOTE_FETCH_PAGE_SIZE = 1000;
 const FOLDER_COLUMNS = [
@@ -80,6 +84,7 @@ function isMissingSchemaError(error) {
   return code === '42P01'
     || code === 'PGRST202'
     || code === 'PGRST205'
+    || code === 'ASTRA_TRASH_SYNC_CAPABILITY_MISSING'
     || /relation .* does not exist|could not find the table|function .* does not exist|could not find the function|function .*schema cache|schema cache.*function/i.test(message);
 }
 
@@ -239,11 +244,22 @@ function mergeRemoteIntoEntityDirtyLocal(local = {}, remote = {}, dirtyEntities 
     const localConversation = localConversations.get(preferred?.id);
     const remoteConversation = remoteConversations.get(preferred?.id);
     if (!localConversation || !remoteConversation) return preferred;
-    return {
+    const stateResolved = mergeConversationVersions(localConversation, remoteConversation);
+    const merged = {
       ...remoteConversation,
       ...localConversation,
       messages: preferred.messages
     };
+    merged.deletedAt = stateResolved.deletedAt || null;
+    if (stateResolved.stateUpdatedAt !== undefined) {
+      merged.stateUpdatedAt = stateResolved.stateUpdatedAt;
+    }
+    merged.trashStateUpdatedAt = stateResolved.trashStateUpdatedAt || stateResolved.deletedAt || null;
+    if (Boolean(localConversation.deletedAt) !== Boolean(remoteConversation.deletedAt)) {
+      merged.folderId = stateResolved.folderId || null;
+      merged.archived = Boolean(stateResolved.archived);
+    }
+    return merged;
   });
   const localFolders = new Map((local.folders || []).map(item => [item?.id, item]));
   const folders = normallyMerged.folders.map(folder => {
@@ -395,13 +411,23 @@ export function createConversationShadowRepository({
   }
 
   async function probe() {
-    const { data, error } = await supabase
+    const profileQuery = supabase
       .from('sync_profiles')
       .select('user_id,schema_version,migration_state,legacy_backup_created_at')
       .eq('user_id', userId)
       .maybeSingle();
-    if (error) throw error;
-    return data;
+    const [profileResult, capabilityResult] = await Promise.all([
+      profileQuery,
+      supabase.rpc('workspace_trash_sync_capability')
+    ]);
+    if (profileResult.error) throw profileResult.error;
+    if (capabilityResult.error) throw capabilityResult.error;
+    if (Number(capabilityResult.data) !== TRASH_SYNC_CAPABILITY) {
+      const error = new Error('Workspace trash sync database capability is unavailable.');
+      error.code = 'ASTRA_TRASH_SYNC_CAPABILITY_MISSING';
+      throw error;
+    }
+    return profileResult.data;
   }
 
   async function setMigrationState(migrationState, legacyBackupCreatedAt) {
@@ -969,6 +995,139 @@ export function createConversationShadowSync({
     } catch (error) {
       invalidateUploadBaseline();
       throw error;
+    }
+  }
+
+  async function refreshWorkspaceNow(assertOperationCurrent = () => {}) {
+    const tombstones = await repository.fetchTombstones();
+    assertOperationCurrent();
+    const nextTombstoneIndex = createTombstoneIndex(tombstones);
+    const rows = await repository.fetchWorkspace();
+    assertOperationCurrent();
+    const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
+    const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
+    const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(decodedRemoteWorkspace);
+    assertOperationCurrent();
+    const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
+      hydratedRemoteWorkspace,
+      nextTombstoneIndex
+    ), nextAstraTombstoneIds);
+    let committedWorkspace;
+    if (commitWorkspace) {
+      committedWorkspace = await commitWorkspace({
+        remoteWorkspace,
+        tombstoneIndex: nextTombstoneIndex,
+        astraTombstoneIds: nextAstraTombstoneIds,
+        assertCurrent: assertOperationCurrent
+      });
+    } else {
+      const localWorkspace = await normalizeWorkspace(await readWorkspace() || {});
+      assertOperationCurrent();
+      const sanitizedLocal = applyAstraTombstones(
+        applyWorkspaceTombstones(localWorkspace, nextTombstoneIndex),
+        nextAstraTombstoneIds
+      );
+      committedWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
+        mergeWorkspacePreservingLocalTopLevel(sanitizedLocal, remoteWorkspace),
+        nextTombstoneIndex
+      ), nextAstraTombstoneIds);
+      await writeWorkspace(committedWorkspace);
+    }
+    assertOperationCurrent();
+    tombstoneIndex = nextTombstoneIndex;
+    astraTombstoneIds = nextAstraTombstoneIds;
+    acceptFetchedUploadBaseline(rows);
+    try {
+      onWorkspaceCommitted({
+        workspace: committedWorkspace,
+        tombstones: {
+          conversationIds: [...nextTombstoneIndex.conversations],
+          folderIds: [...nextTombstoneIndex.folders],
+          astraIds: [...nextAstraTombstoneIds]
+        }
+      });
+    } catch (error) {
+      logger.warn('Noureon could not hand the refreshed cloud workspace to the live runtime.', error);
+    }
+    return committedWorkspace;
+  }
+
+  function refreshWorkspace() {
+    if (!enabled) return Promise.resolve(status);
+    const refreshGeneration = generation;
+    const assertOperationCurrent = () => {
+      if (generation !== refreshGeneration) throw new ShadowSyncStoppedError();
+    };
+    work = work
+      .catch(() => {})
+      .then(async () => {
+        assertOperationCurrent();
+        setStatus({ state: 'refreshing', enabled, pending: Boolean(pendingWorkspace) });
+        const committedWorkspace = await refreshWorkspaceNow(assertOperationCurrent);
+        const summary = summarizeWorkspace(committedWorkspace);
+        return setStatus({
+          state: 'ready',
+          enabled,
+          pending: Boolean(pendingWorkspace),
+          conversations: summary.conversations,
+          messages: summary.messages,
+          folders: summary.folders,
+          astras: summary.astras,
+          lastRemoteRefreshAt: now(),
+          error: undefined,
+          code: undefined,
+          details: undefined,
+          hint: undefined
+        });
+      })
+      .catch(error => {
+        invalidateUploadBaseline();
+        if (error instanceof ShadowSyncStoppedError) {
+          return setStatus({ state: 'stopped', enabled: false, pending: false });
+        }
+        logger.warn('Noureon Sync V2 remote refresh will retry after reconnect or reload.', error);
+        return setStatus({
+          state: 'retry',
+          enabled,
+          pending: Boolean(pendingWorkspace),
+          lastErrorAt: now(),
+          ...describeShadowError(error)
+        });
+      });
+    return work;
+  }
+
+  function flush() {
+    if (!enabled) return work.then(() => status);
+    if (timer != null) cancel(timer);
+    timer = null;
+    return drain();
+  }
+
+  async function retry() {
+    try {
+      if (!online()) return setStatus({ state: 'offline', enabled, pending: Boolean(pendingWorkspace) });
+      if (!enabled) {
+        return status.state === 'retry' ? initialize() : status;
+      }
+      const refreshed = await refreshWorkspace();
+      if (refreshed.state !== 'ready' || !enabled) return refreshed;
+      const workspace = await readWorkspace();
+      if (!workspace) return status;
+      const capture = await resolveCaptureState(workspace, null, () => {});
+      if (capture.journal && !capture.journal.dirty && !capture.journal.fullResyncRequired) return status;
+      captureWorkspace(capture.workspace, { revision: capture.revision });
+      return flush();
+    } catch (error) {
+      invalidateUploadBaseline();
+      logger.warn('Noureon Sync V2 retry will continue after the next reconnect or remote change.', error);
+      return setStatus({
+        state: 'retry',
+        enabled,
+        pending: Boolean(pendingWorkspace),
+        lastErrorAt: now(),
+        ...describeShadowError(error)
+      });
     }
   }
 
@@ -1574,8 +1733,10 @@ export function createConversationShadowSync({
     permanentlyDeleteFolder,
     permanentlyDeleteAstras,
     pullWorkspace,
+    refresh: refreshWorkspace,
+    retry,
     diagnose,
-    flush: drain,
+    flush,
     stop,
     getStatus: () => status
   };
@@ -1765,6 +1926,7 @@ export function initializeConversationShadowSync({
 
 export const conversationShadowSyncPolicy = Object.freeze({
   mode: 'refresh-merge',
-  realtime: false,
-  schemaVersion: SCHEMA_VERSION
+  realtime: true,
+  schemaVersion: SCHEMA_VERSION,
+  trashSyncCapability: TRASH_SYNC_CAPABILITY
 });

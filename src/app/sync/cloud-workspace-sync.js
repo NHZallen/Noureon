@@ -442,42 +442,102 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     }
   }
 
+  let conversationShadowSync = null;
+  let conversationRefreshTimer = null;
+  let conversationRefreshRequested = false;
+  let conversationRefreshWork = Promise.resolve();
+  const scheduleConversationRemoteRefresh = () => {
+    conversationRefreshRequested = true;
+    if (conversationRefreshTimer != null) clearTimeout(conversationRefreshTimer);
+    conversationRefreshTimer = setTimeout(() => {
+      conversationRefreshTimer = null;
+      if (!conversationShadowSync?.getStatus?.().enabled) return;
+      conversationRefreshRequested = false;
+      conversationRefreshWork = conversationRefreshWork
+        .catch(() => {})
+        .then(() => conversationShadowSync.retry())
+        .catch(error => console.warn('Noureon conversation realtime refresh failed:', error))
+        .finally(() => {
+          if (conversationRefreshRequested) scheduleConversationRemoteRefresh();
+        });
+    }, 150);
+  };
+  const handleOnline = () => {
+    void flush();
+    void Promise.resolve(conversationShadowSync?.retry?.())
+      .catch(error => console.warn('Noureon conversation reconnect retry failed:', error));
+    if (realtimeDeferred) scheduleRemoteRefresh();
+  };
+
   const api = { enabled: true, queueLocalChange, flush, refresh: async () => {
     await fetchRemote();
     for (const kind of Object.keys(CLOUD_SYNC_KINDS)) await reconcileKind(kind);
   } };
   if (bootstrapQueue?.handoff) await bootstrapQueue.handoff(api);
   else window.__astraCloudWorkspaceSync = api;
-  window.addEventListener('online', () => {
-    void flush();
-    if (realtimeDeferred) scheduleRemoteRefresh();
-  });
+  window.addEventListener('online', handleOnline);
   window.addEventListener('astra:sync-vault-unlocked', handleSyncVaultUnlocked);
   if (bootstrapQueue?.takePendingVaultUnlock?.()) {
     await handleSyncVaultUnlocked({ detail: { username } });
   }
 
+  const handleWorkspaceRealtimeChange = payload => {
+    queueRealtimeWork(async () => {
+      remoteWriteEpoch += 1;
+      remote = payload.new;
+      if (activeUploads.size) {
+        scheduleRemoteRefresh();
+        return;
+      }
+      await reconcileRemoteKinds();
+    });
+  };
   const realtimeChannel = supabase
     .channel(`user-workspace:${user.id}`)
     .on('postgres_changes', {
-      event: '*',
+      event: 'INSERT',
       schema: 'public',
       table: TABLE,
       filter: `user_id=eq.${user.id}`
-    }, payload => {
-      queueRealtimeWork(async () => {
-        remoteWriteEpoch += 1;
-        remote = payload.new;
-        if (activeUploads.size) {
-          scheduleRemoteRefresh();
-          return;
-        }
-        await reconcileRemoteKinds();
-      });
-    })
+    }, handleWorkspaceRealtimeChange)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: TABLE,
+      filter: `user_id=eq.${user.id}`
+    }, handleWorkspaceRealtimeChange)
     .subscribe(status => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.warn('Noureon realtime subscription needs to reconnect:', status);
+      }
+    });
+
+  const conversationRealtimeChannel = supabase
+    .channel(`user-conversations:${user.id}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'workspace_conversations',
+      filter: `user_id=eq.${user.id}`
+    }, scheduleConversationRemoteRefresh)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'workspace_conversations',
+      filter: `user_id=eq.${user.id}`
+    }, scheduleConversationRemoteRefresh)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'workspace_tombstones',
+      filter: `user_id=eq.${user.id}`
+    }, scheduleConversationRemoteRefresh)
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') {
+        scheduleConversationRemoteRefresh();
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Noureon conversation realtime subscription needs to reconnect:', status);
       }
     });
 
@@ -490,7 +550,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   } catch (error) {
     console.warn('Noureon cloud sync is unavailable until its database migration is installed:', error);
   }
-  const conversationShadowSync = initializeConversationShadowSync({
+  conversationShadowSync = initializeConversationShadowSync({
     window,
     supabase,
     storage,
@@ -503,9 +563,17 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   } catch (error) {
     console.warn('Noureon conversation refresh did not block local runtime startup:', error);
   }
+  if (conversationRefreshRequested) scheduleConversationRemoteRefresh();
   api.stop = () => {
+    window.removeEventListener?.('online', handleOnline);
+    if (conversationRefreshTimer != null) clearTimeout(conversationRefreshTimer);
+    conversationRefreshTimer = null;
+    conversationRefreshRequested = false;
     conversationShadowSync.stop();
-    return supabase.removeChannel(realtimeChannel);
+    return Promise.all([
+      supabase.removeChannel(realtimeChannel),
+      supabase.removeChannel(conversationRealtimeChannel)
+    ]);
   };
   return api;
 }

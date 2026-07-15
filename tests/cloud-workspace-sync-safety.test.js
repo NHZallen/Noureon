@@ -68,6 +68,35 @@ test('cloud remote snapshots reject stale fetches and independently retry deferr
   assert.match(source, /if\s*\(realtimeDeferred\)\s*scheduleRemoteRefresh\(\)/);
 });
 
+test('record-level trash Realtime closes startup and reconnect gaps without subscribing to delete payloads', async () => {
+  const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
+  const conversationChannelAt = source.indexOf('.channel(`user-conversations:');
+  const shadowInitializeAt = source.indexOf('conversationShadowSync = initializeConversationShadowSync({');
+  const conversationChannel = source.slice(conversationChannelAt, shadowInitializeAt);
+
+  assert.ok(conversationChannelAt >= 0);
+  assert.ok(shadowInitializeAt > conversationChannelAt, 'Realtime must subscribe before the initial shadow fetch');
+  assert.match(conversationChannel, /event:\s*'INSERT'[\s\S]*table:\s*'workspace_conversations'/);
+  assert.match(conversationChannel, /event:\s*'UPDATE'[\s\S]*table:\s*'workspace_conversations'/);
+  assert.match(conversationChannel, /event:\s*'INSERT'[\s\S]*table:\s*'workspace_tombstones'/);
+  assert.doesNotMatch(conversationChannel, /event:\s*'DELETE'|event:\s*'\*'|workspace_messages/);
+  assert.match(conversationChannel, /status\s*===\s*'SUBSCRIBED'[\s\S]*scheduleConversationRemoteRefresh\(\)/);
+  assert.match(source, /setTimeout\(\(\)\s*=>\s*\{[\s\S]*conversationShadowSync\.retry\(\)[\s\S]*},\s*150\)/);
+  assert.match(source, /Promise\.resolve\(conversationShadowSync\?\.retry\?\.\(\)\)/);
+  assert.match(source, /removeChannel\(realtimeChannel\)[\s\S]*removeChannel\(conversationRealtimeChannel\)/);
+});
+
+test('monolithic workspace Realtime also limits owner-filtered events to insert and update', async () => {
+  const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
+  const channelAt = source.indexOf('.channel(`user-workspace:');
+  const conversationChannelAt = source.indexOf('.channel(`user-conversations:');
+  const channel = source.slice(channelAt, conversationChannelAt);
+
+  assert.match(channel, /event:\s*'INSERT'/);
+  assert.match(channel, /event:\s*'UPDATE'/);
+  assert.doesNotMatch(channel, /event:\s*'DELETE'|event:\s*'\*'/);
+});
+
 test('empty sensitive data can clear remote secrets while locked and vault rotation preserves upload order', async () => {
   const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
   const emptyAt = source.indexOf("if (!value || !hasApiKeys(value)) return null;");

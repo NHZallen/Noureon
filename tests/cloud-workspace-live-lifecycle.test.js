@@ -16,7 +16,11 @@ function createWindowFixture() {
   };
 }
 
-function createPreciseRenderFixture({ initialWorkspace, activeConversationId = null } = {}) {
+function createPreciseRenderFixture({
+  initialWorkspace,
+  activeConversationId = null,
+  onActiveConversationUnavailable = () => {}
+} = {}) {
   const window = createWindowFixture();
   const appDataStore = createLegacyRuntimeAppDataStore();
   const renderCalls = { all: 0, sidebar: 0, chat: 0 };
@@ -43,6 +47,7 @@ function createPreciseRenderFixture({ initialWorkspace, activeConversationId = n
     renderChat: () => { renderCalls.chat += 1; },
     getActiveConversation: () => appDataStore.getConversations()
       .find(conversation => conversation.id === activeConversationId) || null,
+    onActiveConversationUnavailable,
     busy: () => responseActive && appDataStore.getConversations()
       .find(conversation => conversation.id === activeConversationId),
     schedule: callback => { scheduled = callback; scheduleCalls += 1; return 1; }
@@ -444,6 +449,49 @@ test('a cloud update to the active conversation renders the chat', () => {
 
   assert.equal(fixture.renderCalls.all, 0);
   assert.equal(fixture.renderCalls.chat, 1);
+});
+
+test('a remotely trashed active conversation requests a safe fallback after commit', () => {
+  const unavailable = [];
+  const activeConversation = {
+    id: 'active',
+    title: 'Active',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    deletedAt: null,
+    trashStateUpdatedAt: '2026-01-01T00:00:00.000Z',
+    messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+  };
+  const fixture = createPreciseRenderFixture({
+    initialWorkspace: {
+      conversations: [activeConversation],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    activeConversationId: 'active',
+    onActiveConversationUnavailable: detail => unavailable.push(detail)
+  });
+  const deletedAt = '2026-01-01T01:00:00.000Z';
+
+  fixture.window.emit('astra:cloud-workspace-committed', {
+    workspace: {
+      conversations: [{
+        ...activeConversation,
+        deletedAt,
+        stateUpdatedAt: deletedAt,
+        trashStateUpdatedAt: deletedAt
+      }],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+
+  assert.equal(fixture.appDataStore.getConversations()[0].deletedAt, deletedAt);
+  assert.equal(unavailable.length, 1);
+  assert.equal(unavailable[0].conversationId, 'active');
+  assert.equal(unavailable[0].workspace.conversations[0].deletedAt, deletedAt);
 });
 
 test('an unchanged cloud workspace deferred during a response does not render after settling', () => {

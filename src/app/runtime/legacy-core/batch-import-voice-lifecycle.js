@@ -143,6 +143,13 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             if (conv) {
                 conv.deletedAt = deletedAt;
                 conv.stateUpdatedAt = deletedAt;
+                conv.trashStateUpdatedAt = deletedAt;
+                conv.archived = false;
+                if (conv.folderId) {
+                    const folder = getFolders().find(item => item.id === conv.folderId);
+                    if (folder) folder.conversationIds = folder.conversationIds.filter(conversationId => conversationId !== id);
+                    conv.folderId = null;
+                }
             }
         });
         if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
@@ -150,7 +157,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
             if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
         }
-        await saveAppData();
+        await saveAppData({ immediateCloudSync: true });
         toggleSelectionMode();
         showNotification(`${texts.batchMoveToTrashSuccess || '已成功將'} ${count} ${texts.conversations || '個對話'} ${texts.movedToTrashText || '移至垃圾桶。'}`, 'success');
     };

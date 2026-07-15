@@ -145,6 +145,7 @@ function createSupabase({
     supabase: {
       from: table => queryFor(table),
       async rpc(name, { p_rows: rows } = {}) {
+        if (name === 'workspace_trash_sync_capability') return { data: 1, error: null };
         const table = rpcTables[name];
         if (!table) return { error: new Error(`Unexpected RPC: ${name}`) };
         if (name === 'upsert_workspace_conversations') {
@@ -283,7 +284,7 @@ test('a newer persisted revision during upload survives the old ACK and is captu
   assert.equal(remote.data.workspace_conversations.length, 2);
 });
 
-test('a failed dirty upload remains durable and resumes successfully after reload', async () => {
+test('a failed dirty upload remains durable and retry resumes it without a reload', async () => {
   let failNextUpload = true;
   const remote = createSupabase({
     onConversationUpload: async () => {
@@ -300,8 +301,7 @@ test('a failed dirty upload remains durable and resumes successfully after reloa
   assert.equal(storage.journal().dirty, true);
   assert.equal(storage.journal().fullResyncRequired, true);
 
-  const reloaded = initialize({ storage, remote });
-  assert.equal((await reloaded.ready).state, 'ready');
+  assert.equal((await first.retry()).state, 'ready');
   assert.equal(storage.journal().dirty, false);
   assert.equal(storage.journal().fullResyncRequired, false);
   assert.equal(storage.journal().lastAcknowledgedRevision, pendingRevision);

@@ -78,7 +78,7 @@ function createHarness(overrides = {}) {
       conversations = nextConversations;
       return conversations;
     },
-    saveAppData: async () => calls.push(['saveAppData']),
+    saveAppData: async (...args) => calls.push(['saveAppData', ...args]),
     renderAll: () => calls.push(['renderAll']),
     renderSidebar: () => calls.push(['renderSidebar']),
     getI18n: () => ({
@@ -197,8 +197,9 @@ test('single restore mutates the live conversation before save, render, and noti
   assert.equal(conversation.deletedAt, null);
   assert.equal(conversation.lastUpdatedAt, '2026-06-20T00:00:00.000Z');
   assert.match(conversation.stateUpdatedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(conversation.trashStateUpdatedAt, conversation.stateUpdatedAt);
   assert.deepEqual(harness.calls, [
-    ['saveAppData'],
+    ['saveAppData', { immediateCloudSync: true }],
     ['renderSidebar'],
     ['coordinatedNotification', '項目已還原。', 'success']
   ]);
@@ -326,7 +327,8 @@ test('batch restore and delete preserve selection, persistence, and notification
     'const count = selectedTrashIds.size',
     'selectedTrashIds.forEach(id => {',
     'conversation.deletedAt = null',
-    'await saveAppData()',
+    'conversation.trashStateUpdatedAt = restoredAt',
+    'await saveAppData({ immediateCloudSync: true })',
     'toggleTrashSelectionMode()',
     'showCoordinatedNotification('
   ]);
