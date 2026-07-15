@@ -5,8 +5,11 @@ export function createConversationViewRenderer({
     renderMediaAttachmentGrid,
     bindMediaPreviewButtons,
     mediaMode = 'wrapped',
-    wrapTextParts = false
+    wrapTextParts = false,
+    scheduleFrame = callback => requestAnimationFrame(callback)
 }) {
+    let clearBottomAnchor = () => {};
+
     const selectMediaParts = (message) => {
         if (mediaMode === 'inlineData') {
             return message.parts
@@ -29,6 +32,7 @@ export function createConversationViewRenderer({
 
     const renderConversationMessages = ({ conversation, contentContainer, emptyHTML }) => {
         if (!conversation) return false;
+        clearBottomAnchor();
         contentContainer.innerHTML = '';
         if (conversation.messages.length === 0) {
             contentContainer.innerHTML = emptyHTML;
@@ -52,7 +56,49 @@ export function createConversationViewRenderer({
         return true;
     };
 
+    const anchorToBottom = (contentContainer) => {
+        clearBottomAnchor();
+        const controller = new AbortController();
+        const pendingMedia = new Set(Array.from(contentContainer.querySelectorAll('img, video')).filter(media => (
+            media.tagName === 'IMG'
+                ? (!media.complete || (media.hasAttribute('data-generated-image-id') && !media.hasAttribute('src')))
+                : media.readyState < 1
+        )));
+        const scrollToBottom = () => {
+            if (!controller.signal.aborted) contentContainer.scrollTop = contentContainer.scrollHeight;
+        };
+        const cancel = () => {
+            pendingMedia.clear();
+            controller.abort();
+        };
+        const handleReaderScroll = () => {
+            if (contentContainer.scrollHeight - contentContainer.clientHeight - contentContainer.scrollTop > 48) cancel();
+        };
+        const settleMedia = ({ target }) => {
+            if (!pendingMedia.delete(target)) return;
+            scrollToBottom();
+            if (pendingMedia.size === 0) cancel();
+        };
+        if (pendingMedia.size > 0) {
+            ['load', 'loadedmetadata', 'error'].forEach(eventName => contentContainer.addEventListener(
+                eventName,
+                settleMedia,
+                { capture: true, signal: controller.signal }
+            ));
+        }
+        scheduleFrame(() => {
+            scrollToBottom();
+            if (pendingMedia.size === 0) {
+                cancel();
+                return;
+            }
+            contentContainer.addEventListener('scroll', handleReaderScroll, { signal: controller.signal });
+        });
+        clearBottomAnchor = cancel;
+    };
+
     return {
-        renderConversationMessages
+        renderConversationMessages,
+        anchorToBottom
     };
 }

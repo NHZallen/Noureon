@@ -68,6 +68,13 @@ function listJavaScriptFiles(directory) {
 }
 
 const legacyCoreSource = readSource('src', 'app', 'runtime', 'legacy-core', 'legacy-core.js');
+const searchUploadSidebarSource = readSource(
+  'src',
+  'app',
+  'runtime',
+  'legacy-core',
+  'search-upload-sidebar-lifecycle.js'
+);
 
 test('renderHistorySidebar reads and renders the latest bridge conversations', () => {
   const body = getConstFunctionBody(legacyCoreSource, 'renderHistorySidebar');
@@ -83,6 +90,23 @@ test('showArchivedChatPreview reads the latest bridge conversations', () => {
   assert.match(body, /const\s+currentConversations\s*=\s*liveConversationsBridge\.getConversations\(\)/);
   assert.match(body, /const\s+conv\s*=\s*currentConversations\.find\(c\s*=>\s*c\.id\s*===\s*id\)/);
   assert.doesNotMatch(body, /\bconversations\b/);
+});
+
+test('showArchivedChatPreview positions the rendered modal at the latest message', () => {
+  const body = getConstFunctionBody(legacyCoreSource, 'showArchivedChatPreview');
+  const renderIndex = body.indexOf('archivedConversationViewRenderer.renderConversationMessages');
+  const modalIndex = body.indexOf('toggleModal(ALL_ELEMENTS.viewArchivedChatModal, true)');
+  const bottomIndex = body.indexOf('archivedConversationViewRenderer.anchorToBottom(contentContainer)');
+
+  assert.ok(renderIndex >= 0, 'expected archived messages to render');
+  assert.ok(modalIndex > renderIndex, 'expected the archived modal to open after rendering');
+  assert.ok(bottomIndex > modalIndex, 'expected bottom anchoring to start after the modal is open');
+});
+
+test('search conversation preview keeps its contextual scroll position', () => {
+  const body = getConstFunctionBody(searchUploadSidebarSource, 'showConversationInViewModal');
+
+  assert.doesNotMatch(body, /requestAnimationFrame|scrollHeight|scrollTop|\.scrollTo\s*\(/);
 });
 
 test('showRenameModal reads the latest bridge conversations', () => {

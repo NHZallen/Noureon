@@ -68,7 +68,7 @@ test('new and switched conversations are wired to start with council disabled', 
   );
   assert.ok(
     loadBody.indexOf('disableConversationCouncil(conv, cloneCouncilConfig)')
-      < loadBody.indexOf('renderAll()')
+      < loadBody.indexOf("renderAll({reason:'chat-switch',scrollMode:'bottom'})")
   );
   assert.match(loadBody, /if \(councilWasEnabled\) \{\s*saveAppData\(\)\.catch/);
 });

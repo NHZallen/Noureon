@@ -689,7 +689,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 quoteInquiryLifecycle?.clearQuote();
                 const conv = getActiveConversation();
                 const councilWasEnabled = disableConversationCouncil(conv, cloneCouncilConfig);
-                renderAll();
+                renderAll({reason:'chat-switch',scrollMode:'bottom'});
                 ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
                 setTimeout(adjustTextareaHeightAlias, 0);
                 if (councilWasEnabled) {
@@ -785,12 +785,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             if (!conv) return;
             ALL_ELEMENTS.viewArchivedTitle.textContent = conv.title;
             const contentContainer = ALL_ELEMENTS.viewArchivedContent;
-            archivedConversationViewRenderer.renderConversationMessages({
-                conversation: conv,
-                contentContainer,
-                emptyHTML: '<p class="text-center text-[var(--text-secondary)]">No messages in this archived chat.</p>'
-            });
+            archivedConversationViewRenderer.renderConversationMessages({conversation:conv,contentContainer,emptyHTML:'<p class="text-center text-[var(--text-secondary)]">No messages in this archived chat.</p>'});
             toggleModal(ALL_ELEMENTS.viewArchivedChatModal, true);
+            archivedConversationViewRenderer.anchorToBottom(contentContainer);
         };
         const togglePinChat = async (id, event) => {
             event?.stopPropagation();

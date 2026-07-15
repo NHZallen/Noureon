@@ -911,7 +911,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'currentConversations.filter(c => c.id !== previousConv.id)',
     'conversationStateAccess.setCurrentConversationId(id)',
     'uploadedFiles = []',
-    'renderAll()'
+    "renderAll({reason:'chat-switch',scrollMode:'bottom'})"
   ], '00 loadChat store-backed previous temporary conversation replacement');
   assert.equal((startNewChatBody.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
   assert.doesNotMatch(startNewChatBody, /\bconversations\.(?:length|filter|unshift)\b/);
@@ -2191,7 +2191,7 @@ test('loadChat resolves updateFunctionButtonsState through the required runtime 
   assertMarkersInOrder(
     loadChatBody,
     [
-      'renderAll()',
+      "renderAll({reason:'chat-switch',scrollMode:'bottom'})",
       "ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : ''",
       'setTimeout(adjustTextareaHeightAlias, 0)',
       'resolveFoundationUpdateInputState()',
@@ -3564,7 +3564,7 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
   assert.match(messageListSource, /document\.createElement\('div'\)/);
   assert.match(messageListSource, /elements\.messageList\.appendChild\(messageElement\)/);
   assert.match(messageListSource, /elements\.chatContainer\.scrollTo/);
-  assert.match(messageListSource, /scheduleFrame\(\(\)\s*=>\s*\{\s*setupMessageIntersectionObserver\(\);\s*restoreChatPosition\(\);\s*\}\)/);
+  assert.match(messageListSource, /scheduleFrame\(\(\)\s*=>\s*\{\s*if\s*\(renderToken\s*!==\s*renderSequence[\s\S]*setupMessageIntersectionObserver\(\);\s*applyChatPosition\(\);/);
   assert.match(dependencySource, /'copyTextToClipboard'/);
   assert.match(appBootstrapLifecycleSource, /e\.target\.closest\('\.copy-content-btn'\)/);
 

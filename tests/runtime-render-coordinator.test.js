@@ -76,7 +76,7 @@ test('renderAll forwards diagnostic options to every render callback', () => {
   const options = {
     reason: 'cloud-current-conversation-changed',
     animate: false,
-    preserveScroll: true
+    scrollMode: 'preserve'
   };
   const record = (name) => (receivedOptions) => received.push([name, receivedOptions]);
   const coordinator = createRuntimeRenderCoordinator({

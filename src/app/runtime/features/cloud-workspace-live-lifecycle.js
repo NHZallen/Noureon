@@ -122,7 +122,7 @@ export function createCloudWorkspaceLiveLifecycle({
   const renderWorkspaceChanges = ({ sidebarChanged, activeConversationChanged, controlsChanged }) => {
     const hasPreciseRenderers = typeof renderSidebar === 'function' && typeof renderChat === 'function';
     if (!hasPreciseRenderers) {
-      renderAll?.({ reason: 'cloud-workspace-applied', animate: false, preserveScroll: true });
+      renderAll?.({ reason: 'cloud-workspace-applied', animate: false, scrollMode: 'preserve' });
       return;
     }
     if (sidebarChanged) {
@@ -132,7 +132,7 @@ export function createCloudWorkspaceLiveLifecycle({
       renderChat({
         reason: 'cloud-active-conversation-changed',
         animate: false,
-        preserveScroll: true
+        scrollMode: 'preserve'
       });
     } else if (controlsChanged) {
       renderChat({

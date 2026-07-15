@@ -145,19 +145,26 @@ test('renderChat can update controls without rebuilding or restyling the message
   const fixture = createFixture();
   try {
     const messageList = fixture.document.querySelector('#messages');
+    const chatContainer = fixture.document.querySelector('#chat');
+    const scrollCalls = [];
     messageList.innerHTML = '<article data-existing-message>Keep this node</article>';
     messageList.classList.add('chat-view-transition');
     const existingMessage = messageList.firstElementChild;
+    chatContainer.scrollTop = 275;
+    chatContainer.scrollTo = (options) => scrollCalls.push(options);
     fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Replacement' }] });
 
     fixture.lifecycle.renderChat({
       renderMessages: false,
+      scrollMode: 'bottom',
       reason: 'cloud-config-changed'
     });
 
     assert.equal(messageList.firstElementChild, existingMessage);
     assert.equal(messageList.textContent, 'Keep this node');
     assert.equal(messageList.classList.contains('chat-view-transition'), true);
+    assert.equal(chatContainer.scrollTop, 275);
+    assert.deepEqual(scrollCalls, []);
     assert.deepEqual(fixture.calls, [
       'modelSwitcher',
       'inputIndicators',
@@ -169,9 +176,94 @@ test('renderChat can update controls without rebuilding or restyling the message
   }
 });
 
-test('renderChat can refresh without animation and preserves a reader scroll position', () => {
-  let chatContainer;
+test('renderChat scrollMode bottom waits for the render frame before showing the newest message', () => {
+  const scheduledFrames = [];
+  const scrollCalls = [];
   const fixture = createFixture({
+    scheduleFrame: (callback) => scheduledFrames.push(callback)
+  });
+  try {
+    const chatContainer = fixture.document.querySelector('#chat');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Newest' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: { configurable: true, value: 900 },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTop = 0;
+    chatContainer.scrollTo = (options) => {
+      scrollCalls.push(options);
+      chatContainer.scrollTop = options.top;
+    };
+
+    fixture.lifecycle.renderChat({
+      animate: true,
+      scrollMode: 'bottom',
+      reason: 'conversation-switch'
+    });
+
+    assert.equal(chatContainer.scrollTop, 0);
+    assert.deepEqual(scrollCalls, []);
+    assert.equal(scheduledFrames.length, 1);
+
+    scheduledFrames.shift()();
+
+    assert.equal(chatContainer.scrollTop, 900);
+    assert.deepEqual(scrollCalls, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat ignores a stale bottom frame after a rapid conversation switch', () => {
+  const scheduledFrames = [];
+  const scrollCalls = [];
+  let scrollHeight = 700;
+  let activeConversation = {
+    title: 'First',
+    messages: [{ role: 'model', parts: [{ text: 'First answer' }] }],
+    archived: false
+  };
+  const fixture = createFixture({
+    getActiveConversation: () => activeConversation,
+    scheduleFrame: (callback) => scheduledFrames.push(callback)
+  });
+  try {
+    const chatContainer = fixture.document.querySelector('#chat');
+    Object.defineProperty(chatContainer, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight
+    });
+    chatContainer.scrollTo = (options) => {
+      scrollCalls.push(options);
+      chatContainer.scrollTop = options.top;
+    };
+
+    fixture.lifecycle.renderChat({ scrollMode: 'bottom', reason: 'conversation-switch' });
+    activeConversation = {
+      title: 'Second',
+      messages: [{ role: 'model', parts: [{ text: 'Second answer' }] }],
+      archived: false
+    };
+    scrollHeight = 1100;
+    fixture.lifecycle.renderChat({ scrollMode: 'bottom', reason: 'conversation-switch' });
+
+    assert.equal(scheduledFrames.length, 2);
+    scheduledFrames.shift()();
+    assert.deepEqual(scrollCalls, []);
+
+    scheduledFrames.shift()();
+    assert.equal(chatContainer.scrollTop, 1100);
+    assert.deepEqual(scrollCalls, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat scrollMode preserve restores a reader position after the render frame', () => {
+  let chatContainer;
+  const scheduledFrames = [];
+  const fixture = createFixture({
+    scheduleFrame: (callback) => scheduledFrames.push(callback),
     buildMessageRenderView: ({ message }) => {
       chatContainer.scrollTop = 0;
       return {
@@ -194,18 +286,23 @@ test('renderChat can refresh without animation and preserves a reader scroll pos
 
     fixture.lifecycle.renderChat({
       animate: false,
-      preserveScroll: true,
+      scrollMode: 'preserve',
       reason: 'cloud-current-conversation-changed'
     });
 
     assert.equal(messageList.classList.contains('chat-view-transition'), false);
+    assert.equal(chatContainer.scrollTop, 0);
+    assert.equal(scheduledFrames.length, 1);
+
+    scheduledFrames.shift()();
+
     assert.equal(chatContainer.scrollTop, 250);
   } finally {
     fixture.cleanup();
   }
 });
 
-test('renderChat keeps a near-bottom reader pinned after a non-animated refresh', () => {
+test('renderChat scrollMode preserve keeps a near-bottom reader pinned after refresh', () => {
   let rebuilt = false;
   let chatContainer;
   const fixture = createFixture({
@@ -236,11 +333,216 @@ test('renderChat keeps a near-bottom reader pinned after a non-animated refresh'
 
     fixture.lifecycle.renderChat({
       animate: false,
-      preserveScroll: true,
+      scrollMode: 'preserve',
       reason: 'cloud-current-conversation-changed'
     });
 
     assert.equal(chatContainer.scrollTop, 1200);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat scrollMode none leaves the existing scroll position untouched', () => {
+  const scrollCalls = [];
+  const fixture = createFixture();
+  try {
+    const chatContainer = fixture.document.querySelector('#chat');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Existing' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: { configurable: true, value: 1000 },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTop = 325;
+    chatContainer.scrollTo = (options) => scrollCalls.push(options);
+
+    fixture.lifecycle.renderChat({
+      scrollMode: 'none',
+      reason: 'controls-refresh'
+    });
+
+    assert.equal(chatContainer.scrollTop, 325);
+    assert.deepEqual(scrollCalls, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat keeps bottom anchoring while delayed media changes the conversation height', () => {
+  const scheduledFrames = [];
+  const scrollCalls = [];
+  let scrollHeight = 700;
+  const fixture = createFixture({
+    scheduleFrame: (callback) => scheduledFrames.push(callback),
+    buildMessageRenderView: () => ({
+      messageClassName: 'model-message',
+      messageHTML: '<div class="message-content"><img src="delayed.png" alt="Delayed"><video src="delayed.mp4"></video></div>',
+      previewMediaParts: []
+    })
+  });
+  try {
+    const chatContainer = fixture.document.querySelector('#chat');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Image' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTo = (options) => {
+      scrollCalls.push(options);
+      chatContainer.scrollTop = options.top;
+    };
+
+    fixture.lifecycle.renderChat({ scrollMode: 'bottom', reason: 'conversation-switch' });
+    const image = fixture.document.querySelector('#messages img');
+    const video = fixture.document.querySelector('#messages video');
+    Object.defineProperty(image, 'complete', { configurable: true, value: false });
+    Object.defineProperty(video, 'readyState', { configurable: true, value: 0 });
+
+    scheduledFrames.shift()();
+    assert.equal(chatContainer.scrollTop, 700);
+
+    scrollHeight = 900;
+    image.dispatchEvent(new fixture.window.Event('load'));
+    assert.equal(chatContainer.scrollTop, 900);
+
+    scrollHeight = 1100;
+    video.dispatchEvent(new fixture.window.Event('loadedmetadata'));
+    while (scheduledFrames.length > 0) scheduledFrames.shift()();
+
+    assert.equal(chatContainer.scrollTop, 1100);
+    assert.deepEqual(scrollCalls, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat keeps a near-bottom preserved reader anchored while delayed media loads', () => {
+  const scheduledFrames = [];
+  const scrollCalls = [];
+  let scrollHeight = 700;
+  const fixture = createFixture({
+    scheduleFrame: (callback) => scheduledFrames.push(callback),
+    buildMessageRenderView: () => ({
+      messageClassName: 'model-message',
+      messageHTML: '<div class="message-content"><img src="delayed.png" alt="Delayed"></div>',
+      previewMediaParts: []
+    })
+  });
+  try {
+    const chatContainer = fixture.document.querySelector('#chat');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Image' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTop = 290;
+    chatContainer.scrollTo = (options) => {
+      scrollCalls.push(options);
+      chatContainer.scrollTop = options.top;
+    };
+
+    fixture.lifecycle.renderChat({
+      animate: false,
+      scrollMode: 'preserve',
+      reason: 'cloud-current-conversation-changed'
+    });
+    const image = fixture.document.querySelector('#messages img');
+    Object.defineProperty(image, 'complete', { configurable: true, value: false });
+
+    assert.equal(chatContainer.scrollTop, 290);
+    scheduledFrames.shift()();
+    assert.equal(chatContainer.scrollTop, 700);
+
+    scrollHeight = 1100;
+    image.dispatchEvent(new fixture.window.Event('load'));
+    while (scheduledFrames.length > 0) scheduledFrames.shift()();
+
+    assert.equal(chatContainer.scrollTop, 1100);
+    assert.deepEqual(scrollCalls, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat treats a generated image without src as pending even when complete is true', () => {
+  const scheduledFrames = [];
+  const scrollCalls = [];
+  let scrollHeight = 600;
+  const fixture = createFixture({
+    scheduleFrame: (callback) => scheduledFrames.push(callback),
+    buildMessageRenderView: () => ({
+      messageClassName: 'model-message',
+      messageHTML: '<div class="message-content"><img data-generated-image-id="asset-1" alt="Generated"></div>',
+      previewMediaParts: []
+    })
+  });
+  try {
+    const chatContainer = fixture.document.querySelector('#chat');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Generated image' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTo = (options) => {
+      scrollCalls.push(options);
+      chatContainer.scrollTop = options.top;
+    };
+
+    fixture.lifecycle.renderChat({ scrollMode: 'bottom', reason: 'conversation-switch' });
+    const image = fixture.document.querySelector('#messages img');
+    Object.defineProperty(image, 'complete', { configurable: true, value: true });
+    assert.equal(image.hasAttribute('src'), false);
+
+    scheduledFrames.shift()();
+    assert.equal(chatContainer.scrollTop, 600);
+
+    scrollHeight = 1000;
+    image.setAttribute('src', 'blob:generated-image');
+    image.dispatchEvent(new fixture.window.Event('load'));
+    while (scheduledFrames.length > 0) scheduledFrames.shift()();
+
+    assert.equal(chatContainer.scrollTop, 1000);
+    assert.deepEqual(scrollCalls, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('renderChat cancels delayed-media bottom anchoring after the reader scrolls upward', () => {
+  const scheduledFrames = [];
+  let scrollHeight = 700;
+  const fixture = createFixture({
+    scheduleFrame: (callback) => scheduledFrames.push(callback),
+    buildMessageRenderView: () => ({
+      messageClassName: 'model-message',
+      messageHTML: '<div class="message-content"><img src="delayed.png" alt="Delayed"></div>',
+      previewMediaParts: []
+    })
+  });
+  try {
+    const chatContainer = fixture.document.querySelector('#chat');
+    fixture.conversation.messages.push({ role: 'model', parts: [{ text: 'Image' }] });
+    Object.defineProperties(chatContainer, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    chatContainer.scrollTo = (options) => {
+      chatContainer.scrollTop = options.top;
+    };
+
+    fixture.lifecycle.renderChat({ scrollMode: 'bottom', reason: 'conversation-switch' });
+    const image = fixture.document.querySelector('#messages img');
+    Object.defineProperty(image, 'complete', { configurable: true, value: false });
+    scheduledFrames.shift()();
+    assert.equal(chatContainer.scrollTop, 700);
+
+    chatContainer.scrollTop = 100;
+    chatContainer.dispatchEvent(new fixture.window.Event('scroll'));
+    scrollHeight = 1100;
+    image.dispatchEvent(new fixture.window.Event('load'));
+    while (scheduledFrames.length > 0) scheduledFrames.shift()();
+
+    assert.equal(chatContainer.scrollTop, 100);
   } finally {
     fixture.cleanup();
   }

@@ -158,6 +158,93 @@ test('renders the supplied empty state and ignores a missing conversation', () =
   }
 });
 
+test('anchors a rendered conversation through delayed image and video layout changes', () => {
+  const { document, cleanup } = createDom('<div id="content"></div>');
+  const scheduledFrames = [];
+  let scrollHeight = 600;
+  try {
+    const { renderer } = createRenderer(document, {
+      scheduleFrame: (callback) => scheduledFrames.push(callback),
+      renderMediaAttachmentGrid: () => '<img src="delayed.png" alt="Delayed"><video src="delayed.mp4"></video>'
+    });
+    const container = document.querySelector('#content');
+    Object.defineProperties(container, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    renderer.renderConversationMessages({
+      conversation: { messages: [{ role: 'model', parts: [{ image_url: 'delayed.png' }] }] },
+      contentContainer: container,
+      emptyHTML: '<p>Empty</p>'
+    });
+    const image = container.querySelector('img');
+    const video = container.querySelector('video');
+    Object.defineProperty(image, 'complete', { configurable: true, value: false });
+    Object.defineProperty(video, 'readyState', { configurable: true, value: 0 });
+    container.scrollTop = 50;
+
+    renderer.anchorToBottom(container);
+
+    assert.equal(container.scrollTop, 50);
+    scheduledFrames.shift()();
+    assert.equal(container.scrollTop, 600);
+
+    scrollHeight = 850;
+    image.dispatchEvent(new document.defaultView.Event('load'));
+    assert.equal(container.scrollTop, 850);
+
+    scrollHeight = 1000;
+    video.dispatchEvent(new document.defaultView.Event('loadedmetadata'));
+    assert.equal(container.scrollTop, 1000);
+  } finally {
+    cleanup();
+  }
+});
+
+test('stops archived bottom anchoring when the reader scrolls upward or the view rerenders', () => {
+  const { document, cleanup } = createDom('<div id="content"></div>');
+  const scheduledFrames = [];
+  let scrollHeight = 700;
+  try {
+    const { renderer } = createRenderer(document, {
+      scheduleFrame: (callback) => scheduledFrames.push(callback),
+      renderMediaAttachmentGrid: () => '<img src="delayed.png" alt="Delayed">'
+    });
+    const container = document.querySelector('#content');
+    const conversation = { messages: [{ role: 'model', parts: [{ image_url: 'delayed.png' }] }] };
+    Object.defineProperties(container, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, value: 400 }
+    });
+    renderer.renderConversationMessages({ conversation, contentContainer: container, emptyHTML: '<p>Empty</p>' });
+    let image = container.querySelector('img');
+    Object.defineProperty(image, 'complete', { configurable: true, value: false });
+    renderer.anchorToBottom(container);
+    scheduledFrames.shift()();
+
+    container.scrollTop = 100;
+    container.dispatchEvent(new document.defaultView.Event('scroll'));
+    scrollHeight = 1100;
+    image.dispatchEvent(new document.defaultView.Event('load'));
+    assert.equal(container.scrollTop, 100);
+
+    renderer.renderConversationMessages({ conversation, contentContainer: container, emptyHTML: '<p>Empty</p>' });
+    image = container.querySelector('img');
+    Object.defineProperty(image, 'complete', { configurable: true, value: false });
+    renderer.anchorToBottom(container);
+    renderer.renderConversationMessages({
+      conversation: { messages: [{ role: 'model', parts: [{ text: 'Replacement' }] }] },
+      contentContainer: container,
+      emptyHTML: '<p>Empty</p>'
+    });
+    container.scrollTop = 250;
+    scheduledFrames.shift()();
+    assert.equal(container.scrollTop, 250);
+  } finally {
+    cleanup();
+  }
+});
+
 test('conversation view renderer source avoids provider, storage schema, package, and Vite coupling', () => {
   const source = readSource('src/app/legacy-runtime/features/conversation-view-renderer.js');
   for (const token of [

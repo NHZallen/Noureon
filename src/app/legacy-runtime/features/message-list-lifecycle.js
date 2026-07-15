@@ -22,6 +22,44 @@ export function createMessageListLifecycle({
     isAutoScrolling,
     logError = (...args) => console.error(...args)
 }) {
+    let renderSequence = 0;
+    let clearPendingBottomAnchor = () => {};
+
+    const scrollChatToBottom = () => {
+        elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+    };
+
+    const keepBottomAnchoredWhileMediaLoads = ({ messageList, renderToken }) => {
+        const pendingMedia = new Set(Array.from(messageList.querySelectorAll('img, video')).filter(media => (
+            media.tagName === 'IMG'
+                ? (!media.complete || (media.hasAttribute('data-generated-image-id') && !media.hasAttribute('src')))
+                : media.readyState < 1
+        )));
+        if (pendingMedia.size === 0) return;
+
+        const chatContainer = elements.chatContainer;
+        const eventNames = ['load', 'loadedmetadata', 'error'];
+        const controller = new AbortController();
+        const cancel = () => {
+            pendingMedia.clear();
+            controller.abort();
+        };
+        const handleReaderScroll = () => {
+            if (chatContainer.scrollHeight - chatContainer.clientHeight - chatContainer.scrollTop > 48) cancel();
+        };
+        const settleMedia = ({ target }) => {
+            if (!pendingMedia.delete(target)) return;
+            if (renderToken === renderSequence) scrollChatToBottom();
+            if (pendingMedia.size === 0) cancel();
+        };
+        eventNames.forEach(eventName => messageList.addEventListener(eventName, settleMedia, {
+            capture: true,
+            signal: controller.signal
+        }));
+        chatContainer.addEventListener('scroll', handleReaderScroll, { signal: controller.signal });
+        clearPendingBottomAnchor = cancel;
+    };
+
     const addMessageToUI = (message, index, shouldSave = true, shouldScroll = true) => {
         const conversation = getActiveConversation();
         if (shouldSave) {
@@ -70,26 +108,21 @@ export function createMessageListLifecycle({
         return messageElement;
     };
 
-    const renderChat = ({ animate = true, preserveScroll = false, renderMessages = true } = {}) => {
+    const renderChat = ({ animate = true, scrollMode = 'none', renderMessages = true } = {}) => {
         const conversation = getActiveConversation();
         const messageList = elements.messageList;
         const chatContainer = elements.chatContainer;
-        const shouldPreserveScroll = renderMessages && preserveScroll;
+        const shouldPreserveScroll = scrollMode === 'preserve';
         const previousScrollTop = shouldPreserveScroll ? chatContainer.scrollTop : 0;
         const wasNearBottom = shouldPreserveScroll && (
             chatContainer.scrollHeight - chatContainer.clientHeight - previousScrollTop <= 16
         );
-        const restoreChatPosition = () => {
-            if (!shouldPreserveScroll) return;
-            if (wasNearBottom) {
-                if (typeof chatContainer.scrollTo === 'function') {
-                    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
-                } else {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
+        const applyChatPosition = () => {
+            if (scrollMode === 'bottom' || wasNearBottom) {
+                scrollChatToBottom();
                 return;
             }
-            chatContainer.scrollTop = previousScrollTop;
+            if (shouldPreserveScroll) chatContainer.scrollTop = previousScrollTop;
         };
         if (!conversation) {
             elements.headerTitle.textContent = getText('newChat');
@@ -100,9 +133,10 @@ export function createMessageListLifecycle({
                 updateInputState();
                 return;
             }
+            renderSequence += 1;
+            clearPendingBottomAnchor();
             messageList.classList.remove('chat-view-transition');
             messageList.innerHTML = '';
-            restoreChatPosition();
             return;
         }
 
@@ -116,6 +150,8 @@ export function createMessageListLifecycle({
             updateInputState();
             return;
         }
+        const renderToken = ++renderSequence;
+        clearPendingBottomAnchor();
         messageList.classList.remove('chat-view-transition');
         messageList.innerHTML = '';
         if (conversation.messages.length === 0) {
@@ -127,8 +163,12 @@ export function createMessageListLifecycle({
             });
         }
         scheduleFrame(() => {
+            if (renderToken !== renderSequence) return;
             setupMessageIntersectionObserver();
-            restoreChatPosition();
+            applyChatPosition();
+            if (scrollMode === 'bottom' || wasNearBottom) {
+                keepBottomAnchoredWhileMediaLoads({ messageList, renderToken });
+            }
         });
         if (animate) {
             void messageList.offsetWidth;

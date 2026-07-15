@@ -259,7 +259,7 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
     'currentConversations.filter(c => c.id !== previousConv.id)',
     'conversationStateAccess.setCurrentConversationId(id)',
     'uploadedFiles = []',
-    'renderAll()'
+    "renderAll({reason:'chat-switch',scrollMode:'bottom'})"
   ], 'loadChat previous temporary conversation replacement');
 
   assert.equal((startNewChatBody.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
