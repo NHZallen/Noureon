@@ -1,5 +1,6 @@
 const ASSET_MARKER = '__astraCloudAsset';
 const DEFAULT_BUCKET = 'user-assets';
+const ASSET_CACHE_PREFIX = 'noureon:cloud-asset-cache:v1:';
 
 function bytesToBase64(bytes) {
   let binary = '';
@@ -49,6 +50,10 @@ function isBlobLike(value) {
 
 function encodeStoragePath(path) {
   return String(path || '').split('/').map(segment => encodeURIComponent(segment)).join('/');
+}
+
+function getAssetCacheKey(userId, path) {
+  return `${ASSET_CACHE_PREFIX}${encodeURIComponent(userId)}:${encodeURIComponent(path)}`;
 }
 
 export function createCloudAssetTransport({
@@ -160,9 +165,44 @@ export function createCloudAssetTransport({
     return marker(path, blob.type || 'application/octet-stream', encoding);
   }
 
-  async function downloadMarker(assetMarker) {
+  function normalizeDownloadedBlob(source, assetMarker) {
+    if (!source) return null;
+    return source.type ? source : new Blob([source], {
+      type: assetMarker.mimeType || 'application/octet-stream'
+    });
+  }
+
+  async function readPersistentBlob(assetMarker) {
+    try {
+      const cached = await storage.getItem(getAssetCacheKey(userId, assetMarker.path));
+      return isBlobLike(cached?.blob)
+        ? normalizeDownloadedBlob(cached.blob, assetMarker)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function persistBlob(assetMarker, blob) {
+    try {
+      await storage.setItem(getAssetCacheKey(userId, assetMarker.path), {
+        blob,
+        mimeType: assetMarker.mimeType || blob.type || 'application/octet-stream',
+        encoding: assetMarker.encoding
+      });
+    } catch {
+      // Persistent caching is best-effort; the in-memory value remains usable.
+    }
+  }
+
+  async function downloadMarker(assetMarker, { allowNetwork = true } = {}) {
     if (unavailablePaths.has(assetMarker.path)) return null;
     if (!downloadedBlobs.has(assetMarker.path)) {
+      const cached = await readPersistentBlob(assetMarker);
+      if (cached) downloadedBlobs.set(assetMarker.path, cached);
+    }
+    if (!downloadedBlobs.has(assetMarker.path)) {
+      if (!allowNetwork) return null;
       if (!pendingDownloads.has(assetMarker.path)) {
         pendingDownloads.set(assetMarker.path, storageBucket.download(assetMarker.path));
       }
@@ -178,11 +218,11 @@ export function createCloudAssetTransport({
         }
         return null;
       }
-      downloadedBlobs.set(assetMarker.path, data);
+      const blob = normalizeDownloadedBlob(data, assetMarker);
+      downloadedBlobs.set(assetMarker.path, blob);
+      await persistBlob(assetMarker, blob);
     }
-    const source = downloadedBlobs.get(assetMarker.path);
-    if (!source) return null;
-    return source.type ? source : new Blob([source], { type: assetMarker.mimeType || 'application/octet-stream' });
+    return normalizeDownloadedBlob(downloadedBlobs.get(assetMarker.path), assetMarker);
   }
 
   async function externalize(value) {
@@ -240,10 +280,10 @@ export function createCloudAssetTransport({
     return output;
   }
 
-  async function hydrate(value) {
+  async function hydrate(value, { allowNetwork = true } = {}) {
     const assetMarker = getMarker(value);
     if (assetMarker) {
-      const blob = await downloadMarker(assetMarker);
+      const blob = await downloadMarker(assetMarker, { allowNetwork });
       if (!blob) return value;
       if (assetMarker.encoding === 'blob') return blob;
       const cacheKey = `${assetMarker.path}:${assetMarker.encoding}`;
@@ -251,7 +291,9 @@ export function createCloudAssetTransport({
       return hydratedValues.get(cacheKey);
     }
     if (!value || typeof value !== 'object' || value instanceof Blob) return value;
-    if (Array.isArray(value)) return Promise.all(value.map(hydrate));
+    if (Array.isArray(value)) {
+      return Promise.all(value.map(child => hydrate(child, { allowNetwork })));
+    }
 
     const output = {};
     for (const [key, child] of Object.entries(value)) {
@@ -261,7 +303,7 @@ export function createCloudAssetTransport({
         const restoreKey = generatedMarker && `${generatedMarker.path}:${child.storageKey}`;
         let restored = Boolean(restoreKey && restoredGeneratedImages.has(restoreKey));
         if (restoreKey && !restoredGeneratedImages.has(restoreKey)) {
-          const blob = await downloadMarker(generatedMarker);
+          const blob = await downloadMarker(generatedMarker, { allowNetwork });
           if (blob) {
             await storage.setItem(child.storageKey, blob);
             restoredGeneratedImages.add(restoreKey);
@@ -269,9 +311,9 @@ export function createCloudAssetTransport({
           }
         }
         if (restored) delete generatedImage.cloudAsset;
-        output[key] = await hydrate(generatedImage);
+        output[key] = await hydrate(generatedImage, { allowNetwork });
       } else {
-        output[key] = await hydrate(child);
+        output[key] = await hydrate(child, { allowNetwork });
       }
     }
     return output;

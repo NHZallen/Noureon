@@ -52,6 +52,57 @@ test('cloud assets externalize and restore data URLs and inline attachment bytes
   assert.deepEqual(await transport.hydrate(cloudValue), value);
 });
 
+test('cloud assets reuse a persistent download cache across transport instances', async () => {
+  const fixture = createFixture();
+  const path = 'user-1/persisted-asset';
+  fixture.remoteFiles.set(path, new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }));
+  const value = {
+    part: {
+      mimeType: 'image/png',
+      data: { __astraCloudAsset: { path, mimeType: 'image/png', encoding: 'base64' } }
+    }
+  };
+  const firstTransport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  assert.equal((await firstTransport.hydrate(value, { allowNetwork: true })).part.data, 'AQID');
+
+  const secondTransport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+  const restored = await secondTransport.hydrate(value, { allowNetwork: false });
+
+  assert.equal(restored.part.data, 'AQID');
+  assert.equal(fixture.downloadCounts.get(path), 1);
+});
+
+test('cloud assets preserve uncached markers during cache-only hydration', async () => {
+  const fixture = createFixture();
+  const path = 'user-1/uncached-asset';
+  fixture.remoteFiles.set(path, new Blob([new Uint8Array([4, 5, 6])], { type: 'image/png' }));
+  const value = {
+    part: {
+      mimeType: 'image/png',
+      data: { __astraCloudAsset: { path, mimeType: 'image/png', encoding: 'base64' } }
+    }
+  };
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  const hydrated = await transport.hydrate(value, { allowNetwork: false });
+
+  assert.deepEqual(hydrated, value);
+  assert.equal(fixture.downloadCounts.size, 0);
+});
+
 test('cloud assets prefer authenticated REST raw upload when Supabase session exists', async () => {
   const fixture = createFixture();
   let sdkUploadCalled = false;
