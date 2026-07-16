@@ -1,6 +1,6 @@
 # Cloud Asset Sync Hotfix Design
 
-**Date:** 2026-07-16  
+**Date:** 2026-07-16
 **Status:** Approved direction; pending written-spec review
 
 ## Context
@@ -149,4 +149,3 @@ After the hotfix is deployed:
 3. Existing hashes must not produce Storage `POST` requests or `bucketid_objname` errors.
 4. The console must not request `/[object Object]`.
 5. If verification still fails, the error details must identify the collection, row ID, and differing fields for the next targeted correction.
-
