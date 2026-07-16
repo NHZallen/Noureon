@@ -129,8 +129,8 @@ export function createCloudAssetTransport({
             apikey: supabasePublishableKey,
             Authorization: `Bearer ${token}`,
             'content-type': blob.type || 'application/octet-stream',
-            'cache-control': '31536000',
-            'x-upsert': 'true'
+            'cache-control': 'max-age=31536000, immutable',
+            'x-upsert': 'false'
           },
           body: blob
         }
@@ -138,15 +138,23 @@ export function createCloudAssetTransport({
       return response.ok ? { error: null } : { error: await storageRestError(response) };
     }
     return storageBucket.upload(path, blob, {
-      cacheControl: '31536000',
+      cacheControl: '31536000, immutable',
       contentType: blob.type || 'application/octet-stream',
       upsert: false
     });
   }
 
   async function objectAlreadyExists(path) {
-    const { data, error } = await storageBucket.download(path);
-    return Boolean(!error && data);
+    if (typeof storageBucket.list !== 'function') return false;
+    const segments = String(path || '').split('/');
+    const filename = segments.pop();
+    const folder = segments.join('/');
+    if (!filename || !folder) return false;
+    const { data, error } = await storageBucket.list(folder, {
+      limit: 1,
+      search: filename
+    });
+    return Boolean(!error && data?.some(item => item?.name === filename));
   }
 
   async function uploadBlob(blob, encoding) {

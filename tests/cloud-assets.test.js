@@ -144,10 +144,36 @@ test('cloud assets prefer authenticated REST raw upload when Supabase session ex
   assert.equal(requests[0].options.headers.apikey, 'publishable-key');
   assert.equal(requests[0].options.headers.Authorization, 'Bearer session-token');
   assert.equal(requests[0].options.headers['content-type'], 'image/png');
-  assert.equal(requests[0].options.headers['cache-control'], '31536000');
-  assert.equal(requests[0].options.headers['x-upsert'], 'true');
+  assert.equal(requests[0].options.headers['cache-control'], 'max-age=31536000, immutable');
+  assert.equal(requests[0].options.headers['x-upsert'], 'false');
   assert.ok(requests[0].options.body instanceof Blob);
   assert.ok(cloudValue.part.data.__astraCloudAsset);
+});
+
+test('cloud assets use immutable metadata for SDK upload fallback', async () => {
+  const fixture = createFixture();
+  let uploadOptions = null;
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    supabase: {
+      storage: {
+        from: () => ({
+          upload: async (_path, _blob, options) => {
+            uploadOptions = options;
+            return { error: null };
+          },
+          download: fixture.supabase.storage.from().download
+        })
+      }
+    },
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  await transport.externalize({ part: { mimeType: 'image/png', data: 'AQID' } });
+
+  assert.equal(uploadOptions.cacheControl, '31536000, immutable');
+  assert.equal(uploadOptions.upsert, false);
 });
 
 test('cloud assets reuse existing Storage objects after duplicate raw upload failures', async () => {
@@ -189,7 +215,7 @@ test('cloud assets reuse existing Storage objects after duplicate raw upload fai
 
 test('cloud assets verify object existence before failing ambiguous raw upload errors', async () => {
   const fixture = createFixture();
-  const downloads = [];
+  const listings = [];
   const transport = createCloudAssetTransport({
     ...fixture,
     supabase: {
@@ -199,9 +225,10 @@ test('cloud assets verify object existence before failing ambiguous raw upload e
       storage: {
         from: () => ({
           upload: async () => assert.fail('raw upload should be used before SDK upload'),
-          download: async (path) => {
-            downloads.push(path);
-            return { data: new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), error: null };
+          download: async () => assert.fail('object existence checks must not download the body'),
+          list: async (folder, options) => {
+            listings.push({ folder, options });
+            return { data: [{ name: options.search }], error: null };
           }
         })
       }
@@ -217,8 +244,9 @@ test('cloud assets verify object existence before failing ambiguous raw upload e
     part: { mimeType: 'image/png', data: 'AQID' }
   });
 
-  assert.equal(downloads.length, 1);
-  assert.match(downloads[0], /^user-1\//);
+  assert.equal(listings.length, 1);
+  assert.equal(listings[0].folder, 'user-1');
+  assert.match(listings[0].options.search, /^[a-f0-9]{64}$/);
   assert.ok(cloudValue.part.data.__astraCloudAsset);
 });
 
