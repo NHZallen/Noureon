@@ -838,6 +838,7 @@ export function createConversationShadowSync({
   let baselineTrusted = false;
   let migrationPending = true;
   let generation = 0;
+  let fullSnapshotFallbackCount = 0;
   let status = Object.freeze({
     state: 'idle',
     enabled: false,
@@ -845,7 +846,14 @@ export function createConversationShadowSync({
     conversations: 0,
     messages: 0,
     folders: 0,
-    astras: 0
+    astras: 0,
+    deltaSupported: null,
+    deltaPages: 0,
+    deltaRows: 0,
+    baselineReset: false,
+    fullSnapshotFallbackCount: 0,
+    lastSnapshotFallbackReason: null,
+    currentRemoteWatermark: null
   });
 
   const setStatus = next => {
@@ -868,12 +876,34 @@ export function createConversationShadowSync({
         error.code = 'ASTRA_SHADOW_INVALID_REMOTE_STATE';
         throw error;
       }
+      if (state.snapshotFallback === true) fullSnapshotFallbackCount += 1;
+      setStatus({
+        deltaSupported: typeof state.deltaSupported === 'boolean' ? state.deltaSupported : status.deltaSupported,
+        deltaPages: Number.isInteger(state.pageCount) ? state.pageCount : 0,
+        deltaRows: Number.isInteger(state.rowCount) ? state.rowCount : 0,
+        baselineReset: state.baselineReset === true,
+        fullSnapshotFallbackCount,
+        lastSnapshotFallbackReason: state.snapshotFallback === true
+          ? (state.fallbackReason || 'unspecified')
+          : status.lastSnapshotFallbackReason,
+        currentRemoteWatermark: state.watermark ?? null
+      });
       return state;
     }
     const tombstones = await repository.fetchTombstones();
     assertCurrent();
     const rows = await repository.fetchWorkspace();
     assertCurrent();
+    fullSnapshotFallbackCount += 1;
+    setStatus({
+      deltaSupported: false,
+      deltaPages: 0,
+      deltaRows: 0,
+      baselineReset: false,
+      fullSnapshotFallbackCount,
+      lastSnapshotFallbackReason: 'legacy-reader',
+      currentRemoteWatermark: null
+    });
     return { tombstones, rows };
   };
 
@@ -1032,7 +1062,7 @@ export function createConversationShadowSync({
         await repository.upsertAstras(uploadRows.astras);
         assertCurrent();
       }
-      const verified = await repository.verify(encoded);
+      const verified = await repository.verify(uploadRows);
       assertCurrent();
       if (!verified) {
         const error = new Error('Sync V2 shadow verification did not match the local workspace.');

@@ -218,6 +218,7 @@ test('missing delta capability falls back once without mutating persisted cursor
   assert.deepEqual(calls, ['tombstones', 'workspace']);
   assert.equal(state.deltaSupported, false);
   assert.equal(state.snapshotFallback, true);
+  assert.equal(state.fallbackReason, 'delta-unsupported');
   assert.equal(fixture.values.get(baselineKey), baselineRaw);
   assert.equal(fixture.values.get(journalKey), journalRaw);
   assert.equal(fixture.atomicWrites.length, 0);

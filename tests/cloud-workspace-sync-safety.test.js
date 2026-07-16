@@ -95,8 +95,11 @@ test('record-level trash Realtime closes startup and reconnect gaps without subs
   assert.match(conversationChannel, /event:\s*'INSERT'[\s\S]*table:\s*'workspace_tombstones'/);
   assert.doesNotMatch(conversationChannel, /event:\s*'DELETE'|event:\s*'\*'|workspace_messages/);
   assert.match(conversationChannel, /status\s*===\s*'SUBSCRIBED'[\s\S]*scheduleConversationRemoteRefresh\(\)/);
+  assert.doesNotMatch(conversationChannel, /fetchWorkspace|fetchTombstones/);
+  assert.match(source, /if\s*\(conversationRefreshTimer\s*!=\s*null\)\s*clearTimeout\(conversationRefreshTimer\)/);
   assert.match(source, /setTimeout\(\(\)\s*=>\s*\{[\s\S]*conversationShadowSync\.retry\(\)[\s\S]*},\s*150\)/);
   assert.match(source, /Promise\.resolve\(conversationShadowSync\?\.retry\?\.\(\)\)/);
+  assert.match(source, /api\.stop\s*=\s*\(\)\s*=>\s*\{[\s\S]*clearTimeout\(conversationRefreshTimer\)[\s\S]*conversationRefreshRequested\s*=\s*false/);
   assert.match(source, /removeChannel\(realtimeChannel\)[\s\S]*removeChannel\(conversationRealtimeChannel\)/);
 });
 

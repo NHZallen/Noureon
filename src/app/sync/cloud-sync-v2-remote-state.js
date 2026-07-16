@@ -133,6 +133,7 @@ export function createPersistentWorkspaceRemoteReader({
         tombstones,
         deltaSupported: false,
         snapshotFallback: true,
+        fallbackReason: 'delta-unsupported',
         baselineReset: false,
         pageCount: 0,
         rowCount: 0,

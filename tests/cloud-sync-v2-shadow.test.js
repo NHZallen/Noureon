@@ -92,7 +92,14 @@ test('initialization and retry use the injected remote state reader instead of f
       assertCurrent();
       return {
         rows: { folders: [], conversations: [], messages: [], astras: [] },
-        tombstones: []
+        tombstones: [],
+        deltaSupported: remoteStateReads === 1,
+        snapshotFallback: remoteStateReads === 2,
+        fallbackReason: remoteStateReads === 2 ? 'delta-unsupported' : null,
+        baselineReset: remoteStateReads === 1,
+        pageCount: remoteStateReads === 1 ? 2 : 0,
+        rowCount: remoteStateReads === 1 ? 3 : 0,
+        watermark: remoteStateReads === 1 ? '8' : null
       };
     },
     readWorkspace: async () => localWorkspace,
@@ -107,8 +114,23 @@ test('initialization and retry use the injected remote state reader instead of f
     cryptoProvider: webcrypto
   });
 
-  assert.equal((await sync.initialize()).state, 'ready');
-  assert.equal((await sync.retry()).state, 'ready');
+  const initialized = await sync.initialize();
+  assert.equal(initialized.state, 'ready');
+  assert.equal(initialized.deltaSupported, true);
+  assert.equal(initialized.deltaPages, 2);
+  assert.equal(initialized.deltaRows, 3);
+  assert.equal(initialized.currentRemoteWatermark, '8');
+  assert.equal(initialized.baselineReset, true);
+  assert.equal(initialized.fullSnapshotFallbackCount, 0);
+
+  const retried = await sync.retry();
+  assert.equal(retried.state, 'ready');
+  assert.equal(retried.deltaSupported, false);
+  assert.equal(retried.deltaPages, 0);
+  assert.equal(retried.deltaRows, 0);
+  assert.equal(retried.currentRemoteWatermark, null);
+  assert.equal(retried.fullSnapshotFallbackCount, 1);
+  assert.equal(retried.lastSnapshotFallbackReason, 'delta-unsupported');
   assert.equal(remoteStateReads, 2);
 });
 
@@ -145,7 +167,7 @@ test('shadow initialization refreshes, writes local, then uploads and verifies',
   assert.equal(calls.at(-1)[1], 'ready');
 });
 
-test('trusted identical baseline skips every upsert but still verifies the full encoded workspace', async () => {
+test('trusted identical baseline skips every upsert and performs an empty verification', async () => {
   const remoteRows = await remoteRowsFor();
   const upserts = [];
   const migrationStates = [];
@@ -182,9 +204,13 @@ test('trusted identical baseline skips every upsert but still verifies the full 
   assert.deepEqual(upserts, []);
   assert.deepEqual(migrationStates, []);
   assert.equal(verified.length, 1);
-  assert.equal(verified[0].conversations.length, 1);
-  assert.equal(verified[0].messages.length, 1);
-  assert.equal(verified[0].folders.length, 1);
+  assert.deepEqual(verified[0], {
+    folders: [],
+    conversations: [],
+    messages: [],
+    astras: [],
+    skippedConversationIds: []
+  });
 });
 
 test('trusted baseline uploads only one new message and then only one new folder', async () => {
@@ -224,7 +250,9 @@ test('trusted baseline uploads only one new message and then only one new folder
   assert.equal(sync.captureWorkspace(withNewMessage), true);
   await scheduled();
   assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [['messages', 1]]);
-  assert.equal(verifies.at(-1).messages.length, 2);
+  assert.equal(verifies.at(-1).messages.length, 1);
+  assert.equal(verifies.at(-1).conversations.length, 0);
+  assert.equal(verifies.at(-1).folders.length, 0);
   assert.equal(sync.getStatus().uploadedMessages, 1);
 
   uploads.length = 0;
@@ -239,7 +267,8 @@ test('trusted baseline uploads only one new message and then only one new folder
   assert.equal(sync.captureWorkspace(withNewFolder), true);
   await scheduled();
   assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [['folders', 1]]);
-  assert.equal(verifies.at(-1).folders.length, 2);
+  assert.equal(verifies.at(-1).folders.length, 1);
+  assert.equal(verifies.at(-1).messages.length, 0);
   assert.equal(sync.getStatus().uploadedFolders, 1);
 
   uploads.length = 0;
@@ -254,6 +283,7 @@ test('trusted baseline uploads only one new message and then only one new folder
   assert.equal(sync.captureWorkspace(withNewAstra), true);
   await scheduled();
   assert.deepEqual(uploads.map(([collection, rows]) => [collection, rows.length]), [['astras', 1]]);
+  assert.equal(verifies.at(-1).astras.length, 1);
 
   uploads.length = 0;
   assert.equal(sync.captureWorkspace(structuredClone(withNewAstra)), true);
@@ -306,7 +336,7 @@ test('journal fullResyncRequired forces a full upload and migration state transi
   assert.deepEqual(states, ['shadow', 'ready']);
 });
 
-test('trusted baseline reconciles message IDs by conversation and sequence before delta and verification', async () => {
+test('trusted baseline reconciles message IDs before delta and skips unchanged verification rows', async () => {
   const remoteRows = await remoteRowsFor();
   const remoteMessageId = '88888888-8888-4888-8888-888888888888';
   remoteRows.messages[0].id = remoteMessageId;
@@ -337,7 +367,7 @@ test('trusted baseline reconciles message IDs by conversation and sequence befor
   assert.equal(status.state, 'ready');
   assert.equal(status.uploadedMessages, 0);
   assert.deepEqual(messageUploads, []);
-  assert.equal(verified.messages[0].id, remoteMessageId);
+  assert.deepEqual(verified.messages, []);
 });
 
 test('ambiguous baseline message sequences stop conservatively without upload, verify, or ACK', async () => {
