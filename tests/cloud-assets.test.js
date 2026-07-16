@@ -33,6 +33,13 @@ function createFixture() {
   };
 }
 
+async function sha256Hex(bytes) {
+  const digest = await webcrypto.subtle.digest('SHA-256', Uint8Array.from(bytes));
+  return [...new Uint8Array(digest)]
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 test('cloud assets externalize and restore data URLs and inline attachment bytes', async () => {
   const fixture = createFixture();
   const transport = createCloudAssetTransport({
@@ -128,6 +135,92 @@ test('cloud assets hydrate only the requested conversation and report resolved m
   assert.equal(result.resolvedCount, 1);
   assert.equal(fixture.downloadCounts.get(activePath), 1);
   assert.equal(fixture.downloadCounts.has(inactivePath), false);
+});
+
+test('cloud assets skip upload when the content hash already exists in Storage', async () => {
+  const hash = await sha256Hex([1, 2, 3]);
+  const calls = { lists: [], uploads: [] };
+  const transport = createCloudAssetTransport({
+    supabase: { storage: { from: () => ({
+      async list(folder, options) {
+        calls.lists.push({ folder, options });
+        return { data: [{ name: hash }], error: null };
+      },
+      async upload(path) {
+        calls.uploads.push(path);
+        return { error: null };
+      },
+      async download() { return { data: null, error: new Error('not used') }; }
+    }) } },
+    storage: { getItem: async () => null, setItem: async () => {} },
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  const cloudValue = await transport.externalize({
+    part: { mimeType: 'image/png', data: 'AQID' }
+  });
+
+  assert.equal(calls.lists.length, 1);
+  assert.equal(calls.lists[0].folder, 'user-1');
+  assert.deepEqual(calls.uploads, []);
+  assert.equal(cloudValue.part.data.__astraCloudAsset.path, `user-1/${hash}`);
+});
+
+test('cloud assets share one paginated existing-object index across concurrent assets', async () => {
+  const calls = { lists: [], uploads: [] };
+  const firstPage = Array.from({ length: 1000 }, (_, index) => ({ name: `existing-${index}` }));
+  const transport = createCloudAssetTransport({
+    supabase: { storage: { from: () => ({
+      async list(folder, options) {
+        calls.lists.push({ folder, options });
+        return options.offset === 0
+          ? { data: firstPage, error: null }
+          : { data: [], error: null };
+      },
+      async upload(path, _blob, options) {
+        calls.uploads.push({ path, options });
+        return { error: null };
+      },
+      async download() { return { data: null, error: new Error('not used') }; }
+    }) } },
+    storage: { getItem: async () => null, setItem: async () => {} },
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  await transport.externalize([
+    { mimeType: 'image/png', data: 'AQID' },
+    { mimeType: 'image/png', data: 'BAUG' }
+  ]);
+
+  assert.deepEqual(calls.lists.map(call => call.options.offset), [0, 1000]);
+  assert.equal(calls.uploads.length, 2);
+  assert.equal(calls.uploads.every(call => call.options.upsert === false), true);
+});
+
+test('cloud assets fall back to duplicate-safe upload when the object index fails', async () => {
+  const uploads = [];
+  const transport = createCloudAssetTransport({
+    supabase: { storage: { from: () => ({
+      async list() { return { data: null, error: new Error('list denied') }; },
+      async upload(path) {
+        uploads.push(path);
+        return { error: { statusCode: '409', message: 'already exists' } };
+      },
+      async download() { return { data: null, error: new Error('not used') }; }
+    }) } },
+    storage: { getItem: async () => null, setItem: async () => {} },
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  const cloudValue = await transport.externalize({
+    part: { mimeType: 'image/png', data: 'AQID' }
+  });
+
+  assert.equal(uploads.length, 1);
+  assert.ok(cloudValue.part.data.__astraCloudAsset);
 });
 
 test('cloud assets prefer authenticated REST raw upload when Supabase session exists', async () => {
@@ -243,6 +336,7 @@ test('cloud assets reuse existing Storage objects after duplicate raw upload fai
 test('cloud assets verify object existence before failing ambiguous raw upload errors', async () => {
   const fixture = createFixture();
   const listings = [];
+  let rawUploads = 0;
   const transport = createCloudAssetTransport({
     ...fixture,
     supabase: {
@@ -255,7 +349,9 @@ test('cloud assets verify object existence before failing ambiguous raw upload e
           download: async () => assert.fail('object existence checks must not download the body'),
           list: async (folder, options) => {
             listings.push({ folder, options });
-            return { data: [{ name: options.search }], error: null };
+            return Object.hasOwn(options, 'offset')
+              ? { data: [], error: null }
+              : { data: [{ name: options.search }], error: null };
           }
         })
       }
@@ -263,7 +359,10 @@ test('cloud assets verify object existence before failing ambiguous raw upload e
     userId: 'user-1',
     supabaseUrl: 'https://project.supabase.co',
     supabasePublishableKey: 'publishable-key',
-    fetchImpl: async () => new Response('<html><body><h1>400 Bad Request</h1></body></html>', { status: 400 }),
+    fetchImpl: async () => {
+      rawUploads += 1;
+      return new Response('<html><body><h1>400 Bad Request</h1></body></html>', { status: 400 });
+    },
     cryptoProvider: webcrypto
   });
 
@@ -271,9 +370,11 @@ test('cloud assets verify object existence before failing ambiguous raw upload e
     part: { mimeType: 'image/png', data: 'AQID' }
   });
 
-  assert.equal(listings.length, 1);
+  assert.equal(rawUploads, 1);
+  assert.equal(listings.length, 2);
   assert.equal(listings[0].folder, 'user-1');
-  assert.match(listings[0].options.search, /^[a-f0-9]{64}$/);
+  assert.equal(listings[0].options.offset, 0);
+  assert.match(listings[1].options.search, /^[a-f0-9]{64}$/);
   assert.ok(cloudValue.part.data.__astraCloudAsset);
 });
 

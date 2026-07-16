@@ -75,6 +75,7 @@ export function createCloudAssetTransport({
   logger = console
 } = {}) {
   const uploadedPaths = new Set();
+  let existingObjectPathsPromise = null;
   const downloadedBlobs = new Map();
   const dataUrlMarkers = new Map();
   const base64Markers = new Map();
@@ -91,6 +92,33 @@ export function createCloudAssetTransport({
     && fetchImpl
     && supabase?.auth?.getSession
   );
+
+  async function loadExistingObjectPaths() {
+    if (typeof storageBucket.list !== 'function') return null;
+    const paths = new Set();
+    const limit = 1000;
+    let offset = 0;
+    while (true) {
+      const { data, error } = await storageBucket.list(userId, {
+        limit,
+        offset,
+        sortBy: { column: 'name', order: 'asc' }
+      });
+      if (error || !Array.isArray(data)) return null;
+      for (const item of data) {
+        if (item?.name) paths.add(`${userId}/${item.name}`);
+      }
+      if (data.length < limit) return paths;
+      offset += data.length;
+    }
+  }
+
+  function getExistingObjectPaths() {
+    if (!existingObjectPathsPromise) {
+      existingObjectPathsPromise = loadExistingObjectPaths().catch(() => null);
+    }
+    return existingObjectPathsPromise;
+  }
 
   function describeStorageError(error) {
     return {
@@ -168,13 +196,17 @@ export function createCloudAssetTransport({
     const hash = await sha256(blob, cryptoProvider);
     const path = `${userId}/${hash}`;
     if (!uploadedPaths.has(path)) {
-      const { error } = await uploadObject(path, blob);
-      const duplicate = error && (
-        String(error.statusCode) === '409'
-        || String(error.code) === '23505'
-        || /already exists|duplicate|bucketid_objname/i.test(`${error.message || ''}\n${error.details || ''}`)
-      );
-      if (error && !duplicate && !(await objectAlreadyExists(path))) throw error;
+      const existingObjectPaths = await getExistingObjectPaths();
+      if (!existingObjectPaths?.has(path)) {
+        const { error } = await uploadObject(path, blob);
+        const duplicate = error && (
+          String(error.statusCode) === '409'
+          || String(error.code) === '23505'
+          || /already exists|duplicate|bucketid_objname/i.test(`${error.message || ''}\n${error.details || ''}`)
+        );
+        if (error && !duplicate && !(await objectAlreadyExists(path))) throw error;
+        existingObjectPaths?.add(path);
+      }
       uploadedPaths.add(path);
     }
     return marker(path, blob.type || 'application/octet-stream', encoding);
