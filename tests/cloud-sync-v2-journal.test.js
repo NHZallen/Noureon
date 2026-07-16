@@ -146,6 +146,15 @@ function createSupabase({
       from: table => queryFor(table),
       async rpc(name, { p_rows: rows } = {}) {
         if (name === 'workspace_trash_sync_capability') return { data: 1, error: null };
+        if (name === 'fetch_workspace_delta') {
+          return {
+            data: null,
+            error: {
+              code: 'PGRST202',
+              message: 'Could not find the function public.fetch_workspace_delta'
+            }
+          };
+        }
         const table = rpcTables[name];
         if (!table) return { error: new Error(`Unexpected RPC: ${name}`) };
         if (name === 'upsert_workspace_conversations') {
