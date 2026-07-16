@@ -46,6 +46,20 @@ test('cloud workspace passes asset transport into record-level conversation sync
   assert.match(initializer, /assetTransport:\s*assets/);
 });
 
+test('active conversation selection is wired to the private cloud asset transport', async () => {
+  const [syncSource, runtimeSource] = await Promise.all([
+    readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url), 'utf8')
+  ]);
+
+  assert.match(
+    syncSource,
+    /const\s+cloudAssetRuntime\s*=\s*Object\.freeze\(\{[\s\S]*?hydrateConversation:/
+  );
+  assert.match(syncSource, /window\.__astraCloudAssets\s*=\s*cloudAssetRuntime/);
+  assert.match(runtimeSource, /new\s+window\.CustomEvent\('astra:active-conversation-changed'/);
+});
+
 test('cloud config metadata and remote commits are serialized through the workspace lock', async () => {
   const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
 

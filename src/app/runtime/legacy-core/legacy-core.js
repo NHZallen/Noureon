@@ -690,6 +690,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 const conv = getActiveConversation();
                 const councilWasEnabled = disableConversationCouncil(conv, cloneCouncilConfig);
                 renderAll({reason:'chat-switch',scrollMode:'bottom'});
+                window.dispatchEvent(new window.CustomEvent('astra:active-conversation-changed',{detail:{conversationId:id}}));
                 ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
                 setTimeout(adjustTextareaHeightAlias, 0);
                 if (councilWasEnabled) {

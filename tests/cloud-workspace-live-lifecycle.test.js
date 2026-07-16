@@ -377,6 +377,128 @@ test('an unchanged cloud workspace does not render any interface region', () => 
   assert.deepEqual(fixture.renderCalls, { all: 0, sidebar: 0, chat: 0 });
 });
 
+test('the active conversation is hydrated after a cloud workspace commit', async () => {
+  const window = createWindowFixture();
+  const marker = { __astraCloudAsset: { path: 'user-1/active', encoding: 'base64' } };
+  const activeConversation = {
+    id: 'active',
+    messages: [{ parts: [{ inlineData: { mimeType: 'image/png', data: marker } }] }]
+  };
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialConversations: [activeConversation]
+  });
+  let saved = 0;
+  const chatRenderReasons = [];
+  const hydrationCalls = [];
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {},
+    renderSidebar: () => {},
+    renderChat: options => { chatRenderReasons.push(options?.reason); },
+    getActiveConversation: () => appDataStore.getConversations()
+      .find(conversation => conversation.id === 'active'),
+    hydrateConversation: async conversation => {
+      hydrationCalls.push(conversation.id);
+      return {
+        conversation: {
+          ...conversation,
+          messages: [{ parts: [{ inlineData: { mimeType: 'image/png', data: 'AQID' } }] }]
+        },
+        resolvedCount: 1
+      };
+    },
+    saveAppData: async () => { saved += 1; }
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-workspace-committed', {
+    workspace: {
+      conversations: [activeConversation],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.deepEqual(hydrationCalls, ['active']);
+  assert.equal(appDataStore.getConversations()[0].messages[0].parts[0].inlineData.data, 'AQID');
+  assert.equal(saved, 1);
+  assert.equal(
+    chatRenderReasons.filter(reason => reason === 'cloud-active-conversation-hydrated').length,
+    1
+  );
+});
+
+test('a stale hydration result cannot update a conversation after selection changes', async () => {
+  const window = createWindowFixture();
+  const conversations = [
+    { id: 'first', messages: [{ parts: [{ text: 'first marker' }] }] },
+    { id: 'second', messages: [{ parts: [{ text: 'second marker' }] }] }
+  ];
+  const appDataStore = createLegacyRuntimeAppDataStore({ initialConversations: conversations });
+  let activeId = 'first';
+  const pending = [];
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {},
+    getActiveConversation: () => appDataStore.getConversations()
+      .find(conversation => conversation.id === activeId),
+    hydrateConversation: conversation => new Promise(resolve => pending.push({
+      id: conversation.id,
+      resolve
+    }))
+  });
+  window.__astraCloudRuntimeReady();
+  window.emit('astra:cloud-workspace-committed', {
+    workspace: { conversations, folders: [], astras: [], personalMemories: [] },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+  await Promise.resolve();
+  activeId = 'second';
+  window.emit('astra:active-conversation-changed');
+  await Promise.resolve();
+
+  assert.deepEqual(pending.map(item => item.id), ['first', 'second']);
+  pending[0].resolve({
+    conversation: { id: 'first', messages: [{ parts: [{ text: 'stale hydrated value' }] }] },
+    resolvedCount: 1
+  });
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.equal(
+    appDataStore.getConversations().find(conversation => conversation.id === 'first')
+      .messages[0].parts[0].text,
+    'first marker'
+  );
+  pending[1].resolve({ conversation: conversations[1], resolvedCount: 0 });
+});
+
 test('a cloud update to a non-active conversation renders only the sidebar', () => {
   const activeConversation = {
     id: 'active',

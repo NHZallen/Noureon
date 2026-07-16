@@ -977,7 +977,10 @@ export function createConversationShadowSync({
         nextAstraTombstoneIds
       );
       const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
-      const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(decodedRemoteWorkspace);
+      const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(
+        decodedRemoteWorkspace,
+        { allowNetwork: false }
+      );
       assertOperationCurrent();
       const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
         hydratedRemoteWorkspace,
@@ -1006,7 +1009,10 @@ export function createConversationShadowSync({
     assertOperationCurrent();
     const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
     const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
-    const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(decodedRemoteWorkspace);
+    const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(
+      decodedRemoteWorkspace,
+      { allowNetwork: false }
+    );
     assertOperationCurrent();
     const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
       hydratedRemoteWorkspace,
@@ -1602,7 +1608,10 @@ export function createConversationShadowSync({
       );
       const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
       assertCurrent();
-      const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(decodedRemoteWorkspace);
+      const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(
+        decodedRemoteWorkspace,
+        { allowNetwork: false }
+      );
       assertCurrent();
       const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
         hydratedRemoteWorkspace,
@@ -1906,8 +1915,8 @@ export function initializeConversationShadowSync({
     prepareWorkspaceForUpload: async workspace => assetTransport?.externalize
       ? assetTransport.externalize(workspace)
       : workspace,
-    hydrateRemoteWorkspace: async workspace => assetTransport?.hydrate
-      ? assetTransport.hydrate(workspace)
+    hydrateRemoteWorkspace: async (workspace, options) => assetTransport?.hydrate
+      ? assetTransport.hydrate(workspace, options)
       : workspace,
     schedule,
     cancel,

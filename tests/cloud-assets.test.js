@@ -103,6 +103,33 @@ test('cloud assets preserve uncached markers during cache-only hydration', async
   assert.equal(fixture.downloadCounts.size, 0);
 });
 
+test('cloud assets hydrate only the requested conversation and report resolved markers', async () => {
+  const fixture = createFixture();
+  const activePath = 'user-1/active-conversation-asset';
+  const inactivePath = 'user-1/inactive-conversation-asset';
+  fixture.remoteFiles.set(activePath, new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }));
+  fixture.remoteFiles.set(inactivePath, new Blob([new Uint8Array([4, 5, 6])], { type: 'image/png' }));
+  const activeConversation = {
+    id: 'active',
+    messages: [{ parts: [{ inlineData: {
+      mimeType: 'image/png',
+      data: { __astraCloudAsset: { path: activePath, mimeType: 'image/png', encoding: 'base64' } }
+    } }] }]
+  };
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  const result = await transport.hydrateConversation(activeConversation);
+
+  assert.equal(result.conversation.messages[0].parts[0].inlineData.data, 'AQID');
+  assert.equal(result.resolvedCount, 1);
+  assert.equal(fixture.downloadCounts.get(activePath), 1);
+  assert.equal(fixture.downloadCounts.has(inactivePath), false);
+});
+
 test('cloud assets prefer authenticated REST raw upload when Supabase session exists', async () => {
   const fixture = createFixture();
   let sdkUploadCalled = false;

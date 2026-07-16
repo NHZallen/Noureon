@@ -111,6 +111,10 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   const rotationKey = getSyncVaultRotationStorageKey(username);
   const metaKey = `chatCloudSyncMeta_v1_${username}`;
   const assets = createCloudAssetTransport({ supabase, storage, userId: user.id });
+  const cloudAssetRuntime = Object.freeze({
+    hydrateConversation: conversation => assets.hydrateConversation(conversation)
+  });
+  window.__astraCloudAssets = cloudAssetRuntime;
   let meta = parseJson(await storage.getItem(metaKey)) || {};
   const upgradingMeta = meta.version !== SYNC_META_VERSION;
   let remote = null;
@@ -569,6 +573,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     if (conversationRefreshTimer != null) clearTimeout(conversationRefreshTimer);
     conversationRefreshTimer = null;
     conversationRefreshRequested = false;
+    if (window.__astraCloudAssets === cloudAssetRuntime) delete window.__astraCloudAssets;
     conversationShadowSync.stop();
     return Promise.all([
       supabase.removeChannel(realtimeChannel),

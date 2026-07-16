@@ -561,6 +561,7 @@ test('shadow sync externalizes upload assets and hydrates remote image assets', 
     }]
   };
   const remoteRows = { folders: [], conversations: [], messages: [], astras: [] };
+  const hydrationPolicies = [];
   const repository = {
     probe: async () => null,
     fetchTombstones: async () => [],
@@ -596,7 +597,7 @@ test('shadow sync externalizes upload assets and hydrates remote image assets', 
         }))
       }))
     }),
-    hydrateRemoteWorkspace: async value => ({
+    hydrateRemoteWorkspace: async (value, options) => (hydrationPolicies.push(options), {
       ...structuredClone(value),
       conversations: value.conversations.map(conversation => ({
         ...structuredClone(conversation),
@@ -619,11 +620,16 @@ test('shadow sync externalizes upload assets and hydrates remote image assets', 
   });
 
   assert.equal((await sync.initialize()).state, 'ready');
+  assert.deepEqual(hydrationPolicies, [{ allowNetwork: false }]);
   assert.deepEqual(remoteRows.messages[0].parts[0].inlineData.data, inlineMarker);
   assert.equal(JSON.stringify(remoteRows).includes('LOCAL_IMAGE_BYTES'), false);
   assert.deepEqual(remoteRows.messages[0].parts[1].generatedImage.cloudAsset, generatedMarker);
 
   const pulled = await sync.pullWorkspace({ conversations: [], folders: [], astras: [] });
+  assert.deepEqual(hydrationPolicies, [
+    { allowNetwork: false },
+    { allowNetwork: false }
+  ]);
   const pulledParts = pulled.conversations[0].messages[0].parts;
   assert.equal(pulledParts[0].inlineData.data, 'RESTORED_IMAGE_BYTES');
   assert.equal('cloudAsset' in pulledParts[1].generatedImage, false);

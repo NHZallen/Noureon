@@ -44,6 +44,13 @@ function getMarker(value) {
   return value && typeof value === 'object' && value[ASSET_MARKER] ? value[ASSET_MARKER] : null;
 }
 
+function countAssetMarkers(value) {
+  if (getMarker(value)) return 1;
+  if (!value || typeof value !== 'object' || value instanceof Blob) return 0;
+  const children = Array.isArray(value) ? value : Object.values(value);
+  return children.reduce((total, child) => total + countAssetMarkers(child), 0);
+}
+
 function isBlobLike(value) {
   return value instanceof Blob || Boolean(value && typeof value.arrayBuffer === 'function' && typeof value.size === 'number');
 }
@@ -335,7 +342,16 @@ export function createCloudAssetTransport({
     return output;
   }
 
-  return { externalize, hydrate };
+  async function hydrateConversation(conversation) {
+    const markerCount = countAssetMarkers(conversation);
+    const hydratedConversation = await hydrate(conversation, { allowNetwork: true });
+    return {
+      conversation: hydratedConversation,
+      resolvedCount: Math.max(0, markerCount - countAssetMarkers(hydratedConversation))
+    };
+  }
+
+  return { externalize, hydrate, hydrateConversation };
 }
 
 export const cloudAssetPolicy = Object.freeze({ bucket: DEFAULT_BUCKET, marker: ASSET_MARKER });

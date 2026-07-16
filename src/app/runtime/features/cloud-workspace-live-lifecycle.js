@@ -91,16 +91,50 @@ export function createCloudWorkspaceLiveLifecycle({
   renderChat,
   applyLanguage = () => {},
   getActiveConversation = () => null,
+  hydrateConversation = conversation => window?.__astraCloudAssets?.hydrateConversation?.(conversation),
   onActiveConversationUnavailable = () => {},
   saveAppData = async () => {},
   busy = () => false,
-  schedule = (callback, delay) => globalThis.setTimeout(callback, delay)
+  schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
+  logger = console
 } = {}) {
   let ready = false;
   let pendingAppData = null;
   let pendingConfig = null;
   let deferredRenderTimer = null;
   let protectedConversation = null;
+  let hydrationGeneration = 0;
+
+  const hydrateActiveConversation = async () => {
+    const requestGeneration = ++hydrationGeneration;
+    const activeConversation = getActiveConversation();
+    if (!activeConversation || busy() || typeof hydrateConversation !== 'function') return false;
+    const result = await hydrateConversation(activeConversation);
+    if (requestGeneration !== hydrationGeneration || result?.resolvedCount <= 0) return false;
+    const currentConversation = getActiveConversation();
+    if (!result?.conversation || currentConversation?.id !== activeConversation.id) return false;
+    const conversations = appDataStore.getConversations();
+    const hydratedConversation = preserveItemIdentity(
+      [currentConversation],
+      [result.conversation]
+    )[0];
+    appDataStore.replaceConversations(conversations.map(conversation => (
+      conversation?.id === activeConversation.id ? hydratedConversation : conversation
+    )));
+    await saveAppData();
+    renderChat?.({
+      reason: 'cloud-active-conversation-hydrated',
+      animate: false,
+      scrollMode: 'preserve'
+    });
+    return true;
+  };
+
+  const requestActiveConversationHydration = () => {
+    void hydrateActiveConversation().catch(error => {
+      logger.warn('Noureon could not hydrate the active cloud conversation.', error);
+    });
+  };
 
   const renderWhenResponseSettles = () => {
     if (busy()) {
@@ -209,6 +243,7 @@ export function createCloudWorkspaceLiveLifecycle({
       });
     }
     renderWorkspaceChanges({ sidebarChanged, activeConversationChanged, controlsChanged });
+    requestActiveConversationHydration();
   };
 
   const applyConfig = (savedConfig) => {
@@ -283,7 +318,8 @@ export function createCloudWorkspaceLiveLifecycle({
     { recordLevel: true, tombstones: event.detail?.tombstones }
   ));
   window.addEventListener('astra:cloud-config', event => applyConfig(event.detail));
+  window.addEventListener('astra:active-conversation-changed', requestActiveConversationHydration);
   window.__astraCloudRuntimeReady = markReady;
 
-  return { markReady };
+  return { markReady, hydrateActiveConversation };
 }
