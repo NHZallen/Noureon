@@ -37,6 +37,7 @@ const SCHEMA_VERSION = 2;
 const TRASH_SYNC_CAPABILITY = 1;
 const CAPTURE_DEBOUNCE_MS = 1000;
 const REMOTE_FETCH_PAGE_SIZE = 1000;
+const REMOTE_DELTA_PAGE_SIZE = 500;
 const FOLDER_COLUMNS = [
   'id', 'user_id', 'name', 'color', 'icon', 'text_color', 'deleted_at'
 ].join(',');
@@ -92,6 +93,32 @@ function isWorkspaceSyncSequencePermissionError(error) {
   const code = String(error?.code || '');
   const message = String(error?.message || error || '');
   return code === '42501' && /workspace_sync_seq|sequence/i.test(message);
+}
+
+function normalizeRemoteSequence(value) {
+  if (typeof value === 'bigint') return value >= 0n ? value.toString() : null;
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value >= 0 ? String(value) : null;
+  }
+  if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) return null;
+  try {
+    return BigInt(value.trim()).toString();
+  } catch {
+    return null;
+  }
+}
+
+function isMissingWorkspaceDeltaError(error) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || error || '');
+  return (code === 'PGRST202' || code === '42883')
+    && /fetch_workspace_delta|could not find the function|function .* does not exist/i.test(message);
+}
+
+function createWorkspaceDeltaError(code, message, cause) {
+  const error = new Error(message, cause ? { cause } : undefined);
+  error.code = code;
+  return error;
 }
 
 async function runInChunks(items, size, task) {
@@ -391,6 +418,8 @@ export function createConversationShadowRepository({
   fetchPageSize = REMOTE_FETCH_PAGE_SIZE
 } = {}) {
   const pageSize = Math.max(1, Math.floor(Number(fetchPageSize) || REMOTE_FETCH_PAGE_SIZE));
+  let deltaCapability = null;
+  let deltaUnsupportedCause = null;
 
   async function fetchRangePages(createQuery) {
     const rows = [];
@@ -627,6 +656,93 @@ export function createConversationShadowRepository({
     return { folders, conversations, messages, astras };
   }
 
+  async function fetchWorkspaceDelta(afterSeq = 0, limit = REMOTE_DELTA_PAGE_SIZE) {
+    if (deltaCapability === false) {
+      throw createWorkspaceDeltaError(
+        'ASTRA_WORKSPACE_DELTA_UNSUPPORTED',
+        'Workspace delta RPC is not installed.',
+        deltaUnsupportedCause
+      );
+    }
+    const initialSequence = normalizeRemoteSequence(afterSeq);
+    if (initialSequence == null) {
+      throw createWorkspaceDeltaError(
+        'ASTRA_WORKSPACE_DELTA_INVALID',
+        'Workspace delta watermark is invalid.'
+      );
+    }
+    const requestedLimit = Number(limit);
+    const pageLimit = Math.max(1, Math.min(
+      Number.isFinite(requestedLimit) ? Math.floor(requestedLimit) : REMOTE_DELTA_PAGE_SIZE,
+      1000
+    ));
+    const pages = [];
+    let currentSequence = initialSequence;
+    let rowCount = 0;
+
+    while (true) {
+      const { data: rawData, error } = await supabase.rpc('fetch_workspace_delta', {
+        p_after_seq: currentSequence,
+        p_limit: pageLimit
+      });
+      if (error) {
+        if (isMissingWorkspaceDeltaError(error)) {
+          deltaCapability = false;
+          deltaUnsupportedCause = error;
+          throw createWorkspaceDeltaError(
+            'ASTRA_WORKSPACE_DELTA_UNSUPPORTED',
+            'Workspace delta RPC is not installed.',
+            error
+          );
+        }
+        throw error;
+      }
+      let data = rawData;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch { data = null; }
+      }
+      if (!data || typeof data !== 'object' || !Array.isArray(data.changes)
+        || typeof data.has_more !== 'boolean') {
+        throw createWorkspaceDeltaError(
+          'ASTRA_WORKSPACE_DELTA_INVALID',
+          'Workspace delta RPC returned a malformed page.'
+        );
+      }
+      let previousSequence = BigInt(currentSequence);
+      for (const change of data.changes) {
+        const sequence = normalizeRemoteSequence(change?.sync_seq);
+        if (!change || typeof change.collection !== 'string'
+          || !change.row || typeof change.row !== 'object' || Array.isArray(change.row)
+          || sequence == null || BigInt(sequence) <= previousSequence) {
+          throw createWorkspaceDeltaError(
+            'ASTRA_WORKSPACE_DELTA_INVALID',
+            'Workspace delta RPC returned unordered changes.'
+          );
+        }
+        previousSequence = BigInt(sequence);
+      }
+      const nextSequence = normalizeRemoteSequence(data.next_seq);
+      if (nextSequence == null || BigInt(nextSequence) !== previousSequence
+        || (data.has_more && nextSequence === currentSequence)) {
+        throw createWorkspaceDeltaError(
+          'ASTRA_WORKSPACE_DELTA_INVALID',
+          'Workspace delta RPC returned a non-advancing watermark.'
+        );
+      }
+      pages.push({
+        changes: data.changes,
+        next_seq: nextSequence,
+        has_more: data.has_more
+      });
+      rowCount += data.changes.length;
+      currentSequence = nextSequence;
+      deltaCapability = true;
+      if (!data.has_more) break;
+    }
+
+    return { pages, nextSeq: currentSequence, rowCount };
+  }
+
   async function fetchTombstones() {
     return fetchRangePages(() => supabase
       .from('workspace_tombstones')
@@ -680,6 +796,7 @@ export function createConversationShadowRepository({
     upsertAstras,
     verify,
     fetchWorkspace,
+    fetchWorkspaceDelta,
     fetchTombstones,
     permanentlyDeleteConversations,
     permanentlyDeleteFolder,

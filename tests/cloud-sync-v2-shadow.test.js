@@ -858,6 +858,102 @@ test('repository rejects a complete snapshot when a later range page fails', asy
   assert.equal(ranges.some(([table, from]) => table === 'workspace_messages' && from === 2), true);
 });
 
+test('repository reads every ordered workspace delta page from the returned watermark', async () => {
+  const calls = [];
+  const responses = [
+    {
+      changes: [{
+        collection: 'folders',
+        sync_seq: 11,
+        row: { id: 'folder-1', sync_seq: 11 }
+      }],
+      next_seq: 11,
+      has_more: true
+    },
+    {
+      changes: [{
+        collection: 'conversations',
+        sync_seq: '12',
+        row: { id: 'conversation-1', sync_seq: '12' }
+      }],
+      next_seq: '12',
+      has_more: false
+    }
+  ];
+  const repository = createConversationShadowRepository({
+    userId,
+    supabase: {
+      async rpc(name, args) {
+        calls.push([name, args]);
+        return { data: responses.shift(), error: null };
+      }
+    }
+  });
+
+  const result = await repository.fetchWorkspaceDelta('10', 250);
+
+  assert.deepEqual(calls, [
+    ['fetch_workspace_delta', { p_after_seq: '10', p_limit: 250 }],
+    ['fetch_workspace_delta', { p_after_seq: '11', p_limit: 250 }]
+  ]);
+  assert.equal(result.pages.length, 2);
+  assert.equal(result.nextSeq, '12');
+  assert.equal(result.rowCount, 2);
+});
+
+test('repository classifies only a missing delta RPC as unsupported capability', async () => {
+  let missingCalls = 0;
+  const missingRepository = createConversationShadowRepository({
+    userId,
+    supabase: {
+      async rpc() {
+        missingCalls += 1;
+        return {
+          data: null,
+          error: { code: 'PGRST202', message: 'Could not find the function fetch_workspace_delta' }
+        };
+      }
+    }
+  });
+
+  await assert.rejects(
+    () => missingRepository.fetchWorkspaceDelta('0'),
+    error => error?.code === 'ASTRA_WORKSPACE_DELTA_UNSUPPORTED'
+  );
+  await assert.rejects(
+    () => missingRepository.fetchWorkspaceDelta('0'),
+    error => error?.code === 'ASTRA_WORKSPACE_DELTA_UNSUPPORTED'
+  );
+  assert.equal(missingCalls, 1);
+
+  const permissionError = { code: '42501', message: 'permission denied' };
+  const deniedRepository = createConversationShadowRepository({
+    userId,
+    supabase: { rpc: async () => ({ data: null, error: permissionError }) }
+  });
+  await assert.rejects(
+    () => deniedRepository.fetchWorkspaceDelta('0'),
+    error => error === permissionError
+  );
+});
+
+test('repository rejects malformed or non-advancing workspace delta pages', async () => {
+  const malformedRepository = createConversationShadowRepository({
+    userId,
+    supabase: {
+      rpc: async () => ({
+        data: { changes: [], next_seq: 0, has_more: true },
+        error: null
+      })
+    }
+  });
+
+  await assert.rejects(
+    () => malformedRepository.fetchWorkspaceDelta('0'),
+    error => error?.code === 'ASTRA_WORKSPACE_DELTA_INVALID'
+  );
+});
+
 test('repository reuses remote message ids for existing conversation sequence rows', async () => {
   const calls = [];
   const remoteMessageId = 'remote-message-id';
