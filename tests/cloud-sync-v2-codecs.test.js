@@ -6,6 +6,7 @@ import {
   decodeWorkspaceConversationShadow,
   deterministicUuid,
   encodeWorkspaceConversationShadow,
+  getShadowRowDifferingFields,
   isUuid,
   shadowRowsEqual
 } from '../src/app/sync/cloud-sync-v2-codecs.js';
@@ -21,6 +22,25 @@ test('deterministic message IDs are stable UUIDs', async () => {
   assert.equal(first, second);
   assert.equal(isUuid(first), true);
   assert.equal(first[14], '5');
+});
+
+test('shadow row diagnostics report field names without returning field values', () => {
+  const fields = getShadowRowDifferingFields(
+    {
+      id: conversationId,
+      title: 'private local title',
+      metadata: { clientUpdatedAt: '2026-07-16T08:00:00.000Z', secret: 'local' }
+    },
+    {
+      id: conversationId,
+      title: 'private remote title',
+      metadata: { clientUpdatedAt: '2026-07-16T08:00:00Z', secret: 'remote' }
+    }
+  );
+
+  assert.deepEqual(fields, ['metadata', 'title']);
+  assert.equal(JSON.stringify(fields).includes('private'), false);
+  assert.equal(JSON.stringify(fields).includes('secret'), false);
 });
 
 test('conversation shadow codec keeps text but never uploads attachment bytes', async () => {

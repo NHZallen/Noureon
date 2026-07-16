@@ -2,8 +2,8 @@ import {
   decodeWorkspaceConversationShadow,
   deterministicUuid,
   encodeWorkspaceConversationShadow,
+  getShadowRowDifferingFields,
   isUuid,
-  shadowRowsEqual
 } from './cloud-sync-v2-codecs.js';
 import {
   cloudValuesEqual,
@@ -136,11 +136,6 @@ async function runInChunks(items, size, task) {
   for (let index = 0; index < items.length; index += size) {
     await task(items.slice(index, index + size));
   }
-}
-
-function includesLocalRows(localRows, remoteRows) {
-  const remoteById = new Map((remoteRows || []).map(row => [row.id, row]));
-  return localRows.every(local => shadowRowsEqual(local, remoteById.get(local.id)));
 }
 
 function describeShadowError(error) {
@@ -618,7 +613,12 @@ export function createConversationShadowRepository({
   }
 
   async function verify({ folders = [], conversations = [], messages = [], astras = [] }) {
-    const verifyRows = async (table, columns, localRows) => {
+    const mismatch = (collection, local, remote, differingFields) => ({
+      collection,
+      id: local?.id || remote?.id || null,
+      differingFields: differingFields || getShadowRowDifferingFields(local, remote)
+    });
+    const verifyRows = async (collection, table, columns, localRows) => {
       for (let index = 0; index < localRows.length; index += 200) {
         const chunk = localRows.slice(index, index + 200);
         const { data, error } = await supabase
@@ -627,9 +627,14 @@ export function createConversationShadowRepository({
           .eq('user_id', userId)
           .in('id', chunk.map(row => row.id));
         if (error) throw error;
-        if (!includesLocalRows(chunk, data)) return false;
+        const remoteById = new Map((data || []).map(row => [row.id, row]));
+        for (const local of chunk) {
+          const remote = remoteById.get(local.id);
+          const differingFields = getShadowRowDifferingFields(local, remote);
+          if (differingFields.length) return mismatch(collection, local, remote, differingFields);
+        }
       }
-      return true;
+      return null;
     };
     const verifyAstras = async (localRows) => {
       for (let index = 0; index < localRows.length; index += 200) {
@@ -640,16 +645,27 @@ export function createConversationShadowRepository({
           .eq('user_id', userId)
           .in('id', chunk.map(row => row.id));
         if (error) throw error;
-        if ((data || []).some(row => row.deleted_at)) return false;
-        const comparable = (data || []).map(({ deleted_at: _deletedAt, ...row }) => row);
-        if (!includesLocalRows(chunk, comparable)) return false;
+        const remoteById = new Map((data || []).map(row => [row.id, row]));
+        for (const local of chunk) {
+          const remote = remoteById.get(local.id);
+          if (remote?.deleted_at) return mismatch('astras', local, remote, ['deleted_at']);
+          const { deleted_at: _deletedAt, ...comparable } = remote || {};
+          const differingFields = getShadowRowDifferingFields(local, comparable);
+          if (differingFields.length) return mismatch('astras', local, remote, differingFields);
+        }
       }
-      return true;
+      return null;
     };
-    return await verifyRows('workspace_folders', FOLDER_COLUMNS, folders)
-      && await verifyRows('workspace_conversations', CONVERSATION_COLUMNS, conversations)
-      && await verifyRows('workspace_messages', MESSAGE_COLUMNS, messages)
-      && await verifyAstras(astras);
+    const verificationMismatch = await verifyRows(
+      'folders', 'workspace_folders', FOLDER_COLUMNS, folders
+    ) || await verifyRows(
+      'conversations', 'workspace_conversations', CONVERSATION_COLUMNS, conversations
+    ) || await verifyRows(
+      'messages', 'workspace_messages', MESSAGE_COLUMNS, messages
+    ) || await verifyAstras(astras);
+    return verificationMismatch
+      ? { verified: false, mismatch: verificationMismatch }
+      : { verified: true, mismatch: null };
   }
 
   async function fetchWorkspace() {
@@ -1072,11 +1088,15 @@ export function createConversationShadowSync({
         await repository.upsertAstras(uploadRows.astras);
         assertCurrent();
       }
-      const verified = await repository.verify(uploadRows);
+      const verification = await repository.verify(uploadRows);
       assertCurrent();
+      const verified = typeof verification === 'boolean'
+        ? verification
+        : verification?.verified === true;
       if (!verified) {
         const error = new Error('Sync V2 shadow verification did not match the local workspace.');
         error.code = 'ASTRA_SHADOW_VERIFY_MISMATCH';
+        if (verification?.mismatch) error.details = verification.mismatch;
         throw error;
       }
       if (writeMigrationState) {

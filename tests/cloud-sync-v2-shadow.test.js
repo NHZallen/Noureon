@@ -591,6 +591,40 @@ test('verification failure never ACKs, invalidates baseline, and makes the next 
   assert.equal(sync.getStatus().uploadedRows, 3);
 });
 
+test('structured verification mismatch is exposed without workspace content', async () => {
+  const mismatch = {
+    collection: 'conversations',
+    id: conversationId,
+    differingFields: ['title']
+  };
+  const sync = createConversationShadowSync({
+    repository: {
+      probe: async () => null,
+      fetchTombstones: async () => [],
+      fetchWorkspace: async () => ({ folders: [], conversations: [], messages: [], astras: [] }),
+      setMigrationState: async () => {},
+      upsertFolders: async () => {},
+      upsertConversations: async () => {},
+      upsertMessages: async () => {},
+      upsertAstras: async () => {},
+      verify: async () => ({ verified: false, mismatch })
+    },
+    readWorkspace: async () => structuredClone(workspace),
+    writeWorkspace: async () => {},
+    userId,
+    cryptoProvider: webcrypto,
+    logger: { warn: () => {} }
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'retry');
+  assert.equal(status.code, 'ASTRA_SHADOW_VERIFY_MISMATCH');
+  assert.deepEqual(status.details, mismatch);
+  assert.equal(JSON.stringify(status.details).includes(workspace.conversations[0].title), false);
+  assert.equal(JSON.stringify(status.details).includes('Hello'), false);
+});
+
 test('trusted baseline delta cannot resurrect a conversation covered by a tombstone', async () => {
   const remoteRows = await remoteRowsFor();
   const uploads = [];
@@ -836,6 +870,39 @@ test('repository uses tombstone select and protected RPC upserts', async () => {
     ['upsert_workspace_conversations', { p_rows: [{ id: 'conversation' }] }],
     ['upsert_workspace_messages', { p_rows: [{ id: 'message' }] }]
   ]);
+});
+
+test('repository verify returns a sanitized verification mismatch', async () => {
+  const rows = await remoteRowsFor();
+  const localConversation = rows.conversations[0];
+  const remoteConversation = {
+    ...structuredClone(localConversation),
+    title: 'private remote title'
+  };
+  const supabase = {
+    from(table) {
+      assert.equal(table, 'workspace_conversations');
+      return {
+        select() { return this; },
+        eq() { return this; },
+        in() { return Promise.resolve({ data: [remoteConversation], error: null }); }
+      };
+    }
+  };
+  const repository = createConversationShadowRepository({ supabase, userId });
+
+  const result = await repository.verify({ conversations: [localConversation] });
+
+  assert.deepEqual(result, {
+    verified: false,
+    mismatch: {
+      collection: 'conversations',
+      id: conversationId,
+      differingFields: ['title']
+    }
+  });
+  assert.equal(JSON.stringify(result).includes(localConversation.title), false);
+  assert.equal(JSON.stringify(result).includes(remoteConversation.title), false);
 });
 
 test('repository probe requires the trash-sync database capability before enabling writes', async () => {

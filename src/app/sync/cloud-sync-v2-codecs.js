@@ -385,6 +385,13 @@ export function shadowRowsEqual(left, right) {
   return JSON.stringify(canonicalizeShadowRow(left)) === JSON.stringify(canonicalizeShadowRow(right));
 }
 
+export function getShadowRowDifferingFields(left, right) {
+  const local = canonicalizeShadowRow(left);
+  const remote = canonicalizeShadowRow(right);
+  const keys = [...new Set([...Object.keys(local), ...Object.keys(remote)])].sort();
+  return keys.filter(key => JSON.stringify(local[key]) !== JSON.stringify(remote[key]));
+}
+
 export function decodeWorkspaceConversationShadow({
   folders = [],
   conversations = [],
