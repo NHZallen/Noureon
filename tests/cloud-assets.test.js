@@ -267,6 +267,36 @@ test('cloud assets restore generated image blobs to their IndexedDB storage key'
   );
 });
 
+test('cloud assets prefer an existing generated image blob over Storage download', async () => {
+  const fixture = createFixture();
+  const storageKey = 'generatedImage:supabase:user-1:image-existing';
+  fixture.localFiles.set(storageKey, new Blob([new Uint8Array([9, 8, 7])], { type: 'image/webp' }));
+  const transport = createCloudAssetTransport({
+    ...fixture,
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+  const value = {
+    generatedImage: {
+      id: 'image-existing',
+      storageKey,
+      mediaType: 'image/webp',
+      cloudAsset: {
+        __astraCloudAsset: {
+          path: 'user-1/generated-image-existing',
+          mimeType: 'image/webp',
+          encoding: 'blob'
+        }
+      }
+    }
+  };
+
+  const hydrated = await transport.hydrate(value, { allowNetwork: true });
+
+  assert.equal('cloudAsset' in hydrated.generatedImage, false);
+  assert.equal(fixture.downloadCounts.size, 0);
+});
+
 test('missing cloud assets preserve their retry marker without retrying the same path in-session', async () => {
   const fixture = createFixture();
   const warnings = [];

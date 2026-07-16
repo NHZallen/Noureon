@@ -302,7 +302,15 @@ export function createCloudAssetTransport({
         const generatedMarker = getMarker(child.cloudAsset);
         const restoreKey = generatedMarker && `${generatedMarker.path}:${child.storageKey}`;
         let restored = Boolean(restoreKey && restoredGeneratedImages.has(restoreKey));
-        if (restoreKey && !restoredGeneratedImages.has(restoreKey)) {
+        if (!restored) {
+          try {
+            restored = isBlobLike(await storage.getItem(child.storageKey));
+          } catch {
+            restored = false;
+          }
+          if (restored && restoreKey) restoredGeneratedImages.add(restoreKey);
+        }
+        if (restoreKey && !restored) {
           const blob = await downloadMarker(generatedMarker, { allowNetwork });
           if (blob) {
             await storage.setItem(child.storageKey, blob);
