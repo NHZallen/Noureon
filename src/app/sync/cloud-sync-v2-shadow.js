@@ -195,6 +195,32 @@ function emptyShadowRows() {
   return { folders: [], conversations: [], messages: [], astras: [] };
 }
 
+function preserveDeferredConversationFolderRows(encoded, baseline, deferredIds) {
+  if (!deferredIds.size) return encoded;
+  const baselineById = new Map((baseline?.conversations || []).map(row => [row?.id, row]));
+  const encodedIds = new Set();
+  const conversations = (encoded?.conversations || []).map(row => {
+    if (!row?.id || !deferredIds.has(row.id)) return row;
+    encodedIds.add(row.id);
+    const baselineRow = baselineById.get(row.id);
+    const currentFolderId = row.folder_id || null;
+    const baselineFolderId = baselineRow?.folder_id || null;
+    if (currentFolderId === baselineFolderId) {
+      deferredIds.delete(row.id);
+      return row;
+    }
+    const metadata = { ...(row.metadata || {}) };
+    const baselineLegacyFolderId = baselineRow?.metadata?.legacyFolderId || baselineFolderId;
+    if (baselineLegacyFolderId) metadata.legacyFolderId = baselineLegacyFolderId;
+    else delete metadata.legacyFolderId;
+    return { ...row, folder_id: baselineFolderId, metadata };
+  });
+  for (const id of deferredIds) {
+    if (!encodedIds.has(id)) deferredIds.delete(id);
+  }
+  return { ...encoded, conversations };
+}
+
 function cloneShadowRows(rows = {}) {
   return {
     folders: (rows.folders || []).map(row => row && typeof row === 'object' ? { ...row } : row),
@@ -862,6 +888,7 @@ export function createConversationShadowSync({
   let astraTombstoneIds = new Set();
   let uploadBaseline = null;
   let baselineTrusted = false;
+  const deferredConversationFolderIds = new Set();
   let migrationPending = true;
   let generation = 0;
   let fullSnapshotFallbackCount = 0;
@@ -879,7 +906,8 @@ export function createConversationShadowSync({
     baselineReset: false,
     fullSnapshotFallbackCount: 0,
     lastSnapshotFallbackReason: null,
-    currentRemoteWatermark: null
+    currentRemoteWatermark: null,
+    deferredFolderSyncCount: 0
   });
 
   const setStatus = next => {
@@ -1020,7 +1048,12 @@ export function createConversationShadowSync({
       error.details = { reason: reconciliation.reason };
       throw error;
     }
-    const encoded = reconciliation.encoded;
+    const encoded = preserveDeferredConversationFolderRows(
+      reconciliation.encoded,
+      hadTrustedBaseline ? uploadBaseline : emptyShadowRows(),
+      deferredConversationFolderIds
+    );
+    const deferredFolderSyncCount = deferredConversationFolderIds.size;
     const fullResyncRequired = capture.journal?.fullResyncRequired === true;
     const forceFullUpload = fullResyncRequired || baselineMissingAtStart || !hadTrustedBaseline;
     const uploadRows = createShadowUploadDelta(
@@ -1052,6 +1085,7 @@ export function createConversationShadowSync({
         ? 'journal-full-resync'
         : baselineMissingAtStart || !hadTrustedBaseline ? 'missing-trusted-baseline' : null,
       baselineTrusted: Boolean(hadTrustedBaseline),
+      deferredFolderSyncCount,
       skipped: encoded.skippedConversationIds.length,
       skippedConversationIds: encoded.skippedConversationIds.slice(0, 10),
       lastUploadStartedAt: now(),
@@ -1118,7 +1152,7 @@ export function createConversationShadowSync({
       throw error;
     }
     let acknowledgement = null;
-    if (typeof acknowledgeCapture === 'function' && attemptedRevision) {
+    if (typeof acknowledgeCapture === 'function' && attemptedRevision && deferredFolderSyncCount === 0) {
       acknowledgement = await acknowledgeCapture({ attemptedRevision, capture, assertCurrent });
       assertCurrent();
       if (acknowledgement?.acknowledged === false && !pendingWorkspace) {
@@ -1145,6 +1179,7 @@ export function createConversationShadowSync({
       uploadedRows,
       fullUpload: forceFullUpload,
       baselineTrusted,
+      deferredFolderSyncCount,
       skipped: encoded.skippedConversationIds.length,
       journalAcknowledged: acknowledgement?.acknowledged,
       lastCompletedAt: now()
@@ -1390,6 +1425,19 @@ export function createConversationShadowSync({
       local: summarizeWorkspace(workspace)
     });
     return true;
+  }
+
+  function deferConversationFolderSync(conversationIds = []) {
+    let changed = false;
+    const ids = Array.isArray(conversationIds) ? conversationIds : [conversationIds];
+    for (const value of ids) {
+      const id = typeof value === 'string' ? value.trim() : '';
+      if (!id || deferredConversationFolderIds.has(id)) continue;
+      deferredConversationFolderIds.add(id);
+      changed = true;
+    }
+    setStatus({ deferredFolderSyncCount: deferredConversationFolderIds.size });
+    return changed;
   }
 
   async function permanentlyDeleteConversations(conversationIds, options = {}) {
@@ -1934,13 +1982,15 @@ export function createConversationShadowSync({
     if (timer != null) cancel(timer);
     timer = null;
     pendingWorkspace = null;
+    deferredConversationFolderIds.clear();
     invalidateUploadBaseline();
-    setStatus({ state: 'stopped', enabled: false, pending: false });
+    setStatus({ state: 'stopped', enabled: false, pending: false, deferredFolderSyncCount: 0 });
   }
 
   return {
     initialize,
     captureWorkspace,
+    deferConversationFolderSync,
     permanentlyDeleteConversations,
     permanentlyDeleteFolder,
     permanentlyDeleteAstras,

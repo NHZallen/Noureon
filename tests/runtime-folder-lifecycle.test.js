@@ -91,9 +91,10 @@ function createHarness(overrides = {}) {
       return folders;
     },
     getDefaultFolder: () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false }),
-    saveAppData: async () => {
-      calls.push(['saveAppData']);
+    saveAppData: async (...args) => {
+      calls.push(['saveAppData', ...args]);
     },
+    deferConversationFolderSync: (...args) => calls.push(['deferConversationFolderSync', ...args]),
     deleteFolderFromCloud: overrides.deleteFolderFromCloud || (async (...args) => calls.push(['deleteFolderFromCloud', ...args])),
     renderFolders: () => calls.push(['renderFolders']),
     renderAll: () => calls.push(['renderAll']),
@@ -188,7 +189,11 @@ test('moveConversationToFolder reads live arrays and preserves save-render order
   assert.deepEqual(firstFolder.conversationIds, []);
   assert.deepEqual(secondFolder.conversationIds, ['conv']);
   assert.equal(conversation.folderId, 'new');
-  assert.deepEqual(harness.calls, [['saveAppData'], ['renderSidebar']]);
+  assert.deepEqual(harness.calls, [
+    ['deferConversationFolderSync', 'conv'],
+    ['saveAppData'],
+    ['renderSidebar']
+  ]);
 });
 
 test('moveConversationToFolder uses the latest conversations pointer after replacement', async () => {
@@ -208,7 +213,11 @@ test('moveConversationToFolder uses the latest conversations pointer after repla
   assert.deepEqual(folder.conversationIds, ['conv']);
   assert.deepEqual(staleConversations, [staleConversation]);
   assert.equal(staleConversation.folderId, null);
-  assert.deepEqual(harness.calls, [['saveAppData'], ['renderSidebar']]);
+  assert.deepEqual(harness.calls, [
+    ['deferConversationFolderSync', 'conv'],
+    ['saveAppData'],
+    ['renderSidebar']
+  ]);
 });
 
 test('deleteFolder clears linked conversations before replacement and persistence', async () => {

@@ -336,6 +336,69 @@ test('trusted baseline uploads only one new message and then only one new folder
   assert.equal(sync.getStatus().uploadedRows, 0);
 });
 
+test('folder moves remain local until a new sync session uploads them after reload', async () => {
+  const remoteRows = await remoteRowsFor();
+  const uploads = [];
+  let scheduled;
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async () => {},
+    upsertFolders: async rows => uploads.push(['folders', rows]),
+    upsertConversations: async rows => uploads.push(['conversations', rows]),
+    upsertMessages: async rows => uploads.push(['messages', rows]),
+    upsertAstras: async rows => uploads.push(['astras', rows]),
+    verify: async () => true
+  };
+  const firstSession = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    userId,
+    cryptoProvider: webcrypto,
+    canSkipInitialUpload: () => true,
+    schedule: callback => { scheduled = callback; return 1; },
+    cancel: () => {}
+  });
+  assert.equal((await firstSession.initialize()).uploadSkipped, true);
+
+  const movedWorkspace = structuredClone(workspace);
+  movedWorkspace.conversations[0].folderId = null;
+  assert.equal(firstSession.deferConversationFolderSync([conversationId]), true);
+  assert.equal(firstSession.captureWorkspace(movedWorkspace), true);
+  await scheduled();
+
+  assert.equal(uploads.some(([collection]) => collection === 'conversations'), false);
+  assert.equal(firstSession.getStatus().deferredFolderSyncCount, 1);
+
+  uploads.length = 0;
+  movedWorkspace.conversations[0].messages.push({
+    role: 'model',
+    parts: [{ text: 'This message may sync before reload.' }],
+    createdAt: '2026-07-06T01:05:00.000Z'
+  });
+  assert.equal(firstSession.captureWorkspace(movedWorkspace), true);
+  await scheduled();
+  assert.equal(uploads.some(([collection]) => collection === 'conversations'), false);
+  assert.equal(uploads.some(([collection]) => collection === 'messages'), true);
+  assert.equal(firstSession.getStatus().deferredFolderSyncCount, 1);
+
+  uploads.length = 0;
+  const reloadedSession = createConversationShadowSync({
+    repository,
+    readWorkspace: async () => structuredClone(movedWorkspace),
+    commitWorkspace: async () => structuredClone(movedWorkspace),
+    userId,
+    cryptoProvider: webcrypto
+  });
+  assert.equal((await reloadedSession.initialize()).state, 'ready');
+  const conversationUpload = uploads.find(([collection]) => collection === 'conversations');
+  assert.ok(conversationUpload);
+  assert.equal(conversationUpload[1][0].folder_id, null);
+});
+
 test('journal fullResyncRequired forces a full upload and migration state transition', async () => {
   const remoteRows = await remoteRowsFor();
   const uploads = [];

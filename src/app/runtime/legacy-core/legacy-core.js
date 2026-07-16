@@ -1354,6 +1354,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders),
             getDefaultFolder,
             saveAppData,
+            deferConversationFolderSync: id => globalThis.__astraCloudSyncV2?.deferConversationFolderSync?.([id]),
             deleteFolderFromCloud,
             renderFolders,
             renderAll,

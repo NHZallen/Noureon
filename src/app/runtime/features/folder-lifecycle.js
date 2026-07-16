@@ -6,6 +6,7 @@ export function createLegacyFolderLifecycle({
   replaceFolders,
   getDefaultFolder,
   saveAppData,
+  deferConversationFolderSync = () => {},
   deleteFolderFromCloud = async () => {},
   renderFolders,
   renderAll,
@@ -60,6 +61,7 @@ export function createLegacyFolderLifecycle({
         newFolder.conversationIds.push(convId);
       }
     }
+    deferConversationFolderSync(convId);
     await saveAppData();
     renderSidebar();
   };
