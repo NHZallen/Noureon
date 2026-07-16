@@ -76,6 +76,42 @@ async function remoteRowsFor(localWorkspace = workspace) {
   };
 }
 
+test('initialization and retry use the injected remote state reader instead of full table fetches', async () => {
+  let remoteStateReads = 0;
+  const localWorkspace = { conversations: [], folders: [], astras: [] };
+  const repository = {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => assert.fail('injected remote state must own tombstone reads'),
+    fetchWorkspace: async () => assert.fail('injected remote state must own workspace reads')
+  };
+  const sync = createConversationShadowSync({
+    repository,
+    fetchRemoteState: async ({ assertCurrent }) => {
+      remoteStateReads += 1;
+      assertCurrent();
+      return {
+        rows: { folders: [], conversations: [], messages: [], astras: [] },
+        tombstones: []
+      };
+    },
+    readWorkspace: async () => localWorkspace,
+    writeWorkspace: async () => {},
+    readCaptureState: async () => ({
+      workspace: localWorkspace,
+      journal: { dirty: false, fullResyncRequired: false },
+      revision: null
+    }),
+    canSkipInitialUpload: () => true,
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  assert.equal((await sync.initialize()).state, 'ready');
+  assert.equal((await sync.retry()).state, 'ready');
+  assert.equal(remoteStateReads, 2);
+});
+
 test('shadow initialization refreshes, writes local, then uploads and verifies', async () => {
   const calls = [];
   const repository = {
@@ -2429,6 +2465,12 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
     from: table => queryFor(table),
     rpc: async (name, { p_rows } = {}) => {
       if (name === 'workspace_trash_sync_capability') return { data: 1, error: null };
+      if (name === 'fetch_workspace_delta') {
+        return {
+          data: null,
+          error: { code: 'PGRST202', message: 'Could not find the function fetch_workspace_delta' }
+        };
+      }
       const table = rpcTables[name];
       const byId = new Map((tables[table] || []).map(row => [row.id, row]));
       for (const row of p_rows) byId.set(row.id, row);
@@ -2474,9 +2516,13 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
 
   assert.equal((await sync.ready).state, 'ready');
   assert.equal(atomicReads.length >= 3, true);
+  const baselineKey = 'chatCloudSyncRemoteBaseline_v1_ordering';
   assert.equal(atomicReads.every(keys => (
-    keys.length === 2 && keys[0] === appDataKey && keys[1] === journalKey
+    keys.length === 2
+    && keys[1] === journalKey
+    && (keys[0] === appDataKey || keys[0] === baselineKey)
   )), true);
+  assert.equal(atomicReads.some(keys => keys[0] === baselineKey), true);
   const legacyLoadedWorkspace = JSON.parse(stored.get(appDataKey));
   assert.deepEqual(legacyLoadedWorkspace.conversations.map(({ id }) => id), [remoteId]);
 

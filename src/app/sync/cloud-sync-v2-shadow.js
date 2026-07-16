@@ -32,6 +32,7 @@ import {
   normalizeCloudSyncJournal,
   requireCloudSyncFullResync
 } from './cloud-sync-journal.js';
+import { createPersistentWorkspaceRemoteReader } from './cloud-sync-v2-remote-state.js';
 
 const SCHEMA_VERSION = 2;
 const TRASH_SYNC_CAPABILITY = 1;
@@ -816,6 +817,7 @@ export function createConversationShadowSync({
   normalizeWorkspace = async workspace => workspace,
   prepareWorkspaceForUpload = async workspace => workspace,
   hydrateRemoteWorkspace = async workspace => workspace,
+  fetchRemoteState,
   readCaptureState,
   acknowledgeCapture,
   canSkipInitialUpload = () => false,
@@ -857,6 +859,24 @@ export function createConversationShadowSync({
     setStatus({ baselineTrusted: false });
   };
 
+  const loadRemoteState = async (assertCurrent = () => {}) => {
+    if (typeof fetchRemoteState === 'function') {
+      const state = await fetchRemoteState({ assertCurrent });
+      assertCurrent();
+      if (!state || !state.rows || !Array.isArray(state.tombstones)) {
+        const error = new Error('Cloud remote state reader returned an invalid snapshot.');
+        error.code = 'ASTRA_SHADOW_INVALID_REMOTE_STATE';
+        throw error;
+      }
+      return state;
+    }
+    const tombstones = await repository.fetchTombstones();
+    assertCurrent();
+    const rows = await repository.fetchWorkspace();
+    assertCurrent();
+    return { tombstones, rows };
+  };
+
   const acceptFetchedUploadBaseline = rows => {
     if (repository?.paginatedSnapshotsAreComplete !== true) {
       invalidateUploadBaseline();
@@ -870,10 +890,7 @@ export function createConversationShadowSync({
 
   const refreshCompleteUploadBaseline = async assertCurrent => {
     if (repository?.paginatedSnapshotsAreComplete !== true) return false;
-    const [tombstones, rows] = await Promise.all([
-      repository.fetchTombstones(),
-      repository.fetchWorkspace()
-    ]);
+    const { tombstones, rows } = await loadRemoteState(assertCurrent);
     assertCurrent();
     tombstoneIndex = createTombstoneIndex(tombstones);
     astraTombstoneIds = createAstraTombstoneIndex(rows.astras);
@@ -1082,11 +1099,19 @@ export function createConversationShadowSync({
       if (generation !== operationGeneration) throw new ShadowSyncStoppedError();
     };
     try {
-      const tombstones = await repository.fetchTombstones();
-      assertOperationCurrent();
+      let tombstones;
+      let rows;
+      if (typeof fetchRemoteState === 'function') {
+        ({ tombstones, rows } = await loadRemoteState(assertOperationCurrent));
+      } else {
+        tombstones = await repository.fetchTombstones();
+        assertOperationCurrent();
+      }
       const nextTombstoneIndex = createTombstoneIndex(tombstones);
       const conversationSanitizedLocal = applyWorkspaceTombstones(localWorkspace, nextTombstoneIndex);
-      const rows = await repository.fetchWorkspace();
+      if (typeof fetchRemoteState !== 'function') {
+        rows = await repository.fetchWorkspace();
+      }
       assertOperationCurrent();
       const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
       const sanitizedLocal = applyAstraTombstones(
@@ -1119,10 +1144,8 @@ export function createConversationShadowSync({
   }
 
   async function refreshWorkspaceNow(assertOperationCurrent = () => {}) {
-    const tombstones = await repository.fetchTombstones();
-    assertOperationCurrent();
+    const { tombstones, rows } = await loadRemoteState(assertOperationCurrent);
     const nextTombstoneIndex = createTombstoneIndex(tombstones);
-    const rows = await repository.fetchWorkspace();
     assertOperationCurrent();
     const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
     const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
@@ -1713,10 +1736,8 @@ export function createConversationShadowSync({
       assertCurrent();
       const normalizedWorkspace = await normalizeWorkspace(workspace);
       assertCurrent();
-      const tombstones = await repository.fetchTombstones();
-      assertCurrent();
+      const { tombstones, rows } = await loadRemoteState(assertCurrent);
       const nextTombstoneIndex = createTombstoneIndex(tombstones);
-      const rows = await repository.fetchWorkspace();
       assertCurrent();
       const nextAstraTombstoneIds = createAstraTombstoneIndex(rows.astras);
       const sanitizedLocal = applyAstraTombstones(
@@ -1883,6 +1904,12 @@ export function initializeConversationShadowSync({
   logger = console
 } = {}) {
   const repository = createConversationShadowRepository({ supabase, userId: user.id });
+  const remoteStateReader = createPersistentWorkspaceRemoteReader({
+    repository,
+    storage,
+    userId: user.id,
+    username
+  });
   const storageKey = `chatAppData_v8.6_${username}`;
   const journalKey = getCloudSyncJournalKey(username);
   const journalNow = typeof now === 'function' ? now : Date.now;
@@ -1977,6 +2004,7 @@ export function initializeConversationShadowSync({
     userId: user.id,
     cryptoProvider,
     normalizeWorkspace,
+    fetchRemoteState: options => remoteStateReader.read(options),
     readCaptureState: ({ assertCurrent }) => withWorkspaceStorageExclusive(async () => {
       const [workspaceRaw, journalRaw] = await readWorkspaceAndJournal();
       const storedWorkspace = parseLocalWorkspace(workspaceRaw);
