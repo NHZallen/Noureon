@@ -63,6 +63,7 @@ test('folder text color metadata preserves exact legacy values', () => {
 
 test('folder runtime palettes include the seven expanded icon colors', () => {
   const runtimeSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const runtimePaletteSource = readSource('src/app/runtime/legacy-core/runtime-ui-colors.js');
   const historyMenuSource = readSource('src/app/runtime/legacy-core/settings-history-menu-helper.js');
   const addedFolderColors = {
     orange: '#fb923c',
@@ -74,9 +75,10 @@ test('folder runtime palettes include the seven expanded icon colors', () => {
     rose: '#fb7185'
   };
 
+  assert.match(runtimeSource, /from ['"]\/src\/app\/runtime\/legacy-core\/runtime-ui-colors\.js['"]/);
   for (const [key, value] of Object.entries(addedFolderColors)) {
     const entryPattern = new RegExp(`\\b${key}\\s*:\\s*['"]${value}['"]`);
-    assert.match(runtimeSource, entryPattern);
+    assert.match(runtimePaletteSource, entryPattern);
     assert.match(historyMenuSource, entryPattern);
   }
 });
