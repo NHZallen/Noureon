@@ -1,5 +1,9 @@
 import { escapeHTML } from '../../runtime/legacy-core/legacy-core-utilities.js';
 
+export function isRenderableAstraAvatarUrl(value) {
+    return typeof value === 'string' && value.trim().length > 0;
+}
+
 export function createSidebarAstrasLifecycle({
     astras,
     clearTimeoutFn = (...args) => globalThis.clearTimeout?.(...args),
@@ -44,7 +48,7 @@ export function createSidebarAstrasLifecycle({
             const item = astrasList.ownerDocument.createElement('div');
             item.className = `sidebar-item w-full text-left p-2.5 rounded-lg flex items-center justify-between cursor-pointer ${ast.id === activeAstrasId && !getSelectionMode() ? 'active' : ''}`;
             item.dataset.id = ast.id;
-            const avatarUrl = ast.avatarUrl;
+            const avatarUrl = isRenderableAstraAvatarUrl(ast.avatarUrl) ? ast.avatarUrl : null;
             const safeName = escapeHTML(displayAstra.name);
             const initials = escapeHTML(displayAstra.name.charAt(0));
             const avatarElement = `

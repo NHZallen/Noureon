@@ -2022,11 +2022,18 @@ export function initializeConversationShadowSync({
     });
     return repaired.workspace;
   };
+  const hydrateLocalAstraAssets = async (workspace) => {
+    if (!assetTransport?.hydrate || !Array.isArray(workspace?.astras) || !workspace.astras.length) {
+      return workspace;
+    }
+    const astras = await assetTransport.hydrate(workspace.astras, { allowNetwork: true });
+    return Array.isArray(astras) ? { ...workspace, astras } : workspace;
+  };
   const sync = createConversationShadowSync({
     repository,
     readWorkspace: async () => {
       const raw = await storage.getItem(storageKey);
-      return parseLocalWorkspace(raw);
+      return hydrateLocalAstraAssets(parseLocalWorkspace(raw));
     },
     commitWorkspace: ({ remoteWorkspace, tombstoneIndex, astraTombstoneIds, assertCurrent }) => withWorkspaceStorageExclusive(async () => {
       const [workspaceRaw, journalRaw] = await readWorkspaceAndJournal();
@@ -2036,7 +2043,7 @@ export function initializeConversationShadowSync({
         userId: user.id,
         cryptoProvider
       });
-      const latestWorkspace = repaired.workspace;
+      const latestWorkspace = await hydrateLocalAstraAssets(repaired.workspace);
       let journal = normalizeCloudSyncJournal(journalRaw, { username });
       if (repaired.changed) {
         journal = markJournalForUpload(
@@ -2081,6 +2088,7 @@ export function initializeConversationShadowSync({
         userId: user.id,
         cryptoProvider
       });
+      const hydratedWorkspace = await hydrateLocalAstraAssets(repaired.workspace);
       let journal = normalizeCloudSyncJournal(journalRaw, { username });
       const needsRecoveryRevision = journal.fullResyncRequired
         && (!journal.dirty || !journal.workspaceRevision);
@@ -2093,12 +2101,12 @@ export function initializeConversationShadowSync({
             : undefined
         );
         assertCurrent();
-        await writeWorkspaceAndJournal(repaired.workspace, journal);
+        await writeWorkspaceAndJournal(hydratedWorkspace, journal);
         assertCurrent();
         logRepair(repaired);
       }
       return {
-        workspace: repaired.workspace,
+        workspace: hydratedWorkspace,
         journal,
         revision: journal.workspaceRevision
       };

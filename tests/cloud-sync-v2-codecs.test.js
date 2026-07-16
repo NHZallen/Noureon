@@ -43,6 +43,30 @@ test('shadow row diagnostics report field names without returning field values',
   assert.equal(JSON.stringify(fields).includes('secret'), false);
 });
 
+test('active conversation metadata omits an empty trash clock and compares it as absent', async () => {
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Active chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: []
+      }]
+    }
+  });
+  const local = encoded.conversations[0];
+  const remote = structuredClone(local);
+  delete remote.metadata.trashStateUpdatedAt;
+
+  assert.equal('trashStateUpdatedAt' in local.metadata, false);
+  assert.equal(shadowRowsEqual({ metadata: { trashStateUpdatedAt: null } }, { metadata: {} }), true);
+  assert.equal(shadowRowsEqual(local, remote), true);
+});
+
 test('conversation shadow codec keeps text but never uploads attachment bytes', async () => {
   const encoded = await encodeWorkspaceConversationShadow({
     userId,

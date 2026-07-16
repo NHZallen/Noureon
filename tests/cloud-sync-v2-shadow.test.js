@@ -2739,6 +2739,118 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
   assert.deepEqual(JSON.parse(stored.get(appDataKey)).conversations.map(({ id }) => id), [remoteId]);
 });
 
+test('initializer hydrates a persisted local Noura avatar without traversing local conversations', async () => {
+  const username = 'local-avatar-hydration';
+  const appDataKey = `chatAppData_v8.6_${username}`;
+  const journalKey = `chatCloudSyncJournal_v1_${username}`;
+  const marker = {
+    __astraCloudAsset: {
+      path: `${userId}/noura-avatar`,
+      mimeType: 'image/png',
+      encoding: 'data-url'
+    }
+  };
+  const localWorkspace = {
+    folders: [],
+    conversations: [{
+      id: conversationId,
+      title: 'Do not hydrate conversation history',
+      model: 'model-1',
+      provider: 'provider-1',
+      createdAt: '2026-07-06T01:00:00.000Z',
+      messages: [{ role: 'user', parts: [{ text: 'Keep this local' }] }]
+    }],
+    astras: [{
+      id: astraId,
+      name: 'Custom Noura',
+      description: '',
+      instructions: 'Help',
+      avatarUrl: marker
+    }]
+  };
+  const journal = {
+    version: 1,
+    username,
+    workspaceRevision: 'clean-revision',
+    lastAcknowledgedRevision: 'clean-revision',
+    dirty: false,
+    dirtySince: null,
+    dirtyEntities: { unknown: false, conversations: [], folders: [], astras: [] },
+    fullResyncRequired: false,
+    lastRemoteWatermark: null,
+    lastSuccessfulSyncAt: '2026-07-06T01:00:00.000Z',
+    lastError: null
+  };
+  const stored = new Map([
+    [appDataKey, JSON.stringify(localWorkspace)],
+    [journalKey, JSON.stringify(journal)]
+  ]);
+  const storage = {
+    getItem: async key => stored.get(key) ?? null,
+    readItems: async keys => keys.map(key => stored.get(key) ?? null),
+    setItem: async (key, value) => { stored.set(key, value); },
+    setItemsAtomic: async entries => {
+      for (const { key, value } of entries) stored.set(key, value);
+    }
+  };
+  const profile = {
+    user_id: userId,
+    schema_version: 2,
+    migration_state: 'ready',
+    legacy_backup_created_at: '2026-07-06T00:00:00.000Z'
+  };
+  const profileQuery = {
+    select() { return this; },
+    eq() { return this; },
+    async maybeSingle() { return { data: profile, error: null }; }
+  };
+  const supabase = {
+    from(table) {
+      assert.equal(table, 'sync_profiles');
+      return profileQuery;
+    },
+    async rpc(name) {
+      if (name === 'workspace_trash_sync_capability') return { data: 1, error: null };
+      assert.equal(name, 'fetch_workspace_delta');
+      return {
+        data: { changes: [], has_more: false, next_seq: 0 },
+        error: null
+      };
+    }
+  };
+  const hydrationInputs = [];
+  const committed = [];
+  const assetTransport = {
+    externalize: async value => value,
+    hydrate: async (value, options) => {
+      hydrationInputs.push({ value: structuredClone(value), options });
+      if (!Array.isArray(value)) return value;
+      return value.map(astra => ({ ...structuredClone(astra), avatarUrl: 'data:image/png;base64,AQID' }));
+    }
+  };
+  const sync = initializeConversationShadowSync({
+    window: {},
+    supabase,
+    storage,
+    user: { id: userId },
+    username,
+    assetTransport,
+    onWorkspaceCommitted: detail => committed.push(detail.workspace),
+    logger: { warn: () => {} }
+  });
+
+  assert.equal((await sync.ready).state, 'ready');
+  assert.equal(
+    JSON.parse(stored.get(appDataKey)).astras[0].avatarUrl,
+    'data:image/png;base64,AQID'
+  );
+  assert.equal(committed.at(-1).astras[0].avatarUrl, 'data:image/png;base64,AQID');
+  assert.equal(hydrationInputs.some(({ value }) => Array.isArray(value)), true);
+  assert.equal(hydrationInputs.some(({ value }) => (
+    Array.isArray(value?.conversations) && value.conversations.length > 0
+  )), false);
+});
+
 test('probe failure exposes Supabase error metadata for debugging', async () => {
   const sync = createConversationShadowSync({
     repository: {

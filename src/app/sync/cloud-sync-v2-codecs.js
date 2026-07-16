@@ -38,6 +38,7 @@ function canonicalizeShadowRow(value) {
     for (const key of ['clientUpdatedAt', 'stateUpdatedAt', 'trashStateUpdatedAt']) {
       if (row.metadata[key]) row.metadata[key] = canonicalizeTimestamp(row.metadata[key]);
     }
+    if (row.metadata.trashStateUpdatedAt == null) delete row.metadata.trashStateUpdatedAt;
   }
   return row;
 }
@@ -70,6 +71,10 @@ function sanitizePartForShadow(part = {}) {
 }
 
 function conversationMetadata(conversation = {}) {
+  const trashStateUpdatedAt = canonicalizeFirstValidTimestamp(
+    conversation.trashStateUpdatedAt,
+    conversation.deletedAt
+  );
   return {
     genConfig: conversation.genConfig || null,
     imageConfig: conversation.imageConfig || null,
@@ -84,10 +89,7 @@ function conversationMetadata(conversation = {}) {
       : {}),
     clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null,
     stateUpdatedAt: conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || null,
-    trashStateUpdatedAt: canonicalizeFirstValidTimestamp(
-      conversation.trashStateUpdatedAt,
-      conversation.deletedAt
-    )
+    ...(trashStateUpdatedAt ? { trashStateUpdatedAt } : {})
   };
 }
 

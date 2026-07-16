@@ -3,7 +3,10 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createSidebarAstrasLifecycle } from '../src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
+import {
+  createSidebarAstrasLifecycle,
+  isRenderableAstraAvatarUrl
+} from '../src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -74,6 +77,19 @@ test('renders imported Astra names and avatar URLs as inert content', () => {
   } finally {
     cleanup();
   }
+});
+
+test('rejects a cloud Astra avatar marker as an image URL', () => {
+  assert.equal(isRenderableAstraAvatarUrl('https://example.test/avatar.png'), true);
+  assert.equal(isRenderableAstraAvatarUrl('data:image/png;base64,AQID'), true);
+  assert.equal(isRenderableAstraAvatarUrl({
+    __astraCloudAsset: {
+      path: 'user-1/avatar-hash',
+      mimeType: 'image/png',
+      encoding: 'data-url'
+    }
+  }), false);
+  assert.equal(isRenderableAstraAvatarUrl(null), false);
 });
 
 test('click and options events preserve assignment, sidebar, and menu handoffs', () => {
