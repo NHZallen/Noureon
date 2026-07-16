@@ -1161,7 +1161,7 @@ export function createConversationShadowSync({
       const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
       const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(
         decodedRemoteWorkspace,
-        { allowNetwork: false }
+        { allowNetwork: true }
       );
       assertOperationCurrent();
       const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
@@ -1191,7 +1191,7 @@ export function createConversationShadowSync({
     const decodedRemoteWorkspace = decodeWorkspaceConversationShadow(rows);
     const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(
       decodedRemoteWorkspace,
-      { allowNetwork: false }
+      { allowNetwork: true }
     );
     assertOperationCurrent();
     const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(
@@ -1792,7 +1792,7 @@ export function createConversationShadowSync({
       assertCurrent();
       const hydratedRemoteWorkspace = await hydrateRemoteWorkspace(
         decodedRemoteWorkspace,
-        { allowNetwork: false }
+        { allowNetwork: true }
       );
       assertCurrent();
       const remoteWorkspace = applyAstraTombstones(applyWorkspaceTombstones(

@@ -730,20 +730,81 @@ test('shadow sync externalizes upload assets and hydrates remote image assets', 
   });
 
   assert.equal((await sync.initialize()).state, 'ready');
-  assert.deepEqual(hydrationPolicies, [{ allowNetwork: false }]);
+  assert.deepEqual(hydrationPolicies, [{ allowNetwork: true }]);
   assert.deepEqual(remoteRows.messages[0].parts[0].inlineData.data, inlineMarker);
   assert.equal(JSON.stringify(remoteRows).includes('LOCAL_IMAGE_BYTES'), false);
   assert.deepEqual(remoteRows.messages[0].parts[1].generatedImage.cloudAsset, generatedMarker);
 
   const pulled = await sync.pullWorkspace({ conversations: [], folders: [], astras: [] });
   assert.deepEqual(hydrationPolicies, [
-    { allowNetwork: false },
-    { allowNetwork: false }
+    { allowNetwork: true },
+    { allowNetwork: true }
   ]);
   const pulledParts = pulled.conversations[0].messages[0].parts;
   assert.equal(pulledParts[0].inlineData.data, 'RESTORED_IMAGE_BYTES');
   assert.equal('cloudAsset' in pulledParts[1].generatedImage, false);
   assert.equal(pulledParts[1].generatedImage.storageKey, `generatedImage:supabase:${userId}:generated-1`);
+});
+
+test('shadow sync hydrates remote assets before committing them to the live runtime', async () => {
+  const marker = {
+    __astraCloudAsset: {
+      path: `${userId}/remote-inline-image`,
+      mimeType: 'image/png',
+      encoding: 'base64'
+    }
+  };
+  const remoteWorkspace = {
+    folders: [],
+    astras: [],
+    conversations: [{
+      id: conversationId,
+      title: 'Remote image sync',
+      model: 'model-1',
+      provider: 'provider-1',
+      createdAt: '2026-07-06T01:00:00.000Z',
+      messages: [{
+        role: 'model',
+        createdAt: '2026-07-06T01:00:01.000Z',
+        parts: [{ inlineData: { name: 'remote.png', mimeType: 'image/png', data: marker } }]
+      }]
+    }]
+  };
+  const remoteRows = await remoteRowsFor(remoteWorkspace);
+  const hydrationPolicies = [];
+  const committedWorkspaces = [];
+  const sync = createConversationShadowSync({
+    repository: {
+      probe: async () => null,
+      fetchTombstones: async () => [],
+      fetchWorkspace: async () => remoteRows,
+      setMigrationState: async () => {},
+      upsertFolders: async () => {},
+      upsertConversations: async () => {},
+      upsertMessages: async () => {},
+      upsertAstras: async () => {},
+      verify: async () => true
+    },
+    readWorkspace: async () => ({ folders: [], conversations: [], astras: [] }),
+    writeWorkspace: async () => {},
+    onWorkspaceCommitted: detail => committedWorkspaces.push(detail.workspace),
+    hydrateRemoteWorkspace: async (value, options) => {
+      hydrationPolicies.push(options);
+      const hydrated = structuredClone(value);
+      hydrated.conversations[0].messages[0].parts[0].inlineData.data = 'RESTORED_REMOTE_BYTES';
+      return hydrated;
+    },
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  assert.equal((await sync.initialize()).state, 'ready');
+  assert.deepEqual(hydrationPolicies, [{ allowNetwork: true }]);
+  assert.equal(
+    committedWorkspaces[0].conversations[0].messages[0].parts[0].inlineData.data,
+    'RESTORED_REMOTE_BYTES'
+  );
+  assert.equal(JSON.stringify(committedWorkspaces[0]).includes('__astraCloudAsset'), false);
 });
 
 test('repository uses tombstone select and protected RPC upserts', async () => {
