@@ -20,23 +20,10 @@ import { createMediaMemoryService } from '../memory/media-memory-service.js';
 import { createGeminiHistoryQueryResolverClient } from '../memory/gemini-history-query-resolver-client.js';
 import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
 import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
-const requiredDependencies = [
-    'window', 'document', 'elements', 'legacyRuntimeContext', 'state',
-    'runtimeConfigAccess', 'runtimeAppDataStore', 'runtimeDialogCoordinator',
-    'i18n', 'models', 'getSensitiveApiKeys', 'mergeSensitiveApiKeys',
-    'saveSensitiveConfig', 'saveConfig', 'saveAppData', 'renderAll', 'loadChat',
-    'toggleModal', 'showNotification'
-];
-
-function assertRequiredDependencies(dependencies) {
-    const missing = requiredDependencies.filter((key) => dependencies[key] == null);
-    if (missing.length > 0) {
-        throw new TypeError(`createLegacyTransitionBusLifecycle missing dependencies: ${missing.join(', ')}`);
-    }
-}
+import { assertLegacyTransitionBusDependencies } from './transition-bus-dependencies.js';
 
 export function createLegacyTransitionBusLifecycle(dependencies = {}) {
-    assertRequiredDependencies(dependencies);
+    assertLegacyTransitionBusDependencies(dependencies);
 
     const {
         window, document, navigator, fetch,
