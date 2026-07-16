@@ -96,10 +96,11 @@ test('record-level trash Realtime closes startup and reconnect gaps without subs
   assert.doesNotMatch(conversationChannel, /event:\s*'DELETE'|event:\s*'\*'|workspace_messages/);
   assert.match(conversationChannel, /status\s*===\s*'SUBSCRIBED'[\s\S]*scheduleConversationRemoteRefresh\(\)/);
   assert.doesNotMatch(conversationChannel, /fetchWorkspace|fetchTombstones/);
-  assert.match(source, /if\s*\(conversationRefreshTimer\s*!=\s*null\)\s*clearTimeout\(conversationRefreshTimer\)/);
-  assert.match(source, /setTimeout\(\(\)\s*=>\s*\{[\s\S]*conversationShadowSync\.retry\(\)[\s\S]*},\s*150\)/);
-  assert.match(source, /Promise\.resolve\(conversationShadowSync\?\.retry\?\.\(\)\)/);
-  assert.match(source, /api\.stop\s*=\s*\(\)\s*=>\s*\{[\s\S]*clearTimeout\(conversationRefreshTimer\)[\s\S]*conversationRefreshRequested\s*=\s*false/);
+  assert.match(source, /createConversationRealtimeRefreshScheduler\(\{[\s\S]*getSync:\s*\(\)\s*=>\s*conversationShadowSync/);
+  assert.match(source, /scheduleConversationRemoteRefresh\s*=\s*payload\s*=>\s*conversationRefreshScheduler\.request\(payload\)/);
+  assert.match(source, /handleOnline\s*=\s*\(\)\s*=>\s*\{[\s\S]*scheduleConversationRemoteRefresh\(\)/);
+  assert.match(source, /conversationRefreshScheduler\.resume\(\)/);
+  assert.match(source, /api\.stop\s*=\s*\(\)\s*=>\s*\{[\s\S]*conversationRefreshScheduler\.stop\(\)/);
   assert.match(source, /removeChannel\(realtimeChannel\)[\s\S]*removeChannel\(conversationRealtimeChannel\)/);
 });
 

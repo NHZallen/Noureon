@@ -134,6 +134,50 @@ test('initialization and retry use the injected remote state reader instead of f
   assert.equal(remoteStateReads, 2);
 });
 
+test('unchanged refresh does not hand off the workspace to the live runtime again', async () => {
+  const localWorkspace = { conversations: [], folders: [], astras: [] };
+  const handoffs = [];
+  let commitCount = 0;
+  const sync = createConversationShadowSync({
+    repository: {
+      paginatedSnapshotsAreComplete: true,
+      probe: async () => ({ schema_version: 2, migration_state: 'ready' })
+    },
+    fetchRemoteState: async () => ({
+      rows: { folders: [], conversations: [], messages: [], astras: [] },
+      tombstones: [],
+      deltaSupported: true,
+      snapshotFallback: false,
+      baselineReset: false,
+      pageCount: 1,
+      rowCount: 0,
+      watermark: '10'
+    }),
+    readWorkspace: async () => localWorkspace,
+    commitWorkspace: async () => {
+      commitCount += 1;
+      return commitCount === 1
+        ? localWorkspace
+        : { workspace: localWorkspace, changed: false };
+    },
+    onWorkspaceCommitted: detail => handoffs.push(detail),
+    readCaptureState: async () => ({
+      workspace: localWorkspace,
+      journal: { dirty: false, fullResyncRequired: false },
+      revision: null
+    }),
+    canSkipInitialUpload: () => true,
+    userId,
+    cryptoProvider: webcrypto
+  });
+
+  assert.equal((await sync.initialize()).state, 'ready');
+  handoffs.length = 0;
+
+  assert.equal((await sync.retry()).state, 'ready');
+  assert.equal(handoffs.length, 0);
+});
+
 test('shadow initialization refreshes, writes local, then uploads and verifies', async () => {
   const calls = [];
   const repository = {

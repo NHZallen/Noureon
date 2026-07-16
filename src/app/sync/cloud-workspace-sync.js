@@ -15,6 +15,7 @@ import { repairCloudWorkspaceGeneratedImageKeys } from './cloud-workspace-image-
 import { ensureWorkspaceRecoveryBackup } from './workspace-recovery-backup.js';
 import { initializeConversationShadowSync } from './cloud-sync-v2-shadow.js';
 import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js';
+import { createConversationRealtimeRefreshScheduler } from './cloud-sync-realtime-refresh.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
 import {
   canCommitHydratedRemote,
@@ -447,29 +448,14 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   }
 
   let conversationShadowSync = null;
-  let conversationRefreshTimer = null;
-  let conversationRefreshRequested = false;
-  let conversationRefreshWork = Promise.resolve();
-  const scheduleConversationRemoteRefresh = () => {
-    conversationRefreshRequested = true;
-    if (conversationRefreshTimer != null) clearTimeout(conversationRefreshTimer);
-    conversationRefreshTimer = setTimeout(() => {
-      conversationRefreshTimer = null;
-      if (!conversationShadowSync?.getStatus?.().enabled) return;
-      conversationRefreshRequested = false;
-      conversationRefreshWork = conversationRefreshWork
-        .catch(() => {})
-        .then(() => conversationShadowSync.retry())
-        .catch(error => console.warn('Noureon conversation realtime refresh failed:', error))
-        .finally(() => {
-          if (conversationRefreshRequested) scheduleConversationRemoteRefresh();
-        });
-    }, 150);
-  };
+  const conversationRefreshScheduler = createConversationRealtimeRefreshScheduler({
+    getSync: () => conversationShadowSync,
+    logger: console
+  });
+  const scheduleConversationRemoteRefresh = payload => conversationRefreshScheduler.request(payload);
   const handleOnline = () => {
     void flush();
-    void Promise.resolve(conversationShadowSync?.retry?.())
-      .catch(error => console.warn('Noureon conversation reconnect retry failed:', error));
+    scheduleConversationRemoteRefresh();
     if (realtimeDeferred) scheduleRemoteRefresh();
   };
 
@@ -567,12 +553,10 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   } catch (error) {
     console.warn('Noureon conversation refresh did not block local runtime startup:', error);
   }
-  if (conversationRefreshRequested) scheduleConversationRemoteRefresh();
+  conversationRefreshScheduler.resume();
   api.stop = () => {
     window.removeEventListener?.('online', handleOnline);
-    if (conversationRefreshTimer != null) clearTimeout(conversationRefreshTimer);
-    conversationRefreshTimer = null;
-    conversationRefreshRequested = false;
+    conversationRefreshScheduler.stop();
     if (window.__astraCloudAssets === cloudAssetRuntime) delete window.__astraCloudAssets;
     conversationShadowSync.stop();
     return Promise.all([

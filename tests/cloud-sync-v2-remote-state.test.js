@@ -52,14 +52,16 @@ function emptyRows() {
   return { folders: [], conversations: [], messages: [], astras: [], tombstones: [] };
 }
 
-test('a valid persisted baseline fetches only deltas and atomically advances the journal', async () => {
+test('a trusted empty delta returns the persisted baseline without rewriting storage', async () => {
   const { createPersistentWorkspaceRemoteReader, getCloudSyncRemoteBaselineKey } = subject();
   const baselineKey = getCloudSyncRemoteBaselineKey(username);
   const journalKey = 'chatCloudSyncJournal_v1_alice';
   const baseline = createRemoteBaseline({ userId, watermark: '10', rows: emptyRows() });
+  const baselineRaw = JSON.stringify(baseline);
+  const journalRaw = JSON.stringify(cleanJournal('10'));
   const fixture = createStorageFixture([
-    [baselineKey, JSON.stringify(baseline)],
-    [journalKey, JSON.stringify(cleanJournal('10'))]
+    [baselineKey, baselineRaw],
+    [journalKey, journalRaw]
   ]);
   const calls = [];
   const repository = {
@@ -89,9 +91,9 @@ test('a valid persisted baseline fetches only deltas and atomically advances the
   assert.equal(state.rowCount, 0);
   assert.deepEqual(state.rows, { folders: [], conversations: [], messages: [], astras: [] });
   assert.deepEqual(state.tombstones, []);
-  assert.equal(fixture.atomicWrites.length, 1);
-  const persistedJournal = JSON.parse(fixture.values.get(journalKey));
-  assert.equal(persistedJournal.lastRemoteWatermark, '10');
+  assert.equal(fixture.atomicWrites.length, 0);
+  assert.equal(fixture.values.get(baselineKey), baselineRaw);
+  assert.equal(fixture.values.get(journalKey), journalRaw);
 });
 
 test('delta pages are applied completely before one baseline commit', async () => {

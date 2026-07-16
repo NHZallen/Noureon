@@ -98,15 +98,21 @@ export function createPersistentWorkspaceRemoteReader({
         error.code = 'ASTRA_WORKSPACE_DELTA_INVALID';
         throw error;
       }
-      for (const page of delta.pages) baseline = applyRemoteDeltaPage(baseline, page);
+      let rowCount = 0;
+      for (const page of delta.pages) {
+        rowCount += Array.isArray(page?.changes) ? page.changes.length : 0;
+        baseline = applyRemoteDeltaPage(baseline, page);
+      }
       if (normalizeWatermark(delta.nextSeq) !== baseline.watermark) {
         const error = new Error('Workspace delta summary watermark does not match its pages.');
         error.code = 'ASTRA_WORKSPACE_DELTA_INVALID';
         throw error;
       }
       assertCurrent();
-      await persistBaselineAndWatermark(baseline, assertCurrent);
-      assertCurrent();
+      if (!baselineTrusted || rowCount > 0) {
+        await persistBaselineAndWatermark(baseline, assertCurrent);
+        assertCurrent();
+      }
       return {
         rows: {
           folders: baseline.rows.folders,
@@ -119,7 +125,7 @@ export function createPersistentWorkspaceRemoteReader({
         snapshotFallback: false,
         baselineReset: !baselineTrusted,
         pageCount: delta.pages.length,
-        rowCount: delta.rowCount || 0,
+        rowCount,
         watermark: baseline.watermark
       };
     } catch (error) {

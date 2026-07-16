@@ -6,6 +6,7 @@ import {
   shadowRowsEqual
 } from './cloud-sync-v2-codecs.js';
 import {
+  cloudValuesEqual,
   mergeConversationVersions,
   mergeWorkspaceAppData,
 } from './cloud-sync-versioning.js';
@@ -120,6 +121,15 @@ function createWorkspaceDeltaError(code, message, cause) {
   const error = new Error(message, cause ? { cause } : undefined);
   error.code = code;
   return error;
+}
+
+function normalizeWorkspaceCommitResult(result) {
+  if (result && typeof result === 'object'
+    && Object.hasOwn(result, 'workspace')
+    && typeof result.changed === 'boolean') {
+    return result;
+  }
+  return { workspace: result, changed: true };
 }
 
 async function runInChunks(items, size, task) {
@@ -1189,13 +1199,15 @@ export function createConversationShadowSync({
       nextTombstoneIndex
     ), nextAstraTombstoneIds);
     let committedWorkspace;
+    let workspaceChanged = true;
     if (commitWorkspace) {
-      committedWorkspace = await commitWorkspace({
+      const commitResult = await commitWorkspace({
         remoteWorkspace,
         tombstoneIndex: nextTombstoneIndex,
         astraTombstoneIds: nextAstraTombstoneIds,
         assertCurrent: assertOperationCurrent
       });
+      ({ workspace: committedWorkspace, changed: workspaceChanged } = normalizeWorkspaceCommitResult(commitResult));
     } else {
       const localWorkspace = await normalizeWorkspace(await readWorkspace() || {});
       assertOperationCurrent();
@@ -1213,17 +1225,19 @@ export function createConversationShadowSync({
     tombstoneIndex = nextTombstoneIndex;
     astraTombstoneIds = nextAstraTombstoneIds;
     acceptFetchedUploadBaseline(rows);
-    try {
-      onWorkspaceCommitted({
-        workspace: committedWorkspace,
-        tombstones: {
-          conversationIds: [...nextTombstoneIndex.conversations],
-          folderIds: [...nextTombstoneIndex.folders],
-          astraIds: [...nextAstraTombstoneIds]
-        }
-      });
-    } catch (error) {
-      logger.warn('Noureon could not hand the refreshed cloud workspace to the live runtime.', error);
+    if (workspaceChanged) {
+      try {
+        onWorkspaceCommitted({
+          workspace: committedWorkspace,
+          tombstones: {
+            conversationIds: [...nextTombstoneIndex.conversations],
+            folderIds: [...nextTombstoneIndex.folders],
+            astraIds: [...nextAstraTombstoneIds]
+          }
+        });
+      } catch (error) {
+        logger.warn('Noureon could not hand the refreshed cloud workspace to the live runtime.', error);
+      }
     }
     return committedWorkspace;
   }
@@ -1792,12 +1806,13 @@ export function createConversationShadowSync({
       assertCurrent();
       let committedWorkspace;
       if (commitWorkspace) {
-        committedWorkspace = await commitWorkspace({
+        const commitResult = await commitWorkspace({
             remoteWorkspace,
             tombstoneIndex: nextTombstoneIndex,
             astraTombstoneIds: nextAstraTombstoneIds,
             assertCurrent
         });
+        ({ workspace: committedWorkspace } = normalizeWorkspaceCommitResult(commitResult));
       } else {
         await writeWorkspace(mergedWorkspace);
         committedWorkspace = mergedWorkspace;
@@ -2021,11 +2036,14 @@ export function initializeConversationShadowSync({
           : mergeWorkspacePreservingLocalTopLevel(sanitizedLatest, remoteWorkspace),
         tombstoneIndex
       ), astraTombstoneIds);
+      const changed = !cloudValuesEqual(storedWorkspace, committedWorkspace);
       assertCurrent();
-      await writeWorkspaceAndJournal(committedWorkspace, journal);
-      assertCurrent();
+      if (changed) {
+        await writeWorkspaceAndJournal(committedWorkspace, journal);
+        assertCurrent();
+      }
       logRepair(repaired);
-      return committedWorkspace;
+      return { workspace: committedWorkspace, changed };
     }),
     onWorkspaceCommitted: onWorkspaceCommitted || (detail => {
       if (!window?.dispatchEvent || typeof window.CustomEvent !== 'function') return;
