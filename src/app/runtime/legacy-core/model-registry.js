@@ -6,8 +6,8 @@ import {
 } from '../kernel/config-normalization.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
-    'gemini-3.1-flash-lite': { releasedAt: 20260711, outputPricePerMillion: 0 },
-    'gemini-3.5-flash': { releasedAt: 20260519, outputPricePerMillion: 9 },
+    'gemini-3.6-flash': { releasedAt: 20260721, outputPricePerMillion: 7.5 },
+    'gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
     'gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
     'nvidia/deepseek-ai/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0 },
     'nvidia/deepseek-ai/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0 },
@@ -29,8 +29,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'google/gemini-3.1-flash-image': { releasedAt: 20260618, outputPricePerMillion: 3 },
     'google/gemini-3-pro-image': { releasedAt: 20260618, outputPricePerMillion: 12 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
-    'moonshotai/kimi-k2.6': { releasedAt: 20260420, outputPricePerMillion: 3.41 },
-    'moonshotai/kimi-k2.7-code': { releasedAt: 20260612, outputPricePerMillion: 3.49 },
+    'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
+    'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'tencent/hy3:free': { releasedAt: 20260706, outputPricePerMillion: 0 },
@@ -52,8 +52,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
 
 export const MODELS = [
     // Gemini Models (Native)
-    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_1_flash_lite_desc' },
-    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_desc' },
+    { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_6_flash_desc' },
+    { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_lite_desc' },
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
 
     // NVIDIA Build Free Models
@@ -87,8 +87,10 @@ export const MODELS = [
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
 
     // OpenRouter Paid Models (MoonshotAI)
-    { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: 'openrouter', descriptionKey: 'model_kimi_k2_6_desc', category: 'general' },
-    { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code', provider: 'openrouter', descriptionKey: 'model_kimi_k2_7_code_desc', category: 'coding' },
+    { id: 'moonshotai/kimi-k3', name: 'Kimi K3', provider: 'openrouter', descriptionKey: 'model_kimi_k3_desc', category: 'coding' },
+
+    // OpenRouter Free Models (Poolside)
+    { id: 'poolside/laguna-s-2.1:free', name: 'Laguna S 2.1', provider: 'openrouter', descriptionKey: 'model_laguna_s_2_1_desc', category: 'coding' },
 
     // OpenRouter Free Models (NVIDIA)
     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
@@ -130,15 +132,14 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'google/gemini-3.1-flash-lite-image',
     'step-plan/step-image-edit-2'
 ]);
-export const CHEAP_MODEL_ID = 'gemini-3.1-flash-lite';
+export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
     'anthropic/claude-haiku-4.5',
     'anthropic/claude-sonnet-5',
     'anthropic/claude-opus-4.8',
     'anthropic/claude-fable-5',
     'minimax/minimax-m3',
-    'moonshotai/kimi-k2.6',
-    'moonshotai/kimi-k2.7-code',
+    'moonshotai/kimi-k3',
     'openai/gpt-5.5',
     'openai/gpt-5.6-luna',
     'openai/gpt-5.6-terra',
@@ -158,7 +159,8 @@ export const STEP_PLAN_VISION_MODELS = [
     'step-3.7-flash'
 ];
 export const GEMINI_DOCUMENT_MODELS = [
-    'gemini-3.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
     'gemini-3.1-pro-preview'
 ];
 const REASONING_EFFORT_LABELS = Object.freeze({
@@ -181,7 +183,8 @@ const OPENROUTER_REASONING_EFFORT = 'openrouterReasoningEffort';
 const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
 const HIGH_XHIGH = ['high', 'xhigh'];
 export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
-    [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'medium', ['gemini-3.5-flash']],
+    [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'medium', ['gemini-3.6-flash']],
+    [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'minimal', ['gemini-3.5-flash-lite']],
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'high', ['gemini-3.1-pro-preview']],
     [STEPFUN_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['step-plan/step-3.7-flash', 'step-plan/step-3.5-flash']],
     [STEPFUN_REASONING_EFFORT, ['low', 'high'], 'low', ['step-plan/step-3.5-flash-2603']],
@@ -192,6 +195,7 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'high', ['x-ai/grok-4.5']]
 ]);
 export const COUNCIL_MIN_MODELS = 2;

@@ -26,14 +26,17 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 test('model registry exports the canonical model inventory', () => {
   assert.ok(Array.isArray(MODELS));
   assert.ok(MODELS.length > 0);
-  assert.ok(MODELS.some((model) => model.id === 'gemini-3.5-flash' && model.provider === 'gemini'));
+  assert.ok(MODELS.some((model) => model.id === 'gemini-3.6-flash' && model.provider === 'gemini'));
+  assert.ok(MODELS.some((model) => model.id === 'gemini-3.5-flash-lite' && model.provider === 'gemini'));
+  assert.ok(MODELS.some((model) => model.id === 'moonshotai/kimi-k3' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'poolside/laguna-s-2.1:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'step-plan/step-3.7-flash' && model.provider === 'stepfun'));
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.5' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'tencent/hy3:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.provider === 'nvidia'));
   assert.ok(MODELS.some((model) => model.id === CHEAP_MODEL_ID));
-  assert.equal(CHEAP_MODEL_ID, 'gemini-3.1-flash-lite');
+  assert.equal(CHEAP_MODEL_ID, 'gemini-3.5-flash-lite');
 });
 
 test('model registry preserves provider labels and API id aliases', () => {
@@ -50,7 +53,10 @@ test('model registry preserves provider labels and API id aliases', () => {
 });
 
 test('model registry preserves vision and document capability behavior', () => {
-  const geminiModel = MODELS.find((model) => model.id === 'gemini-3.5-flash');
+  const geminiModel = MODELS.find((model) => model.id === 'gemini-3.6-flash');
+  const geminiLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
+  const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
+  const lagunaModel = MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
   const openRouterGpt56Models = ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']
     .map((id) => MODELS.find((model) => model.id === id));
@@ -62,6 +68,9 @@ test('model registry preserves vision and document capability behavior', () => {
   const stepVisionModel = MODELS.find((model) => model.id === 'step-plan/step-3.7-flash');
 
   assert.equal(modelSupportsVision(geminiModel), true);
+  assert.equal(modelSupportsVision(geminiLiteModel), true);
+  assert.equal(modelSupportsVision(kimiK3Model), true);
+  assert.equal(modelSupportsVision(lagunaModel), false);
   assert.equal(modelSupportsVision(openRouterVisionModel), true);
   assert.ok(openRouterGpt56Models.every(modelSupportsVision));
   assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
@@ -72,6 +81,7 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsVision(stepVisionModel), true);
 
   assert.equal(modelSupportsDocumentUpload(geminiModel), true);
+  assert.equal(modelSupportsDocumentUpload(geminiLiteModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterTextModel), true);
   assert.deepEqual(getModelTiers(openRouterHy3Model), ['free']);
@@ -85,6 +95,9 @@ test('model registry exposes precise reasoning depth options for supported model
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
   const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-sol');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
+  const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.6-flash');
+  const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
+  const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['high', 'xhigh']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'high');
@@ -100,6 +113,9 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');
 
   assert.deepEqual(getModelReasoningConfig(imageModel)?.options, ['minimal', 'high']);
+  assert.deepEqual(getModelReasoningConfig(geminiFlashModel)?.options, ['minimal', 'low', 'medium', 'high']);
+  assert.equal(getModelReasoningConfig(geminiFlashLiteModel)?.defaultEffort, 'minimal');
+  assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['low', 'high', 'max']);
   assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '極低');
 });
 
@@ -116,8 +132,7 @@ test('model registry leaves excluded models on default reasoning', () => {
     'anthropic/claude-haiku-4.5',
     'google/gemini-3-pro-image',
     'minimax/minimax-m3',
-    'moonshotai/kimi-k2.7-code',
-    'moonshotai/kimi-k2.6',
+    'poolside/laguna-s-2.1:free',
     'qwen/qwen3.5-flash-02-23',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.7-max',
@@ -139,7 +154,7 @@ test('model registry keeps council and translator helpers live-config backed', (
     config: {
       modelSettings: [
         { id: 'openai/gpt-5.5', hidden: false, order: 2 },
-        { id: 'gemini-3.5-flash', hidden: false, order: 1 },
+        { id: 'gemini-3.6-flash', hidden: false, order: 1 },
         { id: 'deepseek/deepseek-v4-flash', hidden: true, order: 0 }
       ],
       councilTranslatorModelId: 'openai/gpt-5.5',
@@ -154,14 +169,14 @@ test('model registry keeps council and translator helpers live-config backed', (
   assert.equal(COUNCIL_MIN_MODELS, 2);
   assert.equal(COUNCIL_MAX_MODELS, 5);
   assert.deepEqual(registry.getVisibleCouncilModels().map((model) => model.id), [
-    'gemini-3.5-flash',
+    'gemini-3.6-flash',
     'openai/gpt-5.5'
   ]);
   assert.equal(registry.getCouncilTranslatorModel()?.id, 'openai/gpt-5.5');
   assert.equal(registry.getSingleDocumentTranslatorModel()?.id, 'gemini-3.1-pro-preview');
 
   state.config.councilTranslatorModelId = 'missing-model';
-  assert.equal(registry.getCouncilTranslatorModel()?.id, 'gemini-3.5-flash');
+  assert.equal(registry.getCouncilTranslatorModel()?.id, 'gemini-3.6-flash');
 });
 
 test('model registry import is inert and independent from retired runtime fragments', () => {

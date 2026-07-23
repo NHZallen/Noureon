@@ -536,7 +536,8 @@
         processingFiles: '正在處理檔案...',
         zipNoJson: 'ZIP 檔案中找不到 JSON 資料。',
         // Model Descriptions & Limits
-        model_gemini_3_5_flash_desc_tier_paid: '百萬輸入/1.5$、百萬輸出/9$',
+        model_gemini_3_6_flash_desc_tier_paid: '百萬輸入/1.5$、百萬輸出/7.5$',
+        model_gemini_3_5_flash_lite_desc_tier_paid: '百萬輸入/0.3$、百萬輸出/2.5$',
         model_gemini_3_1_pro_preview_desc_tier_paid: '百萬輸入/2$、百萬輸出/12$',
         model_gemma_4_31b_it_desc_tier_free: '費用-免費',
         model_gemma_4_26b_a4b_it_desc_tier_free: '費用-免費',
@@ -562,6 +563,7 @@
         model_nex_n2_pro_desc_tier_free: '費用-免費',
         model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
         model_tencent_hy3_desc_tier_free: '費用-免費',
+        model_laguna_s_2_1_desc_tier_free: '費用-免費',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter 圖片生成與編輯模型',
         model_gemini_3_pro_image_desc_tier_paid: '高品質圖片生成與參考圖編輯',
@@ -605,8 +607,7 @@
         model_mimo_v2_5_pro_desc_tier_paid: '百萬輸入/0.435$、百萬輸出/0.87$',
         model_mimo_v2_5_desc_tier_paid: '百萬輸入/0.14$、百萬輸出/0.28$',
         // MoonshotAI Paid
-        model_kimi_k2_7_code_desc_tier_paid: '百萬輸入/0.75$、百萬輸出/3.5$',
-        model_kimi_k2_6_desc_tier_paid: '百萬輸入/0.68$、百萬輸出/3.41$',
+        model_kimi_k3_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
         // Official Nouras
         astras_official_writer_01_name: '旅遊小編',
         astras_official_writer_01_desc: '這是一款專為社群平台設計的 Noura，能以優雅且富有感染力的語言撰寫旅遊景點與飯店介紹，透過細膩的文筆展現高級質感，同時結合城市歷史背景與熱門主題標籤，吸引目標客群並提升內容曝光度。',

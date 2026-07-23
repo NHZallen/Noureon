@@ -298,6 +298,20 @@ test('Gemini requests preserve native payload, headers, web search, and partial 
   assert.equal(warnings[0].at(-1), '{"candidates":[}');
 });
 
+test('Gemini 3.6 Flash omits deprecated sampling parameters', async () => {
+  const { streamApiCall, requests } = createHarness({
+    provider: 'gemini',
+    modelInfo: { apiId: 'gemini-3.6-flash' }
+  });
+
+  await streamApiCall([{ text: 'Hello' }], () => {}, undefined);
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.equal(payload.generationConfig.temperature, undefined);
+  assert.equal(payload.generationConfig.topP, undefined);
+  assert.equal(payload.generationConfig.maxOutputTokens, 321);
+});
+
 test('Gemini streaming ignores chart braces inside text across response objects', async () => {
   const createGeminiChunk = (text) => JSON.stringify({
     candidates: [{

@@ -224,6 +224,10 @@ const buildGeminiRequest = ({
   requestOptions,
   modelSupportsUploadedFile
 }) => {
+  const supportsSamplingParameters = ![
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite'
+  ].includes(modelId);
   const payload = {
     contents: cleanGeminiHistory(
       [...historyForApi, currentMessageForApi],
@@ -231,8 +235,8 @@ const buildGeminiRequest = ({
       modelSupportsUploadedFile
     ),
     generationConfig: {
-      ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
-      ...(generationConfig.topP !== null && { topP: generationConfig.topP }),
+      ...(supportsSamplingParameters && generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+      ...(supportsSamplingParameters && generationConfig.topP !== null && { topP: generationConfig.topP }),
       ...(generationConfig.maxTokens !== null && { maxOutputTokens: generationConfig.maxTokens })
     }
   };

@@ -536,7 +536,8 @@
         processingFiles: 'Traitement des fichiers...', // New
         zipNoJson: 'Aucune donnée JSON trouvée dans le fichier ZIP.', // New
         // Model Descriptions & Limits
-        model_gemini_3_5_flash_desc_tier_paid: '1,50 $/M entrée, 9 $/M sortie',
+        model_gemini_3_6_flash_desc_tier_paid: '1,50 $/M entrée, 7,50 $/M sortie',
+        model_gemini_3_5_flash_lite_desc_tier_paid: '0,30 $/M entrée, 2,50 $/M sortie',
         model_gemini_3_1_pro_preview_desc_tier_paid: '2 $/M entrée, 12 $/M sortie',
         model_gemma_4_31b_it_desc_tier_free: 'Coût - Gratuit',
         model_gemma_4_26b_a4b_it_desc_tier_free: 'Coût - Gratuit',
@@ -562,6 +563,7 @@
         model_nex_n2_pro_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
         model_tencent_hy3_desc_tier_free: 'Coût - Gratuit',
+        model_laguna_s_2_1_desc_tier_free: 'Coût - Gratuit',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'Modèle OpenRouter de génération et retouche d’images',
         model_gemini_3_pro_image_desc_tier_paid: 'Génération d’images de haute qualité et retouche par référence',
@@ -605,8 +607,7 @@
         model_mimo_v2_5_pro_desc_tier_paid: '0,435 $/M entrée, 0,87 $/M sortie',
         model_mimo_v2_5_desc_tier_paid: '0,14 $/M entrée, 0,28 $/M sortie',
         // MoonshotAI Paid
-        model_kimi_k2_7_code_desc_tier_paid: '0,75 $/M entrée, 3,50 $/M sortie',
-        model_kimi_k2_6_desc_tier_paid: '0,68 $/M entrée, 3,41 $/M sortie',
+        model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
         // Official Nouras
         astras_official_writer_01_name: 'Blogueur de Voyage',
         astras_official_writer_01_desc: 'Ceci est un Noura conçu pour les plateformes de médias sociaux, capable de rédiger des introductions élégantes et engageantes pour les attractions touristiques et les hôtels. Il utilise un langage raffiné pour transmettre une sensation haut de gamme, en incorporant le contexte historique de la ville et des hashtags populaires pour attirer le public cible et augmenter la visibilité du contenu.',

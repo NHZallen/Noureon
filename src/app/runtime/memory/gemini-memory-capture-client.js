@@ -1,4 +1,4 @@
-export const GEMINI_MEMORY_SUMMARY_MODEL = 'gemini-3.1-flash-lite';
+export const GEMINI_MEMORY_SUMMARY_MODEL = 'gemini-3.5-flash-lite';
 
 const RESPONSE_SCHEMA = {
   type: 'OBJECT',

@@ -536,7 +536,8 @@
         processingFiles: 'Processing files...', // New
         zipNoJson: 'No JSON data found in the ZIP file.', // New
         // Model Descriptions & Limits
-        model_gemini_3_5_flash_desc_tier_paid: '$1.5/M input, $9/M output',
+        model_gemini_3_6_flash_desc_tier_paid: '$1.5/M input, $7.5/M output',
+        model_gemini_3_5_flash_lite_desc_tier_paid: '$0.3/M input, $2.5/M output',
         model_gemini_3_1_pro_preview_desc_tier_paid: '$2/M input, $12/M output',
         model_gemma_4_31b_it_desc_tier_free: 'Cost - Free',
         model_gemma_4_26b_a4b_it_desc_tier_free: 'Cost - Free',
@@ -562,6 +563,7 @@
         model_nex_n2_pro_desc_tier_free: 'Cost - Free',
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Cost - Free',
         model_tencent_hy3_desc_tier_free: 'Cost - Free',
+        model_laguna_s_2_1_desc_tier_free: 'Cost - Free',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter image generation and editing model',
         model_gemini_3_pro_image_desc_tier_paid: 'High-quality image generation and reference editing',
@@ -605,8 +607,7 @@
         model_mimo_v2_5_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
         model_mimo_v2_5_desc_tier_paid: '$0.14/M input, $0.28/M output',
         // MoonshotAI Paid
-        model_kimi_k2_7_code_desc_tier_paid: '$0.75/M input, $3.5/M output',
-        model_kimi_k2_6_desc_tier_paid: '$0.68/M input, $3.41/M output',
+        model_kimi_k3_desc_tier_paid: '$3/M input, $15/M output',
         // Official Nouras
         astras_official_writer_01_name: 'Travel Blogger',
         astras_official_writer_01_desc: 'This is a Noura designed for social media platforms, capable of writing elegant and engaging introductions for tourist attractions and hotels. It uses refined language to convey a high-end feel, incorporating the city\'s historical background and popular hashtags to attract the target audience and increase content visibility.',

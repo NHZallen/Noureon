@@ -6,7 +6,7 @@ import {
   createGeminiMemoryCaptureClient
 } from '../src/app/runtime/memory/gemini-memory-capture-client.js';
 
-test('uses Gemini 3.1 Flash Lite for structured memory capture without exposing the API key', async () => {
+test('uses Gemini 3.5 Flash Lite for structured memory capture without exposing the API key', async () => {
   const calls = [];
   const client = createGeminiMemoryCaptureClient({
     getApiKey: () => 'gemini-secret',
@@ -50,9 +50,9 @@ test('uses Gemini 3.1 Flash Lite for structured memory capture without exposing 
     activeProfileEntries: [{ id: 'brief', kind: 'preference', content: '回答要簡短' }]
   });
 
-  assert.equal(GEMINI_MEMORY_SUMMARY_MODEL, 'gemini-3.1-flash-lite');
+  assert.equal(GEMINI_MEMORY_SUMMARY_MODEL, 'gemini-3.5-flash-lite');
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /gemini-3\.1-flash-lite:generateContent$/);
+  assert.match(calls[0].url, /gemini-3\.5-flash-lite:generateContent$/);
   assert.doesNotMatch(calls[0].url, /gemini-secret/);
   assert.equal(calls[0].options.headers['x-goog-api-key'], 'gemini-secret');
   const payload = JSON.parse(calls[0].options.body);
