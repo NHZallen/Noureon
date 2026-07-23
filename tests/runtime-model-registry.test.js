@@ -33,7 +33,6 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'step-plan/step-3.7-flash' && model.provider === 'stepfun'));
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.5' && model.provider === 'openrouter'));
-  assert.ok(MODELS.some((model) => model.id === 'tencent/hy3:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.provider === 'nvidia'));
   assert.ok(MODELS.some((model) => model.id === CHEAP_MODEL_ID));
   assert.equal(CHEAP_MODEL_ID, 'gemini-3.5-flash-lite');
@@ -62,7 +61,6 @@ test('model registry preserves vision and document capability behavior', () => {
     .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
   const openRouterTextModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash');
-  const openRouterHy3Model = MODELS.find((model) => model.id === 'tencent/hy3:free');
   const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
   const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/qwen/qwen3.5-122b-a10b');
   const stepVisionModel = MODELS.find((model) => model.id === 'step-plan/step-3.7-flash');
@@ -75,7 +73,6 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.ok(openRouterGpt56Models.every(modelSupportsVision));
   assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsVision(openRouterTextModel), false);
-  assert.equal(modelSupportsVision(openRouterHy3Model), false);
   assert.equal(modelSupportsVision(nvidiaVisionModel), true);
   assert.equal(modelSupportsVision(nvidiaTextModel), false);
   assert.equal(modelSupportsVision(stepVisionModel), true);
@@ -84,8 +81,6 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsDocumentUpload(geminiLiteModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterTextModel), true);
-  assert.deepEqual(getModelTiers(openRouterHy3Model), ['free']);
-  assert.equal(openRouterHy3Model.retirementDate, '2026-07-21');
   assert.equal(modelSupportsDocumentUpload(nvidiaVisionModel), false);
 });
 
@@ -136,7 +131,6 @@ test('model registry leaves excluded models on default reasoning', () => {
     'qwen/qwen3.5-flash-02-23',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.7-max',
-    'tencent/hy3:free',
     'xiaomi/mimo-v2.5',
     'xiaomi/mimo-v2.5-pro',
     'openai/gpt-image-2'

@@ -33,7 +33,6 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
-    'tencent/hy3:free': { releasedAt: 20260706, outputPricePerMillion: 0 },
     'openai/gpt-5.5': { releasedAt: 20260424, outputPricePerMillion: 30 },
     'openai/gpt-5.6-luna': { releasedAt: 20260709, outputPricePerMillion: 6 },
     'openai/gpt-5.6-terra': { releasedAt: 20260709, outputPricePerMillion: 15 },
@@ -95,9 +94,6 @@ export const MODELS = [
     // OpenRouter Free Models (NVIDIA)
     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
-
-    // OpenRouter Free Models (Tencent)
-    { id: 'tencent/hy3:free', name: 'Tencent HY3', provider: 'openrouter', descriptionKey: 'model_tencent_hy3_desc', category: 'general', retirementDate: '2026-07-21' },
 
     // OpenRouter Paid Models (OpenAI)
     { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },

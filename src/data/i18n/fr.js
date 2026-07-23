@@ -562,7 +562,6 @@
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
         model_nex_n2_pro_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
-        model_tencent_hy3_desc_tier_free: 'Coût - Gratuit',
         model_laguna_s_2_1_desc_tier_free: 'Coût - Gratuit',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'Modèle OpenRouter de génération et retouche d’images',

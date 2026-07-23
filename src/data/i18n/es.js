@@ -561,7 +561,6 @@ const es = {
   "model_nemotron_3_ultra_550b_a55b_desc_tier_free": "Costo - Gratis",
   "model_nex_n2_pro_desc_tier_free": "Costo - Gratis",
   "model_nemotron_3_super_120b_a12b_desc_tier_free": "Costo - Gratis",
-  "model_tencent_hy3_desc_tier_free": "Costo - Gratis",
   "model_laguna_s_2_1_desc_tier_free": "Costo - Gratis",
   "model_gpt_image_2_desc_tier_paid": "OpenRouter modelo de generación y edición de imágenes",
   "model_gemini_3_pro_image_desc_tier_paid": "Generación de imágenes de alta calidad y edición de referencias.",

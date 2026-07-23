@@ -561,7 +561,6 @@ const ru = {
   "model_nemotron_3_ultra_550b_a55b_desc_tier_free": "Стоимость - Бесплатно",
   "model_nex_n2_pro_desc_tier_free": "Стоимость - Бесплатно",
   "model_nemotron_3_super_120b_a12b_desc_tier_free": "Стоимость - Бесплатно",
-  "model_tencent_hy3_desc_tier_free": "Стоимость - Бесплатно",
   "model_laguna_s_2_1_desc_tier_free": "Стоимость - Бесплатно",
   "model_gpt_image_2_desc_tier_paid": "OpenRouter модель создания и редактирования изображений",
   "model_gemini_3_pro_image_desc_tier_paid": "Высококачественная генерация изображений и редактирование ссылок",
