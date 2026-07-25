@@ -585,7 +585,7 @@
         model_gpt_5_6_terra_desc_tier_paid: '百萬輸入/2.5$、百萬輸出/15$',
         model_gpt_5_6_sol_desc_tier_paid: '百萬輸入/5$、百萬輸出/30$',
         // Anthropic Paid
-        model_claude_opus_4_8_desc_tier_paid: '百萬輸入/5$、百萬輸出/25$',
+        model_claude_opus_5_desc_tier_paid: '百萬輸入/5$、百萬輸出/25$',
         model_claude_sonnet_5_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
         model_claude_haiku_4_5_desc_tier_paid: '百萬輸入/1$、百萬輸出/5$',
         model_claude_fable_5_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',

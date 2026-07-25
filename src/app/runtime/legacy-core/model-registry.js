@@ -21,7 +21,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/stepfun-ai/step-3.7-flash': { releasedAt: 20260528, outputPricePerMillion: 0 },
     'anthropic/claude-haiku-4.5': { releasedAt: 20251015, outputPricePerMillion: 5 },
     'anthropic/claude-sonnet-5': { releasedAt: 20260630, outputPricePerMillion: 10 },
-    'anthropic/claude-opus-4.8': { releasedAt: 20260527, outputPricePerMillion: 25 },
+    'anthropic/claude-opus-5': { releasedAt: 20260724, outputPricePerMillion: 25 },
     'anthropic/claude-fable-5': { releasedAt: 20260609, outputPricePerMillion: 50 },
     'deepseek/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0.18 },
     'deepseek/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0.87 },
@@ -70,7 +70,7 @@ export const MODELS = [
     // OpenRouter Paid Models (Anthropic)
     { id: 'anthropic/claude-haiku-4.5', name: 'Claude 4.5 Haiku', provider: 'openrouter', descriptionKey: 'model_claude_haiku_4_5_desc' },
     { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_5_desc' },
-    { id: 'anthropic/claude-opus-4.8', name: 'Claude 4.8 Opus', provider: 'openrouter', descriptionKey: 'model_claude_opus_4_8_desc' },
+    { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5', provider: 'openrouter', descriptionKey: 'model_claude_opus_5_desc' },
     { id: 'anthropic/claude-fable-5', name: 'Claude Fable 5', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_desc' },
 
     // OpenRouter Paid Models (DeepSeek)
@@ -132,7 +132,7 @@ export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
     'anthropic/claude-haiku-4.5',
     'anthropic/claude-sonnet-5',
-    'anthropic/claude-opus-4.8',
+    'anthropic/claude-opus-5',
     'anthropic/claude-fable-5',
     'minimax/minimax-m3',
     'moonshotai/kimi-k3',
@@ -184,7 +184,8 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'high', ['gemini-3.1-pro-preview']],
     [STEPFUN_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['step-plan/step-3.7-flash', 'step-plan/step-3.5-flash']],
     [STEPFUN_REASONING_EFFORT, ['low', 'high'], 'low', ['step-plan/step-3.5-flash-2603']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-fable-5', 'anthropic/claude-sonnet-5', 'anthropic/claude-opus-4.8']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-fable-5', 'anthropic/claude-sonnet-5']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-opus-5']],
     [OPENROUTER_REASONING_EFFORT, HIGH_XHIGH, 'high', ['deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-3.1-flash-lite-image', 'google/gemini-3.1-flash-image']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],

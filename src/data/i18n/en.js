@@ -585,7 +585,7 @@
         model_gpt_5_6_terra_desc_tier_paid: '$2.5/M input, $15/M output',
         model_gpt_5_6_sol_desc_tier_paid: '$5/M input, $30/M output',
         // Anthropic Paid
-        model_claude_opus_4_8_desc_tier_paid: '$5/M input, $25/M output',
+        model_claude_opus_5_desc_tier_paid: '$5/M input, $25/M output',
         model_claude_sonnet_5_desc_tier_paid: '$2/M input, $10/M output',
         model_claude_haiku_4_5_desc_tier_paid: '$1/M input, $5/M output',
         model_claude_fable_5_desc_tier_paid: '$10/M input, $50/M output',

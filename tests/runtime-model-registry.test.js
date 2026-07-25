@@ -30,6 +30,8 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'gemini-3.5-flash-lite' && model.provider === 'gemini'));
   assert.ok(MODELS.some((model) => model.id === 'moonshotai/kimi-k3' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'poolside/laguna-s-2.1:free' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'anthropic/claude-opus-5' && model.provider === 'openrouter'));
+  assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-opus-4.8'), false);
   assert.ok(MODELS.some((model) => model.id === 'step-plan/step-3.7-flash' && model.provider === 'stepfun'));
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.5' && model.provider === 'openrouter'));
@@ -56,6 +58,7 @@ test('model registry preserves vision and document capability behavior', () => {
   const geminiLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
   const lagunaModel = MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free');
+  const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
   const openRouterGpt56Models = ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']
     .map((id) => MODELS.find((model) => model.id === id));
@@ -69,6 +72,7 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsVision(geminiLiteModel), true);
   assert.equal(modelSupportsVision(kimiK3Model), true);
   assert.equal(modelSupportsVision(lagunaModel), false);
+  assert.equal(modelSupportsVision(opus5Model), true);
   assert.equal(modelSupportsVision(openRouterVisionModel), true);
   assert.ok(openRouterGpt56Models.every(modelSupportsVision));
   assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
@@ -93,6 +97,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.6-flash');
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
+  const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5');
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['high', 'xhigh']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'high');
@@ -111,6 +116,8 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.deepEqual(getModelReasoningConfig(geminiFlashModel)?.options, ['minimal', 'low', 'medium', 'high']);
   assert.equal(getModelReasoningConfig(geminiFlashLiteModel)?.defaultEffort, 'minimal');
   assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['low', 'high', 'max']);
+  assert.deepEqual(getModelReasoningConfig(opus5Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(getModelReasoningConfig(opus5Model)?.defaultEffort, 'high');
   assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '極低');
 });
 

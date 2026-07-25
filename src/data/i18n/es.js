@@ -582,7 +582,7 @@ const es = {
   "model_gpt_5_6_luna_desc_tier_paid": "$1/M de entrada, $6/M de salida",
   "model_gpt_5_6_terra_desc_tier_paid": "$2.5/M de entrada, $15/M de salida",
   "model_gpt_5_6_sol_desc_tier_paid": "$5/M de entrada, $30/M de salida",
-  "model_claude_opus_4_8_desc_tier_paid": "$5/M de entrada, $25/M de salida",
+  "model_claude_opus_5_desc_tier_paid": "$5/M de entrada, $25/M de salida",
   "model_claude_sonnet_5_desc_tier_paid": "$2/M de entrada, $10/M de salida",
   "model_claude_haiku_4_5_desc_tier_paid": "$1/M de entrada, $5/M de salida",
   "model_claude_fable_5_desc_tier_paid": "$10/M de entrada, $50/M de salida",
