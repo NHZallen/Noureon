@@ -110,6 +110,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             return COUNCIL_TEXT[uiLanguage] || COUNCIL_TEXT['zh-TW'];
         };
+        const getText = (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback;
         const legacyModelRegistry = createLegacyModelRegistry({
             getConfig: () => runtimeConfigAccess.getConfig(),
             normalizeConversationModel: (conv) => normalizeConversationModel(conv)
@@ -312,7 +313,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                         getStoredImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
                         getApiKey: provider => getApiKeyForProvider(provider),
                         getModelReasoningConfig,
-                        normalizeReasoningEffort
+                        normalizeReasoningEffort,
+                        getText,
+                        showNotification
                     });
                     const interactions = interactionsModule.createGeneratedImageInteractions({
                         document,
@@ -335,7 +338,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                         fetchImpl: fetch,
                         FileCtor: File,
                         escapeHTML,
-                        getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback,
+                        getText,
                         logWarn: (...args) => console.warn(...args)
                     });
                     return { assetStore, interactions, responseLifecycle };
@@ -492,7 +495,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             setTimeout,
             clearTimeout,
             requestAnimationFrame,
-            getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback
+            getText
         });
         const runtimeDialogCoordinator = createRuntimeDialogCoordinator({
             showNotification: (...args) => showNotification(...args),
@@ -886,7 +889,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getAstras: () => runtimeAppDataStore.getAstras(),
             getActiveAstrasId: () => getActiveAstrasId(),
             getIsSelectionMode: () => isSelectionMode,
-            getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback,
+            getText,
             setAstrasForConversation: (...args) => setAstrasForConversation(...args),
             toggleSidebar: (...args) => legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(...args),
             createAstrasMenu: (...args) => createAstrasMenu(...args),
@@ -1008,7 +1011,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             buildQuotedUserParts: ({ question, quoteReference: reference }) => buildQuotedUserParts({
                 question,
                 quoteReference: reference,
-                getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback
+                getText
             }),
             clearQuoteReference: () => quoteInquiryLifecycle?.clearQuote(),
             logger: console
@@ -1062,7 +1065,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             document,
             elements: ALL_ELEMENTS,
             getActiveConversation,
-            getText: (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback,
+            getText,
             getQuoteReference: () => quoteReference,
             setQuoteReference: (value) => { quoteReference = value; },
             onComposerChange: () => {

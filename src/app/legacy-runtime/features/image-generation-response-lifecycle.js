@@ -43,7 +43,9 @@ export function createImageGenerationResponseLifecycle({
   getStoredImageDataUrl,
   getApiKey,
   getModelReasoningConfig = () => null,
-  normalizeReasoningEffort = () => null
+  normalizeReasoningEffort = () => null,
+  getText = (_key, fallback) => fallback,
+  showNotification = () => {}
 }) {
   const run = async ({ targetElement, userParts, modelInfo, conversation, signal }) => {
     const normalizedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
@@ -82,8 +84,22 @@ export function createImageGenerationResponseLifecycle({
     let inputReferences = getInlineReferences(requestParts);
     if (inputReferences.length === 0) {
       const latest = findLatestGeneratedImage(conversation);
-      const dataUrl = latest ? await getStoredImageDataUrl(latest) : '';
-      if (dataUrl) inputReferences = [dataUrl];
+      if (latest) {
+        const dataUrl = await getStoredImageDataUrl(latest);
+        if (dataUrl) {
+          inputReferences = [dataUrl];
+        } else {
+          // The conversation has a generated image to carry over but its local asset is gone.
+          // Say so instead of silently falling back to a fresh text-only generation.
+          showNotification(getText(
+            'imageReferenceUnavailable',
+            'The previous image is no longer available, so a new image will be generated.'
+          ), 'warning');
+          const label = targetElement.querySelector?.('.generated-image-skeleton span');
+          const labelText = getText('imageReferenceUnavailableLabel', 'Reference image unavailable, generating a new image');
+          if (label && labelText) label.textContent = labelText;
+        }
+      }
     }
 
     const generationRequest = {

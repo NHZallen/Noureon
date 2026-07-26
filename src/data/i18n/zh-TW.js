@@ -569,6 +569,8 @@
         model_gemini_3_1_flash_image_desc_tier_paid: '快速圖片生成與多輪修改',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: '輕量快速圖片生成',
         imageReadyToEdit: '圖片已加入，可繼續描述修改內容',
+        imageReferenceUnavailable: '上一張圖片的本機檔案已遺失，無法沿用為參考圖，將依你的描述重新生成一張新圖片。',
+        imageReferenceUnavailableLabel: '參考圖已遺失，正在重新生成',
         imageAspectRatio: '圖片比例',
         imageResolution: '解析度',
         imageAdvancedSettings: '進階設定',

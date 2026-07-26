@@ -569,6 +569,8 @@
         model_gemini_3_1_flash_image_desc_tier_paid: 'Fast image generation and iterative editing',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Lightweight, fast image generation',
         imageReadyToEdit: 'Image attached. Describe the changes you want.',
+        imageReferenceUnavailable: 'The local file for the previous image is missing, so it cannot be reused as a reference. A new image will be generated from your description instead.',
+        imageReferenceUnavailableLabel: 'Reference image unavailable, generating a new image',
         imageAspectRatio: 'Aspect ratio',
         imageResolution: 'Resolution',
         imageAdvancedSettings: 'Advanced settings',

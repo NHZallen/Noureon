@@ -89,6 +89,61 @@ test('falls back to the latest generated image when there is no new attachment',
   assert.deepEqual(references, ['data:image/png;base64,latest']);
 });
 
+test('tells the user when the latest generated image can no longer be reused', async () => {
+  let request;
+  const notices = [];
+  const label = { textContent: '正在建立圖像' };
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      request = value;
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'fresh', storageKey: 'fresh-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'secret',
+    getText: key => (key === 'imageReferenceUnavailableLabel' ? '參考圖已遺失，正在重新生成' : '上一張圖片已遺失'),
+    showNotification: (message, type) => notices.push({ message, type })
+  });
+
+  await lifecycle.run({
+    targetElement: { innerHTML: '', querySelector: () => label },
+    userParts: [{ text: 'make it darker' }],
+    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter', supportsImageStreaming: true },
+    conversation: {
+      messages: [{ role: 'model', parts: [{ generatedImage: { id: 'latest', storageKey: 'gone' } }] }]
+    }
+  });
+
+  assert.deepEqual(notices, [{ message: '上一張圖片已遺失', type: 'warning' }]);
+  assert.equal(label.textContent, '參考圖已遺失，正在重新生成');
+  assert.deepEqual(request.inputReferences, []);
+  // A missing asset silently switches the request from a buffered edit to streaming generation.
+  // Pin that consequence so it stays visible rather than surprising.
+  assert.notEqual(request.onPartial, undefined);
+});
+
+test('stays silent when the conversation has no generated image to reuse', async () => {
+  const notices = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async () => ({ images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] }),
+    saveImageAsset: async () => ({ id: 'fresh', storageKey: 'fresh-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'secret',
+    showNotification: message => notices.push(message)
+  });
+
+  await lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: [{ text: 'a shiba inu in a raincoat' }],
+    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter' },
+    conversation: { messages: [] }
+  });
+
+  assert.deepEqual(notices, []);
+});
+
 test('keeps image-to-image requests buffered even when the model supports generation streaming', async () => {
   let request;
   const lifecycle = createImageGenerationResponseLifecycle({

@@ -567,6 +567,8 @@ const es = {
   "model_gemini_3_1_flash_image_desc_tier_paid": "Generación rápida de imágenes y edición iterativa.",
   "model_gemini_3_1_flash_lite_image_desc_tier_paid": "Generación de imágenes rápida y ligera",
   "imageReadyToEdit": "Imagen adjunta. Describe los cambios que deseas.",
+  "imageReferenceUnavailable": "Falta el archivo local de la imagen anterior, por lo que no se puede reutilizar como referencia. Se generará una imagen nueva a partir de tu descripción.",
+  "imageReferenceUnavailableLabel": "Imagen de referencia no disponible, generando una imagen nueva",
   "imageAspectRatio": "relación de aspecto",
   "imageResolution": "Resolución",
   "imageAdvancedSettings": "Configuraciones avanzadas",

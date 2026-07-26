@@ -569,6 +569,8 @@
         model_gemini_3_1_flash_image_desc_tier_paid: 'Génération rapide et retouches itératives',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Génération d’images légère et rapide',
         imageReadyToEdit: 'Image jointe. Décrivez les modifications souhaitées.',
+        imageReferenceUnavailable: 'Le fichier local de l’image précédente est introuvable ; elle ne peut pas servir de référence. Une nouvelle image sera générée à partir de votre description.',
+        imageReferenceUnavailableLabel: 'Image de référence indisponible, génération d’une nouvelle image',
         imageAspectRatio: 'Format d’image',
         imageResolution: 'Résolution',
         imageAdvancedSettings: 'Paramètres avancés',

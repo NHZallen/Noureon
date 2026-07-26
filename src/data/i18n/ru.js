@@ -567,6 +567,8 @@ const ru = {
   "model_gemini_3_1_flash_image_desc_tier_paid": "Быстрое создание изображений и итеративное редактирование",
   "model_gemini_3_1_flash_lite_image_desc_tier_paid": "Легкое и быстрое создание изображений",
   "imageReadyToEdit": "Изображение прилагается. Опишите изменения, которые вы хотите.",
+  "imageReferenceUnavailable": "Локальный файл предыдущего изображения отсутствует, поэтому его нельзя использовать как образец. Новое изображение будет создано по вашему описанию.",
+  "imageReferenceUnavailableLabel": "Образец изображения недоступен, создаётся новое изображение",
   "imageAspectRatio": "Соотношение сторон",
   "imageResolution": "Разрешение",
   "imageAdvancedSettings": "Расширенные настройки",
