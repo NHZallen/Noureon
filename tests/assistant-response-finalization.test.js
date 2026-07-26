@@ -55,6 +55,73 @@ test('successful finalization completes the view before queuing persistence and 
   ]);
 });
 
+test('turning off automatic memory stops new capture without touching confirmed memories', async () => {
+  const calls = [];
+  const backgroundTasks = [];
+
+  await finalizeAssistantResponse({
+    fullResponse: 'Hello Astra',
+    finalAiMessage: { role: 'model', parts: [{ text: '' }], createdAt: 'created' },
+    conversation: { messages: [], lastUpdatedAt: 'old' },
+    userMessageObject: { role: 'user', parts: [{ text: 'Hi' }] },
+    userMessageText: 'Hi',
+    signal: new AbortController().signal,
+    responseUsesCouncil: false,
+    responseRenderedInRealtime: true,
+    targetElement: { dataset: { streamRendered: 'true' } },
+    uiLanguage: 'en',
+    memoryEnabled: true,
+    autoMemoryEnabled: false,
+    councilMetadata: null,
+    persistAppData: async () => calls.push('persist'),
+    completeSingleModelView: async () => calls.push('singleView'),
+    restoreRealtimeCouncilDetails: () => {},
+    renderRealtimeCouncilFinal: () => {},
+    playbackCouncilResponse: async () => {},
+    extractPersonalMemory: async () => calls.push('memory'),
+    queueBackgroundTask: (task) => backgroundTasks.push(task),
+    nowIso: () => 'now'
+  });
+
+  await Promise.all(backgroundTasks.map((task) => task()));
+
+  assert.ok(calls.includes('persist'), 'the turn is still persisted');
+  assert.ok(!calls.includes('memory'), 'no new automatic memory extraction is queued');
+});
+
+test('automatic memory capture still runs while the toggle is on', async () => {
+  const calls = [];
+  const backgroundTasks = [];
+
+  await finalizeAssistantResponse({
+    fullResponse: 'Hello Astra',
+    finalAiMessage: { role: 'model', parts: [{ text: '' }], createdAt: 'created' },
+    conversation: { messages: [], lastUpdatedAt: 'old' },
+    userMessageObject: { role: 'user', parts: [{ text: 'Hi' }] },
+    userMessageText: 'Hi',
+    signal: new AbortController().signal,
+    responseUsesCouncil: false,
+    responseRenderedInRealtime: true,
+    targetElement: { dataset: { streamRendered: 'true' } },
+    uiLanguage: 'en',
+    memoryEnabled: true,
+    autoMemoryEnabled: true,
+    councilMetadata: null,
+    persistAppData: async () => calls.push('persist'),
+    completeSingleModelView: async () => calls.push('singleView'),
+    restoreRealtimeCouncilDetails: () => {},
+    renderRealtimeCouncilFinal: () => {},
+    playbackCouncilResponse: async () => {},
+    extractPersonalMemory: async () => calls.push('memory'),
+    queueBackgroundTask: (task) => backgroundTasks.push(task),
+    nowIso: () => 'now'
+  });
+
+  await Promise.all(backgroundTasks.map((task) => task()));
+
+  assert.ok(calls.includes('memory'), 'capture is queued when automatic memory is enabled');
+});
+
 test('council finalization attaches metadata and preserves realtime/buffered view handoffs', async () => {
   const realtimeCalls = [];
   const realtimeElement = { dataset: { streamRendered: 'true' } };

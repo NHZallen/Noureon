@@ -1,10 +1,34 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { readFileSync } from 'node:fs';
+
 import {
   mergeSyncedMemoryState,
   projectMemoryStateForSync
 } from '../src/app/runtime/memory/memory-sync-projection.js';
+import { HISTORY_RECALL_DEVICE_CONSENT_KEY } from '../src/app/runtime/memory/device-history-recall-consent.js';
+
+const projectFile = (path) => new URL(`../${path}`, import.meta.url);
+
+test('cross-conversation recall consent stays on the device and never enters the sync projection', () => {
+  const projection = projectMemoryStateForSync({
+    profileEntries: [{ id: 'confirmed', confirmedByUser: true }],
+    historyRecallDeviceConsent: { grantedAt: '2026-07-20T00:00:00.000Z' },
+    [HISTORY_RECALL_DEVICE_CONSENT_KEY]: { grantedAt: '2026-07-20T00:00:00.000Z' }
+  });
+
+  const serialized = JSON.stringify(projection);
+  assert.ok(!serialized.includes(HISTORY_RECALL_DEVICE_CONSENT_KEY), 'consent key must not be projected');
+  assert.ok(!serialized.includes('grantedAt'), 'consent grant must not be projected');
+  assert.ok(!('historyRecallDeviceConsent' in projection));
+
+  // The consent record is written through a device-local storage adapter only. Nothing in the
+  // sync projection module should reference it, so a second device must consent for itself.
+  const projectionSource = readFileSync(projectFile('src/app/runtime/memory/memory-sync-projection.js'), 'utf8');
+  assert.ok(!projectionSource.includes('history-recall'), 'sync projection must not reach for recall consent');
+  assert.ok(!projectionSource.includes('Consent'), 'sync projection must not reach for recall consent');
+});
 
 test('sync projection includes unresolved candidates while excluding capsules and recent state', () => {
   const projection = projectMemoryStateForSync({
