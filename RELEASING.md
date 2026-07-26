@@ -71,7 +71,21 @@
 `src/data/update-logs/entries.js` 匯出 `updateLogEntries`，最新版本在陣列最前面。每筆為：
 
 ```js
-{ version: '16.4.5', date: '2026-01-15', content: ['<strong>標題</strong>', '<ul><li>項目</li></ul>'] }
+{
+  version: "16.4.5",
+  date: "2026-01-15",
+  content: [
+    "<strong>標題</strong>",
+    "<ul><li>項目</li></ul>"
+  ]
+}
 ```
 
-`content` 是原始 HTML 字串陣列，目前僅有繁體中文。發布紀錄不得包含秘密、內部權杖或真實使用者資料。
+編排規則（全檔一致，新條目照做）：
+
+- 鍵不加引號，順序固定為 `version`、`date`、`content`。
+- 字串一律使用 JSON 轉義的雙引號。
+- 縮排為 2 空格。
+- `tests/update-logs-data.test.js` 的 `UPDATE_LOGS_CONTENT_HASH` 釘住資料內容（`JSON.stringify` 後的 sha256）；純格式調整不會改變它，新增或修改條目才需要更新該常數與 `UPDATE_LOG_COUNT`。
+
+`content` 是原始 HTML 字串陣列，目前僅有繁體中文，顯示時不隨介面語言切換。發布紀錄不得包含秘密、內部權杖或真實使用者資料。
