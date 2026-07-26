@@ -1308,8 +1308,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             window,configAccess:runtimeConfigAccess,appDataStore:runtimeAppDataStore,
             getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
             models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
-            getCouncilTranslatorCandidates,getSingleTranslatorCandidates,applyCustomWallpaper,applyUiTheme,
-            renderSidebar,renderChat,applyLanguage,getActiveConversation,
+            getCouncilTranslatorCandidates,getSingleTranslatorCandidates,
+            // Declared by the transition bus destructuring below; read lazily to avoid the TDZ.
+            applyCustomWallpaper:(...args)=>applyCustomWallpaper(...args),
+            applyUiTheme:(...args)=>applyUiTheme(...args),
+            applyLanguage:(...args)=>applyLanguage(...args),
+            renderSidebar,renderChat,getActiveConversation,
             onActiveConversationUnavailable:({conversationId})=>{
                 if (conversationStateAccess.getCurrentConversationId() !== conversationId) return;
                 const nextConversation = runtimeAppDataStore.getConversations()
