@@ -167,6 +167,25 @@ test('learning mode rules are stated after the Noura so teaching rules win on co
   assert.ok(astraIndex >= 0 && precedenceIndex > astraIndex, 'precedence clause should follow the Noura instructions');
 });
 
+test('precedence clause disarms persona-triggered direct answers, not learner requests', async () => {
+  const { streamApiCall, requests } = createHarness({
+    config: { isLearningMode: true, uiLanguage: 'en' },
+    conversation: { astrasId: ASTRA_FIXTURE.id },
+    astras: [ASTRA_FIXTURE]
+  });
+
+  await streamApiCall([{ text: 'Teach me about tides' }], () => {});
+
+  // A Noura saying "give answers directly / no guided dialogue" sits at the top of the
+  // system instruction and reads like an explicit user request, which would trigger the
+  // learning prompt's own direct-explanation escape valve. The precedence block must
+  // say persona text is stored configuration, never the learner speaking.
+  const systemMessage = readSystemMessage(requests);
+  assert.match(systemMessage, /stored persona configuration/);
+  assert.match(systemMessage, /not something the learner said in this conversation/);
+  assert.match(systemMessage, /never count as the learner expressing confusion or asking for a direct explanation/);
+});
+
 test('learning mode without a Noura keeps the reply language instruction and skips the precedence clause', async () => {
   const { streamApiCall, requests } = createHarness({
     config: { isLearningMode: true, uiLanguage: 'en' }

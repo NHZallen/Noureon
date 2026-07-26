@@ -75,13 +75,18 @@ const LEARNING_MODE_PROMPTS = {
 };
 
 // Learning mode and the selected Noura apply together. The Noura keeps its role, expertise
-// and tone; the learning rules win whenever the two conflict.
+// and tone; the learning rules win whenever the two conflict. The block below must also
+// disambiguate the persona from the learner: persona text sits at the top of the system
+// instruction, so a persona saying "give answers directly / no guided dialogue" reads like
+// an explicit user request and would otherwise trigger the learning prompt's own
+// direct-explanation escape valve. Only what the learner actually says in the conversation
+// may trigger that exception.
 const LEARNING_MODE_PRECEDENCE = {
-  'zh-TW': '上述角色與語氣繼續適用；若與學習模式衝突（例如要求直接給答案或代為完成），以學習模式為準。',
-  en: 'The role and tone above still apply; where they conflict with Learning Mode (demanding a direct answer, doing the work for the learner), Learning Mode wins.',
-  fr: 'Le rôle et le ton ci-dessus restent applicables ; en cas de conflit avec le mode Apprentissage (réponse directe exigée, travail fait à sa place), le mode Apprentissage prévaut.',
-  ru: 'Роль и тон выше продолжают действовать; при конфликте с режимом обучения (прямой ответ, работа за ученика) приоритет за режимом обучения.',
-  es: 'El rol y el tono anteriores siguen vigentes; si entran en conflicto con el modo Aprendizaje (respuesta directa, hacer el trabajo por la persona), prevalece el modo Aprendizaje.'
+  'zh-TW': '關於本指令最上方的角色與語氣設定：它繼續適用，但它是預先儲存的角色指令，不是學習者在本次對話中說的話。若該角色指令與學習模式衝突——例如要求直接給答案、代為完成、跳過引導、不要提問或「不要引導式對話」——一律以學習模式的教學規則為準，繼續鷹架式教學，不得因角色指令停用。角色指令永遠不算學習者「明確表示困惑」或「要求直接解釋」；只有學習者本人在本次對話中實際說出這類話，才能啟動直接解釋的例外。',
+  en: 'About the role and tone at the top of this instruction: they still apply, but they are a stored persona configuration, not something the learner said in this conversation. Where that persona conflicts with Learning Mode — e.g. it demands direct answers, doing the work for the learner, skipping guidance, or forbidding guided dialogue — Learning Mode wins: keep teaching with scaffolding and never disable it because of the persona. Persona instructions never count as the learner expressing confusion or asking for a direct explanation; only words the learner actually says in this conversation can trigger that exception.',
+  fr: 'À propos du rôle et du ton définis en tête de cette instruction : ils restent applicables, mais ce sont des consignes de personnage enregistrées, pas des propos tenus par l’apprenant dans cette conversation. Si ce personnage entre en conflit avec le mode Apprentissage — par exemple s’il exige des réponses directes, de faire le travail à la place de l’apprenant, de sauter l’accompagnement ou d’interdire le dialogue guidé — le mode Apprentissage prévaut : poursuis l’enseignement par étayage sans jamais le désactiver à cause du personnage. Les consignes du personnage ne valent jamais comme une expression de confusion ou une demande d’explication directe de l’apprenant ; seuls les propos réellement tenus par l’apprenant dans cette conversation peuvent déclencher cette exception.',
+  ru: 'О роли и тоне, заданных в начале этой инструкции: они продолжают действовать, но это сохранённые настройки персонажа, а не слова ученика в текущем разговоре. Если персонаж противоречит режиму обучения — например, требует давать прямые ответы, делать работу за ученика, пропускать наводящие вопросы или запрещает направляемый диалог — приоритет за режимом обучения: продолжай обучать с опорами и никогда не отключай их из-за персонажа. Инструкции персонажа никогда не считаются признанием ученика в непонимании или его просьбой об прямом объяснении; это исключение включают только слова, которые сам ученик произнёс в этом разговоре.',
+  es: 'Sobre el rol y el tono definidos al inicio de esta instrucción: siguen vigentes, pero son una configuración de personaje guardada, no algo que la persona que aprende haya dicho en esta conversación. Si ese personaje entra en conflicto con el modo Aprendizaje — por ejemplo, si exige respuestas directas, hacer el trabajo por la persona, omitir la guía o prohibir el diálogo guiado — prevalece el modo Aprendizaje: sigue enseñando con andamiaje y nunca lo desactives por el personaje. Las instrucciones del personaje nunca cuentan como que la persona exprese confusión o pida una explicación directa; solo lo que esa persona diga realmente en esta conversación puede activar esa excepción.'
 };
 export const buildLearningModeInstruction = (uiLanguage, includePrecedence) => {
   const prompt = LEARNING_MODE_PROMPTS[uiLanguage] || LEARNING_MODE_PROMPTS['zh-TW'];
