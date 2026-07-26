@@ -4,14 +4,14 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
-const EXPECTED_LOCALE_KEY_COUNT = 678;
+const EXPECTED_LOCALE_KEY_COUNT = 686;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 172;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': 'ade58df5c5f170b75f1891c9c2c91d5dfe61968b964ad459654d7b778df25eee',
-  en: 'bb4c1d912156b8422c970669e213c5c96ce32db02a5316b00e928839a3c0e3fd',
-  fr: '69aaf98982c22876321111eed7286fccd7e1ce90de3265f2a3d3e3b886508083',
-  ru: '0fb7d9b8d5d2c9f42ae106008b3eda7454b33deb3edc2b13dc7cb00cc7ca0bc7',
-  es: '472dd10ae392ef9dc636df29e1d0e6ca65ee2788e98b89c30872278308933d35'
+  'zh-TW': 'a9d80d6612e7f8e047e7c843cacf9b5234cd13ca7f590193e1a197d8c3b97d9b',
+  en: 'f85ee4106f933edf34259dc19752dbf282eb55a3f3f66cb31501a446c0c08c68',
+  fr: 'b745e72d06df4d7176991c4513757ad761d153cb5dcda9dd7c84881fb781c761',
+  ru: '2e855377873ee14f195a939e1cb84691b4bc404f5a0e2e5a5e7630b6808bcb85',
+  es: 'c19c1b0a678bd567cb50fc1773ff8f38cfd431e09576ca3394b244084cc4bbdb'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);

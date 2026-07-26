@@ -2,6 +2,26 @@ import { createLegacyImportExportLifecycle } from '../features/import-export-lif
 import { createLegacyAuthImportLifecycle } from '../features/auth-import-lifecycle.js';
 import { compressImage } from '../utils/image-compression.js';
 
+// Speech recognition follows the interface language. Noureon stores bare subtags for four of
+// the five languages, so map them to the regional codes browsers expect for recognition.
+const SPEECH_RECOGNITION_LANGS = {
+    'zh-TW': 'zh-TW',
+    en: 'en-US',
+    fr: 'fr-FR',
+    ru: 'ru-RU',
+    es: 'es-ES'
+};
+
+const VOICE_ERROR_TEXT_KEYS = {
+    'not-allowed': 'voiceErrorNotAllowed',
+    'service-not-allowed': 'voiceErrorNotAllowed',
+    'no-speech': 'voiceErrorNoSpeech',
+    aborted: 'voiceErrorAborted',
+    'audio-capture': 'voiceErrorAudioCapture',
+    network: 'voiceErrorNetwork',
+    'language-not-supported': 'voiceErrorLanguageUnsupported'
+};
+
 const requiredDependencies = [
     'document',
     'window',
@@ -335,16 +355,64 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         }
     };
 
-    const toggleVoiceInput = (target) => {
+    const clearVoiceInputState = () => {
+        setCurrentSpeechRecognition?.(null);
+        setCurrentVoiceTarget?.(null);
+        ALL_ELEMENTS.voiceInputBtnMessage.classList.remove('active');
+        ALL_ELEMENTS.voiceInputBtnSearch.classList.remove('active');
+    };
+
+    // Speech is handled by the browser, its operating system, or their online services, so ask
+    // once per user before the first recognition session starts.
+    const ensureVoicePrivacyAcknowledged = async () => {
+        if (getConfig().voicePrivacyNoticeAcknowledged === true) return true;
+        const texts = getTexts();
+        const accepted = await showCustomConfirm(
+            texts.voicePrivacyNoticeBody
+                || 'Voice input is transcribed by your browser, which may send the audio to its operating system or an online speech service. Continue?',
+            texts.voicePrivacyNoticeTitle || 'About voice input'
+        );
+        if (!accepted) return false;
+        mutateConfig((config) => { config.voicePrivacyNoticeAcknowledged = true; });
+        await saveConfig();
+        return true;
+    };
+
+    // The privacy notice is awaited before a recognition object exists, so the
+    // getCurrentSpeechRecognition guard below cannot see a session that is still starting.
+    // Without this flag a second click during that window creates a second recognition whose
+    // reference overwrites the first, leaving the first running and impossible to stop.
+    let voiceStartInFlight = false;
+
+    const toggleVoiceInput = async (target) => {
         if (getCurrentSpeechRecognition?.()) {
             getCurrentSpeechRecognition().stop();
             return;
         }
+        if (voiceStartInFlight) return;
+        voiceStartInFlight = true;
+        try {
+            await startVoiceInput(target);
+        } finally {
+            voiceStartInFlight = false;
+        }
+    };
+
+    const startVoiceInput = async (target) => {
+        let acknowledged = false;
+        try {
+            acknowledged = await ensureVoicePrivacyAcknowledged();
+        } catch (error) {
+            logger.warn('Voice privacy notice failed; not starting recognition.', error);
+        }
+        if (!acknowledged) return;
         setCurrentVoiceTarget?.(target);
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const currentSpeechRecognition = new SpeechRecognition();
         setCurrentSpeechRecognition?.(currentSpeechRecognition);
-        currentSpeechRecognition.lang = 'zh-TW';
+        // Resolved at creation time, so switching the interface language applies to the next session.
+        currentSpeechRecognition.lang = SPEECH_RECOGNITION_LANGS[getConfig().uiLanguage]
+            || SPEECH_RECOGNITION_LANGS['zh-TW'];
         currentSpeechRecognition.continuous = true;
         currentSpeechRecognition.interimResults = true;
         currentSpeechRecognition.onresult = (event) => {
@@ -359,15 +427,16 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             }
             resolveUploadUpdateInputState();
         };
-        currentSpeechRecognition.onend = () => {
-            setCurrentSpeechRecognition?.(null);
-            setCurrentVoiceTarget?.(null);
-            ALL_ELEMENTS.voiceInputBtnMessage.classList.remove('active');
-            ALL_ELEMENTS.voiceInputBtnSearch.classList.remove('active');
-        };
+        currentSpeechRecognition.onend = clearVoiceInputState;
         currentSpeechRecognition.onerror = (event) => {
-            showNotification(`${getTexts().voiceError || '語音輸入錯誤'}: ${event.error}`, 'error');
-            setCurrentSpeechRecognition?.(null);
+            const texts = getTexts();
+            const localized = texts[VOICE_ERROR_TEXT_KEYS[event.error]];
+            showNotification(
+                localized || `${texts.voiceError || '語音輸入錯誤'}: ${event.error}`,
+                'error'
+            );
+            // onend does not always follow onerror, so release the button state here too.
+            clearVoiceInputState();
         };
         currentSpeechRecognition.start();
         ALL_ELEMENTS[`voiceInputBtn${target.charAt(0).toUpperCase() + target.slice(1)}`].classList.add('active');

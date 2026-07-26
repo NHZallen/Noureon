@@ -31,6 +31,7 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     enableUpdateNotifications: true,
     lastSeenVersion: '',
     isLearningMode: false,
+    voicePrivacyNoticeAcknowledged: false,
     lastCouncilConfig: {
       enabled: false,
       mode: 'consensus',

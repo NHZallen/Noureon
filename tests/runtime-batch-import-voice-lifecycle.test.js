@@ -54,7 +54,7 @@ function createNode() {
 function createHarness(overrides = {}) {
   const calls = [];
   let currentUser = null;
-  let config = { uiLanguage: 'en' };
+  let config = { uiLanguage: 'en', ...(overrides.config || {}) };
   let conversations = overrides.conversations ?? [
     { id: 'c1', archived: false, deletedAt: null },
     { id: 'c2', archived: false, deletedAt: null }
@@ -197,6 +197,9 @@ function createHarness(overrides = {}) {
     calls,
     elements,
     lifecycle,
+    get config() {
+      return config;
+    },
     get conversations() {
       return conversations;
     },
@@ -393,20 +396,28 @@ test('single conversation batch move preserves selection mode and routes only th
   assert.equal(harness.calls.some((call) => call[0] === 'toggleSelectionMode'), false);
 });
 
-test('voice setup and toggle use injected browser and state bridges', () => {
-  class SpeechRecognitionFake {
-    start() {
-      this.started = true;
-    }
-    stop() {
-      this.stopped = true;
-    }
+class SpeechRecognitionFake {
+  start() {
+    this.started = true;
   }
-  const harness = createHarness({
-    window: { SpeechRecognition: SpeechRecognitionFake }
-  });
+  stop() {
+    this.stopped = true;
+  }
+}
+
+// toggleVoiceInput awaits the one-time privacy notice, so let its microtasks settle.
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const createVoiceHarness = (config = {}) => createHarness({
+  window: { SpeechRecognition: SpeechRecognitionFake },
+  config: { voicePrivacyNoticeAcknowledged: true, ...config }
+});
+
+test('voice setup and toggle use injected browser and state bridges', async () => {
+  const harness = createVoiceHarness();
   harness.lifecycle.setupVoiceInput();
   harness.elements.voiceInputBtnSearch.dispatch('click');
+  await settle();
   assert.equal(harness.currentVoiceTarget, 'search');
   assert.ok(harness.currentSpeechRecognition);
 
@@ -421,6 +432,143 @@ test('voice setup and toggle use injected browser and state bridges', () => {
   harness.currentSpeechRecognition.onend();
   assert.equal(harness.currentSpeechRecognition, null);
   assert.equal(harness.currentVoiceTarget, null);
+});
+
+test('speech recognition language follows the interface language', async () => {
+  const expected = { 'zh-TW': 'zh-TW', en: 'en-US', fr: 'fr-FR', ru: 'ru-RU', es: 'es-ES' };
+
+  for (const [uiLanguage, recognitionLang] of Object.entries(expected)) {
+    const harness = createVoiceHarness({ uiLanguage });
+    harness.lifecycle.setupVoiceInput();
+    harness.elements.voiceInputBtnMessage.dispatch('click');
+    await settle();
+    assert.equal(harness.currentSpeechRecognition.lang, recognitionLang, uiLanguage);
+  }
+});
+
+test('switching the interface language applies to the next recognition session', async () => {
+  const harness = createVoiceHarness({ uiLanguage: 'en' });
+  harness.lifecycle.setupVoiceInput();
+
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+  assert.equal(harness.currentSpeechRecognition.lang, 'en-US');
+  harness.currentSpeechRecognition.onend();
+
+  harness.config.uiLanguage = 'es';
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+  assert.equal(harness.currentSpeechRecognition.lang, 'es-ES');
+});
+
+test('speech recognition errors are localized and always release the button state', async () => {
+  const harness = createHarness({
+    window: { SpeechRecognition: SpeechRecognitionFake },
+    config: { voicePrivacyNoticeAcknowledged: true },
+    i18n: { en: { voiceErrorNotAllowed: 'Microphone blocked', voiceError: 'Voice input error' } }
+  });
+  harness.lifecycle.setupVoiceInput();
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+
+  harness.currentSpeechRecognition.onerror({ error: 'not-allowed' });
+
+  const notification = harness.calls.find((call) => call[0] === 'showNotification');
+  assert.equal(notification[1], 'Microphone blocked');
+  assert.equal(notification[2], 'error');
+  // onend does not always follow onerror, so the button must not stay stuck in the active state.
+  assert.equal(harness.currentSpeechRecognition, null);
+  assert.equal(harness.currentVoiceTarget, null);
+  assert.equal(harness.elements.voiceInputBtnMessage.classList.contains('active'), false);
+});
+
+test('an unmapped speech error falls back to the generic localized message', async () => {
+  const harness = createHarness({
+    window: { SpeechRecognition: SpeechRecognitionFake },
+    config: { voicePrivacyNoticeAcknowledged: true },
+    i18n: { en: { voiceError: 'Voice input error' } }
+  });
+  harness.lifecycle.setupVoiceInput();
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+
+  harness.currentSpeechRecognition.onerror({ error: 'some-new-code' });
+
+  const notification = harness.calls.find((call) => call[0] === 'showNotification');
+  assert.equal(notification[1], 'Voice input error: some-new-code');
+});
+
+test('the first voice session asks for privacy consent before starting recognition', async () => {
+  const harness = createHarness({
+    window: { SpeechRecognition: SpeechRecognitionFake },
+    config: { voicePrivacyNoticeAcknowledged: false }
+  });
+  harness.lifecycle.setupVoiceInput();
+
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+
+  assert.ok(harness.calls.some((call) => call[0] === 'showCustomConfirm'), 'the notice is shown');
+  assert.equal(harness.config.voicePrivacyNoticeAcknowledged, true, 'acceptance is persisted');
+  assert.ok(harness.calls.some((call) => call[0] === 'saveConfig'));
+  assert.ok(harness.currentSpeechRecognition, 'recognition starts after acceptance');
+
+  // A second session must not ask again.
+  harness.currentSpeechRecognition.onend();
+  const confirmsBefore = harness.calls.filter((call) => call[0] === 'showCustomConfirm').length;
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+  assert.equal(harness.calls.filter((call) => call[0] === 'showCustomConfirm').length, confirmsBefore);
+});
+
+test('a second click during the privacy notice does not start a second recognition', async () => {
+  let releaseConfirm;
+  const created = [];
+  class CountingSpeechRecognition extends SpeechRecognitionFake {
+    constructor() {
+      super();
+      created.push(this);
+    }
+  }
+  const harness = createHarness({
+    window: { SpeechRecognition: CountingSpeechRecognition },
+    config: { voicePrivacyNoticeAcknowledged: false },
+    showCustomConfirm: () => new Promise((resolve) => { releaseConfirm = () => resolve(true); })
+  });
+  harness.lifecycle.setupVoiceInput();
+
+  // Both clicks land while the notice is still open and no recognition object exists yet.
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+  assert.equal(created.length, 0, 'nothing starts until the notice is answered');
+
+  releaseConfirm();
+  await settle();
+
+  assert.equal(created.length, 1, 'exactly one recognition is created');
+  assert.equal(harness.currentSpeechRecognition, created[0], 'the tracked recognition is the one that started');
+
+  // The tracked reference must be stoppable; a leaked second instance would be unreachable.
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+  assert.equal(created[0].stopped, true);
+  assert.equal(created.length, 1, 'stopping does not spawn another recognition');
+});
+
+test('declining the voice privacy notice does not start recognition', async () => {
+  const harness = createHarness({
+    window: { SpeechRecognition: SpeechRecognitionFake },
+    config: { voicePrivacyNoticeAcknowledged: false },
+    showCustomConfirm: async () => false
+  });
+  harness.lifecycle.setupVoiceInput();
+
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+
+  assert.equal(harness.currentSpeechRecognition, null, 'no recognition is created');
+  assert.equal(harness.config.voicePrivacyNoticeAcknowledged, false, 'the flag stays unset');
 });
 
 test('import and auth-import composition remains in real lifecycles and module has no fragment dependency', () => {
