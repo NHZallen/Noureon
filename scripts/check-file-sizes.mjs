@@ -7,6 +7,21 @@ const ignoredSourceDirectories = new Set(['node_modules', 'dist']);
 
 const KiB = 1024;
 
+// Budgets are calibrated against LF line endings (what CI checks out). On Windows,
+// core.autocrlf inflates every working-tree text file by one byte per line, so a commit
+// could pass in CI and fail locally. Measure text files as if their line endings were LF.
+const textExtensions = new Set(['.js', '.mjs', '.css', '.md', '.html', '.json', '.svg', '.txt']);
+
+function measuredSize(filePath) {
+  if (!textExtensions.has(extname(filePath))) return statSync(filePath).size;
+  const raw = readFileSync(filePath);
+  let crlfPairs = 0;
+  for (let i = raw.indexOf(13); i !== -1; i = raw.indexOf(13, i + 1)) {
+    if (raw[i + 1] === 10) crlfPairs += 1;
+  }
+  return raw.byteLength - crlfPairs;
+}
+
 function bytes(kib) {
   return Math.round(kib * KiB);
 }
@@ -36,7 +51,7 @@ function collectFiles(directory, predicate = () => true) {
     return [{
       filePath,
       path: normalizePath(filePath),
-      size: statSync(filePath).size
+      size: measuredSize(filePath)
     }];
   });
 }
