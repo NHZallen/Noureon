@@ -69,6 +69,7 @@ const {
 const i18n = globalThis.i18n;
 const OFFICIAL_ASTRAS = globalThis.OFFICIAL_ASTRAS;
 const updateLogs = globalThis.updateLogs;
+const productVersion = globalThis.PRODUCT_VERSION;
 const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify });
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1474,6 +1475,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             i18n,
             officialAstras: OFFICIAL_ASTRAS,
             updateLogs,
+            productVersion,
             uiThemeColors: UI_THEME_COLORS,
             models: MODELS,
             getSensitiveApiKeys,

@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
+import { PRODUCT_VERSION } from '../src/data/version.js';
+
 const UPDATE_LOG_COUNT = 83;
-const LATEST_UPDATE_VERSION = '16.4.5';
+// Derived, not copied: the newest update-log entry is by definition the product version.
+const LATEST_UPDATE_VERSION = PRODUCT_VERSION;
 const UPDATE_LOGS_CONTENT_HASH = '7a2c0dd3e3f7c5f7a84795587e5a122fe27ec0076c84849f5e97ac6b05346cee';
 
 const hashLogs = (logs) => createHash('sha256').update(JSON.stringify(logs)).digest('hex');

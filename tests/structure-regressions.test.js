@@ -1596,12 +1596,14 @@ test('batch import voice lifecycle moves batch import and voice ownership out of
   assert.doesNotMatch(fragment03Source, /const\s+handleBatchDelete\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(fragment03Source, /const\s+handleBatchArchive\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(fragment03Source, /const\s+setupVoiceInput\s*=\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(fragment03Source, /const\s+toggleVoiceInput\s*=\s*\(target\)\s*=>\s*\{/);
+  // Tolerate the async signature: a sync-only pattern would silently stop guarding re-inlining.
+  assert.doesNotMatch(fragment03Source, /const\s+toggleVoiceInput\s*=\s*(?:async\s*)?\(target\)\s*=>\s*\{/);
   assert.doesNotMatch(fragment03Source, /createLegacyImportExportLifecycle|createLegacyAuthImportLifecycle/);
   assert.match(lifecycleSource, /const\s+handleBatchDelete\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.match(lifecycleSource, /createLegacyImportExportLifecycle\(\{/);
   assert.match(lifecycleSource, /createLegacyAuthImportLifecycle\(\{/);
   assert.match(lifecycleSource, /const\s+setupVoiceInput\s*=\s*\(\)\s*=>\s*\{/);
+  assert.match(lifecycleSource, /const\s+toggleVoiceInput\s*=\s*(?:async\s*)?\(target\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
   assert.match(fragment03Source, /const\s+registerCoreTailDependencies\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(fragment03Source, /legacyRuntimeContext\.registerLazyBinding\(\s*['"]runtime\.coreTailDependencies['"]/);
@@ -3868,6 +3870,9 @@ test('version compare helper is isolated from the 00 runtime fragment and remain
   assert.doesNotMatch(fragment00Source, /\b(?:const|function)\s+compareVersions\b/);
   assert.match(coreTailSource, /compareVersions\(log\.version,\s*lastSeenVersion\)/);
   assert.match(coreTailSource, /compareVersions\(b\.version,\s*a\.version\)/);
-  assert.match(coreTailSource, /compareVersions\(log\.version,\s*max\)/);
+  // The displayed version comes from the single product version source, not from the update
+  // log, so core-tail must not derive it by reducing updateLogs any more.
+  assert.doesNotMatch(coreTailSource, /compareVersions\(log\.version,\s*max\)/);
+  assert.match(coreTailSource, /versionDisplayElement\.textContent\s*=\s*productVersion/);
   assert.ok(statSync(projectFile('src/app/runtime/legacy-core/legacy-core.js')).size < 150 * 1024);
 });

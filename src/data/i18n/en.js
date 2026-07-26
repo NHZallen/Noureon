@@ -168,7 +168,6 @@
         crossDialogueMemory: 'Cross-conversation recall',
         enableAutoMemory: 'Automatically organize and build conversation memory',
         enableAutoMemoryDesc: 'Turning this off only stops new memories from being created. Memories you already confirmed are kept; remove them individually under personal memory management below.',
-        enableAutoMemoryDesc: 'Turning this off only stops new memories from being created. Memories you already confirmed are kept; remove them individually under personal memory management below.',
         personalMemoryManage: 'Memory management',
         addMemory: 'Add Memory',
         dialogPromptTitle: 'Enter a value',
@@ -243,7 +242,7 @@
         versionInfo: 'Version Info',
         viewUpdateHistory: 'View Update History',
         enableUpdateNotifications: 'Enable Update Notifications',
-        versionNumber: 'Noureon-16.4.5', // Updated
+        versionNumber: 'Version: ', // label only; the number comes from PRODUCT_VERSION
         helpCenterDesc: "Noureon is an AI workspace for multi-model chat, Model Council collaboration, web search, attachments, image generation, Nouras, folders, import/export, PWA use, and optional cloud sync. Start by signing in or creating a local profile, then add the API keys for the providers you want to use. If cloud sync is enabled, refreshing the page is enough to pull the latest workspace state from Supabase. For help, email support@noureon.com and include your browser/device, selected model/provider, approximate time, and any screenshots or console errors. Never send API keys or sync passwords.",
         termsOfUseDesc: "By using Noureon, you are responsible for your account, local browser data, optional cloud-synced workspace, provider API keys, prompts, uploads, and compliance with the terms of each AI or search provider. Noureon does not provide or resell model access. AI responses and generated media may be inaccurate, incomplete, or unsuitable for professional use; do not rely on them as the sole basis for medical, legal, financial, safety, or other high-stakes decisions. Do not use the service for unlawful, abusive, harmful, or rights-infringing activity. The service is provided as-is and may change as the project evolves. Contact support@noureon.com for support requests.",
         privacyPolicyDesc: "Noureon is local-first by default: conversations, settings, Nouras, folders, appearance preferences, and provider API keys are stored in the browser unless you choose import/export or sign in and enable cloud sync. When cloud sync is enabled, Supabase stores the workspace data required for cross-device sync, including conversations, folders, Nouras, messages, sync metadata, deletion markers, and user-uploaded or generated assets in storage. Sensitive cloud vault or recovery payloads are encrypted with your sync key/password when configured; provider API keys remain local unless you explicitly include or sync them through a supported encrypted flow. Prompts, context, attachments, and model options are sent to the AI or search provider you select. Noureon does not sell personal data, and this repository does not include built-in ad tracking. You can export, delete, or clear local browser data from the app settings or browser controls.",
@@ -579,10 +578,6 @@
         model_gemini_3_1_flash_image_desc_tier_paid: 'Fast image generation and iterative editing',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Lightweight, fast image generation',
         imageReadyToEdit: 'Image attached. Describe the changes you want.',
-        imageReferenceUnavailable: 'The local file for the previous image is missing, so it cannot be reused as a reference. A new image will be generated from your description instead.',
-        imageReferenceUnavailableLabel: 'Reference image unavailable, generating a new image',
-        imageReferenceUnavailable: 'The local file for the previous image is missing, so it cannot be reused as a reference. A new image will be generated from your description instead.',
-        imageReferenceUnavailableLabel: 'Reference image unavailable, generating a new image',
         imageReferenceUnavailable: 'The local file for the previous image is missing, so it cannot be reused as a reference. A new image will be generated from your description instead.',
         imageReferenceUnavailableLabel: 'Reference image unavailable, generating a new image',
         imageAspectRatio: 'Aspect ratio',

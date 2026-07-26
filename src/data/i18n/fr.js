@@ -168,7 +168,6 @@
         crossDialogueMemory: 'Rappel inter-conversations',
         enableAutoMemory: 'Organiser et enrichir automatiquement la mémoire des conversations',
         enableAutoMemoryDesc: 'Désactiver cette option empêche seulement la création de nouveaux souvenirs. Les souvenirs déjà confirmés sont conservés ; supprimez-les un à un dans la gestion de la mémoire personnelle ci-dessous.',
-        enableAutoMemoryDesc: 'Désactiver cette option empêche seulement la création de nouveaux souvenirs. Les souvenirs déjà confirmés sont conservés ; supprimez-les un à un dans la gestion de la mémoire personnelle ci-dessous.',
         personalMemoryManage: 'Gestion de la mémoire',
         addMemory: 'Ajouter une Mémoire',
         dialogPromptTitle: 'Saisir une valeur',
@@ -243,7 +242,7 @@
         versionInfo: 'Informations sur la version',
         viewUpdateHistory: 'Voir l\'historique des mises à jour',
         enableUpdateNotifications: 'Activer les notifications de mise à jour',
-        versionNumber: 'Noureon-16.4.5', // Updated
+        versionNumber: 'Version : ', // label only; the number comes from PRODUCT_VERSION
         helpCenterDesc: "Noureon est un espace de travail IA pour le chat multi-modèle, la collaboration Model Council, la recherche web, les pièces jointes, la génération d’images, les Nouras, les dossiers, l’import/export, l’installation PWA et la synchronisation cloud optionnelle. Commencez par créer un profil local ou vous connecter, puis ajoutez les clés API des fournisseurs que vous souhaitez utiliser. Si la synchronisation cloud est activée, actualiser la page suffit à récupérer le dernier état de l’espace de travail depuis Supabase. Pour obtenir de l’aide, écrivez à support@noureon.com avec le navigateur/appareil, le modèle ou fournisseur utilisé, l’heure approximative et, si possible, des captures ou erreurs de console. N’envoyez jamais de clés API ni de mots de passe de synchronisation.",
         termsOfUseDesc: "En utilisant Noureon, vous êtes responsable de votre compte, des données locales du navigateur, de l’espace de travail synchronisé dans le cloud si activé, des clés API de fournisseurs, des prompts, des fichiers importés et du respect des conditions de chaque fournisseur IA ou de recherche. Noureon ne fournit ni ne revend d’accès aux modèles. Les réponses IA et médias générés peuvent être inexacts, incomplets ou inadaptés à un usage professionnel ; ne les utilisez pas comme seule base pour des décisions médicales, juridiques, financières, de sécurité ou à fort enjeu. N’utilisez pas le service pour des activités illégales, abusives, nuisibles ou portant atteinte aux droits d’autrui. Le service est fourni tel quel et peut évoluer. Pour toute demande d’assistance, contactez support@noureon.com.",
         privacyPolicyDesc: "Noureon est local-first par défaut : conversations, paramètres, Nouras, dossiers, préférences d’apparence et clés API de fournisseurs sont stockés dans le navigateur, sauf si vous choisissez l’import/export ou si vous vous connectez et activez la synchronisation cloud. Lorsque la synchronisation cloud est activée, Supabase stocke les données nécessaires à la synchronisation multi-appareils, notamment conversations, dossiers, Nouras, messages, métadonnées de synchronisation, marqueurs de suppression et fichiers importés ou générés dans le stockage. Les coffres ou charges de récupération sensibles sont chiffrés avec votre clé/mot de passe de synchronisation lorsqu’ils sont configurés ; les clés API restent locales sauf inclusion ou synchronisation explicite via un flux chiffré pris en charge. Les prompts, contextes, pièces jointes et options de modèle sont envoyés au fournisseur IA ou de recherche sélectionné. Noureon ne vend pas de données personnelles et ce dépôt n’inclut pas de suivi publicitaire intégré. Vous pouvez exporter, supprimer ou effacer les données locales depuis les paramètres ou le navigateur.",
@@ -579,10 +578,6 @@
         model_gemini_3_1_flash_image_desc_tier_paid: 'Génération rapide et retouches itératives',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Génération d’images légère et rapide',
         imageReadyToEdit: 'Image jointe. Décrivez les modifications souhaitées.',
-        imageReferenceUnavailable: 'Le fichier local de l’image précédente est introuvable ; elle ne peut pas servir de référence. Une nouvelle image sera générée à partir de votre description.',
-        imageReferenceUnavailableLabel: 'Image de référence indisponible, génération d’une nouvelle image',
-        imageReferenceUnavailable: 'Le fichier local de l’image précédente est introuvable ; elle ne peut pas servir de référence. Une nouvelle image sera générée à partir de votre description.',
-        imageReferenceUnavailableLabel: 'Image de référence indisponible, génération d’une nouvelle image',
         imageReferenceUnavailable: 'Le fichier local de l’image précédente est introuvable ; elle ne peut pas servir de référence. Une nouvelle image sera générée à partir de votre description.',
         imageReferenceUnavailableLabel: 'Image de référence indisponible, génération d’une nouvelle image',
         imageAspectRatio: 'Format d’image',

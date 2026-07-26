@@ -75,6 +75,7 @@ async function bootstrap() {
     import('./data/demo-conversations.js'),
     import('./data/astras-data.js'),
     import('./data/update-logs.js'),
+    import('./data/version.js'),
     loadVendorScript('/vendor/mhchem.min.js')
   ]).then(() => {
     recordBootstrapMilestone(

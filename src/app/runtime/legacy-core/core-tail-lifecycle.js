@@ -72,6 +72,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         i18n,
         OFFICIAL_ASTRAS,
         updateLogs,
+        productVersion,
         UI_THEME_COLORS,
         setTheme,
         updateThemeButtons,
@@ -973,13 +974,13 @@ function setupMessageIntersectionObserver() {
             createChangeEvent: () => new Event('change')
         });
         const updateDisplayedVersion = () => {
-    const versionDisplayElement = document.getElementById('version-number-display');
-    if (versionDisplayElement && typeof updateLogs !== 'undefined' && updateLogs.length > 0) {
-        const latestVersionInLog = updateLogs.reduce((max, log) => 
-            compareVersions(log.version, max) > 0 ? log.version : max, '0.0.0');
-        versionDisplayElement.textContent = latestVersionInLog;
-    }
-};
+            // The number comes from the single product version source, not from the update log.
+            // The surrounding label is translated separately via data-lang-key="versionNumber".
+            const versionDisplayElement = document.getElementById('version-number-display');
+            if (versionDisplayElement && productVersion) {
+                versionDisplayElement.textContent = productVersion;
+            }
+        };
         const runtimeEntryDependencies = createLegacyRuntimeEntryDependencies({
             appBootstrap: {
                 window,

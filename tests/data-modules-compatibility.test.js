@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { PRODUCT_VERSION } from '../src/data/version.js';
+
 const EXPECTED_DATA_IMPORT_ORDER = [
   './data/i18n.js',
   './data/demo-conversations.js',
@@ -12,7 +14,8 @@ const EXPECTED_DEMO_CONVERSATION_KEYS = ['proMax', 'proPV', 'pro', 'plusPV', 'mi
 const EXPECTED_ASTRA_COUNT = 11;
 const EXPECTED_FIRST_ASTRA_ID = 'official-writer-01';
 const EXPECTED_UPDATE_LOG_COUNT = 83;
-const EXPECTED_LATEST_UPDATE_VERSION = '16.4.5';
+// Derived, not copied: the newest update-log entry is by definition the product version.
+const EXPECTED_LATEST_UPDATE_VERSION = PRODUCT_VERSION;
 const GLOBAL_KEYS_TO_RESTORE = ['window', 'i18n', 'demoConversations', 'OFFICIAL_ASTRAS', 'updateLogs'];
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);

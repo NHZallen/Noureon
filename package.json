@@ -20,6 +20,7 @@
     "build": "vite build",
     "check:legacy-runtime": "node scripts/check-legacy-runtime-boundaries.mjs",
     "check:sizes": "node scripts/check-file-sizes.mjs",
+    "check:version": "node scripts/check-version-consistency.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {

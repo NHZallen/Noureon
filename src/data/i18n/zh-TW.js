@@ -168,7 +168,6 @@
         crossDialogueMemory: '跨對話回憶',
         enableAutoMemory: '自動整理與累積對話記憶',
         enableAutoMemoryDesc: '關閉後只會停止產生新的記憶，已確認的記憶仍會保留；要移除請到下方的個人習慣記憶管理逐筆刪除。',
-        enableAutoMemoryDesc: '關閉後只會停止產生新的記憶，已確認的記憶仍會保留；要移除請到下方的個人習慣記憶管理逐筆刪除。',
         personalMemoryManage: '記憶管理',
         addMemory: '新增記憶',
         dialogPromptTitle: '請輸入',
@@ -243,7 +242,7 @@
         versionInfo: '版本資訊',
         viewUpdateHistory: '查看版本更新資訊',
         enableUpdateNotifications: '啟用更新通知彈窗',
-        versionNumber: 'Noureon-16.4.5', // Updated
+        versionNumber: '版本號：', // label only; the number comes from PRODUCT_VERSION
         helpCenterDesc: "Noureon 是一個 AI 工作空間，支援多模型對話、模型議會協作、網路搜尋、附件分析、圖片生成、Nouras、資料夾、匯入匯出、PWA 安裝與選用的雲端同步。開始使用時可建立本機個人檔案或登入帳號，接著在設定中加入要使用之供應商的 API 金鑰。若已啟用雲端同步，重新整理頁面即可從 Supabase 拉取最新工作空間狀態。需要協助時請寄 support@noureon.com，並附上瀏覽器/裝置、使用的模型或供應商、發生時間、截圖或 Console 錯誤；請勿寄送 API 金鑰或同步密碼。",
         termsOfUseDesc: "使用 Noureon 即表示您同意自行管理帳號、本機瀏覽器資料、選用的雲端同步工作空間、供應商 API 金鑰、提示內容、上傳檔案，並遵守各 AI 或搜尋供應商的服務條款。Noureon 不提供或轉售模型存取服務。AI 回覆與生成媒體可能不正確、不完整，或不適合作為專業用途；請勿將其作為醫療、法律、財務、安全或其他高風險決策的唯一依據。不得將本服務用於違法、濫用、傷害他人或侵害權利之行為。本服務依現況提供，並可能隨專案演進調整。客服請聯絡 support@noureon.com。",
         privacyPolicyDesc: "Noureon 預設採用 local-first：對話、設定、Nouras、資料夾、外觀偏好與供應商 API 金鑰會儲存在瀏覽器中，除非您主動匯入/匯出，或登入並啟用雲端同步。啟用雲端同步時，Supabase 會保存跨裝置同步所需的工作空間資料，包括對話、資料夾、Nouras、訊息、同步中繼資料、刪除標記，以及使用者上傳或生成的資產檔案。已設定同步密鑰/密碼時，雲端保險庫或復原資料會以該密鑰加密；供應商 API 金鑰預設仍留在本機，除非您明確透過支援的加密流程納入同步或匯出。您送出的提示、上下文、附件與模型選項會傳送給您選擇的 AI 或搜尋供應商。Noureon 不販售個人資料，本 repository 也不內建廣告追蹤。您可在設定或瀏覽器控制中匯出、刪除或清除本機資料。",
@@ -579,10 +578,6 @@
         model_gemini_3_1_flash_image_desc_tier_paid: '快速圖片生成與多輪修改',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: '輕量快速圖片生成',
         imageReadyToEdit: '圖片已加入，可繼續描述修改內容',
-        imageReferenceUnavailable: '上一張圖片的本機檔案已遺失，無法沿用為參考圖，將依你的描述重新生成一張新圖片。',
-        imageReferenceUnavailableLabel: '參考圖已遺失，正在重新生成',
-        imageReferenceUnavailable: '上一張圖片的本機檔案已遺失，無法沿用為參考圖，將依你的描述重新生成一張新圖片。',
-        imageReferenceUnavailableLabel: '參考圖已遺失，正在重新生成',
         imageReferenceUnavailable: '上一張圖片的本機檔案已遺失，無法沿用為參考圖，將依你的描述重新生成一張新圖片。',
         imageReferenceUnavailableLabel: '參考圖已遺失，正在重新生成',
         imageAspectRatio: '圖片比例',
