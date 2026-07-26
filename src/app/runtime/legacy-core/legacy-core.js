@@ -1539,6 +1539,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             },
             getCouncilTexts,
             renderInputIndicators,
+            renderCouncilControls,
             toggleLearningMode,
             toggleSelectionMode,
             submitChatForm,

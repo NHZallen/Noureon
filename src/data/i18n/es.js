@@ -268,6 +268,7 @@ const es = {
   "noFileSelected": "Ningún archivo seleccionado",
   "confirmAndImport": "Confirmar e importar",
   "archivedChats": "Chats archivados",
+  "archived": "Archivado",
   "viewArchivedChat": "Ver chat archivado",
   "noArchivedChats": "No hay chats archivados.",
   "view": "Vista",

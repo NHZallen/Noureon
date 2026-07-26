@@ -251,3 +251,73 @@ test('council controls source avoids provider parser, storage schema, package, a
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
 });
+
+// The panel is rebuilt by the submit cleanup lifecycle after every message. That rebuild throws
+// away ~1000 nodes and rebinds every listener to produce byte-identical markup, so it is skipped
+// when nothing would change. These pin both halves: that the skip happens, and that it does not
+// happen when something the user can see is different.
+test('an unchanged re-render reuses the existing panel instead of rebuilding it', () => {
+  const { cleanup, document, lifecycle } = createHarness();
+  try {
+    lifecycle.renderCouncilControls();
+    const container = document.querySelector('#model-council-control');
+    const firstBar = container.querySelector('.model-council-bar');
+
+    lifecycle.renderCouncilControls();
+    lifecycle.renderCouncilControls();
+
+    assert.equal(
+      container.querySelector('.model-council-bar'),
+      firstBar,
+      'the panel node should survive an unchanged re-render'
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test('a change the user can see still rebuilds the panel', () => {
+  const { cleanup, conversation, document, lifecycle } = createHarness();
+  try {
+    lifecycle.renderCouncilControls();
+    const container = document.querySelector('#model-council-control');
+    const firstBar = container.querySelector('.model-council-bar');
+
+    conversation.council.enabled = false;
+    lifecycle.renderCouncilControls();
+
+    assert.notEqual(
+      container.querySelector('.model-council-bar'),
+      firstBar,
+      'disabling the council must repaint'
+    );
+    assert.doesNotMatch(container.querySelector('.model-council-bar').className, /is-enabled/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('closing the popover from outside is picked up by the next render', () => {
+  const { cleanup, document, lifecycle } = createHarness();
+  try {
+    lifecycle.renderCouncilControls();
+    const container = document.querySelector('#model-council-control');
+    container.querySelector('#model-council-toggle-btn').click();
+
+    const popover = container.querySelector('#model-council-popover');
+    assert.ok(popover.classList.contains('visible'), 'the popover should be open');
+    assert.equal(container.querySelector('#model-council-toggle-btn').getAttribute('aria-expanded'), 'true');
+
+    // closeAllPopovers strips the class directly without re-rendering.
+    popover.classList.remove('visible');
+    lifecycle.renderCouncilControls();
+
+    assert.equal(
+      container.querySelector('#model-council-toggle-btn').getAttribute('aria-expanded'),
+      'false',
+      'aria-expanded must not stay stale after an external close'
+    );
+  } finally {
+    cleanup();
+  }
+});

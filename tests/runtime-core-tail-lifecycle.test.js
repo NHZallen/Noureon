@@ -243,15 +243,16 @@ test('changing the interface language re-renders the language-dependent Noura li
   const { lifecycle } = createHarness({
     i18n: { 'zh-TW': {}, en: {} },
     renderAstras: () => rendered.push('astras'),
-    renderInputIndicators: () => rendered.push('indicators')
+    renderInputIndicators: () => rendered.push('indicators'),
+    renderCouncilControls: () => rendered.push('council')
   });
 
   lifecycle.applyLanguage('zh-TW');
-  assert.deepEqual(rendered, ['astras', 'indicators'], 'the first application establishes the language');
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council'], 'the first application establishes the language');
 
   rendered.length = 0;
   lifecycle.applyLanguage('en');
-  assert.deepEqual(rendered, ['astras', 'indicators'], 'switching language rebuilds the localized lists');
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council'], 'switching language rebuilds the localized lists');
 });
 
 test('re-applying the same interface language does no extra rendering work', () => {
@@ -259,7 +260,8 @@ test('re-applying the same interface language does no extra rendering work', () 
   const { lifecycle } = createHarness({
     i18n: { 'zh-TW': {}, en: {} },
     renderAstras: () => rendered.push('astras'),
-    renderInputIndicators: () => rendered.push('indicators')
+    renderInputIndicators: () => rendered.push('indicators'),
+    renderCouncilControls: () => rendered.push('council')
   });
 
   lifecycle.applyLanguage('en');
@@ -272,5 +274,5 @@ test('re-applying the same interface language does no extra rendering work', () 
 
   // An unknown language resolves to the zh-TW fallback, which is a real change.
   lifecycle.applyLanguage('not-a-language');
-  assert.deepEqual(rendered, ['astras', 'indicators']);
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council']);
 });

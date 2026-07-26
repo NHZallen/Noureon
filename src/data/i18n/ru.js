@@ -268,6 +268,7 @@ const ru = {
   "noFileSelected": "Файл не выбран",
   "confirmAndImport": "Подтвердить и импортировать",
   "archivedChats": "Архивированные чаты",
+  "archived": "В архиве",
   "viewArchivedChat": "Посмотреть архивированный чат",
   "noArchivedChats": "Никаких архивных чатов.",
   "view": "Вид",

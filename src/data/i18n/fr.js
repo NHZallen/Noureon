@@ -273,6 +273,7 @@
         noFileSelected: 'Aucun fichier sélectionné',
         confirmAndImport: 'Confirmer & Importer',
         archivedChats: 'Chats Archivés',
+        archived: 'Archivé',
         viewArchivedChat: 'Voir le Chat Archivé',
         noArchivedChats: 'Aucun chat archivé.',
         view: 'Voir',

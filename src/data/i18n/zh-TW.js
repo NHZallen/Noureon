@@ -273,6 +273,7 @@
         noFileSelected: '尚未選擇檔案',
         confirmAndImport: '確認並匯入',
         archivedChats: '已封存的對話',
+        archived: '已封存',
         viewArchivedChat: '檢視封存的對話',
         noArchivedChats: '沒有已封存的對話。',
         view: '檢視',

@@ -35,6 +35,24 @@ export function createCouncilControlsLifecycle(deps) {
     showNotification = () => {}
   } = deps || {};
 
+  // Every submit runs this through the final-cleanup lifecycle, and it rebuilds the whole panel:
+  // the model catalogue twice, a forced layout read, and ~20 listener rebindings. In the common
+  // case the result is byte-identical to what is already on screen, so remember what was last
+  // written and skip the write when nothing would change.
+  //
+  // The remembered markup is the FULL string, including the popover's open state and any typed
+  // model search, both of which are read back from the live DOM on every call. Normalising those
+  // out would be faster on popover toggles but lets the cache disagree with the DOM whenever
+  // something closes the popover without re-rendering, so the full string is compared instead.
+  let cachedContainer = null;
+  let cachedConversation = null;
+  let cachedMarkup = null;
+  const dropCouncilMarkupCache = () => {
+    cachedContainer = null;
+    cachedConversation = null;
+    cachedMarkup = null;
+  };
+
   const renderCouncilControls = () => {
     const fileInputContainer = getFileInputContainer();
     const inputControls = fileInputContainer?.parentElement;
@@ -60,12 +78,14 @@ export function createCouncilControlsLifecycle(deps) {
     const conversation = getActiveConversation();
     if (!conversation) {
       container.innerHTML = '';
+      dropCouncilMarkupCache();
       return;
     }
     conversation.council = normalizeCouncilConfig(conversation.council);
     const config = getConfig();
     if (config.isLearningMode && !conversation.council.enabled) {
       container.innerHTML = '';
+      dropCouncilMarkupCache();
       return;
     }
 
@@ -166,7 +186,7 @@ export function createCouncilControlsLifecycle(deps) {
       `;
     }).join('');
 
-    container.innerHTML = `
+    const councilMarkup = `
       <div class="model-council-bar ${conversation.council.enabled ? 'is-enabled' : ''} ${isLocked ? 'is-locked' : ''}">
         <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
@@ -208,6 +228,29 @@ export function createCouncilControlsLifecycle(deps) {
         </div>
       </div>
     `;
+
+    // Identity is checked alongside the markup: two conversations can render identically, and
+    // bailing then would leave the handlers below closed over the previous conversation object.
+    // existingPopover also catches the panel having been cleared or replaced from outside.
+    //
+    // The open/close handlers set aria-expanded straight on the node without re-rendering, so the
+    // panel can drift from the markup that produced it. Reusing it is only safe while it still
+    // agrees with what would be rendered now.
+    const existingToggle = container.querySelector('#model-council-toggle-btn');
+    const panelMatchesMarkup = existingToggle?.getAttribute('aria-expanded') === String(wasVisible);
+    if (
+      existingPopover
+      && panelMatchesMarkup
+      && cachedContainer === container
+      && cachedConversation === conversation
+      && cachedMarkup === councilMarkup
+    ) {
+      return;
+    }
+    container.innerHTML = councilMarkup;
+    cachedContainer = container;
+    cachedConversation = conversation;
+    cachedMarkup = councilMarkup;
 
     const popover = container.querySelector('#model-council-popover');
     const scrollArea = container.querySelector('.council-popover-scroll-area');

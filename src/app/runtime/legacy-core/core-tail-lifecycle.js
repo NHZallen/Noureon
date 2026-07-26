@@ -130,6 +130,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         bindGeneratedImageAssets = async () => {},
         getCouncilTexts,
         renderInputIndicators,
+        renderCouncilControls = () => {},
         toggleLearningMode,
         toggleSelectionMode,
         handleBatchDelete,
@@ -537,6 +538,9 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             if (languageChanged) {
                 renderAstras();
                 renderInputIndicators();
+                // The council bar sits under the composer in every conversation and builds its
+                // labels at render time, so it would otherwise stay in the previous language.
+                renderCouncilControls();
             }
         };
         const showMobileContextMenu = (convId) => {
