@@ -1304,25 +1304,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deleteAstras,
             createAstrasMenu
         } = sidebarChatAstraRenderLifecycle);
-        createCloudWorkspaceLiveLifecycle({
-            window,configAccess:runtimeConfigAccess,appDataStore:runtimeAppDataStore,
-            getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
-            models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
-            getCouncilTranslatorCandidates,getSingleTranslatorCandidates,
-            // Declared by the transition bus destructuring below; read lazily to avoid the TDZ.
-            applyCustomWallpaper:(...args)=>applyCustomWallpaper(...args),
-            applyUiTheme:(...args)=>applyUiTheme(...args),
-            applyLanguage:(...args)=>applyLanguage(...args),
-            renderSidebar,renderChat,getActiveConversation,
-            onActiveConversationUnavailable:({conversationId})=>{
-                if (conversationStateAccess.getCurrentConversationId() !== conversationId) return;
-                const nextConversation = runtimeAppDataStore.getConversations()
-                    .find(conversation => !conversation.archived && !conversation.deletedAt && conversation.id !== conversationId);
-                if (nextConversation) loadChat(nextConversation.id);
-                else void startNewChat({keepSidebarOpen:true});
-            },
-            saveAppData,busy:()=>abortController&&getActiveConversation()
-        });
         const messageEditingLifecycle = createMessageEditingLifecycle({
             document,
             elements: ALL_ELEMENTS,
@@ -1648,5 +1629,23 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         invalidateConversationMemory = invalidateMemoryConversation;
         transitionBusLifecycle.registerSidebarBindings();
         transitionBusLifecycle.registerCoreTailDependencies();
+        // Created after the transition bus destructuring so its dependencies are plain
+        // references. Its listeners only receive async cloud events, so ordering is safe.
+        createCloudWorkspaceLiveLifecycle({
+            window,configAccess:runtimeConfigAccess,appDataStore:runtimeAppDataStore,
+            getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
+            models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
+            getCouncilTranslatorCandidates,getSingleTranslatorCandidates,
+            applyCustomWallpaper,applyUiTheme,applyLanguage,
+            renderSidebar,renderChat,getActiveConversation,
+            onActiveConversationUnavailable:({conversationId})=>{
+                if (conversationStateAccess.getCurrentConversationId() !== conversationId) return;
+                const nextConversation = runtimeAppDataStore.getConversations()
+                    .find(conversation => !conversation.archived && !conversation.deletedAt && conversation.id !== conversationId);
+                if (nextConversation) loadChat(nextConversation.id);
+                else void startNewChat({keepSidebarOpen:true});
+            },
+            saveAppData,busy:()=>abortController&&getActiveConversation()
+        });
 
 export { legacyRuntimeContext };

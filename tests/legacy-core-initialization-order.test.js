@@ -10,7 +10,8 @@ import test from 'node:test';
 // happened to hide it, so nothing caught it.
 //
 // Passing such a name lazily — applyUiTheme: (...args) => applyUiTheme(...args) — is fine, because
-// the lookup happens at call time. Only a direct read before the declaration is a defect.
+// the lookup happens at call time; that is this file's dependency-wiring idiom for lifecycles
+// created before the transition bus. Only a direct read before the declaration is a defect.
 
 const source = readFileSync(
   new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url),
@@ -57,5 +58,19 @@ test('legacy-core does not read transition bus bindings before they are declared
     leaked,
     [],
     'these transition bus bindings are read before their declaration; pass them lazily instead'
+  );
+});
+
+test('the cloud workspace live lifecycle is created after the transition bus destructuring', () => {
+  // It takes applyCustomWallpaper / applyUiTheme / applyLanguage as plain references, which is
+  // only safe below the destructuring block. Moving it back up reintroduces the dev-only TDZ
+  // crash this file already shipped once.
+  const destructureEnd = source.indexOf('} = transitionBusLifecycle;');
+  const cloudCreation = source.indexOf('createCloudWorkspaceLiveLifecycle({');
+  assert.ok(destructureEnd >= 0, 'the destructuring block should exist');
+  assert.ok(cloudCreation >= 0, 'the cloud workspace live lifecycle should be created');
+  assert.ok(
+    cloudCreation > destructureEnd,
+    'createCloudWorkspaceLiveLifecycle must stay below the transition bus destructuring'
   );
 });
