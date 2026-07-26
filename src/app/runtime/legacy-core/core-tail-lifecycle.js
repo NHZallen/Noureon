@@ -475,8 +475,11 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             toggleModal(ALL_ELEMENTS.astrasAvatarModal, false);
             state.editingAstraForAvatarId = null;
         };
+        let lastAppliedLanguage = null;
         const applyLanguage = (lang) => {
             const resolvedLanguage = i18n[lang] ? lang : 'zh-TW';
+            const languageChanged = resolvedLanguage !== lastAppliedLanguage;
+            lastAppliedLanguage = resolvedLanguage;
             const translations = i18n[resolvedLanguage];
             document.documentElement.lang = resolvedLanguage;
             document.documentElement.dir = 'ltr';
@@ -528,6 +531,13 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             }
             legacyRuntimeContext.resolveBinding('input.updateInputState')();
             document.documentElement.lang = lang;
+            // Noura names are localized when the list is built, not through data-lang-key, so the
+            // sidebar and the active-Noura chip keep the old language until they are rebuilt.
+            // Guarded so repeated applyLanguage calls with the same language stay free.
+            if (languageChanged) {
+                renderAstras();
+                renderInputIndicators();
+            }
         };
         const showMobileContextMenu = (convId) => {
             const oldMenu = document.getElementById('mobile-context-menu-wrapper');

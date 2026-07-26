@@ -234,3 +234,43 @@ test('core tail module owns trash composition without importing legacy fragments
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
   assert.match(source, /createLegacyRuntimeEntryDependencies\(\{/);
 });
+
+// Noura names are localized when the sidebar list is built, not through data-lang-key, so
+// applyLanguage's [data-lang-key] sweep cannot reach them. Without an explicit re-render the
+// sidebar kept the previous language until some unrelated interaction rebuilt the list.
+test('changing the interface language re-renders the language-dependent Noura lists', () => {
+  const rendered = [];
+  const { lifecycle } = createHarness({
+    i18n: { 'zh-TW': {}, en: {} },
+    renderAstras: () => rendered.push('astras'),
+    renderInputIndicators: () => rendered.push('indicators')
+  });
+
+  lifecycle.applyLanguage('zh-TW');
+  assert.deepEqual(rendered, ['astras', 'indicators'], 'the first application establishes the language');
+
+  rendered.length = 0;
+  lifecycle.applyLanguage('en');
+  assert.deepEqual(rendered, ['astras', 'indicators'], 'switching language rebuilds the localized lists');
+});
+
+test('re-applying the same interface language does no extra rendering work', () => {
+  const rendered = [];
+  const { lifecycle } = createHarness({
+    i18n: { 'zh-TW': {}, en: {} },
+    renderAstras: () => rendered.push('astras'),
+    renderInputIndicators: () => rendered.push('indicators')
+  });
+
+  lifecycle.applyLanguage('en');
+  rendered.length = 0;
+
+  // renderAll runs applyLanguage on every pass; it must not rebuild the lists each time.
+  lifecycle.applyLanguage('en');
+  lifecycle.applyLanguage('en');
+  assert.deepEqual(rendered, []);
+
+  // An unknown language resolves to the zh-TW fallback, which is a real change.
+  lifecycle.applyLanguage('not-a-language');
+  assert.deepEqual(rendered, ['astras', 'indicators']);
+});
