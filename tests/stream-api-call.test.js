@@ -126,6 +126,76 @@ test('v2 memory injects only its filtered context and never the legacy memory li
   assert.doesNotMatch(systemMessage.content, /legacy-name|language/);
 });
 
+const ASTRA_FIXTURE = {
+  id: 'official-writer-01',
+  name: '旅遊小編',
+  instructions: 'Write as a high-end travel magazine editor with a warm, vivid voice.'
+};
+
+const readSystemMessage = (requests) => {
+  const payload = JSON.parse(requests[0].options.body);
+  return payload.messages.find(message => message.role === 'system').content;
+};
+
+test('learning mode keeps the selected Noura instead of replacing it', async () => {
+  const { streamApiCall, requests } = createHarness({
+    config: { isLearningMode: true, uiLanguage: 'en' },
+    conversation: { astrasId: ASTRA_FIXTURE.id },
+    astras: [ASTRA_FIXTURE]
+  });
+
+  await streamApiCall([{ text: 'Teach me about tides' }], () => {});
+
+  const systemMessage = readSystemMessage(requests);
+  assert.match(systemMessage, /high-end travel magazine editor/);
+  assert.match(systemMessage, /Learning Mode/);
+  assert.match(systemMessage, /Learning Mode wins/);
+});
+
+test('learning mode rules are stated after the Noura so teaching rules win on conflict', async () => {
+  const { streamApiCall, requests } = createHarness({
+    config: { isLearningMode: true, uiLanguage: 'en' },
+    conversation: { astrasId: ASTRA_FIXTURE.id },
+    astras: [ASTRA_FIXTURE]
+  });
+
+  await streamApiCall([{ text: 'Teach me about tides' }], () => {});
+
+  const systemMessage = readSystemMessage(requests);
+  const astraIndex = systemMessage.indexOf('high-end travel magazine editor');
+  const precedenceIndex = systemMessage.indexOf('Learning Mode wins');
+  assert.ok(astraIndex >= 0 && precedenceIndex > astraIndex, 'precedence clause should follow the Noura instructions');
+});
+
+test('learning mode without a Noura keeps the reply language instruction and skips the precedence clause', async () => {
+  const { streamApiCall, requests } = createHarness({
+    config: { isLearningMode: true, uiLanguage: 'en' }
+  });
+
+  await streamApiCall([{ text: 'Teach me about tides' }], () => {});
+
+  const systemMessage = readSystemMessage(requests);
+  assert.match(systemMessage, /Please respond in English/);
+  assert.match(systemMessage, /Learning Mode/);
+  assert.doesNotMatch(systemMessage, /Learning Mode wins/);
+});
+
+test('a Noura still applies on its own when learning mode is off', async () => {
+  const { streamApiCall, requests } = createHarness({
+    config: { isLearningMode: false, uiLanguage: 'en' },
+    conversation: { astrasId: ASTRA_FIXTURE.id },
+    astras: [ASTRA_FIXTURE]
+  });
+
+  await streamApiCall([{ text: 'Write a travel intro' }], () => {});
+
+  const systemMessage = readSystemMessage(requests);
+  assert.match(systemMessage, /high-end travel magazine editor/);
+  assert.match(systemMessage, /Please respond in English/);
+  assert.doesNotMatch(systemMessage, /Learning Mode/);
+  assert.doesNotMatch(systemMessage, /Learning Mode wins/);
+});
+
 test('OpenRouter requests preserve payload, headers, attachments, and streamed deltas', async () => {
   const { streamApiCall, requests } = createHarness({
     conversation: {

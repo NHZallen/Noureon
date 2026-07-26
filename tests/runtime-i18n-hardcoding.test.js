@@ -44,9 +44,15 @@ test('audited runtime surfaces no longer contain binary English-versus-Chinese l
 });
 
 test('learning mode provides a localized model instruction for all five languages', () => {
-  const source = read('src/app/legacy-runtime/features/stream-api-call.js');
+  const source = read('src/app/legacy-runtime/features/learning-mode-prompt.js');
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
     assert.match(source, new RegExp(`(?:['"]${language}['"]|\\b${language}):`), language);
   }
-  assert.match(source, /LEARNING_MODE_PROMPTS\[config\.uiLanguage\]/);
+  assert.match(source, /LEARNING_MODE_PROMPTS\[uiLanguage\]/);
+  assert.match(source, /LEARNING_MODE_PRECEDENCE\[uiLanguage\]/);
+
+  // The prompts are loaded on demand so their prose stays out of the main runtime chunk.
+  const caller = read('src/app/legacy-runtime/features/stream-api-call.js');
+  assert.match(caller, /await import\('\.\/learning-mode-prompt\.js'\)/);
+  assert.match(caller, /buildLearningModeInstruction\(config\.uiLanguage/);
 });
