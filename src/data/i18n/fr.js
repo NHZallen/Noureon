@@ -534,6 +534,7 @@
         newVersionsFound: 'Trouvé {count} nouvelles versions !',
         learningEnabled: 'Mode Apprentissage activé',
         learningDisabled: 'Mode Apprentissage désactivé',
+        learningWithNouraNotice: 'Le mode Apprentissage et le Noura sont actifs ensemble : le rôle et le ton sont conservés, et le mode Apprentissage prévaut en cas de conflit.',
         feedbackWarning: 'Veuillez d\'abord saisir vos commentaires !',
         feedbackSuccess: 'Commentaires envoyés avec succès, merci !',
         feedbackServerError: 'Une erreur de serveur s\'est produite, veuillez réessayer plus tard.',

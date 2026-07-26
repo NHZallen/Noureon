@@ -353,6 +353,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
   };
 
+  // The four composer chips share one close-button markup; keep it in one place.
+  const CHIP_CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  const chipCloseButton = (id, title, attrs = '') => `<button ${attrs}id="${id}" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${title}">${CHIP_CLOSE_ICON}</button>`;
+  const getCombinedRulesNotice = () => (i18n[getLiveConfig().uiLanguage] || {}).learningWithNouraNotice
+    || '學習模式與 Noura 同時啟用：角色與語氣保留，衝突時以學習模式優先。';
+
   const toggleLearningMode = async () => {
     const config = getLiveConfig();
     const conv = getActiveConversation();
@@ -367,9 +373,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     updateFunctionButtonsState();
     ALL_ELEMENTS.fileOptionsPopover?.classList.remove('visible');
     const text = i18n[config.uiLanguage] || {};
+    // With a Noura active, explain how the two rule sets combine instead of the plain toast.
     showNotification(
       config.isLearningMode
-        ? (text.learningEnabled || 'Learning mode enabled')
+        ? (getActiveAstrasId()
+          ? getCombinedRulesNotice()
+          : (text.learningEnabled || 'Learning mode enabled'))
         : (text.learningDisabled || 'Learning mode disabled'),
       'success'
     );
@@ -391,31 +400,33 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
     const activeIndicators = new Map();
     const astrasId = getActiveAstrasId();
-    if (config.isLearningMode && !isImageConversation(conv)) {
+    const activeAstra = astrasId ? (state.astras || []).find((item) => item.id === astrasId) : null;
+    const learningActive = config.isLearningMode && !isImageConversation(conv);
+    // Both rule sets are active at once: surface how they combine on both chips.
+    const combinedRulesNotice = learningActive && activeAstra ? getCombinedRulesNotice() : '';
+    const combinedRulesTitle = combinedRulesNotice ? ` title="${escapeHTML(combinedRulesNotice)}"` : '';
+    if (learningActive) {
       activeIndicators.set('learning-mode-indicator', {
         id: 'learning-mode-indicator',
         html: `
-                        <span class="input-indicator-content flex items-center gap-2">
+                        <span class="input-indicator-content flex items-center gap-2"${combinedRulesTitle}>
                             <span class="input-indicator-leading">
                                 <svg class="input-indicator-mode-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"/></svg>
                             </span>
                             <span>${i18n[config.uiLanguage].learningIndicator || 'Learning'}</span>
                         </span>
-                        <button id="close-learning-mode-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${i18n[config.uiLanguage].closeLearning || 'Close learning'}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
+                        ${chipCloseButton('close-learning-mode-btn-input', i18n[config.uiLanguage].closeLearning || 'Close learning')}
                     `,
         eventListener: (el) => el.querySelector('#close-learning-mode-btn-input').addEventListener('click', toggleLearningMode)
       });
     }
-    if (astrasId) {
-      const ast = (state.astras || []).find((item) => item.id === astrasId);
-      if (ast) {
-        const astraName = getLocalizedAstraName(ast);
-        activeIndicators.set('astras-input-indicator', {
-          id: 'astras-input-indicator',
-          html: `
-                            <span class="input-indicator-content flex items-center gap-2">
+    if (activeAstra) {
+      const ast = activeAstra;
+      const astraName = getLocalizedAstraName(ast);
+      activeIndicators.set('astras-input-indicator', {
+        id: 'astras-input-indicator',
+        html: `
+                            <span class="input-indicator-content flex items-center gap-2"${combinedRulesTitle}>
                                 <span class="input-indicator-leading">
                                     <span class="astras-sidebar-avatar input-indicator-mode-icon" style="width: 18px; height: 18px; font-size: 0.7rem;">
                                     ${ast.avatarUrl ? `<img src="${ast.avatarUrl}" class="w-full h-full object-cover rounded-full">` : astraName.charAt(0)}
@@ -423,13 +434,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
                                 </span>
                                 <span>${astraName} <span data-lang-key="astrasActive">${i18n[config.uiLanguage].astrasActive || 'active'}</span></span>
                             </span>
-                            <button id="close-astras-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${i18n[config.uiLanguage].closeAstras || 'Close Noura'}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
+                            ${chipCloseButton('close-astras-btn-input', i18n[config.uiLanguage].closeAstras || 'Close Noura')}
                         `,
-          eventListener: (el) => el.querySelector('#close-astras-btn-input').addEventListener('click', deactivateAstras)
-        });
-      }
+        eventListener: (el) => el.querySelector('#close-astras-btn-input').addEventListener('click', deactivateAstras)
+      });
     }
     if (conv.isWebSearchEnabled) {
       activeIndicators.set('search-indicator', {
@@ -441,9 +449,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
                             </span>
                             <span>${i18n[config.uiLanguage].search || 'Search'}</span>
                         </span>
-                        <button id="close-search-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${i18n[config.uiLanguage].closeSearchMode || 'Close search'}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
+                        ${chipCloseButton('close-search-btn-input', i18n[config.uiLanguage].closeSearchMode || 'Close search')}
                     `,
         eventListener: (el) => el.querySelector('#close-search-btn-input').addEventListener('click', async () => {
           conv.isWebSearchEnabled = false;
@@ -466,9 +472,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
                             </span>
                             <span>${escapeHTML(councilModeLabel)}</span>
                         </span>
-                        <button type="button" id="close-model-council-btn-input" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${escapeHTML(validation.message || texts.title)}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
+                        ${chipCloseButton('close-model-council-btn-input', escapeHTML(validation.message || texts.title), 'type="button" ')}
                     `,
         eventListener: (el) => el.querySelector('#close-model-council-btn-input').addEventListener('click', async (event) => {
           event.preventDefault();

@@ -344,6 +344,13 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       runtimeRenderCoordinator.renderSidebar();
       renderInputIndicators();
       legacyRuntimeContext.resolveBinding('input.updateInputState')();
+      // Activating a Noura while learning mode is on: explain how the two rule sets combine.
+      if (astrasId && getConfig().isLearningMode) {
+        runtimeDialogCoordinator.showNotification(
+          i18n[getConfig().uiLanguage].learningWithNouraNotice || '學習模式與 Noura 同時啟用：角色與語氣保留，衝突時以學習模式優先。',
+          'success'
+        );
+      }
     }
   };
 

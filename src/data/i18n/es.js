@@ -536,6 +536,7 @@ const es = {
   "newVersionsFound": "¡Se encontraron {count} versiones nuevas!",
   "learningEnabled": "Modo de aprendizaje habilitado",
   "learningDisabled": "Modo de aprendizaje desactivado",
+  "learningWithNouraNotice": "El modo Aprendizaje y el Noura están activos a la vez: el rol y el tono se mantienen, y en caso de conflicto prevalece el modo Aprendizaje.",
   "feedbackWarning": "¡Por favor ingresa tus comentarios primero!",
   "feedbackSuccess": "Comentarios enviados correctamente, ¡gracias!",
   "feedbackServerError": "Se produjo un error en el servidor, inténtelo nuevamente más tarde.",

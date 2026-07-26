@@ -534,6 +534,7 @@
         newVersionsFound: '發現 {count} 個新版本！',
         learningEnabled: '學習模式已開啟',
         learningDisabled: '學習模式已關閉',
+        learningWithNouraNotice: '學習模式與 Noura 同時啟用：角色與語氣保留，衝突時以學習模式優先。',
         feedbackWarning: '請先輸入您的意見！',
         feedbackSuccess: '反饋已成功發送，感謝您！',
         feedbackServerError: '伺服器發生錯誤，請稍後再試。',

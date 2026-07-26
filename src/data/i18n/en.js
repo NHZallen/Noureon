@@ -534,6 +534,7 @@
         newVersionsFound: 'Found {count} new versions!',
         learningEnabled: 'Learning Mode enabled',
         learningDisabled: 'Learning Mode disabled',
+        learningWithNouraNotice: 'Learning Mode and the Noura are active together: the role and tone stay, and Learning Mode wins on conflict.',
         feedbackWarning: 'Please enter your feedback first!',
         feedbackSuccess: 'Feedback sent successfully, thank you!',
         feedbackServerError: 'A server error occurred, please try again later.',

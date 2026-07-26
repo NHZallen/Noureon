@@ -202,6 +202,34 @@ test('selecting and deactivating a Noura refreshes its composer indicator', asyn
   ]);
 });
 
+test('activating a Noura while learning mode is on explains the combined rules', async () => {
+  const dependencies = createDependencies({
+    renderInputIndicators: noop,
+    i18n: { en: { learningWithNouraNotice: 'Both rule sets are active; Learning Mode wins on conflict.' } }
+  });
+  dependencies.state.config.isLearningMode = true;
+  const conversation = { id: 'active-conv', astrasId: null };
+  dependencies.state.conversations = [conversation];
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+
+  await lifecycle.setAstrasForConversation('astra-1');
+
+  assert.deepEqual(
+    dependencies._calls.at(-1),
+    ['runtimeNotify', 'Both rule sets are active; Learning Mode wins on conflict.', 'success']
+  );
+
+  // Without learning mode the activation stays silent, as before.
+  dependencies._calls.length = 0;
+  dependencies.state.config.isLearningMode = false;
+  await lifecycle.setAstrasForConversation('astra-2');
+
+  assert.ok(
+    !dependencies._calls.some((entry) => Array.isArray(entry) && entry[0] === 'runtimeNotify'),
+    'no notification should fire when learning mode is off'
+  );
+});
+
 test('renderFolders reads live folders and conversations', () => {
   const dependencies = createDependencies();
   const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);

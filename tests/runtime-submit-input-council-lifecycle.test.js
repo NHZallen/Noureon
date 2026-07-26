@@ -213,6 +213,114 @@ test('image generation mode exposes camera and image upload while hiding generic
   cleanup();
 });
 
+test('learning mode with an active Noura explains the combined rules on both chips', () => {
+  const { document, cleanup } = createDom(`
+    <div class="input-wrapper">
+      <div id="input-indicator-container"></div>
+    </div>
+  `);
+  const conversation = { archived: false, astrasId: 'astra-1', model: 'model-a' };
+  const config = { uiLanguage: 'en', isLearningMode: true };
+  const dependencies = createDependencies({
+    document,
+    elements: { inputIndicatorContainer: document.getElementById('input-indicator-container') },
+    getActiveConversation: () => conversation,
+    getConfig: () => config,
+    i18n: { en: {
+      learningIndicator: 'Learning',
+      closeLearning: 'Close learning',
+      astrasActive: 'active',
+      closeAstras: 'Close Noura',
+      learningWithNouraNotice: 'Both rule sets are active; Learning Mode wins on conflict.'
+    } }
+  });
+  dependencies.state.astras = [{ id: 'astra-1', name: 'Direct Coach' }];
+  const lifecycle = createLegacySubmitInputCouncilLifecycle(dependencies);
+
+  lifecycle.renderInputIndicators();
+
+  const learningChip = document.querySelector('#learning-mode-indicator .input-indicator-content');
+  const astraChip = document.querySelector('#astras-input-indicator .input-indicator-content');
+  assert.ok(learningChip, 'learning chip should render');
+  assert.ok(astraChip, 'Noura chip should render');
+  assert.equal(learningChip.getAttribute('title'), 'Both rule sets are active; Learning Mode wins on conflict.');
+  assert.equal(astraChip.getAttribute('title'), 'Both rule sets are active; Learning Mode wins on conflict.');
+  cleanup();
+});
+
+test('the combined-rules tooltip is absent when only one of the two is active', () => {
+  const { document, cleanup } = createDom(`
+    <div class="input-wrapper">
+      <div id="input-indicator-container"></div>
+    </div>
+  `);
+  const conversation = { archived: false, astrasId: null, model: 'model-a' };
+  const config = { uiLanguage: 'en', isLearningMode: true };
+  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+    document,
+    elements: { inputIndicatorContainer: document.getElementById('input-indicator-container') },
+    getActiveConversation: () => conversation,
+    getConfig: () => config,
+    i18n: { en: {
+      learningIndicator: 'Learning',
+      closeLearning: 'Close learning',
+      learningWithNouraNotice: 'Both rule sets are active; Learning Mode wins on conflict.'
+    } }
+  }));
+
+  lifecycle.renderInputIndicators();
+
+  const learningChip = document.querySelector('#learning-mode-indicator .input-indicator-content');
+  assert.ok(learningChip, 'learning chip should render');
+  assert.equal(learningChip.getAttribute('title'), null);
+  cleanup();
+});
+
+test('enabling learning mode with a Noura active explains the combination instead of the plain toast', async () => {
+  const { document, cleanup } = createDom(`
+    <div class="input-wrapper">
+      <div id="input-indicator-container"></div>
+      <div id="file-options-popover"></div>
+    </div>
+  `);
+  const conversation = { archived: false, astrasId: 'astra-1', model: 'model-a' };
+  const config = { uiLanguage: 'en', isLearningMode: false };
+  const notifications = [];
+  const dependencies = createDependencies({
+    document,
+    elements: {
+      inputIndicatorContainer: document.getElementById('input-indicator-container'),
+      fileOptionsPopover: document.getElementById('file-options-popover')
+    },
+    getActiveConversation: () => conversation,
+    getConfig: () => config,
+    showNotification: (message, type) => notifications.push({ message, type }),
+    i18n: { en: {
+      learningIndicator: 'Learning',
+      closeLearning: 'Close learning',
+      astrasActive: 'active',
+      closeAstras: 'Close Noura',
+      learningEnabled: 'Learning mode enabled',
+      learningDisabled: 'Learning mode disabled',
+      learningWithNouraNotice: 'Both rule sets are active; Learning Mode wins on conflict.'
+    } }
+  });
+  dependencies.state.astras = [{ id: 'astra-1', name: 'Direct Coach' }];
+  const lifecycle = createLegacySubmitInputCouncilLifecycle(dependencies);
+
+  await lifecycle.toggleLearningMode();
+  assert.equal(config.isLearningMode, true);
+  assert.equal(notifications.at(-1).message, 'Both rule sets are active; Learning Mode wins on conflict.');
+
+  await lifecycle.toggleLearningMode();
+  assert.equal(notifications.at(-1).message, 'Learning mode disabled');
+
+  conversation.astrasId = null;
+  await lifecycle.toggleLearningMode();
+  assert.equal(notifications.at(-1).message, 'Learning mode enabled');
+  cleanup();
+});
+
 test('council indicator close button updates the UI before persistence finishes', async () => {
   const { document, cleanup } = createDom(`
     <div class="input-wrapper">
