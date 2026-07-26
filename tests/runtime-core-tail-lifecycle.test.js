@@ -244,15 +244,27 @@ test('changing the interface language re-renders the language-dependent Noura li
     i18n: { 'zh-TW': {}, en: {} },
     renderAstras: () => rendered.push('astras'),
     renderInputIndicators: () => rendered.push('indicators'),
-    renderCouncilControls: () => rendered.push('council')
+    renderCouncilControls: () => rendered.push('council'),
+    renderPersonalMemoryList: () => rendered.push('memory')
   });
 
   lifecycle.applyLanguage('zh-TW');
-  assert.deepEqual(rendered, ['astras', 'indicators', 'council'], 'the first application establishes the language');
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council', 'memory'], 'the first application establishes the language');
 
   rendered.length = 0;
   lifecycle.applyLanguage('en');
-  assert.deepEqual(rendered, ['astras', 'indicators', 'council'], 'switching language rebuilds the localized lists');
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council', 'memory'], 'switching language rebuilds the localized lists');
+});
+
+// The store grid and trash list are rebuilt inside the same block; they are module-internal,
+// so pin the calls at the source level instead of through injected spies.
+test('the language change block also rebuilds the store grid and trash list', () => {
+  const source = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
+  const block = /if \(languageChanged\) \{[\s\S]*?\}/.exec(source);
+  assert.ok(block, 'the languageChanged block should exist');
+  for (const call of ['renderStore()', 'renderTrash()', 'renderPersonalMemoryList()']) {
+    assert.ok(block[0].includes(call), `${call} should run on language change`);
+  }
 });
 
 test('re-applying the same interface language does no extra rendering work', () => {
@@ -261,7 +273,8 @@ test('re-applying the same interface language does no extra rendering work', () 
     i18n: { 'zh-TW': {}, en: {} },
     renderAstras: () => rendered.push('astras'),
     renderInputIndicators: () => rendered.push('indicators'),
-    renderCouncilControls: () => rendered.push('council')
+    renderCouncilControls: () => rendered.push('council'),
+    renderPersonalMemoryList: () => rendered.push('memory')
   });
 
   lifecycle.applyLanguage('en');
@@ -274,5 +287,5 @@ test('re-applying the same interface language does no extra rendering work', () 
 
   // An unknown language resolves to the zh-TW fallback, which is a real change.
   lifecycle.applyLanguage('not-a-language');
-  assert.deepEqual(rendered, ['astras', 'indicators', 'council']);
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council', 'memory']);
 });

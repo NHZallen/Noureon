@@ -324,6 +324,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
     }
     const grid = ALL_ELEMENTS.storeGrid;
     const categoryList = document.getElementById('store-category-list');
+    if (!grid || !categoryList) return;
     grid.innerHTML = '';
     categoryList.innerHTML = '';
     const translations = i18n[state.config.uiLanguage] || i18n['zh-TW'];
@@ -541,6 +542,12 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                 // The council bar sits under the composer in every conversation and builds its
                 // labels at render time, so it would otherwise stay in the previous language.
                 renderCouncilControls();
+                // These three also build their labels at render time and previously self-healed
+                // only when reopened; rebuild them so a panel that is already open (or a remote
+                // language change while the store is showing) switches immediately.
+                renderStore();
+                renderTrash();
+                renderPersonalMemoryList();
             }
         };
         const showMobileContextMenu = (convId) => {
