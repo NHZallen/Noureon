@@ -703,3 +703,113 @@ test('cloud config applies only the small synced memory projection and persists 
   assert.equal(saved, 1);
   assert.deepEqual(renderCalls, { all: 0, sidebar: 0, chat: 0 });
 });
+
+// Every save uploads the workspace, and Supabase realtime echoes our own write straight back.
+// The codec materializes optional fields on the way home (council: null, archived: false,
+// status: 'complete', a generated message id), so comparing raw shapes made our own echo look
+// like a remote change and repainted the sidebar and the whole message list after every answer.
+const OWN_ECHO_USER_ID = '33333333-3333-4333-8333-333333333333';
+const OWN_ECHO_CONVERSATION_ID = '11111111-1111-4111-8111-111111111111';
+
+const buildLiveWorkspace = (conversationOverrides = {}) => ({
+  conversations: [{
+    id: OWN_ECHO_CONVERSATION_ID,
+    title: 'Chat',
+    model: 'gemini-3-pro',
+    provider: 'gemini',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    lastUpdatedAt: '2026-01-01T00:01:00.000Z',
+    // Shaped exactly as the submit pipeline creates them: no id on the user turn, no status,
+    // no deletedAt, and none of the optional booleans.
+    messages: [
+      { role: 'user', parts: [{ text: 'Question' }], createdAt: '2026-01-01T00:00:30.000Z' },
+      {
+        id: '22222222-2222-4222-8222-222222222222',
+        role: 'model',
+        parts: [{ text: 'Answer' }],
+        createdAt: '2026-01-01T00:01:00.000Z'
+      }
+    ],
+    ...conversationOverrides
+  }],
+  folders: [],
+  astras: [],
+  personalMemories: []
+});
+
+const roundTripThroughCloud = async (workspace) => {
+  const { webcrypto } = await import('node:crypto');
+  const {
+    encodeWorkspaceConversationShadow,
+    decodeWorkspaceConversationShadow
+  } = await import('../src/app/sync/cloud-sync-v2-codecs.js');
+  const rows = await encodeWorkspaceConversationShadow({
+    workspace,
+    userId: OWN_ECHO_USER_ID,
+    cryptoProvider: webcrypto
+  });
+  return decodeWorkspaceConversationShadow(rows);
+};
+
+const emitCommitted = (fixture, workspace) => {
+  fixture.window.emit('astra:cloud-workspace-committed', {
+    workspace,
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+};
+
+for (const [label, overrides] of [
+  ['a plain conversation', {}],
+  ['an archived and pinned conversation', { archived: true, pinned: true }],
+  ['a conversation with a Noura and web search', { astrasId: 'official-writer-01', isWebSearchEnabled: true }]
+]) {
+  test(`our own cloud echo of ${label} does not repaint anything`, async () => {
+    const live = buildLiveWorkspace(overrides);
+    const fixture = createPreciseRenderFixture({
+      initialWorkspace: live,
+      activeConversationId: OWN_ECHO_CONVERSATION_ID
+    });
+
+    emitCommitted(fixture, await roundTripThroughCloud(live));
+
+    assert.deepEqual(fixture.renderCalls, { all: 0, sidebar: 0, chat: 0 });
+  });
+}
+
+test('a genuine remote change still repaints', async () => {
+  const live = buildLiveWorkspace();
+
+  const renamed = await roundTripThroughCloud(live);
+  renamed.conversations[0].title = 'Renamed on another device';
+  const renameFixture = createPreciseRenderFixture({
+    initialWorkspace: live,
+    activeConversationId: OWN_ECHO_CONVERSATION_ID
+  });
+  emitCommitted(renameFixture, renamed);
+  assert.equal(renameFixture.renderCalls.sidebar, 1, 'a remote rename repaints the sidebar');
+
+  const answered = await roundTripThroughCloud(live);
+  answered.conversations[0].messages.push({
+    id: '44444444-4444-4444-8444-444444444444',
+    role: 'model',
+    parts: [{ text: 'Sent from another device' }],
+    status: 'complete',
+    createdAt: '2026-01-01T00:02:00.000Z',
+    deletedAt: null
+  });
+  const messageFixture = createPreciseRenderFixture({
+    initialWorkspace: live,
+    activeConversationId: OWN_ECHO_CONVERSATION_ID
+  });
+  emitCommitted(messageFixture, answered);
+  assert.equal(messageFixture.renderCalls.chat, 1, 'a remote message repaints the chat');
+
+  const archived = await roundTripThroughCloud(live);
+  archived.conversations[0].archived = true;
+  const archiveFixture = createPreciseRenderFixture({
+    initialWorkspace: live,
+    activeConversationId: OWN_ECHO_CONVERSATION_ID
+  });
+  emitCommitted(archiveFixture, archived);
+  assert.equal(archiveFixture.renderCalls.sidebar, 1, 'a remote archive repaints the sidebar');
+});

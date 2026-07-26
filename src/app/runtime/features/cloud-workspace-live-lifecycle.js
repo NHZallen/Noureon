@@ -26,6 +26,33 @@ function preserveItemIdentity(currentItems = [], nextItems = []) {
   });
 }
 
+// These projections decide whether a committed workspace is worth repainting. They must compare
+// what the user can see, not how a record happens to be stored.
+//
+// Our own upload comes back through the codec, and conversationFromRow / messageFromRow
+// materialize every optional field: a live record that simply omits `council` or `archived` comes
+// back as `council: null` / `archived: false`. Comparing raw shapes therefore made every answered
+// turn look like a remote change, repainting the sidebar and the whole message list each time.
+//
+// Normalising instead of listing the fields keeps this correct if the codec later materializes
+// another one. A genuine change still differs: only nullish-vs-absent and false-vs-absent collapse.
+const OPTIONAL_BOOLEAN_FIELDS = [
+  'archived', 'pinned', 'isNaming', 'isTemporary', 'isRenamed', 'isWebSearchEnabled'
+];
+
+function normalizeComparableRecord(record = {}) {
+  const normalized = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (value === null || value === undefined) continue;
+    normalized[key] = value;
+  }
+  for (const field of OPTIONAL_BOOLEAN_FIELDS) {
+    if (field in record) normalized[field] = Boolean(record[field]);
+    if (normalized[field] === false) delete normalized[field];
+  }
+  return normalized;
+}
+
 function getConversationSidebarState(conversation = {}) {
   const {
     messages: _messages,
@@ -35,9 +62,12 @@ function getConversationSidebarState(conversation = {}) {
     reasoningEffort: _reasoningEffort,
     isWebSearchEnabled: _isWebSearchEnabled,
     astrasId: _astrasId,
+    // Merge bookkeeping: rewritten on every save and never painted.
+    stateUpdatedAt: _stateUpdatedAt,
+    trashStateUpdatedAt: _trashStateUpdatedAt,
     ...sidebarState
   } = conversation;
-  return sidebarState;
+  return normalizeComparableRecord(sidebarState);
 }
 
 function getWorkspaceSidebarState(workspace = {}) {
@@ -47,6 +77,17 @@ function getWorkspaceSidebarState(workspace = {}) {
     astras: workspace.astras || []
   };
 }
+
+const getComparableMessage = ({
+  id: _id,           // identity only; the message list keys by index, not by id
+  council: _council, // attached in memory after a Council turn, never persisted by the codec
+  status,
+  ...message
+}) => normalizeComparableRecord({
+  ...message,
+  // messageFromRow always fills status in; a bare in-memory message has none.
+  status: status === 'error' ? 'error' : 'complete'
+});
 
 function getActiveConversationState(workspace = {}, activeConversationId = null) {
   if (!activeConversationId) return null;
@@ -62,9 +103,15 @@ function getActiveConversationState(workspace = {}, activeConversationId = null)
     isNaming: _isNaming,
     isRenamed: _isRenamed,
     unsentMessage: _unsentMessage,
+    reasoningEffort: _reasoningEffort, // not encoded by the conversation metadata codec
+    trashStateUpdatedAt: _trashStateUpdatedAt,
+    messages,
     ...chatState
   } = conversation;
-  return chatState;
+  return {
+    ...normalizeComparableRecord(chatState),
+    messages: (messages || []).map(getComparableMessage)
+  };
 }
 
 function getVisibleConfigState(config = {}) {
