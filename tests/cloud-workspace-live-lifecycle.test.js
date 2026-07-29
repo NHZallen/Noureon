@@ -19,11 +19,13 @@ function createWindowFixture() {
 function createPreciseRenderFixture({
   initialWorkspace,
   activeConversationId = null,
-  onActiveConversationUnavailable = () => {}
+  onActiveConversationUnavailable = () => {},
+  isActiveConversationViewCurrent = () => false
 } = {}) {
   const window = createWindowFixture();
   const appDataStore = createLegacyRuntimeAppDataStore();
   const renderCalls = { all: 0, sidebar: 0, chat: 0 };
+  const chatOptions = [];
   let responseActive = false;
   let scheduled = null;
   let scheduleCalls = 0;
@@ -44,7 +46,8 @@ function createPreciseRenderFixture({
     applyUiTheme: () => {},
     renderAll: () => { renderCalls.all += 1; },
     renderSidebar: () => { renderCalls.sidebar += 1; },
-    renderChat: () => { renderCalls.chat += 1; },
+    renderChat: options => { renderCalls.chat += 1; chatOptions.push(options); },
+    isActiveConversationViewCurrent,
     getActiveConversation: () => appDataStore.getConversations()
       .find(conversation => conversation.id === activeConversationId) || null,
     onActiveConversationUnavailable,
@@ -66,6 +69,7 @@ function createPreciseRenderFixture({
     window,
     appDataStore,
     renderCalls,
+    chatOptions,
     resetRenderCalls,
     getScheduleCalls: () => scheduleCalls,
     setResponseActive(value) { responseActive = value; },
@@ -606,6 +610,34 @@ test('a cloud update to the active conversation renders the chat', () => {
 
   assert.equal(fixture.renderCalls.all, 0);
   assert.equal(fixture.renderCalls.chat, 1);
+});
+
+test('an active conversation cloud echo keeps a finalized local message list intact', () => {
+  const activeConversation = {
+    id: 'active',
+    title: 'Active',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+  };
+  const fixture = createPreciseRenderFixture({
+    initialWorkspace: { conversations: [activeConversation], folders: [], astras: [], personalMemories: [] },
+    activeConversationId: 'active',
+    isActiveConversationViewCurrent: () => true
+  });
+
+  fixture.window.emit('astra:cloud-workspace-committed', {
+    workspace: {
+      conversations: [{
+        ...activeConversation,
+        messages: [...activeConversation.messages, { role: 'model', parts: [{ text: 'Answer' }] }]
+      }],
+      folders: [], astras: [], personalMemories: []
+    },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+
+  assert.equal(fixture.renderCalls.chat, 1);
+  assert.equal(fixture.chatOptions.at(-1).renderMessages, false);
 });
 
 test('a remotely trashed active conversation requests a safe fallback after commit', () => {

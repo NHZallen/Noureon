@@ -909,6 +909,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         let createConversationElement;
         let renderArchivedChats;
         let addMessageToUI;
+        let isActiveConversationViewCurrent;
         let renderChat;
         let getActiveAstrasId;
         let setAstrasForConversation;
@@ -988,9 +989,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             normalizeCouncilConfig,
             cloneCouncilConfig,
             normalizeConversationModel,
-            renderAll,
             renderChat: (...args) => renderChat(...args),
             renderHistorySidebar,
+            renderSidebar,
             renderMarkdown,
             renderMarkdownWithFormulas,
             renderUserText,
@@ -1294,6 +1295,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             createConversationElement,
             renderArchivedChats,
             addMessageToUI,
+            isActiveConversationViewCurrent,
             renderChat,
             getActiveAstrasId,
             setAstrasForConversation,
@@ -1638,7 +1640,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates,getSingleTranslatorCandidates,
             applyCustomWallpaper,applyUiTheme,applyLanguage,
-            renderSidebar,renderChat,getActiveConversation,
+            renderSidebar,renderChat,getActiveConversation,isActiveConversationViewCurrent,
             onActiveConversationUnavailable:({conversationId})=>{
                 if (conversationStateAccess.getCurrentConversationId() !== conversationId) return;
                 const nextConversation = runtimeAppDataStore.getConversations()

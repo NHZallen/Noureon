@@ -79,7 +79,8 @@ export function createModelSwitcherLifecycle({
     modelSupportsWebSearch,
     normalizeReasoningEffort = () => null,
     models,
-    renderAll,
+    renderSidebar = () => {},
+    renderInputIndicators = () => {},
     renderCouncilControls,
     requestFrame,
     saveAppData,
@@ -480,7 +481,10 @@ export function createModelSwitcherLifecycle({
             config.lastUsedModel = newModelId;
             await saveAppData();
             await saveConfig();
-            renderAll();
+            renderSidebar();
+            renderInputIndicators();
+            renderCouncilControls();
+            renderModelSwitcher();
         }
         popover.classList.remove('visible');
     });

@@ -110,6 +110,8 @@ const createHarness = (overrides = {}) => {
     models: activeModels,
     renderAll: () => calls.push(['renderAll']),
     renderCouncilControls: () => calls.push(['renderCouncilControls']),
+    renderSidebar: () => calls.push(['renderSidebar']),
+    renderInputIndicators: () => calls.push(['renderInputIndicators']),
     requestFrame: (callback) => {
       calls.push(['requestFrame']);
       callback();
@@ -219,11 +221,14 @@ test('renders model switcher navigation and persists selected model', async () =
     assert.equal(conversation.model, 'gemini-pro');
     assert.equal(conversation.provider, 'gemini');
     assert.equal(config.lastUsedModel, 'gemini-pro');
-    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderAll'].includes(name)), [
+    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderSidebar', 'renderInputIndicators', 'renderCouncilControls'].includes(name)), [
       ['saveAppData'],
       ['saveConfig'],
-      ['renderAll']
+      ['renderSidebar'],
+      ['renderInputIndicators'],
+      ['renderCouncilControls']
     ]);
+    assert.equal(calls.some(([name]) => name === 'renderAll'), false);
   } finally {
     cleanup();
   }
@@ -252,11 +257,14 @@ test('model switcher search filters models and persists selected result', async 
     assert.equal(conversation.model, 'gemini-pro');
     assert.equal(conversation.provider, 'gemini');
     assert.equal(config.lastUsedModel, 'gemini-pro');
-    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderAll'].includes(name)), [
+    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderSidebar', 'renderInputIndicators', 'renderCouncilControls'].includes(name)), [
       ['saveAppData'],
       ['saveConfig'],
-      ['renderAll']
+      ['renderSidebar'],
+      ['renderInputIndicators'],
+      ['renderCouncilControls']
     ]);
+    assert.equal(calls.some(([name]) => name === 'renderAll'), false);
   } finally {
     cleanup();
   }

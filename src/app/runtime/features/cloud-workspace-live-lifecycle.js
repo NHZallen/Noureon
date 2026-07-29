@@ -137,6 +137,7 @@ export function createCloudWorkspaceLiveLifecycle({
   renderAll,
   renderSidebar,
   renderChat,
+  isActiveConversationViewCurrent = () => false,
   applyLanguage = () => {},
   getActiveConversation = () => null,
   hydrateConversation = conversation => window?.__astraCloudAssets?.hydrateConversation?.(conversation),
@@ -206,7 +207,12 @@ export function createCloudWorkspaceLiveLifecycle({
     folders: new Set(tombstones.folderIds || [])
   });
 
-  const renderWorkspaceChanges = ({ sidebarChanged, activeConversationChanged, controlsChanged }) => {
+  const renderWorkspaceChanges = ({
+    sidebarChanged,
+    activeConversationChanged,
+    controlsChanged,
+    activeConversationViewCurrent = false
+  }) => {
     const hasPreciseRenderers = typeof renderSidebar === 'function' && typeof renderChat === 'function';
     if (!hasPreciseRenderers) {
       renderAll?.({ reason: 'cloud-workspace-applied', animate: false, scrollMode: 'preserve' });
@@ -219,7 +225,10 @@ export function createCloudWorkspaceLiveLifecycle({
       renderChat({
         reason: 'cloud-active-conversation-changed',
         animate: false,
-        scrollMode: 'preserve'
+        scrollMode: 'preserve',
+        // A completed local stream already has the same visible message data. The cloud codec
+        // can still differ in storage-only fields, so do not clear and recreate the message list.
+        renderMessages: !activeConversationViewCurrent
       });
     } else if (controlsChanged) {
       renderChat({
@@ -289,6 +298,8 @@ export function createCloudWorkspaceLiveLifecycle({
       astras: protectedRemote.astras,
       personalMemories: protectedRemote.personalMemories
     });
+    const activeConversationViewCurrent = activeConversationChanged
+      && Boolean(isActiveConversationViewCurrent());
     const permanentMemoryPurge = tombstoneIndex.conversations.size > 0
       ? Promise.resolve(onRemoteConversationsPermanentlyDeleted({
         conversationIds: [...tombstoneIndex.conversations]
@@ -303,7 +314,12 @@ export function createCloudWorkspaceLiveLifecycle({
         workspace: protectedRemote
       });
     }
-    renderWorkspaceChanges({ sidebarChanged, activeConversationChanged, controlsChanged });
+    renderWorkspaceChanges({
+      sidebarChanged,
+      activeConversationChanged,
+      controlsChanged,
+      activeConversationViewCurrent
+    });
     if (conversationsChanged) {
       void permanentMemoryPurge.then(() => Promise.resolve(onRemoteConversationsApplied({
         conversations: appDataStore.getConversations(),

@@ -28,6 +28,89 @@ export function createMessageListLifecycle({
     let renderSequence = 0;
     let clearPendingBottomAnchor = () => {};
 
+    // This intentionally reflects only what can change a message view. Cloud sync assigns
+    // storage ids/status fields after a local response, but those fields do not alter the DOM.
+    // Keeping the signature here lets a later cloud echo preserve an already-finalized stream.
+    const canonicalizeForView = (value) => {
+        if (Array.isArray(value)) return value.map(canonicalizeForView);
+        if (!value || typeof value !== 'object') return value;
+        return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalizeForView(value[key])]));
+    };
+
+    const summarizeAssetPayload = (value) => {
+        if (typeof value === 'string') {
+            return {
+                length: value.length,
+                prefix: value.slice(0, 48),
+                suffix: value.slice(-48)
+            };
+        }
+        if (!value || typeof value !== 'object') return value;
+        return {
+            cloudPath: value.__astraCloudAsset?.path || value.path || null,
+            type: value.__astraCloudAsset?.encoding || value.type || null
+        };
+    };
+
+    const getMessagePartViewState = (part = {}) => {
+        const state = {};
+        if (part.text && !part.quoteContext) state.text = part.text;
+        if (part.displayText !== undefined) state.displayText = part.displayText;
+        if (part.imageGenerationLoading) {
+            state.imageGenerationLoading = true;
+            state.imageAspectRatio = part.imageAspectRatio || null;
+        }
+        if (part.inlineData) {
+            const { data, ...inlineData } = part.inlineData;
+            state.inlineData = { ...inlineData, data: summarizeAssetPayload(data) };
+        }
+        if (part.generatedImage) {
+            const { cloudAsset, _zipRef: _ignoredZipRef, ...generatedImage } = part.generatedImage;
+            state.generatedImage = { ...generatedImage, cloudAsset: summarizeAssetPayload(cloudAsset) };
+        }
+        if (part.quoteReference?.text) state.quoteReference = { text: part.quoteReference.text };
+        return state;
+    };
+
+    const messageViewSignature = (message = {}) => {
+        const serialized = JSON.stringify(canonicalizeForView({
+            role: message.role || 'model',
+            parts: (message.parts || []).map(getMessagePartViewState),
+            historySourceConversationIds: message.metadata?.historySourceConversationIds || []
+        }));
+        let hash = 2166136261;
+        for (let index = 0; index < serialized.length; index += 1) {
+            hash ^= serialized.charCodeAt(index);
+            hash = Math.imul(hash, 16777619);
+        }
+        return `${serialized.length}:${(hash >>> 0).toString(36)}`;
+    };
+
+    const markMessageElementAsCurrent = (message, index, messageElement) => {
+        if (!messageElement?.dataset) return messageElement || null;
+        messageElement.dataset.messageIndex = String(index);
+        messageElement.dataset.messageSignature = messageViewSignature(message);
+        messageElement.__astraRenderedMessage = message;
+        return messageElement;
+    };
+
+    const isActiveConversationViewCurrent = () => {
+        const conversation = getActiveConversation();
+        const messageList = elements.messageList;
+        if (!conversation) return messageList.childElementCount === 0;
+        if ((conversation.messages || []).length === 0) {
+            return Boolean(messageList.querySelector('.chat-greeting-message'));
+        }
+        const renderedMessages = [...messageList.children]
+            .filter(element => element.dataset?.messageIndex !== undefined);
+        if (renderedMessages.length !== conversation.messages.length) return false;
+        return conversation.messages.every((message, index) => {
+            const element = renderedMessages[index];
+            return element?.dataset?.messageIndex === String(index)
+                && messageViewSignature(element.__astraRenderedMessage) === messageViewSignature(message);
+        });
+    };
+
     const scrollChatToBottom = () => {
         elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
     };
@@ -84,7 +167,6 @@ export function createMessageListLifecycle({
         }
 
         const messageElement = document.createElement('div');
-        messageElement.dataset.messageIndex = index;
         const historySourceViews = getHistorySourceViews(message);
         const messageView = buildMessageRenderView({
             message,
@@ -117,7 +199,7 @@ export function createMessageListLifecycle({
                 behavior: 'smooth'
             });
         }
-        return messageElement;
+        return markMessageElementAsCurrent(message, index, messageElement);
     };
 
     const renderChat = ({ animate = true, scrollMode = 'none', renderMessages = true } = {}) => {
@@ -191,6 +273,8 @@ export function createMessageListLifecycle({
 
     return {
         addMessageToUI,
+        isActiveConversationViewCurrent,
+        markMessageElementAsCurrent,
         renderChat
     };
 }

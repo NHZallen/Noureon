@@ -3545,7 +3545,7 @@ test('general message markup rendering is isolated from the 01 runtime DOM shell
     sidebarChatAstraRenderSource,
     /import\s*\{\s*createMessageListLifecycle\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/message-list-lifecycle\.js['"];/
   );
-  assert.match(sidebarChatAstraRenderSource, /\{\s*addMessageToUI,\s*renderChat\s*\}\s*=\s*createMessageListLifecycle\(\{/);
+  assert.match(sidebarChatAstraRenderSource, /\{\s*addMessageToUI,\s*isActiveConversationViewCurrent,\s*renderChat\s*\}\s*=\s*createMessageListLifecycle\(\{/);
   assert.match(sidebarChatAstraRenderSource, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
   assert.match(sidebarChatAstraRenderSource, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
   assert.match(messageListSource, /const\s+messageView\s*=\s*buildMessageRenderView\(\{\s*message,/);

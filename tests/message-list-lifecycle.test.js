@@ -102,6 +102,34 @@ test('addMessageToUI skips persistence and scrolls only when auto-scrolling is a
   }
 });
 
+test('tracks whether the rendered message list still matches the active conversation', () => {
+  const fixture = createFixture();
+  try {
+    const message = { role: 'model', parts: [{ text: 'Answer' }] };
+    fixture.conversation.messages.push(message);
+    const element = fixture.lifecycle.addMessageToUI(message, 0, false, false);
+
+    assert.ok(element.dataset.messageSignature);
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), true);
+
+    // Cloud sync may materialize storage-only fields without changing the visible message.
+    message.id = 'storage-id';
+    message.status = 'complete';
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), true);
+
+    fixture.conversation.messages[0] = {
+      ...message,
+      parts: [{ text: 'Updated elsewhere' }]
+    };
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), false);
+
+    fixture.lifecycle.markMessageElementAsCurrent(fixture.conversation.messages[0], 0, element);
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), true);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 test('renderChat renders greeting, populated messages, and no-conversation boundaries', () => {
   const fixture = createFixture();
   try {

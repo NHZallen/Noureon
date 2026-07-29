@@ -3,6 +3,11 @@ import { normalizeHistorySourceConversationIds } from '../../runtime/memory/hist
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
+const rememberRenderedMessage = (targetElement, message) => {
+  const messageElement = targetElement?.closest?.('[data-message-index]');
+  if (messageElement) messageElement.__astraRenderedMessage = message;
+};
+
 export async function finalizeAssistantResponse({
   fullResponse,
   finalParts = null,
@@ -70,6 +75,7 @@ export async function finalizeAssistantResponse({
   } else {
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
+  rememberRenderedMessage(targetElement, finalAiMessage);
 
   if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
     queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse));
@@ -112,6 +118,7 @@ export async function persistAssistantResponseError({
   };
   conversation.messages.push(finalAiMessage);
   await persistAppData();
+  rememberRenderedMessage(targetElement, finalAiMessage);
 
   return {
     errorMessage,
