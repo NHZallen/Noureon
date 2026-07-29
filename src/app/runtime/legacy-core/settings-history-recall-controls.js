@@ -123,7 +123,13 @@ export function createSettingsHistoryRecallControls({
     const completed = Math.min(Number(progress.completed) || 0, total || Number(progress.completed) || 0);
     const percentage = total > 0 ? Math.round((completed / total) * 100) : (progress.state === 'complete' ? 100 : 0);
     if (elements.historyIndexProgressBar) elements.historyIndexProgressBar.style.width = `${percentage}%`;
-    if (elements.historyIndexProgressText) elements.historyIndexProgressText.textContent = `${completed}／${total}（${percentage}%）`;
+    if (elements.historyIndexProgressText) {
+      elements.historyIndexProgressText.textContent = formatText(
+        'historyRecallProgress',
+        '已掃描 {completed}／{total} 段對話（{percentage}%）',
+        { completed, total, percentage }
+      );
+    }
     elements.historyIndexProgress?.setAttribute('aria-valuenow', String(percentage));
   };
 
@@ -217,7 +223,7 @@ export function createSettingsHistoryRecallControls({
         const report = await audit();
         const message = formatText(
           'historyRecallAuditResult',
-          '正常：{healthy}\n缺少：{missing}\n過期：{outdated}\n重複或孤兒：{extra}',
+          '正常索引紀錄：{healthy}\n對話膠囊：{healthyCapsules}；細節片段：{healthyFragments}；媒體：{healthyMedia}\n缺少：{missing}\n過期：{outdated}\n重複或孤兒：{extra}',
           report
         );
         if (!report.repairable) {

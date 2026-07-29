@@ -58,10 +58,8 @@ export function createMemorySummaryRuntimeService({
         memorySummary: {
           ...normalizeMemorySummary(memoryState.memorySummary || {}),
           status: 'pending',
-          lastError: '',
-          needsRefresh: true
-        },
-        memoryOverview: markMemoryOverviewNeedsRefresh({ overview: memoryState.memoryOverview })
+          lastError: ''
+        }
       });
       await persistMemoryState();
       try {

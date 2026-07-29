@@ -32,9 +32,27 @@ const mergeRules = (local = [], remote = []) => {
   return [...rules.values()];
 };
 
+const summaryContentSignature = summary => JSON.stringify({
+  overview: String(summary?.overview || '').trim(),
+  sections: asArray(summary?.sections).map(section => ({
+    key: String(section?.key || section?.id || '').trim(),
+    title: String(section?.title || '').trim(),
+    content: String(section?.content || '').trim(),
+    state: String(section?.state || 'current-state').trim(),
+    expiresAt: String(section?.expiresAt || '').trim(),
+    authority: section?.authority === 'manual' ? 'manual' : 'automatic'
+  })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+});
+
+const hasDifferentSummaryContent = (left, right) => (
+  summaryContentSignature(left) !== summaryContentSignature(right)
+);
+
 const mergeMemorySummary = (local, remote) => {
   if (!remote || typeof remote !== 'object') return local;
-  if (!local || typeof local !== 'object') return remote;
+  if (!local || typeof local !== 'object') {
+    return { ...remote, needsRefresh: false, status: 'idle', lastError: '' };
+  }
   const preferred = timestamp(remote.updatedAt) >= timestamp(local.updatedAt) ? remote : local;
   const sectionsByKey = new Map();
   for (const section of [...asArray(local.sections), ...asArray(remote.sections)]) {
@@ -55,11 +73,10 @@ const mergeMemorySummary = (local, remote) => {
   return {
     ...preferred,
     sections: [...sectionsByKey.values()],
-    // A remote and local summary can have been produced from different
-    // conversation sets. Preserve all authoritative text now and ask the
-    // normal background pipeline to reconcile automatic sections later.
-    needsRefresh: local.needsRefresh === true || remote.needsRefresh === true
-      || timestamp(local.updatedAt) !== timestamp(remote.updatedAt),
+    // `needsRefresh` is device-local work state, never an authoritative
+    // cloud field. A timestamp difference alone is normal during delta sync;
+    // only actual memory-content disagreement requires reconciliation.
+    needsRefresh: local.needsRefresh === true || hasDifferentSummaryContent(local, remote),
     status: 'idle',
     lastError: ''
   };
@@ -73,8 +90,7 @@ const mergeMemoryOverview = (local, remote, memorySummary) => {
       // This layer is a user-visible cache of the complete memory. A device
       // that only has one copy still must not present it as current when that
       // copy was generated from an older complete-memory revision.
-      needsRefresh: candidate.needsRefresh === true
-        || String(candidate.basedOnMemorySummaryUpdatedAt || '') !== String(memorySummary?.updatedAt || ''),
+      needsRefresh: String(candidate.basedOnMemorySummaryUpdatedAt || '') !== String(memorySummary?.updatedAt || ''),
       status: candidate.status === 'pending' ? 'idle' : (candidate.status || 'idle'),
       lastError: candidate.status === 'failed' ? (candidate.lastError || '') : ''
     };
@@ -102,12 +118,10 @@ const mergeMemoryOverview = (local, remote, memorySummary) => {
   return {
     ...preferred,
     sections: [...sectionsByKey.values()].slice(0, 6),
-    // The overview is only a display cache. If devices disagree about either
-    // its own revision or the complete memory it was based on, wait for the
-    // user to press the explicit refresh button in Settings.
-    needsRefresh: local.needsRefresh === true || remote.needsRefresh === true
-      || timestamp(local.updatedAt) !== timestamp(remote.updatedAt)
-      || basedOn !== String(memorySummary?.updatedAt || ''),
+    // The overview is only a display cache. It needs an explicit refresh
+    // precisely when it is based on an older complete-memory revision, not
+    // when another device merely wrote the same view at a different time.
+    needsRefresh: basedOn !== String(memorySummary?.updatedAt || ''),
     status: 'idle',
     lastError: ''
   };

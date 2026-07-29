@@ -30,7 +30,9 @@ export function createHistoryIndexAuditService({
     const records = index.getAll();
     const expectedRecordIds = new Set();
     const tasks = [];
-    let healthy = 0;
+    let healthyCapsules = 0;
+    let healthyFragments = 0;
+    let healthyMedia = 0;
     let missing = 0;
     let outdated = 0;
     const orphanRecordIds = new Set();
@@ -73,8 +75,9 @@ export function createHistoryIndexAuditService({
         outdated += 1;
         tasks.push({ type: 'capsule', capsule, sourceHash });
       } else {
-        healthy += 1;
+        healthyCapsules += 1;
       }
+      if (fragmentRecords.length > 0 && fragmentsHealthy) healthyFragments += fragmentRecords.length;
       if (fragmentRecords.length > 0 && !fragmentsHealthy) {
         // Fragments are queried directly, so retaining a stale vector can
         // surface outdated wording even when the capsule itself is current.
@@ -93,7 +96,7 @@ export function createHistoryIndexAuditService({
       const recordId = `media:${media.conversationId}:${media.sourceHash}`;
       expectedRecordIds.add(recordId);
       if (records.some(record => record.recordId === recordId)) {
-        healthy += 1;
+        healthyMedia += 1;
         continue;
       }
       const turn = conversationEntry.turns.find(item => item.id === media.messageId);
@@ -112,7 +115,10 @@ export function createHistoryIndexAuditService({
     ])];
     return {
       totalConversations: conversations.length,
-      healthy,
+      healthy: healthyCapsules + healthyFragments + healthyMedia,
+      healthyCapsules,
+      healthyFragments,
+      healthyMedia,
       missing,
       outdated,
       extra: extraRecordIds.length,

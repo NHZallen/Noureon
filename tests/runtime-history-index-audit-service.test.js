@@ -103,6 +103,9 @@ test('counts a valid media index record as healthy', async () => {
   const report = await service.audit();
 
   assert.equal(report.healthy, 2);
+  assert.equal(report.healthyCapsules, 1);
+  assert.equal(report.healthyFragments, 0);
+  assert.equal(report.healthyMedia, 1);
   assert.equal(report.missing, 0);
   assert.equal(report.outdated, 0);
   assert.equal(report.extra, 0);
@@ -122,6 +125,10 @@ test('keeps detailed conversation fragments for a live conversation during an au
     hashString: async () => 'hash:chat'
   }).audit();
 
+  assert.equal(report.healthy, 2);
+  assert.equal(report.healthyCapsules, 1);
+  assert.equal(report.healthyFragments, 1);
+  assert.equal(report.healthyMedia, 0);
   assert.equal(report.extra, 0);
   assert.deepEqual(report.extraRecordIds, []);
 });

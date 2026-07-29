@@ -33,8 +33,7 @@ const cleanSummaryMeta = summary => ({
   version: summary.version,
   overview: summary.overview,
   updatedAt: summary.updatedAt,
-  lastModelId: summary.lastModelId,
-  needsRefresh: summary.needsRefresh === true
+  lastModelId: summary.lastModelId
 });
 
 const cleanOverviewMeta = overview => ({
@@ -42,7 +41,6 @@ const cleanOverviewMeta = overview => ({
   overview: overview.overview,
   updatedAt: overview.updatedAt,
   lastModelId: overview.lastModelId,
-  needsRefresh: overview.needsRefresh === true,
   basedOnMemorySummaryUpdatedAt: overview.basedOnMemorySummaryUpdatedAt
 });
 
@@ -161,8 +159,14 @@ function decodeLayer(rows, layer) {
   const latestSectionUpdatedAt = sections.reduce((latest, section) => (
     timestamp(section.updatedAt) > timestamp(latest) ? section.updatedAt : latest
   ), '');
+  // Refresh state is derived on each device from the revisions below. Older
+  // rows included it in the payload, so strip it during decoding as well:
+  // otherwise a stale historical `true` would reappear after every reload.
+  const { needsRefresh: _needsRefresh, status: _status, lastError: _lastError, ...syncMeta } = (
+    meta && typeof meta === 'object' ? meta : {}
+  );
   const value = {
-    ...(meta && typeof meta === 'object' ? meta : {}),
+    ...syncMeta,
     sections,
     updatedAt: meta?.updatedAt || latestSectionUpdatedAt || new Date(0).toISOString()
   };

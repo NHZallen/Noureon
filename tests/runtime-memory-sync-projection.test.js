@@ -138,7 +138,50 @@ test('moves complete memory and its separate visible overview to record-level sy
   assert.equal(merged.memorySummary.needsRefresh, true);
   assert.deepEqual(merged.memoryEvidence, [{ conversationId: 'local-chat', messageId: 'local-message', content: 'Keep this local' }]);
   assert.equal(merged.memoryOverview.overview, 'Current display overview.');
-  assert.equal(merged.memoryOverview.needsRefresh, true, 'conflicting device revisions require an explicit display refresh');
+  assert.equal(merged.memoryOverview.needsRefresh, false, 'the newer visible overview is already based on the merged complete memory');
+});
+
+test('summary-record sync never persists transient refresh state and ignores legacy refresh flags', () => {
+  const remoteState = {
+    memorySummary: {
+      overview: 'Use the NUC.',
+      sections: [{ id: 'deployment', key: 'deployment', title: 'Deployment', content: 'Use the NUC.', updatedAt: '2026-07-30T00:00:00.000Z' }],
+      updatedAt: '2026-07-30T00:00:00.000Z',
+      needsRefresh: true
+    },
+    memoryOverview: {
+      overview: 'NUC deployment.',
+      sections: [{ id: 'visible-deployment', key: 'deployment', title: 'Deployment', content: 'Use the NUC.', updatedAt: '2026-07-30T00:00:00.000Z' }],
+      basedOnMemorySummaryUpdatedAt: '2026-07-30T00:00:00.000Z',
+      updatedAt: '2026-07-30T00:00:00.000Z',
+      needsRefresh: true
+    }
+  };
+  const records = projectMemorySummaryRecords(remoteState);
+  assert.equal(JSON.stringify(records).includes('needsRefresh'), false);
+
+  // Old synced records may still carry this field. A reload must derive
+  // freshness from the complete-memory revision instead of resurrecting it.
+  for (const record of records.filter(record => record.record_type === 'meta')) {
+    record.payload.needsRefresh = true;
+  }
+  const merged = mergeMemoryStateWithSummaryRecords({
+    memorySummary: {
+      ...remoteState.memorySummary,
+      updatedAt: '2026-07-29T00:00:00.000Z',
+      needsRefresh: false
+    },
+    memoryOverview: {
+      ...remoteState.memoryOverview,
+      basedOnMemorySummaryUpdatedAt: '2026-07-29T00:00:00.000Z',
+      updatedAt: '2026-07-29T00:00:00.000Z',
+      needsRefresh: false
+    }
+  }, records);
+
+  assert.equal(merged.memorySummary.needsRefresh, false);
+  assert.equal(merged.memoryOverview.needsRefresh, false);
+  assert.equal(merged.memoryOverview.basedOnMemorySummaryUpdatedAt, merged.memorySummary.updatedAt);
 });
 
 test('a changed memory section uploads only that section and the small summary metadata record', () => {

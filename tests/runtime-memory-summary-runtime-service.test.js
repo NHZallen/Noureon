@@ -67,3 +67,33 @@ test('refreshes the user-facing overview only after the explicit request', async
   assert.equal(memoryState.memoryOverview.needsRefresh, false);
   assert.equal(memoryState.memoryOverview.basedOnMemorySummaryUpdatedAt, '2026-07-29T04:00:00.000Z');
 });
+
+test('scanning already indexed conversations does not mark a fresh visible overview as updateable', async () => {
+  let memoryState = {
+    memorySummary: {
+      overview: 'Current memory.',
+      sections: [{ id: 'deployment', key: 'deployment', title: 'Deployment', content: 'Use the NUC.', updatedAt: '2026-07-29T04:00:00.000Z' }],
+      updatedAt: '2026-07-29T04:00:00.000Z',
+      needsRefresh: false
+    },
+    memoryOverview: {
+      overview: 'Visible current memory.',
+      sections: [{ id: 'visible-deployment', key: 'deployment', title: 'Deployment', content: 'Use the NUC.', updatedAt: '2026-07-29T04:00:00.000Z' }],
+      basedOnMemorySummaryUpdatedAt: '2026-07-29T04:00:00.000Z',
+      updatedAt: '2026-07-29T04:00:00.000Z',
+      needsRefresh: false
+    }
+  };
+  const service = createMemorySummaryRuntimeService({
+    getMemoryState: () => memoryState,
+    replaceMemoryState: value => { memoryState = value; },
+    persistMemoryState: async () => {},
+    rebuildHistoryIndex: async () => ({ state: 'complete', indexed: 0, skipped: 102, failed: 0 }),
+    createMemoryOverview: async () => ({ overview: '', sections: [] })
+  });
+
+  await service.rebuildSummary();
+
+  assert.equal(memoryState.memorySummary.needsRefresh, false);
+  assert.equal(memoryState.memoryOverview.needsRefresh, false);
+});
