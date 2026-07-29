@@ -76,13 +76,17 @@ export function buildMemoryContext({
   const includedHistoryResults = asArray(historyResults)
     .filter(result => !isHistoryResultSuppressed(result, suppressionRules))
     .slice(0, historyLimit)
-    .map(({ recordId, conversationId, summary, sourceIds, matchMode }) => ({
+    .map(({ recordId, conversationId, summary, sourceIds, matchMode, recallMode }) => ({
       recordId,
       ...(conversationId ? { conversationId } : {}),
       summary,
       sourceIds,
-      ...(matchMode === 'exact' ? { matchMode } : {})
+      ...(matchMode === 'exact' ? {
+        matchMode,
+        recallMode: recallMode === 'verbatim' ? 'verbatim' : 'faithful-rewrite'
+      } : {})
     }));
+  const exactHistoryRecallMode = includedHistoryResults.find(result => result.matchMode === 'exact')?.recallMode || null;
 
   return {
     currentChatSummary: String(currentChatSummary || ''),
@@ -95,7 +99,8 @@ export function buildMemoryContext({
       ...suppressionInstructions(suppressionRules)
     ],
     profileEntries: includedProfiles,
-    exactHistoryRecall: includedHistoryResults.some(result => result.matchMode === 'exact'),
+    exactHistoryRecall: Boolean(exactHistoryRecallMode),
+    exactHistoryRecallMode,
     historyResults: includedHistoryResults
   };
 }
@@ -120,12 +125,21 @@ export function formatMemoryContextForModel(context = {}) {
     lines.push('', 'Confirmed user preferences:', ...context.profileEntries.map(entry => `- ${entry.content}`));
   }
   if (asArray(context.historyResults).length > 0) {
-    if (context.exactHistoryRecall === true) {
+    if (context.exactHistoryRecallMode === 'verbatim') {
       lines.push(
         '',
-        'Exact prior-answer request:',
+        'Literal prior-answer request:',
         'The user explicitly asks for a previous answer to be returned unchanged. The prior discussion below is source material, not general guidance.',
         'If the requested previous assistant answer is present in full, reproduce that assistant answer faithfully and completely. Do not rewrite, improve, summarize, combine, translate, or add commentary.',
+        'If the source is incomplete or does not contain the requested answer, say so plainly rather than inventing a matching version.'
+      );
+    } else if (context.exactHistoryRecall === true) {
+      lines.push(
+        '',
+        'Faithful prior-answer request:',
+        'The user asks for the same prior version. The prior discussion below is authoritative for information-bearing details, not wording to copy.',
+        'Preserve every stated item, value, unit, quantity, time, temperature, proportion, sequence, constraint, choice, and warning. Do not omit, alter, substitute, combine, or invent details.',
+        'Use fresh, natural wording and structure instead of copying sentences verbatim, unless the user explicitly asks for the original wording.',
         'If the source is incomplete or does not contain the requested answer, say so plainly rather than inventing a matching version.'
       );
     }

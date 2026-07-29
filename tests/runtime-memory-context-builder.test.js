@@ -108,22 +108,43 @@ test('retains source conversation ids for the UI without placing them in the mod
   assert.doesNotMatch(formatMemoryContextForModel(context), /11111111-1111-4111-8111-111111111111|history-record|message-id/);
 });
 
-test('tells the answer model to reproduce an explicitly retrieved prior answer without exposing internal ids', () => {
+test('keeps a same-version prior answer factually faithful while requiring natural new wording', () => {
   const context = buildMemoryContext({
     historyResults: [{
       recordId: 'exact-history-record',
       conversationId: '11111111-1111-4111-8111-111111111111',
       summary: 'Assistant: 200g dark chocolate, then chill for four hours.',
       sourceIds: ['message-id'],
-      matchMode: 'exact'
+      matchMode: 'exact',
+      recallMode: 'faithful-rewrite'
     }]
   });
   const formatted = formatMemoryContextForModel(context);
 
   assert.equal(context.exactHistoryRecall, true);
-  assert.match(formatted, /Exact prior-answer request/);
+  assert.equal(context.exactHistoryRecallMode, 'faithful-rewrite');
+  assert.match(formatted, /Faithful prior-answer request/);
+  assert.match(formatted, /Preserve every stated item, value, unit, quantity, time/);
+  assert.match(formatted, /fresh, natural wording and structure instead of copying sentences verbatim/);
+  assert.doesNotMatch(formatted, /11111111-1111-4111-8111-111111111111|exact-history-record|message-id|matchMode|recallMode/);
+});
+
+test('reserves literal replay for an explicit verbatim prior-answer request', () => {
+  const context = buildMemoryContext({
+    historyResults: [{
+      recordId: 'literal-history-record',
+      summary: 'Assistant: 200g dark chocolate, then chill for four hours.',
+      sourceIds: ['message-id'],
+      matchMode: 'exact',
+      recallMode: 'verbatim'
+    }]
+  });
+  const formatted = formatMemoryContextForModel(context);
+
+  assert.equal(context.exactHistoryRecallMode, 'verbatim');
+  assert.match(formatted, /Literal prior-answer request/);
   assert.match(formatted, /reproduce that assistant answer faithfully and completely/);
-  assert.doesNotMatch(formatted, /11111111-1111-4111-8111-111111111111|exact-history-record|message-id|matchMode/);
+  assert.doesNotMatch(formatted, /Faithful prior-answer request/);
 });
 
 test('selects fresh relevant summary sections and makes manual updates authoritative to the answer model', () => {

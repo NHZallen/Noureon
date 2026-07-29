@@ -156,6 +156,7 @@ test('explicit same-as-before requests recover the complete matching conversatio
 
   assert.deepEqual(getExactHistoryRecallRequest('給我之前巧克力派的完整食譜，一定要跟上次的一樣。'), {
     exact: true,
+    recallMode: 'faithful-rewrite',
     subject: '巧克力派'
   });
   assert.deepEqual(embeddedQueries, ['巧克力派']);
@@ -164,6 +165,7 @@ test('explicit same-as-before requests recover the complete matching conversatio
     'fragment:recipe-chat:1'
   ]);
   assert.ok(results.every(result => result.matchMode === 'exact'));
+  assert.ok(results.every(result => result.recallMode === 'faithful-rewrite'));
   assert.match(results.map(result => result.summary).join('\n'), /200g dark chocolate/);
   assert.match(results.map(result => result.summary).join('\n'), /Chill for four hours/);
 });
@@ -198,6 +200,15 @@ test('exact requests use the original local conversation before any semantic ind
     'Assistant: 200g 黑巧克力\n120ml 鮮奶油\n冷藏四小時。'
   ]);
   assert.ok(results.every(result => result.matchMode === 'exact'));
+  assert.ok(results.every(result => result.recallMode === 'faithful-rewrite'));
+});
+
+test('only explicit literal wording requests a verbatim prior-answer replay', () => {
+  assert.deepEqual(getExactHistoryRecallRequest('請把上次巧克力派的原文逐字貼回來。'), {
+    exact: true,
+    recallMode: 'verbatim',
+    subject: '巧克力派'
+  });
 });
 
 test('uses the model resolver only for unresolved fragments and requires high confidence', async () => {

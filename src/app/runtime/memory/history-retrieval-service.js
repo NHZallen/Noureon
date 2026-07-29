@@ -15,6 +15,15 @@ const EXACT_RECALL_PATTERNS = [
   /(?:previous|prior|last|earlier).{0,100}(?:same|exact|verbatim|unchanged|identical|full)/iu
 ];
 
+// A request for the same version preserves facts, not the original prose. Only
+// explicit literal wording is allowed to turn a history answer into a replay.
+const VERBATIM_RECALL_PATTERNS = [
+  /(?:逐字|原文|一字不改|一個字也不要改|不要改(?:一個|任何)?字|完全照抄|直接(?:貼上|貼回)|複製貼上).{0,100}(?:之前|上次|先前|原本|以前|舊版|原版)/u,
+  /(?:之前|上次|先前|原本|以前|舊版|原版).{0,100}(?:逐字|原文|一字不改|一個字也不要改|不要改(?:一個|任何)?字|完全照抄|直接(?:貼上|貼回)|複製貼上)/u,
+  /(?:verbatim|word\s+for\s+word|exact\s+wording|copy(?:\s*[- ]?and[- ]?\s*paste)?).{0,100}(?:previous|prior|last|earlier)/iu,
+  /(?:previous|prior|last|earlier).{0,100}(?:verbatim|word\s+for\s+word|exact\s+wording|copy(?:\s*[- ]?and[- ]?\s*paste)?)/iu
+];
+
 const normalizeExactSubject = value => String(value || '')
   .replace(/^(?:那份|那個|這份|這個|關於|聊過的|討論過的)/u, '')
   .replace(/的$/u, '')
@@ -23,7 +32,8 @@ const normalizeExactSubject = value => String(value || '')
 
 export function getExactHistoryRecallRequest(queryText = '') {
   const originalQuery = String(queryText || '').trim();
-  if (!EXACT_RECALL_PATTERNS.some(pattern => pattern.test(originalQuery))) {
+  const verbatim = VERBATIM_RECALL_PATTERNS.some(pattern => pattern.test(originalQuery));
+  if (!verbatim && !EXACT_RECALL_PATTERNS.some(pattern => pattern.test(originalQuery))) {
     return { exact: false, subject: '' };
   }
   const subjectMatch = originalQuery.match(
@@ -33,6 +43,7 @@ export function getExactHistoryRecallRequest(queryText = '') {
   );
   return {
     exact: true,
+    recallMode: verbatim ? 'verbatim' : 'faithful-rewrite',
     subject: normalizeExactSubject(subjectMatch?.[1]).slice(0, 160)
   };
 }
@@ -73,7 +84,10 @@ const recordText = record => [
   ...asArray(record?.normalizedKeywords)
 ].join('\n').toLocaleLowerCase();
 
-const resultFromMatch = ({ match, capsules, mediaMemories, matchMode = 'semantic' } = {}) => {
+const resultFromMatch = ({ match, capsules, mediaMemories, matchMode = 'semantic', recallMode = null } = {}) => {
+  const exactRecall = matchMode === 'exact'
+    ? { matchMode, recallMode: recallMode === 'verbatim' ? 'verbatim' : 'faithful-rewrite' }
+    : {};
   if (match?.recordType === 'conversation-fragment') {
     if (!match.snippet) return null;
     return {
@@ -82,7 +96,7 @@ const resultFromMatch = ({ match, capsules, mediaMemories, matchMode = 'semantic
       summary: match.snippet,
       sourceIds: asArray(match.sourceIds),
       score: match.score,
-      ...(matchMode === 'exact' ? { matchMode } : {})
+      ...exactRecall
     };
   }
   if (match?.recordType === 'media-memory') {
@@ -94,7 +108,7 @@ const resultFromMatch = ({ match, capsules, mediaMemories, matchMode = 'semantic
       summary: `${media.kind || 'media'} (${media.name || 'attachment'}): ${media.summary}`,
       sourceIds: media.messageId ? [media.messageId] : [],
       score: match.score,
-      ...(matchMode === 'exact' ? { matchMode } : {})
+      ...exactRecall
     };
   }
   const capsule = capsules.find(item => item.id === match?.capsuleId);
@@ -105,7 +119,7 @@ const resultFromMatch = ({ match, capsules, mediaMemories, matchMode = 'semantic
     summary: capsule.summary,
     sourceIds: sourceIdsForCapsule(capsule),
     score: match.score,
-    ...(matchMode === 'exact' ? { matchMode } : {})
+    ...exactRecall
   };
 };
 
@@ -129,6 +143,7 @@ const retrieveExactConversationTurns = ({
   conversations = [],
   currentConversationId,
   subject,
+  recallMode,
   maxCharacters
 } = {}) => {
   const normalizedSubject = String(subject || '').toLocaleLowerCase();
@@ -164,7 +179,8 @@ const retrieveExactConversationTurns = ({
     conversationId: selected.conversation.id,
     summary: formatHistoryTurn(message),
     sourceIds: message.id ? [message.id] : [],
-    matchMode: 'exact'
+    matchMode: 'exact',
+    recallMode: recallMode === 'verbatim' ? 'verbatim' : 'faithful-rewrite'
   }));
   return takeWithinCharacterBudget(results, maxCharacters);
 };
@@ -220,6 +236,7 @@ export function createHistoryRetrievalService({
           conversations: getConversations(),
           currentConversationId: conversation.id,
           subject: exactRequest.subject,
+          recallMode: exactRequest.recallMode,
           maxCharacters: exactMaxCharacters
         });
         if (exactConversationTurns.length > 0) return exactConversationTurns;
@@ -267,7 +284,13 @@ export function createHistoryRetrievalService({
             .filter(record => record.conversationId === selectedConversationId)
             .sort((left, right) => (left.fragmentIndex || 0) - (right.fragmentIndex || 0));
           const exactResults = sourceFragments
-            .map(match => resultFromMatch({ match, capsules, mediaMemories, matchMode: 'exact' }))
+            .map(match => resultFromMatch({
+              match,
+              capsules,
+              mediaMemories,
+              matchMode: 'exact',
+              recallMode: exactRequest.recallMode
+            }))
             .filter(Boolean);
           if (exactResults.length > 0) {
             return takeWithinCharacterBudget(exactResults, exactMaxCharacters);
