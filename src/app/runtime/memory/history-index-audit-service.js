@@ -14,6 +14,7 @@ export function createHistoryIndexAuditService({
   captureCompletedTurn,
   indexCapsule,
   indexMediaMemory,
+  repairIndexedSource = null,
   persistence = null,
   persistMemoryState = async () => {}
 } = {}) {
@@ -49,43 +50,43 @@ export function createHistoryIndexAuditService({
       const fragmentRecords = records.filter(item => (
         item?.recordType === 'conversation-fragment' && item.conversationId === conversation.id
       ));
-      // A capsule-only legacy index is still usable and should not trigger a
-      // costly migration rebuild. Once a conversation has detailed fragments,
-      // however, every one must match the current source.
-      const fragmentsHealthy = fragmentRecords.length === 0 || (fragmentRecords.length === expectedFragmentIds.size
+      const fragmentsHealthy = fragmentRecords.length === expectedFragmentIds.size
         && fragmentRecords.every(item => (
           item.sourceHash === sourceHash && expectedFragmentIds.has(item.recordId)
-        )));
+        ));
       expectedRecordIds.add(recordId);
-      if (fragmentRecords.length > 0) expectedFragmentIds.forEach(id => expectedRecordIds.add(id));
+      expectedFragmentIds.forEach(id => expectedRecordIds.add(id));
       let captureQueued = false;
       const queueCapture = () => {
         if (captureQueued) return;
         tasks.push({ type: 'capture', conversationId: conversation.id, sourceHash, turns });
         captureQueued = true;
       };
+      const queueSourceRepair = () => {
+        if (captureQueued) return;
+        tasks.push({
+          type: 'source',
+          conversationId: conversation.id,
+          sourceHash,
+          turns,
+          capsule
+        });
+        captureQueued = true;
+      };
       if (!capsule || recent?.sourceHash !== sourceHash) {
         if (record && !capsule && !recent) orphanRecordIds.add(recordId);
         else (capsule || recent ? outdated += 1 : missing += 1);
         queueCapture();
-      } else if (!record) {
-        missing += 1;
-        tasks.push({ type: 'capsule', capsule, sourceHash });
-      } else if (record.sourceHash !== sourceHash) {
-        outdated += 1;
-        tasks.push({ type: 'capsule', capsule, sourceHash });
       } else {
-        healthyCapsules += 1;
-      }
-      if (fragmentRecords.length > 0 && fragmentsHealthy) healthyFragments += fragmentRecords.length;
-      if (fragmentRecords.length > 0 && !fragmentsHealthy) {
-        // Fragments are queried directly, so retaining a stale vector can
-        // surface outdated wording even when the capsule itself is current.
-        if (!captureQueued) {
-          const hasStaleFragment = fragmentRecords.some(item => item.sourceHash !== sourceHash);
-          if (hasStaleFragment) outdated += 1;
+        const capsuleHealthy = record?.sourceHash === sourceHash;
+        if (capsuleHealthy) healthyCapsules += 1;
+        if (fragmentsHealthy) healthyFragments += fragmentRecords.length;
+        if (!capsuleHealthy || !fragmentsHealthy) {
+          const hasStaleRecord = Boolean(record && record.sourceHash !== sourceHash)
+            || fragmentRecords.some(item => item.sourceHash !== sourceHash);
+          if (hasStaleRecord) outdated += 1;
           else missing += 1;
-          queueCapture();
+          queueSourceRepair();
         }
       }
     }
@@ -145,7 +146,11 @@ export function createHistoryIndexAuditService({
     onProgress({ completed, total: tasks.length, repaired, removed: 0, failed });
     for (const task of tasks) {
       try {
-        if (task.type === 'capsule') await indexCapsule(task);
+        if (task.type === 'source' && typeof repairIndexedSource === 'function') {
+          const result = await repairIndexedSource(task);
+          if (result === false || result?.indexed === false) throw new Error('History index source repair failed.');
+        }
+        else if (task.type === 'capsule') await indexCapsule(task);
         else if (task.type === 'media') await indexMediaMemory(task);
         else await captureCompletedTurn({
           ...task,

@@ -183,6 +183,8 @@ const ru = {
   "historyRecallProgress": "Проверено разговоров: {completed}/{total} ({percentage}%)",
   "historyRecallStatusBuilding": "Индексируется: проверено {completed}/{total} разговоров.",
   "historyRecallStatusComplete": "Индекс готов: проверено {completed}/{total} разговоров (добавлено: {indexed}, пропущено: {skipped}, ошибок: {failed}).",
+  "historyRecallStatusIncomplete": "Индекс неполный: проверено {completed}/{total} разговоров (добавлено: {indexed}, пропущено: {skipped}, ошибок: {failed}).",
+  "historyRecallStatusRecovered": "Локальный индекс восстановлен. Сейчас на этом устройстве {count} записей.",
   "historyRecallStatusConsentRequired": "Это устройство не предоставило согласие; более ранние разговоры не ищутся и не отправляются. Вы можете включить его при сохранении настроек.",
   "historyRecallStatusEnabled": "Включено. На этом устройстве {count} записей локального индекса (капсулы разговоров, подробные фрагменты и медиа).",
   "historyRecallStatusDisabled": "В настоящее время выключен; более ранние разговоры не ищутся и внедрение не вызывается.",

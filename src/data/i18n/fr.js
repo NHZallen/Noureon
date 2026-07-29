@@ -187,6 +187,8 @@
         historyRecallProgress: '{completed}/{total} conversations analysées ({percentage} %)',
         historyRecallStatusBuilding: 'Création de l’index : {completed}/{total} conversations analysées.',
         historyRecallStatusComplete: 'Index terminé : {completed}/{total} conversations analysées ({indexed} ajoutés, {skipped} ignorés, {failed} échoués).',
+        historyRecallStatusIncomplete: 'Index incomplet : {completed}/{total} conversations analysées ({indexed} ajoutés, {skipped} ignorés, {failed} échoués).',
+        historyRecallStatusRecovered: 'Index local restauré. Cet appareil contient actuellement {count} enregistrements.',
         historyRecallStatusConsentRequired: 'Cet appareil n’a pas encore donné son accord ; aucune ancienne conversation n’est recherchée ni envoyée. Vous pouvez l’activer en enregistrant les paramètres.',
         historyRecallStatusEnabled: 'Activé. Cet appareil contient {count} enregistrements d’index local (capsules, fragments détaillés et médias).',
         historyRecallStatusDisabled: 'Actuellement désactivé ; aucune ancienne conversation n’est recherchée et Embedding n’est pas appelé.',

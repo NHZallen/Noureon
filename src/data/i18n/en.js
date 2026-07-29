@@ -187,6 +187,8 @@
         historyRecallProgress: 'Scanned {completed}/{total} conversations ({percentage}%)',
         historyRecallStatusBuilding: 'Building index: scanned {completed}/{total} conversations.',
         historyRecallStatusComplete: 'Index complete: scanned {completed}/{total} conversations ({indexed} added, {skipped} skipped, {failed} failed).',
+        historyRecallStatusIncomplete: 'Index incomplete: scanned {completed}/{total} conversations ({indexed} added, {skipped} skipped, {failed} failed).',
+        historyRecallStatusRecovered: 'Recovered the local index. This device currently has {count} records.',
         historyRecallStatusConsentRequired: 'This device has not granted consent; earlier conversations are not searched or sent. You can enable it when saving settings.',
         historyRecallStatusEnabled: 'Enabled. This device has {count} local index records (conversation capsules, detail fragments, and media).',
         historyRecallStatusDisabled: 'Currently off; earlier conversations are not searched and Embedding is not called.',

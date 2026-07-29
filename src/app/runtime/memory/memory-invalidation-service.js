@@ -65,7 +65,9 @@ export function createMemoryInvalidationService({
     });
     // This path is an explicit deletion, so it is the only normal flow that
     // may intentionally replace the final persisted index with an empty one.
-    if (persistence?.save) await persistence.save({ allowEmpty: true });
+    if (persistence?.save) {
+      await persistence.save({ allowEmpty: true, emptyReason: 'permanent-deletion' });
+    }
     return {
       invalidatedCapsuleCount: invalidCapsuleIds.size,
       ...(memoryState.memorySummary ? { memorySummaryRefreshRequired: summaryCleanup.summary.needsRefresh === true } : {})

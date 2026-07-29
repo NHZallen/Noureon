@@ -109,6 +109,6 @@ test('the device consent record is excluded from everything that syncs', () => {
   // The consent module is the only place that persists it, and it does so through an injected
   // device-local storage adapter rather than the synced config blob.
   const consentSource = readSource('src/app/runtime/memory/device-history-recall-consent.js');
-  assert.match(consentSource, /storage\.setItem\(storageKey/);
+  assert.match(consentSource, /storage\.setItem\(getActiveStorageKey\(\)/);
   assert.doesNotMatch(consentSource, /saveConfig|cloudSync|projectMemoryStateForSync/);
 });

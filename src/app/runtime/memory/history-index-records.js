@@ -15,10 +15,11 @@ export function hasCurrentHistoryIndexRecords({ records = [], conversationId, so
   const fragments = entries.filter(record => (
     record.recordType === 'conversation-fragment' && record.conversationId === conversationId
   ));
-  return capsuleMatches && (fragments.length === 0 || (
-    fragments.length === expectedFragmentIds.size
-    && fragments.every(record => record.sourceHash === sourceHash && expectedFragmentIds.has(record.recordId))
-  ));
+  return capsuleMatches
+    && fragments.length === expectedFragmentIds.size
+    && fragments.every(record => (
+      record.sourceHash === sourceHash && expectedFragmentIds.has(record.recordId)
+    ));
 }
 
 export function migrateHistoryIndexSourceFingerprint({

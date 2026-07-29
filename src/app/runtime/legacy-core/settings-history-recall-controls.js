@@ -148,12 +148,28 @@ export function createSettingsHistoryRecallControls({
       statusElement.textContent = formatText('historyRecallStatusBuilding', '建立索引中：{completed}／{total}。完成 {total}／{total} 才表示全部完成。', rebuild);
       return;
     }
+    if (rebuild.state === 'complete' && rebuild.failed > 0 && !preferCurrentCount) {
+      statusElement.textContent = formatText(
+        'historyRecallStatusIncomplete',
+        '索引未完全完成：{completed}／{total}（新增 {indexed}，略過 {skipped}，失敗 {failed}）。',
+        rebuild
+      );
+      return;
+    }
     if (rebuild.state === 'complete' && !preferCurrentCount) {
       statusElement.textContent = formatText('historyRecallStatusComplete', '索引已完成：{completed}／{total}（新增 {indexed}，略過 {skipped}，失敗 {failed}）。', rebuild);
       return;
     }
     if (getConfig().historyRecallEnabled && !status.consented) {
       statusElement.textContent = getText('historyRecallStatusConsentRequired', '此裝置尚未同意；目前不會檢索或傳送舊對話。儲存設定時可啟用。');
+      return;
+    }
+    if (getConfig().historyRecallEnabled && (status.persistence?.migrated || status.persistence?.recovered)) {
+      statusElement.textContent = formatText(
+        'historyRecallStatusRecovered',
+        '已復原本機索引，目前有 {count} 筆紀錄。',
+        { count: status.indexRecordCount }
+      );
       return;
     }
     statusElement.textContent = getConfig().historyRecallEnabled

@@ -1,6 +1,9 @@
 export const HISTORY_INDEX_STORAGE_KEY = 'noureon:history-index:v1';
-export const HISTORY_INDEX_PERSISTENCE_VERSION = 1;
+export const HISTORY_INDEX_PERSISTENCE_VERSION = 2;
 export const HISTORY_INDEX_RECOVERY_SUFFIX = ':recovery';
+export const HISTORY_INDEX_SNAPSHOT_STATE_READY = 'ready';
+export const HISTORY_INDEX_SNAPSHOT_STATE_EMPTY = 'empty';
+export const HISTORY_INDEX_SNAPSHOT_STATE_EXPLICITLY_EMPTY = 'explicitly-empty';
 
 const asNonNegativeInteger = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 const recordsFrom = value => Array.isArray(value?.records) ? value.records : [];
@@ -8,6 +11,14 @@ const revisionFrom = value => asNonNegativeInteger(value?.revision);
 const savedAtFrom = value => {
   const savedAt = Number(value?.savedAt);
   return Number.isFinite(savedAt) && savedAt >= 0 ? savedAt : 0;
+};
+const stateFrom = value => {
+  if (value?.schemaVersion >= 2 && value?.state === HISTORY_INDEX_SNAPSHOT_STATE_EXPLICITLY_EMPTY) {
+    return HISTORY_INDEX_SNAPSHOT_STATE_EXPLICITLY_EMPTY;
+  }
+  return recordsFrom(value).length > 0
+    ? HISTORY_INDEX_SNAPSHOT_STATE_READY
+    : HISTORY_INDEX_SNAPSHOT_STATE_EMPTY;
 };
 
 function isNewerCandidate(left, right) {
@@ -27,7 +38,53 @@ function isNewerCandidate(left, right) {
 function sameSnapshot(left, right) {
   return revisionFrom(left) === revisionFrom(right)
     && savedAtFrom(left) === savedAtFrom(right)
-    && recordsFrom(left).length === recordsFrom(right).length;
+    && recordsFrom(left).length === recordsFrom(right).length
+    && stateFrom(left) === stateFrom(right);
+}
+
+function selectCurrentNamespaceCandidate(candidates) {
+  const selected = candidates.reduce((best, candidate) => (
+    isNewerCandidate(candidate, best) ? candidate : best
+  ), null);
+  if (!selected || stateFrom(selected.value) !== HISTORY_INDEX_SNAPSHOT_STATE_EMPTY) {
+    return selected;
+  }
+  // Schema v1 had no way to distinguish an intentional empty snapshot from
+  // an interrupted or premature startup save. Never let such an ambiguous
+  // empty snapshot hide a complete mirror in the same namespace.
+  return candidates
+    .filter(candidate => recordsFrom(candidate.value).length > 0)
+    .reduce((best, candidate) => (
+      isNewerCandidate(candidate, best) ? candidate : best
+    ), null) || selected;
+}
+
+function selectMigrationFallback(candidates) {
+  // Revisions are namespace-local and therefore cannot be compared with the
+  // current owner's revision. Fallback order is explicit configuration order;
+  // savedAt/count only resolve competing copies within that migration set.
+  return candidates
+    .filter(candidate => recordsFrom(candidate.value).length > 0)
+    .reduce((best, candidate) => {
+      if (!best) return candidate;
+      if (candidate.priority !== best.priority) {
+        return candidate.priority > best.priority ? candidate : best;
+      }
+      if (savedAtFrom(candidate.value) !== savedAtFrom(best.value)) {
+        return savedAtFrom(candidate.value) > savedAtFrom(best.value) ? candidate : best;
+      }
+      return recordsFrom(candidate.value).length > recordsFrom(best.value).length
+        ? candidate
+        : best;
+    }, null);
+}
+
+function snapshotSummary(value) {
+  return {
+    state: stateFrom(value),
+    revision: revisionFrom(value),
+    count: recordsFrom(value).length
+  };
 }
 
 export function createHistoryIndexPersistence({
@@ -63,7 +120,17 @@ export function createHistoryIndexPersistence({
   const getActiveStorageKey = () => activeStorageKey ||= resolveStorageKey();
   const getActiveRecoveryStorageKey = () => activeRecoveryStorageKey ||= resolveRecoveryStorageKey();
   let saveQueue = Promise.resolve();
-  let lastLoad = { source: 'not-loaded', count: 0, recovered: false };
+  let lastLoad = {
+    source: 'not-loaded',
+    count: 0,
+    recovered: false,
+    migrated: false,
+    preservedFallback: false,
+    loadErrorCode: null,
+    primary: snapshotSummary(null),
+    recovery: snapshotSummary(null),
+    fallback: snapshotSummary(null)
+  };
 
   const enqueueSave = operation => {
     const queued = saveQueue.then(operation, operation);
@@ -72,10 +139,21 @@ export function createHistoryIndexPersistence({
     saveQueue = queued.catch(() => {});
     return queued;
   };
-  const snapshotFromRecords = (records, { revision, savedAt = Date.now() } = {}) => ({
+  const snapshotFromRecords = (records, {
+    revision,
+    savedAt = Date.now(),
+    state = records.length > 0
+      ? HISTORY_INDEX_SNAPSHOT_STATE_READY
+      : HISTORY_INDEX_SNAPSHOT_STATE_EMPTY,
+    emptyReason = null
+  } = {}) => ({
     schemaVersion: HISTORY_INDEX_PERSISTENCE_VERSION,
     revision: asNonNegativeInteger(revision),
     savedAt,
+    state,
+    ...(state === HISTORY_INDEX_SNAPSHOT_STATE_EXPLICITLY_EMPTY
+      ? { emptyReason: emptyReason || 'explicit-deletion' }
+      : {}),
     records
   });
   const writeMirrors = async (snapshot, { primaryKey, recoveryKey } = {}) => {
@@ -99,6 +177,16 @@ export function createHistoryIndexPersistence({
     if (sameSnapshot(primary, snapshot) && sameSnapshot(recovery, snapshot)) return;
     await writeMirrors(snapshot, { primaryKey, recoveryKey });
   };
+  const writeAndVerifyMirrors = async (snapshot, { primaryKey, recoveryKey } = {}) => {
+    await writeMirrors(snapshot, { primaryKey, recoveryKey });
+    const [primary, recovery] = await Promise.all([
+      storage.getItem(primaryKey),
+      storage.getItem(recoveryKey)
+    ]);
+    if (!sameSnapshot(primary, snapshot) || !sameSnapshot(recovery, snapshot)) {
+      throw new Error('History index migration could not be verified.');
+    }
+  };
 
   return {
     async load() {
@@ -111,43 +199,78 @@ export function createHistoryIndexPersistence({
         storage.getItem(recoveryKey),
         ...fallbackKeys.map(key => storage.getItem(key))
       ]);
-      const candidates = [
+      const currentCandidates = [
         { key: primaryKey, value: primary, source: 'primary', priority: 3 },
-        { key: recoveryKey, value: recovery, source: 'recovery', priority: 2 },
-        ...fallbackValues.map((value, index) => ({
+        { key: recoveryKey, value: recovery, source: 'recovery', priority: 2 }
+      ];
+      const fallbackCandidates = fallbackValues.map((value, index) => ({
           key: fallbackKeys[index],
           value,
           source: 'legacy-fallback',
-          priority: 1
-        }))
-      ];
-      const selected = candidates.reduce((best, candidate) => (
-        isNewerCandidate(candidate, best) ? candidate : best
-      ), null);
+          priority: fallbackKeys.length - index
+        }));
+      const currentSelected = selectCurrentNamespaceCandidate(currentCandidates);
+      const fallbackSelected = stateFrom(currentSelected?.value) === HISTORY_INDEX_SNAPSHOT_STATE_EXPLICITLY_EMPTY
+        ? null
+        : selectMigrationFallback(fallbackCandidates);
+      const selected = recordsFrom(currentSelected?.value).length > 0
+        ? currentSelected
+        : fallbackSelected || currentSelected;
       const records = recordsFrom(selected?.value);
+      index.clear();
       for (const record of records) index.put(record);
 
       const selectedSnapshot = selected?.value;
       if (records.length > 0 && selectedSnapshot) {
-        // Existing v1 records did not have a revision or a recovery copy.
-        // Seed both only after we have a complete non-empty snapshot, never
-        // from an empty startup state.
+        const isMigration = selected?.source === 'legacy-fallback';
+        const currentRevision = Math.max(revisionFrom(primary), revisionFrom(recovery));
         const normalizedSnapshot = snapshotFromRecords(records, {
-          revision: revisionFrom(selectedSnapshot) || 1,
-          savedAt: savedAtFrom(selectedSnapshot) || Date.now()
+          revision: isMigration
+            ? currentRevision + 1
+            : revisionFrom(selectedSnapshot) || 1,
+          savedAt: isMigration
+            ? Date.now()
+            : savedAtFrom(selectedSnapshot) || Date.now()
         });
-        await restoreMirrors(normalizedSnapshot, { primaryKey, recoveryKey });
-        if (selected?.source === 'legacy-fallback') await storage.removeItem(selected.key);
+        if (isMigration) {
+          // The fallback is the only known-good source until both current
+          // mirrors have been written and read back successfully.
+          try {
+            await writeAndVerifyMirrors(normalizedSnapshot, { primaryKey, recoveryKey });
+            await storage.removeItem(selected.key);
+          } catch (error) {
+            lastLoad = {
+              source: selected.source,
+              count: records.length,
+              recovered: true,
+              migrated: false,
+              preservedFallback: true,
+              loadErrorCode: 'migration-write-failed',
+              primary: snapshotSummary(primary),
+              recovery: snapshotSummary(recovery),
+              fallback: snapshotSummary(fallbackSelected?.value)
+            };
+            throw error;
+          }
+        } else {
+          await restoreMirrors(normalizedSnapshot, { primaryKey, recoveryKey });
+        }
       }
       lastLoad = {
         source: selected?.source || 'none',
         count: records.length,
         recovered: selected?.source === 'recovery'
-          || selected?.source === 'legacy-fallback'
+          || selected?.source === 'legacy-fallback',
+        migrated: selected?.source === 'legacy-fallback',
+        preservedFallback: false,
+        loadErrorCode: null,
+        primary: snapshotSummary(primary),
+        recovery: snapshotSummary(recovery),
+        fallback: snapshotSummary(fallbackSelected?.value)
       };
       return records.length;
     },
-    async save({ allowEmpty = false } = {}) {
+    async save({ allowEmpty = false, emptyReason = null } = {}) {
       return enqueueSave(async () => {
         const primaryKey = getActiveStorageKey();
         const recoveryKey = getActiveRecoveryStorageKey();
@@ -163,7 +286,13 @@ export function createHistoryIndexPersistence({
           return { saved: false, reason: 'preserved-existing-index' };
         }
         const revision = Math.max(revisionFrom(primary), revisionFrom(recovery)) + 1;
-        const snapshot = snapshotFromRecords(records, { revision });
+        const snapshot = snapshotFromRecords(records, {
+          revision,
+          state: records.length === 0 && allowEmpty
+            ? HISTORY_INDEX_SNAPSHOT_STATE_EXPLICITLY_EMPTY
+            : undefined,
+          emptyReason
+        });
         await writeMirrors(snapshot, { primaryKey, recoveryKey });
         return { saved: true, count: records.length, revision };
       });

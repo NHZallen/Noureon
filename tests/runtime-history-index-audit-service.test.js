@@ -9,6 +9,7 @@ import { createDeviceDerivedMemoryPersistence } from '../src/app/runtime/memory/
 test('audits healthy, missing, outdated, and extra records without calling models', async () => {
   const index = createHistoryIndexStore();
   index.put({ recordId: 'capsule:healthy', recordType: 'conversation-capsule', conversationId: 'healthy', sourceHash: 'hash:healthy' });
+  index.put({ recordId: 'fragment:healthy:0', recordType: 'conversation-fragment', conversationId: 'healthy', sourceHash: 'hash:healthy' });
   index.put({ recordId: 'capsule:orphan', recordType: 'conversation-capsule', conversationId: 'orphan', sourceHash: 'old' });
   const service = createHistoryIndexAuditService({
     getConversations: () => [
@@ -25,7 +26,7 @@ test('audits healthy, missing, outdated, and extra records without calling model
 
   const report = await service.audit();
 
-  assert.equal(report.healthy, 1);
+  assert.equal(report.healthy, 2);
   assert.equal(report.missing, 1);
   assert.equal(report.extra, 1);
   assert.equal(report.repairable, 1);
@@ -105,6 +106,7 @@ test('classifies persisted vectors without derived metadata as orphan records', 
 test('counts a valid media index record as healthy', async () => {
   const index = createHistoryIndexStore();
   index.put({ recordId: 'capsule:chat', conversationId: 'chat', sourceHash: 'hash:chat' });
+  index.put({ recordId: 'fragment:chat:0', recordType: 'conversation-fragment', conversationId: 'chat', sourceHash: 'hash:chat' });
   index.put({ recordId: 'media:chat:media-hash', conversationId: 'chat', sourceHash: 'media-hash' });
   const service = createHistoryIndexAuditService({
     getConversations: () => [{
@@ -126,9 +128,9 @@ test('counts a valid media index record as healthy', async () => {
 
   const report = await service.audit();
 
-  assert.equal(report.healthy, 2);
+  assert.equal(report.healthy, 3);
   assert.equal(report.healthyCapsules, 1);
-  assert.equal(report.healthyFragments, 0);
+  assert.equal(report.healthyFragments, 1);
   assert.equal(report.healthyMedia, 1);
   assert.equal(report.missing, 0);
   assert.equal(report.outdated, 0);
@@ -174,7 +176,43 @@ test('marks an outdated detailed fragment for repair instead of retaining it as 
   assert.equal(report.outdated, 1);
   assert.equal(report.missing, 0);
   assert.equal(report.tasks.length, 1);
-  assert.equal(report.tasks[0].type, 'capture');
+  assert.equal(report.tasks[0].type, 'source');
+});
+
+test('repairs a capsule-only source without replaying memory capture', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:chat', recordType: 'conversation-capsule', conversationId: 'chat', sourceHash: 'hash:chat' });
+  let captureCalls = 0;
+  let repairCalls = 0;
+  const service = createHistoryIndexAuditService({
+    getConversations: () => [{ id: 'chat', messages: [{ id: 'm', role: 'user', parts: [{ text: 'hello' }] }] }],
+    getMemoryState: () => ({
+      recentConversationStates: [{ conversationId: 'chat', sourceHash: 'hash:chat' }],
+      conversationCapsules: [{ id: 'capsule', conversationId: 'chat', summary: 'Greeting' }]
+    }),
+    index,
+    hashString: async () => 'hash:chat',
+    captureCompletedTurn: async () => { captureCalls += 1; },
+    repairIndexedSource: async task => {
+      repairCalls += 1;
+      index.put({
+        recordId: 'fragment:chat:0',
+        recordType: 'conversation-fragment',
+        conversationId: task.conversationId,
+        sourceHash: task.sourceHash
+      });
+      return { indexed: true };
+    }
+  });
+
+  const report = await service.audit();
+  assert.equal(report.missing, 1);
+  assert.equal(report.tasks[0].type, 'source');
+
+  const result = await service.optimize(report);
+  assert.equal(result.repaired, 1);
+  assert.equal(repairCalls, 1);
+  assert.equal(captureCalls, 0);
 });
 
 test('does not erase an active orphan vector when its metadata repair fails', async () => {
@@ -228,6 +266,7 @@ test('a completed index remains healthy after simulated page reload', async () =
   };
   const firstIndex = createHistoryIndexStore();
   firstIndex.put({ recordId: 'capsule:chat', conversationId: 'chat', capsuleId: 'capsule', sourceHash: 'hash:chat', vector: [1, 0] });
+  firstIndex.put({ recordId: 'fragment:chat:0', recordType: 'conversation-fragment', conversationId: 'chat', sourceHash: 'hash:chat', vector: [0, 1] });
   await Promise.all([
     createHistoryIndexPersistence({ index: firstIndex, storage, storageKey: 'index:alice' }).save(),
     createDeviceDerivedMemoryPersistence({
@@ -256,7 +295,7 @@ test('a completed index remains healthy after simulated page reload', async () =
     hashString: async () => 'hash:chat'
   }).audit();
 
-  assert.equal(report.healthy, 1);
+  assert.equal(report.healthy, 2);
   assert.equal(report.missing, 0);
   assert.equal(report.extra, 0);
 });

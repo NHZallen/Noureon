@@ -183,6 +183,8 @@ const es = {
   "historyRecallProgress": "Se analizaron {completed}/{total} conversaciones ({percentage}%)",
   "historyRecallStatusBuilding": "Creando el índice: se analizaron {completed}/{total} conversaciones.",
   "historyRecallStatusComplete": "Índice completo: se analizaron {completed}/{total} conversaciones ({indexed} añadidos, {skipped} omitidos, {failed} fallidos).",
+  "historyRecallStatusIncomplete": "Índice incompleto: se analizaron {completed}/{total} conversaciones ({indexed} añadidos, {skipped} omitidos, {failed} fallidos).",
+  "historyRecallStatusRecovered": "Se recuperó el índice local. Este dispositivo tiene actualmente {count} registros.",
   "historyRecallStatusConsentRequired": "Este dispositivo no ha otorgado consentimiento; Las conversaciones anteriores no se buscan ni envían. Puede habilitarlo al guardar la configuración.",
   "historyRecallStatusEnabled": "Activado. Este dispositivo tiene {count} registros de índice local (cápsulas, fragmentos detallados y medios).",
   "historyRecallStatusDisabled": "Actualmente apagado; Las conversaciones anteriores no se buscan y no se llama a la incrustación.",

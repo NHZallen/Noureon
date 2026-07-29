@@ -11,7 +11,8 @@ export function createHistoryIndexRebuildService({
   captureCompletedTurn,
   hashString,
   hasIndexedSource = () => true,
-  migrateSourceFingerprint = null
+  migrateSourceFingerprint = null,
+  repairIndexedSource = null
 } = {}) {
   if (typeof getConversations !== 'function') throw new TypeError('History index rebuild requires getConversations.');
   if (typeof getMemoryState !== 'function') throw new TypeError('History index rebuild requires getMemoryState.');
@@ -36,12 +37,43 @@ export function createHistoryIndexRebuildService({
           const sourceHash = await hashString(serializeHistoryIndexSource(turns));
           const recentState = asArray(getMemoryState()?.recentConversationStates)
             .find(state => state?.conversationId === conversation.id);
-          if (!forceCapture && recentState?.sourceHash === sourceHash && hasIndexedSource({
+          const sourceMatches = !forceCapture && recentState?.sourceHash === sourceHash;
+          const indexMatches = sourceMatches && hasIndexedSource({
             conversationId: conversation.id,
             sourceHash,
             turns
-          })) {
+          });
+          if (sourceMatches && indexMatches) {
             skipped += 1;
+          } else if (sourceMatches) {
+            const repairResult = typeof repairIndexedSource === 'function'
+              ? await repairIndexedSource({
+                conversationId: conversation.id,
+                sourceHash,
+                turns,
+                signal
+              })
+              : null;
+            const repaired = repairResult === true
+              || repairResult?.indexed === true
+              || repairResult?.repaired === true;
+            if (repaired) {
+              indexed += 1;
+            } else {
+              // Derived memory being current must not suppress reconstruction
+              // of a missing local search index.
+              const result = await captureCompletedTurn({
+                conversationId: conversation.id,
+                sourceHash,
+                turns,
+                signal,
+                collectProfileCandidates: false,
+                allowTopicSummary: false,
+                forceCapture: true
+              });
+              if (result?.captured) indexed += 1;
+              else skipped += 1;
+            }
           } else {
             const legacySourceHash = !forceCapture && recentState?.sourceHash
               ? await hashString(JSON.stringify(turns))

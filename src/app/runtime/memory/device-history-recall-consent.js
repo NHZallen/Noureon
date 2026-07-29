@@ -11,10 +11,14 @@ export function createDeviceHistoryRecallConsent({
 
   let granted = false;
   let loaded = false;
+  let activeStorageKey = null;
+  const getActiveStorageKey = () => activeStorageKey ||= (
+    typeof storageKey === 'function' ? storageKey() : storageKey
+  );
 
   return {
     async load() {
-      const saved = await storage.getItem(storageKey);
+      const saved = await storage.getItem(getActiveStorageKey());
       granted = Boolean(saved?.grantedAt);
       loaded = true;
       return granted;
@@ -23,15 +27,40 @@ export function createDeviceHistoryRecallConsent({
     isLoaded: () => loaded,
     async grant() {
       const grantedAt = now();
-      await storage.setItem(storageKey, { grantedAt });
+      await storage.setItem(getActiveStorageKey(), { grantedAt });
       granted = true;
       loaded = true;
       return grantedAt;
     },
     async revoke() {
-      await storage.removeItem(storageKey);
+      await storage.removeItem(getActiveStorageKey());
       granted = false;
       loaded = true;
+    }
+  };
+}
+
+export function createDeviceHistoryRecallConsentRuntime(options = {}) {
+  const consent = createDeviceHistoryRecallConsent(options);
+  let ready = null;
+  const ensureReady = () => {
+    if (!ready) {
+      ready = consent.load()
+        .catch(error => options.logger?.warn?.('History recall consent could not load.', error))
+        .finally(() => options.onLoaded?.());
+    }
+    return ready;
+  };
+  return {
+    ...consent,
+    ensureReady,
+    async grant() {
+      await ensureReady();
+      return consent.grant();
+    },
+    async revoke() {
+      await ensureReady();
+      return consent.revoke();
     }
   };
 }

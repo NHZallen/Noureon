@@ -160,7 +160,13 @@ test('restores a legacy empty primary from the newest complete recovery copy', a
   assert.deepEqual(persistence.getDiagnostics(), {
     source: 'recovery',
     count: 1,
-    recovered: true
+    recovered: true,
+    migrated: false,
+    preservedFallback: false,
+    loadErrorCode: null,
+    primary: { state: 'empty', revision: 0, count: 0 },
+    recovery: { state: 'ready', revision: 7, count: 1 },
+    fallback: { state: 'empty', revision: 0, count: 0 }
   });
 });
 
@@ -210,4 +216,107 @@ test('an explicit final deletion wins over an older non-empty recovery copy', as
   });
   assert.equal(await nextPersistence.load(), 0);
   assert.deepEqual(reloaded.getAll(), []);
+});
+
+test('a higher-revision unknown empty owner snapshot cannot hide a non-empty migration fallback', async () => {
+  const values = new Map([
+    ['noureon:history-index:v1:alice', {
+      schemaVersion: 1,
+      revision: 9,
+      savedAt: 900,
+      records: []
+    }],
+    ['noureon:history-index:v1:alice:recovery', {
+      schemaVersion: 1,
+      revision: 9,
+      savedAt: 900,
+      records: []
+    }],
+    ['noureon:history-index:v1:anonymous', {
+      schemaVersion: 1,
+      revision: 2,
+      savedAt: 1_000,
+      records: [{ recordId: 'capsule:chat', conversationId: 'chat', vector: [1, 0] }]
+    }]
+  ]);
+  const storage = {
+    getItem: async key => values.get(key) ?? null,
+    setItem: async (key, value) => values.set(key, value),
+    removeItem: async key => values.delete(key),
+    setItemsAtomic: async entries => entries.forEach(({ key, value }) => values.set(key, value))
+  };
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage,
+    storageKey: 'noureon:history-index:v1:alice',
+    fallbackStorageKeys: ['noureon:history-index:v1:anonymous']
+  });
+
+  assert.equal(await persistence.load(), 1);
+  assert.deepEqual(index.getAll().map(record => record.recordId), ['capsule:chat']);
+  assert.equal(values.get('noureon:history-index:v1:alice').records.length, 1);
+  assert.equal(values.get('noureon:history-index:v1:alice:recovery').records.length, 1);
+  assert.equal(values.has('noureon:history-index:v1:anonymous'), false);
+  assert.equal(persistence.getDiagnostics().source, 'legacy-fallback');
+});
+
+test('an explicitly empty owner snapshot never resurrects a non-empty migration fallback', async () => {
+  const explicitEmpty = {
+    schemaVersion: 2,
+    revision: 10,
+    savedAt: 1_000,
+    state: 'explicitly-empty',
+    emptyReason: 'permanent-deletion',
+    records: []
+  };
+  const values = new Map([
+    ['noureon:history-index:v1:alice', explicitEmpty],
+    ['noureon:history-index:v1:alice:recovery', explicitEmpty],
+    ['noureon:history-index:v1:anonymous', {
+      schemaVersion: 1,
+      records: [{ recordId: 'capsule:deleted', conversationId: 'deleted', vector: [1, 0] }]
+    }]
+  ]);
+  const storage = {
+    getItem: async key => values.get(key) ?? null,
+    setItem: async (key, value) => values.set(key, value),
+    removeItem: async key => values.delete(key),
+    setItemsAtomic: async entries => entries.forEach(({ key, value }) => values.set(key, value))
+  };
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage,
+    storageKey: 'noureon:history-index:v1:alice',
+    fallbackStorageKeys: ['noureon:history-index:v1:anonymous']
+  });
+
+  assert.equal(await persistence.load(), 0);
+  assert.deepEqual(index.getAll(), []);
+  assert.equal(values.has('noureon:history-index:v1:anonymous'), true);
+  assert.equal(persistence.getDiagnostics().source, 'primary');
+});
+
+test('a failed fallback migration preserves the only non-empty source', async () => {
+  const values = new Map([['noureon:history-index:v1:anonymous', {
+    schemaVersion: 1,
+    records: [{ recordId: 'capsule:chat', conversationId: 'chat', vector: [1, 0] }]
+  }]]);
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage: {
+      getItem: async key => values.get(key) ?? null,
+      setItem: async (key, value) => values.set(key, value),
+      removeItem: async key => values.delete(key),
+      setItemsAtomic: async () => { throw new Error('transaction failed'); }
+    },
+    storageKey: 'noureon:history-index:v1:alice',
+    fallbackStorageKeys: ['noureon:history-index:v1:anonymous']
+  });
+
+  await assert.rejects(() => persistence.load(), /transaction failed/);
+  assert.equal(values.has('noureon:history-index:v1:anonymous'), true);
+  assert.equal(values.get('noureon:history-index:v1:anonymous').records.length, 1);
 });

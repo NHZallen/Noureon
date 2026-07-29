@@ -187,6 +187,8 @@
         historyRecallProgress: '已掃描 {completed}／{total} 段對話（{percentage}%）',
         historyRecallStatusBuilding: '建立索引中：已掃描 {completed}／{total} 段對話。',
         historyRecallStatusComplete: '索引已完成：已掃描 {completed}／{total} 段對話（新增 {indexed}，略過 {skipped}，失敗 {failed}）。',
+        historyRecallStatusIncomplete: '索引未完全完成：已掃描 {completed}／{total} 段對話（新增 {indexed}，略過 {skipped}，失敗 {failed}）。',
+        historyRecallStatusRecovered: '已復原本機索引，目前有 {count} 筆紀錄。',
         historyRecallStatusConsentRequired: '此裝置尚未同意；目前不會檢索或傳送舊對話。儲存設定時可啟用。',
         historyRecallStatusEnabled: '已啟用，本機有 {count} 筆索引紀錄（含對話膠囊、細節片段與媒體）。',
         historyRecallStatusDisabled: '目前關閉；不會查詢舊對話或呼叫 Embedding。',
