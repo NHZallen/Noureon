@@ -145,19 +145,27 @@ export function createSettingsHistoryRecallControls({
     }
     const rebuild = status.rebuild || {};
     if (rebuild.state === 'running') {
-      statusElement.textContent = formatText('historyRecallStatusBuilding', '建立索引中：{completed}／{total}。完成 {total}／{total} 才表示全部完成。', rebuild);
+      statusElement.textContent = formatText(
+        'historyRecallStatusBuilding',
+        '正在檢查本機索引：已掃描 {completed}／{total} 段對話；缺少或過期的項目會自動修復。',
+        rebuild
+      );
       return;
     }
     if (rebuild.state === 'complete' && rebuild.failed > 0 && !preferCurrentCount) {
       statusElement.textContent = formatText(
         'historyRecallStatusIncomplete',
-        '索引未完全完成：{completed}／{total}（新增 {indexed}，略過 {skipped}，失敗 {failed}）。',
+        '索引檢查未完全完成：已掃描 {completed}／{total} 段對話（修復 {indexed}，已有 {skipped}，失敗 {failed}）。',
         rebuild
       );
       return;
     }
     if (rebuild.state === 'complete' && !preferCurrentCount) {
-      statusElement.textContent = formatText('historyRecallStatusComplete', '索引已完成：{completed}／{total}（新增 {indexed}，略過 {skipped}，失敗 {failed}）。', rebuild);
+      statusElement.textContent = formatText(
+        'historyRecallStatusComplete',
+        '索引檢查完成：已掃描 {completed}／{total} 段對話（修復 {indexed}，已有 {skipped}，失敗 {failed}）。',
+        rebuild
+      );
       return;
     }
     if (getConfig().historyRecallEnabled && !status.consented) {

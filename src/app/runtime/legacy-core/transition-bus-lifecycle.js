@@ -467,7 +467,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     const repairHistoryIndexedSource = createHistoryIndexSourceRepair({
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         indexCapsule: options => historyIndexingService.indexCapsule(options),
-        indexConversationFragments: options => historyIndexingService.indexConversationFragments(options)
+        indexConversationFragments: options => historyIndexingService.indexConversationFragments(options),
+        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options)
     });
     const historyIndexRebuildService = createHistoryIndexRebuildService({
         getConversations: () => state.conversations,
@@ -476,7 +477,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         hashString,
         hasIndexedSource: options => hasCurrentHistoryIndexRecords({
             ...options,
-            records: historyIndex.getAll()
+            records: historyIndex.getAll(),
+            mediaMemories: runtimeAppDataStore.getMemoryState?.()?.mediaMemories || []
         }),
         migrateSourceFingerprint: options => migrateHistoryIndexSourceFingerprint({
             ...options,

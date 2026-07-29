@@ -4,7 +4,13 @@ const asArray = value => Array.isArray(value)
   ? value
   : value && typeof value[Symbol.iterator] === 'function' ? [...value] : [];
 
-export function hasCurrentHistoryIndexRecords({ records = [], conversationId, sourceHash, turns = [] } = {}) {
+export function hasCurrentHistoryIndexRecords({
+  records = [],
+  conversationId,
+  sourceHash,
+  turns = [],
+  mediaMemories = []
+} = {}) {
   const entries = asArray(records);
   const capsuleMatches = entries.some(record => (
     record.recordId === `capsule:${conversationId}` && record.sourceHash === sourceHash
@@ -15,11 +21,22 @@ export function hasCurrentHistoryIndexRecords({ records = [], conversationId, so
   const fragments = entries.filter(record => (
     record.recordType === 'conversation-fragment' && record.conversationId === conversationId
   ));
+  const expectedMediaRecordIds = asArray(mediaMemories)
+    .filter(media => media?.conversationId === conversationId && media?.sourceHash)
+    .filter(media => asArray(turns).some(turn => (
+      turn?.id === media.messageId
+      && asArray(turn.attachments).some(attachment => attachment?.partIndex === media.partIndex)
+    )))
+    .map(media => `media:${conversationId}:${media.sourceHash}`);
+  const mediaMatches = expectedMediaRecordIds.every(recordId => (
+    entries.some(record => record.recordId === recordId)
+  ));
   return capsuleMatches
     && fragments.length === expectedFragmentIds.size
     && fragments.every(record => (
       record.sourceHash === sourceHash && expectedFragmentIds.has(record.recordId)
-    ));
+    ))
+    && mediaMatches;
 }
 
 export function migrateHistoryIndexSourceFingerprint({

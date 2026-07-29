@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createHistoryIndexStore } from '../src/app/runtime/memory/history-index-store.js';
 import { hasCurrentHistoryIndexRecords } from '../src/app/runtime/memory/history-index-records.js';
 import { createHistoryIndexRebuildService } from '../src/app/runtime/memory/history-index-rebuild-service.js';
+import { createHistoryIndexSourceRepair } from '../src/app/runtime/memory/history-index-source-repair.js';
 import {
   buildHistoryIndexTurns,
   serializeHistoryIndexSource
@@ -178,4 +179,92 @@ test('repairs a missing production index even when derived memory has the same s
     index.getAll().map(record => record.recordType).sort(),
     ['conversation-capsule', 'conversation-fragment']
   );
+});
+
+test('automatically repairs missing media vectors from cached media memory', async () => {
+  const conversation = {
+    id: 'chat-media',
+    messages: [{
+      id: 'message-media',
+      role: 'user',
+      parts: [
+        { text: 'Remember this image.' },
+        { inlineData: { data: 'image-data', name: 'memory.png', mimeType: 'image/png' } }
+      ]
+    }]
+  };
+  const turns = buildHistoryIndexTurns(conversation);
+  const hashString = async value => `hash:${value}`;
+  const sourceHash = await hashString(serializeHistoryIndexSource(turns));
+  const memoryState = {
+    recentConversationStates: [{ conversationId: conversation.id, sourceHash }],
+    conversationCapsules: [{
+      id: 'capsule-media',
+      conversationId: conversation.id,
+      topic: 'Image memory',
+      summary: 'An existing image summary',
+      confirmedDecisions: [],
+      openQuestions: []
+    }],
+    mediaMemories: [{
+      id: 'media-memory',
+      conversationId: conversation.id,
+      messageId: 'message-media',
+      partIndex: 1,
+      sourceHash: 'media-hash',
+      name: 'memory.png',
+      summary: 'A remembered image',
+      keyFacts: []
+    }]
+  };
+  const index = createHistoryIndexStore();
+  const indexing = createHistoryIndexingService({
+    index,
+    embeddingClient: {
+      embedHistoryDocument: async () => [1, 0],
+      embedMedia: async () => [0, 1]
+    }
+  });
+  await indexing.indexCapsule({ capsule: memoryState.conversationCapsules[0], sourceHash });
+  await indexing.indexConversationFragments({
+    conversationId: conversation.id,
+    turns,
+    sourceHash
+  });
+  let captureModelCalls = 0;
+  const repairIndexedSource = createHistoryIndexSourceRepair({
+    getMemoryState: () => memoryState,
+    indexCapsule: options => indexing.indexCapsule(options),
+    indexConversationFragments: options => indexing.indexConversationFragments(options),
+    indexMediaMemory: options => indexing.indexMediaMemory(options)
+  });
+  const service = createHistoryIndexRebuildService({
+    getConversations: () => [conversation],
+    getMemoryState: () => memoryState,
+    captureCompletedTurn: async () => {
+      captureModelCalls += 1;
+      return { captured: true };
+    },
+    repairIndexedSource,
+    hashString,
+    hasIndexedSource: options => hasCurrentHistoryIndexRecords({
+      ...options,
+      records: index.getAll(),
+      mediaMemories: memoryState.mediaMemories
+    })
+  });
+
+  const result = await service.rebuild();
+
+  assert.equal(captureModelCalls, 0);
+  assert.equal(result.indexed, 1);
+  assert.equal(result.skipped, 0);
+  assert.equal(index.getAll().filter(record => record.recordType === 'media-memory').length, 1);
+  assert.equal(hasCurrentHistoryIndexRecords({
+    records: index.getAll(),
+    conversationId: conversation.id,
+    sourceHash,
+    turns,
+    mediaMemories: memoryState.mediaMemories
+  }), true);
 });

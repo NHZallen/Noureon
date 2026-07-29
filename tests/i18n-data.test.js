@@ -7,11 +7,11 @@ const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
 const EXPECTED_LOCALE_KEY_COUNT = 695;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 172;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': '660ca86c6c42ad95c3d570d34f96a940c0e921767526b95c41d70d2982c919eb',
-  en: '73e633f8919ab87cedc554146fc4ca0e5376508b3031e3ea88ef3dcb2cad3af0',
-  fr: '1de374fe4131515068d71b2f0f6dd9c391e4aefc9ff40c2a0ad3d6ea0a9ee885',
-  ru: '29bb765ad525f51c1dd3f79cca1ec43b55214bd66b17598448e8fdfc63b97f01',
-  es: 'f2d6739c8feabe9fc28861546b91f79972650318b403a359ca1e38e40a29118f'
+  'zh-TW': 'a3dbf45e2ab849428aa51ef827ebe173e62ff4147242f3709d1c33db59d9aa63',
+  en: 'f8c202a43eca6fa5568bed0b256e84a9097d1c60b7901b985ed1c6b3abeb1c6f',
+  fr: '7b2b7e0572fb0b2c961274f9dd4cd47e8315c542c82ed7e712b4098bab8cc36d',
+  ru: '62824ca3129dfe89296081fd48ca49f7e1ef1b3d65496d9dc74721bbe4d69b03',
+  es: '26828f9c5916881cbc9646f18924a62bac3d783d8084fbe2d13b1ce34facf9dd'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -189,6 +189,16 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
   for (const [sourcePath, pattern] of sourceChecks) {
     assert.match(readFileSync(projectFile(sourcePath), 'utf8'), pattern, `${sourcePath} should use i18n`);
   }
+});
+
+test('history index progress distinguishes checking from rebuilding', async () => {
+  const { default: i18n } = await importI18n('history-index-status');
+
+  assert.match(i18n['zh-TW'].historyRecallStatusBuilding, /檢查本機索引/);
+  assert.doesNotMatch(i18n['zh-TW'].historyRecallStatusBuilding, /建立索引中/);
+  assert.match(i18n.en.historyRecallStatusBuilding, /Checking the local index/);
+  assert.match(i18n['zh-TW'].historyRecallStatusComplete, /修復 \{indexed\}/);
+  assert.match(i18n.en.historyRecallStatusComplete, /\{indexed\} repaired/);
 });
 
 test('i18n locale content hashes stay stable for future split verification', async () => {

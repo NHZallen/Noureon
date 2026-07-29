@@ -2,6 +2,17 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.6.1",
+    date: "2026-07-29",
+    content: [
+      "<strong>【Noureon 16.6.1：跨對話索引自動修復更完整】</strong>",
+      "本次修正版補齊媒體索引的自動修復，並讓背景索引進度更容易理解。",
+      "<strong>✨ 修正重點：</strong>",
+      "<ul><li><strong>🖼️ 媒體索引自動補齊：</strong>當既有圖片、音訊、影片或文件的本機索引缺失時，背景檢查會直接使用已保存的媒體摘要與附件補回，不再需要先手動檢查並按下優化。</li><li><strong>🔎 索引進度更清楚：</strong>背景處理現在顯示為「檢查本機索引」，並區分已修復、原本已有與失敗數量，不再讓逐段掃描看起來像每次都重新建立全部索引。</li></ul>",
+      "Noureon 開發團隊 敬上"
+    ]
+  },
+  {
     version: "16.6.0",
     date: "2026-07-29",
     content: [
