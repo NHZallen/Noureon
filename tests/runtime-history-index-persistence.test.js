@@ -48,7 +48,10 @@ test('clearing a local index removes its persisted copy only', async () => {
   await persistence.clear();
 
   assert.deepEqual(index.getAll(), []);
-  assert.deepEqual(removedKeys, ['noureon:history-index:v1']);
+  assert.deepEqual(removedKeys, [
+    'noureon:history-index:v1',
+    'noureon:history-index:v1:recovery'
+  ]);
 });
 
 test('loads after the user is known and migrates the legacy anonymous index', async () => {
@@ -125,4 +128,86 @@ test('recovers a non-empty fallback when a legacy primary key was left empty', a
   assert.equal(index.getAll()[0].recordId, 'capsule:chat');
   assert.equal(values.get('noureon:history-index:v1:alice').records.length, 1);
   assert.equal(values.has('noureon:history-index:v1:anonymous'), false);
+});
+
+test('restores a legacy empty primary from the newest complete recovery copy', async () => {
+  const values = new Map([
+    ['noureon:history-index:v1:alice', { schemaVersion: 1, records: [] }],
+    ['noureon:history-index:v1:alice:recovery', {
+      schemaVersion: 1,
+      revision: 7,
+      savedAt: 700,
+      records: [{ recordId: 'capsule:chat', conversationId: 'chat', vector: [1, 0] }]
+    }]
+  ]);
+  const storage = {
+    getItem: async key => values.get(key) ?? null,
+    setItem: async (key, value) => values.set(key, value),
+    removeItem: async key => values.delete(key),
+    setItemsAtomic: async entries => entries.forEach(({ key, value }) => values.set(key, value))
+  };
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage,
+    storageKey: 'noureon:history-index:v1:alice'
+  });
+
+  assert.equal(await persistence.load(), 1);
+  assert.deepEqual(index.getAll().map(record => record.recordId), ['capsule:chat']);
+  assert.equal(values.get('noureon:history-index:v1:alice').revision, 7);
+  assert.equal(values.get('noureon:history-index:v1:alice').records.length, 1);
+  assert.deepEqual(persistence.getDiagnostics(), {
+    source: 'recovery',
+    count: 1,
+    recovered: true
+  });
+});
+
+test('an explicit final deletion wins over an older non-empty recovery copy', async () => {
+  const values = new Map([
+    ['noureon:history-index:v1:alice', {
+      schemaVersion: 1,
+      revision: 4,
+      savedAt: 400,
+      records: [{ recordId: 'capsule:old', conversationId: 'old', vector: [1, 0] }]
+    }],
+    ['noureon:history-index:v1:alice:recovery', {
+      schemaVersion: 1,
+      revision: 4,
+      savedAt: 400,
+      records: [{ recordId: 'capsule:old', conversationId: 'old', vector: [1, 0] }]
+    }]
+  ]);
+  const storage = {
+    getItem: async key => values.get(key) ?? null,
+    setItem: async (key, value) => values.set(key, value),
+    removeItem: async key => values.delete(key),
+    setItemsAtomic: async entries => entries.forEach(({ key, value }) => values.set(key, value))
+  };
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage,
+    storageKey: 'noureon:history-index:v1:alice'
+  });
+
+  await persistence.load();
+  index.clear();
+  await persistence.save({ allowEmpty: true });
+
+  const primary = values.get('noureon:history-index:v1:alice');
+  const recovery = values.get('noureon:history-index:v1:alice:recovery');
+  assert.equal(primary.records.length, 0);
+  assert.equal(recovery.records.length, 0);
+  assert.ok(primary.revision > 4);
+
+  const reloaded = createHistoryIndexStore();
+  const nextPersistence = createHistoryIndexPersistence({
+    index: reloaded,
+    storage,
+    storageKey: 'noureon:history-index:v1:alice'
+  });
+  assert.equal(await nextPersistence.load(), 0);
+  assert.deepEqual(reloaded.getAll(), []);
 });
