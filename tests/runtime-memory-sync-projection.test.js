@@ -303,6 +303,34 @@ test('marks a one-sided synced overview stale when its complete memory is newer'
   assert.equal(merged.memoryOverview.needsRefresh, true);
 });
 
+test('does not let a newer empty overview erase a usable local display while complete memory exists', () => {
+  const merged = mergeSyncedMemoryState({
+    memorySummary: {
+      overview: 'Keep this complete memory.',
+      sections: [{ id: 'source', key: 'source', title: 'Source', content: 'Still available.', updatedAt: '2026-07-29T00:00:00.000Z' }],
+      updatedAt: '2026-07-29T00:00:00.000Z'
+    },
+    memoryOverview: {
+      overview: 'Keep this visible summary.',
+      sections: [{ id: 'visible', key: 'source', title: 'Source', content: 'Still visible.', updatedAt: '2026-07-29T00:00:00.000Z' }],
+      basedOnMemorySummaryUpdatedAt: '2026-07-29T00:00:00.000Z',
+      updatedAt: '2026-07-29T00:00:00.000Z'
+    }
+  }, {
+    version: 1,
+    memoryOverview: {
+      overview: '',
+      sections: [],
+      basedOnMemorySummaryUpdatedAt: '2026-07-30T00:00:00.000Z',
+      updatedAt: '2026-07-30T00:00:00.000Z'
+    }
+  });
+
+  assert.equal(merged.memoryOverview.overview, 'Keep this visible summary.');
+  assert.equal(merged.memoryOverview.sections[0].content, 'Still visible.');
+  assert.equal(merged.memoryOverview.needsRefresh, false);
+});
+
 test('sync merge preserves a local manual summary edit over a newer automatic remote section', () => {
   const merged = mergeSyncedMemoryState({
     memorySummary: {

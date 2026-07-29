@@ -48,6 +48,16 @@ const hasDifferentSummaryContent = (left, right) => (
   summaryContentSignature(left) !== summaryContentSignature(right)
 );
 
+const hasVisibleOverviewContent = overview => Boolean(
+  String(overview?.overview || '').trim()
+  || asArray(overview?.sections).some(section => String(section?.content || '').trim())
+);
+
+const hasCompleteMemoryContent = summary => Boolean(
+  String(summary?.overview || '').trim()
+  || asArray(summary?.sections).some(section => String(section?.content || '').trim())
+);
+
 const mergeMemorySummary = (local, remote) => {
   if (!remote || typeof remote !== 'object') return local;
   if (!local || typeof local !== 'object') {
@@ -97,7 +107,17 @@ const mergeMemoryOverview = (local, remote, memorySummary) => {
   };
   if (!remote || typeof remote !== 'object') return withCanonicalFreshness(local);
   if (!local || typeof local !== 'object') return withCanonicalFreshness(remote);
-  const preferred = timestamp(remote.updatedAt) >= timestamp(local.updatedAt) ? remote : local;
+  // The visible overview is a cache, but it must never disappear merely
+  // because a delayed/partial sync contains an empty layer.  Keep the last
+  // usable local view while complete memory still exists; a genuine deletion
+  // first clears complete memory, and is therefore still allowed to clear the
+  // visible cache on every device.
+  const preserveLocalContent = hasVisibleOverviewContent(local)
+    && !hasVisibleOverviewContent(remote)
+    && hasCompleteMemoryContent(memorySummary);
+  const preferred = preserveLocalContent
+    ? local
+    : timestamp(remote.updatedAt) >= timestamp(local.updatedAt) ? remote : local;
   const sectionsByKey = new Map();
   for (const section of [...asArray(local.sections), ...asArray(remote.sections)]) {
     const key = String(section?.key || section?.id || '').trim();

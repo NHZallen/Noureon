@@ -144,3 +144,35 @@ test('keeps the display overview separate and marks it stale until the user refr
   assert.equal(afterDeletion.needsRefresh, true);
   assert.equal(afterDeletion.status, 'idle');
 });
+
+test('clears generated complete-summary prose when one of its sources is deleted', () => {
+  const result = removeMemorySummarySources({
+    summary: {
+      overview: 'The deleted conversation said to use the VPS.',
+      sections: [{
+        id: 'deployment',
+        key: 'deployment',
+        title: 'Deployment',
+        content: 'Use the VPS.',
+        authority: 'automatic',
+        sourceConversationIds: ['deleted-chat'],
+        sourceMessageIds: ['deleted-message'],
+        updatedAt: NOW
+      }],
+      updatedAt: NOW
+    },
+    evidence: [{
+      conversationId: 'deleted-chat',
+      messageId: 'deleted-message',
+      content: 'Use the VPS.',
+      updatedAt: NOW
+    }],
+    conversationId: 'deleted-chat',
+    messageIds: ['deleted-message'],
+    ...options
+  });
+
+  assert.equal(result.changed, true);
+  assert.equal(result.summary.overview, '');
+  assert.deepEqual(result.summary.sections, []);
+});

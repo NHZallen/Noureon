@@ -500,15 +500,14 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         if (historyIndexWorkPromise) return historyIndexWorkPromise;
         historyIndexWorkPromise = (async () => {
             await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
-            let activeConversationCount = 0;
             try {
-                const activeConversationIds = new Set(state.conversations
-                    .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
-                    .map(conversation => conversation.id));
-                activeConversationCount = activeConversationIds.size;
-                historyIndex.getAll()
-                    .filter(record => !activeConversationIds.has(record.conversationId))
-                    .forEach(record => historyIndex.removeRecord(record.recordId));
+                // Rebuild can be requested by cloud and summary events while a
+                // workspace snapshot is still arriving.  It must only add or
+                // refresh records: treating the currently visible list as a
+                // complete deletion manifest can erase every local vector.
+                // Explicit trash/permanent-delete flows call the invalidation
+                // service, which is the sole authority allowed to remove a
+                // conversation's records.
                 return await historyIndexRebuildService.rebuild({
                     ...options,
                     onProgress: status => {
@@ -519,7 +518,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             } finally {
                 await persistMemoryState();
                 if (historyIndexPersistence?.save) {
-                    await historyIndexPersistence.save({ allowEmpty: activeConversationCount === 0 });
+                    // A rebuild is recoverable maintenance, never a destructive
+                    // operation.  In particular, an empty or partial workspace
+                    // snapshot must not replace the last known-good index.
+                    await historyIndexPersistence.save();
                 }
                 notifyHistoryIndexChanged();
             }

@@ -349,6 +349,11 @@ export function removeMemorySummarySources({
   return {
     summary: normalizeMemorySummary({
       ...current,
+      // The summary overview has no per-source references.  Once any source
+      // is removed, retaining that generated prose could preserve deleted
+      // content.  Clear it conservatively; normal background capture rebuilds
+      // a fresh overview from the surviving sources.
+      overview: changed ? '' : current.overview,
       sections,
       updatedAt: changed ? now() : current.updatedAt,
       needsRefresh: changed || current.needsRefresh

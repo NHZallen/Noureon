@@ -338,6 +338,34 @@ test('registers sidebar.toggleSidebar and runtime.coreTailDependencies with live
   assert.deepEqual(calls.at(-1), ['setCurrentConversationId', 'c2']);
 });
 
+test('a rebuild never replaces a persisted index when the workspace is temporarily empty', async () => {
+  const values = new Map([['noureon:history-index:v1:anonymous', {
+    schemaVersion: 1,
+    records: [{
+      recordId: 'capsule:historical',
+      recordType: 'conversation-capsule',
+      conversationId: 'historical',
+      sourceHash: 'historical-hash',
+      vector: [1, 0]
+    }]
+  }]]);
+  const harness = createHarness({
+    runtimeStorageAdapter: {
+      getItem: async key => values.get(key) ?? null,
+      setItem: async (key, value) => values.set(key, value),
+      removeItem: async key => values.delete(key)
+    }
+  });
+  harness.state.conversations = [];
+
+  await harness.bindings.get('memory.rebuildHistoryIndex')()();
+
+  assert.deepEqual(
+    values.get('noureon:history-index:v1:anonymous').records.map(record => record.recordId),
+    ['capsule:historical']
+  );
+});
+
 test('legacy core passes cloud deletion through the production transition bus composition', () => {
   const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   assert.match(
