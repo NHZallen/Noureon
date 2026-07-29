@@ -196,7 +196,7 @@ export function createMemoryCaptureService({
         status: memoryState.memoryOverview?.status === 'pending' ? 'pending' : 'idle',
         needsRefresh: true
       }, { now });
-      replaceMemoryState({
+      const nextMemoryState = {
         ...memoryState,
         recentConversationStates: [
           ...recentStates.filter(state => state.conversationId !== conversationId),
@@ -214,18 +214,26 @@ export function createMemoryCaptureService({
         memoryEvidence: evidence,
         memorySummary,
         memoryOverview
-      });
-      if (typeof indexCapsule === 'function') await indexCapsule({ capsule, sourceHash });
-      if (typeof indexConversationFragments === 'function') {
-        await indexConversationFragments({
-          conversationId,
-          turns,
-          sourceHash,
-          updatedAt
-        });
-      }
-      if (typeof indexMediaMemory === 'function') {
-        for (const media of asArray(enriched.mediaForIndex)) await indexMediaMemory(media);
+      };
+      replaceMemoryState(nextMemoryState);
+      try {
+        if (typeof indexCapsule === 'function') await indexCapsule({ capsule, sourceHash });
+        if (typeof indexConversationFragments === 'function') {
+          await indexConversationFragments({
+            conversationId,
+            turns,
+            sourceHash,
+            updatedAt
+          });
+        }
+        if (typeof indexMediaMemory === 'function') {
+          for (const media of asArray(enriched.mediaForIndex)) await indexMediaMemory(media);
+        }
+      } catch (error) {
+        // The derived metadata and vectors form one recoverable unit. Do not
+        // persist a new source hash if the local vector replacement failed.
+        replaceMemoryState(memoryState);
+        throw error;
       }
       if (allowTopicSummary && typeof updateTopicSummary === 'function') {
         await updateTopicSummary({ capsule, signal });

@@ -131,11 +131,15 @@ export function createHistoryIndexAuditService({
   async function optimize(report, { onProgress = () => {} } = {}) {
     const tasks = asArray(report?.tasks);
     const extras = asArray(report?.extraRecordIds);
-    extras.forEach(recordId => index.removeRecord(recordId));
+    const activeConversationIds = new Set(asArray(getConversations())
+      .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
+      .map(conversation => conversation.id));
+    const retainedRecordIds = new Set();
+    const repairedConversationIds = new Set();
     let completed = 0;
     let repaired = 0;
     let failed = 0;
-    onProgress({ completed, total: tasks.length, repaired, removed: extras.length, failed });
+    onProgress({ completed, total: tasks.length, repaired, removed: 0, failed });
     for (const task of tasks) {
       try {
         if (task.type === 'capsule') await indexCapsule(task);
@@ -147,15 +151,36 @@ export function createHistoryIndexAuditService({
           allowTopicSummary: false
         });
         repaired += 1;
+        if (task.conversationId) repairedConversationIds.add(task.conversationId);
+        if (task.capsule?.conversationId) repairedConversationIds.add(task.capsule.conversationId);
+        if (task.mediaMemory?.conversationId) repairedConversationIds.add(task.mediaMemory.conversationId);
       } catch {
         failed += 1;
       }
       completed += 1;
-      onProgress({ completed, total: tasks.length, repaired, removed: extras.length, failed });
+      onProgress({ completed, total: tasks.length, repaired, removed: 0, failed });
+    }
+    let removed = 0;
+    for (const recordId of extras) {
+      const record = index.getAll().find(item => item.recordId === recordId);
+      // A stale report cannot distinguish an old active record from a
+      // same-ID replacement created moments ago. Keep active-chat vectors;
+      // records for deleted chats are safe to remove immediately.
+      if (record?.conversationId && activeConversationIds.has(record.conversationId)) {
+        if (!repairedConversationIds.has(record.conversationId)) retainedRecordIds.add(recordId);
+        continue;
+      }
+      index.removeRecord(recordId);
+      removed += 1;
     }
     await persistMemoryState();
-    if (persistence?.save) await persistence.save();
-    return { repaired, removed: extras.length, failed, unchanged: report?.healthy || 0 };
+    if (persistence?.save) await persistence.save({ allowEmpty: activeConversationIds.size === 0 });
+    return {
+      repaired,
+      removed,
+      failed,
+      unchanged: (report?.healthy || 0) + retainedRecordIds.size
+    };
   }
 
   return { audit, optimize };

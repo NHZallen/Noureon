@@ -133,13 +133,16 @@ export function createHistoryIndexingService({
       ))) {
         return { indexed: false, reason: 'unchanged-source', count: fragments.length };
       }
-      existing.forEach(record => index.removeRecord(record.recordId));
+      // Embed every replacement first. A network/API failure must leave the
+      // last known-good fragment set queryable rather than erase the whole
+      // conversation before its replacement exists.
+      const nextRecords = [];
       for (const [fragmentIndex, fragment] of fragments.entries()) {
         const vector = await embeddingClient.embedHistoryDocument({
           title: `Conversation detail ${fragmentIndex + 1}`,
           text: fragment.text
         });
-        index.put({
+        nextRecords.push({
           recordId: `${prefix}${fragmentIndex}`,
           recordType: 'conversation-fragment',
           conversationId,
@@ -153,6 +156,8 @@ export function createHistoryIndexingService({
           updatedAt
         });
       }
+      existing.forEach(record => index.removeRecord(record.recordId));
+      nextRecords.forEach(record => index.put(record));
       if (persistence?.save) await persistence.save();
       return { indexed: true, count: fragments.length };
     },

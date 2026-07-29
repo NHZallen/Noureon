@@ -141,3 +141,27 @@ test('indexes complete conversation fragments locally and replaces stale fragmen
     updatedAt: '2026-07-29T00:00:00.000Z'
   });
 });
+
+test('keeps last-known-good fragments when replacement embedding fails', async () => {
+  const index = createHistoryIndexStore();
+  index.put({
+    recordId: 'fragment:chat-1:0',
+    recordType: 'conversation-fragment',
+    conversationId: 'chat-1',
+    sourceHash: 'old-hash',
+    vector: [1, 0]
+  });
+  const service = createHistoryIndexingService({
+    index,
+    embeddingClient: { embedHistoryDocument: async () => { throw new Error('embedding unavailable'); } }
+  });
+
+  await assert.rejects(() => service.indexConversationFragments({
+    conversationId: 'chat-1',
+    turns: [{ id: 'message-1', role: 'user', text: 'new text' }],
+    sourceHash: 'new-hash'
+  }), /embedding unavailable/);
+
+  assert.deepEqual(index.getAll().map(record => record.recordId), ['fragment:chat-1:0']);
+  assert.equal(index.getAll()[0].sourceHash, 'old-hash');
+});

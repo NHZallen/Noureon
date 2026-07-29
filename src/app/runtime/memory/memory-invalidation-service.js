@@ -63,7 +63,9 @@ export function createMemoryInvalidationService({
       ...(overviewCleanup ? { memoryOverview: overviewCleanup } : {}),
       ...(asArray(memoryState.memoryEvidence).length > 0 ? { memoryEvidence: summaryCleanup.evidence } : {})
     });
-    if (persistence?.save) await persistence.save();
+    // This path is an explicit deletion, so it is the only normal flow that
+    // may intentionally replace the final persisted index with an empty one.
+    if (persistence?.save) await persistence.save({ allowEmpty: true });
     return {
       invalidatedCapsuleCount: invalidCapsuleIds.size,
       ...(memoryState.memorySummary ? { memorySummaryRefreshRequired: summaryCleanup.summary.needsRefresh === true } : {})

@@ -153,6 +153,42 @@ test('marks an outdated detailed fragment for repair instead of retaining it as 
   assert.equal(report.tasks[0].type, 'capture');
 });
 
+test('does not erase an active orphan vector when its metadata repair fails', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:chat', conversationId: 'chat', sourceHash: 'hash:chat', vector: [1, 0] });
+  const service = createHistoryIndexAuditService({
+    getConversations: () => [{ id: 'chat', messages: [{ id: 'm', role: 'user', parts: [{ text: 'hello' }] }] }],
+    getMemoryState: () => ({ recentConversationStates: [], conversationCapsules: [] }),
+    index,
+    hashString: async () => 'hash:chat',
+    captureCompletedTurn: async () => { throw new Error('memory model unavailable'); }
+  });
+  const report = await service.audit();
+
+  const result = await service.optimize(report);
+
+  assert.deepEqual(result, { repaired: 0, removed: 0, failed: 1, unchanged: 1 });
+  assert.equal(index.getAll()[0].recordId, 'capsule:chat');
+});
+
+test('does not erase a same-id active vector recreated by a successful repair', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:chat', conversationId: 'chat', sourceHash: 'old-hash', vector: [1, 0] });
+  const service = createHistoryIndexAuditService({
+    getConversations: () => [{ id: 'chat', messages: [{ id: 'm', role: 'user', parts: [{ text: 'hello' }] }] }],
+    getMemoryState: () => ({ recentConversationStates: [], conversationCapsules: [] }),
+    index,
+    hashString: async () => 'hash:chat',
+    captureCompletedTurn: async () => {
+      index.put({ recordId: 'capsule:chat', conversationId: 'chat', sourceHash: 'hash:chat', vector: [0, 1] });
+    }
+  });
+  const result = await service.optimize(await service.audit());
+
+  assert.deepEqual(result, { repaired: 1, removed: 0, failed: 0, unchanged: 0 });
+  assert.equal(index.getAll()[0].sourceHash, 'hash:chat');
+});
+
 test('a completed index remains healthy after simulated page reload', async () => {
   const values = new Map();
   const storage = {

@@ -123,6 +123,33 @@ test('history rebuild capture never adds profile candidates from old conversatio
   assert.deepEqual(memoryState.profileCandidates, []);
 });
 
+test('rolls back derived metadata when local indexing fails', async () => {
+  const originalState = {
+    recentConversationStates: [{ conversationId: 'chat', sourceHash: 'old-hash' }],
+    conversationCapsules: [{ id: 'old-capsule', conversationId: 'chat', summary: 'old' }]
+  };
+  let memoryState = originalState;
+  const service = createMemoryCaptureService({
+    captureClient: { capture: async () => ({
+      recentTurnSummary: 'new',
+      capsule: { topic: 'topic', summary: 'new', confirmedDecisions: [], openQuestions: [] },
+      profileCandidates: []
+    }) },
+    getMemoryState: () => memoryState,
+    replaceMemoryState: next => { memoryState = next; },
+    indexCapsule: async () => { throw new Error('embedding unavailable'); },
+    createId: prefix => `${prefix}-id`
+  });
+
+  await assert.rejects(() => service.captureCompletedTurn({
+    conversationId: 'chat',
+    sourceHash: 'new-hash',
+    turns: [{ id: 'message-1', role: 'user', text: 'new text' }]
+  }), /embedding unavailable/);
+
+  assert.strictEqual(memoryState, originalState);
+});
+
 test('drops duplicate, assistant-sourced, and cross-kind replacement candidates', async () => {
   let memoryState = {
     profileEntries: [

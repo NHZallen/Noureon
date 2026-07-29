@@ -74,3 +74,55 @@ test('loads after the user is known and migrates the legacy anonymous index', as
   assert.equal(values.has('noureon:history-index:v1:anonymous'), false);
   assert.equal(index.getAll()[0].recordId, 'capsule:chat');
 });
+
+test('pins the owner namespace so an auth hand-off cannot save an empty index elsewhere', async () => {
+  const values = new Map([['noureon:history-index:v1:alice', {
+    schemaVersion: 1,
+    records: [{ recordId: 'capsule:chat', conversationId: 'chat', vector: [1, 0] }]
+  }]]);
+  let username = 'alice';
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage: {
+      getItem: async key => values.get(key) ?? null,
+      setItem: async (key, value) => values.set(key, value),
+      removeItem: async key => values.delete(key)
+    },
+    storageKey: () => `noureon:history-index:v1:${username}`
+  });
+
+  assert.equal(await persistence.load(), 1);
+  username = 'supabase:next-session';
+  index.clear();
+  await persistence.save();
+
+  assert.equal(values.has('noureon:history-index:v1:supabase:next-session'), false);
+  assert.equal(values.get('noureon:history-index:v1:alice').records.length, 1);
+});
+
+test('recovers a non-empty fallback when a legacy primary key was left empty', async () => {
+  const values = new Map([
+    ['noureon:history-index:v1:alice', { schemaVersion: 1, records: [] }],
+    ['noureon:history-index:v1:anonymous', {
+      schemaVersion: 1,
+      records: [{ recordId: 'capsule:chat', conversationId: 'chat', vector: [1, 0] }]
+    }]
+  ]);
+  const index = createHistoryIndexStore();
+  const persistence = createHistoryIndexPersistence({
+    index,
+    storage: {
+      getItem: async key => values.get(key) ?? null,
+      setItem: async (key, value) => values.set(key, value),
+      removeItem: async key => values.delete(key)
+    },
+    storageKey: 'noureon:history-index:v1:alice',
+    fallbackStorageKeys: ['noureon:history-index:v1:anonymous']
+  });
+
+  assert.equal(await persistence.load(), 1);
+  assert.equal(index.getAll()[0].recordId, 'capsule:chat');
+  assert.equal(values.get('noureon:history-index:v1:alice').records.length, 1);
+  assert.equal(values.has('noureon:history-index:v1:anonymous'), false);
+});

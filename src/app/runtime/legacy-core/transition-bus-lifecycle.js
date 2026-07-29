@@ -19,7 +19,6 @@ import { createConfiguredMemoryModelClient } from '../memory/memory-model-runtim
 import { createLegacyMemorySummaryLifecycle } from './memory-summary-lifecycle.js';
 import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
 import {
-    activeMemoryRecordIds,
     hasCurrentHistoryIndexRecords,
     migrateHistoryIndexSourceFingerprint
 } from '../memory/history-index-records.js';
@@ -501,18 +500,14 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         if (historyIndexWorkPromise) return historyIndexWorkPromise;
         historyIndexWorkPromise = (async () => {
             await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
+            let activeConversationCount = 0;
             try {
-                const memoryState = runtimeAppDataStore.getMemoryState?.() || {};
                 const activeConversationIds = new Set(state.conversations
                     .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
                     .map(conversation => conversation.id));
-                const expectedRecordIds = activeMemoryRecordIds({
-                    memoryState,
-                    records: historyIndex.getAll(),
-                    conversationIds: activeConversationIds
-                });
+                activeConversationCount = activeConversationIds.size;
                 historyIndex.getAll()
-                    .filter(record => !expectedRecordIds.has(record.recordId))
+                    .filter(record => !activeConversationIds.has(record.conversationId))
                     .forEach(record => historyIndex.removeRecord(record.recordId));
                 return await historyIndexRebuildService.rebuild({
                     ...options,
@@ -523,7 +518,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
                 });
             } finally {
                 await persistMemoryState();
-                if (historyIndexPersistence?.save) await historyIndexPersistence.save();
+                if (historyIndexPersistence?.save) {
+                    await historyIndexPersistence.save({ allowEmpty: activeConversationCount === 0 });
+                }
                 notifyHistoryIndexChanged();
             }
         })().finally(() => { historyIndexWorkPromise = null; });

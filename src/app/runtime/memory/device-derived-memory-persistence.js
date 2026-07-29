@@ -11,17 +11,31 @@ export function createDeviceDerivedMemoryPersistence({ storage, storageKey, fall
     const keys = typeof fallbackStorageKeys === 'function' ? fallbackStorageKeys() : fallbackStorageKeys;
     return Array.isArray(keys) ? keys.filter(Boolean) : [];
   };
+  // Keep loading and later saving within one owner namespace. Without this,
+  // an auth hand-off can load one user's derived memory and overwrite another
+  // namespace with an empty projection.
+  let activeStorageKey = null;
+  const getActiveStorageKey = () => activeStorageKey ||= resolveStorageKey();
+  const hasDerivedMemory = value => value?.version === DEVICE_DERIVED_MEMORY_VERSION
+    && (
+      asArray(value.recentConversationStates).length > 0
+      || asArray(value.conversationCapsules).length > 0
+      || asArray(value.mediaMemories).length > 0
+    );
 
   return {
     async load() {
-      const primaryKey = resolveStorageKey();
+      const primaryKey = getActiveStorageKey();
       let loadedKey = primaryKey;
       let saved = await storage.getItem(primaryKey);
-      if (!saved) {
+      // Recover an intact pre-auth/legacy copy when a transient empty primary
+      // was written before the owner namespace settled.
+      if (!hasDerivedMemory(saved)) {
         for (const fallbackKey of resolveFallbackKeys()) {
           if (fallbackKey === primaryKey) continue;
-          saved = await storage.getItem(fallbackKey);
-          if (saved) {
+          const fallback = await storage.getItem(fallbackKey);
+          if (hasDerivedMemory(fallback)) {
+            saved = fallback;
             loadedKey = fallbackKey;
             break;
           }
@@ -43,7 +57,7 @@ export function createDeviceDerivedMemoryPersistence({ storage, storageKey, fall
     },
     async save() {
       const memoryState = getMemoryState() || {};
-      await storage.setItem(resolveStorageKey(), {
+      await storage.setItem(getActiveStorageKey(), {
         version: DEVICE_DERIVED_MEMORY_VERSION,
         recentConversationStates: asArray(memoryState.recentConversationStates),
         conversationCapsules: asArray(memoryState.conversationCapsules),

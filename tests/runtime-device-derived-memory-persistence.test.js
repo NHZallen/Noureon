@@ -57,3 +57,31 @@ test('migrates anonymous derived memory into the current user key', async () => 
   assert.equal(values.has('derived:anonymous'), false);
   assert.equal(memoryState.conversationCapsules[0].id, 'capsule');
 });
+
+test('pins derived-memory persistence to the owner used during load', async () => {
+  const values = new Map([['derived:alice', {
+    version: 1,
+    recentConversationStates: [{ conversationId: 'chat', sourceHash: 'hash' }],
+    conversationCapsules: [{ id: 'capsule', conversationId: 'chat' }],
+    mediaMemories: []
+  }]]);
+  let username = 'alice';
+  let memoryState = {};
+  const persistence = createDeviceDerivedMemoryPersistence({
+    storage: {
+      getItem: async key => values.get(key) ?? null,
+      setItem: async (key, value) => values.set(key, value),
+      removeItem: async key => values.delete(key)
+    },
+    storageKey: () => `derived:${username}`,
+    getMemoryState: () => memoryState,
+    replaceMemoryState: next => { memoryState = next; }
+  });
+
+  assert.equal(await persistence.load(), true);
+  username = 'supabase:next-session';
+  await persistence.save();
+
+  assert.equal(values.has('derived:supabase:next-session'), false);
+  assert.equal(values.get('derived:alice').conversationCapsules.length, 1);
+});
