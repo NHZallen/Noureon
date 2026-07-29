@@ -1,13 +1,9 @@
-/** Replaces only the streamed placeholder with its final source-aware view. */
+/** Adds source disclosure to the completed streamed message without replacing it. */
 export function replaceHistorySourceMessage({
   finalAiMessage,
-  conversation,
   loadingMessageDiv,
-  addMessageToUI
+  refreshMessageHistorySources
 } = {}) {
-  const finalMessageElement = addMessageToUI?.(finalAiMessage, (conversation?.messages?.length || 1) - 1, false, false);
-  if (loadingMessageDiv?.isConnected && finalMessageElement) {
-    loadingMessageDiv.replaceWith(finalMessageElement);
-  }
-  return finalMessageElement || null;
+  if (!loadingMessageDiv?.isConnected || typeof refreshMessageHistorySources !== 'function') return null;
+  return refreshMessageHistorySources(loadingMessageDiv, finalAiMessage) || null;
 }

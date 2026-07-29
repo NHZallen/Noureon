@@ -106,10 +106,10 @@ test('import is inert and module avoids fragments and virtual runtime', () => {
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
 
-test('history-source disclosure replaces only the completed message instead of rerendering the chat', () => {
+test('history-source disclosure updates the completed message without rerendering the chat', () => {
   const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
 
-  assert.match(source, /historySourceConversationIds\.size > 0[\s\S]*?replaceHistorySourceMessage\(\{ finalAiMessage, conversation: conv, loadingMessageDiv, addMessageToUI \}\)/);
+  assert.match(source, /historySourceConversationIds\.size > 0[\s\S]*?replaceHistorySourceMessage\(\{ finalAiMessage, loadingMessageDiv, refreshMessageHistorySources \}\)/);
   assert.doesNotMatch(source, /historySourceConversationIds\.size > 0[\s\S]{0,500}?renderChat\(/);
 });
 

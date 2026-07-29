@@ -519,6 +519,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
   const {
     addMessageToUI,
     isActiveConversationViewCurrent,
+    refreshMessageHistorySources,
     renderChat
   } = createMessageListLifecycle({
     document,
@@ -584,6 +585,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     renderChat,
     addMessageToUI,
     isActiveConversationViewCurrent,
+    refreshMessageHistorySources,
     renderAstras,
     getActiveAstrasId,
     setAstrasForConversation,

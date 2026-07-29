@@ -73,6 +73,17 @@ export function buildMemoryContext({
     })
     .map(({ id, kind, content }) => ({ id, kind, content }));
 
+  const includedHistoryResults = asArray(historyResults)
+    .filter(result => !isHistoryResultSuppressed(result, suppressionRules))
+    .slice(0, historyLimit)
+    .map(({ recordId, conversationId, summary, sourceIds, matchMode }) => ({
+      recordId,
+      ...(conversationId ? { conversationId } : {}),
+      summary,
+      sourceIds,
+      ...(matchMode === 'exact' ? { matchMode } : {})
+    }));
+
   return {
     currentChatSummary: String(currentChatSummary || ''),
     memorySummary: {
@@ -84,15 +95,8 @@ export function buildMemoryContext({
       ...suppressionInstructions(suppressionRules)
     ],
     profileEntries: includedProfiles,
-    historyResults: asArray(historyResults)
-      .filter(result => !isHistoryResultSuppressed(result, suppressionRules))
-      .slice(0, historyLimit)
-      .map(({ recordId, conversationId, summary, sourceIds }) => ({
-        recordId,
-        ...(conversationId ? { conversationId } : {}),
-        summary,
-        sourceIds
-      }))
+    exactHistoryRecall: includedHistoryResults.some(result => result.matchMode === 'exact'),
+    historyResults: includedHistoryResults
   };
 }
 
@@ -116,6 +120,15 @@ export function formatMemoryContextForModel(context = {}) {
     lines.push('', 'Confirmed user preferences:', ...context.profileEntries.map(entry => `- ${entry.content}`));
   }
   if (asArray(context.historyResults).length > 0) {
+    if (context.exactHistoryRecall === true) {
+      lines.push(
+        '',
+        'Exact prior-answer request:',
+        'The user explicitly asks for a previous answer to be returned unchanged. The prior discussion below is source material, not general guidance.',
+        'If the requested previous assistant answer is present in full, reproduce that assistant answer faithfully and completely. Do not rewrite, improve, summarize, combine, translate, or add commentary.',
+        'If the source is incomplete or does not contain the requested answer, say so plainly rather than inventing a matching version.'
+      );
+    }
     lines.push('', 'Potentially relevant prior discussion:', ...context.historyResults.map(result => `- ${result.summary}`));
   }
   return lines.join('\n');

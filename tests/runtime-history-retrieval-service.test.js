@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createHistoryIndexStore } from '../src/app/runtime/memory/history-index-store.js';
-import { createHistoryRetrievalService } from '../src/app/runtime/memory/history-retrieval-service.js';
+import {
+  createHistoryRetrievalService,
+  getExactHistoryRecallRequest
+} from '../src/app/runtime/memory/history-retrieval-service.js';
 
 test('retrieves only relevant capsules outside the current conversation', async () => {
   const index = createHistoryIndexStore();
@@ -117,6 +120,84 @@ test('returns an indexed conversation detail fragment instead of reducing it to 
   assert.equal(results.length, 1);
   assert.equal(results[0].summary, 'User: I plan to deploy OpenClaw on a VPS.\nAssistant: A small VPS is not suitable; use the NUC for the local workload.');
   assert.deepEqual(results[0].sourceIds, ['old-user', 'old-assistant']);
+});
+
+test('explicit same-as-before requests recover the complete matching conversation in order', async () => {
+  const index = createHistoryIndexStore();
+  index.put({
+    recordId: 'fragment:recipe-chat:0', recordType: 'conversation-fragment', conversationId: 'recipe-chat', fragmentIndex: 0,
+    vector: [0, 1], updatedAt: '2026-07-29T10:00:00.000Z',
+    snippet: 'User: 給我巧克力派食譜。\nAssistant: ## Chocolate pie\n- 200g dark chocolate\n- 120ml cream',
+    sourceIds: ['recipe-user', 'recipe-answer']
+  });
+  index.put({
+    recordId: 'fragment:recipe-chat:1', recordType: 'conversation-fragment', conversationId: 'recipe-chat', fragmentIndex: 1,
+    vector: [0, 1], updatedAt: '2026-07-29T10:00:00.000Z',
+    snippet: 'Assistant: 1. Melt the chocolate.\n2. Chill for four hours.',
+    sourceIds: ['recipe-answer']
+  });
+  index.put({
+    recordId: 'fragment:other-chat:0', recordType: 'conversation-fragment', conversationId: 'other-chat', fragmentIndex: 0,
+    vector: [1, 0], updatedAt: '2026-07-30T10:00:00.000Z',
+    snippet: 'Assistant: A new pie recipe with different quantities.',
+    sourceIds: ['other-answer']
+  });
+  const embeddedQueries = [];
+  const service = createHistoryRetrievalService({
+    index,
+    embeddingClient: { embedHistoryQuery: async query => { embeddedQueries.push(query); return [1, 0]; } },
+    getMemoryState: () => ({})
+  });
+
+  const results = await service.retrieve({
+    currentMessage: { parts: [{ text: '給我之前巧克力派的完整食譜，一定要跟上次的一樣。' }] },
+    conversation: { id: 'current-chat' }
+  });
+
+  assert.deepEqual(getExactHistoryRecallRequest('給我之前巧克力派的完整食譜，一定要跟上次的一樣。'), {
+    exact: true,
+    subject: '巧克力派'
+  });
+  assert.deepEqual(embeddedQueries, ['巧克力派']);
+  assert.deepEqual(results.map(result => result.recordId), [
+    'fragment:recipe-chat:0',
+    'fragment:recipe-chat:1'
+  ]);
+  assert.ok(results.every(result => result.matchMode === 'exact'));
+  assert.match(results.map(result => result.summary).join('\n'), /200g dark chocolate/);
+  assert.match(results.map(result => result.summary).join('\n'), /Chill for four hours/);
+});
+
+test('exact requests use the original local conversation before any semantic index lookup', async () => {
+  let embedded = 0;
+  let indexed = 0;
+  const service = createHistoryRetrievalService({
+    index: { queryHybrid: () => { indexed += 1; return []; } },
+    embeddingClient: { embedHistoryQuery: async () => { embedded += 1; return [1, 0]; } },
+    getMemoryState: () => ({}),
+    getConversations: () => [{
+      id: 'recipe-chat',
+      title: '甜點',
+      lastUpdatedAt: '2026-07-29T10:00:00.000Z',
+      messages: [
+        { id: 'recipe-user', role: 'user', parts: [{ text: '給我巧克力派食譜。' }] },
+        { id: 'recipe-answer', role: 'model', parts: [{ text: '200g 黑巧克力\n120ml 鮮奶油\n冷藏四小時。' }] }
+      ]
+    }]
+  });
+
+  const results = await service.retrieve({
+    currentMessage: { parts: [{ text: '給我之前巧克力派的完整食譜，一定要跟上次的一樣。' }] },
+    conversation: { id: 'current-chat' }
+  });
+
+  assert.equal(embedded, 0);
+  assert.equal(indexed, 0);
+  assert.deepEqual(results.map(result => result.summary), [
+    'User: 給我巧克力派食譜。',
+    'Assistant: 200g 黑巧克力\n120ml 鮮奶油\n冷藏四小時。'
+  ]);
+  assert.ok(results.every(result => result.matchMode === 'exact'));
 });
 
 test('uses the model resolver only for unresolved fragments and requires high confidence', async () => {

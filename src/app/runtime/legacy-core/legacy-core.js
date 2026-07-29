@@ -910,6 +910,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         let renderArchivedChats;
         let addMessageToUI;
         let isActiveConversationViewCurrent;
+        let refreshMessageHistorySources;
         let renderChat;
         let getActiveAstrasId;
         let setAstrasForConversation;
@@ -996,6 +997,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderMarkdownWithFormulas,
             renderUserText,
             addMessageToUI: (...args) => addMessageToUI(...args),
+            refreshMessageHistorySources: (...args) => refreshMessageHistorySources(...args),
             buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
             streamApiCall: (...args) => streamApiCall(...args),
             runModelCouncil: (...args) => runModelCouncil(...args),
@@ -1296,6 +1298,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderArchivedChats,
             addMessageToUI,
             isActiveConversationViewCurrent,
+            refreshMessageHistorySources,
             renderChat,
             getActiveAstrasId,
             setAstrasForConversation,

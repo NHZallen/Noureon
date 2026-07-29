@@ -94,6 +94,15 @@ export function createMessageListLifecycle({
         return messageElement;
     };
 
+    const bindHistorySourceButtons = (messageElement, historySourceViews) => {
+        messageElement?.querySelectorAll?.('[data-history-source-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const source = historySourceViews[Number(button.dataset.historySourceIndex)];
+                if (source?.available && source.id) openHistorySourceConversation(source.id);
+            });
+        });
+    };
+
     const isActiveConversationViewCurrent = () => {
         const conversation = getActiveConversation();
         const messageList = elements.messageList;
@@ -180,12 +189,7 @@ export function createMessageListLifecycle({
         });
         messageElement.className = messageView.messageClassName;
         messageElement.innerHTML = messageView.messageHTML;
-        messageElement.querySelectorAll('[data-history-source-index]').forEach((button) => {
-            button.addEventListener('click', () => {
-                const source = historySourceViews[Number(button.dataset.historySourceIndex)];
-                if (source?.available && source.id) openHistorySourceConversation(source.id);
-            });
-        });
+        bindHistorySourceButtons(messageElement, historySourceViews);
         bindMediaPreviewButtons(messageElement, messageView.previewMediaParts);
         void bindGeneratedImageAssets(messageElement, messageView.generatedImageAssets || [])
             .catch(error => logError('Failed to bind generated image assets:', error));
@@ -200,6 +204,40 @@ export function createMessageListLifecycle({
             });
         }
         return markMessageElementAsCurrent(message, index, messageElement);
+    };
+
+    // History sources are known before the answer starts, but a streamed
+    // answer already owns this DOM node by the time it completes. Replacing
+    // it made the final answer visibly blink, so only add the small disclosure
+    // fragment to the existing message.
+    const refreshMessageHistorySources = (messageElement, message) => {
+        if (!messageElement || !message) return null;
+        const historySourceViews = getHistorySourceViews(message);
+        const messageView = buildMessageRenderView({
+            message,
+            renderUserText,
+            renderMarkdownWithFormulas,
+            buildMediaAttachmentView,
+            formatTimestamp,
+            copyTitle: getText('copyContent'),
+            historySources: historySourceViews,
+            historySourceTexts: getHistorySourceTexts()
+        });
+        const stagingElement = document.createElement('div');
+        stagingElement.innerHTML = messageView.messageHTML;
+        const nextReferences = stagingElement.querySelector('.history-source-references');
+        const messageStack = messageElement.querySelector('.message-stack');
+        messageStack?.querySelector('.history-source-references')?.remove();
+        if (nextReferences && messageStack) {
+            messageStack.append(nextReferences);
+            bindHistorySourceButtons(nextReferences, historySourceViews);
+        }
+        const messageIndex = Number(messageElement.dataset?.messageIndex);
+        return markMessageElementAsCurrent(
+            message,
+            Number.isInteger(messageIndex) ? messageIndex : 0,
+            messageElement
+        );
     };
 
     const renderChat = ({ animate = true, scrollMode = 'none', renderMessages = true } = {}) => {
@@ -275,6 +313,7 @@ export function createMessageListLifecycle({
         addMessageToUI,
         isActiveConversationViewCurrent,
         markMessageElementAsCurrent,
+        refreshMessageHistorySources,
         renderChat
     };
 }

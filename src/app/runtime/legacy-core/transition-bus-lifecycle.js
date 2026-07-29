@@ -384,6 +384,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             fetchImpl: fetch
         }),
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+        getConversations: () => state.conversations,
         modelQueryResolver: memoryTaskClients.queryResolver
     });
     const retrieveHistory = async options => {

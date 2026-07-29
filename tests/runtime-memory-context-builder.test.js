@@ -108,6 +108,24 @@ test('retains source conversation ids for the UI without placing them in the mod
   assert.doesNotMatch(formatMemoryContextForModel(context), /11111111-1111-4111-8111-111111111111|history-record|message-id/);
 });
 
+test('tells the answer model to reproduce an explicitly retrieved prior answer without exposing internal ids', () => {
+  const context = buildMemoryContext({
+    historyResults: [{
+      recordId: 'exact-history-record',
+      conversationId: '11111111-1111-4111-8111-111111111111',
+      summary: 'Assistant: 200g dark chocolate, then chill for four hours.',
+      sourceIds: ['message-id'],
+      matchMode: 'exact'
+    }]
+  });
+  const formatted = formatMemoryContextForModel(context);
+
+  assert.equal(context.exactHistoryRecall, true);
+  assert.match(formatted, /Exact prior-answer request/);
+  assert.match(formatted, /reproduce that assistant answer faithfully and completely/);
+  assert.doesNotMatch(formatted, /11111111-1111-4111-8111-111111111111|exact-history-record|message-id|matchMode/);
+});
+
 test('selects fresh relevant summary sections and makes manual updates authoritative to the answer model', () => {
   const context = buildMemoryContext({
     currentMessageText: 'Is this CLI a good fit for my VPS?',

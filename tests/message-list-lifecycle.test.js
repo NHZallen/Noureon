@@ -192,6 +192,43 @@ test('history reference buttons open only available source conversations', () =>
   }
 });
 
+test('history source disclosure augments a streamed message without replacing its DOM node', () => {
+  const opened = [];
+  const sourceId = '11111111-1111-4111-8111-111111111111';
+  const fixture = createFixture({
+    getHistorySourceViews: () => [{ id: sourceId, available: true }],
+    openHistorySourceConversation: (id) => opened.push(id),
+    buildMessageRenderView: ({ message, historySources = [] }) => ({
+      messageClassName: 'model-message',
+      messageHTML: `<div class="message-stack"><div class="message-content">${message.parts[0]?.text || ''}</div>${historySources.length ? '<details class="history-source-references"><button data-history-source-index="0"></button></details>' : ''}</div>`,
+      previewMediaParts: []
+    })
+  });
+  try {
+    const loadingMessage = { role: 'model', parts: [{ text: '...' }] };
+    fixture.conversation.messages.push(loadingMessage);
+    const messageElement = fixture.lifecycle.addMessageToUI(loadingMessage, 0, false, false);
+    const finalMessage = {
+      role: 'model',
+      parts: [{ text: 'The final answer' }],
+      metadata: { historySourceConversationIds: [sourceId] }
+    };
+    fixture.conversation.messages[0] = finalMessage;
+    messageElement.querySelector('.message-content').textContent = 'The final answer';
+
+    const result = fixture.lifecycle.refreshMessageHistorySources(messageElement, finalMessage);
+
+    assert.equal(result, messageElement);
+    assert.equal(fixture.document.querySelector('#messages').firstElementChild, messageElement);
+    assert.equal(messageElement.querySelector('.message-content').textContent, 'The final answer');
+    messageElement.querySelector('[data-history-source-index="0"]').click();
+    assert.deepEqual(opened, [sourceId]);
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), true);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 test('renderChat can update controls without rebuilding or restyling the message list', () => {
   const fixture = createFixture();
   try {

@@ -102,6 +102,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     renderMarkdownWithFormulas = renderMarkdown,
     renderUserText = (value) => String(value ?? ''),
     addMessageToUI,
+    refreshMessageHistorySources = () => null,
     buildSingleModelTranslatedRequestParts,
     streamApiCall,
     runModelCouncil,
@@ -1066,7 +1067,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         } : null
       });
       if (historySourceConversationIds.size > 0) {
-        replaceHistorySourceMessage({ finalAiMessage, conversation: conv, loadingMessageDiv, addMessageToUI });
+        replaceHistorySourceMessage({ finalAiMessage, loadingMessageDiv, refreshMessageHistorySources });
       }
     } catch (error) {
       await persistAssistantResponseError({
