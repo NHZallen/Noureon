@@ -143,6 +143,7 @@ export function createCloudWorkspaceLiveLifecycle({
   hydrateConversation = conversation => window?.__astraCloudAssets?.hydrateConversation?.(conversation),
   onActiveConversationUnavailable = () => {},
   onRemoteConversationsApplied = () => {},
+  onRemoteConversationsMovedToTrash = () => {},
   onRemoteConversationsPermanentlyDeleted = () => {},
   onMemorySyncApplied = () => {},
   saveAppData = async () => {},
@@ -266,6 +267,9 @@ export function createCloudWorkspaceLiveLifecycle({
       normalizeConversationModel
     });
     const liveSnapshot = appDataStore.getSnapshot?.() || {};
+    const priorTrashedConversationIds = new Set((liveSnapshot.conversations || [])
+      .filter(conversation => conversation?.id && conversation.deletedAt)
+      .map(conversation => conversation.id));
     const activeConversationId = getActiveConversation()?.id || null;
     const current = applyAstraTombstones(
       applyWorkspaceTombstones(liveSnapshot, tombstoneIndex),
@@ -276,6 +280,15 @@ export function createCloudWorkspaceLiveLifecycle({
       ? mergeWorkspaceAppData(current, remoteWithLocalUi)
       : mergeRemoteWorkspaceAppData(current, remoteWithLocalUi, protectedConversation);
     protectedConversation = null;
+    // A normal cloud update represents moving a chat to the trash by setting deletedAt,
+    // whereas a permanent deletion arrives as a tombstone below. Compare the committed
+    // result with the pre-merge snapshot so a remote trash transition removes its memory
+    // just as a local transition does, without reacting again to ordinary subsequent syncs.
+    const newlyTrashedConversationIds = (protectedRemote.conversations || [])
+      .filter(conversation => conversation?.id
+        && conversation.deletedAt
+        && !priorTrashedConversationIds.has(conversation.id))
+      .map(conversation => conversation.id);
     const sidebarChanged = !cloudValuesEqual(
       getWorkspaceSidebarState(liveSnapshot),
       getWorkspaceSidebarState(protectedRemote)
@@ -300,11 +313,17 @@ export function createCloudWorkspaceLiveLifecycle({
     });
     const activeConversationViewCurrent = activeConversationChanged
       && Boolean(isActiveConversationViewCurrent());
+    const trashedMemoryPurge = newlyTrashedConversationIds.length > 0
+      ? Promise.resolve(onRemoteConversationsMovedToTrash({
+        conversationIds: newlyTrashedConversationIds
+      })).catch(error => logger.warn('Memory summary could not remove cloud-trashed conversations.', error))
+      : Promise.resolve();
     const permanentMemoryPurge = tombstoneIndex.conversations.size > 0
       ? Promise.resolve(onRemoteConversationsPermanentlyDeleted({
         conversationIds: [...tombstoneIndex.conversations]
       })).catch(error => logger.warn('Memory summary could not remove cloud-deleted conversations.', error))
       : Promise.resolve();
+    const memoryPurge = Promise.all([trashedMemoryPurge, permanentMemoryPurge]);
     const committedActiveConversation = activeConversationId
       ? appDataStore.getConversations().find(conversation => conversation?.id === activeConversationId)
       : null;
@@ -321,7 +340,7 @@ export function createCloudWorkspaceLiveLifecycle({
       activeConversationViewCurrent
     });
     if (conversationsChanged) {
-      void permanentMemoryPurge.then(() => Promise.resolve(onRemoteConversationsApplied({
+      void memoryPurge.then(() => Promise.resolve(onRemoteConversationsApplied({
         conversations: appDataStore.getConversations(),
         options
       }))).catch(error => logger.warn('Memory summary could not refresh after a cloud conversation update.', error));

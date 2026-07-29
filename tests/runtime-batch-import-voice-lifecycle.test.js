@@ -267,21 +267,27 @@ test('batch delete uses live selection getters and preserves persistence orderin
   ]);
 });
 
-test('batch delete invalidates every selected conversation memory before moving to trash', async () => {
+test('batch delete marks every selected conversation as trashed before invalidating its memory', async () => {
   const invalidated = [];
-  const harness = createHarness({
+  let allWereTrashed = false;
+  let harness;
+  harness = createHarness({
     selectedConversationIds: new Set(['c1', 'c2']),
     legacyRuntimeContext: {
       resolveOptionalBinding(name) {
         assert.equal(name, 'memory.invalidateConversation');
-        return async ({ conversationId }) => invalidated.push(conversationId);
+        return async ({ conversationId, skipSummaryRebuild }) => {
+          invalidated.push([conversationId, skipSummaryRebuild]);
+          allWereTrashed = harness.conversations.every(conversation => conversation.deletedAt);
+        };
       }
     }
   });
 
   await harness.lifecycle.handleBatchDelete();
 
-  assert.deepEqual(invalidated, ['c1', 'c2']);
+  assert.deepEqual(invalidated, [['c1', true], ['c2', false]]);
+  assert.equal(allWereTrashed, true);
   assert.ok(harness.conversations.every(conversation => conversation.deletedAt));
 });
 

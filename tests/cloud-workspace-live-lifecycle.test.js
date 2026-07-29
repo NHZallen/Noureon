@@ -361,6 +361,50 @@ test('record-level cloud tombstones request removal from the fresh memory summar
   assert.deepEqual(removed, ['deleted-conversation']);
 });
 
+test('a cloud move to trash requests immediate removal from the fresh memory summary', async () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialConversations: [{ id: 'trashed-conversation', deletedAt: null, messages: [] }]
+  });
+  const removed = [];
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {},
+    onRemoteConversationsMovedToTrash: async ({ conversationIds }) => removed.push(...conversationIds)
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-workspace-committed', {
+    workspace: {
+      conversations: [{
+        id: 'trashed-conversation',
+        deletedAt: '2026-07-29T07:00:00.000Z',
+        messages: []
+      }],
+      folders: [],
+      astras: [],
+      personalMemories: []
+    },
+    tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
+  });
+  await Promise.resolve();
+
+  assert.deepEqual(removed, ['trashed-conversation']);
+});
+
 test('record-level cloud commit waits for runtime readiness and keeps its tombstones', () => {
   const window = createWindowFixture();
   const appDataStore = createLegacyRuntimeAppDataStore({

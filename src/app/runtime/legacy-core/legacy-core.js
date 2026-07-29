@@ -722,6 +722,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             }
             conv.folderId = null;
         }
+        await invalidateConversationMemory({ conversationId: id });
         await saveAppData({ immediateCloudSync: true });
 
         if (conversationStateAccess.getCurrentConversationId() === id) {
@@ -1650,6 +1651,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                     .find(conversation => !conversation.archived && !conversation.deletedAt && conversation.id !== conversationId);
                 if (nextConversation) loadChat(nextConversation.id);
                 else void startNewChat({keepSidebarOpen:true});
+            },
+            onRemoteConversationsMovedToTrash: async ({conversationIds})=>{
+                for (const conversationId of conversationIds || []) {
+                    await invalidateMemoryConversation({conversationId,skipSummaryRebuild:true});
+                }
             },
             onRemoteConversationsPermanentlyDeleted: async ({conversationIds})=>{
                 for (const conversationId of conversationIds || []) {

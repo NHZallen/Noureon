@@ -151,12 +151,6 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         const count = selectedConversationIds.size;
         if (count === 0) return;
         if (!(await showCustomConfirm(`${texts.confirmBatchMoveToTrash || '您確定要將這'} ${count} ${texts.conversations || '個對話'} ${texts.moveToTrashConfirmText || '移至垃圾桶嗎？'}`))) return;
-        const invalidateConversationMemory = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
-            ? legacyRuntimeContext.resolveOptionalBinding('memory.invalidateConversation')
-            : null;
-        if (typeof invalidateConversationMemory === 'function') {
-            for (const id of selectedConversationIds) await invalidateConversationMemory({ conversationId: id });
-        }
         const deletedAt = new Date().toISOString();
         selectedConversationIds.forEach(id => {
             const conv = conversations.find(c => c.id === id);
@@ -172,6 +166,18 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
                 }
             }
         });
+        const invalidateConversationMemory = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
+            ? legacyRuntimeContext.resolveOptionalBinding('memory.invalidateConversation')
+            : null;
+        if (typeof invalidateConversationMemory === 'function') {
+            const ids = [...selectedConversationIds];
+            for (const [index, conversationId] of ids.entries()) {
+                await invalidateConversationMemory({
+                    conversationId,
+                    skipSummaryRebuild: index < ids.length - 1
+                });
+            }
+        }
         if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
             const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
             conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);

@@ -2331,6 +2331,7 @@ test('runtime render coordinator keeps sidebar-only updates out of the chat rend
     assert.match(body, /runtimeRenderCoordinator\.renderSidebar\(\)/);
     assert.doesNotMatch(body, /runtimeRenderCoordinator\.renderAll\(\)/);
   }
+  assert.match(deleteChatBody, /conv\.deletedAt\s*=\s*deletedAt;[\s\S]*?await\s+invalidateConversationMemory\(\{\s*conversationId:\s*id\s*\}\);[\s\S]*?await\s+saveAppData\(\{\s*immediateCloudSync:\s*true\s*\}\);/);
 
   assert.match(handleRenameBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderSidebar\(\);\s*toggleModal\(ALL_ELEMENTS\.renameModal,\s*false\);\s*itemToRename\s*=\s*\{\s*id:\s*null,\s*type:\s*null\s*\};/);
 
