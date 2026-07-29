@@ -1,19 +1,9 @@
-const asArray = value => Array.isArray(value) ? value : [];
+import {
+  buildHistoryIndexTurns,
+  serializeHistoryIndexSource
+} from './history-index-source.js';
 
-const toTurns = conversation => asArray(conversation?.messages)
-  .map((message, index) => ({
-    id: message?.id || `${conversation.id}:${index}`,
-    role: message?.role,
-    text: asArray(message?.parts).map(part => part?.text || '').join('\n').trim(),
-    attachments: asArray(message?.parts).flatMap((part, partIndex) => part?.inlineData?.data ? [{
-      partIndex,
-      name: part.inlineData.name || 'attachment',
-      mimeType: part.inlineData.mimeType || 'application/octet-stream',
-      data: part.inlineData.data,
-      size: part.inlineData.size || 0
-    }] : [])
-  }))
-  .filter(turn => turn.text || turn.attachments.length > 0);
+const asArray = value => Array.isArray(value) ? value : [];
 
 export function createHistoryIndexRebuildService({
   getConversations,
@@ -31,7 +21,7 @@ export function createHistoryIndexRebuildService({
     async rebuild({ signal, onProgress = () => {}, forceCapture = false } = {}) {
       const conversations = asArray(getConversations())
         .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
-        .map(conversation => ({ conversation, turns: toTurns(conversation) }))
+        .map(conversation => ({ conversation, turns: buildHistoryIndexTurns(conversation) }))
         .filter(item => item.turns.length > 0);
       let completed = 0;
       let indexed = 0;
@@ -42,12 +32,13 @@ export function createHistoryIndexRebuildService({
       for (const { conversation, turns } of conversations) {
         if (signal?.aborted) throw signal.reason || new DOMException('Aborted', 'AbortError');
         try {
-          const sourceHash = await hashString(JSON.stringify(turns));
+          const sourceHash = await hashString(serializeHistoryIndexSource(turns));
           const recentState = asArray(getMemoryState()?.recentConversationStates)
             .find(state => state?.conversationId === conversation.id);
           if (!forceCapture && recentState?.sourceHash === sourceHash && hasIndexedSource({
             conversationId: conversation.id,
-            sourceHash
+            sourceHash,
+            turns
           })) {
             skipped += 1;
           } else {

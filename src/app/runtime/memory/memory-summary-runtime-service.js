@@ -65,7 +65,11 @@ export function createMemorySummaryRuntimeService({
       });
       await persistMemoryState();
       try {
-        const result = await rebuildHistoryIndex({ forceCapture: true });
+        // Reconcile only conversations whose stable source fingerprint or
+        // local index is missing. A summary refresh may run after cloud sync,
+        // but it must never resend every historical conversation to the memory
+        // model and embedding service.
+        const result = await rebuildHistoryIndex();
         if (result?.failed > 0) {
           const latest = getMemoryState() || {};
           if (latest.memorySummary) {

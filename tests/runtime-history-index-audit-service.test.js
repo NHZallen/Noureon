@@ -126,6 +126,26 @@ test('keeps detailed conversation fragments for a live conversation during an au
   assert.deepEqual(report.extraRecordIds, []);
 });
 
+test('marks an outdated detailed fragment for repair instead of retaining it as healthy', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:chat', recordType: 'conversation-capsule', conversationId: 'chat', sourceHash: 'hash:chat' });
+  index.put({ recordId: 'fragment:chat:0', recordType: 'conversation-fragment', conversationId: 'chat', sourceHash: 'old-hash' });
+  const report = await createHistoryIndexAuditService({
+    getConversations: () => [{ id: 'chat', messages: [{ id: 'm', role: 'user', parts: [{ text: 'hello' }] }] }],
+    getMemoryState: () => ({
+      recentConversationStates: [{ conversationId: 'chat', sourceHash: 'hash:chat' }],
+      conversationCapsules: [{ id: 'capsule', conversationId: 'chat', summary: 'Greeting' }]
+    }),
+    index,
+    hashString: async () => 'hash:chat'
+  }).audit();
+
+  assert.equal(report.outdated, 1);
+  assert.equal(report.missing, 0);
+  assert.equal(report.tasks.length, 1);
+  assert.equal(report.tasks[0].type, 'capture');
+});
+
 test('a completed index remains healthy after simulated page reload', async () => {
   const values = new Map();
   const storage = {

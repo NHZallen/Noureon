@@ -10,6 +10,7 @@ import {
     updateSuppressionRule
 } from '../memory/memory-suppression-management.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
+import { buildHistoryIndexTurns, serializeHistoryIndexSource } from '../memory/history-index-source.js';
 
 const REQUIRED_DEPENDENCIES = [
     'document',
@@ -525,24 +526,13 @@ ${JSON.stringify(potentialMemories, null, 2)}
             syncState();
             if (config.memorySystemVersion === 2 && typeof captureCompletedTurn === 'function' && typeof hashString === 'function') {
                 const conversation = getActiveConversation();
-                const allTurns = (conversation?.messages || []).map((message, index) => ({
-                    id: message.id || `${conversation.id}:${index}`,
-                    role: message.role,
-                    text: (message.parts || []).map(part => part.text || '').join('\n').trim(),
-                    attachments: (message.parts || []).flatMap((part, partIndex) => part?.inlineData?.data ? [{
-                        partIndex,
-                        name: part.inlineData.name || 'attachment',
-                        mimeType: part.inlineData.mimeType || 'application/octet-stream',
-                        data: part.inlineData.data,
-                        size: part.inlineData.size || 0
-                    }] : [])
-                })).filter(turn => turn.text || turn.attachments.length > 0);
+                const allTurns = buildHistoryIndexTurns(conversation);
                 const previousState = (memoryState?.recentConversationStates || [])
                     .find(state => state.conversationId === conversation?.id);
                 const coveredIndex = previousState?.coveredThroughMessageId
                     ? allTurns.findIndex(turn => turn.id === previousState.coveredThroughMessageId)
                     : -1;
-                const sourceHash = await hashString(JSON.stringify(allTurns));
+                const sourceHash = await hashString(serializeHistoryIndexSource(allTurns));
                 const appendedTurns = allTurns.slice(coveredIndex + 1);
                 // An unchanged tail means that an already-captured message was edited.
                 // Send the full conversation in that case so the current-state summary

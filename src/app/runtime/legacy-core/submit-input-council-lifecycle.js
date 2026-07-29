@@ -11,6 +11,7 @@ import { runCouncilResponseRenderLifecycle } from '../../legacy-runtime/features
 import { runSubmitFinalCleanupLifecycle } from '../../legacy-runtime/features/submit-final-cleanup-lifecycle.js';
 import { applyModelMessagePostResponseActions } from '../../legacy-runtime/features/model-message-post-response-actions.js';
 import { appendRendererTextGradually } from '../../legacy-runtime/features/renderer-gradual-append-controller.js';
+import { replaceHistorySourceMessage } from '../../legacy-runtime/features/history-source-message-refresh.js';
 import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails } from '../../legacy-runtime/features/streaming-council-details.js';
 import { createImageModeControls } from '../../legacy-runtime/features/image-mode-controls.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
@@ -1065,7 +1066,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         } : null
       });
       if (historySourceConversationIds.size > 0) {
-        renderChat({ animate: false, scrollMode: 'bottom' });
+        replaceHistorySourceMessage({ finalAiMessage, conversation: conv, loadingMessageDiv, addMessageToUI });
       }
     } catch (error) {
       await persistAssistantResponseError({

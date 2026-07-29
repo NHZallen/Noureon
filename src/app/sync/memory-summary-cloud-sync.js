@@ -34,7 +34,10 @@ const localRecordsNewerThanRemote = (memoryState, remoteRecords) => {
   const remoteByKey = new Map(remoteRecords.map(record => [record.record_key, record]));
   return projectMemorySummaryRecords(memoryState).filter(record => {
     const remote = remoteByKey.get(record.record_key);
-    return !remote || (!remote.deleted_at && timestamp(record.updated_at) > timestamp(remote.updated_at));
+    // A newer normal write may legitimately recreate a removed section or a
+    // regenerable overview. The server still rejects older offline writes by
+    // timestamp, so a tombstone is not an irreversible state.
+    return !remote || timestamp(record.updated_at) > timestamp(remote.updated_at);
   });
 };
 

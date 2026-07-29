@@ -6,12 +6,12 @@ import { createMemorySummaryRuntimeService } from '../src/app/runtime/memory/mem
 test('manual memory-summary changes persist first and then request an automatic fresh reconciliation', async () => {
   let memoryState = {};
   let persisted = 0;
-  let rebuilds = 0;
+  const rebuildOptions = [];
   const service = createMemorySummaryRuntimeService({
     getMemoryState: () => memoryState,
     replaceMemoryState: value => { memoryState = value; },
     persistMemoryState: async () => { persisted += 1; },
-    rebuildHistoryIndex: async () => { rebuilds += 1; return { state: 'complete' }; },
+    rebuildHistoryIndex: async options => { rebuildOptions.push(options); return { state: 'complete' }; },
     createMemoryOverview: async () => ({ overview: 'Visible overview.', sections: [] }),
     createId: prefix => `${prefix}:manual`
   });
@@ -21,7 +21,8 @@ test('manual memory-summary changes persist first and then request an automatic 
 
   assert.equal(summary.sections[0].authority, 'manual');
   assert.equal(memoryState.memorySummary.sections[0].content, 'Use the NUC now.');
-  assert.equal(rebuilds, 1);
+  assert.equal(rebuildOptions.length, 1);
+  assert.equal(rebuildOptions[0], undefined, 'summary refresh must keep healthy history indexes intact');
   assert.ok(persisted >= 1);
 });
 

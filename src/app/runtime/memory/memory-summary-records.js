@@ -120,17 +120,23 @@ export function createMemorySummaryRecordManifest(records = []) {
     .map(record => [record.record_key, fingerprintMemorySummaryRecord(record)]));
 }
 
-/** Returns only records whose payload changed, plus one tiny tombstone per removed section. */
+/** Returns only records whose payload changed, plus one tiny tombstone per removed section.
+ *
+ * A layer meta record is a regenerable container, not a user-deletable entity.
+ * Tombstoning it lets an older/partial client erase a whole summary layer, so
+ * meta records are intentionally never emitted as deletions.
+ */
 export function diffMemorySummaryRecords({ records = [], manifest = {}, now = () => new Date().toISOString() } = {}) {
   const next = createMemorySummaryRecordManifest(records);
   const changed = asArray(records).filter(record => next[record.record_key] !== manifest?.[record.record_key]);
   for (const key of Object.keys(manifest || {})) {
     if (next[key]) continue;
     const [layer, type, ...rest] = key.split(':');
+    if (type !== 'section' || rest.length === 0) continue;
     changed.push({
       record_key: key,
       layer: layerKey(layer),
-      record_type: type === 'meta' && rest.length === 0 ? 'meta' : 'section',
+      record_type: 'section',
       payload: {},
       updated_at: now(),
       deleted_at: now()
@@ -175,18 +181,17 @@ export function decodeMemorySummaryRecords(rows = []) {
 }
 
 /**
- * Applies a complete remote record cache to local state. Tombstones are
- * handled before normal merge so an old offline device cannot resurrect an
- * explicitly removed record.
+ * Applies a complete remote record cache to local state. Only section
+ * tombstones are destructive: meta records represent a complete or visible
+ * summary layer and are deliberately regenerable. Ignoring legacy meta
+ * tombstones keeps a stale client from erasing a user's local display
+ * overview.
  */
 export function mergeMemoryStateWithSummaryRecords(memoryState = {}, rows = []) {
   let local = { ...memoryState };
   for (const row of asArray(rows).filter(row => row?.deleted_at)) {
     const target = row.layer === 'overview' ? 'memoryOverview' : 'memorySummary';
-    if (row.record_type === 'meta') {
-      delete local[target];
-      continue;
-    }
+    if (row.record_type !== 'section') continue;
     if (!local[target]) continue;
     const removedId = sectionIdFromRecord(row);
     local[target] = {

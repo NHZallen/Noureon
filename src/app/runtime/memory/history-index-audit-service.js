@@ -1,17 +1,10 @@
-const asArray = value => Array.isArray(value) ? value : [];
+import { buildConversationFragments } from './history-indexing-service.js';
+import {
+  buildHistoryIndexTurns,
+  serializeHistoryIndexSource
+} from './history-index-source.js';
 
-const toTurns = conversation => asArray(conversation?.messages).map((message, index) => ({
-  id: message?.id || `${conversation.id}:${index}`,
-  role: message?.role,
-  text: asArray(message?.parts).map(part => part?.text || '').join('\n').trim(),
-  attachments: asArray(message?.parts).flatMap((part, partIndex) => part?.inlineData?.data ? [{
-    partIndex,
-    name: part.inlineData.name || 'attachment',
-    mimeType: part.inlineData.mimeType || 'application/octet-stream',
-    data: part.inlineData.data,
-    size: part.inlineData.size || 0
-  }] : [])
-})).filter(turn => turn.text || turn.attachments.length > 0);
+const asArray = value => Array.isArray(value) ? value : [];
 
 export function createHistoryIndexAuditService({
   getConversations,
@@ -31,7 +24,7 @@ export function createHistoryIndexAuditService({
   async function audit() {
     const conversations = asArray(getConversations())
       .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
-      .map(conversation => ({ conversation, turns: toTurns(conversation) }))
+      .map(conversation => ({ conversation, turns: buildHistoryIndexTurns(conversation) }))
       .filter(item => item.turns.length > 0);
     const memoryState = getMemoryState() || {};
     const records = index.getAll();
@@ -42,30 +35,37 @@ export function createHistoryIndexAuditService({
     let outdated = 0;
     const orphanRecordIds = new Set();
 
-    // Conversation fragments are the detailed-history retrieval records. They do
-    // not have a stable, single record ID like capsules do, so retain every
-    // fragment belonging to a live conversation during an audit. A subsequent
-    // capture replaces stale fragments for that conversation atomically.
-    for (const record of records) {
-      if (
-        record?.recordType === 'conversation-fragment' &&
-        conversations.some(item => item.conversation.id === record.conversationId)
-      ) {
-        expectedRecordIds.add(record.recordId);
-      }
-    }
-
     for (const { conversation, turns } of conversations) {
-      const sourceHash = await hashString(JSON.stringify(turns));
+      const sourceHash = await hashString(serializeHistoryIndexSource(turns));
       const capsule = asArray(memoryState.conversationCapsules).find(item => item?.conversationId === conversation.id);
       const recent = asArray(memoryState.recentConversationStates).find(item => item?.conversationId === conversation.id);
       const recordId = `capsule:${conversation.id}`;
       const record = records.find(item => item.recordId === recordId);
+      const fragmentPrefix = `fragment:${conversation.id}:`;
+      const expectedFragmentIds = new Set(buildConversationFragments(turns)
+        .map((_fragment, index) => `${fragmentPrefix}${index}`));
+      const fragmentRecords = records.filter(item => (
+        item?.recordType === 'conversation-fragment' && item.conversationId === conversation.id
+      ));
+      // A capsule-only legacy index is still usable and should not trigger a
+      // costly migration rebuild. Once a conversation has detailed fragments,
+      // however, every one must match the current source.
+      const fragmentsHealthy = fragmentRecords.length === 0 || (fragmentRecords.length === expectedFragmentIds.size
+        && fragmentRecords.every(item => (
+          item.sourceHash === sourceHash && expectedFragmentIds.has(item.recordId)
+        )));
       expectedRecordIds.add(recordId);
+      if (fragmentRecords.length > 0) expectedFragmentIds.forEach(id => expectedRecordIds.add(id));
+      let captureQueued = false;
+      const queueCapture = () => {
+        if (captureQueued) return;
+        tasks.push({ type: 'capture', conversationId: conversation.id, sourceHash, turns });
+        captureQueued = true;
+      };
       if (!capsule || recent?.sourceHash !== sourceHash) {
         if (record && !capsule && !recent) orphanRecordIds.add(recordId);
         else (capsule || recent ? outdated += 1 : missing += 1);
-        tasks.push({ type: 'capture', conversationId: conversation.id, sourceHash, turns });
+        queueCapture();
       } else if (!record) {
         missing += 1;
         tasks.push({ type: 'capsule', capsule, sourceHash });
@@ -74,6 +74,16 @@ export function createHistoryIndexAuditService({
         tasks.push({ type: 'capsule', capsule, sourceHash });
       } else {
         healthy += 1;
+      }
+      if (fragmentRecords.length > 0 && !fragmentsHealthy) {
+        // Fragments are queried directly, so retaining a stale vector can
+        // surface outdated wording even when the capsule itself is current.
+        if (!captureQueued) {
+          const hasStaleFragment = fragmentRecords.some(item => item.sourceHash !== sourceHash);
+          if (hasStaleFragment) outdated += 1;
+          else missing += 1;
+          queueCapture();
+        }
       }
     }
 

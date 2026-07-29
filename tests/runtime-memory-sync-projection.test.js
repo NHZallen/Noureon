@@ -207,6 +207,42 @@ test('removing a memory section emits one tombstone instead of re-uploading the 
   }]);
 });
 
+test('a missing summary layer never emits a destructive meta tombstone', () => {
+  const before = projectMemorySummaryRecords({
+    memoryOverview: {
+      updatedAt: '2026-07-29T00:00:00.000Z',
+      sections: [{ id: 'display', title: 'Display', content: 'Keep this overview', updatedAt: '2026-07-29T00:00:00.000Z' }]
+    }
+  });
+  const { changed } = diffMemorySummaryRecords({
+    records: [],
+    manifest: diffMemorySummaryRecords({ records: before }).manifest,
+    now: () => '2026-07-30T00:00:00.000Z'
+  });
+
+  assert.deepEqual(changed.map(record => record.record_key), ['overview:section:display']);
+});
+
+test('a legacy overview meta tombstone cannot erase the local visible overview', () => {
+  const local = {
+    memoryOverview: {
+      overview: 'Visible summary remains available.',
+      updatedAt: '2026-07-29T00:00:00.000Z',
+      sections: []
+    }
+  };
+  const merged = mergeMemoryStateWithSummaryRecords(local, [{
+    record_key: 'overview:meta',
+    layer: 'overview',
+    record_type: 'meta',
+    payload: {},
+    updated_at: '2026-07-30T00:00:00.000Z',
+    deleted_at: '2026-07-30T00:00:00.000Z'
+  }]);
+
+  assert.equal(merged.memoryOverview.overview, 'Visible summary remains available.');
+});
+
 test('marks a one-sided synced overview stale when its complete memory is newer', () => {
   const merged = mergeSyncedMemoryState({
     memorySummary: {

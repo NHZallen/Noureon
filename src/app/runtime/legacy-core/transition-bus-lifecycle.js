@@ -18,7 +18,7 @@ import { createMemoryTaskClients } from '../memory/memory-task-clients.js';
 import { createConfiguredMemoryModelClient } from '../memory/memory-model-runtime-client.js';
 import { createLegacyMemorySummaryLifecycle } from './memory-summary-lifecycle.js';
 import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
-import { activeMemoryRecordIds } from '../memory/history-index-records.js';
+import { activeMemoryRecordIds, hasCurrentHistoryIndexRecords } from '../memory/history-index-records.js';
 import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
 import { assertLegacyTransitionBusDependencies } from './transition-bus-dependencies.js';
 
@@ -480,10 +480,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
         hashString,
-        hasIndexedSource: ({ conversationId, sourceHash }) => historyIndex.getAll().some(record => (
-            record.recordId === `capsule:${conversationId}`
-            && record.sourceHash === sourceHash
-        ))
+        hasIndexedSource: options => hasCurrentHistoryIndexRecords({
+            ...options,
+            records: historyIndex.getAll()
+        })
     });
     let historyIndexWorkPromise = null;
     const rebuildHistoryIndex = options => {

@@ -106,6 +106,13 @@ test('import is inert and module avoids fragments and virtual runtime', () => {
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
 
+test('history-source disclosure replaces only the completed message instead of rerendering the chat', () => {
+  const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+
+  assert.match(source, /historySourceConversationIds\.size > 0[\s\S]*?replaceHistorySourceMessage\(\{ finalAiMessage, conversation: conv, loadingMessageDiv, addMessageToUI \}\)/);
+  assert.doesNotMatch(source, /historySourceConversationIds\.size > 0[\s\S]{0,500}?renderChat\(/);
+});
+
 test('quote reference dependencies reach the real submit preparation lifecycle', () => {
   const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const preparationStart = source.indexOf('createSubmitInputPreparationLifecycle({');
