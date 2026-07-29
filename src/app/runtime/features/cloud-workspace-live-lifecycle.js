@@ -12,6 +12,7 @@ import {
   applyWorkspaceTombstones
 } from '../../sync/cloud-sync-v2-deletions.js';
 import { mergeSyncedMemoryState } from '../memory/memory-sync-projection.js';
+import { mergeMemoryStateWithSummaryRecords } from '../memory/memory-summary-records.js';
 
 function preserveItemIdentity(currentItems = [], nextItems = []) {
   const currentById = new Map(currentItems.map(item => [item?.id, item]));
@@ -151,6 +152,7 @@ export function createCloudWorkspaceLiveLifecycle({
   let ready = false;
   let pendingAppData = null;
   let pendingConfig = null;
+  let pendingMemorySummaryRecords = null;
   let deferredRenderTimer = null;
   let protectedConversation = null;
   let hydrationGeneration = 0;
@@ -368,12 +370,34 @@ export function createCloudWorkspaceLiveLifecycle({
     }
   };
 
+  const applyMemorySummaryRecords = records => {
+    if (!ready) {
+      pendingMemorySummaryRecords = records;
+      return;
+    }
+    if (!Array.isArray(records)) return;
+    const currentMemoryState = appDataStore.getMemoryState?.() || {};
+    const mergedMemoryState = mergeMemoryStateWithSummaryRecords(currentMemoryState, records);
+    if (cloudValuesEqual(currentMemoryState, mergedMemoryState)) return;
+    appDataStore.replaceMemoryState(mergedMemoryState);
+    void saveAppData();
+    if (mergedMemoryState.memorySummary?.needsRefresh === true) {
+      void Promise.resolve(onMemorySyncApplied(mergedMemoryState.memorySummary))
+        .catch(error => logger.warn('Memory summary could not reconcile a record sync merge.', error));
+    }
+  };
+
   const markReady = () => {
     ready = true;
     if (pendingConfig) {
       const nextConfig = pendingConfig;
       pendingConfig = null;
       applyConfig(nextConfig);
+    }
+    if (pendingMemorySummaryRecords) {
+      const nextRecords = pendingMemorySummaryRecords;
+      pendingMemorySummaryRecords = null;
+      applyMemorySummaryRecords(nextRecords);
     }
     if (pendingAppData) {
       const nextAppData = pendingAppData;
@@ -388,6 +412,7 @@ export function createCloudWorkspaceLiveLifecycle({
     { recordLevel: true, tombstones: event.detail?.tombstones }
   ));
   window.addEventListener('astra:cloud-config', event => applyConfig(event.detail));
+  window.addEventListener('astra:cloud-memory-summary', event => applyMemorySummaryRecords(event.detail?.records));
   window.addEventListener('astra:active-conversation-changed', requestActiveConversationHydration);
   window.__astraCloudRuntimeReady = markReady;
 

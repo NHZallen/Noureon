@@ -9,7 +9,7 @@ import { createHistoryIndexPersistence } from '../memory/history-index-persisten
 import { createHistoryIndexingService } from '../memory/history-indexing-service.js';
 import { createHistoryRetrievalService } from '../memory/history-retrieval-service.js';
 import { createDeviceHistoryRecallConsent } from '../memory/device-history-recall-consent.js';
-import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
+import { memorySyncProjectionEquals, projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
 import { createHistoryIndexRebuildService } from '../memory/history-index-rebuild-service.js';
 import { createTopicSummaryService } from '../memory/topic-summaries.js';
 import { createMemoryInvalidationService } from '../memory/memory-invalidation-service.js';
@@ -411,8 +411,16 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     ));
     const replaceMemoryState = nextMemoryState => {
         const savedMemoryState = runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
-        state.config.memorySync = projectMemoryStateForSync(savedMemoryState || nextMemoryState);
-        void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+        const nextState = savedMemoryState || nextMemoryState;
+        const nextProjection = projectMemoryStateForSync(nextState);
+        const hasLegacySummaryProjection = Boolean(
+            state.config.memorySync?.memorySummary || state.config.memorySync?.memoryOverview
+        );
+        if (hasLegacySummaryProjection || !memorySyncProjectionEquals(state.config.memorySync, nextProjection)) {
+            state.config.memorySync = nextProjection;
+            void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+        }
+        void globalObject.__astraMemorySummarySync?.captureMemoryState(nextState);
         return savedMemoryState;
     };
     const mediaMemoryService = createMediaMemoryService({

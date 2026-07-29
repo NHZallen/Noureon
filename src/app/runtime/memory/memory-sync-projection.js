@@ -127,12 +127,23 @@ export function projectMemoryStateForSync(memoryState = {}) {
     resolvedTopicSummaryIds,
     suppressionRules: asArray(memoryState.suppressionRules),
     longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
-      .filter(summary => summary?.id && !resolvedTopicIds.has(String(summary.id))),
-    // Sync the canonical current-state memory and its short display cache.
-    // Raw message evidence remains local in the app data / conversation store.
-    ...(memoryState.memorySummary?.updatedAt ? { memorySummary: memoryState.memorySummary } : {}),
-    ...(memoryState.memoryOverview?.updatedAt ? { memoryOverview: memoryState.memoryOverview } : {})
+      .filter(summary => summary?.id && !resolvedTopicIds.has(String(summary.id)))
   };
+}
+
+/**
+ * This is deliberately limited to the small, legacy config projection. The
+ * complete memory and user overview use their own record-level sync table so
+ * changing one section never uploads the whole configuration blob.
+ */
+export function memorySyncProjectionEquals(left = {}, right = {}) {
+  return JSON.stringify(projectMemoryStateForSync({
+    ...left,
+    ...(left?.version ? {} : { version: MEMORY_SYNC_VERSION })
+  })) === JSON.stringify(projectMemoryStateForSync({
+    ...right,
+    ...(right?.version ? {} : { version: MEMORY_SYNC_VERSION })
+  }));
 }
 
 export function mergeSyncedMemoryState(memoryState = {}, projection = {}) {

@@ -739,6 +739,61 @@ test('cloud config applies only the small synced memory projection and persists 
   assert.deepEqual(renderCalls, { all: 0, sidebar: 0, chat: 0 });
 });
 
+test('record-level memory updates apply without a config sync and preserve a local manual section', () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialMemoryState: {
+      memorySummary: {
+        overview: 'Use the NUC.',
+        updatedAt: '2026-07-29T00:00:00.000Z',
+        sections: [{
+          id: 'deployment', key: 'deployment', title: 'Deployment', content: 'Use the NUC.',
+          authority: 'manual', updatedAt: '2026-07-29T00:00:00.000Z'
+        }]
+      }
+    }
+  });
+  let saved = 0;
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [], maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {}, applyUiTheme: () => {}, renderAll: () => {},
+    saveAppData: async () => { saved += 1; }
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-memory-summary', {
+    records: [
+      {
+        record_key: 'summary:meta', layer: 'summary', record_type: 'meta', deleted_at: null,
+        updated_at: '2026-07-30T00:00:00.000Z',
+        payload: { overview: 'Use the VPS.', updatedAt: '2026-07-30T00:00:00.000Z', needsRefresh: false }
+      },
+      {
+        record_key: 'summary:section:deployment', layer: 'summary', record_type: 'section', deleted_at: null,
+        updated_at: '2026-07-30T00:00:00.000Z',
+        payload: {
+          id: 'deployment', key: 'deployment', title: 'Deployment', content: 'Use the VPS.',
+          authority: 'automatic', updatedAt: '2026-07-30T00:00:00.000Z'
+        }
+      }
+    ]
+  });
+
+  const summary = appDataStore.getMemoryState().memorySummary;
+  assert.equal(summary.sections[0].content, 'Use the NUC.');
+  assert.equal(summary.sections[0].authority, 'manual');
+  assert.equal(saved, 1);
+});
+
 // Every save uploads the workspace, and Supabase realtime echoes our own write straight back.
 // The codec materializes optional fields on the way home (council: null, archived: false,
 // status: 'complete', a generated message id), so comparing raw shapes made our own echo look

@@ -4,7 +4,11 @@ import { compareVersions } from '../../legacy-runtime/features/version-compare.j
 import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
 import { createLegacyRuntimeEntryDependencies } from '../runtime-entry-dependencies.js';
-import { mergeSyncedMemoryState, projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
+import {
+    memorySyncProjectionEquals,
+    mergeSyncedMemoryState,
+    projectMemoryStateForSync
+} from '../memory/memory-sync-projection.js';
 import { consolidateOverlappingTopicSummaries } from '../memory/topic-summaries.js';
 
 const REQUIRED_DEPENDENCIES = [
@@ -1020,8 +1024,15 @@ function setupMessageIntersectionObserver() {
                 getMemoryState: () => runtimeAppDataStore.getMemoryState(),
                 replaceMemoryState: (nextMemoryState) => {
                     const savedMemoryState = runtimeAppDataStore.replaceMemoryState(nextMemoryState);
-                    state.config.memorySync = projectMemoryStateForSync(savedMemoryState);
-                    void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+                    const nextProjection = projectMemoryStateForSync(savedMemoryState);
+                    const hasLegacySummaryProjection = Boolean(
+                        state.config.memorySync?.memorySummary || state.config.memorySync?.memoryOverview
+                    );
+                    if (hasLegacySummaryProjection || !memorySyncProjectionEquals(state.config.memorySync, nextProjection)) {
+                        state.config.memorySync = nextProjection;
+                        void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
+                    }
+                    void globalObject.__astraMemorySummarySync?.captureMemoryState(savedMemoryState);
                     return savedMemoryState;
                 },
                 getCurrentConversationId,
@@ -1151,9 +1162,14 @@ function setupMessageIntersectionObserver() {
                         mergeSyncedMemoryState(currentMemoryState, projection)
                     );
                     runtimeAppDataStore.replaceMemoryState(restoredMemoryState);
-                    state.config.memorySync = projectMemoryStateForSync(restoredMemoryState);
-                    await saveConfig();
+                    const nextProjection = projectMemoryStateForSync(restoredMemoryState);
+                    const hasLegacySummaryProjection = Boolean(projection.memorySummary || projection.memoryOverview);
+                    if (hasLegacySummaryProjection || !memorySyncProjectionEquals(state.config.memorySync, nextProjection)) {
+                        state.config.memorySync = nextProjection;
+                        await saveConfig();
+                    }
                     await saveAppData();
+                    void globalObject.__astraMemorySummarySync?.captureMemoryState(restoredMemoryState);
                 },
                 applyLanguage,
                 applyCustomWallpaper,
