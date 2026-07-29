@@ -99,6 +99,39 @@ test('conversation shadow codec keeps text but never uploads attachment bytes', 
   assert.equal(JSON.stringify(encoded).includes('BASE64_BYTES'), false);
 });
 
+test('conversation shadow codec round-trips only history source conversation metadata', async () => {
+  const sourceId = '55555555-5555-4555-8555-555555555555';
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Provenance chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [{
+          id: '66666666-6666-4666-8666-666666666666',
+          role: 'model',
+          parts: [{ text: 'Answer' }],
+          metadata: {
+            historySourceConversationIds: [sourceId, sourceId, 'not-a-uuid'],
+            privateValue: 'must not sync'
+          }
+        }]
+      }]
+    }
+  });
+  const decoded = decodeWorkspaceConversationShadow(encoded);
+
+  assert.deepEqual(encoded.messages[0].metadata, { historySourceConversationIds: [sourceId] });
+  assert.equal(JSON.stringify(encoded).includes('privateValue'), false);
+  assert.deepEqual(decoded.conversations[0].messages[0].metadata, {
+    historySourceConversationIds: [sourceId]
+  });
+});
+
 test('conversation shadow codec round-trips quote references and hidden request context', async () => {
   const quotePart = {
     text: 'Quoted text:\n「Original answer」',

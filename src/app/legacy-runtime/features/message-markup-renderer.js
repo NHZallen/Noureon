@@ -5,13 +5,25 @@ const resolveImageAspectRatio = (requestedRatio) => ({
     '1:8': '1 / 8', '8:1': '8 / 1', '9:21': '9 / 21', '21:9': '21 / 9'
 }[requestedRatio] || '');
 
+const escapeHTML = (value = '') => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+const historySourceLabel = (template, count) => String(template || '')
+    .replace('{count}', String(count));
+
 export function buildMessageRenderView({
     message,
     renderUserText,
     renderMarkdownWithFormulas,
     buildMediaAttachmentView,
     formatTimestamp,
-    copyTitle
+    copyTitle,
+    historySources = [],
+    historySourceTexts = {}
 }) {
     const isUser = message.role === 'user';
     const messageClassName = `message-item flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
@@ -24,6 +36,7 @@ export function buildMessageRenderView({
     let generatedImageHTML = '';
     let userActionButtons = '';
     let quoteReferenceHTML = '';
+    let historySourcesHTML = '';
     const isImageGenerationLoading = !isUser && message.parts.some(part => part.imageGenerationLoading);
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
@@ -112,6 +125,34 @@ export function buildMessageRenderView({
                     </button>
                 </div>`;
         }
+        if (!isUser && historySources.length > 0) {
+            const referenceLabel = historySourceLabel(
+                historySourceTexts.referenceLabel || 'Referenced {count} prior conversations',
+                historySources.length
+            );
+            const updatedLabel = historySourceTexts.updatedLabel || 'Updated';
+            const unavailableLabel = historySourceTexts.unavailableLabel || 'Conversation unavailable';
+            const sourceItems = historySources.map((source, index) => {
+                if (!source?.available) {
+                    return `<li class="history-source-item is-unavailable"><span>${escapeHTML(unavailableLabel)}</span></li>`;
+                }
+                const timestamp = source.updatedAtLabel
+                    ? `<span class="history-source-updated">${escapeHTML(updatedLabel)} · ${escapeHTML(source.updatedAtLabel)}</span>`
+                    : '';
+                return `
+                    <li class="history-source-item">
+                        <button type="button" class="history-source-link" data-history-source-index="${index}">
+                            <span class="history-source-title">${escapeHTML(source.title || '')}</span>
+                            ${timestamp}
+                        </button>
+                    </li>`;
+            }).join('');
+            historySourcesHTML = `
+                <details class="history-source-references">
+                    <summary>${escapeHTML(referenceLabel)}</summary>
+                    <ul class="history-source-list">${sourceItems}</ul>
+                </details>`;
+        }
     }
 
     const hasBubbleContent = isLoadingMessage || contentHTML.trim();
@@ -128,6 +169,7 @@ export function buildMessageRenderView({
                             ${actionButtons}
                         </div>
                     ` : ''}
+                    ${historySourcesHTML}
                     ${userActionButtons}
                 </div>`;
 

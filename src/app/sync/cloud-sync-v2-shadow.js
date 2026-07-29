@@ -48,7 +48,7 @@ const CONVERSATION_COLUMNS = [
   'archived', 'pinned', 'created_at', 'deleted_at'
 ].join(',');
 const MESSAGE_COLUMNS = [
-  'id', 'user_id', 'conversation_id', 'role', 'parts', 'status', 'sequence',
+  'id', 'user_id', 'conversation_id', 'role', 'parts', 'metadata', 'status', 'sequence',
   'created_at', 'deleted_at'
 ].join(',');
 const CONVERSATION_FETCH_COLUMNS = `${CONVERSATION_COLUMNS},updated_at`;

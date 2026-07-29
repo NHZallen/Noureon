@@ -93,3 +93,17 @@ test('formats only the permitted memory facts without exposing source identifier
   assert.match(formatted, /Do not use stored names/);
   assert.doesNotMatch(formatted, /language|old-memory-chat|conversation-123/);
 });
+
+test('retains source conversation ids for the UI without placing them in the model prompt', () => {
+  const context = buildMemoryContext({
+    historyResults: [{
+      recordId: 'history-record',
+      conversationId: '11111111-1111-4111-8111-111111111111',
+      summary: 'Prior project decision summary.',
+      sourceIds: ['message-id']
+    }]
+  });
+
+  assert.equal(context.historyResults[0].conversationId, '11111111-1111-4111-8111-111111111111');
+  assert.doesNotMatch(formatMemoryContextForModel(context), /11111111-1111-4111-8111-111111111111|history-record|message-id/);
+});

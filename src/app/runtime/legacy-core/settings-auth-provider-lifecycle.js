@@ -227,7 +227,6 @@ const providerRequestSupport = createProviderRequestSupport({
     readErrorBody,
     getApiKeyForProvider,
     getConfig: () => config,
-    getActiveConversation,
     streamApiCall,
     getSingleDocumentTranslatorModel,
     modelUsesTavilySearch,
@@ -270,15 +269,13 @@ const councilResponseLifecycle = createCouncilResponseLifecycle({
 const runModelCouncil = (...args) => councilResponseLifecycle.runModelCouncil(...args);
 const structuredHelpers = createSettingsProviderStructuredHelpers({
     fetchImpl: fetch,
-    AbortSignal,
     getApiKeyForProvider,
     readErrorBody,
     cheapModelId: CHEAP_MODEL_ID,
     logger: console
 });
 const {
-    callApiWithSchema,
-    shouldPerformWebSearch
+    callApiWithSchema
 } = structuredHelpers;
 const titleSummaryHelpers = createSettingsTitleSummaryHelpers({
     callApiWithSchema
@@ -671,7 +668,6 @@ const {
         truncateCouncilText,
         runModelCouncil,
         callApiWithSchema,
-        shouldPerformWebSearch,
         generateTitleAndSummary,
         updateSubmitButtonState,
         updateInputState,

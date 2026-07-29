@@ -14,6 +14,7 @@ import { appendRendererTextGradually } from '../../legacy-runtime/features/rende
 import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails } from '../../legacy-runtime/features/streaming-council-details.js';
 import { createImageModeControls } from '../../legacy-runtime/features/image-mode-controls.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
+import { collectHistorySourceConversationIds } from '../memory/history-source-references.js';
 import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
@@ -858,9 +859,14 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
     saveAppData,
     getAutoWebSearchEnabled: () => getLiveConfig().enableAutoWebSearch,
-    shouldPerformWebSearch: (...args) => legacyRuntimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
     canAutoEnableWebSearch: (conversation) => {
       const modelInfo = normalizeConversationModel(conversation);
+      if (isCouncilEnabled(conversation)) {
+        const { synthesizer } = getCouncilSelectedModels(conversation);
+        if (!hasCouncilWebSearchAccess(synthesizer || modelInfo)) return false;
+        if (modelUsesTavilySearch(synthesizer || modelInfo) && !getApiKeyForProvider('tavily')) return false;
+        return true;
+      }
       if (!hasSingleWebSearchAccess(modelInfo)) return false;
       if (modelUsesTavilySearch(modelInfo) && !getApiKeyForProvider('tavily')) return false;
       return true;
@@ -898,6 +904,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       conversation: conv,
       loadingMessageDiv,
       responseUsesCouncil,
+      webSearchEnabled,
       userMessage,
       userMessageObject,
       userParts
@@ -909,6 +916,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       let councilMetadata = null;
       let responseRenderedInRealtime = false;
       let generatedImageParts = null;
+      const historySourceConversationIds = new Set();
+      const collectHistorySources = (memoryContext) => {
+        collectHistorySourceConversationIds(memoryContext).forEach((id) => historySourceConversationIds.add(id));
+      };
 
       if (responseUsesCouncil) {
         const councilResult = await runCouncilResponseRenderLifecycle({
@@ -916,7 +927,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           userParts,
           signal: submitAbortController.signal,
           getOutputMode,
-          runModelCouncil: (...args) => runModelCouncil(...args),
+          runModelCouncil: (...args) => runModelCouncil(...args, {
+            webSearchEnabled,
+            onMemoryContextResolved: collectHistorySources
+          }),
           renderCouncilProgress,
           createStreamingMarkdownRenderer,
           appendRendererTextGradually,
@@ -939,6 +953,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             userParts,
             modelInfo,
             conversation: conv,
+            webSearchEnabled,
             signal: submitAbortController.signal,
             uiLanguage: getLiveConfig().uiLanguage
           });
@@ -949,6 +964,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             userParts,
             modelInfo,
             conversation: conv,
+            webSearchEnabled,
+            onMemoryContextResolved: collectHistorySources,
             signal: submitAbortController.signal,
             uiLanguage: getLiveConfig().uiLanguage
           });
@@ -973,6 +990,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         uiLanguage: getLiveConfig().uiLanguage,
         memoryEnabled: getLiveConfig().memorySystemVersion === 2 || getLiveConfig().memoryEnabled1,
         autoMemoryEnabled: getLiveConfig().enableAutoMemory,
+        historySourceConversationIds: [...historySourceConversationIds].slice(0, 3),
         persistAppData: saveAppData,
         completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
         restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
@@ -1043,6 +1061,9 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           }
         } : null
       });
+      if (historySourceConversationIds.size > 0) {
+        renderChat({ animate: false, scrollMode: 'bottom' });
+      }
     } catch (error) {
       await persistAssistantResponseError({
         error,

@@ -11,6 +11,9 @@ export function createMessageListLifecycle({
     renderMarkdownWithFormulas,
     formatTimestamp,
     bindMediaPreviewButtons,
+    getHistorySourceViews = () => [],
+    getHistorySourceTexts = () => ({}),
+    openHistorySourceConversation = () => {},
     bindGeneratedImageAssets = async () => {},
     saveAppData,
     renderModelSwitcher,
@@ -82,16 +85,25 @@ export function createMessageListLifecycle({
 
         const messageElement = document.createElement('div');
         messageElement.dataset.messageIndex = index;
+        const historySourceViews = getHistorySourceViews(message);
         const messageView = buildMessageRenderView({
             message,
             renderUserText,
             renderMarkdownWithFormulas,
             buildMediaAttachmentView,
             formatTimestamp,
-            copyTitle: getText('copyContent')
+            copyTitle: getText('copyContent'),
+            historySources: historySourceViews,
+            historySourceTexts: getHistorySourceTexts()
         });
         messageElement.className = messageView.messageClassName;
         messageElement.innerHTML = messageView.messageHTML;
+        messageElement.querySelectorAll('[data-history-source-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const source = historySourceViews[Number(button.dataset.historySourceIndex)];
+                if (source?.available && source.id) openHistorySourceConversation(source.id);
+            });
+        });
         bindMediaPreviewButtons(messageElement, messageView.previewMediaParts);
         void bindGeneratedImageAssets(messageElement, messageView.generatedImageAssets || [])
             .catch(error => logError('Failed to bind generated image assets:', error));

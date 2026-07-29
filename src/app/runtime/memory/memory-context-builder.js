@@ -52,7 +52,12 @@ export function buildMemoryContext({
     historyResults: asArray(historyResults)
       .filter(result => !isHistoryResultSuppressed(result, suppressionRules))
       .slice(0, historyLimit)
-      .map(({ recordId, summary, sourceIds }) => ({ recordId, summary, sourceIds }))
+      .map(({ recordId, conversationId, summary, sourceIds }) => ({
+        recordId,
+        ...(conversationId ? { conversationId } : {}),
+        summary,
+        sourceIds
+      }))
   };
 }
 

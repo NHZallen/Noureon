@@ -235,7 +235,7 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   assert.match(lifecycleSource, /await\s+saveAppData\(\);/);
   assert.match(lifecycleSource, /renderHistorySidebar\(\);/);
   assert.match(structuredHelperSource, /async\s+function\s+callApiWithSchema\b/);
-  assert.match(structuredHelperSource, /async\s+function\s+shouldPerformWebSearch\b/);
+  assert.doesNotMatch(structuredHelperSource, /shouldPerformWebSearch/);
   assert.match(titleSummaryHelperSource, /function\s+buildTitleSummaryPrompt\b/);
   assert.match(titleSummaryHelperSource, /TITLE_SUMMARY_RESPONSE_SCHEMA/);
   assert.match(titleSummaryHelperSource, /async\s+function\s+requestTitleSummary\b/);
@@ -303,7 +303,6 @@ test('settings modal orchestration and legacy core wiring remain in place', () =
     /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/,
     /const\s+createHistoryMenu\s*=/,
     /async\s+function\s+callApiWithSchema\b/,
-    /async\s+function\s+shouldPerformWebSearch\b/,
     /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/
   ]) {
     assert.doesNotMatch(legacyCoreSource, removedInlineBody);

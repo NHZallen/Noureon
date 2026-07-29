@@ -175,7 +175,7 @@ test('Tavily search packet preserves missing key, empty query, and HTTP error bo
 test('single-model translation support builds document and Tavily packets before filtered request parts', async () => {
   const progress = [];
   const { fetchCalls, streamCalls, support } = createHarness({
-    activeConversation: { isWebSearchEnabled: true },
+    activeConversation: { isWebSearchEnabled: false },
     modelUsesTavilySearch: () => true
   });
   const parts = [
@@ -188,7 +188,8 @@ test('single-model translation support builds document and Tavily packets before
     parts,
     { id: 'target', name: 'Target' },
     new AbortController().signal,
-    (stage, message) => progress.push([stage, message])
+    (stage, message) => progress.push([stage, message]),
+    { webSearchEnabled: true }
   );
 
   assert.match(requestParts[0].text, /System-generated supporting context/);

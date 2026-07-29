@@ -62,7 +62,6 @@ const CONTRACT_CATEGORIES = new Map([
   ['submit.adjustTextareaHeight', 'transitional-only'],
   ['submit.generateTitleAndSummary', 'submit'],
   ['submit.renderFilePreviews', 'submit'],
-  ['submit.shouldPerformWebSearch', 'submit'],
   ['submit.updateSubmitButtonState', 'submit'],
   ...CORE_TAIL_BINDING_NAMES.map((name) => [`coreTail.${name}`, 'core tail'])
 ]);

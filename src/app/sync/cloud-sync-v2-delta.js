@@ -17,7 +17,7 @@ const COMPARABLE_FIELDS = Object.freeze({
     'metadata', 'archived', 'pinned', 'created_at', 'deleted_at'
   ]),
   messages: Object.freeze([
-    'id', 'user_id', 'conversation_id', 'role', 'parts', 'status', 'sequence',
+    'id', 'user_id', 'conversation_id', 'role', 'parts', 'metadata', 'status', 'sequence',
     'created_at', 'deleted_at'
   ]),
   astras: Object.freeze([

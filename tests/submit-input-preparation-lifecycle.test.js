@@ -69,7 +69,6 @@ const createHarness = (overrides = {}) => {
     generateTitleAndSummary: (conv) => calls.push(['generateTitleAndSummary', conv === conversation]),
     saveAppData: async () => calls.push(['saveAppData']),
     getAutoWebSearchEnabled: () => overrides.autoWebSearch ?? false,
-    shouldPerformWebSearch: overrides.shouldPerformWebSearch || (async () => false),
     canAutoEnableWebSearch: overrides.canAutoEnableWebSearch || (() => true),
     getAutoSearchNotice: () => 'auto search on',
     renderInputIndicators: () => calls.push(['renderInputIndicators']),
@@ -95,7 +94,7 @@ const createHarness = (overrides = {}) => {
   };
 };
 
-test('prepares user text, uploaded files, temporary conversation, auto search, and loading handoff', async () => {
+test('prepares user text, uploaded files, temporary conversation, request-scoped auto search, and loading handoff', async () => {
   const harness = createHarness({
     autoNaming: true,
     autoWebSearch: true,
@@ -107,7 +106,7 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
       provider: 'gemini',
       unsentMessage: 'draft'
     },
-    shouldPerformWebSearch: async () => true,
+    messageValue: 'What is the weather today?',
     uploadedFiles: [{
       base64: 'data:image/png;base64,abc123',
       name: 'photo.png',
@@ -120,9 +119,9 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
 
   assert.equal(result.shouldContinue, true);
   assert.equal(result.conversation, harness.conversation);
-  assert.equal(result.userMessage, 'Hello');
+  assert.equal(result.userMessage, 'What is the weather today?');
   assert.deepEqual(result.userParts, [
-    { text: 'Hello' },
+    { text: 'What is the weather today?' },
     { inlineData: { data: 'abc123', mimeType: 'image/png', name: 'photo.png', size: 99 } }
   ]);
   assert.equal(result.userMessageObject.role, 'user');
@@ -131,7 +130,8 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
   assert.deepEqual(harness.uploadedFiles, []);
   assert.equal(harness.conversation.isTemporary, false);
   assert.equal(harness.conversation.isNaming, true);
-  assert.equal(harness.conversation.isWebSearchEnabled, true);
+  assert.equal(harness.conversation.isWebSearchEnabled, false);
+  assert.equal(result.webSearchEnabled, true);
   assert.equal(harness.conversation.unsentMessage, '');
   assert.deepEqual(harness.calls.map(([name]) => name), [
     'setAbortController',
@@ -146,7 +146,6 @@ test('prepares user text, uploaded files, temporary conversation, auto search, a
     'generateTitleAndSummary',
     'saveAppData',
     'showNotification',
-    'renderInputIndicators',
     'addMessageToUI',
     'querySelector',
     'requestFrame',
@@ -182,9 +181,9 @@ test('prepares an edited message without clearing the composer draft or its atta
 
 test('auto web search can be enabled for Tavily-backed providers through the runtime predicate', async () => {
   for (const provider of ['openrouter', 'nvidia', 'stepfun']) {
-    let checkedPrompt = '';
     const harness = createHarness({
       autoWebSearch: true,
+      messageValue: 'What are the latest news headlines?',
       conversation: {
         archived: false,
         isTemporary: false,
@@ -193,71 +192,47 @@ test('auto web search can be enabled for Tavily-backed providers through the run
         provider,
         unsentMessage: 'draft'
       },
-      canAutoEnableWebSearch: (conversation) => conversation.provider === provider,
-      shouldPerformWebSearch: async (prompt) => {
-        checkedPrompt = prompt;
-        return true;
-      }
+      canAutoEnableWebSearch: (conversation) => conversation.provider === provider
     });
 
     const result = await harness.lifecycle.prepareSubmitResponse();
 
     assert.equal(result.shouldContinue, true);
-    assert.equal(checkedPrompt, 'Hello');
-    assert.equal(harness.conversation.isWebSearchEnabled, true);
+    assert.equal(result.webSearchEnabled, true);
+    assert.equal(harness.conversation.isWebSearchEnabled, false);
     assert.ok(harness.calls.some(call => call[0] === 'showNotification' && call[1] === 'auto search on'));
   }
 });
 
-test('clears the composer before the auto web search classifier resolves', async () => {
-  let resolveClassifier;
-  const classifierPending = new Promise((resolve) => {
-    resolveClassifier = resolve;
-  });
+test('local auto web search detection does not wait for a model classifier', async () => {
   const harness = createHarness({
     autoWebSearch: true,
+    messageValue: '最新股價是多少？',
     uploadedFiles: [{
       base64: 'data:image/png;base64,abc123', name: 'photo.png', size: 99, type: 'image/png'
-    }],
-    shouldPerformWebSearch: () => classifierPending
-  });
-
-  const submission = harness.lifecycle.prepareSubmitResponse();
-  await Promise.resolve();
-
-  assert.equal(harness.elements.messageInput.value, '');
-  assert.deepEqual(harness.uploadedFiles, []);
-  assert.deepEqual(harness.calls.map(([name]) => name), [
-    'setAbortController',
-    'updateSubmitButtonState',
-    'addMessageToUI',
-    'requestFrame',
-    'scrollIntoView',
-    'setUploadedFiles',
-    'adjustTextareaHeight',
-    'renderFilePreviews'
-  ]);
-
-  resolveClassifier(false);
-  assert.equal((await submission).shouldContinue, true);
-});
-
-test('auto web search skips the classifier when the current model cannot use search', async () => {
-  let classifierCalled = false;
-  const harness = createHarness({
-    autoWebSearch: true,
-    canAutoEnableWebSearch: () => false,
-    shouldPerformWebSearch: async () => {
-      classifierCalled = true;
-      return true;
-    }
+    }]
   });
 
   const result = await harness.lifecycle.prepareSubmitResponse();
 
   assert.equal(result.shouldContinue, true);
-  assert.equal(classifierCalled, false);
+  assert.equal(result.webSearchEnabled, true);
+  assert.equal(harness.elements.messageInput.value, '');
+  assert.deepEqual(harness.uploadedFiles, []);
+});
+
+test('auto web search remains off when the current model cannot use search', async () => {
+  const harness = createHarness({
+    autoWebSearch: true,
+    messageValue: 'What is the weather today?',
+    canAutoEnableWebSearch: () => false
+  });
+
+  const result = await harness.lifecycle.prepareSubmitResponse();
+
+  assert.equal(result.shouldContinue, true);
   assert.equal(harness.conversation.isWebSearchEnabled, false);
+  assert.equal(result.webSearchEnabled, false);
 });
 
 test('preserves targeted edit metadata on annotated image attachments', () => {

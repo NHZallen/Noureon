@@ -47,7 +47,7 @@ export function createImageGenerationResponseLifecycle({
   getText = (_key, fallback) => fallback,
   showNotification = () => {}
 }) {
-  const run = async ({ targetElement, userParts, modelInfo, conversation, signal }) => {
+  const run = async ({ targetElement, userParts, modelInfo, conversation, webSearchEnabled = false, signal }) => {
     const normalizedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
     const imageAspectRatio = resolveImageAspectRatio(normalizedConfig.aspectRatio);
     targetElement.innerHTML = `
@@ -72,7 +72,8 @@ export function createImageGenerationResponseLifecycle({
         (_stage, message) => {
           const label = targetElement.querySelector?.('.generated-image-skeleton span');
           if (label && message) label.textContent = message;
-        }
+        },
+        { webSearchEnabled }
       );
     const basePrompt = getTextPrompt(requestParts);
     if (!basePrompt) throw new Error('請輸入要生成的圖像描述');

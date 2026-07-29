@@ -2020,7 +2020,6 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
     'const submitInputCouncilLifecycle = createLegacySubmitInputCouncilLifecycle({',
     "legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState'",
     "legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary'",
-    "legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch'",
     "legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight'",
     "legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews'"
   ], '01 submit runtime registration');
@@ -3271,7 +3270,6 @@ test('response progress renderers and submit preparation are isolated from the 0
   for (const bindingName of [
     'updateSubmitButtonState',
     'generateTitleAndSummary',
-    'shouldPerformWebSearch',
     'renderFilePreviews'
   ]) {
     assert.match(

@@ -118,12 +118,13 @@ const createHarness = ({
     lifecycle,
     progressEvents,
     tavilyCalls,
-    run: (parts = [{ text: 'Question' }], signal = new AbortController().signal) =>
+    run: (parts = [{ text: 'Question' }], signal = new AbortController().signal, requestOptions = {}) =>
       lifecycle.runModelCouncil(
         parts,
         signal,
         (progress) => progressEvents.push(progress),
-        (chunk) => finalChunks.push(chunk)
+        (chunk) => finalChunks.push(chunk),
+        requestOptions
       )
   };
 };
@@ -204,6 +205,20 @@ test('web search branch uses native model search for the shared packet', async (
   assert.deepEqual(calls[0].options.historyForApi, []);
   assert.match(calls[0].parts[0].text, /shared web research packet/i);
   assert.ok(progressEvents.some((event) => event.stage === 'search' && event.search?.status === 'done'));
+});
+
+test('request-scoped web search enables council research without changing conversation state', async () => {
+  const { calls, run } = createHarness({
+    webSearchEnabled: false,
+    modelUsesNativeWebSearch: (model) => model?.id === 'synth'
+  });
+
+  await run([{ text: 'What is the weather today?' }], new AbortController().signal, {
+    webSearchEnabled: true
+  });
+
+  assert.equal(calls[0].id, 'synth');
+  assert.equal(calls[0].options.forceWebSearch, true);
 });
 
 test('web search branch uses Tavily fallback for shared and deliberation second search packets', async () => {

@@ -330,6 +330,18 @@
 
 /* User message copy/edit actions and the responsive message editor. */
 .user-message-actions { display: flex; justify-content: flex-end; gap: .3rem; min-height: 1.9rem; margin-top: .35rem; color: #6b7280 !important; visibility: hidden; pointer-events: none; opacity: 0; transition: opacity .16s ease, visibility 0s linear .16s; }
+
+.history-source-references { width: min(100%, 44rem); margin: .1rem 0 .15rem; color: var(--text-secondary); font-size: .8rem; }
+.history-source-references > summary { width: fit-content; cursor: pointer; color: inherit; list-style: none; }
+.history-source-references > summary::-webkit-details-marker { display: none; }
+.history-source-references > summary::before { content: '›'; display: inline-block; margin-right: .35rem; transition: transform .16s ease; }
+.history-source-references[open] > summary::before { transform: rotate(90deg); }
+.history-source-list { display: grid; gap: .2rem; margin: .45rem 0 0; padding: 0; list-style: none; }
+.history-source-link, .history-source-item.is-unavailable > span { display: grid; gap: .08rem; width: 100%; padding: .35rem .5rem; border-radius: .45rem; text-align: left; }
+.history-source-link { border: 0; background: var(--active-bg); color: var(--text-primary); cursor: pointer; }
+.history-source-link:hover, .history-source-link:focus-visible { background: var(--hover-bg); outline: none; }
+.history-source-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-source-updated, .history-source-item.is-unavailable > span { color: var(--text-secondary); font-size: .72rem; }
 /* The message row spans the full chat width.  Limit the actions to the bubble stack,
    so moving across the empty part of that row cannot reveal them. */
 .message-stack-user:hover .user-message-actions, .message-stack-user:focus-within .user-message-actions { visibility: visible; pointer-events: auto; opacity: 1; transition-delay: 0s; }

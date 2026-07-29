@@ -1045,7 +1045,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         legacyRuntimeContext.registerLazyBinding('input.updateFunctionButtonsState', () => updateFunctionButtonsState);
         legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
         legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
-        legacyRuntimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
         const resolveRuntimeEntryAdjustTextareaHeight = () => legacyRuntimeContext.resolveOptionalBinding(
             'runtimeEntry.submit.adjustTextareaHeight'
         );
@@ -1202,7 +1201,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             truncateCouncilText,
             runModelCouncil,
             callApiWithSchema,
-            shouldPerformWebSearch,
             generateTitleAndSummary,
             updateSubmitButtonState,
             updateInputState,

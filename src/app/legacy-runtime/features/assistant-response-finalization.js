@@ -1,4 +1,5 @@
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+import { normalizeHistorySourceConversationIds } from '../../runtime/memory/history-source-references.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
@@ -18,6 +19,7 @@ export async function finalizeAssistantResponse({
   uiLanguage,
   memoryEnabled,
   autoMemoryEnabled,
+  historySourceConversationIds = [],
   persistAppData,
   completeSingleModelView,
   restoreRealtimeCouncilDetails,
@@ -38,6 +40,13 @@ export async function finalizeAssistantResponse({
   }
 
   finalAiMessage.parts = hasFinalParts ? finalParts : [{ text: fullResponse }];
+  const normalizedHistorySourceConversationIds = normalizeHistorySourceConversationIds(historySourceConversationIds);
+  if (normalizedHistorySourceConversationIds.length > 0) {
+    finalAiMessage.metadata = {
+      ...(finalAiMessage.metadata || {}),
+      historySourceConversationIds: normalizedHistorySourceConversationIds
+    };
+  }
   if (includeCouncilMetadata) {
     finalAiMessage.council = councilMetadata;
   }

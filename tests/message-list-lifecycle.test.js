@@ -141,6 +141,29 @@ test('renderChat renders greeting, populated messages, and no-conversation bound
   }
 });
 
+test('history reference buttons open only available source conversations', () => {
+  const opened = [];
+  const sourceId = '11111111-1111-4111-8111-111111111111';
+  const fixture = createFixture({
+    getHistorySourceViews: () => [{ id: sourceId, available: true }, { available: false }],
+    openHistorySourceConversation: (id) => opened.push(id),
+    buildMessageRenderView: () => ({
+      messageClassName: 'model-message',
+      messageHTML: '<button data-history-source-index="0"></button><button data-history-source-index="1"></button>',
+      previewMediaParts: []
+    })
+  });
+  try {
+    const element = fixture.lifecycle.addMessageToUI({ role: 'model', parts: [{ text: 'Answer' }] }, 0, false, false);
+    element.querySelector('[data-history-source-index="0"]').click();
+    element.querySelector('[data-history-source-index="1"]').click();
+
+    assert.deepEqual(opened, [sourceId]);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 test('renderChat can update controls without rebuilding or restyling the message list', () => {
   const fixture = createFixture();
   try {

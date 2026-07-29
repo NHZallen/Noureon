@@ -35,7 +35,7 @@ test('retrieves only relevant capsules outside the current conversation', async 
     embeddingClient: { embedHistoryQuery: async () => [1, 0] },
     getMemoryState: () => ({
       conversationCapsules: [
-        { id: 'old', summary: 'The old memory design decision.', sourceRefs: [{ messageId: 'old-message' }] },
+        { id: 'old', conversationId: 'old-chat', summary: 'The old memory design decision.', sourceRefs: [{ messageId: 'old-message' }] },
         { id: 'current', summary: 'Current chat should never be recalled.', sourceRefs: [] },
         { id: 'unrelated', summary: 'A CSS issue.', sourceRefs: [] }
       ]
@@ -49,6 +49,7 @@ test('retrieves only relevant capsules outside the current conversation', async 
 
   assert.equal(results.length, 1);
   assert.equal(results[0].recordId, 'capsule:old');
+  assert.equal(results[0].conversationId, 'old-chat');
   assert.equal(results[0].summary, 'The old memory design decision.');
   assert.deepEqual(results[0].sourceIds, ['old-message']);
   assert.ok(results[0].score >= 0.8);
@@ -77,7 +78,7 @@ test('returns a matching media description as model-readable historical context'
   const service = createHistoryRetrievalService({
     index,
     embeddingClient: { embedHistoryQuery: async () => [1, 0] },
-    getMemoryState: () => ({ mediaMemories: [{ id: 'cat', messageId: 'photo-message', kind: 'image', name: 'cat.jpg', summary: 'A black cat on a sofa.' }] })
+    getMemoryState: () => ({ mediaMemories: [{ id: 'cat', conversationId: 'old-chat', messageId: 'photo-message', kind: 'image', name: 'cat.jpg', summary: 'A black cat on a sofa.' }] })
   });
 
   const results = await service.retrieve({
@@ -86,6 +87,7 @@ test('returns a matching media description as model-readable historical context'
   });
 
   assert.equal(results[0].summary, 'image (cat.jpg): A black cat on a sofa.');
+  assert.equal(results[0].conversationId, 'old-chat');
   assert.deepEqual(results[0].sourceIds, ['photo-message']);
 });
 

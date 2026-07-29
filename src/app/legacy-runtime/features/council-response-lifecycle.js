@@ -306,7 +306,10 @@ export function createCouncilResponseLifecycle({
       sections.push('\n\n</details>');
       return sections.join('');
   };
-  async function runModelCouncil(parts, signal, onProgress, onFinalChunk) {
+  async function runModelCouncil(parts, signal, onProgress, onFinalChunk, {
+      webSearchEnabled = null,
+      onMemoryContextResolved = () => {}
+  } = {}) {
       const conv = getActiveConversation();
       const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
       const texts = getCouncilTexts();
@@ -324,7 +327,7 @@ export function createCouncilResponseLifecycle({
               detail: isSkipped ? runtimeTexts.skippedVisualReason : runtimeTexts.pending
           });
       });
-      const searchState = conv.isWebSearchEnabled
+      const searchState = (webSearchEnabled === true || conv.isWebSearchEnabled)
           ? { status: 'pending', label: runtimeTexts.sharedSearch, detail: runtimeTexts.pending }
           : null;
       const startedAt = Date.now();
@@ -616,6 +619,7 @@ export function createCouncilResponseLifecycle({
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
                   additionalSystemInstruction: synthesisInstruction,
+                  onMemoryContextResolved,
                   onRetry: () => progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name} · ${runtimeTexts.retrying}`)
               }
           );

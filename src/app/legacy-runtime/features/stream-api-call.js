@@ -187,7 +187,8 @@ const buildGeminiRequest = ({
       thinkingLevel: reasoningEffort
     };
   }
-  const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch && conversation.isWebSearchEnabled;
+  const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch
+    && (requestOptions.webSearchEnabled === true || conversation.isWebSearchEnabled);
   if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
     payload.tools = [{ googleSearch: {} }];
   }
@@ -564,6 +565,9 @@ export function createStreamApiCall({
       } catch (error) {
         warn('Memory context retrieval failed; continuing without it.', error);
       }
+    }
+    if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
+      requestOptions.onMemoryContextResolved(memoryContext);
     }
     const chartAuthoringGuidance = await getRuntimeChartAuthoringGuidance(
       getMessageTextForGuidance(currentMessageForApi)

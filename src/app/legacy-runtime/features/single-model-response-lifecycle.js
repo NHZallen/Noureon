@@ -50,6 +50,8 @@ export function createSingleModelResponseLifecycle({
     userParts,
     modelInfo,
     conversation,
+    webSearchEnabled = false,
+    onMemoryContextResolved = () => {},
     signal,
     uiLanguage
   }) => {
@@ -65,7 +67,7 @@ export function createSingleModelResponseLifecycle({
     };
 
     const hasTranslationInputs = userParts.some((part) => part.inlineData) ||
-      Boolean(conversation.isWebSearchEnabled);
+      Boolean(webSearchEnabled);
     let requestParts = userParts;
     if (hasTranslationInputs) {
       renderProgress(
@@ -79,7 +81,8 @@ export function createSingleModelResponseLifecycle({
         userParts,
         modelInfo,
         signal,
-        (stage, message) => renderProgress(targetElement, startedAt, stage, message)
+        (stage, message) => renderProgress(targetElement, startedAt, stage, message),
+        { webSearchEnabled }
       );
     }
 
@@ -104,7 +107,7 @@ export function createSingleModelResponseLifecycle({
       onChunk,
       signal,
       false,
-      { modelInfo }
+      { modelInfo, webSearchEnabled, onMemoryContextResolved }
     );
 
     let fullResponse;

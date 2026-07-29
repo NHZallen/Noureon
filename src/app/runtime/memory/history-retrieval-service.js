@@ -100,6 +100,7 @@ export function createHistoryRetrievalService({
             if (!media?.summary) return null;
             return {
               recordId: match.recordId,
+              conversationId: media.conversationId,
               summary: `${media.kind || 'media'} (${media.name || 'attachment'}): ${media.summary}`,
               sourceIds: media.messageId ? [media.messageId] : [],
               score: match.score
@@ -109,6 +110,7 @@ export function createHistoryRetrievalService({
           if (!capsule?.summary) return null;
           return {
             recordId: match.recordId,
+            conversationId: capsule.conversationId,
             summary: capsule.summary,
             sourceIds: sourceIdsForCapsule(capsule),
             score: match.score

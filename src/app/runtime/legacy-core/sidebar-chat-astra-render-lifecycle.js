@@ -6,6 +6,7 @@ import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer }
 import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '../../legacy-runtime/features/media-preview-lifecycle.js';
 import { createMessageListLifecycle } from '../../legacy-runtime/features/message-list-lifecycle.js';
 import { escapeHTML as escapeMarkup } from './legacy-core-utilities.js';
+import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
 
 const REQUIRED_DEPENDENCIES = [
   'window',
@@ -535,6 +536,29 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       howCanIHelp: i18n[getConfig().uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？',
       copyContent: i18n[getConfig().uiLanguage].copyContent || '複製內容'
     }[key]),
+    getHistorySourceViews: (message) => normalizeHistorySourceConversationIds(
+      message?.metadata?.historySourceConversationIds
+    ).map((id) => {
+      const sourceConversation = getConversations().find(conversation => conversation.id === id);
+      if (!sourceConversation || sourceConversation.deletedAt) return { available: false };
+      return {
+        id: sourceConversation.id,
+        title: sourceConversation.title || i18n[getConfig().uiLanguage].newChat,
+        updatedAtLabel: formatFullTimestamp(sourceConversation.lastUpdatedAt || sourceConversation.createdAt),
+        available: true
+      };
+    }),
+    getHistorySourceTexts: () => ({
+      referenceLabel: i18n[getConfig().uiLanguage].historySourcesUsed,
+      updatedLabel: i18n[getConfig().uiLanguage].historySourceUpdated,
+      unavailableLabel: i18n[getConfig().uiLanguage].historySourceUnavailable
+    }),
+    openHistorySourceConversation: (id) => {
+      const sourceConversation = getConversations().find(conversation => conversation.id === id);
+      if (!sourceConversation || sourceConversation.deletedAt) return;
+      loadChat(sourceConversation.id);
+      legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
+    },
     buildMessageRenderView,
     buildMediaAttachmentView: buildMessageMediaAttachmentView,
     renderUserText,

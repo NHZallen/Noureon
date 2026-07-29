@@ -89,6 +89,34 @@ test('turning off automatic memory stops new capture without touching confirmed 
   assert.ok(!calls.includes('memory'), 'no new automatic memory extraction is queued');
 });
 
+test('successful answers persist only normalized history source conversation ids', async () => {
+  const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: 'created' };
+  const first = '11111111-1111-4111-8111-111111111111';
+  const second = '22222222-2222-4222-8222-222222222222';
+
+  await finalizeAssistantResponse({
+    fullResponse: 'Answer',
+    finalAiMessage,
+    conversation: { messages: [] },
+    userMessageObject: {},
+    userMessageText: 'Question',
+    signal: new AbortController().signal,
+    responseUsesCouncil: false,
+    responseRenderedInRealtime: true,
+    targetElement: { dataset: { streamRendered: 'true' } },
+    uiLanguage: 'en',
+    historySourceConversationIds: [first, '', first, second],
+    persistAppData: async () => {},
+    completeSingleModelView: async () => {},
+    restoreRealtimeCouncilDetails: () => {},
+    renderRealtimeCouncilFinal: () => {},
+    playbackCouncilResponse: async () => {},
+    extractPersonalMemory: async () => {}
+  });
+
+  assert.deepEqual(finalAiMessage.metadata, { historySourceConversationIds: [first, second] });
+});
+
 test('automatic memory capture still runs while the toggle is on', async () => {
   const calls = [];
   const backgroundTasks = [];

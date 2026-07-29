@@ -65,6 +65,36 @@ test('builds model markdown, timestamp, and exact action markup', () => {
   assert.match(view.messageHTML, />2026-06-24 10:30<\/span>/);
 });
 
+test('renders expandable history references without exposing source UUIDs', () => {
+  const sourceId = '11111111-1111-4111-8111-111111111111';
+  const view = buildMessageRenderView({
+    message: {
+      role: 'model',
+      parts: [{ text: 'Answer' }],
+      createdAt: '2026-06-24T10:30:00.000Z'
+    },
+    historySources: [{
+      id: sourceId,
+      title: 'Earlier project discussion',
+      updatedAtLabel: '2026-06-23 09:00',
+      available: true
+    }, { available: false }],
+    historySourceTexts: {
+      referenceLabel: 'Referenced {count} prior conversations',
+      updatedLabel: 'Updated',
+      unavailableLabel: 'Conversation unavailable'
+    },
+    ...dependencies
+  });
+
+  assert.match(view.messageHTML, /<details class="history-source-references">/);
+  assert.match(view.messageHTML, /Referenced 2 prior conversations/);
+  assert.match(view.messageHTML, /data-history-source-index="0"/);
+  assert.match(view.messageHTML, /Earlier project discussion/);
+  assert.match(view.messageHTML, /Conversation unavailable/);
+  assert.doesNotMatch(view.messageHTML, new RegExp(sourceId));
+});
+
 test('renders a sent quote above the user bubble without exposing hidden model context', () => {
   const view = buildMessageRenderView({
     message: {

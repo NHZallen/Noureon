@@ -9,8 +9,7 @@ const createSubmitHarness = ({
   councilEnabled = false,
   messageValue = 'Hello',
   quoteReference = null,
-  autoWebSearchEnabled = false,
-  performWebSearch = async () => false
+  autoWebSearchEnabled = false
 } = {}) => {
   const calls = [];
   const conversation = {
@@ -28,14 +27,12 @@ const createSubmitHarness = ({
   let abortController = null;
   let updateSubmitButtonState;
   let generateTitleAndSummary;
-  let shouldPerformWebSearch;
   let adjustTextareaHeight;
   let renderFilePreviews;
   const runtimeContext = createLegacyRuntimeContext();
 
   runtimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
   runtimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
-  runtimeContext.registerLazyBinding('submit.shouldPerformWebSearch', () => shouldPerformWebSearch);
   runtimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => adjustTextareaHeight);
   runtimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
 
@@ -69,7 +66,6 @@ const createSubmitHarness = ({
     generateTitleAndSummary: (...args) => runtimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
     saveAppData: async () => {},
     getAutoWebSearchEnabled: () => autoWebSearchEnabled,
-    shouldPerformWebSearch: (...args) => runtimeContext.resolveBinding('submit.shouldPerformWebSearch')(...args),
     getAutoSearchNotice: () => 'auto search',
     renderInputIndicators: () => {},
     adjustTextareaHeight: (...args) => runtimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
@@ -93,7 +89,6 @@ const createSubmitHarness = ({
 
   updateSubmitButtonState = (isGenerating) => calls.push(['updateSubmitButtonState', isGenerating]);
   generateTitleAndSummary = () => calls.push(['generateTitleAndSummary']);
-  shouldPerformWebSearch = performWebSearch;
   adjustTextareaHeight = () => calls.push(['adjustTextareaHeight']);
   renderFilePreviews = () => calls.push(['renderFilePreviews']);
 
@@ -135,27 +130,24 @@ test('single-model submit appends user/loading messages before lifecycle handoff
   );
 });
 
-test('submit scrolls the user message before auto-search classification resolves', async () => {
-  let resolveSearch;
+test('submit proceeds immediately because auto-search detection is local', async () => {
   const harness = createSubmitHarness({
     autoWebSearchEnabled: true,
-    performWebSearch: () => new Promise(resolve => { resolveSearch = resolve; })
+    messageValue: 'What is the weather today?'
   });
 
-  const submitting = harness.submit();
-  await Promise.resolve();
-  const callsBeforeSearchResolution = [...harness.calls];
-  resolveSearch(false);
-  await submitting;
+  const prepared = await harness.submit();
 
   assert.equal(
-    callsBeforeSearchResolution.some(([name, role]) => name === 'scrollIntoView' && role === 'user'),
+    harness.calls.some(([name, role]) => name === 'scrollIntoView' && role === 'user'),
     true
   );
   assert.equal(
-    callsBeforeSearchResolution.some(([name, role]) => name === 'addMessageToUI' && role === 'model'),
-    false
+    harness.calls.some(([name, role]) => name === 'addMessageToUI' && role === 'model'),
+    true
   );
+  assert.equal(prepared.webSearchEnabled, true);
+  assert.equal(harness.conversation.isWebSearchEnabled, false);
 });
 
 test('empty submit does not enter generating state or response lifecycle', async () => {

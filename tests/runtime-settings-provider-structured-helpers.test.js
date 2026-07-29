@@ -114,41 +114,8 @@ test('callApiWithSchema preserves missing-key boundary without issuing a request
   assert.equal(logs[0][0], 'error');
 });
 
-test('shouldPerformWebSearch sends Gemini key through header and parses yes/no decision', async () => {
-  const { helpers, requests } = createHarness({
-    response: {
-      json: async () => ({
-        candidates: [
-          { content: { parts: [{ text: ' yes ' }] } }
-        ]
-      })
-    }
-  });
+test('structured helpers do not expose a model-backed auto-search classifier', () => {
+  const { helpers } = createHarness();
 
-  const result = await helpers.shouldPerformWebSearch('Latest release notes?');
-
-  assert.equal(result, true);
-  assert.equal(requests.length, 1);
-  assert.match(requests[0].url, /\/cheap-model:generateContent$/);
-  assert.equal(requests[0].url.includes('?key='), false);
-  assert.equal(requests[0].url.includes('gemini-secret-key'), false);
-  assert.deepEqual(requests[0].options.headers, {
-    'Content-Type': 'application/json',
-    'x-goog-api-key': 'gemini-secret-key'
-  });
-  assert.deepEqual(requests[0].options.signal, { timeoutMs: 3000 });
-});
-
-test('shouldPerformWebSearch preserves missing-key boundary without issuing a request', async () => {
-  const { helpers, requests, logs } = createHarness({
-    dependencies: {
-      getApiKeyForProvider: () => ''
-    }
-  });
-
-  const result = await helpers.shouldPerformWebSearch('Latest release notes?');
-
-  assert.equal(result, false);
-  assert.equal(requests.length, 0);
-  assert.equal(logs[0][0], 'warn');
+  assert.equal('shouldPerformWebSearch' in helpers, false);
 });

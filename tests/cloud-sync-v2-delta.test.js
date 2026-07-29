@@ -37,6 +37,7 @@ const encodedWorkspace = () => ({
     conversation_id: 'conversation-1',
     role: 'user',
     parts: [{ text: 'Hello' }],
+    metadata: {},
     status: 'complete',
     sequence: 0,
     created_at: '2026-07-15T00:00:00.000Z',

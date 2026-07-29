@@ -1,3 +1,5 @@
+import { shouldAutoEnableWebSearch } from '../../runtime/features/auto-web-search.js';
+
 export function createSubmitInputPreparationLifecycle({
   elements,
   getAbortController,
@@ -18,7 +20,6 @@ export function createSubmitInputPreparationLifecycle({
   generateTitleAndSummary,
   saveAppData,
   getAutoWebSearchEnabled,
-  shouldPerformWebSearch,
   canAutoEnableWebSearch = () => true,
   getAutoSearchNotice,
   renderInputIndicators,
@@ -99,10 +100,6 @@ export function createSubmitInputPreparationLifecycle({
     }
 
     const responseUsesCouncil = isCouncilEnabled(conversation);
-    if (responseUsesCouncil && !conversation.isWebSearchEnabled) {
-      showNotification(getCouncilRuntimeTexts().searchManualNotice, 'warning');
-    }
-
     const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
     const userMessageDiv = addMessageToUI(userMessageObject, conversation.messages.length, true);
     requestFrame(() => {
@@ -131,17 +128,12 @@ export function createSubmitInputPreparationLifecycle({
       await saveAppData();
     }
 
-    if (!responseUsesCouncil && getAutoWebSearchEnabled() && canAutoEnableWebSearch(conversation) && !conversation.isWebSearchEnabled) {
-      try {
-        const needsSearch = await shouldPerformWebSearch(userMessage);
-        if (needsSearch) {
-          conversation.isWebSearchEnabled = true;
-          showNotification(getAutoSearchNotice(), 'warning');
-        }
-        renderInputIndicators();
-      } catch (error) {
-        console.error('Auto web search check failed:', error);
-      }
+    const autoWebSearchEnabled = !conversation.isWebSearchEnabled
+      && getAutoWebSearchEnabled()
+      && canAutoEnableWebSearch(conversation)
+      && shouldAutoEnableWebSearch(userMessage);
+    if (autoWebSearchEnabled) {
+      showNotification(getAutoSearchNotice(), 'warning');
     }
 
     const loadingParts = isImageConversation(conversation)
@@ -165,6 +157,7 @@ export function createSubmitInputPreparationLifecycle({
       loadingMessageDiv,
       responseUsesCouncil,
       shouldContinue: true,
+      webSearchEnabled: Boolean(conversation.isWebSearchEnabled || autoWebSearchEnabled),
       userMessage,
       userMessageObject,
       userParts

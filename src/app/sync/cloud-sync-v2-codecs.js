@@ -93,6 +93,17 @@ function conversationMetadata(conversation = {}) {
   };
 }
 
+function messageMetadata(message = {}) {
+  const historySourceConversationIds = [...new Set(
+    (Array.isArray(message?.metadata?.historySourceConversationIds)
+      ? message.metadata.historySourceConversationIds
+      : [])
+      .map((id) => String(id || '').trim())
+      .filter(isUuid)
+  )].slice(0, 3);
+  return historySourceConversationIds.length > 0 ? { historySourceConversationIds } : {};
+}
+
 function folderFromRow(row = {}, conversationIds = []) {
   return {
     id: row.id,
@@ -133,13 +144,15 @@ function conversationFromRow(row = {}, messages = []) {
 }
 
 function messageFromRow(row = {}) {
+  const metadata = messageMetadata({ metadata: row.metadata });
   return {
     id: row.id,
     role: MESSAGE_ROLES.has(row.role) ? row.role : 'model',
     parts: Array.isArray(row.parts) ? row.parts : [],
     status: row.status === 'error' ? 'error' : 'complete',
     createdAt: canonicalizeTimestamp(row.created_at) || new Date(0).toISOString(),
-    deletedAt: row.deleted_at || null
+    deletedAt: row.deleted_at || null,
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {})
   };
 }
 
@@ -319,6 +332,7 @@ export async function encodeConversationShadow({
       conversation_id: conversation.id,
       role,
       parts,
+      metadata: messageMetadata(message),
       status: MESSAGE_STATUSES.has(message.status)
         ? message.status
         : message.error ? 'error' : 'complete',

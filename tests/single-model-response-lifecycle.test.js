@@ -49,7 +49,7 @@ const createHarness = ({
       calls.push(['stop-ticker', ticker?.id ?? null]);
     },
     buildSingleModelTranslatedRequestParts: async (...args) => {
-      calls.push(['translate', args[0]]);
+      calls.push(['translate', args[0], args[4]]);
       args[3]?.('translation', 'Preparing translated packet');
       return translatedParts ?? args[0];
     },
@@ -99,12 +99,13 @@ test('realtime lifecycle prepares translations, streams chunks, and returns fina
 
   assert.equal(result.fullResponse, 'Hello Astra');
   assert.equal(result.responseRenderedInRealtime, true);
-  assert.deepEqual(calls.find((call) => call[0] === 'api').slice(1), [
-    translatedParts,
-    signal,
-    false,
-    { modelInfo: { id: 'model', name: 'Model' } }
-  ]);
+  const apiCall = calls.find((call) => call[0] === 'api');
+  assert.equal(apiCall[1], translatedParts);
+  assert.equal(apiCall[2], signal);
+  assert.equal(apiCall[3], false);
+  assert.deepEqual(apiCall[4].modelInfo, { id: 'model', name: 'Model' });
+  assert.equal(apiCall[4].webSearchEnabled, false);
+  assert.equal(typeof apiCall[4].onMemoryContextResolved, 'function');
   assert.deepEqual(calls.find((call) => call[0] === 'stream-render-finish')[1], [
     'Hello',
     ' Astra'
@@ -130,6 +131,23 @@ test('buffered lifecycle accumulates provider text without invoking realtime ren
   assert.equal(calls.some((call) => call[0] === 'stream-render-start'), false);
   assert.ok(calls.some((call) => call[0] === 'render-progress' && call[1] === 'streaming'));
   assert.ok(calls.some((call) => call[0] === 'stop-ticker'));
+});
+
+test('request-scoped search reaches both translation and provider request options', async () => {
+  const { calls, lifecycle, signal, targetElement } = createHarness({ outputMode: 'playback' });
+
+  await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'What is the weather today?' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: false },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+
+  assert.deepEqual(calls.find((call) => call[0] === 'translate')[2], { webSearchEnabled: true });
+  assert.equal(calls.find((call) => call[0] === 'api')[4].webSearchEnabled, true);
 });
 
 test('empty provider responses preserve the current localized failure boundary', async () => {

@@ -387,6 +387,21 @@ test('Gemini requests preserve native payload, headers, web search, and partial 
   assert.equal(warnings[0].at(-1), '{"candidates":[}');
 });
 
+test('Gemini request-scoped web search works without mutating conversation search state', async () => {
+  const { streamApiCall, requests, conversation } = createHarness({
+    provider: 'gemini',
+    conversation: { isWebSearchEnabled: false }
+  });
+
+  await streamApiCall([{ text: 'What is the weather today?' }], () => {}, undefined, false, {
+    webSearchEnabled: true
+  });
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.deepEqual(payload.tools, [{ googleSearch: {} }]);
+  assert.equal(conversation.isWebSearchEnabled, false);
+});
+
 test('Gemini 3.6 Flash omits deprecated sampling parameters', async () => {
   const { streamApiCall, requests } = createHarness({
     provider: 'gemini',

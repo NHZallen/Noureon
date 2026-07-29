@@ -325,7 +325,7 @@ test('structured provider helpers are composed through injected key access', () 
   assert.match(source, /getApiKeyForProvider,/);
   assert.match(source, /readErrorBody,/);
   assert.match(source, /cheapModelId:\s*CHEAP_MODEL_ID/);
-  assert.match(source, /callApiWithSchema,\s*\n\s*shouldPerformWebSearch/);
+  assert.match(source, /const\s*\{\s*\n\s*callApiWithSchema\s*\n\s*\}\s*=\s*structuredHelpers/);
 });
 
 test('history menu helper is composed while preserving lifecycle alias', () => {
@@ -471,7 +471,6 @@ test('factory exposes settings auth provider lifecycle API', () => {
     'streamApiCall',
     'runModelCouncil',
     'callApiWithSchema',
-    'shouldPerformWebSearch',
     'generateTitleAndSummary',
     'updateSubmitButtonState',
     'updateInputState',
@@ -559,35 +558,11 @@ test('settings config proxy reads and mutates the latest state config pointer', 
   assert.equal(calls.includes('saveConfig'), true);
 });
 
-test('shouldPerformWebSearch sends Gemini key through header instead of URL query', async () => {
-  const requests = [];
-  const { dependencies } = createDependencies({
-    getApiKeyForProvider: (provider) => provider === 'gemini' ? 'gemini-secret-key' : '',
-    fetch: async (url, options) => {
-      requests.push({ url, options });
-      return {
-        ok: true,
-        json: async () => ({
-          candidates: [
-            { content: { parts: [{ text: 'yes' }] } }
-          ]
-        })
-      };
-    }
-  });
+test('settings lifecycle leaves auto-search classification out of the Gemini helper boundary', () => {
+  const { dependencies } = createDependencies();
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
 
-  const result = await lifecycle.shouldPerformWebSearch('Latest release notes?');
-
-  assert.equal(result, true);
-  assert.equal(requests.length, 1);
-  assert.match(requests[0].url, /\/cheap:generateContent$/);
-  assert.equal(requests[0].url.includes('?key='), false);
-  assert.equal(requests[0].url.includes('gemini-secret-key'), false);
-  assert.deepEqual(requests[0].options.headers, {
-    'Content-Type': 'application/json',
-    'x-goog-api-key': 'gemini-secret-key'
-  });
+  assert.equal('shouldPerformWebSearch' in lifecycle, false);
 });
 
 test('generateTitleAndSummary keeps conversation side effects in lifecycle', async () => {
