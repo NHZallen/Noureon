@@ -91,6 +91,34 @@ test('returns a matching media description as model-readable historical context'
   assert.deepEqual(results[0].sourceIds, ['photo-message']);
 });
 
+test('returns an indexed conversation detail fragment instead of reducing it to the chat capsule', async () => {
+  const index = createHistoryIndexStore();
+  index.put({
+    recordId: 'fragment:old-chat:0',
+    recordType: 'conversation-fragment',
+    conversationId: 'old-chat',
+    sourceHash: 'old-hash',
+    vector: [1, 0],
+    normalizedKeywords: ['openclaw vps nuc'],
+    snippet: 'User: I plan to deploy OpenClaw on a VPS.\nAssistant: A small VPS is not suitable; use the NUC for the local workload.',
+    sourceIds: ['old-user', 'old-assistant']
+  });
+  const service = createHistoryRetrievalService({
+    index,
+    embeddingClient: { embedHistoryQuery: async () => [1, 0] },
+    getMemoryState: () => ({})
+  });
+
+  const results = await service.retrieve({
+    currentMessage: { parts: [{ text: 'Is that OpenClaw CLI still suitable for a VPS?' }] },
+    conversation: { id: 'current-chat' }
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].summary, 'User: I plan to deploy OpenClaw on a VPS.\nAssistant: A small VPS is not suitable; use the NUC for the local workload.');
+  assert.deepEqual(results[0].sourceIds, ['old-user', 'old-assistant']);
+});
+
 test('uses the model resolver only for unresolved fragments and requires high confidence', async () => {
   const index = createHistoryIndexStore();
   index.put({ recordId: 'capsule:old', capsuleId: 'old', conversationId: 'old-chat', vector: [1, 0] });

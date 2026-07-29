@@ -46,7 +46,9 @@ export function createHistoryRetrievalService({
   resolveQuery = resolveHistoryQuery,
   modelQueryResolver = null,
   minimumScore = 0.45,
-  limit = 3
+  candidateLimit = 24,
+  maxResults = Infinity,
+  maxCharacters = 6000
 } = {}) {
   if (typeof index?.queryHybrid !== 'function') {
     throw new TypeError('History retrieval requires a history index store.');
@@ -87,14 +89,24 @@ export function createHistoryRetrievalService({
         keywords,
         entities: keywords,
         excludeConversationId: conversation.id,
-        limit
+        limit: candidateLimit
       });
       const capsules = asArray(getMemoryState()?.conversationCapsules);
       const mediaMemories = asArray(getMemoryState()?.mediaMemories);
 
-      return matches
+      const results = matches
         .filter(match => match.score >= minimumScore)
         .map(match => {
+          if (match.recordType === 'conversation-fragment') {
+            if (!match.snippet) return null;
+            return {
+              recordId: match.recordId,
+              conversationId: match.conversationId,
+              summary: match.snippet,
+              sourceIds: asArray(match.sourceIds),
+              score: match.score
+            };
+          }
           if (match.recordType === 'media-memory') {
             const media = mediaMemories.find(item => item.id === match.mediaMemoryId);
             if (!media?.summary) return null;
@@ -117,6 +129,12 @@ export function createHistoryRetrievalService({
           };
         })
         .filter(Boolean);
+      let usedCharacters = 0;
+      return results.filter(result => {
+        if (usedCharacters >= maxCharacters || usedCharacters + result.summary.length > maxCharacters) return false;
+        usedCharacters += result.summary.length;
+        return true;
+      }).slice(0, maxResults);
     }
   };
 }

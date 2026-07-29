@@ -114,6 +114,7 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
     tavilySearchDepth: 'advanced',
     defaultModel: 'missing-default',
     lastUsedModel: 'legacy-nvidia-id',
+    memoryModelId: 'image-only',
     modelSettings: [
       { id: 'legacy-nvidia-id', hidden: true, order: 4 },
       { id: 'missing', hidden: false, order: 0 },
@@ -152,6 +153,7 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
   assert.equal(normalized.tavilySearchDepth, 'advanced');
   assert.equal(normalized.defaultModel, 'gemini-default');
   assert.equal(normalized.lastUsedModel, 'nvidia-modern');
+  assert.equal(normalized.memoryModelId, 'gemini-default');
   assert.deepEqual(normalized.modelSettings.map(setting => [setting.id, setting.order, setting.hidden]), [
     ['gemini-default', 0, false],
     ['openrouter-pro', 1, false],
@@ -194,6 +196,7 @@ test('null saved config returns a normalized object without replacing current in
   assert.equal(currentConfig.defaultModel, 'legacy-nvidia-id');
   assert.equal(normalized.defaultModel, 'nvidia-modern');
   assert.equal(normalized.lastUsedModel, 'gemini-default');
+  assert.equal(normalized.memoryModelId, 'gemini-default');
   assert.deepEqual(normalized.modelSettings.map(setting => setting.id), [
     'gemini-default',
     'openrouter-pro',

@@ -140,6 +140,9 @@ export function createCloudWorkspaceLiveLifecycle({
   getActiveConversation = () => null,
   hydrateConversation = conversation => window?.__astraCloudAssets?.hydrateConversation?.(conversation),
   onActiveConversationUnavailable = () => {},
+  onRemoteConversationsApplied = () => {},
+  onRemoteConversationsPermanentlyDeleted = () => {},
+  onMemorySyncApplied = () => {},
   saveAppData = async () => {},
   busy = () => false,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
@@ -274,12 +277,21 @@ export function createCloudWorkspaceLiveLifecycle({
       liveSnapshot.astras || [],
       protectedRemote.astras || []
     );
+    const conversationsChanged = !cloudValuesEqual(
+      liveSnapshot.conversations || [],
+      protectedRemote.conversations || []
+    );
     appDataStore.replaceAll({
       conversations: preserveItemIdentity(current.conversations, protectedRemote.conversations),
       folders: protectedRemote.folders,
       astras: protectedRemote.astras,
       personalMemories: protectedRemote.personalMemories
     });
+    const permanentMemoryPurge = tombstoneIndex.conversations.size > 0
+      ? Promise.resolve(onRemoteConversationsPermanentlyDeleted({
+        conversationIds: [...tombstoneIndex.conversations]
+      })).catch(error => logger.warn('Memory summary could not remove cloud-deleted conversations.', error))
+      : Promise.resolve();
     const committedActiveConversation = activeConversationId
       ? appDataStore.getConversations().find(conversation => conversation?.id === activeConversationId)
       : null;
@@ -290,6 +302,12 @@ export function createCloudWorkspaceLiveLifecycle({
       });
     }
     renderWorkspaceChanges({ sidebarChanged, activeConversationChanged, controlsChanged });
+    if (conversationsChanged) {
+      void permanentMemoryPurge.then(() => Promise.resolve(onRemoteConversationsApplied({
+        conversations: appDataStore.getConversations(),
+        options
+      }))).catch(error => logger.warn('Memory summary could not refresh after a cloud conversation update.', error));
+    }
     requestActiveConversationHydration();
   };
 
@@ -325,11 +343,16 @@ export function createCloudWorkspaceLiveLifecycle({
     const visibleConfigChanged = changedSyncedKeys.length > 0;
     configAccess.replaceConfig(normalizedConfig);
     if (normalizedConfig.memorySync) {
-      appDataStore.replaceMemoryState(mergeSyncedMemoryState(
+      const mergedMemoryState = mergeSyncedMemoryState(
         appDataStore.getMemoryState?.() || {},
         normalizedConfig.memorySync
-      ));
+      );
+      appDataStore.replaceMemoryState(mergedMemoryState);
       void saveAppData();
+      if (mergedMemoryState.memorySummary?.needsRefresh === true) {
+        void Promise.resolve(onMemorySyncApplied(mergedMemoryState.memorySummary))
+          .catch(error => logger.warn('Memory summary could not reconcile a sync merge.', error));
+      }
     }
     if (appearanceChanged) {
       applyCustomWallpaper();

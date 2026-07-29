@@ -2,7 +2,23 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createHistoryIndexStore } from '../src/app/runtime/memory/history-index-store.js';
-import { createHistoryIndexingService } from '../src/app/runtime/memory/history-indexing-service.js';
+import {
+  buildConversationFragments,
+  createHistoryIndexingService
+} from '../src/app/runtime/memory/history-indexing-service.js';
+
+test('splits complete conversational detail into local, source-linked fragments', () => {
+  const fragments = buildConversationFragments([
+    { id: 'user-1', role: 'user', text: 'Explain whether this CLI suits a VPS deployment.' },
+    { id: 'assistant-1', role: 'model', text: 'It may be a poor fit for a small VPS because it needs an interactive local environment.' },
+    { id: 'user-2', role: 'user', text: 'Would a NUC change that recommendation?' }
+  ], { maxCharacters: 140 });
+
+  assert.ok(fragments.length >= 2);
+  assert.match(fragments.map(fragment => fragment.text).join('\n'), /small VPS/);
+  assert.match(fragments.map(fragment => fragment.text).join('\n'), /NUC/);
+  assert.deepEqual(fragments[0].sourceIds, ['user-1']);
+});
 
 test('indexes a changed conversation capsule once and persists the local index', async () => {
   const documents = [];
@@ -85,4 +101,43 @@ test('replaces legacy random capsule records with one stable conversation record
   });
 
   assert.deepEqual(index.getAll().map(record => record.recordId), ['capsule:chat-1']);
+});
+
+test('indexes complete conversation fragments locally and replaces stale fragments', async () => {
+  const index = createHistoryIndexStore();
+  const embedded = [];
+  const service = createHistoryIndexingService({
+    index,
+    embeddingClient: {
+      embedHistoryDocument: async input => { embedded.push(input); return [1, 0]; }
+    }
+  });
+  const turns = [
+    { id: 'user-1', role: 'user', text: 'The VPS has 2GB RAM and the OpenClaw command fails after setup.' },
+    { id: 'assistant-1', role: 'model', text: 'Use the NUC for the local agent workload and keep the VPS for lightweight services.' }
+  ];
+
+  const first = await service.indexConversationFragments({
+    conversationId: 'chat-1', turns, sourceHash: 'hash-1', updatedAt: '2026-07-29T00:00:00.000Z'
+  });
+  const second = await service.indexConversationFragments({
+    conversationId: 'chat-1', turns, sourceHash: 'hash-1'
+  });
+
+  assert.deepEqual(first, { indexed: true, count: 1 });
+  assert.deepEqual(second, { indexed: false, reason: 'unchanged-source', count: 1 });
+  assert.equal(embedded.length, 1);
+  assert.deepEqual(index.getAll().find(record => record.recordId === 'fragment:chat-1:0'), {
+    recordId: 'fragment:chat-1:0',
+    recordType: 'conversation-fragment',
+    conversationId: 'chat-1',
+    fragmentIndex: 0,
+    sourceHash: 'hash-1',
+    vector: [1, 0],
+    normalizedKeywords: ['user: the vps has 2gb ram and the openclaw command fails after setup.\nassistant: use the nuc for the local agent workload and keep the vps for lightweight services.'],
+    entities: [],
+    snippet: 'User: The VPS has 2GB RAM and the OpenClaw command fails after setup.\nAssistant: Use the NUC for the local agent workload and keep the VPS for lightweight services.',
+    sourceIds: ['user-1', 'assistant-1'],
+    updatedAt: '2026-07-29T00:00:00.000Z'
+  });
 });

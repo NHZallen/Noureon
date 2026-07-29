@@ -107,3 +107,22 @@ test('drops identity and assistant-meta long-term summaries during normalization
 
   assert.deepEqual(state.longTermTopicSummaries.map(summary => summary.id), ['project']);
 });
+
+test('migrates the former single summary into a stale display overview without blocking refresh', () => {
+  const state = normalizeMemoryState({
+    memoryState: {
+      version: MEMORY_SCHEMA_VERSION,
+      memorySummary: {
+        overview: 'Existing memory.',
+        sections: [{ id: 'deployment', title: 'Deployment', content: 'Use the NUC.' }],
+        status: 'pending',
+        updatedAt: '2026-07-29T00:00:00.000Z'
+      }
+    }
+  });
+
+  assert.equal(state.memorySummary.status, 'pending');
+  assert.equal(state.memoryOverview.overview, 'Existing memory.');
+  assert.equal(state.memoryOverview.needsRefresh, true);
+  assert.equal(state.memoryOverview.status, 'idle');
+});

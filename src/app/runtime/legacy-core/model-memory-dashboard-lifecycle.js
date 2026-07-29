@@ -91,6 +91,9 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         const renderPersonalMemoryList = () => {
             syncState();
             const container = ALL_ELEMENTS.personalMemoryList;
+            // v3 replaces the legacy approval list with the concise Memory Summary surface.
+            // Keep this compatibility entry point harmless for older bootstrap callers.
+            if (!container || container.isConnected === false) return;
             const addMemoryButton = document.getElementById('add-personal-memory-btn');
             if (addMemoryButton && addMemoryButton.nextElementSibling !== container) {
                 addMemoryButton.classList.remove('mt-4');
@@ -539,13 +542,22 @@ ${JSON.stringify(potentialMemories, null, 2)}
                 const coveredIndex = previousState?.coveredThroughMessageId
                     ? allTurns.findIndex(turn => turn.id === previousState.coveredThroughMessageId)
                     : -1;
-                const turns = allTurns.slice(coveredIndex + 1);
-                if (turns.length === 0) return;
-                const sourceHash = await hashString(JSON.stringify(turns));
+                const sourceHash = await hashString(JSON.stringify(allTurns));
+                const appendedTurns = allTurns.slice(coveredIndex + 1);
+                // An unchanged tail means that an already-captured message was edited.
+                // Send the full conversation in that case so the current-state summary
+                // can replace the outdated interpretation instead of silently retaining it.
+                const captureTurns = appendedTurns.length > 0
+                    ? appendedTurns
+                    : previousState?.sourceHash && previousState.sourceHash !== sourceHash
+                        ? allTurns
+                        : [];
+                if (captureTurns.length === 0) return;
                 const captureOptions = {
                     conversationId: conversation.id,
                     sourceHash,
-                    turns
+                    turns: allTurns,
+                    captureTurns
                 };
                 if (typeof enqueueMemoryCapture === 'function') enqueueMemoryCapture(captureOptions);
                 else await captureCompletedTurn(captureOptions);

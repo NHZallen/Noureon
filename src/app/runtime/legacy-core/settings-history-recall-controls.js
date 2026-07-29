@@ -93,7 +93,9 @@ export function createSettingsHistoryRecallControls({
         <button id="audit-history-index-button" type="button" class="px-3 py-1.5 rounded-md btn-outline-white text-sm" data-lang-key="historyRecallAuditIndex">${getText('historyRecallAuditIndex', '檢查本機索引')}</button>
       </div>
     `;
-    const autoMemoryRow = elements.autoMemoryToggleSwitch?.closest?.('.flex.items-center.justify-between');
+    const autoMemoryRow = elements.autoMemoryToggleSwitch?.isConnected
+      ? elements.autoMemoryToggleSwitch.closest?.('.flex.items-center.justify-between')
+      : null;
     if (autoMemoryRow?.after) autoMemoryRow.after(container);
     else section.appendChild(container);
     elements.historyRecallToggleSwitch = container.querySelector('#history-recall-toggle-switch');

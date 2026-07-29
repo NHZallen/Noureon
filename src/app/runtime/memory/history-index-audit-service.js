@@ -42,6 +42,19 @@ export function createHistoryIndexAuditService({
     let outdated = 0;
     const orphanRecordIds = new Set();
 
+    // Conversation fragments are the detailed-history retrieval records. They do
+    // not have a stable, single record ID like capsules do, so retain every
+    // fragment belonging to a live conversation during an audit. A subsequent
+    // capture replaces stale fragments for that conversation atomically.
+    for (const record of records) {
+      if (
+        record?.recordType === 'conversation-fragment' &&
+        conversations.some(item => item.conversation.id === record.conversationId)
+      ) {
+        expectedRecordIds.add(record.recordId);
+      }
+    }
+
     for (const { conversation, turns } of conversations) {
       const sourceHash = await hashString(JSON.stringify(turns));
       const capsule = asArray(memoryState.conversationCapsules).find(item => item?.conversationId === conversation.id);

@@ -11,6 +11,8 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     autoNaming: true,
     lastUsedModel: null,
     memorySystemVersion: 2,
+    // Memory work deliberately has its own model. It must never inherit the active chat model.
+    memoryModelId: 'gemini-3.5-flash-lite',
     memoryProfileEnabled: true,
     historyRecallEnabled: false,
     memorySync: { version: 1, profileEntries: [], profileCandidates: [], resolvedProfileCandidateIds: [], resolvedTopicSummaryIds: [], suppressionRules: [], longTermTopicSummaries: [] },

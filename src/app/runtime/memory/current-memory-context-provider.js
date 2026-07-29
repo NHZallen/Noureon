@@ -1,6 +1,10 @@
 import { buildMemoryContext } from './memory-context-builder.js';
 
 const asArray = value => Array.isArray(value) ? value : [];
+const messageText = message => asArray(message?.parts)
+  .map(part => String(part?.text || '').trim())
+  .filter(Boolean)
+  .join('\n');
 
 export function createCurrentMemoryContextProvider({
   getMemoryState,
@@ -16,7 +20,12 @@ export function createCurrentMemoryContextProvider({
       .find(state => state?.conversationId === conversation.id);
     const buildContext = historyResults => buildMemoryContext({
       currentChatSummary: recentState?.recentTurnSummary || conversation.recentTurnSummary || '',
-      profileEntries: config.memoryProfileEnabled === false
+      memorySummary: memoryState.memorySummary || {},
+      currentMessageText: messageText(currentMessage),
+      // V2 profile rows can contain an older interpretation of the user. Once
+      // the fresh summary exists, it is the single global-memory source that
+      // may guide an answer; exact old details come from history retrieval.
+      profileEntries: config.memoryProfileEnabled === false || memoryState.memorySummary
         ? []
         : memoryState.profileEntries,
       historyResults,

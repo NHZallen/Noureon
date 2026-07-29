@@ -106,7 +106,7 @@ const buildSystemInstruction = async ({
   let baseInstructionText = LANGUAGE_INSTRUCTIONS[config.aiDefaultLanguage] || '';
   let hasAstraInstructions = false;
 
-  if (conversation.astrasId) {
+  if (conversation?.astrasId) {
     const astra = astras.find((item) => item.id === conversation.astrasId);
     if (astra) {
       baseInstructionText = `${astra.instructions}\n\n${baseInstructionText}`;
@@ -534,7 +534,13 @@ export function createStreamApiCall({
     isWebSearchForced = false,
     requestOptions = {}
   ) {
-    const conversation = getActiveConversation();
+    const activeConversation = getActiveConversation();
+    const conversation = requestOptions.conversation || activeConversation || {
+      messages: [],
+      astrasId: null,
+      isWebSearchEnabled: false,
+      genConfig: null
+    };
     const modelInfo = requestOptions.modelInfo || normalizeConversationModel(conversation);
     if (!modelInfo) throw new Error(`找不到模型設定: ${conversation.model}`);
 
@@ -545,7 +551,7 @@ export function createStreamApiCall({
       throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
     }
 
-    const historyForApi = requestOptions.historyForApi || conversation.messages.slice(0, -1);
+    const historyForApi = requestOptions.historyForApi || (conversation.messages || []).slice(0, -1);
     const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;
@@ -555,7 +561,7 @@ export function createStreamApiCall({
       : null;
     const config = getConfig();
     let memoryContext = null;
-    if (config.memorySystemVersion === 2) {
+    if (!requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
       try {
         memoryContext = await getMemoryContext({
           config,
@@ -574,7 +580,7 @@ export function createStreamApiCall({
     );
     const systemInstruction = await buildSystemInstruction({
       config,
-      conversation,
+      conversation: requestOptions.skipConversationSystemContext ? { astrasId: null } : conversation,
       astras: getAstras(),
       personalMemories: getPersonalMemories(),
       memoryContext,

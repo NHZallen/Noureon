@@ -107,3 +107,23 @@ test('retains source conversation ids for the UI without placing them in the mod
   assert.equal(context.historyResults[0].conversationId, '11111111-1111-4111-8111-111111111111');
   assert.doesNotMatch(formatMemoryContextForModel(context), /11111111-1111-4111-8111-111111111111|history-record|message-id/);
 });
+
+test('selects fresh relevant summary sections and makes manual updates authoritative to the answer model', () => {
+  const context = buildMemoryContext({
+    currentMessageText: 'Is this CLI a good fit for my VPS?',
+    memorySummary: {
+      overview: 'The user prefers practical deployment advice.',
+      sections: [
+        { title: 'Deployment', content: 'Use the NUC for local agent workloads; keep VPS services lightweight.', authority: 'manual', updatedAt: '2026-07-29T00:00:00.000Z' },
+        { title: 'Image workflow', content: 'The device has 8GB VRAM.', updatedAt: '2026-07-28T00:00:00.000Z' }
+      ]
+    }
+  });
+  const formatted = formatMemoryContextForModel(context);
+
+  assert.equal(context.memorySummary.sections[0].authority, 'manual');
+  assert.match(formatted, /Fresh user memory summary/);
+  assert.match(formatted, /User-authoritative update — Deployment/);
+  assert.match(formatted, /keep VPS services lightweight/);
+  assert.doesNotMatch(formatted, /memory-summary:|updatedAt/);
+});

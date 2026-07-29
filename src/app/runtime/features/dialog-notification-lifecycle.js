@@ -60,7 +60,7 @@ export function createDialogNotificationLifecycle({
       elements.customDialogMessage.textContent = message;
       if (input) {
         elements.customDialogInput.type = input.type || 'text';
-        elements.customDialogInput.value = '';
+        elements.customDialogInput.value = input.value || '';
         elements.customDialogInput.placeholder = input.placeholder || '';
         elements.customDialogInputContainer.classList.remove('hidden');
       } else {

@@ -28,7 +28,7 @@ export function createHistoryIndexRebuildService({
   if (typeof hashString !== 'function') throw new TypeError('History index rebuild requires hashString.');
 
   return {
-    async rebuild({ signal, onProgress = () => {} } = {}) {
+    async rebuild({ signal, onProgress = () => {}, forceCapture = false } = {}) {
       const conversations = asArray(getConversations())
         .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
         .map(conversation => ({ conversation, turns: toTurns(conversation) }))
@@ -45,7 +45,7 @@ export function createHistoryIndexRebuildService({
           const sourceHash = await hashString(JSON.stringify(turns));
           const recentState = asArray(getMemoryState()?.recentConversationStates)
             .find(state => state?.conversationId === conversation.id);
-          if (recentState?.sourceHash === sourceHash && hasIndexedSource({
+          if (!forceCapture && recentState?.sourceHash === sourceHash && hasIndexedSource({
             conversationId: conversation.id,
             sourceHash
           })) {
@@ -57,7 +57,8 @@ export function createHistoryIndexRebuildService({
               turns,
               signal,
               collectProfileCandidates: false,
-              allowTopicSummary: false
+              allowTopicSummary: false,
+              forceCapture
             });
             if (result?.captured) indexed += 1;
             else skipped += 1;

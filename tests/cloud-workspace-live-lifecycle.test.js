@@ -322,6 +322,41 @@ test('record-level cloud commit removes tombstoned local entities before merging
   assert.deepEqual(appDataStore.getAstras(), []);
 });
 
+test('record-level cloud tombstones request removal from the fresh memory summary', async () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({
+    initialConversations: [{ id: 'deleted-conversation', messages: [] }]
+  });
+  const removed = [];
+
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => ({}) },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyCustomWallpaper: () => {},
+    applyUiTheme: () => {},
+    renderAll: () => {},
+    onRemoteConversationsPermanentlyDeleted: async ({ conversationIds }) => removed.push(...conversationIds)
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-workspace-committed', {
+    workspace: { conversations: [], folders: [], astras: [], personalMemories: [] },
+    tombstones: { conversationIds: ['deleted-conversation'], folderIds: [], astraIds: [] }
+  });
+  await Promise.resolve();
+
+  assert.deepEqual(removed, ['deleted-conversation']);
+});
+
 test('record-level cloud commit waits for runtime readiness and keeps its tombstones', () => {
   const window = createWindowFixture();
   const appDataStore = createLegacyRuntimeAppDataStore({

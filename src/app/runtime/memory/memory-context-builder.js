@@ -1,5 +1,33 @@
 const asArray = value => Array.isArray(value) ? value : [];
 
+const termPattern = /[\p{L}\p{N}_-]{2,}/gu;
+const termsFor = value => new Set((String(value || '').match(termPattern) || [])
+  .map(term => term.toLocaleLowerCase()));
+const overlapScore = (left, right) => {
+  if (left.size === 0 || right.size === 0) return 0;
+  let score = 0;
+  for (const term of left) if (right.has(term)) score += 1;
+  return score;
+};
+const timestamp = value => Date.parse(value || '') || 0;
+
+export function selectRelevantMemorySummarySections(summary = {}, currentMessageText = '', limit = 5) {
+  const queryTerms = termsFor(currentMessageText);
+  return asArray(summary?.sections)
+    .filter(section => String(section?.content || '').trim())
+    .map(section => ({
+      title: String(section.title || '').trim(),
+      content: String(section.content || '').trim(),
+      state: String(section.state || 'current-state'),
+      authority: section.authority === 'manual' ? 'manual' : 'automatic',
+      score: overlapScore(queryTerms, termsFor(`${section.title || ''}\n${section.content || ''}`)),
+      updatedAt: section.updatedAt
+    }))
+    .sort((left, right) => right.score - left.score || timestamp(right.updatedAt) - timestamp(left.updatedAt))
+    .slice(0, Math.max(0, limit))
+    .map(({ title, content, state, authority }) => ({ title, content, state, authority }));
+}
+
 const isActiveConfirmedEntry = entry => (
   entry?.status === 'active' && entry.confirmedByUser === true
 );
@@ -26,11 +54,14 @@ const isHistoryResultSuppressed = (result, rules) => {
 
 export function buildMemoryContext({
   currentChatSummary = '',
+  memorySummary = {},
+  currentMessageText = '',
   profileEntries = [],
   historyResults = [],
   suppressionRules = [],
   requestedProfileEntryIds = [],
-  historyLimit = 3
+  historyLimit = Infinity,
+  summarySectionLimit = 5
 } = {}) {
   const requestedIds = new Set(asArray(requestedProfileEntryIds));
   const suppressName = isNameSuppressed(suppressionRules);
@@ -44,6 +75,10 @@ export function buildMemoryContext({
 
   return {
     currentChatSummary: String(currentChatSummary || ''),
+    memorySummary: {
+      overview: String(memorySummary?.overview || '').trim(),
+      sections: selectRelevantMemorySummarySections(memorySummary, currentMessageText, summarySectionLimit)
+    },
     instructions: [
       ...(suppressName ? ['Do not use stored names as unsolicited forms of address.'] : []),
       ...suppressionInstructions(suppressionRules)
@@ -65,6 +100,14 @@ export function formatMemoryContextForModel(context = {}) {
   const lines = ['# Permitted memory context'];
   if (context.currentChatSummary) {
     lines.push('', 'Current conversation state:', context.currentChatSummary);
+  }
+  if (context.memorySummary?.overview || asArray(context.memorySummary?.sections).length > 0) {
+    lines.push('', 'Fresh user memory summary (current state, not a history log):');
+    if (context.memorySummary.overview) lines.push(context.memorySummary.overview);
+    lines.push(...asArray(context.memorySummary.sections)
+      .map(section => section.authority === 'manual'
+        ? `- User-authoritative update — ${section.title}: ${section.content}`
+        : `- ${section.title}: ${section.content}`));
   }
   if (asArray(context.instructions).length > 0) {
     lines.push('', 'Memory handling instruction:', ...context.instructions);

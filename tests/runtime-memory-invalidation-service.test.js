@@ -40,3 +40,29 @@ test('editing or deleting a source conversation removes every derived local reco
   assert.deepEqual(memoryState.profileCandidates, []);
   assert.deepEqual(memoryState.longTermTopicSummaries, []);
 });
+
+test('permanent source deletion clears the visible overview and leaves an explicit refresh available', async () => {
+  let memoryState = {
+    memoryEvidence: [{ conversationId: 'deleted-chat', messageId: 'message-1', content: 'Use a NUC.' }],
+    memorySummary: {
+      overview: 'Complete memory.',
+      sections: [{ id: 'automatic', key: 'deployment', title: 'Deployment', content: 'Use a NUC.', sourceConversationIds: ['deleted-chat'], sourceMessageIds: ['message-1'] }]
+    },
+    memoryOverview: {
+      overview: 'Visible deployment summary.',
+      sections: [{ id: 'display', key: 'deployment', title: 'Deployment', content: 'Use a NUC.' }]
+    }
+  };
+  const index = createHistoryIndexStore();
+  const service = createMemoryInvalidationService({
+    index,
+    getMemoryState: () => memoryState,
+    replaceMemoryState: next => { memoryState = next; }
+  });
+
+  await service.invalidateConversation({ conversationId: 'deleted-chat' });
+
+  assert.equal(memoryState.memoryOverview.overview, '');
+  assert.equal(memoryState.memoryOverview.needsRefresh, true);
+  assert.equal(memoryState.memoryOverview.status, 'idle');
+});

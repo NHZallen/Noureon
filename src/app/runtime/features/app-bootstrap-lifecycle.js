@@ -94,6 +94,7 @@ export function createLegacyAppBootstrapLifecycle({
     postJsonWithReadableError,
     setupHistorySidebarInteractions,
     setupHistorySidebarTriggers,
+    requestMemorySummaryBootstrap = () => Promise.resolve({ skipped: true }),
     escapeHTML,
     getDefaultFolder,
     isMobileSettingsViewport,
@@ -205,6 +206,9 @@ export function createLegacyAppBootstrapLifecycle({
                 enhanceSettingsLogoutButton();
                 const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
                 await startNewChat();
+                void requestMemorySummaryBootstrap().catch((error) => {
+                    logger.warn('Memory summary bootstrap could not start.', error);
+                });
                 updateFunctionButtonsState();
                 resolveEventsUpdateInputState();
                 setupVoiceInput();

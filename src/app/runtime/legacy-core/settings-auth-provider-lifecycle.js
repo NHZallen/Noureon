@@ -19,6 +19,8 @@ import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
 import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
+import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
+import { createMemoryModelRunner } from './memory-model-runner.js';
 import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
 
 const requiredDependencies = [
@@ -220,6 +222,7 @@ const streamApiCall = createStreamApiCall({
     getModelReasoningConfig,
     normalizeReasoningEffort
 });
+const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS });
 const providerRequestSupport = createProviderRequestSupport({
     buildTavilySearchQuery,
     formatTavilySearchPacket,
@@ -504,10 +507,27 @@ const {
     bindHistoryIndexAudit,
     bindHistoryIndexStatusUpdates
 } = historyRecallControls;
+const memorySummaryControls = createSettingsMemorySummaryControls({
+    document,
+    models: MODELS,
+    getConfig: () => config,
+    getMemoryState: () => state.memoryState,
+    legacyRuntimeContext,
+    saveConfig,
+    isModelReady: model => Boolean(getApiKeyForProvider?.(model?.provider)),
+    showNotification,
+    showCustomPrompt,
+    showCustomDialog
+});
+const {
+    ensureControls: ensureMemorySummarySettingsControls,
+    render: renderMemorySummary
+} = memorySummaryControls;
 const setupSettingsModal = () => {
     ensureSettingsMobileShell();
     ensureUserSettingsNavigationShell();
     ensureAutoWebSearchSettingsControl();
+    ensureMemorySummarySettingsControls();
     ensureHistoryRecallSettingsControl();
     bindHistoryIndexRebuild();
     bindHistoryIndexAudit({ showCustomDialog });
@@ -524,8 +544,8 @@ const setupSettingsModal = () => {
         ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
         syncOutputModeSettingsControls();
     }
-    ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
-    ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
+    if (ALL_ELEMENTS.memoryToggle1?.isConnected) ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
+    if (ALL_ELEMENTS.autoMemoryToggleSwitch?.isConnected) ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
     if (ALL_ELEMENTS.historyRecallToggleSwitch) {
         ALL_ELEMENTS.historyRecallToggleSwitch.checked = config.historyRecallEnabled === true;
     }
@@ -533,7 +553,7 @@ const setupSettingsModal = () => {
     ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;
     ALL_ELEMENTS.aiLanguageSelect.value = config.aiDefaultLanguage;
     ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
-    renderPersonalMemoryList();
+    renderMemorySummary();
     updateThemeButtons();
     const aiBubbleColorTitle = document.querySelector('h3[data-lang-key="aiBubbleColor"]');
     const aiBubbleColorDropdown = ALL_ELEMENTS.aiBubbleColorDropdown;
@@ -657,6 +677,7 @@ const {
 
     return {
         streamApiCall,
+        runMemoryModel,
         providerRequestSupport,
         councilResponseLifecycle,
         buildSingleModelTranslatedRequestParts,

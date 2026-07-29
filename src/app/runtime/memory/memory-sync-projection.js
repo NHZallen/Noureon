@@ -32,6 +32,87 @@ const mergeRules = (local = [], remote = []) => {
   return [...rules.values()];
 };
 
+const mergeMemorySummary = (local, remote) => {
+  if (!remote || typeof remote !== 'object') return local;
+  if (!local || typeof local !== 'object') return remote;
+  const preferred = timestamp(remote.updatedAt) >= timestamp(local.updatedAt) ? remote : local;
+  const sectionsByKey = new Map();
+  for (const section of [...asArray(local.sections), ...asArray(remote.sections)]) {
+    const key = String(section?.key || section?.id || '').trim();
+    if (!key) continue;
+    const existing = sectionsByKey.get(key);
+    if (!existing) {
+      sectionsByKey.set(key, section);
+      continue;
+    }
+    const existingManual = existing.authority === 'manual';
+    const incomingManual = section.authority === 'manual';
+    if ((incomingManual && !existingManual)
+      || (incomingManual === existingManual && timestamp(section.updatedAt) >= timestamp(existing.updatedAt))) {
+      sectionsByKey.set(key, section);
+    }
+  }
+  return {
+    ...preferred,
+    sections: [...sectionsByKey.values()],
+    // A remote and local summary can have been produced from different
+    // conversation sets. Preserve all authoritative text now and ask the
+    // normal background pipeline to reconcile automatic sections later.
+    needsRefresh: local.needsRefresh === true || remote.needsRefresh === true
+      || timestamp(local.updatedAt) !== timestamp(remote.updatedAt),
+    status: 'idle',
+    lastError: ''
+  };
+};
+
+const mergeMemoryOverview = (local, remote, memorySummary) => {
+  const withCanonicalFreshness = candidate => {
+    if (!candidate || typeof candidate !== 'object') return candidate;
+    return {
+      ...candidate,
+      // This layer is a user-visible cache of the complete memory. A device
+      // that only has one copy still must not present it as current when that
+      // copy was generated from an older complete-memory revision.
+      needsRefresh: candidate.needsRefresh === true
+        || String(candidate.basedOnMemorySummaryUpdatedAt || '') !== String(memorySummary?.updatedAt || ''),
+      status: candidate.status === 'pending' ? 'idle' : (candidate.status || 'idle'),
+      lastError: candidate.status === 'failed' ? (candidate.lastError || '') : ''
+    };
+  };
+  if (!remote || typeof remote !== 'object') return withCanonicalFreshness(local);
+  if (!local || typeof local !== 'object') return withCanonicalFreshness(remote);
+  const preferred = timestamp(remote.updatedAt) >= timestamp(local.updatedAt) ? remote : local;
+  const sectionsByKey = new Map();
+  for (const section of [...asArray(local.sections), ...asArray(remote.sections)]) {
+    const key = String(section?.key || section?.id || '').trim();
+    if (!key) continue;
+    const existing = sectionsByKey.get(key);
+    if (!existing) {
+      sectionsByKey.set(key, section);
+      continue;
+    }
+    const existingManual = existing.authority === 'manual';
+    const incomingManual = section.authority === 'manual';
+    if ((incomingManual && !existingManual)
+      || (incomingManual === existingManual && timestamp(section.updatedAt) >= timestamp(existing.updatedAt))) {
+      sectionsByKey.set(key, section);
+    }
+  }
+  const basedOn = String(preferred.basedOnMemorySummaryUpdatedAt || '');
+  return {
+    ...preferred,
+    sections: [...sectionsByKey.values()].slice(0, 6),
+    // The overview is only a display cache. If devices disagree about either
+    // its own revision or the complete memory it was based on, wait for the
+    // user to press the explicit refresh button in Settings.
+    needsRefresh: local.needsRefresh === true || remote.needsRefresh === true
+      || timestamp(local.updatedAt) !== timestamp(remote.updatedAt)
+      || basedOn !== String(memorySummary?.updatedAt || ''),
+    status: 'idle',
+    lastError: ''
+  };
+};
+
 export function projectMemoryStateForSync(memoryState = {}) {
   const resolvedProfileCandidateIds = mergeIds(memoryState.resolvedProfileCandidateIds);
   const resolvedIds = new Set(resolvedProfileCandidateIds);
@@ -46,7 +127,11 @@ export function projectMemoryStateForSync(memoryState = {}) {
     resolvedTopicSummaryIds,
     suppressionRules: asArray(memoryState.suppressionRules),
     longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
-      .filter(summary => summary?.id && !resolvedTopicIds.has(String(summary.id)))
+      .filter(summary => summary?.id && !resolvedTopicIds.has(String(summary.id))),
+    // Sync the canonical current-state memory and its short display cache.
+    // Raw message evidence remains local in the app data / conversation store.
+    ...(memoryState.memorySummary?.updatedAt ? { memorySummary: memoryState.memorySummary } : {}),
+    ...(memoryState.memoryOverview?.updatedAt ? { memoryOverview: memoryState.memoryOverview } : {})
   };
 }
 
@@ -62,6 +147,12 @@ export function mergeSyncedMemoryState(memoryState = {}, projection = {}) {
     projection.resolvedTopicSummaryIds
   );
   const resolvedTopicIds = new Set(resolvedTopicSummaryIds);
+  const memorySummary = mergeMemorySummary(memoryState.memorySummary, projection.memorySummary);
+  const memoryOverview = mergeMemoryOverview(
+    memoryState.memoryOverview,
+    projection.memoryOverview,
+    memorySummary
+  );
   return {
     ...memoryState,
     profileEntries: mergeById(memoryState.profileEntries, projection.profileEntries)
@@ -74,6 +165,8 @@ export function mergeSyncedMemoryState(memoryState = {}, projection = {}) {
     longTermTopicSummaries: mergeById(
       memoryState.longTermTopicSummaries,
       projection.longTermTopicSummaries
-    ).filter(summary => !resolvedTopicIds.has(String(summary.id)))
+    ).filter(summary => !resolvedTopicIds.has(String(summary.id))),
+    memorySummary,
+    memoryOverview
   };
 }

@@ -13,6 +13,7 @@ test('captures a completed turn once into separate recent state, capsule, and re
   };
   const calls = [];
   const indexed = [];
+  const indexedFragments = [];
   const service = createMemoryCaptureService({
     captureClient: {
       capture: async input => {
@@ -24,6 +25,13 @@ test('captures a completed turn once into separate recent state, capsule, and re
             summary: '使用者選擇 Gemini 3.1 Flash Lite 做摘要。',
             confirmedDecisions: ['摘要模型使用 Gemini 3.1 Flash Lite'],
             openQuestions: ['何時啟用跨對話回憶']
+          },
+          memorySummaryPatch: {
+            overview: '完整記憶中的模型選擇。',
+            sections: [{
+              key: 'memory-model', title: '記憶模型', content: '使用 Gemini 3.1 Flash Lite 做摘要。',
+              state: 'current-state', sourceTurnIndexes: [0]
+            }]
           },
           profileCandidates: [{
             kind: 'preference',
@@ -38,6 +46,7 @@ test('captures a completed turn once into separate recent state, capsule, and re
     getMemoryState: () => memoryState,
     replaceMemoryState: next => { memoryState = next; },
     indexCapsule: async payload => indexed.push(payload),
+    indexConversationFragments: async payload => indexedFragments.push(payload),
     createId: prefix => `${prefix}-id`,
     now: () => '2026-07-11T12:00:00.000Z'
   });
@@ -60,10 +69,17 @@ test('captures a completed turn once into separate recent state, capsule, and re
   assert.equal(first.captured, true);
   assert.deepEqual(second, { captured: false, reason: 'unchanged-source' });
   assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].memorySummary, {});
   assert.deepEqual(calls[0].activeProfileEntries, [{ id: 'brief', kind: 'preference', content: '回答要簡短' }]);
   assert.deepEqual(indexed, [{
     capsule: memoryState.conversationCapsules[0],
     sourceHash: 'turn-hash-1'
+  }]);
+  assert.deepEqual(indexedFragments, [{
+    conversationId: 'conversation-1',
+    turns,
+    sourceHash: 'turn-hash-1',
+    updatedAt: '2026-07-11T12:00:00.000Z'
   }]);
   assert.deepEqual(memoryState.recentConversationStates, [{
     conversationId: 'conversation-1',
@@ -79,6 +95,9 @@ test('captures a completed turn once into separate recent state, capsule, and re
   assert.equal(memoryState.profileCandidates[0].status, 'review');
   assert.equal(memoryState.profileCandidates[0].confirmedByUser, false);
   assert.deepEqual(memoryState.profileCandidates[0].suggestedSupersedes, ['brief']);
+  assert.equal(memoryState.memorySummary.sections[0].content, '使用 Gemini 3.1 Flash Lite 做摘要。');
+  assert.equal(memoryState.memoryOverview.needsRefresh, true);
+  assert.equal(memoryState.memoryOverview.overview, '', 'capturing a turn must not regenerate the user-facing overview');
 });
 
 test('history rebuild capture never adds profile candidates from old conversations', async () => {

@@ -707,7 +707,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const deleteChat = async (id, event) => {
     event?.stopPropagation();
     cancelPendingMemoryCapture(id);
-    await invalidateConversationMemory({ conversationId: id });
     const currentConversations = liveConversationsBridge.getConversations();
     const conv = currentConversations.find(c => c.id === id);
     if (conv) {
@@ -1191,6 +1190,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         const {
             streamApiCall,
+            runMemoryModel,
             providerRequestSupport,
             councilResponseLifecycle,
             buildSingleModelTranslatedRequestParts,
@@ -1545,6 +1545,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getModelTiers,
             getModelApiId,
             getApiKeyForProvider,
+            runMemoryModel,
             getCouncilValidation,
             callApiWithSchema,
             getOutputMode,
@@ -1622,7 +1623,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             handleEmptyTrash,
             updateDisplayedVersion,
             cancelMemoryCapture: cancelMemoryCaptureWork,
-            invalidateMemoryConversation
+            invalidateMemoryConversation,
+            ensureMemorySummaryFresh
         } = transitionBusLifecycle;
         cancelPendingMemoryCapture = cancelMemoryCaptureWork;
         invalidateConversationMemory = invalidateMemoryConversation;
@@ -1644,6 +1646,13 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 if (nextConversation) loadChat(nextConversation.id);
                 else void startNewChat({keepSidebarOpen:true});
             },
+            onRemoteConversationsPermanentlyDeleted: async ({conversationIds})=>{
+                for (const conversationId of conversationIds || []) {
+                    await invalidateMemoryConversation({conversationId,skipSummaryRebuild:true});
+                }
+            },
+            onRemoteConversationsApplied:()=>ensureMemorySummaryFresh({force:true}),
+            onMemorySyncApplied:()=>ensureMemorySummaryFresh({force:true}),
             saveAppData,busy:()=>abortController&&getActiveConversation()
         });
 

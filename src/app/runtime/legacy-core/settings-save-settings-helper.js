@@ -22,9 +22,13 @@ export function collectSettingsSaveFormValues({
         aiBubbleColor: elements.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         userBubbleColor: elements.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         autoNaming: elements.autoNamingToggleSwitch.checked,
-        memoryEnabled1: elements.memoryToggle1.checked,
+        memoryEnabled1: elements.memoryToggle1?.isConnected !== false
+            ? elements.memoryToggle1.checked
+            : config.memoryEnabled1 !== false,
         historyRecallEnabled: elements.historyRecallToggleSwitch?.checked === true,
-        enableAutoMemory: elements.autoMemoryToggleSwitch.checked,
+        enableAutoMemory: elements.autoMemoryToggleSwitch?.isConnected !== false
+            ? elements.autoMemoryToggleSwitch.checked
+            : config.enableAutoMemory !== false,
         uiLanguage: elements.uiLanguageSelect.value,
         aiDefaultLanguage: elements.aiLanguageSelect.value,
         enableUpdateNotifications: elements.enableUpdateNotificationsToggle.checked,

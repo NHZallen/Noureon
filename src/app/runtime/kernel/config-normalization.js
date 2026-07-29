@@ -116,11 +116,20 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.modelSettings.forEach((s, index) => { s.order = index; });
   normalizedConfig.defaultModel = canonicalizeModelId(normalizedConfig.defaultModel);
   normalizedConfig.lastUsedModel = canonicalizeModelId(normalizedConfig.lastUsedModel);
+  normalizedConfig.memoryModelId = canonicalizeModelId(normalizedConfig.memoryModelId);
   if (!allModelIds.has(normalizedConfig.defaultModel)) {
     normalizedConfig.defaultModel = models[0]?.id;
   }
   if (!allModelIds.has(normalizedConfig.lastUsedModel)) {
     normalizedConfig.lastUsedModel = models[0]?.id;
+  }
+  const memoryModelIds = new Set(models
+    .filter(model => model?.category !== 'image_generation' && model?.outputModality !== 'image')
+    .map(model => model.id));
+  if (!memoryModelIds.has(normalizedConfig.memoryModelId)) {
+    normalizedConfig.memoryModelId = memoryModelIds.has('gemini-3.5-flash-lite')
+      ? 'gemini-3.5-flash-lite'
+      : models.find(model => memoryModelIds.has(model.id))?.id || null;
   }
   normalizedConfig.lastCouncilConfig = normalizeCouncilConfig(normalizedConfig.lastCouncilConfig, {
     models,

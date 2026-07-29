@@ -100,7 +100,7 @@ function messageMetadata(message = {}) {
       : [])
       .map((id) => String(id || '').trim())
       .filter(isUuid)
-  )].slice(0, 3);
+  )];
   return historySourceConversationIds.length > 0 ? { historySourceConversationIds } : {};
 }
 

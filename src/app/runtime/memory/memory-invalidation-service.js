@@ -1,3 +1,8 @@
+import {
+  clearAutomaticMemoryOverview,
+  removeMemorySummarySources
+} from './memory-summary-state.js';
+
 const asArray = value => Array.isArray(value) ? value : [];
 
 const sourceMessageIds = capsule => new Set(asArray(capsule?.sourceRefs).map(ref => ref?.messageId).filter(Boolean));
@@ -30,6 +35,15 @@ export function createMemoryInvalidationService({
     const invalidCandidateIds = asArray(memoryState.profileCandidates)
       .filter(candidate => intersects(asArray(candidate?.sourceRefs).map(ref => ref?.messageId), invalidMessageIds))
       .map(candidate => String(candidate.id));
+    const summaryCleanup = removeMemorySummarySources({
+      summary: memoryState.memorySummary,
+      evidence: memoryState.memoryEvidence,
+      conversationId,
+      messageIds: [...invalidMessageIds]
+    });
+    const overviewCleanup = summaryCleanup.changed
+      ? clearAutomaticMemoryOverview({ overview: memoryState.memoryOverview })
+      : memoryState.memoryOverview;
     index.removeConversation(conversationId);
     replaceMemoryState({
       ...memoryState,
@@ -44,10 +58,16 @@ export function createMemoryInvalidationService({
         ...new Set([...asArray(memoryState.resolvedProfileCandidateIds).map(String), ...invalidCandidateIds])
       ],
       longTermTopicSummaries: asArray(memoryState.longTermTopicSummaries)
-        .filter(summary => !intersects(summary?.sourceCapsuleIds, invalidCapsuleIds))
+        .filter(summary => !intersects(summary?.sourceCapsuleIds, invalidCapsuleIds)),
+      ...(memoryState.memorySummary ? { memorySummary: summaryCleanup.summary } : {}),
+      ...(overviewCleanup ? { memoryOverview: overviewCleanup } : {}),
+      ...(asArray(memoryState.memoryEvidence).length > 0 ? { memoryEvidence: summaryCleanup.evidence } : {})
     });
     if (persistence?.save) await persistence.save();
-    return { invalidatedCapsuleCount: invalidCapsuleIds.size };
+    return {
+      invalidatedCapsuleCount: invalidCapsuleIds.size,
+      ...(memoryState.memorySummary ? { memorySummaryRefreshRequired: summaryCleanup.summary.needsRefresh === true } : {})
+    };
   }
 
   return {

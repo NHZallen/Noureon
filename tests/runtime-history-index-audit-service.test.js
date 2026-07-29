@@ -108,6 +108,24 @@ test('counts a valid media index record as healthy', async () => {
   assert.equal(report.extra, 0);
 });
 
+test('keeps detailed conversation fragments for a live conversation during an audit', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:chat', recordType: 'conversation-capsule', conversationId: 'chat', sourceHash: 'hash:chat' });
+  index.put({ recordId: 'fragment:chat:0', recordType: 'conversation-fragment', conversationId: 'chat', sourceHash: 'hash:chat' });
+  const report = await createHistoryIndexAuditService({
+    getConversations: () => [{ id: 'chat', messages: [{ id: 'm', role: 'user', parts: [{ text: 'hello' }] }] }],
+    getMemoryState: () => ({
+      recentConversationStates: [{ conversationId: 'chat', sourceHash: 'hash:chat' }],
+      conversationCapsules: [{ id: 'capsule', conversationId: 'chat', summary: 'Greeting' }]
+    }),
+    index,
+    hashString: async () => 'hash:chat'
+  }).audit();
+
+  assert.equal(report.extra, 0);
+  assert.deepEqual(report.extraRecordIds, []);
+});
+
 test('a completed index remains healthy after simulated page reload', async () => {
   const values = new Map();
   const storage = {

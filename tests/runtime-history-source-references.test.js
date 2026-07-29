@@ -20,8 +20,8 @@ test('history source helpers deduplicate and cap source conversation references'
       { conversationId: third },
       { conversationId: fourth }
     ]
-  }), [first, second, third]);
+  }), [first, second, third, fourth]);
   assert.deepEqual(normalizeHistorySourceConversationIds([first, '', first, second, third, fourth]), [
-    first, second, third
+    first, second, third, fourth
   ]);
 });

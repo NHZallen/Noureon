@@ -1,7 +1,6 @@
 import { createLegacyBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createLegacySearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createLegacyModelMemoryDashboardLifecycle } from './model-memory-dashboard-lifecycle.js';
-import { createGeminiMemoryCaptureClient } from '../memory/gemini-memory-capture-client.js';
 import { createMemoryCaptureService } from '../memory/memory-capture-service.js';
 import { createMemoryWorkScheduler } from '../memory/memory-work-scheduler.js';
 import { createGeminiEmbeddingClient } from '../memory/gemini-embedding-client.js';
@@ -12,13 +11,14 @@ import { createHistoryRetrievalService } from '../memory/history-retrieval-servi
 import { createDeviceHistoryRecallConsent } from '../memory/device-history-recall-consent.js';
 import { projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
 import { createHistoryIndexRebuildService } from '../memory/history-index-rebuild-service.js';
-import { createGeminiTopicSummaryClient } from '../memory/gemini-topic-summary-client.js';
 import { createTopicSummaryService } from '../memory/topic-summaries.js';
 import { createMemoryInvalidationService } from '../memory/memory-invalidation-service.js';
-import { createGeminiMediaMemoryClient } from '../memory/gemini-media-memory-client.js';
 import { createMediaMemoryService } from '../memory/media-memory-service.js';
-import { createGeminiHistoryQueryResolverClient } from '../memory/gemini-history-query-resolver-client.js';
+import { createMemoryTaskClients } from '../memory/memory-task-clients.js';
+import { createConfiguredMemoryModelClient } from '../memory/memory-model-runtime-client.js';
+import { createLegacyMemorySummaryLifecycle } from './memory-summary-lifecycle.js';
 import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
+import { activeMemoryRecordIds } from '../memory/history-index-records.js';
 import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
 import { assertLegacyTransitionBusDependencies } from './transition-bus-dependencies.js';
 
@@ -124,6 +124,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getModelTiers,
         getModelApiId,
         getApiKeyForProvider,
+        runMemoryModel = null,
         getCouncilValidation,
         callApiWithSchema,
         getOutputMode,
@@ -335,6 +336,17 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         }),
         persistence: null
     });
+    const memoryModelClient = createConfiguredMemoryModelClient({
+        getConfig: () => state.config,
+        models: MODELS,
+        runMemoryModel,
+        modelSupportsVision
+    });
+    const memoryTaskClients = createMemoryTaskClients({
+        memoryModelClient,
+        getGeminiApiKey: () => getApiKeyForProvider('gemini'),
+        fetchImpl: fetch
+    });
     const localMemoryStorage = runtimeStorageAdapter?.getItem
         ? runtimeStorageAdapter
         : {
@@ -368,10 +380,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             fetchImpl: fetch
         }),
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        modelQueryResolver: createGeminiHistoryQueryResolverClient({
-            getApiKey: () => getApiKeyForProvider('gemini'),
-            fetchImpl: fetch
-        })
+        modelQueryResolver: memoryTaskClients.queryResolver
     });
     const retrieveHistory = async options => {
         await Promise.all([ensureHistoryIndexReady(), historyRecallConsentReady, ensureDeviceDerivedMemoryReady()]);
@@ -406,33 +415,24 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
         return savedMemoryState;
     };
-    const memoryCaptureClient = createGeminiMemoryCaptureClient({
-        getApiKey: () => getApiKeyForProvider('gemini'),
-        fetchImpl: fetch
-    });
     const mediaMemoryService = createMediaMemoryService({
-        mediaClient: createGeminiMediaMemoryClient({
-            getApiKey: () => getApiKeyForProvider('gemini'),
-            fetchImpl: fetch
-        }),
+        mediaClient: memoryTaskClients.mediaClient,
         hashString,
         createId: prefix => `${prefix}:${crypto.randomUUID()}`
     });
     const topicSummaryService = createTopicSummaryService({
         index: historyIndex,
-        topicClient: createGeminiTopicSummaryClient({
-            getApiKey: () => getApiKeyForProvider('gemini'),
-            fetchImpl: fetch
-        }),
+        topicClient: memoryTaskClients.topicClient,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         replaceMemoryState,
         createId: prefix => `${prefix}:${crypto.randomUUID()}`
     });
     const memoryCaptureService = createMemoryCaptureService({
-        captureClient: memoryCaptureClient,
+        captureClient: memoryTaskClients.captureClient,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         replaceMemoryState,
         indexCapsule: options => historyIndexingService.indexCapsule(options),
+        indexConversationFragments: options => historyIndexingService.indexConversationFragments(options),
         indexMediaMemory: options => historyIndexingService.indexMediaMemory(options),
         updateTopicSummary: options => topicSummaryService.updateForCapsule(options),
         enrichTurns: options => mediaMemoryService.enrichTurns(options),
@@ -456,11 +456,14 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         replaceMemoryState
     });
-    const invalidateMemoryConversation = async options => {
+    const invalidateMemoryConversation = async ({ skipSummaryRebuild = false, ...options } = {}) => {
         memoryWorkScheduler.cancelConversation(options?.conversationId);
         const result = await memoryInvalidationService.invalidateConversation(options);
         await persistMemoryState();
         notifyHistoryIndexChanged();
+        if (!skipSummaryRebuild && result.memorySummaryRefreshRequired) {
+            void requestMemorySummaryRebuild().catch(error => console.warn('Memory summary could not refresh after deletion.', error));
+        }
         return result;
     };
     legacyRuntimeContext.registerLazyBinding('memory.invalidateConversation', () => invalidateMemoryConversation);
@@ -484,14 +487,11 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
                 const activeConversationIds = new Set(state.conversations
                     .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
                     .map(conversation => conversation.id));
-                const expectedRecordIds = new Set([
-                    ...(memoryState.conversationCapsules || [])
-                        .filter(capsule => activeConversationIds.has(capsule?.conversationId))
-                        .map(capsule => `capsule:${capsule.conversationId}`),
-                    ...(memoryState.mediaMemories || [])
-                        .filter(media => activeConversationIds.has(media?.conversationId))
-                        .map(media => `media:${media.conversationId}:${media.sourceHash}`)
-                ]);
+                const expectedRecordIds = activeMemoryRecordIds({
+                    memoryState,
+                    records: historyIndex.getAll(),
+                    conversationIds: activeConversationIds
+                });
                 historyIndex.getAll()
                     .filter(record => !expectedRecordIds.has(record.recordId))
                     .forEach(record => historyIndex.removeRecord(record.recordId));
@@ -559,8 +559,19 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
             return captureCompletedTurnAndPersist(job);
         },
-        schedule: callback => setTimeout(callback, 15_000),
+        schedule: (callback, delay) => setTimeout(callback, delay),
         cancel: timer => clearTimeout(timer)
+    });
+    const { requestMemorySummaryRebuild, ensureMemorySummaryFresh } = createLegacyMemorySummaryLifecycle({
+        state,
+        runtimeAppDataStore,
+        replaceMemoryState,
+        persistMemoryState,
+        rebuildHistoryIndex,
+        memoryModelClient,
+        crypto,
+        legacyRuntimeContext,
+        memoryWorkScheduler
     });
 
     const modelMemoryDashboardLifecycle = createLegacyModelMemoryDashboardLifecycle({
@@ -795,6 +806,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         openCouncilPopoverFromAttachmentMenu,
         setupHistorySidebarInteractions,
         setupHistorySidebarTriggers,
+        requestMemorySummaryBootstrap: ensureMemorySummaryFresh,
         getDefaultFolder,
         isMobileSettingsViewport,
         openSettingsMobileSection,
@@ -938,6 +950,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         updateDisplayedVersion,
         cancelMemoryCapture: conversationId => memoryWorkScheduler.cancelConversation(conversationId),
         invalidateMemoryConversation,
+        ensureMemorySummaryFresh,
         coreTailDependencies,
         registerSidebarBindings,
         registerCoreTailDependencies

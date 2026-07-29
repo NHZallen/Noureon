@@ -19,6 +19,7 @@ const expectedConfig = (defaultModelId) => ({
   autoNaming: true,
   lastUsedModel: null,
   memorySystemVersion: 2,
+  memoryModelId: 'gemini-3.5-flash-lite',
   memoryProfileEnabled: true,
   historyRecallEnabled: false,
   memorySync: { version: 1, profileEntries: [], profileCandidates: [], resolvedProfileCandidateIds: [], resolvedTopicSummaryIds: [], suppressionRules: [], longTermTopicSummaries: [] },

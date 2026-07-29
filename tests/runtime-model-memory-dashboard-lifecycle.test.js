@@ -193,7 +193,7 @@ test('personal memory delete uses injected replacement bridge before save and re
   ]);
 });
 
-test('v2 memory capture sends only turns not already covered by the recent summary', async () => {
+test('v2 memory capture keeps the full conversation for indexing while sending only the new turn delta to the model', async () => {
   const captured = [];
   const memoryState = {
     recentConversationStates: [{
@@ -223,8 +223,41 @@ test('v2 memory capture sends only turns not already covered by the recent summa
   await lifecycle.extractPersonalMemory();
 
   assert.equal(captured.length, 1);
-  assert.deepEqual(captured[0].turns.map(turn => turn.text), ['新使用者訊息', '新助理回答']);
+  assert.deepEqual(captured[0].turns.map(turn => turn.text), ['舊使用者訊息', '舊助理回答', '新使用者訊息', '新助理回答']);
+  assert.deepEqual(captured[0].captureTurns.map(turn => turn.text), ['新使用者訊息', '新助理回答']);
   assert.equal(captured[0].sourceHash, 'new-turn-hash');
+});
+
+test('v2 memory capture reprocesses a conversation when an already-covered message was edited', async () => {
+  const captured = [];
+  const memoryState = {
+    recentConversationStates: [{
+      conversationId: 'c1',
+      coveredThroughMessageId: 'assistant-1',
+      sourceHash: 'before-edit',
+      recentTurnSummary: 'Old state.'
+    }]
+  };
+  const conversation = {
+    id: 'c1',
+    model: 'model-a',
+    messages: [
+      { id: 'user-1', role: 'user', parts: [{ text: 'Use the VPS.' }] },
+      { id: 'assistant-1', role: 'model', parts: [{ text: 'Acknowledged.' }] }
+    ]
+  };
+  const { lifecycle } = createHarness({
+    getConfig: () => ({ uiLanguage: 'zh-TW', memorySystemVersion: 2 }),
+    getActiveConversation: () => conversation,
+    getMemoryState: () => memoryState,
+    hashString: async () => 'after-edit',
+    captureCompletedTurn: async payload => captured.push(payload)
+  });
+
+  await lifecycle.extractPersonalMemory();
+
+  assert.equal(captured.length, 1);
+  assert.deepEqual(captured[0].captureTurns.map(turn => turn.id), ['user-1', 'assistant-1']);
 });
 
 test('openDashboard updates stats and delegates to setupTimeAnalysis before opening modal', () => {

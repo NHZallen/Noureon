@@ -990,8 +990,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         targetElement: contentDiv,
         uiLanguage: getLiveConfig().uiLanguage,
         memoryEnabled: getLiveConfig().memorySystemVersion === 2 || getLiveConfig().memoryEnabled1,
-        autoMemoryEnabled: getLiveConfig().enableAutoMemory,
-        historySourceConversationIds: [...historySourceConversationIds].slice(0, 3),
+        // v2 Memory Summary is always refreshed in the background. The retired legacy toggle no
+        // longer suppresses capture for an existing user configuration.
+        autoMemoryEnabled: getLiveConfig().memorySystemVersion === 2 || getLiveConfig().enableAutoMemory,
+        historySourceConversationIds: [...historySourceConversationIds],
         persistAppData: saveAppData,
         completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
         restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),

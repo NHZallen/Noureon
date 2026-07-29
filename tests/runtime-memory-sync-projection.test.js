@@ -78,3 +78,93 @@ test('merges confirmed preferences and candidates without replacing local-only i
   assert.deepEqual(merged.profileCandidates, [{ id: 'local-review' }, { id: 'remote-review' }]);
   assert.deepEqual(merged.resolvedProfileCandidateIds, ['resolved-remote']);
 });
+
+test('syncs complete memory and its separate visible overview without raw evidence', () => {
+  const localSummary = {
+    version: 1,
+    overview: 'Use a NUC for the local workload.',
+    sections: [{ id: 'local', key: 'deployment', title: 'Deployment', content: 'NUC', updatedAt: '2026-07-28T00:00:00.000Z' }],
+    updatedAt: '2026-07-28T00:00:00.000Z'
+  };
+  const remoteSummary = {
+    version: 1,
+    overview: 'Use the NUC for the local workload; keep VPS services lightweight.',
+    sections: [{ id: 'remote', key: 'deployment', title: 'Deployment', content: 'NUC for local workload', updatedAt: '2026-07-29T00:00:00.000Z' }],
+    updatedAt: '2026-07-29T00:00:00.000Z'
+  };
+  const localOverview = {
+    version: 1,
+    overview: 'Older display overview.',
+    sections: [{ id: 'local-overview', key: 'deployment', title: 'Deployment', content: 'NUC', updatedAt: '2026-07-28T00:00:00.000Z' }],
+    basedOnMemorySummaryUpdatedAt: '2026-07-28T00:00:00.000Z',
+    updatedAt: '2026-07-28T00:00:00.000Z'
+  };
+  const remoteOverview = {
+    version: 1,
+    overview: 'Current display overview.',
+    sections: [{ id: 'remote-overview', key: 'deployment', title: 'Deployment', content: 'NUC for local workload', updatedAt: '2026-07-29T00:00:00.000Z' }],
+    basedOnMemorySummaryUpdatedAt: '2026-07-29T00:00:00.000Z',
+    updatedAt: '2026-07-29T00:00:00.000Z'
+  };
+  const projection = projectMemoryStateForSync({
+    memorySummary: remoteSummary,
+    memoryOverview: remoteOverview,
+    memoryEvidence: [{ conversationId: 'chat', messageId: 'm', content: 'Private raw evidence' }]
+  });
+  const merged = mergeSyncedMemoryState({
+    memorySummary: localSummary,
+    memoryOverview: localOverview,
+    memoryEvidence: [{ conversationId: 'local-chat', messageId: 'local-message', content: 'Keep this local' }]
+  }, projection);
+
+  assert.deepEqual(projection.memorySummary, remoteSummary);
+  assert.deepEqual(projection.memoryOverview, remoteOverview);
+  assert.ok(!JSON.stringify(projection).includes('Private raw evidence'));
+  assert.deepEqual(merged.memorySummary, {
+    ...remoteSummary,
+    needsRefresh: true,
+    status: 'idle',
+    lastError: ''
+  });
+  assert.deepEqual(merged.memoryEvidence, [{ conversationId: 'local-chat', messageId: 'local-message', content: 'Keep this local' }]);
+  assert.equal(merged.memoryOverview.overview, 'Current display overview.');
+  assert.equal(merged.memoryOverview.needsRefresh, true, 'conflicting device revisions require an explicit display refresh');
+});
+
+test('marks a one-sided synced overview stale when its complete memory is newer', () => {
+  const merged = mergeSyncedMemoryState({
+    memorySummary: {
+      overview: 'New complete memory.', sections: [], updatedAt: '2026-07-29T00:00:00.000Z'
+    }
+  }, {
+    version: 1,
+    memoryOverview: {
+      overview: 'Old visible overview.', sections: [],
+      basedOnMemorySummaryUpdatedAt: '2026-07-28T00:00:00.000Z',
+      updatedAt: '2026-07-28T00:00:00.000Z'
+    }
+  });
+
+  assert.equal(merged.memoryOverview.needsRefresh, true);
+});
+
+test('sync merge preserves a local manual summary edit over a newer automatic remote section', () => {
+  const merged = mergeSyncedMemoryState({
+    memorySummary: {
+      overview: 'Use the NUC.',
+      updatedAt: '2026-07-28T00:00:00.000Z',
+      sections: [{ key: 'deployment', title: 'Deployment', content: 'Use the NUC.', authority: 'manual', updatedAt: '2026-07-28T00:00:00.000Z' }]
+    }
+  }, {
+    version: 1,
+    memorySummary: {
+      overview: 'Use the VPS.',
+      updatedAt: '2026-07-29T00:00:00.000Z',
+      sections: [{ key: 'deployment', title: 'Deployment', content: 'Use the VPS.', authority: 'automatic', updatedAt: '2026-07-29T00:00:00.000Z' }]
+    }
+  });
+
+  assert.equal(merged.memorySummary.sections[0].content, 'Use the NUC.');
+  assert.equal(merged.memorySummary.sections[0].authority, 'manual');
+  assert.equal(merged.memorySummary.needsRefresh, true);
+});
