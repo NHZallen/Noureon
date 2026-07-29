@@ -175,6 +175,7 @@ const ru = {
   "historyRecallAuditTitle": "Результаты проверки индекса",
   "historyRecallAuditResult": "Исправных записей индекса: {healthy}\nКапсулы разговоров: {healthyCapsules}; подробные фрагменты: {healthyFragments}; медиа: {healthyMedia}\nОтсутствует: {missing}\nУстарело: {outdated}\nДубликаты или потерянные записи: {extra}",
   "historyRecallAuditHealthy": "Никакой оптимизации на данный момент не требуется.",
+  "historyRecallAuditProtected": "Записи, удаление которых не подтверждено, безопасно сохранены. Проверьте снова после загрузки всех разговоров.",
   "historyRecallOptimize": "Оптимизировать",
   "historyRecallOptimizeComplete": "Оптимизация индекса завершена",
   "historyRecallOptimizeResult": "Исправлено: {repaired}\nУдалено: {removed}\nБез изменений: {unchanged}\nОшибок: {failed}",

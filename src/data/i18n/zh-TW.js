@@ -179,6 +179,7 @@
         historyRecallAuditTitle: '索引檢查結果',
         historyRecallAuditResult: '正常索引紀錄：{healthy}\n對話膠囊：{healthyCapsules}；細節片段：{healthyFragments}；媒體：{healthyMedia}\n缺少：{missing}\n過期：{outdated}\n重複或孤兒：{extra}',
         historyRecallAuditHealthy: '目前不需要優化。',
+        historyRecallAuditProtected: '保留未能確認已刪除的索引紀錄；待所有對話載入後再檢查。',
         historyRecallOptimize: '優化',
         historyRecallOptimizeComplete: '索引優化完成',
         historyRecallOptimizeResult: '修復：{repaired}\n移除：{removed}\n未變更：{unchanged}\n失敗：{failed}',

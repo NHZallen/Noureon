@@ -28,10 +28,10 @@ test('audits healthy, missing, outdated, and extra records without calling model
   assert.equal(report.healthy, 1);
   assert.equal(report.missing, 1);
   assert.equal(report.extra, 1);
-  assert.equal(report.repairable, 2);
+  assert.equal(report.repairable, 1);
 });
 
-test('optimization removes only extras and repairs only reported tasks', async () => {
+test('optimization repairs reported tasks but never deletes uncertain extra records', async () => {
   const index = createHistoryIndexStore();
   index.put({ recordId: 'capsule:extra', recordType: 'conversation-capsule', conversationId: 'extra' });
   const calls = [];
@@ -56,8 +56,32 @@ test('optimization removes only extras and repairs only reported tasks', async (
   });
 
   assert.deepEqual(calls, [['capture', 'changed'], ['capsule', 'missing'], ['persist']]);
-  assert.deepEqual(result, { repaired: 2, removed: 1, failed: 0, unchanged: 5 });
-  assert.equal(index.getAll().length, 0);
+  assert.deepEqual(result, { repaired: 2, removed: 0, failed: 0, unchanged: 6 });
+  assert.equal(index.getAll().length, 1);
+});
+
+test('an incomplete audit cannot turn every persisted record into a destructive cleanup task', async () => {
+  const index = createHistoryIndexStore();
+  index.put({ recordId: 'capsule:historical', conversationId: 'historical', sourceHash: 'hash:historical', vector: [1, 0] });
+  const persisted = [];
+  const service = createHistoryIndexAuditService({
+    getConversations: () => [],
+    getMemoryState: () => ({}),
+    index,
+    hashString: async () => 'hash',
+    persistence: { save: async options => persisted.push(options) },
+    persistMemoryState: async () => {}
+  });
+
+  const report = await service.audit();
+  assert.equal(report.extra, 1);
+  assert.equal(report.protected, 1);
+  assert.equal(report.repairable, 0);
+
+  const result = await service.optimize(report);
+  assert.deepEqual(result, { repaired: 0, removed: 0, failed: 0, unchanged: 1 });
+  assert.equal(index.getAll().length, 1);
+  assert.deepEqual(persisted, [undefined]);
 });
 
 test('classifies persisted vectors without derived metadata as orphan records', async () => {

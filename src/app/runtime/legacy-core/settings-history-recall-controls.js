@@ -227,9 +227,12 @@ export function createSettingsHistoryRecallControls({
           report
         );
         if (!report.repairable) {
+          const protectedMessage = report.protected > 0
+            ? `\n\n${getText('historyRecallAuditProtected', '保留未能確認已刪除的索引紀錄；待所有對話載入後再檢查。')}`
+            : '';
           await showCustomDialog({
             title: getText('historyRecallAuditTitle', '索引檢查結果'),
-            message: `${message}\n\n${getText('historyRecallAuditHealthy', '目前不需要優化。')}`,
+            message: `${message}\n\n${getText('historyRecallAuditHealthy', '目前不需要優化。')}${protectedMessage}`,
             buttons: [{ text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: () => false }]
           });
           return;

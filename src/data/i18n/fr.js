@@ -179,6 +179,7 @@
         historyRecallAuditTitle: 'Résultats de la vérification de l’index',
         historyRecallAuditResult: 'Enregistrements d’index sains : {healthy}\nCapsules de conversation : {healthyCapsules} ; fragments détaillés : {healthyFragments} ; médias : {healthyMedia}\nManquants : {missing}\nObsolètes : {outdated}\nDoublons ou orphelins : {extra}',
         historyRecallAuditHealthy: 'Aucune optimisation n’est nécessaire actuellement.',
+        historyRecallAuditProtected: 'Les enregistrements dont la suppression n’est pas confirmée sont conservés en toute sécurité. Vérifiez à nouveau une fois toutes les conversations chargées.',
         historyRecallOptimize: 'Optimiser',
         historyRecallOptimizeComplete: 'Optimisation de l’index terminée',
         historyRecallOptimizeResult: 'Réparés : {repaired}\nSupprimés : {removed}\nInchangés : {unchanged}\nÉchecs : {failed}',

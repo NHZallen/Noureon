@@ -179,6 +179,7 @@
         historyRecallAuditTitle: 'Index check results',
         historyRecallAuditResult: 'Healthy index records: {healthy}\nConversation capsules: {healthyCapsules}; detail fragments: {healthyFragments}; media: {healthyMedia}\nMissing: {missing}\nOutdated: {outdated}\nDuplicate or orphaned: {extra}',
         historyRecallAuditHealthy: 'No optimization is currently needed.',
+        historyRecallAuditProtected: 'Records not confirmed as deleted are kept safely. Check again after all conversations have loaded.',
         historyRecallOptimize: 'Optimize',
         historyRecallOptimizeComplete: 'Index optimization complete',
         historyRecallOptimizeResult: 'Repaired: {repaired}\nRemoved: {removed}\nUnchanged: {unchanged}\nFailed: {failed}',

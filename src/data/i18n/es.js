@@ -175,6 +175,7 @@ const es = {
   "historyRecallAuditTitle": "Resultados de la verificación del índice",
   "historyRecallAuditResult": "Registros de índice correctos: {healthy}\nCápsulas de conversación: {healthyCapsules}; fragmentos detallados: {healthyFragments}; medios: {healthyMedia}\nFaltantes: {missing}\nDesactualizados: {outdated}\nDuplicados o huérfanos: {extra}",
   "historyRecallAuditHealthy": "Actualmente no se necesita optimización.",
+  "historyRecallAuditProtected": "Los registros que no se han confirmado como eliminados se conservan de forma segura. Vuelve a comprobarlo cuando se hayan cargado todas las conversaciones.",
   "historyRecallOptimize": "Optimizar",
   "historyRecallOptimizeComplete": "Optimización del índice completa",
   "historyRecallOptimizeResult": "Reparados: {repaired}\nEliminados: {removed}\nSin cambios: {unchanged}\nFallidos: {failed}",

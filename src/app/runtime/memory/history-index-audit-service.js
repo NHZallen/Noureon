@@ -122,7 +122,14 @@ export function createHistoryIndexAuditService({
       missing,
       outdated,
       extra: extraRecordIds.length,
-      repairable: tasks.length + extraRecordIds.length,
+      // An audit can run while the workspace is still receiving a local or
+      // cloud snapshot.  A record missing from that temporary list is not
+      // evidence that its conversation was deleted.  Only the explicit trash
+      // and permanent-delete lifecycle owns destructive index invalidation.
+      // The audit may repair proven gaps, but must never offer to delete an
+      // otherwise usable local vector.
+      repairable: tasks.length,
+      protected: extraRecordIds.length,
       tasks,
       extraRecordIds
     };
@@ -131,10 +138,6 @@ export function createHistoryIndexAuditService({
   async function optimize(report, { onProgress = () => {} } = {}) {
     const tasks = asArray(report?.tasks);
     const extras = asArray(report?.extraRecordIds);
-    const activeConversationIds = new Set(asArray(getConversations())
-      .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
-      .map(conversation => conversation.id));
-    const retainedRecordIds = new Set();
     const repairedConversationIds = new Set();
     let completed = 0;
     let repaired = 0;
@@ -160,26 +163,21 @@ export function createHistoryIndexAuditService({
       completed += 1;
       onProgress({ completed, total: tasks.length, repaired, removed: 0, failed });
     }
-    let removed = 0;
-    for (const recordId of extras) {
-      const record = index.getAll().find(item => item.recordId === recordId);
-      // A stale report cannot distinguish an old active record from a
-      // same-ID replacement created moments ago. Keep active-chat vectors;
-      // records for deleted chats are safe to remove immediately.
-      if (record?.conversationId && activeConversationIds.has(record.conversationId)) {
-        if (!repairedConversationIds.has(record.conversationId)) retainedRecordIds.add(recordId);
-        continue;
-      }
-      index.removeRecord(recordId);
-      removed += 1;
-    }
+    // Do not delete audit extras here.  During refresh, an incomplete
+    // workspace snapshot makes every otherwise valid record look orphaned.
+    // Explicit deletion already removes source-linked records immediately,
+    // so retaining uncertain extras is the safe and privacy-preserving choice.
+    const removed = 0;
     await persistMemoryState();
-    if (persistence?.save) await persistence.save({ allowEmpty: activeConversationIds.size === 0 });
+    if (persistence?.save) await persistence.save();
     return {
       repaired,
       removed,
       failed,
-      unchanged: (report?.healthy || 0) + retainedRecordIds.size
+      unchanged: (report?.healthy || 0) + extras.filter(recordId => {
+        const record = index.getAll().find(item => item.recordId === recordId);
+        return !repairedConversationIds.has(record?.conversationId);
+      }).length
     };
   }
 
