@@ -64,3 +64,29 @@ test('recaptures unchanged memory state when the stable index record is missing'
   assert.equal(result.indexed, 1);
   assert.equal(result.skipped, 0);
 });
+
+test('adopts a verified legacy source fingerprint without replaying model or embedding work', async () => {
+  const migrations = [];
+  let captures = 0;
+  const service = createHistoryIndexRebuildService({
+    getConversations: () => [
+      { id: 'chat-1', messages: [{ id: 'old-id', role: 'user', parts: [{ text: 'Same text' }] }] }
+    ],
+    getMemoryState: () => ({ recentConversationStates: [{ conversationId: 'chat-1', sourceHash: 'legacy-source' }] }),
+    hashString: async value => value.includes('"id":"old-id"') ? 'legacy-source' : 'stable-source',
+    hasIndexedSource: ({ sourceHash }) => sourceHash === 'legacy-source',
+    migrateSourceFingerprint: async options => { migrations.push(options); return true; },
+    captureCompletedTurn: async () => { captures += 1; return { captured: true }; }
+  });
+
+  const result = await service.rebuild();
+
+  assert.equal(captures, 0);
+  assert.deepEqual(migrations, [{
+    conversationId: 'chat-1',
+    previousSourceHash: 'legacy-source',
+    nextSourceHash: 'stable-source'
+  }]);
+  assert.equal(result.completed, 1);
+  assert.equal(result.skipped, 1);
+});

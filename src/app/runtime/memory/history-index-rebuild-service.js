@@ -10,7 +10,8 @@ export function createHistoryIndexRebuildService({
   getMemoryState,
   captureCompletedTurn,
   hashString,
-  hasIndexedSource = () => true
+  hasIndexedSource = () => true,
+  migrateSourceFingerprint = null
 } = {}) {
   if (typeof getConversations !== 'function') throw new TypeError('History index rebuild requires getConversations.');
   if (typeof getMemoryState !== 'function') throw new TypeError('History index rebuild requires getMemoryState.');
@@ -42,17 +43,50 @@ export function createHistoryIndexRebuildService({
           })) {
             skipped += 1;
           } else {
-            const result = await captureCompletedTurn({
-              conversationId: conversation.id,
-              sourceHash,
-              turns,
-              signal,
-              collectProfileCandidates: false,
-              allowTopicSummary: false,
-              forceCapture
-            });
-            if (result?.captured) indexed += 1;
-            else skipped += 1;
+            const legacySourceHash = !forceCapture && recentState?.sourceHash
+              ? await hashString(JSON.stringify(turns))
+              : null;
+            const canMigrateLegacySource = legacySourceHash
+              && recentState.sourceHash === legacySourceHash
+              && hasIndexedSource({
+                conversationId: conversation.id,
+                sourceHash: legacySourceHash,
+                turns
+              });
+            if (canMigrateLegacySource && typeof migrateSourceFingerprint === 'function') {
+              const migrated = await migrateSourceFingerprint({
+                conversationId: conversation.id,
+                previousSourceHash: legacySourceHash,
+                nextSourceHash: sourceHash
+              });
+              if (migrated !== false) {
+                skipped += 1;
+              } else {
+                const result = await captureCompletedTurn({
+                  conversationId: conversation.id,
+                  sourceHash,
+                  turns,
+                  signal,
+                  collectProfileCandidates: false,
+                  allowTopicSummary: false,
+                  forceCapture
+                });
+                if (result?.captured) indexed += 1;
+                else skipped += 1;
+              }
+            } else {
+              const result = await captureCompletedTurn({
+                conversationId: conversation.id,
+                sourceHash,
+                turns,
+                signal,
+                collectProfileCandidates: false,
+                allowTopicSummary: false,
+                forceCapture
+              });
+              if (result?.captured) indexed += 1;
+              else skipped += 1;
+            }
           }
         } catch (error) {
           if (signal?.aborted || error?.name === 'AbortError') throw error;

@@ -21,6 +21,33 @@ export function hasCurrentHistoryIndexRecords({ records = [], conversationId, so
   ));
 }
 
+export function migrateHistoryIndexSourceFingerprint({
+  memoryState = {},
+  replaceMemoryState = () => {},
+  index,
+  conversationId,
+  previousSourceHash,
+  nextSourceHash
+} = {}) {
+  const recentStates = asArray(memoryState.recentConversationStates);
+  const matchingState = recentStates.find(state => state?.conversationId === conversationId);
+  if (!matchingState || matchingState.sourceHash !== previousSourceHash || !index?.getAll || !index?.put) return false;
+  replaceMemoryState({
+    ...memoryState,
+    recentConversationStates: recentStates.map(state => (
+      state?.conversationId === conversationId ? { ...state, sourceHash: nextSourceHash } : state
+    ))
+  });
+  index.getAll()
+    .filter(record => (
+      record?.conversationId === conversationId
+      && (record.recordType === 'conversation-capsule' || record.recordType === 'conversation-fragment')
+      && record.sourceHash === previousSourceHash
+    ))
+    .forEach(record => index.put({ ...record, sourceHash: nextSourceHash }));
+  return true;
+}
+
 export function activeMemoryRecordIds({ memoryState = {}, records = [], conversationIds = [] } = {}) {
   const active = new Set(asArray(conversationIds));
   return new Set([

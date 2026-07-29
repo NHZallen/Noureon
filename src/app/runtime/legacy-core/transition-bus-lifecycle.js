@@ -18,7 +18,11 @@ import { createMemoryTaskClients } from '../memory/memory-task-clients.js';
 import { createConfiguredMemoryModelClient } from '../memory/memory-model-runtime-client.js';
 import { createLegacyMemorySummaryLifecycle } from './memory-summary-lifecycle.js';
 import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
-import { activeMemoryRecordIds, hasCurrentHistoryIndexRecords } from '../memory/history-index-records.js';
+import {
+    activeMemoryRecordIds,
+    hasCurrentHistoryIndexRecords,
+    migrateHistoryIndexSourceFingerprint
+} from '../memory/history-index-records.js';
 import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
 import { assertLegacyTransitionBusDependencies } from './transition-bus-dependencies.js';
 
@@ -483,6 +487,12 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         hasIndexedSource: options => hasCurrentHistoryIndexRecords({
             ...options,
             records: historyIndex.getAll()
+        }),
+        migrateSourceFingerprint: options => migrateHistoryIndexSourceFingerprint({
+            ...options,
+            memoryState: runtimeAppDataStore.getMemoryState?.() || {},
+            replaceMemoryState,
+            index: historyIndex
         })
     });
     let historyIndexWorkPromise = null;
