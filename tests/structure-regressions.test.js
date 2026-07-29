@@ -2016,6 +2016,7 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
 
+  assert.match(fragment01Source, /renderChat:\s*\(\.\.\.args\)\s*=>\s*renderChat\(\.\.\.args\)/);
   assertMarkersInOrder(fragment01Source, [
     'const submitInputCouncilLifecycle = createLegacySubmitInputCouncilLifecycle({',
     "legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState'",

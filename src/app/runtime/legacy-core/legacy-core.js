@@ -990,6 +990,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             cloneCouncilConfig,
             normalizeConversationModel,
             renderAll,
+            renderChat: (...args) => renderChat(...args),
             renderHistorySidebar,
             renderMarkdown,
             renderMarkdownWithFormulas,

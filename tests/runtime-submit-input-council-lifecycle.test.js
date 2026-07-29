@@ -87,6 +87,7 @@ function createDependencies(overrides = {}) {
     saveAppData: async () => {},
     saveConfig: async () => {},
     renderAll: noop,
+    renderChat: noop,
     renderHistorySidebar: noop,
     addMessageToUI: noop,
     showNotification: noop,

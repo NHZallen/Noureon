@@ -96,6 +96,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     cloneCouncilConfig = (value) => ({ ...(value || {}) }),
     normalizeConversationModel,
     renderAll,
+    renderChat = () => {},
     renderHistorySidebar,
     renderMarkdown = (value) => String(value ?? ''),
     renderMarkdownWithFormulas = renderMarkdown,
