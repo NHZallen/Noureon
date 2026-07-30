@@ -7,6 +7,7 @@ import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } fro
 import { createMessageListLifecycle } from '../../legacy-runtime/features/message-list-lifecycle.js';
 import { escapeHTML as escapeMarkup } from './legacy-core-utilities.js';
 import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
+import { isHighRiskCustomNouras } from '../nouras/nouras-policy.js';
 
 const REQUIRED_DEPENDENCIES = [
   'window',
@@ -383,6 +384,12 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     if (!name || !instructions) {
       showNotification(i18n[getConfig().uiLanguage].nameAndInstructionsRequired || '名稱和指令為必填。', 'error');
       return;
+    }
+    if (isHighRiskCustomNouras({ name, description, instructions })) {
+      showNotification(
+        i18n[getConfig().uiLanguage].highRiskNourasWarning || 'This Nouras may involve a high-risk professional role. It is not verified and cannot replace qualified human help.',
+        'warning'
+      );
     }
     if (getEditingAstrasId()) {
       const ast = getAstras().find(a => a.id === getEditingAstrasId());

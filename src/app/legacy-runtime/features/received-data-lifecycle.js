@@ -35,6 +35,7 @@ export function createReceivedDataLifecycle({
 
             if (type === 'astras') {
                 let count = 0;
+                let containsHighRiskNouras = false;
                 const files = Object.keys(zip.files);
                 for (const filename of files) {
                     if (filename.startsWith('astra_') && filename.endsWith('.json')) {
@@ -46,12 +47,16 @@ export function createReceivedDataLifecycle({
                             astraData.name += ` (${getText('imported', 'Imported')})`;
                         }
                         astraData.officialId = null;
+                        containsHighRiskNouras ||= isHighRiskCustomNouras(astraData);
 
                         astras.unshift(astraData);
                         count++;
                     }
                 }
                 showNotification(getText('p2pReceivedAstrasSuccess', 'Received {count} Nouras.').replace('{count}', count), 'success');
+                if (containsHighRiskNouras) {
+                    showNotification(getText('highRiskNourasWarning', 'Some imported Nouras may involve high-risk professional roles. They are not verified and cannot replace qualified human help.'), 'warning');
+                }
             } else {
                 const foldersContent = await zip.file('folders.json').async("string");
                 const convsContent = await zip.file('conversations.json').async("string");
@@ -128,3 +133,4 @@ export function createReceivedDataLifecycle({
 
     return { processReceivedData };
 }
+import { isHighRiskCustomNouras } from '../../runtime/nouras/nouras-policy.js';

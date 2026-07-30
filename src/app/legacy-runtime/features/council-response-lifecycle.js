@@ -1,4 +1,5 @@
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 
 export function createCouncilResponseLifecycle({
   buildTavilySearchQuery,
@@ -104,6 +105,7 @@ export function createCouncilResponseLifecycle({
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
                   additionalSystemInstruction: options.systemInstruction || 'Prepare shared web research context. Do not answer the user directly.',
+                  requestPurpose: NOURAS_REQUEST_PURPOSE.BACKGROUND_SEARCH,
                   onRetry: options.onRetry
               }
           );
@@ -179,6 +181,7 @@ export function createCouncilResponseLifecycle({
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
                   additionalSystemInstruction: 'You are only translating attachments into detailed neutral text packets for a model council. Do not answer the user.',
+                  requestPurpose: NOURAS_REQUEST_PURPOSE.BACKGROUND_ATTACHMENT_TRANSLATION,
               }
           );
       };
@@ -443,6 +446,7 @@ export function createCouncilResponseLifecycle({
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
                   additionalSystemInstruction: buildCouncilMemberInstruction(mode),
+                  requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT,
                   onRetry: () => {
                       if (state) {
                           state.detail = runtimeTexts.retrying;
@@ -558,6 +562,7 @@ export function createCouncilResponseLifecycle({
                       ignoreConversationWebSearch: true,
                       disableReasoning: true,
                       additionalSystemInstruction: '你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把共同搜尋資料稱為使用者提供的資料。',
+                      requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_DELIBERATION,
                       onRetry: () => {
                           if (state) {
                               state.detail = runtimeTexts.retrying;
@@ -619,6 +624,7 @@ export function createCouncilResponseLifecycle({
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
                   additionalSystemInstruction: synthesisInstruction,
+                  requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS,
                   onMemoryContextResolved,
                   onRetry: () => progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name} · ${runtimeTexts.retrying}`)
               }

@@ -1,4 +1,5 @@
 /** Runs structured background-memory requests through the normal provider transport. */
+import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 export function createMemoryModelRunner({ streamApiCall, models = [] } = {}) {
   if (typeof streamApiCall !== 'function') throw new TypeError('Memory model runner requires streamApiCall.');
 
@@ -22,7 +23,8 @@ export function createMemoryModelRunner({ streamApiCall, models = [] } = {}) {
       disableReasoning: true,
       ignoreConversationWebSearch: true,
       skipMemoryContext: true,
-      skipConversationSystemContext: true
+      skipConversationSystemContext: true,
+      requestPurpose: NOURAS_REQUEST_PURPOSE.BACKGROUND_MEMORY
     });
     if (!fullText.trim()) throw new Error(`The selected memory model (${modelInfo.name}) returned no text.`);
     return fullText;

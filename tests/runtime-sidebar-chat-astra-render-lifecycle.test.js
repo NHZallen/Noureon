@@ -172,6 +172,21 @@ test('factory exposes sidebar chat Astra render API', () => {
   }
 });
 
+test('creating a high-risk custom Nouras warns but still saves it', async () => {
+  const dependencies = createDependencies({
+    i18n: { en: { createAstras: 'Create Nouras', highRiskNourasWarning: 'High-risk role warning' } }
+  });
+  dependencies.elements.astrasNameInput.value = 'Therapist';
+  dependencies.elements.astrasInstructionsInput.value = 'Provide mental-health diagnosis.';
+  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+
+  await lifecycle.handleSaveAstras();
+
+  assert.ok(dependencies._calls.some((entry) => Array.isArray(entry) && entry[0] === 'notify' && entry[1] === 'High-risk role warning' && entry[2] === 'warning'));
+  assert.equal(dependencies.state.astras.length, 1);
+  assert.ok(dependencies._calls.includes('saveAppData'));
+});
+
 test('selecting and deactivating a Noura refreshes its composer indicator', async () => {
   const dependencies = createDependencies({
     renderInputIndicators: () => dependencies._calls.push('renderInputIndicators')

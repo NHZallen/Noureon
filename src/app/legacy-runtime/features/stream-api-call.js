@@ -1,5 +1,6 @@
 import { appendStepPlanAttachmentContent } from './model-request-formatting.js';
 import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
+import { resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
 const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/step_plan/v1/chat/completions';
 
 const LANGUAGE_INSTRUCTIONS = {
@@ -101,15 +102,16 @@ const buildSystemInstruction = async ({
   personalMemories,
   memoryContext,
   additionalSystemInstruction,
-  chartAuthoringGuidance
+  chartAuthoringGuidance,
+  requestPurpose
 }) => {
   let baseInstructionText = LANGUAGE_INSTRUCTIONS[config.aiDefaultLanguage] || '';
   let hasAstraInstructions = false;
 
-  if (conversation?.astrasId) {
+  if (shouldApplyNouras(requestPurpose) && conversation?.astrasId) {
     const astra = astras.find((item) => item.id === conversation.astrasId);
     if (astra) {
-      baseInstructionText = `${astra.instructions}\n\n${baseInstructionText}`;
+      baseInstructionText = `${resolveNourasInstructions(astra)}\n\n${baseInstructionText}`;
       hasAstraInstructions = true;
     }
   }
@@ -580,12 +582,13 @@ export function createStreamApiCall({
     );
     const systemInstruction = await buildSystemInstruction({
       config,
-      conversation: requestOptions.skipConversationSystemContext ? { astrasId: null } : conversation,
+      conversation,
       astras: getAstras(),
       personalMemories: getPersonalMemories(),
       memoryContext,
       additionalSystemInstruction: requestOptions.additionalSystemInstruction,
-      chartAuthoringGuidance
+      chartAuthoringGuidance,
+      requestPurpose: requestOptions.requestPurpose
     });
 
     const request = provider === 'gemini'

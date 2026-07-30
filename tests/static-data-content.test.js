@@ -8,7 +8,7 @@ const EXPECTED_FIRST_ASTRA = {
   name: '旅遊小編',
   category: '生產力'
 };
-const EXPECTED_ASTRAS_HASH = '5ea9abfcdbf29ba29cd5ff21fa352eed167b1c5cc6a3a198b0e5ebe51845450d';
+const EXPECTED_ASTRAS_HASH = '2ee2c5e84c26ae01dd615eed2cd116bb29eecf0c57335936052ae94c5091d019';
 const EXPECTED_DEMO_KEYS = ['proMax', 'proPV', 'pro', 'plusPV', 'mini', 'mill', 'nano'];
 const EXPECTED_DEMO_HASH = 'eb83bb2c6ce275d9018d4d44ddc805a1ec0945c01b033c20bf582f366f3dccb7';
 const GLOBAL_KEYS_TO_RESTORE = ['window', 'OFFICIAL_ASTRAS', 'demoConversations'];
@@ -106,6 +106,16 @@ test('official Astras entries keep the runtime-required data shape', async () =>
       assert.ok(astra.instructions.trim().length > 0, `astra ${index} instructions should not be empty`);
     }
   });
+});
+
+test('official mental-health Nouras expose bounded, non-clinical runtime instructions', async () => {
+  const { default: officialAstras } = await importFresh('src/data/astras-data.js');
+  for (const id of ['official-editor-09', 'official-editor-10']) {
+    const nouras = officialAstras.find((entry) => entry.id === id);
+    assert.match(nouras.instructions, /不具有真人專業資格/);
+    assert.match(nouras.instructions, /不診斷/);
+    assert.match(nouras.instructions, /緊急服務/);
+  }
 });
 
 test('demo conversations keep legacy window/global bridge, exports, key order, and content hash', async () => {

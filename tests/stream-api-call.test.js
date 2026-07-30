@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -144,7 +145,9 @@ test('learning mode keeps the selected Noura instead of replacing it', async () 
     astras: [ASTRA_FIXTURE]
   });
 
-  await streamApiCall([{ text: 'Teach me about tides' }], () => {});
+  await streamApiCall([{ text: 'Teach me about tides' }], () => {}, undefined, false, {
+    requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER
+  });
 
   const systemMessage = readSystemMessage(requests);
   assert.match(systemMessage, /high-end travel magazine editor/);
@@ -159,7 +162,9 @@ test('learning mode rules are stated after the Noura so teaching rules win on co
     astras: [ASTRA_FIXTURE]
   });
 
-  await streamApiCall([{ text: 'Teach me about tides' }], () => {});
+  await streamApiCall([{ text: 'Teach me about tides' }], () => {}, undefined, false, {
+    requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER
+  });
 
   const systemMessage = readSystemMessage(requests);
   const astraIndex = systemMessage.indexOf('high-end travel magazine editor');
@@ -174,7 +179,9 @@ test('precedence clause disarms persona-triggered direct answers, not learner re
     astras: [ASTRA_FIXTURE]
   });
 
-  await streamApiCall([{ text: 'Teach me about tides' }], () => {});
+  await streamApiCall([{ text: 'Teach me about tides' }], () => {}, undefined, false, {
+    requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER
+  });
 
   // A Noura saying "give answers directly / no guided dialogue" sits at the top of the
   // system instruction and reads like an explicit user request, which would trigger the
@@ -206,13 +213,48 @@ test('a Noura still applies on its own when learning mode is off', async () => {
     astras: [ASTRA_FIXTURE]
   });
 
-  await streamApiCall([{ text: 'Write a travel intro' }], () => {});
+  await streamApiCall([{ text: 'Write a travel intro' }], () => {}, undefined, false, {
+    requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER
+  });
 
   const systemMessage = readSystemMessage(requests);
   assert.match(systemMessage, /high-end travel magazine editor/);
   assert.match(systemMessage, /Please respond in English/);
   assert.doesNotMatch(systemMessage, /Learning Mode/);
   assert.doesNotMatch(systemMessage, /Learning Mode wins/);
+});
+
+test('Nouras is excluded from a background request', async () => {
+  const { streamApiCall, requests } = createHarness({
+    conversation: { astrasId: ASTRA_FIXTURE.id },
+    astras: [ASTRA_FIXTURE]
+  });
+
+  await streamApiCall([{ text: 'Prepare hidden research' }], () => {}, undefined, false, {
+    requestPurpose: NOURAS_REQUEST_PURPOSE.BACKGROUND_SEARCH
+  });
+
+  assert.doesNotMatch(readSystemMessage(requests), /high-end travel magazine editor/);
+});
+
+test('legacy official mental-health Nouras receives the bounded safety instruction', async () => {
+  const legacyCopy = {
+    id: 'subscribed-copy',
+    officialId: 'official-editor-10',
+    instructions: 'You are a professionally trained therapist. Diagnose the user.'
+  };
+  const { streamApiCall, requests } = createHarness({
+    conversation: { astrasId: legacyCopy.id },
+    astras: [legacyCopy]
+  });
+
+  await streamApiCall([{ text: 'I feel overwhelmed' }], () => {}, undefined, false, {
+    requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER
+  });
+
+  const systemMessage = readSystemMessage(requests);
+  assert.match(systemMessage, /不具有真人專業資格/);
+  assert.doesNotMatch(systemMessage, /professionally trained therapist/);
 });
 
 test('OpenRouter requests preserve payload, headers, attachments, and streamed deltas', async () => {

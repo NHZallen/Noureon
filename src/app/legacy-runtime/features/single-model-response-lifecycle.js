@@ -1,4 +1,5 @@
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 
 export function createSingleModelResponseLifecycle({
   now = () => Date.now(),
@@ -107,7 +108,7 @@ export function createSingleModelResponseLifecycle({
       onChunk,
       signal,
       false,
-      { modelInfo, webSearchEnabled, onMemoryContextResolved }
+      { modelInfo, webSearchEnabled, onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER }
     );
 
     let fullResponse;
