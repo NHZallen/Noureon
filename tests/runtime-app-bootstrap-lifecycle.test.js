@@ -396,6 +396,27 @@ test('search controls expose the natural-language Enter hint and follow the visu
   assert.doesNotMatch(source, /searchKeyboardSyncTimer|scheduleTimeout\(syncSearchViewport,\s*140\)/);
 });
 
+test('search opens and focuses within one animation frame without scrolling the page', async () => {
+  const harness = createLifecycleHarness();
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+
+  await initChatApp();
+  harness.calls.length = 0;
+  findListener(harness.listeners, 'openSearchBtn', 'click')();
+
+  const openIndex = harness.calls.indexOf('toggleModal:searchModal:true');
+  const frameIndex = harness.calls.indexOf('scheduleAnimationFrame');
+  const focusIndex = harness.calls.indexOf('focus:modalSearchInput');
+  assert.ok(openIndex >= 0);
+  assert.ok(frameIndex > openIndex);
+  assert.ok(focusIndex > frameIndex);
+  assert.equal(harness.calls.includes('scheduleTimeout'), false);
+
+  const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  assert.match(source, /modalSearchInput\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
+  assert.doesNotMatch(source, /scheduleTimeout\(\(\)\s*=>\s*\{\s*ALL_ELEMENTS\.modalSearchInput\.focus/);
+});
+
 test('initChatApp binds settings, import/export, trash, P2P, file, and form listeners', async () => {
   const harness = createLifecycleHarness();
   const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);

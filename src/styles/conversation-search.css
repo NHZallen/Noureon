@@ -313,7 +313,7 @@
 
     #search-modal > div {
         position: fixed;
-        top: var(--search-viewport-offset-top, 0px);
+        top: 0;
         right: 0;
         bottom: auto;
         left: 0;
@@ -331,8 +331,9 @@
         border: 0;
         border-radius: 0 !important;
         box-shadow: none;
+        contain: layout paint;
         overflow: hidden;
-        transform: none;
+        transform: translate3d(0, var(--search-viewport-offset-top, 0px), 0);
         transition: none;
     }
 

@@ -277,8 +277,8 @@ export function createLegacyAppBootstrapLifecycle({
                         || 0;
                     const visibleViewportHeight = Number(visualViewport?.height) || fallbackViewportHeight;
                     const visibleViewportOffsetTop = Math.max(0, Number(visualViewport?.offsetTop) || 0);
-                    const nextHeight = `${Math.round(visibleViewportHeight)}px`;
-                    const nextOffsetTop = `${Math.round(visibleViewportOffsetTop)}px`;
+                    const nextHeight = `${Number(visibleViewportHeight.toFixed(2))}px`;
+                    const nextOffsetTop = `${Number(visibleViewportOffsetTop.toFixed(2))}px`;
                     if (previousSearchViewportHeight !== nextHeight) {
                         ALL_ELEMENTS.searchModal.style.setProperty('--search-visible-height', nextHeight);
                         previousSearchViewportHeight = nextHeight;
@@ -324,10 +324,14 @@ export function createLegacyAppBootstrapLifecycle({
                     ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行
                     ALL_ELEMENTS.modalSearchInput.value = '';
                     performSearchAndRenderResults();
-                    scheduleTimeout(() => {
-                        ALL_ELEMENTS.modalSearchInput.focus();
+                    scheduleAnimationFrame(() => {
+                        try {
+                            ALL_ELEMENTS.modalSearchInput.focus({ preventScroll: true });
+                        } catch {
+                            ALL_ELEMENTS.modalSearchInput.focus();
+                        }
                         queueSearchViewportSync();
-                    }, 50);
+                    });
                 });
                 ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
                     resolveEventsSetupSettingsModal();

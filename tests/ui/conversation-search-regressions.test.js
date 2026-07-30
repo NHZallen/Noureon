@@ -10,7 +10,7 @@ test('conversation search keeps mobile controls above the keyboard and aligns de
   assert.match(html, /viewport-fit=cover,\s*interactive-widget=resizes-content/);
   assert.match(css, /\.conversation-search-header\s*\{[^}]*top:\s*1\.275rem;[^}]*right:\s*1rem;[^}]*padding:\s*0;/s);
   assert.match(css, /grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto;[\s\S]*grid-template-areas:\s*"input input voice"\s*"modes hint hint"/s);
-  assert.match(css, /#search-modal > div\s*\{[^}]*top:\s*var\(--search-viewport-offset-top,\s*0px\);[^}]*grid-template-areas:\s*"results results"\s*"toolbar close";[^}]*height:\s*var\(--search-visible-height,\s*100dvh\)\s*!important;[^}]*transform:\s*none;/s);
+  assert.match(css, /#search-modal > div\s*\{[^}]*top:\s*0;[^}]*grid-template-areas:\s*"results results"\s*"toolbar close";[^}]*height:\s*var\(--search-visible-height,\s*100dvh\)\s*!important;[^}]*contain:\s*layout paint;[^}]*transform:\s*translate3d\(0,\s*var\(--search-viewport-offset-top,\s*0px\),\s*0\);[^}]*transition:\s*none;/s);
   assert.match(css, /#close-search-modal-btn\s*\{[^}]*position:\s*static;[^}]*grid-area:\s*close;[^}]*align-self:\s*end;[^}]*background:\s*#ffffff;/s);
   assert.match(css, /\.conversation-search-toolbar\s*\{[^}]*position:\s*static;[^}]*grid-area:\s*toolbar;[^}]*align-self:\s*end;[^}]*transform:\s*none;/s);
   assert.match(css, /grid-template-areas:\s*"hint"\s*"modes"\s*"input"/s);
