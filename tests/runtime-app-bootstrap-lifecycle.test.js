@@ -98,6 +98,7 @@ function createFakeDom() {
       listeners.push({ id: 'document', type, handler, options });
     }
   };
+  document.documentElement.clientHeight = 800;
 
   const window = {
     innerWidth: 1280,
@@ -383,6 +384,8 @@ test('search controls expose the natural-language Enter hint and follow the visu
   findListener(harness.listeners, 'visualViewport', 'resize')();
 
   assert.ok(harness.calls.includes('style:searchModal:--search-keyboard-inset:280px'));
+  assert.ok(harness.calls.includes('style:searchModal:--search-visible-height:510px'));
+  assert.ok(harness.calls.includes('style:searchModal:--search-viewport-offset-top:10px'));
   assert.equal(findListener(harness.listeners, 'visualViewport', 'scroll') instanceof Function, true);
 
   const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');

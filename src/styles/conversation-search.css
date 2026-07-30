@@ -64,11 +64,10 @@
 
 #search-modal .conversation-search-toolbar {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-        "input voice"
-        "hint hint"
-        "modes modes";
+        "input input voice"
+        "modes hint hint";
     align-items: center;
     gap: 0.65rem 0.5rem;
     padding: 1rem 4.2rem 0.75rem 1rem;
@@ -329,8 +328,14 @@
 
     #search-modal #close-search-modal-btn {
         position: absolute;
+        top: calc(
+            var(--search-viewport-offset-top, 0px)
+            + var(--search-visible-height, 100dvh)
+            - max(1.5rem, env(safe-area-inset-bottom))
+            - 3rem
+        );
         right: 1rem;
-        bottom: calc(var(--search-keyboard-inset, 0px) + max(1.25rem, env(safe-area-inset-bottom)));
+        bottom: auto;
         z-index: 4;
         width: 3rem;
         height: 3rem;
@@ -349,8 +354,13 @@
 
     #search-modal .conversation-search-toolbar {
         position: absolute;
+        top: calc(
+            var(--search-viewport-offset-top, 0px)
+            + var(--search-visible-height, 100dvh)
+            - max(1.5rem, env(safe-area-inset-bottom))
+        );
         right: 4.75rem;
-        bottom: calc(var(--search-keyboard-inset, 0px) + max(1.25rem, env(safe-area-inset-bottom)));
+        bottom: auto;
         left: 1rem;
         z-index: 3;
         grid-template-columns: minmax(0, 1fr);
@@ -361,6 +371,7 @@
         gap: 0.45rem;
         padding: 0;
         border: 0;
+        transform: translateY(-100%);
     }
 
     .conversation-search-mode-control {
@@ -420,7 +431,11 @@
     }
 
     #search-modal #search-results-container {
-        padding: max(1rem, env(safe-area-inset-top)) 1rem 8.6rem;
+        flex: 0 0 auto;
+        width: 100%;
+        height: max(10rem, calc(var(--search-visible-height, 100dvh) - 10rem));
+        min-height: 0;
+        padding: max(1rem, env(safe-area-inset-top)) 1rem 1rem;
         background: #ffffff;
     }
 
@@ -429,21 +444,24 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        min-height: calc(100dvh - 9.5rem);
-        gap: 1rem;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        gap: 0.7rem;
         color: #202123;
         text-align: center;
+        transform: translateY(-1rem);
     }
 
     .conversation-search-mobile-empty svg {
-        width: 2.7rem;
-        height: 2.7rem;
+        width: 2.1rem;
+        height: 2.1rem;
         color: #667085;
     }
 
     .conversation-search-mobile-empty p {
         margin: 0;
-        font-size: 1.2rem;
+        font-size: 1rem;
         font-weight: 500;
     }
 
