@@ -2,6 +2,17 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.6.2",
+    date: "2026-07-30",
+    content: [
+      "<strong>【Noureon 16.6.2：Nouras 的安全界線與作用範圍更清楚】</strong>",
+      "本次修正版讓 Nouras 在對話中維持更清楚的責任界線，同時避免個人化指令影響背景處理。",
+      "<strong>✨ 修正重點：</strong>",
+      "<ul><li><strong>🛡️ 高風險 Nouras 建立提醒：</strong>建立或編輯涉及醫療、心理、法律、投資等高風險專業領域的自訂 Nouras 時，會顯示未經專業驗證、不能取代合格專業協助的提醒；你仍可自行決定是否繼續建立。</li><li><strong>💬 對話與背景工作分流：</strong>Nouras 指令只會套用到使用者可見的回答與 Model Council 討論，不會進入背景搜尋、附件翻譯或記憶整理等工作，降低非預期的個人化影響。</li><li><strong>🤝 心理健康 Nouras 更安全：</strong>「內在旅程」與「心靈輔導」明確定位為資訊與思考整理協助，不提供診斷、治療、醫囑或用藥調整；遇到迫切危險時會優先鼓勵聯絡當地緊急資源或可信任的人。</li></ul>",
+      "Noureon 開發團隊 敬上"
+    ]
+  },
+  {
     version: "16.6.1",
     date: "2026-07-29",
     content: [
