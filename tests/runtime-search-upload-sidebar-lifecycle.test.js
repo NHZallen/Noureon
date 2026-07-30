@@ -48,8 +48,6 @@ function createNode() {
       return listeners.get(type)?.(event);
     },
     querySelector(selector) {
-      if (selector === '.conversation-search-result-copy') return this.titleArea ||= createNode();
-      if (selector === '.search-view-btn') return this.viewButton ||= createNode();
       if (selector === '.media-lightbox-share') return null;
       if (selector === 'video') return null;
       return null;
@@ -94,10 +92,6 @@ function createHarness(overrides = {}) {
     modalSearchInput: { value: 'hello' },
     modalSearchScopeSelect: { value: 'keyword-all' },
     searchResultsContainer: createNode(),
-    searchViewTitle: createNode(),
-    searchViewContent: createNode(),
-    searchViewConfirmBtn: createNode(),
-    searchViewModal: createNode(),
     searchModal: createNode(),
     openSearchBtn: createNode(),
     filePreviewContainer: createNode(),
@@ -109,7 +103,9 @@ function createHarness(overrides = {}) {
   const conversations = overrides.conversations ?? [{
     id: 'conv-1',
     title: 'Hello chat',
+    archived: false,
     deletedAt: null,
+    isTemporary: false,
     messages: [{ role: 'user', parts: [{ text: 'This body says hello.' }] }]
   }];
   const lifecycle = createLegacySearchUploadSidebarLifecycle({
@@ -179,7 +175,6 @@ test('factory exposes search, upload, and sidebar lifecycle functions', () => {
   const { lifecycle } = createHarness();
   for (const name of [
     'performSearchAndRenderResults',
-    'showConversationInViewModal',
     'generateSearchKeywords',
     'calculateRelevanceScores',
     'renderFilePreviews',
@@ -196,10 +191,63 @@ test('search path uses live conversations and closes sidebar through owner-local
   await harness.lifecycle.performSearchAndRenderResults();
 
   assert.equal(harness.elements.searchResultsContainer.children.length, 1);
-  harness.elements.searchResultsContainer.children[0].titleArea.dispatch('click');
+  assert.match(harness.elements.searchResultsContainer.children[0].innerHTML, /conversation-search-chat-icon/);
+  harness.elements.searchResultsContainer.children[0].dispatch('click');
   assert.deepEqual(harness.calls.filter((call) => call[0] === 'loadChat'), [['loadChat', 'conv-1']]);
   assert.ok(harness.calls.some((call) => call[0] === 'setSidebarOpen' && call[1] === false));
   assert.ok(harness.calls.some((call) => call[0] === 'toggleModal' && call[1] === harness.elements.searchModal && call[2] === false));
+});
+
+test('search only includes conversations that have entered history', async () => {
+  const searchable = {
+    id: 'ready',
+    title: 'Hello ready',
+    archived: false,
+    deletedAt: null,
+    isTemporary: false,
+    messages: [{ role: 'user', parts: [{ text: 'hello' }] }]
+  };
+  const excluded = [
+    { ...searchable, id: 'temporary', title: 'Hello temporary', isTemporary: true },
+    { ...searchable, id: 'archived', title: 'Hello archived', archived: true },
+    { ...searchable, id: 'deleted', title: 'Hello deleted', deletedAt: '2026-07-30T00:00:00.000Z' }
+  ];
+  const harness = createHarness({ conversations: [searchable, ...excluded] });
+
+  await harness.lifecycle.performSearchAndRenderResults();
+
+  assert.equal(harness.elements.searchResultsContainer.children.length, 1);
+  assert.equal(harness.elements.searchResultsContainer.children[0].dataset.id, 'ready');
+});
+
+test('title search keeps history-visible conversations searchable without message content', async () => {
+  const harness = createHarness({
+    conversations: [{
+      id: 'metadata-only',
+      title: 'Hello metadata',
+      archived: false,
+      deletedAt: null,
+      isTemporary: false
+    }]
+  });
+  harness.elements.modalSearchScopeSelect.value = 'keyword-title';
+
+  await harness.lifecycle.performSearchAndRenderResults();
+
+  assert.equal(harness.elements.searchResultsContainer.children.length, 1);
+  assert.equal(harness.elements.searchResultsContainer.children[0].dataset.id, 'metadata-only');
+});
+
+test('natural search keeps ranking internal and renders the conversation icon without relevance labels', async () => {
+  const harness = createHarness();
+  harness.elements.modalSearchScopeSelect.value = 'natural';
+
+  await harness.lifecycle.performSearchAndRenderResults();
+
+  assert.equal(harness.elements.searchResultsContainer.children.length, 1);
+  const resultMarkup = harness.elements.searchResultsContainer.children[0].innerHTML;
+  assert.match(resultMarkup, /conversation-search-chat-icon/);
+  assert.doesNotMatch(resultMarkup, /conversation-search-relevance|高相關|中相關|低相關/);
 });
 
 test('upload path uses live uploadedFiles bridge and preview callback', async () => {

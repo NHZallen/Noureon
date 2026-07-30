@@ -103,10 +103,8 @@ test('showArchivedChatPreview positions the rendered modal at the latest message
   assert.ok(bottomIndex > modalIndex, 'expected bottom anchoring to start after the modal is open');
 });
 
-test('search conversation preview keeps its contextual scroll position', () => {
-  const body = getConstFunctionBody(searchUploadSidebarSource, 'showConversationInViewModal');
-
-  assert.doesNotMatch(body, /requestAnimationFrame|scrollHeight|scrollTop|\.scrollTo\s*\(/);
+test('conversation search no longer exposes a preview interaction', () => {
+  assert.doesNotMatch(searchUploadSidebarSource, /showConversationInViewModal|search-view-btn|touchstart/);
 });
 
 test('showRenameModal reads the latest bridge conversations', () => {

@@ -1558,12 +1558,13 @@ test('search upload sidebar lifecycle moves search upload sidebar ownership out 
   assert.match(fragment03Source, /setUploadedFiles:\s*\(files\)\s*=>\s*\{\s*state\.uploadedFiles\s*=\s*files;\s*return\s+state\.uploadedFiles;\s*\}/);
   assert.match(fragment03Source, /getSidebarOpen:\s*\(\)\s*=>\s*state\.sidebarOpen/);
   assert.match(fragment03Source, /setSidebarOpen:\s*\(nextSidebarOpen\)\s*=>\s*\{\s*state\.sidebarOpen\s*=\s*nextSidebarOpen;\s*return\s+state\.sidebarOpen;\s*\}/);
-  assert.match(fragment03Source, /performSearchAndRenderResults,\s*showConversationInViewModal,\s*generateSearchKeywords,/);
+  assert.match(fragment03Source, /performSearchAndRenderResults,\s*generateSearchKeywords,/);
   assert.match(fragment03Source, /renderFilePreviews,\s*removeFile,\s*handleFileSelection,\s*toggleSidebar/);
   assert.match(fragment03Source, /const\s+registerSidebarBindings\s*=\s*\(\)\s*=>\s*\{/);
   assert.match(fragment03Source, /legacyRuntimeContext\.registerLazyBinding\('sidebar\.toggleSidebar',\s*\(\)\s*=>\s*toggleSidebar\);/);
   assert.doesNotMatch(fragment03Source, /const\s+performSearchAndRenderResults\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(fragment03Source, /const\s+showConversationInViewModal\s*=\s*\(convId\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /showConversationInViewModal|search-view-btn/);
   assert.doesNotMatch(fragment03Source, /const\s+generateSearchKeywords\s*=\s*async\s*\(naturalQuery\)\s*=>\s*\{/);
   assert.doesNotMatch(fragment03Source, /createUploadedFilePreviewLifecycle\(\{/);
   assert.doesNotMatch(fragment03Source, /function\s+toggleSidebar\(show\)\s*\{/);
@@ -3627,10 +3628,8 @@ test('media renderer and preview lifecycle replace fragment-local and hidden lex
   assert.match(fragment00Source, /bindMediaPreviewButtons:\s*bindArchivedMediaPreviewButtons/);
   assert.match(sidebarChatAstraRenderSource, /buildMediaAttachmentView:\s*buildMessageMediaAttachmentView/);
   assert.match(sidebarChatAstraRenderSource, /bindMediaPreviewButtons:\s*bindMessageMediaPreviewButtons/);
-  assert.match(searchUploadSidebarSource, /import\s+\{\s*createConversationViewRenderer\s*\}/);
-  assert.match(searchUploadSidebarSource, /searchConversationViewRenderer\.renderConversationMessages\(\{/);
-  assert.match(searchUploadSidebarSource, /renderMediaAttachmentGrid:\s*renderSearchMediaAttachmentGrid/);
-  assert.match(searchUploadSidebarSource, /bindMediaPreviewButtons:\s*bindSearchMediaPreviewButtons/);
+  assert.doesNotMatch(searchUploadSidebarSource, /createConversationViewRenderer|searchConversationViewRenderer/);
+  assert.doesNotMatch(searchUploadSidebarSource, /renderSearchMediaAttachmentGrid|bindSearchMediaPreviewButtons/);
   assert.match(searchUploadSidebarSource, /createUploadedFilePreviewLifecycle\(\{/);
   assert.match(searchUploadSidebarSource, /openMediaPreview:\s*openSearchMediaPreview/);
   assert.match(trashLifecycleSource, /import\s+\{\s*createConversationViewRenderer\s*\}/);

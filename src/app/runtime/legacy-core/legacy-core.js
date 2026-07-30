@@ -1572,7 +1572,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderDashboardStats,
             renderModelUsageChart,
             performSearchAndRenderResults,
-            showConversationInViewModal,
             generateSearchKeywords,
             calculateRelevanceScores,
             renderFilePreviews,

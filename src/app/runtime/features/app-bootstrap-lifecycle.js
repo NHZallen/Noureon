@@ -209,6 +209,14 @@ export function createLegacyAppBootstrapLifecycle({
                 const searchHeader = ALL_ELEMENTS.closeSearchModalBtn.parentElement;
                 searchToolbar?.classList.add('conversation-search-toolbar');
                 searchHeader?.classList.add('conversation-search-header');
+                const closeSearchLabel = i18n[config.uiLanguage]?.close || '關閉';
+                ALL_ELEMENTS.closeSearchModalBtn.setAttribute('aria-label', closeSearchLabel);
+                ALL_ELEMENTS.closeSearchModalBtn.title = closeSearchLabel;
+                ALL_ELEMENTS.closeSearchModalBtn.innerHTML = `
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                        <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                    </svg>
+                `;
                 ALL_ELEMENTS.modalSearchScopeSelect.classList.add('conversation-search-native-select');
                 const searchModes = [
                     ['keyword-title', i18n[config.uiLanguage]?.searchScopeTitle || '標題'],
@@ -241,6 +249,16 @@ export function createLegacyAppBootstrapLifecycle({
                     searchModeControl.appendChild(button);
                 });
                 searchToolbar?.insertBefore(searchModeControl, ALL_ELEMENTS.modalSearchInput);
+                const searchInputWrap = document.createElement('div');
+                searchInputWrap.className = 'conversation-search-input-wrap';
+                searchInputWrap.innerHTML = `
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"></circle>
+                        <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                    </svg>
+                `;
+                searchToolbar?.insertBefore(searchInputWrap, ALL_ELEMENTS.modalSearchInput);
+                searchInputWrap.appendChild(ALL_ELEMENTS.modalSearchInput);
                 syncSearchModeControl();
                 await startNewChat();
                 void requestMemorySummaryBootstrap().catch((error) => {
@@ -296,18 +314,6 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.modalSearchScopeSelect.addEventListener('change', () => {
                     syncSearchModeControl();
                     if (ALL_ELEMENTS.modalSearchScopeSelect.value !== 'natural') performSearchAndRenderResults();
-                });
-                const closeSearchView = () => toggleModal(ALL_ELEMENTS.searchViewModal, false);
-                ALL_ELEMENTS.closeSearchViewModalBtn.addEventListener('click', closeSearchView);
-                ALL_ELEMENTS.searchViewCloseBtn.addEventListener('click', closeSearchView);
-                ALL_ELEMENTS.searchViewConfirmBtn.addEventListener('click', (e) => {
-                    const convId = e.currentTarget.dataset.id;
-                    if (convId) {
-                        loadChat(convId);
-                        toggleSidebar(false);
-                        closeSearchView();
-                        toggleModal(ALL_ELEMENTS.searchModal, false);
-                    }
                 });
                 const closeTrashView = () => toggleModal(ALL_ELEMENTS.trashViewModal, false);
                 ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);

@@ -1,7 +1,6 @@
 import { highlightText } from '../../legacy-runtime/features/search-text-formatting.js';
 import { createMediaAttachmentRenderer } from '../../legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../../legacy-runtime/features/media-preview-lifecycle.js';
-import { createConversationViewRenderer } from '../../legacy-runtime/features/conversation-view-renderer.js';
 import { createUploadedFilePreviewLifecycle } from '../../legacy-runtime/features/uploaded-file-preview-lifecycle.js';
 import { MODELS, modelGeneratesImages } from './model-registry.js';
 
@@ -18,8 +17,6 @@ const requiredDependencies = [
     'getSidebarOpen',
     'setSidebarOpen',
     'escapeHTML',
-    'renderUserText',
-    'renderMarkdownWithFormulas',
     'loadChat',
     'toggleModal',
     'callApiWithSchema',
@@ -47,8 +44,6 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         FileReaderCtor = globalThis.FileReader,
         ImageCtor = globalThis.Image,
         randomUUID = () => globalThis.crypto?.randomUUID?.(),
-        scheduleTimeout = (...args) => setTimeout(...args),
-        clearScheduledTimeout = (...args) => clearTimeout(...args),
         elements: ALL_ELEMENTS,
         getConfig,
         getConversations,
@@ -57,8 +52,6 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         getSidebarOpen,
         setSidebarOpen,
         escapeHTML,
-        renderUserText,
-        renderMarkdownWithFormulas,
         loadChat,
         toggleModal,
         callApiWithSchema,
@@ -67,15 +60,9 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         logger = console
     } = dependencies;
 
-    const {
-        getInlineMediaSrc: getSearchInlineMediaSrc,
-        renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid
-    } = createMediaAttachmentRenderer({ escapeHTML });
+    const { getInlineMediaSrc: getSearchInlineMediaSrc } = createMediaAttachmentRenderer({ escapeHTML });
 
-    const {
-        openMediaPreview: openSearchMediaPreview,
-        bindMediaPreviewButtons: bindSearchMediaPreviewButtons
-    } = createMediaPreviewLifecycle({
+    const { openMediaPreview: openSearchMediaPreview } = createMediaPreviewLifecycle({
         document,
         navigator,
         fetch,
@@ -86,15 +73,20 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback
     });
 
-    const searchConversationViewRenderer = createConversationViewRenderer({
-        document,
-        renderUserText,
-        renderModelText: renderMarkdownWithFormulas,
-        renderMediaAttachmentGrid: renderSearchMediaAttachmentGrid,
-        bindMediaPreviewButtons: bindSearchMediaPreviewButtons
-    });
-
     const getText = (key, fallback = '') => i18n[getConfig().uiLanguage]?.[key] || fallback;
+    const conversationIcon = `
+        <svg class="conversation-search-chat-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+    `;
+    const isSearchableConversation = (conversation) =>
+        Boolean(
+            conversation
+            && !conversation.deletedAt
+            && !conversation.archived
+            && !conversation.isTemporary
+        );
+    const getSearchableConversations = () => getConversations().filter(isSearchableConversation);
 
     const generateSearchKeywords = async (naturalQuery) => {
         const prompt = `分析以下自然語言查詢，提取 5-10 個最相關的核心關鍵字。對於每個關鍵字，根據其在查詢中的重要性，給予一個 1 到 10 的權重分數（10為最重要）。請嚴格按照以下 JSON 格式輸出，不要有任何額外的文字或解釋。
@@ -119,20 +111,19 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
     };
 
     const calculateRelevanceScores = (weightedKeywords) => {
-        const conversations = getConversations();
+        const conversations = getSearchableConversations();
         const results = [];
         const processedConvIds = new Set();
         const totalWeightSum = weightedKeywords.reduce((sum, kw) => sum + kw.weight, 0);
 
-        conversations
-            .filter(c => !c.deletedAt)
-            .forEach(conv => {
+        conversations.forEach(conv => {
                 if (processedConvIds.has(conv.id)) return;
                 let totalScore = 0;
                 let maxPossibleScore = 0;
                 const foundKeywords = new Set();
                 let bestSnippet = '';
-                const totalMessages = conv.messages.length;
+                const conversationMessages = Array.isArray(conv.messages) ? conv.messages : [];
+                const totalMessages = Math.max(conversationMessages.length, 1);
                 weightedKeywords.forEach(kw => {
                     const keywordLower = kw.keyword.toLowerCase();
                     maxPossibleScore += kw.weight * 10;
@@ -140,7 +131,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
                         totalScore += kw.weight * 10;
                         foundKeywords.add(keywordLower);
                     }
-                    conv.messages.forEach((msg, msgIndex) => {
+                    conversationMessages.forEach((msg, msgIndex) => {
                         msg.parts.forEach(part => {
                             if (part.text && part.text.toLowerCase().includes(keywordLower)) {
                                 foundKeywords.add(keywordLower);
@@ -179,20 +170,6 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         return results;
     };
 
-    const showConversationInViewModal = (convId) => {
-        const conv = getConversations().find(c => c.id === convId);
-        if (!conv) return;
-        ALL_ELEMENTS.searchViewTitle.textContent = conv.title;
-        const contentContainer = ALL_ELEMENTS.searchViewContent;
-        searchConversationViewRenderer.renderConversationMessages({
-            conversation: conv,
-            contentContainer,
-            emptyHTML: `<p class="text-center text-[var(--text-secondary)]">${getText('noMessages', 'No messages')}</p>`
-        });
-        ALL_ELEMENTS.searchViewConfirmBtn.dataset.id = convId;
-        toggleModal(ALL_ELEMENTS.searchViewModal, true);
-    };
-
     const openSearchResult = (convId) => {
         loadChat(convId);
         toggleSidebar(false);
@@ -201,8 +178,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
     };
 
     const renderEmptySearchState = (container, conversations) => {
-        const activeConversations = conversations
-            .filter(conversation => !conversation.deletedAt)
+        const activeConversations = [...conversations]
             .sort((first, second) => {
                 const firstDate = Date.parse(first.lastUpdatedAt || first.createdAt || 0) || 0;
                 const secondDate = Date.parse(second.lastUpdatedAt || second.createdAt || 0) || 0;
@@ -210,10 +186,13 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             });
 
         if ((window?.innerWidth || 0) <= 768) {
+            const mobilePrompt = getConfig().uiLanguage === 'zh-TW'
+                ? '搜尋聊天'
+                : getText('searchConversations', 'Search chats');
             container.innerHTML = `
                 <div class="conversation-search-mobile-empty" aria-live="polite">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
-                    <p>${getText('searchMobilePrompt', '搜尋聊天、檔案和專案')}</p>
+                    <p>${mobilePrompt}</p>
                 </div>
             `;
             return;
@@ -230,7 +209,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             item.type = 'button';
             item.className = 'conversation-search-recent-item';
             item.innerHTML = `
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.3 8.4 8.4 0 0 1-3.7-.9L3 20.5l1.6-4.3A8.4 8.4 0 1 1 21 11.5Z"></path></svg>
+                ${conversationIcon}
                 <span>${escapeHTML(conversation.title || getText('newChat', 'New chat'))}</span>
             `;
             item.addEventListener('click', () => openSearchResult(conversation.id));
@@ -239,7 +218,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
     };
 
     const performSearchAndRenderResults = async () => {
-        const conversations = getConversations();
+        const conversations = getSearchableConversations();
         const query = ALL_ELEMENTS.modalSearchInput.value.trim();
         const scope = ALL_ELEMENTS.modalSearchScopeSelect.value;
         const container = ALL_ELEMENTS.searchResultsContainer;
@@ -264,9 +243,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         } else {
             const lowerCaseQuery = query.toLowerCase();
             const searchIn = scope === 'keyword-title' ? ['title'] : ['title', 'content'];
-            conversations
-                .filter(c => !c.deletedAt)
-                .forEach(conv => {
+            conversations.forEach(conv => {
                     let matchFound = false;
                     let titleHTML = conv.title;
                     let snippetHTML = '';
@@ -275,7 +252,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
                         titleHTML = highlightText(conv.title, query);
                     }
                     if (searchIn.includes('content')) {
-                        for (const msg of conv.messages) {
+                        for (const msg of (Array.isArray(conv.messages) ? conv.messages : [])) {
                             for (const part of msg.parts) {
                                 if (part.text && part.text.toLowerCase().includes(lowerCaseQuery)) {
                                     matchFound = true;
@@ -305,40 +282,19 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             return;
         }
 
-        results.forEach(({ conv, titleHTML, snippetHTML, score }) => {
-            const item = document.createElement('div');
+        results.forEach(({ conv, titleHTML, snippetHTML }) => {
+            const item = document.createElement('button');
+            item.type = 'button';
             item.className = 'conversation-search-result';
             item.dataset.id = conv.id;
-            const scoreHTML = scope === 'natural'
-                ? `<span class="conversation-search-relevance">${score >= 70 ? '高相關' : score >= 40 ? '中相關' : '低相關'}</span>`
-                : '';
             item.innerHTML = `
+                ${conversationIcon}
                 <div class="conversation-search-result-copy">
                     <div class="conversation-search-result-title">${titleHTML || highlightText(conv.title, query)}</div>
                     ${snippetHTML ? `<p>${snippetHTML}</p>` : ''}
                 </div>
-                ${scoreHTML}
-                <button data-id="${conv.id}" class="search-view-btn">${getText('view', 'View')}</button>
             `;
-            const titleArea = item.querySelector('.conversation-search-result-copy');
-            titleArea.addEventListener('click', () => {
-                openSearchResult(conv.id);
-            });
-            const viewBtn = item.querySelector('.search-view-btn');
-            viewBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showConversationInViewModal(conv.id);
-            });
-            let pressTimer = null;
-            item.addEventListener('touchstart', (e) => {
-                if (e.target.closest('button')) return;
-                pressTimer = scheduleTimeout(() => {
-                    e.preventDefault();
-                    showConversationInViewModal(conv.id);
-                }, 500);
-            }, { passive: false });
-            item.addEventListener('touchend', () => clearScheduledTimeout(pressTimer));
-            item.addEventListener('touchmove', () => clearScheduledTimeout(pressTimer));
+            item.addEventListener('click', () => openSearchResult(conv.id));
             container.appendChild(item);
         });
     };
@@ -443,7 +399,6 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
 
     return {
         performSearchAndRenderResults,
-        showConversationInViewModal,
         generateSearchKeywords,
         calculateRelevanceScores,
         renderFilePreviews,

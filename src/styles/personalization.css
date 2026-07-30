@@ -846,24 +846,13 @@ body.custom-wallpaper-active .store-category-btn.active {
             transform: scale(1.05);
         }
     }
-    .search-view-btn {
-        display: inline-flex;
-    }
-    @media (max-width: 768px) {
-        .search-view-btn {
-            display: none;
-        }
-    }
     #sidebar,
     #header-title,
-    #search-view-modal h2,
-    #search-view-modal button,
     #mobile-context-menu,
     #history-popover,
     #message-list .text-center,
     #message-input,
     #model-switcher-container,
-    #search-view-content,
     #store-container,
     #search-modal,
     #settings-modal,

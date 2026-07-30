@@ -184,7 +184,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
 
     const {
         performSearchAndRenderResults,
-        showConversationInViewModal,
         generateSearchKeywords,
         calculateRelevanceScores,
         renderFilePreviews,
@@ -894,7 +893,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         renderDashboardStats,
         renderModelUsageChart,
         performSearchAndRenderResults,
-        showConversationInViewModal,
         generateSearchKeywords,
         calculateRelevanceScores,
         renderFilePreviews,
