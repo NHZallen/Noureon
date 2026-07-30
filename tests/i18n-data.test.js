@@ -4,14 +4,14 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
-const EXPECTED_LOCALE_KEY_COUNT = 696;
+const EXPECTED_LOCALE_KEY_COUNT = 697;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 172;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': 'fe6d62b84c3d297abe67653911b77f7aa852db9e92fff723fe423f1171e1665c',
-  en: 'ce976a79d32a9e19630c333491ca7e7478bf7af26b528cb21dc7771759a9fd1b',
-  fr: 'bf43b28279cfae3dfc67686ab239e1a1d9b9aa95e95e69d8f7d3d62ae0bd178f',
-  ru: 'c99162d216e2b3f7d2f803509ce16f87ad3b3879555fe63c4df3159a75828a5a',
-  es: '16bcf60c36df842518d32d9b3b5d5138ebd23f5db9362729c1c6c4144f9bac19'
+  'zh-TW': 'afa3be8d218fe4ab2df998e5385f3b7079b7a23341854c986ba456bb4c1a10c3',
+  en: '52c1ab3072e196a6874311ff48735ad2a0c56c182b553b6044857b782f487683',
+  fr: '6c8228f133334ff4b74352727887ba91c945ea7b699abcc981992ed7dadfc9a7',
+  ru: '27c468b472661544824f049014cdb9e646517afc71e1194d46715f19e5ac0aa1',
+  es: 'd2dbd40decfc4bcdffdf60c19d0fe71d0f30f80fa72eb149cffec898cacba3dd'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -155,6 +155,7 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
     'folderTextColorGray',
     'folderTextColorBlack',
     'folderTextColorWhite',
+    'naturalSearchEnterHint',
     'astrasCategoryProductivity',
     'astrasCategoryPlanning',
     'astrasCategoryLanguageLearning',

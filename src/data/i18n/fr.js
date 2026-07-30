@@ -298,6 +298,7 @@
         searchScopeTitle: 'Mot-clé (Titre)',
         searchScopeContent: 'Mot-clé (Contenu)',
         searchScopeNatural: 'Langage Naturel',
+        naturalSearchEnterHint: 'Appuyez sur Entrée pour lancer la recherche',
         searchPrompt: 'Veuillez entrer un mot-clé pour rechercher.',
         noResultsFound: 'Aucune conversation correspondante trouvée.',
         createAstras: 'Créer un Noura',

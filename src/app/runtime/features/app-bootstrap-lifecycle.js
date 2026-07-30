@@ -226,12 +226,18 @@ export function createLegacyAppBootstrapLifecycle({
                 const searchModeControl = document.createElement('div');
                 searchModeControl.className = 'conversation-search-mode-control';
                 searchModeControl.setAttribute('aria-label', i18n[config.uiLanguage]?.searchConversations || '搜尋模式');
+                const naturalSearchHint = document.createElement('p');
+                naturalSearchHint.className = 'conversation-search-enter-hint';
+                naturalSearchHint.textContent = i18n[config.uiLanguage]?.naturalSearchEnterHint || '按下 Enter 開始搜尋';
                 const syncSearchModeControl = () => {
+                    const isNaturalSearch = ALL_ELEMENTS.modalSearchScopeSelect.value === 'natural';
                     searchModeControl.querySelectorAll('button').forEach((button) => {
                         const isActive = button.dataset.scope === ALL_ELEMENTS.modalSearchScopeSelect.value;
                         button.classList.toggle('is-active', isActive);
                         button.setAttribute('aria-pressed', String(isActive));
                     });
+                    naturalSearchHint.classList.toggle('is-visible', isNaturalSearch);
+                    naturalSearchHint.setAttribute('aria-hidden', String(!isNaturalSearch));
                 };
                 searchModes.forEach(([value, label]) => {
                     const button = document.createElement('button');
@@ -249,6 +255,7 @@ export function createLegacyAppBootstrapLifecycle({
                     searchModeControl.appendChild(button);
                 });
                 searchToolbar?.insertBefore(searchModeControl, ALL_ELEMENTS.modalSearchInput);
+                searchToolbar?.insertBefore(naturalSearchHint, ALL_ELEMENTS.modalSearchInput);
                 const searchInputWrap = document.createElement('div');
                 searchInputWrap.className = 'conversation-search-input-wrap';
                 searchInputWrap.innerHTML = `
@@ -260,6 +267,22 @@ export function createLegacyAppBootstrapLifecycle({
                 searchToolbar?.insertBefore(searchInputWrap, ALL_ELEMENTS.modalSearchInput);
                 searchInputWrap.appendChild(ALL_ELEMENTS.modalSearchInput);
                 syncSearchModeControl();
+                const syncSearchKeyboardInset = () => {
+                    const visualViewport = window.visualViewport;
+                    const layoutViewportHeight = Number(window.innerHeight) || Number(visualViewport?.height) || 0;
+                    const keyboardInset = visualViewport
+                        ? Math.max(
+                            0,
+                            layoutViewportHeight
+                                - Number(visualViewport.height || 0)
+                                - Number(visualViewport.offsetTop || 0)
+                        )
+                        : 0;
+                    ALL_ELEMENTS.searchModal.style.setProperty('--search-keyboard-inset', `${Math.round(keyboardInset)}px`);
+                };
+                syncSearchKeyboardInset();
+                window.visualViewport?.addEventListener('resize', syncSearchKeyboardInset);
+                window.visualViewport?.addEventListener('scroll', syncSearchKeyboardInset);
                 await startNewChat();
                 void requestMemorySummaryBootstrap().catch((error) => {
                     logger.warn('Memory summary bootstrap could not start.', error);
@@ -276,6 +299,7 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.newChatBtn.addEventListener('click', () => startNewChat());
                 ALL_ELEMENTS.newChatBtnHeader.addEventListener('click', () => startNewChat()); // ✨ 新增這一行
                 ALL_ELEMENTS.openSearchBtn.addEventListener('click', () => {
+                    syncSearchKeyboardInset();
                     toggleModal(ALL_ELEMENTS.searchModal, true);
                     ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行
                     ALL_ELEMENTS.modalSearchInput.value = '';

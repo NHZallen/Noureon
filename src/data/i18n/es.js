@@ -293,6 +293,7 @@ const es = {
   "searchScopeTitle": "Palabra clave (Título)",
   "searchScopeContent": "Palabra clave (contenido)",
   "searchScopeNatural": "Lenguaje natural",
+  "naturalSearchEnterHint": "Pulsa Enter para iniciar la búsqueda",
   "searchPrompt": "Por favor ingrese una palabra clave para buscar.",
   "noResultsFound": "No se encontraron conversaciones coincidentes.",
   "createAstras": "Crear Noura",

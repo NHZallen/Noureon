@@ -101,8 +101,10 @@ function createFakeDom() {
 
   const window = {
     innerWidth: 1280,
+    innerHeight: 800,
     visualViewport: {
       height: 800,
+      offsetTop: 0,
       addEventListener(type, handler, options) {
         listeners.push({ id: 'visualViewport', type, handler, options });
       }
@@ -369,6 +371,25 @@ test('desktop sidebar remains closed on startup and manual toggle wiring remains
 
   assert.ok(harness.calls.includes('toggleSidebar:'));
   assert.ok(harness.calls.includes('toggleSidebar:false'));
+});
+
+test('search controls expose the natural-language Enter hint and follow the visual keyboard inset', async () => {
+  const harness = createLifecycleHarness();
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+
+  await initChatApp();
+  harness.window.visualViewport.height = 510;
+  harness.window.visualViewport.offsetTop = 10;
+  findListener(harness.listeners, 'visualViewport', 'resize')();
+
+  assert.ok(harness.calls.includes('style:searchModal:--search-keyboard-inset:280px'));
+  assert.equal(findListener(harness.listeners, 'visualViewport', 'scroll') instanceof Function, true);
+
+  const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  assert.match(source, /naturalSearchEnterHint/);
+  assert.match(source, /naturalSearchHint\.classList\.toggle\('is-visible',\s*isNaturalSearch\)/);
+  assert.match(source, /naturalSearchHint\.setAttribute\('aria-hidden',\s*String\(!isNaturalSearch\)\)/);
+  assert.match(source, /if\s*\(ALL_ELEMENTS\.modalSearchScopeSelect\.value\s*===\s*'natural'\)\s*return/);
 });
 
 test('initChatApp binds settings, import/export, trash, P2P, file, and form listeners', async () => {

@@ -298,6 +298,7 @@
         searchScopeTitle: 'Keyword (Title)',
         searchScopeContent: 'Keyword (Content)',
         searchScopeNatural: 'Natural Language',
+        naturalSearchEnterHint: 'Press Enter to start searching',
         searchPrompt: 'Please enter a keyword to search.',
         noResultsFound: 'No matching conversations found.',
         createAstras: 'Create Noura',

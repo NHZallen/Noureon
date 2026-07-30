@@ -298,6 +298,7 @@
         searchScopeTitle: '關鍵字 (標題)',
         searchScopeContent: '關鍵字 (內文)',
         searchScopeNatural: '自然語言',
+        naturalSearchEnterHint: '按下 Enter 開始搜尋',
         searchPrompt: '請輸入關鍵字進行搜尋。',
         noResultsFound: '找不到符合的對話。',
         createAstras: '建立 Noura',

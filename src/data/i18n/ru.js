@@ -293,6 +293,7 @@ const ru = {
   "searchScopeTitle": "Ключевое слово (название)",
   "searchScopeContent": "Ключевое слово (содержание)",
   "searchScopeNatural": "Естественный язык",
+  "naturalSearchEnterHint": "Нажмите Enter, чтобы начать поиск",
   "searchPrompt": "Пожалуйста, введите ключевое слово для поиска.",
   "noResultsFound": "Подходящих разговоров не найдено.",
   "createAstras": "Создать Noura",

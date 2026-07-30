@@ -191,7 +191,10 @@ test('search path uses live conversations and closes sidebar through owner-local
   await harness.lifecycle.performSearchAndRenderResults();
 
   assert.equal(harness.elements.searchResultsContainer.children.length, 1);
-  assert.match(harness.elements.searchResultsContainer.children[0].innerHTML, /conversation-search-chat-icon/);
+  const resultMarkup = harness.elements.searchResultsContainer.children[0].innerHTML;
+  assert.match(resultMarkup, /conversation-search-chat-icon/);
+  assert.match(resultMarkup, /l-.55 2.35 2.48-.88/);
+  assert.doesNotMatch(resultMarkup, /L2 22/);
   harness.elements.searchResultsContainer.children[0].dispatch('click');
   assert.deepEqual(harness.calls.filter((call) => call[0] === 'loadChat'), [['loadChat', 'conv-1']]);
   assert.ok(harness.calls.some((call) => call[0] === 'setSidebarOpen' && call[1] === false));

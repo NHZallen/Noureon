@@ -76,7 +76,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
     const getText = (key, fallback = '') => i18n[getConfig().uiLanguage]?.[key] || fallback;
     const conversationIcon = `
         <svg class="conversation-search-chat-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
-            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M12 4.25c-4.28 0-7.75 3.1-7.75 6.92 0 1.88.84 3.58 2.2 4.82l-.55 2.35 2.48-.88c1.08.41 2.3.63 3.62.63 4.28 0 7.75-3.1 7.75-6.92S16.28 4.25 12 4.25Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
         </svg>
     `;
     const isSearchableConversation = (conversation) =>

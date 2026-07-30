@@ -22,9 +22,12 @@
 
 #search-modal .conversation-search-header {
     position: absolute;
-    inset: 0 0 auto auto;
+    top: 1.275rem;
+    right: 1rem;
+    bottom: auto;
+    left: auto;
     z-index: 3;
-    padding: 0.85rem;
+    padding: 0;
     border: 0;
 }
 
@@ -64,6 +67,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
         "input voice"
+        "hint hint"
         "modes modes";
     align-items: center;
     gap: 0.65rem 0.5rem;
@@ -107,6 +111,33 @@
     background: #ffffff;
 }
 
+.conversation-search-mode-control button:focus,
+.conversation-search-mode-control button:focus-visible {
+    outline: none;
+}
+
+.conversation-search-mode-control button:focus-visible {
+    color: var(--button-primary-bg, #4f8df7);
+}
+
+.conversation-search-enter-hint {
+    grid-area: hint;
+    align-self: center;
+    margin: 0;
+    color: #667085;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    text-align: left;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+}
+
+.conversation-search-enter-hint.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
 .conversation-search-input-wrap {
     position: relative;
     grid-area: input;
@@ -127,21 +158,42 @@
 
 #search-modal #modal-search-input {
     width: 100%;
+    height: 2.9rem;
     min-width: 0;
     min-height: 2.9rem;
-    padding: 0.68rem 0.9rem 0.68rem 2.75rem;
+    padding: 0 0.9rem 0 2.75rem;
     color: #111827;
     background-color: #f7f7f8;
     border: 1px solid transparent;
     border-radius: 0.7rem;
     outline: 0;
     box-shadow: none;
+    line-height: 2.9rem;
 }
 
 #search-modal #modal-search-input:focus {
     background-color: #ffffff;
     border-color: var(--button-primary-bg, #4f8df7);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--button-primary-bg, #4f8df7) 14%, transparent);
+}
+
+#search-modal #modal-search-input::-webkit-search-cancel-button {
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: 0.35rem;
+    -webkit-appearance: none;
+    appearance: none;
+    background:
+        linear-gradient(45deg, transparent 45%, #6b7280 45%, #6b7280 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, #6b7280 45%, #6b7280 55%, transparent 55%);
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+#search-modal #modal-search-input::-webkit-search-cancel-button:hover {
+    background:
+        linear-gradient(45deg, transparent 45%, #374151 45%, #374151 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, #374151 45%, #374151 55%, transparent 55%);
 }
 
 #search-modal #voice-input-btn-search {
@@ -278,12 +330,12 @@
     #search-modal #close-search-modal-btn {
         position: absolute;
         right: 1rem;
-        bottom: max(1rem, env(safe-area-inset-bottom));
+        bottom: calc(var(--search-keyboard-inset, 0px) + max(1.25rem, env(safe-area-inset-bottom)));
         z-index: 4;
         width: 3rem;
         height: 3rem;
         color: #4b5563;
-        background: #f3f4f6;
+        background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 999px;
         box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
@@ -292,17 +344,18 @@
     #search-modal #close-search-modal-btn:hover,
     #search-modal #close-search-modal-btn:active {
         color: #111827;
-        background: #e9eaec;
+        background: #ffffff;
     }
 
     #search-modal .conversation-search-toolbar {
         position: absolute;
         right: 4.75rem;
-        bottom: max(1rem, env(safe-area-inset-bottom));
+        bottom: calc(var(--search-keyboard-inset, 0px) + max(1.25rem, env(safe-area-inset-bottom)));
         left: 1rem;
         z-index: 3;
         grid-template-columns: minmax(0, 1fr);
         grid-template-areas:
+            "hint"
             "modes"
             "input";
         gap: 0.45rem;
@@ -338,14 +391,22 @@
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
     }
 
+    .conversation-search-enter-hint {
+        padding: 0 0.35rem;
+        font-size: 0.72rem;
+        text-align: left;
+    }
+
     #search-modal #modal-search-input {
+        height: 3rem;
         min-height: 3rem;
-        padding: 0.65rem 0.85rem 0.65rem 2.7rem;
+        padding: 0 0.85rem 0 2.7rem;
         color: #111827 !important;
         background-color: #f5f5f6;
         border-color: #e5e7eb;
         border-radius: 999px !important;
         box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+        line-height: 3rem;
     }
 
     .conversation-search-input-wrap > svg {
