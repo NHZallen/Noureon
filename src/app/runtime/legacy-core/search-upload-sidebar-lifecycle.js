@@ -193,17 +193,61 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         toggleModal(ALL_ELEMENTS.searchViewModal, true);
     };
 
+    const openSearchResult = (convId) => {
+        loadChat(convId);
+        toggleSidebar(false);
+        toggleModal(ALL_ELEMENTS.searchModal, false);
+        ALL_ELEMENTS.openSearchBtn.classList.remove('active');
+    };
+
+    const renderEmptySearchState = (container, conversations) => {
+        const activeConversations = conversations
+            .filter(conversation => !conversation.deletedAt)
+            .sort((first, second) => {
+                const firstDate = Date.parse(first.lastUpdatedAt || first.createdAt || 0) || 0;
+                const secondDate = Date.parse(second.lastUpdatedAt || second.createdAt || 0) || 0;
+                return secondDate - firstDate;
+            });
+
+        if ((window?.innerWidth || 0) <= 768) {
+            container.innerHTML = `
+                <div class="conversation-search-mobile-empty" aria-live="polite">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+                    <p>${getText('searchMobilePrompt', '搜尋聊天、檔案和專案')}</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = '<h3 class="conversation-search-recent-title">最近的對話</h3>';
+        if (activeConversations.length === 0) {
+            container.insertAdjacentHTML('beforeend', `<p class="conversation-search-empty">${getText('searchPrompt', 'Please enter a keyword to search.')}</p>`);
+            return;
+        }
+
+        activeConversations.slice(0, 7).forEach((conversation) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'conversation-search-recent-item';
+            item.innerHTML = `
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.3 8.4 8.4 0 0 1-3.7-.9L3 20.5l1.6-4.3A8.4 8.4 0 1 1 21 11.5Z"></path></svg>
+                <span>${escapeHTML(conversation.title || getText('newChat', 'New chat'))}</span>
+            `;
+            item.addEventListener('click', () => openSearchResult(conversation.id));
+            container.appendChild(item);
+        });
+    };
+
     const performSearchAndRenderResults = async () => {
-        const config = getConfig();
         const conversations = getConversations();
         const query = ALL_ELEMENTS.modalSearchInput.value.trim();
         const scope = ALL_ELEMENTS.modalSearchScopeSelect.value;
         const container = ALL_ELEMENTS.searchResultsContainer;
-        container.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${getText('searching', 'Searching...')}</p>`;
         if (!query) {
-            container.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${getText('searchPrompt')}</p>`;
+            renderEmptySearchState(container, conversations);
             return;
         }
+        container.innerHTML = `<p class="conversation-search-loading">${getText('searching', 'Searching...')}</p>`;
 
         let results = [];
         if (scope === 'natural') {
@@ -263,32 +307,22 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
 
         results.forEach(({ conv, titleHTML, snippetHTML, score }) => {
             const item = document.createElement('div');
-            item.className = 'p-3 rounded-md hover:bg-[var(--hover-bg)] border border-transparent hover:border-[var(--border-color)]';
+            item.className = 'conversation-search-result';
             item.dataset.id = conv.id;
-            const scoreHTML = scope === 'natural' ? `
-                    <div class="flex items-center gap-2 mt-2">
-                        <div class="w-full bg-gray-200 rounded-full h-2.5">
-                            <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${score}%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-gray-500">${score}</span>
-                    </div>
-                ` : '';
+            const scoreHTML = scope === 'natural'
+                ? `<span class="conversation-search-relevance">${score >= 70 ? '高相關' : score >= 40 ? '中相關' : '低相關'}</span>`
+                : '';
             item.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium truncate">${titleHTML || highlightText(conv.title, query)}</div>
-                            ${snippetHTML ? `<p class="text-xs text-[var(--text-secondary)] mt-1 truncate">${snippetHTML}</p>` : ''}
-                        </div>
-                        <button data-id="${conv.id}" class="search-view-btn ml-2 flex-shrink-0 text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full hover:bg-blue-200">${getText('view', 'View')}</button>
-                    </div>
-                    ${scoreHTML}
-                `;
-            const titleArea = item.querySelector('.flex-1');
+                <div class="conversation-search-result-copy">
+                    <div class="conversation-search-result-title">${titleHTML || highlightText(conv.title, query)}</div>
+                    ${snippetHTML ? `<p>${snippetHTML}</p>` : ''}
+                </div>
+                ${scoreHTML}
+                <button data-id="${conv.id}" class="search-view-btn">${getText('view', 'View')}</button>
+            `;
+            const titleArea = item.querySelector('.conversation-search-result-copy');
             titleArea.addEventListener('click', () => {
-                loadChat(conv.id);
-                toggleSidebar(false);
-                toggleModal(ALL_ELEMENTS.searchModal, false);
-                ALL_ELEMENTS.openSearchBtn.classList.remove('active');
+                openSearchResult(conv.id);
             });
             const viewBtn = item.querySelector('.search-view-btn');
             viewBtn.addEventListener('click', (e) => {

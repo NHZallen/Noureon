@@ -1,0 +1,299 @@
+/* important-audit: required: regression override / legacy compatibility - search surface overrides global modal utility classes and must win late in the cascade. */
+/* Conversation search: desktop mirrors the settings dialog; mobile is a dedicated white search canvas. */
+#search-modal {
+    background: rgba(255, 255, 255, 0.62) !important;
+    backdrop-filter: blur(10px) saturate(1.02) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.02) !important;
+}
+
+#search-modal > div {
+    width: min(58rem, calc(100vw - 2rem)) !important;
+    height: min(76vh, 52rem) !important;
+    max-width: 58rem !important;
+    max-height: calc(100vh - 2.5rem) !important;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem !important;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.16);
+    overflow: hidden;
+}
+
+#search-modal .conversation-search-header {
+    padding: 1.1rem 1.25rem;
+}
+
+#search-modal .conversation-search-toolbar {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 1rem 1.25rem;
+}
+
+.conversation-search-native-select { display: none; }
+
+.conversation-search-mode-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.2rem;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.7rem;
+}
+
+.conversation-search-mode-control button {
+    min-height: 2.2rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.conversation-search-mode-control button.is-active {
+    color: var(--text-primary);
+    background: var(--modal-bg);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+#search-modal #modal-search-input {
+    min-width: 0;
+    min-height: 2.75rem;
+    padding-inline: 0.8rem;
+    border-radius: 0.7rem;
+}
+
+#search-modal #perform-search-btn,
+#search-modal #voice-input-btn-search {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0.5rem;
+    border-radius: 0.7rem;
+}
+
+#search-modal #search-results-container { padding: 0.8rem 1.25rem 1.25rem; }
+
+.conversation-search-recent-title {
+    margin: 0.25rem 0 0.55rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.conversation-search-recent-item,
+.conversation-search-result {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 3.5rem;
+    gap: 0.8rem;
+    padding: 0.75rem;
+    color: var(--text-primary);
+    border: 1px solid transparent;
+    border-radius: 0.75rem;
+    text-align: left;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.conversation-search-recent-item:hover,
+.conversation-search-result:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-color);
+}
+
+.conversation-search-recent-item svg {
+    width: 1.2rem;
+    height: 1.2rem;
+    flex: 0 0 auto;
+    color: var(--text-secondary);
+}
+
+.conversation-search-recent-item span,
+.conversation-search-result-title {
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.conversation-search-result-copy { min-width: 0; flex: 1; cursor: pointer; }
+
+.conversation-search-result-copy p {
+    margin-top: 0.2rem;
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.conversation-search-result .search-view-btn {
+    padding: 0.35rem 0.6rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.conversation-search-relevance {
+    flex: 0 0 auto;
+    padding: 0.2rem 0.45rem;
+    color: var(--text-secondary);
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+}
+
+.conversation-search-loading,
+.conversation-search-empty {
+    padding: 2.5rem 1rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.conversation-search-mobile-empty { display: none; }
+
+@media (max-width: 768px) {
+    #search-modal {
+        background: #ffffff !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    #search-modal > div {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        border: 0;
+        border-radius: 0 !important;
+        box-shadow: none;
+        background: #ffffff !important;
+    }
+
+    #search-modal .conversation-search-header {
+        display: contents;
+        padding: 0;
+        border: 0;
+    }
+
+    #search-modal .conversation-search-header h2 { display: none; }
+
+    #search-modal #close-search-modal-btn {
+        position: absolute;
+        right: 1.75rem;
+        bottom: max(1.5rem, env(safe-area-inset-bottom));
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.6rem;
+        height: 3.6rem;
+        padding: 0;
+        color: #1f2937;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        font-size: 0;
+        line-height: 1;
+    }
+
+    #search-modal #close-search-modal-btn::after {
+        content: '×';
+        font-size: 2.6rem;
+        font-weight: 300;
+        line-height: 1;
+    }
+
+    #search-modal .conversation-search-toolbar {
+        position: absolute;
+        right: 6.55rem;
+        bottom: max(1.5rem, env(safe-area-inset-bottom));
+        left: 1.5rem;
+        z-index: 2;
+        display: grid !important;
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+        padding: 0;
+        border: 0;
+    }
+
+    .conversation-search-mode-control {
+        justify-self: start;
+        background: #f8fafc;
+        border-color: #e5e7eb;
+    }
+
+    .conversation-search-mode-control button {
+        min-height: 1.9rem;
+        padding-inline: 0.5rem;
+        color: #6b7280;
+        font-size: 0.72rem;
+    }
+
+    .conversation-search-mode-control button.is-active {
+        color: #111827;
+        background: #ffffff;
+    }
+
+    #search-modal #modal-search-input {
+        width: 100%;
+        min-height: 3.6rem;
+        padding-right: 1.15rem;
+        padding-left: 3.2rem;
+        color: #111827 !important;
+        background-color: #ffffff;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m16 16 4 4'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: 1.1rem center;
+        background-size: 1.45rem;
+        border-color: #d1d5db;
+        border-radius: 999px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    #search-modal #perform-search-btn,
+    #search-modal #voice-input-btn-search { display: none !important; }
+
+    #search-modal #search-results-container {
+        padding: 1.5rem 1.25rem 9.6rem;
+        background: #ffffff;
+    }
+
+    .conversation-search-mobile-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100dvh - 12rem);
+        gap: 1.2rem;
+        color: #374151;
+        text-align: center;
+    }
+
+    .conversation-search-mobile-empty svg {
+        width: 3.1rem;
+        height: 3.1rem;
+        color: #6b7280;
+    }
+
+    .conversation-search-mobile-empty p {
+        font-size: 1.35rem;
+        font-weight: 500;
+    }
+
+    .conversation-search-recent-title,
+    .conversation-search-recent-item { display: none; }
+
+    .conversation-search-result {
+        padding: 0.85rem 0.4rem;
+        border-radius: 0;
+        border-bottom-color: #e5e7eb;
+    }
+
+    .conversation-search-result .search-view-btn { display: none; }
+}

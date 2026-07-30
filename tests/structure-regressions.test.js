@@ -2749,6 +2749,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'settings-theme-bubble.css',
     'settings-desktop.css',
     'settings-danger.css',
+    'conversation-search.css',
     'regression-overrides.css',
     'mobile.css',
     'typography.css'

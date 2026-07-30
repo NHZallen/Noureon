@@ -22,6 +22,10 @@ const documentedImportantUsage = {
     max: 22,
     category: 'required: regression override / legacy compatibility'
   },
+  'src/styles/conversation-search.css': {
+    max: 21,
+    category: 'required: regression override / legacy compatibility'
+  },
   'src/styles/input-polish.css': {
     max: 34,
     category: 'required: regression override / legacy compatibility'

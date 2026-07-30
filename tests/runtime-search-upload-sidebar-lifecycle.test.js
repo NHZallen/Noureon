@@ -48,7 +48,7 @@ function createNode() {
       return listeners.get(type)?.(event);
     },
     querySelector(selector) {
-      if (selector === '.flex-1') return this.titleArea ||= createNode();
+      if (selector === '.conversation-search-result-copy') return this.titleArea ||= createNode();
       if (selector === '.search-view-btn') return this.viewButton ||= createNode();
       if (selector === '.media-lightbox-share') return null;
       if (selector === 'video') return null;

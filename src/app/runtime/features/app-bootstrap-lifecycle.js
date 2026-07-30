@@ -205,6 +205,43 @@ export function createLegacyAppBootstrapLifecycle({
                 document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
                 enhanceSettingsLogoutButton();
                 const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
+                const searchToolbar = ALL_ELEMENTS.modalSearchInput.parentElement;
+                const searchHeader = ALL_ELEMENTS.closeSearchModalBtn.parentElement;
+                searchToolbar?.classList.add('conversation-search-toolbar');
+                searchHeader?.classList.add('conversation-search-header');
+                ALL_ELEMENTS.modalSearchScopeSelect.classList.add('conversation-search-native-select');
+                const searchModes = [
+                    ['keyword-title', i18n[config.uiLanguage]?.searchScopeTitle || '標題'],
+                    ['keyword-content', i18n[config.uiLanguage]?.searchScopeContent || '內容'],
+                    ['natural', i18n[config.uiLanguage]?.searchScopeNatural || '自然語意']
+                ];
+                const searchModeControl = document.createElement('div');
+                searchModeControl.className = 'conversation-search-mode-control';
+                searchModeControl.setAttribute('aria-label', i18n[config.uiLanguage]?.searchConversations || '搜尋模式');
+                const syncSearchModeControl = () => {
+                    searchModeControl.querySelectorAll('button').forEach((button) => {
+                        const isActive = button.dataset.scope === ALL_ELEMENTS.modalSearchScopeSelect.value;
+                        button.classList.toggle('is-active', isActive);
+                        button.setAttribute('aria-pressed', String(isActive));
+                    });
+                };
+                searchModes.forEach(([value, label]) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.dataset.scope = value;
+                    button.textContent = label;
+                    button.addEventListener('click', () => {
+                        if (ALL_ELEMENTS.modalSearchScopeSelect.value === value) return;
+                        ALL_ELEMENTS.modalSearchScopeSelect.value = value;
+                        syncSearchModeControl();
+                        if (value !== 'natural' || !ALL_ELEMENTS.modalSearchInput.value.trim()) {
+                            performSearchAndRenderResults();
+                        }
+                    });
+                    searchModeControl.appendChild(button);
+                });
+                searchToolbar?.insertBefore(searchModeControl, ALL_ELEMENTS.modalSearchInput);
+                syncSearchModeControl();
                 await startNewChat();
                 void requestMemorySummaryBootstrap().catch((error) => {
                     logger.warn('Memory summary bootstrap could not start.', error);
@@ -224,7 +261,7 @@ export function createLegacyAppBootstrapLifecycle({
                     toggleModal(ALL_ELEMENTS.searchModal, true);
                     ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行
                     ALL_ELEMENTS.modalSearchInput.value = '';
-                    ALL_ELEMENTS.searchResultsContainer.innerHTML = `<p class="text-center text-[var(--text-secondary)]">${i18n[config.uiLanguage].searchPrompt}</p>`;
+                    performSearchAndRenderResults();
                     scheduleTimeout(() => ALL_ELEMENTS.modalSearchInput.focus(), 50);
                 });
                 ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
@@ -250,7 +287,16 @@ export function createLegacyAppBootstrapLifecycle({
                         performSearchAndRenderResults();
                     }
                 });
-                ALL_ELEMENTS.modalSearchScopeSelect.addEventListener('change', performSearchAndRenderResults);
+                let searchTypingTimer = null;
+                ALL_ELEMENTS.modalSearchInput.addEventListener('input', () => {
+                    if (ALL_ELEMENTS.modalSearchScopeSelect.value === 'natural') return;
+                    clearScheduledTimeout(searchTypingTimer);
+                    searchTypingTimer = scheduleTimeout(performSearchAndRenderResults, 180);
+                });
+                ALL_ELEMENTS.modalSearchScopeSelect.addEventListener('change', () => {
+                    syncSearchModeControl();
+                    if (ALL_ELEMENTS.modalSearchScopeSelect.value !== 'natural') performSearchAndRenderResults();
+                });
                 const closeSearchView = () => toggleModal(ALL_ELEMENTS.searchViewModal, false);
                 ALL_ELEMENTS.closeSearchViewModalBtn.addEventListener('click', closeSearchView);
                 ALL_ELEMENTS.searchViewCloseBtn.addEventListener('click', closeSearchView);
