@@ -374,7 +374,7 @@ test('desktop sidebar remains closed on startup and manual toggle wiring remains
   assert.ok(harness.calls.includes('toggleSidebar:false'));
 });
 
-test('search controls expose the natural-language Enter hint and follow the visual keyboard inset', async () => {
+test('search controls expose the natural-language Enter hint and follow the visual viewport', async () => {
   const harness = createLifecycleHarness();
   const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
 
@@ -383,7 +383,6 @@ test('search controls expose the natural-language Enter hint and follow the visu
   harness.window.visualViewport.offsetTop = 10;
   findListener(harness.listeners, 'visualViewport', 'resize')();
 
-  assert.ok(harness.calls.includes('style:searchModal:--search-keyboard-inset:280px'));
   assert.ok(harness.calls.includes('style:searchModal:--search-visible-height:510px'));
   assert.ok(harness.calls.includes('style:searchModal:--search-viewport-offset-top:10px'));
   assert.equal(findListener(harness.listeners, 'visualViewport', 'scroll') instanceof Function, true);
@@ -393,6 +392,8 @@ test('search controls expose the natural-language Enter hint and follow the visu
   assert.match(source, /naturalSearchHint\.classList\.toggle\('is-visible',\s*isNaturalSearch\)/);
   assert.match(source, /naturalSearchHint\.setAttribute\('aria-hidden',\s*String\(!isNaturalSearch\)\)/);
   assert.match(source, /if\s*\(ALL_ELEMENTS\.modalSearchScopeSelect\.value\s*===\s*'natural'\)\s*return/);
+  assert.match(source, /window\.requestAnimationFrame/);
+  assert.doesNotMatch(source, /searchKeyboardSyncTimer|scheduleTimeout\(syncSearchViewport,\s*140\)/);
 });
 
 test('initChatApp binds settings, import/export, trash, P2P, file, and form listeners', async () => {

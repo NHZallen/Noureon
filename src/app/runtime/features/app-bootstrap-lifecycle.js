@@ -267,39 +267,42 @@ export function createLegacyAppBootstrapLifecycle({
                 searchToolbar?.insertBefore(searchInputWrap, ALL_ELEMENTS.modalSearchInput);
                 searchInputWrap.appendChild(ALL_ELEMENTS.modalSearchInput);
                 syncSearchModeControl();
-                const syncSearchKeyboardInset = () => {
+                let previousSearchViewportHeight = '';
+                let previousSearchViewportOffsetTop = '';
+                const syncSearchViewport = () => {
                     const visualViewport = window.visualViewport;
-                    const fallbackViewportHeight = Math.max(
-                        Number(document.documentElement?.clientHeight) || 0,
-                        Number(window.innerHeight) || 0
-                    );
+                    const fallbackViewportHeight =
+                        Number(document.documentElement?.clientHeight)
+                        || Number(window.innerHeight)
+                        || 0;
                     const visibleViewportHeight = Number(visualViewport?.height) || fallbackViewportHeight;
-                    const visibleViewportOffsetTop = Number(visualViewport?.offsetTop) || 0;
-                    const layoutViewportHeight = Math.max(
-                        fallbackViewportHeight,
-                        visibleViewportHeight + visibleViewportOffsetTop
-                    );
-                    const keyboardInset = visualViewport
-                        ? Math.max(
-                            0,
-                            layoutViewportHeight
-                                - Number(visualViewport.height || 0)
-                                - visibleViewportOffsetTop
-                        )
-                        : 0;
-                    ALL_ELEMENTS.searchModal.style.setProperty('--search-keyboard-inset', `${Math.round(keyboardInset)}px`);
-                    ALL_ELEMENTS.searchModal.style.setProperty('--search-visible-height', `${Math.round(visibleViewportHeight)}px`);
-                    ALL_ELEMENTS.searchModal.style.setProperty('--search-viewport-offset-top', `${Math.round(visibleViewportOffsetTop)}px`);
+                    const visibleViewportOffsetTop = Math.max(0, Number(visualViewport?.offsetTop) || 0);
+                    const nextHeight = `${Math.round(visibleViewportHeight)}px`;
+                    const nextOffsetTop = `${Math.round(visibleViewportOffsetTop)}px`;
+                    if (previousSearchViewportHeight !== nextHeight) {
+                        ALL_ELEMENTS.searchModal.style.setProperty('--search-visible-height', nextHeight);
+                        previousSearchViewportHeight = nextHeight;
+                    }
+                    if (previousSearchViewportOffsetTop !== nextOffsetTop) {
+                        ALL_ELEMENTS.searchModal.style.setProperty('--search-viewport-offset-top', nextOffsetTop);
+                        previousSearchViewportOffsetTop = nextOffsetTop;
+                    }
                 };
-                let searchKeyboardSyncTimer = null;
-                const queueSearchKeyboardSync = () => {
-                    syncSearchKeyboardInset();
-                    clearScheduledTimeout(searchKeyboardSyncTimer);
-                    searchKeyboardSyncTimer = scheduleTimeout(syncSearchKeyboardInset, 140);
+                let searchViewportSyncFrame = null;
+                const queueSearchViewportSync = () => {
+                    if (typeof window.requestAnimationFrame !== 'function') {
+                        syncSearchViewport();
+                        return;
+                    }
+                    if (searchViewportSyncFrame !== null) return;
+                    searchViewportSyncFrame = window.requestAnimationFrame(() => {
+                        searchViewportSyncFrame = null;
+                        syncSearchViewport();
+                    });
                 };
-                queueSearchKeyboardSync();
-                window.visualViewport?.addEventListener('resize', queueSearchKeyboardSync);
-                window.visualViewport?.addEventListener('scroll', queueSearchKeyboardSync);
+                syncSearchViewport();
+                window.visualViewport?.addEventListener('resize', queueSearchViewportSync);
+                window.visualViewport?.addEventListener('scroll', queueSearchViewportSync);
                 await startNewChat();
                 void requestMemorySummaryBootstrap().catch((error) => {
                     logger.warn('Memory summary bootstrap could not start.', error);
@@ -316,14 +319,14 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.newChatBtn.addEventListener('click', () => startNewChat());
                 ALL_ELEMENTS.newChatBtnHeader.addEventListener('click', () => startNewChat()); // ✨ 新增這一行
                 ALL_ELEMENTS.openSearchBtn.addEventListener('click', () => {
-                    queueSearchKeyboardSync();
+                    syncSearchViewport();
                     toggleModal(ALL_ELEMENTS.searchModal, true);
                     ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行
                     ALL_ELEMENTS.modalSearchInput.value = '';
                     performSearchAndRenderResults();
                     scheduleTimeout(() => {
                         ALL_ELEMENTS.modalSearchInput.focus();
-                        queueSearchKeyboardSync();
+                        queueSearchViewportSync();
                     }, 50);
                 });
                 ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
@@ -349,7 +352,7 @@ export function createLegacyAppBootstrapLifecycle({
                         performSearchAndRenderResults();
                     }
                 });
-                ALL_ELEMENTS.modalSearchInput.addEventListener('focus', queueSearchKeyboardSync);
+                ALL_ELEMENTS.modalSearchInput.addEventListener('focus', queueSearchViewportSync);
                 let searchTypingTimer = null;
                 ALL_ELEMENTS.modalSearchInput.addEventListener('input', () => {
                     if (ALL_ELEMENTS.modalSearchScopeSelect.value === 'natural') return;
