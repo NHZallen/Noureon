@@ -33,7 +33,6 @@ test('report-only CSP covers current provider, auth, verification, and P2P trans
   for (const source of [
     'https://generativelanguage.googleapis.com',
     'https://openrouter.ai',
-    'https://api.stepfun.com',
     'https://*.supabase.co',
     'wss://*.supabase.co',
     'https://challenges.cloudflare.com',

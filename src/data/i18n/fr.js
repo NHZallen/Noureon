@@ -204,15 +204,12 @@
         openRouterApiKey: 'Clé API OpenRouter',
         openRouterApiPlaceholder: 'Entrez votre clé API OpenRouter',
         openRouterApiDescAll: 'Entrez votre clé OpenRouter unique pour activer tous les modèles associés.',
-        stepPlanApiKey: 'Clé API Step Plan',
-        stepPlanApiPlaceholder: 'Entrez votre clé API StepFun',
-        stepPlanApiDesc: 'Entrez votre clé API StepFun Step Plan pour activer les modèles de raisonnement natifs.',
         nvidiaApiKey: 'Clé API NVIDIA',
         nvidiaApiPlaceholder: 'Entrez votre clé API NVIDIA',
         nvidiaApiDesc: 'Entrez votre clé API NVIDIA pour activer les modèles NVIDIA gratuits.',
         tavilyApiKey: 'Clé API Tavily',
         tavilyApiPlaceholder: 'Entrez votre clé API Tavily',
-        tavilyApiDesc: 'La recherche des modèles OpenRouter, NVIDIA et Step Plan API utilise Tavily.',
+        tavilyApiDesc: 'La recherche des modèles OpenRouter et NVIDIA utilise Tavily.',
         tavilySearchDepth: 'Profondeur de recherche Tavily',
         tavilySearchDepthDesc: 'Basic utilise moins de crédits; Advanced effectue des recherches plus approfondies.',
         tavilySearchBasic: 'Basic',
@@ -258,7 +255,7 @@
         selectDataToExport: 'Sélectionnez les données que vous souhaitez exporter.',
         exportHistory: 'Historique des Chats (incl. archives & dossiers)',
         appSettings: 'Paramètres de l\'Application',
-        exportApiKeys: 'Clés API (Gemini, OpenRouter, Step Plan et NVIDIA)',
+        exportApiKeys: 'Clés API (Gemini, OpenRouter et NVIDIA)',
         exportApiKeysWarningTitle: 'Exporter les clés API ?',
         exportApiKeysWarning: 'Vos clés API seront chiffrées avec votre mot de passe de synchronisation avant d’être ajoutées à la sauvegarde. Seule une personne connaissant ce mot de passe pourra les restaurer.',
         exportApiKeysRequiresSyncVault: 'Créez d’abord un mot de passe de synchronisation pour exporter les clés API en toute sécurité.',
@@ -556,7 +553,7 @@
         processingFiles: 'Traitement des fichiers...', // New
         zipNoJson: 'Aucune donnée JSON trouvée dans le fichier ZIP.', // New
         // Model Descriptions & Limits
-        model_gemini_3_6_flash_desc_tier_paid: '1,50 $/M entrée, 7,50 $/M sortie',
+        model_gemini_3_7_flash_desc_tier_paid: '0,75 $/M entrée, 3,75 $/M sortie jusqu’au 31/12/2026',
         model_gemini_3_5_flash_lite_desc_tier_paid: '0,30 $/M entrée, 2,50 $/M sortie',
         model_gemini_3_1_pro_preview_desc_tier_paid: '2 $/M entrée, 12 $/M sortie',
         model_gemma_4_31b_it_desc_tier_free: 'Coût - Gratuit',
@@ -565,23 +562,14 @@
         model_nvidia_gemma_4_31b_it_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_deepseek_v4_pro_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_deepseek_v4_flash_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_qwen3_5_122b_a10b_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_mistral_medium_3_5_128b_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_minimax_m2_7_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_minimax_m3_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_kimi_k2_6_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_glm_5_2_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_qwen3_5_397b_a17b_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_step_3_7_flash_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
-        model_step_plan_step_3_7_flash_desc_tier_paid: 'Facturé sur les crédits Step Plan',
-        model_step_plan_step_3_5_flash_2603_desc_tier_paid: 'Facturé sur les crédits Step Plan',
-        model_step_plan_step_3_5_flash_desc_tier_paid: 'Facturé sur les crédits Step Plan',
-        model_step_plan_router_v1_desc_tier_paid: 'Facturé selon le modèle routé par Step Plan',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
         model_nex_n2_pro_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
+        model_nemotron_3_5_lightning_desc_tier_free: 'Coût - Gratuit',
         model_laguna_s_2_1_desc_tier_free: 'Coût - Gratuit',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'Modèle OpenRouter de génération et retouche d’images',
@@ -612,21 +600,18 @@
         model_claude_haiku_4_5_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
         model_claude_fable_5_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
         // Qwen Paid
-        model_qwen3_7_max_desc_tier_paid: '1,25 $/M entrée, 3,75 $/M sortie',
+        model_qwen3_8_max_desc_tier_paid: '2 $/M entrée, 6 $/M sortie',
         model_qwen3_7_plus_desc_tier_paid: '0,32 $/M entrée, 1,28 $/M sortie',
-        model_qwen3_5_flash_02_23_desc_tier_paid: '0,065 $/M entrée, 0,26 $/M sortie',
+        model_qwen3_7_flash_desc_tier_paid: '0,03 $/M entrée, 0,13 $/M sortie (jusqu’à 32K)',
         // xAI Paid
-        model_grok_4_5_desc_tier_paid: '2 $/M entrée, 6 $/M sortie',
+        model_grok_4_6_desc_tier_paid: '2 $/M entrée, 6 $/M sortie (jusqu’à 200K)',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
         // Z.AI Paid
-        model_glm_5_2_desc_tier_paid: '1,40 $/M entrée, 4,40 $/M sortie',
+        model_glm_5_3_desc_tier_paid: '1,40 $/M entrée, 4,40 $/M sortie',
         // DeepSeek Paid
-        model_deepseek_v4_pro_desc_tier_paid: '0,435 $/M entrée, 0,87 $/M sortie',
-        model_deepseek_v4_flash_desc_tier_paid: '0,098 $/M entrée, 0,196 $/M sortie',
-        // Xiaomi Paid
-        model_mimo_v2_5_pro_desc_tier_paid: '0,435 $/M entrée, 0,87 $/M sortie',
-        model_mimo_v2_5_desc_tier_paid: '0,14 $/M entrée, 0,28 $/M sortie',
+        model_deepseek_v4_pro_0813_desc_tier_paid: 'Base : 0,66 $/M entrée, 1,98 $/M sortie ; doublé sur certains créneaux UTC',
+        model_deepseek_v4_flash_0731_desc_tier_paid: '0,14 $/M entrée, 0,28 $/M sortie',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
         // Official Nouras

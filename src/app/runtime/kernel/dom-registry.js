@@ -35,7 +35,6 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['closeSettingsBtn', 'close-settings-btn'],
   ['geminiApiKeyInput', 'gemini-api-key-input'],
   ['openrouterApiKeyInputAll', 'openrouter-api-key-input-all'],
-  ['stepPlanApiKeyInput', 'step-plan-api-key-input'],
   ['nvidiaApiKeyInput', 'nvidia-api-key-input'],
   ['tavilyApiKeyInput', 'tavily-api-key-input'],
   ['tavilySearchDepthSelect', 'tavily-search-depth-select'],

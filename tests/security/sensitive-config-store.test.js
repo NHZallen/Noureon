@@ -14,21 +14,18 @@ test('exports sensitive config store helpers and normalizes provider aliases', (
   assert.equal(normalizeProviderKey('openrouter'), 'openrouter');
   assert.equal(normalizeProviderKey('nvidia'), 'nvidia');
   assert.equal(normalizeProviderKey('tavily'), 'tavily');
-  assert.equal(normalizeProviderKey('stepfun'), 'stepPlan');
-  assert.equal(normalizeProviderKey('stepPlan'), 'stepPlan');
 });
 
 test('store reads, writes, merges, replaces, clears, and protects external mutation', () => {
   const store = createSensitiveConfigStore({
     initialApiKeys: {
       gemini: ' gemini-key ',
-      stepfun: ' stepfun-key '
+      nvidia: ' nvidia-key '
     }
   });
 
   assert.equal(store.getApiKey('gemini'), 'gemini-key');
-  assert.equal(store.getApiKey('stepPlan'), 'stepfun-key');
-  assert.equal(store.getApiKey('stepfun'), 'stepfun-key');
+  assert.equal(store.getApiKey('nvidia'), 'nvidia-key');
 
   store.setApiKey('openrouter', ' sk-or-key ');
   assert.equal(store.getApiKey('openrouter'), 'sk-or-key');
@@ -50,7 +47,6 @@ test('store reads, writes, merges, replaces, clears, and protects external mutat
     gemini: '',
     openrouter: '',
     nvidia: '',
-    stepPlan: '',
     tavily: ''
   });
 });

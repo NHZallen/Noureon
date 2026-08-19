@@ -245,7 +245,6 @@ test('streaming markdown renderer source avoids provider, storage, and runtime p
     'getApiKeyForProvider',
     'openrouter',
     'gemini',
-    'stepfun',
     'nvidia',
     'localStorage',
     'sessionStorage',

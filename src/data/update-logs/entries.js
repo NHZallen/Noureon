@@ -2,6 +2,17 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.6.5",
+    date: "2026-08-19",
+    content: [
+      "<strong>【Noureon 16.6.5：模型清單與供應商支援更新】</strong>",
+      "本次更新依 Google Gemini API 與 OpenRouter 最新模型資料，更新模型版本、能力標示與價格，並精簡供應商整合。",
+      "<strong>✨ 更新重點：</strong>",
+      "<ul><li><strong>⚡ 新一代模型：</strong>Gemini 升級至 3.7 Flash；OpenRouter 更新 DeepSeek、Qwen 與 Grok，並加入 GLM 5.3 與 Nemotron 3.5 Lightning 免費版。</li><li><strong>🧠 能力資料同步：</strong>依供應商資料更新可選思考程度、圖像輸入支援、模型價格與發布排序。</li><li><strong>🧹 供應商精簡：</strong>NVIDIA 清單僅保留 DeepSeek、MoonshotAI、Step 與 Z.ai 模型；移除 Xiaomi 模型與 Step Plan 原生供應商整合。</li></ul>",
+      "Noureon 開發團隊 敬上"
+    ]
+  },
+  {
     version: "16.6.4",
     date: "2026-08-19",
     content: [

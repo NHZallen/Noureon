@@ -198,7 +198,6 @@ test('legacy model registry owns static model metadata and capability helpers', 
   assert.match(modelRegistrySource, /export\s+const\s+CHEAP_MODEL_ID\s*=/);
   assert.match(modelRegistrySource, /export\s+const\s+OPENROUTER_VISION_MODELS\s*=\s*\[/);
   assert.match(modelRegistrySource, /export\s+const\s+NVIDIA_VISION_MODELS\s*=\s*\[/);
-  assert.match(modelRegistrySource, /export\s+const\s+STEP_PLAN_VISION_MODELS\s*=\s*\[/);
   assert.match(modelRegistrySource, /export\s+const\s+GEMINI_DOCUMENT_MODELS\s*=\s*\[/);
   assert.match(modelRegistrySource, /export\s+function\s+createLegacyModelRegistry/);
   assert.match(modelRegistrySource, /export\s+const\s+modelSupportsVision\s*=/);
@@ -217,7 +216,6 @@ test('legacy model registry owns static model metadata and capability helpers', 
   assert.doesNotMatch(legacyCoreSource, /const\s+MODELS\s*=\s*\[/);
   assert.doesNotMatch(legacyCoreSource, /const\s+OPENROUTER_VISION_MODELS\s*=\s*\[/);
   assert.doesNotMatch(legacyCoreSource, /const\s+NVIDIA_VISION_MODELS\s*=\s*\[/);
-  assert.doesNotMatch(legacyCoreSource, /const\s+STEP_PLAN_VISION_MODELS\s*=\s*\[/);
   assert.doesNotMatch(legacyCoreSource, /const\s+GEMINI_DOCUMENT_MODELS\s*=\s*\[/);
   assert.match(legacyCoreSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
   assert.match(legacyCoreSource, /createSensitiveConfigStore\(\{/);
@@ -389,7 +387,6 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(redactionSource, /'gemini'/);
   assert.match(redactionSource, /'openrouter'/);
   assert.match(redactionSource, /'nvidia'/);
-  assert.match(redactionSource, /'stepPlan'/);
   assert.match(redactionSource, /'tavily'/);
   assert.match(redactionSource, /export\s+function\s+createExportSafeConfig/);
   assert.match(redactionSource, /export\s+function\s+maskApiKeyForDisplay/);
@@ -414,7 +411,6 @@ test('sensitive config export redaction boundary is explicit', () => {
   assert.match(sensitiveStoreSource, /export\s+function\s+createSensitiveConfigStore/);
   assert.match(sensitiveStoreSource, /export\s+function\s+createSensitiveConfigPersistence/);
   assert.match(sensitiveStoreSource, /chatSensitiveConfig_v1_\$\{user\.username\}/);
-  assert.match(sensitiveStoreSource, /stepfun:\s*'stepPlan'/);
   assert.match(legacyCoreSource, /createSensitiveConfigStore\(\{/);
   assert.match(legacyCoreSource, /createSensitiveConfigPersistence\(\{/);
   assert.match(legacyCoreSource, /function\s+getApiKeyForProvider\(provider\)\s*\{\s*return\s+sensitiveConfigStore\.getApiKey\(provider\);/);
@@ -2781,7 +2777,6 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
   const helpers = await import(projectFile('src/app/legacy-runtime/features/model-request-formatting.js'));
 
   for (const exportName of [
-    'appendStepPlanAttachmentContent',
     'buildTavilySearchQuery',
     'formatTavilySearchPacket',
     'getSearchCurrentDate'
@@ -2791,13 +2786,8 @@ test('legacy provider request formatting helpers are isolated from the 02 runtim
   }
 
   assert.match(settingsAuthProviderSource, /import\s*\{[\s\S]*\bgetSearchCurrentDate\b[\s\S]*\}\s*from\s+['"][^'"]*model-request-formatting\.js['"];/);
-  assert.doesNotMatch(fragmentSource, /appendStepPlanAttachmentContentBase|getSearchCurrentDate/);
+  assert.doesNotMatch(fragmentSource, /getSearchCurrentDate/);
   assert.match(fragmentSource, /createLegacySettingsAuthProviderLifecycle/);
-  assert.match(
-    streamApiSource,
-    /import\s*\{\s*appendStepPlanAttachmentContent\s*\}\s*from\s+'\.\/model-request-formatting\.js';/
-  );
-  assert.match(streamApiSource, /appendStepPlanAttachmentContent\(\s*content,\s*part\.inlineData,\s*modelInfo,\s*\{\s*modelSupportsVision\s*\}/);
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
@@ -2821,10 +2811,9 @@ test('stream API provider request and parser core is isolated from the 02 runtim
 
   assert.doesNotMatch(fragmentSource, /async\s+function\s+streamApiCall\b/);
   assert.doesNotMatch(fragmentSource, /function\s+cleanGeminiHistory\b/);
-  assert.doesNotMatch(fragmentSource, /STEP_PLAN_CHAT_COMPLETIONS_URL/);
   assert.doesNotMatch(fragmentSource, /openrouter\.ai\/api\/v1\/chat\/completions/);
   assert.doesNotMatch(fragmentSource, /:streamGenerateContent\?key=/);
-  assert.doesNotMatch(fragmentSource, /\/api\/(?:step-plan|nvidia)-chat/);
+  assert.doesNotMatch(fragmentSource, /\/api\/nvidia-chat/);
   assert.doesNotMatch(fragmentSource, /response\.body\.getReader\(\)/);
   assert.doesNotMatch(fragmentSource, /new\s+TextDecoder\(\)/);
   assert.doesNotMatch(fragmentSource, /line\.startsWith\('data: '\)/);

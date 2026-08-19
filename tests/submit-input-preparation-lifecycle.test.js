@@ -180,7 +180,7 @@ test('prepares an edited message without clearing the composer draft or its atta
 });
 
 test('auto web search can be enabled for Tavily-backed providers through the runtime predicate', async () => {
-  for (const provider of ['openrouter', 'nvidia', 'stepfun']) {
+  for (const provider of ['openrouter', 'nvidia']) {
     const harness = createHarness({
       autoWebSearch: true,
       messageValue: 'What are the latest news headlines?',

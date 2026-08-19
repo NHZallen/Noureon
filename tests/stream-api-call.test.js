@@ -444,10 +444,10 @@ test('Gemini request-scoped web search works without mutating conversation searc
   assert.equal(conversation.isWebSearchEnabled, false);
 });
 
-test('Gemini 3.6 Flash omits deprecated sampling parameters', async () => {
+test('Gemini 3.7 Flash omits deprecated sampling parameters', async () => {
   const { streamApiCall, requests } = createHarness({
     provider: 'gemini',
-    modelInfo: { apiId: 'gemini-3.6-flash' }
+    modelInfo: { apiId: 'gemini-3.7-flash' }
   });
 
   await streamApiCall([{ text: 'Hello' }], () => {}, undefined);
@@ -539,68 +539,13 @@ test('OpenAI-compatible streaming buffers partial lines and silently skips malfo
   assert.equal(finalText, 'Hello Astra');
 });
 
-test('StepFun normal requests preserve proxy streaming, reasoning effort, and delta order', async () => {
-  const { streamApiCall, requests } = createHarness({
-    provider: 'stepfun',
-    modelInfo: { reasoningEffort: 'medium' },
-    fetchImpl: async () => createResponse({
-      streamChunks: [
-        'data: {"choices":[{"delta":{"content":"Step"}}]}\n\n',
-        'data: {"choices":[{"delta":{"content":" Plan"}}]}\n\n',
-        'data: [DONE]\n\n'
-      ]
-    })
-  });
-  const received = [];
-
-  const finalText = await streamApiCall(
-    [{ text: 'Create a plan' }],
-    (chunk) => received.push(chunk),
-    undefined
-  );
-
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].url, '/api/step-plan-chat');
-  assert.deepEqual(requests[0].options.headers, {
-    Authorization: 'Bearer stepfun-key',
-    'Content-Type': 'application/json'
-  });
-  const payload = JSON.parse(requests[0].options.body);
-  assert.equal(payload.model, 'stepfun/model');
-  assert.equal(payload.stream, true);
-  assert.equal(payload.reasoning_effort, 'medium');
-  assert.equal(payload.messages.at(-1).role, 'user');
-  assert.equal(payload.messages.at(-1).content, 'Create a plan');
-  assert.deepEqual(received, ['Step', ' Plan']);
-  assert.equal(finalText, 'Step Plan');
-});
-
-test('StepFun requests use the selected reasoning effort over the model default', async () => {
-  const { streamApiCall, requests } = createHarness({
-    provider: 'stepfun',
-    modelInfo: { reasoningEffort: 'medium' },
-    conversation: { reasoningEffort: 'high' },
-    getModelReasoningConfig: () => ({
-      providerParameter: 'stepfunReasoningEffort',
-      options: ['low', 'medium', 'high'],
-      defaultEffort: 'medium'
-    }),
-    normalizeReasoningEffort: (_model, value) => value || 'medium'
-  });
-
-  await streamApiCall([{ text: 'Create a sharper plan' }], () => {}, undefined);
-
-  const payload = JSON.parse(requests[0].options.body);
-  assert.equal(payload.reasoning_effort, 'high');
-});
-
 test('reasoning effort can be disabled so council requests use provider defaults', async () => {
   const { streamApiCall, requests, modelInfo } = createHarness({
-    provider: 'stepfun',
+    provider: 'openrouter',
     modelInfo: { reasoningEffort: 'medium' },
     conversation: { reasoningEffort: 'high' },
     getModelReasoningConfig: () => ({
-      providerParameter: 'stepfunReasoningEffort',
+      providerParameter: 'openrouterReasoningEffort',
       options: ['low', 'medium', 'high'],
       defaultEffort: 'medium'
     }),
@@ -617,50 +562,6 @@ test('reasoning effort can be disabled so council requests use provider defaults
 
   const payload = JSON.parse(requests[0].options.body);
   assert.equal('reasoning_effort' in payload, false);
-});
-
-test('StepFun direct video requests preserve non-stream response handling', async () => {
-  const requests = [];
-  const { streamApiCall, modelInfo } = createHarness({
-    provider: 'stepfun',
-    modelInfo: { reasoningEffort: 'high' },
-    fetchImpl: async (url, options) => {
-      requests.push({ url, options });
-      return createResponse({
-        jsonValue: {
-          choices: [{
-            message: {
-              content: [{ text: 'Video' }, { text: ' answer' }]
-            }
-          }]
-        }
-      });
-    }
-  });
-  const received = [];
-
-  const finalText = await streamApiCall(
-    [{ inlineData: { mimeType: 'video/mp4', data: 'TWFu', name: 'clip.mp4' } }],
-    (chunk) => received.push(chunk),
-    undefined,
-    false,
-    {
-      modelInfo,
-      historyForApi: [],
-      currentMessageForApi: {
-        role: 'user',
-        parts: [{ inlineData: { mimeType: 'video/mp4', data: 'TWFu', name: 'clip.mp4' } }]
-      }
-    }
-  );
-
-  assert.equal(requests[0].url, 'https://api.stepfun.com/step_plan/v1/chat/completions');
-  const payload = JSON.parse(requests[0].options.body);
-  assert.equal(payload.stream, false);
-  assert.equal(payload.reasoning_effort, 'high');
-  assert.equal(requests[0].options.headers.Accept, 'application/json');
-  assert.deepEqual(received, ['Video answer']);
-  assert.equal(finalText, 'Video answer');
 });
 
 test('OpenRouter requests include selected reasoning effort for compatible models', async () => {

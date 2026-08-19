@@ -14,15 +14,13 @@ const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url)
 const models = [
   { id: 'gemini-default', provider: 'gemini' },
   { id: 'openrouter-pro', provider: 'openrouter' },
-  { id: 'nvidia-modern', provider: 'nvidia', apiId: 'legacy-nvidia-id' },
-  { id: 'step-plan', provider: 'stepfun' }
+  { id: 'nvidia-modern', provider: 'nvidia', apiId: 'legacy-nvidia-id' }
 ];
 
 const baseConfig = () => ({
   apiKeys: {
     gemini: 'gemini-default-key',
     openrouter: '',
-    stepPlan: '',
     nvidia: '',
     tavily: ''
   },
@@ -106,7 +104,6 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
     apiKeys: {
       gemini: 'saved-gemini',
       openrouter: { old: ' ', next: ' openrouter-key ' },
-      stepPlan: ' step-key ',
       nvidia: { primary: ' nvidia-key ' },
       tavily: 12
     },
@@ -157,8 +154,7 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
   assert.deepEqual(normalized.modelSettings.map(setting => [setting.id, setting.order, setting.hidden]), [
     ['gemini-default', 0, false],
     ['openrouter-pro', 1, false],
-    ['step-plan', 2, false],
-    ['nvidia-modern', 3, true]
+    ['nvidia-modern', 2, true]
   ]);
   assert.deepEqual(normalized.lastCouncilConfig, {
     enabled: true,
@@ -200,7 +196,6 @@ test('null saved config returns a normalized object without replacing current in
   assert.deepEqual(normalized.modelSettings.map(setting => setting.id), [
     'gemini-default',
     'openrouter-pro',
-    'step-plan',
     'nvidia-modern'
   ]);
 });

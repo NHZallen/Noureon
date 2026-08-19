@@ -119,7 +119,6 @@ test('does not read API key controls or sensitive fields as normal settings', ()
   for (const apiKeyField of [
     'geminiApiKeyInput',
     'openrouterApiKeyInputAll',
-    'stepPlanApiKeyInput',
     'nvidiaApiKeyInput',
     'tavilyApiKeyInput'
   ]) {

@@ -464,7 +464,6 @@ test('handleExport excludes apiKeys from normal settings exports by default', as
         gemini: 'gemini-secret',
         openrouter: 'openrouter-secret',
         nvidia: 'nvidia-secret',
-        stepPlan: 'step-plan-secret',
         tavily: 'tavily-secret'
       },
       defaultModel: 'model-a',
@@ -503,7 +502,6 @@ test('handleExport encrypts explicit API key exports and uses localized warning 
     gemini: 'gemini-secret',
     openrouter: 'openrouter-secret',
     nvidia: 'nvidia-secret',
-    stepPlan: 'step-plan-secret',
     tavily: 'tavily-secret'
   };
   const { calls, elements, FakeJSZip, lifecycle } = createHarness({

@@ -204,15 +204,12 @@
         openRouterApiKey: 'OpenRouter API Key',
         openRouterApiPlaceholder: 'Enter your OpenRouter API key',
         openRouterApiDescAll: 'Enter your single OpenRouter key to enable all related models.',
-        stepPlanApiKey: 'Step Plan API Key',
-        stepPlanApiPlaceholder: 'Enter your StepFun API key',
-        stepPlanApiDesc: 'Enter your StepFun Step Plan API key to enable native reasoning models.',
         nvidiaApiKey: 'NVIDIA API Key',
         nvidiaApiPlaceholder: 'Enter your NVIDIA API key',
         nvidiaApiDesc: 'Enter your NVIDIA API key to enable NVIDIA free models.',
         tavilyApiKey: 'Tavily API Key',
         tavilyApiPlaceholder: 'Enter your Tavily API key',
-        tavilyApiDesc: 'OpenRouter, NVIDIA, and Step Plan API model search uses Tavily.',
+        tavilyApiDesc: 'OpenRouter and NVIDIA API model search uses Tavily.',
         tavilySearchDepth: 'Tavily search depth',
         tavilySearchDepthDesc: 'Basic uses fewer credits; advanced performs deeper searches.',
         tavilySearchBasic: 'Basic',
@@ -258,7 +255,7 @@
         selectDataToExport: 'Select the data you want to export.',
         exportHistory: 'Chat History (incl. archives & folders)',
         appSettings: 'Application Settings',
-        exportApiKeys: 'API Keys (Gemini, OpenRouter, Step Plan, and NVIDIA)',
+        exportApiKeys: 'API Keys (Gemini, OpenRouter, and NVIDIA)',
         exportApiKeysWarningTitle: 'Export API keys?',
         exportApiKeysWarning: 'Your API keys will be encrypted with your sync password before they are added to the backup. Only someone with that password can restore them.',
         exportApiKeysRequiresSyncVault: 'Create a sync password before securely exporting API keys.',
@@ -556,7 +553,7 @@
         processingFiles: 'Processing files...', // New
         zipNoJson: 'No JSON data found in the ZIP file.', // New
         // Model Descriptions & Limits
-        model_gemini_3_6_flash_desc_tier_paid: '$1.5/M input, $7.5/M output',
+        model_gemini_3_7_flash_desc_tier_paid: '$0.75/M input, $3.75/M output through Dec 31, 2026',
         model_gemini_3_5_flash_lite_desc_tier_paid: '$0.3/M input, $2.5/M output',
         model_gemini_3_1_pro_preview_desc_tier_paid: '$2/M input, $12/M output',
         model_gemma_4_31b_it_desc_tier_free: 'Cost - Free',
@@ -565,23 +562,14 @@
         model_nvidia_gemma_4_31b_it_desc_tier_free: 'Cost - Free',
         model_nvidia_deepseek_v4_pro_desc_tier_free: 'Cost - Free',
         model_nvidia_deepseek_v4_flash_desc_tier_free: 'Cost - Free',
-        model_nvidia_qwen3_5_122b_a10b_desc_tier_free: 'Cost - Free',
-        model_nvidia_mistral_medium_3_5_128b_desc_tier_free: 'Cost - Free',
-        model_nvidia_minimax_m2_7_desc_tier_free: 'Cost - Free',
-        model_nvidia_minimax_m3_desc_tier_free: 'Cost - Free',
         model_nvidia_kimi_k2_6_desc_tier_free: 'Cost - Free',
         model_nvidia_glm_5_2_desc_tier_free: 'Cost - Free',
-        model_nvidia_qwen3_5_397b_a17b_desc_tier_free: 'Cost - Free',
         model_nvidia_step_3_7_flash_desc_tier_free: 'Cost - Free',
-        model_nvidia_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
-        model_step_plan_step_3_7_flash_desc_tier_paid: 'Billed from Step Plan credits',
-        model_step_plan_step_3_5_flash_2603_desc_tier_paid: 'Billed from Step Plan credits',
-        model_step_plan_step_3_5_flash_desc_tier_paid: 'Billed from Step Plan credits',
-        model_step_plan_router_v1_desc_tier_paid: 'Billed by the routed Step Plan model',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
         model_nex_n2_pro_desc_tier_free: 'Cost - Free',
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Cost - Free',
+        model_nemotron_3_5_lightning_desc_tier_free: 'Cost - Free',
         model_laguna_s_2_1_desc_tier_free: 'Cost - Free',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter image generation and editing model',
@@ -612,21 +600,18 @@
         model_claude_haiku_4_5_desc_tier_paid: '$1/M input, $5/M output',
         model_claude_fable_5_desc_tier_paid: '$10/M input, $50/M output',
         // Qwen Paid
-        model_qwen3_7_max_desc_tier_paid: '$1.25/M input, $3.75/M output',
+        model_qwen3_8_max_desc_tier_paid: '$2/M input, $6/M output',
         model_qwen3_7_plus_desc_tier_paid: '$0.32/M input, $1.28/M output',
-        model_qwen3_5_flash_02_23_desc_tier_paid: '$0.065/M input, $0.26/M output',
+        model_qwen3_7_flash_desc_tier_paid: '$0.03/M input, $0.13/M output (up to 32K input)',
         // xAI Paid
-        model_grok_4_5_desc_tier_paid: '$2/M input, $6/M output',
+        model_grok_4_6_desc_tier_paid: '$2/M input, $6/M output (up to 200K input)',
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '$0.3/M input, $1.2/M output',
         // Z.AI Paid
-        model_glm_5_2_desc_tier_paid: '$1.40/M input, $4.40/M output',
+        model_glm_5_3_desc_tier_paid: '$1.40/M input, $4.40/M output',
         // DeepSeek Paid
-        model_deepseek_v4_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
-        model_deepseek_v4_flash_desc_tier_paid: '$0.098/M input, $0.196/M output',
-        // Xiaomi Paid
-        model_mimo_v2_5_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
-        model_mimo_v2_5_desc_tier_paid: '$0.14/M input, $0.28/M output',
+        model_deepseek_v4_pro_0813_desc_tier_paid: 'Base $0.66/M input, $1.98/M output; doubles in some UTC windows',
+        model_deepseek_v4_flash_0731_desc_tier_paid: '$0.14/M input, $0.28/M output',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '$3/M input, $15/M output',
         // Official Nouras

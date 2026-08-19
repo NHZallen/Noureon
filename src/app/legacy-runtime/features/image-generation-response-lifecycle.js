@@ -63,9 +63,7 @@ export function createImageGenerationResponseLifecycle({
       });
     }
 
-    const requestParts = modelInfo.provider === 'stepfun'
-      ? userParts
-      : await buildSingleModelTranslatedRequestParts(
+    const requestParts = await buildSingleModelTranslatedRequestParts(
         userParts,
         modelInfo,
         signal,

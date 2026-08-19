@@ -897,7 +897,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   });
   dependencies.elements.geminiApiKeyInput.value = ' gemini-key ';
   dependencies.elements.openrouterApiKeyInputAll.value = ' openrouter-key ';
-  dependencies.elements.stepPlanApiKeyInput.value = ' step-key ';
   dependencies.elements.nvidiaApiKeyInput.value = ' nvidia-key ';
   dependencies.elements.tavilyApiKeyInput.value = ' tavily-key ';
   dependencies.elements.tavilySearchDepthSelect.value = 'advanced';
@@ -923,7 +922,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), [
     ['setApiKeyForProvider', 'gemini', 'gemini-key'],
     ['setApiKeyForProvider', 'openrouter', 'openrouter-key'],
-    ['setApiKeyForProvider', 'stepPlan', 'step-key'],
     ['setApiKeyForProvider', 'nvidia', 'nvidia-key'],
     ['setApiKeyForProvider', 'tavily', 'tavily-key']
   ]);
@@ -1090,8 +1088,8 @@ test('saveSettings writes new and cleared API key intents through sensitive call
   prepareApiKeyInput(dependencies.elements.geminiApiKeyInput, { provider: 'gemini', rawValue: 'old-gemini-key' });
   dependencies.elements.geminiApiKeyInput.value = ' new-gemini-key ';
   markApiKeyInputDirty(dependencies.elements.geminiApiKeyInput);
-  prepareApiKeyInput(dependencies.elements.stepPlanApiKeyInput, { provider: 'stepPlan', rawValue: 'old-step-key' });
-  markApiKeyInputCleared(dependencies.elements.stepPlanApiKeyInput);
+  prepareApiKeyInput(dependencies.elements.nvidiaApiKeyInput, { provider: 'nvidia', rawValue: 'old-nvidia-key' });
+  markApiKeyInputCleared(dependencies.elements.nvidiaApiKeyInput);
   dependencies.elements.tavilySearchDepthSelect.value = 'basic';
   dependencies.elements.outputModeSelect.value = 'typewriter';
   dependencies.elements.uiLanguageSelect.value = 'en';
@@ -1106,7 +1104,7 @@ test('saveSettings writes new and cleared API key intents through sensitive call
 
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), [
     ['setApiKeyForProvider', 'gemini', 'new-gemini-key'],
-    ['setApiKeyForProvider', 'stepPlan', '']
+    ['setApiKeyForProvider', 'nvidia', '']
   ]);
   assert.ok(calls.indexOf('saveSensitiveConfig') < calls.indexOf('saveConfig'));
 });

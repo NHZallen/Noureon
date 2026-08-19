@@ -1,6 +1,6 @@
 import { getRuntimeTexts } from '../../runtime/i18n/runtime-texts.js';
 
-export const MODEL_PROVIDER_ORDER = Object.freeze(['gemini', 'openrouter', 'nvidia', 'stepfun']);
+export const MODEL_PROVIDER_ORDER = Object.freeze(['gemini', 'openrouter', 'nvidia']);
 
 const compareModelsForPicker = (left, right) => (
     (right.releasedAt - left.releasedAt) ||
@@ -27,9 +27,6 @@ export function prepareModelSwitcherModels({
         } else if (provider === 'openrouter') {
             tier = getModelTiers(model);
             company = model.id.split('/')[0];
-        } else if (provider === 'stepfun') {
-            tier = getModelTiers(model);
-            company = 'stepfun';
         } else if (provider === 'nvidia') {
             tier = getModelTiers(model);
             company = getModelApiId(model).split('/')[0];
@@ -388,7 +385,7 @@ export function createModelSwitcherLifecycle({
                                 const finalTier = companyBtn.dataset.tier;
                                 const finalCompany = companyBtn.dataset.company;
                                 const companyModels = visibleModels.filter(m => m.provider === finalProvider && m.tier.includes(finalTier) && m.company === finalCompany);
-                                const hasCategories = finalCompany === 'openai' || finalCompany === 'x-ai' || finalCompany === 'qwen' || finalCompany === 'stepfun';
+                                const hasCategories = finalCompany === 'openai' || finalCompany === 'x-ai' || finalCompany === 'qwen';
 
 
                                 if (hasCategories) {

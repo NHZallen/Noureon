@@ -28,10 +28,10 @@ const MODELS = [
     tier: ['paid']
   },
   {
-    id: 'stepfun/model-a',
-    name: 'Step A',
-    provider: 'stepfun',
-    descriptionKey: 'stepA',
+    id: 'z-ai/model-a',
+    name: 'Z.ai A',
+    provider: 'openrouter',
+    descriptionKey: 'zaiA',
     tier: ['free']
   },
   {
@@ -61,14 +61,14 @@ const createHarness = (overrides = {}) => {
   const conversation = overrides.conversation ?? {
     archived: false,
     council: { enabled: false },
-    model: 'stepfun/model-a',
-    provider: 'stepfun'
+    model: 'z-ai/model-a',
+    provider: 'openrouter'
   };
   const activeModels = overrides.models ?? MODELS;
   const config = {
-    lastUsedModel: 'stepfun/model-a',
+    lastUsedModel: 'z-ai/model-a',
     modelSettings: overrides.modelSettings ?? [
-      { hidden: false, id: 'stepfun/model-a', order: 1 },
+      { hidden: false, id: 'z-ai/model-a', order: 1 },
       { hidden: false, id: 'gemini-pro', order: 2 },
       { hidden: false, id: 'openai/beta', order: 3 }
     ],
@@ -84,7 +84,7 @@ const createHarness = (overrides = {}) => {
       freeModels: 'Free models',
       paidModels: 'Paid models',
       search: 'Search',
-      stepA_tier_free: 'Fast free model'
+      zaiA_tier_free: 'Fast free model'
     },
     'zh-TW': {}
   };
@@ -106,7 +106,7 @@ const createHarness = (overrides = {}) => {
     isCouncilEnabled: (conv) => !!conv.council?.enabled,
     modelSupportsDocumentUpload: (model) => model.id === 'gemini-pro',
     modelSupportsVision: (model) => model.id === 'gemini-pro',
-    modelSupportsWebSearch: (model) => model.provider === 'stepfun',
+    modelSupportsWebSearch: (model) => model.provider === 'openrouter',
     models: activeModels,
     renderAll: () => calls.push(['renderAll']),
     renderCouncilControls: () => calls.push(['renderCouncilControls']),
@@ -126,21 +126,21 @@ const createHarness = (overrides = {}) => {
 
 test('prepares visible models with provider-specific company and tier metadata', () => {
   const result = prepareModelSwitcherModels({
-    currentModelId: 'stepfun/model-a',
+    currentModelId: 'z-ai/model-a',
     getModelApiId: (model) => model.id,
     getModelTiers: (model) => model.tier || [],
     modelSettings: [
-      { hidden: false, id: 'stepfun/model-a', order: 2 },
+      { hidden: false, id: 'z-ai/model-a', order: 2 },
       { hidden: false, id: 'gemini-pro', order: 1 },
       { hidden: true, id: 'openai/beta', order: 3 }
     ],
     models: MODELS
   });
 
-  assert.equal(result.currentModel.id, 'stepfun/model-a');
-  assert.deepEqual(result.visibleModels.map((model) => model.id), ['stepfun/model-a', 'gemini-pro']);
+  assert.equal(result.currentModel.id, 'z-ai/model-a');
+  assert.deepEqual(result.visibleModels.map((model) => model.id), ['z-ai/model-a', 'gemini-pro']);
   assert.equal(result.processedModels.find((model) => model.id === 'gemini-pro').company, 'google');
-  assert.equal(result.processedModels.find((model) => model.id === 'stepfun/model-a').company, 'stepfun');
+  assert.equal(result.processedModels.find((model) => model.id === 'z-ai/model-a').company, 'z-ai');
   assert.deepEqual(result.betaModels.map((model) => model.id), ['openai/beta']);
 });
 
@@ -158,10 +158,9 @@ test('sorts newer releases first and uses output price in descending order withi
 
 test('renders providers in the configured default order', () => {
   const models = [
-    { id: 'step', name: 'Step', provider: 'stepfun', descriptionKey: 'stepA', tier: ['paid'] },
-    { id: 'nvidia', name: 'NVIDIA', provider: 'nvidia', descriptionKey: 'stepA', tier: ['free'] },
-    { id: 'router', name: 'Router', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] },
-    { id: 'gemini', name: 'Gemini', provider: 'gemini', descriptionKey: 'stepA', tier: ['paid'] }
+    { id: 'nvidia', name: 'NVIDIA', provider: 'nvidia', descriptionKey: 'zaiA', tier: ['free'] },
+    { id: 'router', name: 'Router', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] },
+    { id: 'gemini', name: 'Gemini', provider: 'gemini', descriptionKey: 'zaiA', tier: ['paid'] }
   ];
   const { cleanup, document, lifecycle } = createHarness({
     models,
@@ -172,7 +171,7 @@ test('renders providers in the configured default order', () => {
     document.querySelector('#current-model-btn').click();
     assert.deepEqual(
       [...document.querySelectorAll('.provider-btn')].map((button) => button.dataset.provider),
-      ['gemini', 'openrouter', 'nvidia', 'stepfun']
+      ['gemini', 'openrouter', 'nvidia']
     );
   } finally {
     cleanup();
@@ -181,9 +180,9 @@ test('renders providers in the configured default order', () => {
 
 test('sorts provider companies alphabetically', () => {
   const models = [
-    { id: 'zeta/model', name: 'Zeta', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] },
-    { id: 'alpha/model', name: 'Alpha', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] },
-    { id: 'middle/model', name: 'Middle', provider: 'openrouter', descriptionKey: 'stepA', tier: ['paid'] }
+    { id: 'zeta/model', name: 'Zeta', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] },
+    { id: 'alpha/model', name: 'Alpha', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] },
+    { id: 'middle/model', name: 'Middle', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] }
   ];
   const { cleanup, document, lifecycle } = createHarness({
     models,
@@ -208,7 +207,7 @@ test('renders model switcher navigation and persists selected model', async () =
   try {
     lifecycle.renderModelSwitcher();
 
-    assert.match(document.querySelector('#current-model-btn').textContent, /Step A/);
+    assert.match(document.querySelector('#current-model-btn').textContent, /Z\.ai A/);
     document.querySelector('#current-model-btn').click();
     assert.ok(document.querySelector('#model-options-popover').classList.contains('visible'));
 
@@ -247,7 +246,7 @@ test('model switcher search filters models and persists selected result', async 
     const modelListView = document.querySelector('#model-list-view');
     assert.match(modelListView.textContent, /Search results/);
     assert.match(modelListView.textContent, /Gemini Pro/);
-    assert.doesNotMatch(modelListView.textContent, /Step A/);
+    assert.doesNotMatch(modelListView.textContent, /Z\.ai A/);
     assert.ok(!document.querySelector('#model-search-clear-btn').classList.contains('hidden'));
 
     document.querySelector('[data-model-id="gemini-pro"]').click();
@@ -321,7 +320,7 @@ test('model switcher reads the container from the injected getter without an ele
     lifecycle.renderModelSwitcher();
 
     const container = document.querySelector('#model-switcher-container');
-    assert.match(container.textContent, /Step A/);
+    assert.match(container.textContent, /Z\.ai A/);
   } finally {
     cleanup();
   }
@@ -332,8 +331,8 @@ test('council mode switcher button delegates to council controls without duplica
     conversation: {
       archived: false,
       council: { enabled: true, mode: 'consensus' },
-      model: 'stepfun/model-a',
-      provider: 'stepfun'
+      model: 'z-ai/model-a',
+      provider: 'openrouter'
     }
   });
   try {
@@ -349,7 +348,7 @@ test('council mode switcher button delegates to council controls without duplica
     ]);
     assert.ok(document.querySelector('#model-council-popover').classList.contains('visible'));
     assert.equal(document.querySelector('#model-council-toggle-btn').getAttribute('aria-expanded'), 'true');
-    assert.equal(conversation.model, 'stepfun/model-a');
+    assert.equal(conversation.model, 'z-ai/model-a');
   } finally {
     cleanup();
   }

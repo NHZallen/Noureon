@@ -1,7 +1,5 @@
-import { appendStepPlanAttachmentContent } from './model-request-formatting.js';
 import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
 import { resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
-const STEP_PLAN_CHAT_COMPLETIONS_URL = 'https://api.stepfun.com/step_plan/v1/chat/completions';
 
 const LANGUAGE_INSTRUCTIONS = {
   'zh-TW': '請用繁體中文回覆，除非使用者有特別要求。',
@@ -165,7 +163,7 @@ const buildGeminiRequest = ({
   modelSupportsUploadedFile
 }) => {
   const supportsSamplingParameters = ![
-    'gemini-3.6-flash',
+    'gemini-3.7-flash',
     'gemini-3.5-flash-lite'
   ].includes(modelId);
   const payload = {
@@ -197,8 +195,7 @@ const buildGeminiRequest = ({
   return {
     url: `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent`,
     payload,
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    isStepPlanDirectVideoRequest: false
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }
   };
 };
 
@@ -230,14 +227,7 @@ const buildOpenAiCompatibleMessages = ({
       const mimeType = part.inlineData.mimeType || '';
       const base64Data = part.inlineData.data;
       const fullDataUrl = `data:${mimeType};base64,${base64Data}`;
-      if (provider === 'stepfun') {
-        appendStepPlanAttachmentContent(
-          content,
-          part.inlineData,
-          modelInfo,
-          { modelSupportsVision }
-        );
-      } else if (
+      if (
         (mimeType.startsWith('image/') || mimeType.startsWith('video/')) &&
         modelSupportsVision(modelInfo)
       ) {
@@ -274,9 +264,6 @@ const buildOpenAiCompatibleRequest = ({
   historyForApi,
   currentMessageForApi,
   generationConfig,
-  reasoningEffort,
-  reasoningConfig,
-  disableReasoning = false,
   systemInstruction,
   modelSupportsVision
 }) => {
@@ -288,37 +275,21 @@ const buildOpenAiCompatibleRequest = ({
     systemInstruction,
     modelSupportsVision
   });
-  const hasStepPlanVideo = provider === 'stepfun' && messages.some((message) =>
-    Array.isArray(message.content) &&
-    message.content.some((part) => part?.type === 'video_url')
-  );
   const payload = {
     model: modelId,
     messages,
-    stream: !hasStepPlanVideo,
+    stream: true,
     ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
     ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
     ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens })
   };
-  const stepfunReasoningEffort = disableReasoning
-    ? null
-    : (reasoningConfig?.providerParameter === 'stepfunReasoningEffort'
-      ? reasoningEffort
-      : modelInfo.reasoningEffort);
-  if (provider === 'stepfun' && stepfunReasoningEffort) {
-    payload.reasoning_effort = stepfunReasoningEffort;
-  }
   return {
-    url: hasStepPlanVideo
-      ? STEP_PLAN_CHAT_COMPLETIONS_URL
-      : (provider === 'stepfun' ? '/api/step-plan-chat' : '/api/nvidia-chat'),
+    url: '/api/nvidia-chat',
     payload,
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      ...(hasStepPlanVideo && { Accept: 'application/json' })
-    },
-    isStepPlanDirectVideoRequest: hasStepPlanVideo
+      'Content-Type': 'application/json'
+    }
   };
 };
 
@@ -401,8 +372,7 @@ const buildOpenRouterRequest = ({
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
-    },
-    isStepPlanDirectVideoRequest: false
+    }
   };
 };
 
@@ -607,7 +577,7 @@ export function createStreamApiCall({
         requestOptions,
         modelSupportsUploadedFile
       })
-      : (provider === 'nvidia' || provider === 'stepfun')
+      : provider === 'nvidia'
         ? buildOpenAiCompatibleRequest({
           provider,
           modelId,
@@ -616,9 +586,6 @@ export function createStreamApiCall({
           historyForApi,
           currentMessageForApi,
           generationConfig,
-          reasoningEffort,
-          reasoningConfig,
-          disableReasoning,
           systemInstruction,
           modelSupportsVision
         })
@@ -633,36 +600,16 @@ export function createStreamApiCall({
           systemInstruction
         });
 
-    let response;
-    try {
-      response = await fetchImpl(request.url, {
-        method: 'POST',
-        headers: request.headers,
-        body: JSON.stringify(request.payload),
-        signal
-      });
-    } catch (error) {
-      if (request.isStepPlanDirectVideoRequest) {
-        throw new Error(
-          `Step video request bypassed the server proxy to avoid Vercel payload limits, but the browser could not reach StepFun directly: ${error?.message || error}`
-        );
-      }
-      throw error;
-    }
+    const response = await fetchImpl(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(request.payload),
+      signal
+    });
 
     if (!response.ok) {
       const errorBody = await readProviderErrorBody(response);
       throw new Error(getProviderErrorMessage(errorBody));
-    }
-
-    if (provider === 'stepfun' && request.payload.stream === false) {
-      const data = await response.json();
-      const messageContent = data?.choices?.[0]?.message?.content;
-      const fullText = Array.isArray(messageContent)
-        ? messageContent.map((part) => part?.text || '').join('')
-        : String(messageContent || '');
-      if (fullText) onChunk(fullText);
-      return fullText;
     }
 
     const reader = response.body.getReader();

@@ -58,7 +58,6 @@ function createHarness({
       gemini: 'gemini-secret-value',
       openrouter: 'sk-or-openrouter-secret',
       nvidia: 'nvapi-nvidia-secret',
-      stepPlan: 'stepfun-secret-value',
       tavily: 'tvly-tavily-secret'
     }
   };

@@ -20,7 +20,7 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 test('sensitive config redaction exports the expected helper API', () => {
   assert.deepEqual(
     [...SENSITIVE_API_KEY_FIELDS].sort(),
-    ['gemini', 'nvidia', 'openrouter', 'stepPlan', 'tavily'].sort()
+    ['gemini', 'nvidia', 'openrouter', 'tavily'].sort()
   );
   assert.equal(typeof isSensitiveConfigKey, 'function');
   assert.equal(typeof isMaskedApiKeyDisplayValue, 'function');
@@ -61,7 +61,6 @@ test('redactSensitiveConfig masks all known provider keys and unknown keys safel
       gemini: 'gemini-secret-1234',
       openrouter: 'sk-or-openrouter-1234',
       nvidia: 'nvapi-secret-1234',
-      stepPlan: 'stepfun-secret-1234',
       tavily: 'tvly-secret-1234',
       extraProvider: 'extra-secret-1234'
     },
@@ -87,7 +86,6 @@ test('createExportSafeConfig defaults to no full secrets and preserves only expl
       gemini: 'gemini-secret',
       openrouter: 'openrouter-secret',
       nvidia: 'nvidia-secret',
-      stepPlan: 'step-plan-secret',
       tavily: 'tavily-secret'
     }
   };
@@ -102,7 +100,6 @@ test('createExportSafeConfig defaults to no full secrets and preserves only expl
     gemini: 'gemini-secret',
     openrouter: 'openrouter-secret',
     nvidia: 'nvidia-secret',
-    stepPlan: 'step-plan-secret',
     tavily: 'tavily-secret'
   });
 });

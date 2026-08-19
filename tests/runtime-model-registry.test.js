@@ -26,35 +26,39 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 test('model registry exports the canonical model inventory', () => {
   assert.ok(Array.isArray(MODELS));
   assert.ok(MODELS.length > 0);
-  assert.ok(MODELS.some((model) => model.id === 'gemini-3.6-flash' && model.provider === 'gemini'));
+  assert.ok(MODELS.some((model) => model.id === 'gemini-3.7-flash' && model.provider === 'gemini'));
   assert.ok(MODELS.some((model) => model.id === 'gemini-3.5-flash-lite' && model.provider === 'gemini'));
   assert.ok(MODELS.some((model) => model.id === 'moonshotai/kimi-k3' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'poolside/laguna-s-2.1:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'anthropic/claude-opus-5' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-opus-4.8'), false);
-  assert.ok(MODELS.some((model) => model.id === 'step-plan/step-3.7-flash' && model.provider === 'stepfun'));
+  assert.ok(MODELS.some((model) => model.id === 'nvidia/nemotron-3.5-lightning:free' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-0731' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-pro-0813' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.7-flash' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.8-max' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'z-ai/glm-5.3' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
-  assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.5' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.6' && model.provider === 'openrouter'));
+  assert.equal(MODELS.some((model) => model.provider === 'stepfun'), false);
+  assert.equal(MODELS.some((model) => model.id.startsWith('xiaomi/')), false);
   assert.ok(MODELS.some((model) => model.provider === 'nvidia'));
   assert.ok(MODELS.some((model) => model.id === CHEAP_MODEL_ID));
   assert.equal(CHEAP_MODEL_ID, 'gemini-3.5-flash-lite');
 });
 
 test('model registry preserves provider labels and API id aliases', () => {
-  const nvidiaModel = MODELS.find((model) => model.id === 'nvidia/qwen/qwen3.5-122b-a10b');
-  const stepModel = MODELS.find((model) => model.id === 'step-plan/step-3.7-flash');
+  const nvidiaModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
 
   assert.equal(getProviderLabel('gemini'), 'Gemini');
   assert.equal(getProviderLabel('openrouter'), 'OpenRouter');
-  assert.equal(getProviderLabel('stepfun'), 'Step Plan');
   assert.equal(getProviderLabel('nvidia'), 'NVIDIA');
   assert.equal(getProviderLabel('tavily'), 'Tavily');
-  assert.equal(getModelApiId(nvidiaModel), 'qwen/qwen3.5-122b-a10b');
-  assert.equal(getModelApiId(stepModel), 'step-3.7-flash');
+  assert.equal(getModelApiId(nvidiaModel), 'z-ai/glm-5.2');
 });
 
 test('model registry preserves vision and document capability behavior', () => {
-  const geminiModel = MODELS.find((model) => model.id === 'gemini-3.6-flash');
+  const geminiModel = MODELS.find((model) => model.id === 'gemini-3.7-flash');
   const geminiLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
   const lagunaModel = MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free');
@@ -62,11 +66,10 @@ test('model registry preserves vision and document capability behavior', () => {
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
   const openRouterGpt56Models = ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']
     .map((id) => MODELS.find((model) => model.id === id));
-  const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
-  const openRouterTextModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash');
+  const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
+  const openRouterTextModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash-0731');
   const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
-  const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/qwen/qwen3.5-122b-a10b');
-  const stepVisionModel = MODELS.find((model) => model.id === 'step-plan/step-3.7-flash');
+  const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/moonshotai/kimi-k2.6');
 
   assert.equal(modelSupportsVision(geminiModel), true);
   assert.equal(modelSupportsVision(geminiLiteModel), true);
@@ -79,7 +82,6 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsVision(openRouterTextModel), false);
   assert.equal(modelSupportsVision(nvidiaVisionModel), true);
   assert.equal(modelSupportsVision(nvidiaTextModel), false);
-  assert.equal(modelSupportsVision(stepVisionModel), true);
 
   assert.equal(modelSupportsDocumentUpload(geminiModel), true);
   assert.equal(modelSupportsDocumentUpload(geminiLiteModel), true);
@@ -89,21 +91,21 @@ test('model registry preserves vision and document capability behavior', () => {
 });
 
 test('model registry exposes precise reasoning depth options for supported models only', () => {
-  const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-pro');
-  const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.5');
+  const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-pro-0813');
+  const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-5.5');
   const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-sol');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
-  const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.6-flash');
+  const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.7-flash');
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
   const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5');
 
-  assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['high', 'xhigh']);
-  assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'high');
+  assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['low', 'high', 'max']);
+  assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'max');
   assert.equal(getReasoningEffortLabel('xhigh', 'zh-TW'), '超高');
 
-  assert.deepEqual(getModelReasoningConfig(grokModel)?.options, ['low', 'medium', 'high']);
+  assert.deepEqual(getModelReasoningConfig(grokModel)?.options, ['low', 'medium', 'high', 'xhigh']);
   assert.equal(normalizeReasoningEffort(grokModel, 'max'), 'high');
 
   assert.deepEqual(getModelReasoningConfig(openAiModel)?.options, ['none', 'low', 'medium', 'high', 'xhigh']);
@@ -113,7 +115,7 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');
 
   assert.deepEqual(getModelReasoningConfig(imageModel)?.options, ['minimal', 'high']);
-  assert.deepEqual(getModelReasoningConfig(geminiFlashModel)?.options, ['minimal', 'low', 'medium', 'high']);
+  assert.deepEqual(getModelReasoningConfig(geminiFlashModel)?.options, ['low', 'medium', 'high']);
   assert.equal(getModelReasoningConfig(geminiFlashLiteModel)?.defaultEffort, 'minimal');
   assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['low', 'high', 'max']);
   assert.deepEqual(getModelReasoningConfig(opus5Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
@@ -130,16 +132,13 @@ test('reasoning labels support Russian and Spanish', () => {
 
 test('model registry leaves excluded models on default reasoning', () => {
   const excludedIds = [
-    'step-plan/step-router-v1',
     'anthropic/claude-haiku-4.5',
     'google/gemini-3-pro-image',
     'minimax/minimax-m3',
     'poolside/laguna-s-2.1:free',
-    'qwen/qwen3.5-flash-02-23',
+    'nvidia/nemotron-3.5-lightning:free',
+    'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
-    'qwen/qwen3.7-max',
-    'xiaomi/mimo-v2.5',
-    'xiaomi/mimo-v2.5-pro',
     'openai/gpt-image-2'
   ];
 
@@ -155,8 +154,8 @@ test('model registry keeps council and translator helpers live-config backed', (
     config: {
       modelSettings: [
         { id: 'openai/gpt-5.5', hidden: false, order: 2 },
-        { id: 'gemini-3.6-flash', hidden: false, order: 1 },
-        { id: 'deepseek/deepseek-v4-flash', hidden: true, order: 0 }
+        { id: 'gemini-3.7-flash', hidden: false, order: 1 },
+        { id: 'deepseek/deepseek-v4-flash-0731', hidden: true, order: 0 }
       ],
       councilTranslatorModelId: 'openai/gpt-5.5',
       singleDocumentTranslatorModelId: 'gemini-3.1-pro-preview'
@@ -170,14 +169,14 @@ test('model registry keeps council and translator helpers live-config backed', (
   assert.equal(COUNCIL_MIN_MODELS, 2);
   assert.equal(COUNCIL_MAX_MODELS, 5);
   assert.deepEqual(registry.getVisibleCouncilModels().map((model) => model.id), [
-    'gemini-3.6-flash',
+    'gemini-3.7-flash',
     'openai/gpt-5.5'
   ]);
   assert.equal(registry.getCouncilTranslatorModel()?.id, 'openai/gpt-5.5');
   assert.equal(registry.getSingleDocumentTranslatorModel()?.id, 'gemini-3.1-pro-preview');
 
   state.config.councilTranslatorModelId = 'missing-model';
-  assert.equal(registry.getCouncilTranslatorModel()?.id, 'gemini-3.6-flash');
+  assert.equal(registry.getCouncilTranslatorModel()?.id, 'gemini-3.7-flash');
 });
 
 test('model registry import is inert and independent from retired runtime fragments', () => {

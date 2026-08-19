@@ -211,7 +211,7 @@ export function createImageModeControls({
     ratio.select.value = aspectRatio;
     resolution.select.value = config.resolution;
     ratio.row.style.display = active ? 'flex' : 'none';
-    resolution.row.style.display = active && activeModel?.provider !== 'stepfun' ? 'flex' : 'none';
+    resolution.row.style.display = active ? 'flex' : 'none';
     const advancedConfig = { ...advancedDefaults, ...(conversation?.imageAdvancedConfig || {}) };
     Object.entries(advanced.fields).forEach(([key, field]) => {
       field.value = key === 'provider'

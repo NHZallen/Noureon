@@ -8,7 +8,7 @@ import { createRuntimeAppKernel } from '../src/app/runtime-app.js';
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const expectedConfig = (defaultModelId) => ({
-  apiKeys: { gemini: '', openrouter: '', stepPlan: '', nvidia: '', tavily: '' },
+  apiKeys: { gemini: '', openrouter: '', nvidia: '', tavily: '' },
   defaultModel: defaultModelId,
   modelSettings: [],
   enableAutoWebSearch: false,

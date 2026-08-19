@@ -40,7 +40,6 @@ export function createSettingsApiKeyControls(dependencies = {}) {
   const getApiKeyInputDescriptors = () => [
     { provider: 'gemini', input: elements.geminiApiKeyInput },
     { provider: 'openrouter', input: elements.openrouterApiKeyInputAll },
-    { provider: 'stepPlan', input: elements.stepPlanApiKeyInput },
     { provider: 'nvidia', input: elements.nvidiaApiKeyInput },
     { provider: 'tavily', input: elements.tavilyApiKeyInput }
   ].filter(({ input }) => input);
@@ -65,8 +64,7 @@ export function createSettingsApiKeyControls(dependencies = {}) {
   };
 
   const getStoredApiKeyForInput = (provider) => {
-    const lookupProvider = provider === 'stepPlan' ? 'stepfun' : provider;
-    return getApiKeyForProvider(lookupProvider) || '';
+    return getApiKeyForProvider(provider) || '';
   };
 
   const getEyeIconSvg = (isVisible = false) => isVisible
@@ -174,10 +172,9 @@ export function createSettingsApiKeyControls(dependencies = {}) {
   const prepareApiKeyInputsForSettings = () => {
     ensureApiKeyInputSecurityControls();
     getApiKeyInputDescriptors().forEach(({ provider, input }) => {
-      const lookupProvider = provider === 'stepPlan' ? 'stepfun' : provider;
       prepareApiKeyInput(input, {
         provider,
-        rawValue: getApiKeyForProvider(lookupProvider)
+        rawValue: getApiKeyForProvider(provider)
       });
       resetApiKeyInputVisibility(input);
     });

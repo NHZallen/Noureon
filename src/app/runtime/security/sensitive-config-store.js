@@ -5,9 +5,7 @@ const PROVIDER_KEY_ALIASES = Object.freeze({
   gemini: 'gemini',
   openrouter: 'openrouter',
   nvidia: 'nvidia',
-  tavily: 'tavily',
-  stepfun: 'stepPlan',
-  stepPlan: 'stepPlan'
+  tavily: 'tavily'
 });
 
 export function normalizeProviderKey(provider) {

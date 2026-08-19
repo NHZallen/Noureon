@@ -54,7 +54,6 @@ Noureon 目前支援：
 - Google Gemini
 - OpenRouter
 - NVIDIA API Catalog
-- Step Plan
 - Tavily 網路搜尋
 
 你只需要設定實際打算使用的服務。
@@ -181,7 +180,6 @@ http://localhost:5173
 | Google Gemini | 原生 Gemini 模型與受支援的搜尋 | Noureon 設定 |
 | OpenRouter | 多家 AI 實驗室的模型與圖片生成 | Noureon 設定 |
 | NVIDIA | 受支援的 NVIDIA 託管模型 | Noureon 設定 |
-| Step Plan | StepFun 推理模型 | Noureon 設定 |
 | Tavily | 為受支援的非原生供應商提供網路搜尋 | Noureon 設定 |
 
 模型供應情況、價格、速率限制與地區存取均由各供應商決定。

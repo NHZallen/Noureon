@@ -62,7 +62,6 @@ function createHarness(overrides = {}) {
   const elements = {
     geminiApiKeyInput: createElement('gemini-api-key-input'),
     openrouterApiKeyInputAll: createElement('openrouter-api-key-input-all'),
-    stepPlanApiKeyInput: createElement('step-plan-api-key-input'),
     nvidiaApiKeyInput: createElement('nvidia-api-key-input'),
     tavilyApiKeyInput: createElement('tavily-api-key-input')
   };
@@ -114,8 +113,6 @@ test('prepareApiKeyInputsForSettings displays masked values without raw stored k
   assert.notEqual(elements.geminiApiKeyInput.value, 'gemini-secret-value-abcd');
   assert.match(elements.geminiApiKeyInput.value, /\*+/);
   assert.equal(JSON.stringify(elements.geminiApiKeyInput.dataset).includes('gemini-secret-value-abcd'), false);
-  assert.equal(elements.stepPlanApiKeyInput.dataset.apiKeyProvider, 'stepPlan');
-  assert.equal(elements.stepPlanApiKeyInput.value.includes('stepfun-secret-value-abcd'), false);
 });
 
 test('unchanged masked placeholder produces no sensitive write', async () => {
@@ -221,7 +218,6 @@ test('clear all button clears all providers and saves', async () => {
   ]);
   assert.equal(elements.geminiApiKeyInput.value, '');
   assert.equal(elements.openrouterApiKeyInputAll.value, '');
-  assert.equal(elements.stepPlanApiKeyInput.value, '');
   assert.equal(elements.nvidiaApiKeyInput.value, '');
   assert.equal(elements.tavilyApiKeyInput.value, '');
 });

@@ -2,7 +2,6 @@ import { highlightText } from '../../legacy-runtime/features/search-text-formatt
 import { createMediaAttachmentRenderer } from '../../legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../../legacy-runtime/features/media-preview-lifecycle.js';
 import { createUploadedFilePreviewLifecycle } from '../../legacy-runtime/features/uploaded-file-preview-lifecycle.js';
-import { MODELS, modelGeneratesImages } from './model-registry.js';
 
 const CHAT_IMAGE_MAX_SIZE = 1600;
 const CHAT_IMAGE_QUALITY = 0.78;
@@ -343,16 +342,6 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         Array.from(files).forEach(file => {
             const reader = new FileReaderCtor();
             reader.onload = async (e) => {
-                const modelInfo = MODELS.find((model) => model.id === getConfig().lastUsedModel);
-                const isStepImageEdit = modelInfo?.provider === 'stepfun' && modelGeneratesImages(modelInfo);
-                if (isStepImageEdit && !file.type.startsWith('image/')) {
-                    logger.warn?.('Step Image Edit 2 only accepts image uploads.');
-                    return;
-                }
-                if (isStepImageEdit && getUploadedFiles().length > 0) {
-                    logger.warn?.('Step Image Edit 2 only accepts one image attachment.');
-                    return;
-                }
                 const normalized = await normalizeImageForChatUpload(e.target.result, file.type, file.name);
                 setUploadedFiles([
                     ...getUploadedFiles(),

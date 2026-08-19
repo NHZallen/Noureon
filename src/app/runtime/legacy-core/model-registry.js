@@ -6,25 +6,20 @@ import {
 } from '../kernel/config-normalization.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
-    'gemini-3.6-flash': { releasedAt: 20260721, outputPricePerMillion: 7.5 },
+    'gemini-3.7-flash': { releasedAt: 20260813, outputPricePerMillion: 3.75 },
     'gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
     'gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
     'nvidia/deepseek-ai/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0 },
     'nvidia/deepseek-ai/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.2': { releasedAt: 20260616, outputPricePerMillion: 0 },
     'nvidia/moonshotai/kimi-k2.6': { releasedAt: 20260420, outputPricePerMillion: 0 },
-    'nvidia/minimaxai/minimax-m2.7': { releasedAt: 20260411, outputPricePerMillion: 0 },
-    'nvidia/mistralai/mistral-medium-3.5-128b': { releasedAt: 20260429, outputPricePerMillion: 0 },
-    'nvidia/nvidia/nemotron-3-ultra-550b-a55b': { releasedAt: 20260604, outputPricePerMillion: 0 },
-    'nvidia/qwen/qwen3.5-122b-a10b': { releasedAt: 20260224, outputPricePerMillion: 0 },
-    'nvidia/qwen/qwen3.5-397b-a17b': { releasedAt: 20260216, outputPricePerMillion: 0 },
     'nvidia/stepfun-ai/step-3.7-flash': { releasedAt: 20260528, outputPricePerMillion: 0 },
     'anthropic/claude-haiku-4.5': { releasedAt: 20251015, outputPricePerMillion: 5 },
     'anthropic/claude-sonnet-5': { releasedAt: 20260630, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5': { releasedAt: 20260724, outputPricePerMillion: 25 },
     'anthropic/claude-fable-5': { releasedAt: 20260609, outputPricePerMillion: 50 },
-    'deepseek/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0.18 },
-    'deepseek/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0.87 },
+    'deepseek/deepseek-v4-flash-0731': { releasedAt: 20260731, outputPricePerMillion: 0.28 },
+    'deepseek/deepseek-v4-pro-0813': { releasedAt: 20260813, outputPricePerMillion: 1.98 },
     'google/gemini-3.1-flash-lite-image': { releasedAt: 20260630, outputPricePerMillion: 1.5 },
     'google/gemini-3.1-flash-image': { releasedAt: 20260618, outputPricePerMillion: 3 },
     'google/gemini-3-pro-image': { releasedAt: 20260618, outputPricePerMillion: 12 },
@@ -33,25 +28,22 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
+    'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
     'openai/gpt-5.5': { releasedAt: 20260424, outputPricePerMillion: 30 },
     'openai/gpt-5.6-luna': { releasedAt: 20260709, outputPricePerMillion: 6 },
     'openai/gpt-5.6-terra': { releasedAt: 20260709, outputPricePerMillion: 15 },
     'openai/gpt-5.6-sol': { releasedAt: 20260709, outputPricePerMillion: 30 },
     'openai/gpt-image-2': { releasedAt: 20260624, outputPricePerMillion: 8 },
-    'qwen/qwen3.5-flash-02-23': { releasedAt: 20260225, outputPricePerMillion: 0.26 },
+    'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
-    'qwen/qwen3.7-max': { releasedAt: 20260521, outputPricePerMillion: 3.75 },
-    'x-ai/grok-4.5': { releasedAt: 20260708, outputPricePerMillion: 6 },
-    'xiaomi/mimo-v2.5': { releasedAt: 20260422, outputPricePerMillion: 0.28 },
-    'xiaomi/mimo-v2.5-pro': { releasedAt: 20260422, outputPricePerMillion: 0.87 },
-    'step-plan/step-3.7-flash': { releasedAt: 20260528, outputPricePerMillion: 0 },
-    'step-plan/step-3.5-flash': { releasedAt: 20260211, outputPricePerMillion: 0 },
-    'step-plan/step-image-edit-2': { releasedAt: 20260713, outputPricePerMillion: 0 }
+    'qwen/qwen3.8-max': { releasedAt: 20260803, outputPricePerMillion: 6 },
+    'x-ai/grok-4.6': { releasedAt: 20260810, outputPricePerMillion: 6 },
+    'z-ai/glm-5.3': { releasedAt: 20260816, outputPricePerMillion: 4.4 }
 });
 
 export const MODELS = [
     // Gemini Models (Native)
-    { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_6_flash_desc' },
+    { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_7_flash_desc' },
     { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_lite_desc' },
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
 
@@ -60,11 +52,6 @@ export const MODELS = [
     { id: 'nvidia/deepseek-ai/deepseek-v4-pro', apiId: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.2', apiId: 'z-ai/glm-5.2', name: 'NVIDIA GLM-5.2', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_2_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/moonshotai/kimi-k2.6', apiId: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/minimaxai/minimax-m2.7', apiId: 'minimaxai/minimax-m2.7', name: 'NVIDIA MiniMax M2.7', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m2_7_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/mistralai/mistral-medium-3.5-128b', apiId: 'mistralai/mistral-medium-3.5-128b', name: 'NVIDIA Mistral Medium 3.5 128B', provider: 'nvidia', descriptionKey: 'model_nvidia_mistral_medium_3_5_128b_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/nvidia/nemotron-3-ultra-550b-a55b', apiId: 'nvidia/nemotron-3-ultra-550b-a55b', name: 'NVIDIA Nemotron 3 Ultra', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_ultra_550b_a55b_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/qwen/qwen3.5-122b-a10b', apiId: 'qwen/qwen3.5-122b-a10b', name: 'NVIDIA Qwen3.5 122B A10B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_122b_a10b_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/qwen/qwen3.5-397b-a17b', apiId: 'qwen/qwen3.5-397b-a17b', name: 'NVIDIA Qwen3.5 397B A17B', provider: 'nvidia', descriptionKey: 'model_nvidia_qwen3_5_397b_a17b_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-3.7-flash', apiId: 'stepfun-ai/step-3.7-flash', name: 'NVIDIA Step 3.7 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_step_3_7_flash_desc', tier: ['free'], category: 'general' },
 
     // OpenRouter Paid Models (Anthropic)
@@ -74,8 +61,8 @@ export const MODELS = [
     { id: 'anthropic/claude-fable-5', name: 'Claude Fable 5', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_desc' },
 
     // OpenRouter Paid Models (DeepSeek)
-    { id: 'deepseek/deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_flash_desc', category: 'general' },
-    { id: 'deepseek/deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_pro_desc', category: 'general' },
+    { id: 'deepseek/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash 0731', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_flash_0731_desc', category: 'general' },
+    { id: 'deepseek/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro 0813', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_pro_0813_desc', category: 'general' },
 
     // OpenRouter Image Models (Google)
     { id: 'google/gemini-3.1-flash-lite-image', name: 'Gemini 3.1 Flash Lite Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_lite_image_desc', category: 'image_generation', outputModality: 'image' },
@@ -94,6 +81,7 @@ export const MODELS = [
     // OpenRouter Free Models (NVIDIA)
     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
+    { id: 'nvidia/nemotron-3.5-lightning:free', name: 'NVIDIA Nemotron 3.5 Lightning', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_lightning_desc', category: 'general' },
 
     // OpenRouter Paid Models (OpenAI)
     { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },
@@ -103,30 +91,21 @@ export const MODELS = [
     { id: 'openai/gpt-image-2', name: 'OpenAI GPT Image 2', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
 
     // OpenRouter Paid Models (Qwen)
-    { id: 'qwen/qwen3.5-flash-02-23', name: 'Qwen3.5 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_5_flash_02_23_desc', category: 'general' },
+    { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },
     { id: 'qwen/qwen3.7-plus', name: 'Qwen3.7 Plus', provider: 'openrouter', descriptionKey: 'model_qwen3_7_plus_desc', category: 'general' },
-    { id: 'qwen/qwen3.7-max', name: 'Qwen3.7 Max', provider: 'openrouter', descriptionKey: 'model_qwen3_7_max_desc', category: 'general' },
+    { id: 'qwen/qwen3.8-max', name: 'Qwen3.8 Max', provider: 'openrouter', descriptionKey: 'model_qwen3_8_max_desc', category: 'general' },
 
     // OpenRouter Paid Models (xAI)
-    { id: 'x-ai/grok-4.5', name: 'xAI Grok 4.5', provider: 'openrouter', descriptionKey: 'model_grok_4_5_desc', category: 'general' },
+    { id: 'x-ai/grok-4.6', name: 'xAI Grok 4.6', provider: 'openrouter', descriptionKey: 'model_grok_4_6_desc', category: 'general' },
 
-    // OpenRouter Paid Models (Xiaomi)
-    { id: 'xiaomi/mimo-v2.5', name: 'Xiaomi MiMo V2.5', provider: 'openrouter', descriptionKey: 'model_mimo_v2_5_desc', category: 'general' },
-    { id: 'xiaomi/mimo-v2.5-pro', name: 'Xiaomi MiMo V2.5 Pro', provider: 'openrouter', descriptionKey: 'model_mimo_v2_5_pro_desc', category: 'general' },
-
-    // Step Plan Models (Native StepFun)
-    { id: 'step-plan/step-3.7-flash', apiId: 'step-3.7-flash', name: 'Step Plan Step 3.7 Flash', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_7_flash_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'medium' },
-    { id: 'step-plan/step-3.5-flash-2603', apiId: 'step-3.5-flash-2603', name: 'Step Plan Step 3.5 Flash 2603', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_2603_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'low' },
-    { id: 'step-plan/step-3.5-flash', apiId: 'step-3.5-flash', name: 'Step Plan Step 3.5 Flash', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_5_flash_desc', tier: ['paid'], category: 'thinking', reasoningEffort: 'medium' },
-    { id: 'step-plan/step-router-v1', apiId: 'step-router-v1', name: 'Step Plan Router V1', provider: 'stepfun', descriptionKey: 'model_step_plan_router_v1_desc', tier: ['paid'], category: 'thinking' },
-    { id: 'step-plan/step-image-edit-2', apiId: 'step-image-edit-2', name: 'Step Image Edit 2', provider: 'stepfun', descriptionKey: 'model_step_plan_step_3_7_flash_desc', tier: ['paid'], category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'] },
+    // OpenRouter Paid Models (Z.ai)
+    { id: 'z-ai/glm-5.3', name: 'Z.ai GLM 5.3', provider: 'openrouter', descriptionKey: 'model_glm_5_3_desc', category: 'general' },
 ].map((model) => Object.freeze({ ...model, ...MODEL_RELEASE_METADATA[model.id] }));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2',
     'google/gemini-3-pro-image',
     'google/gemini-3.1-flash-image',
-    'google/gemini-3.1-flash-lite-image',
-    'step-plan/step-image-edit-2'
+    'google/gemini-3.1-flash-lite-image'
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
@@ -140,22 +119,17 @@ export const OPENROUTER_VISION_MODELS = [
     'openai/gpt-5.6-luna',
     'openai/gpt-5.6-terra',
     'openai/gpt-5.6-sol',
-    'qwen/qwen3.5-flash-02-23',
+    'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
-    'x-ai/grok-4.5',
-    'xiaomi/mimo-v2.5'
+    'qwen/qwen3.8-max',
+    'x-ai/grok-4.6'
 ];
 export const NVIDIA_VISION_MODELS = [
-    'qwen/qwen3.5-122b-a10b',
     'moonshotai/kimi-k2.6',
-    'qwen/qwen3.5-397b-a17b',
     'stepfun-ai/step-3.7-flash'
 ];
-export const STEP_PLAN_VISION_MODELS = [
-    'step-3.7-flash'
-];
 export const GEMINI_DOCUMENT_MODELS = [
-    'gemini-3.6-flash',
+    'gemini-3.7-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.1-pro-preview'
 ];
@@ -174,26 +148,24 @@ const createReasoningConfigs = (rows) => Object.freeze(Object.fromEntries(rows.f
     modelIds.map(id => [id, { providerParameter, options, defaultEffort, ...(extra || {}) }])
 )));
 const GEMINI_THINKING_LEVEL = 'geminiThinkingLevel';
-const STEPFUN_REASONING_EFFORT = 'stepfunReasoningEffort';
 const OPENROUTER_REASONING_EFFORT = 'openrouterReasoningEffort';
 const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
-const HIGH_XHIGH = ['high', 'xhigh'];
 export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
-    [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'medium', ['gemini-3.6-flash']],
+    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-3.7-flash']],
     [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'minimal', ['gemini-3.5-flash-lite']],
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'high', ['gemini-3.1-pro-preview']],
-    [STEPFUN_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['step-plan/step-3.7-flash', 'step-plan/step-3.5-flash']],
-    [STEPFUN_REASONING_EFFORT, ['low', 'high'], 'low', ['step-plan/step-3.5-flash-2603']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-fable-5', 'anthropic/claude-sonnet-5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-opus-5']],
-    [OPENROUTER_REASONING_EFFORT, HIGH_XHIGH, 'high', ['deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-pro-0813']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-3.1-flash-lite-image', 'google/gemini-3.1-flash-image']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
+    [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high', 'xhigh'], 'xhigh', ['qwen/qwen3.8-max']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
-    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'high', ['x-ai/grok-4.5']]
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3']]
 ]);
 export const COUNCIL_MIN_MODELS = 2;
 export const COUNCIL_MAX_MODELS = 5;
@@ -368,7 +340,6 @@ export const getDefaultReasoningLabel = (uiLanguage = 'zh-TW') => ({
 export const getProviderLabel = (provider) => {
     if (provider === 'gemini') return 'Gemini';
     if (provider === 'openrouter') return 'OpenRouter';
-    if (provider === 'stepfun') return 'Step Plan';
     if (provider === 'nvidia') return 'NVIDIA';
     if (provider === 'tavily') return 'Tavily';
     return provider || '';
@@ -393,7 +364,6 @@ export const getModelTiers = (model) => {
     if (Array.isArray(model.tier)) return model.tier;
     if (typeof model.tier === 'string') return [model.tier];
     if (model.provider === 'nvidia') return ['free'];
-    if (model.provider === 'stepfun') return ['paid'];
     return model.id?.includes(':free') ? ['free'] : ['paid'];
 };
 
@@ -401,7 +371,6 @@ export const modelSupportsVision = (model) => Boolean(model && (
     model.outputModality === 'image' ||
     model.provider === 'gemini' ||
     (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
-    (model.provider === 'stepfun' && STEP_PLAN_VISION_MODELS.includes(getModelApiId(model))) ||
     (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model)))
 ));
 
@@ -436,8 +405,7 @@ export const getSingleTranslatorCandidates = () => MODELS.filter(modelSupportsSi
 export const modelUsesNativeWebSearch = (model) => Boolean(model && model.provider === 'gemini');
 export const modelUsesTavilySearch = (model) => Boolean(model && (
     model.provider === 'openrouter' ||
-    model.provider === 'nvidia' ||
-    model.provider === 'stepfun'
+    model.provider === 'nvidia'
 ));
 export const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
 

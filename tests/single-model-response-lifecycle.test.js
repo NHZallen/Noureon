@@ -239,7 +239,6 @@ test('single-model lifecycle source avoids provider parsing, storage, and runtim
     'getReader(',
     'openrouter',
     'gemini',
-    'stepfun',
     'nvidia',
     'saveAppData',
     'indexedDB',

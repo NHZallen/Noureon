@@ -182,7 +182,7 @@ function createHarness(overrides = {}) {
     uiLanguage: 'en',
     outputMode: 'realtime',
     councilTranslatorModelId: 'gemini-pro',
-    singleDocumentTranslatorModelId: 'stepfun-doc'
+    singleDocumentTranslatorModelId: 'nvidia-doc'
   };
   const elements = {};
   const controls = createSettingsOutputTranslatorControls({
@@ -204,7 +204,7 @@ function createHarness(overrides = {}) {
       { id: 'openrouter-doc', name: 'OpenRouter Doc', provider: 'openrouter' }
     ],
     getSingleTranslatorCandidates: () => [
-      { id: 'stepfun-doc', name: 'StepFun Doc', provider: 'stepPlan' }
+      { id: 'nvidia-doc', name: 'NVIDIA Doc', provider: 'nvidia' }
     ],
     getProviderLabel: (provider) => provider,
     getModelPriceLabel: () => 'Free',
@@ -293,8 +293,8 @@ test('renderTranslatorModelPickers uses injected callbacks instead of global sta
   controls.renderTranslatorModelPickers();
 
   assert.equal(elements.councilTranslatorModelSelect.value, 'gemini-pro');
-  assert.equal(elements.singleDocumentTranslatorModelSelect.value, 'stepfun-doc');
+  assert.equal(elements.singleDocumentTranslatorModelSelect.value, 'nvidia-doc');
   assert.equal(config.councilTranslatorModelId, 'gemini-pro');
-  assert.equal(config.singleDocumentTranslatorModelId, 'stepfun-doc');
+  assert.equal(config.singleDocumentTranslatorModelId, 'nvidia-doc');
   assert.equal(typeof documentRef.listeners.click, 'function');
 });
