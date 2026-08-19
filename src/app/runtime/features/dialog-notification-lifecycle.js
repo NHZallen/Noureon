@@ -29,12 +29,18 @@ export function createDialogNotificationLifecycle({
     cancelPendingModalClose(modalElement);
     if (show) {
       document.body.classList.add('modal-open');
+      if (modalElement.id === 'search-modal') {
+        document.body.classList.add('search-modal-open');
+      }
       modalElement.classList.remove('hidden');
       requestAnimationFrame(() => {
         modalElement.classList.add('visible');
       });
     } else {
       document.body.classList.remove('modal-open');
+      if (modalElement.id === 'search-modal') {
+        document.body.classList.remove('search-modal-open');
+      }
       modalElement.classList.remove('visible');
       const closeState = {};
       const onTransitionEnd = () => {

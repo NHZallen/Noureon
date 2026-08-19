@@ -267,26 +267,37 @@ export function createLegacyAppBootstrapLifecycle({
                 searchToolbar?.insertBefore(searchInputWrap, ALL_ELEMENTS.modalSearchInput);
                 searchInputWrap.appendChild(ALL_ELEMENTS.modalSearchInput);
                 syncSearchModeControl();
-                let previousSearchViewportHeight = '';
-                let previousSearchViewportOffsetTop = '';
+                const previousSearchViewportGeometry = {
+                    top: '',
+                    left: '',
+                    width: '',
+                    height: ''
+                };
                 const syncSearchViewport = () => {
                     const visualViewport = window.visualViewport;
+                    const fallbackViewportWidth =
+                        Number(document.documentElement?.clientWidth)
+                        || Number(window.innerWidth)
+                        || 0;
                     const fallbackViewportHeight =
                         Number(document.documentElement?.clientHeight)
                         || Number(window.innerHeight)
                         || 0;
+                    const visibleViewportWidth = Number(visualViewport?.width) || fallbackViewportWidth;
                     const visibleViewportHeight = Number(visualViewport?.height) || fallbackViewportHeight;
                     const visibleViewportOffsetTop = Math.max(0, Number(visualViewport?.offsetTop) || 0);
-                    const nextHeight = `${Number(visibleViewportHeight.toFixed(2))}px`;
-                    const nextOffsetTop = `${Number(visibleViewportOffsetTop.toFixed(2))}px`;
-                    if (previousSearchViewportHeight !== nextHeight) {
-                        ALL_ELEMENTS.searchModal.style.setProperty('--search-visible-height', nextHeight);
-                        previousSearchViewportHeight = nextHeight;
-                    }
-                    if (previousSearchViewportOffsetTop !== nextOffsetTop) {
-                        ALL_ELEMENTS.searchModal.style.setProperty('--search-viewport-offset-top', nextOffsetTop);
-                        previousSearchViewportOffsetTop = nextOffsetTop;
-                    }
+                    const visibleViewportOffsetLeft = Math.max(0, Number(visualViewport?.offsetLeft) || 0);
+                    const nextGeometry = {
+                        top: `${Number(visibleViewportOffsetTop.toFixed(2))}px`,
+                        left: `${Number(visibleViewportOffsetLeft.toFixed(2))}px`,
+                        width: `${Number(visibleViewportWidth.toFixed(2))}px`,
+                        height: `${Number(visibleViewportHeight.toFixed(2))}px`
+                    };
+                    Object.entries(nextGeometry).forEach(([property, value]) => {
+                        if (previousSearchViewportGeometry[property] === value) return;
+                        ALL_ELEMENTS.searchModal.style.setProperty(`--search-viewport-${property}`, value);
+                        previousSearchViewportGeometry[property] = value;
+                    });
                 };
                 let searchViewportSyncFrame = null;
                 const queueSearchViewportSync = () => {

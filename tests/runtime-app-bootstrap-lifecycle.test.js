@@ -379,12 +379,16 @@ test('search controls expose the natural-language Enter hint and follow the visu
   const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
+  harness.window.visualViewport.width = 360;
   harness.window.visualViewport.height = 510;
   harness.window.visualViewport.offsetTop = 10;
+  harness.window.visualViewport.offsetLeft = 3;
   findListener(harness.listeners, 'visualViewport', 'resize')();
 
-  assert.ok(harness.calls.includes('style:searchModal:--search-visible-height:510px'));
-  assert.ok(harness.calls.includes('style:searchModal:--search-viewport-offset-top:10px'));
+  assert.ok(harness.calls.includes('style:searchModal:--search-viewport-width:360px'));
+  assert.ok(harness.calls.includes('style:searchModal:--search-viewport-height:510px'));
+  assert.ok(harness.calls.includes('style:searchModal:--search-viewport-top:10px'));
+  assert.ok(harness.calls.includes('style:searchModal:--search-viewport-left:3px'));
   assert.equal(findListener(harness.listeners, 'visualViewport', 'scroll') instanceof Function, true);
 
   const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');

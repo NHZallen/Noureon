@@ -128,6 +128,24 @@ test('toggleModal preserves open, transition close, fallback, and missing-elemen
   }
 });
 
+test('toggleModal locks document positioning only while conversation search is open', () => {
+  const harness = createHarness();
+  try {
+    const searchModal = harness.document.createElement('div');
+    searchModal.id = 'search-modal';
+    searchModal.className = 'modal hidden';
+    harness.document.body.appendChild(searchModal);
+
+    harness.functions.toggleModal(searchModal, true);
+    assert.equal(harness.document.body.classList.contains('search-modal-open'), true);
+
+    harness.functions.toggleModal(searchModal, false);
+    assert.equal(harness.document.body.classList.contains('search-modal-open'), false);
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('reopening a modal cancels the stale close event from its previous dialog', () => {
   const harness = createHarness();
   try {
