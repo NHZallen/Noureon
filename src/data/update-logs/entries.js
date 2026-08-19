@@ -2,6 +2,17 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.6.4",
+    date: "2026-08-19",
+    content: [
+      "<strong>【Noureon 16.6.4：手機搜尋操作更穩定】</strong>",
+      "本次修正版持續改善手機版對話搜尋，讓開啟與收起螢幕鍵盤時的畫面更穩定、操作更乾淨。",
+      "<strong>✨ 修正重點：</strong>",
+      "<ul><li><strong>⌨️ 鍵盤切換更穩定：</strong>調整手機瀏覽器可視區域同步方式，減少鍵盤開合時的畫面跳動、延遲與聊天室背景短暫閃現。</li><li><strong>📱 搜尋控制不再被遮擋：</strong>輸入欄與模式選擇會配合可視範圍排列，讓搜尋結果在鍵盤開啟時仍可正常查看。</li><li><strong>✨ 閒置畫面更簡約：</strong>移除手機搜尋頁中央的放大鏡與「搜尋聊天」提示，避免提示元素在鍵盤切換時產生延遲或瞬移。</li></ul>",
+      "Noureon 開發團隊 敬上"
+    ]
+  },
+  {
     version: "16.6.3",
     date: "2026-07-30",
     content: [
