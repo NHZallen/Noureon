@@ -468,7 +468,7 @@
 
     .conversation-search-mobile-empty {
         position: absolute;
-        top: min(var(--search-empty-anchor, 18rem), calc(100% - 4rem));
+        top: var(--search-empty-position, 18rem);
         left: 0;
         display: flex;
         flex-direction: column;
@@ -482,6 +482,7 @@
         text-align: center;
         pointer-events: none;
         transform: translateY(-50%);
+        transition: none;
     }
 
     .conversation-search-mobile-empty svg {

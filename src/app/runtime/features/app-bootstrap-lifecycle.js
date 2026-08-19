@@ -271,16 +271,17 @@ export function createLegacyAppBootstrapLifecycle({
                     top: '',
                     left: '',
                     width: '',
-                    height: ''
+                    height: '',
+                    emptyPosition: ''
                 };
+                let searchEmptyAnchor = 320;
                 const syncSearchEmptyAnchor = () => {
                     const visualViewportHeight =
                         Number(window.visualViewport?.height)
                         || Number(document.documentElement?.clientHeight)
                         || Number(window.innerHeight)
                         || 0;
-                    const emptyAnchor = Math.min(320, Math.max(210, Math.round(visualViewportHeight * 0.42)));
-                    ALL_ELEMENTS.searchModal.style.setProperty('--search-empty-anchor', `${emptyAnchor}px`);
+                    searchEmptyAnchor = Math.min(320, Math.max(210, Math.round(visualViewportHeight * 0.42)));
                 };
                 const syncSearchViewport = () => {
                     const visualViewport = window.visualViewport;
@@ -300,11 +301,18 @@ export function createLegacyAppBootstrapLifecycle({
                         top: `${Math.round(visibleViewportOffsetTop)}px`,
                         left: `${Math.round(visibleViewportOffsetLeft)}px`,
                         width: `${Math.round(visibleViewportWidth)}px`,
-                        height: `${Math.round(visibleViewportHeight)}px`
+                        height: `${Math.round(visibleViewportHeight)}px`,
+                        emptyPosition: `${Math.round(Math.min(
+                            searchEmptyAnchor,
+                            Math.max(104, (visibleViewportHeight - 150) / 2)
+                        ))}px`
                     };
                     Object.entries(nextGeometry).forEach(([property, value]) => {
                         if (previousSearchViewportGeometry[property] === value) return;
-                        ALL_ELEMENTS.searchModal.style.setProperty(`--search-viewport-${property}`, value);
+                        const cssProperty = property === 'emptyPosition'
+                            ? '--search-empty-position'
+                            : `--search-viewport-${property}`;
+                        ALL_ELEMENTS.searchModal.style.setProperty(cssProperty, value);
                         previousSearchViewportGeometry[property] = value;
                     });
                 };
