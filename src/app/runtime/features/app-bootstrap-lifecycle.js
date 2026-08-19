@@ -288,10 +288,10 @@ export function createLegacyAppBootstrapLifecycle({
                     const visibleViewportOffsetTop = Math.max(0, Number(visualViewport?.offsetTop) || 0);
                     const visibleViewportOffsetLeft = Math.max(0, Number(visualViewport?.offsetLeft) || 0);
                     const nextGeometry = {
-                        top: `${Number(visibleViewportOffsetTop.toFixed(2))}px`,
-                        left: `${Number(visibleViewportOffsetLeft.toFixed(2))}px`,
-                        width: `${Number(visibleViewportWidth.toFixed(2))}px`,
-                        height: `${Number(visibleViewportHeight.toFixed(2))}px`
+                        top: `${Math.round(visibleViewportOffsetTop)}px`,
+                        left: `${Math.round(visibleViewportOffsetLeft)}px`,
+                        width: `${Math.round(visibleViewportWidth)}px`,
+                        height: `${Math.round(visibleViewportHeight)}px`
                     };
                     Object.entries(nextGeometry).forEach(([property, value]) => {
                         if (previousSearchViewportGeometry[property] === value) return;

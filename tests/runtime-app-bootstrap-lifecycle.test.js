@@ -397,6 +397,8 @@ test('search controls expose the natural-language Enter hint and follow the visu
   assert.match(source, /naturalSearchHint\.setAttribute\('aria-hidden',\s*String\(!isNaturalSearch\)\)/);
   assert.match(source, /if\s*\(ALL_ELEMENTS\.modalSearchScopeSelect\.value\s*===\s*'natural'\)\s*return/);
   assert.match(source, /window\.requestAnimationFrame/);
+  assert.match(source, /Math\.round\(visibleViewportHeight\)/);
+  assert.doesNotMatch(source, /visibleViewport(?:Height|Width|OffsetTop|OffsetLeft)\.toFixed/);
   assert.doesNotMatch(source, /searchKeyboardSyncTimer|scheduleTimeout\(syncSearchViewport,\s*140\)/);
 });
 

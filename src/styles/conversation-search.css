@@ -351,7 +351,12 @@
         contain: layout paint;
         overflow: hidden;
         transform: none;
-        transition: none;
+        will-change: top, left, width, height;
+        transition:
+            top 90ms cubic-bezier(0.22, 1, 0.36, 1),
+            left 90ms cubic-bezier(0.22, 1, 0.36, 1),
+            width 90ms cubic-bezier(0.22, 1, 0.36, 1),
+            height 90ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     #search-modal .conversation-search-header {
