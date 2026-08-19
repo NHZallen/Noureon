@@ -298,10 +298,6 @@
     text-align: center;
 }
 
-.conversation-search-mobile-empty {
-    display: none;
-}
-
 @media (max-width: 768px) {
     body.search-modal-open {
         position: fixed;
@@ -455,7 +451,6 @@
     }
 
     #search-modal #search-results-container {
-        position: relative;
         grid-area: results;
         width: 100%;
         height: auto;
@@ -464,37 +459,6 @@
         overscroll-behavior: contain;
         padding: max(1rem, env(safe-area-inset-top)) 1rem 1rem;
         background: #ffffff;
-    }
-
-    .conversation-search-mobile-empty {
-        position: absolute;
-        top: var(--search-empty-position, 18rem);
-        left: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: auto;
-        min-height: 0;
-        gap: 0.7rem;
-        color: #202123;
-        text-align: center;
-        pointer-events: none;
-        transform: translateY(-50%);
-        transition: none;
-    }
-
-    .conversation-search-mobile-empty svg {
-        width: 2.1rem;
-        height: 2.1rem;
-        color: #667085;
-    }
-
-    .conversation-search-mobile-empty p {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 500;
     }
 
     .conversation-search-recent-title,

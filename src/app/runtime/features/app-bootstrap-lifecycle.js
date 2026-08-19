@@ -271,17 +271,7 @@ export function createLegacyAppBootstrapLifecycle({
                     top: '',
                     left: '',
                     width: '',
-                    height: '',
-                    emptyPosition: ''
-                };
-                let searchEmptyAnchor = 320;
-                const syncSearchEmptyAnchor = () => {
-                    const visualViewportHeight =
-                        Number(window.visualViewport?.height)
-                        || Number(document.documentElement?.clientHeight)
-                        || Number(window.innerHeight)
-                        || 0;
-                    searchEmptyAnchor = Math.min(320, Math.max(210, Math.round(visualViewportHeight * 0.42)));
+                    height: ''
                 };
                 const syncSearchViewport = () => {
                     const visualViewport = window.visualViewport;
@@ -301,18 +291,11 @@ export function createLegacyAppBootstrapLifecycle({
                         top: `${Math.round(visibleViewportOffsetTop)}px`,
                         left: `${Math.round(visibleViewportOffsetLeft)}px`,
                         width: `${Math.round(visibleViewportWidth)}px`,
-                        height: `${Math.round(visibleViewportHeight)}px`,
-                        emptyPosition: `${Math.round(Math.min(
-                            searchEmptyAnchor,
-                            Math.max(104, (visibleViewportHeight - 150) / 2)
-                        ))}px`
+                        height: `${Math.round(visibleViewportHeight)}px`
                     };
                     Object.entries(nextGeometry).forEach(([property, value]) => {
                         if (previousSearchViewportGeometry[property] === value) return;
-                        const cssProperty = property === 'emptyPosition'
-                            ? '--search-empty-position'
-                            : `--search-viewport-${property}`;
-                        ALL_ELEMENTS.searchModal.style.setProperty(cssProperty, value);
+                        ALL_ELEMENTS.searchModal.style.setProperty(`--search-viewport-${property}`, value);
                         previousSearchViewportGeometry[property] = value;
                     });
                 };
@@ -347,7 +330,6 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.newChatBtn.addEventListener('click', () => startNewChat());
                 ALL_ELEMENTS.newChatBtnHeader.addEventListener('click', () => startNewChat()); // ✨ 新增這一行
                 ALL_ELEMENTS.openSearchBtn.addEventListener('click', () => {
-                    syncSearchEmptyAnchor();
                     syncSearchViewport();
                     toggleModal(ALL_ELEMENTS.searchModal, true);
                     ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行

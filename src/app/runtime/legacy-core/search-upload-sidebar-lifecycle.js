@@ -186,15 +186,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             });
 
         if ((window?.innerWidth || 0) <= 768) {
-            const mobilePrompt = getConfig().uiLanguage === 'zh-TW'
-                ? '搜尋聊天'
-                : getText('searchConversations', 'Search chats');
-            container.innerHTML = `
-                <div class="conversation-search-mobile-empty" aria-live="polite">
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
-                    <p>${mobilePrompt}</p>
-                </div>
-            `;
+            container.replaceChildren();
             return;
         }
 

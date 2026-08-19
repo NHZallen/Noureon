@@ -26,8 +26,5 @@ test('conversation search keeps mobile controls above the keyboard and aligns de
   assert.match(css, /#modal-search-input\s*\{[^}]*height:\s*3rem;[^}]*padding:\s*0 0\.85rem 0 2\.7rem;[^}]*line-height:\s*3rem;/s);
   assert.match(css, /#search-results-container\s*\{[^}]*grid-area:\s*results;[^}]*height:\s*auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s);
   assert.doesNotMatch(css, /height:\s*max\(10rem,\s*calc\(var\(--search-visible-height/);
-  assert.match(css, /#search-results-container\s*\{[^}]*position:\s*relative;[^}]*grid-area:\s*results;/s);
-  assert.match(css, /\.conversation-search-mobile-empty\s*\{[^}]*position:\s*absolute;[^}]*top:\s*var\(--search-empty-position,\s*18rem\);[^}]*height:\s*auto;[^}]*transform:\s*translateY\(-50%\);[^}]*transition:\s*none;/s);
-  assert.match(css, /\.conversation-search-mobile-empty svg\s*\{[^}]*width:\s*2\.1rem;[^}]*height:\s*2\.1rem;/s);
-  assert.match(css, /\.conversation-search-mobile-empty p\s*\{[^}]*font-size:\s*1rem;/s);
+  assert.doesNotMatch(css, /conversation-search-mobile-empty/);
 });

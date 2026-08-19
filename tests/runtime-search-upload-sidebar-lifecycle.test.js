@@ -38,6 +38,10 @@ function createNode() {
       this.children.push(child);
       return child;
     },
+    replaceChildren(...children) {
+      this.children = [...children];
+      this.innerHTML = '';
+    },
     remove() {
       this.removed = true;
     },
@@ -199,6 +203,16 @@ test('search path uses live conversations and closes sidebar through owner-local
   assert.deepEqual(harness.calls.filter((call) => call[0] === 'loadChat'), [['loadChat', 'conv-1']]);
   assert.ok(harness.calls.some((call) => call[0] === 'setSidebarOpen' && call[1] === false));
   assert.ok(harness.calls.some((call) => call[0] === 'toggleModal' && call[1] === harness.elements.searchModal && call[2] === false));
+});
+
+test('mobile idle search renders no decorative prompt or icon', async () => {
+  const harness = createHarness({ innerWidth: 390 });
+  harness.elements.modalSearchInput.value = '';
+
+  await harness.lifecycle.performSearchAndRenderResults();
+
+  assert.equal(harness.elements.searchResultsContainer.children.length, 0);
+  assert.equal(harness.elements.searchResultsContainer.innerHTML, '');
 });
 
 test('search only includes conversations that have entered history', async () => {
