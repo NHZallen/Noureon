@@ -273,6 +273,15 @@ export function createLegacyAppBootstrapLifecycle({
                     width: '',
                     height: ''
                 };
+                const syncSearchEmptyAnchor = () => {
+                    const visualViewportHeight =
+                        Number(window.visualViewport?.height)
+                        || Number(document.documentElement?.clientHeight)
+                        || Number(window.innerHeight)
+                        || 0;
+                    const emptyAnchor = Math.min(320, Math.max(210, Math.round(visualViewportHeight * 0.42)));
+                    ALL_ELEMENTS.searchModal.style.setProperty('--search-empty-anchor', `${emptyAnchor}px`);
+                };
                 const syncSearchViewport = () => {
                     const visualViewport = window.visualViewport;
                     const fallbackViewportWidth =
@@ -330,6 +339,7 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.newChatBtn.addEventListener('click', () => startNewChat());
                 ALL_ELEMENTS.newChatBtnHeader.addEventListener('click', () => startNewChat()); // ✨ 新增這一行
                 ALL_ELEMENTS.openSearchBtn.addEventListener('click', () => {
+                    syncSearchEmptyAnchor();
                     syncSearchViewport();
                     toggleModal(ALL_ELEMENTS.searchModal, true);
                     ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行
