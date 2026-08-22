@@ -14,7 +14,12 @@ const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url)
 const models = [
   { id: 'gemini-default', provider: 'gemini' },
   { id: 'openrouter-pro', provider: 'openrouter' },
-  { id: 'nvidia-modern', provider: 'nvidia', apiId: 'legacy-nvidia-id' }
+  {
+    id: 'nvidia-modern',
+    provider: 'nvidia',
+    apiId: 'legacy-nvidia-id',
+    legacyIds: ['nvidia-older-id']
+  }
 ];
 
 const baseConfig = () => ({
@@ -62,6 +67,7 @@ test('model id canonicalizer preserves exact legacy nvidia apiId fallback', () =
 
   assert.equal(canonicalizeModelId('gemini-default'), 'gemini-default');
   assert.equal(canonicalizeModelId('legacy-nvidia-id'), 'nvidia-modern');
+  assert.equal(canonicalizeModelId('nvidia-older-id'), 'nvidia-modern');
   assert.equal(canonicalizeModelId('unknown-model'), 'unknown-model');
   assert.equal(canonicalizeModelId(null), null);
 });

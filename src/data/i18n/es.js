@@ -564,7 +564,7 @@ const es = {
   "model_gemma_4_26b_a4b_it_desc_tier_free": "Costo - Gratis",
   "model_nvidia_gemma_4_31b_it_desc_tier_free": "Costo - Gratis",
   "model_nvidia_deepseek_v4_pro_desc_tier_free": "Costo - Gratis",
-  "model_nvidia_deepseek_v4_flash_desc_tier_free": "Costo - Gratis",
+  "model_nvidia_deepseek_v4_flash_0731_desc_tier_free": "Costo - Gratis",
   "model_nvidia_kimi_k2_6_desc_tier_free": "Costo - Gratis",
   "model_nvidia_glm_5_2_desc_tier_free": "Costo - Gratis",
   "model_nvidia_step_3_7_flash_desc_tier_free": "Costo - Gratis",

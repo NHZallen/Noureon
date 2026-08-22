@@ -47,6 +47,8 @@ test('renders image, video, and file previews with stable controls', () => {
     assert.equal(previews.length, 3);
     assert.match(previews[0].innerHTML, /<img src="data:image\/png;base64,abc"/);
     assert.match(previews[1].innerHTML, /<video src="data:video\/mp4;base64,def"/);
+    assert.match(previews[1].innerHTML, /preload="auto"[^>]*data-video-thumbnail/);
+    assert.equal(previews[1].classList.contains('file-preview-video'), true);
     assert.match(previews[1].innerHTML, /file-preview-play/);
     assert.match(previews[2].innerHTML, /class="w-8 h-8 text-gray-500"/);
     assert.equal(fixture.document.querySelectorAll('.file-preview-item > button').length, 3);

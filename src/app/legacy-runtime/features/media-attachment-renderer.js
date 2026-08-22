@@ -22,7 +22,7 @@ export function createMediaAttachmentRenderer({ escapeHTML }) {
             if (mimeType.startsWith('video/')) {
                 return `
                     <button type="button" class="message-media-thumb message-media-video" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
-                        <video src="${escapeHTML(src)}" preload="metadata" muted playsinline></video>
+                        <video src="${escapeHTML(src)}" preload="auto" muted playsinline data-video-thumbnail></video>
                         <span class="message-media-play" aria-hidden="true">
                             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
                         </span>

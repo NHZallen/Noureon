@@ -2,6 +2,17 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.6.7",
+    date: "2026-08-22",
+    content: [
+      "<strong>🚀 Noureon 16.6.7：影片預覽與 NVIDIA 模型更新</strong>",
+      "本次更新修復影片縮圖空白與媒體關閉按鈕顏色，並同步 NVIDIA 最新 DeepSeek 模型。",
+      "<strong>✨ 更新內容：</strong>",
+      "<ul><li><strong>🎬 影片縮圖：</strong>輸入欄與傳送後的影片模組會擷取可見影格作為縮圖，載入期間改用深色背景。</li><li><strong>✕ 媒體控制：</strong>圖片與影片預覽的移除、關閉叉叉固定顯示為白色。</li><li><strong>🧠 NVIDIA 模型：</strong>DeepSeek V4 Flash 更新為 DeepSeek V4 Flash 0731，並自動遷移既有模型設定。</li></ul>",
+      "Noureon 將持續改善多媒體體驗與模型支援。"
+    ]
+  },
+  {
     version: "16.6.6",
     date: "2026-08-22",
     content: [

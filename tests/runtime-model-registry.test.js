@@ -33,6 +33,10 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'anthropic/claude-opus-5' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-opus-4.8'), false);
   assert.ok(MODELS.some((model) => model.id === 'nvidia/nemotron-3.5-lightning:free' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash-0731'
+    && model.apiId === 'deepseek-ai/deepseek-v4-flash-0731'
+    && model.provider === 'nvidia'));
+  assert.equal(MODELS.some((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash'), false);
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-0731' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp' && model.provider === 'openrouter' && model.outputPricePerMillion === 1.32));
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-pro-0813' && model.provider === 'openrouter'));

@@ -152,6 +152,21 @@
     background: var(--hover-bg);
 }
 
+.input-media-preview .file-preview-item.file-preview-video {
+    background: #111827;
+}
+
+.file-preview-item video[data-video-thumbnail],
+.message-media-video video[data-video-thumbnail] {
+    background: #111827;
+    opacity: 0;
+}
+
+.file-preview-item video[data-video-thumbnail].video-thumbnail-ready,
+.message-media-video video[data-video-thumbnail].video-thumbnail-ready {
+    opacity: 1;
+}
+
 .file-preview-remove {
     position: absolute;
     top: 0.25rem;
@@ -175,9 +190,13 @@
     display: block;
     width: 0.8rem;
     height: 0.8rem;
-    color: inherit;
-    stroke: currentColor;
+    color: #ffffff;
+    stroke: #ffffff;
     flex: none;
+}
+
+.file-preview-remove svg * {
+    stroke: #ffffff;
 }
 
 .file-preview-item > .file-preview-remove:hover,

@@ -1,3 +1,5 @@
+import { prepareVideoThumbnail } from './video-thumbnail-lifecycle.js';
+
 export function createUploadedFilePreviewLifecycle({
     document,
     getFiles,
@@ -25,8 +27,9 @@ export function createUploadedFilePreviewLifecycle({
                     name: file.name
                 }, previewElement);
             } else if (file.type.startsWith('video/')) {
+                previewElement.classList.add('file-preview-video');
                 previewElement.innerHTML = `
-                    <video src="${file.base64}" class="w-full h-full object-cover" preload="metadata" muted playsinline></video>
+                    <video src="${file.base64}" class="w-full h-full object-cover" preload="auto" muted playsinline data-video-thumbnail></video>
                     <span class="message-media-play file-preview-play" aria-hidden="true">
                         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
                     </span>
@@ -36,6 +39,7 @@ export function createUploadedFilePreviewLifecycle({
                     data: file.base64.split(',')[1],
                     name: file.name
                 }, previewElement);
+                prepareVideoThumbnail(previewElement.querySelector('video'), { document });
             } else {
                 previewElement.innerHTML = `<div class="w-full h-full flex items-center justify-center">
                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -44,7 +48,7 @@ export function createUploadedFilePreviewLifecycle({
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
             removeButton.className = 'file-preview-remove';
-            removeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+            removeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
             removeButton.onclick = (event) => {
                 event.stopPropagation();
                 removeFile(file.id);

@@ -46,6 +46,7 @@ test('renders image and video preview buttons in source order with stable indexe
   assert.match(html, /<img src="data:image\/png;base64,abc"/);
   assert.match(html, /class="message-media-thumb message-media-video" data-media-index="1"/);
   assert.match(html, /<video src="data:video\/mp4;base64,def"/);
+  assert.match(html, /preload="auto"[^>]*data-video-thumbnail/);
   assert.match(html, /class="message-media-play"/);
 });
 

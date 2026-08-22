@@ -16,6 +16,8 @@ export function createModelIdCanonicalizer({ models = [] } = {}) {
   return function getCanonicalModelId(modelId) {
     if (!modelId) return modelId;
     if (models.some(model => model.id === modelId)) return modelId;
+    const renamedModel = models.find(model => Array.isArray(model.legacyIds) && model.legacyIds.includes(modelId));
+    if (renamedModel) return renamedModel.id;
     const legacyNvidiaModel = models.find(model => model.provider === 'nvidia' && model.apiId === modelId);
     return legacyNvidiaModel?.id || modelId;
   };

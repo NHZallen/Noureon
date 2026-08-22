@@ -9,7 +9,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'gemini-3.7-flash': { releasedAt: 20260813, outputPricePerMillion: 3.75 },
     'gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
     'gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
-    'nvidia/deepseek-ai/deepseek-v4-flash': { releasedAt: 20260424, outputPricePerMillion: 0 },
+    'nvidia/deepseek-ai/deepseek-v4-flash-0731': { releasedAt: 20260731, outputPricePerMillion: 0 },
     'nvidia/deepseek-ai/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.2': { releasedAt: 20260616, outputPricePerMillion: 0 },
     'nvidia/moonshotai/kimi-k2.6': { releasedAt: 20260420, outputPricePerMillion: 0 },
@@ -50,7 +50,7 @@ export const MODELS = [
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
 
     // NVIDIA Build Free Models
-    { id: 'nvidia/deepseek-ai/deepseek-v4-flash', apiId: 'deepseek-ai/deepseek-v4-flash', name: 'NVIDIA DeepSeek V4 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/deepseek-ai/deepseek-v4-flash-0731', apiId: 'deepseek-ai/deepseek-v4-flash-0731', legacyIds: ['nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash'], name: 'NVIDIA DeepSeek V4 Flash 0731', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_0731_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/deepseek-ai/deepseek-v4-pro', apiId: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.2', apiId: 'z-ai/glm-5.2', name: 'NVIDIA GLM-5.2', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_2_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/moonshotai/kimi-k2.6', apiId: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
