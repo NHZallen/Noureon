@@ -264,6 +264,8 @@ const buildOpenAiCompatibleRequest = ({
   historyForApi,
   currentMessageForApi,
   generationConfig,
+  reasoningEffort,
+  reasoningConfig,
   systemInstruction,
   modelSupportsVision
 }) => {
@@ -283,6 +285,9 @@ const buildOpenAiCompatibleRequest = ({
     ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
     ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens })
   };
+  if (reasoningConfig?.providerParameter === 'nvidiaReasoningEffort' && reasoningEffort) {
+    payload.reasoning_effort = reasoningEffort;
+  }
   return {
     url: '/api/nvidia-chat',
     payload,
@@ -586,6 +591,8 @@ export function createStreamApiCall({
           historyForApi,
           currentMessageForApi,
           generationConfig,
+          reasoningEffort,
+          reasoningConfig,
           systemInstruction,
           modelSupportsVision
         })

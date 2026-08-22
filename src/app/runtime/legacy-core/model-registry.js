@@ -156,12 +156,14 @@ const createReasoningConfigs = (rows) => Object.freeze(Object.fromEntries(rows.f
     modelIds.map(id => [id, { providerParameter, options, defaultEffort, ...(extra || {}) }])
 )));
 const GEMINI_THINKING_LEVEL = 'geminiThinkingLevel';
+const NVIDIA_REASONING_EFFORT = 'nvidiaReasoningEffort';
 const OPENROUTER_REASONING_EFFORT = 'openrouterReasoningEffort';
 const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
 export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-3.7-flash']],
     [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'minimal', ['gemini-3.5-flash-lite']],
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'high', ['gemini-3.1-pro-preview']],
+    [NVIDIA_REASONING_EFFORT, ['none', 'high', 'max'], 'high', ['nvidia/deepseek-ai/deepseek-v4-flash-0731']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-fable-5', 'anthropic/claude-sonnet-5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-opus-5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-pro-0813']],

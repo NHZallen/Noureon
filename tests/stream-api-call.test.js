@@ -338,6 +338,13 @@ test('stream prompt injects only requested chart type guidance for explicit char
 test('NVIDIA requests preserve proxy payload, authorization, vision attachments, and SSE deltas', async () => {
   const { streamApiCall, requests } = createHarness({
     provider: 'nvidia',
+    conversation: { reasoningEffort: 'max' },
+    getModelReasoningConfig: () => ({
+      providerParameter: 'nvidiaReasoningEffort',
+      options: ['none', 'high', 'max'],
+      defaultEffort: 'high'
+    }),
+    normalizeReasoningEffort: (_model, value) => value || 'high',
     fetchImpl: async () => createResponse({
       streamChunks: [
         'data: {"choices":[{"delta":{"content":"Vision"}}]}\n\n',
@@ -369,6 +376,7 @@ test('NVIDIA requests preserve proxy payload, authorization, vision attachments,
   assert.equal(payload.temperature, 0.4);
   assert.equal(payload.top_p, 0.8);
   assert.equal(payload.max_tokens, 321);
+  assert.equal(payload.reasoning_effort, 'max');
   assert.deepEqual(payload.messages.at(-1), {
     role: 'user',
     content: [
