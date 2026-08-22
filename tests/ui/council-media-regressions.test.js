@@ -14,6 +14,7 @@ test('media preview download and share icons stay white over dark media', () => 
   assert.match(css, /\.media-lightbox-close\s*\{[^}]*color:\s*#ffffff;/s);
   assert.match(css, /\.media-lightbox-close\s+svg\s*\{[^}]*stroke:\s*#ffffff;/s);
   assert.match(mediaPreviewLifecycle, /class="media-lightbox-close"[^>]*><svg[^>]*stroke="#ffffff"/);
+  assert.match(css, /\.message-media-play\s+svg\s+path\s*\{[^}]*fill:\s*#ffffff;/s);
   assert.match(css, /\.message-media-thumb\.message-media-video\s*\{[^}]*background:\s*#111827;/s);
   assert.match(mediaPreviewLifecycle, /class="media-lightbox-close"[^>]*><svg[^>]*aria-hidden="true"/);
   assert.doesNotMatch(mediaPreviewLifecycle, /media-lightbox-close[^\n]*&times;/);

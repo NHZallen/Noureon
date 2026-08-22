@@ -73,7 +73,9 @@ export function prepareVideoThumbnail(video, { document = video?.ownerDocument }
                 video.currentTime = previewTime;
                 return;
             } catch {
-                // Some browsers cannot seek until more data is decoded; loadeddata/canplay retries below.
+                // If early seeking is unavailable, reveal and capture the first decoded frame instead.
+                awaitingSeek = false;
+                previewTime = Number(video.currentTime || 0);
             }
         }
         revealDecodedFrame();
@@ -85,6 +87,10 @@ export function prepareVideoThumbnail(video, { document = video?.ownerDocument }
     video.addEventListener('canplay', revealDecodedFrame);
     video.addEventListener('timeupdate', revealDecodedFrame);
     video.addEventListener('error', revealFallback);
+
+    // Media created from a data URL may not begin decoding until it is connected to the DOM.
+    // The caller mounts first; an explicit load avoids waiting for the browser's lazy-media pass.
+    video.load?.();
 
     if (video.readyState >= 1) seekPreviewFrame();
     if (!settled && video.readyState >= 2) revealDecodedFrame();

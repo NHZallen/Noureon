@@ -300,6 +300,24 @@ test('OpenRouter requests preserve payload, headers, attachments, and streamed d
   assert.equal(finalText, 'Hello');
 });
 
+test('OpenRouter sends local videos with the video_url content type instead of the PDF file parser', async () => {
+  const { streamApiCall, requests } = createHarness();
+
+  await streamApiCall([
+    { text: 'Describe the clip' },
+    { inlineData: { mimeType: 'video/mp4', data: 'VklERU8=', name: 'clip.mp4' } },
+    { inlineData: { mimeType: 'video/quicktime', data: 'TU9W', name: 'clip.mov' } }
+  ], () => {}, undefined);
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.deepEqual(payload.messages.at(-1).content, [
+    { type: 'text', text: 'Describe the clip' },
+    { type: 'video_url', video_url: { url: 'data:video/mp4;base64,VklERU8=' } },
+    { type: 'video_url', video_url: { url: 'data:video/mov;base64,TU9W' } }
+  ]);
+  assert.equal('plugins' in payload, false);
+});
+
 test('stream prompt injects compact chart guidance only for chartable requests', async () => {
   const { streamApiCall, requests } = createHarness();
 

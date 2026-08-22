@@ -18,6 +18,7 @@ export function createUploadedFilePreviewLifecycle({
 
         files.forEach(file => {
             const previewElement = document.createElement('div');
+            let videoElement = null;
             previewElement.className = 'relative w-16 h-16 bg-gray-200 rounded-lg overflow-hidden file-preview-item';
             if (file.type.startsWith('image/')) {
                 previewElement.innerHTML = `<img src="${file.base64}" class="w-full h-full object-cover">`;
@@ -31,15 +32,15 @@ export function createUploadedFilePreviewLifecycle({
                 previewElement.innerHTML = `
                     <video src="${file.base64}" class="w-full h-full object-cover" preload="auto" muted playsinline data-video-thumbnail></video>
                     <span class="message-media-play file-preview-play" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#ffffff"><path fill="#ffffff" d="M8 5v14l11-7z"></path></svg>
                     </span>
                 `;
+                videoElement = previewElement.querySelector('video');
                 previewElement.onclick = () => openMediaPreview({
                     mimeType: file.type,
                     data: file.base64.split(',')[1],
                     name: file.name
                 }, previewElement);
-                prepareVideoThumbnail(previewElement.querySelector('video'), { document });
             } else {
                 previewElement.innerHTML = `<div class="w-full h-full flex items-center justify-center">
                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -55,6 +56,7 @@ export function createUploadedFilePreviewLifecycle({
             };
             previewElement.appendChild(removeButton);
             container.appendChild(previewElement);
+            if (videoElement) prepareVideoThumbnail(videoElement, { document });
         });
         updateInputState();
     };

@@ -326,10 +326,19 @@ const buildOpenRouterRequest = ({
           return { type: 'text', text: part.text };
         }
         if (part.inlineData) {
-          const mimeType = part.inlineData.mimeType;
+          const mimeType = part.inlineData.mimeType || 'application/octet-stream';
           const fullDataUrl = `data:${mimeType};base64,${part.inlineData.data}`;
           if (mimeType.startsWith('image/')) {
             return { type: 'image_url', image_url: { url: fullDataUrl } };
+          }
+          if (mimeType.startsWith('video/')) {
+            const videoMimeType = mimeType === 'video/quicktime' ? 'video/mov' : mimeType;
+            return {
+              type: 'video_url',
+              video_url: {
+                url: `data:${videoMimeType};base64,${part.inlineData.data}`
+              }
+            };
           }
           hasOpenRouterFileAttachment = true;
           return {

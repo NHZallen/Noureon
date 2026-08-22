@@ -159,12 +159,6 @@
 .file-preview-item video[data-video-thumbnail],
 .message-media-video video[data-video-thumbnail] {
     background: #111827;
-    opacity: 0;
-}
-
-.file-preview-item video[data-video-thumbnail].video-thumbnail-ready,
-.message-media-video video[data-video-thumbnail].video-thumbnail-ready {
-    opacity: 1;
 }
 
 .file-preview-remove {

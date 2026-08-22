@@ -32,6 +32,7 @@ const createVideo = () => {
     readyState: 0,
     videoHeight: 1080,
     videoWidth: 1920,
+    loadCalls: 0,
     addEventListener(name, listener) {
       const values = listeners.get(name) || [];
       values.push(listener);
@@ -39,6 +40,9 @@ const createVideo = () => {
     },
     removeEventListener(name, listener) {
       listeners.set(name, (listeners.get(name) || []).filter(value => value !== listener));
+    },
+    load() {
+      this.loadCalls += 1;
     },
     setAttribute(name, value) {
       attributes.set(name, value);
@@ -64,6 +68,7 @@ test('video thumbnails seek to an early frame and capture a bounded poster', () 
   assert.equal(fixture.video.muted, true);
   assert.equal(fixture.video.playsInline, true);
   assert.equal(fixture.video.dataset.videoThumbnailPrepared, 'true');
+  assert.equal(fixture.video.loadCalls, 1);
 
   fixture.video.readyState = 1;
   fixture.dispatch('loadedmetadata');
