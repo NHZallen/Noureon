@@ -2,6 +2,17 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.6.6",
+    date: "2026-08-22",
+    content: [
+      "<strong>🚀 Noureon 16.6.6：新增視覺推理與 Stealth 測試模型</strong>",
+      "本次更新加入 OpenRouter 最新模型，並為第三方 Stealth 模型增加首次使用條款確認。",
+      "<strong>✨ 更新內容：</strong>",
+      "<ul><li><strong>🧠 新模型：</strong>加入免費測試版 Ox Alpha，以及支援圖像輸入的 DeepSeek V4 Flash Vision Exp。</li><li><strong>🔐 首次使用確認：</strong>第一次選擇 Ox Alpha 時會顯示 Stealth Model Terms；確認後將保存狀態，後續不再重複提示。</li><li><strong>🌍 多語系與能力資料：</strong>同步五種介面的條款提示、思考程度、圖像輸入能力與最新價格。</li></ul>",
+      "Noureon 將持續更新模型支援與使用者保護措施。"
+    ]
+  },
+  {
     version: "16.6.5",
     date: "2026-08-19",
     content: [

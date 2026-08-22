@@ -125,6 +125,9 @@
         moreModels: 'More Models',
         betaModels: 'Beta Models',
         betaModelsDesc: 'Experience the latest features and technology previews',
+        stealthModelTermsTitle: 'Stealth model terms',
+        stealthModelTermsMessage: 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.',
+        stealthModelTermsLink: 'Stealth Model Terms(opens in new tab)',
         back: 'Back',
         categoryGeneral: 'General Models',
         categoryImageGeneration: 'Image Generation',
@@ -571,6 +574,7 @@
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Cost - Free',
         model_nemotron_3_5_lightning_desc_tier_free: 'Cost - Free',
         model_laguna_s_2_1_desc_tier_free: 'Cost - Free',
+        model_ox_alpha_desc: 'Free beta vision reasoning model from a third-party stealth provider',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter image generation and editing model',
         model_gemini_3_pro_image_desc_tier_paid: 'High-quality image generation and reference editing',
@@ -612,6 +616,7 @@
         // DeepSeek Paid
         model_deepseek_v4_pro_0813_desc_tier_paid: 'Base $0.66/M input, $1.98/M output; doubles in some UTC windows',
         model_deepseek_v4_flash_0731_desc_tier_paid: '$0.14/M input, $0.28/M output',
+        model_deepseek_v4_flash_vision_exp_desc_tier_paid: 'UTC-dependent $0.22–$0.44/M input, $0.66–$1.32/M output',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '$3/M input, $15/M output',
         // Official Nouras

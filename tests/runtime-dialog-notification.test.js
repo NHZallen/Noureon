@@ -192,6 +192,32 @@ test('custom confirm resolves accepted and rejected choices while cleaning dialo
   }
 });
 
+test('custom dialog renders safe external message links without HTML injection', async () => {
+  const harness = createHarness();
+  try {
+    const resultPromise = harness.functions.showCustomDialog({
+      title: 'Terms',
+      messageParts: [
+        'Read the ',
+        { text: 'Stealth Model Terms(opens in new tab)', href: 'https://openrouter.ai/terms/stealth' },
+        '.'
+      ],
+      buttons: [{ text: 'Confirm', class: 'btn-primary', value: () => true }]
+    });
+    const link = harness.elements.customDialogMessage.querySelector('a');
+
+    assert.equal(harness.elements.customDialogMessage.textContent, 'Read the Stealth Model Terms(opens in new tab).');
+    assert.equal(link.href, 'https://openrouter.ai/terms/stealth');
+    assert.equal(link.target, '_blank');
+    assert.equal(link.rel, 'noopener noreferrer');
+
+    harness.elements.customDialogButtons.children[0].click();
+    assert.equal(await resultPromise, true);
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('custom prompt preserves entered values, input type, focus, and cancel behavior', async () => {
   const acceptedHarness = createHarness();
   const cancelledHarness = createHarness();

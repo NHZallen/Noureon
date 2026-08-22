@@ -671,6 +671,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     requestFrame: requestAnimationFrame,
     saveAppData,
     saveConfig,
+    showCustomDialog,
     window
   }));
 

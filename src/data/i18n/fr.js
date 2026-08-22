@@ -125,6 +125,9 @@
         moreModels: 'Plus de modèles',
         betaModels: 'Modèles Bêta',
         betaModelsDesc: 'Découvrez les dernières fonctionnalités et les aperçus technologiques',
+        stealthModelTermsTitle: 'Conditions du modèle furtif',
+        stealthModelTermsMessage: 'Ce modèle furtif est développé et exploité par un fournisseur tiers. Les requêtes et réponses sont conservées par ce fournisseur, mais ne servent pas à l’entraînement ; toute autre utilisation est régie par les {termsLink}.',
+        stealthModelTermsLink: 'Conditions des modèles furtifs (s’ouvre dans un nouvel onglet)',
         back: 'Retour',
         categoryGeneral: 'Modèles Généraux',
         categoryImageGeneration: 'Génération d\'images',
@@ -571,6 +574,7 @@
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_5_lightning_desc_tier_free: 'Coût - Gratuit',
         model_laguna_s_2_1_desc_tier_free: 'Coût - Gratuit',
+        model_ox_alpha_desc: 'Modèle bêta gratuit de raisonnement visuel fourni par un opérateur furtif tiers',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'Modèle OpenRouter de génération et retouche d’images',
         model_gemini_3_pro_image_desc_tier_paid: 'Génération d’images de haute qualité et retouche par référence',
@@ -612,6 +616,7 @@
         // DeepSeek Paid
         model_deepseek_v4_pro_0813_desc_tier_paid: 'Base : 0,66 $/M entrée, 1,98 $/M sortie ; doublé sur certains créneaux UTC',
         model_deepseek_v4_flash_0731_desc_tier_paid: '0,14 $/M entrée, 0,28 $/M sortie',
+        model_deepseek_v4_flash_vision_exp_desc_tier_paid: 'Selon l’heure UTC : 0,22–0,44 $/M entrée, 0,66–1,32 $/M sortie',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
         // Official Nouras

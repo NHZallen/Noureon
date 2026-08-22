@@ -25,7 +25,8 @@ const baseConfig = () => ({
     tavily: ''
   },
   defaultModel: 'gemini-default',
-  lastUsedModel: null,
+    lastUsedModel: null,
+    acknowledgedStealthModelTerms: [],
   outputMode: 'typewriter',
   tavilySearchDepth: 'basic',
   modelSettings: [],
@@ -111,6 +112,7 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
     tavilySearchDepth: 'advanced',
     defaultModel: 'missing-default',
     lastUsedModel: 'legacy-nvidia-id',
+    acknowledgedStealthModelTerms: ['stealth/ox-alpha', '', 'stealth/ox-alpha', 42],
     memoryModelId: 'image-only',
     modelSettings: [
       { id: 'legacy-nvidia-id', hidden: true, order: 4 },
@@ -151,6 +153,7 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
   assert.equal(normalized.defaultModel, 'gemini-default');
   assert.equal(normalized.lastUsedModel, 'nvidia-modern');
   assert.equal(normalized.memoryModelId, 'gemini-default');
+  assert.deepEqual(normalized.acknowledgedStealthModelTerms, ['stealth/ox-alpha']);
   assert.deepEqual(normalized.modelSettings.map(setting => [setting.id, setting.order, setting.hidden]), [
     ['gemini-default', 0, false],
     ['openrouter-pro', 1, false],

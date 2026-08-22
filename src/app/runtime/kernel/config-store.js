@@ -10,6 +10,7 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     userBubbleColor: 'default',
     autoNaming: true,
     lastUsedModel: null,
+    acknowledgedStealthModelTerms: [],
     memorySystemVersion: 2,
     // Memory work deliberately has its own model. It must never inherit the active chat model.
     memoryModelId: 'gemini-3.5-flash-lite',

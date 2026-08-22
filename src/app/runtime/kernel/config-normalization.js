@@ -96,6 +96,10 @@ export function normalizeLoadedLegacyConfig({
   delete normalizedConfig.theme;
   normalizedConfig.uiLanguage = normalizeLanguageCode(normalizedConfig.uiLanguage);
   normalizedConfig.aiDefaultLanguage = normalizeLanguageCode(normalizedConfig.aiDefaultLanguage);
+  normalizedConfig.acknowledgedStealthModelTerms = Array.isArray(normalizedConfig.acknowledgedStealthModelTerms)
+    ? normalizedConfig.acknowledgedStealthModelTerms
+      .filter((modelId, index, values) => typeof modelId === 'string' && modelId && values.indexOf(modelId) === index)
+    : [];
 
   const allModelIds = new Set(models.map(m => m.id));
   const savedModelSettings = [];

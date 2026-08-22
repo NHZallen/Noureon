@@ -125,6 +125,9 @@
         moreModels: '更多模型',
         betaModels: '測試版模型',
         betaModelsDesc: '體驗最新功能與技術預覽',
+        stealthModelTermsTitle: '隱身模型條款',
+        stealthModelTermsMessage: '此隱身模型由第三方模型供應商開發及營運。此模型的提示與完成內容會由供應商保留，但不會用於訓練；所有其他用途均受{termsLink}規範。',
+        stealthModelTermsLink: '隱身模型條款（在新分頁中開啟）',
         back: '返回',
         categoryGeneral: '通用模型',
         categoryImageGeneration: '圖像生成',
@@ -571,6 +574,7 @@
         model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
         model_nemotron_3_5_lightning_desc_tier_free: '費用-免費',
         model_laguna_s_2_1_desc_tier_free: '費用-免費',
+        model_ox_alpha_desc: '由第三方隱身供應商提供的免費測試版視覺推理模型',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter 圖片生成與編輯模型',
         model_gemini_3_pro_image_desc_tier_paid: '高品質圖片生成與參考圖編輯',
@@ -612,6 +616,7 @@
         // DeepSeek Paid
         model_deepseek_v4_pro_0813_desc_tier_paid: '基本價：百萬輸入/0.66$、百萬輸出/1.98$；部分 UTC 時段加倍',
         model_deepseek_v4_flash_0731_desc_tier_paid: '百萬輸入/0.14$、百萬輸出/0.28$',
+        model_deepseek_v4_flash_vision_exp_desc_tier_paid: '依 UTC 時段：百萬輸入/0.22–0.44$、百萬輸出/0.66–1.32$',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
         // Official Nouras

@@ -57,13 +57,31 @@ export function createDialogNotificationLifecycle({
 
   const showCustomDialog = (options) => {
     return new Promise((resolve) => {
-      const { title, message, input = null, buttons, dialogClass = '' } = options;
+      const { title, message, messageParts = null, input = null, buttons, dialogClass = '' } = options;
       const dialogBox = elements.customDialogModal.querySelector('.bg-\\[var\\(--modal-bg\\)\\]');
       if (dialogClass) {
         dialogBox.classList.add(dialogClass);
       }
       elements.customDialogTitle.textContent = title;
-      elements.customDialogMessage.textContent = message;
+      elements.customDialogMessage.textContent = '';
+      if (Array.isArray(messageParts)) {
+        messageParts.forEach((part) => {
+          if (typeof part === 'string') {
+            elements.customDialogMessage.appendChild(document.createTextNode(part));
+            return;
+          }
+          if (!part?.href) return;
+          const link = document.createElement('a');
+          link.textContent = part.text || part.href;
+          link.href = part.href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.className = 'text-blue-600 underline';
+          elements.customDialogMessage.appendChild(link);
+        });
+      } else {
+        elements.customDialogMessage.textContent = message || '';
+      }
       if (input) {
         elements.customDialogInput.type = input.type || 'text';
         elements.customDialogInput.value = input.value || '';

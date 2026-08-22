@@ -67,6 +67,7 @@ const createHarness = (overrides = {}) => {
   const activeModels = overrides.models ?? MODELS;
   const config = {
     lastUsedModel: 'z-ai/model-a',
+    acknowledgedStealthModelTerms: overrides.acknowledgedStealthModelTerms ?? [],
     modelSettings: overrides.modelSettings ?? [
       { hidden: false, id: 'z-ai/model-a', order: 1 },
       { hidden: false, id: 'gemini-pro', order: 2 },
@@ -84,6 +85,9 @@ const createHarness = (overrides = {}) => {
       freeModels: 'Free models',
       paidModels: 'Paid models',
       search: 'Search',
+      stealthModelTermsTitle: 'Stealth model terms',
+      stealthModelTermsMessage: 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.',
+      stealthModelTermsLink: 'Stealth Model Terms(opens in new tab)',
       zaiA_tier_free: 'Fast free model'
     },
     'zh-TW': {}
@@ -118,6 +122,7 @@ const createHarness = (overrides = {}) => {
     },
     saveAppData: async () => calls.push(['saveAppData']),
     saveConfig: async () => calls.push(['saveConfig']),
+    showCustomDialog: overrides.showCustomDialog,
     window
   });
 
@@ -264,6 +269,67 @@ test('model switcher search filters models and persists selected result', async 
       ['renderCouncilControls']
     ]);
     assert.equal(calls.some(([name]) => name === 'renderAll'), false);
+  } finally {
+    cleanup();
+  }
+});
+
+test('stealth beta model requires one persisted terms acknowledgement before selection', async () => {
+  const stealthModel = {
+    id: 'stealth/ox-alpha',
+    name: 'Ox Alpha',
+    provider: 'openrouter',
+    descriptionKey: 'oxAlpha',
+    isBeta: true,
+    requiresStealthTermsAcknowledgement: true
+  };
+  const dialogOptions = [];
+  const responses = [false, true];
+  const models = [...MODELS, stealthModel];
+  const { cleanup, config, conversation, document, lifecycle } = createHarness({
+    models,
+    modelSettings: models.map((model, order) => ({ id: model.id, hidden: false, order })),
+    showCustomDialog: async (options) => {
+      dialogOptions.push(options);
+      return responses.shift();
+    }
+  });
+  const flushSelection = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+  const selectStealthModel = () => {
+    document.querySelector('#current-model-btn').click();
+    document.querySelector('.beta-btn').click();
+    document.querySelector('[data-model-id="stealth/ox-alpha"]').click();
+  };
+
+  try {
+    lifecycle.renderModelSwitcher();
+    selectStealthModel();
+    await flushSelection();
+
+    assert.equal(conversation.model, 'z-ai/model-a');
+    assert.deepEqual(config.acknowledgedStealthModelTerms, []);
+
+    document.querySelector('[data-model-id="stealth/ox-alpha"]').click();
+    await flushSelection();
+
+    assert.equal(conversation.model, 'stealth/ox-alpha');
+    assert.deepEqual(config.acknowledgedStealthModelTerms, ['stealth/ox-alpha']);
+    assert.equal(dialogOptions.length, 2);
+    assert.equal(
+      dialogOptions[1].messageParts.map(part => typeof part === 'string' ? part : part.text).join(''),
+      'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the Stealth Model Terms(opens in new tab).'
+    );
+    assert.deepEqual(dialogOptions[1].messageParts[1], {
+      text: 'Stealth Model Terms(opens in new tab)',
+      href: 'https://openrouter.ai/terms/stealth'
+    });
+
+    selectStealthModel();
+    await flushSelection();
+    assert.equal(dialogOptions.length, 2);
   } finally {
     cleanup();
   }

@@ -82,6 +82,7 @@ export function createModelSwitcherLifecycle({
     requestFrame,
     saveAppData,
     saveConfig,
+    showCustomDialog = async () => true,
     window
 }) {
     const MODELS = models;
@@ -462,6 +463,43 @@ export function createModelSwitcherLifecycle({
         const newModelId = modelBtn.dataset.modelId;
         const newModelInfo = MODELS.find(m => m.id === newModelId);
         if (newModelInfo) {
+            const acknowledgedStealthModelTerms = Array.isArray(config.acknowledgedStealthModelTerms)
+                ? config.acknowledgedStealthModelTerms
+                : [];
+            if (
+                newModelInfo.requiresStealthTermsAcknowledgement &&
+                !acknowledgedStealthModelTerms.includes(newModelInfo.id)
+            ) {
+                const termsPlaceholder = '{termsLink}';
+                const messageTemplate = translations.stealthModelTermsMessage || 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.';
+                const termsLinkText = translations.stealthModelTermsLink || 'Stealth Model Terms(opens in new tab)';
+                const placeholderIndex = messageTemplate.indexOf(termsPlaceholder);
+                const messageParts = placeholderIndex === -1
+                    ? [messageTemplate]
+                    : [
+                        messageTemplate.slice(0, placeholderIndex),
+                        { text: termsLinkText, href: 'https://openrouter.ai/terms/stealth' },
+                        messageTemplate.slice(placeholderIndex + termsPlaceholder.length)
+                    ];
+                const accepted = await showCustomDialog({
+                    title: translations.stealthModelTermsTitle || 'Stealth model terms',
+                    messageParts,
+                    buttons: [
+                        {
+                            text: translations.cancel || 'Cancel',
+                            class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]',
+                            value: () => false
+                        },
+                        {
+                            text: translations.confirm || 'Confirm',
+                            class: 'px-4 py-2 rounded-md btn-primary',
+                            value: () => true
+                        }
+                    ]
+                });
+                if (!accepted) return;
+                config.acknowledgedStealthModelTerms = [...acknowledgedStealthModelTerms, newModelInfo.id];
+            }
             conv.model = newModelInfo.id;
             conv.provider = newModelInfo.provider;
             const defaultReasoningEffort = getModelReasoningConfig(newModelInfo)

@@ -34,10 +34,16 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-opus-4.8'), false);
   assert.ok(MODELS.some((model) => model.id === 'nvidia/nemotron-3.5-lightning:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-0731' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp' && model.provider === 'openrouter' && model.outputPricePerMillion === 1.32));
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-pro-0813' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.7-flash' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.8-max' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'z-ai/glm-5.3' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'stealth/ox-alpha'
+    && model.provider === 'openrouter'
+    && model.isBeta === true
+    && model.requiresStealthTermsAcknowledgement === true
+    && model.outputPricePerMillion === 0));
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.6' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.provider === 'stepfun'), false);
@@ -67,6 +73,8 @@ test('model registry preserves vision and document capability behavior', () => {
   const openRouterGpt56Models = ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']
     .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
+  const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp');
+  const oxAlphaModel = MODELS.find((model) => model.id === 'stealth/ox-alpha');
   const openRouterTextModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash-0731');
   const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
   const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/moonshotai/kimi-k2.6');
@@ -79,6 +87,8 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsVision(openRouterVisionModel), true);
   assert.ok(openRouterGpt56Models.every(modelSupportsVision));
   assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
+  assert.equal(modelSupportsVision(deepseekVisionModel), true);
+  assert.equal(modelSupportsVision(oxAlphaModel), true);
   assert.equal(modelSupportsVision(openRouterTextModel), false);
   assert.equal(modelSupportsVision(nvidiaVisionModel), true);
   assert.equal(modelSupportsVision(nvidiaTextModel), false);
@@ -100,6 +110,8 @@ test('model registry exposes precise reasoning depth options for supported model
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
   const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5');
+  const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp');
+  const oxAlphaModel = MODELS.find((model) => model.id === 'stealth/ox-alpha');
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['low', 'high', 'max']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'max');
@@ -120,6 +132,10 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['low', 'high', 'max']);
   assert.deepEqual(getModelReasoningConfig(opus5Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(getModelReasoningConfig(opus5Model)?.defaultEffort, 'high');
+  assert.deepEqual(getModelReasoningConfig(deepseekVisionModel)?.options, ['low', 'high', 'max']);
+  assert.equal(getModelReasoningConfig(deepseekVisionModel)?.defaultEffort, 'high');
+  assert.deepEqual(getModelReasoningConfig(oxAlphaModel)?.options, ['low', 'high', 'max']);
+  assert.equal(getModelReasoningConfig(oxAlphaModel)?.defaultEffort, 'max');
   assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '極低');
 });
 

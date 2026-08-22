@@ -18,6 +18,7 @@ const expectedConfig = (defaultModelId) => ({
   userBubbleColor: 'default',
   autoNaming: true,
   lastUsedModel: null,
+  acknowledgedStealthModelTerms: [],
   memorySystemVersion: 2,
   memoryModelId: 'gemini-3.5-flash-lite',
   memoryProfileEnabled: true,
@@ -67,6 +68,7 @@ test('config store instances keep fresh nested mutable defaults', () => {
   assert.notEqual(first.getConfig(), second.getConfig());
   assert.notEqual(first.getConfig().apiKeys, second.getConfig().apiKeys);
   assert.notEqual(first.getConfig().modelSettings, second.getConfig().modelSettings);
+  assert.notEqual(first.getConfig().acknowledgedStealthModelTerms, second.getConfig().acknowledgedStealthModelTerms);
   assert.notEqual(first.getConfig().uiTheme, second.getConfig().uiTheme);
   assert.notEqual(first.getConfig().uiTheme.adaptivePalette, second.getConfig().uiTheme.adaptivePalette);
   assert.notEqual(first.getConfig().lastCouncilConfig, second.getConfig().lastCouncilConfig);
