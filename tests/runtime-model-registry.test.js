@@ -43,6 +43,7 @@ test('model registry exports the canonical model inventory', () => {
     && model.provider === 'openrouter'
     && model.isBeta === true
     && model.requiresStealthTermsAcknowledgement === true
+    && model.stealthTermsAcknowledgementId === 'stealth/ox-alpha@stealth-terms-v1'
     && model.outputPricePerMillion === 0));
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.6' && model.provider === 'openrouter'));

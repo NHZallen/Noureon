@@ -36,7 +36,8 @@ const REQUIRED_DEPENDENCIES = [
   'saveConfig',
   'renderHistorySidebar',
   'addMessageToUI',
-  'showNotification'
+  'showNotification',
+  'showCustomDialog'
 ];
 
 export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {

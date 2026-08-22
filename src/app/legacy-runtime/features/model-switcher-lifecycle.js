@@ -82,9 +82,12 @@ export function createModelSwitcherLifecycle({
     requestFrame,
     saveAppData,
     saveConfig,
-    showCustomDialog = async () => true,
+    showCustomDialog,
     window
 }) {
+    if (typeof showCustomDialog !== 'function') {
+        throw new Error('createModelSwitcherLifecycle missing dependency: showCustomDialog');
+    }
     const MODELS = models;
     const requestAnimationFrame = requestFrame;
     const renderModelSwitcher = () => {
@@ -466,9 +469,10 @@ export function createModelSwitcherLifecycle({
             const acknowledgedStealthModelTerms = Array.isArray(config.acknowledgedStealthModelTerms)
                 ? config.acknowledgedStealthModelTerms
                 : [];
+            const stealthTermsAcknowledgementId = newModelInfo.stealthTermsAcknowledgementId || newModelInfo.id;
             if (
                 newModelInfo.requiresStealthTermsAcknowledgement &&
-                !acknowledgedStealthModelTerms.includes(newModelInfo.id)
+                !acknowledgedStealthModelTerms.includes(stealthTermsAcknowledgementId)
             ) {
                 const termsPlaceholder = '{termsLink}';
                 const messageTemplate = translations.stealthModelTermsMessage || 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.';
@@ -498,7 +502,7 @@ export function createModelSwitcherLifecycle({
                     ]
                 });
                 if (!accepted) return;
-                config.acknowledgedStealthModelTerms = [...acknowledgedStealthModelTerms, newModelInfo.id];
+                config.acknowledgedStealthModelTerms = [...acknowledgedStealthModelTerms, stealthTermsAcknowledgementId];
             }
             conv.model = newModelInfo.id;
             conv.provider = newModelInfo.provider;

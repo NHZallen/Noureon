@@ -122,7 +122,7 @@ const createHarness = (overrides = {}) => {
     },
     saveAppData: async () => calls.push(['saveAppData']),
     saveConfig: async () => calls.push(['saveConfig']),
-    showCustomDialog: overrides.showCustomDialog,
+    showCustomDialog: overrides.showCustomDialog ?? (async () => true),
     window
   });
 
@@ -281,13 +281,15 @@ test('stealth beta model requires one persisted terms acknowledgement before sel
     provider: 'openrouter',
     descriptionKey: 'oxAlpha',
     isBeta: true,
-    requiresStealthTermsAcknowledgement: true
+    requiresStealthTermsAcknowledgement: true,
+    stealthTermsAcknowledgementId: 'stealth/ox-alpha@stealth-terms-v1'
   };
   const dialogOptions = [];
   const responses = [false, true];
   const models = [...MODELS, stealthModel];
   const { cleanup, config, conversation, document, lifecycle } = createHarness({
     models,
+    acknowledgedStealthModelTerms: ['stealth/ox-alpha'],
     modelSettings: models.map((model, order) => ({ id: model.id, hidden: false, order })),
     showCustomDialog: async (options) => {
       dialogOptions.push(options);
@@ -310,13 +312,16 @@ test('stealth beta model requires one persisted terms acknowledgement before sel
     await flushSelection();
 
     assert.equal(conversation.model, 'z-ai/model-a');
-    assert.deepEqual(config.acknowledgedStealthModelTerms, []);
+    assert.deepEqual(config.acknowledgedStealthModelTerms, ['stealth/ox-alpha']);
 
     document.querySelector('[data-model-id="stealth/ox-alpha"]').click();
     await flushSelection();
 
     assert.equal(conversation.model, 'stealth/ox-alpha');
-    assert.deepEqual(config.acknowledgedStealthModelTerms, ['stealth/ox-alpha']);
+    assert.deepEqual(config.acknowledgedStealthModelTerms, [
+      'stealth/ox-alpha',
+      'stealth/ox-alpha@stealth-terms-v1'
+    ]);
     assert.equal(dialogOptions.length, 2);
     assert.equal(
       dialogOptions[1].messageParts.map(part => typeof part === 'string' ? part : part.text).join(''),

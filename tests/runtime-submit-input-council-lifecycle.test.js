@@ -91,6 +91,7 @@ function createDependencies(overrides = {}) {
     renderHistorySidebar: noop,
     addMessageToUI: noop,
     showNotification: noop,
+    showCustomDialog: async () => true,
     ...overrides
   };
 }
@@ -131,6 +132,25 @@ test('factory validates required dependencies', () => {
     () => createLegacySubmitInputCouncilLifecycle(),
     /missing dependency: document/
   );
+});
+
+test('factory requires the dialog used by first-selection model notices', () => {
+  const dependencies = createDependencies();
+  delete dependencies.showCustomDialog;
+
+  assert.throws(
+    () => createLegacySubmitInputCouncilLifecycle(dependencies),
+    /missing dependency: showCustomDialog/
+  );
+});
+
+test('production composition forwards the real custom dialog to the model switcher lifecycle', () => {
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const start = source.indexOf('createLegacySubmitInputCouncilLifecycle({');
+  const wiring = source.slice(start, source.indexOf('\n        });', start));
+
+  assert.ok(start >= 0);
+  assert.match(wiring, /\bshowCustomDialog,/);
 });
 
 test('factory exposes submit, input, council, and streaming API', () => {

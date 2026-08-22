@@ -99,7 +99,7 @@ export const MODELS = [
     { id: 'qwen/qwen3.8-max', name: 'Qwen3.8 Max', provider: 'openrouter', descriptionKey: 'model_qwen3_8_max_desc', category: 'general' },
 
     // OpenRouter Beta Models (Stealth)
-    { id: 'stealth/ox-alpha', name: 'Ox Alpha', provider: 'openrouter', descriptionKey: 'model_ox_alpha_desc', category: 'coding', isBeta: true, requiresStealthTermsAcknowledgement: true },
+    { id: 'stealth/ox-alpha', name: 'Ox Alpha', provider: 'openrouter', descriptionKey: 'model_ox_alpha_desc', category: 'coding', isBeta: true, requiresStealthTermsAcknowledgement: true, stealthTermsAcknowledgementId: 'stealth/ox-alpha@stealth-terms-v1' },
 
     // OpenRouter Paid Models (xAI)
     { id: 'x-ai/grok-4.6', name: 'xAI Grok 4.6', provider: 'openrouter', descriptionKey: 'model_grok_4_6_desc', category: 'general' },

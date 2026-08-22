@@ -1000,6 +1000,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             saveAppData,
             saveConfig,
             showNotification,
+            showCustomDialog,
             updateApiKeyWarningBadge: (...args) => updateApiKeyWarningBadge(...args),
             getFileInputContainer: () => ALL_ELEMENTS.fileInputContainer,
             getActiveAstrasId: () => getActiveAstrasId(),
