@@ -25,23 +25,32 @@ export function createMarkdownRenderingHelpers({
     const breakpoints = [];
     let braceDepth = 0;
     let delimiterDepth = 0;
+    let scalableDelimiterDepth = 0;
     for (let index = 0; index < formula.length; index += 1) {
       const char = formula[index];
       if (char === '{') braceDepth += 1;
       if (char === '}') braceDepth = Math.max(0, braceDepth - 1);
       if (braceDepth > 0) continue;
-      if (char === '(' || char === '[') delimiterDepth += 1;
-      if (char === ')' || char === ']') delimiterDepth = Math.max(0, delimiterDepth - 1);
-      if (delimiterDepth > 0) continue;
 
       if (char === '\\') {
         const command = /^\\[A-Za-z]+/.exec(formula.slice(index))?.[0] || '';
-        if (/^\\(?:approx|geq?|leq?|neq|prod|sim|sum)$/.test(command) && index > 0) {
+        if (command === '\\left') scalableDelimiterDepth += 1;
+        if (command === '\\right') scalableDelimiterDepth = Math.max(0, scalableDelimiterDepth - 1);
+        if (
+          delimiterDepth === 0
+          && scalableDelimiterDepth === 0
+          && /^\\(?:approx|geq?|leq?|neq|prod|sim|sum)$/.test(command)
+          && index > 0
+        ) {
           breakpoints.push(index);
         }
         index += Math.max(0, command.length - 1);
         continue;
       }
+
+      if (char === '(' || char === '[') delimiterDepth += 1;
+      if (char === ')' || char === ']') delimiterDepth = Math.max(0, delimiterDepth - 1);
+      if (delimiterDepth > 0 || scalableDelimiterDepth > 0) continue;
       if (/[=+\-]/.test(char) && index > 0) {
         breakpoints.push(index);
       }
@@ -108,6 +117,7 @@ export function createMarkdownRenderingHelpers({
       if (
         !mathCommandPattern.test(line)
         || /NOURA_CODE_TOKEN_\d+_END/.test(line)
+        || /(?<!\\)\$/.test(line)
         || /\$\$|\\\[|\\\]|\\\(|\\\)/.test(line)
       ) {
         return line;
@@ -153,13 +163,18 @@ export function createMarkdownRenderingHelpers({
       const normalizedFormula = normalizeDoubleEscapedTex(decodeFormula(formula));
       const displayChunks = displayMode ? splitDisplayFormula(normalizedFormula) : [normalizedFormula];
       if (displayMode && displayChunks.length > 1) {
-        const lines = displayChunks.map((chunk) => (
-          `<span class="katex-display-line">${katex.renderToString(chunk, {
-            displayMode: false,
-            throwOnError: false
-          })}</span>`
-        )).join('');
-        return `<div class="katex-display katex-display-responsive">${lines}</div>`;
+        try {
+          const lines = displayChunks.map((chunk) => (
+            `<span class="katex-display-line">${katex.renderToString(chunk, {
+              displayMode: false,
+              throwOnError: true
+            })}</span>`
+          )).join('');
+          return `<div class="katex-display katex-display-responsive">${lines}</div>`;
+        } catch {
+          // Keep the original expression intact when a visually convenient split
+          // would separate a TeX construct that must be parsed as one unit.
+        }
       }
       return katex.renderToString(normalizedFormula, {
         displayMode,

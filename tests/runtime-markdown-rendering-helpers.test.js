@@ -208,6 +208,38 @@ test('renders the complete production-failure command set without red KaTeX outp
   }
 });
 
+test('keeps paired scalable delimiters together when wrapping long display formulas', () => {
+  const harness = createHarness();
+  try {
+    const html = harness.helpers.renderMarkdownWithFormulas([
+      String.raw`$$R(N) \leq \sum_{d < D} |\mu(d)| \left| \sum_{\substack{n \leq N \\ d \mid n(n-N)}} a_n \right|$$`,
+      String.raw`$$\sum_{q \leq Q} \max_{(a,q)=1} \left| \psi(x; q, a) - \frac{x}{\varphi(q)} \right| \ll x \ln^{-A} x, \quad Q = x^{1/2}/\ln^B x$$`,
+      String.raw`$$\sum_{q \leq Q} \max_{(a,q)=1} \left| \sum_{\substack{n_1+n_2=N \\ n_i \equiv a\ (\mathrm{mod}\ q)}} \frac{1}{\ln n_1\ln n_2} - \mathfrak{S}_q(N)\frac{N}{\varphi(q)\ln^2 N} \right| \ll \frac{N^{1-\delta}}{\ln^C N}$$`
+    ].join('\n'));
+
+    assert.doesNotMatch(html, /katex-error|color:#cc0000/);
+    assert.equal((html.match(/Expected (?:'\\right'|'EOF')/g) || []).length, 0);
+  } finally {
+    harness.window.close();
+  }
+});
+
+test('does not reinterpret explicitly delimited inline TeX as a bare formula', () => {
+  const harness = createHarness();
+  try {
+    const html = harness.helpers.renderMarkdownWithFormulas([
+      String.raw`其中 $\gamma \approx 0.5772$ 是歐拉常數。`,
+      String.raw`已驗證至 $4 \times 10^{18}$ 都沒有反例。`,
+      String.raw`範圍取 $Q \approx N^{1/2}$ 即可。`
+    ].join('\n'));
+
+    assert.doesNotMatch(html, /katex-error|color:#cc0000|NOURA_MATH_TOKEN/);
+    assert.equal((html.match(/class="katex"/g) || []).length, 3);
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('splits long display formulas into responsive KaTeX lines', () => {
   const calls = [];
   const harness = createHarness({
