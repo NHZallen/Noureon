@@ -342,7 +342,7 @@
     }
 
 /* User message copy/edit actions and the responsive message editor. */
-.user-message-actions { position: absolute; top: calc(100% + .2rem); right: 0; z-index: 2; display: flex; justify-content: flex-end; gap: .3rem; min-height: 1.9rem; margin: 0; color: #6b7280 !important; visibility: hidden; pointer-events: none; opacity: 0; transition: opacity .16s ease, visibility 0s linear .16s; }
+.user-message-actions { position: absolute; top: 100%; right: 0; z-index: 2; display: flex; justify-content: flex-end; gap: .3rem; min-height: 2.1rem; margin: 0; padding-top: .2rem; color: #6b7280 !important; visibility: hidden; pointer-events: none; opacity: 0; transition: opacity .16s ease, visibility 0s linear .16s; }
 
 .history-source-references { width: min(100%, 44rem); margin: .1rem 0 .15rem; color: var(--text-secondary); font-size: .8rem; }
 .history-source-references > summary { width: fit-content; cursor: pointer; color: inherit; list-style: none; }
@@ -387,7 +387,7 @@
 .message-edit-send { border: 1px solid #111; background: #111; color: #fff; }
 .message-edit-send:disabled { opacity: .6; }
 @media (max-width: 768px) {
-  .user-message-actions { position: static; visibility: visible; pointer-events: auto; opacity: 1; margin-top: .25rem; }
+  .user-message-actions { position: static; visibility: visible; pointer-events: auto; opacity: 1; min-height: 1.9rem; margin-top: .25rem; padding-top: 0; }
   .message-edit-mobile-page { position: fixed; z-index: 200; inset: 0; display: flex; flex-direction: column; background: var(--modal-bg); color: var(--text-primary); opacity: 0; transition: opacity .28s cubic-bezier(.22, 1, .36, 1); }
   .message-edit-mobile-page.message-edit-visible { opacity: 1; }
   .message-edit-mobile-header { display: grid; grid-template-columns: 4rem 1fr 4rem; align-items: center; min-height: 5.5rem; padding: 1rem; }

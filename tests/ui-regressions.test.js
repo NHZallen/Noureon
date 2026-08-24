@@ -39,3 +39,17 @@ test('display formulas wrap at logical chunks and contain unavoidable overflow',
   assert.match(chat, /\.message-content \.katex-display-responsive\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
   assert.match(chat, /\.message-content \.katex-display-line\s*\{[^}]*max-width:\s*100%;[^}]*overflow-x:\s*auto;/s);
 });
+
+test('desktop user message actions keep a continuous hover path from the bubble', () => {
+  const chat = readUiSource('src/styles/chat.css');
+
+  assert.match(
+    chat,
+    /\.user-message-actions\s*\{[^}]*position:\s*absolute;[^}]*top:\s*100%;[^}]*min-height:\s*2\.1rem;[^}]*padding-top:\s*\.2rem;/s
+  );
+  assert.doesNotMatch(chat, /\.user-message-actions\s*\{[^}]*top:\s*calc\(100%\s*\+\s*\.2rem\)/s);
+  assert.match(
+    chat,
+    /\.message-stack-user:hover \.user-message-actions,\s*\.message-stack-user:focus-within \.user-message-actions\s*\{[^}]*pointer-events:\s*auto;/s
+  );
+});
