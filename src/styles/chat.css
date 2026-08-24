@@ -628,6 +628,31 @@
     .streaming-current-line > :first-child:last-child {
         margin-top: 0;
     }
+    .message-content .katex-display {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.1rem 0 0.28rem;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-color) transparent;
+        overscroll-behavior-x: contain;
+    }
+    .message-content .katex-display-responsive {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: center;
+        gap: 0.5em 0.42em;
+        overflow-x: visible;
+    }
+    .message-content .katex-display-line {
+        display: inline-block;
+        flex: 0 1 auto;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0.08rem;
+    }
     .prose table {
     width: 100%;
     border-collapse: collapse;

@@ -31,3 +31,11 @@ test('chat typography uses compact message rhythm without automatic heading divi
   assert.match(council, /\.prose h2\s*\{[^}]*border-bottom:\s*0;/s);
   assert.match(council, /\.prose hr\s*\{[^}]*width:\s*min\(10rem, 32%\);/s);
 });
+
+test('display formulas wrap at logical chunks and contain unavoidable overflow', () => {
+  const chat = readUiSource('src/styles/chat.css');
+
+  assert.match(chat, /\.message-content \.katex-display\s*\{[^}]*max-width:\s*100%;[^}]*overflow-x:\s*auto;/s);
+  assert.match(chat, /\.message-content \.katex-display-responsive\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(chat, /\.message-content \.katex-display-line\s*\{[^}]*max-width:\s*100%;[^}]*overflow-x:\s*auto;/s);
+});

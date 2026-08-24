@@ -154,6 +154,67 @@ test('renders alternate delimiters and screenshot-style bare TeX while preservin
   }
 });
 
+test('repairs double-escaped TeX commands before rendering', () => {
+  const calls = [];
+  const harness = createHarness({
+    katex: {
+      renderToString: (formula, options) => {
+        calls.push([formula, options.displayMode]);
+        return `<katex>${formula}</katex>`;
+      }
+    }
+  });
+  try {
+    const html = harness.helpers.renderMarkdownWithFormulas(
+      String.raw`\\[D(N) = \\mathfrak{S(N)} \\frac{N}{\\ln^2 N} + R(N)\\]`
+    );
+
+    assert.deepEqual(calls, [[String.raw`D(N) = \mathfrak{S(N)} \frac{N}{\ln^2 N} + R(N)`, true]]);
+    assert.doesNotMatch(html, /\\\\(?:mathfrak|frac|ln)/);
+  } finally {
+    harness.window.close();
+  }
+});
+
+test('double-escaped screenshot formula renders without KaTeX error markup', () => {
+  const harness = createHarness();
+  try {
+    const html = harness.helpers.renderMarkdownWithFormulas(
+      String.raw`\\[D(N) = \\mathfrak{S(N)} \\frac{N}{\\ln^2 N} + R(N)\\]`
+    );
+
+    assert.match(html, /class="katex-display"/);
+    assert.doesNotMatch(html, /katex-error/);
+    assert.doesNotMatch(html, /\\\\(?:mathfrak|frac|ln)/);
+  } finally {
+    harness.window.close();
+  }
+});
+
+test('splits long display formulas into responsive KaTeX lines', () => {
+  const calls = [];
+  const harness = createHarness({
+    katex: {
+      renderToString: (formula, options) => {
+        calls.push([formula, options.displayMode]);
+        return `<katex>${formula}</katex>`;
+      }
+    }
+  });
+  try {
+    const html = harness.helpers.renderMarkdownWithFormulas(
+      String.raw`$$\mathfrak{S}(N)=\prod_{p\mid N}\left(1-\frac{1}{p}\right)\prod_{p\nmid N}\left(1-\frac{1}{(p-1)^2}\right)$$`
+    );
+
+    assert.match(html, /class="katex-display katex-display-responsive"/);
+    assert.ok((html.match(/class="katex-display-line"/g) || []).length >= 2);
+    assert.ok(calls.length >= 2);
+    assert.ok(calls.every(([, displayMode]) => displayMode === false));
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('preserves formula decoding, options, logging, and block or inline error fallbacks', () => {
   const calls = [];
   const errors = [];

@@ -17,6 +17,60 @@ export function createMarkdownRenderingHelpers({
     return new DOMParser().parseFromString(String(formula || ''), 'text/html').documentElement.textContent;
   }
 
+  function normalizeDoubleEscapedTex(text) {
+    return String(text || '').replace(/\\\\(?=\[|\]|\(|\)|[A-Za-z])/g, '\\');
+  }
+
+  function getDisplayFormulaBreakpoints(formula) {
+    const breakpoints = [];
+    let braceDepth = 0;
+    let delimiterDepth = 0;
+    for (let index = 0; index < formula.length; index += 1) {
+      const char = formula[index];
+      if (char === '{') braceDepth += 1;
+      if (char === '}') braceDepth = Math.max(0, braceDepth - 1);
+      if (braceDepth > 0) continue;
+      if (char === '(' || char === '[') delimiterDepth += 1;
+      if (char === ')' || char === ']') delimiterDepth = Math.max(0, delimiterDepth - 1);
+      if (delimiterDepth > 0) continue;
+
+      if (char === '\\') {
+        const command = /^\\[A-Za-z]+/.exec(formula.slice(index))?.[0] || '';
+        if (/^\\(?:approx|geq?|leq?|neq|prod|sim|sum)$/.test(command) && index > 0) {
+          breakpoints.push(index);
+        }
+        index += Math.max(0, command.length - 1);
+        continue;
+      }
+      if (/[=+\-]/.test(char) && index > 0) {
+        breakpoints.push(index);
+      }
+    }
+    return breakpoints;
+  }
+
+  function splitDisplayFormula(formula, targetLength = 56) {
+    const source = String(formula || '').trim();
+    if (source.length <= targetLength) return [source];
+    const breakpoints = getDisplayFormulaBreakpoints(source);
+    if (!breakpoints.length) return [source];
+
+    const chunks = [];
+    let start = 0;
+    while (source.length - start > targetLength) {
+      const minimum = start + Math.floor(targetLength * 0.48);
+      const preferred = breakpoints.filter((point) => point >= minimum && point <= start + targetLength).at(-1);
+      const fallback = breakpoints.find((point) => point > start + targetLength && point <= start + Math.floor(targetLength * 1.45));
+      const early = breakpoints.filter((point) => point > start && point < minimum).at(-1);
+      const end = preferred ?? fallback ?? early;
+      if (!end || end <= start) break;
+      chunks.push(source.slice(start, end).trim());
+      start = end;
+    }
+    chunks.push(source.slice(start).trim());
+    return chunks.filter(Boolean);
+  }
+
   function protectCodeSpans(text) {
     const codeSpans = [];
     const protectedText = String(text || '').replace(
@@ -78,7 +132,7 @@ export function createMarkdownRenderingHelpers({
   function extractFormulaTokens(text) {
     const formulas = [];
     const { protectedText, restore } = protectCodeSpans(text);
-    let markdown = normalizeBareTexLines(protectedText);
+    let markdown = normalizeBareTexLines(normalizeDoubleEscapedTex(protectedText));
     const replaceFormula = (displayMode) => (_match, formula) => {
       const token = `NOURA_MATH_TOKEN_${formulas.length}_END`;
       formulas.push({ displayMode, formula });
@@ -96,7 +150,18 @@ export function createMarkdownRenderingHelpers({
 
   function renderFormula({ displayMode, formula }) {
     try {
-      return katex.renderToString(decodeFormula(formula), {
+      const normalizedFormula = normalizeDoubleEscapedTex(decodeFormula(formula));
+      const displayChunks = displayMode ? splitDisplayFormula(normalizedFormula) : [normalizedFormula];
+      if (displayMode && displayChunks.length > 1) {
+        const lines = displayChunks.map((chunk) => (
+          `<span class="katex-display-line">${katex.renderToString(chunk, {
+            displayMode: false,
+            throwOnError: false
+          })}</span>`
+        )).join('');
+        return `<div class="katex-display katex-display-responsive">${lines}</div>`;
+      }
+      return katex.renderToString(normalizedFormula, {
         displayMode,
         throwOnError: false
       });
