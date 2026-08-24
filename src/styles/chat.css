@@ -342,7 +342,7 @@
     }
 
 /* User message copy/edit actions and the responsive message editor. */
-.user-message-actions { display: flex; justify-content: flex-end; gap: .3rem; min-height: 1.9rem; margin-top: .35rem; color: #6b7280 !important; visibility: hidden; pointer-events: none; opacity: 0; transition: opacity .16s ease, visibility 0s linear .16s; }
+.user-message-actions { position: absolute; top: calc(100% + .2rem); right: 0; z-index: 2; display: flex; justify-content: flex-end; gap: .3rem; min-height: 1.9rem; margin: 0; color: #6b7280 !important; visibility: hidden; pointer-events: none; opacity: 0; transition: opacity .16s ease, visibility 0s linear .16s; }
 
 .history-source-references { width: min(100%, 44rem); margin: .1rem 0 .15rem; color: var(--text-secondary); font-size: .8rem; }
 .history-source-references > summary { width: fit-content; cursor: pointer; color: inherit; list-style: none; }
@@ -387,7 +387,7 @@
 .message-edit-send { border: 1px solid #111; background: #111; color: #fff; }
 .message-edit-send:disabled { opacity: .6; }
 @media (max-width: 768px) {
-  .user-message-actions { visibility: visible; pointer-events: auto; opacity: 1; margin-top: .25rem; }
+  .user-message-actions { position: static; visibility: visible; pointer-events: auto; opacity: 1; margin-top: .25rem; }
   .message-edit-mobile-page { position: fixed; z-index: 200; inset: 0; display: flex; flex-direction: column; background: var(--modal-bg); color: var(--text-primary); opacity: 0; transition: opacity .28s cubic-bezier(.22, 1, .36, 1); }
   .message-edit-mobile-page.message-edit-visible { opacity: 1; }
   .message-edit-mobile-header { display: grid; grid-template-columns: 4rem 1fr 4rem; align-items: center; min-height: 5.5rem; padding: 1rem; }
@@ -621,9 +621,13 @@
     .prose pre code { background-color: transparent; padding: 0; color: inherit; border: none; }
     .prose h1, .prose h2, .prose h3 { margin-top: 1.5em; margin-bottom: 0.5em; font-weight: bold; }
     .prose h1 { font-size: 1.875rem; }
-    .prose h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+    .prose h2 { font-size: 1.5rem; border-bottom: 0; padding-bottom: 0; }
     .prose h3 { font-size: 1.25rem; }
     .prose p { margin-bottom: 1em; }
+    .message-content > div > :first-child,
+    .streaming-current-line > :first-child:last-child {
+        margin-top: 0;
+    }
     .prose table {
     width: 100%;
     border-collapse: collapse;

@@ -135,6 +135,25 @@ test('renders block and inline formulas through KaTeX with current display modes
   }
 });
 
+test('renders alternate delimiters and screenshot-style bare TeX while preserving code', () => {
+  const harness = createHarness();
+  try {
+    const html = harness.helpers.renderMarkdownWithFormulas([
+      '\\[427{,}782 \\div 365 \\approx 1{,}172 \\text{ 年}\\]',
+      '行內：\\(x^2 + 1\\)',
+      '換算成年： 427{,}782 \\div 365 \\approx 1{,}172 \\text{ 年}',
+      '`1 \\div 2`'
+    ].join('\n'));
+
+    assert.equal((html.match(/class="katex-display"/g) || []).length, 1);
+    assert.ok((html.match(/class="katex"/g) || []).length >= 3);
+    assert.doesNotMatch(html, /換算成年[^<]*\\div/);
+    assert.match(html, /<code>1 \\div 2<\/code>/);
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('preserves formula decoding, options, logging, and block or inline error fallbacks', () => {
   const calls = [];
   const errors = [];

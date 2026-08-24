@@ -19,3 +19,15 @@ test('outlined settings and trash actions use the shared white outline button st
     assert.match(trashLifecycle, new RegExp(`${className}[^\\n]+btn-outline-white`));
   }
 });
+
+test('chat typography uses compact message rhythm without automatic heading dividers', () => {
+  const shell = readUiSource('src/templates/fragments/01-shell.fragment.js');
+  const chat = readUiSource('src/styles/chat.css');
+  const council = readUiSource('src/styles/model-council.css');
+
+  assert.match(shell, /id=\\"message-list\\" class=\\"space-y-5/);
+  assert.match(chat, /\.message-content > div > :first-child/);
+  assert.match(chat, /\.prose h2\s*\{[^}]*border-bottom:\s*0;/s);
+  assert.match(council, /\.prose h2\s*\{[^}]*border-bottom:\s*0;/s);
+  assert.match(council, /\.prose hr\s*\{[^}]*width:\s*min\(10rem, 32%\);/s);
+});

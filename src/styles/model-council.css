@@ -772,9 +772,10 @@ details.council-model-group > summary::-webkit-details-marker {
 }
 
 .prose hr {
-    margin: 1.55rem 0 1.35rem;
+    width: min(10rem, 32%);
+    margin: 1.35rem auto 1.2rem 0;
     border: 0;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid color-mix(in srgb, var(--border-color) 58%, transparent);
 }
 
 .prose h1,
@@ -792,9 +793,10 @@ details.council-model-group > summary::-webkit-details-marker {
 }
 
 .prose h2 {
-    margin-top: 1.45em;
-    margin-bottom: 0.7em;
-    padding-bottom: 0.42em;
+    margin-top: 1.3em;
+    margin-bottom: 0.58em;
+    padding-bottom: 0;
+    border-bottom: 0;
 }
 
 .prose h3,

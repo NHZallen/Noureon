@@ -220,6 +220,7 @@
         max-width: min(42rem, 92vw);
     }
     .message-stack-user {
+        position: relative;
         align-items: flex-end;
         margin-left: auto;
     }
@@ -334,10 +335,15 @@
             max-width: 24rem;
             gap: 0.5rem;
         }
-        .message-stack-user .message-media-grid {
+        .message-stack-user .message-media-grid:not(.message-media-grid-single) {
             align-self: center;
             margin-left: auto;
             margin-right: auto;
+        }
+        .message-stack-user .message-media-grid-single {
+            align-self: flex-end;
+            margin-left: auto;
+            margin-right: 0;
         }
         .message-media-thumb {
             border-radius: 0.95rem;

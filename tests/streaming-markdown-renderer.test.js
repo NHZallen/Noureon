@@ -63,7 +63,7 @@ test('renderer keeps non-newline text in the faded current line', () => {
   }
 });
 
-test('newline flush renders finalized text and leaves the tail pending', () => {
+test('newline flush renders finalized text with formulas and leaves the tail pending', () => {
   const { document, cleanup } = createDom('<div id="target"></div>');
 
   try {
@@ -75,11 +75,32 @@ test('newline flush renders finalized text and leaves the tail pending', () => {
 
     assert.equal(
       target.querySelector('.streaming-markdown-finalized').innerHTML,
-      '<div class="markdown-output">Hello\n</div>'
+      '<div class="formula-output">Hello\n</div>'
     );
     assert.equal(target.querySelector('.streaming-current-line').textContent, 'Tail');
-    assert.deepEqual(renderCalls[0], ['markdown', 'Hello\n']);
+    assert.deepEqual(renderCalls[0], ['formulas', 'Hello\n']);
     assert.deepEqual(renderCalls.at(-1), ['scroll', true, 12]);
+  } finally {
+    cleanup();
+  }
+});
+
+test('complete formulas render in the current line before the stream finishes', () => {
+  const { document, cleanup } = createDom('<div id="target"></div>');
+
+  try {
+    const target = document.getElementById('target');
+    const { feature, renderCalls } = createFeatureHarness(document);
+    const renderer = feature.createStreamingMarkdownRenderer(target);
+
+    renderer.appendText('Value: $x^2$');
+
+    assert.equal(
+      target.querySelector('.streaming-current-line').innerHTML,
+      '<div class="formula-output">Value: $x^2$</div>'
+    );
+    assert.deepEqual(renderCalls[0], ['formulas', 'Value: $x^2$']);
+    assert.equal(target.dataset.streamRendered, undefined);
   } finally {
     cleanup();
   }

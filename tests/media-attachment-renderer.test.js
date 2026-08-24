@@ -88,6 +88,19 @@ test('preserves single visual layout and empty media boundaries', () => {
   );
 });
 
+test('mobile touch layout keeps a single user photo right-aligned', () => {
+  const styles = readSource('src/styles/modals.css');
+
+  assert.match(
+    styles,
+    /\.message-stack-user \.message-media-grid-single\s*\{[^}]*align-self:\s*flex-end;[^}]*margin-left:\s*auto;[^}]*margin-right:\s*0;/s
+  );
+  assert.match(
+    styles,
+    /\.message-stack-user \.message-media-grid:not\(\.message-media-grid-single\)\s*\{[^}]*align-self:\s*center;/s
+  );
+});
+
 test('media attachment renderer source avoids DOM and runtime ownership', () => {
   const source = readSource('src/app/legacy-runtime/features/media-attachment-renderer.js');
 

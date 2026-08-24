@@ -19,6 +19,11 @@ export function createStreamingMarkdownFeature({
   getStreamErrorText = (error) => `抱歉，發生錯誤：${error.message}`,
   logError = (...args) => console.error(...args)
 }) {
+  const hasRenderableFormula = (text = '') => (
+    /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([^\n]+?\\\]|(?<!\\)\$(?!\$)[^$\n]+?(?<!\\)\$/.test(text)
+    || /\\(?:approx|cdot|div|frac|geq?|int|leq?|neq|pm|prod|sqrt|sum|text|times)\b/.test(text)
+  );
+
   const createStreamingMarkdownRenderer = (targetElement, options = {}) => {
     const renderState = createStreamingMarkdownRenderState();
     const preserveCouncilDetails = Boolean(options.preserveCouncilDetails);
@@ -35,6 +40,7 @@ export function createStreamingMarkdownFeature({
     targetElement.classList.add('is-streaming-response');
     delete targetElement.dataset.streamRendered;
     targetElement.appendChild(root);
+    let currentLineUsesFormulaRenderer = false;
 
     const renderFinalized = (renderFormulas = false) => {
       const openKeys = preserveCouncilDetails ? getOpenCouncilDetailKeys(finalizedNode) : null;
@@ -67,6 +73,14 @@ export function createStreamingMarkdownFeature({
     const updateCurrentLine = () => {
       const patch = renderState.syncCurrentLine();
       if (patch.reset) {
+        currentLineUsesFormulaRenderer = false;
+      }
+      if (currentLineUsesFormulaRenderer || hasRenderableFormula(patch.currentLineText)) {
+        currentLineUsesFormulaRenderer = true;
+        currentLineNode.innerHTML = renderMarkdownWithFormulas(patch.currentLineText);
+        return;
+      }
+      if (patch.reset) {
         currentLineNode.innerHTML = '';
       }
       appendFadedText(patch.appendText);
@@ -88,7 +102,7 @@ export function createStreamingMarkdownFeature({
       appendText(chunk = '') {
         const appendResult = renderState.appendText(chunk);
         if (appendResult.ignored) return;
-        flushPendingLines(false, false);
+        flushPendingLines(false, true);
       },
       finish({ renderFormulas = true } = {}) {
         if (renderState.isFinalized()) return renderState.getText();

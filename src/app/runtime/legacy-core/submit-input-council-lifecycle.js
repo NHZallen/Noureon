@@ -720,9 +720,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const renderIncrementalResponse = (targetElement, text, options = {}) => {
     const openKeys = options.preserveCouncilDetails ? getOpenCouncilDetailKeys(targetElement) : null;
-    targetElement.innerHTML = options.final
-      ? renderMarkdownWithFormulas(text)
-      : renderMarkdown(`${text}${options.cursor ? '|' : ''}`);
+    targetElement.innerHTML = renderMarkdownWithFormulas(`${text}${!options.final && options.cursor ? '|' : ''}`);
     restoreOpenCouncilDetails(targetElement, openKeys);
   };
 
