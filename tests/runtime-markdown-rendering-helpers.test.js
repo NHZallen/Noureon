@@ -184,8 +184,25 @@ test('double-escaped screenshot formula renders without KaTeX error markup', () 
     );
 
     assert.match(html, /class="katex-display"/);
-    assert.doesNotMatch(html, /katex-error/);
+    assert.doesNotMatch(html, /katex-error|color:#cc0000/);
     assert.doesNotMatch(html, /\\\\(?:mathfrak|frac|ln)/);
+  } finally {
+    harness.window.close();
+  }
+});
+
+test('renders the complete production-failure command set without red KaTeX output', () => {
+  const harness = createHarness();
+  try {
+    const html = harness.helpers.renderMarkdownWithFormulas([
+      String.raw`$$N=p+q_1q_2\quad(\text{或 }p)$$`,
+      String.raw`$$D(N)=\sum_{p_1+p_2=N}\Lambda(p_1)\Lambda(p_2)$$`,
+      String.raw`$$D(N)=\mathfrak{S}(N)\frac{N}{\ln^2 N}+R(N)$$`,
+      String.raw`$$\mathfrak{S}(N)=\prod_{p\mid N}\left(1-\frac{1}{(p-1)^2}\right)$$`
+    ].join('\n'));
+
+    assert.doesNotMatch(html, /katex-error|color:#cc0000/);
+    assert.ok((html.match(/class="katex-display(?:\s|")/g) || []).length >= 4);
   } finally {
     harness.window.close();
   }

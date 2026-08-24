@@ -6,7 +6,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import Chart from 'chart.js/auto';
 import Cropper from 'cropperjs';
-import katex from 'katex/dist/katex.min.js';
+import katexScriptUrl from 'katex/dist/katex.min.js?url';
 import { installVendorBridge } from './app/bootstrap/vendor-bridge.js';
 import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
 import {
@@ -44,6 +44,11 @@ const recordBootstrapMilestone = (markName, measureName) => {
 
 async function bootstrap() {
   markStartup(STARTUP_MARKS.BOOTSTRAP_START);
+  await loadVendorScript(katexScriptUrl);
+  const katex = globalThis.katex;
+  if (typeof katex?.renderToString !== 'function') {
+    throw new TypeError('KaTeX did not expose a usable renderer.');
+  }
   installVendorBridge({
     marked,
     DOMPurify,

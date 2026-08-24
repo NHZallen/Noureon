@@ -2666,11 +2666,14 @@ test('settings sidebar button remains wired to initialize and open the settings 
 test('main bootstrap delegates vendor bridge, shell mount, and vendor script loading in order', () => {
   const mainSource = readSource('src/main.js');
 
+  assert.match(mainSource, /import\s+katexScriptUrl\s+from\s+'katex\/dist\/katex\.min\.js\?url';/);
+  assert.doesNotMatch(mainSource, /import\s+katex\s+from\s+'katex\/dist\/katex\.min\.js';/);
   assert.match(mainSource, /import\s+\{\s*installVendorBridge\s*\}\s+from\s+'\.\/app\/bootstrap\/vendor-bridge\.js';/);
   assert.match(mainSource, /import\s+\{\s*loadVendorScript\s*\}\s+from\s+'\.\/app\/bootstrap\/load-vendor-script\.js';/);
   assert.match(mainSource, /import\s+\{[^}]*\bmountAppShell\b[^}]*\}\s+from\s+'\.\/app\/bootstrap\/mount-shell\.js';/);
 
   const orderedBootstrapSteps = [
+    'await loadVendorScript(katexScriptUrl)',
     'installVendorBridge({',
     'mountAppShell(appShell)',
     "import('./data/i18n.js')",
