@@ -33,11 +33,14 @@ check('package-lock.json packages[""].version', lock.packages?.['']?.version, PR
 const { updateLogEntries } = await import(new URL('../src/data/update-logs/entries.js', import.meta.url));
 check('newest update-log entry version', updateLogEntries?.[0]?.version, PRODUCT_VERSION);
 
-// Locale files must hold the label only. A bare version number there would be a second source.
+// Locale files must hold the label only. Repeating the current product version there would
+// create a second source. Other three-part numeric strings may be legitimate dates or data.
 const localeDir = projectFile('src/data/i18n');
+const escapedProductVersion = PRODUCT_VERSION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const productVersionLiteral = new RegExp(`(?<!\\d)${escapedProductVersion}(?!\\d)`, 'g');
 for (const name of readdirSync(localeDir).filter((file) => file.endsWith('.js')).sort()) {
   const source = readFileSync(`${localeDir}/${name}`, 'utf8');
-  const stray = source.match(/\d+\.\d+\.\d+/g);
+  const stray = source.match(productVersionLiteral);
   if (stray) {
     failures.push(`src/data/i18n/${name} still contains a version literal: ${[...new Set(stray)].join(', ')}`);
   }
