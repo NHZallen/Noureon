@@ -106,6 +106,84 @@ test('complete formulas render in the current line before the stream finishes', 
   }
 });
 
+test('chart streams show a localized pending state and render as soon as the payload is valid', () => {
+  const { document, cleanup } = createDom('<div id="target"></div>');
+
+  try {
+    const target = document.getElementById('target');
+    const renderChartMarkdown = (text) => {
+      if (text.includes('"value":1') && text.trimEnd().endsWith('```')) {
+        return '<figure class="ac-chart ac-chart-bar" data-chart-payload="bar-payload"><div>Chart ready</div></figure>';
+      }
+      if (!text.includes('```chart')) return `<p>${text}</p>`;
+      return `<pre><code>${text}</code></pre>`;
+    };
+    const { feature } = createFeatureHarness(document, {
+      renderMarkdown: renderChartMarkdown,
+      renderMarkdownWithFormulas: renderChartMarkdown,
+      getStreamingText: (key, fallback) => key === 'chartGenerating' ? 'Generando gráfico…' : fallback
+    });
+    const renderer = feature.createStreamingMarkdownRenderer(target);
+
+    renderer.appendText('Intro\n```chart\n{\n');
+    assert.equal(target.querySelector('.streaming-chart-pending')?.textContent, 'Generando gráfico…');
+    assert.equal(target.querySelector('pre'), null);
+    assert.equal(target.querySelector('code'), null);
+    assert.doesNotMatch(target.textContent, /```|\{/);
+
+    renderer.appendText('"type":"bar",\n"data":[{"label":"A","value":1}]\n}');
+    const earlyChart = target.querySelector('.ac-chart[data-chart-payload]');
+    assert.ok(earlyChart);
+    assert.equal(earlyChart.textContent, 'Chart ready');
+    assert.equal(target.querySelector('pre'), null);
+    assert.equal(target.querySelector('code'), null);
+
+    renderer.appendText('\n```');
+    assert.equal(target.querySelector('.ac-chart[data-chart-payload]'), earlyChart);
+
+    renderer.finish({ renderFormulas: true });
+    assert.equal(target.querySelector('.ac-chart[data-chart-payload]'), earlyChart);
+    assert.equal(target.querySelector('.streaming-current-line'), null);
+  } finally {
+    cleanup();
+  }
+});
+
+test('growing tables stay behind one stable pending surface and completed tables keep DOM identity', () => {
+  const { document, cleanup } = createDom('<div id="target"></div>');
+
+  try {
+    const target = document.getElementById('target');
+    const renderTableMarkdown = (text) => {
+      if (!text.includes('| --- | --- |')) return `<p>${text}</p>`;
+      const suffix = text.includes('More') ? '<p>After</p><p>More</p>' : '<p>After</p>';
+      return `<div class="table-scroll-container"><table><tbody><tr><td>1</td><td>2</td></tr></tbody></table></div>${suffix}`;
+    };
+    const { feature } = createFeatureHarness(document, {
+      renderMarkdown: renderTableMarkdown,
+      renderMarkdownWithFormulas: renderTableMarkdown,
+      getStreamingText: (key, fallback) => key === 'tableGenerating' ? '表格生成中…' : fallback
+    });
+    const renderer = feature.createStreamingMarkdownRenderer(target);
+
+    renderer.appendText('Before\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+    const pending = target.querySelector('.streaming-table-pending');
+    assert.ok(pending);
+    assert.equal(pending.textContent, '表格生成中…');
+    renderer.appendText('| 3 | 4 |\n');
+    assert.equal(target.querySelector('.streaming-table-pending'), pending);
+    assert.equal(target.querySelector('table'), null);
+
+    renderer.appendText('\nAfter\n');
+    const stableTable = target.querySelector('.table-scroll-container');
+    assert.ok(stableTable);
+    renderer.appendText('More\n');
+    assert.equal(target.querySelector('.table-scroll-container'), stableTable);
+  } finally {
+    cleanup();
+  }
+});
+
 test('finish flushes pending text with formulas and completes the DOM lifecycle', () => {
   const { document, cleanup } = createDom('<div id="target"></div>');
 

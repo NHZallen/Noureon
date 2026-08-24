@@ -24,6 +24,8 @@ test('Russian and Spanish dynamic UI copy is native rather than English or Chine
   assert.equal(getRuntimeTexts('ru').requestFailed, 'Ошибка запроса');
   assert.equal(getRuntimeTexts('es').translatedDocuments, 'Documentos traducidos');
   assert.equal(getRuntimeTexts('es').clearAllApiKeys, 'Borrar todas las claves API');
+  assert.equal(getRuntimeTexts('zh-TW').chartGenerating, '圖表生成中…');
+  assert.equal(getRuntimeTexts('fr').tableGenerating, 'Génération du tableau…');
 });
 
 test('audited runtime surfaces no longer contain binary English-versus-Chinese language branches', () => {

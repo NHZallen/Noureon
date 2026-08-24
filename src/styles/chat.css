@@ -554,6 +554,46 @@
     overflow-wrap: anywhere;
 }
 
+.streaming-structured-pending {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    min-height: 7rem;
+    margin: 0.4rem 0 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--modal-bg) 92%, var(--hover-bg));
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    white-space: normal;
+}
+
+.streaming-chart-pending {
+    min-height: clamp(11rem, 28vw, 17rem);
+}
+
+.streaming-structured-indicator {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    border: 2px solid color-mix(in srgb, var(--text-secondary) 28%, transparent);
+    border-top-color: var(--accent-color, #3b82f6);
+    border-radius: 50%;
+    animation: streamingStructuredSpin 0.8s linear infinite;
+}
+
+@keyframes streamingStructuredSpin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .streaming-structured-indicator {
+        animation: none;
+        border-color: var(--accent-color, #3b82f6);
+    }
+}
+
 .streaming-fade-char {
     opacity: 0;
     animation: streamingFadeIn 0.22s ease-out forwards;

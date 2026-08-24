@@ -775,6 +775,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     keepChatPositionAfterRender,
     scheduleFrame: (callback) => requestAnimationFrame(callback),
     waitForFrame: () => new Promise((resolve) => scheduleTimeout(resolve, 16)),
+    getStreamingText: (key, fallback) => getRuntimeText(getUiLanguage(), key) || fallback,
     getStreamErrorText: (error) => `串流回應失敗：${error.message}`,
     logError: (...args) => logger.error?.(...args)
   });
