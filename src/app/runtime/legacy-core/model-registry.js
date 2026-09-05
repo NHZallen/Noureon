@@ -6,20 +6,20 @@ import {
 } from '../kernel/config-normalization.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
-    'gemini-3.7-flash': { releasedAt: 20260813, outputPricePerMillion: 3.75 },
+    'gemini-3.8-flash': { releasedAt: 20260903, outputPricePerMillion: 3.75 },
     'gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
     'gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
     'nvidia/deepseek-ai/deepseek-v4-flash-0731': { releasedAt: 20260731, outputPricePerMillion: 0 },
-    'nvidia/deepseek-ai/deepseek-v4-pro': { releasedAt: 20260424, outputPricePerMillion: 0 },
+    'nvidia/deepseek-ai/deepseek-v4-pro-0813': { releasedAt: 20260813, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.2': { releasedAt: 20260616, outputPricePerMillion: 0 },
-    'nvidia/moonshotai/kimi-k2.6': { releasedAt: 20260420, outputPricePerMillion: 0 },
+    'nvidia/moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 0 },
     'nvidia/stepfun-ai/step-3.7-flash': { releasedAt: 20260528, outputPricePerMillion: 0 },
     'anthropic/claude-haiku-4.5': { releasedAt: 20251015, outputPricePerMillion: 5 },
     'anthropic/claude-sonnet-5': { releasedAt: 20260630, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5': { releasedAt: 20260724, outputPricePerMillion: 25 },
-    'anthropic/claude-fable-5': { releasedAt: 20260609, outputPricePerMillion: 50 },
-    'deepseek/deepseek-v4-flash-0731': { releasedAt: 20260731, outputPricePerMillion: 0.28 },
-    'deepseek/deepseek-v4-flash-vision-exp': { releasedAt: 20260821, outputPricePerMillion: 1.32 },
+    'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
+    'deepseek/deepseek-v4-flash-0731': { releasedAt: 20260731, outputPricePerMillion: 0.16 },
+    'deepseek/deepseek-v4-flash-vision-exp': { releasedAt: 20260821, outputPricePerMillion: 0.6468 },
     'deepseek/deepseek-v4-pro-0813': { releasedAt: 20260813, outputPricePerMillion: 1.98 },
     'google/gemini-3.1-flash-lite-image': { releasedAt: 20260630, outputPricePerMillion: 1.5 },
     'google/gemini-3.1-flash-image': { releasedAt: 20260618, outputPricePerMillion: 3 },
@@ -30,7 +30,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
-    'openai/gpt-5.5': { releasedAt: 20260424, outputPricePerMillion: 30 },
+    'openai/gpt-6-astra': { releasedAt: 20260904, outputPricePerMillion: 50 },
     'openai/gpt-5.6-luna': { releasedAt: 20260709, outputPricePerMillion: 6 },
     'openai/gpt-5.6-terra': { releasedAt: 20260709, outputPricePerMillion: 15 },
     'openai/gpt-5.6-sol': { releasedAt: 20260709, outputPricePerMillion: 30 },
@@ -38,29 +38,29 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
     'qwen/qwen3.8-max': { releasedAt: 20260803, outputPricePerMillion: 6 },
-    'stealth/ox-alpha': { releasedAt: 20260820, outputPricePerMillion: 0 },
     'x-ai/grok-4.6': { releasedAt: 20260810, outputPricePerMillion: 6 },
-    'z-ai/glm-5.3': { releasedAt: 20260816, outputPricePerMillion: 4.4 }
+    'z-ai/glm-5.3': { releasedAt: 20260818, outputPricePerMillion: 3.5 },
+    'z-ai/glm-5.3-flash': { releasedAt: 20260826, outputPricePerMillion: 0.25 }
 });
 
 export const MODELS = [
     // Gemini Models (Native)
-    { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_7_flash_desc' },
+    { id: 'gemini-3.8-flash', legacyIds: ['gemini-3.7-flash'], name: 'Gemini 3.8 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_8_flash_desc' },
     { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_lite_desc' },
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'gemini', descriptionKey: 'model_gemini_3_1_pro_preview_desc' },
 
     // NVIDIA Build Free Models
     { id: 'nvidia/deepseek-ai/deepseek-v4-flash-0731', apiId: 'deepseek-ai/deepseek-v4-flash-0731', legacyIds: ['nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash'], name: 'NVIDIA DeepSeek V4 Flash 0731', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_flash_0731_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/deepseek-ai/deepseek-v4-pro', apiId: 'deepseek-ai/deepseek-v4-pro', name: 'NVIDIA DeepSeek V4 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/deepseek-ai/deepseek-v4-pro-0813', apiId: 'deepseek-ai/deepseek-v4-pro-0813', legacyIds: ['nvidia/deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-pro'], name: 'NVIDIA DeepSeek V4 Pro 0813', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_pro_0813_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.2', apiId: 'z-ai/glm-5.2', name: 'NVIDIA GLM-5.2', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_2_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/moonshotai/kimi-k2.6', apiId: 'moonshotai/kimi-k2.6', name: 'NVIDIA Kimi K2.6', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k2_6_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-3.7-flash', apiId: 'stepfun-ai/step-3.7-flash', name: 'NVIDIA Step 3.7 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_step_3_7_flash_desc', tier: ['free'], category: 'general' },
 
     // OpenRouter Paid Models (Anthropic)
     { id: 'anthropic/claude-haiku-4.5', name: 'Claude 4.5 Haiku', provider: 'openrouter', descriptionKey: 'model_claude_haiku_4_5_desc' },
     { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_5_desc' },
     { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5', provider: 'openrouter', descriptionKey: 'model_claude_opus_5_desc' },
-    { id: 'anthropic/claude-fable-5', name: 'Claude Fable 5', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_desc' },
+    { id: 'anthropic/claude-fable-5.1', legacyIds: ['anthropic/claude-fable-5'], name: 'Claude Fable 5.1', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_1_desc' },
 
     // OpenRouter Paid Models (DeepSeek)
     { id: 'deepseek/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash 0731', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_flash_0731_desc', category: 'general' },
@@ -87,7 +87,7 @@ export const MODELS = [
     { id: 'nvidia/nemotron-3.5-lightning:free', name: 'NVIDIA Nemotron 3.5 Lightning', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_lightning_desc', category: 'general' },
 
     // OpenRouter Paid Models (OpenAI)
-    { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openrouter', descriptionKey: 'model_gpt_5_5_desc', category: 'general' },
+    { id: 'openai/gpt-6-astra', legacyIds: ['openai/gpt-5.5'], name: 'OpenAI GPT-6 Astra', provider: 'openrouter', descriptionKey: 'model_gpt_6_astra_desc', category: 'general' },
     { id: 'openai/gpt-5.6-luna', name: 'OpenAI GPT-5.6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_luna_desc', category: 'general' },
     { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
     { id: 'openai/gpt-5.6-sol', name: 'OpenAI GPT-5.6 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_sol_desc', category: 'general' },
@@ -98,14 +98,12 @@ export const MODELS = [
     { id: 'qwen/qwen3.7-plus', name: 'Qwen3.7 Plus', provider: 'openrouter', descriptionKey: 'model_qwen3_7_plus_desc', category: 'general' },
     { id: 'qwen/qwen3.8-max', name: 'Qwen3.8 Max', provider: 'openrouter', descriptionKey: 'model_qwen3_8_max_desc', category: 'general' },
 
-    // OpenRouter Beta Models (Stealth)
-    { id: 'stealth/ox-alpha', name: 'Ox Alpha', provider: 'openrouter', descriptionKey: 'model_ox_alpha_desc', category: 'coding', isBeta: true, requiresStealthTermsAcknowledgement: true, stealthTermsAcknowledgementId: 'stealth/ox-alpha@stealth-terms-v1' },
-
     // OpenRouter Paid Models (xAI)
     { id: 'x-ai/grok-4.6', name: 'xAI Grok 4.6', provider: 'openrouter', descriptionKey: 'model_grok_4_6_desc', category: 'general' },
 
     // OpenRouter Paid Models (Z.ai)
     { id: 'z-ai/glm-5.3', name: 'Z.ai GLM 5.3', provider: 'openrouter', descriptionKey: 'model_glm_5_3_desc', category: 'general' },
+    { id: 'z-ai/glm-5.3-flash', name: 'Z.ai GLM 5.3 Flash', provider: 'openrouter', descriptionKey: 'model_glm_5_3_flash_desc', category: 'general' },
 ].map((model) => Object.freeze({ ...model, ...MODEL_RELEASE_METADATA[model.id] }));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2',
@@ -118,26 +116,26 @@ export const OPENROUTER_VISION_MODELS = [
     'anthropic/claude-haiku-4.5',
     'anthropic/claude-sonnet-5',
     'anthropic/claude-opus-5',
-    'anthropic/claude-fable-5',
+    'anthropic/claude-fable-5.1',
     'deepseek/deepseek-v4-flash-vision-exp',
     'minimax/minimax-m3',
     'moonshotai/kimi-k3',
-    'openai/gpt-5.5',
+    'openai/gpt-6-astra',
     'openai/gpt-5.6-luna',
     'openai/gpt-5.6-terra',
     'openai/gpt-5.6-sol',
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.8-max',
-    'stealth/ox-alpha',
+    'z-ai/glm-5.3-flash',
     'x-ai/grok-4.6'
 ];
 export const NVIDIA_VISION_MODELS = [
-    'moonshotai/kimi-k2.6',
+    'moonshotai/kimi-k3',
     'stepfun-ai/step-3.7-flash'
 ];
 export const GEMINI_DOCUMENT_MODELS = [
-    'gemini-3.7-flash',
+    'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.1-pro-preview'
 ];
@@ -160,11 +158,14 @@ const NVIDIA_REASONING_EFFORT = 'nvidiaReasoningEffort';
 const OPENROUTER_REASONING_EFFORT = 'openrouterReasoningEffort';
 const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
 export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
-    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-3.7-flash']],
+    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-3.8-flash']],
     [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'minimal', ['gemini-3.5-flash-lite']],
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'high', ['gemini-3.1-pro-preview']],
     [NVIDIA_REASONING_EFFORT, ['none', 'high', 'max'], 'high', ['nvidia/deepseek-ai/deepseek-v4-flash-0731']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-fable-5', 'anthropic/claude-sonnet-5']],
+    [NVIDIA_REASONING_EFFORT, ['none', 'high', 'max'], 'none', ['nvidia/deepseek-ai/deepseek-v4-pro-0813']],
+    [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/moonshotai/kimi-k3']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-sonnet-5']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-opus-5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-pro-0813']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4-flash-vision-exp']],
@@ -172,12 +173,11 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high', 'xhigh'], 'xhigh', ['qwen/qwen3.8-max']],
-    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh'], 'medium', ['openai/gpt-5.5']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-astra']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['stealth/ox-alpha']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3']]
+    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']]
 ]);
 export const COUNCIL_MIN_MODELS = 2;
 export const COUNCIL_MAX_MODELS = 5;

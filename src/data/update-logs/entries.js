@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.7.1",
+    date: "2026-09-05",
+    content: [
+      "<strong>Noureon 16.7.1 發布說明</strong>",
+      "本版本同步 Gemini、OpenRouter 與 NVIDIA 的最新模型清單、價格及多模態能力。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>模型升級：</strong>Gemini 更新為 3.8 Flash；Claude Fable 更新為 5.1；OpenAI GPT-5.5 更新為 GPT-6 Astra。</li><li><strong>新增模型：</strong>OpenRouter 新增 Z.ai GLM 5.3 Flash；NVIDIA 更新為 DeepSeek V4 Pro 0813 與 Kimi K3。</li><li><strong>能力與價格：</strong>依官方資料更新思考程度、圖像輸入能力與價格，並將 DeepSeek 說明統一為簡潔的輸入／輸出價格。</li><li><strong>模型精簡：</strong>移除 Ox Alpha，既有模型選擇會由設定遷移機制安全回退。</li></ul>",
+      "<strong>相容性</strong>",
+      "既有 Gemini 3.7 Flash、Claude Fable 5、GPT-5.5 及 NVIDIA 舊模型設定會自動遷移至對應的新模型。"
+    ]
+  },
+  {
     version: "16.7.0",
     date: "2026-08-24",
     content: [

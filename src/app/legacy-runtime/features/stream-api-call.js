@@ -163,7 +163,7 @@ const buildGeminiRequest = ({
   modelSupportsUploadedFile
 }) => {
   const supportsSamplingParameters = ![
-    'gemini-3.7-flash',
+    'gemini-3.8-flash',
     'gemini-3.5-flash-lite'
   ].includes(modelId);
   const payload = {

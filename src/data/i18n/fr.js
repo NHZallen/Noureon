@@ -556,16 +556,16 @@
         processingFiles: 'Traitement des fichiers...', // New
         zipNoJson: 'Aucune donnée JSON trouvée dans le fichier ZIP.', // New
         // Model Descriptions & Limits
-        model_gemini_3_7_flash_desc_tier_paid: '0,75 $/M entrée, 3,75 $/M sortie jusqu’au 31/12/2026',
+        model_gemini_3_8_flash_desc_tier_paid: '0,75 $/M entrée, 3,75 $/M sortie jusqu’au 31/12/2026',
         model_gemini_3_5_flash_lite_desc_tier_paid: '0,30 $/M entrée, 2,50 $/M sortie',
         model_gemini_3_1_pro_preview_desc_tier_paid: '2 $/M entrée, 12 $/M sortie',
         model_gemma_4_31b_it_desc_tier_free: 'Coût - Gratuit',
         model_gemma_4_26b_a4b_it_desc_tier_free: 'Coût - Gratuit',
         // NVIDIA Free
         model_nvidia_gemma_4_31b_it_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_deepseek_v4_pro_desc_tier_free: 'Coût - Gratuit',
+        model_nvidia_deepseek_v4_pro_0813_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_deepseek_v4_flash_0731_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_kimi_k2_6_desc_tier_free: 'Coût - Gratuit',
+        model_nvidia_kimi_k3_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_glm_5_2_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_step_3_7_flash_desc_tier_free: 'Coût - Gratuit',
         // OpenRouter Free
@@ -574,7 +574,6 @@
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_5_lightning_desc_tier_free: 'Coût - Gratuit',
         model_laguna_s_2_1_desc_tier_free: 'Coût - Gratuit',
-        model_ox_alpha_desc: 'Modèle bêta gratuit de raisonnement visuel fourni par un opérateur furtif tiers',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'Modèle OpenRouter de génération et retouche d’images',
         model_gemini_3_pro_image_desc_tier_paid: 'Génération d’images de haute qualité et retouche par référence',
@@ -594,7 +593,7 @@
         imageSeedOptional: 'Seed (facultatif)',
         imageProviderOptions: 'Options du fournisseur (JSON)',
         imageInvalidJson: 'Veuillez saisir un JSON valide',
-        model_gpt_5_5_desc_tier_paid: '5 $/M entrée, 30 $/M sortie',
+        model_gpt_6_astra_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
         model_gpt_5_6_luna_desc_tier_paid: '1 $/M entrée, 6 $/M sortie',
         model_gpt_5_6_terra_desc_tier_paid: '2,50 $/M entrée, 15 $/M sortie',
         model_gpt_5_6_sol_desc_tier_paid: '5 $/M entrée, 30 $/M sortie',
@@ -602,7 +601,7 @@
         model_claude_opus_5_desc_tier_paid: '5 $/M entrée, 25 $/M sortie',
         model_claude_sonnet_5_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
         model_claude_haiku_4_5_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
-        model_claude_fable_5_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
+        model_claude_fable_5_1_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
         // Qwen Paid
         model_qwen3_8_max_desc_tier_paid: '2 $/M entrée, 6 $/M sortie',
         model_qwen3_7_plus_desc_tier_paid: '0,32 $/M entrée, 1,28 $/M sortie',
@@ -612,11 +611,12 @@
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
         // Z.AI Paid
-        model_glm_5_3_desc_tier_paid: '1,40 $/M entrée, 4,40 $/M sortie',
+        model_glm_5_3_desc_tier_paid: '1,15 $/M entrée, 3,50 $/M sortie',
+        model_glm_5_3_flash_desc_tier_paid: '0,075 $/M entrée, 0,25 $/M sortie',
         // DeepSeek Paid
-        model_deepseek_v4_pro_0813_desc_tier_paid: 'Base : 0,66 $/M entrée, 1,98 $/M sortie ; doublé sur certains créneaux UTC',
-        model_deepseek_v4_flash_0731_desc_tier_paid: '0,14 $/M entrée, 0,28 $/M sortie',
-        model_deepseek_v4_flash_vision_exp_desc_tier_paid: 'Selon l’heure UTC : 0,22–0,44 $/M entrée, 0,66–1,32 $/M sortie',
+        model_deepseek_v4_pro_0813_desc_tier_paid: '0,66 $/M entrée, 1,98 $/M sortie',
+        model_deepseek_v4_flash_0731_desc_tier_paid: '0,05 $/M entrée, 0,16 $/M sortie',
+        model_deepseek_v4_flash_vision_exp_desc_tier_paid: '0,2156 $/M entrée, 0,6468 $/M sortie',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
         // Official Nouras

@@ -470,10 +470,10 @@ test('Gemini request-scoped web search works without mutating conversation searc
   assert.equal(conversation.isWebSearchEnabled, false);
 });
 
-test('Gemini 3.7 Flash omits deprecated sampling parameters', async () => {
+test('Gemini 3.8 Flash omits deprecated sampling parameters', async () => {
   const { streamApiCall, requests } = createHarness({
     provider: 'gemini',
-    modelInfo: { apiId: 'gemini-3.7-flash' }
+    modelInfo: { apiId: 'gemini-3.8-flash' }
   });
 
   await streamApiCall([{ text: 'Hello' }], () => {}, undefined);

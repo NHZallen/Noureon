@@ -556,16 +556,16 @@
         processingFiles: '正在處理檔案...',
         zipNoJson: 'ZIP 檔案中找不到 JSON 資料。',
         // Model Descriptions & Limits
-        model_gemini_3_7_flash_desc_tier_paid: '2026/12/31 前：百萬輸入/0.75$、百萬輸出/3.75$',
+        model_gemini_3_8_flash_desc_tier_paid: '2026/12/31 前：百萬輸入/0.75$、百萬輸出/3.75$',
         model_gemini_3_5_flash_lite_desc_tier_paid: '百萬輸入/0.3$、百萬輸出/2.5$',
         model_gemini_3_1_pro_preview_desc_tier_paid: '百萬輸入/2$、百萬輸出/12$',
         model_gemma_4_31b_it_desc_tier_free: '費用-免費',
         model_gemma_4_26b_a4b_it_desc_tier_free: '費用-免費',
         // NVIDIA Free
         model_nvidia_gemma_4_31b_it_desc_tier_free: '費用-免費',
-        model_nvidia_deepseek_v4_pro_desc_tier_free: '費用-免費',
+        model_nvidia_deepseek_v4_pro_0813_desc_tier_free: '費用-免費',
         model_nvidia_deepseek_v4_flash_0731_desc_tier_free: '費用-免費',
-        model_nvidia_kimi_k2_6_desc_tier_free: '費用-免費',
+        model_nvidia_kimi_k3_desc_tier_free: '費用-免費',
         model_nvidia_glm_5_2_desc_tier_free: '費用-免費',
         model_nvidia_step_3_7_flash_desc_tier_free: '費用-免費',
         // OpenRouter Free
@@ -574,7 +574,6 @@
         model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
         model_nemotron_3_5_lightning_desc_tier_free: '費用-免費',
         model_laguna_s_2_1_desc_tier_free: '費用-免費',
-        model_ox_alpha_desc: '由第三方隱身供應商提供的免費測試版視覺推理模型',
         // OpenAI Paid
         model_gpt_image_2_desc_tier_paid: 'OpenRouter 圖片生成與編輯模型',
         model_gemini_3_pro_image_desc_tier_paid: '高品質圖片生成與參考圖編輯',
@@ -594,7 +593,7 @@
         imageSeedOptional: 'Seed（選填）',
         imageProviderOptions: '供應商選項（JSON）',
         imageInvalidJson: '請輸入有效的 JSON',
-        model_gpt_5_5_desc_tier_paid: '百萬輸入/5$、百萬輸出/30$',
+        model_gpt_6_astra_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',
         model_gpt_5_6_luna_desc_tier_paid: '百萬輸入/1$、百萬輸出/6$',
         model_gpt_5_6_terra_desc_tier_paid: '百萬輸入/2.5$、百萬輸出/15$',
         model_gpt_5_6_sol_desc_tier_paid: '百萬輸入/5$、百萬輸出/30$',
@@ -602,7 +601,7 @@
         model_claude_opus_5_desc_tier_paid: '百萬輸入/5$、百萬輸出/25$',
         model_claude_sonnet_5_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
         model_claude_haiku_4_5_desc_tier_paid: '百萬輸入/1$、百萬輸出/5$',
-        model_claude_fable_5_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',
+        model_claude_fable_5_1_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',
         // Qwen Paid
         model_qwen3_8_max_desc_tier_paid: '百萬輸入/2$、百萬輸出/6$',
         model_qwen3_7_plus_desc_tier_paid: '百萬輸入/0.32$、百萬輸出/1.28$',
@@ -612,11 +611,12 @@
         // Minimax Paid
         model_minimax_m3_desc_tier_paid: '百萬輸入/0.3$、百萬輸出/1.2$',
         // Z.AI Paid
-        model_glm_5_3_desc_tier_paid: '百萬輸入/1.40$、百萬輸出/4.40$',
+        model_glm_5_3_desc_tier_paid: '百萬輸入/1.15$、百萬輸出/3.50$',
+        model_glm_5_3_flash_desc_tier_paid: '百萬輸入/0.075$、百萬輸出/0.25$',
         // DeepSeek Paid
-        model_deepseek_v4_pro_0813_desc_tier_paid: '基本價：百萬輸入/0.66$、百萬輸出/1.98$；部分 UTC 時段加倍',
-        model_deepseek_v4_flash_0731_desc_tier_paid: '百萬輸入/0.14$、百萬輸出/0.28$',
-        model_deepseek_v4_flash_vision_exp_desc_tier_paid: '依 UTC 時段：百萬輸入/0.22–0.44$、百萬輸出/0.66–1.32$',
+        model_deepseek_v4_pro_0813_desc_tier_paid: '百萬輸入/0.66$、百萬輸出/1.98$',
+        model_deepseek_v4_flash_0731_desc_tier_paid: '百萬輸入/0.05$、百萬輸出/0.16$',
+        model_deepseek_v4_flash_vision_exp_desc_tier_paid: '百萬輸入/0.2156$、百萬輸出/0.6468$',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
         // Official Nouras
