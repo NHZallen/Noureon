@@ -12,7 +12,8 @@ import {
 } from '../src/app/legacy-runtime/features/image-generation-config.js';
 
 const EXPECTED_MODELS = [
-  'openai/gpt-image-2',
+  'openai/gpt-image-2.5-flare',
+  'openai/gpt-image-2.5-sunburst',
   'google/gemini-3-pro-image',
   'google/gemini-3.1-flash-image',
   'google/gemini-3.1-flash-lite-image'

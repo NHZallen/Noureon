@@ -575,7 +575,8 @@
         model_nemotron_3_5_lightning_desc_tier_free: 'Coût - Gratuit',
         model_laguna_s_2_1_desc_tier_free: 'Coût - Gratuit',
         // OpenAI Paid
-        model_gpt_image_2_desc_tier_paid: 'Modèle OpenRouter de génération et retouche d’images',
+        model_gpt_image_2_5_flare_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',
+        model_gpt_image_2_5_sunburst_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',
         model_gemini_3_pro_image_desc_tier_paid: 'Génération d’images de haute qualité et retouche par référence',
         model_gemini_3_1_flash_image_desc_tier_paid: 'Génération rapide et retouches itératives',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Génération d’images légère et rapide',
@@ -614,9 +615,7 @@
         model_glm_5_3_desc_tier_paid: '1,15 $/M entrée, 3,50 $/M sortie',
         model_glm_5_3_flash_desc_tier_paid: '0,075 $/M entrée, 0,25 $/M sortie',
         // DeepSeek Paid
-        model_deepseek_v4_pro_0813_desc_tier_paid: '0,66 $/M entrée, 1,98 $/M sortie',
-        model_deepseek_v4_flash_0731_desc_tier_paid: '0,05 $/M entrée, 0,16 $/M sortie',
-        model_deepseek_v4_flash_vision_exp_desc_tier_paid: '0,2156 $/M entrée, 0,6468 $/M sortie',
+        model_deepseek_v4_1_flash_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
         // Official Nouras

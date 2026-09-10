@@ -575,7 +575,8 @@
         model_nemotron_3_5_lightning_desc_tier_free: '費用-免費',
         model_laguna_s_2_1_desc_tier_free: '費用-免費',
         // OpenAI Paid
-        model_gpt_image_2_desc_tier_paid: 'OpenRouter 圖片生成與編輯模型',
+        model_gpt_image_2_5_flare_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',
+        model_gpt_image_2_5_sunburst_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',
         model_gemini_3_pro_image_desc_tier_paid: '高品質圖片生成與參考圖編輯',
         model_gemini_3_1_flash_image_desc_tier_paid: '快速圖片生成與多輪修改',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: '輕量快速圖片生成',
@@ -614,9 +615,7 @@
         model_glm_5_3_desc_tier_paid: '百萬輸入/1.15$、百萬輸出/3.50$',
         model_glm_5_3_flash_desc_tier_paid: '百萬輸入/0.075$、百萬輸出/0.25$',
         // DeepSeek Paid
-        model_deepseek_v4_pro_0813_desc_tier_paid: '百萬輸入/0.66$、百萬輸出/1.98$',
-        model_deepseek_v4_flash_0731_desc_tier_paid: '百萬輸入/0.05$、百萬輸出/0.16$',
-        model_deepseek_v4_flash_vision_exp_desc_tier_paid: '百萬輸入/0.2156$、百萬輸出/0.6468$',
+        model_deepseek_v4_1_flash_desc_tier_paid: '百萬輸入/0.30$、百萬輸出/1.20$',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
         // Official Nouras

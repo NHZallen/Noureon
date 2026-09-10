@@ -23,7 +23,7 @@ test('uses translated search context and new image attachments for generation', 
       { text: 'turn it into watercolor' },
       { inlineData: { mimeType: 'image/jpeg', data: 'new-reference' } }
     ],
-    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
     conversation: {
       imageConfig: { aspectRatio: '16:9', resolution: '2K' },
       messages: [{ role: 'model', parts: [{ generatedImage: { id: 'old', storageKey: 'old-key' } }] }]
@@ -53,12 +53,12 @@ test('preserves prompts when translation returns the original OpenRouter request
   await lifecycle.run({
     targetElement: { innerHTML: '' },
     userParts: [{ text: '畫一隻穿雨衣的柴犬' }],
-    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
     conversation: { messages: [] }
   });
 
   assert.equal(request.prompt, '畫一隻穿雨衣的柴犬');
-  assert.equal(request.model, 'openai/gpt-image-2');
+  assert.equal(request.model, 'openai/gpt-image-2.5-flare');
 });
 
 test('falls back to the latest generated image when there is no new attachment', async () => {
@@ -77,7 +77,7 @@ test('falls back to the latest generated image when there is no new attachment',
   await lifecycle.run({
     targetElement: { innerHTML: '' },
     userParts: [{ text: 'make it darker' }],
-    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
     conversation: {
       messages: [
         { role: 'model', parts: [{ generatedImage: { id: 'older', storageKey: '1' } }] },
@@ -109,7 +109,7 @@ test('tells the user when the latest generated image can no longer be reused', a
   await lifecycle.run({
     targetElement: { innerHTML: '', querySelector: () => label },
     userParts: [{ text: 'make it darker' }],
-    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter', supportsImageStreaming: true },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportsImageStreaming: true },
     conversation: {
       messages: [{ role: 'model', parts: [{ generatedImage: { id: 'latest', storageKey: 'gone' } }] }]
     }
@@ -137,7 +137,7 @@ test('stays silent when the conversation has no generated image to reuse', async
   await lifecycle.run({
     targetElement: { innerHTML: '' },
     userParts: [{ text: 'a shiba inu in a raincoat' }],
-    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
     conversation: { messages: [] }
   });
 
@@ -163,7 +163,7 @@ test('keeps image-to-image requests buffered even when the model supports genera
       { text: 'make it winter' },
       { inlineData: { mimeType: 'image/png', data: 'reference' } }
     ],
-    modelInfo: { id: 'openai/gpt-image-2', provider: 'openrouter', supportsImageStreaming: true },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportsImageStreaming: true },
     conversation: { messages: [] }
   });
 

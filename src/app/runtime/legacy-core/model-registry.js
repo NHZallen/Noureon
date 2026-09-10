@@ -18,9 +18,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'anthropic/claude-sonnet-5': { releasedAt: 20260630, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5': { releasedAt: 20260724, outputPricePerMillion: 25 },
     'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
-    'deepseek/deepseek-v4-flash-0731': { releasedAt: 20260731, outputPricePerMillion: 0.16 },
-    'deepseek/deepseek-v4-flash-vision-exp': { releasedAt: 20260821, outputPricePerMillion: 0.6468 },
-    'deepseek/deepseek-v4-pro-0813': { releasedAt: 20260813, outputPricePerMillion: 1.98 },
+    'deepseek/deepseek-v4.1-flash': { releasedAt: 20260910, outputPricePerMillion: 1.2 },
     'google/gemini-3.1-flash-lite-image': { releasedAt: 20260630, outputPricePerMillion: 1.5 },
     'google/gemini-3.1-flash-image': { releasedAt: 20260618, outputPricePerMillion: 3 },
     'google/gemini-3-pro-image': { releasedAt: 20260618, outputPricePerMillion: 12 },
@@ -34,7 +32,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'openai/gpt-5.6-luna': { releasedAt: 20260709, outputPricePerMillion: 6 },
     'openai/gpt-5.6-terra': { releasedAt: 20260709, outputPricePerMillion: 15 },
     'openai/gpt-5.6-sol': { releasedAt: 20260709, outputPricePerMillion: 30 },
-    'openai/gpt-image-2': { releasedAt: 20260624, outputPricePerMillion: 8 },
+    'openai/gpt-image-2.5-flare': { releasedAt: 20260909, outputPricePerMillion: 30 },
+    'openai/gpt-image-2.5-sunburst': { releasedAt: 20260909, outputPricePerMillion: 30 },
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
     'qwen/qwen3.8-max': { releasedAt: 20260803, outputPricePerMillion: 6 },
@@ -63,9 +62,7 @@ export const MODELS = [
     { id: 'anthropic/claude-fable-5.1', legacyIds: ['anthropic/claude-fable-5'], name: 'Claude Fable 5.1', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_1_desc' },
 
     // OpenRouter Paid Models (DeepSeek)
-    { id: 'deepseek/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash 0731', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_flash_0731_desc', category: 'general' },
-    { id: 'deepseek/deepseek-v4-flash-vision-exp', name: 'DeepSeek V4 Flash Vision Exp', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_flash_vision_exp_desc', category: 'general' },
-    { id: 'deepseek/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro 0813', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_pro_0813_desc', category: 'general' },
+    { id: 'deepseek/deepseek-v4.1-flash', legacyIds: ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-flash-vision-exp', 'deepseek/deepseek-v4-pro-0813'], name: 'DeepSeek V4.1 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_1_flash_desc', category: 'general' },
 
     // OpenRouter Image Models (Google)
     { id: 'google/gemini-3.1-flash-lite-image', name: 'Gemini 3.1 Flash Lite Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_lite_image_desc', category: 'image_generation', outputModality: 'image' },
@@ -91,7 +88,8 @@ export const MODELS = [
     { id: 'openai/gpt-5.6-luna', name: 'OpenAI GPT-5.6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_luna_desc', category: 'general' },
     { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
     { id: 'openai/gpt-5.6-sol', name: 'OpenAI GPT-5.6 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_sol_desc', category: 'general' },
-    { id: 'openai/gpt-image-2', name: 'OpenAI GPT Image 2', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
+    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
+    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
 
     // OpenRouter Paid Models (Qwen)
     { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },
@@ -106,7 +104,8 @@ export const MODELS = [
     { id: 'z-ai/glm-5.3-flash', name: 'Z.ai GLM 5.3 Flash', provider: 'openrouter', descriptionKey: 'model_glm_5_3_flash_desc', category: 'general' },
 ].map((model) => Object.freeze({ ...model, ...MODEL_RELEASE_METADATA[model.id] }));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
-    'openai/gpt-image-2',
+    'openai/gpt-image-2.5-flare',
+    'openai/gpt-image-2.5-sunburst',
     'google/gemini-3-pro-image',
     'google/gemini-3.1-flash-image',
     'google/gemini-3.1-flash-lite-image'
@@ -117,7 +116,7 @@ export const OPENROUTER_VISION_MODELS = [
     'anthropic/claude-sonnet-5',
     'anthropic/claude-opus-5',
     'anthropic/claude-fable-5.1',
-    'deepseek/deepseek-v4-flash-vision-exp',
+    'deepseek/deepseek-v4.1-flash',
     'minimax/minimax-m3',
     'moonshotai/kimi-k3',
     'openai/gpt-6-astra',
@@ -167,8 +166,7 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-sonnet-5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-opus-5']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-pro-0813']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4-flash-vision-exp']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4.1-flash']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-3.1-flash-lite-image', 'google/gemini-3.1-flash-image']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],

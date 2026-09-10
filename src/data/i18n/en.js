@@ -575,7 +575,8 @@
         model_nemotron_3_5_lightning_desc_tier_free: 'Cost - Free',
         model_laguna_s_2_1_desc_tier_free: 'Cost - Free',
         // OpenAI Paid
-        model_gpt_image_2_desc_tier_paid: 'OpenRouter image generation and editing model',
+        model_gpt_image_2_5_flare_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
+        model_gpt_image_2_5_sunburst_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
         model_gemini_3_pro_image_desc_tier_paid: 'High-quality image generation and reference editing',
         model_gemini_3_1_flash_image_desc_tier_paid: 'Fast image generation and iterative editing',
         model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Lightweight, fast image generation',
@@ -614,9 +615,7 @@
         model_glm_5_3_desc_tier_paid: '$1.15/M input, $3.50/M output',
         model_glm_5_3_flash_desc_tier_paid: '$0.075/M input, $0.25/M output',
         // DeepSeek Paid
-        model_deepseek_v4_pro_0813_desc_tier_paid: '$0.66/M input, $1.98/M output',
-        model_deepseek_v4_flash_0731_desc_tier_paid: '$0.05/M input, $0.16/M output',
-        model_deepseek_v4_flash_vision_exp_desc_tier_paid: '$0.2156/M input, $0.6468/M output',
+        model_deepseek_v4_1_flash_desc_tier_paid: '$0.30/M input, $1.20/M output',
         // MoonshotAI Paid
         model_kimi_k3_desc_tier_paid: '$3/M input, $15/M output',
         // Official Nouras

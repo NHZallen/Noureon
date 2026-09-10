@@ -47,9 +47,12 @@ test('model registry exports the canonical model inventory', () => {
     && model.apiId === 'moonshotai/kimi-k3'
     && model.provider === 'nvidia'));
   assert.equal(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k2.6'), false);
-  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-0731' && model.provider === 'openrouter'));
-  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp' && model.provider === 'openrouter' && model.outputPricePerMillion === 0.6468));
-  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-pro-0813' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4.1-flash'
+    && model.provider === 'openrouter'
+    && model.outputPricePerMillion === 1.2));
+  assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-0731'), false);
+  assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp'), false);
+  assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-pro-0813'), false);
   assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.7-flash' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.8-max' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'z-ai/glm-5.3' && model.provider === 'openrouter'));
@@ -60,6 +63,13 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-fable-5'), false);
   assert.ok(MODELS.some((model) => model.id === 'openai/gpt-6-astra' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.id === 'openai/gpt-5.5'), false);
+  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-flare'
+    && model.provider === 'openrouter'
+    && model.supportsImageStreaming === true));
+  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-sunburst'
+    && model.provider === 'openrouter'
+    && model.supportsImageStreaming === true));
+  assert.equal(MODELS.some((model) => model.id === 'openai/gpt-image-2'), false);
   assert.equal(MODELS.some((model) => model.id === 'stealth/ox-alpha'), false);
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.6' && model.provider === 'openrouter'));
@@ -74,6 +84,10 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(getCanonicalModelId('openai/gpt-5.5'), 'openai/gpt-6-astra');
   assert.equal(getCanonicalModelId('nvidia/deepseek-ai/deepseek-v4-pro'), 'nvidia/deepseek-ai/deepseek-v4-pro-0813');
   assert.equal(getCanonicalModelId('nvidia/moonshotai/kimi-k2.6'), 'nvidia/moonshotai/kimi-k3');
+  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-0731'), 'deepseek/deepseek-v4.1-flash');
+  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-vision-exp'), 'deepseek/deepseek-v4.1-flash');
+  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-pro-0813'), 'deepseek/deepseek-v4.1-flash');
+  assert.equal(getCanonicalModelId('openai/gpt-image-2'), 'openai/gpt-image-2.5-flare');
 });
 
 test('model registry preserves provider labels and API id aliases', () => {
@@ -96,9 +110,8 @@ test('model registry preserves vision and document capability behavior', () => {
   const openRouterGpt56Models = ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']
     .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
-  const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp');
+  const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
   const glmFlashVisionModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
-  const openRouterTextModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash-0731');
   const nvidiaDeepseekTextModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash-0731');
   const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
   const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/moonshotai/kimi-k3');
@@ -113,7 +126,6 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsVision(deepseekVisionModel), true);
   assert.equal(modelSupportsVision(glmFlashVisionModel), true);
-  assert.equal(modelSupportsVision(openRouterTextModel), false);
   assert.equal(modelSupportsVision(nvidiaDeepseekTextModel), false);
   assert.equal(modelSupportsVision(nvidiaVisionModel), true);
   assert.equal(modelSupportsVision(nvidiaTextModel), false);
@@ -121,12 +133,12 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsDocumentUpload(geminiModel), true);
   assert.equal(modelSupportsDocumentUpload(geminiLiteModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterGrokVisionModel), true);
-  assert.equal(modelSupportsDocumentUpload(openRouterTextModel), true);
+  assert.equal(modelSupportsDocumentUpload(deepseekVisionModel), true);
   assert.equal(modelSupportsDocumentUpload(nvidiaVisionModel), false);
 });
 
 test('model registry exposes precise reasoning depth options for supported models only', () => {
-  const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-pro-0813');
+  const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
   const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
   const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-sol');
@@ -135,7 +147,6 @@ test('model registry exposes precise reasoning depth options for supported model
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
   const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5');
-  const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp');
   const fableModel = MODELS.find((model) => model.id === 'anthropic/claude-fable-5.1');
   const glmFlashModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
   const nvidiaDeepseekModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash-0731');
@@ -161,8 +172,6 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['low', 'high', 'max']);
   assert.deepEqual(getModelReasoningConfig(opus5Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(getModelReasoningConfig(opus5Model)?.defaultEffort, 'high');
-  assert.deepEqual(getModelReasoningConfig(deepseekVisionModel)?.options, ['low', 'high', 'max']);
-  assert.equal(getModelReasoningConfig(deepseekVisionModel)?.defaultEffort, 'high');
   assert.deepEqual(getModelReasoningConfig(fableModel)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(getModelReasoningConfig(fableModel)?.defaultEffort, 'high');
   assert.deepEqual(getModelReasoningConfig(glmFlashModel)?.options, ['low', 'high', 'max']);
@@ -192,7 +201,8 @@ test('model registry leaves excluded models on default reasoning', () => {
     'nvidia/nemotron-3.5-lightning:free',
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
-    'openai/gpt-image-2'
+    'openai/gpt-image-2.5-flare',
+    'openai/gpt-image-2.5-sunburst'
   ];
 
   for (const id of excludedIds) {
@@ -208,7 +218,7 @@ test('model registry keeps council and translator helpers live-config backed', (
       modelSettings: [
         { id: 'openai/gpt-6-astra', hidden: false, order: 2 },
         { id: 'gemini-3.8-flash', hidden: false, order: 1 },
-        { id: 'deepseek/deepseek-v4-flash-0731', hidden: true, order: 0 }
+        { id: 'deepseek/deepseek-v4.1-flash', hidden: true, order: 0 }
       ],
       councilTranslatorModelId: 'openai/gpt-6-astra',
       singleDocumentTranslatorModelId: 'gemini-3.1-pro-preview'

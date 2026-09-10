@@ -208,11 +208,11 @@ test('image generation mode exposes camera and image upload while hiding generic
     archived: false,
     imageConfig: { aspectRatio: '1:1', resolution: '1K' },
     isWebSearchEnabled: false,
-    model: 'openai/gpt-image-2',
+    model: 'openai/gpt-image-2.5-flare',
     provider: 'openrouter'
   };
   const model = {
-    id: 'openai/gpt-image-2',
+    id: 'openai/gpt-image-2.5-flare',
     outputModality: 'image',
     provider: 'openrouter'
   };

@@ -19,7 +19,7 @@ test('posts a normalized buffered request and returns raster and vector images',
 
   const result = await generate({
     apiKey: 'secret',
-    model: 'openai/gpt-image-2',
+    model: 'openai/gpt-image-2.5-flare',
     prompt: 'a red panda',
     config: {
       aspectRatio: '16:9',
@@ -37,7 +37,7 @@ test('posts a normalized buffered request and returns raster and vector images',
   assert.equal(request.url, 'https://openrouter.ai/api/v1/images');
   assert.equal(request.options.headers.Authorization, 'Bearer secret');
   assert.deepEqual(request.body, {
-    model: 'openai/gpt-image-2',
+    model: 'openai/gpt-image-2.5-flare',
     prompt: 'a red panda',
     n: 2,
     resolution: '2K',
@@ -74,7 +74,7 @@ test('streams partial images and captures completed images', async () => {
   });
 
   const result = await generate({
-    apiKey: 'secret', model: 'openai/gpt-image-2', prompt: 'landscape', onPartial: image => partials.push(image)
+    apiKey: 'secret', model: 'openai/gpt-image-2.5-flare', prompt: 'landscape', onPartial: image => partials.push(image)
   });
 
   assert.deepEqual(partials, [{ index: 0, b64Json: 'partial', mediaType: 'image/png' }]);
@@ -86,7 +86,7 @@ test('surfaces OpenRouter image API errors', async () => {
     fetchImpl: async () => new Response(JSON.stringify({ error: { message: 'unsupported resolution' } }), { status: 400 })
   });
   await assert.rejects(
-    generate({ apiKey: 'secret', model: 'openai/gpt-image-2', prompt: 'test' }),
+    generate({ apiKey: 'secret', model: 'openai/gpt-image-2.5-flare', prompt: 'test' }),
     /unsupported resolution/
   );
 });
