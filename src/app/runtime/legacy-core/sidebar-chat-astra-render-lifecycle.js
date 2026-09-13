@@ -85,6 +85,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     showMobileContextMenu,
     showMobileContextMenuForFolder,
     openAvatarEditor = () => {},
+    syncComposerLayout = () => {},
     toggleModal,
     showNotification,
     showCustomConfirm,
@@ -582,7 +583,8 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     setupMessageIntersectionObserver,
     updateInputState: () => legacyRuntimeContext.resolveBinding('input.updateInputState')(),
     scheduleFrame: (callback) => requestAnimationFrame(callback),
-    isAutoScrolling: getIsAutoScrolling
+    isAutoScrolling: getIsAutoScrolling,
+    syncComposerLayout
   });
 
   return {

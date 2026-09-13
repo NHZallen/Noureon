@@ -72,6 +72,7 @@ const createHarness = (overrides = {}) => {
     canAutoEnableWebSearch: overrides.canAutoEnableWebSearch || (() => true),
     getAutoSearchNotice: () => 'auto search on',
     renderInputIndicators: () => calls.push(['renderInputIndicators']),
+    beginFirstSubmit: () => calls.push(['beginFirstSubmit']),
     adjustTextareaHeight: () => calls.push(['adjustTextareaHeight']),
     renderFilePreviews: () => calls.push(['renderFilePreviews']),
     requestFrame: (callback) => {
@@ -136,6 +137,7 @@ test('prepares user text, uploaded files, temporary conversation, request-scoped
   assert.deepEqual(harness.calls.map(([name]) => name), [
     'setAbortController',
     'updateSubmitButtonState',
+    'beginFirstSubmit',
     'addMessageToUI',
     'requestFrame',
     'scrollIntoView',

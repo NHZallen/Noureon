@@ -857,9 +857,11 @@ export function createLegacyAppBootstrapLifecycle({
                     const popover = ALL_ELEMENTS.fileOptionsPopover;
                     if (popover.classList.contains('visible')) {
                         popover.classList.remove('visible');
+                        ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'false');
                     } else {
                         closeAllPopovers();
                         popover.classList.add('visible');
+                        ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'true');
                     }
                 });
                 // ==========================================

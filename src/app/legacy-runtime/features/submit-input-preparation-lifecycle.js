@@ -29,7 +29,8 @@ export function createSubmitInputPreparationLifecycle({
   isImageConversation = () => false,
   getQuoteReference = () => null,
   buildQuotedUserParts = ({ question }) => question ? [{ text: question }] : [],
-  clearQuoteReference = () => {}
+  clearQuoteReference = () => {},
+  beginFirstSubmit = () => false
 }) {
   const buildUserParts = (userMessage, uploadedFiles) => {
     const userParts = [];
@@ -92,6 +93,7 @@ export function createSubmitInputPreparationLifecycle({
     }
 
     const responseUsesCouncil = isCouncilEnabled(conversation);
+    beginFirstSubmit();
     const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
     const userMessageDiv = addMessageToUI(userMessageObject, conversation.messages.length, true);
     requestFrame(() => {

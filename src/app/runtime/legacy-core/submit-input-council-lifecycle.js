@@ -16,6 +16,7 @@ import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails } from '../../legac
 import { createImageModeControls } from '../../legacy-runtime/features/image-mode-controls.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { collectHistorySourceConversationIds } from '../memory/history-source-references.js';
+import { renderModelCouncilMenuItem } from '../features/composer-menu-item.js';
 import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
@@ -125,6 +126,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getQuoteReference = () => null,
     buildQuotedUserParts = ({ question }) => question ? [{ text: question }] : [],
     clearQuoteReference = () => {},
+    beginFirstSubmit = () => false,
     showCustomDialog,
     logger = console
   } = dependencies;
@@ -283,15 +285,14 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       button.id = 'model-council-menu-btn';
       button.type = 'button';
       button.className = 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3';
-      button.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-                    <span></span>
-                `;
       button.addEventListener('click', openCouncilPopoverFromAttachmentMenu);
       const learningButton = document.getElementById('learning-mode-btn');
       popover.insertBefore(button, learningButton || null);
     }
-    button.querySelector('span').textContent = getCouncilTexts().title;
+    renderModelCouncilMenuItem(button, {
+      label: getCouncilTexts().title,
+      description: i18n[getLiveConfig().uiLanguage]?.modelCouncilDescription || '讓多個模型共同分析'
+    });
     return button;
   };
 
@@ -878,7 +879,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     isImageConversation,
     getQuoteReference,
     buildQuotedUserParts,
-    clearQuoteReference
+    clearQuoteReference,
+    beginFirstSubmit
   });
 
   const prepareDefaultSubmit = async () => {

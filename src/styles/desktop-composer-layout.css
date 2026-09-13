@@ -1,0 +1,163 @@
+/* important-audit: required: regression override / legacy compatibility - the desktop composer must outrank legacy popover utility styles until the shared menu is split by viewport. */
+/* Keep the legacy compact menu content on mobile. */
+#file-options-popover .composer-menu-copy {
+    display: contents;
+}
+
+#file-options-popover .composer-menu-description {
+    display: none;
+}
+
+/* Desktop-only empty-chat positioning and the wide composer tools menu. */
+@media (min-width: 769px) {
+    #chat-workspace {
+        --desktop-composer-empty-offset: 0px;
+        --desktop-composer-menu-width: min(56rem, calc(100vw - 2rem));
+        overflow: hidden;
+    }
+
+    #input-bar-container {
+        position: relative;
+        z-index: 18;
+        transform: translateY(0);
+    }
+
+    #chat-workspace[data-composer-layout="empty"] #input-bar-container {
+        transform: translateY(var(--desktop-composer-empty-offset));
+    }
+
+    #chat-workspace.composer-layout-animate #input-bar-container {
+        will-change: transform;
+        transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #chat-workspace[data-composer-layout="empty"] #message-list {
+        position: relative;
+        height: 100%;
+    }
+
+    #chat-workspace[data-composer-layout="empty"] .chat-greeting-message {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        left: 0;
+        margin-top: 0 !important;
+        transform: translateY(calc(-100% - 2.3rem));
+    }
+
+    #chat-workspace[data-composer-layout="docking"] .chat-greeting-message {
+        opacity: 0;
+        transition: opacity 0.14s ease-out;
+    }
+
+    #file-options-popover:not(.message-edit-shared-popover) {
+        top: auto !important;
+        right: auto !important;
+        left: -0.7rem !important;
+        width: var(--desktop-composer-menu-width) !important;
+        bottom: calc(100% + 0.7rem) !important;
+        max-height: min(31rem, calc(100vh - 8rem));
+        margin: 0 !important;
+        padding: 0.48rem !important;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent) !important;
+        border-radius: 1.25rem !important;
+        background: color-mix(in srgb, var(--modal-bg) 96%, transparent) !important;
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.08) !important;
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        transform: translateY(0.6rem) scale(0.985) !important;
+        transform-origin: bottom left !important;
+        transition: opacity 0.16s ease-out, visibility 0.16s, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    }
+
+    #chat-workspace[data-composer-layout="empty"] #file-options-popover:not(.message-edit-shared-popover) {
+        top: calc(100% + 0.7rem) !important;
+        bottom: auto !important;
+        transform: translateY(-0.6rem) scale(0.985) !important;
+        transform-origin: top left !important;
+    }
+
+    #file-options-popover.visible:not(.message-edit-shared-popover),
+    #chat-workspace[data-composer-layout="empty"] #file-options-popover.visible:not(.message-edit-shared-popover) {
+        transform: translateY(0) scale(1) !important;
+    }
+
+    #file-options-popover:not(.message-edit-shared-popover) > button {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-height: 2.7rem !important;
+        gap: 0.8rem !important;
+        padding: 0.48rem 0.65rem !important;
+        border: 0 !important;
+        border-radius: 0.78rem !important;
+        background: transparent !important;
+        color: var(--text-primary) !important;
+        text-align: left;
+    }
+
+    #file-options-popover:not(.message-edit-shared-popover) > button:hover,
+    #file-options-popover:not(.message-edit-shared-popover) > button:focus-visible {
+        background: var(--hover-bg) !important;
+        outline: none;
+    }
+
+    #file-options-popover:not(.message-edit-shared-popover) > button > svg {
+        flex: 0 0 1.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        color: currentColor;
+        opacity: 0.82;
+    }
+
+    #file-options-popover .composer-menu-copy {
+        display: flex;
+        align-items: baseline;
+        min-width: 0;
+        gap: 0.75rem;
+        line-height: 1.35;
+    }
+
+    #file-options-popover .composer-menu-copy > [data-lang-key]:first-child,
+    #file-options-popover .composer-menu-label {
+        flex: 0 0 auto;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+    }
+
+    #file-options-popover .composer-menu-description {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #file-options-popover:not(.message-edit-shared-popover) > .border-t {
+        margin: 0.28rem 0.2rem !important;
+        border-color: color-mix(in srgb, var(--border-color) 78%, transparent) !important;
+    }
+
+    #file-options-popover:not(.message-edit-shared-popover) .image-mode-control,
+    #file-options-popover:not(.message-edit-shared-popover) .image-mode-advanced {
+        min-height: 2.7rem;
+        padding: 0.48rem 0.65rem !important;
+        border-radius: 0.78rem;
+    }
+
+    body.custom-wallpaper-active #file-options-popover:not(.message-edit-shared-popover) {
+        background: rgba(255, 255, 255, 0.9) !important;
+        border-color: rgba(255, 255, 255, 0.58) !important;
+    }
+}
+
+@media (min-width: 769px) and (prefers-reduced-motion: reduce) {
+    #chat-workspace #input-bar-container,
+    #file-options-popover:not(.message-edit-shared-popover) {
+        transition: none !important;
+    }
+}

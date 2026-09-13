@@ -23,6 +23,7 @@ export function createMessageListLifecycle({
     updateInputState,
     scheduleFrame,
     isAutoScrolling,
+    syncComposerLayout = () => {},
     logError = (...args) => console.error(...args)
 }) {
     let renderSequence = 0;
@@ -263,12 +264,14 @@ export function createMessageListLifecycle({
             renderCouncilControls();
             if (!renderMessages) {
                 updateInputState();
+                syncComposerLayout({ animate: false });
                 return;
             }
             renderSequence += 1;
             clearPendingBottomAnchor();
             messageList.classList.remove('chat-view-transition');
             messageList.innerHTML = '';
+            syncComposerLayout({ animate: false });
             return;
         }
 
@@ -280,6 +283,7 @@ export function createMessageListLifecycle({
         renderCouncilControls();
         if (!renderMessages) {
             updateInputState();
+            syncComposerLayout({ animate: false });
             return;
         }
         const renderToken = ++renderSequence;
@@ -294,6 +298,7 @@ export function createMessageListLifecycle({
                 addMessageToUI(message, index, false, false);
             });
         }
+        syncComposerLayout({ animate: false });
         scheduleFrame(() => {
             if (renderToken !== renderSequence) return;
             setupMessageIntersectionObserver();

@@ -20,6 +20,7 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['settingsBtn', 'settings-btn'],
   ['headerTitle', 'header-title'],
   ['modelSwitcherContainer', 'model-switcher-container'],
+  ['chatWorkspace', 'chat-workspace'],
   ['chatContainer', 'chat-container'],
   ['historySidebar', 'history-sidebar'],
   ['historySidebarList', 'history-sidebar-list'],

@@ -91,6 +91,15 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s!important;/s);
 });
 
+test('desktop tools menu follows the centered or docked composer without changing mobile rules', () => {
+  const css = readUiSource('src/styles/main.css');
+
+  assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#input-bar-container[^{]*\{[^}]*transform:\s*translateY\(var\(--desktop-composer-empty-offset\)\)/s);
+  assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*width:\s*var\(--desktop-composer-menu-width\)\s*!important;[^}]*bottom:\s*calc\(100%\s*\+\s*0\.7rem\)/s);
+  assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*top:\s*calc\(100%\s*\+\s*0\.7rem\)\s*!important;[^}]*bottom:\s*auto\s*!important/s);
+  assert.match(css, /@media\s*\(min-width:\s*769px\)\s*and\s*\(prefers-reduced-motion:\s*reduce\)/s);
+});
+
 test('mobile web search typing does not disable the message input when Tavily is missing', () => {
   const updateInputStateHelper = readUiSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');

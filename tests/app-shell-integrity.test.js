@@ -89,3 +89,23 @@ test('the version row keeps the number outside the translated label', () => {
   assert.equal(display.parentElement.textContent, `${i18n.en.versionNumber}${PRODUCT_VERSION}`);
   assert.match(display.parentElement.textContent, /^Version: \d+\.\d+\.\d+$/);
 });
+
+test('desktop composer shell exposes a stable layout root and descriptive tools menu', () => {
+  const document = renderShell();
+  const workspace = document.getElementById('chat-workspace');
+  const trigger = document.getElementById('add-file-btn');
+  const menu = document.getElementById('file-options-popover');
+
+  assert.ok(workspace);
+  assert.equal(workspace.dataset.composerLayout, 'docked');
+  assert.equal(trigger.getAttribute('aria-controls'), 'file-options-popover');
+  assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+  assert.equal(menu.getAttribute('role'), 'menu');
+  assert.equal(menu.querySelectorAll('.composer-menu-description').length, 5);
+
+  applyLanguage(document, 'en');
+  assert.equal(
+    document.querySelector('#upload-file-btn .composer-menu-description').textContent,
+    i18n.en.fileDescription
+  );
+});

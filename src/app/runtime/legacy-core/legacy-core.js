@@ -43,6 +43,7 @@ import { createRuntimeAppKernel } from '/src/app/runtime-app.js';
 import { createDialogNotificationLifecycle } from '/src/app/runtime/features/dialog-notification-lifecycle.js';
 import { arrangeInputMediaPreview } from '/src/app/runtime/features/input-media-placement.js';
 import { createCloudWorkspaceLiveLifecycle } from '/src/app/runtime/features/cloud-workspace-live-lifecycle.js';
+import { createDesktopComposerLayout } from '/src/app/runtime/features/desktop-composer-layout.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
 import { normalizeApiKeyValue, normalizeLoadedLegacyConfig } from '/src/app/runtime/kernel/config-normalization.js';
@@ -836,6 +837,20 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             if (conv) normalizeConversationModel(conv);
             return conv;
         };
+        const desktopComposerLayout = createDesktopComposerLayout({
+            window,
+            elements: {
+                chatWorkspace: ALL_ELEMENTS.chatWorkspace,
+                chatContainer: ALL_ELEMENTS.chatContainer,
+                inputBarContainer: ALL_ELEMENTS.inputBarContainer
+            },
+            getActiveConversation,
+            ResizeObserver,
+            requestFrame: requestAnimationFrame,
+            cancelFrame: (frameId) => window.cancelAnimationFrame?.(frameId),
+            scheduleTimeout: setTimeout,
+            clearScheduledTimeout: clearTimeout
+        });
         const historySidebarHelpers = createHistorySidebarHelpers({
             document,
             elements: ALL_ELEMENTS,
@@ -1014,6 +1029,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 getText
             }),
             clearQuoteReference: () => quoteInquiryLifecycle?.clearQuote(),
+            beginFirstSubmit: () => desktopComposerLayout.beginFirstSubmit(),
             logger: console
         });
         const {
@@ -1286,6 +1302,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderCouncilControls,
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args),
             bindGeneratedImageAssets,
+            syncComposerLayout: (...args) => desktopComposerLayout.sync(...args),
             replaceAstras: (nextAstras) => runtimeAppDataStore.replaceAstras(nextAstras)
         });
         ({

@@ -502,6 +502,7 @@ test('mobile attachment trigger reuses the desktop file options popover', async 
     'stopPropagation',
     'updateFunctionButtonsState',
     'closeAllPopovers',
-    'class:fileOptionsPopover:add:visible'
+    'class:fileOptionsPopover:add:visible',
+    'attr:addFileBtn:aria-expanded:true'
   ]);
 });
