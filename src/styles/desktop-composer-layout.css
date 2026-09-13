@@ -12,6 +12,7 @@
 @media (min-width: 769px) {
     #chat-workspace {
         --desktop-composer-empty-offset: 0px;
+        --desktop-composer-docked-offset: -1rem;
         --desktop-composer-menu-width: min(56rem, calc(100vw - 2rem));
         overflow: hidden;
     }
@@ -19,7 +20,11 @@
     #input-bar-container {
         position: relative;
         z-index: 18;
-        transform: translateY(0);
+        transform: translateY(var(--desktop-composer-docked-offset));
+    }
+
+    #input-bar-container .input-wrapper {
+        border: 1px solid rgba(107, 114, 128, 0.32) !important;
     }
 
     #chat-workspace[data-composer-layout="empty"] #input-bar-container {
@@ -38,11 +43,11 @@
 
     #chat-workspace[data-composer-layout="empty"] .chat-greeting-message {
         position: absolute;
-        top: 50%;
+        top: 57%;
         right: 0;
         left: 0;
         margin-top: 0 !important;
-        transform: translateY(calc(-100% - 2.3rem));
+        transform: translateY(calc(-100% - 4.5rem));
     }
 
     #chat-workspace[data-composer-layout="docking"] .chat-greeting-message {
@@ -58,50 +63,57 @@
         bottom: calc(100% + 0.7rem) !important;
         max-height: min(31rem, calc(100vh - 8rem));
         margin: 0 !important;
-        padding: 0.48rem !important;
+        padding: 0.6rem !important;
         overflow-x: hidden;
         overflow-y: auto;
-        border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent) !important;
+        border: 1px solid rgba(107, 114, 128, 0.28) !important;
         border-radius: 1.25rem !important;
         background: color-mix(in srgb, var(--modal-bg) 96%, transparent) !important;
         box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.08) !important;
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
-        transform: translateY(0.6rem) scale(0.985) !important;
-        transform-origin: bottom left !important;
-        transition: opacity 0.16s ease-out, visibility 0.16s, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        transform: none !important;
+        transition: opacity 0.16s ease-out, visibility 0.16s !important;
     }
 
     #chat-workspace[data-composer-layout="empty"] #file-options-popover:not(.message-edit-shared-popover) {
         top: calc(100% + 0.7rem) !important;
         bottom: auto !important;
-        transform: translateY(-0.6rem) scale(0.985) !important;
-        transform-origin: top left !important;
+        transform: none !important;
     }
 
     #file-options-popover.visible:not(.message-edit-shared-popover),
     #chat-workspace[data-composer-layout="empty"] #file-options-popover.visible:not(.message-edit-shared-popover) {
-        transform: translateY(0) scale(1) !important;
+        transform: none !important;
     }
 
     #file-options-popover:not(.message-edit-shared-popover) > button {
         display: flex;
         align-items: center;
         width: 100%;
-        min-height: 2.7rem !important;
-        gap: 0.8rem !important;
-        padding: 0.48rem 0.65rem !important;
+        min-height: 3.05rem !important;
+        gap: 0.9rem !important;
+        padding: 0.58rem 0.75rem !important;
         border: 0 !important;
         border-radius: 0.78rem !important;
         background: transparent !important;
         color: var(--text-primary) !important;
         text-align: left;
+        transition: background-color 0.12s ease-out !important;
     }
 
     #file-options-popover:not(.message-edit-shared-popover) > button:hover,
     #file-options-popover:not(.message-edit-shared-popover) > button:focus-visible {
-        background: var(--hover-bg) !important;
+        background: rgba(107, 114, 128, 0.12) !important;
         outline: none;
+    }
+
+    #add-file-btn svg {
+        stroke-width: 1.5;
+    }
+
+    #voice-input-btn-message svg {
+        stroke-width: 1.6;
     }
 
     #file-options-popover:not(.message-edit-shared-popover) > button > svg {
@@ -144,8 +156,8 @@
 
     #file-options-popover:not(.message-edit-shared-popover) .image-mode-control,
     #file-options-popover:not(.message-edit-shared-popover) .image-mode-advanced {
-        min-height: 2.7rem;
-        padding: 0.48rem 0.65rem !important;
+        min-height: 3.05rem;
+        padding: 0.58rem 0.75rem !important;
         border-radius: 0.78rem;
     }
 

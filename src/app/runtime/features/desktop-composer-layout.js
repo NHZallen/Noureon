@@ -1,6 +1,7 @@
 const DESKTOP_QUERY = '(min-width: 769px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const DOCKING_DURATION_MS = 420;
+const EMPTY_COMPOSER_VERTICAL_RATIO = 0.57;
 
 export const deriveDesktopComposerLayout = ({ conversation, isDesktop }) => {
   if (!isDesktop) return 'mobile';
@@ -54,7 +55,7 @@ export function createDesktopComposerLayout({
     const composerHeight = Number(inputBarContainer.offsetHeight) || 0;
     if (chatHeight <= 0 || composerHeight <= 0) return;
 
-    const targetCenter = chatTop + (chatHeight * 0.5);
+    const targetCenter = chatTop + (chatHeight * EMPTY_COMPOSER_VERTICAL_RATIO);
     const composerCenter = composerTop + (composerHeight * 0.5);
     const offset = Math.min(0, Math.round(targetCenter - composerCenter));
     workspace.style.setProperty('--desktop-composer-empty-offset', `${offset}px`);
