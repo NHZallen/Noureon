@@ -128,7 +128,7 @@ export function createLegacyStartupLifecycle({
         const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
         const wrapper = textarea.closest('.input-wrapper');
         const singleLineHeight = lineHeight + paddingTop + paddingBottom;
-        const maxHeight = (lineHeight * 8) + paddingTop + paddingBottom;
+        const collapsedMaxHeight = (lineHeight * 10) + paddingTop + paddingBottom;
         const initialScrollHeight = textarea.scrollHeight;
         const hasInputText = textarea.value.length > 0;
         const wasMultilineLayout = wrapper?.classList.contains('has-multiline-input') || false;
@@ -167,8 +167,26 @@ export function createLegacyStartupLifecycle({
             wrapper.classList.remove('has-multiline-input');
         }
 
-        const scrollHeight = textarea.scrollHeight;
-        textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+        const expandButton = elements.expandInputButton || document.getElementById('expand-input-btn');
+        const canExpand = isDesktopInput && initialScrollHeight > collapsedMaxHeight + 1;
+        if (!canExpand) wrapper?.classList.remove('is-composer-expanded');
+        wrapper?.classList.toggle('has-overflowing-input', canExpand);
+
+        const isExpanded = canExpand && wrapper?.classList.contains('is-composer-expanded');
+        const viewportHeight = Number(window.innerHeight) || 800;
+        const expandedMaxHeight = Math.max(collapsedMaxHeight, Math.floor(viewportHeight * 0.56));
+        const heightLimit = isExpanded ? expandedMaxHeight : collapsedMaxHeight;
+
+        if (expandButton) {
+            expandButton.classList.toggle('hidden', !canExpand);
+            expandButton.setAttribute('aria-expanded', String(Boolean(isExpanded)));
+            expandButton.setAttribute('aria-label', isExpanded ? '收合輸入欄' : '展開輸入欄');
+            expandButton.setAttribute('title', isExpanded ? '收合輸入欄' : '展開輸入欄');
+        }
+
+        textarea.style.maxHeight = `${heightLimit}px`;
+        textarea.style.height = `${Math.min(initialScrollHeight, heightLimit)}px`;
+        textarea.style.overflowY = canExpand ? 'auto' : 'hidden';
     }
 
     function bindLoginLanguageSwitcher() {

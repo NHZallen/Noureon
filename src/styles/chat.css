@@ -58,7 +58,7 @@
 }
     #message-input {
     line-height: 1.5rem; /* 設定行高，這對於計算高度很重要 */
-    max-height: calc(1.5rem * 8 + 1rem); /* 8行的高度 (8 * 行高) + 上下 padding (p-2 = 0.5rem * 2) */
+    max-height: calc(1.5rem * 10 + 1rem);
     transition: height 0.2s ease-out; /* 讓高度變化有平滑的動畫效果 */
     overflow-y: auto; /* 當內容超出最大高度時，顯示滾動條 */
     -webkit-overflow-scrolling: touch; /* ---> 新增：在 iOS 等裝置上啟用慣性滾動 <--- */

@@ -531,6 +531,13 @@ export function createLegacyAppBootstrapLifecycle({
                     }
                 });
                 ALL_ELEMENTS.messageInput.addEventListener('input', adjustTextareaHeight);
+                ALL_ELEMENTS.expandInputButton?.addEventListener('click', () => {
+                    const wrapper = ALL_ELEMENTS.messageInput.closest('.input-wrapper');
+                    if (!wrapper) return;
+                    wrapper.classList.toggle('is-composer-expanded');
+                    adjustTextareaHeight();
+                    ALL_ELEMENTS.messageInput.focus();
+                });
                 ALL_ELEMENTS.messageInput.addEventListener('keydown', (e) => {
                     const removedIndicator = removeLastComposerIndicatorOnDelete({
                         event: e,

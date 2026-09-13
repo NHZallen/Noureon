@@ -91,6 +91,23 @@ test('measures the empty composer position and matching desktop menu width', () 
   }
 });
 
+test('growing an empty composer keeps its top edge anchored below the greeting', () => {
+  const harness = createHarness();
+  try {
+    harness.controller.sync();
+    harness.flushFrame();
+    assert.equal(harness.workspace.style.getPropertyValue('--desktop-composer-empty-offset'), '-316px');
+
+    setMetric(harness.inputBarContainer, 'offsetHeight', 320);
+    harness.controller.measureEmptyOffset();
+
+    assert.equal(harness.workspace.style.getPropertyValue('--desktop-composer-empty-offset'), '-316px');
+  } finally {
+    harness.controller.destroy();
+    harness.cleanup();
+  }
+});
+
 test('first submit docks the same composer and settles after its transform transition', () => {
   const harness = createHarness();
   try {

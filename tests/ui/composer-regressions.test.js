@@ -38,15 +38,17 @@ test('desktop chat input keeps active modes inline and reserves a second row for
   assert.match(startupLifecycle, /if\s*\(wrapper\s*&&\s*isDesktopInput\)\s*\{[\s\S]*wrapper\.classList\.toggle\('has-multiline-input',\s*useMultilineLayout\)/);
 });
 
-test('multiline composer no longer exposes or binds the manual expand control', () => {
+test('multiline composer grows to ten lines and exposes a bounded expand control', () => {
   const css = readUiSource('src/styles/main.css');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
   const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
-  assert.doesNotMatch(appShell, /id="expand-input-btn"/);
-  assert.doesNotMatch(css, /#message-input\.expanded|#expand-input-btn\.rotated/);
-  assert.doesNotMatch(startupLifecycle, /expand-input-btn|classList\.contains\('expanded'\)|classList\.remove\('expanded'\)/);
-  assert.doesNotMatch(appBootstrapLifecycle, /expand-input-btn|classList\.toggle\('expanded'\)|classList\.toggle\('rotated'\)/);
+  assert.match(appShell, /id="expand-input-btn"[^>]*class="composer-expand-btn hidden"[^>]*aria-expanded="false"/);
+  assert.match(css, /#message-input[^{]*\{[^}]*max-height:\s*calc\(1\.5rem \* 10 \+ 1rem\)/s);
+  assert.match(css, /#expand-input-btn\.composer-expand-btn[^{]*\{[^}]*position:\s*absolute;[^}]*top:\s*0\.35rem;[^}]*right:\s*0\.15rem;/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-multiline-input,[\s\S]*#input-bar-container\s+\.input-wrapper\.has-file-previews:focus-within,[\s\S]*#input-bar-container\s+\.input-wrapper\.has-quote-inquiry:focus-within[^{]*\{[^}]*border-radius:\s*1\.75rem\s*!important;/s);
+  assert.match(startupLifecycle, /const\s+collapsedMaxHeight\s*=\s*\(lineHeight \* 10\)[\s\S]*classList\.toggle\('has-overflowing-input',\s*canExpand\)[\s\S]*Math\.floor\(viewportHeight \* 0\.56\)/s);
+  assert.match(appBootstrapLifecycle, /ALL_ELEMENTS\.expandInputButton\?\.addEventListener\('click',[\s\S]*classList\.toggle\('is-composer-expanded'\)[\s\S]*adjustTextareaHeight\(\)/s);
 });
 
 test('composer upload previews occupy a full-width row above desktop input controls', () => {

@@ -51,6 +51,9 @@ function createHarness(overrides = {}) {
       listeners.push({ id, type, handler });
       calls.push(`bind:${id}:${type}`);
     },
+    setAttribute(name, value) {
+      calls.push(`attr:${id}:${name}:${value}`);
+    },
     contains() {
       return false;
     },
@@ -313,6 +316,34 @@ test('adjustTextareaHeight preserves layout behavior and caches its measurement 
   assert.equal(harness.getCanvasCount(), 1);
   assert.equal(wrapper.classList.contains('has-multiline-input'), true);
   assert.equal(harness.elements.messageInput.style.height, '60px');
+});
+
+test('adjustTextareaHeight caps desktop growth at ten lines and exposes expansion', () => {
+  const harness = createHarness();
+  const wrapper = {
+    classList: createClassList('input-wrapper', harness.calls)
+  };
+  harness.dependencies.window.innerHeight = 800;
+  harness.elements.messageInput.value = 'long draft';
+  harness.elements.messageInput.scrollHeight = 520;
+  harness.elements.messageInput.closest = () => wrapper;
+  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+
+  lifecycle.adjustTextareaHeight();
+
+  assert.equal(harness.elements.messageInput.style.height, '248px');
+  assert.equal(harness.elements.messageInput.style.maxHeight, '248px');
+  assert.equal(harness.elements.messageInput.style.overflowY, 'auto');
+  assert.equal(wrapper.classList.contains('has-overflowing-input'), true);
+  assert.equal(harness.elements.expandInputButton.classList.contains('hidden'), false);
+
+  wrapper.classList.add('is-composer-expanded');
+  lifecycle.adjustTextareaHeight();
+
+  assert.equal(harness.elements.messageInput.style.height, '448px');
+  assert.equal(harness.elements.messageInput.style.maxHeight, '448px');
+  assert.equal(harness.elements.expandInputButton.classList.contains('hidden'), false);
+  assert.equal(wrapper.classList.contains('is-composer-expanded'), true);
 });
 
 test('startup postlude preserves update dialog, touch guard, and service worker order', () => {

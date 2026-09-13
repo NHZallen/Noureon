@@ -28,9 +28,16 @@ const decorateComposerMenuItem = (shell, { id, labelKey, descriptionKey, descrip
   return shell.replace(pattern, (_, before, label) => `${before}<span class="composer-menu-copy">${label}<span class="composer-menu-description" data-lang-key="${descriptionKey}">${description}</span></span>`);
 };
 
+const composerExpandButton = `
+                                    <button type="button" id="expand-input-btn" class="composer-expand-btn hidden" aria-expanded="false" aria-label="展開輸入欄" title="展開輸入欄">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
+                                        </svg>
+                                    </button>`;
+
 const composerShell = appShellWithoutLegacyDemo.replace(
   /\s*<button(?=[^>]*\bid="expand-input-btn")[\s\S]*?<\/button>/,
-  ''
+  composerExpandButton
 ).replace(
   '<p class="mt-1"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>',
   '<p class="mt-1"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>\n                    <p class="mt-1"><a href="https://github.com/NHZallen/Noureon" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">GitHub</a></p>'

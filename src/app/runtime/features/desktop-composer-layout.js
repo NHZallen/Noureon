@@ -29,6 +29,7 @@ export function createDesktopComposerLayout({
   let measurementFrame = null;
   let dockingTimer = null;
   let resizeObserver = null;
+  let emptyComposerBaselineHeight = null;
   let destroyed = false;
 
   const setMode = (mode, { animate = false } = {}) => {
@@ -55,9 +56,10 @@ export function createDesktopComposerLayout({
     const composerHeight = Number(inputBarContainer.offsetHeight) || 0;
     if (chatHeight <= 0 || composerHeight <= 0) return;
 
+    emptyComposerBaselineHeight = Math.min(emptyComposerBaselineHeight ?? composerHeight, composerHeight, 96);
     const targetCenter = chatTop + (chatHeight * EMPTY_COMPOSER_VERTICAL_RATIO);
-    const composerCenter = composerTop + (composerHeight * 0.5);
-    const offset = Math.min(0, Math.round(targetCenter - composerCenter));
+    const anchoredComposerCenter = composerTop + (emptyComposerBaselineHeight * 0.5);
+    const offset = Math.min(0, Math.round(targetCenter - anchoredComposerCenter));
     workspace.style.setProperty('--desktop-composer-empty-offset', `${offset}px`);
   };
 

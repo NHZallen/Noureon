@@ -443,6 +443,7 @@ test('initChatApp binds settings, import/export, trash, P2P, file, and form list
     ['imageVideoInput', 'change'],
     ['fileUploadInput', 'change'],
     ['messageInput', 'input'],
+    ['expandInputButton', 'click'],
     ['messageInput', 'keydown'],
     ['chatForm', 'submit'],
     ['share-astras-btn', 'click'],
@@ -469,6 +470,21 @@ test('bound handlers preserve state bridges and injected handoffs', async () => 
   assert.equal(harness.getState().cropperInstance, null);
   assert.equal(harness.getState().editingAstraForAvatarId, null);
   assert.deepEqual(harness.getState().personalMemories, []);
+});
+
+test('composer expand control toggles the expanded state and recalculates textarea height', async () => {
+  const harness = createLifecycleHarness();
+  const wrapper = harness.getElement('composer-wrapper');
+  harness.elements.messageInput.closest = () => wrapper;
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+
+  await initChatApp();
+  harness.calls.length = 0;
+  findListener(harness.listeners, 'expandInputButton', 'click')();
+
+  assert.ok(harness.calls.includes('class:composer-wrapper:toggle:is-composer-expanded:undefined'));
+  assert.ok(harness.calls.includes('adjustTextareaHeight'));
+  assert.ok(harness.calls.includes('focus:messageInput'));
 });
 
 test('app bootstrap lifecycle module avoids startup, storage, auth ownership, fragments, and runtime entry', () => {

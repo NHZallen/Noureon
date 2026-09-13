@@ -28,6 +28,7 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['historySidebarOverlay', 'history-sidebar-overlay'],
   ['messageList', 'message-list'],
   ['messageInput', 'message-input'],
+  ['expandInputButton', 'expand-input-btn'],
   ['chatForm', 'chat-form'],
   ['submitButton', 'submit-btn'],
   ['submitButtonIcon', 'submit-btn-icon'],

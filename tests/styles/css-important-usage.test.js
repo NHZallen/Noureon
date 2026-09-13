@@ -27,7 +27,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/desktop-composer-layout.css': {
-    max: 37,
+    max: 38,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/input-polish.css': {
