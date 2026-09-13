@@ -554,6 +554,25 @@
     overflow-wrap: anywhere;
 }
 
+.sent-composer-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--button-primary-bg);
+    line-height: inherit;
+    vertical-align: baseline;
+    white-space: nowrap;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.sent-composer-mode svg {
+    width: 1em;
+    height: 1em;
+    flex: 0 0 1em;
+    stroke-width: 1.8;
+}
+
 .streaming-structured-pending {
     display: flex;
     align-items: center;

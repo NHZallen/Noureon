@@ -2,6 +2,7 @@ import { createLegacyAppBootstrapLifecycle } from './runtime/features/app-bootst
 import { createLegacyStartupLifecycle } from './runtime/features/startup-lifecycle.js';
 import { createLegacyCoreTailLifecycle } from './runtime/legacy-core/core-tail-lifecycle.js';
 import { validateLegacyRuntimeEntryDependencies } from './runtime/runtime-entry-dependencies.js';
+import { initializeComposerRichEditor } from './runtime/features/composer-rich-editor.js';
 
 let productionStartPromise;
 
@@ -202,6 +203,11 @@ export function createRuntimeEntry({
   const start = () => {
     if (startPromise) return startPromise;
 
+    initializeComposerRichEditor({
+      editor: resolvedDependencies.appBootstrap.elements?.messageInput,
+      inputIndicatorContainer: resolvedDependencies.appBootstrap.elements?.inputIndicatorContainer,
+      document: resolvedDependencies.appBootstrap.document
+    });
     registerBindings();
     startupLifecycle.bindAuthStartupListeners();
     startPromise = Promise.resolve(startupLifecycle.initializeApp());

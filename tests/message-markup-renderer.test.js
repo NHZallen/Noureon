@@ -65,6 +65,30 @@ test('builds model markdown, timestamp, and exact action markup', () => {
   assert.match(view.messageHTML, />2026-06-24 10:30<\/span>/);
 });
 
+test('renders sent composer functions inline while excluding council metadata', () => {
+  const view = buildMessageRenderView({
+    message: {
+      role: 'user',
+      parts: [{
+        text: '看看天氣',
+        displayText: '🌐 網頁搜尋 看看天氣',
+        displaySegments: [
+          { type: 'mode', indicatorId: 'search-indicator', label: '網頁搜尋' },
+          { type: 'text', text: ' 看看天氣' },
+          { type: 'mode', indicatorId: 'model-council-indicator', label: '理事會' }
+        ]
+      }]
+    },
+    ...dependencies
+  });
+
+  assert.match(view.messageHTML, /class="sent-composer-mode" data-composer-mode="search-indicator"/);
+  assert.match(view.messageHTML, /<circle cx="12" cy="12" r="10"><\/circle>/);
+  assert.match(view.messageHTML, /網頁搜尋/);
+  assert.match(view.messageHTML, /USER: 看看天氣/);
+  assert.doesNotMatch(view.messageHTML, /理事會/);
+});
+
 test('renders expandable history references without exposing source UUIDs', () => {
   const sourceId = '11111111-1111-4111-8111-111111111111';
   const view = buildMessageRenderView({

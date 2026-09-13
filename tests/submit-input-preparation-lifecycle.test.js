@@ -30,7 +30,11 @@ const createHarness = (overrides = {}) => {
     unsentMessage: 'draft'
   };
   const elements = {
-    messageInput: { value: overrides.messageValue ?? 'Hello' }
+    messageInput: {
+      value: overrides.messageValue ?? 'Hello',
+      displayValue: overrides.displayValue,
+      displaySegments: overrides.displaySegments
+    }
   };
 
   const lifecycle = createSubmitInputPreparationLifecycle({
@@ -179,6 +183,29 @@ test('prepares an edited message without clearing the composer draft or its atta
     { inlineData: { data: 'edited', mimeType: 'image/png', name: 'edited.png', size: 4 } }
   ]);
   assert.equal(harness.calls.some(([name]) => name === 'setUploadedFiles'), false);
+});
+
+test('stores inline search and learning labels for user display without changing the request text', async () => {
+  const displaySegments = [
+    { type: 'mode', indicatorId: 'search-indicator', label: '網頁搜尋' },
+    { type: 'text', text: ' ' },
+    { type: 'mode', indicatorId: 'learning-mode-indicator', label: '學習' },
+    { type: 'text', text: ' 看看天氣' }
+  ];
+  const harness = createHarness({
+    messageValue: '看看天氣',
+    displayValue: '🌐 網頁搜尋 📖 學習 看看天氣',
+    displaySegments
+  });
+
+  const result = await harness.lifecycle.prepareSubmitResponse();
+
+  assert.equal(result.userMessage, '看看天氣');
+  assert.deepEqual(result.userParts[0], {
+    text: '看看天氣',
+    displayText: '🌐 網頁搜尋 📖 學習 看看天氣',
+    displaySegments
+  });
 });
 
 test('auto web search can be enabled for Tavily-backed providers through the runtime predicate', async () => {

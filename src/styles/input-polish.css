@@ -89,6 +89,19 @@ body.custom-wallpaper-active .input-indicator-item {
     display: block;
     margin: 0;
 }
+#message-input[data-composer-editor] {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    cursor: text;
+}
+#message-input[data-composer-editor]:empty::before {
+    color: var(--text-secondary);
+    content: attr(data-placeholder);
+    pointer-events: none;
+}
+#message-input[data-composer-editor].is-disabled {
+    cursor: not-allowed;
+}
 #file-input-container,
 #reasoning-depth-control,
 #voice-input-btn-message,

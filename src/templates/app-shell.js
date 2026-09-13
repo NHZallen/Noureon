@@ -35,9 +35,14 @@ const composerExpandButton = `
                                         </svg>
                                     </button>`;
 
+const composerRichEditor = `<div id="message-input" role="textbox" aria-multiline="true" aria-disabled="true" contenteditable="false" data-composer-editor data-placeholder="請先在設定中輸入 API 金鑰..." class="w-full p-2 bg-transparent border-0 focus:ring-0 overflow-y-hidden" autocomplete="off" data-lang-key-placeholder="enterApiKeyPlaceholder"></div>`;
+
 const composerShell = appShellWithoutLegacyDemo.replace(
   /\s*<button(?=[^>]*\bid="expand-input-btn")[\s\S]*?<\/button>/,
   composerExpandButton
+).replace(
+  /<textarea id="message-input"[^>]*><\/textarea>/,
+  composerRichEditor
 ).replace(
   '<p class="mt-1"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>',
   '<p class="mt-1"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>\n                    <p class="mt-1"><a href="https://github.com/NHZallen/Noureon" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">GitHub</a></p>'

@@ -1,3 +1,5 @@
+import { removeInlineComposerTokenOnDelete } from './composer-rich-editor.js';
+
 const INDICATOR_DELETE_KEYS = new Set(['Backspace', 'Delete']);
 
 export function removeLastComposerIndicatorOnDelete({
@@ -7,6 +9,11 @@ export function removeLastComposerIndicatorOnDelete({
 }) {
     if (!event || !INDICATOR_DELETE_KEYS.has(event.key)) return false;
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return false;
+    if (removeInlineComposerTokenOnDelete({
+        event,
+        editor: messageInput,
+        inputIndicatorContainer
+    })) return true;
     if (!messageInput || messageInput.value.length > 0 || !inputIndicatorContainer) return false;
 
     const activeIndicators = Array.from(inputIndicatorContainer.children)

@@ -15,6 +15,24 @@ const escapeHTML = (value = '') => String(value ?? '')
 const historySourceLabel = (template, count) => String(template || '')
     .replace('{count}', String(count));
 
+const COMPOSER_MODE_ICONS = {
+    'search-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>',
+    'learning-mode-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"></path></svg>',
+    'astras-input-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"></path></svg>'
+};
+
+const renderUserComposerPart = (part, renderUserText) => {
+    if (!Array.isArray(part.displaySegments)) {
+        return renderUserText(part.displayText ?? part.text);
+    }
+    return part.displaySegments.map((segment) => {
+        if (segment?.type !== 'mode') return renderUserText(segment?.text || '');
+        const icon = COMPOSER_MODE_ICONS[segment.indicatorId];
+        if (!icon) return '';
+        return `<span class="sent-composer-mode" data-composer-mode="${escapeHTML(segment.indicatorId)}">${icon}<span>${escapeHTML(segment.label)}</span></span>`;
+    }).join('');
+};
+
 export function buildMessageRenderView({
     message,
     renderUserText,
@@ -57,7 +75,7 @@ export function buildMessageRenderView({
         const mediaParts = [];
         message.parts.forEach(part => {
             if (part.text && !part.quoteContext) {
-                textParts.push(isUser ? (part.displayText ?? part.text) : part.text);
+                textParts.push(isUser ? part : part.text);
             } else if (part.inlineData) {
                 mediaParts.push(part.inlineData);
             } else if (part.generatedImage) {
@@ -66,8 +84,15 @@ export function buildMessageRenderView({
         });
 
         if (textParts.length > 0) {
-            const combinedText = textParts.join('\n');
-            contentHTML = `<div>${isUser ? renderUserText(combinedText) : renderMarkdownWithFormulas(combinedText)}</div>`;
+            if (isUser) {
+                const hasComposerModes = textParts.some(part => Array.isArray(part.displaySegments));
+                const renderedUserText = hasComposerModes
+                    ? textParts.map(part => renderUserComposerPart(part, renderUserText)).join('<br>')
+                    : renderUserText(textParts.map(part => part.displayText ?? part.text).join('\n'));
+                contentHTML = `<div>${renderedUserText}</div>`;
+            } else {
+                contentHTML = `<div>${renderMarkdownWithFormulas(textParts.join('\n'))}</div>`;
+            }
         }
         if (mediaParts.length > 0) {
             const mediaView = buildMediaAttachmentView(mediaParts);

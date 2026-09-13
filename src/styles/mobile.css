@@ -9,19 +9,19 @@
         gap: 0.15rem 0.35rem !important;
         min-height: 3.55rem !important;
         padding: 0.5rem 0.7rem !important;
-        transition: min-height 0.24s ease, padding 0.24s ease, border-radius 0.24s ease !important;
+        transition: min-height 0.24s ease, padding 0.24s ease !important;
     }
 
     #input-bar-container .input-wrapper.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
-        grid-template-areas: "file indicators input reasoning voice submit";
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+        grid-template-areas: "file input input reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper.has-multiline-input {
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
         grid-template-areas:
             "input input input input input input"
-            "file indicators spacer reasoning voice submit";
+            "file . . reasoning voice submit";
         min-height: 5.9rem !important;
         padding-top: 0.65rem !important;
         padding-bottom: 0.65rem !important;
@@ -37,17 +37,17 @@
     }
 
     #input-bar-container .input-wrapper.has-quote-inquiry.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
         grid-template-areas:
             "quote quote quote quote quote quote"
-            "file indicators input reasoning voice submit";
+            "file input input reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper.has-quote-inquiry.has-multiline-input {
         grid-template-areas:
             "quote quote quote quote quote quote"
             "input input input input input input"
-            "file indicators spacer reasoning voice submit";
+            "file . . reasoning voice submit";
         min-height: 8.45rem !important;
     }
 
@@ -65,25 +65,25 @@
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
         grid-template-areas:
             "preview preview preview preview preview preview"
-            "file indicators input reasoning voice submit";
+            "file input input reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-multiline-input {
         grid-template-areas:
             "preview preview preview preview preview preview"
             "input input input input input input"
-            "file indicators spacer reasoning voice submit";
+            "file . . reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
         grid-template-areas:
             "preview preview preview preview preview preview"
             "quote quote quote quote quote quote"
-            "file indicators input reasoning voice submit";
+            "file input input reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-multiline-input {
@@ -91,7 +91,7 @@
             "preview preview preview preview preview preview"
             "quote quote quote quote quote quote"
             "input input input input input input"
-            "file indicators spacer reasoning voice submit";
+            "file . . reasoning voice submit";
     }
 
     #input-bar-container .input-wrapper > .input-media-preview {
@@ -125,15 +125,7 @@
     }
 
     #input-indicator-container {
-        grid-area: indicators;
-        position: static !important;
-        top: auto !important;
-        right: auto !important;
-        left: auto !important;
-        display: flex;
-        align-items: center;
-        max-width: min(16rem, 35vw);
-        overflow-x: auto;
+        display: none !important;
     }
 
     #voice-input-btn-message {
@@ -152,45 +144,55 @@
         display: none !important;
     }
 
-    #input-indicator-container .input-indicator-item {
-        position: relative !important;
+    #message-input[data-composer-editor] {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        cursor: text;
+        transition: none !important;
     }
 
-    #input-indicator-container .input-indicator-mode-icon {
-        opacity: 1 !important;
-        transition: opacity 0.12s ease !important;
+    #message-input[data-composer-editor]:empty::before {
+        color: var(--text-secondary);
+        content: attr(data-placeholder);
+        pointer-events: none;
     }
 
-    #input-indicator-container #close-search-btn-input,
-    #input-indicator-container #close-learning-mode-btn-input,
-    #input-indicator-container #close-model-council-btn-input,
-    #input-indicator-container #close-astras-btn-input {
-        position: absolute !important;
-        left: 0.75rem !important;
-        top: 50% !important;
-        display: inline-flex !important;
-        margin-left: 0 !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        transform: translateY(-50%) !important;
-        transition: opacity 0.12s ease !important;
+    #message-input .composer-inline-mode-token {
+        display: inline-flex;
+        align-items: center;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--button-primary-bg);
+        font: inherit;
+        line-height: inherit;
+        vertical-align: baseline;
+        white-space: nowrap;
+        user-select: text;
+        -webkit-user-select: text;
     }
 
-    #input-indicator-container .input-indicator-item:hover .input-indicator-mode-icon,
-    #input-indicator-container .input-indicator-item:focus-within .input-indicator-mode-icon {
-        opacity: 0 !important;
+    #message-input .composer-inline-mode-token:hover {
+        background: transparent;
+        color: var(--button-primary-bg);
     }
 
-    #input-indicator-container .input-indicator-item:hover #close-search-btn-input,
-    #input-indicator-container .input-indicator-item:hover #close-learning-mode-btn-input,
-    #input-indicator-container .input-indicator-item:hover #close-model-council-btn-input,
-    #input-indicator-container .input-indicator-item:hover #close-astras-btn-input,
-    #input-indicator-container .input-indicator-item:focus-within #close-search-btn-input,
-    #input-indicator-container .input-indicator-item:focus-within #close-learning-mode-btn-input,
-    #input-indicator-container .input-indicator-item:focus-within #close-model-council-btn-input,
-    #input-indicator-container .input-indicator-item:focus-within #close-astras-btn-input {
-        opacity: 1 !important;
-        pointer-events: auto !important;
+    #message-input .composer-inline-mode-token .input-indicator-content {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    #message-input .composer-inline-mode-token .input-indicator-leading {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #message-input .composer-inline-mode-separator {
+        white-space: pre;
+        user-select: text;
+        -webkit-user-select: text;
     }
 }
 

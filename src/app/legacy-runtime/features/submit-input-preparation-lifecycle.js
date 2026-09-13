@@ -60,6 +60,12 @@ export function createSubmitInputPreparationLifecycle({
   } = {}) => {
     if (getAbortController()) return { shouldContinue: false, reason: 'already-generating' };
     const composerMessage = String(suppliedMessage ?? elements.messageInput.value).trim();
+    const composerDisplayMessage = suppliedMessage == null
+      ? String(elements.messageInput.displayValue || composerMessage).trim()
+      : composerMessage;
+    const composerDisplaySegments = suppliedMessage == null
+      ? elements.messageInput.displaySegments
+      : null;
     const quoteReference = suppliedQuoteReference === undefined
       ? getQuoteReference()
       : suppliedQuoteReference;
@@ -78,6 +84,13 @@ export function createSubmitInputPreparationLifecycle({
     const userParts = hasQuoteReference
       ? buildQuotedUserParts({ question: composerMessage, quoteReference })
       : buildUserParts(composerMessage, []);
+    const composerTextPart = userParts.find(part => part?.text === composerMessage);
+    if (composerTextPart && composerDisplayMessage !== composerMessage) {
+      composerTextPart.displayText = composerDisplayMessage;
+      if (Array.isArray(composerDisplaySegments)) {
+        composerTextPart.displaySegments = composerDisplaySegments;
+      }
+    }
     userParts.push(...buildUserParts('', uploadedFiles));
     const userMessage = userParts
       .filter(part => part?.text)
