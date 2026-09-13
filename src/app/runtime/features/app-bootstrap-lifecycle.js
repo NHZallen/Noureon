@@ -4,6 +4,7 @@ import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
 import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
+import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -531,6 +532,12 @@ export function createLegacyAppBootstrapLifecycle({
                 });
                 ALL_ELEMENTS.messageInput.addEventListener('input', adjustTextareaHeight);
                 ALL_ELEMENTS.messageInput.addEventListener('keydown', (e) => {
+                    const removedIndicator = removeLastComposerIndicatorOnDelete({
+                        event: e,
+                        messageInput: ALL_ELEMENTS.messageInput,
+                        inputIndicatorContainer: ALL_ELEMENTS.inputIndicatorContainer
+                    });
+                    if (removedIndicator) return;
                     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
                         e.preventDefault();
                         if (!ALL_ELEMENTS.submitButton.disabled) {

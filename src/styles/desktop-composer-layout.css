@@ -23,7 +23,8 @@
         transform: translateY(var(--desktop-composer-docked-offset));
     }
 
-    #input-bar-container .input-wrapper {
+    #input-bar-container .input-wrapper,
+    #input-bar-container .input-wrapper:focus-within {
         border: 1px solid transparent !important;
         border-radius: 9999px !important;
         background: var(--input-field-bg) !important;

@@ -15,12 +15,14 @@ test('active input modes use the theme color without black outline chrome', () =
   assert.match(runtime01, /councilMenuButton\.classList\.toggle\('is-active',\s*councilActive\)/);
 });
 
-test('desktop chat input reserves the lower row only for active modes or multiline text', () => {
+test('desktop chat input keeps active modes inline and reserves a second row for multiline text', () => {
   const css = readUiSource('src/styles/main.css');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input reasoning voice submit"/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input input"\s*"file indicators spacer reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper,\s*#input-bar-container\s+\.input-wrapper:focus-within[^{]*\{[^}]*border:\s*1px solid transparent\s*!important;[^}]*border-radius:\s*9999px\s*!important;[^}]*box-shadow:[^}]*!important;/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators:not\(\.has-multiline-input\)[^{]*\{[^}]*grid-template-areas:\s*"file indicators input reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input input"\s*"file indicators spacer reasoning voice submit"/s);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*grid-area:\s*indicators;[^}]*position:\s*static\s!important;/s);
   assert.match(css, /#reasoning-depth-control[^{]*\{[^}]*grid-area:\s*reasoning;/s);
   assert.match(css, /\.reasoning-depth-popover[^{]*\{/);
@@ -54,7 +56,8 @@ test('composer upload previews occupy a full-width row above desktop input contr
 
   assert.match(inputMediaPlacement, /inputMediaPreview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(inputMediaPreview,\s*wrapper\.firstChild\)/);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"file input input reasoning voice submit"/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators,\s*#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"input input input input input input"\s*"file indicators spacer reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators:not\(\.has-multiline-input\)[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"file indicators input reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"input input input input input input"\s*"file indicators spacer reasoning voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*grid-area:\s*preview;[^}]*align-self:\s*stretch;[^}]*width:\s*100%;/s);
   assert.doesNotMatch(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*position:\s*absolute/s);
   assert.match(previewLifecycle, /removeButton\.className\s*=\s*'file-preview-remove';[\s\S]*removeButton\.innerHTML\s*=\s*'<svg[^']*aria-hidden="true"[^']*<\/svg>';[\s\S]*event\.stopPropagation\(\);[\s\S]*removeFile\(file\.id\)/);

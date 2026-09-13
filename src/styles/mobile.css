@@ -12,7 +12,11 @@
         transition: min-height 0.24s ease, padding 0.24s ease, border-radius 0.24s ease !important;
     }
 
-    #input-bar-container .input-wrapper.has-indicators,
+    #input-bar-container .input-wrapper.has-indicators:not(.has-multiline-input) {
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-areas: "file indicators input reasoning voice submit";
+    }
+
     #input-bar-container .input-wrapper.has-multiline-input {
         grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
         grid-template-areas:
@@ -32,7 +36,13 @@
         padding-bottom: 0.5rem !important;
     }
 
-    #input-bar-container .input-wrapper.has-quote-inquiry.has-indicators,
+    #input-bar-container .input-wrapper.has-quote-inquiry.has-indicators:not(.has-multiline-input) {
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-areas:
+            "quote quote quote quote quote quote"
+            "file indicators input reasoning voice submit";
+    }
+
     #input-bar-container .input-wrapper.has-quote-inquiry.has-multiline-input {
         grid-template-areas:
             "quote quote quote quote quote quote"
@@ -54,7 +64,13 @@
             "file input input reasoning voice submit";
     }
 
-    #input-bar-container .input-wrapper.has-file-previews.has-indicators,
+    #input-bar-container .input-wrapper.has-file-previews.has-indicators:not(.has-multiline-input) {
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-areas:
+            "preview preview preview preview preview preview"
+            "file indicators input reasoning voice submit";
+    }
+
     #input-bar-container .input-wrapper.has-file-previews.has-multiline-input {
         grid-template-areas:
             "preview preview preview preview preview preview"
@@ -62,7 +78,14 @@
             "file indicators spacer reasoning voice submit";
     }
 
-    #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-indicators,
+    #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-indicators:not(.has-multiline-input) {
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-areas:
+            "preview preview preview preview preview preview"
+            "quote quote quote quote quote quote"
+            "file indicators input reasoning voice submit";
+    }
+
     #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-multiline-input {
         grid-template-areas:
             "preview preview preview preview preview preview"
@@ -109,7 +132,7 @@
         left: auto !important;
         display: flex;
         align-items: center;
-        max-width: min(34rem, 52vw);
+        max-width: min(16rem, 35vw);
         overflow-x: auto;
     }
 
