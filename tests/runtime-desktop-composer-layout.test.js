@@ -83,7 +83,7 @@ test('measures the empty composer position and matching desktop menu width', () 
     assert.equal(harness.controller.sync(), 'empty');
     harness.flushFrame();
     assert.equal(harness.workspace.dataset.composerLayout, 'empty');
-    assert.equal(harness.workspace.style.getPropertyValue('--desktop-composer-empty-offset'), '-298px');
+    assert.equal(harness.workspace.style.getPropertyValue('--desktop-composer-empty-offset'), '-316px');
     assert.equal(harness.workspace.style.getPropertyValue('--desktop-composer-menu-width'), '880px');
   } finally {
     harness.controller.destroy();

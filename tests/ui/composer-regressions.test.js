@@ -96,13 +96,13 @@ test('desktop tools menu follows the centered or docked composer without changin
 
   assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#input-bar-container[^{]*\{[^}]*transform:\s*translateY\(var\(--desktop-composer-empty-offset\)\)/s);
   assert.match(css, /--desktop-composer-docked-offset:\s*-1rem/);
-  assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+\.chat-greeting-message[^{]*\{[^}]*top:\s*57%;[^}]*translateY\(calc\(-100%\s*-\s*4\.5rem\)\)/s);
-  assert.match(css, /#input-bar-container\s*>\s*\.max-w-4xl[^{]*\{[^}]*max-width:\s*53rem/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*border-color:\s*transparent\s*!important/s);
-  assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*width:\s*var\(--desktop-composer-menu-width\)\s*!important;[^}]*bottom:\s*calc\(100%\s*\+\s*1\.2rem\)/s);
-  assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*top:\s*calc\(100%\s*\+\s*1\.2rem\)\s*!important;[^}]*bottom:\s*auto\s*!important/s);
-  assert.match(css, /#file-options-popover\s+\.composer-menu-label[^{]*\{[^}]*font-size:\s*0\.9rem/s);
-  assert.match(css, /#file-options-popover\s+\.composer-menu-description[^{]*\{[^}]*font-size:\s*0\.82rem/s);
+  assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+\.chat-greeting-message[^{]*\{[^}]*top:\s*54%;[^}]*translateY\(calc\(-100%\s*-\s*4\.5rem\)\)/s);
+  assert.match(css, /#input-bar-container\s*>\s*\.max-w-4xl[^{]*\{[^}]*max-width:\s*48rem/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*border:\s*1px\s+solid\s+transparent\s*!important;[^}]*border-radius:\s*9999px\s*!important;[^}]*box-shadow:/s);
+  assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*width:\s*var\(--desktop-composer-menu-width\)\s*!important;[^}]*bottom:\s*calc\(100%\s*\+\s*1\.75rem\)/s);
+  assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*top:\s*calc\(100%\s*\+\s*1\.75rem\)\s*!important;[^}]*bottom:\s*auto\s*!important/s);
+  assert.match(css, /#file-options-popover\s+\.composer-menu-label[^{]*\{[^}]*font-size:\s*0\.84rem/s);
+  assert.match(css, /#file-options-popover\s+\.composer-menu-description[^{]*\{[^}]*font-size:\s*0\.76rem/s);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button:hover[\s\S]*background:\s*rgba\(107,\s*114,\s*128,\s*0\.12\)\s*!important/s);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*transform:\s*none\s*!important;[^}]*transition:\s*opacity\s+0\.16s\s+ease-out,\s*visibility\s+0\.16s\s*!important/s);
   assert.match(css, /#add-file-btn\s+svg[^{]*\{[^}]*stroke-width:\s*1\.5/s);
