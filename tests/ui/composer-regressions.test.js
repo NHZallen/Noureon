@@ -28,6 +28,8 @@ test('desktop chat input keeps active modes inside the rich editor at any caret 
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*display:\s*none\s!important;/s);
   assert.match(css, /#message-input\s+\.composer-inline-mode-token[^{]*\{[^}]*display:\s*inline-flex;[^}]*user-select:\s*text;/s);
   assert.match(css, /#message-input\s+\.composer-inline-mode-token:hover[^{]*\{[^}]*background:\s*transparent;/s);
+  assert.match(css, /#message-input\s+\.composer-inline-mode-token\s+\.input-indicator-leading[^{]*\{[^}]*width:\s*0\.9rem;[^}]*height:\s*0\.9rem;[^}]*flex:\s*0\s+0\s+0\.9rem;/s);
+  assert.match(css, /#message-input\s+\.composer-inline-mode-token\s+\.input-indicator-mode-icon[^{]*\{[^}]*width:\s*0\.9rem;[^}]*height:\s*0\.9rem;[^}]*max-width:\s*0\.9rem;[^}]*object-fit:\s*contain;/s);
   assert.match(richEditor, /function\s+getInsertionRange[\s\S]*editor\.__composerSavedRange[\s\S]*range\.selectNodeContents\(editor\)/s);
   assert.match(richEditor, /range\.insertNode\(separator\);\s*range\.insertNode\(token\)/s);
   assert.match(css, /#reasoning-depth-control[^{]*\{[^}]*grid-area:\s*reasoning;/s);
@@ -114,6 +116,7 @@ test('desktop tools menu follows the centered or docked composer without changin
   assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+\.chat-greeting-message[^{]*\{[^}]*top:\s*54%;[^}]*translateY\(calc\(-100%\s*-\s*4\.5rem\)\)/s);
   assert.match(css, /#input-bar-container\s*>\s*\.max-w-4xl[^{]*\{[^}]*max-width:\s*48rem/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*border:\s*1px\s+solid\s+transparent\s*!important;[^}]*border-radius:\s*9999px\s*!important;[^}]*box-shadow:/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper,\s*#input-bar-container\s+\.input-wrapper:focus-within[^{]*\{[^}]*box-shadow:\s*inset\s+0\s+1px\s+0\s+color-mix\(in\s+srgb,\s*var\(--border-color\)\s+42%,\s*transparent\)/s);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*width:\s*var\(--desktop-composer-menu-width\)\s*!important;[^}]*bottom:\s*calc\(100%\s*\+\s*1\.75rem\)/s);
   assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*top:\s*calc\(100%\s*\+\s*1\.75rem\)\s*!important;[^}]*bottom:\s*auto\s*!important/s);
   assert.match(css, /#file-options-popover\s+\.composer-menu-label[^{]*\{[^}]*font-size:\s*0\.84rem/s);
