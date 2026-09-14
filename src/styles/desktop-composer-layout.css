@@ -178,12 +178,19 @@
         stroke-width: 1.6;
     }
 
-    #file-options-popover:not(.message-edit-shared-popover) > button > svg {
+    #file-options-popover:not(.message-edit-shared-popover) > button > svg,
+    #file-options-popover:not(.message-edit-shared-popover) > button > .composer-menu-icon {
         flex: 0 0 1.25rem;
         width: 1.25rem;
         height: 1.25rem;
+        object-fit: contain;
         color: currentColor;
         opacity: 0.82;
+    }
+
+    #chat-workspace:has(#file-options-popover.visible:not(.message-edit-shared-popover)) #scroll-to-bottom-btn {
+        opacity: 0;
+        pointer-events: none;
     }
 
     #file-options-popover .composer-menu-copy {

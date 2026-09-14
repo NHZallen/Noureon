@@ -1,3 +1,5 @@
+import { renderComposerToolIcon } from '../../composer-tool-icons.js';
+
 const resolveImageAspectRatio = (requestedRatio) => ({
     '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
     '3:2': '3 / 2', '2:3': '2 / 3', '4:5': '4 / 5', '5:4': '5 / 4',
@@ -16,8 +18,8 @@ const historySourceLabel = (template, count) => String(template || '')
     .replace('{count}', String(count));
 
 const COMPOSER_MODE_ICONS = {
-    'search-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>',
-    'learning-mode-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"></path></svg>',
+    'search-indicator': renderComposerToolIcon('webSearch', 'sent-composer-mode-icon'),
+    'learning-mode-indicator': renderComposerToolIcon('learning', 'sent-composer-mode-icon'),
     'astras-input-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"></path></svg>'
 };
 

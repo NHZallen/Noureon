@@ -105,6 +105,9 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
 
 test('desktop tools menu follows the centered or docked composer without changing mobile rules', () => {
   const css = readUiSource('src/styles/main.css');
+  const bootstrap = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const runtime01 = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const councilMenu = readUiSource('src/app/runtime/features/composer-menu-item.js');
 
   assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#input-bar-container[^{]*\{[^}]*transform:\s*translateY\(var\(--desktop-composer-empty-offset\)\)/s);
   assert.match(css, /--desktop-composer-docked-offset:\s*-1rem/);
@@ -119,7 +122,22 @@ test('desktop tools menu follows the centered or docked composer without changin
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*transform:\s*none\s*!important;[^}]*transition:\s*opacity\s+0\.16s\s+ease-out,\s*visibility\s+0\.16s\s*!important/s);
   assert.match(css, /#add-file-btn\s+svg[^{]*\{[^}]*stroke-width:\s*1\.5/s);
   assert.match(css, /#voice-input-btn-message\s+svg[^{]*\{[^}]*stroke-width:\s*1\.6/s);
+  assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button\s*>\s*\.composer-menu-icon[^{]*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;[^}]*object-fit:\s*contain;/s);
+  assert.match(css, /#chat-workspace:has\(#file-options-popover\.visible:not\(\.message-edit-shared-popover\)\)\s+#scroll-to-bottom-btn[^{]*\{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;/s);
+  assert.match(bootstrap, /cameraBtn\.addEventListener\('click',[\s\S]*imageVideoInput\.value\s*=\s*'';[\s\S]*uploadImageBtn\.addEventListener\('click',[\s\S]*imageVideoInput\.value\s*=\s*'';[\s\S]*uploadFileBtn\.addEventListener\('click',[\s\S]*fileUploadInput\.value\s*=\s*'';/s);
+  assert.match(runtime01, /messageInput\?\.syncInlineModeTokens\?\.\(\)/);
+  assert.match(councilMenu, /renderComposerToolIcon\('modelCouncil'\)/);
   assert.match(css, /@media\s*\(min-width:\s*769px\)\s*and\s*\(prefers-reduced-motion:\s*reduce\)/s);
+});
+
+test('sent function icons share the surrounding text baseline', () => {
+  const css = readUiSource('src/styles/main.css');
+  const renderer = readUiSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+
+  assert.match(css, /\.sent-composer-mode\s*\{[^}]*display:\s*inline;[^}]*vertical-align:\s*baseline;/s);
+  assert.match(css, /\.sent-composer-mode\s+\.sent-composer-mode-icon[^{]*\{[^}]*display:\s*inline-block;[^}]*vertical-align:\s*-0\.12em;/s);
+  assert.match(renderer, /renderComposerToolIcon\('webSearch',\s*'sent-composer-mode-icon'\)/);
+  assert.match(renderer, /renderComposerToolIcon\('learning',\s*'sent-composer-mode-icon'\)/);
 });
 
 test('mobile web search typing does not disable the message input when Tavily is missing', () => {

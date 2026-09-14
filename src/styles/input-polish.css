@@ -374,6 +374,9 @@ body.custom-wallpaper-active .input-indicator-item {
 
 #input-indicator-container .input-indicator-mode-icon {
     display: block;
+    width: 0.9rem;
+    height: 0.9rem;
+    object-fit: contain;
 }
 
 #input-indicator-container .astras-sidebar-avatar.input-indicator-mode-icon {

@@ -237,7 +237,7 @@ export function initializeComposerRichEditor({
         dispatchComposerInput(editor);
     });
 
-    if (inputIndicatorContainer && editor.ownerDocument.defaultView.MutationObserver) {
+    if (inputIndicatorContainer) {
         const syncFromIndicators = () => syncComposerInlineModeTokens({
             editor,
             inputIndicatorContainer,
@@ -247,11 +247,14 @@ export function initializeComposerRichEditor({
             desktop: editor.ownerDocument.defaultView.matchMedia?.('(min-width: 769px)').matches !== false,
             document
         });
-        const indicatorObserver = new editor.ownerDocument.defaultView.MutationObserver(syncFromIndicators);
-        indicatorObserver.observe(
-            inputIndicatorContainer,
-            { attributes: true, attributeFilter: ['class'], childList: true, subtree: true }
-        );
+        editor.syncInlineModeTokens = syncFromIndicators;
+        if (editor.ownerDocument.defaultView.MutationObserver) {
+            const indicatorObserver = new editor.ownerDocument.defaultView.MutationObserver(syncFromIndicators);
+            indicatorObserver.observe(
+                inputIndicatorContainer,
+                { attributes: true, attributeFilter: ['class'], childList: true, subtree: true }
+            );
+        }
         const desktopQuery = editor.ownerDocument.defaultView.matchMedia?.('(min-width: 769px)');
         desktopQuery?.addEventListener?.('change', syncFromIndicators);
         syncFromIndicators();

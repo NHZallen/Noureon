@@ -6,6 +6,7 @@ import fragment04 from './fragments/04-shell.fragment.js';
 import fragment05 from './fragments/05-shell.fragment.js';
 import fragment06 from './fragments/06-shell.fragment.js';
 import fragment07 from './fragments/07-shell.fragment.js';
+import { renderComposerToolIcon } from '../app/composer-tool-icons.js';
 
 const appShellWithLegacyDemo = [
   fragment00,
@@ -23,9 +24,12 @@ const appShellWithoutLegacyDemo = appShellWithLegacyDemo.replace(
   ''
 );
 
-const decorateComposerMenuItem = (shell, { id, labelKey, descriptionKey, description }) => {
+const decorateComposerMenuItem = (shell, { id, labelKey, descriptionKey, description, icon }) => {
   const pattern = new RegExp(`(<button id="${id}"[^>]*>[\\s\\S]*?)(<span data-lang-key="${labelKey}">[^<]*<\\/span>)`);
-  return shell.replace(pattern, (_, before, label) => `${before}<span class="composer-menu-copy">${label}<span class="composer-menu-description" data-lang-key="${descriptionKey}">${description}</span></span>`);
+  return shell.replace(pattern, (_, before, label) => {
+    const decoratedIcon = before.replace(/<svg\b[\s\S]*?<\/svg>/, renderComposerToolIcon(icon));
+    return `${decoratedIcon}<span class="composer-menu-copy">${label}<span class="composer-menu-description" data-lang-key="${descriptionKey}">${description}</span></span>`;
+  });
 };
 
 const composerExpandButton = `
@@ -61,11 +65,11 @@ const composerShell = appShellWithoutLegacyDemo.replace(
 );
 
 const appShell = [
-  { id: 'camera-btn', labelKey: 'camera', descriptionKey: 'cameraDescription', description: '使用裝置拍攝影像' },
-  { id: 'upload-image-btn', labelKey: 'image', descriptionKey: 'imageDescription', description: '上傳圖片或影片' },
-  { id: 'upload-file-btn', labelKey: 'file', descriptionKey: 'fileDescription', description: '上傳文件與其他檔案' },
-  { id: 'web-search-popover-btn', labelKey: 'search', descriptionKey: 'webSearchDescription', description: '搜尋即時網路資訊' },
-  { id: 'learning-mode-btn', labelKey: 'learning', descriptionKey: 'learningDescription', description: '以引導方式協助理解' }
+  { id: 'camera-btn', labelKey: 'camera', descriptionKey: 'cameraDescription', description: '使用裝置拍攝影像', icon: 'camera' },
+  { id: 'upload-image-btn', labelKey: 'image', descriptionKey: 'imageDescription', description: '上傳圖片或影片', icon: 'media' },
+  { id: 'upload-file-btn', labelKey: 'file', descriptionKey: 'fileDescription', description: '上傳文件與其他檔案', icon: 'file' },
+  { id: 'web-search-popover-btn', labelKey: 'search', descriptionKey: 'webSearchDescription', description: '搜尋即時網路資訊', icon: 'webSearch' },
+  { id: 'learning-mode-btn', labelKey: 'learning', descriptionKey: 'learningDescription', description: '以引導方式協助理解', icon: 'learning' }
 ].reduce(decorateComposerMenuItem, composerShell);
 
 export default appShell;

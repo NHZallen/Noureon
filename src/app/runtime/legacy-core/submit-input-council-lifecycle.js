@@ -17,6 +17,7 @@ import { createImageModeControls } from '../../legacy-runtime/features/image-mod
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { collectHistorySourceConversationIds } from '../memory/history-source-references.js';
 import { renderModelCouncilMenuItem } from '../features/composer-menu-item.js';
+import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
@@ -411,7 +412,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         html: `
                         <span class="input-indicator-content flex items-center gap-2"${combinedRulesTitle}>
                             <span class="input-indicator-leading">
-                                <svg class="input-indicator-mode-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12z"/></svg>
+                                ${renderComposerToolIcon('learning', 'input-indicator-mode-icon')}
                             </span>
                             <span>${i18n[config.uiLanguage].learningIndicator || 'Learning'}</span>
                         </span>
@@ -445,7 +446,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         html: `
                         <span class="input-indicator-content flex items-center gap-2">
                             <span class="input-indicator-leading">
-                                <svg class="input-indicator-mode-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                ${renderComposerToolIcon('webSearch', 'input-indicator-mode-icon')}
                             </span>
                             <span>${i18n[config.uiLanguage].search || 'Search'}</span>
                         </span>
@@ -468,7 +469,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         html: `
                         <span class="input-indicator-content flex items-center gap-2">
                             <span class="input-indicator-leading">
-                                <svg class="input-indicator-mode-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
+                                ${renderComposerToolIcon('modelCouncil', 'input-indicator-mode-icon')}
                             </span>
                             <span>${escapeHTML(councilModeLabel)}</span>
                         </span>
@@ -526,6 +527,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     } else if (container.children.length === 0) {
       wrapper.classList.remove('has-indicators');
     }
+    ALL_ELEMENTS.messageInput?.syncInlineModeTokens?.();
   };
 
   const updateFileInputUI = () => {

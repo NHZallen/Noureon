@@ -194,3 +194,27 @@ test('display value includes search and learning modes but omits model council',
   assert.doesNotMatch(fixture.editor.displayValue, /理事會/);
   fixture.window.close();
 });
+
+test('a function can be inserted immediately after the previous message clears', () => {
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  document.body.innerHTML = `
+    <div id="message-input" data-composer-editor contenteditable="true">已送出的內容</div>
+    <div id="input-indicator-container"></div>`;
+  const editor = document.getElementById('message-input');
+  const inputIndicatorContainer = document.getElementById('input-indicator-container');
+
+  initializeComposerRichEditor({ editor, inputIndicatorContainer, document });
+  editor.value = '';
+  inputIndicatorContainer.innerHTML = `
+    <div id="search-indicator" class="input-indicator-item">
+      <span class="input-indicator-content"><img alt=""><span>網頁搜尋</span></span>
+      <button id="close-search-btn-input" type="button">close</button>
+    </div>`;
+  editor.syncInlineModeTokens();
+
+  assert.equal(editor.value.trim(), '');
+  assert.equal(editor.querySelector('.composer-inline-mode-token')?.dataset.indicatorId, 'search-indicator');
+  assert.equal(editor.textContent.trim(), '網頁搜尋');
+  window.close();
+});

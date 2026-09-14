@@ -481,6 +481,7 @@ export function createLegacyAppBootstrapLifecycle({
     
                 ALL_ELEMENTS.cameraBtn.addEventListener('click', () => {
                     ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
+                    ALL_ELEMENTS.imageVideoInput.value = '';
                     ALL_ELEMENTS.imageVideoInput.setAttribute('capture','environment');
                     ALL_ELEMENTS.imageVideoInput.click();
                 });
@@ -504,11 +505,13 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.learningModeBtn.addEventListener('click', toggleLearningMode);
                 ALL_ELEMENTS.uploadImageBtn.addEventListener('click', () => {
                     ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
+                    ALL_ELEMENTS.imageVideoInput.value = '';
                     ALL_ELEMENTS.imageVideoInput.removeAttribute('capture');
                     ALL_ELEMENTS.imageVideoInput.click();
                 });
                 ALL_ELEMENTS.uploadFileBtn.addEventListener('click', () => {
                     ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
+                    ALL_ELEMENTS.fileUploadInput.value = '';
                     ALL_ELEMENTS.fileUploadInput.click();
                 });
                 ALL_ELEMENTS.imageVideoInput.addEventListener('change', handleFileSelection);

@@ -102,6 +102,12 @@ test('desktop composer shell exposes a stable layout root and descriptive tools 
   assert.equal(trigger.getAttribute('aria-expanded'), 'false');
   assert.equal(menu.getAttribute('role'), 'menu');
   assert.equal(menu.querySelectorAll('.composer-menu-description').length, 5);
+  assert.equal(menu.querySelectorAll(':scope > button > img.composer-menu-icon').length, 5);
+  assert.equal(document.querySelector('#camera-btn > img')?.getAttribute('src'), '/assets/composer-tools/camera.png');
+  assert.equal(document.querySelector('#upload-image-btn > img')?.getAttribute('src'), '/assets/composer-tools/media.png');
+  assert.equal(document.querySelector('#upload-file-btn > img')?.getAttribute('src'), '/assets/composer-tools/file.png');
+  assert.equal(document.querySelector('#web-search-popover-btn > img')?.getAttribute('src'), '/assets/composer-tools/web-search.png');
+  assert.equal(document.querySelector('#learning-mode-btn > img')?.getAttribute('src'), '/assets/composer-tools/learning.png');
 
   applyLanguage(document, 'en');
   assert.equal(
