@@ -2,10 +2,10 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
-    version: "16.7.2",
-    date: "2026-09-10",
+    version: "16.8.0",
+    date: "2026-09-14",
     content: [
-      "<strong>Noureon 16.7.2 發布說明</strong>",
+      "<strong>Noureon 16.8.0 發布說明</strong>",
       "本版本更新 OpenRouter 的圖片生成與 DeepSeek 模型清單。",
       "<strong>主要變更</strong>",
       "<ul><li><strong>OpenAI 圖片模型：</strong>GPT Image 2 更新為 GPT Image 2.5 Flare，並新增 GPT Image 2.5 Sunburst；兩者皆支援參考圖編輯與串流預覽。</li><li><strong>DeepSeek：</strong>原有三個 OpenRouter DeepSeek 模型統一更新為支援圖片輸入的 DeepSeek V4.1 Flash，並同步思考程度與價格。</li></ul>",
