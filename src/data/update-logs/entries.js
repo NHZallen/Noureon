@@ -6,11 +6,11 @@ export const updateLogEntries = [
     date: "2026-09-14",
     content: [
       "<strong>Noureon 16.8.0 發布說明</strong>",
-      "本版本更新 OpenRouter 的圖片生成與 DeepSeek 模型清單。",
+      "本版本重製電腦版輸入欄與附加功能互動，並修正手機版附加功能選單的版面穩定性。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>OpenAI 圖片模型：</strong>GPT Image 2 更新為 GPT Image 2.5 Flare，並新增 GPT Image 2.5 Sunburst；兩者皆支援參考圖編輯與串流預覽。</li><li><strong>DeepSeek：</strong>原有三個 OpenRouter DeepSeek 模型統一更新為支援圖片輸入的 DeepSeek V4.1 Flash，並同步思考程度與價格。</li></ul>",
+      "<ul><li><strong>輸入欄：</strong>重新調整電腦版寬度、間距、圓角、陰影與上緣細線；長文字會向下延伸，超過十行後提供展開控制，附件與功能標記不再造成輸入欄變形。</li><li><strong>附加功能：</strong>相機、影像、檔案、網頁搜尋、模型理事會與學習模式改用六個原創 PNG 圖示；電腦版選單加入項目高亮並在展開時隱藏移至最下方按鈕，手機版選單也維持緊湊排列。</li><li><strong>行內功能：</strong>支援的功能標記可在游標所在的任意行與位置插入，並可像文字一樣選取、複製及使用退格鍵刪除；傳送後會與訊息文字保持相同水平高度。</li><li><strong>穩定性：</strong>修正傳送訊息後附加功能無法再次啟用，以及重複選擇同一附件不會觸發的問題。</li></ul>",
       "<strong>相容性</strong>",
-      "舊版 GPT Image 2 與三個 DeepSeek 模型設定會自動遷移至對應的新模型。"
+      "本次更新不需要資料遷移，既有對話、附件與模型設定不受影響。"
     ]
   },
   {
