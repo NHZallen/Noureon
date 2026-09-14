@@ -507,7 +507,11 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       }
     });
     activeIndicators.forEach((indicatorData) => {
-      const existingIndicator = document.getElementById(indicatorData.id);
+      let existingIndicator = document.getElementById(indicatorData.id);
+      if (existingIndicator?.classList.contains('exit')) {
+        existingIndicator.remove();
+        existingIndicator = null;
+      }
       if (!existingIndicator) {
         const indicator = document.createElement('div');
         indicator.id = indicatorData.id;

@@ -304,6 +304,53 @@ test('the combined-rules tooltip is absent when only one of the two is active', 
   cleanup();
 });
 
+test('a function indicator can be selected again while its previous instance is exiting', () => {
+  const { document, cleanup } = createDom(`
+    <div class="input-wrapper">
+      <div id="message-input"></div>
+      <div id="input-indicator-container"></div>
+    </div>
+  `);
+  const conversation = {
+    archived: false,
+    isWebSearchEnabled: true,
+    model: 'model-a'
+  };
+  let inlineSyncs = 0;
+  const messageInput = document.getElementById('message-input');
+  messageInput.syncInlineModeTokens = () => { inlineSyncs += 1; };
+  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+    document,
+    elements: {
+      inputIndicatorContainer: document.getElementById('input-indicator-container'),
+      messageInput
+    },
+    getActiveConversation: () => conversation,
+    getConfig: () => ({ uiLanguage: 'en', isLearningMode: false }),
+    i18n: { en: { search: 'Search', closeSearchMode: 'Close search' } }
+  }));
+
+  lifecycle.renderInputIndicators();
+  const firstIndicator = document.getElementById('search-indicator');
+  assert.ok(firstIndicator);
+
+  conversation.isWebSearchEnabled = false;
+  lifecycle.renderInputIndicators();
+  assert.equal(firstIndicator.classList.contains('exit'), true);
+
+  conversation.isWebSearchEnabled = true;
+  lifecycle.renderInputIndicators();
+  const restoredIndicator = document.getElementById('search-indicator');
+  assert.ok(restoredIndicator);
+  assert.notEqual(restoredIndicator, firstIndicator);
+  assert.equal(restoredIndicator.classList.contains('exit'), false);
+
+  firstIndicator.dispatchEvent(new document.defaultView.Event('animationend'));
+  assert.equal(document.getElementById('search-indicator'), restoredIndicator);
+  assert.equal(inlineSyncs, 3);
+  cleanup();
+});
+
 test('enabling learning mode with a Noura active explains the combination instead of the plain toast', async () => {
   const { document, cleanup } = createDom(`
     <div class="input-wrapper">
