@@ -405,6 +405,15 @@ body.custom-wallpaper-active .input-indicator-item {
     background: transparent;
 }
 
+#file-options-popover:not(.message-edit-shared-popover) > button > .composer-menu-icon {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    max-width: 1.25rem;
+    flex: 0 0 1.25rem;
+    object-fit: contain;
+}
+
 #attachment-menu .menu-item.is-active:hover,
 #file-options-popover #web-search-popover-btn.is-active:hover,
 #file-options-popover #learning-mode-btn.is-active:hover,

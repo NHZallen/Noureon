@@ -103,6 +103,7 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
   const css = readUiSource('src/styles/main.css');
 
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s!important;/s);
+  assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button\s*>\s*\.composer-menu-icon[^{]*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;[^}]*max-width:\s*1\.25rem;[^}]*flex:\s*0\s+0\s+1\.25rem;[^}]*object-fit:\s*contain;/s);
 });
 
 test('desktop tools menu follows the centered or docked composer without changing mobile rules', () => {
