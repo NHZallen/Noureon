@@ -328,7 +328,10 @@ test('performImport accepts legacy backups that store Nouras under the astras fi
 test('handleImport validates, confirms, clears through bridges, chunks live arrays, and saves before UI handoffs', async () => {
   const rawData = {
     backup_identity: { username: 'alice' },
-    conversations: [{ id: 'conv-1', messages: [] }],
+    conversations: [
+      { id: 'conv-1', messages: [] },
+      { id: 'temporary', retentionMode: 'ephemeral', messages: [{ role: 'user', parts: [{ text: 'private' }] }] }
+    ],
     folders: [{ id: 'folder-1' }],
     astras: [{ id: 'astra-1' }],
     personalMemories: [{ id: 'memory-1' }],

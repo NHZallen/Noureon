@@ -122,12 +122,13 @@ const buildSystemInstruction = async ({
     await getRuntimeLearningModeInstruction(config, hasAstraInstructions)
   );
 
-  if (config.memorySystemVersion === 2 && memoryContext) {
+  const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
+  if (canUseMemory && config.memorySystemVersion === 2 && memoryContext) {
     systemInstruction = appendInstructionText(
       systemInstruction,
       formatMemoryContextForModel(memoryContext)
     );
-  } else if (config.memoryEnabled1) {
+  } else if (canUseMemory && config.memoryEnabled1) {
     const enabledMemories = personalMemories
       .filter((memory) => memory.enabled)
       .map((memory) => memory.content)

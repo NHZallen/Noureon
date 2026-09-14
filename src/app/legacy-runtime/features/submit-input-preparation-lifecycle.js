@@ -30,7 +30,8 @@ export function createSubmitInputPreparationLifecycle({
   getQuoteReference = () => null,
   buildQuotedUserParts = ({ question }) => question ? [{ text: question }] : [],
   clearQuoteReference = () => {},
-  beginFirstSubmit = () => false
+  beginFirstSubmit = () => false,
+  onConversationStarted = () => {}
 }) {
   const buildUserParts = (userMessage, uploadedFiles) => {
     const userParts = [];
@@ -125,14 +126,19 @@ export function createSubmitInputPreparationLifecycle({
 
     if (conversation.isTemporary) {
       conversation.isTemporary = false;
-      conversation.isNaming = true;
-      renderHistorySidebar();
-      if (getAutoNaming()) {
-        generateTitleAndSummary(conversation);
-      } else {
+      if (conversation.retentionMode === 'ephemeral') {
         conversation.isNaming = false;
+      } else {
+        conversation.isNaming = true;
+        renderHistorySidebar();
+        if (getAutoNaming()) {
+          generateTitleAndSummary(conversation);
+        } else {
+          conversation.isNaming = false;
+        }
+        await saveAppData();
       }
-      await saveAppData();
+      onConversationStarted(conversation);
     }
 
     const autoWebSearchEnabled = !conversation.isWebSearchEnabled

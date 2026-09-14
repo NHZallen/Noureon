@@ -35,8 +35,25 @@ export function createGeneratedImageAssetStore({
   getItem,
   getUserName = () => 'anonymous',
   randomUUID = () => crypto.randomUUID(),
-  createObjectURL = (blob) => URL.createObjectURL(blob)
+  createObjectURL = (blob) => URL.createObjectURL(blob),
+  shouldPersist = () => true
 } = {}) {
+  const volatileBlobs = new WeakMap();
+
+  const put = async (descriptor, blob) => {
+    if (shouldPersist()) {
+      descriptor.storageKey ||= `generatedImage:${getUserName() || 'anonymous'}:${descriptor.id}`;
+      delete descriptor.ephemeral;
+      await setItem(descriptor.storageKey, blob);
+      volatileBlobs.delete(descriptor);
+    } else {
+      delete descriptor.storageKey;
+      descriptor.ephemeral = true;
+      volatileBlobs.set(descriptor, blob);
+    }
+    return descriptor;
+  };
+
   const save = async ({ b64Json, mediaType = 'image/png', aspectRatio = '' }) => {
     const id = randomUUID();
     const bytes = decodeBase64(b64Json);
@@ -44,18 +61,34 @@ export function createGeneratedImageAssetStore({
     const descriptor = {
       id,
       mediaType,
-      size: blob.size,
-      storageKey: `generatedImage:${getUserName() || 'anonymous'}:${id}`
+      size: blob.size
     };
     if (aspectRatio) descriptor.aspectRatio = aspectRatio;
-    await setItem(descriptor.storageKey, blob);
+    await put(descriptor, blob);
     return descriptor;
   };
 
   const getBlob = async (descriptor) => {
+    const volatileBlob = descriptor && volatileBlobs.get(descriptor);
+    if (volatileBlob instanceof Blob) return volatileBlob;
     if (!descriptor?.storageKey) return null;
     const value = await getItem(descriptor.storageKey);
     return value instanceof Blob ? value : null;
+  };
+
+  const persist = async (descriptor) => {
+    if (!descriptor || (descriptor.storageKey && !descriptor.ephemeral)) return descriptor;
+    const blob = await getBlob(descriptor);
+    if (!blob) return descriptor;
+    descriptor.storageKey = `generatedImage:${getUserName() || 'anonymous'}:${descriptor.id}`;
+    delete descriptor.ephemeral;
+    await setItem(descriptor.storageKey, blob);
+    volatileBlobs.delete(descriptor);
+    return descriptor;
+  };
+
+  const discard = (descriptor) => {
+    if (descriptor) volatileBlobs.delete(descriptor);
   };
 
   const getDataUrl = async (descriptor) => {
@@ -86,5 +119,5 @@ export function createGeneratedImageAssetStore({
     }));
   };
 
-  return { bind, getBlob, getDataUrl, save };
+  return { bind, discard, getBlob, getDataUrl, persist, put, save };
 }

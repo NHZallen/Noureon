@@ -34,6 +34,21 @@ test('history index source fingerprint ignores synced message ids and attachment
   assert.equal(serializeHistoryIndexSource(beforeSync), serializeHistoryIndexSource(afterSync));
 });
 
+test('history indexing excludes messages created before a temporary chat was saved', () => {
+  const turns = buildHistoryIndexTurns({
+    id: 'saved-temporary-chat',
+    memoryCaptureStartIndex: 2,
+    messages: [
+      { role: 'user', parts: [{ text: 'temporary question' }] },
+      { role: 'model', parts: [{ text: 'temporary answer' }] },
+      { role: 'user', parts: [{ text: 'ordinary follow-up' }] },
+      { role: 'model', parts: [{ text: 'ordinary answer' }] }
+    ]
+  });
+
+  assert.deepEqual(turns.map(turn => turn.text), ['ordinary follow-up', 'ordinary answer']);
+});
+
 test('rebuild skips a synced conversation when only its transport id changed', async () => {
   const conversation = {
     id: 'conversation',

@@ -5,6 +5,7 @@ import {
   markCloudSyncJournalDirty,
   normalizeCloudSyncJournal
 } from '../../sync/cloud-sync-journal.js';
+import { createPersistableAppDataSnapshot } from '../features/temporary-chat-state.js';
 
 function parseStoredWorkspace(value) {
   if (typeof value !== 'string' || !value.trim()) return null;
@@ -35,7 +36,7 @@ export function createLegacyRuntimeAppDataPersistence({
     await withWorkspaceStorageExclusive(async () => {
       const currentUser = getCurrentUser();
       if (!currentUser) return;
-      const snapshot = getAppData();
+      const snapshot = createPersistableAppDataSnapshot(getAppData());
       const appDataKey = getAppDataKey();
       const serializedSnapshot = JSON.stringify(snapshot);
       let syncMetadata = null;

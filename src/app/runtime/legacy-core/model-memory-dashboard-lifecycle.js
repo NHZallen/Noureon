@@ -524,8 +524,9 @@ ${JSON.stringify(potentialMemories, null, 2)}
         };
         const extractPersonalMemory = async (userMessage, aiResponse) => {
             syncState();
+            const conversation = getActiveConversation();
+            if (conversation?.retentionMode === 'ephemeral') return;
             if (config.memorySystemVersion === 2 && typeof captureCompletedTurn === 'function' && typeof hashString === 'function') {
-                const conversation = getActiveConversation();
                 const allTurns = buildHistoryIndexTurns(conversation);
                 const previousState = (memoryState?.recentConversationStates || [])
                     .find(state => state.conversationId === conversation?.id);

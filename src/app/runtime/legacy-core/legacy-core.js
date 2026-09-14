@@ -299,7 +299,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                     const assetStore = assetsModule.createGeneratedImageAssetStore({
                         getItem,
                         setItem,
-                        getUserName: () => currentUser?.username || 'anonymous'
+                        getUserName: () => currentUser?.username || 'anonymous',
+                        shouldPersist: () => getActiveConversation()?.retentionMode !== 'ephemeral'
                     });
                     const generateOpenRouterImage = openRouterModule.createOpenRouterImageGenerator({ fetchImpl: fetch });
                     const responseLifecycle = lifecycleModule.createImageGenerationResponseLifecycle({
@@ -650,6 +651,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             const oldTempChatCount = currentConversations.length;
             const cleanedConversations = liveConversationsBridge.replaceConversations(
                 currentConversations.filter(c => !c.isTemporary || c.messages.length > 0)
+                    .filter(c => c.retentionMode !== 'ephemeral')
             );
             if (cleanedConversations.length < oldTempChatCount) {
                  await saveAppData();
@@ -674,7 +676,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             }
             if (id !== conversationStateAccess.getCurrentConversationId()) {
                 const previousConv = getActiveConversation();
-                if (previousConv && previousConv.isTemporary && previousConv.messages.length === 0) {
+                if (previousConv && (previousConv.isTemporary && previousConv.messages.length === 0 || previousConv.retentionMode === 'ephemeral')) {
                     const currentConversations = liveConversationsBridge.getConversations();
                     liveConversationsBridge.replaceConversations(
                         currentConversations.filter(c => c.id !== previousConv.id)
@@ -1302,6 +1304,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderCouncilControls,
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args),
             bindGeneratedImageAssets,
+            getGeneratedImageAssetStore: async () => (await getGeneratedImageRuntime()).assetStore,
             syncComposerLayout: (...args) => desktopComposerLayout.sync(...args),
             replaceAstras: (nextAstras) => runtimeAppDataStore.replaceAstras(nextAstras)
         });
@@ -1532,8 +1535,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             bindGeneratedImageAssets,
             getGeneratedImageBlob: async descriptor => (await getGeneratedImageRuntime()).assetStore.getBlob(descriptor),
             saveGeneratedImageBlob: async (descriptor, blob) => {
-                descriptor.storageKey = `generatedImage:${currentUser?.username || 'anonymous'}:${descriptor.id}`;
-                await setItem(descriptor.storageKey, blob);
+                await (await getGeneratedImageRuntime()).assetStore.put(descriptor, blob);
             },
             getCouncilTexts,
             renderInputIndicators,

@@ -162,7 +162,10 @@ export function createHistorySidebarHelpers({
   }
 
   const isVisibleConversation = (conversation) =>
-    !conversation.archived && !conversation.folderId && !conversation.deletedAt;
+    !conversation.archived
+    && !conversation.folderId
+    && !conversation.deletedAt
+    && conversation.retentionMode !== 'ephemeral';
 
   function renderHistorySidebar(conversations = getConversations()) {
     const historyList = getRequiredElement('historyList');

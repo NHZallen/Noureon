@@ -201,7 +201,7 @@ export function createLegacyImportExportLifecycle({
 
     const rawData = {};
     if (elements.exportHistoryCheck.checked) {
-      rawData.conversations = getConversations();
+      rawData.conversations = getConversations().filter(conversation => conversation?.retentionMode !== 'ephemeral');
       rawData.folders = getFolders();
     }
     if (elements.exportAstrasCheck.checked) {

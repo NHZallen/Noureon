@@ -203,6 +203,32 @@ test('exact requests use the original local conversation before any semantic ind
   assert.ok(results.every(result => result.recallMode === 'faithful-rewrite'));
 });
 
+test('exact recall cannot read the portion created before a temporary chat was saved', async () => {
+  const service = createHistoryRetrievalService({
+    index: { queryHybrid: () => [] },
+    embeddingClient: { embedHistoryQuery: async () => [1, 0] },
+    getMemoryState: () => ({}),
+    getConversations: () => [{
+      id: 'saved-temporary',
+      title: 'Saved conversation',
+      memoryCaptureStartIndex: 2,
+      messages: [
+        { role: 'user', parts: [{ text: 'private chocolate pie request' }] },
+        { role: 'model', parts: [{ text: 'private chocolate pie answer' }] },
+        { role: 'user', parts: [{ text: 'ordinary pasta request' }] },
+        { role: 'model', parts: [{ text: 'ordinary pasta answer' }] }
+      ]
+    }]
+  });
+
+  const results = await service.retrieve({
+    currentMessage: { parts: [{ text: 'Show me the exact original chocolate pie answer from last time.' }] },
+    conversation: { id: 'current-chat' }
+  });
+
+  assert.deepEqual(results, []);
+});
+
 test('only explicit literal wording requests a verbatim prior-answer replay', () => {
   assert.deepEqual(getExactHistoryRecallRequest('請把上次巧克力派的原文逐字貼回來。'), {
     exact: true,

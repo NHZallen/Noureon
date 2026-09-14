@@ -1,0 +1,40 @@
+.temporary-chat-entry-button:hover,
+.temporary-chat-entry-button.is-active,
+.save-temporary-chat-button:hover,
+.temporary-memory-menu button:hover { background: var(--hover-bg); }
+.temporary-chat-entry-button svg { width: 1.25rem; height: 1.25rem; }
+
+.temporary-memory-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + .55rem);
+  width: min(24rem, calc(100vw - 2rem));
+  padding: .5rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--border-color);
+  background: var(--input-field-bg);
+}
+
+.temporary-memory-option-copy small { color: var(--text-secondary); line-height: 1.35; }
+.temporary-memory-check { opacity: 0; }
+.temporary-memory-menu button.is-selected .temporary-memory-check { opacity: 1; }
+
+.temporary-chat-hero {
+  position: absolute;
+  inset: 12% 1.5rem auto;
+  pointer-events: none;
+  text-align: center;
+}
+
+.temporary-chat-hero p {
+  margin: .65rem auto 0;
+  color: var(--text-secondary);
+}
+
+.is-ephemeral-draft .chat-greeting-message { display: none; }
+
+.save-temporary-chat-button svg { width: 1rem; height: 1rem; }
+
+@media (max-width: 640px) {
+  .temporary-chat-hero { top: 9%; }
+}

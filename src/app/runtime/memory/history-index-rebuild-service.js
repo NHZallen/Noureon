@@ -22,7 +22,7 @@ export function createHistoryIndexRebuildService({
   return {
     async rebuild({ signal, onProgress = () => {}, forceCapture = false } = {}) {
       const conversations = asArray(getConversations())
-        .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
+        .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral')
         .map(conversation => ({ conversation, turns: buildHistoryIndexTurns(conversation) }))
         .filter(item => item.turns.length > 0);
       let completed = 0;

@@ -84,6 +84,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             && !conversation.deletedAt
             && !conversation.archived
             && !conversation.isTemporary
+            && conversation.retentionMode !== 'ephemeral'
         );
     const getSearchableConversations = () => getConversations().filter(isSearchableConversation);
 

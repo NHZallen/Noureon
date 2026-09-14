@@ -7,7 +7,8 @@ const asArray = value => Array.isArray(value) ? value : [];
  * deterministic ids to old messages after the text has not changed.
  */
 export function buildHistoryIndexTurns(conversation = {}) {
-  return asArray(conversation?.messages)
+  const startIndex = Math.max(0, Number(conversation?.memoryCaptureStartIndex) || 0);
+  return asArray(conversation?.messages).slice(startIndex)
     .map((message, index) => ({
       id: message?.id || `${conversation.id}:${index}`,
       role: message?.role,

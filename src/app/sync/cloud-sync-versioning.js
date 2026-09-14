@@ -127,10 +127,10 @@ export function mergeRemoteWorkspaceAppData(live = {}, remote = {}, protectedCon
   });
   const deviceOnlyDrafts = [...liveConversations.values()].filter(conversation => (
     conversation?.id
-    && conversation.isTemporary
+    && (conversation.isTemporary || conversation.retentionMode === 'ephemeral')
     && !conversation.archived
     && !conversation.deletedAt
-    && (conversation.messages?.length || 0) === 0
+    && (conversation.retentionMode === 'ephemeral' || (conversation.messages?.length || 0) === 0)
   ));
   for (const conversation of [protectedConversation, ...deviceOnlyDrafts]) {
     if (conversation?.id && !conversations.some(item => item?.id === conversation.id)) {

@@ -24,7 +24,7 @@ export function createHistoryIndexAuditService({
 
   async function audit() {
     const conversations = asArray(getConversations())
-      .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary)
+      .filter(conversation => conversation?.id && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral')
       .map(conversation => ({ conversation, turns: buildHistoryIndexTurns(conversation) }))
       .filter(item => item.turns.length > 0);
     const memoryState = getMemoryState() || {};

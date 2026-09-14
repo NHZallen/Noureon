@@ -18,6 +18,7 @@ import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { collectHistorySourceConversationIds } from '../memory/history-source-references.js';
 import { renderModelCouncilMenuItem } from '../features/composer-menu-item.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
+import { canCaptureConversationMessage } from '../features/temporary-chat-state.js';
 import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
@@ -128,6 +129,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     buildQuotedUserParts = ({ question }) => question ? [{ text: question }] : [],
     clearQuoteReference = () => {},
     beginFirstSubmit = () => false,
+    onConversationStarted = () => {},
     showCustomDialog,
     logger = console
   } = dependencies;
@@ -886,7 +888,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getQuoteReference,
     buildQuotedUserParts,
     clearQuoteReference,
-    beginFirstSubmit
+    beginFirstSubmit,
+    onConversationStarted
   });
 
   const prepareDefaultSubmit = async () => {
@@ -994,10 +997,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         responseRenderedInRealtime,
         targetElement: contentDiv,
         uiLanguage: getLiveConfig().uiLanguage,
-        memoryEnabled: getLiveConfig().memorySystemVersion === 2 || getLiveConfig().memoryEnabled1,
+        memoryEnabled: canCaptureConversationMessage(conv, userMessageObject)
+          && (getLiveConfig().memorySystemVersion === 2 || getLiveConfig().memoryEnabled1),
         // v2 Memory Summary is always refreshed in the background. The retired legacy toggle no
         // longer suppresses capture for an existing user configuration.
-        autoMemoryEnabled: getLiveConfig().memorySystemVersion === 2 || getLiveConfig().enableAutoMemory,
+        autoMemoryEnabled: canCaptureConversationMessage(conv, userMessageObject)
+          && (getLiveConfig().memorySystemVersion === 2 || getLiveConfig().enableAutoMemory),
         historySourceConversationIds: [...historySourceConversationIds],
         persistAppData: saveAppData,
         completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),

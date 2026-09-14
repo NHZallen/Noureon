@@ -54,6 +54,31 @@ test('keeps the requested aspect ratio on generated image descriptors', async ()
   assert.equal(descriptor.aspectRatio, '16:9');
 });
 
+test('keeps temporary generated images in memory until permanent save', async () => {
+  const values = new Map();
+  let persist = false;
+  const store = createGeneratedImageAssetStore({
+    setItem: async (key, value) => values.set(key, value),
+    getItem: async key => values.get(key),
+    getUserName: () => 'alice',
+    randomUUID: () => 'temporary-asset',
+    shouldPersist: () => persist
+  });
+
+  const descriptor = await store.save({ b64Json: 'aGVsbG8=', mediaType: 'image/png' });
+
+  assert.equal(descriptor.ephemeral, true);
+  assert.equal('storageKey' in descriptor, false);
+  assert.equal(values.size, 0);
+  assert.equal(await (await store.getBlob(descriptor)).text(), 'hello');
+
+  persist = true;
+  await store.persist(descriptor);
+  assert.equal(descriptor.ephemeral, undefined);
+  assert.equal(descriptor.storageKey, 'generatedImage:alice:temporary-asset');
+  assert.equal(await values.get(descriptor.storageKey).text(), 'hello');
+});
+
 test('binds an object URL and original download name to generated image elements', async () => {
   const blob = new Blob(['hello'], { type: 'image/png' });
   const attrs = new Map();

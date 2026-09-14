@@ -1,11 +1,13 @@
 import { mergeConcurrentWorkspaceAppData } from './cloud-sync-versioning.js';
+import { isEphemeralConversation } from '../runtime/features/temporary-chat-state.js';
 
 function hasMessages(conversation = {}) {
   return Array.isArray(conversation.messages) && conversation.messages.length > 0;
 }
 
 function shouldUploadConversation(conversation = {}) {
-  return !(conversation.isTemporary && !hasMessages(conversation));
+  return !isEphemeralConversation(conversation)
+    && !(conversation.isTemporary && !hasMessages(conversation));
 }
 
 function normalizeFolderMembership(folders = [], conversations = []) {

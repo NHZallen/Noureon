@@ -23,6 +23,17 @@ test('workspace app-data upload removes device-only folder state and empty tempo
   assert.deepEqual(prepared.folders[0].conversationIds, ['real-chat']);
 });
 
+test('workspace app-data upload excludes temporary chats even after they contain messages', () => {
+  const prepared = prepareWorkspaceAppDataForCloud({
+    conversations: [
+      { id: 'temporary', retentionMode: 'ephemeral', messages: [{ role: 'user' }] },
+      { id: 'ordinary', messages: [{ role: 'user' }] }
+    ]
+  });
+
+  assert.deepEqual(prepared.conversations.map(conversation => conversation.id), ['ordinary']);
+});
+
 test('workspace app-data upload retains trashed conversations outside folder membership', () => {
   const deletedAt = '2026-07-06T01:02:03.000Z';
   const prepared = prepareWorkspaceAppDataForCloud({

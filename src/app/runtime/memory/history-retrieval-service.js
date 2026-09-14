@@ -149,9 +149,10 @@ const retrieveExactConversationTurns = ({
   const normalizedSubject = String(subject || '').toLocaleLowerCase();
   if (!normalizedSubject) return [];
   const candidates = asArray(conversations)
-    .filter(item => item?.id && item.id !== currentConversationId && !item.deletedAt && !item.isTemporary)
+    .filter(item => item?.id && item.id !== currentConversationId && !item.deletedAt && !item.isTemporary && item.retentionMode !== 'ephemeral')
     .map(conversation => {
-      const messages = asArray(conversation.messages).filter(message => getMessageText(message));
+      const captureStartIndex = Math.max(0, Number(conversation.memoryCaptureStartIndex) || 0);
+      const messages = asArray(conversation.messages).slice(captureStartIndex).filter(message => getMessageText(message));
       const searchableText = [conversation.title, ...messages.map(getMessageText)].join('\n').toLocaleLowerCase();
       return { conversation, messages, searchableText };
     })

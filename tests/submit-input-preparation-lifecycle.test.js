@@ -82,7 +82,8 @@ const createHarness = (overrides = {}) => {
     requestFrame: (callback) => {
       calls.push(['requestFrame']);
       callback();
-    }
+    },
+    ...(overrides.onConversationStarted ? { onConversationStarted: overrides.onConversationStarted } : {})
   });
 
   return {
@@ -157,6 +158,34 @@ test('prepares user text, uploaded files, temporary conversation, request-scoped
     'requestFrame',
     'scrollIntoView'
   ]);
+});
+
+test('starts a temporary chat without adding it to history, naming it, or persisting it', async () => {
+  const started = [];
+  const harness = createHarness({
+    conversation: {
+      archived: false,
+      isTemporary: true,
+      retentionMode: 'ephemeral',
+      memoryAccessEnabled: false,
+      isWebSearchEnabled: false,
+      messages: [],
+      provider: 'gemini',
+      unsentMessage: ''
+    },
+    onConversationStarted: conversation => started.push(conversation)
+  });
+
+  const result = await harness.lifecycle.prepareSubmitResponse();
+
+  assert.equal(result.shouldContinue, true);
+  assert.equal(harness.conversation.isTemporary, false);
+  assert.equal(harness.conversation.isNaming, false);
+  assert.equal(harness.conversation.retentionMode, 'ephemeral');
+  assert.deepEqual(started, [harness.conversation]);
+  assert.equal(harness.calls.some(([name]) => name === 'renderHistorySidebar'), false);
+  assert.equal(harness.calls.some(([name]) => name === 'generateTitleAndSummary'), false);
+  assert.equal(harness.calls.some(([name]) => name === 'saveAppData'), false);
 });
 
 test('prepares an edited message without clearing the composer draft or its attachments', async () => {

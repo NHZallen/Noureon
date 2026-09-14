@@ -1,6 +1,6 @@
 const hasNormalConversation = conversations => (Array.isArray(conversations) ? conversations : [])
   .some(conversation => (
-    conversation?.id && !conversation.deletedAt && !conversation.isTemporary
+    conversation?.id && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral'
     && Array.isArray(conversation.messages) && conversation.messages.length > 0
   ));
 

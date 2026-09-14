@@ -8,6 +8,7 @@ import { createMessageListLifecycle } from '../../legacy-runtime/features/messag
 import { escapeHTML as escapeMarkup } from './legacy-core-utilities.js';
 import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
 import { isHighRiskCustomNouras } from '../nouras/nouras-policy.js';
+import { createTemporaryChatLifecycle } from '../features/temporary-chat-lifecycle.js';
 
 const REQUIRED_DEPENDENCIES = [
   'window',
@@ -101,6 +102,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     renderCouncilControls = () => {},
     setupMessageIntersectionObserver = () => {},
     bindGeneratedImageAssets = async () => {},
+    getGeneratedImageAssetStore = async () => null,
     requestAnimationFrame = (callback) => callback(),
     crypto = globalThis.crypto
   } = dependencies;
@@ -523,6 +525,33 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     getUiLanguage: () => getConfig().uiLanguage,
     getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback
   });
+
+  const temporaryChatLifecycle = typeof document.addEventListener === 'function'
+    ? createTemporaryChatLifecycle({
+    document,
+    elements: {
+      chatWorkspace: ALL_ELEMENTS.chatWorkspace,
+      chatContainer: ALL_ELEMENTS.chatContainer,
+      messageList: ALL_ELEMENTS.messageList,
+      newChatBtnHeader: ALL_ELEMENTS.newChatBtnHeader
+    },
+    getActiveConversation,
+    getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback,
+    saveAppData,
+    renderAll,
+    showNotification,
+    persistGeneratedImageAssets: async conversation => {
+      const assetStore = await getGeneratedImageAssetStore();
+      if (!assetStore) return;
+      const assets = (conversation?.messages || [])
+        .flatMap(message => message?.parts || [])
+        .map(part => part?.generatedImage)
+        .filter(Boolean);
+      await Promise.all(assets.map(asset => assetStore.persist(asset)));
+    }
+    })
+    : { render() {} };
+  temporaryChatLifecycle.render();
 
   const {
     addMessageToUI,

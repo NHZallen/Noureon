@@ -370,6 +370,7 @@ export async function encodeWorkspaceConversationShadow({
     .filter(Boolean);
   const skippedConversationIds = [];
   for (const conversation of uniqueWorkspaceConversations(workspace.conversations || [])) {
+    if (conversation?.retentionMode === 'ephemeral') continue;
     if (conversation?.isTemporary && !(conversation.messages?.length)) continue;
     const encoded = await encodeConversationShadow({ conversation, userId, cryptoProvider });
     if (!encoded) {

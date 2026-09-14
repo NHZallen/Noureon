@@ -15,6 +15,16 @@ export function createCurrentMemoryContextProvider({
   }
 
   return function getMemoryContext({ config = {}, conversation = {}, currentMessage } = {}) {
+    if (conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false) {
+      return buildMemoryContext({
+        currentChatSummary: '',
+        memorySummary: {},
+        currentMessageText: messageText(currentMessage),
+        profileEntries: [],
+        historyResults: [],
+        suppressionRules: []
+      });
+    }
     const memoryState = getMemoryState() || {};
     const recentState = asArray(memoryState.recentConversationStates)
       .find(state => state?.conversationId === conversation.id);

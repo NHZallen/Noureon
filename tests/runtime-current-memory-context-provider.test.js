@@ -33,6 +33,32 @@ test('omits all profile entries when profile memory is disabled', () => {
   assert.deepEqual(context.profileEntries, []);
 });
 
+test('non-personalized temporary chats cannot read profile or history memory', async () => {
+  let historyCalls = 0;
+  const getMemoryContext = createCurrentMemoryContextProvider({
+    getMemoryState: () => ({
+      memorySummary: { summary: 'private profile' },
+      profileEntries: [{ id: 'preference', content: 'private preference', status: 'active' }],
+      suppressionRules: [{ type: 'private-rule' }]
+    }),
+    retrieveHistory: async () => {
+      historyCalls += 1;
+      return [{ summary: 'private history' }];
+    }
+  });
+
+  const context = await getMemoryContext({
+    config: { historyRecallEnabled: true, memoryProfileEnabled: true },
+    conversation: { id: 'temporary', retentionMode: 'ephemeral', memoryAccessEnabled: false },
+    currentMessage: { parts: [{ text: 'question' }] }
+  });
+
+  assert.deepEqual(context.profileEntries, []);
+  assert.deepEqual(context.historyResults, []);
+  assert.equal(context.currentChatSummary, '');
+  assert.equal(historyCalls, 0);
+});
+
 test('retrieves historical summaries only when history recall is enabled', async () => {
   const calls = [];
   const getMemoryContext = createCurrentMemoryContextProvider({
