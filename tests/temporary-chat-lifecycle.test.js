@@ -42,12 +42,19 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   const entry = document.querySelector('#temporary-chat-entry-button');
   assert.equal(entry.closest('#temporary-chat-controls').classList.contains('hidden'), false);
   assert.equal(document.querySelector('#temporary-chat-hero'), null);
+  assert.equal(entry.classList.contains('is-active'), false);
+  assert.equal(entry.querySelector('.temporary-chat-icon-inactive [data-temporary-chat-slash]'), null);
 
   entry.click();
   assert.equal(conversation.retentionMode, 'ephemeral');
   assert.equal(conversation.memoryAccessEnabled, true);
   assert.equal(document.querySelector('#temporary-chat-hero h2').textContent, '臨時對話');
+  assert.equal(document.querySelector('#temporary-chat-hero').closest('.chat-greeting-message') !== null, true);
   assert.equal(document.querySelector('#temporary-chat-personalization').classList.contains('hidden'), false);
+  assert.equal(document.querySelector('#temporary-chat-controls').firstElementChild, entry);
+  assert.equal(entry.classList.contains('is-active'), true);
+  assert.equal(entry.querySelectorAll('.temporary-chat-icon-active [data-temporary-chat-slash]').length, 1);
+  assert.equal(entry.querySelector('.sr-only').textContent, '退出臨時對話');
 
   document.querySelector('#temporary-memory-button').click();
   document.querySelector('[data-memory-enabled="false"]').click();

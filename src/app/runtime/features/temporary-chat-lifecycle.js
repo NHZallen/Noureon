@@ -4,10 +4,19 @@ import {
   isEphemeralConversation
 } from './temporary-chat-state.js';
 
-const TEMPORARY_CHAT_ICON = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-    <path d="M6.8 6.8A7 7 0 0 1 18.5 12c0 3.87-3.13 7-7 7a7 7 0 0 1-4.2-1.4L4 18l.45-3.15A7 7 0 0 1 6.8 6.8Z" />
-    <path d="M5.2 4.8 7 6.6M17 17l1.8 1.8" />
+const TEMPORARY_CHAT_INACTIVE_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5.15 16.15A8 8 0 0 1 5 7.9" />
+    <path d="M7.8 5.05A8 8 0 1 1 7.95 18.9" />
+    <path d="m7.95 18.9-4.2 1.1 1.4-3.85" />
+  </svg>`;
+
+const TEMPORARY_CHAT_ACTIVE_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5.15 16.15A8 8 0 0 1 5 7.9" />
+    <path d="M7.8 5.05A8 8 0 1 1 7.95 18.9" />
+    <path d="m7.95 18.9-4.2 1.1 1.4-3.85" />
+    <path data-temporary-chat-slash d="m7.25 6.75 9.5 10.5" />
   </svg>`;
 
 export function createTemporaryChatLifecycle({
@@ -41,16 +50,17 @@ export function createTemporaryChatLifecycle({
 
     root = document.createElement('div');
     root.id = 'temporary-chat-controls';
-    root.className = 'temporary-chat-controls absolute left-4 bottom-24 z-20 flex items-center gap-2';
+    root.className = 'temporary-chat-controls absolute left-4 bottom-4 z-20 flex items-center gap-1';
     root.innerHTML = `
-      <button id="temporary-chat-entry-button" class="temporary-chat-entry-button w-10 h-10 grid place-items-center rounded-full" type="button">
-        ${TEMPORARY_CHAT_ICON}
+      <button id="temporary-chat-entry-button" class="temporary-chat-entry-button w-10 h-10 grid place-items-center rounded-full flex-none" type="button">
+        <span class="temporary-chat-icon temporary-chat-icon-inactive">${TEMPORARY_CHAT_INACTIVE_ICON}</span>
+        <span class="temporary-chat-icon temporary-chat-icon-active">${TEMPORARY_CHAT_ACTIVE_ICON}</span>
         <span class="sr-only" data-lang-key="temporaryChatStart">開始臨時對話</span>
       </button>
-      <div id="temporary-chat-personalization" class="temporary-chat-personalization relative order-first hidden">
-        <button id="temporary-memory-button" class="temporary-memory-button h-10 px-3 flex items-center gap-1 rounded-full whitespace-nowrap" type="button" aria-haspopup="menu" aria-expanded="false">
+      <div id="temporary-chat-personalization" class="temporary-chat-personalization relative hidden">
+        <button id="temporary-memory-button" class="temporary-memory-button h-10 px-2 flex items-center gap-1 rounded-full whitespace-nowrap text-[0.95rem]" type="button" aria-haspopup="menu" aria-expanded="false">
           <span id="temporary-memory-label"></span>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
         </button>
         <div id="temporary-memory-menu" class="temporary-memory-menu hidden" role="menu">
           <button class="w-full p-3 flex items-center gap-3 text-left rounded-xl" type="button" role="menuitemradio" data-memory-enabled="true">
@@ -83,7 +93,7 @@ export function createTemporaryChatLifecycle({
       headerAction.id = 'save-temporary-chat-button';
       headerAction.type = 'button';
       headerAction.className = 'save-temporary-chat-button hidden h-9 px-3 flex items-center gap-1 text-xs rounded-full';
-      headerAction.innerHTML = `${TEMPORARY_CHAT_ICON}<span data-lang-key="temporaryChatSave">永久儲存</span>`;
+      headerAction.innerHTML = `${TEMPORARY_CHAT_ACTIVE_ICON}<span data-lang-key="temporaryChatSave">永久儲存</span>`;
       headerActions.insertBefore(headerAction, elements.newChatBtnHeader || null);
       headerAction.addEventListener('click', () => { void savePermanent(); });
     }
@@ -126,20 +136,25 @@ export function createTemporaryChatLifecycle({
     });
   };
 
-  const renderHero = (show) => {
-    let hero = elements.chatContainer.querySelector('#temporary-chat-hero');
+  const renderTemporaryGreeting = (show) => {
+    const greeting = elements.messageList?.querySelector('.chat-greeting-message');
+    if (!greeting) return;
     if (!show) {
-      hero?.remove();
+      if (greeting.dataset.temporaryChatGreeting === 'true') {
+        greeting.innerHTML = greeting.__temporaryChatOriginalHtml || '';
+        delete greeting.dataset.temporaryChatGreeting;
+        delete greeting.__temporaryChatOriginalHtml;
+      }
       return;
     }
-    if (!hero) {
-      hero = document.createElement('section');
-      hero.id = 'temporary-chat-hero';
-      hero.className = 'temporary-chat-hero';
-      hero.innerHTML = `
-        <h2 class="text-2xl" data-lang-key="temporaryChatTitle">臨時對話</h2>
-        <p data-lang-key="temporaryChatDescription">此對話可以參考既有記憶，但不會顯示在你的對話記錄中，也不會產生新記憶。</p>`;
-      elements.chatContainer.appendChild(hero);
+    if (greeting.dataset.temporaryChatGreeting !== 'true') {
+      greeting.__temporaryChatOriginalHtml = greeting.innerHTML;
+      greeting.dataset.temporaryChatGreeting = 'true';
+      greeting.innerHTML = `
+        <div id="temporary-chat-hero" class="temporary-chat-hero">
+        <h2 class="text-2xl font-semibold m-0" data-lang-key="temporaryChatTitle">臨時對話</h2>
+        <p data-lang-key="temporaryChatDescription">此對話可以參考既有記憶，但不會顯示在你的對話記錄中，也不會產生新記憶。</p>
+        </div>`;
     }
   };
 
@@ -156,10 +171,16 @@ export function createTemporaryChatLifecycle({
     root.classList.toggle('hidden', !showEntry);
     root.querySelector('#temporary-chat-personalization').classList.toggle('hidden', !showPersonalization);
     root.querySelector('#temporary-chat-entry-button').classList.toggle('is-active', showPersonalization);
-    root.querySelector('#temporary-chat-entry-button').title = text(
+    const entryButton = root.querySelector('#temporary-chat-entry-button');
+    const entryTextKey = isEphemeral ? 'temporaryChatExit' : 'temporaryChatStart';
+    const entryText = text(
       isEphemeral ? 'temporaryChatExit' : 'temporaryChatStart',
       isEphemeral ? '退出臨時對話' : '開始臨時對話'
     );
+    entryButton.title = entryText;
+    const entryScreenReaderText = entryButton.querySelector('.sr-only');
+    entryScreenReaderText.dataset.langKey = entryTextKey;
+    entryScreenReaderText.textContent = entryText;
     root.querySelector('#temporary-memory-label').textContent = text(
       memoryEnabled ? 'temporaryChatPersonalized' : 'temporaryChatUnpersonalized',
       memoryEnabled ? '個人化' : '非個人化'
@@ -171,7 +192,7 @@ export function createTemporaryChatLifecycle({
     });
 
     elements.chatWorkspace.classList.toggle('is-ephemeral-draft', showPersonalization);
-    renderHero(showPersonalization);
+    renderTemporaryGreeting(showPersonalization);
     headerAction?.classList.toggle('hidden', !(isEphemeral && hasMessages));
     if (headerAction) headerAction.title = text('temporaryChatSave', '永久儲存');
     if (!showPersonalization) closeMemoryMenu();

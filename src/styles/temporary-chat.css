@@ -1,8 +1,12 @@
 .temporary-chat-entry-button:hover,
-.temporary-chat-entry-button.is-active,
 .save-temporary-chat-button:hover,
 .temporary-memory-menu button:hover { background: var(--hover-bg); }
-.temporary-chat-entry-button svg { width: 1.25rem; height: 1.25rem; }
+
+.temporary-chat-icon { display: grid; place-items: center; }
+.temporary-chat-icon svg { width: 1.25rem; height: 1.25rem; }
+.temporary-chat-icon-active { display: none; }
+.temporary-chat-entry-button.is-active .temporary-chat-icon-inactive { display: none; }
+.temporary-chat-entry-button.is-active .temporary-chat-icon-active { display: grid; }
 
 .temporary-memory-menu {
   position: absolute;
@@ -19,22 +23,13 @@
 .temporary-memory-check { opacity: 0; }
 .temporary-memory-menu button.is-selected .temporary-memory-check { opacity: 1; }
 
-.temporary-chat-hero {
-  position: absolute;
-  inset: 12% 1.5rem auto;
-  pointer-events: none;
-  text-align: center;
-}
-
 .temporary-chat-hero p {
   margin: .65rem auto 0;
   color: var(--text-secondary);
 }
 
-.is-ephemeral-draft .chat-greeting-message { display: none; }
-
 .save-temporary-chat-button svg { width: 1rem; height: 1rem; }
 
 @media (max-width: 640px) {
-  .temporary-chat-hero { top: 9%; }
+  .is-ephemeral-draft .chat-greeting-message { display: block; }
 }
