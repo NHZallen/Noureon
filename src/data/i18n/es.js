@@ -85,6 +85,8 @@ const es = {
   "temporaryChatPersonalizedDescription": "Este chat puede consultar los recuerdos existentes",
   "temporaryChatUnpersonalized": "Sin personalizar",
   "temporaryChatUnpersonalizedDescription": "Este chat no consultará los recuerdos existentes",
+  "temporaryChatUnpersonalizedTitle": "Chat temporal",
+  "temporaryChatUnpersonalizedNotice": "Este chat ignorará los recuerdos, los complementos y las instrucciones personalizadas, y no aparecerá en tu historial.",
   "temporaryChatSave": "Guardar permanentemente",
   "temporaryChatSaved": "Guardado permanentemente. Ahora es un chat normal.",
   "batchSelect": "Seleccionar lote",

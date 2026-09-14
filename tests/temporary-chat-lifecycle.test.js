@@ -55,18 +55,27 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.equal(entry.classList.contains('is-active'), true);
   assert.equal(entry.querySelectorAll('.temporary-chat-icon-active [data-temporary-chat-slash]').length, 1);
   assert.equal(entry.querySelector('.sr-only').textContent, '退出臨時對話');
+  assert.equal(document.querySelector('#temporary-chat-header-status').textContent, '臨時對話');
+  assert.equal(document.querySelector('#temporary-chat-header-status').tagName, 'SPAN');
 
   document.querySelector('#temporary-memory-button').click();
   document.querySelector('[data-memory-enabled="false"]').click();
   assert.equal(conversation.memoryAccessEnabled, false);
   assert.equal(document.querySelector('#temporary-memory-label').textContent, '非個人化');
+  assert.equal(document.querySelector('#temporary-chat-hero h2').textContent, '暫存對話');
+  assert.equal(
+    document.querySelector('#temporary-chat-hero p').textContent,
+    '此對話會忽略記憶、外掛程式和自訂指示，也不會顯示在你的對話記錄中。'
+  );
 
   conversation.isTemporary = false;
   conversation.messages.push({ role: 'user', parts: [{ text: 'private question' }] });
   document.querySelector('#message-list').append(document.createElement('div'));
   await flushMutations();
-  assert.equal(document.querySelector('#temporary-chat-controls').classList.contains('hidden'), true);
+  assert.equal(document.querySelector('#temporary-chat-controls').classList.contains('hidden'), false);
+  assert.equal(entry.classList.contains('hidden'), true);
   assert.equal(document.querySelector('#save-temporary-chat-button').classList.contains('hidden'), false);
+  assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), false);
 
   document.querySelector('#save-temporary-chat-button').click();
   await flushMutations();
@@ -77,6 +86,7 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.deepEqual(calls[1], ['save', { immediateCloudSync: true }]);
   assert.equal(calls[2][0], 'notice');
   assert.equal(document.querySelector('#save-temporary-chat-button').classList.contains('hidden'), true);
+  assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), true);
 
   window.close();
 });

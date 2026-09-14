@@ -85,6 +85,8 @@ const ru = {
   "temporaryChatPersonalizedDescription": "Этот чат может учитывать существующую память",
   "temporaryChatUnpersonalized": "Без персонализации",
   "temporaryChatUnpersonalizedDescription": "Этот чат не будет учитывать существующую память",
+  "temporaryChatUnpersonalizedTitle": "Временный чат",
+  "temporaryChatUnpersonalizedNotice": "Этот чат будет игнорировать память, плагины и пользовательские инструкции и не появится в истории чатов.",
   "temporaryChatSave": "Сохранить навсегда",
   "temporaryChatSaved": "Чат сохранён навсегда и теперь является обычным.",
   "batchSelect": "Пакетный выбор",

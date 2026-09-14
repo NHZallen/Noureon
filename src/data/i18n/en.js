@@ -87,6 +87,8 @@
         temporaryChatPersonalizedDescription: 'This chat can reference existing memories',
         temporaryChatUnpersonalized: 'Not personalized',
         temporaryChatUnpersonalizedDescription: 'This chat will not reference existing memories',
+        temporaryChatUnpersonalizedTitle: 'Temporary chat',
+        temporaryChatUnpersonalizedNotice: 'This chat will ignore memories, plugins, and custom instructions, and it will not appear in your chat history.',
         temporaryChatSave: 'Save permanently',
         temporaryChatSaved: 'Saved permanently. This is now a regular chat.',
         batchSelect: 'Batch Select',

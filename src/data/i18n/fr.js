@@ -87,6 +87,8 @@
         temporaryChatPersonalizedDescription: 'Cette discussion peut consulter les souvenirs existants',
         temporaryChatUnpersonalized: 'Non personnalisée',
         temporaryChatUnpersonalizedDescription: 'Cette discussion ne consultera pas les souvenirs existants',
+        temporaryChatUnpersonalizedTitle: 'Discussion temporaire',
+        temporaryChatUnpersonalizedNotice: 'Cette discussion ignorera les souvenirs, les extensions et les instructions personnalisées, et ne figurera pas dans votre historique.',
         temporaryChatSave: 'Enregistrer définitivement',
         temporaryChatSaved: 'Enregistrement définitif effectué. Ceci est maintenant une discussion normale.',
         batchSelect: 'Sélection Multiple',
