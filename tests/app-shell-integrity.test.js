@@ -115,3 +115,14 @@ test('desktop composer shell exposes a stable layout root and descriptive tools 
     i18n.en.fileDescription
   );
 });
+
+test('desktop message directory hover strip starts below the header actions', () => {
+  const document = renderShell();
+  const triggerZone = document.getElementById('history-sidebar-trigger-zone');
+
+  assert.ok(triggerZone);
+  assert.equal(triggerZone.style.top, '3.5rem');
+  assert.equal(triggerZone.classList.contains('bottom-0'), true);
+  assert.equal(triggerZone.classList.contains('top-0'), false);
+  assert.equal(triggerZone.classList.contains('h-full'), false);
+});

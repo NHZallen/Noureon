@@ -62,6 +62,9 @@ const composerShell = appShellWithoutLegacyDemo.replace(
 ).replace(
   '<div id="file-options-popover" class="popover absolute bottom-full left-0 mb-2 w-56 z-20">',
   '<div id="file-options-popover" class="popover absolute bottom-full left-0 mb-2 w-56 z-20" role="menu" aria-label="附加檔案與其他功能">'
+).replace(
+  '<div id="history-sidebar-trigger-zone" class="hidden md:block absolute top-0 right-0 h-full w-4 z-10"></div>',
+  '<div id="history-sidebar-trigger-zone" class="hidden md:block absolute right-0 bottom-0 w-4 z-10" style="top: 3.5rem;"></div>'
 );
 
 const appShell = [

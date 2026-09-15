@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "16.9.1",
+    date: "2026-09-15",
+    content: [
+      "<strong>Noureon 16.9.1 發布說明</strong>",
+      "本版本改善電腦版臨時對話的儲存操作，避免右側訊息目錄干擾書籤按鈕。",
+      "<strong>修正內容</strong>",
+      "<ul><li><strong>儲存操作：</strong>右上角的臨時對話狀態與書籤按鈕區域不再觸發訊息目錄，可穩定將臨時對話永久儲存。</li><li><strong>訊息目錄：</strong>電腦版右側邊緣的懸停觸發範圍改從頂欄下方開始，原有開啟方式維持不變。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移，既有一般對話、臨時對話與記憶資料不受影響。"
+    ]
+  },
+  {
     version: "16.9.0",
     date: "2026-09-14",
     content: [
