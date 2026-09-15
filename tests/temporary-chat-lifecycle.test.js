@@ -10,10 +10,11 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   const window = new Window();
   const { document } = window;
   let responsiveLayoutHandler;
-  window.matchMedia = query => ({
-    matches: query === '(max-width: 768px)',
+  const responsiveLayoutQuery = {
+    matches: true,
     addEventListener: (_type, handler) => { responsiveLayoutHandler = handler; }
-  });
+  };
+  window.matchMedia = () => responsiveLayoutQuery;
   document.body.innerHTML = `
     <div id="header-actions"><button id="new-chat"></button></div>
     <main id="workspace">
@@ -88,13 +89,23 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   await flushMutations();
   assert.equal(document.querySelector('#temporary-chat-controls').classList.contains('hidden'), false);
   assert.equal(entry.classList.contains('hidden'), true);
-  assert.equal(document.querySelector('#save-temporary-chat-button').classList.contains('hidden'), false);
+  const saveButton = document.querySelector('#save-temporary-chat-button');
+  assert.equal(saveButton.classList.contains('hidden'), false);
+  assert.equal(saveButton.querySelectorAll('[data-temporary-chat-save-bookmark]').length, 1);
+  assert.equal(saveButton.querySelector('span').classList.contains('sr-only'), true);
   assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), false);
   assert.equal(controls.parentElement.id, 'header-actions');
   assert.equal(controls.style.position, 'static');
   assert.equal(controls.style.flexDirection, 'row-reverse');
 
-  document.querySelector('#save-temporary-chat-button').click();
+  responsiveLayoutQuery.matches = false;
+  responsiveLayoutHandler({ matches: false });
+  assert.equal(controls.parentElement.id, 'header-actions');
+  assert.equal(controls.style.position, 'static');
+  assert.equal(controls.style.flexDirection, '');
+  assert.equal(document.querySelector('#temporary-chat-header-status').style.display, '');
+
+  saveButton.click();
   await flushMutations();
   assert.equal(conversation.retentionMode, 'persistent');
   assert.equal(conversation.memoryCaptureStartIndex, 1);
@@ -105,7 +116,6 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.equal(document.querySelector('#save-temporary-chat-button').classList.contains('hidden'), true);
   assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), true);
 
-  responsiveLayoutHandler({ matches: false });
   assert.equal(controls.parentElement.id, 'workspace');
   assert.equal(controls.style.position, '');
   assert.equal(controls.style.left, '');

@@ -19,6 +19,11 @@ const TEMPORARY_CHAT_ACTIVE_ICON = `
     <path data-temporary-chat-slash d="m7.25 6.75 9.5 10.5" />
   </svg>`;
 
+const SAVE_BOOKMARK_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:1.25rem;height:1.25rem" aria-hidden="true">
+    <path data-temporary-chat-save-bookmark d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>`;
+
 export function createTemporaryChatLifecycle({
   document,
   elements,
@@ -51,25 +56,25 @@ export function createTemporaryChatLifecycle({
   const applyResponsiveLayout = isMobile => {
     if (!root || !memoryMenu) return;
     const mobileValue = value => isMobile ? value : '';
-    const useMobileHeader = Boolean(isMobile && headerActions);
+    const useHeader = Boolean(headerActions && (isMobile || root.classList.contains('is-save-layout')));
     const entryButton = root.querySelector('#temporary-chat-entry-button');
     const memoryButton = root.querySelector('#temporary-memory-button');
     const memoryButtonIcon = memoryButton?.querySelector('svg');
 
-    if (useMobileHeader && headerActions && root.parentElement !== headerActions) {
-      headerActions.insertBefore(root, headerStatus || elements.newChatBtnHeader || null);
-    } else if (!useMobileHeader && root.parentElement !== elements.chatWorkspace) {
+    if (useHeader && root.parentElement !== headerActions) {
+      headerActions.insertBefore(root, elements.newChatBtnHeader || null);
+    } else if (!useHeader && root.parentElement !== elements.chatWorkspace) {
       elements.chatWorkspace.appendChild(root);
     }
 
     Object.assign(root.style, {
-      position: useMobileHeader ? 'static' : '',
-      left: useMobileHeader ? '' : mobileValue('.75rem'),
+      position: useHeader ? 'static' : '',
+      left: useHeader ? '' : mobileValue('.75rem'),
       right: '',
       top: '',
-      bottom: useMobileHeader ? '' : mobileValue('calc(4.75rem + env(safe-area-inset-bottom, 0px))'),
+      bottom: useHeader ? '' : mobileValue('calc(4.75rem + env(safe-area-inset-bottom, 0px))'),
       gap: mobileValue('.15rem'),
-      flexDirection: useMobileHeader ? 'row-reverse' : ''
+      flexDirection: isMobile ? 'row-reverse' : ''
     });
     Object.assign(entryButton.style, {
       width: mobileValue('2.75rem'),
@@ -89,10 +94,10 @@ export function createTemporaryChatLifecycle({
       height: mobileValue('.85rem')
     });
     Object.assign(memoryMenu.style, {
-      left: useMobileHeader ? 'auto' : mobileValue('-2.9rem'),
-      right: useMobileHeader ? '-2.9rem' : '',
-      top: useMobileHeader ? 'calc(100% + .35rem)' : '',
-      bottom: useMobileHeader ? 'auto' : mobileValue('calc(100% + .35rem)'),
+      left: isMobile ? 'auto' : mobileValue('-2.9rem'),
+      right: isMobile ? '-2.9rem' : '',
+      top: isMobile ? 'calc(100% + .35rem)' : '',
+      bottom: isMobile ? 'auto' : mobileValue('calc(100% + .35rem)'),
       width: mobileValue('min(17.5rem, calc(100vw - 1.5rem))'),
       padding: mobileValue('.3rem'),
       borderRadius: mobileValue('.9rem')
@@ -112,10 +117,11 @@ export function createTemporaryChatLifecycle({
       lineHeight: mobileValue('1.25')
     }));
     Object.assign(saveButton.style, {
+      width: mobileValue('2.75rem'),
       height: mobileValue('2.75rem'),
+      minWidth: mobileValue('2.75rem'),
       minHeight: mobileValue('2.75rem'),
-      paddingInline: mobileValue('.7rem'),
-      fontSize: mobileValue('.78rem')
+      paddingInline: mobileValue('0')
     });
     if (headerStatus) headerStatus.style.display = isMobile ? 'none' : '';
   };
@@ -154,8 +160,8 @@ export function createTemporaryChatLifecycle({
           </button>
         </div>
       </div>
-      <button id="save-temporary-chat-button" class="save-temporary-chat-button hidden h-10 px-3 items-center gap-1 text-sm rounded-full" type="button">
-        ${TEMPORARY_CHAT_ACTIVE_ICON}<span data-lang-key="temporaryChatSave">永久儲存</span>
+      <button id="save-temporary-chat-button" class="save-temporary-chat-button hidden w-10 h-10 p-0 items-center justify-center rounded-full" type="button">
+        ${SAVE_BOOKMARK_ICON}<span class="sr-only" data-lang-key="temporaryChatSave">永久儲存</span>
       </button>`;
     elements.chatWorkspace.appendChild(root);
     memoryMenu = root.querySelector('#temporary-memory-menu');
@@ -268,6 +274,7 @@ export function createTemporaryChatLifecycle({
     const memoryEnabled = conversation?.memoryAccessEnabled !== false;
 
     root.classList.toggle('hidden', !(showEntry || showPermanentSave));
+    root.classList.toggle('is-save-layout', showPermanentSave);
     root.querySelector('#temporary-chat-entry-button').classList.toggle('hidden', !showEntry);
     root.querySelector('#temporary-chat-personalization').classList.toggle('hidden', !showPersonalization);
     root.querySelector('#temporary-chat-entry-button').classList.toggle('is-active', showPersonalization);
