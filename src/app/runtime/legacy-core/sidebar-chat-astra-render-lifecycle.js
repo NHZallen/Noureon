@@ -539,6 +539,9 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     getText: (key, fallback) => i18n[getConfig().uiLanguage]?.[key] || fallback,
     saveAppData,
     renderAll,
+    renderSidebar: (...args) => runtimeRenderCoordinator.renderSidebar(...args),
+    getAutoNaming: () => getConfig().autoNaming,
+    generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
     showNotification,
     persistGeneratedImageAssets: async conversation => {
       const assetStore = await getGeneratedImageAssetStore();

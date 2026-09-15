@@ -27,6 +27,7 @@ test('temporary chat controls follow the empty, started, and permanently saved s
     messages: []
   };
   const calls = [];
+  const fullRenderReasons = [];
   let lifecycle;
   lifecycle = createTemporaryChatLifecycle({
     document,
@@ -39,7 +40,16 @@ test('temporary chat controls follow the empty, started, and permanently saved s
     getActiveConversation: () => conversation,
     getText: (_key, fallback) => fallback,
     saveAppData: async options => calls.push(['save', options]),
-    renderAll: () => lifecycle.render(),
+    renderAll: options => {
+      fullRenderReasons.push(options?.reason);
+      if (options?.reason === 'temporary-chat-saved') {
+        document.querySelector('#message-list').replaceChildren();
+      }
+      lifecycle.render();
+    },
+    renderSidebar: options => calls.push(['sidebar', options]),
+    getAutoNaming: () => true,
+    generateTitleAndSummary: value => calls.push(['name', value.id]),
     showNotification: (...args) => calls.push(['notice', ...args]),
     persistGeneratedImageAssets: async value => calls.push(['images', value.id])
   });
@@ -105,14 +115,22 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.equal(controls.style.flexDirection, '');
   assert.equal(document.querySelector('#temporary-chat-header-status').style.display, '');
 
+  const streamingTarget = document.createElement('span');
+  streamingTarget.dataset.streamingTarget = 'true';
+  document.querySelector('#message-list').append(streamingTarget);
   saveButton.click();
   await flushMutations();
   assert.equal(conversation.retentionMode, 'persistent');
   assert.equal(conversation.memoryCaptureStartIndex, 1);
   assert.equal('memoryAccessEnabled' in conversation, false);
   assert.deepEqual(calls[0], ['images', 'chat-1']);
-  assert.deepEqual(calls[1], ['save', { immediateCloudSync: true }]);
-  assert.equal(calls[2][0], 'notice');
+  assert.deepEqual(calls[1], ['sidebar', { reason: 'temporary-chat-saved' }]);
+  assert.deepEqual(calls[2], ['save', { immediateCloudSync: true }]);
+  assert.deepEqual(calls[3], ['name', 'chat-1']);
+  assert.equal(calls[4][0], 'notice');
+  assert.equal(conversation.isNaming, true);
+  assert.equal(streamingTarget.isConnected, true);
+  assert.equal(fullRenderReasons.includes('temporary-chat-saved'), false);
   assert.equal(document.querySelector('#save-temporary-chat-button').classList.contains('hidden'), true);
   assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), true);
 

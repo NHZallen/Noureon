@@ -31,6 +31,9 @@ export function createTemporaryChatLifecycle({
   getText,
   saveAppData,
   renderAll,
+  renderSidebar = () => {},
+  getAutoNaming = () => false,
+  generateTitleAndSummary = () => {},
   showNotification = () => {},
   persistGeneratedImageAssets = async () => {}
 } = {}) {
@@ -314,14 +317,17 @@ export function createTemporaryChatLifecycle({
     const conversation = getActiveConversation();
     if (!isEphemeralConversation(conversation)) return;
     await persistGeneratedImageAssets(conversation);
+    const shouldAutoName = Boolean(getAutoNaming()) && !conversation.isRenamed;
     conversation.memoryCaptureStartIndex = conversation.messages?.length || 0;
     conversation.retentionMode = PERSISTENT_RETENTION_MODE;
     conversation.isTemporary = false;
-    conversation.isNaming = false;
+    conversation.isNaming = shouldAutoName;
     delete conversation.memoryAccessEnabled;
     conversation.lastUpdatedAt = new Date().toISOString();
+    render();
+    renderSidebar({ reason: 'temporary-chat-saved' });
     await saveAppData({ immediateCloudSync: true });
-    renderAll({ reason: 'temporary-chat-saved', animate: false, scrollMode: 'preserve' });
+    if (shouldAutoName) void generateTitleAndSummary(conversation);
     showNotification(text('temporaryChatSaved', '已永久儲存，這現在是一般對話。'), 'success');
   };
 
