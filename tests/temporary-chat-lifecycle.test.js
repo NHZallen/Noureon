@@ -45,8 +45,11 @@ test('temporary chat controls follow the empty, started, and permanently saved s
 
   lifecycle.render();
   const entry = document.querySelector('#temporary-chat-entry-button');
+  const controls = entry.closest('#temporary-chat-controls');
   assert.equal(entry.closest('#temporary-chat-controls').classList.contains('hidden'), false);
-  assert.equal(entry.closest('#temporary-chat-controls').style.left, '0.75rem');
+  assert.equal(controls.parentElement.id, 'header-actions');
+  assert.equal(controls.style.position, 'static');
+  assert.equal(controls.style.flexDirection, 'row-reverse');
   assert.equal(entry.style.width, '2.75rem');
   assert.equal(document.querySelector('#temporary-memory-menu').style.padding, '0.3rem');
   assert.equal(document.querySelector('[data-memory-enabled="true"]').style.minHeight, '3rem');
@@ -61,6 +64,8 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.equal(document.querySelector('#temporary-chat-hero').closest('.chat-greeting-message') !== null, true);
   assert.equal(document.querySelector('#temporary-chat-personalization').classList.contains('hidden'), false);
   assert.equal(document.querySelector('#temporary-chat-controls').firstElementChild, entry);
+  assert.equal(document.querySelector('#temporary-memory-menu').style.top, 'calc(100% + .35rem)');
+  assert.equal(document.querySelector('#temporary-chat-header-status').style.display, 'none');
   assert.equal(entry.classList.contains('is-active'), true);
   assert.equal(entry.querySelectorAll('.temporary-chat-icon-active [data-temporary-chat-slash]').length, 1);
   assert.equal(entry.querySelector('.sr-only').textContent, '退出臨時對話');
@@ -71,7 +76,7 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   document.querySelector('[data-memory-enabled="false"]').click();
   assert.equal(conversation.memoryAccessEnabled, false);
   assert.equal(document.querySelector('#temporary-memory-label').textContent, '非個人化');
-  assert.equal(document.querySelector('#temporary-chat-hero h2').textContent, '暫存對話');
+  assert.equal(document.querySelector('#temporary-chat-hero h2').textContent, '臨時對話');
   assert.equal(
     document.querySelector('#temporary-chat-hero p').textContent,
     '此對話會忽略記憶、外掛程式和自訂指示，也不會顯示在你的對話記錄中。'
@@ -85,6 +90,9 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.equal(entry.classList.contains('hidden'), true);
   assert.equal(document.querySelector('#save-temporary-chat-button').classList.contains('hidden'), false);
   assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), false);
+  assert.equal(controls.parentElement.id, 'header-actions');
+  assert.equal(controls.style.position, 'static');
+  assert.equal(controls.style.flexDirection, 'row-reverse');
 
   document.querySelector('#save-temporary-chat-button').click();
   await flushMutations();
@@ -98,8 +106,11 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), true);
 
   responsiveLayoutHandler({ matches: false });
-  assert.equal(entry.closest('#temporary-chat-controls').style.left, '');
+  assert.equal(controls.parentElement.id, 'workspace');
+  assert.equal(controls.style.position, '');
+  assert.equal(controls.style.left, '');
   assert.equal(document.querySelector('#temporary-memory-menu').style.padding, '');
+  assert.equal(document.querySelector('#temporary-chat-header-status').style.display, '');
 
   window.close();
 });

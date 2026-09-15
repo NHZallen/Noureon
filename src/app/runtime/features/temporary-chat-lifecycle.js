@@ -39,6 +39,7 @@ export function createTemporaryChatLifecycle({
   let saveButton;
   let messageObserver;
   let mobileLayoutQuery;
+  let headerActions;
 
   const text = (key, fallback) => getText?.(key, fallback) || fallback;
 
@@ -50,14 +51,25 @@ export function createTemporaryChatLifecycle({
   const applyResponsiveLayout = isMobile => {
     if (!root || !memoryMenu) return;
     const mobileValue = value => isMobile ? value : '';
+    const useMobileHeader = Boolean(isMobile && headerActions);
     const entryButton = root.querySelector('#temporary-chat-entry-button');
     const memoryButton = root.querySelector('#temporary-memory-button');
     const memoryButtonIcon = memoryButton?.querySelector('svg');
 
+    if (useMobileHeader && headerActions && root.parentElement !== headerActions) {
+      headerActions.insertBefore(root, headerStatus || elements.newChatBtnHeader || null);
+    } else if (!useMobileHeader && root.parentElement !== elements.chatWorkspace) {
+      elements.chatWorkspace.appendChild(root);
+    }
+
     Object.assign(root.style, {
-      left: mobileValue('.75rem'),
-      bottom: mobileValue('calc(4.75rem + env(safe-area-inset-bottom, 0px))'),
-      gap: mobileValue('.15rem')
+      position: useMobileHeader ? 'static' : '',
+      left: useMobileHeader ? '' : mobileValue('.75rem'),
+      right: '',
+      top: '',
+      bottom: useMobileHeader ? '' : mobileValue('calc(4.75rem + env(safe-area-inset-bottom, 0px))'),
+      gap: mobileValue('.15rem'),
+      flexDirection: useMobileHeader ? 'row-reverse' : ''
     });
     Object.assign(entryButton.style, {
       width: mobileValue('2.75rem'),
@@ -77,8 +89,10 @@ export function createTemporaryChatLifecycle({
       height: mobileValue('.85rem')
     });
     Object.assign(memoryMenu.style, {
-      left: mobileValue('-2.9rem'),
-      bottom: mobileValue('calc(100% + .35rem)'),
+      left: useMobileHeader ? 'auto' : mobileValue('-2.9rem'),
+      right: useMobileHeader ? '-2.9rem' : '',
+      top: useMobileHeader ? 'calc(100% + .35rem)' : '',
+      bottom: useMobileHeader ? 'auto' : mobileValue('calc(100% + .35rem)'),
       width: mobileValue('min(17.5rem, calc(100vw - 1.5rem))'),
       padding: mobileValue('.3rem'),
       borderRadius: mobileValue('.9rem')
@@ -103,6 +117,7 @@ export function createTemporaryChatLifecycle({
       paddingInline: mobileValue('.7rem'),
       fontSize: mobileValue('.78rem')
     });
+    if (headerStatus) headerStatus.style.display = isMobile ? 'none' : '';
   };
 
   const ensureDom = () => {
@@ -145,16 +160,13 @@ export function createTemporaryChatLifecycle({
     elements.chatWorkspace.appendChild(root);
     memoryMenu = root.querySelector('#temporary-memory-menu');
     saveButton = root.querySelector('#save-temporary-chat-button');
-    mobileLayoutQuery = document.defaultView?.matchMedia?.('(max-width: 768px)');
-    applyResponsiveLayout(mobileLayoutQuery?.matches ?? (document.defaultView?.innerWidth <= 768));
-    mobileLayoutQuery?.addEventListener?.('change', event => applyResponsiveLayout(event.matches));
     const MutationObserverCtor = document.defaultView?.MutationObserver || globalThis.MutationObserver;
     if (!messageObserver && MutationObserverCtor && elements.messageList) {
       messageObserver = new MutationObserverCtor(() => render());
       messageObserver.observe(elements.messageList, { childList: true });
     }
 
-    const headerActions = elements.newChatBtnHeader?.parentElement;
+    headerActions = elements.newChatBtnHeader?.parentElement;
     if (headerActions) {
       headerStatus = document.createElement('span');
       headerStatus.id = 'temporary-chat-header-status';
@@ -163,6 +175,10 @@ export function createTemporaryChatLifecycle({
       headerStatus.textContent = '臨時對話';
       headerActions.insertBefore(headerStatus, elements.newChatBtnHeader || null);
     }
+
+    mobileLayoutQuery = document.defaultView?.matchMedia?.('(max-width: 768px)');
+    applyResponsiveLayout(mobileLayoutQuery?.matches ?? (document.defaultView?.innerWidth <= 768));
+    mobileLayoutQuery?.addEventListener?.('change', event => applyResponsiveLayout(event.matches));
 
     saveButton.addEventListener('click', () => { void savePermanent(); });
 
@@ -225,7 +241,7 @@ export function createTemporaryChatLifecycle({
       greeting.dataset.temporaryChatGreetingMode = greetingMode;
       const titleKey = memoryEnabled ? 'temporaryChatTitle' : 'temporaryChatUnpersonalizedTitle';
       const descriptionKey = memoryEnabled ? 'temporaryChatDescription' : 'temporaryChatUnpersonalizedNotice';
-      const title = text(titleKey, memoryEnabled ? '臨時對話' : '暫存對話');
+      const title = text(titleKey, '臨時對話');
       const description = text(
         descriptionKey,
         memoryEnabled
@@ -283,6 +299,7 @@ export function createTemporaryChatLifecycle({
     headerStatus?.classList.toggle('hidden', !isEphemeral);
     headerStatus?.classList.toggle('flex', isEphemeral);
     if (headerStatus) headerStatus.textContent = text('temporaryChatTitle', '臨時對話');
+    applyResponsiveLayout(mobileLayoutQuery?.matches ?? (document.defaultView?.innerWidth <= 768));
     if (!showPersonalization) closeMemoryMenu();
   };
 

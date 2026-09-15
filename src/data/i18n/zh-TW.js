@@ -87,7 +87,7 @@
         temporaryChatPersonalizedDescription: '此對話可以參考既有記憶',
         temporaryChatUnpersonalized: '非個人化',
         temporaryChatUnpersonalizedDescription: '此對話不會參考既有記憶',
-        temporaryChatUnpersonalizedTitle: '暫存對話',
+        temporaryChatUnpersonalizedTitle: '臨時對話',
         temporaryChatUnpersonalizedNotice: '此對話會忽略記憶、外掛程式和自訂指示，也不會顯示在你的對話記錄中。',
         temporaryChatSave: '永久儲存',
         temporaryChatSaved: '已永久儲存，這現在是一般對話。',
