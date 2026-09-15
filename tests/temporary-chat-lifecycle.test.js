@@ -9,6 +9,11 @@ const flushMutations = () => new Promise(resolve => setTimeout(resolve, 0));
 test('temporary chat controls follow the empty, started, and permanently saved states', async () => {
   const window = new Window();
   const { document } = window;
+  let responsiveLayoutHandler;
+  window.matchMedia = query => ({
+    matches: query === '(max-width: 768px)',
+    addEventListener: (_type, handler) => { responsiveLayoutHandler = handler; }
+  });
   document.body.innerHTML = `
     <div id="header-actions"><button id="new-chat"></button></div>
     <main id="workspace">
@@ -41,6 +46,10 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   lifecycle.render();
   const entry = document.querySelector('#temporary-chat-entry-button');
   assert.equal(entry.closest('#temporary-chat-controls').classList.contains('hidden'), false);
+  assert.equal(entry.closest('#temporary-chat-controls').style.left, '0.75rem');
+  assert.equal(entry.style.width, '2.75rem');
+  assert.equal(document.querySelector('#temporary-memory-menu').style.padding, '0.3rem');
+  assert.equal(document.querySelector('[data-memory-enabled="true"]').style.minHeight, '3rem');
   assert.equal(document.querySelector('#temporary-chat-hero'), null);
   assert.equal(entry.classList.contains('is-active'), false);
   assert.equal(entry.querySelector('.temporary-chat-icon-inactive [data-temporary-chat-slash]'), null);
@@ -87,6 +96,10 @@ test('temporary chat controls follow the empty, started, and permanently saved s
   assert.equal(calls[2][0], 'notice');
   assert.equal(document.querySelector('#save-temporary-chat-button').classList.contains('hidden'), true);
   assert.equal(document.querySelector('#temporary-chat-header-status').classList.contains('hidden'), true);
+
+  responsiveLayoutHandler({ matches: false });
+  assert.equal(entry.closest('#temporary-chat-controls').style.left, '');
+  assert.equal(document.querySelector('#temporary-memory-menu').style.padding, '');
 
   window.close();
 });

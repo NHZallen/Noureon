@@ -38,12 +38,71 @@ export function createTemporaryChatLifecycle({
   let headerStatus;
   let saveButton;
   let messageObserver;
+  let mobileLayoutQuery;
 
   const text = (key, fallback) => getText?.(key, fallback) || fallback;
 
   const closeMemoryMenu = () => {
     memoryMenu?.classList.add('hidden');
     root?.querySelector('#temporary-memory-button')?.setAttribute('aria-expanded', 'false');
+  };
+
+  const applyResponsiveLayout = isMobile => {
+    if (!root || !memoryMenu) return;
+    const mobileValue = value => isMobile ? value : '';
+    const entryButton = root.querySelector('#temporary-chat-entry-button');
+    const memoryButton = root.querySelector('#temporary-memory-button');
+    const memoryButtonIcon = memoryButton?.querySelector('svg');
+
+    Object.assign(root.style, {
+      left: mobileValue('.75rem'),
+      bottom: mobileValue('calc(4.75rem + env(safe-area-inset-bottom, 0px))'),
+      gap: mobileValue('.15rem')
+    });
+    Object.assign(entryButton.style, {
+      width: mobileValue('2.75rem'),
+      height: mobileValue('2.75rem'),
+      minWidth: mobileValue('2.75rem'),
+      minHeight: mobileValue('2.75rem')
+    });
+    Object.assign(memoryButton.style, {
+      height: mobileValue('2.75rem'),
+      minHeight: mobileValue('2.75rem'),
+      paddingInline: mobileValue('.35rem'),
+      gap: mobileValue('.2rem'),
+      fontSize: mobileValue('.8rem')
+    });
+    Object.assign(memoryButtonIcon.style, {
+      width: mobileValue('.85rem'),
+      height: mobileValue('.85rem')
+    });
+    Object.assign(memoryMenu.style, {
+      left: mobileValue('-2.9rem'),
+      bottom: mobileValue('calc(100% + .35rem)'),
+      width: mobileValue('min(17.5rem, calc(100vw - 1.5rem))'),
+      padding: mobileValue('.3rem'),
+      borderRadius: mobileValue('.9rem')
+    });
+    memoryMenu.querySelectorAll('button').forEach(button => Object.assign(button.style, {
+      minHeight: mobileValue('3rem'),
+      gap: mobileValue('.5rem'),
+      padding: mobileValue('.5rem .6rem'),
+      borderRadius: mobileValue('.65rem')
+    }));
+    memoryMenu.querySelectorAll('strong').forEach(label => Object.assign(label.style, {
+      fontSize: mobileValue('.82rem'),
+      lineHeight: mobileValue('1.2')
+    }));
+    memoryMenu.querySelectorAll('small').forEach(description => Object.assign(description.style, {
+      fontSize: mobileValue('.7rem'),
+      lineHeight: mobileValue('1.25')
+    }));
+    Object.assign(saveButton.style, {
+      height: mobileValue('2.75rem'),
+      minHeight: mobileValue('2.75rem'),
+      paddingInline: mobileValue('.7rem'),
+      fontSize: mobileValue('.78rem')
+    });
   };
 
   const ensureDom = () => {
@@ -86,6 +145,9 @@ export function createTemporaryChatLifecycle({
     elements.chatWorkspace.appendChild(root);
     memoryMenu = root.querySelector('#temporary-memory-menu');
     saveButton = root.querySelector('#save-temporary-chat-button');
+    mobileLayoutQuery = document.defaultView?.matchMedia?.('(max-width: 768px)');
+    applyResponsiveLayout(mobileLayoutQuery?.matches ?? (document.defaultView?.innerWidth <= 768));
+    mobileLayoutQuery?.addEventListener?.('change', event => applyResponsiveLayout(event.matches));
     const MutationObserverCtor = document.defaultView?.MutationObserver || globalThis.MutationObserver;
     if (!messageObserver && MutationObserverCtor && elements.messageList) {
       messageObserver = new MutationObserverCtor(() => render());
