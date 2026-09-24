@@ -938,6 +938,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           getOutputMode,
           runModelCouncil: (...args) => runModelCouncil(...args, {
             webSearchEnabled,
+            conversation: conv,
             onMemoryContextResolved: collectHistorySources
           }),
           renderCouncilProgress,
@@ -1011,7 +1012,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
         extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
         completeImageView: generatedImageParts ? () => {
-          const finalMessageElement = addMessageToUI(finalAiMessage, conv.messages.length - 1, false);
+          const finalMessageElement = addMessageToUI(finalAiMessage, conv.messages.length - 1, false, false, { conversation: conv });
           finalMessageElement.classList.add('generated-image-result-enter');
           finalMessageElement.hidden = true;
           const revealFinalImage = () => {
@@ -1091,6 +1092,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         persistAppData: saveAppData
       });
     } finally {
+      if (conv.__astraPendingResponse?.loadingMessageDiv === loadingMessageDiv) {
+        delete conv.__astraPendingResponse;
+      }
+      if (submitAbortController.signal.aborted) loadingMessageDiv?.remove();
       const lastMessageElement = runSubmitFinalCleanupLifecycle(
         () => singleModelResponseLifecycle.stop(),
         () => { setIsCouncilRunning(false); setAbortController(null); },
@@ -1098,7 +1103,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
         renderCouncilControls,
         renderInputIndicators,
-        () => ALL_ELEMENTS.messageList.lastElementChild
+        () => getActiveConversation()?.id === conv.id ? ALL_ELEMENTS.messageList.lastElementChild : null
       );
       applyModelMessagePostResponseActions({
         lastMessageElement,

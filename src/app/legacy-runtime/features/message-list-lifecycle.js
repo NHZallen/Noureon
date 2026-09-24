@@ -111,8 +111,9 @@ export function createMessageListLifecycle({
         if ((conversation.messages || []).length === 0) {
             return Boolean(messageList.querySelector('.chat-greeting-message'));
         }
+        const pendingElement = conversation.__astraPendingResponse?.loadingMessageDiv;
         const renderedMessages = [...messageList.children]
-            .filter(element => element.dataset?.messageIndex !== undefined);
+            .filter(element => element !== pendingElement && element.dataset?.messageIndex !== undefined);
         if (renderedMessages.length !== conversation.messages.length) return false;
         return conversation.messages.every((message, index) => {
             const element = renderedMessages[index];
@@ -156,8 +157,9 @@ export function createMessageListLifecycle({
         clearPendingBottomAnchor = cancel;
     };
 
-    const addMessageToUI = (message, index, shouldSave = true, shouldScroll = true) => {
-        const conversation = getActiveConversation();
+    const addMessageToUI = (message, index, shouldSave = true, shouldScroll = true, options = {}) => {
+        const activeConversation = getActiveConversation();
+        const conversation = options.conversation || activeConversation;
         if (shouldSave) {
             conversation.messages.push(message);
             if (
@@ -194,15 +196,17 @@ export function createMessageListLifecycle({
         bindMediaPreviewButtons(messageElement, messageView.previewMediaParts);
         void bindGeneratedImageAssets(messageElement, messageView.generatedImageAssets || [])
             .catch(error => logError('Failed to bind generated image assets:', error));
-        if (elements.messageList.querySelector('.text-center')) {
-            elements.messageList.innerHTML = '';
-        }
-        elements.messageList.appendChild(messageElement);
-        if (shouldScroll && isAutoScrolling()) {
-            elements.chatContainer.scrollTo({
-                top: elements.chatContainer.scrollHeight,
-                behavior: 'smooth'
-            });
+        if (conversation?.id === activeConversation?.id) {
+            if (elements.messageList.querySelector('.text-center')) {
+                elements.messageList.innerHTML = '';
+            }
+            elements.messageList.appendChild(messageElement);
+            if (shouldScroll && isAutoScrolling()) {
+                elements.chatContainer.scrollTo({
+                    top: elements.chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
         }
         return markMessageElementAsCurrent(message, index, messageElement);
     };
@@ -297,6 +301,10 @@ export function createMessageListLifecycle({
             conversation.messages.forEach((message, index) => {
                 addMessageToUI(message, index, false, false);
             });
+        }
+        const pendingElement = conversation.__astraPendingResponse?.loadingMessageDiv;
+        if (pendingElement && conversation.messages.at(-1)?.role === 'user') {
+            messageList.appendChild(pendingElement);
         }
         syncComposerLayout({ animate: false });
         scheduleFrame(() => {

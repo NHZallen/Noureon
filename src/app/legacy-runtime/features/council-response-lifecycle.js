@@ -100,6 +100,7 @@ export function createCouncilResponseLifecycle({
               false,
               {
                   modelInfo: searchModel,
+                  conversation: options.conversation,
                   historyForApi: [],
                   forceWebSearch: true,
                   ignoreConversationWebSearch: true,
@@ -148,7 +149,7 @@ export function createCouncilResponseLifecycle({
       const isVisual = mimeType.startsWith('image/') || mimeType.startsWith('video/');
       return kind === 'visual' ? isVisual : !isVisual;
   });
-  const buildCouncilAttachmentTranslationPackets = async (parts, selectedModels, signal, progress) => {
+  const buildCouncilAttachmentTranslationPackets = async (parts, selectedModels, signal, progress, conversation) => {
       const need = getCouncilAttachmentTranslationNeed(selectedModels, parts);
       if (!need.needsAnyPacket) {
           return { visualPacket: '', documentPacket: '', translatorModelId: null, translatorModelName: null };
@@ -177,6 +178,7 @@ export function createCouncilResponseLifecycle({
               false,
               {
                   modelInfo: translatorModel,
+                  conversation,
                   historyForApi: [],
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
@@ -311,9 +313,10 @@ export function createCouncilResponseLifecycle({
   };
   async function runModelCouncil(parts, signal, onProgress, onFinalChunk, {
       webSearchEnabled = null,
+      conversation = null,
       onMemoryContextResolved = () => {}
   } = {}) {
-      const conv = getActiveConversation();
+      const conv = conversation || getActiveConversation();
       const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
       const texts = getCouncilTexts();
       const runtimeTexts = getCouncilRuntimeTexts();
@@ -390,7 +393,8 @@ export function createCouncilResponseLifecycle({
           parts,
           selectedCouncilModels,
           signal,
-          progress
+          progress,
+          conv
       );
       let sharedSearchPacket = '';
       if (searchState) {
@@ -405,6 +409,7 @@ export function createCouncilResponseLifecycle({
                   modelUsesNativeWebSearch(sharedSearchModel) ? buildCouncilSharedSearchPrompt(parts) : getSearchQueryFromParts(parts),
                   signal,
                   {
+                      conversation: conv,
                       label: 'Shared council web search packet',
                       systemInstruction: 'Prepare shared web research context for the council. Do not answer the user directly.',
                       onChunk: () => {
@@ -443,6 +448,7 @@ export function createCouncilResponseLifecycle({
               false,
               {
                   modelInfo,
+                  conversation: conv,
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
                   additionalSystemInstruction: buildCouncilMemberInstruction(mode),
@@ -512,6 +518,7 @@ export function createCouncilResponseLifecycle({
                           : buildCouncilSecondSearchQuery(parts, firstRoundResults),
                       signal,
                       {
+                          conversation: conv,
                           label: 'Second council discussion web search packet',
                           systemInstruction: 'Prepare updated web research context before the council discussion round. Do not answer the user directly.',
                           onChunk: () => {
@@ -558,6 +565,7 @@ export function createCouncilResponseLifecycle({
                   false,
                   {
                       modelInfo,
+                      conversation: conv,
                       historyForApi: [],
                       ignoreConversationWebSearch: true,
                       disableReasoning: true,
@@ -620,6 +628,7 @@ export function createCouncilResponseLifecycle({
               false,
               {
                   modelInfo: synthesizer,
+                  conversation: conv,
                   historyForApi: [],
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,

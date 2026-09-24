@@ -136,18 +136,20 @@ test('buffered lifecycle accumulates provider text without invoking realtime ren
 test('request-scoped search reaches both translation and provider request options', async () => {
   const { calls, lifecycle, signal, targetElement } = createHarness({ outputMode: 'playback' });
 
+  const conversation = { model: 'model', isWebSearchEnabled: false };
   await lifecycle.run({
     targetElement,
     userParts: [{ text: 'What is the weather today?' }],
     modelInfo: { id: 'model', name: 'Model' },
-    conversation: { model: 'model', isWebSearchEnabled: false },
+    conversation,
     webSearchEnabled: true,
     signal,
     uiLanguage: 'en'
   });
 
-  assert.deepEqual(calls.find((call) => call[0] === 'translate')[2], { webSearchEnabled: true });
+  assert.deepEqual(calls.find((call) => call[0] === 'translate')[2], { webSearchEnabled: true, conversation });
   assert.equal(calls.find((call) => call[0] === 'api')[4].webSearchEnabled, true);
+  assert.equal(calls.find((call) => call[0] === 'api')[4].conversation, conversation);
 });
 
 test('empty provider responses preserve the current localized failure boundary', async () => {

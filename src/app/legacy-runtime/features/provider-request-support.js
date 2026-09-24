@@ -151,7 +151,8 @@ Output requirements:
   };
 
   const buildSingleModelTranslatedRequestParts = async (parts, modelInfo, signal, onProgress, {
-    webSearchEnabled = false
+    webSearchEnabled = false,
+    conversation = null
   } = {}) => {
     const config = getConfig();
     const translatedSections = [];
@@ -172,6 +173,7 @@ Output requirements:
         false,
         {
           modelInfo: translatorModel,
+          conversation,
           historyForApi: [],
           ignoreConversationWebSearch: true,
           additionalSystemInstruction: 'You only translate attached documents/files into detailed neutral packets. Do not answer the user.',

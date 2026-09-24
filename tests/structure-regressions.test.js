@@ -3466,7 +3466,7 @@ test('submit final cleanup lifecycle is isolated from the 01 runtime submit flow
   assert.match(fragment01Source, /const\s+lastMessageElement\s*=\s*runSubmitFinalCleanupLifecycle\(\s*\(\)\s*=>\s*singleModelResponseLifecycle\.stop\(\),/);
   assert.match(fragment01Source, /\(\)\s*=>\s*\{\s*setIsCouncilRunning\(false\);\s*setAbortController\(null\);\s*\},/);
   assert.match(fragment01Source, /\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('submit\.updateSubmitButtonState'\)\(\.\.\.args\),\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\.\.\.args\),\s*renderCouncilControls,\s*renderInputIndicators,/);
-  assert.match(fragment01Source, /\(\)\s*=>\s*ALL_ELEMENTS\.messageList\.lastElementChild/);
+  assert.match(fragment01Source, /\(\)\s*=>\s*getActiveConversation\(\)\?\.id\s*===\s*conv\.id\s*\?\s*ALL_ELEMENTS\.messageList\.lastElementChild\s*:\s*null/);
   assert.doesNotMatch(
     fragment01Source,
     /singleModelResponseLifecycle\.stop\(\);\s*isCouncilRunning\s*=\s*false;\s*abortController\s*=\s*null;\s*updateSubmitButtonState\(false\);\s*updateInputState\(\);\s*renderCouncilControls\(\);\s*renderInputIndicators\(\);/s

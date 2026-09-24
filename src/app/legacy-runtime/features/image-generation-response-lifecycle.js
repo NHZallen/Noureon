@@ -71,7 +71,7 @@ export function createImageGenerationResponseLifecycle({
           const label = targetElement.querySelector?.('.generated-image-skeleton span');
           if (label && message) label.textContent = message;
         },
-        { webSearchEnabled }
+        { webSearchEnabled, conversation }
       );
     const basePrompt = getTextPrompt(requestParts);
     if (!basePrompt) throw new Error('請輸入要生成的圖像描述');

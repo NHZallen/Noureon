@@ -124,7 +124,15 @@ export function createSubmitInputPreparationLifecycle({
       renderFilePreviews();
     }
 
-    if (conversation.isTemporary) {
+    // Keep the live response element with its conversation when navigation rebuilds the chat view.
+    const pendingResponse = { loadingMessageDiv: null };
+    Object.defineProperty(conversation, '__astraPendingResponse', {
+      configurable: true,
+      value: pendingResponse
+    });
+    let initialSave = null;
+    const startedTemporaryConversation = Boolean(conversation.isTemporary);
+    if (startedTemporaryConversation) {
       conversation.isTemporary = false;
       if (conversation.retentionMode === 'ephemeral') {
         conversation.isNaming = false;
@@ -136,9 +144,8 @@ export function createSubmitInputPreparationLifecycle({
         } else {
           conversation.isNaming = false;
         }
-        await saveAppData();
+        initialSave = saveAppData();
       }
-      onConversationStarted(conversation);
     }
 
     const autoWebSearchEnabled = !conversation.isWebSearchEnabled
@@ -155,13 +162,30 @@ export function createSubmitInputPreparationLifecycle({
           imageAspectRatio: conversation.imageConfig?.aspectRatio || '1:1'
         }]
       : [{ text: '...' }];
-    const loadingMessageDiv = addMessageToUI({ role: 'model', parts: loadingParts, createdAt: new Date().toISOString() }, conversation.messages.length, false);
+    const loadingMessageDiv = addMessageToUI(
+      { role: 'model', parts: loadingParts, createdAt: new Date().toISOString() },
+      conversation.messages.length,
+      false,
+      true,
+      { conversation }
+    );
+    pendingResponse.loadingMessageDiv = loadingMessageDiv;
     const contentDiv = loadingMessageDiv.querySelector('[data-image-generation-stage]')
       || loadingMessageDiv.querySelector('.message-content')
       || loadingMessageDiv;
     requestFrame(() => {
       loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
     });
+    try {
+      if (initialSave) await initialSave;
+      if (startedTemporaryConversation) onConversationStarted(conversation);
+    } catch (error) {
+      delete conversation.__astraPendingResponse;
+      loadingMessageDiv.remove?.();
+      setAbortController(null);
+      updateSubmitButtonState(false);
+      throw error;
+    }
 
     return {
       abortController,

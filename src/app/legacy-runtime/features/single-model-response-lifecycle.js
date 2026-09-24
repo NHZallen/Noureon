@@ -83,7 +83,7 @@ export function createSingleModelResponseLifecycle({
         modelInfo,
         signal,
         (stage, message) => renderProgress(targetElement, startedAt, stage, message),
-        { webSearchEnabled }
+        { webSearchEnabled, conversation }
       );
     }
 
@@ -108,7 +108,7 @@ export function createSingleModelResponseLifecycle({
       onChunk,
       signal,
       false,
-      { modelInfo, webSearchEnabled, onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER }
+      { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER }
     );
 
     let fullResponse;

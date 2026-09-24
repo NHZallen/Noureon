@@ -102,6 +102,43 @@ test('addMessageToUI skips persistence and scrolls only when auto-scrolling is a
   }
 });
 
+test('a pending response keeps its live element when switching away and back', () => {
+  const original = {
+    id: 'original', title: 'Original', archived: false,
+    messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
+  };
+  const other = { id: 'other', title: 'Other', archived: false, messages: [] };
+  let active = original;
+  const fixture = createFixture({ getActiveConversation: () => active });
+  try {
+    fixture.lifecycle.renderChat();
+    const loading = fixture.lifecycle.addMessageToUI(
+      { role: 'model', parts: [{ text: 'Thinking…' }] }, 1, false, false,
+      { conversation: original }
+    );
+    original.__astraPendingResponse = { loadingMessageDiv: loading };
+
+    active = other;
+    fixture.lifecycle.renderChat();
+    assert.equal(loading.isConnected, false);
+    assert.equal(fixture.document.querySelector('#messages').textContent.includes('Thinking…'), false);
+
+    active = original;
+    fixture.lifecycle.renderChat();
+    assert.equal(fixture.document.querySelector('#messages').lastElementChild, loading);
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), true);
+    loading.querySelector('.message-content').textContent = 'Streaming answer';
+    assert.match(fixture.document.querySelector('#messages').textContent, /Streaming answer/);
+
+    original.messages.push({ role: 'model', parts: [{ text: 'Finished answer' }] });
+    fixture.lifecycle.renderChat();
+    assert.equal(loading.isConnected, false);
+    assert.match(fixture.document.querySelector('#messages').textContent, /Finished answer/);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 test('tracks whether the rendered message list still matches the active conversation', () => {
   const fixture = createFixture();
   try {

@@ -1677,7 +1677,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             },
             onRemoteConversationsApplied:()=>ensureMemorySummaryFresh({force:true}),
             onMemorySyncApplied:()=>ensureMemorySummaryFresh({force:true}),
-            saveAppData,busy:()=>abortController&&getActiveConversation()
+            saveAppData,busy:()=>abortController&&liveConversationsBridge.getConversations().find(c=>c.__astraPendingResponse)
         });
 
 export { legacyRuntimeContext };

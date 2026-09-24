@@ -49,6 +49,7 @@ const createHarness = ({
   getMemoryContext,
   warn = () => {},
   fetchImpl,
+  getActiveConversation,
   getModelReasoningConfig = () => null,
   normalizeReasoningEffort = () => null
 } = {}) => {
@@ -77,7 +78,7 @@ const createHarness = ({
   });
 
   const streamApiCall = createStreamApiCall({
-    getActiveConversation: () => resolvedConversation,
+    getActiveConversation: getActiveConversation || (() => resolvedConversation),
     normalizeConversationModel: () => resolvedModel,
     getModelApiId: (model) => model.apiId,
     getApiKeyForProvider: (requestedProvider) => `${requestedProvider}-key`,
@@ -624,6 +625,38 @@ test('OpenRouter requests include selected reasoning effort for compatible model
 
   const payload = JSON.parse(requests[0].options.body);
   assert.deepEqual(payload.reasoning, { effort: 'xhigh' });
+});
+
+test('request remains bound to its source conversation after the active chat changes', async () => {
+  const sourceConversation = {
+    id: 'source',
+    messages: [
+      { role: 'user', parts: [{ text: 'Source history' }] },
+      { role: 'user', parts: [{ text: 'Current question' }] }
+    ],
+    genConfig: { temperature: 0.3, topP: 0.8, maxTokens: 123 }
+  };
+  const otherConversation = {
+    id: 'other',
+    messages: [{ role: 'user', parts: [{ text: 'Other history' }] }],
+    genConfig: { temperature: 0.9, topP: 0.4, maxTokens: 55 }
+  };
+  const { streamApiCall, requests } = createHarness({
+    getActiveConversation: () => otherConversation
+  });
+
+  await streamApiCall(
+    [{ text: 'Current question' }],
+    () => {},
+    undefined,
+    false,
+    { conversation: sourceConversation }
+  );
+
+  const payload = JSON.parse(requests[0].options.body);
+  assert.equal(payload.temperature, 0.3);
+  assert.match(JSON.stringify(payload.messages), /Source history/);
+  assert.doesNotMatch(JSON.stringify(payload.messages), /Other history/);
 });
 
 test('provider HTTP errors are normalized from JSON and text response bodies', async () => {

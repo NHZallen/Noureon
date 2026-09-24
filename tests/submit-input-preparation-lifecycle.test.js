@@ -50,14 +50,14 @@ const createHarness = (overrides = {}) => {
       uploadedFiles = files;
       calls.push(['setUploadedFiles', files.length]);
     },
-    getActiveConversation: () => conversation,
+    getActiveConversation: overrides.getActiveConversation || (() => conversation),
     updateSubmitButtonState: (value) => calls.push(['updateSubmitButtonState', value]),
     getCouncilValidation: overrides.getCouncilValidation || (() => ({ ok: true })),
     showNotification: (message, type) => calls.push(['showNotification', message, type]),
     renderCouncilControls: () => calls.push(['renderCouncilControls']),
     isCouncilEnabled: overrides.isCouncilEnabled || (() => false),
     getCouncilRuntimeTexts: () => ({ searchManualNotice: 'manual search required' }),
-    addMessageToUI: (message, index, shouldSave) => {
+    addMessageToUI: overrides.addMessageToUI || ((message, index, shouldSave) => {
       calls.push(['addMessageToUI', message.role, index, shouldSave]);
       if (message.role === 'model') return createLoadingMessageElement(calls);
       conversation.messages.push(message);
@@ -67,11 +67,11 @@ const createHarness = (overrides = {}) => {
           calls.push(['scrollIntoView', options]);
         }
       };
-    },
+    }),
     renderHistorySidebar: () => calls.push(['renderHistorySidebar']),
     getAutoNaming: () => overrides.autoNaming ?? false,
     generateTitleAndSummary: (conv) => calls.push(['generateTitleAndSummary', conv === conversation]),
-    saveAppData: async () => calls.push(['saveAppData']),
+    saveAppData: overrides.saveAppData || (async () => calls.push(['saveAppData'])),
     getAutoWebSearchEnabled: () => overrides.autoWebSearch ?? false,
     canAutoEnableWebSearch: overrides.canAutoEnableWebSearch || (() => true),
     getAutoSearchNotice: () => 'auto search on',
@@ -186,6 +186,41 @@ test('starts a temporary chat without adding it to history, naming it, or persis
   assert.equal(harness.calls.some(([name]) => name === 'renderHistorySidebar'), false);
   assert.equal(harness.calls.some(([name]) => name === 'generateTitleAndSummary'), false);
   assert.equal(harness.calls.some(([name]) => name === 'saveAppData'), false);
+});
+
+test('first message exposes its pending response before storage completes or the user switches chats', async () => {
+  const original = {
+    id: 'original', archived: false, isTemporary: true, isWebSearchEnabled: false,
+    messages: [], provider: 'openrouter', unsentMessage: ''
+  };
+  const other = { id: 'other', messages: [] };
+  let active = original;
+  let finishSave;
+  const saved = new Promise(resolve => { finishSave = resolve; });
+  const rendered = [];
+  const harness = createHarness({
+    conversation: original,
+    getActiveConversation: () => active,
+    saveAppData: () => saved,
+    addMessageToUI: (message, _index, shouldSave, _shouldScroll, options) => {
+      rendered.push({ role: message.role, owner: options?.conversation || active });
+      if (shouldSave) original.messages.push(message);
+      return message.role === 'model'
+        ? createLoadingMessageElement([])
+        : { scrollIntoView() {} };
+    }
+  });
+
+  const pendingSubmit = harness.lifecycle.prepareSubmitResponse();
+  assert.ok(original.__astraPendingResponse?.loadingMessageDiv);
+  assert.equal(rendered.length, 2);
+  assert.equal(rendered[1].owner, original);
+  active = other;
+  finishSave();
+  const prepared = await pendingSubmit;
+
+  assert.equal(prepared.conversation, original);
+  assert.equal(rendered.some(item => item.owner === other), false);
 });
 
 test('prepares an edited message without clearing the composer draft or its attachments', async () => {
