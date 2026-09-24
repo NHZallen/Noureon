@@ -114,6 +114,13 @@ test('history-source disclosure updates the completed message without rerenderin
   assert.doesNotMatch(source, /historySourceConversationIds\.size > 0[\s\S]{0,500}?renderChat\(/);
 });
 
+test('abort cleanup retains a saved answer and removes only an unanswered loading message', () => {
+  const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+
+  assert.match(source, /submitAbortController\.signal\.aborted\s*&&\s*conv\.messages\.at\(-1\)\?\.role\s*===\s*'user'/);
+  assert.doesNotMatch(source, /if\s*\(submitAbortController\.signal\.aborted\)\s*loadingMessageDiv\?\.remove\(\)/);
+});
+
 test('quote reference dependencies reach the real submit preparation lifecycle', () => {
   const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   const preparationStart = source.indexOf('createSubmitInputPreparationLifecycle({');

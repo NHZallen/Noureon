@@ -89,6 +89,38 @@ test('turning off automatic memory stops new capture without touching confirmed 
   assert.ok(!calls.includes('memory'), 'no new automatic memory extraction is queued');
 });
 
+test('stopped responses persist received text without starting memory capture', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const conversation = { messages: [{ role: 'user', parts: [{ text: 'Question' }] }] };
+  const finalAiMessage = { role: 'model', parts: [{ text: '' }] };
+  const tasks = [];
+  let memoryCalls = 0;
+
+  await finalizeAssistantResponse({
+    fullResponse: 'Partial answer',
+    finalAiMessage,
+    conversation,
+    signal: controller.signal,
+    responseUsesCouncil: false,
+    responseRenderedInRealtime: true,
+    targetElement: { dataset: { streamRendered: 'true' } },
+    uiLanguage: 'en',
+    memoryEnabled: true,
+    autoMemoryEnabled: true,
+    persistAppData: async () => {},
+    completeSingleModelView: async () => {},
+    extractPersonalMemory: async () => { memoryCalls += 1; },
+    queueBackgroundTask: (task) => tasks.push(task)
+  });
+
+  assert.equal(conversation.messages.at(-1), finalAiMessage);
+  assert.deepEqual(finalAiMessage.parts, [{ text: 'Partial answer' }]);
+  assert.equal(tasks.length, 1);
+  await tasks[0]();
+  assert.equal(memoryCalls, 0);
+});
+
 test('successful answers persist only normalized history source conversation ids', async () => {
   const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: 'created' };
   const first = '11111111-1111-4111-8111-111111111111';
@@ -308,6 +340,16 @@ test('error finalization persists non-abort errors and skips aborted requests', 
   assert.equal(abortResult.persisted, false);
   assert.equal(calls.includes('abort-stop'), false);
   assert.equal(calls.includes('abort-persist'), false);
+
+  const concurrentErrorResult = await persistAssistantResponseError({
+    error: new Error('request failed while stopping'),
+    signal: abortController.signal,
+    conversation,
+    targetElement,
+    persistAppData: async () => calls.push('concurrent-error-persist')
+  });
+  assert.equal(concurrentErrorResult.persisted, false);
+  assert.equal(calls.includes('concurrent-error-persist'), false);
 });
 
 test('error finalization preserves the legacy missing-prefix fallback text', async () => {

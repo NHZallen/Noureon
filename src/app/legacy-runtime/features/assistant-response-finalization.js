@@ -100,7 +100,7 @@ export async function persistAssistantResponseError({
   persistAppData,
   nowIso = () => new Date().toISOString()
 }) {
-  if (error.name === 'AbortError' && signal?.aborted) {
+  if (signal?.aborted) {
     return { persisted: false };
   }
 

@@ -10,7 +10,8 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 const createHarness = ({
   outputMode = 'realtime',
   runModelCouncil,
-  gradualAppend
+  gradualAppend,
+  signal = new AbortController().signal
 } = {}) => {
   const calls = [];
   const renderers = [];
@@ -27,7 +28,7 @@ const createHarness = ({
       return runCouncilResponseRenderLifecycle({
         contentDiv,
         userParts,
-        signal: new AbortController().signal,
+        signal,
         getOutputMode: () => outputMode,
         runModelCouncil: runModelCouncil || (async (parts, signal, onProgress, onFinalChunk) => {
           onProgress({ stage: 'firstRound', message: 'Working', startedAt: 100, elapsedMs: 0 });
@@ -47,6 +48,9 @@ const createHarness = ({
             appendText(chunk) {
               this.appended.push(chunk);
               calls.push(['appendText', chunk]);
+            },
+            getText() {
+              return this.appended.join('');
             },
             finish(finishOptions) {
               this.finished.push(finishOptions);
@@ -116,6 +120,27 @@ test('buffered council lifecycle renders progress and does not create realtime r
   assert.equal(harness.renderers.length, 0);
   assert.match(harness.contentDiv.innerHTML, /progress:firstRound/);
   assert.equal(harness.calls.some(([name]) => name === 'gradualAppend'), false);
+});
+
+test('stopping realtime council synthesis retains the visible partial response', async () => {
+  const controller = new AbortController();
+  const harness = createHarness({
+    signal: controller.signal,
+    runModelCouncil: async (parts, signal, onProgress, onFinalChunk) => {
+      onFinalChunk('Visible council answer');
+      controller.abort();
+      throw new DOMException('Aborted', 'AbortError');
+    }
+  });
+
+  const result = await harness.run();
+  assert.deepEqual(result, {
+    fullResponse: 'Visible council answer',
+    metadata: null,
+    responseRenderedInRealtime: true
+  });
+  assert.deepEqual(harness.renderers[0].appended, ['Visible council answer']);
+  assert.equal(harness.contentDiv.dataset.streamRendered, 'true');
 });
 
 test('council lifecycle stops progress ticker and propagates errors', async () => {

@@ -311,6 +311,32 @@ test('empty and aborted streams finish without leaving pending render state', as
   }
 });
 
+test('stopping a stream keeps the text already rendered', async () => {
+  const { document, cleanup } = createDom('<div id="target"></div>');
+  try {
+    const target = document.getElementById('target');
+    const controller = new AbortController();
+    const { feature } = createFeatureHarness(document);
+
+    const text = await feature.streamMarkdownResponse(
+      target,
+      async (onChunk) => {
+        onChunk('Already written');
+        controller.abort();
+        throw new DOMException('Aborted', 'AbortError');
+      },
+      controller.signal,
+      { placeholderHTML: '<span>Waiting</span>' }
+    );
+
+    assert.equal(text, 'Already written');
+    assert.match(target.textContent, /Already written/);
+    assert.equal(target.dataset.streamRendered, 'true');
+  } finally {
+    cleanup();
+  }
+});
+
 test('non-abort stream errors preserve rendered error output and rethrow', async () => {
   const { document, cleanup } = createDom('<div id="target"></div>');
 

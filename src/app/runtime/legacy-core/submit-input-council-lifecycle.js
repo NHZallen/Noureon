@@ -1095,7 +1095,9 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       if (conv.__astraPendingResponse?.loadingMessageDiv === loadingMessageDiv) {
         delete conv.__astraPendingResponse;
       }
-      if (submitAbortController.signal.aborted) loadingMessageDiv?.remove();
+      if (submitAbortController.signal.aborted && conv.messages.at(-1)?.role === 'user') {
+        loadingMessageDiv?.remove();
+      }
       const lastMessageElement = runSubmitFinalCleanupLifecycle(
         () => singleModelResponseLifecycle.stop(),
         () => { setIsCouncilRunning(false); setAbortController(null); },

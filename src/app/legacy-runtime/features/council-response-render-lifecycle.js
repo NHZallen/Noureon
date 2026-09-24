@@ -59,16 +59,33 @@ export async function runCouncilResponseRenderLifecycle({
   });
 
   try {
-    const councilResult = await runModelCouncil(
-      userParts,
-      signal,
-      renderCouncilProgressState,
-      renderCouncilSynthesisChunk
-    );
+    const finishInterruptedResponse = () => {
+      const visibleText = realtimeCouncilRenderer?.getText?.() || realtimeCouncilText;
+      if (!String(visibleText || '').trim()) throw new DOMException('Aborted', 'AbortError');
+      realtimeCouncilRenderer?.finish({ renderFormulas: true });
+      return {
+        fullResponse: visibleText,
+        metadata: null,
+        responseRenderedInRealtime: true
+      };
+    };
+    let councilResult;
+    try {
+      councilResult = await runModelCouncil(
+        userParts,
+        signal,
+        renderCouncilProgressState,
+        renderCouncilSynthesisChunk
+      );
+    } catch (error) {
+      if (!signal?.aborted) throw error;
+      return finishInterruptedResponse();
+    }
     if (councilProgressTimer) {
       stopProgressTicker(councilProgressTimer);
       councilProgressTimer = null;
     }
+    if (signal?.aborted) return finishInterruptedResponse();
     const fullResponse = councilResult.text;
     if (getOutputMode() === 'realtime') {
       if (!realtimeCouncilRenderer) {
@@ -86,6 +103,7 @@ export async function runCouncilResponseRenderLifecycle({
           requestFrame
         );
       }
+      if (signal?.aborted) return finishInterruptedResponse();
       realtimeCouncilRenderer.finish({ renderFormulas: true });
     }
     return {

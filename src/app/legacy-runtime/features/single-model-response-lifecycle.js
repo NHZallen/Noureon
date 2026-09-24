@@ -88,9 +88,12 @@ export function createSingleModelResponseLifecycle({
     }
 
     let receivedChars = 0;
+    let bufferedResponse = '';
     let lastProgressAt = 0;
     const updateStreamingProgress = (chunk) => {
-      receivedChars += String(chunk || '').length;
+      const text = String(chunk || '');
+      bufferedResponse += text;
+      receivedChars += text.length;
       const currentTime = now();
       if (currentTime - lastProgressAt > 700) {
         lastProgressAt = currentTime;
@@ -145,13 +148,19 @@ export function createSingleModelResponseLifecycle({
           );
           startTicker(targetElement, startedAt);
         }
-        fullResponse = await runApiStream(updateStreamingProgress);
+        try {
+          fullResponse = await runApiStream(updateStreamingProgress);
+        } catch (error) {
+          if (!signal?.aborted) throw error;
+          fullResponse = bufferedResponse;
+        }
       }
     } finally {
       stop();
     }
 
     if (!String(fullResponse || '').trim()) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       throw new Error(getRuntimeText(uiLanguage, 'emptyResponse'));
     }
 
@@ -172,6 +181,13 @@ export function createSingleModelResponseLifecycle({
       return;
     }
     if (responseRenderedInRealtime) {
+      renderIncrementalResponse(targetElement, fullResponse, {
+        final: true,
+        preserveCouncilDetails: false
+      });
+      return;
+    }
+    if (signal?.aborted) {
       renderIncrementalResponse(targetElement, fullResponse, {
         final: true,
         preserveCouncilDetails: false

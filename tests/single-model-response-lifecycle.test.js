@@ -21,6 +21,7 @@ const createHarness = ({
   translatedParts,
   streamResult = 'Hello Astra',
   streamError,
+  afterChunks = () => {},
   signal = new AbortController().signal
 } = {}) => {
   const calls = [];
@@ -58,6 +59,7 @@ const createHarness = ({
       if (streamError) throw streamError;
       onChunk('Hello');
       onChunk(' Astra');
+      afterChunks();
       return streamResult;
     },
     streamMarkdownResponse: async (target, streamCall, receivedSignal, options) => {
@@ -131,6 +133,31 @@ test('buffered lifecycle accumulates provider text without invoking realtime ren
   assert.equal(calls.some((call) => call[0] === 'stream-render-start'), false);
   assert.ok(calls.some((call) => call[0] === 'render-progress' && call[1] === 'streaming'));
   assert.ok(calls.some((call) => call[0] === 'stop-ticker'));
+});
+
+test('stopping a buffered provider stream retains received text and renders it immediately', async () => {
+  const controller = new AbortController();
+  const { calls, lifecycle, signal, targetElement } = createHarness({
+    outputMode: 'playback',
+    signal: controller.signal,
+    afterChunks: () => {
+      controller.abort();
+      throw new DOMException('Aborted', 'AbortError');
+    }
+  });
+
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'Hello' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: false },
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.equal(result.fullResponse, 'Hello Astra');
+  await lifecycle.completeView({ targetElement, ...result, signal });
+  assert.equal(calls.some(([name]) => name === 'playback'), false);
+  assert.ok(calls.some(([name, , text]) => name === 'render-final' && text === 'Hello Astra'));
 });
 
 test('request-scoped search reaches both translation and provider request options', async () => {
