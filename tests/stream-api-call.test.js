@@ -412,6 +412,24 @@ test('NVIDIA requests preserve proxy payload, authorization, vision attachments,
   assert.equal(finalText, 'Vision answer');
 });
 
+test('NVIDIA numeric reasoning models send the configured effort value', async () => {
+  const { streamApiCall, requests } = createHarness({
+    provider: 'nvidia',
+    conversation: { reasoningEffort: 'medium' },
+    getModelReasoningConfig: () => ({
+      providerParameter: 'nvidiaReasoningEffort',
+      options: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'max',
+      effortValues: { low: 25, medium: 50, high: 75, max: 100 }
+    }),
+    normalizeReasoningEffort: (_model, value) => value || 'max'
+  });
+
+  await streamApiCall([{ text: 'Think through this' }], () => {});
+
+  assert.equal(JSON.parse(requests[0].options.body).reasoning_effort, 50);
+});
+
 test('Gemini requests preserve native payload, headers, web search, and partial JSON streaming', async () => {
   const requests = [];
   const warnings = [];

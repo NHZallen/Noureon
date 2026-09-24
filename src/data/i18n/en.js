@@ -581,11 +581,10 @@
         model_gemma_4_26b_a4b_it_desc_tier_free: 'Cost - Free',
         // NVIDIA Free
         model_nvidia_gemma_4_31b_it_desc_tier_free: 'Cost - Free',
-        model_nvidia_deepseek_v4_pro_0813_desc_tier_free: 'Cost - Free',
-        model_nvidia_deepseek_v4_flash_0731_desc_tier_free: 'Cost - Free',
+        model_nvidia_deepseek_v4_1_flash_desc_tier_free: 'Cost - Free',
         model_nvidia_kimi_k3_desc_tier_free: 'Cost - Free',
-        model_nvidia_glm_5_2_desc_tier_free: 'Cost - Free',
-        model_nvidia_step_3_7_flash_desc_tier_free: 'Cost - Free',
+        model_nvidia_glm_5_3_desc_tier_free: 'Cost - Free',
+        model_nvidia_glm_5_3_flash_desc_tier_free: 'Cost - Free',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
         model_nex_n2_pro_desc_tier_free: 'Cost - Free',
@@ -613,11 +612,11 @@
         imageProviderOptions: 'Provider options (JSON)',
         imageInvalidJson: 'Please enter valid JSON',
         model_gpt_6_astra_desc_tier_paid: '$10/M input, $50/M output',
-        model_gpt_5_6_luna_desc_tier_paid: '$1/M input, $6/M output',
+        model_gpt_6_luna_desc_tier_paid: '$0.10/M input, $0.50/M output',
         model_gpt_5_6_terra_desc_tier_paid: '$2.5/M input, $15/M output',
-        model_gpt_5_6_sol_desc_tier_paid: '$5/M input, $30/M output',
+        model_gpt_6_sol_desc_tier_paid: '$2/M input, $10/M output',
         // Anthropic Paid
-        model_claude_opus_5_desc_tier_paid: '$5/M input, $25/M output',
+        model_claude_opus_5_5_desc_tier_paid: '$4/M input, $20/M output',
         model_claude_sonnet_5_desc_tier_paid: '$2/M input, $10/M output',
         model_claude_haiku_4_5_desc_tier_paid: '$1/M input, $5/M output',
         model_claude_fable_5_1_desc_tier_paid: '$10/M input, $50/M output',
@@ -625,6 +624,9 @@
         model_qwen3_8_max_desc_tier_paid: '$2/M input, $6/M output',
         model_qwen3_7_plus_desc_tier_paid: '$0.32/M input, $1.28/M output',
         model_qwen3_7_flash_desc_tier_paid: '$0.03/M input, $0.13/M output (up to 32K input)',
+        // Xiaomi Paid
+        model_mimo_v2_6_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
+        model_mimo_v2_6_flash_desc_tier_paid: '$0.14/M input, $0.28/M output',
         // xAI Paid
         model_grok_4_6_desc_tier_paid: '$2/M input, $6/M output (up to 200K input)',
         // Minimax Paid

@@ -581,11 +581,10 @@
         model_gemma_4_26b_a4b_it_desc_tier_free: 'Coût - Gratuit',
         // NVIDIA Free
         model_nvidia_gemma_4_31b_it_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_deepseek_v4_pro_0813_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_deepseek_v4_flash_0731_desc_tier_free: 'Coût - Gratuit',
+        model_nvidia_deepseek_v4_1_flash_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_kimi_k3_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_glm_5_2_desc_tier_free: 'Coût - Gratuit',
-        model_nvidia_step_3_7_flash_desc_tier_free: 'Coût - Gratuit',
+        model_nvidia_glm_5_3_desc_tier_free: 'Coût - Gratuit',
+        model_nvidia_glm_5_3_flash_desc_tier_free: 'Coût - Gratuit',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
         model_nex_n2_pro_desc_tier_free: 'Coût - Gratuit',
@@ -613,11 +612,11 @@
         imageProviderOptions: 'Options du fournisseur (JSON)',
         imageInvalidJson: 'Veuillez saisir un JSON valide',
         model_gpt_6_astra_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
-        model_gpt_5_6_luna_desc_tier_paid: '1 $/M entrée, 6 $/M sortie',
+        model_gpt_6_luna_desc_tier_paid: '0,10 $/M entrée, 0,50 $/M sortie',
         model_gpt_5_6_terra_desc_tier_paid: '2,50 $/M entrée, 15 $/M sortie',
-        model_gpt_5_6_sol_desc_tier_paid: '5 $/M entrée, 30 $/M sortie',
+        model_gpt_6_sol_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
         // Anthropic Paid
-        model_claude_opus_5_desc_tier_paid: '5 $/M entrée, 25 $/M sortie',
+        model_claude_opus_5_5_desc_tier_paid: '4 $/M entrée, 20 $/M sortie',
         model_claude_sonnet_5_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
         model_claude_haiku_4_5_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
         model_claude_fable_5_1_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
@@ -625,6 +624,9 @@
         model_qwen3_8_max_desc_tier_paid: '2 $/M entrée, 6 $/M sortie',
         model_qwen3_7_plus_desc_tier_paid: '0,32 $/M entrée, 1,28 $/M sortie',
         model_qwen3_7_flash_desc_tier_paid: '0,03 $/M entrée, 0,13 $/M sortie (jusqu’à 32K)',
+        // Xiaomi Paid
+        model_mimo_v2_6_pro_desc_tier_paid: '0,435 $/M entrée, 0,87 $/M sortie',
+        model_mimo_v2_6_flash_desc_tier_paid: '0,14 $/M entrée, 0,28 $/M sortie',
         // xAI Paid
         model_grok_4_6_desc_tier_paid: '2 $/M entrée, 6 $/M sortie (jusqu’à 200K)',
         // Minimax Paid

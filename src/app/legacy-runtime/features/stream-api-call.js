@@ -287,7 +287,7 @@ const buildOpenAiCompatibleRequest = ({
     ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens })
   };
   if (reasoningConfig?.providerParameter === 'nvidiaReasoningEffort' && reasoningEffort) {
-    payload.reasoning_effort = reasoningEffort;
+    payload.reasoning_effort = reasoningConfig.effortValues?.[reasoningEffort] ?? reasoningEffort;
   }
   return {
     url: '/api/nvidia-chat',

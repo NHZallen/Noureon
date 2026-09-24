@@ -32,17 +32,17 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'gemini-3.5-flash-lite' && model.provider === 'gemini'));
   assert.ok(MODELS.some((model) => model.id === 'moonshotai/kimi-k3' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'poolside/laguna-s-2.1:free' && model.provider === 'openrouter'));
-  assert.ok(MODELS.some((model) => model.id === 'anthropic/claude-opus-5' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'anthropic/claude-opus-5.5' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-opus-4.8'), false);
   assert.ok(MODELS.some((model) => model.id === 'nvidia/nemotron-3.5-lightning:free' && model.provider === 'openrouter'));
-  assert.ok(MODELS.some((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash-0731'
-    && model.apiId === 'deepseek-ai/deepseek-v4-flash-0731'
+  assert.ok(MODELS.some((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash'
+    && model.apiId === 'deepseek-ai/deepseek-v4.1-flash'
     && model.provider === 'nvidia'));
-  assert.equal(MODELS.some((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash'), false);
-  assert.ok(MODELS.some((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-pro-0813'
-    && model.apiId === 'deepseek-ai/deepseek-v4-pro-0813'
-    && model.provider === 'nvidia'));
-  assert.equal(MODELS.some((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-pro'), false);
+  assert.ok(MODELS.some((model) => model.id === 'nvidia/z-ai/glm-5.3-flash'
+    && model.apiId === 'z-ai/glm-5.3-flash' && model.provider === 'nvidia'));
+  assert.ok(MODELS.some((model) => model.id === 'nvidia/z-ai/glm-5.3'
+    && model.apiId === 'z-ai/glm-5.3' && model.provider === 'nvidia'));
+  assert.equal(MODELS.some((model) => ['nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/z-ai/glm-5.2', 'nvidia/stepfun-ai/step-3.7-flash'].includes(model.id)), false);
   assert.ok(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'
     && model.apiId === 'moonshotai/kimi-k3'
     && model.provider === 'nvidia'));
@@ -54,7 +54,7 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp'), false);
   assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-pro-0813'), false);
   assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.7-flash' && model.provider === 'openrouter'));
-  assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.8-max' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'qwen/qwen3.8-max-0902' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'z-ai/glm-5.3' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'z-ai/glm-5.3-flash'
     && model.provider === 'openrouter'
@@ -74,7 +74,8 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'x-ai/grok-4.6' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.provider === 'stepfun'), false);
-  assert.equal(MODELS.some((model) => model.id.startsWith('xiaomi/')), false);
+  assert.ok(MODELS.some((model) => model.id === 'xiaomi/mimo-v2.6-pro' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'xiaomi/mimo-v2.6-flash' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.provider === 'nvidia'));
   assert.ok(MODELS.some((model) => model.id === CHEAP_MODEL_ID));
   assert.equal(CHEAP_MODEL_ID, 'gemini-3.5-flash-lite');
@@ -82,7 +83,12 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(getCanonicalModelId('gemini-3.7-flash'), 'gemini-3.8-flash');
   assert.equal(getCanonicalModelId('anthropic/claude-fable-5'), 'anthropic/claude-fable-5.1');
   assert.equal(getCanonicalModelId('openai/gpt-5.5'), 'openai/gpt-6-astra');
-  assert.equal(getCanonicalModelId('nvidia/deepseek-ai/deepseek-v4-pro'), 'nvidia/deepseek-ai/deepseek-v4-pro-0813');
+  assert.equal(getCanonicalModelId('nvidia/deepseek-ai/deepseek-v4-pro'), 'nvidia/deepseek-ai/deepseek-v4.1-flash');
+  assert.equal(getCanonicalModelId('nvidia/z-ai/glm-5.2'), 'nvidia/z-ai/glm-5.3');
+  assert.equal(getCanonicalModelId('qwen/qwen3.8-max'), 'qwen/qwen3.8-max-0902');
+  assert.equal(getCanonicalModelId('openai/gpt-5.6-sol'), 'openai/gpt-6-sol');
+  assert.equal(getCanonicalModelId('openai/gpt-5.6-luna'), 'openai/gpt-6-luna');
+  assert.equal(getCanonicalModelId('anthropic/claude-opus-5'), 'anthropic/claude-opus-5.5');
   assert.equal(getCanonicalModelId('nvidia/moonshotai/kimi-k2.6'), 'nvidia/moonshotai/kimi-k3');
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-0731'), 'deepseek/deepseek-v4.1-flash');
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-vision-exp'), 'deepseek/deepseek-v4.1-flash');
@@ -91,13 +97,13 @@ test('model registry exports the canonical model inventory', () => {
 });
 
 test('model registry preserves provider labels and API id aliases', () => {
-  const nvidiaModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
+  const nvidiaModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
 
   assert.equal(getProviderLabel('gemini'), 'Gemini');
   assert.equal(getProviderLabel('openrouter'), 'OpenRouter');
   assert.equal(getProviderLabel('nvidia'), 'NVIDIA');
   assert.equal(getProviderLabel('tavily'), 'Tavily');
-  assert.equal(getModelApiId(nvidiaModel), 'z-ai/glm-5.2');
+  assert.equal(getModelApiId(nvidiaModel), 'z-ai/glm-5.3');
 });
 
 test('model registry preserves vision and document capability behavior', () => {
@@ -105,15 +111,16 @@ test('model registry preserves vision and document capability behavior', () => {
   const geminiLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
   const lagunaModel = MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free');
-  const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5');
+  const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5.5');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
-  const openRouterGpt56Models = ['openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol']
+  const openRouterGpt56Models = ['openai/gpt-6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-6-sol']
     .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
   const glmFlashVisionModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
-  const nvidiaDeepseekTextModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash-0731');
-  const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.2');
+  const nvidiaDeepseekVisionModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
+  const nvidiaFlashVisionModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3-flash');
+  const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
   const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/moonshotai/kimi-k3');
 
   assert.equal(modelSupportsVision(geminiModel), true);
@@ -126,7 +133,10 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsVision(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsVision(deepseekVisionModel), true);
   assert.equal(modelSupportsVision(glmFlashVisionModel), true);
-  assert.equal(modelSupportsVision(nvidiaDeepseekTextModel), false);
+  assert.equal(modelSupportsVision(nvidiaDeepseekVisionModel), true);
+  assert.equal(modelSupportsVision(nvidiaFlashVisionModel), true);
+  assert.equal(modelSupportsVision(MODELS.find((model) => model.id === 'xiaomi/mimo-v2.6-pro')), true);
+  assert.equal(modelSupportsVision(MODELS.find((model) => model.id === 'xiaomi/mimo-v2.6-flash')), true);
   assert.equal(modelSupportsVision(nvidiaVisionModel), true);
   assert.equal(modelSupportsVision(nvidiaTextModel), false);
 
@@ -141,16 +151,16 @@ test('model registry exposes precise reasoning depth options for supported model
   const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
   const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
-  const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-sol');
+  const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-6-sol');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
   const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.8-flash');
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
-  const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5');
+  const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5.5');
   const fableModel = MODELS.find((model) => model.id === 'anthropic/claude-fable-5.1');
   const glmFlashModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
-  const nvidiaDeepseekModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-flash-0731');
-  const nvidiaDeepseekProModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4-pro-0813');
+  const nvidiaDeepseekModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
+  const nvidiaGlmModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
   const nvidiaKimiModel = MODELS.find((model) => model.id === 'nvidia/moonshotai/kimi-k3');
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['low', 'high', 'max']);
@@ -171,15 +181,18 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(getModelReasoningConfig(geminiFlashLiteModel)?.defaultEffort, 'minimal');
   assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['low', 'high', 'max']);
   assert.deepEqual(getModelReasoningConfig(opus5Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
-  assert.equal(getModelReasoningConfig(opus5Model)?.defaultEffort, 'high');
+  assert.equal(getModelReasoningConfig(opus5Model)?.defaultEffort, 'medium');
   assert.deepEqual(getModelReasoningConfig(fableModel)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(getModelReasoningConfig(fableModel)?.defaultEffort, 'high');
   assert.deepEqual(getModelReasoningConfig(glmFlashModel)?.options, ['low', 'high', 'max']);
   assert.equal(getModelReasoningConfig(glmFlashModel)?.defaultEffort, 'max');
-  assert.deepEqual(getModelReasoningConfig(nvidiaDeepseekModel)?.options, ['none', 'high', 'max']);
-  assert.equal(getModelReasoningConfig(nvidiaDeepseekModel)?.defaultEffort, 'high');
-  assert.deepEqual(getModelReasoningConfig(nvidiaDeepseekProModel)?.options, ['none', 'high', 'max']);
-  assert.equal(getModelReasoningConfig(nvidiaDeepseekProModel)?.defaultEffort, 'none');
+  assert.deepEqual(getModelReasoningConfig(nvidiaDeepseekModel)?.options, ['low', 'medium', 'high', 'max']);
+  assert.deepEqual(getModelReasoningConfig(nvidiaDeepseekModel)?.effortValues, { low: 25, medium: 50, high: 75, max: 100 });
+  assert.equal(getModelReasoningConfig(nvidiaDeepseekModel)?.defaultEffort, 'max');
+  assert.deepEqual(getModelReasoningConfig(nvidiaGlmModel)?.options, ['low', 'high', 'max']);
+  assert.equal(getModelReasoningConfig(nvidiaGlmModel)?.defaultEffort, 'max');
+  assert.deepEqual(getModelReasoningConfig(MODELS.find((model) => model.id === 'qwen/qwen3.8-max-0902'))?.options, ['none', 'low', 'medium', 'xhigh']);
+  assert.deepEqual(getModelReasoningConfig(MODELS.find((model) => model.id === 'xiaomi/mimo-v2.6-pro'))?.options, ['none', 'high']);
   assert.deepEqual(getModelReasoningConfig(nvidiaKimiModel)?.options, ['low', 'high', 'max']);
   assert.equal(getModelReasoningConfig(nvidiaKimiModel)?.defaultEffort, 'max');
   assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '極低');

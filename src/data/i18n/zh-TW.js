@@ -581,11 +581,10 @@
         model_gemma_4_26b_a4b_it_desc_tier_free: '費用-免費',
         // NVIDIA Free
         model_nvidia_gemma_4_31b_it_desc_tier_free: '費用-免費',
-        model_nvidia_deepseek_v4_pro_0813_desc_tier_free: '費用-免費',
-        model_nvidia_deepseek_v4_flash_0731_desc_tier_free: '費用-免費',
+        model_nvidia_deepseek_v4_1_flash_desc_tier_free: '費用-免費',
         model_nvidia_kimi_k3_desc_tier_free: '費用-免費',
-        model_nvidia_glm_5_2_desc_tier_free: '費用-免費',
-        model_nvidia_step_3_7_flash_desc_tier_free: '費用-免費',
+        model_nvidia_glm_5_3_desc_tier_free: '費用-免費',
+        model_nvidia_glm_5_3_flash_desc_tier_free: '費用-免費',
         // OpenRouter Free
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: '費用-免費',
         model_nex_n2_pro_desc_tier_free: '費用-免費',
@@ -613,11 +612,11 @@
         imageProviderOptions: '供應商選項（JSON）',
         imageInvalidJson: '請輸入有效的 JSON',
         model_gpt_6_astra_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',
-        model_gpt_5_6_luna_desc_tier_paid: '百萬輸入/1$、百萬輸出/6$',
+        model_gpt_6_luna_desc_tier_paid: '百萬輸入/0.10$、百萬輸出/0.50$',
         model_gpt_5_6_terra_desc_tier_paid: '百萬輸入/2.5$、百萬輸出/15$',
-        model_gpt_5_6_sol_desc_tier_paid: '百萬輸入/5$、百萬輸出/30$',
+        model_gpt_6_sol_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
         // Anthropic Paid
-        model_claude_opus_5_desc_tier_paid: '百萬輸入/5$、百萬輸出/25$',
+        model_claude_opus_5_5_desc_tier_paid: '百萬輸入/4$、百萬輸出/20$',
         model_claude_sonnet_5_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
         model_claude_haiku_4_5_desc_tier_paid: '百萬輸入/1$、百萬輸出/5$',
         model_claude_fable_5_1_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',
@@ -625,6 +624,9 @@
         model_qwen3_8_max_desc_tier_paid: '百萬輸入/2$、百萬輸出/6$',
         model_qwen3_7_plus_desc_tier_paid: '百萬輸入/0.32$、百萬輸出/1.28$',
         model_qwen3_7_flash_desc_tier_paid: '32K 輸入內：百萬輸入/0.03$、百萬輸出/0.13$',
+        // Xiaomi Paid
+        model_mimo_v2_6_pro_desc_tier_paid: '百萬輸入/0.435$、百萬輸出/0.87$',
+        model_mimo_v2_6_flash_desc_tier_paid: '百萬輸入/0.14$、百萬輸出/0.28$',
         // xAI Paid
         model_grok_4_6_desc_tier_paid: '200K 輸入內：百萬輸入/2$、百萬輸出/6$',
         // Minimax Paid
