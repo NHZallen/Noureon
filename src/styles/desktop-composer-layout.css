@@ -17,6 +17,10 @@
         overflow: hidden;
     }
 
+    #chat-workspace > header:has(#model-options-popover.visible) {
+        z-index: 19;
+    }
+
     #input-bar-container {
         position: relative;
         z-index: 18;
