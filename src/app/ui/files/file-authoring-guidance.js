@@ -8,7 +8,7 @@ const GENERAL_GUIDANCE = `# Downloadable file output
 This app turns a special fenced block into a real downloadable file with a download button. You CAN deliver files this way, so never say you are unable to create or attach files.
 Use a file block only when the user asks for a file, a download or an export, or names a file format. Otherwise answer normally.
 
-Format: the opening line is four backticks, the word file, a space and the file name with its extension. The closing line is four backticks.
+Format: the opening line is four backticks, the word file, a space and the file name with its extension. The closing line is exactly four backticks on a line of its own, never three.
 \`\`\`\`file descriptive-name.ext
 (complete file content)
 \`\`\`\`

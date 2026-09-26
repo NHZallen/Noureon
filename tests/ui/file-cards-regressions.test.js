@@ -23,6 +23,14 @@ test('Tailwind does not scan document generators for utility classes', () => {
   assert.match(readSource('tailwind.config.js'), /'!\.\/src\/app\/ui\/files\/generators\/\*\*'/);
 });
 
+test('scanned file modules never negate a variable named block', () => {
+  // Tailwind reads "!block" as an important utility and grows the startup
+  // stylesheet, which is already at its size budget.
+  for (const path of ['file-block-protocol.js', 'file-block-model.js', 'file-history-compaction.js', 'file-markdown-cards.js']) {
+    assert.doesNotMatch(readSource(`src/app/ui/files/${path}`), /!block\b/, path);
+  }
+});
+
 test('document generator vendors are split out and never precached', () => {
   assert.match(readSource('vite.config.js'), /return 'vendor-docx';/);
   const worker = readSource('public/service-worker.js');

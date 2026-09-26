@@ -125,6 +125,13 @@ test('compaction leaves history without superseded files as the same array', () 
   assert.equal(compactFileHistoryForApi(history), history);
 });
 
+test('a file closed with three backticks is re-sent with the correct closing fence', () => {
+  const reply = { role: 'model', parts: [{ text: 'Here:\n````file 花園.docx\n# 花園\n\n內容\n```\nSummary' }] };
+  const [compacted] = compactFileHistoryForApi([reply]);
+  assert.equal(compacted.parts[0].text, 'Here:\n````file 花園.docx\n# 花園\n\n內容\n````\nSummary');
+  assert.match(reply.parts[0].text, /內容\n```\nSummary$/, 'stored history keeps the original');
+});
+
 test('memory, history index and title prompts see a file summary instead of its body', () => {
   const fence = '`'.repeat(4);
   const text = ['Here:', `${fence}file data.json`, 'x'.repeat(2000), fence, 'Done'].join('\n');

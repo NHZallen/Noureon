@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   extractFileBlocks,
   findTrailingStreamingFileBlock,
+  formatFileBlockSource,
   hashFileBlock,
   parseFileInfoString,
   scanFileBlocks
@@ -93,6 +94,87 @@ test('an unclosed block is reported as incomplete and runs to the end of the tex
   const [block] = scanFileBlocks('Intro\n````file draft.txt\nline 1\nline 2');
   assert.equal(block.complete, false);
   assert.equal(block.content, 'line 1\nline 2');
+});
+
+test('a four-backtick file closed with three backticks is repaired once the reply is finished', () => {
+  const source = [
+    '我替你選了一個主題。',
+    '',
+    '````file 把日子過成一座花園.docx',
+    '# 把日子過成一座花園',
+    '',
+    '而你一直走在其中。',
+    '```',
+    '',
+    '希望你喜歡。'
+  ].join('\n');
+
+  const [block] = scanFileBlocks(source);
+  assert.equal(block.complete, true);
+  assert.equal(block.repaired, true);
+  assert.equal(block.content, '# 把日子過成一座花園\n\n而你一直走在其中。');
+  assert.equal(source.slice(block.end), '\n希望你喜歡。', 'the text after the file stays in the reply');
+  assert.equal(
+    formatFileBlockSource(source, block),
+    '````file 把日子過成一座花園.docx\n# 把日子過成一座花園\n\n而你一直走在其中。\n````\n'
+  );
+
+  // Mid-stream the three backticks may still open an inner code block.
+  const streaming = findTrailingStreamingFileBlock(source);
+  assert.equal(streaming.block.complete, false);
+});
+
+test('the recovered closing fence skips inner code blocks, with or without a language', () => {
+  const source = [
+    '````file guide.md',
+    '```bash',
+    'npm install',
+    '```',
+    'Plain block:',
+    '```',
+    'raw',
+    '```',
+    'End.',
+    '```',
+    'After'
+  ].join('\n');
+  const [block] = scanFileBlocks(source);
+  assert.equal(block.complete, true);
+  assert.equal(block.content, '```bash\nnpm install\n```\nPlain block:\n```\nraw\n```\nEnd.');
+  assert.equal(source.slice(block.end), 'After');
+});
+
+test('a truly cut-off file stays incomplete even when its inner fences are balanced', () => {
+  const [block] = scanFileBlocks('````file guide.md\n```\nraw\n```\nThe next sentence was cut o');
+  assert.equal(block.complete, false);
+  assert.equal(block.repaired, false);
+  assert.equal(block.content, '```\nraw\n```\nThe next sentence was cut o');
+});
+
+test('several files closed with three backticks, or not at all, are still separated', () => {
+  const source = [
+    '````file a.docx',
+    'A body',
+    '```',
+    'Between',
+    '````file b.docx',
+    'B body',
+    '````file c.txt',
+    'C body',
+    '```'
+  ].join('\n');
+  const { text, blocks } = extractFileBlocks(source);
+  assert.deepEqual(blocks.map((block) => [block.name, block.content, block.complete]), [
+    ['a.docx', 'A body', true],
+    ['b.docx', 'B body', true],
+    ['c.txt', 'C body', true]
+  ]);
+  assert.match(text, /NOURA_FILE_TOKEN_0_END\n\nBetween\n\n\nNOURA_FILE_TOKEN_1_END/);
+
+  // The next file's opening line already proves the previous file ended.
+  const streaming = findTrailingStreamingFileBlock('````file a.docx\nA body\n```\n````file b.docx\nB bo');
+  assert.equal(streaming.block.name, 'b.docx');
+  assert.equal(scanFileBlocks('````file a.docx\nA body\n```\n````file b.docx\nB bo', { streaming: true })[0].complete, true);
 });
 
 test('extraction replaces each block with a standalone paragraph token', () => {

@@ -86,6 +86,37 @@ function extractHeaderName(content) {
   return { name: unquote(match[1]), content: lines.slice(bodyStart).join('\n') };
 }
 
+// Models often open a block with four backticks and close it with three. The
+// shorter fence is then read as an inner code block and the file never ends.
+// Replaying the body with CommonMark's fence rules finds that closing line: a
+// bare, shorter fence that is still open where the file has to end.
+function findShortClosingLine(lines, fromIndex, toIndex, fence) {
+  let inner = null;
+  for (let index = fromIndex; index < toIndex; index += 1) {
+    const { text } = lines[index];
+    if (inner) {
+      if (isFenceOnlyLine(text, inner.fence[0], inner.fence.length)) inner = null;
+      continue;
+    }
+    const match = ANY_OPENING_PATTERN.exec(text);
+    if (!match || (match[2][0] === '`' && match[3].includes('`'))) continue;
+    const bare = match[3].trim() === '';
+    inner = {
+      fence: match[2],
+      index,
+      closesFile: bare && match[2][0] === fence[0] && match[2].length < fence.length
+    };
+  }
+  return inner?.closesFile ? inner.index : -1;
+}
+
+// A new file opened with at least the active fence cannot be content of the
+// active file (it would need a longer outer fence), so the active file ended.
+const opensSiblingFileBlock = (text, fence) => {
+  const match = FILE_OPENING_PATTERN.exec(text);
+  return Boolean(match && match[2][0] === fence[0] && match[2].length >= fence.length);
+};
+
 function finishBlock(source, block) {
   const rawContent = source.slice(block.contentStart, block.contentEnd);
   let content = rawContent.replace(/\r\n?/g, '\n');
@@ -102,11 +133,13 @@ function finishBlock(source, block) {
   return {
     start: block.start,
     end: block.end,
+    contentEnd: block.contentEnd,
     fence: block.fence,
     name,
     extensionHint,
     content,
     complete: block.complete,
+    repaired: block.repaired === true,
     oversized: content.length > MAX_FILE_BLOCK_CHARACTERS
   };
 }
@@ -115,8 +148,12 @@ function finishBlock(source, block) {
  * Finds every ```file block in Markdown source. Ordinary fenced code blocks
  * are skipped so that a model explaining the protocol inside ```markdown is
  * not mistaken for a real file.
+ *
+ * A finished reply whose file never meets its own closing fence is repaired
+ * when a shorter closing fence can be recovered. While `streaming`, the reply
+ * may still be writing an inner code block, so that repair waits for the end.
  */
-export function scanFileBlocks(text = '') {
+export function scanFileBlocks(text = '', { streaming = false } = {}) {
   const source = String(text || '');
   if (!/file/i.test(source)) return [];
   const lines = getSourceLines(source);
@@ -124,7 +161,30 @@ export function scanFileBlocks(text = '') {
   let ordinaryFence = null;
   let active = null;
 
-  for (const line of lines) {
+  // Ends the active file at a recovered short closing fence or, failing that
+  // and when allowed, directly before the boundary line.
+  const endActiveBefore = (boundary, { requireClosingLine }) => {
+    const closingIndex = active.fence.length > 3
+      ? findShortClosingLine(lines, active.lineIndex + 1, boundary, active.fence)
+      : -1;
+    if (closingIndex < 0 && requireClosingLine) return false;
+    const contentEnd = closingIndex >= 0 ? lines[closingIndex].start : (lines[boundary]?.start ?? source.length);
+    blocks.push(finishBlock(source, {
+      ...active,
+      contentEnd,
+      end: closingIndex >= 0 ? lines[closingIndex].end : contentEnd,
+      complete: true,
+      repaired: true
+    }));
+    active = null;
+    return true;
+  };
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    if (active && active.fence.length > 3 && opensSiblingFileBlock(line.text, active.fence)) {
+      endActiveBefore(lineIndex, { requireClosingLine: false });
+    }
     if (active) {
       const fenceChar = active.fence[0];
       if (isFenceOnlyLine(line.text, fenceChar, active.fence.length)) {
@@ -160,6 +220,7 @@ export function scanFileBlocks(text = '') {
       active = {
         start: line.start,
         contentStart: line.end,
+        lineIndex,
         fence: fileOpening[2],
         info: fileOpening[3],
         depth: 0
@@ -174,14 +235,28 @@ export function scanFileBlocks(text = '') {
   }
 
   if (active) {
-    blocks.push(finishBlock(source, {
-      ...active,
-      contentEnd: source.length,
-      end: source.length,
-      complete: false
-    }));
+    const repaired = !streaming && endActiveBefore(lines.length, { requireClosingLine: true });
+    if (!repaired) {
+      blocks.push(finishBlock(source, {
+        ...active,
+        contentEnd: source.length,
+        end: source.length,
+        complete: false
+      }));
+    }
   }
   return blocks;
+}
+
+/**
+ * The block's source with a closing fence that matches its opening. A model
+ * reading its own history then sees the protocol written correctly instead of
+ * copying a slip it made earlier.
+ */
+export function formatFileBlockSource(source, block) {
+  if (block.repaired !== true) return source.slice(block.start, block.end);
+  const body = source.slice(block.start, block.contentEnd);
+  return `${body}${body.endsWith('\n') ? '' : '\n'}${block.fence}\n`;
 }
 
 /**
@@ -210,7 +285,7 @@ export function extractFileBlocks(text = '') {
  */
 export function findTrailingStreamingFileBlock(text = '') {
   const source = String(text || '');
-  const blocks = scanFileBlocks(source);
+  const blocks = scanFileBlocks(source, { streaming: true });
   const last = blocks.at(-1);
   if (last && !last.complete) {
     return { prefix: source.slice(0, last.start), block: last, partialOpening: false };

@@ -1,9 +1,10 @@
-import { scanFileBlocks } from './file-block-protocol.js';
+import { formatFileBlockSource, scanFileBlocks } from './file-block-protocol.js';
 import { sanitizeFileName } from './file-name-policy.js';
 
 // File specifications can be large, and conversation history is re-sent with
 // every request. Only the newest version of each file needs to travel in full:
-// that is what a follow-up edit builds on. Stored messages are never changed.
+// that is what a follow-up edit builds on. Blocks whose closing fence had to be
+// recovered are re-sent with the correct one. Stored messages are never changed.
 
 const normalizeBlockName = (block) => sanitizeFileName(block.name || '', {
   defaultExtension: block.extensionHint || 'txt'
@@ -31,7 +32,7 @@ export function compactFileHistoryForApi(history = []) {
     getTextParts(message).forEach((part) => {
       if (typeof part?.text !== 'string') return;
       scanFileBlocks(part.text).forEach((block) => {
-        occurrences.push({ name: normalizeBlockName(block) });
+        occurrences.push({ name: normalizeBlockName(block), repaired: block.repaired });
       });
     });
   });
@@ -40,7 +41,7 @@ export function compactFileHistoryForApi(history = []) {
   const latestByName = new Map();
   occurrences.forEach((occurrence, order) => latestByName.set(occurrence.name, order));
   const supersededCount = occurrences.length - latestByName.size;
-  if (supersededCount === 0) return history;
+  if (supersededCount === 0 && !occurrences.some((occurrence) => occurrence.repaired)) return history;
 
   let order = 0;
   return history.map((message) => {
@@ -55,7 +56,8 @@ export function compactFileHistoryForApi(history = []) {
         order += 1;
         const name = normalizeBlockName(block);
         if (latestByName.get(name) === currentOrder) {
-          return part.text.slice(block.start, block.end);
+          if (block.repaired) changed = true;
+          return formatFileBlockSource(part.text, block);
         }
         changed = true;
         const displayName = sanitizeFileName(block.name || '', { defaultExtension: block.extensionHint || 'txt' });
