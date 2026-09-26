@@ -19,8 +19,10 @@ test('file card styles ship with the lazily loaded chat runtime, not the startup
   assert.match(readSource('src/app/legacy-app.js'), /import '\.\.\/styles\/file-cards\.css';/);
 });
 
-test('Tailwind does not scan document generators for utility classes', () => {
-  assert.match(readSource('tailwind.config.js'), /'!\.\/src\/app\/ui\/files\/generators\/\*\*'/);
+test('Tailwind does not scan document generators or page previews for utility classes', () => {
+  const config = readSource('tailwind.config.js');
+  assert.match(config, /'!\.\/src\/app\/ui\/files\/generators\/\*\*'/);
+  assert.match(config, /'!\.\/src\/app\/ui\/files\/previews\/\*\*'/);
 });
 
 test('scanned file modules never negate a variable named block', () => {
@@ -31,17 +33,24 @@ test('scanned file modules never negate a variable named block', () => {
   }
 });
 
-test('document generator vendors are split out and never precached', () => {
-  assert.match(readSource('vite.config.js'), /return 'vendor-docx';/);
+test('document generator and preview vendors are split out and never precached', () => {
+  const vite = readSource('vite.config.js');
+  assert.match(vite, /return 'vendor-docx';/);
+  assert.match(vite, /return 'vendor-docx-preview';/);
   const worker = readSource('public/service-worker.js');
-  assert.match(worker, /ON_DEMAND_ASSET_PATTERN = \/\(\?:\^\|\\\/\)vendor-\(\?:docx\|xlsx\|pptx\|pdf\)-/);
+  const source = /ON_DEMAND_ASSET_PATTERN = \/(.+)\/i;/.exec(worker)?.[1];
+  assert.ok(source, 'the worker declares its on-demand asset pattern');
+  const onDemand = new RegExp(source, 'i');
+  assert.ok(onDemand.test('assets/vendor-docx-Ab12.js'));
+  assert.ok(onDemand.test('assets/vendor-docx-preview-Ab12.js'), 'the preview vendor is not precached');
+  assert.ok(!onDemand.test('assets/vendor-markdown-Ab12.js'));
   assert.match(worker, /ON_DEMAND_ASSET_PATTERN\.test\(path\)\) continue;/);
 });
 
-test('generators, the preview dialog and the guidance stay out of the eager file chunk', () => {
+test('generators, previews, the preview dialog and the guidance stay out of the eager file chunk', () => {
   const vite = readSource('vite.config.js');
   assert.match(vite, /return 'runtime-files';/);
-  for (const lazy of ['/src/app/ui/files/generators/', 'file-preview-dialog.js', 'file-authoring-guidance.js']) {
+  for (const lazy of ['/src/app/ui/files/generators/', '/src/app/ui/files/previews/', 'file-preview-dialog.js', 'file-authoring-guidance.js']) {
     assert.ok(vite.includes(lazy), `${lazy} must be excluded from runtime-files`);
   }
   const generators = readSource('src/app/ui/files/file-generators.js');

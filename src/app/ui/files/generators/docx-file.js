@@ -16,6 +16,7 @@ import {
   Paragraph,
   ShadingType,
   Tab,
+  TabStopType,
   Table,
   TableCell,
   TableLayoutType,
@@ -192,6 +193,9 @@ class DocxRenderer {
             paragraphs.push(new Paragraph({
               style: context.quote ? 'NoureonQuote' : undefined,
               indent: { left: itemIndent, hanging: 300 },
+              // Word tabs to a hanging indent implicitly; other renderers
+              // (previews, LibreOffice) need the stop spelled out.
+              tabStops: [{ type: TabStopType.LEFT, position: itemIndent }],
               spacing: { after: 60 },
               children: [
                 new TextRun({ children: [item.checked ? '☑' : '☐', new Tab()], font: 'Segoe UI Symbol' }),

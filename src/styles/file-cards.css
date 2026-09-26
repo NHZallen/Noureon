@@ -386,6 +386,71 @@
     font-size: 0.8rem;
 }
 
+.ac-file-preview-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0 1rem 0.75rem;
+}
+
+.ac-file-preview-views {
+    display: inline-flex;
+    padding: 0.2rem;
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, var(--text-primary, #111827) 6%, transparent);
+}
+
+.ac-file-preview-view {
+    padding: 0.3rem 0.8rem;
+    border: none;
+    border-radius: 0.45rem;
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ac-file-preview-view[aria-pressed="true"] {
+    background: var(--modal-bg, #ffffff);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    color: var(--text-primary, #111827);
+}
+
+.ac-file-preview-view:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--text-primary, #111827) 45%, transparent);
+    outline-offset: 1px;
+}
+
+.ac-file-preview-page-info {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.8rem;
+}
+
+.ac-file-preview-pages {
+    padding: 1rem;
+    border-radius: 0.6rem;
+    background: #e5e7eb;
+}
+
+.ac-file-preview-pages[hidden] {
+    display: none;
+}
+
+.ac-file-preview-status {
+    margin: 2rem 0;
+    color: #4b5563;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.ac-file-preview-pages > .ac-file-preview-note {
+    margin-top: 0.85rem;
+    color: #4b5563;
+    text-align: center;
+}
+
 @media (max-width: 640px) {
     .ac-file-preview {
         width: 100vw;
@@ -393,5 +458,14 @@
         height: 100dvh;
         max-height: 100dvh;
         border-radius: 0;
+    }
+
+    /* Every pixel of width makes the scaled page more legible. */
+    .ac-file-preview .ac-file-preview-body {
+        padding: 0 0.5rem 0.5rem;
+    }
+
+    .ac-file-preview-pages {
+        padding: 0.5rem;
     }
 }

@@ -28,6 +28,7 @@
     "chart.js": "^4.5.0",
     "cropperjs": "^1.6.2",
     "docx": "^9.7.2",
+    "docx-preview": "^0.4.1",
     "dompurify": "^3.4.13",
     "html5-qrcode": "^2.3.8",
     "jszip": "^3.10.1",
@@ -37,6 +38,7 @@
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "@xmldom/xmldom": "^0.9.12",
     "autoprefixer": "^10.4.21",
     "happy-dom": "^20.10.6",
     "postcss": "^8.5.6",

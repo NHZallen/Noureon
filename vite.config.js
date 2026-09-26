@@ -52,6 +52,7 @@ export default defineConfig({
           if (
             id.includes('/src/app/ui/files/')
             && !id.includes('/src/app/ui/files/generators/')
+            && !id.includes('/src/app/ui/files/previews/')
             && !id.includes('/src/app/ui/files/file-preview-dialog.js')
             && !id.includes('/src/app/ui/files/file-authoring-guidance.js')
           ) {
@@ -69,6 +70,8 @@ export default defineConfig({
             return 'vendor-sharing';
           }
           if (id.includes('jszip')) return 'vendor-archive';
+          // The Word page preview is loaded only when a preview is opened.
+          if (id.includes('/node_modules/docx-preview/')) return 'vendor-docx-preview';
           // Word generation is loaded only when a .docx file is downloaded.
           // Its small transitive dependencies must stay with it, or the
           // catch-all vendor chunk would pull them into startup.

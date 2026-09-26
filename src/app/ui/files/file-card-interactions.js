@@ -181,6 +181,8 @@ export function installFileCardInteractions({
         descriptor,
         language: getUiLanguage(),
         renderMarkdown: renderMarkdown || getFileMarkdownRenderer(),
+        // The page view draws the very Blob a download would deliver.
+        loadBlob: () => resolveBlob(descriptor),
         onDownload: (button) => downloadOne(button, descriptor),
         returnFocusTo: trigger
       });
