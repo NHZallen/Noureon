@@ -47,11 +47,16 @@ function isSuccessfulHtml(response) {
   );
 }
 
+// Document generator libraries are large and only needed when someone actually
+// downloads that kind of file. They are cached on first use by the regular
+// cache-first asset path instead of being installed on every device.
+const ON_DEMAND_ASSET_PATTERN = /(?:^|\/)vendor-(?:docx|xlsx|pptx|pdf)-[^/]+\.js$/i;
+
 function collectManifestAssets(manifest) {
   const assets = new Set();
   for (const entry of Object.values(manifest || {})) {
     for (const path of [entry?.file, ...(entry?.css || []), ...(entry?.assets || [])]) {
-      if (!path || !/\.(?:js|css)$/i.test(path)) continue;
+      if (!path || !/\.(?:js|css)$/i.test(path) || ON_DEMAND_ASSET_PATTERN.test(path)) continue;
       assets.add(`/${path.replace(/^\//, '')}`);
     }
   }

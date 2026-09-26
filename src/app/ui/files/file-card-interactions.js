@@ -126,7 +126,12 @@ export function installFileCardInteractions({
   const resolveBlob = async (descriptor) => {
     const cached = cache.get(descriptor.id);
     if (cached) return cached;
-    const blob = await generate(descriptor);
+    const blob = await generate(descriptor, {
+      language: getUiLanguage(),
+      document,
+      window,
+      loadChartImageRenderer: () => import('./generators/chart-image-export.js')
+    });
     cache.set(descriptor.id, blob);
     rememberGeneratedFileSize(descriptor.id, blob.size);
     updateRenderedSizes(document, descriptor, blob.size, getUiLanguage());

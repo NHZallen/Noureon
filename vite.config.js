@@ -69,6 +69,10 @@ export default defineConfig({
             return 'vendor-sharing';
           }
           if (id.includes('jszip')) return 'vendor-archive';
+          // Word generation is loaded only when a .docx file is downloaded.
+          // Its small transitive dependencies must stay with it, or the
+          // catch-all vendor chunk would pull them into startup.
+          if (/\/node_modules\/(?:docx|xml|xml-js|sax|nanoid|hash\.js|inherits|minimalistic-assert)\//.test(id)) return 'vendor-docx';
           if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
           return 'vendor';
         }

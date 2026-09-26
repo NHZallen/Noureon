@@ -19,6 +19,17 @@ test('file card styles ship with the lazily loaded chat runtime, not the startup
   assert.match(readSource('src/app/legacy-app.js'), /import '\.\.\/styles\/file-cards\.css';/);
 });
 
+test('Tailwind does not scan document generators for utility classes', () => {
+  assert.match(readSource('tailwind.config.js'), /'!\.\/src\/app\/ui\/files\/generators\/\*\*'/);
+});
+
+test('document generator vendors are split out and never precached', () => {
+  assert.match(readSource('vite.config.js'), /return 'vendor-docx';/);
+  const worker = readSource('public/service-worker.js');
+  assert.match(worker, /ON_DEMAND_ASSET_PATTERN = \/\(\?:\^\|\\\/\)vendor-\(\?:docx\|xlsx\|pptx\|pdf\)-/);
+  assert.match(worker, /ON_DEMAND_ASSET_PATTERN\.test\(path\)\) continue;/);
+});
+
 test('generators, the preview dialog and the guidance stay out of the eager file chunk', () => {
   const vite = readSource('vite.config.js');
   assert.match(vite, /return 'runtime-files';/);

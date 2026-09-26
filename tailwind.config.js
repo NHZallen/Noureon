@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{html,js}'],
+  // File generators emit Office/PDF markup, never Tailwind classes. Their LaTeX
+  // command and OOXML names (overline, table, underline…) would otherwise be
+  // picked up as utilities and grow the startup stylesheet.
+  content: ['./index.html', './src/**/*.{html,js}', '!./src/app/ui/files/generators/**'],
   darkMode: 'class',
   safelist: [
     'hidden',

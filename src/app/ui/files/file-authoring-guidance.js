@@ -30,12 +30,36 @@ Write the exact file content.
 - .ics: BEGIN:VCALENDAR, VERSION:2.0, PRODID, one VEVENT per event with UID, DTSTAMP, DTSTART and DTEND (UTC with Z, or with TZID).
 - .json: valid JSON only, no comments.`;
 
-const RICH_GUIDANCE_LOADERS = Object.freeze({});
+const DOCX_GUIDANCE = `## Word documents (.docx)
+Write the body as GitHub Markdown; the app converts it into a styled Word document. Optional front matter at the very top:
+---
+title: Document title
+subtitle: Optional subtitle
+author: Optional author
+date: 2026-01-31
+toc: true
+orientation: portrait
+pageSize: A4
+header: Optional running header text
+footer: Optional running footer text
+---
+- Structure with headings: ## for sections, ### for subsections. A single leading # heading becomes the title when front matter has none.
+- Supported: paragraphs, **bold**, *italic*, ~~strike~~, \`code\`, links, bullet, numbered and task lists (nested), tables with column alignment, fenced code blocks, > quotes, --- dividers.
+- Math: $inline$ and $$display$$ LaTeX become native, editable Word equations.
+- Charts: a \`\`\`chart block inside the document becomes a figure.
+- A line containing only \\pagebreak starts a new page. toc: true adds a linked table of contents.
+- orientation: portrait or landscape. pageSize: A4, Letter, Legal, A3, A5 or B5.
+- Images from the internet cannot be embedded; describe them in text instead.
+- Write complete, final content. Never leave placeholders such as "[insert here]".`;
+
+const RICH_GUIDANCE = Object.freeze({
+  docx: DOCX_GUIDANCE
+});
 
 export async function getFileAuthoringGuidance() {
   const sections = [GENERAL_GUIDANCE, TEXT_GUIDANCE];
-  for (const [generator, load] of Object.entries(RICH_GUIDANCE_LOADERS)) {
-    if (isGeneratorAvailable(generator)) sections.push(await load());
+  for (const [generator, guidance] of Object.entries(RICH_GUIDANCE)) {
+    if (isGeneratorAvailable(generator)) sections.push(guidance);
   }
   return sections.join('\n\n');
 }

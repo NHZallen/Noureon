@@ -152,7 +152,7 @@ export const FILE_GENERATOR_KINDS = Object.freeze(['text', 'docx', 'xlsx', 'pptx
 // Rich generators become available one phase at a time. The authoring guidance
 // only advertises formats whose generator is present, so a model is never
 // taught to emit a block the app cannot turn into a file.
-const AVAILABLE_RICH_GENERATORS = new Set([]);
+const AVAILABLE_RICH_GENERATORS = new Set(['docx']);
 
 export function isGeneratorAvailable(generator) {
   return generator === 'text' || AVAILABLE_RICH_GENERATORS.has(generator);

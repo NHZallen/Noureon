@@ -148,11 +148,11 @@ src/app/ui/files/
 | 階段 | 內容 | 驗收 |
 |---|---|---|
 | A1 | 協定、卡片、串流狀態、下載與 ZIP、文字類格式、文字預覽、提示詞、歷史壓縮、資安政策、i18n | 單元與 DOM 測試；在瀏覽器實際跑串流與下載 |
-| A2 | 共用文件模型 + docx（標題、清單、表格、程式碼、引用、連結、分頁、目錄、頁碼、圖表圖片） | 以 Word 實際開啟無修復提示 |
+| A2 ✅ | 共用文件模型 + docx（標題、清單、表格、程式碼、引用、連結、分頁、目錄、頁碼、圖表 SVG＋PNG 備援與圖例），以及原本排在 A6 的 LaTeX → Word 原生公式（OMML） | 以 Word 實際開啟無修復提示 |
 | A3 | xlsx（JSON / Markdown 表格 / CSV 正規化、公式政策、樣式、凍結窗格、自動篩選、欄寬估算、多工作表）+ 表格預覽 | 以 Excel 實際開啟 |
 | A4 | pptx（主題、版型、文字量測與自動分頁、原生圖表、備註）+ 縮圖預覽 | 以 PowerPoint 實際開啟 |
 | A5 | pdf（pdfmake、字型管線、頁首頁尾與頁碼、目錄、SVG 向量圖表） | 以 PDF 檢視器與 Office 檢查 |
-| A6 | 精修：docx 數學公式（KaTeX MathML → OMML 自寫轉換器）、Excel 原生圖表、行動裝置下載實機驗證 | — |
+| A6 | 精修：Excel 原生圖表、PDF 數學公式、行動裝置下載實機驗證 | — |
 
 每個階段結束時都要通過 `npm test`、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime` 與 `npm audit --omit=dev`。
 
