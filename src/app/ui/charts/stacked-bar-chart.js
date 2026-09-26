@@ -35,14 +35,17 @@ export function renderStackedBarChart(document, chart, options = {}) {
       cumulative += value;
       const endY = yScale(cumulative);
       const index = categoryIndex * chart.series.length + seriesIndex;
-      appendSvgElement(layer, 'rect', {
+      const color = palette[seriesIndex % palette.length];
+      const segment = appendSvgElement(layer, 'rect', {
         class: 'ac-chart-bar ac-chart-stacked-segment', x, y: endY, width: barWidth,
         height: Math.max(1.5, startY - endY), rx: seriesIndex === chart.series.length - 1 ? Math.min(8, barWidth / 2) : 0,
-        fill: palette[seriesIndex % palette.length], tabindex: 0,
+        fill: color, tabindex: 0,
         'data-chart-interactive': 'true', 'data-chart-index': index,
         'data-chart-category-index': categoryIndex, 'data-chart-series-index': seriesIndex,
         'aria-label': `${row.label}, ${series.label}: ${formatChartNumber(value)}${chart.unit ? ` ${chart.unit}` : ''}`
       });
+      // The shared .ac-chart-bar rule sets fill, which beats the fill attribute; inline style beats the rule.
+      segment.style.fill = color;
     });
   });
 
