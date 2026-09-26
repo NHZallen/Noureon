@@ -1,4 +1,13 @@
+import { summarizeFileBlocks } from '../../ui/files/file-history-compaction.js';
+
 const asArray = value => Array.isArray(value) ? value : [];
+
+// Downloadable file specifications (large JSON or whole documents) are reduced
+// to their name and an excerpt: memory should remember that a file was made,
+// not ingest its full body.
+const getTurnText = message => summarizeFileBlocks(
+  asArray(message?.parts).map(part => part?.text || '').join('\n')
+).trim();
 
 /**
  * Normalizes a conversation into the rich local form used by memory capture
@@ -12,7 +21,7 @@ export function buildHistoryIndexTurns(conversation = {}) {
     .map((message, index) => ({
       id: message?.id || `${conversation.id}:${index}`,
       role: message?.role,
-      text: asArray(message?.parts).map(part => part?.text || '').join('\n').trim(),
+      text: getTurnText(message),
       attachments: asArray(message?.parts).flatMap((part, partIndex) => part?.inlineData?.data ? [{
         partIndex,
         name: part.inlineData.name || 'attachment',

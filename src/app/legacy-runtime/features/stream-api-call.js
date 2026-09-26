@@ -1,5 +1,7 @@
 import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
-import { resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
+import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
+import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
+import { shouldInjectFileGuidance } from '../../ui/files/file-intent.js';
 
 const LANGUAGE_INSTRUCTIONS = {
   'zh-TW': '請用繁體中文回覆，除非使用者有特別要求。',
@@ -86,6 +88,21 @@ const getRuntimeChartAuthoringGuidance = async (inputText) => {
   return getChartAuthoringGuidance(inputText);
 };
 
+// Council members and background tasks never hand files to the user directly;
+// only the answer the user reads (or the council synthesis) may contain them.
+const FILE_OUTPUT_PURPOSES = new Set([
+  undefined,
+  NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER,
+  NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS
+]);
+
+const getRuntimeFileAuthoringGuidance = async ({ inputText, history, requestPurpose }) => {
+  if (!FILE_OUTPUT_PURPOSES.has(requestPurpose)) return '';
+  if (!shouldInjectFileGuidance({ currentText: inputText, history })) return '';
+  const { getFileAuthoringGuidance } = await import('../../ui/files/file-authoring-guidance.js');
+  return getFileAuthoringGuidance();
+};
+
 // Loaded on demand so the learning mode prose stays out of the main runtime chunk.
 const getRuntimeLearningModeInstruction = async (config, includePrecedence) => {
   if (!config.isLearningMode) return '';
@@ -101,6 +118,7 @@ const buildSystemInstruction = async ({
   memoryContext,
   additionalSystemInstruction,
   chartAuthoringGuidance,
+  fileAuthoringGuidance,
   requestPurpose
 }) => {
   let baseInstructionText = LANGUAGE_INSTRUCTIONS[config.aiDefaultLanguage] || '';
@@ -144,6 +162,10 @@ const buildSystemInstruction = async ({
   systemInstruction = appendInstructionText(
     systemInstruction,
     chartAuthoringGuidance
+  );
+  systemInstruction = appendInstructionText(
+    systemInstruction,
+    fileAuthoringGuidance
   );
   return appendInstructionText(systemInstruction, additionalSystemInstruction);
 };
@@ -538,7 +560,9 @@ export function createStreamApiCall({
       throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
     }
 
-    const historyForApi = requestOptions.historyForApi || (conversation.messages || []).slice(0, -1);
+    const historyForApi = compactFileHistoryForApi(
+      requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
+    );
     const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;
@@ -565,6 +589,11 @@ export function createStreamApiCall({
     const chartAuthoringGuidance = await getRuntimeChartAuthoringGuidance(
       getMessageTextForGuidance(currentMessageForApi)
     );
+    const fileAuthoringGuidance = await getRuntimeFileAuthoringGuidance({
+      inputText: getMessageTextForGuidance(currentMessageForApi),
+      history: historyForApi,
+      requestPurpose: requestOptions.requestPurpose
+    });
     const systemInstruction = await buildSystemInstruction({
       config,
       conversation,
@@ -573,6 +602,7 @@ export function createStreamApiCall({
       memoryContext,
       additionalSystemInstruction: requestOptions.additionalSystemInstruction,
       chartAuthoringGuidance,
+      fileAuthoringGuidance,
       requestPurpose: requestOptions.requestPurpose
     });
 

@@ -1,3 +1,5 @@
+import { summarizeFileBlocks } from '../../ui/files/file-history-compaction.js';
+
 const TITLE_SUMMARY_RESPONSE_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -35,7 +37,7 @@ export function buildTitleSummaryPrompt(conversation, { language = 'zh-TW' } = {
   const promptText = TITLE_SUMMARY_PROMPTS[normalizeTitleLanguage(language)];
   const conversationHistory = (conversation?.messages || [])
     .slice(0, 5)
-    .map((message) => `${message.role}: ${(message.parts || []).map((part) => part.text).join(' ')}`)
+    .map((message) => `${message.role}: ${summarizeFileBlocks((message.parts || []).map((part) => part.text || '').join(' '), { excerptLength: 160 })}`)
     .join('\n');
 
   return `${promptText.instruction}\n{"title": "${promptText.exampleTitle}"}\n\nRespond in ${promptText.languageName}.\n\n${promptText.contentLabel}:\n${conversationHistory}`;

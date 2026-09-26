@@ -786,6 +786,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     waitForFrame: () => new Promise((resolve) => scheduleTimeout(resolve, 16)),
     getStreamingText: (key, fallback) => getRuntimeText(getUiLanguage(), key) || fallback,
     getStreamErrorText: (error) => `串流回應失敗：${error.message}`,
+    getUiLanguage,
     logError: (...args) => logger.error?.(...args)
   });
 

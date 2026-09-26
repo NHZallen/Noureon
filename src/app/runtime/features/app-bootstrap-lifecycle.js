@@ -5,6 +5,7 @@ import { createTurnstileClient } from '../security/turnstile-client.js';
 import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
+import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -437,6 +438,16 @@ export function createLegacyAppBootstrapLifecycle({
                 settingsDesktopLogoutBtn?.addEventListener('click', handleLogout);
                 ALL_ELEMENTS.userProfileBtn.addEventListener('click', openDashboard);
                 ALL_ELEMENTS.closeDashboardBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.dataDashboardModal, false));
+                // Delegated on the document so file cards inside council details
+                // and the file preview dialog behave like cards in the message list.
+                installFileCardInteractions({
+                    root: document,
+                    window,
+                    getUiLanguage: () => getConfig().uiLanguage,
+                    notify: (message, type) => showNotification(message, type),
+                    copyText: (text) => copyTextToClipboard(text),
+                    logError: (...args) => logger.error?.(...args)
+                });
                 ALL_ELEMENTS.messageList.addEventListener('click', (e) => {
                     const userAction = e.target.closest('[data-message-action]');
                     if (userAction) {

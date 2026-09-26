@@ -10,6 +10,10 @@ import {
   normalizeCouncilComparisonDetails,
   restoreOpenCouncilDetails
 } from './streaming-council-details.js';
+import { findTrailingStreamingFileBlock } from '../../ui/files/file-block-protocol.js';
+import { createPendingFileCardElement } from '../../ui/files/file-card-renderer.js';
+import { sanitizeFileName } from '../../ui/files/file-name-policy.js';
+import { resolveFileType } from '../../ui/files/file-type-registry.js';
 
 export function createStreamingMarkdownFeature({
   document,
@@ -22,6 +26,7 @@ export function createStreamingMarkdownFeature({
   waitForFrame,
   getStreamingText = (_key, fallback) => fallback,
   getStreamErrorText = (error) => `抱歉，發生錯誤：${error.message}`,
+  getUiLanguage = () => 'zh-TW',
   logError = (...args) => console.error(...args)
 }) {
   const hasRenderableFormula = (text = '') => (
@@ -64,6 +69,8 @@ export function createStreamingMarkdownFeature({
       return status.outerHTML;
     };
 
+    const STABLE_BLOCK_SELECTOR = '.ac-chart[data-chart-payload], .table-scroll-container, .ac-file-card[data-file-id]';
+
     const getStableBlockSignature = (node) => {
       if (node.matches?.('.ac-chart[data-chart-payload]')) {
         return `chart:${node.dataset.chartPayload || ''}`;
@@ -71,20 +78,23 @@ export function createStreamingMarkdownFeature({
       if (node.matches?.('.table-scroll-container')) {
         return `table:${node.innerHTML}`;
       }
+      if (node.matches?.('.ac-file-card[data-file-id]')) {
+        return `file:${node.dataset.fileId}:${node.dataset.fileState || ''}`;
+      }
       return '';
     };
 
     const transplantStableRichBlocks = (nextRoot) => {
       const stableBlocks = new Map();
       [finalizedNode, currentLineNode].forEach((renderRoot) => {
-        renderRoot.querySelectorAll('.ac-chart[data-chart-payload], .table-scroll-container').forEach((node) => {
+        renderRoot.querySelectorAll(STABLE_BLOCK_SELECTOR).forEach((node) => {
           const signature = getStableBlockSignature(node);
           const entries = stableBlocks.get(signature) || [];
           entries.push(node);
           stableBlocks.set(signature, entries);
         });
       });
-      nextRoot.querySelectorAll('.ac-chart[data-chart-payload], .table-scroll-container').forEach((node) => {
+      nextRoot.querySelectorAll(STABLE_BLOCK_SELECTOR).forEach((node) => {
         const entries = stableBlocks.get(getStableBlockSignature(node));
         const existing = entries?.shift();
         if (existing) node.replaceWith(existing);
@@ -156,8 +166,38 @@ export function createStreamingMarkdownFeature({
       };
     };
 
+    const getPendingFilePresentation = (fileBlock) => {
+      const block = fileBlock.block;
+      const name = block?.name ? sanitizeFileName(block.name) : '';
+      const type = resolveFileType(name || (block?.extensionHint ? `file.${block.extensionHint}` : ''));
+      const receivedCharacters = block?.content?.length || 0;
+      const card = createPendingFileCardElement(document, {
+        name,
+        extension: type.extension || block?.extensionHint || '',
+        family: type.family,
+        receivedCharacters,
+        language: getUiLanguage()
+      });
+      return {
+        html: card.outerHTML,
+        // The counter moves in coarse steps so a long file does not rebuild
+        // the card on every animation frame.
+        key: `file:pending:${name}:${Math.floor(receivedCharacters / 40)}`
+      };
+    };
+
     const renderStructuredSnapshot = () => {
       const fullText = renderState.getText();
+      // File blocks are checked first: a document body may itself contain a
+      // chart fence or a Markdown table that must not render mid-stream.
+      const fileBlock = findTrailingStreamingFileBlock(fullText);
+      if (fileBlock) {
+        renderStablePrefix(fileBlock.prefix);
+        const pending = getPendingFilePresentation(fileBlock);
+        setCurrentHTML(pending.html, pending.key);
+        return true;
+      }
+
       const chartBlock = findTrailingStreamingChart(fullText);
       if (chartBlock) {
         renderStablePrefix(chartBlock.prefix);
@@ -249,8 +289,13 @@ export function createStreamingMarkdownFeature({
         if (renderState.isFinalized()) return renderState.getText();
         flushPendingLines(true, renderFormulas);
         if (renderFormulas && renderState.getFinalizedText()) {
-          const unfinishedChart = findTrailingStreamingChart(renderState.getText());
-          if (unfinishedChart && !unfinishedChart.complete) {
+          const unfinishedFile = findTrailingStreamingFileBlock(renderState.getText());
+          const unfinishedChart = unfinishedFile ? null : findTrailingStreamingChart(renderState.getText());
+          if (unfinishedFile) {
+            // An interrupted file renders as an "incomplete" card through the
+            // normal Markdown path rather than as a half-parsed chart.
+            renderFinalized(true);
+          } else if (unfinishedChart && !unfinishedChart.complete) {
             const prefix = renderTextToHTML(unfinishedChart.prefix, true).html;
             const renderedChart = getRenderedChartPresentation(unfinishedChart);
             const fallback = createStatusMarkup(

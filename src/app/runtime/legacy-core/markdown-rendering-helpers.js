@@ -1,5 +1,6 @@
 import { applyChartMarkdownPlaceholders } from '../../ui/charts/chart-markdown-placeholders.js';
 import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
+import { applyFileCards, prepareFileBlocksForMarkdown, setFileMarkdownRenderer } from '../../ui/files/file-markdown-cards.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 export function createMarkdownRenderingHelpers({
@@ -188,7 +189,9 @@ export function createMarkdownRenderingHelpers({
     }
   }
 
-  function renderMarkdown(text) {
+  // File blocks are lifted out of the raw source before marked sees it; see
+  // file-block-protocol.js for why this cannot be a post-parse step.
+  function renderMarkdownDocument(text, fileBlocks) {
     const runtimeTexts = getRuntimeTexts(getUiLanguage());
     const thinkingLabel = runtimeTexts.modelThinkingProcess;
     const normalizedText = String(text || '')
@@ -221,12 +224,25 @@ export function createMarkdownRenderingHelpers({
       chartLabel: getText('chart', runtimeTexts.chart)
     });
 
+    applyFileCards({
+      document: documentFragment,
+      root: documentFragment.body,
+      blocks: fileBlocks,
+      language: getUiLanguage()
+    });
+
     return documentFragment.body.innerHTML;
   }
 
+  function renderMarkdown(text) {
+    const { markdown, blocks } = prepareFileBlocksForMarkdown(text);
+    return renderMarkdownDocument(markdown, blocks);
+  }
+
   function renderMarkdownWithFormulas(text) {
-    const { formulas, markdown } = extractFormulaTokens(text);
-    let html = renderMarkdown(markdown);
+    const { markdown: fileTokenizedText, blocks } = prepareFileBlocksForMarkdown(text);
+    const { formulas, markdown } = extractFormulaTokens(fileTokenizedText);
+    let html = renderMarkdownDocument(markdown, blocks);
 
     formulas.forEach((entry, index) => {
       const token = `NOURA_MATH_TOKEN_${index}_END`;
@@ -239,6 +255,8 @@ export function createMarkdownRenderingHelpers({
 
     return html;
   }
+
+  setFileMarkdownRenderer(renderMarkdownWithFormulas);
 
   return { renderMarkdown, renderMarkdownWithFormulas };
 }
