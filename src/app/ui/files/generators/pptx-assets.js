@@ -50,7 +50,7 @@ export const fontAlias = (family) => `Noureon Deck ${family}`;
 
 const registered = new Map();
 
-function familiesOf(tokens, design) {
+function familiesOf(tokens, design, { eastAsian = true } = {}) {
   const set = FONT_SETS[design.fonts] || FONT_SETS.modern;
   const roles = tokens.fonts;
   const families = new Map();
@@ -63,8 +63,10 @@ function familiesOf(tokens, design) {
     const weight = name === 'heading' ? design.headingWeight : name === 'bodyStrong' ? 700 : name === 'label' ? 500 : 400;
     const definition = set[name === 'bodyStrong' ? 'body' : name];
     [role.latin, definition?.cyrillic].forEach((family) => { add(family, weight); add(family, 700); });
-    add(role.eastAsian, weight);
-    add(role.eastAsian, 700);
+    if (eastAsian) {
+      add(role.eastAsian, weight);
+      add(role.eastAsian, 700);
+    }
   }
   add(MONO_FAMILY, 500);
   add(MONO_FAMILY, 700);
@@ -74,13 +76,14 @@ function familiesOf(tokens, design) {
 /**
  * Loads and registers the faces a design uses (all its Latin, Cyrillic and
  * East Asian families, at the weights it draws) and waits until they are
- * ready, so canvas measurements use the real fonts.
+ * ready, so canvas measurements use the real fonts. `eastAsian: false` skips
+ * the multi-megabyte CJK faces (template thumbnails).
  */
-export async function registerDeckFonts(tokens, { document, window }) {
+export async function registerDeckFonts(tokens, { document, window, eastAsian = true }) {
   const fontSet = document?.fonts;
   if (!fontSet || typeof window?.FontFace !== 'function') return false;
   const loads = [];
-  for (const [family, weights] of familiesOf(tokens, tokens.design)) {
+  for (const [family, weights] of familiesOf(tokens, tokens.design, { eastAsian })) {
     const definition = FONT_FAMILIES[family];
     for (const weight of weights) {
       const source = fontSource(family, weight);

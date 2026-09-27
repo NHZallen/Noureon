@@ -2,7 +2,7 @@
 
 **日期：** 2026-09-27
 
-**狀態：** D1 與 A4 已完成（設計系統在 `src/app/ui/files/design/`，PPTX 輸出在 `src/app/ui/files/generators/pptx-*.js`，投影片預覽在 `src/app/ui/files/previews/slide-*.js`；測試在 `tests/files/design-*.test.js` 與 `tests/files/pptx-generation.test.js`）。範本挑選面板與 AI 調參數在 A4b。
+**狀態：** D1 與 A4 已完成（設計系統在 `src/app/ui/files/design/`，PPTX 輸出在 `src/app/ui/files/generators/pptx-*.js`，投影片預覽在 `src/app/ui/files/previews/slide-*.js`；測試在 `tests/files/design-*.test.js` 與 `tests/files/pptx-generation.test.js`）。A4b（製作前選擇簡報設計）也已完成，見「簡報設計的選擇」。
 
 **來源：** 使用者確認的第二版提案（第一版的 8 套風格被退回，要求參考各大設計廠商重做，並追加 20 套範本、AI 調參數與 5 種語言適配）。
 
@@ -39,7 +39,7 @@ AI 在 ````file 名稱.pptx```` 區塊裡寫 JSON。不擅長 JSON 的小模型�
 | `slideNumbers` | 是否顯示頁碼，預設 `true` |
 | `language` | 文件語言（BCP 47）。沒寫時依內容文字判斷 |
 | `design` | 設計參數，可只寫 `preset` 再覆寫幾項；也接受頂層的 `preset`／`style` 字串 |
-| `designs` | 最多三組設計，供 A4b 挑選 |
+| `designs` | 選填的其他設計方向（最多三組）；沒有 `design` 時用第一組 |
 | `slides` | 最多 60 張 |
 
 ### 每頁共同欄位
@@ -260,7 +260,16 @@ PowerPoint 實測結果：用 COM 把 6 份簡報匯出成 PDF 檢查，包括 w
 
 授權：所有字型都是 SIL OFL，包括 jf 粉圓、霞鶩文楷、仙人掌明體；`LICENSES.txt` 和字型檔放在一起。嵌入文件的子集沿用原字型名。Playfair Display、Source 系列與 IBM Plex 帶有保留字型名稱（Reserved Font Name），上線前建議再確認文件內嵌的子集是否需要改名。
 
+## 簡報設計的選擇（A4b）
+
+使用者在請 AI 做簡報之前就決定設計，模型寫簡報時直接套用：
+
+- **位置**：輸入框「＋」旁的「簡報設計」按鈕，外觀與「推理深度」按鈕相同，電腦版與手機版都在同一格。按鈕文字固定是「簡報設計」，目前的選擇顯示在提示文字與選單的勾選狀態。
+- **選項**：「AI 自適應」（預設）或 20 套範本之一。範本以示範封面（介面語言）畫成縮圖，只載入西文字型；選單與它的樣式在第一次打開時才載入。
+- **保存**：存在對話的 `deckDesign`（`auto` 或範本 id），和推理深度一樣只存在本機；每個對話各自記住。
+- **提示詞**：AI 自適應時，簡報提示詞附上 25 項參數的可用值與說明，要求模型寫出完整的 `design`；指定範本時只要求寫 `{ "preset": "…" }`，除非這則訊息另有要求，否則不改參數。不另外呼叫模型。
+- 原本規劃的「產生後的設計面板」與「AI 給三組方向再挑選」依使用者決定不做。
+
 ## 後續階段
 
-- **A4b**：設計面板（20 套範本縮圖、AI 調參數、25 項參數的手動微調與 5 種語言的參數名稱、三組 `design` 挑選）；套用後把 `design` 寫回訊息裡的檔案規格。
 - **W2／A5**：Word 與 PDF 沿用同一組參數、配色與字型。

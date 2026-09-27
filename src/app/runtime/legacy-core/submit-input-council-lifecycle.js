@@ -19,6 +19,7 @@ import { collectHistorySourceConversationIds } from '../memory/history-source-re
 import { renderModelCouncilMenuItem } from '../features/composer-menu-item.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { canCaptureConversationMessage } from '../features/temporary-chat-state.js';
+import { createDeckDesignControl } from '../features/deck-design-control.js';
 import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
@@ -159,6 +160,15 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     saveAppData,
     onChange: (...args) => renderInputIndicators(...args),
     getText: getLocalizedText
+  });
+
+  // Presentation design (AI adaptive or a template), chosen before asking.
+  const deckDesignControl = createDeckDesignControl({
+    document,
+    getActiveConversation,
+    saveAppData,
+    getUiLanguage,
+    closeAllPopovers
   });
 
   const getReasoningTitle = () => {
@@ -393,6 +403,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const conv = getActiveConversation();
     const wrapper = document.querySelector('.input-wrapper');
     if (!wrapper || !container) return;
+    deckDesignControl.render();
     if (!conv) {
       if (container.children.length > 0) container.innerHTML = '';
       wrapper.classList.remove('has-indicators');

@@ -1,3 +1,5 @@
+import { describeDesignParameters } from './design/design-params.js';
+import { DESIGN_PRESET_IDS, getPresetText } from './design/design-presets.js';
 import { isGeneratorAvailable } from './file-type-registry.js';
 
 // Loaded on demand from stream-api-call.js. Keep the wording imperative and
@@ -56,8 +58,7 @@ const PPTX_GUIDANCE = `## PowerPoint presentations (.pptx)
 Write a JSON deck spec; the app lays it out on 16:9 slides with a professional design, native editable text, charts and tables, embedded fonts and speaker notes. Never write slide coordinates, colours or font sizes per slide.
 {
   "title": "Deck title", "author": "Optional", "date": "Optional", "footer": "Optional",
-  "preset": "consulting",
-  "design": { "accent": "#1F6FEB" },
+  "design": { see "Design" below },
   "slides": [
     { "layout": "cover", "title": "…", "subtitle": "…", "kicker": "…" },
     { "layout": "bullets", "title": "…", "bullets": ["…", { "text": "…", "children": ["…"] }], "callout": "…", "notes": "What the speaker says" }
@@ -71,7 +72,6 @@ Layouts and their fields (every slide may also have "title", "kicker", "notes", 
 - timeline: steps [{ label, title, body, icon }] (2–6) · quote: quote, attribution, role, image · gallery: images [{ image, caption }]
 - table: table { columns [], rows [[]], align ["left","right"…], highlightRow } · chart: chart (same schema as a \`\`\`chart block), takeaway
 Rules:
-- Presets: keynote, whitespace, consulting, swiss, editorial, softlight, ainative, poster, neon, noir, readout, lecture, material, bauhaus, classic, humane, playful, carbon, brandbook, office. Pick the one that suits the topic and audience; "design" may override accent, accent2, mode (light/dark) or fonts only when the user asks for it.
 - One idea per slide. Titles state the takeaway in at most two lines; bullets are short phrases, about 3–6 per slide. Longer lists continue onto a new slide automatically.
 - Use **bold** inside text for the key words to emphasise; no other Markdown inside strings.
 - Icons: package, globe, gauge, chart-bar, chart-line, trending-up, trending-down, users, user, target, rocket, lightbulb, shield, lock, clock, calendar, check, star, heart, leaf, building, map-pin, mail, settings, cpu, database, cloud, code, book, coins, handshake, sparkles.
@@ -79,15 +79,42 @@ Rules:
 - Put what the presenter should say in "notes". Write every text in the language the user writes in.
 - Output valid JSON. If you cannot, write Markdown instead: # Deck title, ## one slide each, - bullets, tables, \`\`\`chart blocks, > quotes, ![alt](upload:1), and a paragraph starting "Notes:" for speaker notes.`;
 
+// What each design parameter does, for a model choosing them itself.
+const DESIGN_PARAMETER_NOTES = `Meaning:
+- mode: light or dark slides. background: neutral white/black, warm paper, cool grey, tinted with the accent, or the accent itself as the slide colour. accent: main colour; accent2: optional second colour (null derives one). colorUse: how much colour appears.
+- fonts: modern (Inter), tight (Inter Tight, mono labels), geometric (Manrope), condensed (Oswald headings), editorial (Playfair Display), modernSerif (Instrument Serif), consulting (Source Serif + Source Sans), classical (Cormorant Garamond), kai (handwritten Chinese), rounded (Nunito), plex (IBM Plex), office (Aptos/Calibri, no embedded fonts: only for files that must be edited anywhere).
+- headingWeight, headingCase (upper = all caps for Latin and Cyrillic), tracking, typeScale (ratio between sizes), titleSize, density (whitespace), align (titles left or centred).
+- cover: type, split (colour panel and image), bleed (full-slide image), band, frame. section: number (big numeral), field (full colour slide), split, rule.
+- imageShape: bleed, inset, rounded, arch, circle. motifs (up to two): rules, meta (corner labels), grid, shapes, glow, frame, blob.
+- labels (kicker style), numbers, bullets, cards, radius (points), icons (none, line, badge), chart (accent shades, duo = one highlight and grey, categorical), imagery (how many image frames).
+Text colours are adjusted automatically to meet contrast, so any accent works.`;
+
+/**
+ * The design part of the presentation guidance. `deckDesign` is what the
+ * user chose in the composer before asking: a preset id, or "auto" (the
+ * default) for AI-adaptive design, where the model sets every parameter.
+ */
+function presentationDesignGuidance(deckDesign) {
+  if (DESIGN_PRESET_IDS.includes(deckDesign)) {
+    return `Design: the user chose the "${deckDesign}" template (${getPresetText(deckDesign, 'en').feature}). Write "design": { "preset": "${deckDesign}" } and do not change any design parameter unless this message asks for it.`;
+  }
+  return [
+    'Design (AI adaptive, the user\'s choice): set every design parameter yourself for this content, audience and purpose, and write the complete "design" object with all of these keys. Presets are only starting points; combine and change freely. Follow any style the user asks for (colours, dark or light, formal or playful).',
+    describeDesignParameters(),
+    DESIGN_PARAMETER_NOTES,
+    `Presets for reference (you may add "preset" as a base and override keys): ${DESIGN_PRESET_IDS.join(', ')}.`
+  ].join('\n');
+}
+
 const RICH_GUIDANCE = Object.freeze({
-  docx: DOCX_GUIDANCE,
-  pptx: PPTX_GUIDANCE
+  docx: () => DOCX_GUIDANCE,
+  pptx: ({ deckDesign }) => `${PPTX_GUIDANCE}\n${presentationDesignGuidance(deckDesign)}`
 });
 
-export async function getFileAuthoringGuidance() {
+export async function getFileAuthoringGuidance({ deckDesign = 'auto' } = {}) {
   const sections = [GENERAL_GUIDANCE, TEXT_GUIDANCE];
   for (const [generator, guidance] of Object.entries(RICH_GUIDANCE)) {
-    if (isGeneratorAvailable(generator)) sections.push(guidance);
+    if (isGeneratorAvailable(generator)) sections.push(guidance({ deckDesign }));
   }
   return sections.join('\n\n');
 }

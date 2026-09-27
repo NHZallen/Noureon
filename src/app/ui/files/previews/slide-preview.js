@@ -306,28 +306,54 @@ export function renderSlideSvg(document, slide, context) {
   return svg;
 }
 
+const measurerFor = (document) => {
+  const context2d = document.createElement('canvas').getContext?.('2d');
+  return context2d ? createCanvasMeasurer(context2d) : createEstimatingMeasurer();
+};
+
+/** One slide as SVG from a { layout, fontAlias } presentation (thumbnails). */
+export function renderPresentationSlide(document, presentation, index = 0) {
+  const { layout, fontAlias = (family) => family } = presentation;
+  const slide = layout.slides[index];
+  return slide ? renderSlideSvg(document, slide, { layout, fontAlias, measure: presentation.measure || measurerFor(document) }) : null;
+}
+
+/**
+ * Draws every slide of a { layout, fontAlias } presentation into `container`.
+ * `update` redraws with another layout (the design panel), keeping the
+ * scroll position.
+ */
+export function renderPresentationSlides(container, presentation, { document = globalThis.document } = {}) {
+  const list = document.createElement('div');
+  list.className = 'ac-slide-preview';
+  const measure = measurerFor(document);
+  const draw = (next) => {
+    const { layout, fontAlias = (family) => family } = next;
+    const context = { layout, fontAlias, measure };
+    const figures = layout.slides.map((slide) => {
+      const figure = document.createElement('figure');
+      figure.className = 'ac-slide-frame';
+      figure.appendChild(renderSlideSvg(document, slide, context));
+      const caption = document.createElement('figcaption');
+      caption.className = 'ac-slide-caption';
+      caption.textContent = String(slide.number);
+      figure.appendChild(caption);
+      return figure;
+    });
+    list.replaceChildren(...figures);
+    return layout.slides.length;
+  };
+  const pageCount = draw(presentation);
+  container.replaceChildren(list);
+  return { pageCount, update: draw, dispose: () => list.remove() };
+}
+
 /**
  * Page renderer for the file preview dialog: every slide of the presentation
- * a Blob came from, in order. Returns { pageCount, dispose }.
+ * a Blob came from, in order. Returns { pageCount, update, dispose }.
  */
 export async function renderPptxPreview(blob, container, { document = globalThis.document } = {}) {
   const presentation = blob?.presentation;
   if (!presentation?.layout) throw new Error('slide layout unavailable');
-  const { layout, fontAlias = (family) => family } = presentation;
-  const context2d = document.createElement('canvas').getContext?.('2d');
-  const context = { layout, fontAlias, measure: context2d ? createCanvasMeasurer(context2d) : createEstimatingMeasurer() };
-  const list = document.createElement('div');
-  list.className = 'ac-slide-preview';
-  for (const slide of layout.slides) {
-    const figure = document.createElement('figure');
-    figure.className = 'ac-slide-frame';
-    figure.appendChild(renderSlideSvg(document, slide, context));
-    const caption = document.createElement('figcaption');
-    caption.className = 'ac-slide-caption';
-    caption.textContent = String(slide.number);
-    figure.appendChild(caption);
-    list.appendChild(figure);
-  }
-  container.replaceChildren(list);
-  return { pageCount: layout.slides.length, dispose: () => list.remove() };
+  return renderPresentationSlides(container, presentation, { document });
 }

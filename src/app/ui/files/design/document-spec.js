@@ -488,11 +488,14 @@ export function normalizeDocumentSpec(input, { uiLanguage = 'zh-TW' } = {}) {
 
   const designInput = field('design', 'theme');
   const presetShortcut = field('preset', 'template', 'style');
-  const { design, preset, label, issues: designIssues } = normalizeDesign(
-    isRecord(designInput) ? designInput : presetShortcut != null || typeof designInput === 'string' ? { preset: typeof designInput === 'string' ? designInput : presetShortcut } : {}
-  );
+  const alternativesInput = Array.isArray(field('designs')) ? field('designs').slice(0, SPEC_LIMITS.designs) : [];
+  // Without a chosen design, the first of the offered directions is used.
+  const chosen = isRecord(designInput) ? designInput
+    : presetShortcut != null || typeof designInput === 'string' ? { preset: typeof designInput === 'string' ? designInput : presetShortcut }
+      : isRecord(alternativesInput[0]) ? alternativesInput[0] : {};
+  const { design, preset, label, issues: designIssues } = normalizeDesign(chosen);
   designIssues.forEach((issue) => context.issue(`design-${issue.code}`, issue));
-  const alternatives = Array.isArray(field('designs')) ? field('designs').slice(0, SPEC_LIMITS.designs).map((entry) => normalizeDesign(entry)) : [];
+  const alternatives = alternativesInput.map((entry) => normalizeDesign(entry));
 
   let rawSlides = field('slides', 'pages', 'deck', 'content');
   if (!Array.isArray(rawSlides)) {
