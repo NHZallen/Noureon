@@ -39,9 +39,17 @@ export function createDeckDesignControl({
   const GAP = 8;
   const PREFERRED_HEIGHT = 544;
   const MIN_ABOVE = 320;
+  const PREFERRED_WIDTH = 400;
   const place = (button, popover) => {
     const rect = button.getBoundingClientRect();
     const viewportHeight = window?.innerHeight || document.documentElement.clientHeight || 800;
+    const viewportWidth = window?.innerWidth || document.documentElement.clientWidth || 1024;
+    // Horizontally: as wide as fits, starting at the control and shifted left
+    // when it would run off the right edge (phones).
+    const anchor = (popover.offsetParent || button.parentElement || button).getBoundingClientRect();
+    const width = Math.max(200, Math.min(PREFERRED_WIDTH, viewportWidth - EDGE * 2));
+    const left = Math.min(Math.max(anchor.left, EDGE), viewportWidth - EDGE - width);
+    Object.assign(popover.style, { width: `${width}px`, left: `${Math.round(left - anchor.left)}px` });
     const above = rect.top - EDGE - GAP;
     const below = viewportHeight - rect.bottom - EDGE - GAP;
     const down = above < Math.min(MIN_ABOVE, PREFERRED_HEIGHT) && below > above;

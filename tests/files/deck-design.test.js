@@ -233,3 +233,35 @@ test('the reply is saved with the template applied and redrawn', async () => {
   assert.equal(adaptive.saved, reply, 'AI adaptive keeps what the model wrote');
   assert.equal(adaptive.flag, 'true');
 });
+
+test('on a phone the picker stays inside the screen horizontally', async () => {
+  const { document, window, cleanup } = createDom('<div id="file-input-container"></div>');
+  try {
+    const control = createDeckDesignControl({
+      document,
+      window,
+      getActiveConversation: () => ({ id: 'a', messages: [] }),
+      saveAppData: async () => {},
+      loadPicker: async () => ({ renderDeckDesignPicker: () => ({ setCurrent() {} }) })
+    });
+    control.render();
+    const button = document.getElementById('deck-design-btn');
+    const popover = document.getElementById('deck-design-popover');
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 });
+    // The control sits right of the attachment button, 60px from the left edge.
+    document.getElementById('deck-design-control').getBoundingClientRect = () => ({ top: 780, bottom: 812, left: 60, right: 160, width: 100, height: 32 });
+    Object.defineProperty(popover, 'offsetParent', { configurable: true, get: () => document.getElementById('deck-design-control') });
+    button.getBoundingClientRect = () => ({ top: 780, bottom: 812, left: 60, right: 160, width: 100, height: 32 });
+    button.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const width = Number.parseFloat(popover.style.width);
+    const left = 60 + Number.parseFloat(popover.style.left);
+    assert.equal(width, 390 - 24);
+    assert.equal(left, 12, 'shifted left to the screen edge');
+    assert.ok(left + width <= 390 - 12, 'and ends inside the right edge');
+  } finally {
+    cleanup();
+  }
+});
