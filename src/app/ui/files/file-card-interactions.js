@@ -35,29 +35,41 @@ function createBlobCache() {
   };
 }
 
-// iOS home-screen apps cannot follow a blob: download link; the share sheet
-// ("Save to Files") is the only reliable way to hand them a file.
-function prefersShareSheet(window) {
+// On iPhone and iPad only Safari follows a blob: download link. Home-screen
+// apps and the other browsers there (Chrome, Firefox, Edge, the Google app)
+// ignore it silently, so they get the share sheet ("Save to Files") instead.
+const IOS_OTHER_BROWSER = /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|YaBrowser|DuckDuckGo/;
+export function prefersShareSheet(window) {
   const navigator = window?.navigator;
   if (!navigator) return false;
-  const isAppleTouchDevice = /iPad|iPhone|iPod/.test(navigator.userAgent || '')
+  const userAgent = navigator.userAgent || '';
+  const isAppleTouchDevice = /iPad|iPhone|iPod/.test(userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isAppleTouchDevice) return false;
   const isStandalone = navigator.standalone === true
     || Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches);
-  return isAppleTouchDevice && isStandalone;
+  return isStandalone || IOS_OTHER_BROWSER.test(userAgent);
 }
 
+/**
+ * Hands a file to the user. Returns "shared", "cancelled", "downloaded" or
+ * "needs-tap": the share sheet only opens during a tap, and generating the
+ * file can outlast it, so the caller asks for one more tap (the file is
+ * ready by then and shared at once).
+ */
 export async function deliverFile({ window, document, blob, fileName }) {
   const navigator = window?.navigator;
   if (prefersShareSheet(window) && typeof navigator?.share === 'function' && typeof window.File === 'function') {
     const file = new window.File([blob], fileName, { type: blob.type });
     if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+      if (navigator.userActivation && !navigator.userActivation.isActive) return 'needs-tap';
       try {
         await navigator.share({ files: [file], title: fileName });
         return 'shared';
       } catch (error) {
         if (error?.name === 'AbortError') return 'cancelled';
-        // Fall through to a regular download when sharing is refused.
+        if (error?.name === 'NotAllowedError') return 'needs-tap';
+        // Anything else: try a regular download.
       }
     }
   }
@@ -145,7 +157,8 @@ export function installFileCardInteractions({
     setBusy(trigger, true, language);
     try {
       const blob = await resolveBlob(descriptor);
-      await deliverFile({ window, document, blob, fileName: descriptor.name });
+      const result = await deliverFile({ window, document, blob, fileName: descriptor.name });
+      if (result === 'needs-tap') notify(getFileText(language, 'tapAgainToSave', { name: descriptor.name }), 'success');
     } catch (error) {
       logError('File generation failed:', error);
       notify(getFileText(language, 'generateFailed', { reason: describeError(error) }), 'error');
@@ -154,8 +167,16 @@ export function installFileCardInteractions({
     }
   };
 
+  let pendingBundle = null;
   const downloadBundle = async (trigger, descriptors) => {
     const language = getUiLanguage();
+    const ids = descriptors.map((descriptor) => descriptor.id).join(',');
+    if (pendingBundle?.ids === ids) {
+      const { blob, fileName } = pendingBundle;
+      pendingBundle = null;
+      await deliverFile({ window, document, blob, fileName });
+      return;
+    }
     setBusy(trigger, true, language);
     try {
       const JSZip = await loadArchive();
@@ -165,7 +186,13 @@ export function installFileCardInteractions({
         zip.file(names[index], await resolveBlob(descriptor));
       }
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/zip' });
-      await deliverFile({ window, document, blob, fileName: createBundleFileName() });
+      const fileName = createBundleFileName();
+      const result = await deliverFile({ window, document, blob, fileName });
+      if (result === 'needs-tap') {
+        // The bundle is not cached like single files: keep it for the next tap.
+        pendingBundle = { ids: descriptors.map((descriptor) => descriptor.id).join(','), blob, fileName };
+        notify(getFileText(language, 'tapAgainToSave', { name: fileName }), 'success');
+      }
     } catch (error) {
       logError('File bundle generation failed:', error);
       notify(getFileText(language, 'generateFailed', { reason: describeError(error) }), 'error');
