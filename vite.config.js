@@ -47,12 +47,14 @@ export default defineConfig({
           if (id.includes('/src/app/runtime/memory/')) return 'runtime-memory';
           // File cards are rendered synchronously with Markdown, so their small
           // eager core ships in its own chunk instead of growing the legacy
-          // shell. Generators, the preview dialog and the authoring guidance
-          // stay dynamic imports and must not be pulled into this chunk.
+          // shell. Generators, the design system, the preview dialog and the
+          // authoring guidance stay dynamic imports and must not be pulled
+          // into this chunk.
           if (
             id.includes('/src/app/ui/files/')
             && !id.includes('/src/app/ui/files/generators/')
             && !id.includes('/src/app/ui/files/previews/')
+            && !id.includes('/src/app/ui/files/design/')
             && !id.includes('/src/app/ui/files/file-preview-dialog.js')
             && !id.includes('/src/app/ui/files/file-authoring-guidance.js')
           ) {

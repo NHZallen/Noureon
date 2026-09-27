@@ -19,10 +19,11 @@ test('file card styles ship with the lazily loaded chat runtime, not the startup
   assert.match(readSource('src/app/legacy-app.js'), /import '\.\.\/styles\/file-cards\.css';/);
 });
 
-test('Tailwind does not scan document generators or page previews for utility classes', () => {
+test('Tailwind does not scan document generators, page previews or the design system for utility classes', () => {
   const config = readSource('tailwind.config.js');
   assert.match(config, /'!\.\/src\/app\/ui\/files\/generators\/\*\*'/);
   assert.match(config, /'!\.\/src\/app\/ui\/files\/previews\/\*\*'/);
+  assert.match(config, /'!\.\/src\/app\/ui\/files\/design\/\*\*'/);
 });
 
 test('scanned file modules never negate a variable named block', () => {
@@ -47,10 +48,10 @@ test('document generator and preview vendors are split out and never precached',
   assert.match(worker, /ON_DEMAND_ASSET_PATTERN\.test\(path\)\) continue;/);
 });
 
-test('generators, previews, the preview dialog and the guidance stay out of the eager file chunk', () => {
+test('generators, previews, the design system, the preview dialog and the guidance stay out of the eager file chunk', () => {
   const vite = readSource('vite.config.js');
   assert.match(vite, /return 'runtime-files';/);
-  for (const lazy of ['/src/app/ui/files/generators/', '/src/app/ui/files/previews/', 'file-preview-dialog.js', 'file-authoring-guidance.js']) {
+  for (const lazy of ['/src/app/ui/files/generators/', '/src/app/ui/files/previews/', '/src/app/ui/files/design/', 'file-preview-dialog.js', 'file-authoring-guidance.js']) {
     assert.ok(vite.includes(lazy), `${lazy} must be excluded from runtime-files`);
   }
   const generators = readSource('src/app/ui/files/file-generators.js');
