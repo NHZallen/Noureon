@@ -32,6 +32,29 @@ export function createDeckDesignControl({
 }) {
   let picker = null;
 
+  // Opens above the composer when there is room (the composer is usually at
+  // the bottom), otherwise below it (a new chat centres the composer), and
+  // never taller than the space on that side.
+  const EDGE = 12;
+  const GAP = 8;
+  const PREFERRED_HEIGHT = 544;
+  const MIN_ABOVE = 320;
+  const place = (button, popover) => {
+    const rect = button.getBoundingClientRect();
+    const viewportHeight = window?.innerHeight || document.documentElement.clientHeight || 800;
+    const above = rect.top - EDGE - GAP;
+    const below = viewportHeight - rect.bottom - EDGE - GAP;
+    const down = above < Math.min(MIN_ABOVE, PREFERRED_HEIGHT) && below > above;
+    Object.assign(popover.style, {
+      top: down ? '100%' : 'auto',
+      bottom: down ? 'auto' : '100%',
+      marginTop: down ? `${GAP}px` : '0',
+      marginBottom: down ? '0' : `${GAP}px`,
+      maxHeight: `${Math.max(160, Math.min(PREFERRED_HEIGHT, down ? below : above))}px`,
+      transformOrigin: down ? 'top left' : 'bottom left'
+    });
+  };
+
   const ensure = () => {
     let control = document.getElementById('deck-design-control');
     if (control) return control;
@@ -40,11 +63,14 @@ export function createDeckDesignControl({
     control = document.createElement('div');
     control.id = 'deck-design-control';
     control.className = 'relative';
+    // Layout that must hold before the picker's stylesheet loads: the control
+    // centres like the reasoning control, and the popover never takes space.
+    control.style.cssText = 'display:inline-flex;align-items:center;align-self:center';
     control.innerHTML = `
       <button type="button" id="deck-design-btn" class="reasoning-depth-btn is-adjustable deck-design-btn" style="max-width:12rem" aria-haspopup="dialog" aria-expanded="false">
         <span class="deck-design-label"></span>${CHEVRON}
       </button>
-      <div id="deck-design-popover" class="popover deck-design-popover" role="dialog"></div>
+      <div id="deck-design-popover" class="popover deck-design-popover" role="dialog" style="position:absolute;left:0;bottom:100%"></div>
     `;
     container.appendChild(control);
     const button = control.querySelector('#deck-design-btn');
@@ -59,7 +85,9 @@ export function createDeckDesignControl({
       if (!opening) return;
       // The popover's styles load with the picker, so it opens once both are in.
       void openPicker(popover).then((ready) => {
-        if (ready && button.getAttribute('aria-expanded') === 'true') popover.classList.add('visible');
+        if (!ready || button.getAttribute('aria-expanded') !== 'true') return;
+        place(button, popover);
+        popover.classList.add('visible');
       });
     });
     // Clicks inside the picker must not reach the document handler that

@@ -136,3 +136,41 @@ test('a spec with only offered "designs" uses the first one', async () => {
   const chosen = parseDocumentSpec(JSON.stringify({ design: { preset: 'office' }, designs: [{ preset: 'neon' }], slides })).spec;
   assert.deepEqual({ ...chosen.design }, { ...normalizeDesign({ preset: 'office' }).design });
 });
+
+test('the picker never takes layout space and always fits on screen', async () => {
+  const { document, window, cleanup } = createDom('<div id="file-input-container"></div>');
+  try {
+    const control = createDeckDesignControl({
+      document,
+      window,
+      getActiveConversation: () => ({ id: 'a', messages: [] }),
+      saveAppData: async () => {},
+      getUiLanguage: () => 'zh-TW',
+      loadPicker: async () => ({ renderDeckDesignPicker: () => ({ setCurrent() {} }) })
+    });
+    control.render();
+    const button = document.getElementById('deck-design-btn');
+    const popover = document.getElementById('deck-design-popover');
+    assert.equal(popover.style.position, 'absolute', 'positioned before the picker stylesheet loads');
+    assert.equal(document.getElementById('deck-design-control').style.alignItems, 'center');
+
+    const open = async (top) => {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1046 });
+      button.getBoundingClientRect = () => ({ top, bottom: top + 36, left: 540, right: 640, width: 100, height: 36 });
+      popover.classList.remove('visible');
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return { bottom: popover.style.bottom, top: popover.style.top, maxHeight: Number.parseFloat(popover.style.maxHeight), visible: popover.classList.contains('visible') };
+    };
+    const centred = await open(517);
+    assert.equal(centred.visible, true);
+    assert.equal(centred.bottom, '100%', 'opens above a centred composer');
+    assert.ok(centred.maxHeight <= 517 - 20, 'and fits in the space above it');
+    const nearTop = await open(120);
+    assert.equal(nearTop.top, '100%', 'opens below when there is little room above');
+    assert.ok(nearTop.maxHeight <= 1046 - 156 - 20);
+  } finally {
+    cleanup();
+  }
+});
