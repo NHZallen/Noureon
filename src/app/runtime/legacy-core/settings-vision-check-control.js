@@ -53,9 +53,23 @@ export function ensureVisionCheckSettingsControl({ document, elements, config })
     row.append(line, hint);
   }
   if (typeof row.querySelector !== 'function') return;
-  const label = row.querySelector('label[for="vision-check-toggle-switch"]');
-  const hint = row.querySelector('p');
-  if (label) label.textContent = visionText(config.uiLanguage, 'setting');
-  if (hint) hint.textContent = visionText(config.uiLanguage, 'hint');
+  translateVisionCheckRow(row, config.uiLanguage);
+  // The language menu applies at once while settings stay open.
+  const languageSelect = elements.uiLanguageSelect;
+  if (languageSelect?.addEventListener && !languageBound.has(languageSelect)) {
+    languageBound.add(languageSelect);
+    languageSelect.addEventListener('change', (event) => {
+      translateVisionCheckRow(document.getElementById('vision-check-setting-row'), event.target.value);
+    });
+  }
   elements.visionCheckToggleSwitch = row.querySelector('#vision-check-toggle-switch');
+}
+
+const languageBound = new WeakSet();
+
+function translateVisionCheckRow(row, language) {
+  const label = row?.querySelector?.('label[for="vision-check-toggle-switch"]');
+  const hint = row?.querySelector?.('p');
+  if (label) label.textContent = visionText(language, 'setting');
+  if (hint) hint.textContent = visionText(language, 'hint');
 }

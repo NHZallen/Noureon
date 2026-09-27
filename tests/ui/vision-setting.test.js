@@ -23,3 +23,21 @@ test('visual check setting sits beside web search and translates in all five lan
     window.happyDOM.abort();
   }
 });
+
+test('visual check setting follows the language menu while settings stay open', () => {
+  const window = new Window();
+  try {
+    const document = window.document;
+    document.body.innerHTML = '<section id="accessibility-section"><div class="flex items-center justify-between"><input id="auto-web-search-toggle-switch"></div></section><select id="lang"><option value="zh-TW"></option><option value="fr"></option></select>';
+    const elements = { uiLanguageSelect: document.getElementById('lang') };
+    ensureVisionCheckSettingsControl({ document, elements, config: { uiLanguage: 'zh-TW' } });
+    ensureVisionCheckSettingsControl({ document, elements, config: { uiLanguage: 'zh-TW' } });
+    elements.uiLanguageSelect.value = 'fr';
+    elements.uiLanguageSelect.dispatchEvent(new window.Event('change'));
+    const row = document.getElementById('vision-check-setting-row');
+    assert.equal(row.querySelector('label').textContent, visionText('fr', 'setting'));
+    assert.equal(row.querySelector('p').textContent, visionText('fr', 'hint'));
+  } finally {
+    window.happyDOM.abort();
+  }
+});

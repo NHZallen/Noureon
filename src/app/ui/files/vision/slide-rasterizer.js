@@ -45,6 +45,10 @@ const abortIfNeeded = signal => { if (signal?.aborted) throw new DOMException('A
 
 async function rasterize(svg, { document, window, signal }) {
   abortIfNeeded(signal);
+  // Without an intrinsic size Firefox cannot draw an SVG image to a canvas
+  // and other browsers may rasterize it at 300 × 150 before scaling.
+  svg.setAttribute('width', '960');
+  svg.setAttribute('height', '540');
   const serialized = new window.XMLSerializer().serializeToString(svg);
   const url = window.URL.createObjectURL(new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' }));
   try {
