@@ -22,6 +22,7 @@ import { createSettingsHistoryRecallControls } from './settings-history-recall-c
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { createMemoryModelRunner } from './memory-model-runner.js';
 import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
+import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl } from './settings-vision-check-control.js';
 
 const requiredDependencies = [
     'window',
@@ -468,30 +469,8 @@ const loadSyncVaultControls = () => {
     }
     return syncVaultControlsPromise;
 };
-const ensureAutoWebSearchSettingsControl = () => {
-    if (document.getElementById('auto-web-search-toggle-switch')) {
-        ALL_ELEMENTS.autoWebSearchToggleSwitch = document.getElementById('auto-web-search-toggle-switch');
-        return;
-    }
-    const section = document.getElementById('accessibility-section');
-    if (!section) return;
-    const row = document.createElement('div');
-    row.className = 'flex items-center justify-between mt-4';
-    row.innerHTML = `
-        <label for="auto-web-search-toggle-switch" class="flex-1 text-sm font-medium" data-lang-key="enableSmartWebSearch">Enable Smart Search</label>
-        <div class="relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in">
-            <input type="checkbox" name="auto-web-search-toggle-switch" id="auto-web-search-toggle-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
-            <label for="auto-web-search-toggle-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
-        </div>
-    `;
-    const namingRow = section.querySelector('#auto-naming-toggle-switch')?.closest('.flex.items-center.justify-between');
-    if (namingRow) {
-        namingRow.after(row);
-    } else {
-        section.appendChild(row);
-    }
-    ALL_ELEMENTS.autoWebSearchToggleSwitch = row.querySelector('#auto-web-search-toggle-switch');
-};
+const ensureAutoWebSearchSettingsControl = () => ensureAutoWebSearchControl({ document, elements: ALL_ELEMENTS });
+const ensureVisionCheckSettingsControl = () => ensureVisionControl({ document, elements: ALL_ELEMENTS, config });
 const historyRecallControls = createSettingsHistoryRecallControls({
     document,
     elements: ALL_ELEMENTS,
@@ -527,6 +506,7 @@ const setupSettingsModal = () => {
     ensureSettingsMobileShell();
     ensureUserSettingsNavigationShell();
     ensureAutoWebSearchSettingsControl();
+    ensureVisionCheckSettingsControl();
     ensureMemorySummarySettingsControls();
     ensureHistoryRecallSettingsControl();
     bindHistoryIndexRebuild();
@@ -540,6 +520,7 @@ const setupSettingsModal = () => {
     applyLanguage(config.uiLanguage);
     ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
     ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
+    if (ALL_ELEMENTS.visionCheckToggleSwitch) ALL_ELEMENTS.visionCheckToggleSwitch.checked = config.visionCheckEnabled !== false;
     if (ALL_ELEMENTS.outputModeSelect) {
         ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
         syncOutputModeSettingsControls();
@@ -606,6 +587,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         councilTranslatorModelId: collectedSettings.councilTranslatorModelId,
         singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,
         enableAutoWebSearch: collectedSettings.enableAutoWebSearch,
+        visionCheckEnabled: collectedSettings.visionCheckEnabled,
         outputMode: collectedSettings.outputMode,
         aiBubbleColor: collectedSettings.aiBubbleColor,
         userBubbleColor: collectedSettings.userBubbleColor,

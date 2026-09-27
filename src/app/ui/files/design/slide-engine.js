@@ -34,7 +34,8 @@ function chunk(items, capacity) {
 export function expandContinuations(slides, language) {
   const output = [];
   const continued = (title, index) => (index && title ? `${title}${generatedText(language, 'continued')}` : title);
-  for (const slide of slides) {
+  for (const [sourceIndex, original] of slides.entries()) {
+    const slide = { ...original, sourceIndex };
     const list = CONTINUED_LISTS[slide.layout];
     if (list && Array.isArray(slide[list[0]]) && slide[list[0]].length > list[1]) {
       chunk(slide[list[0]], list[1]).forEach((part, index) => {
@@ -66,7 +67,8 @@ function renderSlide(ctx, slideSpec, number) {
     background: slideSpec.background === 'soft' && !inverse ? palette.soft : palette.background,
     elements: [],
     notes: slideSpec.notes || '',
-    continuation: slideSpec.continuation || 0
+    continuation: slideSpec.continuation || 0,
+    sourceIndex: slideSpec.sourceIndex
   };
   (LAYOUT_RENDERERS[slideSpec.layout] || LAYOUT_RENDERERS.bullets)(ctx, slide, slideSpec);
   return slide;

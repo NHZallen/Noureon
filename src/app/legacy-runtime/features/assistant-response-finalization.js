@@ -50,6 +50,7 @@ export async function finalizeAssistantResponse({
   playbackCouncilResponse,
   extractPersonalMemory,
   completeImageView = null,
+  scheduleVisionCheck = () => {},
   queueBackgroundTask = (task) => {
     void Promise.resolve()
       .then(task)
@@ -105,6 +106,10 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
   rememberRenderedMessage(targetElement, finalAiMessage);
+
+  if (!hasFinalParts && !signal.aborted && !responseUsesCouncil) {
+    scheduleVisionCheck({ conversation, message: finalAiMessage, targetElement });
+  }
 
   if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
     queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse));

@@ -28,10 +28,10 @@ function decode(window, source) {
  * Returns `resolveImage(source)` for pptx-file.js: { data, pixels } for an
  * upload that exists, or null (the slide then shows a placeholder).
  */
-export function createConversationImageResolver({ document, window }) {
+export function createConversationImageResolver({ document, window, sources = null }) {
   const cache = new Map();
   const resolveOne = async (index) => {
-    const source = conversationImageSources(document)[index - 1];
+    const source = (sources || conversationImageSources(document))[index - 1];
     if (!source || typeof window?.Image !== 'function') return null;
     const image = await decode(window, source);
     const width = image.naturalWidth || image.width;

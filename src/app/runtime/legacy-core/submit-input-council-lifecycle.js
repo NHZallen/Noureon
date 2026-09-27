@@ -20,6 +20,9 @@ import { renderModelCouncilMenuItem } from '../features/composer-menu-item.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { canCaptureConversationMessage } from '../features/temporary-chat-state.js';
 import { createDeckDesignControl } from '../features/deck-design-control.js';
+import { createVisionCheckScheduler } from '../features/vision-check-scheduler.js';
+import { createChatScrollPosition } from '../features/chat-scroll-position.js';
+import { createProgressTicker } from '../features/progress-ticker.js';
 import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
@@ -147,6 +150,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
   const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
   const getIsAutoScrolling = () => Boolean(state.isAutoScrolling);
+  const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, messageList: ALL_ELEMENTS.messageList, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController });
   const isImageConversation = (conversation = getActiveConversation()) => modelGeneratesImages(
     normalizeConversationModel(conversation)
   );
@@ -767,21 +771,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     playbackController.start();
   });
 
-  const isChatNearBottom = (threshold = 16) => {
-    const chatContainer = ALL_ELEMENTS.chatContainer;
-    if (!chatContainer) return false;
-    return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight <= threshold;
-  };
-
-  const keepChatPositionAfterRender = (shouldStick, previousTop) => {
-    const chatContainer = ALL_ELEMENTS.chatContainer;
-    if (!chatContainer) return;
-    if (shouldStick) {
-      chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
-    } else {
-      chatContainer.scrollTop = previousTop;
-    }
-  };
+  const { isChatNearBottom, keepChatPositionAfterRender } = createChatScrollPosition(ALL_ELEMENTS);
 
   const {
     createStreamingMarkdownRenderer,
@@ -819,28 +809,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     playbackController.start();
   });
 
-  const startProgressTicker = (tick, intervalMs = 250) => {
-    let stopped = false;
-    let timerId = null;
-    const run = () => {
-      if (stopped) return;
-      tick();
-      timerId = scheduleTimeout(run, intervalMs);
-    };
-    timerId = scheduleTimeout(run, intervalMs);
-    return () => {
-      stopped = true;
-      if (timerId) clearScheduledTimeout(timerId);
-    };
-  };
-
-  const stopProgressTicker = (ticker) => {
-    if (typeof ticker === 'function') {
-      ticker();
-    } else if (ticker) {
-      clearScheduledTimeout(ticker);
-    }
-  };
+  const { startProgressTicker, stopProgressTicker } = createProgressTicker(scheduleTimeout, clearScheduledTimeout);
 
   const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
     now: () => Date.now(),
@@ -910,6 +879,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   };
   const handleFormSubmit = async (event, submitOptions = {}) => {
     event?.preventDefault?.();
+    vc.cancel(getActiveConversation()?.id);
     let effectiveSubmitOptions = submitOptions;
     if (!effectiveSubmitOptions.preserveComposer) {
       effectiveSubmitOptions = getComposerEditSubmission() || effectiveSubmitOptions;
@@ -1019,6 +989,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         historySourceConversationIds: [...historySourceConversationIds],
         persistAppData: saveAppData,
         completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
+        scheduleVisionCheck: vc.schedule,
         restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
         renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),

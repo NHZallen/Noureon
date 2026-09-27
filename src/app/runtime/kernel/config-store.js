@@ -4,6 +4,7 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     defaultModel: defaultModelId,
     modelSettings: [],
     enableAutoWebSearch: false,
+    visionCheckEnabled: true,
     tavilySearchDepth: 'basic',
     outputMode: 'typewriter',
     aiBubbleColor: 'default',

@@ -18,6 +18,7 @@ export function collectSettingsSaveFormValues({
         councilTranslatorModelId: elements.councilTranslatorModelSelect?.value || null,
         singleDocumentTranslatorModelId: elements.singleDocumentTranslatorModelSelect?.value || null,
         enableAutoWebSearch: elements.autoWebSearchToggleSwitch.checked,
+        visionCheckEnabled: elements.visionCheckToggleSwitch?.checked !== false,
         outputMode: elements.outputModeSelect?.value === 'realtime' ? 'realtime' : 'typewriter',
         aiBubbleColor: elements.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         userBubbleColor: elements.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',

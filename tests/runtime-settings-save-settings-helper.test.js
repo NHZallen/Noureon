@@ -59,6 +59,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     councilTranslatorModelId: 'gemini-translator',
     singleDocumentTranslatorModelId: 'doc-translator',
     enableAutoWebSearch: true,
+    visionCheckEnabled: true,
     outputMode: 'realtime',
     aiBubbleColor: 'blue',
     userBubbleColor: 'green',

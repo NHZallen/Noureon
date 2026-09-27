@@ -106,6 +106,44 @@ const createHarness = ({
   return { streamApiCall, requests, modelInfo: resolvedModel, conversation: resolvedConversation };
 };
 
+test('consecutive corrected model messages become one provider turn for Gemini and OpenRouter', async () => {
+  for (const provider of ['gemini', 'openrouter']) {
+    const { streamApiCall, requests } = createHarness({
+      provider,
+      conversation: { messages: [
+        { role: 'user', parts: [{ text: 'Make a deck' }] },
+        { role: 'model', parts: [{ text: 'Original deck' }] },
+        { role: 'model', parts: [{ text: 'Corrected deck' }] },
+        { role: 'user', parts: [{ text: 'Next request' }] }
+      ] }
+    });
+    await streamApiCall([{ text: 'Next request' }], () => {});
+    const payload = JSON.parse(requests[0].options.body);
+    const turns = provider === 'gemini' ? payload.contents : payload.messages.filter(message => message.role !== 'system');
+    assert.deepEqual(turns.map(turn => turn.role), ['user', provider === 'gemini' ? 'model' : 'assistant', 'user']);
+    assert.match(JSON.stringify(turns[1]), /Original deck.*Corrected deck/);
+  }
+});
+
+test('vision requests omit conversation context, web search and file authoring guidance', async () => {
+  const { streamApiCall, requests } = createHarness({ provider: 'gemini',
+    conversation: { isWebSearchEnabled: true, astrasId: 'a' },
+    astras: [{ id: 'a', instructions: 'Persona text' }],
+    personalMemories: [{ enabled: true, content: 'Stored memory' }]
+  });
+  const parts = [{ text: 'Review slides' }, { inlineData: { mimeType: 'image/jpeg', data: 'AAAA' } }];
+  await streamApiCall(parts, () => {}, undefined, false, {
+    requestPurpose: NOURAS_REQUEST_PURPOSE.VISION_CHECK,
+    historyForApi: [], currentMessageForApi: { role: 'user', parts },
+    ignoreConversationWebSearch: true, skipMemoryContext: true, skipConversationSystemContext: true
+  });
+  const payload = JSON.parse(requests[0].options.body);
+  assert.equal(payload.systemInstruction, undefined);
+  assert.equal(payload.tools, undefined);
+  assert.equal(payload.contents.length, 1);
+  assert.equal(payload.contents[0].parts[1].inlineData.mimeType, 'image/jpeg');
+});
+
 test('v2 memory injects only its filtered context and never the legacy memory list', async () => {
   const { streamApiCall, requests } = createHarness({
     config: { memorySystemVersion: 2 },

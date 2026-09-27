@@ -1,6 +1,18 @@
 import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
+
+export function mergeAdjacentModelMessages(history) {
+  return history.reduce((merged, message) => {
+    const previous = merged.at(-1);
+    if (message?.role === 'model' && previous?.role === 'model') {
+      previous.parts = [...(previous.parts || []), { text: '\n\n' }, ...(message.parts || [])];
+    } else {
+      merged.push({ ...message, parts: [...(message.parts || [])] });
+    }
+    return merged;
+  }, []);
+}
 import { shouldInjectFileGuidance } from '../../ui/files/file-intent.js';
 
 const LANGUAGE_INSTRUCTIONS = {
@@ -561,9 +573,9 @@ export function createStreamApiCall({
       throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
     }
 
-    const historyForApi = compactFileHistoryForApi(
+    const historyForApi = mergeAdjacentModelMessages(compactFileHistoryForApi(
       requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
-    );
+    ));
     const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;
@@ -587,16 +599,15 @@ export function createStreamApiCall({
     if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
       requestOptions.onMemoryContextResolved(memoryContext);
     }
-    const chartAuthoringGuidance = await getRuntimeChartAuthoringGuidance(
-      getMessageTextForGuidance(currentMessageForApi)
-    );
+    const chartAuthoringGuidance = requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
+      : await getRuntimeChartAuthoringGuidance(getMessageTextForGuidance(currentMessageForApi));
     const fileAuthoringGuidance = await getRuntimeFileAuthoringGuidance({
       inputText: getMessageTextForGuidance(currentMessageForApi),
       history: historyForApi,
       requestPurpose: requestOptions.requestPurpose,
       deckDesign: conversation?.deckDesign
     });
-    const systemInstruction = await buildSystemInstruction({
+    const systemInstruction = requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
       config,
       conversation,
       astras: getAstras(),

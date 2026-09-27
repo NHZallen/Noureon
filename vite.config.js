@@ -55,6 +55,7 @@ export default defineConfig({
             && !id.includes('/src/app/ui/files/generators/')
             && !id.includes('/src/app/ui/files/previews/')
             && !id.includes('/src/app/ui/files/design/')
+            && !id.includes('/src/app/ui/files/vision/')
             && !id.includes('/src/app/ui/files/file-preview-dialog.js')
             && !id.includes('/src/app/ui/files/file-authoring-guidance.js')
           ) {

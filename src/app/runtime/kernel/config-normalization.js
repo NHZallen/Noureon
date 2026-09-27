@@ -97,6 +97,7 @@ export function normalizeLoadedLegacyConfig({
   }
   delete normalizedConfig.theme;
   normalizedConfig.uiLanguage = normalizeLanguageCode(normalizedConfig.uiLanguage);
+  normalizedConfig.visionCheckEnabled = normalizedConfig.visionCheckEnabled !== false;
   normalizedConfig.aiDefaultLanguage = normalizeLanguageCode(normalizedConfig.aiDefaultLanguage);
   normalizedConfig.acknowledgedStealthModelTerms = Array.isArray(normalizedConfig.acknowledgedStealthModelTerms)
     ? normalizedConfig.acknowledgedStealthModelTerms
