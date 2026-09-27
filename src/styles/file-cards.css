@@ -451,6 +451,39 @@
     text-align: center;
 }
 
+/* Slides: 16:9 frames drawn from the same layout as the .pptx. */
+.ac-slide-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.ac-slide-frame {
+    margin: 0;
+}
+
+.ac-slide-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    /* The app strokes icon SVGs by default; slide elements set their own. */
+    stroke: none;
+    border-radius: 0.3rem;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.ac-slide-caption {
+    margin-top: 0.35rem;
+    color: #4b5563;
+    font-size: 0.75rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 640px) {
     .ac-file-preview {
         width: 100vw;
@@ -467,5 +500,9 @@
 
     .ac-file-preview-pages {
         padding: 0.5rem;
+    }
+
+    .ac-slide-preview {
+        gap: 0.6rem;
     }
 }

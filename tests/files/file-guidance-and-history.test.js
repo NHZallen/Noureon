@@ -46,7 +46,9 @@ test('guidance teaches the protocol and advertises only formats that can be gene
   assert.match(guidance, /\.csv/);
   assert.match(guidance, /## Word documents \(\.docx\)/);
   assert.match(guidance, /native, editable Word equations/);
-  assert.doesNotMatch(guidance, /## (?:Excel|PowerPoint|PDF)/, 'formats without a generator are not advertised');
+  assert.match(guidance, /## PowerPoint presentations \(\.pptx\)/);
+  assert.match(guidance, /upload:1/);
+  assert.doesNotMatch(guidance, /## (?:Excel|PDF)/, 'formats without a generator are not advertised');
 });
 
 const createApiHarness = (conversation) => {

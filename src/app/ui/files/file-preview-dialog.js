@@ -8,7 +8,8 @@ const MAX_PREVIEW_ROWS = 500;
 // Formats whose preview draws the generated file itself, page by page. Each
 // renderer loads on first use and receives the same Blob a download gets.
 const PAGE_RENDERERS = Object.freeze({
-  word: () => import('./previews/docx-page-preview.js').then((module) => module.renderDocxPreview)
+  word: () => import('./previews/docx-page-preview.js').then((module) => module.renderDocxPreview),
+  powerpoint: () => import('./previews/slide-preview.js').then((module) => module.renderPptxPreview)
 });
 
 const describeReason = (error) => {
@@ -131,7 +132,9 @@ function renderPagePreview(context, { onPageCount }) {
       }
       rendered = result;
       status.remove();
-      pane.appendChild(createNote(document, getFileText(language, 'previewFontNote')));
+      const slides = descriptor.family === 'powerpoint';
+      pane.classList.toggle('ac-file-preview-slides', slides);
+      pane.appendChild(createNote(document, getFileText(language, slides ? 'slidePreviewNote' : 'previewFontNote')));
       onPageCount(result.pageCount);
     } catch (error) {
       if (disposed) return;
@@ -247,7 +250,7 @@ export function openFilePreview({
       if (view === 'pages' && !pagePane) {
         pagePane = renderPagePreview(context, {
           onPageCount: (count) => {
-            pageInfo.textContent = getFileText(language, 'pageCount', { count });
+            pageInfo.textContent = getFileText(language, descriptor.family === 'powerpoint' ? 'slideCount' : 'pageCount', { count });
           }
         });
         body.appendChild(pagePane);

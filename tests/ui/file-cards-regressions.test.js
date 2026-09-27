@@ -44,6 +44,8 @@ test('document generator and preview vendors are split out and never precached',
   const onDemand = new RegExp(source, 'i');
   assert.ok(onDemand.test('assets/vendor-docx-Ab12.js'));
   assert.ok(onDemand.test('assets/vendor-docx-preview-Ab12.js'), 'the preview vendor is not precached');
+  assert.match(vite, /return 'vendor-pptx';/);
+  assert.ok(onDemand.test('assets/vendor-pptx-Ab12.js'));
   assert.ok(!onDemand.test('assets/vendor-markdown-Ab12.js'));
   assert.match(worker, /ON_DEMAND_ASSET_PATTERN\.test\(path\)\) continue;/);
 });
@@ -56,6 +58,11 @@ test('generators, previews, the design system, the preview dialog and the guidan
   }
   const generators = readSource('src/app/ui/files/file-generators.js');
   assert.match(generators, /import\('\.\/generators\/text-file\.js'\)/);
+  assert.match(generators, /import\('\.\/generators\/pptx-file\.js'\)/);
+  // Font files and the subsetter are fetched only when a deck is generated.
+  const assets = readSource('src/app/ui/files/generators/pptx-assets.js');
+  assert.match(assets, /import\.meta\.glob\('[^']+\/assets\/fonts\/\*\.ttf', \{ query: '\?url'/);
+  assert.match(assets, /harfbuzz-subset\.wasm\?url/);
   const interactions = readSource('src/app/ui/files/file-card-interactions.js');
   assert.match(interactions, /await import\('\.\/file-preview-dialog\.js'\)/);
   assert.doesNotMatch(interactions, /from '\.\/file-preview-dialog\.js'/);

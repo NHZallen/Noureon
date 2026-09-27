@@ -78,6 +78,8 @@ export default defineConfig({
           // Its small transitive dependencies must stay with it, or the
           // catch-all vendor chunk would pull them into startup.
           if (/\/node_modules\/(?:docx|xml|xml-js|sax|nanoid|hash\.js|inherits|minimalistic-assert)\//.test(id)) return 'vendor-docx';
+          // PowerPoint generation is loaded only when a .pptx file is made.
+          if (id.includes('/node_modules/pptxgenjs/')) return 'vendor-pptx';
           if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
           return 'vendor';
         }

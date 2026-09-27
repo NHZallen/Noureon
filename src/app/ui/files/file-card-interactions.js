@@ -4,6 +4,7 @@ import { getFileMarkdownRenderer } from './file-markdown-cards.js';
 import { generateFileBlob } from './file-generators.js';
 import { createBundleFileName, dedupeFileNames } from './file-name-policy.js';
 import { formatFileSize, getFileText } from './file-texts.js';
+import { createConversationImageResolver } from './conversation-images.js';
 
 const MAX_CACHED_BYTES = 64 * 1024 * 1024;
 const OBJECT_URL_LIFETIME_MS = 60_000;
@@ -130,7 +131,8 @@ export function installFileCardInteractions({
       language: getUiLanguage(),
       document,
       window,
-      loadChartImageRenderer: () => import('./generators/chart-image-export.js')
+      loadChartImageRenderer: () => import('./generators/chart-image-export.js'),
+      resolveImage: createConversationImageResolver({ document, window })
     });
     cache.set(descriptor.id, blob);
     rememberGeneratedFileSize(descriptor.id, blob.size);

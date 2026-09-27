@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { DESIGN_PARAM_KEYS, designDiff, describeDesignParameters, normalizeDesign } from '../../src/app/ui/files/design/design-params.js';
 import { DEFAULT_PRESET_ID, DESIGN_PRESETS, DESIGN_PRESET_IDS, getPresetText } from '../../src/app/ui/files/design/design-presets.js';
-import { cssFontStack, FONT_FAMILIES, FONT_SETS, resolveFontRoles } from '../../src/app/ui/files/design/fonts.js';
+import { cssFontStack, FONT_FAMILIES, FONT_SETS, fontSource, officeFace, resolveFontRoles } from '../../src/app/ui/files/design/fonts.js';
 import { buildDesignTokens, buildTypeScale } from '../../src/app/ui/files/design/design-tokens.js';
 
 const LANGUAGES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
@@ -103,7 +103,7 @@ test('fonts resolve per document language and snap to real weights', () => {
   assert.equal(resolveFontRoles('modernSerif', { language: 'en' }).heading.latin, 'Instrument Serif');
   assert.equal(resolveFontRoles('modernSerif', { language: 'ru' }).heading.latin, 'Playfair Display', 'Russian needs Cyrillic glyphs');
   assert.equal(resolveFontRoles('kai', { language: 'zh-TW' }).heading.eastAsian, 'LXGW WenKai TC');
-  assert.equal(resolveFontRoles('kai', { language: 'ja' }).heading.eastAsian, 'Noto Serif JP');
+  assert.equal(resolveFontRoles('kai', { language: 'ja' }).heading.eastAsian, 'Yu Mincho', 'Japanese uses the installed serif');
   const condensed = resolveFontRoles('condensed', { headingWeight: 900 }).heading;
   assert.deepEqual([condensed.latin, condensed.latinWeight, condensed.eastAsian, condensed.eastAsianWeight], ['Oswald', 700, 'Noto Sans TC', 900]);
   assert.equal(resolveFontRoles('rounded', { headingWeight: 700 }).heading.eastAsianWeight, 400, 'no faux bold for single-weight faces');
@@ -124,4 +124,18 @@ test('type scale and tokens follow density, ratio and title size', () => {
   assert.equal(tokens.lineHeight.heading, 1.12, 'Latin-script leading for Russian');
   assert.deepEqual([...tokens.inverseLayouts], ['bigNumber', 'quote', 'closing']);
   assert.equal(buildDesignTokens(normalizeDesign({}).design, { language: 'zh-TW' }).lineHeight.heading, 1.22);
+});
+
+test('Office face names give every weight outside regular and bold its own family', () => {
+  assert.deepEqual(officeFace('Inter', 400), { family: 'Inter', typeface: 'Inter', slot: 'regular', weight: 400 });
+  assert.deepEqual(officeFace('Inter', 700), { family: 'Inter', typeface: 'Inter', slot: 'bold', weight: 700 });
+  assert.equal(officeFace('Inter', 300).typeface, 'Inter Light');
+  assert.equal(officeFace('Manrope', 900).typeface, 'Manrope ExtraBold', 'snaps to the weights the family has');
+  assert.deepEqual(officeFace('Microsoft JhengHei', 700), { family: 'Microsoft JhengHei', typeface: 'Microsoft JhengHei', slot: 'bold', weight: 700 });
+  assert.deepEqual(fontSource('Inter', 500), { file: 'inter.ttf', weight: 500, variable: true, variations: { wght: 500 } });
+  assert.deepEqual(fontSource('LXGW WenKai TC', 900), { file: 'lxgw-wenkai-tc-bold.ttf', weight: 700, variable: false, variations: {} });
+  assert.equal(fontSource('Aptos', 400), null);
+  for (const [name, family] of Object.entries(FONT_FAMILIES)) {
+    assert.ok(family.system || family.files?.length, `${name} has files or is installed`);
+  }
 });

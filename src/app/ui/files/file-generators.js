@@ -4,7 +4,8 @@ import { isGeneratorAvailable } from './file-type-registry.js';
 // when the user actually downloads that kind of file.
 const GENERATOR_LOADERS = Object.freeze({
   text: () => import('./generators/text-file.js').then((module) => module.generateTextFile),
-  docx: () => import('./generators/docx-file.js').then((module) => module.generateDocxFile)
+  docx: () => import('./generators/docx-file.js').then((module) => module.generateDocxFile),
+  pptx: () => import('./generators/pptx-file.js').then((module) => module.generatePptxFile)
 });
 
 export class FileGenerationError extends Error {

@@ -2,7 +2,7 @@
 
 **日期：** 2026-09-26
 
-**狀態：** A1、A2、P1 已上線；D1（設計系統基礎）已完成，細節見 `2026-09-27-design-system.md`。接下來依序進行 A4（PPT）→ A4b（設計方向挑選）→ V1（看圖檢查）→ W2（Word 套用設計系統）→ A3（Excel）→ A5（PDF）→ A6 → 方案 B，一次只做一個階段，每個階段完成後回報，由使用者決定是否推上 main。
+**狀態：** A1、A2、P1、D1 已上線；A4（PPT 產生與投影片預覽）已完成，細節見 `2026-09-27-design-system.md`。接下來依序進行 A4b（設計方向挑選）→ V1（看圖檢查）→ W2（Word 套用設計系統）→ A3（Excel）→ A5（PDF）→ A6 → 方案 B，一次只做一個階段，每個階段完成後回報，由使用者決定是否推上 main。
 
 ## 決策紀錄（2026-09-26，與使用者確認）
 
@@ -23,7 +23,7 @@
 
 10. **20 套範本，參考各大廠的實際設計**：研究 Pitch、Figma 社群、Canva、Microsoft PowerPoint、Apple Keynote、Google（Material 3、簡報）、IBM Carbon 與顧問公司（McKinsey、BCG）的範本與規範後重做。參考來源只記在文件裡，範本名稱不用品牌名。
 11. **範本只是參數的預設值**：設計是一組 25 項參數（色彩、字體、版面、裝飾、資料與圖片；其中輔色可省略）。**AI 調參數**按鈕讓模型依當下需求直接設定每一項，不是從範本裡挑一套；放在 A4b，與範本挑選同一個面板。
-12. **字型放進檔案**：用開源字型（思源黑體、思源宋體、仙人掌明體、霞鶩文楷、jf 粉圓與多套西文字型）子集化後嵌入 PPTX，讓 PowerPoint 打開的樣子與預覽一致。A4 第一步先用使用者電腦上的 PowerPoint 做可行性測試；不可行就退回 Office 內建字型。「通用相容」範本永遠不嵌入字型。
+12. **字型放進檔案**：用開源字型（思源黑體、思源宋體、仙人掌明體、霞鶩文楷、jf 粉圓與多套西文字型）子集化後嵌入 PPTX，讓 PowerPoint 打開的樣子與預覽一致。A4 第一步先用使用者電腦上的 PowerPoint 做可行性測試；不可行就退回 Office 內建字型。「通用相容」範本永遠不嵌入字型。**A4 實測結果：可行**（編輯畫面與 PDF 匯出都使用嵌入字型）；圖表文字例外，一律用系統字型。
 13. **5 種語言都適用**：範本名稱與說明配合 app 的 5 種介面語言；檔案內容依「文件語言」選字型（含西里爾字母）、標點與數字格式，以及程式自動加上的文字。
 14. **圖片**：AI 不生成圖片，只預留可替換的圖框；使用者上傳的圖片照常使用。**圖示**：約 30 個線條圖示，在 A4 一起做。**比例**：只做 16:9。
 
@@ -103,7 +103,7 @@ toc: true
 |---|---|---|
 | docx | `docx-preview`（Apache-2.0，只依賴專案已有的 jszip）把檔案畫成一頁一頁，含紙張大小、邊界、頁首頁尾、表格、清單、圖片 | P1 |
 | xlsx | 讀回產生的活頁簿，畫成有工作表分頁的表格（格式、合併儲存格、欄寬、凍結窗格） | A3 |
-| pptx | 投影片畫面與縮圖；需要實測幾個渲染套件的品質後再選 | A4 |
+| pptx | 不用 pptx 渲染套件：直接把排版引擎的結果畫成 SVG，與寫進檔案的是同一份座標、字型與斷行；圖表依同一份原生圖表定義畫示意圖 | A4 |
 | pdf | PDF.js（Apache-2.0），逐頁繪製，每種裝置（包含手機）顯示一致 | A5 |
 
 共同行為：
@@ -210,9 +210,16 @@ src/app/ui/files/
   design/language.js             文件語言：偵測、標點、數字日期格式、程式產生的文字（D1）
   design/text-layout.js          文字量測、斷行（中文斷詞、避頭尾）、自動縮字、平衡換行（D1）
   design/quality-checks.js       程式檢查框架（D1）
-  design/icons.js                圖示名稱清單（D1；圖形在 A4）
-  generators/pptx-file.js        DocumentSpec → PPTX（A4）
-  previews/slide-preview.js      以排版引擎的同一組座標畫投影片與縮圖（A4）
+  design/icons.js                32 個圖示的名稱與圖形（D1、A4）
+  design/svg-path.js             路徑解析與形狀輪廓（圓角、拱形、有機形）（A4）
+  design/rich-text.js            **粗體** 標記、多字型斷行、縮字（A4）
+  design/slide-kit.js / slide-layouts.js / slide-engine.js   17 種版型的座標、續頁與排版（A4）
+  generators/pptx-file.js        DocumentSpec → PPTX 的流程（A4）
+  generators/pptx-writer.js / pptx-text.js / pptx-charts.js  pptxgenjs 輸出、文字 XML、原生圖表（A4）
+  generators/font-embedding.js   HarfBuzz 子集化、字型改名、EOT 嵌入（A4）
+  generators/pptx-assets.js      字型檔、子集化工具與預覽字型的載入（瀏覽器，A4）
+  conversation-images.js         upload:N 對應到對話中的附件圖片（A4）
+  previews/slide-preview.js / slide-chart-preview.js   以排版引擎的同一組座標畫投影片（A4）
   generators/text-file.js
   generators/markdown-document-model.js   marked tokens → docx / pdf 共用的文件模型
   generators/docx-file.js
@@ -232,7 +239,7 @@ src/app/ui/files/
 - **設計參數**：25 項（其中輔色可省略）。範本只是預設值；AI 可以直接調每一項。程式會把別名、錯誤型別換成合法值，並回報每一項修正。
 - **20 套範本**：參考 Pitch、Figma、Canva、Microsoft、Apple、Google、IBM 與顧問公司的設計；名稱與說明有 5 種語言。
 - **配色**：由主色（與可選的輔色）以 OKLCH 推算整組顏色；內文、次要文字至少 4.5:1，圖形至少 3:1，只調整明度不改色相。測試涵蓋 20 套範本與 480 種主色、底色、明暗、圖表配色的組合。
-- **字型**：12 組字型，每組都涵蓋西文、西里爾字母與中日韓文字；除「通用相容」外都以子集嵌入檔案（A4 先做可行性測試）。
+- **字型**：12 組字型，每組都涵蓋西文、西里爾字母與中日韓文字。繁中與西文以子集嵌入檔案（A4 已在 PowerPoint 實測可行）；簡中、日文、韓文用系統內建字型；「通用相容」不嵌入。
 - **版型**：17 種（封面、目錄、章節、條列、圖文、滿版圖、兩欄、卡片、大數字、數據列、時間軸、比較、引言、照片牆、表格、圖表、結語）。內容不足時自動改用能容納的版型，並記錄在檢查報告。
 - **排版引擎（文字部分）**：以實際字型量字寬，中文依詞斷行並遵守避頭尾，塞不下時逐級縮字，標題平衡換行；保留 8% 餘量吸收 PowerPoint 與瀏覽器的差異。版面座標在 A4 與版型一起完成，PPTX 與預覽共用同一組座標。
 - **文件語言**：決定字型、法文窄空格、引號、數字與日期格式，以及續頁、預設標題等程式產生的文字。

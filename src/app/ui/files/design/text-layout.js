@@ -8,6 +8,7 @@
 // PowerPoint and the browser shape text slightly differently; plan with 92%.
 export const SAFETY_FACTOR = 0.92;
 
+const HAN = /^[\u3400-\u9FFF\uF900-\uFAFF]$/;
 const CJK = /[\u3040-\u30FF\u3400-\u9FFF\uF900-\uFAFF\uAC00-\uD7AF\uFF00-\uFFEF\u3000-\u303F]/;
 const WHITESPACE = /^[ \t\u00A0\u2000-\u200A\u202F\u3000]+$/;
 // Characters that may not start a line (closing marks, CJK full stops…).
@@ -26,7 +27,7 @@ function wordSegmenter(language) {
   return segmenters.get(locale);
 }
 
-const graphemes = (text) => (typeof Intl !== 'undefined' && Intl.Segmenter
+export const graphemes = (text) => (typeof Intl !== 'undefined' && Intl.Segmenter
   ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map((part) => part.segment)
   : [...text]);
 
@@ -81,11 +82,26 @@ export function createCanvasMeasurer(context) {
 }
 
 // Splits a paragraph into atoms: the pieces a line may break between.
-function atomsOf(paragraph, language) {
+export function atomsOf(paragraph, language, { coarse = false } = {}) {
   const segmenter = wordSegmenter(language);
-  const pieces = segmenter
+  let pieces = segmenter
     ? [...segmenter.segment(paragraph)].map((part) => part.segment)
     : paragraph.split(/(\s+)/).flatMap((piece) => (CJK.test(piece) ? [...piece] : [piece])).filter(Boolean);
+  if (coarse) {
+    // The segmenter's dictionary misses many Traditional Chinese words and
+    // returns them as single characters ("營收" → 營, 收). Coarse atoms keep
+    // such runs together, so a heading breaks only between known words,
+    // punctuation or spaces.
+    const merged = [];
+    let previousSingle = false;
+    for (const piece of pieces) {
+      const single = [...piece].length === 1 && HAN.test(piece);
+      if (single && previousSingle) merged[merged.length - 1] += piece;
+      else merged.push(piece);
+      previousSingle = single;
+    }
+    pieces = merged;
+  }
   const atoms = [];
   for (const piece of pieces) {
     const previous = atoms[atoms.length - 1];
@@ -109,7 +125,7 @@ function atomsOf(paragraph, language) {
   return atoms;
 }
 
-const trimEnd = (text) => text.replace(/[ \t\u2000-\u200A\u3000]+$/, '');
+export const trimEnd = (text) => text.replace(/[ \t\u2000-\u200A\u3000]+$/, '');
 
 /** Greedy line breaking. Returns the lines of every paragraph in order. */
 export function breakLines(text, { maxWidth, font, measure = createEstimatingMeasurer(), language = 'zh-TW' }) {
@@ -196,5 +212,8 @@ export function hasOrphanLine(lines, language = 'zh-TW') {
   const last = lines[lines.length - 1].trim();
   if (!last) return false;
   if (CJK.test(last)) return graphemes(last.replace(/[\s\p{P}]/gu, '')).length <= 2;
-  return !/\s/.test(last) && lines.length > 1 && !/^(?:zh|ja|ko)/.test(language);
+  // A Latin last line is an orphan when it is one short word; an even split
+  // of a two- or three-word heading is not.
+  const longest = Math.max(...lines.map((line) => line.trim().length));
+  return !/\s/.test(last) && last.length < longest * 0.4 && !/^(?:zh|ja|ko)/.test(language);
 }

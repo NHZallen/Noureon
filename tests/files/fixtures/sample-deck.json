@@ -1,0 +1,1597 @@
+{
+ "zh-TW": {
+  "title": "2026 第三季亞太營運報告",
+  "author": "Noureon 分析團隊",
+  "date": "2026-10-05",
+  "footer": "2026 Q3 營運報告 · 內部使用",
+  "language": "zh-TW",
+  "slides": [
+   {
+    "layout": "cover",
+    "kicker": "2026 第三季營運報告",
+    "title": "亞太市場帶動第三季成長",
+    "subtitle": "營收年增 7.3%，新加坡成長最快",
+    "image": {
+     "placeholder": "封面主視覺：新加坡據點外觀"
+    }
+   },
+   {
+    "layout": "agenda",
+    "title": "今天的內容",
+    "items": [
+     "各市場表現",
+     "新加坡據點",
+     "第四季計畫"
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "各市場表現",
+    "subtitle": "台灣穩定、新加坡加速、日本需要調整"
+   },
+   {
+    "layout": "stats",
+    "title": "本季重點數字",
+    "stats": [
+     {
+      "value": "2,630",
+      "label": "營收（萬元）",
+      "change": "+7.3%"
+     },
+     {
+      "value": "1,240",
+      "label": "企業客戶",
+      "change": "+18%"
+     },
+     {
+      "value": "91%",
+      "label": "續約率",
+      "change": "+5 個百分點"
+     },
+     {
+      "value": "12",
+      "label": "新加坡在地團隊（人）",
+      "change": "8 月起"
+     }
+    ],
+    "source": "資料來源：Noureon 財務部，尚未經會計師查核"
+   },
+   {
+    "layout": "bullets",
+    "kicker": "成長來源",
+    "title": "成長來自企業客戶，而不是降價",
+    "bullets": [
+     "企業客戶數 **+18%**，貢獻七成新增營收",
+     "平均客單價持平，沒有用折扣換成長",
+     {
+      "text": "續約率由 86% 提升到 **91%**",
+      "children": [
+       "年約客戶的續約率達 94%"
+      ]
+     },
+     "個人用戶 +9%，主要來自行動版"
+    ],
+    "callout": "新增營收大多來自可續約的企業合約，成長品質健康。"
+   },
+   {
+    "layout": "chart",
+    "title": "新加坡成長最快，日本需要調整",
+    "chart": {
+     "type": "bar",
+     "title": "各市場營收年增率",
+     "unit": "%",
+     "data": [
+      {
+       "label": "台灣",
+       "value": 12.5
+      },
+      {
+       "label": "日本",
+       "value": -3.2
+      },
+      {
+       "label": "新加坡",
+       "value": 21
+      }
+     ]
+    },
+    "takeaway": "三個市場中只有日本衰退，第四季起改為直接銷售。",
+    "source": "資料來源：Noureon 財務部"
+   },
+   {
+    "layout": "table",
+    "title": "各市場營收明細",
+    "table": {
+     "columns": [
+      "市場",
+      "營收（萬元）",
+      "年增率",
+      "占比"
+     ],
+     "align": [
+      "left",
+      "right",
+      "right",
+      "right"
+     ],
+     "rows": [
+      [
+       "台灣",
+       "1,200",
+       "+12.5%",
+       "45.6%"
+      ],
+      [
+       "日本",
+       "980",
+       "-3.2%",
+       "37.3%"
+      ],
+      [
+       "新加坡",
+       "450",
+       "+21.0%",
+       "17.1%"
+      ],
+      [
+       "合計",
+       "2,630",
+       "+7.3%",
+       "100%"
+      ]
+     ],
+     "highlightRow": 3
+    },
+    "source": "單位：新台幣萬元"
+   },
+   {
+    "layout": "twoColumn",
+    "title": "兩個市場，兩種策略",
+    "columns": [
+     {
+      "heading": "台灣：深耕既有客戶",
+      "bullets": [
+       "擴大年約方案",
+       "成立客戶成功團隊",
+       "交叉銷售報表模組"
+      ]
+     },
+     {
+      "heading": "新加坡：擴大新客來源",
+      "bullets": [
+       "與兩家會計事務所合作",
+       "英文與簡中介面同步上線",
+       "參加產業活動取得名單"
+      ]
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "新加坡據點",
+    "subtitle": "三個月從試點走到獲利"
+   },
+   {
+    "layout": "bigNumber",
+    "kicker": "成長最快的市場",
+    "value": "21.0%",
+    "label": "新加坡營收年增率",
+    "body": "三個市場中最高；8 月據點開幕後，每月新客戶數增加一倍。"
+   },
+   {
+    "layout": "split",
+    "kicker": "新加坡",
+    "title": "三個月從試點走到獲利",
+    "bullets": [
+     "5 月完成 40 家潛在客戶訪談",
+     "6 月 3 家企業導入試點",
+     "8 月據點開幕，在地團隊 12 人"
+    ],
+    "image": {
+     "upload": 1,
+     "alt": "新加坡團隊合影"
+    },
+    "imageSide": "right"
+   },
+   {
+    "layout": "timeline",
+    "title": "新加坡據點進度",
+    "steps": [
+     {
+      "label": "5 月",
+      "title": "市場調查",
+      "body": "訪談 40 家潛在客戶"
+     },
+     {
+      "label": "6 月",
+      "title": "試點合作",
+      "body": "3 家企業導入"
+     },
+     {
+      "label": "8 月",
+      "title": "據點開幕",
+      "body": "在地團隊 12 人"
+     },
+     {
+      "label": "10 月",
+      "title": "損益兩平",
+      "body": "預計比原計畫提前一季"
+     }
+    ]
+   },
+   {
+    "layout": "image",
+    "title": "把服務帶到離客戶最近的地方",
+    "caption": "2026 年 8 月，新加坡據點開幕",
+    "image": {
+     "placeholder": "開幕當天的活動照片"
+    }
+   },
+   {
+    "layout": "quote",
+    "quote": "導入三個月後，每月結帳報表從兩天縮短到兩小時。",
+    "attribution": "林雅婷",
+    "role": "新加坡試點客戶・財務長",
+    "image": {
+     "placeholder": "林雅婷的照片"
+    }
+   },
+   {
+    "layout": "gallery",
+    "title": "新加坡開幕活動",
+    "images": [
+     {
+      "placeholder": "開幕剪綵",
+      "caption": "8 月 12 日開幕"
+     },
+     {
+      "placeholder": "客戶座談會現場",
+      "caption": "40 位客戶參加座談"
+     },
+     {
+      "placeholder": "在地團隊合照",
+      "caption": "在地團隊 12 人"
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "第四季計畫",
+    "subtitle": "日本改為直銷，企業方案擴大"
+   },
+   {
+    "layout": "comparison",
+    "title": "日本市場：第四季起改變做法",
+    "columns": [
+     {
+      "heading": "目前",
+      "items": [
+       "透過代理商銷售",
+       "只有英文介面",
+       "以美元計價"
+      ]
+     },
+     {
+      "heading": "第四季起",
+      "items": [
+       "直接銷售，搭配在地夥伴",
+       "完整日文介面",
+       "改以日圓計價"
+      ],
+      "highlight": true
+     }
+    ]
+   },
+   {
+    "layout": "cards",
+    "title": "第四季的三個重點",
+    "cards": [
+     {
+      "icon": "package",
+      "label": "產品",
+      "title": "擴大企業方案",
+      "body": "新增權限管理與稽核紀錄，回應大型客戶的需求。"
+     },
+     {
+      "icon": "globe",
+      "label": "市場",
+      "title": "日本改為直銷",
+      "body": "10 月完成定價調整，11 月起由在地團隊接手。"
+     },
+     {
+      "icon": "gauge",
+      "label": "營運",
+      "title": "新加坡損益兩平",
+      "body": "控制人力成長，10 月達到損益兩平。"
+     }
+    ]
+   },
+   {
+    "layout": "closing",
+    "title": "下一步",
+    "bullets": [
+     "10 月底前完成日本定價調整",
+     "11 月上線企業方案新功能",
+     "12 月董事會檢討新加坡損益"
+    ],
+    "contact": "有問題請洽 Noureon 分析團隊"
+   }
+  ]
+ },
+ "en": {
+  "title": "Q3 2026 Asia-Pacific Business Review",
+  "author": "Noureon Analytics",
+  "date": "2026-10-05",
+  "footer": "Q3 2026 Business Review · Internal",
+  "language": "en",
+  "slides": [
+   {
+    "layout": "cover",
+    "kicker": "Q3 2026 business review",
+    "title": "Asia-Pacific drove our Q3 growth",
+    "subtitle": "Revenue up 7.3% year over year; Singapore grew fastest",
+    "image": {
+     "placeholder": "Cover photo: the Singapore office"
+    }
+   },
+   {
+    "layout": "agenda",
+    "title": "Today",
+    "items": [
+     "Market performance",
+     "Singapore office",
+     "Q4 plan"
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Market performance",
+    "subtitle": "Taiwan steady, Singapore accelerating, Japan needs a reset"
+   },
+   {
+    "layout": "stats",
+    "title": "Key numbers this quarter",
+    "stats": [
+     {
+      "value": "26.3M",
+      "label": "Revenue (NT$)",
+      "change": "+7.3%"
+     },
+     {
+      "value": "1,240",
+      "label": "Business customers",
+      "change": "+18%"
+     },
+     {
+      "value": "91%",
+      "label": "Renewal rate",
+      "change": "+5 pts"
+     },
+     {
+      "value": "12",
+      "label": "Singapore team",
+      "change": "since August"
+     }
+    ],
+    "source": "Source: Noureon Finance, unaudited"
+   },
+   {
+    "layout": "bullets",
+    "kicker": "Where growth came from",
+    "title": "Business customers drove growth, not discounts",
+    "bullets": [
+     "Business customers **+18%**, 70% of new revenue",
+     "Average deal size held flat; no discount-led growth",
+     {
+      "text": "Renewal rate up from 86% to **91%**",
+      "children": [
+       "Annual-plan renewal reached 94%"
+      ]
+     },
+     "Consumer users +9%, mostly on mobile"
+    ],
+    "callout": "Most new revenue comes from renewable business contracts."
+   },
+   {
+    "layout": "chart",
+    "title": "Singapore grew fastest; Japan needs a reset",
+    "chart": {
+     "type": "bar",
+     "title": "Revenue growth by market",
+     "unit": "%",
+     "data": [
+      {
+       "label": "Taiwan",
+       "value": 12.5
+      },
+      {
+       "label": "Japan",
+       "value": -3.2
+      },
+      {
+       "label": "Singapore",
+       "value": 21
+      }
+     ]
+    },
+    "takeaway": "Japan was the only market to decline; we move to direct sales in Q4.",
+    "source": "Source: Noureon Finance"
+   },
+   {
+    "layout": "table",
+    "title": "Revenue by market",
+    "table": {
+     "columns": [
+      "Market",
+      "Revenue (NT$ 10k)",
+      "YoY",
+      "Share"
+     ],
+     "align": [
+      "left",
+      "right",
+      "right",
+      "right"
+     ],
+     "rows": [
+      [
+       "Taiwan",
+       "1,200",
+       "+12.5%",
+       "45.6%"
+      ],
+      [
+       "Japan",
+       "980",
+       "-3.2%",
+       "37.3%"
+      ],
+      [
+       "Singapore",
+       "450",
+       "+21.0%",
+       "17.1%"
+      ],
+      [
+       "Total",
+       "2,630",
+       "+7.3%",
+       "100%"
+      ]
+     ],
+     "highlightRow": 3
+    },
+    "source": "Revenue in units of NT$ 10,000"
+   },
+   {
+    "layout": "twoColumn",
+    "title": "Two markets, two strategies",
+    "columns": [
+     {
+      "heading": "Taiwan: deepen existing accounts",
+      "bullets": [
+       "Expand annual plans",
+       "Launch a customer success team",
+       "Cross-sell the reporting module"
+      ]
+     },
+     {
+      "heading": "Singapore: widen the funnel",
+      "bullets": [
+       "Partner with two accounting firms",
+       "Ship English and Chinese UI together",
+       "Source leads at industry events"
+      ]
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Singapore office",
+    "subtitle": "From pilot to profit in three months"
+   },
+   {
+    "layout": "bigNumber",
+    "kicker": "Fastest-growing market",
+    "value": "21.0%",
+    "label": "Singapore revenue growth",
+    "body": "The highest of our three markets; new customers per month doubled after the August opening."
+   },
+   {
+    "layout": "split",
+    "kicker": "Singapore",
+    "title": "From pilot to profit in three months",
+    "bullets": [
+     "May: interviewed 40 prospects",
+     "June: 3 companies joined the pilot",
+     "August: office opened with a local team of 12"
+    ],
+    "image": {
+     "upload": 1,
+     "alt": "Singapore team photo"
+    },
+    "imageSide": "right"
+   },
+   {
+    "layout": "timeline",
+    "title": "Singapore milestones",
+    "steps": [
+     {
+      "label": "May",
+      "title": "Research",
+      "body": "40 prospect interviews"
+     },
+     {
+      "label": "Jun",
+      "title": "Pilot",
+      "body": "3 companies onboard"
+     },
+     {
+      "label": "Aug",
+      "title": "Opening",
+      "body": "Local team of 12"
+     },
+     {
+      "label": "Oct",
+      "title": "Break-even",
+      "body": "One quarter ahead of plan"
+     }
+    ]
+   },
+   {
+    "layout": "image",
+    "title": "Closer to the customers we serve",
+    "caption": "Singapore office opening, August 2026",
+    "image": {
+     "placeholder": "Photo from opening day"
+    }
+   },
+   {
+    "layout": "quote",
+    "quote": "Three months in, our monthly close went from two days to two hours.",
+    "attribution": "Lin Ya-ting",
+    "role": "CFO, Singapore pilot customer",
+    "image": {
+     "placeholder": "Photo of Lin Ya-ting"
+    }
+   },
+   {
+    "layout": "gallery",
+    "title": "Singapore opening event",
+    "images": [
+     {
+      "placeholder": "Ribbon cutting",
+      "caption": "Opened on August 12"
+     },
+     {
+      "placeholder": "Customer panel",
+      "caption": "40 customers attended"
+     },
+     {
+      "placeholder": "Local team photo",
+      "caption": "Local team of 12"
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Q4 plan",
+    "subtitle": "Direct sales in Japan, a bigger enterprise plan"
+   },
+   {
+    "layout": "comparison",
+    "title": "Japan: a new approach from Q4",
+    "columns": [
+     {
+      "heading": "Today",
+      "items": [
+       "Sold through resellers",
+       "English-only interface",
+       "Priced in US dollars"
+      ]
+     },
+     {
+      "heading": "From Q4",
+      "items": [
+       "Direct sales with local partners",
+       "Full Japanese interface",
+       "Priced in yen"
+      ],
+      "highlight": true
+     }
+    ]
+   },
+   {
+    "layout": "cards",
+    "title": "Three priorities for Q4",
+    "cards": [
+     {
+      "icon": "package",
+      "label": "Product",
+      "title": "Grow the enterprise plan",
+      "body": "Add permissions and audit logs for large customers."
+     },
+     {
+      "icon": "globe",
+      "label": "Market",
+      "title": "Direct sales in Japan",
+      "body": "New pricing in October; the local team takes over in November."
+     },
+     {
+      "icon": "gauge",
+      "label": "Operations",
+      "title": "Singapore break-even",
+      "body": "Hold headcount growth and break even in October."
+     }
+    ]
+   },
+   {
+    "layout": "closing",
+    "title": "Next steps",
+    "bullets": [
+     "Finish Japan pricing by end of October",
+     "Ship new enterprise features in November",
+     "Board review of Singapore P&L in December"
+    ],
+    "contact": "Questions: Noureon Analytics"
+   }
+  ]
+ },
+ "fr": {
+  "title": "Bilan T3 2026 Asie-Pacifique",
+  "author": "Noureon Analytics",
+  "date": "2026-10-05",
+  "footer": "Bilan T3 2026 · Usage interne",
+  "language": "fr",
+  "slides": [
+   {
+    "layout": "cover",
+    "kicker": "Bilan du troisième trimestre 2026",
+    "title": "L’Asie-Pacifique porte la croissance du T3",
+    "subtitle": "Chiffre d’affaires +7,3 % sur un an ; Singapour progresse le plus vite",
+    "image": {
+     "placeholder": "Photo de couverture : les bureaux de Singapour"
+    }
+   },
+   {
+    "layout": "agenda",
+    "title": "Au programme",
+    "items": [
+     "Performance par marché",
+     "Bureau de Singapour",
+     "Plan du T4"
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Performance par marché",
+    "subtitle": "Taïwan stable, Singapour accélère, le Japon doit se réorganiser"
+   },
+   {
+    "layout": "stats",
+    "title": "Les chiffres clés du trimestre",
+    "stats": [
+     {
+      "value": "26,3 M",
+      "label": "Chiffre d’affaires (NT$)",
+      "change": "+7,3 %"
+     },
+     {
+      "value": "1 240",
+      "label": "Clients entreprises",
+      "change": "+18 %"
+     },
+     {
+      "value": "91 %",
+      "label": "Taux de renouvellement",
+      "change": "+5 points"
+     },
+     {
+      "value": "12",
+      "label": "Équipe à Singapour",
+      "change": "depuis août"
+     }
+    ],
+    "source": "Source : Noureon Finance, non audité"
+   },
+   {
+    "layout": "bullets",
+    "kicker": "Moteurs de croissance",
+    "title": "La croissance vient des entreprises, pas des remises",
+    "bullets": [
+     "Clients entreprises **+18 %**, soit 70 % du nouveau chiffre d’affaires",
+     "Panier moyen stable : aucune croissance par les remises",
+     {
+      "text": "Renouvellement de 86 % à **91 %**",
+      "children": [
+       "94 % sur les abonnements annuels"
+      ]
+     },
+     "Particuliers +9 %, surtout sur mobile"
+    ],
+    "callout": "L’essentiel du nouveau chiffre d’affaires vient de contrats entreprise renouvelables."
+   },
+   {
+    "layout": "chart",
+    "title": "Singapour croît le plus vite, le Japon doit se réorganiser",
+    "chart": {
+     "type": "bar",
+     "title": "Croissance du CA par marché",
+     "unit": "%",
+     "data": [
+      {
+       "label": "Taïwan",
+       "value": 12.5
+      },
+      {
+       "label": "Japon",
+       "value": -3.2
+      },
+      {
+       "label": "Singapour",
+       "value": 21
+      }
+     ]
+    },
+    "takeaway": "Seul le Japon recule ; nous passons à la vente directe au T4.",
+    "source": "Source : Noureon Finance"
+   },
+   {
+    "layout": "table",
+    "title": "Chiffre d’affaires par marché",
+    "table": {
+     "columns": [
+      "Marché",
+      "CA (10 000 NT$)",
+      "Évolution",
+      "Part"
+     ],
+     "align": [
+      "left",
+      "right",
+      "right",
+      "right"
+     ],
+     "rows": [
+      [
+       "Taïwan",
+       "1 200",
+       "+12,5 %",
+       "45,6 %"
+      ],
+      [
+       "Japon",
+       "980",
+       "-3,2 %",
+       "37,3 %"
+      ],
+      [
+       "Singapour",
+       "450",
+       "+21,0 %",
+       "17,1 %"
+      ],
+      [
+       "Total",
+       "2 630",
+       "+7,3 %",
+       "100 %"
+      ]
+     ],
+     "highlightRow": 3
+    },
+    "source": "Montants en dizaines de milliers de NT$"
+   },
+   {
+    "layout": "twoColumn",
+    "title": "Deux marchés, deux stratégies",
+    "columns": [
+     {
+      "heading": "Taïwan : fidéliser",
+      "bullets": [
+       "Étendre les abonnements annuels",
+       "Créer une équipe succès client",
+       "Vendre le module de reporting"
+      ]
+     },
+     {
+      "heading": "Singapour : conquérir",
+      "bullets": [
+       "Partenariat avec deux cabinets comptables",
+       "Interface en anglais et en chinois",
+       "Prospection lors d’événements du secteur"
+      ]
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Bureau de Singapour",
+    "subtitle": "Du pilote à la rentabilité en trois mois"
+   },
+   {
+    "layout": "bigNumber",
+    "kicker": "Le marché le plus dynamique",
+    "value": "21,0 %",
+    "label": "Croissance du CA à Singapour",
+    "body": "La plus forte de nos trois marchés ; les nouveaux clients mensuels ont doublé depuis l’ouverture en août."
+   },
+   {
+    "layout": "split",
+    "kicker": "Singapour",
+    "title": "Du pilote à la rentabilité en trois mois",
+    "bullets": [
+     "Mai : 40 entretiens avec des prospects",
+     "Juin : 3 entreprises rejoignent le pilote",
+     "Août : ouverture avec une équipe locale de 12 personnes"
+    ],
+    "image": {
+     "upload": 1,
+     "alt": "Photo de l’équipe de Singapour"
+    },
+    "imageSide": "right"
+   },
+   {
+    "layout": "timeline",
+    "title": "Les étapes à Singapour",
+    "steps": [
+     {
+      "label": "Mai",
+      "title": "Étude",
+      "body": "40 entretiens prospects"
+     },
+     {
+      "label": "Juin",
+      "title": "Pilote",
+      "body": "3 entreprises"
+     },
+     {
+      "label": "Août",
+      "title": "Ouverture",
+      "body": "Équipe locale de 12"
+     },
+     {
+      "label": "Oct.",
+      "title": "Équilibre",
+      "body": "Un trimestre d’avance"
+     }
+    ]
+   },
+   {
+    "layout": "image",
+    "title": "Au plus près de nos clients",
+    "caption": "Ouverture du bureau de Singapour, août 2026",
+    "image": {
+     "placeholder": "Photo du jour d’ouverture"
+    }
+   },
+   {
+    "layout": "quote",
+    "quote": "Après trois mois, notre clôture mensuelle est passée de deux jours à deux heures.",
+    "attribution": "Lin Ya-ting",
+    "role": "Directrice financière, client pilote à Singapour",
+    "image": {
+     "placeholder": "Photo de Lin Ya-ting"
+    }
+   },
+   {
+    "layout": "gallery",
+    "title": "Soirée d’ouverture à Singapour",
+    "images": [
+     {
+      "placeholder": "Inauguration",
+      "caption": "Ouverture le 12 août"
+     },
+     {
+      "placeholder": "Table ronde clients",
+      "caption": "40 clients présents"
+     },
+     {
+      "placeholder": "Photo de l’équipe",
+      "caption": "Équipe locale de 12"
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Plan du T4",
+    "subtitle": "Vente directe au Japon, offre entreprise élargie"
+   },
+   {
+    "layout": "comparison",
+    "title": "Japon : une nouvelle approche dès le T4",
+    "columns": [
+     {
+      "heading": "Aujourd’hui",
+      "items": [
+       "Vente via des revendeurs",
+       "Interface en anglais uniquement",
+       "Prix en dollars américains"
+      ]
+     },
+     {
+      "heading": "Dès le T4",
+      "items": [
+       "Vente directe avec des partenaires locaux",
+       "Interface entièrement en japonais",
+       "Prix en yens"
+      ],
+      "highlight": true
+     }
+    ]
+   },
+   {
+    "layout": "cards",
+    "title": "Trois priorités pour le T4",
+    "cards": [
+     {
+      "icon": "package",
+      "label": "Produit",
+      "title": "Élargir l’offre entreprise",
+      "body": "Gestion des droits et journaux d’audit pour les grands comptes."
+     },
+     {
+      "icon": "globe",
+      "label": "Marché",
+      "title": "Vente directe au Japon",
+      "body": "Nouveaux prix en octobre, équipe locale en novembre."
+     },
+     {
+      "icon": "gauge",
+      "label": "Opérations",
+      "title": "Équilibre à Singapour",
+      "body": "Maîtriser les recrutements, équilibre en octobre."
+     }
+    ]
+   },
+   {
+    "layout": "closing",
+    "title": "Prochaines étapes",
+    "bullets": [
+     "Finaliser les prix au Japon fin octobre",
+     "Lancer les fonctions entreprise en novembre",
+     "Revue des résultats de Singapour en décembre"
+    ],
+    "contact": "Questions : Noureon Analytics"
+   }
+  ]
+ },
+ "ru": {
+  "title": "Итоги III квартала 2026: АТР",
+  "author": "Noureon Analytics",
+  "date": "2026-10-05",
+  "footer": "Итоги III квартала 2026 · Для внутреннего использования",
+  "language": "ru",
+  "slides": [
+   {
+    "layout": "cover",
+    "kicker": "Итоги третьего квартала 2026",
+    "title": "Рост в III квартале обеспечил АТР",
+    "subtitle": "Выручка +7,3% за год; быстрее всех растёт Сингапур",
+    "image": {
+     "placeholder": "Фото для обложки: офис в Сингапуре"
+    }
+   },
+   {
+    "layout": "agenda",
+    "title": "План встречи",
+    "items": [
+     "Результаты по рынкам",
+     "Офис в Сингапуре",
+     "План на IV квартал"
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Результаты по рынкам",
+    "subtitle": "Тайвань стабилен, Сингапур ускоряется, Японии нужна перестройка"
+   },
+   {
+    "layout": "stats",
+    "title": "Ключевые показатели квартала",
+    "stats": [
+     {
+      "value": "26,3 млн",
+      "label": "Выручка (NT$)",
+      "change": "+7,3%"
+     },
+     {
+      "value": "1 240",
+      "label": "Корпоративные клиенты",
+      "change": "+18%"
+     },
+     {
+      "value": "91%",
+      "label": "Продление подписок",
+      "change": "+5 п. п."
+     },
+     {
+      "value": "12",
+      "label": "Команда в Сингапуре",
+      "change": "с августа"
+     }
+    ],
+    "source": "Источник: финансовый отдел Noureon, без аудита"
+   },
+   {
+    "layout": "bullets",
+    "kicker": "Источники роста",
+    "title": "Рост дали корпоративные клиенты, а не скидки",
+    "bullets": [
+     "Корпоративных клиентов **+18%**, это 70% новой выручки",
+     "Средний чек не изменился: рост без скидок",
+     {
+      "text": "Продление выросло с 86% до **91%**",
+      "children": [
+       "По годовым тарифам — 94%"
+      ]
+     },
+     "Частные пользователи +9%, в основном на мобильных"
+    ],
+    "callout": "Основная новая выручка — продлеваемые корпоративные контракты."
+   },
+   {
+    "layout": "chart",
+    "title": "Сингапур растёт быстрее всех, Японии нужна перестройка",
+    "chart": {
+     "type": "bar",
+     "title": "Рост выручки по рынкам",
+     "unit": "%",
+     "data": [
+      {
+       "label": "Тайвань",
+       "value": 12.5
+      },
+      {
+       "label": "Япония",
+       "value": -3.2
+      },
+      {
+       "label": "Сингапур",
+       "value": 21
+      }
+     ]
+    },
+    "takeaway": "Сократилась только Япония; с IV квартала переходим на прямые продажи.",
+    "source": "Источник: финансовый отдел Noureon"
+   },
+   {
+    "layout": "table",
+    "title": "Выручка по рынкам",
+    "table": {
+     "columns": [
+      "Рынок",
+      "Выручка (10 тыс. NT$)",
+      "Рост",
+      "Доля"
+     ],
+     "align": [
+      "left",
+      "right",
+      "right",
+      "right"
+     ],
+     "rows": [
+      [
+       "Тайвань",
+       "1 200",
+       "+12,5%",
+       "45,6%"
+      ],
+      [
+       "Япония",
+       "980",
+       "-3,2%",
+       "37,3%"
+      ],
+      [
+       "Сингапур",
+       "450",
+       "+21,0%",
+       "17,1%"
+      ],
+      [
+       "Итого",
+       "2 630",
+       "+7,3%",
+       "100%"
+      ]
+     ],
+     "highlightRow": 3
+    },
+    "source": "Выручка в десятках тысяч NT$"
+   },
+   {
+    "layout": "twoColumn",
+    "title": "Два рынка — две стратегии",
+    "columns": [
+     {
+      "heading": "Тайвань: развиваем текущих клиентов",
+      "bullets": [
+       "Больше годовых тарифов",
+       "Команда по успеху клиентов",
+       "Продажа модуля отчётности"
+      ]
+     },
+     {
+      "heading": "Сингапур: привлекаем новых",
+      "bullets": [
+       "Партнёрство с двумя бухгалтерскими фирмами",
+       "Интерфейс на английском и китайском",
+       "Лиды с отраслевых мероприятий"
+      ]
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Офис в Сингапуре",
+    "subtitle": "От пилота до прибыли за три месяца"
+   },
+   {
+    "layout": "bigNumber",
+    "kicker": "Самый быстрорастущий рынок",
+    "value": "21,0%",
+    "label": "Рост выручки в Сингапуре",
+    "body": "Лучший результат из трёх рынков; после открытия офиса в августе новых клиентов в месяц стало вдвое больше."
+   },
+   {
+    "layout": "split",
+    "kicker": "Сингапур",
+    "title": "От пилота до прибыли за три месяца",
+    "bullets": [
+     "Май: 40 интервью с потенциальными клиентами",
+     "Июнь: 3 компании в пилоте",
+     "Август: открытие офиса, команда из 12 человек"
+    ],
+    "image": {
+     "upload": 1,
+     "alt": "Фото команды в Сингапуре"
+    },
+    "imageSide": "right"
+   },
+   {
+    "layout": "timeline",
+    "title": "Этапы в Сингапуре",
+    "steps": [
+     {
+      "label": "Май",
+      "title": "Исследование",
+      "body": "40 интервью"
+     },
+     {
+      "label": "Июнь",
+      "title": "Пилот",
+      "body": "3 компании"
+     },
+     {
+      "label": "Август",
+      "title": "Открытие",
+      "body": "Команда из 12 человек"
+     },
+     {
+      "label": "Октябрь",
+      "title": "Окупаемость",
+      "body": "На квартал раньше плана"
+     }
+    ]
+   },
+   {
+    "layout": "image",
+    "title": "Ближе к нашим клиентам",
+    "caption": "Открытие офиса в Сингапуре, август 2026",
+    "image": {
+     "placeholder": "Фото с открытия"
+    }
+   },
+   {
+    "layout": "quote",
+    "quote": "Через три месяца закрытие месяца сократилось с двух дней до двух часов.",
+    "attribution": "Линь Ятин",
+    "role": "Финансовый директор, пилотный клиент в Сингапуре",
+    "image": {
+     "placeholder": "Фото Линь Ятин"
+    }
+   },
+   {
+    "layout": "gallery",
+    "title": "Открытие офиса в Сингапуре",
+    "images": [
+     {
+      "placeholder": "Торжественное открытие",
+      "caption": "Открылись 12 августа"
+     },
+     {
+      "placeholder": "Встреча с клиентами",
+      "caption": "Пришли 40 клиентов"
+     },
+     {
+      "placeholder": "Фото команды",
+      "caption": "Команда из 12 человек"
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "План на IV квартал",
+    "subtitle": "Прямые продажи в Японии, расширенный корпоративный тариф"
+   },
+   {
+    "layout": "comparison",
+    "title": "Япония: новый подход с IV квартала",
+    "columns": [
+     {
+      "heading": "Сейчас",
+      "items": [
+       "Продажи через дистрибьюторов",
+       "Интерфейс только на английском",
+       "Цены в долларах США"
+      ]
+     },
+     {
+      "heading": "С IV квартала",
+      "items": [
+       "Прямые продажи с местными партнёрами",
+       "Полный японский интерфейс",
+       "Цены в иенах"
+      ],
+      "highlight": true
+     }
+    ]
+   },
+   {
+    "layout": "cards",
+    "title": "Три приоритета на IV квартал",
+    "cards": [
+     {
+      "icon": "package",
+      "label": "Продукт",
+      "title": "Расширить корпоративный тариф",
+      "body": "Права доступа и журнал аудита для крупных клиентов."
+     },
+     {
+      "icon": "globe",
+      "label": "Рынок",
+      "title": "Прямые продажи в Японии",
+      "body": "Новые цены в октябре, с ноября — местная команда."
+     },
+     {
+      "icon": "gauge",
+      "label": "Операции",
+      "title": "Окупаемость в Сингапуре",
+      "body": "Сдерживаем рост штата, выходим в ноль в октябре."
+     }
+    ]
+   },
+   {
+    "layout": "closing",
+    "title": "Следующие шаги",
+    "bullets": [
+     "До конца октября — новые цены в Японии",
+     "В ноябре — новые корпоративные функции",
+     "В декабре — отчёт совету директоров по Сингапуру"
+    ],
+    "contact": "Вопросы: Noureon Analytics"
+   }
+  ]
+ },
+ "es": {
+  "title": "Resultados del T3 2026 en Asia-Pacífico",
+  "author": "Noureon Analytics",
+  "date": "2026-10-05",
+  "footer": "Resultados T3 2026 · Uso interno",
+  "language": "es",
+  "slides": [
+   {
+    "layout": "cover",
+    "kicker": "Resultados del tercer trimestre de 2026",
+    "title": "Asia-Pacífico impulsó el crecimiento del T3",
+    "subtitle": "Ingresos +7,3 % interanual; Singapur fue el que más creció",
+    "image": {
+     "placeholder": "Foto de portada: la oficina de Singapur"
+    }
+   },
+   {
+    "layout": "agenda",
+    "title": "Temas de hoy",
+    "items": [
+     "Resultados por mercado",
+     "Oficina de Singapur",
+     "Plan del T4"
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Resultados por mercado",
+    "subtitle": "Taiwán estable, Singapur acelera y Japón necesita un cambio"
+   },
+   {
+    "layout": "stats",
+    "title": "Cifras clave del trimestre",
+    "stats": [
+     {
+      "value": "26,3 M",
+      "label": "Ingresos (NT$)",
+      "change": "+7,3 %"
+     },
+     {
+      "value": "1240",
+      "label": "Clientes empresa",
+      "change": "+18 %"
+     },
+     {
+      "value": "91 %",
+      "label": "Tasa de renovación",
+      "change": "+5 puntos"
+     },
+     {
+      "value": "12",
+      "label": "Equipo en Singapur",
+      "change": "desde agosto"
+     }
+    ],
+    "source": "Fuente: Finanzas de Noureon, sin auditar"
+   },
+   {
+    "layout": "bullets",
+    "kicker": "Origen del crecimiento",
+    "title": "Crecimos por los clientes empresa, no por descuentos",
+    "bullets": [
+     "Clientes empresa **+18 %**, el 70 % de los nuevos ingresos",
+     "Ticket medio estable: sin crecimiento a base de descuentos",
+     {
+      "text": "Renovación del 86 % al **91 %**",
+      "children": [
+       "94 % en planes anuales"
+      ]
+     },
+     "Usuarios particulares +9 %, sobre todo en móvil"
+    ],
+    "callout": "La mayor parte de los nuevos ingresos procede de contratos empresariales renovables."
+   },
+   {
+    "layout": "chart",
+    "title": "Singapur crece más rápido; Japón necesita un cambio",
+    "chart": {
+     "type": "bar",
+     "title": "Crecimiento de ingresos por mercado",
+     "unit": "%",
+     "data": [
+      {
+       "label": "Taiwán",
+       "value": 12.5
+      },
+      {
+       "label": "Japón",
+       "value": -3.2
+      },
+      {
+       "label": "Singapur",
+       "value": 21
+      }
+     ]
+    },
+    "takeaway": "Solo Japón retrocedió; desde el T4 pasamos a la venta directa.",
+    "source": "Fuente: Finanzas de Noureon"
+   },
+   {
+    "layout": "table",
+    "title": "Ingresos por mercado",
+    "table": {
+     "columns": [
+      "Mercado",
+      "Ingresos (10 000 NT$)",
+      "Var. anual",
+      "Cuota"
+     ],
+     "align": [
+      "left",
+      "right",
+      "right",
+      "right"
+     ],
+     "rows": [
+      [
+       "Taiwán",
+       "1200",
+       "+12,5 %",
+       "45,6 %"
+      ],
+      [
+       "Japón",
+       "980",
+       "-3,2 %",
+       "37,3 %"
+      ],
+      [
+       "Singapur",
+       "450",
+       "+21,0 %",
+       "17,1 %"
+      ],
+      [
+       "Total",
+       "2630",
+       "+7,3 %",
+       "100 %"
+      ]
+     ],
+     "highlightRow": 3
+    },
+    "source": "Ingresos en decenas de miles de NT$"
+   },
+   {
+    "layout": "twoColumn",
+    "title": "Dos mercados, dos estrategias",
+    "columns": [
+     {
+      "heading": "Taiwán: fidelizar clientes",
+      "bullets": [
+       "Ampliar los planes anuales",
+       "Crear un equipo de éxito del cliente",
+       "Vender el módulo de informes"
+      ]
+     },
+     {
+      "heading": "Singapur: captar clientes nuevos",
+      "bullets": [
+       "Alianza con dos firmas contables",
+       "Interfaz en inglés y chino",
+       "Contactos en eventos del sector"
+      ]
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Oficina de Singapur",
+    "subtitle": "Del piloto a la rentabilidad en tres meses"
+   },
+   {
+    "layout": "bigNumber",
+    "kicker": "El mercado que más crece",
+    "value": "21,0 %",
+    "label": "Crecimiento de ingresos en Singapur",
+    "body": "El mayor de los tres mercados; los clientes nuevos al mes se duplicaron tras la apertura en agosto."
+   },
+   {
+    "layout": "split",
+    "kicker": "Singapur",
+    "title": "Del piloto a la rentabilidad en tres meses",
+    "bullets": [
+     "Mayo: 40 entrevistas con clientes potenciales",
+     "Junio: 3 empresas en el piloto",
+     "Agosto: apertura con un equipo local de 12 personas"
+    ],
+    "image": {
+     "upload": 1,
+     "alt": "Foto del equipo de Singapur"
+    },
+    "imageSide": "right"
+   },
+   {
+    "layout": "timeline",
+    "title": "Hitos en Singapur",
+    "steps": [
+     {
+      "label": "Mayo",
+      "title": "Estudio",
+      "body": "40 entrevistas"
+     },
+     {
+      "label": "Junio",
+      "title": "Piloto",
+      "body": "3 empresas"
+     },
+     {
+      "label": "Agosto",
+      "title": "Apertura",
+      "body": "Equipo local de 12"
+     },
+     {
+      "label": "Octubre",
+      "title": "Equilibrio",
+      "body": "Un trimestre antes de lo previsto"
+     }
+    ]
+   },
+   {
+    "layout": "image",
+    "title": "Más cerca de nuestros clientes",
+    "caption": "Apertura de la oficina de Singapur, agosto de 2026",
+    "image": {
+     "placeholder": "Foto del día de la apertura"
+    }
+   },
+   {
+    "layout": "quote",
+    "quote": "A los tres meses, el cierre mensual pasó de dos días a dos horas.",
+    "attribution": "Lin Ya-ting",
+    "role": "Directora financiera, cliente piloto en Singapur",
+    "image": {
+     "placeholder": "Foto de Lin Ya-ting"
+    }
+   },
+   {
+    "layout": "gallery",
+    "title": "Evento de apertura en Singapur",
+    "images": [
+     {
+      "placeholder": "Corte de cinta",
+      "caption": "Apertura el 12 de agosto"
+     },
+     {
+      "placeholder": "Mesa redonda con clientes",
+      "caption": "Asistieron 40 clientes"
+     },
+     {
+      "placeholder": "Foto del equipo",
+      "caption": "Equipo local de 12"
+     }
+    ]
+   },
+   {
+    "layout": "section",
+    "title": "Plan del T4",
+    "subtitle": "Venta directa en Japón y un plan empresa más amplio"
+   },
+   {
+    "layout": "comparison",
+    "title": "Japón: un nuevo enfoque desde el T4",
+    "columns": [
+     {
+      "heading": "Hoy",
+      "items": [
+       "Venta a través de distribuidores",
+       "Interfaz solo en inglés",
+       "Precios en dólares"
+      ]
+     },
+     {
+      "heading": "Desde el T4",
+      "items": [
+       "Venta directa con socios locales",
+       "Interfaz completa en japonés",
+       "Precios en yenes"
+      ],
+      "highlight": true
+     }
+    ]
+   },
+   {
+    "layout": "cards",
+    "title": "Tres prioridades para el T4",
+    "cards": [
+     {
+      "icon": "package",
+      "label": "Producto",
+      "title": "Ampliar el plan empresa",
+      "body": "Permisos y registros de auditoría para grandes clientes."
+     },
+     {
+      "icon": "globe",
+      "label": "Mercado",
+      "title": "Venta directa en Japón",
+      "body": "Nuevos precios en octubre; equipo local desde noviembre."
+     },
+     {
+      "icon": "gauge",
+      "label": "Operaciones",
+      "title": "Equilibrio en Singapur",
+      "body": "Contener la plantilla y llegar al equilibrio en octubre."
+     }
+    ]
+   },
+   {
+    "layout": "closing",
+    "title": "Próximos pasos",
+    "bullets": [
+     "Cerrar los precios de Japón a finales de octubre",
+     "Lanzar las funciones empresa en noviembre",
+     "Revisar el resultado de Singapur en diciembre"
+    ],
+    "contact": "Consultas: Noureon Analytics"
+   }
+  ]
+ }
+}

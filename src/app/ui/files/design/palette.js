@@ -156,7 +156,9 @@ export function invertPalette(palette) {
     accent2: palette.onFill,
     fill: palette.onFill,
     onFill: palette.fill,
-    card: palette.fill2
+    card: palette.fill2,
+    // Highlighter marks on a colour block use its lighter surface.
+    mark: palette.fill2
   });
 }
 

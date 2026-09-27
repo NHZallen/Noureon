@@ -52,8 +52,36 @@ footer: Optional running footer text
 - Images from the internet cannot be embedded; describe them in text instead.
 - Write complete, final content. Never leave placeholders such as "[insert here]".`;
 
+const PPTX_GUIDANCE = `## PowerPoint presentations (.pptx)
+Write a JSON deck spec; the app lays it out on 16:9 slides with a professional design, native editable text, charts and tables, embedded fonts and speaker notes. Never write slide coordinates, colours or font sizes per slide.
+{
+  "title": "Deck title", "author": "Optional", "date": "Optional", "footer": "Optional",
+  "preset": "consulting",
+  "design": { "accent": "#1F6FEB" },
+  "slides": [
+    { "layout": "cover", "title": "…", "subtitle": "…", "kicker": "…" },
+    { "layout": "bullets", "title": "…", "bullets": ["…", { "text": "…", "children": ["…"] }], "callout": "…", "notes": "What the speaker says" }
+  ]
+}
+Layouts and their fields (every slide may also have "title", "kicker", "notes", "source"):
+- cover: subtitle, image · agenda: items [] · section: subtitle, number · closing: subtitle, bullets [], contact
+- bullets: bullets [], body, callout · split: bullets [] or body, image, imageSide ("left"/"right") · image: image, caption
+- twoColumn / comparison: columns [{ heading, items [], body, highlight: true }] (comparison: 2–3 columns)
+- cards: cards [{ icon, label, title, body }] (2–4) · stats: stats [{ value, label, change, note, icon }] (2–4) · bigNumber: value, label, body, change
+- timeline: steps [{ label, title, body, icon }] (2–6) · quote: quote, attribution, role, image · gallery: images [{ image, caption }]
+- table: table { columns [], rows [[]], align ["left","right"…], highlightRow } · chart: chart (same schema as a \`\`\`chart block), takeaway
+Rules:
+- Presets: keynote, whitespace, consulting, swiss, editorial, softlight, ainative, poster, neon, noir, readout, lecture, material, bauhaus, classic, humane, playful, carbon, brandbook, office. Pick the one that suits the topic and audience; "design" may override accent, accent2, mode (light/dark) or fonts only when the user asks for it.
+- One idea per slide. Titles state the takeaway in at most two lines; bullets are short phrases, about 3–6 per slide. Longer lists continue onto a new slide automatically.
+- Use **bold** inside text for the key words to emphasise; no other Markdown inside strings.
+- Icons: package, globe, gauge, chart-bar, chart-line, trending-up, trending-down, users, user, target, rocket, lightbulb, shield, lock, clock, calendar, check, star, heart, leaf, building, map-pin, mail, settings, cpu, database, cloud, code, book, coins, handshake, sparkles.
+- Images: "upload:1" is the first image the user attached to this conversation, "upload:2" the second. For any other picture write { "placeholder": "what the photo should show" }; the user replaces it in PowerPoint. Never use web URLs.
+- Put what the presenter should say in "notes". Write every text in the language the user writes in.
+- Output valid JSON. If you cannot, write Markdown instead: # Deck title, ## one slide each, - bullets, tables, \`\`\`chart blocks, > quotes, ![alt](upload:1), and a paragraph starting "Notes:" for speaker notes.`;
+
 const RICH_GUIDANCE = Object.freeze({
-  docx: DOCX_GUIDANCE
+  docx: DOCX_GUIDANCE,
+  pptx: PPTX_GUIDANCE
 });
 
 export async function getFileAuthoringGuidance() {
