@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { Window } from 'happy-dom';
 import { parseDocumentSpec } from '../../src/app/ui/files/design/document-spec.js';
 import { serializeDeckSpec } from '../../src/app/ui/files/design/spec-serializer.js';
 import { layoutPresentation } from '../../src/app/ui/files/design/slide-engine.js';
@@ -8,6 +9,7 @@ import { applyVisionEdits } from '../../src/app/ui/files/vision/vision-edits.js'
 import { eligibleVisionFiles } from '../../src/app/ui/files/vision/vision-eligibility.js';
 import { buildVisionPrompt, parseVisionResponse } from '../../src/app/ui/files/vision/vision-prompt.js';
 import { visionText } from '../../src/app/ui/files/vision/vision-texts.js';
+import { createVisionProgressNotification } from '../../src/app/ui/files/vision/vision-progress.js';
 import { buildVisionResult, buildVisionMetadata } from '../../src/app/ui/files/vision/vision-result.js';
 import { groupReviewedSlides } from '../../src/app/ui/files/vision/vision-sheet-plan.js';
 import { mergeAdjacentModelMessages } from '../../src/app/legacy-runtime/features/stream-api-call.js';
@@ -16,6 +18,30 @@ import { createConversationImageResolver } from '../../src/app/ui/files/conversa
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/sample-deck.json', import.meta.url), 'utf8'));
 const parse = (raw, language = 'en') => parseDocumentSpec(JSON.stringify(raw), { uiLanguage: language }).spec;
 const sample = () => parse(fixture.en);
+
+test('visual check progress stays in a notification, updates in five languages and stops on abort', () => {
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+    const window = new Window();
+    const { document } = window;
+    const messages = document.createElement('div');
+    const notifications = document.createElement('div');
+    document.body.append(messages, notifications);
+    const controller = new AbortController();
+    const progress = createVisionProgressNotification({ document, notificationContainer: notifications, language, controller });
+    const notification = notifications.firstElementChild;
+    assert.equal(messages.children.length, 0);
+    assert.equal(notification.classList.contains('notification'), true);
+    assert.equal(notification.querySelector('[role="status"]').textContent, visionText(language, 'preparing'));
+    assert.equal(notification.style.animation.includes('fadeOutRight'), false);
+    progress.set('reviewing', { model: 'Test model' });
+    assert.equal(notification.querySelector('[role="status"]').textContent, visionText(language, 'reviewing', { model: 'Test model' }));
+    notification.querySelector('button').click();
+    assert.equal(controller.signal.aborted, true);
+    assert.equal(notifications.children.length, 0);
+    progress.remove();
+    window.happyDOM.abort();
+  }
+});
 
 test('normalized decks round trip through the corrected-file JSON in five languages', () => {
   for (const [language, raw] of Object.entries(fixture)) {

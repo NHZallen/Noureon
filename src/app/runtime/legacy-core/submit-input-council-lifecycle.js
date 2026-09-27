@@ -150,7 +150,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
   const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
   const getIsAutoScrolling = () => Boolean(state.isAutoScrolling);
-  const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, messageList: ALL_ELEMENTS.messageList, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController });
+  const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController });
   const isImageConversation = (conversation = getActiveConversation()) => modelGeneratesImages(
     normalizeConversationModel(conversation)
   );

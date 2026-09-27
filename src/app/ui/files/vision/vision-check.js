@@ -9,41 +9,13 @@ import { buildVisionPrompt, parseVisionResponse } from './vision-prompt.js';
 import { VISION_TEXTS, visionText } from './vision-texts.js';
 import { eligibleVisionFiles } from './vision-eligibility.js';
 import { buildVisionResult, buildVisionMetadata } from './vision-result.js';
+import { createVisionProgressNotification } from './vision-progress.js';
 
 const checkAbort = signal => { if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); };
 
-function makeProgress({ document, conversation, getActiveConversation, messageList, language, controller }) {
-  const row = document.createElement('div');
-  row.className = 'message-item flex items-start gap-2 md:gap-4 model-message';
-  const panel = document.createElement('div');
-  panel.className = 'message-content';
-  panel.style.cssText = 'display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.75rem 1rem;color:var(--text-primary)';
-  const status = document.createElement('span');
-  status.setAttribute('role', 'status');
-  status.setAttribute('aria-live', 'polite');
-  status.textContent = visionText(language, 'preparing');
-  const stop = document.createElement('button');
-  stop.type = 'button';
-  stop.textContent = visionText(language, 'stop');
-  stop.style.cssText = 'border:1px solid currentColor;border-radius:.35rem;padding:.2rem .65rem;background:transparent;color:inherit;cursor:pointer';
-  stop.addEventListener('click', () => {
-    controller.abort();
-    row.remove();
-    if (conversation.__astraPendingVision === row) delete conversation.__astraPendingVision;
-  });
-  panel.append(status, stop);
-  row.append(panel);
-  Object.defineProperty(conversation, '__astraPendingVision', { configurable: true, value: row });
-  if (getActiveConversation()?.id === conversation.id) messageList.appendChild(row);
-  return {
-    set(key, values) { status.textContent = visionText(language, key, values); },
-    remove() { row.remove(); if (conversation.__astraPendingVision === row) delete conversation.__astraPendingVision; }
-  };
-}
-
 /** Background V1 pass. The caller owns cancellation and keeps this promise observed. */
 export async function runVisionCheck({ conversation, message, model, config, controller, responseUsesCouncil = false,
-  modelSupportsVision, streamApiCall, document, window, messageList, getActiveConversation,
+  modelSupportsVision, streamApiCall, document, window, notificationContainer, getActiveConversation,
   addMessageToUI, saveAppData, showNotification, imageSources = null, crypto = globalThis.crypto }) {
   const language = config?.uiLanguage || 'zh-TW';
   const files = eligibleVisionFiles({ conversation, message, model, config, signal: controller.signal, responseUsesCouncil, modelSupportsVision });
@@ -51,7 +23,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
   let checked = 0;
   for (const file of files) {
     checkAbort(controller.signal);
-    const progress = makeProgress({ document, conversation, getActiveConversation, messageList, language, controller });
+    const progress = createVisionProgressNotification({ document, notificationContainer, language, controller });
     let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 120_000);
     try {

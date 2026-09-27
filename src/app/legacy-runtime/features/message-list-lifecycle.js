@@ -306,7 +306,6 @@ export function createMessageListLifecycle({
         if (pendingElement && conversation.messages.at(-1)?.role === 'user') {
             messageList.appendChild(pendingElement);
         }
-        if (conversation.__astraPendingVision) messageList.appendChild(conversation.__astraPendingVision);
         syncComposerLayout({ animate: false });
         scheduleFrame(() => {
             if (renderToken !== renderSequence) return;

@@ -27,10 +27,10 @@
 | A4 | ✅ 已上線 | PowerPoint（pptx）：17 種版型、字型子集嵌入、原生圖表與表格、圖示、講者備註、上傳圖片、投影片預覽 |
 | A4b | ✅ 已上線 | 輸入框「簡報設計」按鈕：AI 自適應（預設）或指定 20 套範本；指定範本時程式強制套用（只允許在對話中改主色、輔色） |
 | 其他修正 | ✅ 已上線 | 手機版選單不超出畫面；iPhone 上 Chrome 等非 Safari 瀏覽器改用分享選單下載 |
-| **V1** | ✅ **本機完成，待推送及真實模型驗證** | 看圖檢查（詳細設計與驗證見 §3） |
+| **V1** | ✅ **已完成，待真實模型與正式網站驗證** | 看圖檢查；進度依使用者要求改為通知（詳細設計與驗證見 §3） |
 | **W2** → A3 → A5 → A6 → B0～B5 | ⬜ **下一階段** | 見總計畫的「階段規劃」 |
 
-V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 本機 commit 尚未推送。
+V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 初版 commit：`ea4a1688 Implement V1 visual review for presentations`。2026-09-28 使用者要求將進度改為通知並授權推送 `main`。
 
 ### 已上線但還沒有實機驗證的
 
@@ -38,15 +38,15 @@ V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the ne
 - **AI 自適應**：還沒用真的模型確認它會寫出完整的 25 項參數（提示詞在 `src/app/ui/files/file-authoring-guidance.js` 的 `presentationDesignGuidance`）。
 - **字型授權**：Playfair Display、Source 系列、IBM Plex 有 OFL 保留字型名稱，嵌入文件的子集沿用原名；上線前建議確認是否需要改名（見設計系統規格「授權」）。
 
-## 3. V1 看圖檢查：本機完成
+## 3. V1 看圖檢查：已完成
 
-**詳細設計：[`docs/superpowers/specs/2026-09-28-vision-check-design.md`](../specs/2026-09-28-vision-check-design.md)。** V1 已依此在本機實作；本機測試通過後回報使用者，由使用者決定是否推送。
+**詳細設計：[`docs/superpowers/specs/2026-09-28-vision-check-design.md`](../specs/2026-09-28-vision-check-design.md)。** V1 已依此實作，進度通知是使用者後續確認的調整；本次使用者已授權推送 `main`。
 
-使用者已確認：自動檢查（設定可關）、結果以 AI 新回一則訊息呈現並附修正版、V1 只做 PowerPoint。
+使用者已確認：自動檢查（設定可關）、檢查進度用通知、結果以 AI 新回一則訊息呈現並附修正版、V1 只做 PowerPoint。
 
-已完成：來源頁碼對應、規格序列化及安全修正、字型嵌入的投影片聯絡表（每張 4 頁，最多 24 頁）、獨立視覺模型請求、暫時進度訊息與停止、在原對話保存修正版、取消與切換對話、五種語言及設定。單則回覆若有多份完整 PPTX，依序逐份檢查並各產生結果訊息。
+已完成：來源頁碼對應、規格序列化及安全修正、字型嵌入的投影片聯絡表（每張 4 頁，最多 24 頁）、獨立視覺模型請求、持續更新的進度通知與停止、在原對話保存修正版、取消與切換對話、五種語言及設定。單則回覆若有多份完整 PPTX，依序逐份檢查並各產生結果訊息。
 
-驗證：`npm test`（1904 項通過）、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime`、`npm audit --omit=dev`（0 項漏洞）。在 Chrome 以模擬模型回覆跑完整流程，確認字型 data URL、聯絡表、修正版卡片與取消；修正版 PPTX 由 PowerPoint 開啟並匯出 4 頁 PDF。尚未用真實模型或在正式網站驗證；推送後須核對真實模型發現問題與修正前後差異、不支援看圖的模型、關閉設定、手機寬度。
+驗證：`npm test`（1906 項通過）、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime`、`npm audit --omit=dev`（0 項漏洞）。在 Chrome 以模擬模型回覆跑完整流程，確認字型 data URL、聯絡表、修正版卡片與取消；修正版 PPTX 由 PowerPoint 開啟並匯出 4 頁 PDF。進度通知另以 DOM 測試確認五種語言、階段更新、停止後立即移除且不進入對話。尚未用真實模型或在正式網站驗證；推送後須核對真實模型發現問題與修正前後差異、不支援看圖的模型、關閉設定、手機寬度。
 
 可以沿用的現成程式：
 
