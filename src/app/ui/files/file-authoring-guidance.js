@@ -96,7 +96,7 @@ Text colours are adjusted automatically to meet contrast, so any accent works.`;
  */
 function presentationDesignGuidance(deckDesign) {
   if (DESIGN_PRESET_IDS.includes(deckDesign)) {
-    return `Design: the user chose the "${deckDesign}" template (${getPresetText(deckDesign, 'en').feature}). Write "design": { "preset": "${deckDesign}" } and do not change any design parameter unless this message asks for it.`;
+    return `Design: the user chose the "${deckDesign}" template (${getPresetText(deckDesign, 'en').feature}). Write "design": { "preset": "${deckDesign}" } with no other design keys, even if earlier files in this conversation used another design: the app applies the template as designed. Only when the user's latest message asks for different colours, add "accent" (and "accent2") as "#RRGGBB". Other design changes (fonts, dark or light, layout, decoration) are not possible with a template: say so briefly and suggest switching "Presentation design" to AI adaptive.`;
   }
   return [
     'Design (AI adaptive, the user\'s choice): set every design parameter yourself for this content, audience and purpose, and write the complete "design" object with all of these keys. Presets are only starting points; combine and change freely. Follow any style the user asks for (colours, dark or light, formal or playful).',

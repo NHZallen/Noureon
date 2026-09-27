@@ -24,8 +24,10 @@ test('a chosen template is written as that preset, without the parameter list', 
   const guidance = await getFileAuthoringGuidance({ deckDesign: 'consulting' });
   assert.match(guidance, /the user chose the "consulting" template/);
   assert.match(guidance, /"design": \{ "preset": "consulting" \}/);
-  assert.doesNotMatch(guidance, /AI adaptive/);
+  assert.doesNotMatch(guidance, /Design \(AI adaptive/);
   assert.doesNotMatch(guidance, /- typeScale:/);
+  assert.match(guidance, /even if earlier files in this conversation used another design/);
+  assert.match(guidance, /add "accent"/);
 });
 
 test('the conversation\'s design choice reaches the model with the file guidance', async () => {
@@ -173,4 +175,61 @@ test('the picker never takes layout space and always fits on screen', async () =
   } finally {
     cleanup();
   }
+});
+
+test('a chosen template is enforced on the reply: only its accent colours can change', async () => {
+  const { enforceDeckTemplate } = await import('../../src/app/ui/files/design/deck-template-enforcer.js');
+  const { parseDocumentSpec } = await import('../../src/app/ui/files/design/document-spec.js');
+  const { normalizeDesign } = await import('../../src/app/ui/files/design/design-params.js');
+  const fence = '`'.repeat(4);
+  const spec = { preset: 'neon', design: { preset: 'playful', mode: 'dark', accent: '#2f6b4f', fonts: 'condensed', tracking: 'wide' }, designs: [{ preset: 'noir' }], title: '鄉村慢旅', slides: [{ layout: 'cover', title: '鄉村慢旅' }] };
+  const reply = `童趣版：\n\n${fence}file 鄉村慢旅簡報.pptx\n${JSON.stringify(spec)}\n${fence}\n\n內容不變。`;
+  const out = enforceDeckTemplate(reply, 'playful');
+  assert.ok(out.startsWith('童趣版：\n\n') && out.endsWith('\n\n內容不變。'));
+  const content = out.slice(out.indexOf('\n', out.indexOf('file ')) + 1, out.lastIndexOf(`\n${fence}`));
+  const parsed = parseDocumentSpec(content).spec;
+  assert.deepEqual({ ...parsed.design }, { ...normalizeDesign({ preset: 'playful', accent: '#2F6B4F' }).design });
+  assert.equal(parsed.designs.length, 0, 'offered directions are dropped');
+  assert.equal(parsed.slides[0].title, '鄉村慢旅', 'the content is untouched');
+
+  const markdown = `${fence}file a.pptx\n---\ntitle: 年度\nmode: dark\naccent2: "#123456"\nfonts: kai\n---\n# 年度\n\n## 頁\n\n- a\n- b\n${fence}`;
+  const mdOut = enforceDeckTemplate(markdown, 'bauhaus');
+  assert.match(mdOut, /---\ntitle: 年度\npreset: bauhaus\naccent2: #123456\n---/);
+  assert.doesNotMatch(mdOut, /mode: dark|fonts: kai/);
+  const exact = `${fence}file b.pptx\n${JSON.stringify({ design: { preset: 'bauhaus' }, slides: [{ layout: 'cover', title: 'x' }] }, null, 2)}\n${fence}`;
+  assert.equal(enforceDeckTemplate(exact, 'bauhaus'), exact, 'an exact spec is left alone');
+  assert.equal(enforceDeckTemplate('no files here', 'bauhaus'), 'no files here');
+});
+
+test('the reply is saved with the template applied and redrawn', async () => {
+  const { finalizeAssistantResponse } = await import('../../src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const fence = '`'.repeat(4);
+  const reply = `好的\n${fence}file deck.pptx\n${JSON.stringify({ design: { preset: 'playful', mode: 'dark' }, slides: [{ layout: 'cover', title: 'x' }] })}\n${fence}`;
+  const run = async (deckDesign) => {
+    const conversation = { messages: [], deckDesign };
+    const targetElement = { dataset: { streamRendered: 'true' }, closest: () => null };
+    let rendered = null;
+    const message = {};
+    await finalizeAssistantResponse({
+      fullResponse: reply,
+      finalAiMessage: message,
+      conversation,
+      signal: { aborted: true },
+      responseUsesCouncil: false,
+      responseRenderedInRealtime: true,
+      targetElement,
+      uiLanguage: 'zh-TW',
+      persistAppData: async () => {},
+      completeSingleModelView: async ({ fullResponse }) => { rendered = fullResponse; },
+      queueBackgroundTask: () => {}
+    });
+    return { saved: message.parts[0].text, rendered, flag: targetElement.dataset.streamRendered };
+  };
+  const templated = await run('playful');
+  assert.doesNotMatch(templated.saved, /"mode"/);
+  assert.equal(templated.rendered, templated.saved);
+  assert.equal(templated.flag, 'false', 'the streamed view is redrawn with the saved spec');
+  const adaptive = await run('auto');
+  assert.equal(adaptive.saved, reply, 'AI adaptive keeps what the model wrote');
+  assert.equal(adaptive.flag, 'true');
 });
