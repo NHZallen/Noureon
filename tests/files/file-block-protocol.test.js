@@ -151,6 +151,21 @@ test('a truly cut-off file stays incomplete even when its inner fences are balan
   assert.equal(block.content, '```\nraw\n```\nThe next sentence was cut o');
 });
 
+test('a closing fence written at the end of the last line still ends the file', () => {
+  // Gemini: "…營運成長果實。````" followed by the reply's closing sentence.
+  const source = '這是財報：\n\n````file 財報.docx\n---\ntitle: 財報\n---\n\n## 一\n\n```js\nconst a = 1; ````\n```\n\n與股東共享營運成長果實。````\n\n這份虛擬財報包含完整結構。';
+  const [block] = scanFileBlocks(source);
+  assert.equal(block.complete, true);
+  assert.equal(block.repaired, true);
+  assert.ok(block.content.endsWith('與股東共享營運成長果實。'), 'the fence is not part of the file');
+  assert.ok(block.content.includes('const a = 1; ````'), 'a fence-like ending inside code is content');
+  const { text } = extractFileBlocks(source);
+  assert.match(text, /NOURA_FILE_TOKEN_0_END\s+這份虛擬財報包含完整結構。$/, 'the sentence after the file stays in the reply');
+  assert.equal(formatFileBlockSource(source, block).endsWith('果實。\n````\n'), true, 'history shows the fence on its own line');
+  assert.equal(scanFileBlocks(source, { streaming: true })[0].complete, false, 'while streaming the file may still continue');
+  assert.equal(scanFileBlocks('````file a.md\nshort fence ```\nmore')[0].complete, false, 'a shorter fence is not a closing one');
+});
+
 test('several files closed with three backticks, or not at all, are still separated', () => {
   const source = [
     '````file a.docx',

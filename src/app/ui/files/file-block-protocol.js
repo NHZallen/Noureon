@@ -110,6 +110,33 @@ function findShortClosingLine(lines, fromIndex, toIndex, fence) {
   return inner?.closesFile ? inner.index : -1;
 }
 
+// Models sometimes put the closing fence at the end of the file's last line
+// ("…the end.````") instead of on a line of its own; the file then never
+// closes and swallows the rest of the reply. For a file that would otherwise
+// be unfinished, the first such line outside inner code blocks ends it.
+const TRAILING_FENCE_PATTERN = /^(.*[^`~\s])[ \t]*(`{3,}|~{3,})[ \t]*$/;
+
+function findTrailingClosingFence(lines, fromIndex, fence) {
+  let inner = null;
+  for (let index = fromIndex; index < lines.length; index += 1) {
+    const { text } = lines[index];
+    if (inner) {
+      if (isFenceOnlyLine(text, inner[0], inner.length)) inner = null;
+      continue;
+    }
+    const opening = ANY_OPENING_PATTERN.exec(text);
+    if (opening) {
+      if (!(opening[2][0] === '`' && opening[3].includes('`'))) inner = opening[2];
+      continue;
+    }
+    const trailing = TRAILING_FENCE_PATTERN.exec(text);
+    if (trailing && trailing[2][0] === fence[0] && trailing[2].length >= fence.length) {
+      return { index, contentLength: trailing[1].length };
+    }
+  }
+  return null;
+}
+
 // A new file opened with at least the active fence cannot be content of the
 // active file (it would need a longer outer fence), so the active file ended.
 const opensSiblingFileBlock = (text, fence) => {
@@ -235,7 +262,20 @@ export function scanFileBlocks(text = '', { streaming = false } = {}) {
   }
 
   if (active) {
-    const repaired = !streaming && endActiveBefore(lines.length, { requireClosingLine: true });
+    let repaired = !streaming && endActiveBefore(lines.length, { requireClosingLine: true });
+    const trailing = !repaired && !streaming ? findTrailingClosingFence(lines, active.lineIndex + 1, active.fence) : null;
+    if (trailing) {
+      const line = lines[trailing.index];
+      blocks.push(finishBlock(source, {
+        ...active,
+        contentEnd: line.start + trailing.contentLength,
+        end: line.end,
+        complete: true,
+        repaired: true
+      }));
+      active = null;
+      repaired = true;
+    }
     if (!repaired) {
       blocks.push(finishBlock(source, {
         ...active,
