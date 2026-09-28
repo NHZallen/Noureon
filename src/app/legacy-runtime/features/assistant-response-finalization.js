@@ -3,20 +3,29 @@ import { normalizeHistorySourceConversationIds } from '../../runtime/memory/hist
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
-// Only replies with a presentation, in a conversation with a template, load
-// the enforcer (and the design modules behind it).
+// Only replies with a presentation or Word document, in a conversation with
+// a template for it, load the enforcer (and the design modules behind it).
 const PPTX_FILE_BLOCK = /(?:^|\n)[ \t]*(?:`{3,}|~{3,})[ \t]*file[ \t]+[^\n]*\.pptx[ \t]*(?:\n|$)/i;
+const DOCX_FILE_BLOCK = /(?:^|\n)[ \t]*(?:`{3,}|~{3,})[ \t]*file[ \t]+[^\n]*\.docx[ \t]*(?:\n|$)/i;
 const TEMPLATE_ID = /^[a-z]+$/;
-async function enforceChosenDeckTemplate(text, deckDesign) {
-  if (!deckDesign || deckDesign === 'auto' || !TEMPLATE_ID.test(deckDesign) || !PPTX_FILE_BLOCK.test(String(text || ''))) return text;
+const chosen = (value) => Boolean(value) && value !== 'auto' && TEMPLATE_ID.test(value);
+async function enforceChosenTemplates(text, { deckDesign, documentDesign } = {}) {
+  const source = String(text || '');
+  const deck = chosen(deckDesign) && PPTX_FILE_BLOCK.test(source);
+  const document = chosen(documentDesign) && DOCX_FILE_BLOCK.test(source);
+  if (!deck && !document) return text;
   try {
-    const [{ enforceDeckTemplate }, { DESIGN_PRESET_IDS }] = await Promise.all([
+    const [enforcer, { DESIGN_PRESET_IDS }, { DOCUMENT_PRESET_IDS }] = await Promise.all([
       import('../../ui/files/design/deck-template-enforcer.js'),
-      import('../../ui/files/design/design-presets.js')
+      import('../../ui/files/design/design-presets.js'),
+      import('../../ui/files/design/document-presets.js')
     ]);
-    return DESIGN_PRESET_IDS.includes(deckDesign) ? enforceDeckTemplate(text, deckDesign) : text;
+    let output = text;
+    if (deck && DESIGN_PRESET_IDS.includes(deckDesign)) output = enforcer.enforceDeckTemplate(output, deckDesign);
+    if (document && DOCUMENT_PRESET_IDS.includes(documentDesign)) output = enforcer.enforceDocumentTemplate(output, documentDesign);
+    return output;
   } catch (error) {
-    console.error('Applying the chosen presentation template failed:', error);
+    console.error('Applying the chosen template failed:', error);
     return text;
   }
 }
@@ -63,11 +72,12 @@ export async function finalizeAssistantResponse({
     throw new Error(getEmptyResponseMessage(uiLanguage));
   }
 
-  // A template chosen in the composer is applied exactly: decks in the reply
-  // keep only the preset and their accent colours, whatever else the model
-  // wrote. The streamed view is redrawn so the cards carry the saved spec.
+  // A template chosen in the composer is applied exactly: decks and Word
+  // documents in the reply keep only the template and their accent colours,
+  // whatever else the model wrote. The streamed view is redrawn so the cards
+  // carry the saved content.
   if (!hasFinalParts) {
-    const enforced = await enforceChosenDeckTemplate(fullResponse, conversation?.deckDesign);
+    const enforced = await enforceChosenTemplates(fullResponse, { deckDesign: conversation?.deckDesign, documentDesign: conversation?.documentDesign });
     if (enforced !== fullResponse) {
       fullResponse = enforced;
       if (targetElement?.dataset) targetElement.dataset.streamRendered = 'false';

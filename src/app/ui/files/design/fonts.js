@@ -73,6 +73,9 @@ export const FONT_SETS = Object.freeze({
   kai: { heading: role('Lora', 'kai'), body: role('Lora', 'kai'), label: role('Lora', 'kai') },
   rounded: { heading: role('Nunito', 'rounded'), body: role('Nunito', 'rounded'), label: role('Nunito', 'rounded') },
   plex: { heading: role('IBM Plex Sans', 'sans'), body: role('IBM Plex Sans', 'sans'), label: role('IBM Plex Mono', 'sans') },
+  // Serif body text, for documents read on paper (Word templates).
+  book: { heading: role('Source Serif 4', 'serif'), body: role('Source Serif 4', 'serif'), label: role('Source Sans 3', 'sans') },
+  garamond: { heading: role('Cormorant Garamond', 'classical'), body: role('Source Serif 4', 'serif'), label: role('Source Sans 3', 'sans') },
   office: { heading: role('Aptos', 'office'), body: role('Aptos', 'office'), label: role('Aptos', 'office'), system: true }
 });
 

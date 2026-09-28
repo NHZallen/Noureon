@@ -1,5 +1,7 @@
 import { describeDesignParameters } from './design/design-params.js';
 import { DESIGN_PRESET_IDS, getPresetText } from './design/design-presets.js';
+import { describeDocumentDesignParameters } from './design/document-design.js';
+import { DOCUMENT_PRESET_IDS, getDocumentPresetText } from './design/document-presets.js';
 import { isGeneratorAvailable } from './file-type-registry.js';
 
 // Loaded on demand from stream-api-call.js. Keep the wording imperative and
@@ -82,7 +84,7 @@ Rules:
 // What each design parameter does, for a model choosing them itself.
 const DESIGN_PARAMETER_NOTES = `Meaning:
 - mode: light or dark slides. background: neutral white/black, warm paper, cool grey, tinted with the accent, or the accent itself as the slide colour. accent: main colour; accent2: optional second colour (null derives one). colorUse: how much colour appears.
-- fonts: modern (Inter), tight (Inter Tight, mono labels), geometric (Manrope), condensed (Oswald headings), editorial (Playfair Display), modernSerif (Instrument Serif), consulting (Source Serif + Source Sans), classical (Cormorant Garamond), kai (handwritten Chinese), rounded (Nunito), plex (IBM Plex), office (Aptos/Calibri, no embedded fonts: only for files that must be edited anywhere).
+- fonts: modern (Inter), tight (Inter Tight, mono labels), geometric (Manrope), condensed (Oswald headings), editorial (Playfair Display), modernSerif (Instrument Serif), consulting (Source Serif + Source Sans), classical (Cormorant Garamond), kai (handwritten Chinese), rounded (Nunito), plex (IBM Plex), book (Source Serif throughout), garamond (Cormorant Garamond headings, serif body), office (Aptos/Calibri, no embedded fonts: only for files that must be edited anywhere).
 - headingWeight, headingCase (upper = all caps for Latin and Cyrillic), tracking, typeScale (ratio between sizes), titleSize, density (whitespace), align (titles left or centred).
 - cover: type, split (colour panel and image), bleed (full-slide image), band, frame. section: number (big numeral), field (full colour slide), split, rule.
 - imageShape: bleed, inset, rounded, arch, circle. motifs (up to two): rules, meta (corner labels), grid, shapes, glow, frame, blob.
@@ -96,7 +98,7 @@ Text colours are adjusted automatically to meet contrast, so any accent works.`;
  */
 function presentationDesignGuidance(deckDesign) {
   if (DESIGN_PRESET_IDS.includes(deckDesign)) {
-    return `Design: the user chose the "${deckDesign}" template (${getPresetText(deckDesign, 'en').feature}). Write "design": { "preset": "${deckDesign}" } with no other design keys, even if earlier files in this conversation used another design: the app applies the template as designed. Only when the user's latest message asks for different colours, add "accent" (and "accent2") as "#RRGGBB". Other design changes (fonts, dark or light, layout, decoration) are not possible with a template: say so briefly and suggest switching "Presentation design" to AI adaptive.`;
+    return `Design: the user chose the "${deckDesign}" template (${getPresetText(deckDesign, 'en').feature}). Write "design": { "preset": "${deckDesign}" } with no other design keys, even if earlier files in this conversation used another design: the app applies the template as designed. Only when the user's latest message asks for different colours, add "accent" (and "accent2") as "#RRGGBB". Other design changes (fonts, dark or light, layout, decoration) are not possible with a template: say so briefly and suggest switching "Design" to AI adaptive.`;
   }
   return [
     'Design (AI adaptive, the user\'s choice): set every design parameter yourself for this content, audience and purpose, and write the complete "design" object with all of these keys. Presets are only starting points; combine and change freely. Follow any style the user asks for (colours, dark or light, formal or playful).',
@@ -106,15 +108,40 @@ function presentationDesignGuidance(deckDesign) {
   ].join('\n');
 }
 
+const DOCUMENT_DESIGN_NOTES = `Meaning:
+- accent, accent2: colours as "#RRGGBB"; text colours are adjusted for contrast automatically. headingColor: accent or text (black).
+- fonts: modern (Inter), tight (Inter Tight), geometric (Manrope), book (Source Serif body and headings), garamond (Cormorant Garamond headings, serif body), consulting (Source Serif + Source Sans), editorial (Playfair Display headings), classical, kai (handwritten Chinese), rounded (Nunito), plex (IBM Plex), office (Aptos/Calibri, no embedded fonts: only when the file must be edited on any computer).
+- headingWeight, headingCase (upper or smallcaps for Latin and Cyrillic), tracking (letter spacing of titles), typeScale (ratio between heading sizes; 1 keeps every heading at body size, as APA does).
+- headings: plain, rule (line under section headings), bar (colour bar beside them), shaded (section headings on a colour band), centered (APA: centred section headings).
+- cover: none (title at the top of page 1), block (title block with a vertical rule), page (typographic cover page), band (colour band cover), shapes (geometric colour blocks), title (APA title page). titleAlign: left or center.
+- bodySize in points, lineSpacing in lines (1.15 normal, 1.5 airy, 2 double), paragraphSpacing in points after each paragraph, paragraphs: spaced or indented (first-line indent, no space between).
+- tables: grid, lines (horizontal rules only), shaded (tinted header, banded rows). margins: narrow, normal, wide. pageNumber: footer or header (top right).`;
+
+/**
+ * The design part of the Word guidance. `documentDesign` is the choice made
+ * in the composer's Design picker: a template id or "auto" (the default).
+ */
+function documentDesignGuidance(documentDesign) {
+  if (DOCUMENT_PRESET_IDS.includes(documentDesign)) {
+    return `Design: the user chose the "${documentDesign}" Word template (${getDocumentPresetText(documentDesign, 'en').feature}). Add "template: ${documentDesign}" to the front matter and no other design keys, even if earlier files in this conversation used another design. Only when the user's latest message asks for different colours, add "accent" (and "accent2") as "#RRGGBB". Other design changes are not possible with a template: say so briefly and suggest switching "Design" to AI adaptive.`;
+  }
+  return [
+    'Design (AI adaptive, the user\'s choice): choose the document design yourself for this content, audience and purpose, and write every one of these keys in the front matter (one "key: value" line each). Follow any style the user asks for.',
+    describeDocumentDesignParameters(),
+    DOCUMENT_DESIGN_NOTES,
+    `Templates for reference (you may add "template: <id>" as a base and override keys): ${DOCUMENT_PRESET_IDS.join(', ')}.`
+  ].join('\n');
+}
+
 const RICH_GUIDANCE = Object.freeze({
-  docx: () => DOCX_GUIDANCE,
+  docx: ({ documentDesign }) => `${DOCX_GUIDANCE}\n${documentDesignGuidance(documentDesign)}`,
   pptx: ({ deckDesign }) => `${PPTX_GUIDANCE}\n${presentationDesignGuidance(deckDesign)}`
 });
 
-export async function getFileAuthoringGuidance({ deckDesign = 'auto' } = {}) {
+export async function getFileAuthoringGuidance({ deckDesign = 'auto', documentDesign = 'auto' } = {}) {
   const sections = [GENERAL_GUIDANCE, TEXT_GUIDANCE];
   for (const [generator, guidance] of Object.entries(RICH_GUIDANCE)) {
-    if (isGeneratorAvailable(generator)) sections.push(guidance({ deckDesign }));
+    if (isGeneratorAvailable(generator)) sections.push(guidance({ deckDesign, documentDesign }));
   }
   return sections.join('\n\n');
 }

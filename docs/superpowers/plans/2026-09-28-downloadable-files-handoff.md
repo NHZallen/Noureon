@@ -28,7 +28,8 @@
 | A4b | ✅ 已上線 | 輸入框「簡報設計」按鈕：AI 自適應（預設）或指定 20 套範本；指定範本時程式強制套用（只允許在對話中改主色、輔色） |
 | 其他修正 | ✅ 已上線 | 手機版選單不超出畫面；iPhone 上 Chrome 等非 Safari 瀏覽器改用分享選單下載 |
 | **V1** | ✅ **已完成，待真實模型與正式網站驗證** | 看圖檢查；進度依使用者要求改為通知（詳細設計與驗證見 §3） |
-| **W2** → A3 → A5 → A6 → B0～B5 | ⬜ **下一階段** | 見總計畫的「階段規劃」 |
+| **W2** | ✅ **已完成，待推送** | Word 設計：「設計」按鈕分簡報／Word 兩頁、9 套範本或 AI 自適應、封面、字型嵌入（見設計系統規格「Word 文件設計（W2）」） |
+| **A3** → A5 → A6 → B0～B5 | ⬜ **下一階段** | 見總計畫的「階段規劃」 |
 
 V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 初版 commit：`ea4a1688 Implement V1 visual review for presentations`。2026-09-28 使用者要求將進度改為通知並授權推送 `main`。
 
@@ -36,6 +37,8 @@ V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the ne
 
 - **iPhone 上的 Chrome 下載**：改用分享選單（`deliverFile`、`prefersShareSheet`，在 `src/app/ui/files/file-card-interactions.js`）。沒有 iPhone 實機測過；請使用者在 iPhone Chrome 按一次下載確認。
 - **AI 自適應**：還沒用真的模型確認它會寫出完整的 25 項參數（提示詞在 `src/app/ui/files/file-authoring-guidance.js` 的 `presentationDesignGuidance`）。
+- **Word 設計的 AI 自適應**：還沒用真的模型確認它會寫出完整的 18 項文件參數（`documentDesignGuidance`）。
+- **Word「另存 PDF」**：襯線中文子集匯出 PDF 時文字層錯誤（見設計系統規格 W2 的已知限制）。
 - **字型授權**：Playfair Display、Source 系列、IBM Plex 有 OFL 保留字型名稱，嵌入文件的子集沿用原名；上線前建議確認是否需要改名（見設計系統規格「授權」）。
 
 ## 3. V1 看圖檢查：已完成
@@ -68,13 +71,14 @@ src/app/ui/files/
   design/                                        設計系統（延後載入）
     document-spec.js, design-params.js, design-presets.js, palette.js, fonts.js,
     slide-engine.js, slide-layouts.js, slide-kit.js, rich-text.js, text-layout.js,
-    deck-design-picker.js(.css), deck-template-enforcer.js
+    deck-design-picker.js(.css), deck-template-enforcer.js,
+    document-presets.js, document-design.js, document-thumbnail.js   Word 範本、參數與縮圖
   generators/                                    檔案產生（延後載入）
     docx-file.js, pptx-file.js, pptx-layout.js, pptx-writer.js, pptx-text.js,
     pptx-charts.js, pptx-assets.js, font-embedding.js, chart-image-export.js
   previews/                                      預覽（延後載入）
     docx-page-preview.js, slide-preview.js, slide-chart-preview.js
-src/app/runtime/features/deck-design-control.js  輸入框的「簡報設計」按鈕
+src/app/runtime/features/deck-design-control.js  輸入框的「設計」按鈕（簡報／Word 兩頁）
 src/app/legacy-runtime/features/assistant-response-finalization.js  回覆存檔前強制套用範本
 src/assets/fonts/                                嵌入用字型（由 scripts/build-fonts.mjs 產生）
 ```
@@ -121,5 +125,5 @@ try {
 - 產生後的「設計面板」（換範本、AI 調參數卡片、25 項微調、寫回訊息）：已移除，改成製作前在輸入框選擇。
 - 「AI 一次給三組設計方向再挑選」：不做。
 - 漸層、彩色的 AI 卡片：使用者要黑白極簡。
-- 「簡報設計」按鈕顯示目前選擇或前面加星號：按鈕固定顯示「簡報設計」，不加符號。
+- 按鈕顯示目前選擇或前面加星號：按鈕固定顯示文字（W2 起改名「設計」），不加符號。
 - 第一版 8 套簡報風格：被退回，要求參考各大廠重做（現在的 20 套）。

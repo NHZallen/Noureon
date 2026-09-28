@@ -401,6 +401,107 @@ export async function embedFontsInPresentation(zip, families) {
   return embedded;
 }
 
+// Word stores embedded fonts as obfuscated TrueType (word/fonts/*.odttf):
+// the first 32 bytes are XORed with the font key, a GUID read backwards
+// (ECMA-376 Part 1, 17.8.1). The key is written in the font table entry.
+const WORD_FAMILY = Object.freeze({ 'sans-serif': 'swiss', serif: 'roman', monospace: 'modern' });
+// w:charset is the Windows charset as hex: CHINESEBIG5 136 → 88.
+const WORD_CHARSETS = Object.freeze({ latin: '00', 'zh-Hant': '88', 'zh-Hans': '86', ja: '80', ko: '81' });
+const WORD_SLOTS = Object.freeze({ regular: 'embedRegular', bold: 'embedBold', italic: 'embedItalic', boldItalic: 'embedBoldItalic' });
+
+function randomGuid(random = Math.random) {
+  const bytes = globalThis.crypto?.getRandomValues
+    ? globalThis.crypto.getRandomValues(new Uint8Array(16))
+    : Uint8Array.from({ length: 16 }, () => Math.floor(random() * 256));
+  const hexText = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+  return `${hexText.slice(0, 8)}-${hexText.slice(8, 12)}-${hexText.slice(12, 16)}-${hexText.slice(16, 20)}-${hexText.slice(20)}`;
+}
+
+/** Obfuscates (or, applied again, restores) a font with a GUID font key. */
+export function obfuscateFont(fontBytes, guid) {
+  const hexText = String(guid).replace(/[{}-]/g, '');
+  if (!/^[0-9A-Fa-f]{32}$/.test(hexText)) throw new Error('font key must be a GUID');
+  const key = Array.from({ length: 16 }, (_, index) => Number.parseInt(hexText.slice(index * 2, index * 2 + 2), 16)).reverse();
+  const output = new Uint8Array(fontBytes);
+  for (let index = 0; index < Math.min(32, output.length); index += 1) output[index] ^= key[index % 16];
+  return output;
+}
+
+/**
+ * Adds embedded fonts to a DOCX package (a JSZip instance) written by the
+ * docx library: odttf parts, their font table entries and relationships,
+ * and the settings that make Word load them. `families` is the output of
+ * prepareEmbeddedFamilies. Returns the typefaces embedded.
+ */
+export async function embedFontsInDocument(zip, families, { guid = randomGuid } = {}) {
+  const tablePath = 'word/fontTable.xml';
+  const relationshipsPath = 'word/_rels/fontTable.xml.rels';
+  let table = await zip.file(tablePath)?.async('string');
+  if (!table) throw new Error('document has no font table');
+  let relationships = (await zip.file(relationshipsPath)?.async('string')
+    || '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>')
+    // The docx library writes an empty list as a self-closing element.
+    .replace(/<Relationships\b([^>]*)\/>/, '<Relationships$1></Relationships>');
+  let settings = await zip.file('word/settings.xml').async('string');
+  let contentTypes = await zip.file('[Content_Types].xml').async('string');
+
+  const usedIds = new Set([...relationships.matchAll(/Id="([^"]+)"/g)].map((match) => match[1]));
+  let nextId = 1;
+  const newId = () => {
+    while (usedIds.has(`rIdFont${nextId}`)) nextId += 1;
+    usedIds.add(`rIdFont${nextId}`);
+    return `rIdFont${nextId}`;
+  };
+  let fileIndex = 1;
+  while (zip.file(`word/fonts/font${fileIndex}.odttf`)) fileIndex += 1;
+
+  const entries = [];
+  const embedded = [];
+  for (const family of families) {
+    const slots = [];
+    for (const [slot, element] of Object.entries(WORD_SLOTS)) {
+      const face = family.faces[slot];
+      if (!face) continue;
+      if (!fontAllowsEmbedding(readFontInfo(face))) continue;
+      const key = guid();
+      const id = newId();
+      const target = `fonts/font${fileIndex}.odttf`;
+      fileIndex += 1;
+      zip.file(`word/${target}`, obfuscateFont(face, key));
+      relationships = relationships.replace('</Relationships>', `<Relationship Id="${id}" Type="${FONT_RELATIONSHIP}" Target="${target}"/></Relationships>`);
+      slots.push(`<w:${element} r:id="${id}" w:fontKey="{${key}}"/>`);
+    }
+    if (!slots.length) continue;
+    const name = escapeXml(family.typeface);
+    // Replace any entry Word would otherwise use for this name.
+    table = table.replace(new RegExp(`<w:font w:name="${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">[\\s\\S]*?</w:font>`, 'g'), '');
+    entries.push(`<w:font w:name="${name}"><w:charset w:val="${WORD_CHARSETS[family.script] ?? '00'}"/><w:family w:val="${WORD_FAMILY[family.generic] || 'auto'}"/><w:pitch w:val="${family.generic === 'monospace' ? 'fixed' : 'variable'}"/>${slots.join('')}</w:font>`);
+    embedded.push(family.typeface);
+  }
+  if (!entries.length) return embedded;
+
+  table = /<w:fonts\b[^>]*\/>/.test(table)
+    ? table.replace(/<w:fonts\b([^>]*)\/>/, `<w:fonts$1>${entries.join('')}</w:fonts>`)
+    : table.replace('</w:fonts>', `${entries.join('')}</w:fonts>`);
+  if (!/Extension="odttf"/.test(contentTypes)) {
+    contentTypes = contentTypes.replace(/(<Types[^>]*>)/, '$1<Default Extension="odttf" ContentType="application/vnd.openxmlformats-officedocument.obfuscatedFont"/>');
+  }
+  // embedTrueTypeFonts makes Word keep the fonts when the file is saved
+  // again; saveSubsetFonts keeps them subset. Schema order puts them right
+  // after displayBackgroundShape (or at the start).
+  if (!/<w:embedTrueTypeFonts\b/.test(settings)) {
+    const flags = '<w:embedTrueTypeFonts/><w:saveSubsetFonts/>';
+    settings = /<w:displayBackgroundShape\/>/.test(settings)
+      ? settings.replace('<w:displayBackgroundShape/>', `<w:displayBackgroundShape/>${flags}`)
+      : settings.replace(/(<w:settings\b[^>]*>)/, `$1${flags}`);
+  }
+  zip.file(tablePath, table);
+  zip.file(relationshipsPath, relationships);
+  zip.file('word/settings.xml', settings);
+  zip.file('[Content_Types].xml', contentTypes);
+  return embedded;
+}
+
 /**
  * Builds the families to embed from the faces a document uses.
  *   faces: [{ family, typeface, slot, weight, script }] (duplicates allowed)

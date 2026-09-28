@@ -5,6 +5,7 @@ import { createStreamApiCall } from '../../src/app/legacy-runtime/features/strea
 import { createDeckDesignControl, normalizeDeckDesign } from '../../src/app/runtime/features/deck-design-control.js';
 import { DESIGN_PARAM_KEYS } from '../../src/app/ui/files/design/design-params.js';
 import { DESIGN_PRESET_IDS, getPresetText } from '../../src/app/ui/files/design/design-presets.js';
+import { DOCUMENT_PRESET_IDS, getDocumentPresetText } from '../../src/app/ui/files/design/document-presets.js';
 import { renderDeckDesignPicker } from '../../src/app/ui/files/design/deck-design-picker.js';
 import { getFileAuthoringGuidance } from '../../src/app/ui/files/file-authoring-guidance.js';
 import { getFileText } from '../../src/app/ui/files/file-texts.js';
@@ -24,8 +25,9 @@ test('a chosen template is written as that preset, without the parameter list', 
   const guidance = await getFileAuthoringGuidance({ deckDesign: 'consulting' });
   assert.match(guidance, /the user chose the "consulting" template/);
   assert.match(guidance, /"design": \{ "preset": "consulting" \}/);
-  assert.doesNotMatch(guidance, /Design \(AI adaptive/);
-  assert.doesNotMatch(guidance, /- typeScale:/);
+  const deckPart = guidance.slice(guidance.indexOf('## PowerPoint'));
+  assert.doesNotMatch(deckPart, /Design \(AI adaptive/);
+  assert.doesNotMatch(deckPart, /- motifs:/);
   assert.match(guidance, /even if earlier files in this conversation used another design/);
   assert.match(guidance, /add "accent"/);
 });
@@ -79,20 +81,26 @@ test('the composer control shows and saves the conversation\'s choice', async ()
     control.render();
     const button = document.getElementById('deck-design-btn');
     assert.equal(button.parentElement.parentElement.id, 'file-input-container', 'sits next to the attachment button');
-    assert.equal(document.querySelector('.deck-design-label').textContent, 'Presentation design', 'the button always reads Presentation design');
-    assert.equal(button.title, 'Presentation design: AI adaptive');
+    assert.equal(document.querySelector('.deck-design-label').textContent, 'Design', 'the button always reads Design');
+    assert.equal(button.title, 'Design: Presentations AI adaptive · Word documents AI adaptive');
     assert.equal(button.querySelector('svg:not(.deck-design-chevron)'), null, 'no icon before the label');
     assert.equal(button.disabled, false);
 
     await control.choose('neon');
     assert.equal(conversation.deckDesign, 'neon');
     assert.equal(saves, 1);
-    assert.equal(document.querySelector('.deck-design-label').textContent, 'Presentation design');
-    assert.equal(button.title, `Presentation design: ${getPresetText('neon', 'en').name}`);
+    assert.equal(document.querySelector('.deck-design-label').textContent, 'Design');
+    assert.equal(button.title, `Design: Presentations ${getPresetText('neon', 'en').name} · Word documents AI adaptive`);
+    await control.choose('document', 'academic');
+    assert.equal(conversation.documentDesign, 'academic');
+    assert.equal(conversation.deckDesign, 'neon', 'each kind keeps its own choice');
+    assert.match(button.title, /Word documents Academic$/);
+    await control.choose('document', 'not-a-template');
+    assert.equal(conversation.documentDesign, 'auto');
 
     conversation = { id: 'b', messages: [] };
     control.render();
-    assert.equal(button.title, 'Presentation design: AI adaptive', 'each conversation keeps its own choice');
+    assert.equal(button.title, 'Design: Presentations AI adaptive · Word documents AI adaptive', 'each conversation keeps its own choice');
     conversation = null;
     control.render();
     assert.equal(button.disabled, true);
@@ -110,16 +118,29 @@ test('the picker offers AI adaptive and every template, in all five languages', 
     try {
       const chosen = [];
       const container = document.getElementById('picker');
-      const picker = renderDeckDesignPicker(container, { document, window, language, current: 'auto', onChoose: (value) => chosen.push(value) });
+      const picker = renderDeckDesignPicker(container, { document, window, language, current: { deck: 'auto' }, onChoose: (kind, value) => chosen.push(`${kind}:${value}`) });
+      picker.show('deck');
       const options = container.querySelectorAll('[data-deck-design]');
       assert.equal(options.length, DESIGN_PRESET_IDS.length + 1);
       assert.equal(container.querySelector('[aria-pressed="true"]').dataset.deckDesign, 'auto');
       assert.equal(container.querySelector('.deck-design-auto-name').textContent, getFileText(language, 'deckDesignAuto'));
       container.querySelector('[data-deck-design="bauhaus"]').click();
-      assert.deepEqual(chosen, ['bauhaus']);
-      picker.setCurrent('bauhaus');
+      assert.deepEqual(chosen, ['deck:bauhaus']);
+      picker.setCurrent({ deck: 'bauhaus' });
       assert.equal(container.querySelector('[aria-pressed="true"]').dataset.deckDesign, 'bauhaus');
-      for (const key of ['deckDesign', 'deckDesignAuto', 'deckDesignAutoHint', 'deckDesignIntro', 'deckDesignTemplates', 'deckSampleTitle']) {
+
+      // The Word tab: AI adaptive and the 9 document templates.
+      container.querySelector('[data-design-kind="document"]').click();
+      assert.equal(container.querySelector('[role="tab"][aria-selected="true"]').dataset.designKind, 'document');
+      assert.equal(container.querySelectorAll('[data-deck-design]').length, DOCUMENT_PRESET_IDS.length + 1);
+      assert.equal(container.querySelector('[aria-pressed="true"]').dataset.deckDesign, 'auto', 'the document choice is separate');
+      container.querySelector('[data-deck-design="academic"]').click();
+      assert.deepEqual(chosen, ['deck:bauhaus', 'document:academic']);
+      for (const id of DOCUMENT_PRESET_IDS) {
+        const presetText = getDocumentPresetText(id, language);
+        assert.ok(presetText.name && presetText.feature && presetText.fit, id + ' ' + language);
+      }
+      for (const key of ['design', 'designTabDeck', 'designTabDocument', 'documentDesignAutoHint', 'documentDesignIntro', 'documentSampleHeading', 'deckDesignAuto', 'deckDesignAutoHint', 'deckDesignIntro', 'deckDesignTemplates', 'deckSampleTitle']) {
         const value = getFileText(language, key);
         assert.ok(value && value !== key, `${key} ${language}`);
       }

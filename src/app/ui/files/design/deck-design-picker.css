@@ -18,8 +18,38 @@
     font-size: 0.92rem;
     font-weight: 600;
 }
+/* Presentations | Word documents: underlined text tabs, black and white. */
+.deck-design-tabs {
+    display: flex;
+    gap: 1.1rem;
+    margin: 0.55rem 0 0.7rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+.deck-design-tab {
+    margin-bottom: -1px;
+    padding: 0.35rem 0 0.45rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.deck-design-tab:hover {
+    color: var(--text-primary);
+}
+.deck-design-tab[aria-selected="true"] {
+    border-bottom-color: var(--text-primary);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.deck-design-tab:focus-visible {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 2px;
+}
 .deck-design-intro {
-    margin: 0.2rem 0 0.75rem;
+    margin: 0 0 0.75rem;
     color: var(--text-secondary);
     font-size: 0.76rem;
     line-height: 1.5;
@@ -103,6 +133,17 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
     transition: box-shadow 0.15s ease;
 }
+.deck-design-grid.is-document .deck-design-thumb {
+    aspect-ratio: 210 / 297;
+    background: #ffffff;
+}
+.deck-design-thumb .ac-doc-thumb-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    color: inherit;
+    stroke: none;
+}
 .deck-design-thumb .ac-slide-svg {
     border-radius: 0;
     box-shadow: none;
@@ -123,7 +164,7 @@
     font-weight: 600;
 }
 @media (max-width: 480px) {
-    .deck-design-grid {
+    .deck-design-grid:not(.is-document) {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

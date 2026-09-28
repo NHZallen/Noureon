@@ -176,7 +176,23 @@ function normalizeLineRules(xml) {
   return changed;
 }
 
-export async function prepareDocxPackage(data, { window, document }) {
+// Documents with embedded fonts are drawn with the same subsets, registered
+// page-wide under names of their own (see registerPreviewFonts): the preview
+// lives in a shadow root, where Chrome ignores @font-face rules.
+function aliasFonts(xml, aliases) {
+  let changed = 0;
+  [...xml.getElementsByTagNameNS(WORD_NS, 'rFonts')].forEach((fonts) => {
+    for (const name of ['ascii', 'hAnsi', 'eastAsia', 'cs']) {
+      const value = fonts.getAttributeNS(WORD_NS, name) || fonts.getAttribute(`w:${name}`);
+      if (!value || !aliases.has(value)) continue;
+      fonts.setAttributeNS(WORD_NS, `w:${name}`, aliases.get(value));
+      changed += 1;
+    }
+  });
+  return changed;
+}
+
+export async function prepareDocxPackage(data, { window, document, fontAliases = new Map() }) {
   const zip = await JSZip.loadAsync(data);
   const parser = new window.DOMParser();
   const serializer = new window.XMLSerializer();
@@ -190,6 +206,7 @@ export async function prepareDocxPackage(data, { window, document }) {
     if (xml.getElementsByTagName('parsererror').length > 0) continue;
     let changed = replacePageFields(xml) > 0;
     changed = normalizeLineRules(xml) > 0 || changed;
+    if (fontAliases.size) changed = aliasFonts(xml, fontAliases) > 0 || changed;
     const equationCount = equations.length;
     replaceEquations(xml, equations, document);
     changed = changed || equations.length > equationCount;
@@ -225,7 +242,13 @@ function convertAutoLineHeights(root, styleRoot) {
 
 const CJK_PATTERN = /[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/;
 
-function applyWordLineHeights(root, window, document) {
+// Word gives East Asian faces about 30% more leading than their metrics
+// (single line: Noto Sans TC 1.9 em against 1.45 em in a browser; measured
+// in Word for Microsoft 365, 2026-09). Applied to the embedded CJK subsets.
+const WORD_EAST_ASIAN_LEADING = 1.31;
+const familiesOf = (fontFamily) => String(fontFamily || '').split(',').map((family) => family.trim().replace(/^["']|["']$/g, ''));
+
+function applyWordLineHeights(root, window, document, { eastAsianFamilies = new Set() } = {}) {
   const probe = document.createElement('div');
   probe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;white-space:pre;line-height:normal;';
   root.appendChild(probe);
@@ -237,7 +260,9 @@ function applyWordLineHeights(root, window, document) {
       Object.assign(probe.style, { fontFamily: style.fontFamily, fontSize: style.fontSize, fontWeight: style.fontWeight });
       // Ten lines, so the rounded offsetHeight still gives 0.1 px precision.
       probe.textContent = Array(10).fill(cjk ? '\u570BAg' : 'Ag').join('\n');
-      naturalHeights.set(key, probe.offsetHeight / 10);
+      // CJK text in a paragraph set in an embedded East Asian face.
+      const leading = cjk && familiesOf(style.fontFamily).some((family) => eastAsianFamilies.has(family)) ? WORD_EAST_ASIAN_LEADING : 1;
+      naturalHeights.set(key, (probe.offsetHeight / 10) * leading);
     }
     return naturalHeights.get(key);
   };
@@ -559,8 +584,11 @@ function paginate(wrapper, window, document) {
   return pages;
 }
 
-function fillPageNumbers(pages, document) {
+// A cover page (its own section, first in the file) carries no number; the
+// pages after it count from 1 and "of N" is the section's page count.
+function fillPageNumbers(pages, document, { cover = false } = {}) {
   const total = String(pages.length);
+  const sectionTotal = String(cover ? pages.length - 1 : pages.length);
   pages.forEach((page, index) => {
     const walker = document.createTreeWalker(page, 4);
     const nodes = [];
@@ -570,7 +598,8 @@ function fillPageNumbers(pages, document) {
     nodes.forEach((node) => {
       node.nodeValue = node.nodeValue.replace(TOKEN_PATTERN, (match, name, equationIndex) => {
         if (equationIndex !== undefined) return match;
-        return name === 'PAGE' ? String(index + 1) : total;
+        if (name === 'PAGE') return String(cover ? index : index + 1);
+        return name === 'SECTIONPAGES' ? sectionTotal : total;
       });
     });
   });
@@ -600,8 +629,48 @@ const PREVIEW_STYLE = `
  * Renders `blob` into `host` (which gets its own shadow root) and returns
  * { pageCount, dispose }. Throws when the document cannot be drawn.
  */
+let previewFontSequence = 0;
+
+/**
+ * Registers a generated document's font subsets (blob.documentFonts) under
+ * names unique to this preview. Returns { aliases, eastAsianFamilies, faces }.
+ */
+async function registerPreviewFonts(fonts, { window, document }) {
+  const aliases = new Map();
+  const eastAsianFamilies = new Set();
+  const faces = [];
+  if (!fonts?.length || typeof window?.FontFace !== 'function' || !document?.fonts) return { aliases, eastAsianFamilies, faces };
+  previewFontSequence += 1;
+  for (const font of fonts) {
+    const alias = `Noureon Doc ${previewFontSequence} ${font.typeface}`;
+    try {
+      const face = new window.FontFace(alias, font.bytes, { weight: font.slot === 'bold' ? '700' : '400', style: 'normal', display: 'block' });
+      await face.load();
+      document.fonts.add(face);
+      faces.push(face);
+      aliases.set(font.typeface, alias);
+      if (font.eastAsian) eastAsianFamilies.add(alias);
+    } catch {
+      // That face falls back to the fonts the page has.
+    }
+  }
+  return { aliases, eastAsianFamilies, faces };
+}
+
+// docx-preview ignores a section's vertical alignment; the cover page of a
+// generated document centres or bottom-aligns its content like Word does.
+function alignCoverPage(page, align) {
+  const article = page && [...page.children].find((child) => child.tagName.toLowerCase() === 'article');
+  if (!article || !align || align === 'top') return;
+  page.style.display = 'flex';
+  page.style.flexDirection = 'column';
+  Object.assign(article.style, { flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: align === 'center' ? 'center' : 'flex-end' });
+}
+
 export async function renderDocxPreview(blob, host, { window = globalThis.window, document = globalThis.document } = {}) {
-  const prepared = await prepareDocxPackage(await blob.arrayBuffer(), { window, document });
+  const fonts = await registerPreviewFonts(blob.documentFonts, { window, document });
+  const cover = blob.documentLayout?.cover || null;
+  const prepared = await prepareDocxPackage(await blob.arrayBuffer(), { window, document, fontAliases: fonts.aliases });
   const shadow = host.shadowRoot || host.attachShadow({ mode: 'open' });
   shadow.replaceChildren();
   const baseStyle = document.createElement('style');
@@ -629,7 +698,10 @@ export async function renderDocxPreview(blob, host, { window = globalThis.window
     renderComments: false,
     renderChanges: false,
     useBase64URL: true,
-    trimXmlDeclaration: true
+    trimXmlDeclaration: true,
+    // Embedded fonts are registered above; the library's own @font-face
+    // rules would sit in the shadow root, where they do not apply.
+    ignoreFonts: fonts.aliases.size > 0
   });
   // docx-preview puts its styles before the page; keep ours last so they win.
   shadow.appendChild(baseStyle);
@@ -646,9 +718,10 @@ export async function renderDocxPreview(blob, host, { window = globalThis.window
   // Line heights and page breaks depend on the real font metrics.
   await document.fonts?.ready;
   applyWordParagraphSpacing(wrapper, window);
-  applyWordLineHeights(wrapper, window, document);
+  applyWordLineHeights(wrapper, window, document, { eastAsianFamilies: fonts.eastAsianFamilies });
+  if (cover) alignCoverPage(wrapper.querySelector(`section.${CLASS_NAME}`), cover.align);
   const pages = paginate(wrapper, window, document);
-  fillPageNumbers(pages, document);
+  fillPageNumbers(pages, document, { cover: Boolean(cover) });
 
   const naturalWidth = wrapper.offsetWidth;
   const fit = () => {
@@ -683,6 +756,7 @@ export async function renderDocxPreview(blob, host, { window = globalThis.window
       shadow.removeEventListener('click', onClick);
       shadow.removeEventListener('keydown', onKeyDown);
       shadow.replaceChildren();
+      fonts.faces.forEach((face) => document.fonts?.delete?.(face));
     }
   };
 }

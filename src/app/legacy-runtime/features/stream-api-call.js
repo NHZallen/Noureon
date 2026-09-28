@@ -108,12 +108,12 @@ const FILE_OUTPUT_PURPOSES = new Set([
   NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS
 ]);
 
-const getRuntimeFileAuthoringGuidance = async ({ inputText, history, requestPurpose, deckDesign }) => {
+const getRuntimeFileAuthoringGuidance = async ({ inputText, history, requestPurpose, deckDesign, documentDesign }) => {
   if (!FILE_OUTPUT_PURPOSES.has(requestPurpose)) return '';
   if (!shouldInjectFileGuidance({ currentText: inputText, history })) return '';
   const { getFileAuthoringGuidance } = await import('../../ui/files/file-authoring-guidance.js');
-  // The presentation design chosen in the composer before the deck is written.
-  return getFileAuthoringGuidance({ deckDesign });
+  // The designs chosen in the composer before the file is written.
+  return getFileAuthoringGuidance({ deckDesign, documentDesign });
 };
 
 // Loaded on demand so the learning mode prose stays out of the main runtime chunk.
@@ -605,7 +605,8 @@ export function createStreamApiCall({
       inputText: getMessageTextForGuidance(currentMessageForApi),
       history: historyForApi,
       requestPurpose: requestOptions.requestPurpose,
-      deckDesign: conversation?.deckDesign
+      deckDesign: conversation?.deckDesign,
+      documentDesign: conversation?.documentDesign
     });
     const systemInstruction = requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
       config,

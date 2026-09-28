@@ -3,7 +3,8 @@
 // override it with the design of an earlier file in the conversation, so the
 // reply's .pptx specs are rewritten before the message is saved: the design
 // becomes exactly the chosen preset. Only the accent colours survive, so "use
-// that template, but in blue" still works.
+// that template, but in blue" still works. Word documents written with a
+// document template chosen get the same treatment in their front matter.
 
 import { parseHexColor } from './color.js';
 import { parseRelaxedJson } from './relaxed-json.js';
@@ -14,6 +15,7 @@ const DESIGN_KEYS = ['design', 'theme', 'preset', 'template', 'style', 'designs'
 const KEPT = ['accent', 'accent2'];
 // Front matter keys that describe the document, not its design.
 const META_KEYS = new Set(['title', 'subtitle', 'author', 'date', 'footer', 'language', 'lang', 'slidenumbers', 'pagenumbers']);
+const DOCUMENT_META_KEYS = new Set([...META_KEYS, 'toc', 'tableofcontents', 'orientation', 'pagesize', 'papersize', 'header']);
 const fold = (key) => String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const keptColours = (design) => {
@@ -43,20 +45,20 @@ function enforceJson(source, preset) {
   return JSON.stringify({ design, ...rest }, null, 2);
 }
 
-function enforceMarkdown(source, preset) {
+function enforceMarkdown(source, preset, { metaKeys = META_KEYS, presetKey = 'preset' } = {}) {
   const match = /^---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(source);
   const lines = match ? match[1].split('\n') : [];
   const colours = {};
   const kept = lines.filter((line) => {
     const pair = /^\s*([A-Za-z][\w-]*)\s*:\s*(.*)$/.exec(line);
     if (!pair) return true;
-    if (META_KEYS.has(fold(pair[1]))) return true;
+    if (metaKeys.has(fold(pair[1]))) return true;
     const colour = KEPT.find((name) => name === fold(pair[1]));
     const hex = colour && parseHexColor(pair[2].trim().replace(/^(["'])(.*)\1$/, '$2'));
     if (hex) colours[colour] = hex;
     return false;
   });
-  const design = [`preset: ${preset}`, ...Object.entries(colours).map(([key, hex]) => `${key}: ${hex}`)];
+  const design = [`${presetKey}: ${preset}`, ...Object.entries(colours).map(([key, hex]) => `${key}: ${hex}`)];
   const body = match ? source.slice(match[0].length) : source.replace(/^\n+/, '');
   return `---\n${[...kept, ...design].join('\n')}\n---\n${body}`;
 }
@@ -74,12 +76,27 @@ export function enforceTemplateInSpec(content, preset) {
  * Returns the text unchanged when there is nothing to rewrite.
  */
 export function enforceDeckTemplate(text, preset) {
+  return rewriteFileBlocks(text, /\.pptx$/i, (content) => enforceTemplateInSpec(content, preset));
+}
+
+/** A Word document whose front matter names exactly the template `preset`. */
+export function enforceTemplateInDocument(content, preset) {
+  const source = String(content ?? '').replace(/\r\n?/g, '\n');
+  return enforceMarkdown(source, preset, { metaKeys: DOCUMENT_META_KEYS, presetKey: 'template' });
+}
+
+/** Rewrites every complete .docx file block in a reply to use `preset`. */
+export function enforceDocumentTemplate(text, preset) {
+  return rewriteFileBlocks(text, /\.docx$/i, (content) => enforceTemplateInDocument(content, preset));
+}
+
+function rewriteFileBlocks(text, extension, rewrite) {
   const source = String(text ?? '');
-  const blocks = scanFileBlocks(source).filter((block) => block.complete && /\.pptx$/i.test(String(block.name || '').trim()));
+  const blocks = scanFileBlocks(source).filter((block) => block.complete && extension.test(String(block.name || '').trim()));
   let output = source;
   // From the last block backwards, so earlier offsets stay valid.
   for (const block of blocks.reverse()) {
-    const content = enforceTemplateInSpec(block.content, preset);
+    const content = rewrite(block.content);
     if (content === null || content === block.content) continue;
     const original = source.slice(block.start, block.end);
     const fence = '`'.repeat(Math.max(4, block.fence.length));

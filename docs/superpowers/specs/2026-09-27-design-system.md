@@ -271,6 +271,36 @@ PowerPoint 實測結果：用 COM 把 6 份簡報匯出成 PDF 檢查，包括 w
 - **範本強制套用**：模型曾經寫了範本又用前一份簡報的設計把它蓋掉，所以指定範本時，回覆存進訊息前由程式改寫（`deck-template-enforcer.js`）：簡報規格的設計只留範本與主色、輔色，字型、明暗、版面、裝飾一律照範本，已串流的畫面會重畫。使用者可以在對話裡要求改顏色（模型只在最新一則訊息要求時寫 `accent`／`accent2`）；其他改動範本做不到，模型會建議改用 AI 自適應。
 - 原本規劃的「產生後的設計面板」與「AI 給三組方向再挑選」依使用者決定不做。
 
+## Word 文件設計（W2）
+
+Word 文件和簡報一樣可以在製作前選設計；寫法仍是 Markdown，設計寫在最上面的 front matter。**沒有寫任何設計鍵的文件維持 W2 之前的外觀**（`legacyDocumentTheme`），舊對話裡的檔案不會變樣。
+
+- **選擇位置**（2026-09-28 使用者確認）：輸入框的按鈕改名為「設計」（不加符號），打開後分「簡報」「Word 文件」兩個分頁，各自記住選擇；存在對話的 `deckDesign` 與 `documentDesign`（`auto` 或範本 id）。按鈕提示文字顯示兩者的目前選擇。
+- **9 套 Word 範本**（`document-presets.js`，使用者確認「Word 專用的一組」）：
+
+| id | 名稱 | 參考 | 重點 |
+|---|---|---|---|
+| standard | 標準 | Microsoft Word 預設樣式（Office 主題、Aptos） | Office 內建字型、不嵌入字型、藍色標題 |
+| elegant | 典雅 | Word 樣式集「Basic (Elegant)」 | Cormorant Garamond 標題＋Source Serif 內文、大寫加寬字距、置中封面 |
+| lines | 線條 | Word 樣式集「Lines (Simple)」＋封面「Sideline」 | 標題下方細線、標題區左側直線 |
+| monochrome | 黑白 | Word 樣式集「Black & White (Classic)」 | 純黑白、襯線字、置中封面 |
+| spearmint | 薄荷 | Google Docs「Spearmint」系列 | 薄荷綠標題、淺色表頭 |
+| geometric | 幾何 | Google Docs「Geometric」系列 | 封面主色幾何色塊、標題左側色條 |
+| swiss | 瑞士 | Google Docs「Swiss」、國際主義字體排印 | 粗體無襯線字、大字封面、紅色點綴 |
+| academic | 學術 | Apple Pages「Essay」、APA 第 7 版 | 12 點襯線字、兩倍行距、首行縮排、APA 標題頁、頁碼在右上 |
+| technical | 技術 | IBM Carbon（IBM Plex） | 藍色封面色帶、清楚的表格與程式碼 |
+
+- **18 項文件參數**（`document-design.js`）：accent、accent2、fonts、headingWeight、headingCase（normal／upper／smallcaps）、tracking、headingColor、headings（plain／rule／bar／shaded／centered）、titleAlign、cover（none／block／page／band／shapes／title）、bodySize、lineSpacing、paragraphSpacing、paragraphs（spaced／indented）、typeScale、tables（grid／lines／shaded）、margins、pageNumber（footer／header）。字型組沿用簡報的，另加 `book`（全 Source Serif）與 `garamond`；配色沿用 `buildPalette`（文件一律淺色）。
+- **標題層級**：模型通常用 `##` 寫章節，所以標題的大小與裝飾依「文件實際用到的最高層級」排名套用（`topLevel`），不是固定套在 Heading 1。
+- **行距**：Word 的「單行」高度依字型差很多，中文字型還會多加約 30%（實測 Word for Microsoft 365，12 pt：Inter 1.2 em、Source Sans 3 1.4 em、Noto Sans TC 1.9 em、Noto Serif TC 1.85 em、LXGW 1.7 em、Huninn 1.45 em）。`lineSpacing` 定義為「1.2 em 的倍數」，產生時依內文字型換算給 Word 的倍數；中文與英文文件因此行距一致。系統字型當作 1.2，所以「標準」的 1.15 就是 Word 自己的 1.15。
+- **封面**：page／band／shapes／title 是獨立一節（沒有頁首頁尾、不編頁碼），之後的頁碼從 1 開始、總頁數用本節頁數。band 與 shapes 的色塊用無框表格加固定列高畫成（Word 與預覽都能正確顯示），該節左右上邊界為 0；block 是第一頁上的標題區，左側直線用單格表格的左框，避免各家軟體把段落框線畫成斷開的線段。
+- **表格**：lines 樣式的粗細線放在儲存格上（預覽和 LibreOffice 會把表格上下框線畫到每一列）。
+- **字型嵌入**（使用者確認「嵌入」）：Word 用混淆的 TrueType（`word/fonts/*.odttf`，前 32 位元組與 GUID 反序 XOR，ECMA-376 Part 1 §17.8.1），寫進 `fontTable.xml`（含 embedRegular／embedBold 與 fontKey）、關聯檔、`settings.xml` 的 `embedTrueTypeFonts`／`saveSubsetFonts`。子集與簡報共用 `prepareEmbeddedFamilies`，一般中文文件約多 130～200 KB。docx 函式庫內建的嵌入只有一般字重，所以自己寫（`embedFontsInDocument`）。注意 docx 函式庫把空的關聯清單寫成自我結束的標籤，要先展開才能加入關聯（否則 Word 說檔案毀損）。
+- **預覽**：Blob 帶 `documentFonts`（嵌入的同一批子集）與 `documentLayout.cover`。預覽在 shadow root 內，Chrome 不套用那裡的 `@font-face`，所以字型以每次預覽專屬的名稱（`Noureon Doc N 字型`）註冊到整頁的 `document.fonts`，並把 XML 裡的字型名稱換成這個名稱；關閉時移除。中文行高乘上 Word 的東亞字型額外行距（1.31）。封面依節的垂直對齊顯示，頁碼跳過封面。
+- **範本強制套用**：指定 Word 範本時，回覆存進訊息前 `enforceDocumentTemplate` 把 front matter 改成只有 `template: …` 加主色、輔色（保留 title、toc、orientation 等文件資訊）。
+- **選單縮圖**：`document-thumbnail.js` 以同一個 theme 畫出第一頁（封面或標題區、標題樣式、表格樣式），內文以線條表示，和 Word 範本庫的縮圖一樣。
+- **已知限制**：用 Word「另存 PDF」時，襯線中文子集（Noto Serif TC、Cactus）在 PDF 的文字層會變成錯誤字元且檔案變大（畫面正確，Word 內文字也正確）；黑體（Noto Sans TC）正常。原因未查明，A5 做 PDF 時一併處理。
+
 ## 後續階段
 
-- **W2／A5**：Word 與 PDF 沿用同一組參數、配色與字型。
+- **A5**：PDF 沿用 Word 的文件參數、配色與字型（W2 已完成，見上節）。

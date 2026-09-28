@@ -4,6 +4,7 @@
 
 import { marked } from 'marked';
 import { parseAndNormalizeChartSchema } from '../../charts/chart-schema.js';
+import { normalizeDocumentDesign } from '../design/document-design.js';
 
 // Characters that are illegal in XML 1.0 would make Office refuse the file.
 // eslint-disable-next-line no-control-regex
@@ -28,7 +29,10 @@ const DEFAULT_META = Object.freeze({
   pageSize: 'A4',
   header: '',
   footer: '',
-  pageNumbers: true
+  pageNumbers: true,
+  // The design named in front matter (a template or parameters), or null
+  // for the original look.
+  design: null
 });
 
 const PAGE_SIZES = new Set(['A3', 'A4', 'A5', 'B5', 'LETTER', 'LEGAL']);
@@ -49,9 +53,12 @@ export function parseFrontMatter(content = '') {
   if (!match) return { meta: { ...DEFAULT_META }, body: source };
 
   const raw = {};
+  const written = {};
   match[1].split('\n').forEach((line) => {
     const pair = /^\s*([A-Za-z][\w-]*)\s*:\s*(.*)$/.exec(line);
-    if (pair) raw[pair[1].toLowerCase().replace(/[-_]/g, '')] = parseScalar(pair[2]);
+    if (!pair) return;
+    raw[pair[1].toLowerCase().replace(/[-_]/g, '')] = parseScalar(pair[2]);
+    written[pair[1]] = parseScalar(pair[2]);
   });
 
   const text = (key) => (typeof raw[key] === 'string' ? cleanDocumentText(raw[key]).slice(0, 300) : '');
@@ -67,7 +74,8 @@ export function parseFrontMatter(content = '') {
     pageSize: PAGE_SIZES.has(pageSize) ? pageSize : 'A4',
     header: text('header'),
     footer: text('footer'),
-    pageNumbers: raw.pagenumbers !== false
+    pageNumbers: raw.pagenumbers !== false,
+    design: normalizeDocumentDesign(written)
   };
   return { meta, body: source.slice(match[0].length) };
 }
