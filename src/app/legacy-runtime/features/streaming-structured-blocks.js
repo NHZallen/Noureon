@@ -38,8 +38,20 @@ export function findTrailingStreamingChart(text = '') {
   const lines = getSourceLines(source);
   let active = null;
   let lastClosed = null;
+  // Any other fenced block (a file, code): chart fences inside it are its
+  // content, and its closing fence is not a chart being typed.
+  let otherFence = null;
+  let lastLineClosedFence = false;
 
   for (const line of lines) {
+    lastLineClosedFence = false;
+    if (otherFence) {
+      if (isClosingFence(line.text, otherFence)) {
+        otherFence = null;
+        lastLineClosedFence = true;
+      }
+      continue;
+    }
     if (active) {
       if (isClosingFence(line.text, active.fence)) {
         lastClosed = {
@@ -49,6 +61,7 @@ export function findTrailingStreamingChart(text = '') {
           source: source.slice(active.sourceStart, line.start)
         };
         active = null;
+        lastLineClosedFence = true;
       }
       continue;
     }
@@ -62,6 +75,13 @@ export function findTrailingStreamingChart(text = '') {
         fence: opening[1],
         language
       };
+      continue;
+    }
+    // A bare fence may be a chart fence still being typed; it only becomes
+    // another block once more lines follow it.
+    const anyOpening = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line.text);
+    if (anyOpening && line !== lines.at(-1) && !(anyOpening[1][0] === '`' && anyOpening[2].includes('`'))) {
+      otherFence = anyOpening[1];
     }
   }
 
@@ -87,7 +107,7 @@ export function findTrailingStreamingChart(text = '') {
   }
 
   const lastLine = lines.at(-1);
-  if (lastLine && PARTIAL_CHART_FENCE_PATTERN.test(lastLine.text)) {
+  if (lastLine && !otherFence && !lastLineClosedFence && PARTIAL_CHART_FENCE_PATTERN.test(lastLine.text)) {
     return {
       start: lastLine.start,
       sourceStart: lastLine.end,

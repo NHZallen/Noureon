@@ -35,6 +35,21 @@ test('keeps a just-completed chart active until ordinary prose resumes', () => {
   assert.equal(findTrailingStreamingChart(`${chartText}After`), null);
 });
 
+test('a reply that ends with the closing fence of a file or code block has no chart', () => {
+  const fence = '`'.repeat(4);
+  const file = ['Here is the workbook.', '', `${fence}file budget.json`, '{', '  "sheets": []', '}', fence].join('\n');
+  assert.equal(findTrailingStreamingChart(file), null);
+  assert.equal(findTrailingStreamingChart(`${file}\n`), null);
+  assert.equal(findTrailingStreamingChart('Code:\n```python\nprint(1)\n```'), null);
+
+  // A chart fence inside a file is the file's content.
+  const nested = ['Here:', `${fence}file notes.md`, '```chart', '{ "type": "bar", "data": [] }', '```', fence].join('\n');
+  assert.equal(findTrailingStreamingChart(nested), null);
+
+  // A bare fence that opens nothing is still a chart being typed.
+  assert.equal(findTrailingStreamingChart('Before\n```')?.partialOpening, true);
+});
+
 test('detects an actively growing GFM table and releases it after a blank line', () => {
   const active = [
     'Before',

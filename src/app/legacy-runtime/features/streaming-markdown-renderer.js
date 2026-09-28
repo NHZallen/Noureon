@@ -295,7 +295,9 @@ export function createStreamingMarkdownFeature({
             // An interrupted file renders as an "incomplete" card through the
             // normal Markdown path rather than as a half-parsed chart.
             renderFinalized(true);
-          } else if (unfinishedChart && !unfinishedChart.complete) {
+            // A bare fence at the very end of a finished reply is not a chart
+            // that failed; it renders as ordinary Markdown below.
+          } else if (unfinishedChart && !unfinishedChart.complete && !unfinishedChart.partialOpening) {
             const prefix = renderTextToHTML(unfinishedChart.prefix, true).html;
             const renderedChart = getRenderedChartPresentation(unfinishedChart);
             const fallback = createStatusMarkup(

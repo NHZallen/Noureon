@@ -38,6 +38,23 @@ test('an unfinished file block streams as a pending card instead of raw content'
   }
 });
 
+test('a reply that ends with a file\'s closing fence finishes with the whole file', () => {
+  const { document, cleanup } = createDom('<div id="target"></div>');
+  try {
+    const target = document.getElementById('target');
+    const renderer = createRenderer(document, target);
+    const reply = 'Here is the workbook.\n\n````file budget.json\n{\n  "sheets": []\n}\n````';
+    renderer.appendText(reply);
+    renderer.finish();
+
+    const finalized = target.querySelector('.streaming-markdown-finalized');
+    assert.equal(finalized.textContent, reply, 'the closing fence stays with the file');
+    assert.doesNotMatch(target.innerHTML, /chart-error|無法呈現圖表/);
+  } finally {
+    cleanup();
+  }
+});
+
 const setupCard = (document, descriptorInput, language = 'en') => {
   const descriptor = registerFileBlock(describeFileBlock({ complete: true, ...descriptorInput }));
   const card = createFileCardElement(document, descriptor, { language });

@@ -58,6 +58,7 @@ footer: Optional running footer text
 
 const PPTX_GUIDANCE = `## PowerPoint presentations (.pptx)
 Write a JSON deck spec; the app lays it out on 16:9 slides with a professional design, native editable text, charts and tables, embedded fonts and speaker notes. Never write slide coordinates, colours or font sizes per slide.
+Name the file .pptx, never .json: \`\`\`\`file launch-plan.pptx. The JSON goes directly inside the block, without a \`\`\`json fence.
 {
   "title": "Deck title", "author": "Optional", "date": "Optional", "footer": "Optional",
   "design": { see "Design" below },
@@ -135,6 +136,7 @@ function documentDesignGuidance(documentDesign) {
 
 const XLSX_GUIDANCE = `## Excel workbooks (.xlsx)
 Write a JSON workbook; the app writes a styled Excel file (coloured header row, banded rows, filters, frozen header, fitted column widths).
+When the user wants Excel or a spreadsheet, name the file .xlsx, never .json: \`\`\`\`file budget.xlsx. The JSON goes directly inside the block, without a \`\`\`json fence.
 {
   "accent": "#RRGGBB (optional header colour that suits the content)",
   "sheets": [
