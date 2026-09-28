@@ -5,6 +5,7 @@ import { isGeneratorAvailable } from './file-type-registry.js';
 const GENERATOR_LOADERS = Object.freeze({
   text: () => import('./generators/text-file.js').then((module) => module.generateTextFile),
   docx: () => import('./generators/docx-file.js').then((module) => module.generateDocxFile),
+  xlsx: () => import('./generators/xlsx-file.js').then((module) => module.generateXlsxFile),
   pptx: () => import('./generators/pptx-file.js').then((module) => module.generatePptxFile)
 });
 

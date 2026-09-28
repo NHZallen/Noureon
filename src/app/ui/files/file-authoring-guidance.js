@@ -133,8 +133,28 @@ function documentDesignGuidance(documentDesign) {
   ].join('\n');
 }
 
+const XLSX_GUIDANCE = `## Excel workbooks (.xlsx)
+Write a JSON workbook; the app writes a styled Excel file (coloured header row, banded rows, filters, frozen header, fitted column widths).
+{
+  "accent": "#RRGGBB (optional header colour that suits the content)",
+  "sheets": [
+    { "name": "Sheet name (max 31 characters)",
+      "columns": [ { "header": "Item" }, { "header": "Amount", "format": "integer" }, { "header": "Share", "format": "percent" } ],
+      "rows": [ ["Rent", 1200, 0.4], ["Total", { "formula": "SUM(B2:B3)" }, { "formula": "SUM(C2:C3)" }] ],
+      "freeze": "B2", "merges": ["A5:B5"] }
+  ]
+}
+- Row 1 is the header row, so the first data row is row 2: write formula references for that layout.
+- Write numbers as JSON numbers without thousands separators; percentages as fractions (0.125 for 12.5%); dates as "YYYY-MM-DD".
+- Column "format": text, integer, decimal, percent, date, datetime, or a currency code (TWD, USD, EUR, JPY, CNY, GBP, HKD, KRW, RUB, SGD), or an Excel format string. A cell may override it with its own "format".
+- Formulas only through "formula" (without "="), e.g. { "formula": "AVERAGE(B2:B9)" }; other sheets as 'Sheet name'!B2. Text is never a formula. No external data functions (WEBSERVICE, FILTERXML, RTD) or other workbooks.
+- A cell may be { "value": …, "bold": true, "fill": "#RRGGBB", "color": "#RRGGBB", "align": "center", "wrap": true }. A last row labelled "Total" (or 合計 and so on) is styled as the total.
+- "freeze" defaults to the header row; "autoFilter": false turns the filter off. Several sheets for separate tables.
+- Keep one table per sheet with one header row; put notes in the reply, not in extra rows. Write every value the user needs; never leave placeholder rows.`;
+
 const RICH_GUIDANCE = Object.freeze({
   docx: ({ documentDesign }) => `${DOCX_GUIDANCE}\n${documentDesignGuidance(documentDesign)}`,
+  xlsx: () => XLSX_GUIDANCE,
   pptx: ({ deckDesign }) => `${PPTX_GUIDANCE}\n${presentationDesignGuidance(deckDesign)}`
 });
 

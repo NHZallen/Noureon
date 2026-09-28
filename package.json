@@ -37,7 +37,8 @@
     "marked": "^15.0.12",
     "peerjs": "^1.5.5",
     "pptxgenjs": "^4.0.1",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "write-excel-file": "4.1.1"
   },
   "devDependencies": {
     "@xmldom/xmldom": "^0.9.12",

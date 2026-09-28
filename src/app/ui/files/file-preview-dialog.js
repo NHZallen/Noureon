@@ -9,6 +9,7 @@ const MAX_PREVIEW_ROWS = 500;
 // renderer loads on first use and receives the same Blob a download gets.
 const PAGE_RENDERERS = Object.freeze({
   word: () => import('./previews/docx-page-preview.js').then((module) => module.renderDocxPreview),
+  excel: () => import('./previews/xlsx-sheet-preview.js').then((module) => module.renderXlsxPreview),
   powerpoint: () => import('./previews/slide-preview.js').then((module) => module.renderPptxPreview)
 });
 
@@ -125,7 +126,11 @@ function renderPagePreview(context, { onPageCount }) {
     try {
       const [render, blob] = await Promise.all([pageRenderers[descriptor.family](), loadBlob()]);
       if (disposed) return;
-      const result = await render(blob, canvas, { window, document });
+      const result = await render(blob, canvas, {
+        window,
+        document,
+        limitText: (count) => getFileText(language, 'sheetRowsLimited', { count })
+      });
       if (disposed) {
         result.dispose();
         return;
@@ -134,7 +139,8 @@ function renderPagePreview(context, { onPageCount }) {
       status.remove();
       const slides = descriptor.family === 'powerpoint';
       pane.classList.toggle('ac-file-preview-slides', slides);
-      pane.appendChild(createNote(document, getFileText(language, slides ? 'slidePreviewNote' : 'previewFontNote')));
+      const note = slides ? 'slidePreviewNote' : descriptor.family === 'excel' ? 'sheetPreviewNote' : 'previewFontNote';
+      pane.appendChild(createNote(document, getFileText(language, note)));
       onPageCount(result.pageCount);
     } catch (error) {
       if (disposed) return;
@@ -250,7 +256,8 @@ export function openFilePreview({
       if (view === 'pages' && !pagePane) {
         pagePane = renderPagePreview(context, {
           onPageCount: (count) => {
-            pageInfo.textContent = getFileText(language, descriptor.family === 'powerpoint' ? 'slideCount' : 'pageCount', { count });
+            const key = descriptor.family === 'powerpoint' ? 'slideCount' : descriptor.family === 'excel' ? 'statSheets' : 'pageCount';
+            pageInfo.textContent = getFileText(language, key, { count });
           }
         });
         body.appendChild(pagePane);
@@ -282,8 +289,13 @@ export function openFilePreview({
   }
 
   dialog.append(...sections, body);
+  // A click on the backdrop targets the dialog, and so does one on its own
+  // padding: only a click outside the dialog's box closes it.
   dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) closeDialog();
+    if (event.target !== dialog) return;
+    const box = dialog.getBoundingClientRect?.();
+    const inside = box && box.width > 0 && event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
+    if (!inside) closeDialog();
   });
   dialog.addEventListener('close', () => {
     cleanups.forEach((cleanup) => cleanup());

@@ -81,6 +81,8 @@ export default defineConfig({
           if (/\/node_modules\/(?:docx|xml|xml-js|sax|nanoid|hash\.js|inherits|minimalistic-assert)\//.test(id)) return 'vendor-docx';
           // PowerPoint generation is loaded only when a .pptx file is made.
           if (id.includes('/node_modules/pptxgenjs/')) return 'vendor-pptx';
+          // Excel generation is loaded only when a .xlsx file is made.
+          if (/\/node_modules\/(?:write-excel-file|fflate)\//.test(id)) return 'vendor-xlsx';
           if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
           return 'vendor';
         }

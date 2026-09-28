@@ -113,6 +113,8 @@ export function buildFileMetaText(language, descriptor, { sizeText = '' } = {}) 
     parts.push(getFileText(language, descriptor.stats.key, {
       count: formatFileCount(language, descriptor.stats.count)
     }));
+    const also = descriptor.stats.also;
+    if (also && also.count > 0) parts.push(getFileText(language, also.key, { count: formatFileCount(language, also.count) }));
   }
   if (sizeText) parts.push(sizeText);
   return parts.join(' · ');

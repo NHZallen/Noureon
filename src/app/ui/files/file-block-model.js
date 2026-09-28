@@ -31,6 +31,27 @@ function countCsvRows(content) {
   return Math.max(0, rows - 1);
 }
 
+// Sheets and data rows of a spreadsheet block, counted cheaply (this runs
+// for every card): JSON specs are parsed, Markdown tables and CSV counted by
+// line. A spec the generator cannot read shows no count.
+function countSpreadsheet(content) {
+  const source = String(content || '').trim();
+  if (/^[[{]/.test(source)) {
+    try {
+      const value = JSON.parse(source);
+      const sheets = Array.isArray(value?.sheets) ? value.sheets : [value];
+      const rows = sheets.reduce((sum, sheet) => sum + (Array.isArray(sheet?.rows) ? sheet.rows.length : Array.isArray(sheet) ? sheet.length : 0), 0);
+      return { sheets: sheets.length, rows };
+    } catch {
+      return null;
+    }
+  }
+  const lines = source.split('\n');
+  const separators = lines.filter((line) => /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/.test(line) && line.includes('-') && line.includes('|')).length;
+  if (separators) return { sheets: separators, rows: lines.filter((line) => /^\s*\|.*\|\s*$/.test(line)).length - separators * 2 };
+  return { sheets: 1, rows: countCsvRows(source) };
+}
+
 function resolveStats(type, content) {
   switch (type.family) {
     case 'word':
@@ -38,7 +59,12 @@ function resolveStats(type, content) {
       return { key: 'statWords', count: countWords(content) };
     case 'csv':
       return { key: 'statRows', count: countCsvRows(content) };
-    case 'excel':
+    case 'excel': {
+      const counted = countSpreadsheet(content);
+      if (!counted) return null;
+      const rows = { key: 'statRows', count: Math.max(0, counted.rows) };
+      return counted.sheets > 1 ? { key: 'statSheets', count: counted.sheets, also: rows } : rows;
+    }
     case 'powerpoint':
     case 'blocked':
       return null;

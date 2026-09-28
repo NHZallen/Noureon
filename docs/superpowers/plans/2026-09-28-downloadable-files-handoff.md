@@ -28,8 +28,9 @@
 | A4b | ✅ 已上線 | 輸入框「簡報設計」按鈕：AI 自適應（預設）或指定 20 套範本；指定範本時程式強制套用（只允許在對話中改主色、輔色） |
 | 其他修正 | ✅ 已上線 | 手機版選單不超出畫面；iPhone 上 Chrome 等非 Safari 瀏覽器改用分享選單下載 |
 | **V1** | ✅ **已完成，待真實模型與正式網站驗證** | 看圖檢查；進度依使用者要求改為通知（詳細設計與驗證見 §3） |
-| **W2** | ✅ **已完成，待推送** | Word 設計：「設計」按鈕分簡報／Word 兩頁、9 套範本或 AI 自適應、封面、字型嵌入（見設計系統規格「Word 文件設計（W2）」） |
-| **A3** → A5 → A6 → B0～B5 | ⬜ **下一階段** | 見總計畫的「階段規劃」 |
+| **W2** | ✅ 已上線 | Word 設計：「設計」按鈕分簡報／Word 兩頁、9 套範本或 AI 自適應、封面、字型嵌入（見設計系統規格「Word 文件設計（W2）」） |
+| **A3** | ✅ **已完成，待推送** | Excel：固定樣式＋可改主色、公式政策與快取值、凍結窗格、篩選、合併儲存格、工作表預覽（見總計畫「A3 實作紀錄」） |
+| **A5** → A6 → B0～B5 | ⬜ **下一階段** | 見總計畫的「階段規劃」 |
 
 V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 初版 commit：`ea4a1688 Implement V1 visual review for presentations`。2026-09-28 使用者要求將進度改為通知並授權推送 `main`。
 
@@ -75,9 +76,10 @@ src/app/ui/files/
     document-presets.js, document-design.js, document-thumbnail.js   Word 範本、參數與縮圖
   generators/                                    檔案產生（延後載入）
     docx-file.js, pptx-file.js, pptx-layout.js, pptx-writer.js, pptx-text.js,
+    spreadsheet-spec.js, formula-engine.js, sheet-layout.js, xlsx-file.js,
     pptx-charts.js, pptx-assets.js, font-embedding.js, chart-image-export.js
   previews/                                      預覽（延後載入）
-    docx-page-preview.js, slide-preview.js, slide-chart-preview.js
+    docx-page-preview.js, slide-preview.js, slide-chart-preview.js, xlsx-sheet-preview.js
 src/app/runtime/features/deck-design-control.js  輸入框的「設計」按鈕（簡報／Word 兩頁）
 src/app/legacy-runtime/features/assistant-response-finalization.js  回覆存檔前強制套用範本
 src/assets/fonts/                                嵌入用字型（由 scripts/build-fonts.mjs 產生）
