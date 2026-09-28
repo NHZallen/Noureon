@@ -6,6 +6,7 @@ import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
+import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -448,6 +449,8 @@ export function createLegacyAppBootstrapLifecycle({
                     copyText: (text) => copyTextToClipboard(text),
                     logError: (...args) => logger.error?.(...args)
                 });
+                // Code blocks in messages and file previews get VS Code colours.
+                installCodeHighlighting({ document, window });
                 ALL_ELEMENTS.messageList.addEventListener('click', (e) => {
                     const userAction = e.target.closest('[data-message-action]');
                     if (userAction) {

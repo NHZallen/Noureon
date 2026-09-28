@@ -22,12 +22,30 @@ const describeReason = (error) => {
 
 const stripFrontMatter = (content) => String(content || '').replace(/^---\n[\s\S]*?\n---\n?/, '');
 
+// The language the source view is coloured as (code-highlighter.js). Word and
+// PDF files are written in Markdown; workbooks and decks in JSON or Markdown.
+const SOURCE_LANGUAGES = Object.freeze({
+  html: 'xml', htm: 'xml', xml: 'xml', svg: 'xml', css: 'css', scss: 'scss', js: 'javascript', mjs: 'javascript', cjs: 'javascript',
+  jsx: 'javascript', ts: 'typescript', tsx: 'typescript', json: 'json', py: 'python', java: 'java', c: 'c', h: 'c', cpp: 'cpp',
+  cc: 'cpp', hpp: 'cpp', cs: 'csharp', go: 'go', rs: 'rust', rb: 'ruby', php: 'php', sh: 'bash', bash: 'bash', sql: 'sql',
+  yaml: 'yaml', yml: 'yaml', md: 'markdown', markdown: 'markdown', kt: 'kotlin', swift: 'swift', toml: 'ini', ini: 'ini',
+  diff: 'diff', patch: 'diff', docx: 'markdown', pdf: 'markdown', txt: 'plaintext', csv: 'plaintext', tsv: 'plaintext'
+});
+
+function sourceLanguage(descriptor) {
+  const extension = String(descriptor.extension || '').toLowerCase();
+  if (extension === 'xlsx' || extension === 'pptx') return /^\s*[[{]/.test(descriptor.content || '') ? 'json' : 'markdown';
+  return SOURCE_LANGUAGES[extension] || null;
+}
+
 function renderSourcePreview({ document, descriptor, language }) {
   const container = document.createDocumentFragment();
   const lines = String(descriptor.content || '').split('\n');
   const pre = document.createElement('pre');
   pre.className = 'ac-file-preview-source';
   const code = document.createElement('code');
+  const codeLanguage = sourceLanguage(descriptor);
+  if (codeLanguage) code.className = `language-${codeLanguage}`;
   code.textContent = lines.slice(0, MAX_PREVIEW_LINES).join('\n');
   pre.appendChild(code);
   container.appendChild(pre);
