@@ -35,6 +35,12 @@ export const FONT_FAMILIES = Object.freeze({
   'Cactus Classical Serif': { scripts: Object.freeze(['zh-Hant']), weights: [400], generic: 'serif', files: statics([['cactus-classical-serif.ttf', 400]]) },
   'LXGW WenKai TC': { scripts: Object.freeze(['zh-Hant']), weights: [400, 700], generic: 'serif', files: statics([['lxgw-wenkai-tc-regular.ttf', 400], ['lxgw-wenkai-tc-bold.ttf', 700]]) },
   Huninn: { scripts: Object.freeze(['zh-Hant']), weights: [400], generic: 'sans-serif', files: statics([['huninn.ttf', 400]]) },
+  // PDF only: a PDF carries every glyph it shows, so the scripts Office
+  // draws with installed fonts need files of their own there.
+  'Noto Sans SC': { scripts: Object.freeze(['zh-Hans']), weights: [300, 400, 500, 700, 900], generic: 'sans-serif', pdfOnly: true, files: variable('noto-sans-sc.ttf') },
+  'Noto Sans JP': { scripts: Object.freeze(['ja']), weights: [300, 400, 500, 700, 900], generic: 'sans-serif', pdfOnly: true, files: variable('noto-sans-jp.ttf') },
+  'Noto Sans KR': { scripts: Object.freeze(['ko']), weights: [300, 400, 500, 700, 900], generic: 'sans-serif', pdfOnly: true, files: variable('noto-sans-kr.ttf') },
+  'Noto Emoji': { scripts: Object.freeze(['emoji']), weights: [300, 400, 500, 700], generic: 'sans-serif', pdfOnly: true, files: variable('noto-emoji.ttf') },
   // Installed with Windows and Office; never embedded.
   Aptos: system(LATIN_AND_CYRILLIC, 'sans-serif', { fallback: 'Calibri' }),
   'Microsoft JhengHei': system(['zh-Hant'], 'sans-serif'),
@@ -192,6 +198,25 @@ export function installedFonts(language) {
   const script = cjkScriptFor(language);
   return { latin: 'Arial', eastAsian: script === 'zh-Hant' ? 'Microsoft JhengHei' : INSTALLED_SANS[script] };
 }
+
+// A PDF cannot borrow the reader's fonts: installed Office fonts are drawn
+// with the closest open-source family the app ships.
+const PDF_SUBSTITUTES = Object.freeze({
+  Aptos: 'Inter',
+  Calibri: 'Inter',
+  Arial: 'Inter',
+  Consolas: MONO_FAMILY,
+  'Microsoft JhengHei': 'Noto Sans TC',
+  'Microsoft YaHei': 'Noto Sans SC',
+  SimSun: 'Noto Sans SC',
+  'Yu Gothic': 'Noto Sans JP',
+  'Yu Mincho': 'Noto Sans JP',
+  'Malgun Gothic': 'Noto Sans KR',
+  Batang: 'Noto Sans KR'
+});
+
+/** The shipped family a PDF uses for `family`. */
+export const pdfFamily = (family) => PDF_SUBSTITUTES[family] || (FONT_FAMILIES[family]?.files ? family : 'Inter');
 
 // Faces with a narrow no-break space (U+202F), which French typography puts
 // before : ; ! ? % and inside guillemets. Others get a regular no-break space:

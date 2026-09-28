@@ -40,6 +40,8 @@ import {
 import JSZip from 'jszip';
 import { buildDocumentTheme, legacyDocumentTheme } from '../design/document-design.js';
 import { FONT_FAMILIES, fontSource } from '../design/fonts.js';
+import { renderChartImages } from './chart-images.js';
+import { CHART_TABLE_LABELS, IMAGE_LABELS, TOC_LABELS } from './document-labels.js';
 import { buildDocumentModel, collectHeadings, runsToPlainText } from './document-model.js';
 import { createDisplayEquation, createInlineEquation } from './docx-omml.js';
 import { embedFontsInDocument, prepareEmbeddedFamilies } from './font-embedding.js';
@@ -51,16 +53,6 @@ const EAST_ASIAN_TEXT = /[⺀-鿿가-힯豈-﫿＀-￯]/;
 
 const PAGE_SIZES_MM = Object.freeze({
   A3: [297, 420], A4: [210, 297], A5: [148, 210], B5: [176, 250], LETTER: [215.9, 279.4], LEGAL: [215.9, 355.6]
-});
-
-const TOC_LABELS = Object.freeze({ 'zh-TW': '目錄', en: 'Contents', fr: 'Table des matières', ru: 'Содержание', es: 'Índice' });
-const IMAGE_LABELS = Object.freeze({ 'zh-TW': '圖片', en: 'Image', fr: 'Image', ru: 'Изображение', es: 'Imagen' });
-const CHART_TABLE_LABELS = Object.freeze({
-  'zh-TW': { label: '項目', value: '數值', x: 'X', y: 'Y', size: '大小', source: '來源', target: '目標', start: '開始', end: '結束', count: '次數', min: '最小值', max: '最大值' },
-  en: { label: 'Item', value: 'Value', x: 'X', y: 'Y', size: 'Size', source: 'Source', target: 'Target', start: 'Start', end: 'End', count: 'Count', min: 'Min', max: 'Max' },
-  fr: { label: 'Élément', value: 'Valeur', x: 'X', y: 'Y', size: 'Taille', source: 'Source', target: 'Cible', start: 'Début', end: 'Fin', count: 'Nombre', min: 'Min', max: 'Max' },
-  ru: { label: 'Элемент', value: 'Значение', x: 'X', y: 'Y', size: 'Размер', source: 'Источник', target: 'Цель', start: 'Начало', end: 'Конец', count: 'Количество', min: 'Мин.', max: 'Макс.' },
-  es: { label: 'Elemento', value: 'Valor', x: 'X', y: 'Y', size: 'Tamaño', source: 'Origen', target: 'Destino', start: 'Inicio', end: 'Fin', count: 'Recuento', min: 'Mín.', max: 'Máx.' }
 });
 
 // Covers that take a page of their own (a separate section without header,
@@ -906,32 +898,6 @@ class DocxRenderer {
       ]
     };
   }
-}
-
-async function renderChartImages(blocks, context) {
-  const charts = [];
-  const visit = (list) => list.forEach((block) => {
-    if (block.type === 'chart') charts.push(block.chart);
-    if (block.type === 'quote') visit(block.blocks);
-    if (block.type === 'list') block.items.forEach((item) => visit(item.blocks));
-  });
-  visit(blocks);
-  const images = new Map();
-  if (charts.length === 0 || typeof context.loadChartImageRenderer !== 'function') return images;
-  try {
-    const { renderChartImage } = await context.loadChartImageRenderer();
-    for (const chart of charts) {
-      try {
-        const image = await renderChartImage(chart, context);
-        if (image) images.set(chart, image);
-      } catch {
-        // A chart that cannot be drawn falls back to its data table.
-      }
-    }
-  } catch {
-    // Missing browser support: every chart falls back to its data table.
-  }
-  return images;
 }
 
 async function composeDocx(descriptor, context = {}) {

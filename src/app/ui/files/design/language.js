@@ -52,7 +52,9 @@ export function detectDocumentLanguage(text, fallback = 'zh-TW') {
   const hangul = count(source, HANGUL);
   const cyrillic = count(source, CYRILLIC);
   const latin = count(source, LATIN);
-  if (kana > 0 && kana + han >= latin / 4) return 'ja';
+  // Japanese text is full of kana; a Chinese document quoting a Japanese
+  // phrase is still Chinese.
+  if (kana > 0 && kana >= han * 0.3 && kana + han >= latin / 4) return 'ja';
   if (hangul > 0 && hangul >= latin / 4) return 'ko';
   if (han > 0 && han >= latin / 4) {
     return countIn(source, SIMPLIFIED_ONLY) > countIn(source, TRADITIONAL_ONLY) ? 'zh-CN' : 'zh-TW';

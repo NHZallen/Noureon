@@ -83,6 +83,10 @@ export default defineConfig({
           if (id.includes('/node_modules/pptxgenjs/')) return 'vendor-pptx';
           // Excel generation is loaded only when a .xlsx file is made.
           if (/\/node_modules\/(?:write-excel-file|fflate)\//.test(id)) return 'vendor-xlsx';
+          // PDF generation (pdfmake bundles PDFKit and fontkit) and the PDF
+          // preview (PDF.js) load only when a .pdf file is made or previewed.
+          if (id.includes('/node_modules/pdfmake/')) return 'vendor-pdf';
+          if (id.includes('/node_modules/pdfjs-dist/')) return 'vendor-pdf-preview';
           if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
           return 'vendor';
         }

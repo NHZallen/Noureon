@@ -8,6 +8,9 @@
 //   - Traditional Chinese faces: the Big5 common set (level 1, about 5,400
 //     characters) plus Big5 symbols, CJK punctuation and full-width forms.
 //     Rarer characters fall back to the reader's system font.
+//   - for PDFs only, which must carry every glyph: Simplified Chinese (GB 2312
+//     level 1), Japanese (kana and JIS level 1 kanji), Korean (KS X 1001
+//     hangul) and the monochrome Noto Emoji.
 //
 // Downloads are cached in node_modules/.cache/noureon-fonts. Run with
 // `node scripts/build-fonts.mjs`; commit the files it writes.
@@ -25,6 +28,10 @@ const COMMIT = '23e54b51ddffbc7713c583748e3bd86f62b1fa4a';
 
 const LATIN = 'latin';
 const CJK = 'cjk';
+const SC = 'sc';
+const JP = 'jp';
+const KR = 'kr';
+const EMOJI = 'emoji';
 
 // output file, repository path, character set
 const FONTS = [
@@ -48,7 +55,13 @@ const FONTS = [
   ['cactus-classical-serif.ttf', 'ofl/cactusclassicalserif/CactusClassicalSerif-Regular.ttf', CJK],
   ['lxgw-wenkai-tc-regular.ttf', 'ofl/lxgwwenkaitc/LXGWWenKaiTC-Regular.ttf', CJK],
   ['lxgw-wenkai-tc-bold.ttf', 'ofl/lxgwwenkaitc/LXGWWenKaiTC-Bold.ttf', CJK],
-  ['huninn.ttf', 'ofl/huninn/Huninn-Regular.ttf', CJK]
+  ['huninn.ttf', 'ofl/huninn/Huninn-Regular.ttf', CJK],
+  // PDF only: a PDF must carry every glyph it shows, while Word and
+  // PowerPoint use the fonts Windows installs for these scripts.
+  ['noto-sans-sc.ttf', 'ofl/notosanssc/NotoSansSC[wght].ttf', SC],
+  ['noto-sans-jp.ttf', 'ofl/notosansjp/NotoSansJP[wght].ttf', JP],
+  ['noto-sans-kr.ttf', 'ofl/notosanskr/NotoSansKR[wght].ttf', KR],
+  ['noto-emoji.ttf', 'ofl/notoemoji/NotoEmoji[wght].ttf', EMOJI]
 ];
 
 const range = (from, to) => Array.from({ length: to - from + 1 }, (_, index) => String.fromCodePoint(from + index)).join('');
@@ -59,9 +72,20 @@ const SHARED = [
   range(0x25A0, 0x25FF)
 ].join('');
 
-function big5Characters(from, to) {
-  const decoder = new TextDecoder('big5');
-  const trails = [...range(0x40, 0x7E), ...range(0xA1, 0xFE)].map((char) => char.codePointAt(0));
+const TRAIL_BYTES = {
+  big5: [...range(0x40, 0x7E), ...range(0xA1, 0xFE)],
+  gbk: [...range(0xA1, 0xFE)],
+  'euc-kr': [...range(0xA1, 0xFE)],
+  shift_jis: [...range(0x40, 0x7E), ...range(0x80, 0xFC)]
+};
+
+const big5Characters = (from, to) => doubleByteCharacters('big5', from, to);
+
+// The characters of a legacy double-byte character set range, which is how
+// national standards define their common characters.
+function doubleByteCharacters(encoding, from, to) {
+  const decoder = new TextDecoder(encoding);
+  const trails = TRAIL_BYTES[encoding].map((char) => char.codePointAt(0));
   let output = '';
   for (let lead = from >> 8; lead <= to >> 8; lead += 1) {
     for (const trail of trails) {
@@ -74,9 +98,23 @@ function big5Characters(from, to) {
   return output;
 }
 
+const CJK_SHARED = SHARED + range(0x3000, 0x303F) + range(0xFF01, 0xFF5E);
+
 const CHARACTER_SETS = {
   [LATIN]: SHARED + range(0x100, 0x24F) + range(0x400, 0x52F),
-  [CJK]: SHARED + range(0x3000, 0x303F) + range(0xFF01, 0xFF5E) + big5Characters(0xA140, 0xA3BF) + big5Characters(0xA440, 0xC67E)
+  [CJK]: CJK_SHARED + big5Characters(0xA140, 0xA3BF) + big5Characters(0xA440, 0xC67E),
+  // GB 2312 symbols and level 1 hanzi (3,755 characters).
+  [SC]: CJK_SHARED + doubleByteCharacters('gbk', 0xA1A1, 0xA9FE) + doubleByteCharacters('gbk', 0xB0A1, 0xD7FE),
+  // Kana and JIS X 0208 symbols and level 1 kanji (2,965 characters).
+  [JP]: CJK_SHARED + range(0x3040, 0x30FF) + range(0x31F0, 0x31FF) + range(0xFF61, 0xFF9F)
+    + doubleByteCharacters('shift_jis', 0x8140, 0x84BE) + doubleByteCharacters('shift_jis', 0x889F, 0x9872),
+  // Hangul jamo, KS X 1001 symbols and its 2,350 hangul syllables.
+  [KR]: CJK_SHARED + range(0x1100, 0x11FF) + range(0x3130, 0x318F)
+    + doubleByteCharacters('euc-kr', 0xA1A1, 0xA2FE) + doubleByteCharacters('euc-kr', 0xB0A1, 0xC8FE),
+  // Emoji and the symbols emoji sequences are built from.
+  [EMOJI]: range(0x20, 0x7E) + '©®‍⃣™ℹ〰〽㊗㊙︎️'
+    + range(0x2190, 0x21FF) + range(0x2300, 0x23FF) + range(0x24C2, 0x24C2) + range(0x25A0, 0x27BF)
+    + range(0x2900, 0x297F) + range(0x2B00, 0x2BFF) + range(0x1F000, 0x1FAFF) + range(0xE0020, 0xE007F)
 };
 
 async function download(path) {

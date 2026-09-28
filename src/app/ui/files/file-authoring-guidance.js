@@ -124,7 +124,7 @@ const DOCUMENT_DESIGN_NOTES = `Meaning:
  */
 function documentDesignGuidance(documentDesign) {
   if (DOCUMENT_PRESET_IDS.includes(documentDesign)) {
-    return `Design: the user chose the "${documentDesign}" Word template (${getDocumentPresetText(documentDesign, 'en').feature}). Add "template: ${documentDesign}" to the front matter and no other design keys, even if earlier files in this conversation used another design. Only when the user's latest message asks for different colours, add "accent" (and "accent2") as "#RRGGBB". Other design changes are not possible with a template: say so briefly and suggest switching "Design" to AI adaptive.`;
+    return `Design: the user chose the "${documentDesign}" document template for Word and PDF (${getDocumentPresetText(documentDesign, 'en').feature}). Add "template: ${documentDesign}" to the front matter and no other design keys, even if earlier files in this conversation used another design. Only when the user's latest message asks for different colours, add "accent" (and "accent2") as "#RRGGBB". Other design changes are not possible with a template: say so briefly and suggest switching "Design" to AI adaptive.`;
   }
   return [
     'Design (AI adaptive, the user\'s choice): choose the document design yourself for this content, audience and purpose, and write every one of these keys in the front matter (one "key: value" line each). Follow any style the user asks for.',
@@ -154,8 +154,17 @@ When the user wants Excel or a spreadsheet, name the file .xlsx, never .json: \`
 - "freeze" defaults to the header row; "autoFilter": false turns the filter off. Several sheets for separate tables.
 - Keep one table per sheet with one header row; put notes in the reply, not in extra rows. Write every value the user needs; never leave placeholder rows.`;
 
+// PDFs are written like Word documents and share their design, so this
+// section only names the differences.
+const PDF_GUIDANCE = `## PDF documents (.pdf)
+Write a PDF exactly like a Word document: the same Markdown body, front matter and design keys (including the design rules above). The app lays it out with the same template, embeds every font, and adds bookmarks for the sections.
+- toc: true adds a table of contents with page numbers.
+- Use .pdf when the user asks for PDF, a fixed layout, or a file to print or send; use .docx when they will edit it.
+- LaTeX math is shown as its source text in a PDF; for documents with many equations, suggest Word.`;
+
 const RICH_GUIDANCE = Object.freeze({
   docx: ({ documentDesign }) => `${DOCX_GUIDANCE}\n${documentDesignGuidance(documentDesign)}`,
+  pdf: () => PDF_GUIDANCE,
   xlsx: () => XLSX_GUIDANCE,
   pptx: ({ deckDesign }) => `${PPTX_GUIDANCE}\n${presentationDesignGuidance(deckDesign)}`
 });

@@ -208,7 +208,7 @@ test('Word guidance lists every document parameter, or names the chosen template
   for (const key of DOCUMENT_DESIGN_KEYS) assert.match(wordPart, new RegExp(`- ${key}:`), key);
   const chosen = await getFileAuthoringGuidance({ documentDesign: 'monochrome' });
   const chosenPart = chosen.slice(chosen.indexOf('## Word documents'), chosen.indexOf('## PowerPoint'));
-  assert.match(chosenPart, /the user chose the "monochrome" Word template/);
+  assert.match(chosenPart, /the user chose the "monochrome" document template for Word and PDF/);
   assert.match(chosenPart, /"template: monochrome"/);
   assert.doesNotMatch(chosenPart, /- headings:/);
   assert.equal(await getFileAuthoringGuidance({ documentDesign: 'nope' }), adaptive);

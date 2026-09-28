@@ -3,10 +3,11 @@ import { normalizeHistorySourceConversationIds } from '../../runtime/memory/hist
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
-// Only replies with a presentation or Word document, in a conversation with
-// a template for it, load the enforcer (and the design modules behind it).
+// Only replies with a presentation or a Word or PDF document, in a
+// conversation with a template for it, load the enforcer (and the design
+// modules behind it).
 const PPTX_FILE_BLOCK = /(?:^|\n)[ \t]*(?:`{3,}|~{3,})[ \t]*file[ \t]+[^\n]*\.pptx[ \t]*(?:\n|$)/i;
-const DOCX_FILE_BLOCK = /(?:^|\n)[ \t]*(?:`{3,}|~{3,})[ \t]*file[ \t]+[^\n]*\.docx[ \t]*(?:\n|$)/i;
+const DOCX_FILE_BLOCK = /(?:^|\n)[ \t]*(?:`{3,}|~{3,})[ \t]*file[ \t]+[^\n]*\.(?:docx|pdf)[ \t]*(?:\n|$)/i;
 const TEMPLATE_ID = /^[a-z]+$/;
 const chosen = (value) => Boolean(value) && value !== 'auto' && TEMPLATE_ID.test(value);
 async function enforceChosenTemplates(text, { deckDesign, documentDesign } = {}) {

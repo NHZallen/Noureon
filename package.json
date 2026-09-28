@@ -35,6 +35,8 @@
     "jszip": "^3.10.1",
     "katex": "^0.16.22",
     "marked": "^15.0.12",
+    "pdfjs-dist": "^6.3.289",
+    "pdfmake": "^0.3.11",
     "peerjs": "^1.5.5",
     "pptxgenjs": "^4.0.1",
     "qrcode": "^1.5.4",

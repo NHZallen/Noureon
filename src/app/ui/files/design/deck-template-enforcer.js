@@ -85,9 +85,9 @@ export function enforceTemplateInDocument(content, preset) {
   return enforceMarkdown(source, preset, { metaKeys: DOCUMENT_META_KEYS, presetKey: 'template' });
 }
 
-/** Rewrites every complete .docx file block in a reply to use `preset`. */
+/** Rewrites every complete Word or PDF file block in a reply to use `preset`. */
 export function enforceDocumentTemplate(text, preset) {
-  return rewriteFileBlocks(text, /\.docx$/i, (content) => enforceTemplateInDocument(content, preset));
+  return rewriteFileBlocks(text, /\.(?:docx|pdf)$/i, (content) => enforceTemplateInDocument(content, preset));
 }
 
 function rewriteFileBlocks(text, extension, rewrite) {

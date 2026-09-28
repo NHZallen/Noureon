@@ -52,7 +52,7 @@ test('guidance teaches the protocol and advertises only formats that can be gene
   assert.match(guidance, /Row 1 is the header row/);
   assert.match(guidance, /name the file \.xlsx, never \.json/, 'JSON specs keep the Office extension');
   assert.match(guidance, /Name the file \.pptx, never \.json/);
-  assert.doesNotMatch(guidance, /## PDF/, 'formats without a generator are not advertised');
+  assert.match(guidance, /## PDF documents \(\.pdf\)/);
 });
 
 const createApiHarness = (conversation) => {

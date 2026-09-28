@@ -10,7 +10,8 @@ const MAX_PREVIEW_ROWS = 500;
 const PAGE_RENDERERS = Object.freeze({
   word: () => import('./previews/docx-page-preview.js').then((module) => module.renderDocxPreview),
   excel: () => import('./previews/xlsx-sheet-preview.js').then((module) => module.renderXlsxPreview),
-  powerpoint: () => import('./previews/slide-preview.js').then((module) => module.renderPptxPreview)
+  powerpoint: () => import('./previews/slide-preview.js').then((module) => module.renderPptxPreview),
+  pdf: () => import('./previews/pdf-page-preview.js').then((module) => module.renderPdfPreview)
 });
 
 const describeReason = (error) => {
@@ -139,8 +140,9 @@ function renderPagePreview(context, { onPageCount }) {
       status.remove();
       const slides = descriptor.family === 'powerpoint';
       pane.classList.toggle('ac-file-preview-slides', slides);
-      const note = slides ? 'slidePreviewNote' : descriptor.family === 'excel' ? 'sheetPreviewNote' : 'previewFontNote';
-      pane.appendChild(createNote(document, getFileText(language, note)));
+      // A PDF carries its fonts: what the preview shows is exact, no note.
+      const note = slides ? 'slidePreviewNote' : descriptor.family === 'excel' ? 'sheetPreviewNote' : descriptor.family === 'pdf' ? null : 'previewFontNote';
+      if (note) pane.appendChild(createNote(document, getFileText(language, note)));
       onPageCount(result.pageCount);
     } catch (error) {
       if (disposed) return;

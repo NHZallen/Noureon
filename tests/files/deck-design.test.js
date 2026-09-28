@@ -82,7 +82,7 @@ test('the composer control shows and saves the conversation\'s choice', async ()
     const button = document.getElementById('deck-design-btn');
     assert.equal(button.parentElement.parentElement.id, 'file-input-container', 'sits next to the attachment button');
     assert.equal(document.querySelector('.deck-design-label').textContent, 'Design', 'the button always reads Design');
-    assert.equal(button.title, 'Design: Presentations AI adaptive · Word documents AI adaptive');
+    assert.equal(button.title, 'Design: Presentations AI adaptive · Word and PDF AI adaptive');
     assert.equal(button.querySelector('svg:not(.deck-design-chevron)'), null, 'no icon before the label');
     assert.equal(button.disabled, false);
 
@@ -90,17 +90,17 @@ test('the composer control shows and saves the conversation\'s choice', async ()
     assert.equal(conversation.deckDesign, 'neon');
     assert.equal(saves, 1);
     assert.equal(document.querySelector('.deck-design-label').textContent, 'Design');
-    assert.equal(button.title, `Design: Presentations ${getPresetText('neon', 'en').name} · Word documents AI adaptive`);
+    assert.equal(button.title, `Design: Presentations ${getPresetText('neon', 'en').name} · Word and PDF AI adaptive`);
     await control.choose('document', 'academic');
     assert.equal(conversation.documentDesign, 'academic');
     assert.equal(conversation.deckDesign, 'neon', 'each kind keeps its own choice');
-    assert.match(button.title, /Word documents Academic$/);
+    assert.match(button.title, /Word and PDF Academic$/);
     await control.choose('document', 'not-a-template');
     assert.equal(conversation.documentDesign, 'auto');
 
     conversation = { id: 'b', messages: [] };
     control.render();
-    assert.equal(button.title, 'Design: Presentations AI adaptive · Word documents AI adaptive', 'each conversation keeps its own choice');
+    assert.equal(button.title, 'Design: Presentations AI adaptive · Word and PDF AI adaptive', 'each conversation keeps its own choice');
     conversation = null;
     control.render();
     assert.equal(button.disabled, true);
