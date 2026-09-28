@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { modelSupportsToolCalling, MODELS, NON_TOOL_CALLING_MODEL_IDS, TOOL_CALLING_MODEL_IDS } from '../../src/app/runtime/legacy-core/model-registry.js';
-import { describeFileModeState, isAdvancedModeReleased, resolveReplyMode } from '../../src/app/runtime/sandbox/file-mode.js';
+import { describeFileModeState, resolveReplyMode } from '../../src/app/runtime/sandbox/file-mode.js';
 import { MAX_RUNS_PER_REPLY } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
 import { runSandboxReply, toolResultFor, trimForModel } from '../../src/app/runtime/sandbox/sandbox-reply.js';
 import { SANDBOX_TEXT_KEYS, SANDBOX_TEXT_LANGUAGES, sandboxText } from '../../src/app/runtime/sandbox/sandbox-texts.js';
@@ -61,32 +61,18 @@ test('text models are all marked with or without tool calling', () => {
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.outputModality === 'image')), false);
 });
 
-test('a reply uses Advanced mode only when chosen, released and possible, and says why not', () => {
+test('a reply uses Advanced mode only when chosen and possible, and says why not', () => {
   const supports = (model) => model?.id === 'ok';
-  const base = { conversation: {}, config: {}, modelInfo: { id: 'ok' }, supportsToolCalling: supports, released: true };
+  const base = { conversation: {}, config: {}, modelInfo: { id: 'ok' }, supportsToolCalling: supports };
   assert.deepEqual(resolveReplyMode(base), { advanced: true, reason: null }, 'Advanced is the default');
   assert.deepEqual(resolveReplyMode({ ...base, config: { fileModeDefault: 'standard' } }), { advanced: false, reason: null });
   assert.deepEqual(resolveReplyMode({ ...base, conversation: { fileMode: 'standard' } }), { advanced: false, reason: null });
-  assert.deepEqual(resolveReplyMode({ ...base, released: false }), { advanced: false, reason: null });
   assert.equal(resolveReplyMode({ ...base, isCouncil: true }).reason, 'council');
   assert.equal(resolveReplyMode({ ...base, config: { isLearningMode: true } }).reason, 'learning');
   assert.equal(resolveReplyMode({ ...base, modelInfo: { id: 'no' } }).reason, 'model-unsupported');
   assert.equal(resolveReplyMode({ ...base, browserSupported: false }).reason, 'browser-unsupported');
   const state = describeFileModeState({ ...base, conversation: { fileMode: 'standard' }, modelInfo: { id: 'no' }, window: {} });
-  assert.deepEqual(state, { released: true, value: 'standard', unavailableReason: 'model-unsupported', ready: false });
-});
-
-test('before B3 the preview is switched on per device, also from the address bar', () => {
-  const store = new Map();
-  const window = (search = '') => ({
-    location: { search },
-    localStorage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value), removeItem: (key) => store.delete(key) }
-  });
-  assert.equal(isAdvancedModeReleased({ window: window(), isDevelopment: false }), false);
-  assert.equal(isAdvancedModeReleased({ window: window('?advanced-mode=on'), isDevelopment: false }), true);
-  assert.equal(isAdvancedModeReleased({ window: window(), isDevelopment: false }), true, 'remembered');
-  assert.equal(isAdvancedModeReleased({ window: window('?x=1&advanced-mode=off'), isDevelopment: false }), false);
-  assert.equal(isAdvancedModeReleased({ window: window(), isDevelopment: true }), true);
+  assert.deepEqual(state, { value: 'standard', unavailableReason: 'model-unsupported', ready: false });
 });
 
 test('interface texts exist in all five languages', () => {

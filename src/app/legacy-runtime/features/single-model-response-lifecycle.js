@@ -32,7 +32,8 @@ export function createSingleModelResponseLifecycle({
   getOpenCouncilDetailKeys,
   restoreOpenCouncilDetails,
   getConfig = () => ({}),
-  supportsToolCalling = () => false,
+  // Without it (older callers, tests) replies never use Advanced mode.
+  supportsToolCalling = null,
   getWindow = () => globalThis.window,
   getDocument = () => globalThis.document
 }) {
@@ -128,13 +129,13 @@ export function createSingleModelResponseLifecycle({
       }
     };
     const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
-    const replyMode = resolveReplyMode({
+    const replyMode = supportsToolCalling ? resolveReplyMode({
       conversation,
       config: getConfig(),
       modelInfo,
       supportsToolCalling,
       browserSupported: browserSupportsSandbox(getWindow())
-    });
+    }) : { advanced: false, reason: null };
     // The run record (or the reason for Standard mode) kept above the answer.
     let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
       ? { status: 'done', steps: [], fallback: replyMode.reason }

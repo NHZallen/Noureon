@@ -245,8 +245,8 @@ export function renderDeckDesignPicker(container, { document, window, language =
   }
 
   // "Mode: Standard | Advanced" above the designs (a segmented control, after
-  // Apple's and Material's), where Advanced mode is released.
-  const modeSection = mode?.released ? renderModeSection(document, language, mode, onMode) : null;
+  // Apple's and Material's).
+  const modeSection = mode ? renderModeSection(document, language, mode, onMode) : null;
 
   container.replaceChildren(...[element(document, 'p', 'deck-design-title', text('design')), modeSection?.element, tabs, panel].filter(Boolean));
   show(kind);

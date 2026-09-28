@@ -1,5 +1,5 @@
 import { visionText } from '../../ui/files/vision/vision-texts.js';
-import { FILE_MODES, chosenFileMode, isAdvancedModeReleased } from '../sandbox/file-mode.js';
+import { FILE_MODES, chosenFileMode } from '../sandbox/file-mode.js';
 import { sandboxText } from '../sandbox/sandbox-texts.js';
 
 export function ensureAutoWebSearchSettingsControl({ document, elements }) {
@@ -67,16 +67,11 @@ export function ensureVisionCheckSettingsControl({ document, elements, config })
   elements.visionCheckToggleSwitch = row.querySelector('#vision-check-toggle-switch');
 }
 
-// "Mode for new chats": Standard or Advanced (Python in the browser). Only
-// shown where Advanced mode is released (see file-mode.js).
-export function ensureFileModeSettingsControl({ document, elements, config, released = isAdvancedModeReleased() }) {
+// "Mode for new chats": Standard or Advanced (Python in the browser).
+export function ensureFileModeSettingsControl({ document, elements, config }) {
   const section = document.getElementById('accessibility-section');
   let row = document.getElementById('file-mode-setting-row');
-  if (!released || !section) {
-    if (typeof row?.remove === 'function') row.remove();
-    elements.fileModeDefaultSelect = null;
-    return;
-  }
+  if (!section) return;
   if (!row) {
     row = document.createElement('div');
     row.id = 'file-mode-setting-row';
@@ -109,7 +104,7 @@ export function ensureFileModeSettingsControl({ document, elements, config, rele
     });
   }
   elements.fileModeDefaultSelect = row.querySelector('#file-mode-default-select');
-  elements.fileModeDefaultSelect.value = chosenFileMode(null, config);
+  if (elements.fileModeDefaultSelect) elements.fileModeDefaultSelect.value = chosenFileMode(null, config);
 }
 
 const fileModeLanguageBound = new WeakSet();
