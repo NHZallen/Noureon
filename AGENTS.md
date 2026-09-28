@@ -6,6 +6,7 @@ Read these before changing anything:
 - Plan and decisions: [`docs/superpowers/specs/2026-09-26-downloadable-files-design.md`](docs/superpowers/specs/2026-09-26-downloadable-files-design.md)
 - Design system and PPTX output: [`docs/superpowers/specs/2026-09-27-design-system.md`](docs/superpowers/specs/2026-09-27-design-system.md)
 - V1 visual check design and implementation notes: [`docs/superpowers/specs/2026-09-28-vision-check-design.md`](docs/superpowers/specs/2026-09-28-vision-check-design.md)
+- Plan B (Python sandbox, "Advanced" mode) design: [`docs/superpowers/specs/2026-09-28-python-sandbox-design.md`](docs/superpowers/specs/2026-09-28-python-sandbox-design.md)
 - Releases and deployment: [`RELEASING.md`](RELEASING.md), tests: [`TESTING.md`](TESTING.md)
 
 Rules that always apply:
