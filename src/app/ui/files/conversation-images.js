@@ -4,6 +4,8 @@
 // already on the page, so nothing is fetched. Images are re-encoded as PNG or
 // JPEG (what every PowerPoint version opens) and capped in size.
 
+import { encodeBase64, sandboxFileBytes } from '../sandbox/sandbox-files.js';
+
 const THUMB_SELECTOR = '.user-message .message-media-thumb:not(.message-media-video) img';
 const MAX_SIDE = 2400;
 const SAFE_SOURCE = /^data:image\/[\w.+-]+;base64,/i;
@@ -28,10 +30,17 @@ function decode(window, source) {
  * Returns `resolveImage(source)` for pptx-file.js: { data, pixels } for an
  * upload that exists, or null (the slide then shows a placeholder).
  */
-export function createConversationImageResolver({ document, window, sources = null }) {
+export function createConversationImageResolver({ document, window, sources = null, assets = null }) {
   const cache = new Map();
+  // "asset:name": a picture Python wrote in the same reply (Advanced mode).
+  const assetSource = (name) => {
+    const id = assets?.[name];
+    const bytes = id ? sandboxFileBytes(id) : null;
+    const type = /\.jpe?g$/i.test(name) ? 'image/jpeg' : /\.png$/i.test(name) ? 'image/png' : /\.webp$/i.test(name) ? 'image/webp' : /\.gif$/i.test(name) ? 'image/gif' : '';
+    return bytes && type ? `data:${type};base64,${encodeBase64(bytes)}` : '';
+  };
   const resolveOne = async (index) => {
-    const source = (sources || conversationImageSources(document))[index - 1];
+    const source = typeof index === 'string' ? assetSource(index) : (sources || conversationImageSources(document))[index - 1];
     if (!source || typeof window?.Image !== 'function') return null;
     const image = await decode(window, source);
     const width = image.naturalWidth || image.width;
@@ -50,11 +59,14 @@ export function createConversationImageResolver({ document, window, sources = nu
     return { data: canvas.toDataURL(jpeg ? 'image/jpeg' : 'image/png', 0.9), pixels: { width: canvas.width, height: canvas.height } };
   };
   return (reference) => {
-    if (reference?.kind !== 'upload' || !Number.isInteger(reference.index) || reference.index < 1) return Promise.resolve(null);
-    if (!cache.has(reference.index)) {
-      const request = resolveOne(reference.index).catch(() => null);
-      cache.set(reference.index, request);
+    const key = reference?.kind === 'asset' && typeof reference.name === 'string' ? reference.name
+      : reference?.kind === 'upload' && Number.isInteger(reference.index) && reference.index >= 1 ? reference.index
+        : null;
+    if (key === null) return Promise.resolve(null);
+    if (!cache.has(key)) {
+      const request = resolveOne(key).catch(() => null);
+      cache.set(key, request);
     }
-    return cache.get(reference.index);
+    return cache.get(key);
   };
 }

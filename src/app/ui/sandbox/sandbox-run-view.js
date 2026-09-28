@@ -51,7 +51,9 @@ function renderStep(document, step, index, language) {
   if (step.files.length) {
     const files = element(document, 'p', 'sandbox-run-files');
     files.append(element(document, 'span', 'sandbox-run-label', sandboxText(language, 'sandboxProduced')));
-    files.append(document.createTextNode(` ${step.files.map((file) => `/output/${file.name}（${formatSize(file.size)}）`).join('、')}`));
+    // Documents handed to the design system show under their own names.
+    const shown = (name) => (name.startsWith('.noureon/') ? name.slice('.noureon/'.length) : `/output/${name}`);
+    files.append(document.createTextNode(` ${step.files.map((file) => `${shown(file.name)}（${formatSize(file.size)}）`).join('、')}`));
     item.append(files);
   }
   return item;

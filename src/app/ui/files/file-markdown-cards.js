@@ -115,9 +115,9 @@ function bindPseudoFileLinks(root, descriptors) {
  * Post-render step: swaps the paragraph tokens produced by
  * prepareFileBlocksForMarkdown for real file cards inside the parsed document.
  */
-export function applyFileCards({ document, root, blocks = [], language = 'zh-TW', extraDescriptors = [] } = {}) {
+export function applyFileCards({ document, root, blocks = [], language = 'zh-TW', extraDescriptors = [], decorate = (descriptor) => descriptor } = {}) {
   if (!document || !root || (blocks.length === 0 && extraDescriptors.length === 0)) return [];
-  const blockDescriptors = blocks.map((block) => registerFileBlock(describeFileBlock(block)));
+  const blockDescriptors = blocks.map((block) => registerFileBlock(decorate(describeFileBlock(block))));
   const descriptors = [...blockDescriptors, ...extraDescriptors];
   const cardsByIndex = new Map(descriptors.map((descriptor, index) => [
     index,

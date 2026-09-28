@@ -290,7 +290,7 @@ B 讓模型寫 Python 程式，在使用者瀏覽器內的沙盒執行，產出�
 | B1 ✅ | 沙盒執行環境（實作紀錄見詳細設計文末）：隔離來源、Pyodide Worker、套件載入與快取、虛擬檔案系統、時間上限與停止 | 惡意程式測試：讀不到主程式資料、無法連網 |
 | B2 🧪 | 工具呼叫迴圈（Gemini、OpenRouter、NVIDIA）、執行過程 UI、錯誤回饋與重試、模式選擇與自動切換到 A | 每家供應商實際跑通；不支援的模型確實切換並顯示 |
 | B3 🧪 | 產出檔案接上卡片與預覽、本機保存與同步、使用者上傳檔案放進沙盒 | 重新整理與換裝置後仍能取得檔案 |
-| B4 | B 產出 DocumentSpec＋素材交給設計系統；保留直接用 python-docx / python-pptx 自由製作的路徑 | 以 Office 實際開啟檢查 |
+| B4 ✅ | B 產出 DocumentSpec＋素材交給設計系統；保留直接用 python-docx / python-pptx 自由製作的路徑 | 以 Office 實際開啟檢查 |
 | B5 | B 的產出接上 V1 看圖檢查 | 實測修正前後的差異 |
 
 每個階段結束時都要通過 `npm test`、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime` 與 `npm audit --omit=dev`。

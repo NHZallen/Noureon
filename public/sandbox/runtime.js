@@ -15,9 +15,59 @@ const ensureDirectory = (FS, path) => {
   }
 };
 
+// Documents handed to Noureon's design system (Word, PowerPoint, Excel, PDF)
+// wait here; the app turns each into a file card laid out with the chosen
+// design, like Standard mode.
+export const DOCUMENTS_FOLDER = `${FOLDERS.output}/.noureon`;
+const MODULE_FOLDER = '/opt/noureon';
+
+// The `noureon` module the model's code can import.
+const NOUREON_MODULE = `"""Noureon's design system, from Python.
+
+save_document(name, content) writes a Word (.docx), PowerPoint (.pptx),
+Excel (.xlsx) or PDF (.pdf) file laid out by Noureon with the design chosen
+in the chat. \`content\` is exactly what a \`\`\`\`file block would hold: Markdown
+text, or a dict / list for the JSON form. Pictures saved in /output are used
+as "asset:<file name>".
+"""
+import json as _json
+import os as _os
+
+_FOLDER = ${JSON.stringify(DOCUMENTS_FOLDER)}
+_KINDS = (".docx", ".pptx", ".xlsx", ".pdf")
+
+
+def _plain(value):
+    # numpy and pandas values become plain numbers, lists and text.
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except Exception:
+            pass
+    if hasattr(value, "tolist"):
+        return value.tolist()
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def save_document(name, content):
+    name = _os.path.basename(str(name)).strip()
+    if not name.lower().endswith(_KINDS):
+        raise ValueError("save_document makes .docx, .pptx, .xlsx or .pdf files; write other files to /output yourself.")
+    text = content if isinstance(content, str) else _json.dumps(content, ensure_ascii=False, indent=1, default=_plain)
+    _os.makedirs(_FOLDER, exist_ok=True)
+    with open(_os.path.join(_FOLDER, name), "w", encoding="utf-8") as handle:
+        handle.write(text)
+    print(f"{name}: handed to Noureon's design system.")
+    return name
+`;
+
 export function prepareFolders(pyodide) {
   Object.values(FOLDERS).forEach((path) => ensureDirectory(pyodide.FS, path));
-  pyodide.runPython(`import os\nos.chdir(${JSON.stringify(FOLDERS.work)})`);
+  ensureDirectory(pyodide.FS, MODULE_FOLDER);
+  pyodide.FS.writeFile(`${MODULE_FOLDER}/noureon.py`, NOUREON_MODULE);
+  pyodide.runPython(`import os, sys\nos.chdir(${JSON.stringify(FOLDERS.work)})\nif ${JSON.stringify(MODULE_FOLDER)} not in sys.path: sys.path.insert(0, ${JSON.stringify(MODULE_FOLDER)})`);
 }
 
 const removeTree = (FS, directory, keepDirectory = true) => {

@@ -714,3 +714,39 @@ CSP 是主要的防線。另外在執行模型的程式之前，Worker 還會做
 - 臨時對話中的檔案，關閉後不會留下來。
 - 手機上的下載與預覽。
 - 與 B2 的三家供應商測試一起做。
+
+## B4 實作紀錄（2026-09-28）
+
+### 做法
+
+- **`noureon` 模組**：沙盒啟動時把 `noureon.py` 放進 `/opt/noureon`，並加到 `sys.path`。
+  - `noureon.save_document(名稱, content)` 把內容寫到 `/output/.noureon/名稱`。
+  - `content` 就是標準模式 ````file 區塊裡的內容：Markdown 文字，或 dict / list（轉成 JSON）。numpy 與 pandas 的數值會轉成一般數字。
+  - 只接受 docx、pptx、xlsx、pdf 四種格式。
+- **app 端的處理**（`sandboxDocumentBlocks`）：
+  - 把 `.noureon/` 裡最新版的每份文件，轉成回覆最後的 ````file 區塊。圍欄會比內容裡最長的反引號還長，所以不會被提早結束。
+  - 之後完全走標準模式：範本強制套用、設計系統、字型嵌入、預覽、歷史壓縮與看圖檢查。這些文件不會另外存成二進位檔。
+- **圖片**：Python 存在 `/output` 的圖用 `asset:檔名` 引用。
+  - 簡報：`document-spec.js` 本來就會讀 `asset:`，現在由圖片解析器找出同一則回覆裡的沙盒檔案，轉成 data URL。
+  - **Word 與 PDF 新增圖片**：一個段落如果只有一張 `upload:N` 或 `asset:名稱` 的圖片，就會成為圖片區塊。寬度不超過文字寬度，圖片的說明文字當成圖說。找不到圖時，改成斜體的說明文字。網路圖片一律不抓。
+  - 被文件引用的圖片不會另外出現檔案卡片，因為它是文件的一部分，但仍然存在訊息裡，供重新產生時使用。
+- **提示詞**：
+  - Word、PPT、Excel、PDF 優先用 `noureon.save_document`，數字放進原生圖表。
+  - matplotlib 的圖在簡報裡用 `split` 版型，並設定 `fit: contain`，因為 `image` 版型是滿版照片，會裁切圖表。
+  - 只有設計系統做不到時，例如編輯使用者上傳的檔案、合併 PDF，才直接用 python-docx 或 python-pptx。
+- **沒做的**：§6 原本提到的 `noureon.design()`。範本強制套用與 AI 自適應都由標準模式的流程處理，Python 不需要知道目前選了哪個設計。
+
+### 驗證
+
+- **自動測試**：`tests/sandbox/sandbox-documents.test.js` 共 5 項：
+  - 用 Node 版 Pyodide 執行 `noureon.save_document`，包括拒絕 .exe。
+  - 文件轉成檔案區塊，而且不會同時存成檔案。
+  - 找出文件引用的圖片名稱，包括經過 URL 編碼的寫法。
+  - 圖片段落轉成圖片區塊。
+  - Word 與 PDF 會嵌入圖片，找不到圖時改成說明文字。
+- **npm 檢查**：`npm test` 共 1992 項全部通過；`build`、`check:sizes`、`check:legacy-runtime`、`npm audit --omit=dev`（0 個漏洞）也都通過。
+- **瀏覽器（真的沙盒，假的模型回應）**：
+  - pandas 計算、matplotlib 畫圖後，用 `save_document` 交出 Word 與簡報。
+  - 回覆最後只有兩張設計系統的卡片，圖表圖片沒有另外出現。
+  - Word 預覽有標題、表格和圖表圖片；簡報預覽的圖片也有正確顯示。
+- **Office**：用 Word 開啟含 `asset:` 圖片的 docx 並匯出 PDF（2 頁，圖片與圖說正確）；用 PowerPoint 開啟 split 版型加 contain 的 pptx 並匯出 PDF（2 張，圖在文字右側）。兩者開啟時都沒有出現錯誤。

@@ -27,3 +27,40 @@ export async function renderChartImages(blocks, context) {
   }
   return images;
 }
+
+// Picture blocks (Markdown images referring to "upload:N" or "asset:name"),
+// resolved once before a document is written: PNG or JPEG bytes with their
+// size in pixels. An image that cannot be found is left out of the map and
+// its description is written instead.
+const parseImageDataUrl = (value) => {
+  const match = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(String(value || ''));
+  if (!match) return null;
+  const binary = atob(match[2]);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return { type: match[1].toLowerCase() === 'png' ? 'png' : 'jpg', bytes, dataUrl: value };
+};
+
+export async function resolveDocumentImages(blocks, context) {
+  const images = new Map();
+  if (typeof context.resolveImage !== 'function') return images;
+  const pending = [];
+  const visit = (list) => list.forEach((block) => {
+    if (block.type === 'image') pending.push(block);
+    if (block.type === 'quote') visit(block.blocks);
+    if (block.type === 'list') block.items.forEach((item) => visit(item.blocks));
+  });
+  visit(blocks);
+  for (const block of pending) {
+    try {
+      const resolved = await context.resolveImage(block.source);
+      const parsed = parseImageDataUrl(resolved?.data);
+      const width = Number(resolved?.pixels?.width);
+      const height = Number(resolved?.pixels?.height);
+      if (parsed && width > 0 && height > 0) images.set(block, { ...parsed, width, height });
+    } catch {
+      // The description stands in for the picture.
+    }
+  }
+  return images;
+}

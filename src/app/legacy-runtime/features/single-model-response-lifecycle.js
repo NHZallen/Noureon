@@ -4,7 +4,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
-import { collectSandboxInputs, createSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
 import { createSandboxLiveElement } from '../../ui/sandbox/sandbox-run-view.js';
 
 // Advanced mode (Python in the browser) is loaded only for replies that use it.
@@ -142,6 +142,8 @@ export function createSingleModelResponseLifecycle({
       : null;
     // Files the run made, kept as parts of the reply message.
     let sandboxParts = [];
+    // Documents the code handed to the design system, as file blocks.
+    let sandboxDocuments = '';
     let liveRun = null;
     const showRunStatus = (statusText) => {
       if (!liveRun) {
@@ -168,6 +170,7 @@ export function createSingleModelResponseLifecycle({
         });
         sandboxRun = result.run;
         sandboxParts = createSandboxFileParts(result.run);
+        sandboxDocuments = sandboxDocumentBlocks(result.run);
         return result.text;
       }
       : (onChunk) => streamApiCall(requestParts, onChunk, signal, false, streamOptions);
@@ -223,7 +226,9 @@ export function createSingleModelResponseLifecycle({
       throw new Error(getRuntimeText(uiLanguage, 'emptyResponse'));
     }
     if (sandboxRun) {
-      fullResponse = `${formatSandboxRunBlock(sandboxRun)}${fullResponse || ''}`;
+      fullResponse = `${formatSandboxRunBlock(sandboxRun)}${fullResponse || ''}${sandboxDocuments ? `
+
+${sandboxDocuments}` : ''}`;
       // The final view is drawn again so the run row appears above the answer.
       if (targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
     }

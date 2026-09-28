@@ -239,6 +239,29 @@ function paragraphOrSpecial(runs, context) {
   return { type: 'paragraph', runs };
 }
 
+// "upload:N" (an image the user attached) or "asset:name.png" (a file Python
+// wrote in Advanced mode), as the design system's image references read.
+export function pictureSource(href = '') {
+  let value = String(href || '').trim();
+  try {
+    value = decodeURIComponent(value);
+  } catch {
+    // Keep it as written.
+  }
+  const upload = /^upload:(\d{1,2})$/i.exec(value);
+  if (upload && Number(upload[1]) >= 1) return { kind: 'upload', index: Number(upload[1]) };
+  const asset = /^asset:([\w.\-À-￿ ]{1,120})$/i.exec(value);
+  return asset ? { kind: 'asset', name: asset[1].trim() } : null;
+}
+
+function pictureBlock(tokens = []) {
+  const meaningful = tokens.filter((token) => !(token.type === 'text' && !token.text.trim()) && token.type !== 'br');
+  if (meaningful.length !== 1 || meaningful[0].type !== 'image') return null;
+  const source = pictureSource(meaningful[0].href);
+  if (!source) return null;
+  return { type: 'image', source, alt: cleanDocumentText(meaningful[0].text || meaningful[0].title || '').trim() };
+}
+
 function blockFromToken(token, context) {
   const { formulas } = context;
   switch (token.type) {
@@ -253,8 +276,13 @@ function blockFromToken(token, context) {
         anchor: `noureon_heading_${context.headingCount}`
       };
     }
-    case 'paragraph':
+    case 'paragraph': {
+      // A paragraph that is only a picture from the conversation or from
+      // Advanced mode's /output becomes a picture block.
+      const picture = pictureBlock(token.tokens);
+      if (picture) return picture;
       return paragraphOrSpecial(inlineRuns(token.tokens, formulas), context);
+    }
     case 'text':
       return paragraphOrSpecial(inlineRuns(token.tokens || [{ type: 'text', text: token.text }], formulas), context);
     case 'code': {

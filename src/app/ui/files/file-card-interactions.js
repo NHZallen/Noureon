@@ -144,7 +144,8 @@ export function installFileCardInteractions({
       document,
       window,
       loadChartImageRenderer: () => import('./generators/chart-image-export.js'),
-      resolveImage: createConversationImageResolver({ document, window })
+      // Pictures Python wrote in the same reply, for "asset:" references.
+      resolveImage: createConversationImageResolver({ document, window, assets: descriptor.sandboxAssets || null })
     });
     cache.set(descriptor.id, blob);
     rememberGeneratedFileSize(descriptor.id, blob.size);

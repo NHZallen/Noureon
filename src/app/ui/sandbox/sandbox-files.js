@@ -93,6 +93,24 @@ export async function loadSandboxFileBlob(id) {
   return blob;
 }
 
+// Names a document's content refers to as "asset:name.ext" (pictures it shows).
+const ASSET_REFERENCE = /asset:((?:[\w.\-À-￿ ]|%[0-9A-F]{2}){1,160}?\.[A-Za-z0-9]{2,5})(?![\w.])/gi;
+export function referencedAssetNames(contents = []) {
+  const names = new Set();
+  for (const content of contents) {
+    for (const match of String(content || '').matchAll(ASSET_REFERENCE)) {
+      let name = match[1].trim();
+      try {
+        name = decodeURIComponent(name);
+      } catch {
+        // Keep it as written.
+      }
+      names.add(name);
+    }
+  }
+  return names;
+}
+
 // The newest version of each file the run created, in order of first
 // appearance. A name written twice (a revised chart) keeps its last bytes.
 export function latestRunFiles(run) {
@@ -147,6 +165,31 @@ export function describeSandboxFile(entry, { canRerun = false } = {}) {
   });
 }
 
+// Documents the code handed to the design system (noureon.save_document)
+// land in /output/.noureon/; they become file blocks after the answer.
+export const DOCUMENT_PREFIX = '.noureon/';
+const DOCUMENT_KINDS = /\.(?:docx|pptx|xlsx|pdf)$/i;
+
+export function sandboxDocumentBlocks(run) {
+  const newest = new Map();
+  for (const step of run?.steps || []) {
+    for (const output of step.outputs || []) {
+      if (!output.name.startsWith(DOCUMENT_PREFIX)) continue;
+      const name = output.name.slice(DOCUMENT_PREFIX.length);
+      if (!DOCUMENT_KINDS.test(name) || name.includes('/')) continue;
+      newest.delete(name);
+      newest.set(name, output.bytes);
+    }
+  }
+  return [...newest].map(([name, bytes]) => {
+    const content = new TextDecoder().decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || 0)).replace(/\s+$/, '');
+    // The fence is longer than any backtick run inside, so it cannot close early.
+    const longest = Math.max(3, ...[...content.matchAll(/`+/g)].map((match) => match[0].length));
+    const fence = '`'.repeat(Math.max(4, longest + 1));
+    return `${fence}file ${name}\n${content}\n${fence}`;
+  }).join('\n\n');
+}
+
 // After a reply: the files the run created become message parts, and the
 // run record refers to them by id. Returns the parts to add to the message.
 export function createSandboxFileParts(run, { createId = () => crypto.randomUUID() } = {}) {
@@ -154,6 +197,7 @@ export function createSandboxFileParts(run, { createId = () => crypto.randomUUID
   const newest = new Map();
   run.steps.forEach((step, stepIndex) => {
     (step.outputs || []).forEach((output) => {
+      if (output.name.startsWith(DOCUMENT_PREFIX)) return;
       newest.delete(output.name);
       newest.set(output.name, { output, stepIndex });
     });

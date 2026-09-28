@@ -40,7 +40,7 @@ import {
 import JSZip from 'jszip';
 import { buildDocumentTheme, legacyDocumentTheme } from '../design/document-design.js';
 import { FONT_FAMILIES, fontSource } from '../design/fonts.js';
-import { renderChartImages } from './chart-images.js';
+import { renderChartImages, resolveDocumentImages } from './chart-images.js';
 import { CHART_TABLE_LABELS, IMAGE_LABELS, TOC_LABELS } from './document-labels.js';
 import { buildDocumentModel, collectHeadings, runsToPlainText } from './document-model.js';
 import { createDisplayEquation, createInlineEquation } from './docx-omml.js';
@@ -223,9 +223,36 @@ class DocxRenderer {
         return [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 120 }, children: [createDisplayEquation(block.latex)] })];
       case 'chart':
         return this.renderChart(block.chart);
+      case 'image':
+        return this.renderPicture(block, context);
       default:
         return [];
     }
+  }
+
+  // A picture at the text width (never enlarged), its description as the
+  // caption; without the picture, the description in italics.
+  renderPicture(block, context = {}) {
+    const picture = this.pictures?.get(block);
+    const caption = block.alt ? [new Paragraph({ style: 'NoureonCaption', children: [this.plainRun(block.alt)] })] : [];
+    if (!picture) return block.alt ? [new Paragraph({ children: [this.plainRun(block.alt, { italics: true })] })] : [];
+    const maxWidth = Math.floor((this.contentWidth - (context.indent || 0)) / 15);
+    const width = Math.min(maxWidth, picture.width);
+    const height = Math.round(width * (picture.height / picture.width));
+    return [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        keepNext: Boolean(block.alt),
+        spacing: { before: 120, after: 60 },
+        children: [new ImageRun({
+          type: picture.type,
+          data: picture.bytes,
+          transformation: { width, height },
+          altText: { title: block.alt || 'Picture', description: block.alt || 'Picture', name: 'picture' }
+        })]
+      }),
+      ...caption
+    ];
   }
 
   renderList(block, context, level = 0) {
@@ -913,6 +940,7 @@ async function composeDocx(descriptor, context = {}) {
     theme,
     chartImages: await renderChartImages(blocks, context)
   });
+  renderer.pictures = await resolveDocumentImages(blocks, context);
 
   renderer.topLevel = Math.min(6, ...collectHeadings(blocks, 6).map((heading) => heading.level)) || 1;
   const cover = renderer.renderCover();

@@ -3,7 +3,7 @@ import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
 import { applyFileCards, prepareFileBlocksForMarkdown, setFileMarkdownRenderer } from '../../ui/files/file-markdown-cards.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { createSandboxRunElement } from '../../ui/sandbox/sandbox-run-view.js';
-import { describeSandboxFile, latestRunFiles } from '../../ui/sandbox/sandbox-files.js';
+import { describeSandboxFile, latestRunFiles, referencedAssetNames } from '../../ui/sandbox/sandbox-files.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 export function createMarkdownRenderingHelpers({
@@ -227,15 +227,20 @@ export function createMarkdownRenderingHelpers({
       chartLabel: getText('chart', runtimeTexts.chart)
     });
 
-    // Files the reply's Python runs made, newest version of each.
+    // Files the reply's Python runs made, newest version of each. Pictures a
+    // document of the reply shows ("asset:name") are part of that document.
     const canRerun = Boolean(sandboxRun?.steps?.some((step) => step.code));
-    const sandboxFiles = latestRunFiles(sandboxRun).map((file) => describeSandboxFile(file, { canRerun }));
+    const runFiles = latestRunFiles(sandboxRun);
+    const inDocuments = referencedAssetNames(fileBlocks.map((block) => block.content));
+    const sandboxFiles = runFiles.filter((file) => !inDocuments.has(file.name)).map((file) => describeSandboxFile(file, { canRerun }));
+    const assets = runFiles.length ? Object.fromEntries(runFiles.map((file) => [file.name, file.id])) : null;
     applyFileCards({
       document: documentFragment,
       root: documentFragment.body,
       blocks: fileBlocks,
       language: getUiLanguage(),
-      extraDescriptors: sandboxFiles
+      extraDescriptors: sandboxFiles,
+      decorate: assets ? (descriptor) => ({ ...descriptor, sandboxAssets: assets }) : undefined
     });
 
     // Advanced mode's "Ran code N times" row goes above the answer.

@@ -9,7 +9,7 @@
 
 import { buildDocumentTheme } from '../design/document-design.js';
 import { DOCUMENT_PRESETS } from '../design/document-presets.js';
-import { renderChartImages } from './chart-images.js';
+import { renderChartImages, resolveDocumentImages } from './chart-images.js';
 import { CHART_TABLE_LABELS, IMAGE_LABELS, TOC_LABELS } from './document-labels.js';
 import { buildDocumentModel, collectHeadings, runsToPlainText } from './document-model.js';
 import { latexToInlineRuns } from './latex-inline.js';
@@ -155,9 +155,28 @@ class PdfRenderer {
       }
       case 'chart':
         return this.renderChart(block.chart);
+      case 'image':
+        return this.renderPicture(block, context);
       default:
         return [];
     }
+  }
+
+  // A picture at the text width (never enlarged) with its description below;
+  // without the picture, the description in italics.
+  renderPicture(block, context = {}) {
+    const picture = this.pictures?.get(block);
+    if (!picture) return block.alt ? [this.renderParagraph([{ text: block.alt, italic: true }], context)] : [];
+    const available = this.contentWidth - (context.indent || 0);
+    // Pixels at 96 dpi to points.
+    const width = Math.min(available, picture.width * 0.75);
+    const caption = block.alt
+      ? [{ text: this.plain(block.alt, { pitch: this.pitch.table }), fontSize: this.sizes.caption, color: color(this.colors.muted), alignment: 'center', margin: [0, 2, 0, 12] }]
+      : [];
+    return [{
+      stack: [{ image: picture.dataUrl, width, alignment: 'center', margin: [0, 4, 0, 4] }, ...caption],
+      unbreakable: true
+    }];
   }
 
   renderParagraph(runs, context = {}) {
@@ -653,6 +672,7 @@ export async function composePdf(descriptor, context = {}) {
   await fonts.prepare({ sample: `${content}${labels}${meta.title}0123456789`, roles });
 
   const renderer = new PdfRenderer({ meta, language, theme, fonts, chartImages: await renderChartImages(blocks, context) });
+  renderer.pictures = await resolveDocumentImages(blocks, context);
   renderer.mathImages = await typesetFormulas(blocks, { color: color(theme.colors.text) });
   renderer.topLevel = Math.min(6, ...collectHeadings(blocks, 6).map((heading) => heading.level)) || 1;
   renderer.tocMinimum = Math.min(...collectHeadings(blocks, 3).map((heading) => heading.level), 3);
