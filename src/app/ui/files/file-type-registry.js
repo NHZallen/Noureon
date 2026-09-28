@@ -122,6 +122,11 @@ const TEXT_TYPES = Object.freeze({
   desktop: { family: 'code', mime: TEXT_MIME, language: 'Desktop Entry', script: true }
 });
 
+// Archives are binary; a model can only stream text, so an authored archive
+// would always be corrupt. Multi-file bundles are built by the app instead.
+// (Python in the sandbox can build real archives; see public/sandbox/protocol.js.)
+export const ARCHIVE_EXTENSIONS = Object.freeze(['zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'cab']);
+
 // Executables, installers, shortcuts, registry files, and macro-enabled Office
 // documents are never produced, regardless of what the model asks for.
 const BLOCKED_EXTENSIONS = new Set([
@@ -131,10 +136,10 @@ const BLOCKED_EXTENSIONS = new Set([
   'settingcontent-ms', 'library-ms', 'search-ms', 'searchconnector-ms', 'diagcab', 'xll', 'xlam', 'ppam',
   'app', 'apk', 'ipa', 'aab', 'xapk', 'deb', 'rpm', 'dmg', 'pkg', 'mpkg', 'iso', 'img', 'vhd', 'vhdx',
   'docm', 'dotm', 'xlsm', 'xltm', 'xlsb', 'pptm', 'potm', 'ppsm', 'sldm',
-  // Archives are binary; a model can only stream text, so an authored archive
-  // would always be corrupt. Multi-file bundles are built by the app instead.
-  'zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'cab'
+  ...ARCHIVE_EXTENSIONS
 ]);
+
+export const isBlockedFileExtension = (extension = '') => BLOCKED_EXTENSIONS.has(String(extension).replace(/^\./, '').toLowerCase());
 
 const EXTENSIONLESS_CODE_NAMES = Object.freeze({
   dockerfile: 'dockerfile',

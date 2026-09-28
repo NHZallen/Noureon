@@ -32,8 +32,9 @@
 | **A3** | ✅ 已上線 | Excel：固定樣式＋可改主色、公式政策與快取值、凍結窗格、篩選、合併儲存格、工作表預覽（見總計畫「A3 實作紀錄」） |
 | **A5** | ✅ 已上線 | PDF：與 Word 共用設計（「設計」的「Word／PDF 文件」分頁）、所有字型子集嵌入（含簡中、日文、韓文、黑白 emoji）、目錄頁碼、書籤、向量圖表、PDF.js 預覽（見總計畫「A5 實作紀錄」） |
 | **A6** | ✅ 已上線 | Excel 原生圖表、預覽篩選按鈕、PDF 數學公式、HTML 沙盒預覽（見總計畫「A6 實作紀錄」）；手機實機下載待使用者驗證（清單見下） |
-| **B0** | 📝 **設計草案，待使用者確認** | 方案 B 詳細設計：[`docs/superpowers/specs/2026-09-28-python-sandbox-design.md`](../specs/2026-09-28-python-sandbox-design.md)。已決定：「設計」選單內的「製作方式：標準｜進階」、預設進階、執行過程收合成一行、沙盒在 run.noureon.com |
-| **B1～B5** | ⬜ 待 B0 確認 | 見詳細設計 §9 |
+| **B0** | ✅ 使用者已確認 | 方案 B 詳細設計：[`docs/superpowers/specs/2026-09-28-python-sandbox-design.md`](../specs/2026-09-28-python-sandbox-design.md)。已決定：「設計」選單內的「製作方式：標準｜進階」、預設進階、執行過程收合成一行、沙盒在 run.noureon.com |
+| **B1** | ✅ **已完成，待推送** | 沙盒執行環境（`public/sandbox/`、`src/app/runtime/sandbox/`），還沒接上模型與介面。DNS：`run.noureon.com` 已由使用者在 Cloudflare 與 Vercel 設定好（CNAME、僅 DNS）。實作與驗證見詳細設計文末「B1 實作紀錄」；部署後要檢查的項目也列在那裡 |
+| **B2～B5** | ⬜ 下一步 B2 | 見詳細設計 §9 |
 
 V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 初版 commit：`ea4a1688 Implement V1 visual review for presentations`。2026-09-28 使用者要求將進度改為通知並授權推送 `main`。
 

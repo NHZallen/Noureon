@@ -1,7 +1,7 @@
 # 方案 B：瀏覽器內 Python 沙盒（進階模式）詳細設計
 
 **日期：** 2026-09-28
-**狀態：** B0 設計草案，等待使用者確認。確認前不開始 B1。
+**狀態：** B0 已由使用者確認（2026-09-28）。B1（沙盒執行環境）已完成，本機 commit、尚未推送；實作時與本文不同的地方記在文末「B1 實作紀錄」，以該節為準。下一步 B2。
 **前置閱讀：** [交接說明](../plans/2026-09-28-downloadable-files-handoff.md)（工作規則）、[總計畫](2026-09-26-downloadable-files-design.md)（決定 1–4、6 與「方案 B 概要」「模式選擇與自動切換」）、[設計系統規格](2026-09-27-design-system.md)、[V1 看圖檢查](2026-09-28-vision-check-design.md)。
 
 ## 0. 使用者已確認的決定（2026-09-28）
@@ -527,3 +527,76 @@ CSP 是主要的防線。另外在執行模型的程式之前，Worker 還會做
 | previewUnavailable | 這個檔案無法預覽，請下載後開啟。 | This file can't be previewed. Download it to open it. | Impossible de prévisualiser ce fichier. Téléchargez-le pour l'ouvrir. | Этот файл нельзя просмотреть. Скачайте его, чтобы открыть. | No se puede previsualizar este archivo. Descárgalo para abrirlo. |
 
 §2.3 的七種原因也需要 5 種語言的翻譯，在 B2 與其他文字一起放進 `sandbox-texts.js`，並用測試檢查 5 種語言的鍵是否一致。
+
+## B1 實作紀錄（2026-09-28）
+
+### 檔案
+
+| 位置 | 內容 |
+|---|---|
+| `public/sandbox/index.html`、`host.js` | 沙盒頁面：檢查自己的來源與 app 的來源、管理 Worker（逾時、停止、當掉後重啟）、一次只處理一個請求、轉送圖表字型 |
+| `public/sandbox/worker.js` | Pyodide Worker：封鎖網路、限制 Python 看得到的 JS、載入套件、執行程式 |
+| `public/sandbox/runtime.js` | 不依賴 Worker 的部分：資料夾、放入 `/input`、收集 `/output`、擷取輸出、整理錯誤、清空、matplotlib 字型；測試直接用 Node 版 Pyodide 執行 |
+| `public/sandbox/protocol.js` | 來源規則、限制、訊息類型、可連的網址、擋下的副檔名 |
+| `public/sandbox/sw.js` | 沙盒的 Service Worker：快取並核對雜湊（傳統腳本，常數由測試對照 `protocol.js`） |
+| `public/sandbox/pyodide/`、`wheels/` | `scripts/build-sandbox.mjs` 產生並 commit：Pyodide 載入程式、加入 8 個套件的清單、核心檔雜湊、套件檔 |
+| `src/app/runtime/sandbox/` | app 端：`sandbox-protocol.js`（常數與來源判斷）、`sandbox-client.js`（iframe 與訊息）、`python-sandbox.js`（每頁一個沙盒）、`sandbox-fonts.js`（圖表字型） |
+| `vercel.json`、`vite.config.js` | 沙盒主機的強制 CSP 與轉址；開發伺服器對 `/sandbox/` 加上相同的 CSP |
+
+`pyodide` 是 devDependency，只供建置腳本與 Node 測試使用，不會打包進 app。
+
+### 與設計不同的地方
+
+- **核心檔的來源**：
+  - Pyodide 的核心程式 `pyodide.asm.mjs` 會和 wasm 一起從 `indexURL` 載入，無法只把前者放在自己的來源。所以改成三個核心檔都從 jsDelivr 載入，CSP 的 `script-src` 允許那個固定版本的路徑。
+  - 由沙盒的 Service Worker 在使用前核對 sha256（`integrity.json`），不符就拒絕。
+  - 套件檔同樣用套件清單裡的 sha256 核對，清單沒列的檔案一律拒絕。
+  - `pyodide.mjs` 與套件清單放在自己的來源。
+  - 沒有 Service Worker 時（例如某些私密視窗），套件仍由 Pyodide 自己核對，只有核心檔少了這一層。
+- **不需要 `unsafe-eval`**：Pyodide 在只有 `'wasm-unsafe-eval'` 的 CSP 下就能正常執行，所以沙盒的 CSP 沒有 `unsafe-eval`。這也讓 Python 無法用 JS 的 `Function` 建構子逃出去。
+- **Python 的 `js` 模組**：沒有移除，因為 Pyodide 的 asyncio 需要它，改為用 `jsglobals` 只提供計時器和幾個基本建構子，沒有 fetch、self、parent。Worker 內的處理如下：
+  - `fetch` 換成只允許固定 CDN 路徑與 `/sandbox/` 的版本。
+  - `XMLHttpRequest`、`WebSocket`、`EventSource`、`WebTransport`、`BroadcastChannel`、`Worker`、`importScripts`、`indexedDB`、`caches` 等都移除，並從原型鏈刪掉。
+- **圖表字型**：
+  - Noto Sans TC、SC、JP、KR 是可變字型，預設字重是 Thin，在沙盒內轉成一般字重每套要 5–7 秒。
+  - 所以改成 matplotlib 第一次被用到時，沙盒才向 app 要字型。
+  - app 用 HarfBuzz 保留所有字元、固定字重 400 並改名，每套只要 20–50 毫秒，再傳給沙盒。
+  - 字型清單設成 `font.family`，matplotlib 會逐字在各字型之間補字：Inter → 依文件語言排序的 CJK 字型 → DejaVu Sans。
+  - 沙盒因此不需要從網路取字型，`run.noureon.com` 只提供 `/sandbox/`。
+- **每則回覆的環境**：
+  - 在全新環境 `import pandas, matplotlib` 約要 10 秒，所以每則回覆開始時改用「清空」（`clear`）：清掉變數、`/output`、`/work`，但保留已經載入的套件。清空只要約 2 毫秒，第二張圖表約 0.2 秒。
+  - 只有在逾時、停止或當掉時，才重建 Worker。
+  - `/input` 由每次 `mount` 整批替換。
+- **擋下的檔案類型**：
+  - 與標準模式的清單相同（`file-type-registry.js`），差別在壓縮檔：Python 能做出真正的壓縮檔，所以壓縮檔在進階模式可以交出。
+  - 程式碼檔（.js、.sh 等）和標準模式一樣可以交出。
+  - 有測試檢查兩份清單一致。
+- **進度**：Worker 回報累計的下載位元組數，而不是百分比，因為總量要看程式匯入哪些套件才知道。從快取讀取的部分不計入。B2 的進度文字會改用「已下載 N MB」。
+
+### 驗證（Chrome，開發伺服器；app 在 localhost、沙盒在 127.0.0.1）
+
+- **載入**：第一次下載 12.3 MB，1.7 秒就緒；之後只下載 114 KB 的套件清單，約 2.6–3 秒就緒。
+- **功能**：
+  - pandas 與 matplotlib 可以使用，中、日、韓文字的圖表都正確，字重是一般字重。
+  - `/input` 裡上傳的 CSV 讀得到。
+  - python-docx、python-pptx、openpyxl、fpdf2、pypdf 都做得出檔案，也讀得回去。
+- **§8 的攻擊測試（13 項全部失敗）**：
+  - `js.fetch`、`js.self`、`js.parent` 不存在；`pyodide.http` 的 pyfetch 與 open_url、`urllib`、`socket` 都連不出去。
+  - 用 JS 的 `Function` 建構子逃出去時，被 CSP 以 EvalError 擋下；`run_js` 無法使用。
+  - 用 `loadPackage` 載入外部網址被拒絕。
+  - 掃描 `pyodide_js` 底下的物件，找不到任何 postMessage、XMLHttpRequest、location 或 importScripts。
+- **資源限制**：
+  - 無窮迴圈在設定的時限內被中止，1.7 秒後就有新的環境。
+  - 配置大量記憶體時只出現 MemoryError，環境可以繼續用。
+  - 30 MB 的檔案被擋下，其他檔案照常收集。
+  - 按「停止」1.5 秒內生效。
+- **網路不穩時**：曾經遇到瀏覽器連到 CDN 很慢，pillow 下載失敗。程式回報了 Pyodide 的錯誤訊息，沒有卡住。這類失敗在 B2 依 §2.3 處理。
+- **自動測試**：`tests/sandbox/` 共 18 項，其中執行相關的測試用真的 Pyodide 核心在 Node 執行，不需要連網。
+
+### 尚未驗證（要等部署後）
+
+- `run.noureon.com` 的 HTTPS 憑證，以及強制 CSP、轉址、`frame-ancestors`。
+  - 在 noureon.com 開啟 `/sandbox/` 要被轉到 run.noureon.com。
+  - 其他網站嵌入沙盒頁面要被擋下。
+- Safari 與 iPhone（記憶體、模組 Worker、Service Worker）。
+- 手機寬度下的進度顯示要等 B2 有介面後才能驗證。

@@ -1,6 +1,26 @@
 import { defineConfig } from 'vite';
 
+// The Python sandbox (public/sandbox/) gets the same enforced CSP as on
+// run.noureon.com (vercel.json), except that in development it is framed by
+// the app on the other local host name (localhost ↔ 127.0.0.1).
+const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
+export const SANDBOX_DEV_CSP = `default-src 'none'; script-src 'self' 'wasm-unsafe-eval' ${PYODIDE_CDN}; connect-src 'self' ${PYODIDE_CDN}; worker-src 'self'; frame-ancestors http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'`;
+
+const sandboxHeaders = (request, response, next) => {
+  if (request.url?.startsWith('/sandbox/')) {
+    response.setHeader('Content-Security-Policy', SANDBOX_DEV_CSP);
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+  next();
+};
+
 export default defineConfig({
+  plugins: [{
+    name: 'noureon-sandbox-headers',
+    configureServer: (server) => { server.middlewares.use(sandboxHeaders); },
+    configurePreviewServer: (server) => { server.middlewares.use(sandboxHeaders); }
+  }],
   server: {
     host: '0.0.0.0',
     proxy: {

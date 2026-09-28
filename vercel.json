@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com https://openrouter.ai https://*.supabase.co wss://*.supabase.co https://0.peerjs.com wss://0.peerjs.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; manifest-src 'self'"
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com https://openrouter.ai https://*.supabase.co wss://*.supabase.co https://0.peerjs.com wss://0.peerjs.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com https://run.noureon.com; worker-src 'self' blob:; manifest-src 'self'"
         },
         {
           "key": "Strict-Transport-Security",
@@ -27,7 +27,76 @@
           "key": "Permissions-Policy",
           "value": "camera=(self), microphone=(self), geolocation=()"
         }
+      ],
+      "missing": [
+        {
+          "type": "host",
+          "value": "run.noureon.com"
+        }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "run.noureon.com"
+        }
+      ],
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net/pyodide/v314.0.7/full/; connect-src 'self' https://cdn.jsdelivr.net/pyodide/v314.0.7/full/; worker-src 'self'; frame-ancestors https://noureon.com https://www.noureon.com; base-uri 'none'; form-action 'none'"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), clipboard-read=(), clipboard-write=()"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/sandbox/:path*",
+      "missing": [
+        {
+          "type": "host",
+          "value": "run.noureon.com"
+        }
+      ],
+      "destination": "https://run.noureon.com/sandbox/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/((?!sandbox/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "run.noureon.com"
+        }
+      ],
+      "destination": "https://noureon.com/",
+      "permanent": false
     }
   ],
   "rewrites": [

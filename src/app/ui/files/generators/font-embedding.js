@@ -38,9 +38,10 @@ export async function createFontSubsetter(wasm) {
    * Returns a TrueType subset containing `text`'s characters. `variations`
    * pins variable-font axes, e.g. { wght: 700 }; with `instance`, every other
    * axis is pinned to its default too, producing a static font (Office does
-   * not render variable fonts).
+   * not render variable fonts). `allCharacters` keeps every character and
+   * ignores `text`.
    */
-  function subset(fontBytes, text, { variations = {}, instance = false } = {}) {
+  function subset(fontBytes, text, { variations = {}, instance = false, allCharacters = false } = {}) {
     const bytes = fontBytes instanceof Uint8Array ? fontBytes : new Uint8Array(fontBytes);
     const pointer = hb.malloc(bytes.byteLength);
     if (!pointer) throw new Error('font subsetter is out of memory');
@@ -52,6 +53,12 @@ export async function createFontSubsetter(wasm) {
     try {
       if (!input) throw new Error('font subsetter could not start');
       const unicodes = hb.hb_subset_input_unicode_set(input);
+      if (allCharacters) {
+        // Every character (only the axes are pinned), e.g. for the sandbox's
+        // chart fonts, whose text is not known in advance.
+        hb.hb_set_clear(unicodes);
+        hb.hb_set_invert(unicodes);
+      }
       // Always keep printable ASCII, no-break space and the replacement
       // character. PowerPoint mis-measures digits when only some of 0-9 are
       // present (it lays them out wider than they draw), and the full ASCII
