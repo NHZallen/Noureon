@@ -12,6 +12,7 @@ import { DOCUMENT_PRESETS } from '../design/document-presets.js';
 import { renderChartImages } from './chart-images.js';
 import { CHART_TABLE_LABELS, IMAGE_LABELS, TOC_LABELS } from './document-labels.js';
 import { buildDocumentModel, collectHeadings, runsToPlainText } from './document-model.js';
+import { latexToInlineRuns } from './latex-inline.js';
 import { PdfFontSet } from './pdf-fonts.js';
 
 const PT_PER_MM = 72 / 25.4;
@@ -72,7 +73,13 @@ class PdfRenderer {
         inlines.push({ text: '\n' });
         continue;
       }
-      let text = run.math !== undefined ? run.math : run.image
+      // An inline formula is text with superscripts and subscripts.
+      if (run.math !== undefined) {
+        const pieces = latexToInlineRuns(run.math).map((piece) => ({ ...piece, link: run.link }));
+        inlines.push(...this.inline(pieces, { role, bold, color: textColor, pitch }));
+        continue;
+      }
+      let text = run.image
         ? `[${IMAGE_LABELS[this.language] || IMAGE_LABELS.en}${run.text ? `: ${run.text}` : ''}]`
         : run.text;
       if (!text) continue;
@@ -97,7 +104,7 @@ class PdfRenderer {
       // a tall block and the underline would drift below the text.
       if (run.code && pitch <= 1.8) props.background = color(this.colors.inlineCodeFill);
       const runPitch = props.decoration ? Math.min(pitch, 1.3) : pitch;
-      for (const piece of this.fonts.runs(text, { role: runRole, weight, italic: Boolean(run.italic || run.image || run.math !== undefined || italic), pitch: runPitch })) {
+      for (const piece of this.fonts.runs(text, { role: runRole, weight, italic: Boolean(run.italic || run.image || italic), pitch: runPitch })) {
         inlines.push({ ...piece, ...props });
       }
     }
@@ -136,8 +143,16 @@ class PdfRenderer {
         }];
       case 'pagebreak':
         return [{ text: '', pageBreak: 'after' }];
-      case 'math':
-        return [{ text: this.inline([{ math: block.latex }]), alignment: 'center', margin: [0, 6, 0, 6] }];
+      case 'math': {
+        // Typeset formulas are vector drawings; a formula MathJax cannot
+        // read is shown as text.
+        const image = this.mathImages?.get(block.latex);
+        if (image) {
+          const width = Math.min(this.contentWidth - (context.indent || 0), image.width * this.sizes.body * 1.05);
+          return [{ svg: image.svg, width, alignment: 'center', margin: [0, 6, 0, 8] }];
+        }
+        return [{ text: this.inline([{ text: block.latex, code: true }]), alignment: 'center', margin: [0, 6, 0, 6] }];
+      }
       case 'chart':
         return this.renderChart(block.chart);
       default:
@@ -582,6 +597,32 @@ class PdfRenderer {
 
 const hasCjk = (text) => /[⺀-鿿가-힯豈-﫿＀-￯]/.test(text);
 
+function collectFormulas(blocks, found = new Set()) {
+  for (const block of blocks) {
+    if (block.type === 'math' && block.latex) found.add(block.latex);
+    if (block.type === 'quote') collectFormulas(block.blocks, found);
+    if (block.type === 'list') block.items.forEach((item) => collectFormulas(item.blocks, found));
+  }
+  return found;
+}
+
+// MathJax loads only for documents with display formulas.
+async function typesetFormulas(blocks, { color: textColor }) {
+  const formulas = collectFormulas(blocks);
+  const images = new Map();
+  if (!formulas.size) return images;
+  try {
+    const { latexToSvg } = await import('./pdf-math.js');
+    for (const latex of formulas) {
+      const image = latexToSvg(latex, { color: textColor });
+      if (image) images.set(latex, image);
+    }
+  } catch {
+    // Without the typesetter every formula is shown as text.
+  }
+  return images;
+}
+
 async function loadFontAssets(context) {
   if (context.fontAssets) return context.fontAssets;
   if (!context.document?.createElement) throw new Error('PDF fonts need a browser or font assets');
@@ -612,6 +653,7 @@ export async function composePdf(descriptor, context = {}) {
   await fonts.prepare({ sample: `${content}${labels}${meta.title}0123456789`, roles });
 
   const renderer = new PdfRenderer({ meta, language, theme, fonts, chartImages: await renderChartImages(blocks, context) });
+  renderer.mathImages = await typesetFormulas(blocks, { color: color(theme.colors.text) });
   renderer.topLevel = Math.min(6, ...collectHeadings(blocks, 6).map((heading) => heading.level)) || 1;
   renderer.tocMinimum = Math.min(...collectHeadings(blocks, 3).map((heading) => heading.level), 3);
   renderer.outlineParents = [];

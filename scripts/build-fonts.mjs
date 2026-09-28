@@ -3,7 +3,8 @@
 // Sources are the SIL OFL fonts in the Google Fonts repository at a pinned
 // commit. Each is reduced to the characters documents need, keeping variable
 // axes so any weight can still be pinned when a file is generated:
-//   - Latin faces: Latin, Latin-1, Latin Extended, Cyrillic, punctuation,
+//   - Latin faces: Latin, Latin-1, Latin Extended, Greek, Cyrillic, math
+//     operators, superscripts, punctuation,
 //     currency, arrows and the shapes used for trend marks;
 //   - Traditional Chinese faces: the Big5 common set (level 1, about 5,400
 //     characters) plus Big5 symbols, CJK punctuation and full-width forms.
@@ -101,7 +102,9 @@ function doubleByteCharacters(encoding, from, to) {
 const CJK_SHARED = SHARED + range(0x3000, 0x303F) + range(0xFF01, 0xFF5E);
 
 const CHARACTER_SETS = {
-  [LATIN]: SHARED + range(0x100, 0x24F) + range(0x400, 0x52F),
+  // Greek, superscripts and subscripts, and mathematical operators serve
+  // formulas as well as text.
+  [LATIN]: SHARED + range(0x100, 0x24F) + range(0x370, 0x3FF) + range(0x400, 0x52F) + range(0x2070, 0x209F) + range(0x2200, 0x22FF),
   [CJK]: CJK_SHARED + big5Characters(0xA140, 0xA3BF) + big5Characters(0xA440, 0xC67E),
   // GB 2312 symbols and level 1 hanzi (3,755 characters).
   [SC]: CJK_SHARED + doubleByteCharacters('gbk', 0xA1A1, 0xA9FE) + doubleByteCharacters('gbk', 0xB0A1, 0xD7FE),

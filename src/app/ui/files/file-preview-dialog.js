@@ -11,7 +11,8 @@ const PAGE_RENDERERS = Object.freeze({
   word: () => import('./previews/docx-page-preview.js').then((module) => module.renderDocxPreview),
   excel: () => import('./previews/xlsx-sheet-preview.js').then((module) => module.renderXlsxPreview),
   powerpoint: () => import('./previews/slide-preview.js').then((module) => module.renderPptxPreview),
-  pdf: () => import('./previews/pdf-page-preview.js').then((module) => module.renderPdfPreview)
+  pdf: () => import('./previews/pdf-page-preview.js').then((module) => module.renderPdfPreview),
+  web: () => import('./previews/html-page-preview.js').then((module) => module.renderHtmlPreview)
 });
 
 const describeReason = (error) => {
@@ -142,7 +143,7 @@ function renderPagePreview(context, { onPageCount }) {
       const slides = descriptor.family === 'powerpoint';
       pane.classList.toggle('ac-file-preview-slides', slides);
       // A PDF carries its fonts: what the preview shows is exact, no note.
-      const note = slides ? 'slidePreviewNote' : descriptor.family === 'excel' ? 'sheetPreviewNote' : descriptor.family === 'pdf' ? null : 'previewFontNote';
+      const note = slides ? 'slidePreviewNote' : ({ excel: 'sheetPreviewNote', pdf: null, web: 'htmlPreviewNote' })[descriptor.family] ?? 'previewFontNote';
       if (note) pane.appendChild(createNote(document, getFileText(language, note)));
       onPageCount(result.pageCount);
     } catch (error) {
@@ -259,6 +260,8 @@ export function openFilePreview({
       if (view === 'pages' && !pagePane) {
         pagePane = renderPagePreview(context, {
           onPageCount: (count) => {
+            // A web page has no pages to count.
+            if (descriptor.family === 'web') return;
             const key = descriptor.family === 'powerpoint' ? 'slideCount' : descriptor.family === 'excel' ? 'statSheets' : 'pageCount';
             pageInfo.textContent = getFileText(language, key, { count });
           }

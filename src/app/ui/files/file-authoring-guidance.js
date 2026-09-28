@@ -161,7 +161,7 @@ const PDF_GUIDANCE = `## PDF documents (.pdf)
 Write a PDF exactly like a Word document: the same Markdown body, front matter and design keys (including the design rules above). The app lays it out with the same template, embeds every font, and adds bookmarks for the sections.
 - toc: true adds a table of contents with page numbers.
 - Use .pdf when the user asks for PDF, a fixed layout, or a file to print or send; use .docx when they will edit it.
-- LaTeX math is shown as its source text in a PDF; for documents with many equations, suggest Word.`;
+- Math: $$display$$ LaTeX is typeset; $inline$ formulas become text with superscripts and subscripts, so keep inline formulas simple and put fractions, matrices and long expressions in $$…$$.`;
 
 const RICH_GUIDANCE = Object.freeze({
   docx: ({ documentDesign }) => `${DOCX_GUIDANCE}\n${documentDesignGuidance(documentDesign)}`,

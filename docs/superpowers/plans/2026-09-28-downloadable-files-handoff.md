@@ -30,8 +30,9 @@
 | **V1** | ✅ **已完成，待真實模型與正式網站驗證** | 看圖檢查；進度依使用者要求改為通知（詳細設計與驗證見 §3） |
 | **W2** | ✅ 已上線 | Word 設計：「設計」按鈕分簡報／Word 兩頁、9 套範本或 AI 自適應、封面、字型嵌入（見設計系統規格「Word 文件設計（W2）」） |
 | **A3** | ✅ 已上線 | Excel：固定樣式＋可改主色、公式政策與快取值、凍結窗格、篩選、合併儲存格、工作表預覽（見總計畫「A3 實作紀錄」） |
-| **A5** | ✅ **已完成，待推送** | PDF：與 Word 共用設計（「設計」的「Word／PDF 文件」分頁）、所有字型子集嵌入（含簡中、日文、韓文、黑白 emoji）、目錄頁碼、書籤、向量圖表、PDF.js 預覽（見總計畫「A5 實作紀錄」） |
-| **A6** → B0～B5 | ⬜ **下一階段** | 見總計畫的「階段規劃」 |
+| **A5** | ✅ 已上線 | PDF：與 Word 共用設計（「設計」的「Word／PDF 文件」分頁）、所有字型子集嵌入（含簡中、日文、韓文、黑白 emoji）、目錄頁碼、書籤、向量圖表、PDF.js 預覽（見總計畫「A5 實作紀錄」） |
+| **A6** | ✅ **已完成，待推送** | Excel 原生圖表、預覽篩選按鈕、PDF 數學公式、HTML 沙盒預覽（見總計畫「A6 實作紀錄」）；手機實機下載待使用者驗證（清單見下） |
+| **B0～B5** | ⬜ **下一階段** | B0：方案 B 詳細設計，先與使用者確認 |
 
 V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 初版 commit：`ea4a1688 Implement V1 visual review for presentations`。2026-09-28 使用者要求將進度改為通知並授權推送 `main`。
 
@@ -78,10 +79,12 @@ src/app/ui/files/
   generators/                                    檔案產生（延後載入）
     docx-file.js, pptx-file.js, pptx-layout.js, pptx-writer.js, pptx-text.js,
     spreadsheet-spec.js, formula-engine.js, sheet-layout.js, xlsx-file.js,
-    pdf-file.js, pdf-fonts.js, chart-images.js, document-labels.js,
+    pdf-file.js, pdf-fonts.js, pdf-math.js, latex-inline.js, xlsx-charts.js,
+    chart-images.js, document-labels.js,
     pptx-charts.js, pptx-assets.js, font-embedding.js, chart-image-export.js
   previews/                                      預覽（延後載入）
-    docx-page-preview.js, slide-preview.js, slide-chart-preview.js, xlsx-sheet-preview.js, pdf-page-preview.js
+    docx-page-preview.js, slide-preview.js, slide-chart-preview.js, xlsx-sheet-preview.js, pdf-page-preview.js,
+    html-page-preview.js
 src/app/runtime/features/deck-design-control.js  輸入框的「設計」按鈕（簡報／Word 兩頁）
 src/app/legacy-runtime/features/assistant-response-finalization.js  回覆存檔前強制套用範本
 src/assets/fonts/                                嵌入用字型（由 scripts/build-fonts.mjs 產生）
@@ -131,3 +134,16 @@ try {
 - 漸層、彩色的 AI 卡片：使用者要黑白極簡。
 - 按鈕顯示目前選擇或前面加星號：按鈕固定顯示文字（W2 起改名「設計」），不加符號。
 - 第一版 8 套簡報風格：被退回，要求參考各大廠重做（現在的 20 套）。
+
+## 手機實機下載驗證清單（A6，由使用者執行）
+
+在 noureon.com 請 AI 分別產生 Word、Excel、PowerPoint、PDF 各一份，以及同一則回覆中兩個檔案（出現「全部下載」ZIP）。每個裝置檢查：
+
+| 裝置 | 檢查 |
+|---|---|
+| iPhone Safari | 點「下載」出現分享選單或下載提示；存到「檔案」後能用對應 App 開啟；預覽對話框可捲動、可縮放到整頁 |
+| iPhone Chrome | 同上（非 Safari 會改用分享選單） |
+| iPhone 加入主畫面（PWA） | 同上；分享選單能存檔 |
+| Android Chrome | 檔案進入「下載」資料夾且能開啟；PDF 預覽顯示正常 |
+
+回報格式：裝置／瀏覽器、哪個格式、哪一步失敗（最好附截圖）。

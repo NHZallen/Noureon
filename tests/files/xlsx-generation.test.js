@@ -293,3 +293,20 @@ test('native charts: parsed from the sheet, laid out beside the table, written a
   assert.match(await read('xl/charts/chart4.xml'), /<c:pieChart>[\s\S]*<c:f>'營收'!\$B\$2:\$B\$3<\/c:f>/, 'unknown columns fall back to the first category and value columns');
   assert.ok(zip.file('xl/drawings/_rels/drawing1.xml.rels'));
 });
+
+test('HTML files preview in a sandboxed frame that runs scripts in isolation', async () => {
+  const { renderHtmlPreview } = await import('../../src/app/ui/files/previews/html-page-preview.js');
+  const { document, window, cleanup } = createDom('<div id="host"></div>');
+  try {
+    const host = document.getElementById('host');
+    const view = await renderHtmlPreview(new window.Blob(['<h1>Hi</h1><script>1</script>'], { type: 'text/html' }), host, { document });
+    const frame = host.querySelector('iframe');
+    assert.equal(frame.getAttribute('sandbox'), 'allow-scripts', 'scripts run; no same origin, popups, forms, modals or top navigation');
+    assert.equal(frame.srcdoc, '<h1>Hi</h1><script>1</script>');
+    assert.equal(view.pageCount, 1);
+    view.dispose();
+    assert.equal(host.querySelector('iframe'), null);
+  } finally {
+    cleanup();
+  }
+});

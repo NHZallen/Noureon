@@ -87,6 +87,8 @@ export default defineConfig({
           // preview (PDF.js) load only when a .pdf file is made or previewed.
           if (id.includes('/node_modules/pdfmake/')) return 'vendor-pdf';
           if (id.includes('/node_modules/pdfjs-dist/')) return 'vendor-pdf-preview';
+          // Formula typesetting for PDFs, loaded for documents with formulas.
+          if (/\/node_modules\/(?:mathjax-full|mhchemparser|mj-context-menu|speech-rule-engine)\//.test(id)) return 'vendor-pdf-math';
           if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';
           return 'vendor';
         }

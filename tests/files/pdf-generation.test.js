@@ -209,3 +209,38 @@ test('a chosen document template is applied to PDF files as well', () => {
   assert.match(enforced, /template: academic/);
   assert.doesNotMatch(enforced, /fonts: kai|cover: band/);
 });
+
+test('inline formulas become text runs with superscripts; display formulas are typeset as vectors', async () => {
+  const { latexToInlineRuns } = await import('../../src/app/ui/files/generators/latex-inline.js');
+  const describe = (latex) => latexToInlineRuns(latex).map((run) => `${run.superscript ? '^' : run.subscript ? '_' : ''}${run.italic ? '/' : ''}${run.text}`);
+  assert.deepEqual(describe('E = mc^2'), ['/E', ' = ', '/mc', '^2']);
+  assert.deepEqual(describe(String.raw`\alpha \leq \beta`), ['α ≤ β']);
+  assert.deepEqual(describe(String.raw`\frac{a+b}{2}`), ['(', '/a', '+', '/b', ')/2']);
+  assert.deepEqual(describe('b^2 - 4ac'), ['/b', '^2', ' − 4', '/ac'], 'a hyphen is a minus sign');
+  assert.deepEqual(describe(String.raw`\text{if } x`), ['if ', '/x']);
+
+  const { latexToSvg } = await import('../../src/app/ui/files/generators/pdf-math.js');
+  const formula = latexToSvg(String.raw`x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}`, { color: '#112233' });
+  assert.ok(formula.width > 5 && formula.height > 1.5, 'sizes in em');
+  assert.match(formula.svg, /^<svg[^>]* width="[\d.]+" height="[\d.]+"/);
+  assert.match(formula.svg, /<path [^>]*d="/, 'glyphs are paths, no fonts');
+  assert.doesNotMatch(formula.svg, /currentColor|<text/);
+  assert.equal(latexToSvg(String.raw`\frac{1}{`), null, 'broken LaTeX is left to the caller');
+  assert.equal(latexToSvg(String.raw`\notacommand{x}`), null, 'undefined commands too');
+
+  const content = String.raw`---
+title: T
+---
+
+Inline $E = mc^2$.
+
+$$\int_0^1 x^2 \, dx = \frac{1}{3}$$
+
+$$\frac{1}{$$
+`;
+  const { definition } = await composePdf(describeFileBlock({ name: 'm.pdf', content, complete: true }), { language: 'en', fontAssets: await fontAssets() });
+  const flat = JSON.stringify(definition.content);
+  assert.match(flat, /"svg":"<svg/, 'the display formula is a vector drawing');
+  assert.ok(flat.includes(JSON.stringify(String.raw`\frac{1}{`)), 'a broken formula shows its source');
+  assert.match(flat, /"sup":true/, 'the inline exponent is a superscript');
+});

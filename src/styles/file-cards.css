@@ -330,7 +330,10 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     font-size: 0.8rem;
     line-height: 1.55;
-    white-space: pre;
+    /* Long lines wrap (JSON specs, minified HTML) instead of scrolling
+       sideways; indentation is kept. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     overflow: auto;
     tab-size: 4;
 }
