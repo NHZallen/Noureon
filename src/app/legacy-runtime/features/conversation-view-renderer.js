@@ -1,3 +1,5 @@
+import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+
 export function createConversationViewRenderer({
     document,
     renderUserText,
@@ -23,14 +25,18 @@ export function createConversationViewRenderer({
         ));
     };
 
-    const renderTextParts = (message, isUser) => message.parts
-        .filter(part => part.text && !part.quoteContext)
-        .map(part => {
-            const text = isUser ? (part.displayText ?? part.text) : part.text;
-            const rendered = isUser ? renderUserText(text) : renderModelText(text);
-            return wrapTextParts ? `<div>${rendered}</div>` : rendered;
-        })
-        .join('');
+    const renderTextParts = (message, isUser) => {
+        // Files made in Advanced mode are parts; their cards come from the text.
+        if (!isUser) registerSandboxFileParts(message.parts);
+        return message.parts
+            .filter(part => part.text && !part.quoteContext)
+            .map(part => {
+                const text = isUser ? (part.displayText ?? part.text) : part.text;
+                const rendered = isUser ? renderUserText(text) : renderModelText(text);
+                return wrapTextParts ? `<div>${rendered}</div>` : rendered;
+            })
+            .join('');
+    };
 
     const resolveImageAspectRatio = (requestedRatio) => ({
         '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',

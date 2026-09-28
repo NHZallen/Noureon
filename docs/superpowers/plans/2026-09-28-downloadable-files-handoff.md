@@ -35,7 +35,8 @@
 | **B0** | ✅ 使用者已確認 | 方案 B 詳細設計：[`docs/superpowers/specs/2026-09-28-python-sandbox-design.md`](../specs/2026-09-28-python-sandbox-design.md)。已決定：「設計」選單內的「製作方式：標準｜進階」、預設進階、執行過程收合成一行、沙盒在 run.noureon.com |
 | **B2** | 🧪 **已實作，待使用者用真實金鑰驗證** | 工具呼叫迴圈（三家）、「設計」選單的製作方式、設定預設值、執行紀錄收合列、改用標準模式的提示。B3 前正式站預設隱藏，網址加 `?advanced-mode=on` 才開啟。見詳細設計文末「B2 實作紀錄」 |
 | **B1** | ✅ 已上線 | 沙盒執行環境（`public/sandbox/`、`src/app/runtime/sandbox/`），還沒接上模型與介面。DNS：`run.noureon.com` 已由使用者在 Cloudflare 與 Vercel 設定好（CNAME、僅 DNS）。實作與驗證見詳細設計文末「B1 實作紀錄」；部署後要檢查的項目也列在那裡 |
-| **B3～B5** | ⬜ B2 驗證後做 B3 | 見詳細設計 §9 |
+| **B3** | 🧪 **已實作，待使用者和 B2 一起驗證** | 產出檔案存成訊息 part（`sandboxFile`），跟著同步、匯出；卡片、ZIP、預覽（含 xlsx 讀取器、圖片）；`/input` 放入附件與先前的產出；「檔案不在這台裝置上」與重新執行。見詳細設計文末「B3 實作紀錄」 |
+| **B4～B5** | ⬜ B2、B3 驗證後 | 見詳細設計 §9 |
 
 V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 初版 commit：`ea4a1688 Implement V1 visual review for presentations`。2026-09-28 使用者要求將進度改為通知並授權推送 `main`。
 

@@ -231,6 +231,32 @@ export function installFileCardInteractions({
     }
   };
 
+  // A file made in Advanced mode that is not on this device: run the reply's
+  // code again (sandbox-rerun.js).
+  const rerunFiles = async (trigger) => {
+    const language = getUiLanguage();
+    trigger.disabled = true;
+    trigger.setAttribute('aria-busy', 'true');
+    const label = trigger.querySelector('.ac-file-action-label');
+    if (label) label.textContent = getFileText(language, 'rerunning');
+    try {
+      const [{ rerunSandboxFiles }, { getPythonSandbox }] = await Promise.all([
+        import('../sandbox/sandbox-rerun.js'),
+        import('../../runtime/sandbox/python-sandbox.js')
+      ]);
+      await rerunSandboxFiles({ trigger, language, getSandbox: (options) => getPythonSandbox({ ...options, document, window }) });
+      notify(getFileText(language, 'rerunNote'), 'success');
+    } catch (error) {
+      logError('Running the code again failed:', error);
+      notify(getFileText(language, 'rerunFailed', { reason: describeError(error) }), 'error');
+      if (trigger.isConnected) {
+        trigger.disabled = false;
+        trigger.removeAttribute('aria-busy');
+        if (label) label.textContent = getFileText(language, 'rerun');
+      }
+    }
+  };
+
   const handleClick = (event) => {
     const trigger = event.target?.closest?.('[data-file-action]');
     if (!trigger || !root.contains?.(trigger)) return;
@@ -261,6 +287,7 @@ export function installFileCardInteractions({
     }
     if (action === 'preview') void openPreview(trigger, descriptor);
     else if (action === 'copy') void copySource(descriptor);
+    else if (action === 'rerun') void rerunFiles(trigger);
   };
 
   root.addEventListener('click', handleClick);

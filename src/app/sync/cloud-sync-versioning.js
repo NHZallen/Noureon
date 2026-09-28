@@ -30,7 +30,7 @@ export function canCommitHydratedRemote({
 function conversationContentScore(conversation = {}) {
   const messages = conversation.messages || [];
   const contentSize = messages.reduce((total, message) => total + (message.parts || []).reduce(
-    (partTotal, part) => partTotal + (part.text?.length || 0) + (part.inlineData ? 1 : 0) + (part.generatedImage ? 1 : 0),
+    (partTotal, part) => partTotal + (part.text?.length || 0) + (part.inlineData ? 1 : 0) + (part.generatedImage ? 1 : 0) + (part.sandboxFile ? 1 : 0),
     0
   ), 0);
   return [

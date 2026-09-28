@@ -3,6 +3,7 @@ import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
 import { applyFileCards, prepareFileBlocksForMarkdown, setFileMarkdownRenderer } from '../../ui/files/file-markdown-cards.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { createSandboxRunElement } from '../../ui/sandbox/sandbox-run-view.js';
+import { describeSandboxFile, latestRunFiles } from '../../ui/sandbox/sandbox-files.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 export function createMarkdownRenderingHelpers({
@@ -226,11 +227,15 @@ export function createMarkdownRenderingHelpers({
       chartLabel: getText('chart', runtimeTexts.chart)
     });
 
+    // Files the reply's Python runs made, newest version of each.
+    const canRerun = Boolean(sandboxRun?.steps?.some((step) => step.code));
+    const sandboxFiles = latestRunFiles(sandboxRun).map((file) => describeSandboxFile(file, { canRerun }));
     applyFileCards({
       document: documentFragment,
       root: documentFragment.body,
       blocks: fileBlocks,
-      language: getUiLanguage()
+      language: getUiLanguage(),
+      extraDescriptors: sandboxFiles
     });
 
     // Advanced mode's "Ran code N times" row goes above the answer.

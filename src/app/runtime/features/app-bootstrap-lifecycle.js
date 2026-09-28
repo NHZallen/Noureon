@@ -6,6 +6,7 @@ import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
+import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 
 export function createLegacyAppBootstrapLifecycle({
@@ -448,6 +449,12 @@ export function createLegacyAppBootstrapLifecycle({
                     notify: (message, type) => showNotification(message, type),
                     copyText: (text) => copyTextToClipboard(text),
                     logError: (...args) => logger.error?.(...args)
+                });
+                // "Run again" on a file made in Advanced mode reads the open
+                // conversation's files and saves what it makes.
+                setSandboxFileHooks({
+                    inputs: () => collectSandboxInputs(getActiveConversation()),
+                    save: saveAppData
                 });
                 // Code blocks in messages and file previews get VS Code colours.
                 installCodeHighlighting({ document, window });

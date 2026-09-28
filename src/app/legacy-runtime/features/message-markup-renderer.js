@@ -1,4 +1,5 @@
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
+import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
     '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -93,6 +94,8 @@ export function buildMessageRenderView({
                     : renderUserText(textParts.map(part => part.displayText ?? part.text).join('\n'));
                 contentHTML = `<div>${renderedUserText}</div>`;
             } else {
+                // Files made in Advanced mode are parts; their cards come from the text.
+                registerSandboxFileParts(message.parts);
                 contentHTML = `<div>${renderMarkdownWithFormulas(textParts.join('\n'))}</div>`;
             }
         }

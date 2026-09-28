@@ -34,15 +34,20 @@ const call = (id, code, title = '') => ({ id, name: 'run_python', arguments: JSO
 
 function fakeSandbox(results) {
   const runs = [];
+  const mounts = [];
   const sandbox = {
     prepare: async () => ({}),
     clear: async () => ({ cleared: true }),
+    mount: async (files) => {
+      mounts.push(files.map((file) => file.name));
+      return { mounted: files };
+    },
     run: async (code) => {
       runs.push(code);
       return typeof results === 'function' ? results(code) : results.shift();
     }
   };
-  return { sandbox, runs };
+  return { sandbox, runs, mounts };
 }
 
 test('text models are all marked with or without tool calling', () => {

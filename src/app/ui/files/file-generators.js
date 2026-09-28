@@ -7,7 +7,9 @@ const GENERATOR_LOADERS = Object.freeze({
   docx: () => import('./generators/docx-file.js').then((module) => module.generateDocxFile),
   xlsx: () => import('./generators/xlsx-file.js').then((module) => module.generateXlsxFile),
   pptx: () => import('./generators/pptx-file.js').then((module) => module.generatePptxFile),
-  pdf: () => import('./generators/pdf-file.js').then((module) => module.generatePdfFile)
+  pdf: () => import('./generators/pdf-file.js').then((module) => module.generatePdfFile),
+  // A file Python made in Advanced mode: its saved bytes.
+  stored: () => import('../sandbox/sandbox-file-blob.js').then((module) => module.storedFileBlob)
 });
 
 export class FileGenerationError extends Error {

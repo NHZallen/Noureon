@@ -56,6 +56,8 @@ export async function runSandboxReply({
   getSandbox,
   language = 'zh-TW',
   provider = '',
+  // Files for /input: [{ name, type, size, bytes: () => Uint8Array }].
+  inputFiles = [],
   onStatus = () => {}
 }) {
   const run = { status: RUN_STATUS.running, steps: [], fallback: null };
@@ -87,13 +89,14 @@ export async function runSandboxReply({
       await sandbox.prepare();
       // A new reply starts clean; loaded packages stay loaded.
       await sandbox.clear();
+      await sandbox.mount(inputFiles.map((file) => ({ name: file.name, type: file.type, bytes: file.bytes() })));
       return sandbox;
     })();
     sandboxReady.catch(() => { sandboxReady = null; });
     return sandboxReady;
   };
 
-  const guidance = getSandboxGuidance();
+  const guidance = getSandboxGuidance({ inputFiles });
 
   for (;;) {
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;

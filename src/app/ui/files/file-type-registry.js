@@ -159,8 +159,9 @@ export const FILE_GENERATOR_KINDS = Object.freeze(['text', 'docx', 'xlsx', 'pptx
 // taught to emit a block the app cannot turn into a file.
 const AVAILABLE_RICH_GENERATORS = new Set(['docx', 'xlsx', 'pptx', 'pdf']);
 
+// "stored": a file made in Advanced mode, delivered as saved (sandbox-files.js).
 export function isGeneratorAvailable(generator) {
-  return generator === 'text' || AVAILABLE_RICH_GENERATORS.has(generator);
+  return generator === 'text' || generator === 'stored' || AVAILABLE_RICH_GENERATORS.has(generator);
 }
 
 export function getFileExtension(fileName = '') {

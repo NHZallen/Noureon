@@ -58,6 +58,17 @@ function sanitizePartForShadow(part = {}) {
       output.inlineData.cloudAssetPending = true;
     }
   }
+  // A file made in Advanced mode: like an attachment, its bytes travel as a
+  // cloud asset, never in the shadow row.
+  if (part.sandboxFile) {
+    const { data, cloudAssetPending, ...metadata } = part.sandboxFile;
+    output.sandboxFile = { ...metadata };
+    if (isCloudAssetMarker(data)) {
+      output.sandboxFile.data = data;
+    } else if (data || cloudAssetPending) {
+      output.sandboxFile.cloudAssetPending = true;
+    }
+  }
   if (part.generatedImage) {
     const { cloudAsset, _zipRef: _zipRef, cloudAssetPending, ...descriptor } = part.generatedImage;
     output.generatedImage = { ...descriptor };

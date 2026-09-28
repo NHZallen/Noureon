@@ -39,6 +39,8 @@ const rememberRenderedMessage = (targetElement, message) => {
 export async function finalizeAssistantResponse({
   fullResponse,
   finalParts = null,
+  // Files made in Advanced mode, kept after the text.
+  extraParts = [],
   finalAiMessage,
   councilMetadata,
   includeCouncilMetadata = false,
@@ -85,7 +87,7 @@ export async function finalizeAssistantResponse({
     }
   }
 
-  finalAiMessage.parts = hasFinalParts ? finalParts : [{ text: fullResponse }];
+  finalAiMessage.parts = hasFinalParts ? finalParts : [{ text: fullResponse }, ...extraParts];
   const normalizedHistorySourceConversationIds = normalizeHistorySourceConversationIds(historySourceConversationIds);
   if (normalizedHistorySourceConversationIds.length > 0) {
     finalAiMessage.metadata = {

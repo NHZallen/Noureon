@@ -109,6 +109,21 @@ function renderSvgPreview({ document, window, descriptor, cleanups }) {
   return figure;
 }
 
+// A picture Python made: drawn from its saved bytes.
+function renderImagePreview({ document, window, descriptor, cleanups, loadBlob, language }) {
+  const figure = document.createElement('div');
+  figure.className = 'ac-file-preview-image';
+  const image = document.createElement('img');
+  image.alt = descriptor.name;
+  figure.appendChild(image);
+  loadBlob().then((blob) => {
+    const url = window.URL.createObjectURL(blob);
+    cleanups.push(() => window.URL.revokeObjectURL(url));
+    image.src = url;
+  }, () => figure.replaceChildren(renderUnavailablePreview({ document, language })));
+  return figure;
+}
+
 function renderUnavailablePreview({ document, language }) {
   const note = document.createElement('p');
   note.className = 'ac-file-preview-note';
@@ -177,6 +192,9 @@ function renderPagePreview(context, { onPageCount }) {
 
 function renderPreviewBody(context) {
   const { descriptor } = context;
+  if (descriptor.family === 'image' && typeof context.loadBlob === 'function') return renderImagePreview(context);
+  // Files made in Advanced mode have no text to show in place of a page view.
+  if (descriptor.generator === 'stored' && !descriptor.content) return renderUnavailablePreview(context);
   if (descriptor.extension === 'svg') return renderSvgPreview(context);
   switch (descriptor.family) {
     case 'csv':
@@ -256,7 +274,10 @@ export function openFilePreview({
   const context = { document, window, descriptor, language, renderMarkdown, cleanups, loadBlob, pageRenderers };
   const showsPages = descriptor.state === 'ready'
     && typeof loadBlob === 'function'
+    && descriptor.pagePreview !== false
     && typeof pageRenderers?.[descriptor.family] === 'function';
+  // A saved binary file (Advanced mode) has no source to switch to.
+  const hasSource = !(descriptor.generator === 'stored' && !descriptor.content);
 
   const sections = [header, summary];
   if (showsPages) {
@@ -269,7 +290,8 @@ export function openFilePreview({
     switcher.setAttribute('role', 'group');
     const pageInfo = document.createElement('span');
     pageInfo.className = 'ac-file-preview-page-info';
-    toolbar.append(switcher, pageInfo);
+    // With a single view there is nothing to switch between.
+    toolbar.append(...(hasSource ? [switcher] : []), pageInfo);
 
     let pagePane = null;
     let sourcePane = null;
@@ -296,7 +318,7 @@ export function openFilePreview({
       Object.entries(buttons).forEach(([name, button]) => button.setAttribute('aria-pressed', String(name === view)));
       pageInfo.hidden = view !== 'pages';
     };
-    [['pages', 'layoutView'], ['source', 'sourceView']].forEach(([view, labelKey]) => {
+    [['pages', 'layoutView'], ...(hasSource ? [['source', 'sourceView']] : [])].forEach(([view, labelKey]) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'ac-file-preview-view';

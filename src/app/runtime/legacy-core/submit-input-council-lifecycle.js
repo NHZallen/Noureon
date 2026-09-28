@@ -913,6 +913,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       let councilMetadata = null;
       let responseRenderedInRealtime = false;
       let generatedImageParts = null;
+      let extraParts = [];
       const historySourceConversationIds = new Set();
       const collectHistorySources = (memoryContext) => {
         collectHistorySourceConversationIds(memoryContext).forEach((id) => historySourceConversationIds.add(id));
@@ -969,12 +970,14 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           });
           fullResponse = singleResult.fullResponse;
           responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
+          extraParts = singleResult.extraParts || [];
         }
       }
 
       await finalizeAssistantResponse({
         fullResponse,
         finalParts: generatedImageParts,
+        extraParts,
         finalAiMessage,
         councilMetadata,
         includeCouncilMetadata: responseUsesCouncil,

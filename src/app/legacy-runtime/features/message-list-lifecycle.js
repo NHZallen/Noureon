@@ -69,6 +69,11 @@ export function createMessageListLifecycle({
             const { cloudAsset, _zipRef: _ignoredZipRef, ...generatedImage } = part.generatedImage;
             state.generatedImage = { ...generatedImage, cloudAsset: summarizeAssetPayload(cloudAsset) };
         }
+        if (part.sandboxFile) {
+            // Redraw once the file's bytes arrive (a synced copy being downloaded).
+            const { data, ...sandboxFile } = part.sandboxFile;
+            state.sandboxFile = { ...sandboxFile, data: summarizeAssetPayload(data) };
+        }
         if (part.quoteReference?.text) state.quoteReference = { text: part.quoteReference.text };
         return state;
     };

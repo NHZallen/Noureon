@@ -17,6 +17,8 @@ const FAMILY_LABEL_KEYS = Object.freeze({
   calendar: 'familyCalendar',
   contact: 'familyContact',
   subtitle: 'familySubtitle',
+  image: 'familyImage',
+  archive: 'familyArchive',
   blocked: 'familyBlocked'
 });
 
@@ -24,7 +26,9 @@ const STATE_MESSAGE_KEYS = Object.freeze({
   incomplete: 'incomplete',
   blocked: 'blocked',
   'too-large': 'tooLarge',
-  unavailable: 'unavailable'
+  unavailable: 'unavailable',
+  // A file made in Advanced mode whose bytes are not on this device.
+  missing: 'missing'
 });
 
 // Only states whose content can still become a correct file keep the
@@ -35,7 +39,7 @@ const canDownload = (descriptor) => (
   || (descriptor.state === 'incomplete' && descriptor.generator === 'text')
 );
 
-const canPreview = (descriptor) => descriptor.state !== 'blocked' && descriptor.state !== 'too-large';
+const canPreview = (descriptor) => descriptor.state !== 'blocked' && descriptor.state !== 'too-large' && descriptor.state !== 'missing';
 
 function createSvg(document, attributes, children) {
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -68,7 +72,8 @@ function createActionIcon(document, kind) {
     download: [['path', { d: 'M12 3v12' }], ['path', { d: 'm7 10 5 5 5-5' }], ['path', { d: 'M5 21h14' }]],
     preview: [['path', { d: 'M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z' }], ['circle', { cx: '12', cy: '12', r: '2.8' }]],
     copy: [['rect', { x: '9', y: '9', width: '12', height: '12', rx: '2' }], ['path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }]],
-    bundle: [['path', { d: 'M21 8v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8' }], ['path', { d: 'M1.5 3.5h21v4.5h-21z' }], ['path', { d: 'M10 12h4' }]]
+    bundle: [['path', { d: 'M21 8v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8' }], ['path', { d: 'M1.5 3.5h21v4.5h-21z' }], ['path', { d: 'M10 12h4' }]],
+    rerun: [['path', { d: 'M3 12a9 9 0 0 1 15.5-6.2L21 8' }], ['path', { d: 'M21 3v5h-5' }], ['path', { d: 'M21 12a9 9 0 0 1-15.5 6.2L3 16' }], ['path', { d: 'M3 21v-5h5' }]]
   };
   return createSvg(document, {
     viewBox: '0 0 24 24',
@@ -169,7 +174,16 @@ export function createFileCardElement(document, descriptor, { language = 'zh-TW'
       label: getFileText(language, 'preview')
     }));
   }
-  if (descriptor.state !== 'ready') {
+  if (descriptor.state === 'missing' && descriptor.canRerun) {
+    actions.appendChild(createActionButton(document, {
+      action: 'rerun',
+      id: descriptor.id,
+      label: getFileText(language, 'rerun'),
+      primary: true
+    }));
+  }
+  // Files made in Advanced mode have no source text to copy.
+  if (descriptor.state !== 'ready' && descriptor.generator !== 'stored') {
     actions.appendChild(createActionButton(document, {
       action: 'copy',
       id: descriptor.id,

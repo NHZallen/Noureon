@@ -115,15 +115,18 @@ function bindPseudoFileLinks(root, descriptors) {
  * Post-render step: swaps the paragraph tokens produced by
  * prepareFileBlocksForMarkdown for real file cards inside the parsed document.
  */
-export function applyFileCards({ document, root, blocks = [], language = 'zh-TW' } = {}) {
-  if (!document || !root || blocks.length === 0) return [];
-  const descriptors = blocks.map((block) => registerFileBlock(describeFileBlock(block)));
+export function applyFileCards({ document, root, blocks = [], language = 'zh-TW', extraDescriptors = [] } = {}) {
+  if (!document || !root || (blocks.length === 0 && extraDescriptors.length === 0)) return [];
+  const blockDescriptors = blocks.map((block) => registerFileBlock(describeFileBlock(block)));
+  const descriptors = [...blockDescriptors, ...extraDescriptors];
   const cardsByIndex = new Map(descriptors.map((descriptor, index) => [
     index,
     createFileCardElement(document, descriptor, { language })
   ]));
 
   collectTextNodes(root).forEach((node) => replaceTokenInTextNode(document, node, cardsByIndex));
+  // Files made in Advanced mode (already-registered descriptors) have no
+  // token in the text: they go below the answer.
   // A token swallowed by an unusual Markdown context still gets its card.
   cardsByIndex.forEach((card) => {
     if (!card.parentNode) root.appendChild(card);

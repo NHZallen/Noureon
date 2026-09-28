@@ -4,6 +4,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
+import { collectSandboxInputs, createSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
 import { createSandboxLiveElement } from '../../ui/sandbox/sandbox-run-view.js';
 
 // Advanced mode (Python in the browser) is loaded only for replies that use it.
@@ -138,6 +139,8 @@ export function createSingleModelResponseLifecycle({
     let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
       ? { status: 'done', steps: [], fallback: replyMode.reason }
       : null;
+    // Files the run made, kept as parts of the reply message.
+    let sandboxParts = [];
     let liveRun = null;
     const showRunStatus = (statusText) => {
       if (!liveRun) {
@@ -159,9 +162,11 @@ export function createSingleModelResponseLifecycle({
           getSandbox: (options) => getPythonSandbox({ ...options, language: getConfig().aiDefaultLanguage || uiLanguage }),
           language: uiLanguage,
           provider: modelInfo?.provider,
+          inputFiles: collectSandboxInputs(conversation, userParts),
           onStatus: showRunStatus
         });
         sandboxRun = result.run;
+        sandboxParts = createSandboxFileParts(result.run);
         return result.text;
       }
       : (onChunk) => streamApiCall(requestParts, onChunk, signal, false, streamOptions);
@@ -224,7 +229,8 @@ export function createSingleModelResponseLifecycle({
 
     return {
       fullResponse,
-      responseRenderedInRealtime
+      responseRenderedInRealtime,
+      extraParts: sandboxParts
     };
   };
 
