@@ -214,3 +214,82 @@ test('the sheet preview draws tabs, merges, filters and frozen panes', async () 
     cleanup();
   }
 });
+
+test('the filter buttons sort and filter the preview, never the file', async () => {
+  const { document, window, cleanup } = createDom('<div id="host"></div>');
+  try {
+    const content = JSON.stringify({ columns: ['姓名', '地區', { header: '業績', format: 'integer' }], rows: [['王', '北區', 1234], ['李', '南區', 980], ['陳', '北區', 1050], ['黃', '', 450]] });
+    const { blob } = await generate(content);
+    const host = document.getElementById('host');
+    const texts = { sheetFilterButton: 'Filter {name}', sheetSortAscending: 'A-Z', sheetSortDescending: 'Z-A', sheetFilterAll: 'All', sheetFilterBlank: 'Blank', sheetFilterClear: 'Clear', sheetFilterApply: 'OK', sheetFilterCancel: 'Cancel', sheetFilterNote: 'Preview only' };
+    const view = await renderXlsxPreview(blob, host, { window, document, text: (key, values = {}) => texts[key].replace('{name}', values.name ?? '') });
+    const root = host.shadowRoot;
+    const names = () => [...root.querySelectorAll('tbody tr')].slice(1).map((row) => row.children[1].textContent);
+    const numbers = () => [...root.querySelectorAll('tbody tr')].slice(1).map((row) => row.children[0].textContent);
+    const button = (column) => root.querySelector(`.filter[data-column="${column}"]`);
+    assert.equal(button(2).getAttribute('aria-label'), 'Filter 業績');
+
+    button(2).click();
+    assert.deepEqual([...root.querySelectorAll('.menu .item')].map((item) => item.textContent), ['A-Z', 'Z-A', 'Clear']);
+    root.querySelectorAll('.menu .item')[1].click();
+    assert.deepEqual(names(), ['王', '陳', '李', '黃'], 'sorted by value, largest first');
+    assert.deepEqual(numbers(), ['2', '3', '4', '5'], 'sorted rows are numbered in their new order');
+    assert.equal(root.querySelector('.menu'), null, 'choosing a sort closes the menu');
+    assert.ok(button(2).classList.contains('active'));
+    assert.equal(root.querySelector('.limit').textContent, 'Preview only');
+
+    button(1).click();
+    const labels = [...root.querySelectorAll('.menu label')].map((label) => label.textContent);
+    assert.deepEqual(labels, ['All', '北區', '南區', 'Blank'], 'values in order, blanks last');
+    const inputs = [...root.querySelectorAll('.menu input')];
+    inputs[0].click();
+    assert.ok(inputs.slice(1).every((input) => !input.checked), '"All" clears every value');
+    inputs[1].click();
+    root.querySelector('.menu .primary').click();
+    assert.deepEqual(names(), ['王', '陳'], 'only 北區 rows remain');
+
+    button(1).click();
+    [...root.querySelectorAll('.menu .item')].find((item) => item.textContent === 'Clear').click();
+    assert.equal(names().length, 4);
+    button(1).click();
+    root.querySelector('.menu').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(root.querySelector('.menu'), null, 'Escape closes the menu');
+    assert.equal(blob.workbook.layout.sheets[0].rows[0][0].display, '王', 'the layout the file was written from is unchanged');
+    view.dispose();
+  } finally {
+    cleanup();
+  }
+});
+
+test('native charts: parsed from the sheet, laid out beside the table, written as DrawingML', async () => {
+  const content = JSON.stringify({ sheets: [{
+    name: '營收',
+    columns: [{ header: '市場' }, { header: 'Q1', format: 'integer' }, { header: 'Q2', format: 'integer' }],
+    rows: [['台灣', 1200, 1250], ['日本', 980, 940], ['合計', { formula: 'SUM(B2:B3)' }, { formula: 'SUM(C2:C3)' }]],
+    charts: [{ type: 'bar', title: '各季', x: '市場', y: ['Q1', 'C'] }, { type: 'donut', y: 'Q1' }, { type: 'horizontalBar', y: 'Q2', rows: '2:2', anchor: 'H20' }, { type: 'pie', y: 'nothing', x: 'nothing' }]
+  }] });
+  const { workbook } = parseSpreadsheet(content);
+  assert.deepEqual(workbook.sheets[0].charts.map((chart) => chart.type), ['column', 'doughnut', 'bar', 'pie']);
+  const [sheet] = layoutWorkbook(workbook).sheets;
+  const [column, doughnut, bar] = sheet.charts;
+  assert.deepEqual(column.categories, ['台灣', '日本'], 'the total row is left out');
+  assert.deepEqual(column.series.map((series) => [series.name, series.values]), [['Q1', [1200, 980]], ['Q2', [1250, 940]]]);
+  assert.deepEqual(column.anchor, { row: 1, column: 4 }, 'one blank column right of the table');
+  assert.equal(doughnut.anchor.row > column.anchor.row + 10, true, 'charts stack downwards');
+  assert.equal(doughnut.pointColors.length, 2);
+  assert.deepEqual([bar.from, bar.to, bar.anchor], [0, 0, { row: 19, column: 7 }]);
+
+  const { zip, read } = await generate(content);
+  const parser = new DOMParser({ onError: (level, message) => { if (level !== 'warning') throw new Error(message); } });
+  for (const part of ['xl/charts/chart1.xml', 'xl/charts/chart2.xml', 'xl/charts/chart3.xml', 'xl/drawings/drawing1.xml']) parser.parseFromString(await read(part), 'application/xml');
+  const chart = await read('xl/charts/chart1.xml');
+  assert.match(chart, /<c:barChart><c:barDir val="col"\/><c:grouping val="clustered"\/>/);
+  assert.match(chart, /<c:f>'營收'!\$A\$2:\$A\$3<\/c:f>/);
+  assert.match(chart, /<c:f>'營收'!\$C\$2:\$C\$3<\/c:f><c:numCache><c:formatCode>#,##0<\/c:formatCode><c:ptCount val="2"\/><c:pt idx="0"><c:v>1250<\/c:v>/);
+  assert.match(await read('xl/charts/chart3.xml'), /<c:barDir val="bar"\/>[\s\S]*<c:orientation val="maxMin"\/>/, 'horizontal bars list the first row on top');
+  assert.match(await read('xl/worksheets/sheet1.xml'), /<drawing r:id="rIdDrawing1"\/><\/worksheet>$/);
+  assert.match(await read('xl/worksheets/_rels/sheet1.xml.rels'), /Target="..\/drawings\/drawing1.xml"/);
+  assert.match(await read('[Content_Types].xml'), /PartName="\/xl\/charts\/chart3.xml" ContentType="application\/vnd.openxmlformats-officedocument.drawingml.chart\+xml"/);
+  assert.match(await read('xl/charts/chart4.xml'), /<c:pieChart>[\s\S]*<c:f>'營收'!\$B\$2:\$B\$3<\/c:f>/, 'unknown columns fall back to the first category and value columns');
+  assert.ok(zip.file('xl/drawings/_rels/drawing1.xml.rels'));
+});

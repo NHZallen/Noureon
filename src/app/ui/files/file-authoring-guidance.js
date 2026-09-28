@@ -152,6 +152,7 @@ When the user wants Excel or a spreadsheet, name the file .xlsx, never .json: \`
 - Formulas only through "formula" (without "="), e.g. { "formula": "AVERAGE(B2:B9)" }; other sheets as 'Sheet name'!B2. Text is never a formula. No external data functions (WEBSERVICE, FILTERXML, RTD) or other workbooks.
 - A cell may be { "value": …, "bold": true, "fill": "#RRGGBB", "color": "#RRGGBB", "align": "center", "wrap": true }. A last row labelled "Total" (or 合計 and so on) is styled as the total.
 - "freeze" defaults to the header row; "autoFilter": false turns the filter off. Several sheets for separate tables.
+- Native Excel charts: a sheet may have "charts": [{ "type": "column", "title": "Sales by market", "x": "Market", "y": ["2024", "2025"] }]. "x" is the category column and "y" the value columns (header or letter). Types: column, horizontalBar, line, area, pie, doughnut, scatter (x and y numeric), radar; "stacked": true for column, horizontalBar, line or area. Charts use every data row except a final total row ("rows": "2:9" to choose), follow edits in Excel, and are placed beside the table (or at "anchor": "H2"). Add a chart when the user asks for one or the data is a clear comparison or trend.
 - Keep one table per sheet with one header row; put notes in the reply, not in extra rows. Write every value the user needs; never leave placeholder rows.`;
 
 // PDFs are written like Word documents and share their design, so this

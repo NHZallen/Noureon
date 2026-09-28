@@ -2,7 +2,8 @@
 // column widths and frozen panes; three things are added to its package
 // afterwards: cached formula results (viewers that do not calculate show
 // them), autofilters on the header row, and fullCalcOnLoad so Excel
-// recalculates everything when the file opens.
+// recalculates everything when the file opens. Native charts are added as
+// DrawingML parts (xlsx-charts.js).
 //
 // The Blob carries the layout, so the sheet preview draws exactly this.
 
@@ -10,6 +11,7 @@ import JSZip from 'jszip';
 import writeExcelFile from 'write-excel-file/universal';
 import { cellAddress, parseSpreadsheet, SpreadsheetSpecError } from './spreadsheet-spec.js';
 import { isError } from './formula-engine.js';
+import { addCharts } from './xlsx-charts.js';
 import { layoutWorkbook } from './sheet-layout.js';
 
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -107,6 +109,7 @@ async function finishPackage(bytes, layout) {
     ? workbookXml.replace(/<calcPr\b[^>]*\/>/, calculation)
     : workbookXml.replace('</workbook>', `${calculation}</workbook>`);
   zip.file(workbookPath, workbookXml);
+  await addCharts(zip, layout);
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
 }
 

@@ -265,6 +265,90 @@ function parseMerges(raw, sheet, repairs) {
   return merges;
 }
 
+// ------------------------------------------------------------ charts
+
+const CHART_TYPES = Object.freeze({
+  column: 'column', col: 'column', bar: 'column', vertical: 'column', verticalbar: 'column', columns: 'column',
+  horizontalbar: 'bar', barh: 'bar', hbar: 'bar', horizontal: 'bar', row: 'bar',
+  line: 'line', lines: 'line', area: 'area', pie: 'pie', doughnut: 'doughnut', donut: 'doughnut', ring: 'doughnut',
+  scatter: 'scatter', xy: 'scatter', radar: 'radar', spider: 'radar'
+});
+const MAX_CHARTS = 10;
+const MAX_CHART_SERIES = 12;
+const RANGE = /^\s*(?:'?[^'!]*'?!)?\$?([A-Z]{1,3})\$?(\d+)\s*:\s*\$?([A-Z]{1,3})\$?(\d+)\s*$/i;
+
+const columnIndex = (letters) => [...letters.toUpperCase()].reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0) - 1;
+
+// A column named by letter ("B"), by header ("營收") or by number (2 = B).
+function resolveChartColumn(reference, sheet) {
+  if (typeof reference === 'number' && Number.isInteger(reference)) return reference >= 1 && reference <= sheet.columns.length ? reference - 1 : null;
+  const text = String(reference ?? '').trim();
+  if (!text) return null;
+  const range = RANGE.exec(text);
+  if (range) return columnIndex(range[1]);
+  const byHeader = sheet.columns.findIndex((column) => String(column.header).trim().toLowerCase() === text.toLowerCase() || column.key === text);
+  if (byHeader >= 0) return byHeader;
+  if (/^[A-Z]{1,3}$/i.test(text)) {
+    const index = columnIndex(text);
+    return index < sheet.columns.length ? index : null;
+  }
+  return null;
+}
+
+// Data rows as sheet row numbers ("2:9", "2-9", [2, 9]); row 1 is the header.
+function resolveChartRows(raw, sheet) {
+  let first;
+  let last;
+  if (Array.isArray(raw)) [first, last] = raw.map(Number);
+  else if (typeof raw === 'string') {
+    const range = RANGE.exec(raw);
+    const match = range ? [range[2], range[4]] : /^\s*(\d+)\s*[-:]\s*(\d+)\s*$/.exec(raw)?.slice(1);
+    if (match) [first, last] = match.map(Number);
+  }
+  if (!Number.isInteger(first) || !Number.isInteger(last)) return null;
+  const from = Math.max(0, Math.min(first, last) - 2);
+  const to = Math.min(sheet.rows.length - 1, Math.max(first, last) - 2);
+  return from <= to ? { from, to } : null;
+}
+
+function parseCharts(raw, sheet, repairs, sheetIndex) {
+  const list = (Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : []).slice(0, MAX_CHARTS);
+  const charts = [];
+  list.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') return;
+    const typeKey = String(entry.type ?? 'column').toLowerCase().replace(/[^a-z]/g, '');
+    const type = CHART_TYPES[typeKey] || 'column';
+    if (!CHART_TYPES[typeKey]) repairs.push({ code: 'chart-type', sheet: sheetIndex, chart: index, from: entry.type });
+    // Categories: "x" (or "categories" as a range); values: "y" (or "values").
+    const x = resolveChartColumn(entry.x ?? entry.category ?? entry.categories ?? entry.labels ?? 0, sheet) ?? 0;
+    const rawY = entry.y ?? entry.values ?? entry.series ?? entry.value;
+    let y = (Array.isArray(rawY) ? rawY : rawY == null ? [] : [rawY])
+      .map((item) => resolveChartColumn(item && typeof item === 'object' ? item.column ?? item.values ?? item.y : item, sheet))
+      .filter((column) => column !== null && column !== x);
+    // Without value columns, every numeric column other than the categories.
+    if (!y.length) {
+      y = sheet.columns.map((_, column) => column).filter((column) => column !== x && sheet.rows.some((row) => row[column]?.type === 'number' || row[column]?.type === 'formula'));
+    }
+    y = [...new Set(y)].slice(0, type === 'pie' || type === 'doughnut' ? 1 : MAX_CHART_SERIES);
+    if (!y.length) {
+      repairs.push({ code: 'chart-no-values', sheet: sheetIndex, chart: index });
+      return;
+    }
+    const rows = resolveChartRows(entry.rows ?? (typeof (entry.categories ?? entry.x) === 'string' ? entry.categories ?? entry.x : null), sheet);
+    const anchor = typeof (entry.anchor ?? entry.position ?? entry.cell) === 'string' ? parseCellAddress(String(entry.anchor ?? entry.position ?? entry.cell).trim()) : null;
+    charts.push({
+      type,
+      title: typeof entry.title === 'string' ? TEXT_LIMIT(entry.title).slice(0, 200) : '',
+      x,
+      y,
+      rows,
+      stacked: entry.stacked === true && ['column', 'bar', 'area', 'line'].includes(type),
+      anchor: anchor && anchor.row >= 0 && anchor.column >= 0 ? anchor : null
+    });
+  });
+  return charts;
+}
+
 function buildSheet(raw, index, { used, repairs, budget }) {
   let columns = Array.isArray(raw.columns) ? raw.columns.slice(0, SHEET_LIMITS.columns).map(normalizeColumn) : [];
   let rows = Array.isArray(raw.rows) ? raw.rows : Array.isArray(raw.data) ? raw.data : [];
@@ -303,6 +387,7 @@ function buildSheet(raw, index, { used, repairs, budget }) {
   sheet.autoFilter = raw.autoFilter !== false && raw.filter !== false && sheet.rows.length > 0 && columns.some((column) => column.header);
   sheet.merges = parseMerges(raw.merges ?? raw.merge, sheet, repairs);
   sheet.rows.forEach((row) => row.forEach((cell) => { delete cell.span; }));
+  sheet.charts = sheet.rows.length ? parseCharts(raw.charts ?? raw.chart, sheet, repairs, index) : [];
   return sheet;
 }
 

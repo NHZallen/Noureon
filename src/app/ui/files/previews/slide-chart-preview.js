@@ -51,16 +51,27 @@ export function drawNativeChart(document, parent, element, { measure }) {
   const family = `"${installed.latin}", "${installed.eastAsian}", sans-serif`;
   const native = nativeChart(element, { fontFace: family });
   if (!native) return false;
-  const { type, data, options } = native;
-  const size = options.catAxisLabelFontSize || 12;
   const group = create(document, 'g', { 'data-element': element.id }, parent);
+  const box = { left: element.x + 6, right: element.x + element.w - 6, top: element.y + 6, bottom: element.y + element.h - 6 };
+  return drawChart(document, group, native, box, { measure, family, background: element.colors.background });
+}
+
+/**
+ * Draws a chart in pptxgenjs's form ({ type, data, options }, the form
+ * nativeChart returns) inside `box`, into the SVG group `group`. Shared by
+ * the slide and sheet previews.
+ */
+export function drawChart(document, group, native, box, { measure, family, background = 'FFFFFF' }) {
+  const { type, data, options } = native;
+  // Callers may pass their own number formatting (sheet formats).
+  const formatNumber = options.formatValue || formatValue;
+  const size = options.catAxisLabelFontSize || 12;
   const label = (text, x, y, { anchor = 'middle', fill = options.catAxisLabelColor, fontSize = size, weight = 400 } = {}) => {
     const node = create(document, 'text', { x, y, 'text-anchor': anchor, 'font-size': fontSize, 'font-family': family, 'font-weight': weight, fill: color(fill) }, group);
     node.textContent = String(text);
     return node;
   };
   const textWidth = (text, fontSize = size) => measure(String(text), { size: fontSize, weight: 400, family });
-  const box = { left: element.x + 6, right: element.x + element.w - 6, top: element.y + 6, bottom: element.y + element.h - 6 };
 
   // Legend (bottom or right), drawn first so the plot area can shrink.
   const legendItems = options.showLegend
@@ -103,7 +114,7 @@ export function drawNativeChart(document, parent, element, { measure }) {
       const large = sweep > Math.PI ? 1 : 0;
       create(document, 'path', {
         d: `M${point(radius, angle)}A${radius} ${radius} 0 ${large} 1 ${point(radius, end)}L${point(hole, end)}A${hole} ${hole} 0 ${large} 0 ${point(hole, angle)}Z`,
-        fill: color(options.chartColors[index]), stroke: color(element.colors.background), 'stroke-width': 1
+        fill: color(options.chartColors[index]), stroke: color(background), 'stroke-width': 1
       }, group);
       if (options.showPercent && value / total >= 0.04) {
         const middle = angle + sweep / 2;
@@ -157,12 +168,16 @@ export function drawNativeChart(document, parent, element, { measure }) {
   const titleSpace = xy && options.showCatAxisTitle ? size * 1.6 : 0;
   const valueTitleSpace = xy && options.showValAxisTitle ? size * 1.6 : 0;
   const categoryWidth = horizontal ? Math.max(...categories.map((name) => textWidth(name))) + 8 : 0;
-  const tickWidth = horizontal ? 0 : Math.max(...ticks.map((tick) => textWidth(formatValue(tick, format), size - 1))) + 8;
+  const tickWidth = horizontal ? 0 : Math.max(...ticks.map((tick) => textWidth(formatNumber(tick, format), size - 1))) + 8;
+  // Category labels wider than their slot are set at 45°, as Office does.
+  const longestCategory = !xy && !horizontal && categories.length ? Math.max(...categories.map((name) => textWidth(name))) : 0;
+  const slotEstimate = (box.right - box.left - valueTitleSpace - tickWidth - 4) / (categories.length || 1);
+  const rotated = longestCategory > slotEstimate * 0.95;
   const plot = {
     left: box.left + valueTitleSpace + (horizontal ? categoryWidth : tickWidth),
-    right: box.right - (horizontal ? textWidth(formatValue(Math.max(...values), options.dataLabelFormatCode || format)) + 6 : 4),
+    right: box.right - (horizontal ? textWidth(formatNumber(Math.max(...values), options.dataLabelFormatCode || format)) + 6 : 4),
     top: box.top + size,
-    bottom: box.bottom - titleSpace - size * 1.6
+    bottom: box.bottom - titleSpace - (rotated ? Math.min(longestCategory * 0.71 + size, (box.bottom - box.top) * 0.4) : size * 1.6)
   };
   const valueAt = (value) => (horizontal
     ? plot.left + ((value - scale.min) / (scale.max - scale.min)) * (plot.right - plot.left)
@@ -175,14 +190,14 @@ export function drawNativeChart(document, parent, element, { measure }) {
     if (horizontal) create(document, 'line', { x1: position, x2: position, y1: plot.top, y2: plot.bottom, stroke: color(options.valGridLine.color), 'stroke-width': 0.75, 'stroke-dasharray': dash }, group);
     else {
       create(document, 'line', { x1: plot.left, x2: plot.right, y1: position, y2: position, stroke: color(options.valGridLine.color), 'stroke-width': 0.75, 'stroke-dasharray': dash }, group);
-      label(formatValue(tick, format), plot.left - 6, position + size * 0.32, { anchor: 'end', fill: options.valAxisLabelColor, fontSize: size - 1 });
+      label(formatNumber(tick, format), plot.left - 6, position + size * 0.32, { anchor: 'end', fill: options.valAxisLabelColor, fontSize: size - 1 });
     }
   });
-  if (horizontal) ticks.forEach((tick) => label(formatValue(tick, format), valueAt(tick), plot.bottom + size * 1.2, { fill: options.valAxisLabelColor, fontSize: size - 1 }));
+  if (horizontal) ticks.forEach((tick) => label(formatNumber(tick, format), valueAt(tick), plot.bottom + size * 1.2, { fill: options.valAxisLabelColor, fontSize: size - 1 }));
 
   if (xy) {
     const xAt = (value) => plot.left + ((value - xScale.min) / (xScale.max - xScale.min || 1)) * (plot.right - plot.left);
-    ticksOf(xScale).forEach((tick) => label(formatValue(tick, Number.isInteger(xScale.step) ? '#,##0' : '#,##0.0'), xAt(tick), plot.bottom + size * 1.2, { fill: options.valAxisLabelColor, fontSize: size - 1 }));
+    ticksOf(xScale).forEach((tick) => label(formatNumber(tick, Number.isInteger(xScale.step) ? '#,##0' : '#,##0.0'), xAt(tick), plot.bottom + size * 1.2, { fill: options.valAxisLabelColor, fontSize: size - 1 }));
     create(document, 'line', { x1: plot.left, x2: plot.right, y1: plot.bottom, y2: plot.bottom, stroke: color(options.catAxisLineColor), 'stroke-width': 0.75 }, group);
     const sizes = series[0].sizes || [];
     const largest = Math.max(...sizes.map((value) => Math.abs(value || 0)), 1);
@@ -209,7 +224,11 @@ export function drawNativeChart(document, parent, element, { measure }) {
   else create(document, 'line', { x1: plot.left, x2: plot.right, y1: zero, y2: zero, stroke: color(options.catAxisLineColor), 'stroke-width': 0.75 }, group);
   categories.forEach((name, index) => {
     if (horizontal) label(name, plot.left - 6, slotCenter(index) + size * 0.35, { anchor: 'end' });
-    else label(name, slotCenter(index), plot.bottom + size * 1.25);
+    else if (rotated) {
+      const x = slotCenter(index);
+      const y = plot.bottom + size * 0.9;
+      label(name, x, y, { anchor: 'end' }).setAttribute('transform', `rotate(-45 ${x} ${y})`);
+    } else label(name, slotCenter(index), plot.bottom + size * 1.25);
   });
 
   if (type === 'line' || type === 'area') {
@@ -249,7 +268,7 @@ export function drawNativeChart(document, parent, element, { measure }) {
       if (horizontal) create(document, 'rect', { x: Math.min(a, b), y: start, width: Math.abs(b - a), height: barSize, fill }, group);
       else create(document, 'rect', { x: start, y: Math.min(a, b), width: barSize, height: Math.abs(b - a), fill }, group);
       if (options.showValue) {
-        const text = formatValue(value, options.dataLabelFormatCode || format);
+        const text = formatNumber(value, options.dataLabelFormatCode || format);
         if (horizontal) label(text, b + (value >= 0 ? 4 : -4), start + barSize / 2 + size * 0.35, { anchor: value >= 0 ? 'start' : 'end', fill: options.dataLabelColor });
         else label(text, start + barSize / 2, value >= 0 ? b - 5 : b + size + 3, { fill: options.dataLabelColor });
       }

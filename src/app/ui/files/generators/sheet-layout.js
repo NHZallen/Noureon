@@ -81,6 +81,55 @@ export function formatCellValue(value, format, { language = 'en' } = {}) {
 
 const visualLength = (text) => [...String(text || '')].reduce((total, char) => total + (CJK.test(char) ? 2 : 1), 0);
 
+// ------------------------------------------------------------ charts
+
+// Excel's default chart size (5 × 3 in) and the rows one takes up at the
+// default row height (15 pt = 20 px), plus a spare row between charts.
+export const CHART_SIZE = Object.freeze({ width: 480, height: 288 });
+const CHART_ROWS = Math.ceil(CHART_SIZE.height / 20) + 1;
+
+const numericValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (value instanceof Date) return (value.getTime() - EXCEL_EPOCH) / 86400000;
+  return null;
+};
+
+/**
+ * Charts with everything the writer and the preview draw: data rows (a total
+ * row at the end is left out unless rows are given), category labels,
+ * series names, values and colours, and the anchor cell (by default to the
+ * right of the table, one blank column away, charts stacked downwards).
+ */
+function layoutCharts(sheet, rows, { totalRows, colors }) {
+  const lastData = rows.length - 1 - (totalRows.has(rows.length - 1) ? 1 : 0);
+  return (sheet.charts || []).map((chart, index) => {
+    const from = chart.rows?.from ?? 0;
+    const to = chart.rows?.to ?? Math.max(from, lastData);
+    const range = rows.slice(from, to + 1);
+    const pie = chart.type === 'pie' || chart.type === 'doughnut';
+    return {
+      type: chart.type,
+      title: chart.title,
+      stacked: chart.stacked,
+      from,
+      to,
+      x: chart.x,
+      categories: range.map((row) => row[chart.x]?.display ?? ''),
+      xValues: chart.type === 'scatter' ? range.map((row) => numericValue(row[chart.x]?.value)) : null,
+      series: chart.y.map((column, seriesIndex) => ({
+        column,
+        name: sheet.columns[column].header || `Series ${seriesIndex + 1}`,
+        values: range.map((row) => numericValue(row[column]?.value)),
+        format: sheet.columns[column].format || range.find((row) => row[column]?.format)?.[column].format || null,
+        color: colors[seriesIndex % colors.length]
+      })),
+      pointColors: pie ? range.map((_, point) => colors[point % colors.length]) : null,
+      anchor: chart.anchor || { row: 1 + index * CHART_ROWS, column: sheet.columns.length + 1 },
+      ...CHART_SIZE
+    };
+  });
+}
+
 // ------------------------------------------------------------ layout
 
 function isTotalRow(sheet, rowIndex) {
@@ -140,6 +189,7 @@ export function layoutWorkbook(workbook) {
     });
     return {
       name: sheet.name,
+      charts: layoutCharts(sheet, rows, { totalRows, colors: palette.series }),
       header: sheet.columns.map((column, index) => ({
         display: column.header,
         style: { bold: true, fill: colors.header, color: colors.onHeader, align: column.align ?? (numericColumn[index] ? 'right' : 'left') }

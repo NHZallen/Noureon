@@ -130,7 +130,8 @@ function renderPagePreview(context, { onPageCount }) {
       const result = await render(blob, canvas, {
         window,
         document,
-        limitText: (count) => getFileText(language, 'sheetRowsLimited', { count })
+        limitText: (count) => getFileText(language, 'sheetRowsLimited', { count }),
+        text: (key, values) => getFileText(language, key, values)
       });
       if (disposed) {
         result.dispose();
