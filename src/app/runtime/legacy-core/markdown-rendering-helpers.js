@@ -1,6 +1,8 @@
 import { applyChartMarkdownPlaceholders } from '../../ui/charts/chart-markdown-placeholders.js';
 import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
 import { applyFileCards, prepareFileBlocksForMarkdown, setFileMarkdownRenderer } from '../../ui/files/file-markdown-cards.js';
+import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
+import { createSandboxRunElement } from '../../ui/sandbox/sandbox-run-view.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 export function createMarkdownRenderingHelpers({
@@ -191,7 +193,7 @@ export function createMarkdownRenderingHelpers({
 
   // File blocks are lifted out of the raw source before marked sees it; see
   // file-block-protocol.js for why this cannot be a post-parse step.
-  function renderMarkdownDocument(text, fileBlocks) {
+  function renderMarkdownDocument(text, fileBlocks, sandboxRun = null) {
     const runtimeTexts = getRuntimeTexts(getUiLanguage());
     const thinkingLabel = runtimeTexts.modelThinkingProcess;
     const normalizedText = String(text || '')
@@ -231,18 +233,24 @@ export function createMarkdownRenderingHelpers({
       language: getUiLanguage()
     });
 
+    // Advanced mode's "Ran code N times" row goes above the answer.
+    const runElement = createSandboxRunElement(documentFragment, sandboxRun, { language: getUiLanguage() });
+    if (runElement) documentFragment.body.prepend(runElement);
+
     return documentFragment.body.innerHTML;
   }
 
   function renderMarkdown(text) {
-    const { markdown, blocks } = prepareFileBlocksForMarkdown(text);
-    return renderMarkdownDocument(markdown, blocks);
+    const { run, text: answer } = liftSandboxRunBlock(text);
+    const { markdown, blocks } = prepareFileBlocksForMarkdown(answer);
+    return renderMarkdownDocument(markdown, blocks, run);
   }
 
   function renderMarkdownWithFormulas(text) {
-    const { markdown: fileTokenizedText, blocks } = prepareFileBlocksForMarkdown(text);
+    const { run, text: answer } = liftSandboxRunBlock(text);
+    const { markdown: fileTokenizedText, blocks } = prepareFileBlocksForMarkdown(answer);
     const { formulas, markdown } = extractFormulaTokens(fileTokenizedText);
-    let html = renderMarkdownDocument(markdown, blocks);
+    let html = renderMarkdownDocument(markdown, blocks, run);
 
     formulas.forEach((entry, index) => {
       const token = `NOURA_MATH_TOKEN_${index}_END`;

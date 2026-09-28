@@ -27,6 +27,7 @@ import {
   getDefaultReasoningLabel,
   getModelReasoningConfig,
   getReasoningEffortLabel,
+  modelSupportsToolCalling,
   normalizeReasoningEffort
 } from './model-registry.js';
 
@@ -172,7 +173,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getActiveConversation,
     saveAppData,
     getUiLanguage,
-    closeAllPopovers
+    closeAllPopovers,
+    getConfig: getLiveConfig,
+    normalizeConversationModel,
+    isCouncilEnabled
   });
 
   const getReasoningTitle = () => {
@@ -823,7 +827,9 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     playbackStreamingMarkdownResponse,
     renderIncrementalResponse,
     getOpenCouncilDetailKeys,
-    restoreOpenCouncilDetails
+    restoreOpenCouncilDetails,
+    getConfig: getLiveConfig,
+    supportsToolCalling: modelSupportsToolCalling
   });
 
   const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({

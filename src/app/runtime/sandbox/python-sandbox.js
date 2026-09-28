@@ -2,6 +2,7 @@
 // use. Chart fonts are prepared (sandbox-fonts.js) only when the sandbox
 // asks for them, the first time code uses matplotlib.
 
+import { PYTHON_READY_KEY } from './file-mode.js';
 import { SandboxError, createSandboxClient } from './sandbox-client.js';
 import { browserSupportsSandbox, resolveSandboxOrigin } from './sandbox-protocol.js';
 
@@ -31,6 +32,13 @@ export function getPythonSandbox({
       onProgress: (message) => listeners.forEach((listener) => listener(message))
     });
     shared = { client, listeners };
+    client.prepare().then(() => {
+      try {
+        window.localStorage?.setItem(PYTHON_READY_KEY, '1');
+      } catch {
+        // Only the picker's note depends on it.
+      }
+    }, () => {});
   }
   shared.listeners.clear();
   shared.listeners.add(onProgress);

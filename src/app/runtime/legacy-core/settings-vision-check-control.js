@@ -1,4 +1,6 @@
 import { visionText } from '../../ui/files/vision/vision-texts.js';
+import { FILE_MODES, chosenFileMode, isAdvancedModeReleased } from '../sandbox/file-mode.js';
+import { sandboxText } from '../sandbox/sandbox-texts.js';
 
 export function ensureAutoWebSearchSettingsControl({ document, elements }) {
   if (document.getElementById('auto-web-search-toggle-switch')) {
@@ -63,6 +65,63 @@ export function ensureVisionCheckSettingsControl({ document, elements, config })
     });
   }
   elements.visionCheckToggleSwitch = row.querySelector('#vision-check-toggle-switch');
+}
+
+// "Mode for new chats": Standard or Advanced (Python in the browser). Only
+// shown where Advanced mode is released (see file-mode.js).
+export function ensureFileModeSettingsControl({ document, elements, config, released = isAdvancedModeReleased() }) {
+  const section = document.getElementById('accessibility-section');
+  let row = document.getElementById('file-mode-setting-row');
+  if (!released || !section) {
+    if (typeof row?.remove === 'function') row.remove();
+    elements.fileModeDefaultSelect = null;
+    return;
+  }
+  if (!row) {
+    row = document.createElement('div');
+    row.id = 'file-mode-setting-row';
+    row.className = 'mt-4';
+    const anchor = document.getElementById('vision-check-setting-row');
+    if (anchor) anchor.after(row);
+    else section.appendChild(row);
+    const label = document.createElement('label');
+    label.htmlFor = 'file-mode-default-select';
+    label.className = 'block text-sm font-medium mb-1';
+    const hint = document.createElement('p');
+    hint.className = 'text-xs text-[var(--text-secondary)] mb-2';
+    const select = document.createElement('select');
+    select.id = 'file-mode-default-select';
+    select.className = 'w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]';
+    for (const mode of [FILE_MODES.advanced, FILE_MODES.standard]) {
+      const option = document.createElement('option');
+      option.value = mode;
+      select.append(option);
+    }
+    row.append(label, hint, select);
+  }
+  if (typeof row.querySelector !== 'function') return;
+  translateFileModeRow(row, config.uiLanguage);
+  const languageSelect = elements.uiLanguageSelect;
+  if (languageSelect?.addEventListener && !fileModeLanguageBound.has(languageSelect)) {
+    fileModeLanguageBound.add(languageSelect);
+    languageSelect.addEventListener('change', (event) => {
+      translateFileModeRow(document.getElementById('file-mode-setting-row'), event.target.value);
+    });
+  }
+  elements.fileModeDefaultSelect = row.querySelector('#file-mode-default-select');
+  elements.fileModeDefaultSelect.value = chosenFileMode(null, config);
+}
+
+const fileModeLanguageBound = new WeakSet();
+
+function translateFileModeRow(row, language) {
+  const label = row?.querySelector?.('label');
+  const hint = row?.querySelector?.('p');
+  if (label) label.textContent = sandboxText(language, 'fileModeDefaultSetting');
+  if (hint) hint.textContent = sandboxText(language, 'fileModeDefaultSettingNote');
+  row?.querySelectorAll?.('option').forEach((option) => {
+    option.textContent = sandboxText(language, option.value === FILE_MODES.advanced ? 'fileModeAdvanced' : 'fileModeStandard');
+  });
 }
 
 const languageBound = new WeakSet();

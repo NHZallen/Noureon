@@ -13,6 +13,8 @@ import { parseDocumentSpec } from './document-spec.js';
 import { getFileText } from '../file-texts.js';
 import { layoutThumbnails } from '../generators/pptx-layout.js';
 import { renderPresentationSlide } from '../previews/slide-preview.js';
+import { FILE_MODES } from '../../../runtime/sandbox/file-mode.js';
+import { sandboxText } from '../../../runtime/sandbox/sandbox-texts.js';
 
 const AUTO = 'auto';
 export const DESIGN_KINDS = Object.freeze(['deck', 'document']);
@@ -107,12 +109,51 @@ const KINDS = Object.freeze({
   }
 });
 
+function renderModeSection(document, language, initial, onMode) {
+  const section = element(document, 'div', 'file-mode-section');
+  const row = element(document, 'div', 'file-mode-row');
+  const label = element(document, 'span', 'file-mode-label', sandboxText(language, 'fileModeLabel'));
+  label.id = 'file-mode-label';
+  const group = element(document, 'div', 'file-mode-segments');
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-labelledby', label.id);
+  const buttons = [FILE_MODES.standard, FILE_MODES.advanced].map((value) => {
+    const button = element(document, 'button', 'file-mode-segment', sandboxText(language, value === FILE_MODES.advanced ? 'fileModeAdvanced' : 'fileModeStandard'));
+    button.type = 'button';
+    button.dataset.fileMode = value;
+    button.addEventListener('click', () => {
+      if (!button.disabled) onMode(value);
+    });
+    group.append(button);
+    return button;
+  });
+  const note = element(document, 'p', 'file-mode-note');
+  row.append(label, group);
+  section.append(row, note);
+
+  const update = (mode) => {
+    const unavailable = Boolean(mode.unavailableReason);
+    // Where Advanced cannot run, the reply uses Standard; the choice itself is kept.
+    const effective = unavailable ? FILE_MODES.standard : mode.value;
+    buttons.forEach((button) => {
+      const advanced = button.dataset.fileMode === FILE_MODES.advanced;
+      button.setAttribute('aria-pressed', String(button.dataset.fileMode === effective));
+      button.disabled = advanced && unavailable;
+    });
+    note.textContent = unavailable
+      ? sandboxText(language, 'fileModeUnavailable', { reason: sandboxText(language, `reason.${mode.unavailableReason}`) })
+      : sandboxText(language, effective === FILE_MODES.advanced ? (mode.ready ? 'fileModeAdvancedReady' : 'fileModeAdvancedNote') : 'fileModeStandardNote');
+  };
+  update(initial);
+  return { element: section, update };
+}
+
 /**
  * Fills `container` with the picker. `onChoose(kind, value)` receives
  * "deck" or "document" and "auto" or a template id; `current` holds the
  * choice per kind. Returns { setCurrent(current) }.
  */
-export function renderDeckDesignPicker(container, { document, window, language = 'zh-TW', current = {}, onChoose = () => {} }) {
+export function renderDeckDesignPicker(container, { document, window, language = 'zh-TW', current = {}, onChoose = () => {}, mode = null, onMode = () => {} }) {
   const text = (key) => getFileText(language, key);
   let choices = { deck: AUTO, document: AUTO, ...current };
   let kind = DESIGN_KINDS.includes(lastKind) ? lastKind : 'deck';
@@ -203,12 +244,16 @@ export function renderDeckDesignPicker(container, { document, window, language =
     })();
   }
 
-  container.replaceChildren(element(document, 'p', 'deck-design-title', text('design')), tabs, panel);
+  // "Mode: Standard | Advanced" above the designs (a segmented control, after
+  // Apple's and Material's), where Advanced mode is released.
+  const modeSection = mode?.released ? renderModeSection(document, language, mode, onMode) : null;
+
+  container.replaceChildren(...[element(document, 'p', 'deck-design-title', text('design')), modeSection?.element, tabs, panel].filter(Boolean));
   show(kind);
 
   const setCurrent = (next) => {
     choices = { ...choices, ...next };
     markCurrent();
   };
-  return { setCurrent, show };
+  return { setCurrent, show, setMode: (next) => modeSection?.update(next) };
 }

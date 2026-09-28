@@ -22,7 +22,7 @@ import { createSettingsHistoryRecallControls } from './settings-history-recall-c
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { createMemoryModelRunner } from './memory-model-runner.js';
 import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
-import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl } from './settings-vision-check-control.js';
+import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl } from './settings-vision-check-control.js';
 
 const requiredDependencies = [
     'window',
@@ -470,7 +470,10 @@ const loadSyncVaultControls = () => {
     return syncVaultControlsPromise;
 };
 const ensureAutoWebSearchSettingsControl = () => ensureAutoWebSearchControl({ document, elements: ALL_ELEMENTS });
-const ensureVisionCheckSettingsControl = () => ensureVisionControl({ document, elements: ALL_ELEMENTS, config });
+const ensureVisionCheckSettingsControl = () => {
+    ensureVisionControl({ document, elements: ALL_ELEMENTS, config });
+    ensureFileModeControl({ document, elements: ALL_ELEMENTS, config });
+};
 const historyRecallControls = createSettingsHistoryRecallControls({
     document,
     elements: ALL_ELEMENTS,
@@ -588,6 +591,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,
         enableAutoWebSearch: collectedSettings.enableAutoWebSearch,
         visionCheckEnabled: collectedSettings.visionCheckEnabled,
+        fileModeDefault: collectedSettings.fileModeDefault,
         outputMode: collectedSettings.outputMode,
         aiBubbleColor: collectedSettings.aiBubbleColor,
         userBubbleColor: collectedSettings.userBubbleColor,

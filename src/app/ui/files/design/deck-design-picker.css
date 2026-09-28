@@ -168,3 +168,60 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+/* Mode: Standard | Advanced, a two-part segmented control (after Apple's
+   segmented controls and Material 3 segmented buttons); the chosen part is
+   black on white, reversed in dark themes by the text colour. */
+.file-mode-section {
+    margin: 0.65rem 0 0.2rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+.file-mode-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.file-mode-label {
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+.file-mode-segments {
+    display: inline-flex;
+    padding: 2px;
+    border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent);
+    border-radius: 999px;
+}
+.file-mode-segment {
+    min-width: 4.2rem;
+    padding: 0.28rem 0.8rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.file-mode-segment:hover:not(:disabled) {
+    color: var(--text-primary);
+}
+.file-mode-segment[aria-pressed="true"] {
+    background: var(--text-primary);
+    color: var(--input-field-bg, #fff);
+}
+.file-mode-segment:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.file-mode-segment:focus-visible {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 2px;
+}
+.file-mode-note {
+    margin: 0.45rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    line-height: 1.5;
+}

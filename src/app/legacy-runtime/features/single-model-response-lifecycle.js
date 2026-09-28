@@ -1,5 +1,21 @@
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
+import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
+import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
+import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
+import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
+import { createSandboxLiveElement } from '../../ui/sandbox/sandbox-run-view.js';
+
+// Advanced mode (Python in the browser) is loaded only for replies that use it.
+const loadSandboxReply = () => Promise.all([
+  import('../../runtime/sandbox/sandbox-reply.js'),
+  import('../../runtime/sandbox/python-sandbox.js')
+]);
+
+// A switch to Standard mode is worth saying only when the request looks like
+// a task Advanced mode is for: files, data or attachments.
+const looksLikeFileTask = (parts = []) => parts.some((part) => part?.inlineData)
+  || mayNeedFileGuidance(parts.map((part) => part?.text || '').join('\n'));
 
 export function createSingleModelResponseLifecycle({
   now = () => Date.now(),
@@ -13,7 +29,11 @@ export function createSingleModelResponseLifecycle({
   playbackStreamingMarkdownResponse,
   renderIncrementalResponse,
   getOpenCouncilDetailKeys,
-  restoreOpenCouncilDetails
+  restoreOpenCouncilDetails,
+  getConfig = () => ({}),
+  supportsToolCalling = () => false,
+  getWindow = () => globalThis.window,
+  getDocument = () => globalThis.document
 }) {
   let progressTimer = null;
   let latestProgress = null;
@@ -106,13 +126,45 @@ export function createSingleModelResponseLifecycle({
         );
       }
     };
-    const runApiStream = (onChunk) => streamApiCall(
-      requestParts,
-      onChunk,
-      signal,
-      false,
-      { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER }
-    );
+    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
+    const replyMode = resolveReplyMode({
+      conversation,
+      config: getConfig(),
+      modelInfo,
+      supportsToolCalling,
+      browserSupported: browserSupportsSandbox(getWindow())
+    });
+    // The run record (or the reason for Standard mode) kept above the answer.
+    let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
+      ? { status: 'done', steps: [], fallback: replyMode.reason }
+      : null;
+    let liveRun = null;
+    const showRunStatus = (statusText) => {
+      if (!liveRun) {
+        const document = getDocument();
+        liveRun = createSandboxLiveElement(document);
+        targetElement.parentElement?.insertBefore(liveRun.element, targetElement);
+      }
+      liveRun.update(statusText);
+    };
+    const runApiStream = replyMode.advanced
+      ? async (onChunk) => {
+        const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
+        const result = await runSandboxReply({
+          streamApiCall,
+          requestParts,
+          onChunk,
+          signal,
+          requestOptions: streamOptions,
+          getSandbox: (options) => getPythonSandbox({ ...options, language: getConfig().aiDefaultLanguage || uiLanguage }),
+          language: uiLanguage,
+          provider: modelInfo?.provider,
+          onStatus: showRunStatus
+        });
+        sandboxRun = result.run;
+        return result.text;
+      }
+      : (onChunk) => streamApiCall(requestParts, onChunk, signal, false, streamOptions);
 
     let fullResponse;
     let responseRenderedInRealtime = false;
@@ -157,11 +209,17 @@ export function createSingleModelResponseLifecycle({
       }
     } finally {
       stop();
+      liveRun?.remove();
     }
 
-    if (!String(fullResponse || '').trim()) {
+    if (!String(fullResponse || '').trim() && !sandboxRun?.steps?.length) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       throw new Error(getRuntimeText(uiLanguage, 'emptyResponse'));
+    }
+    if (sandboxRun) {
+      fullResponse = `${formatSandboxRunBlock(sandboxRun)}${fullResponse || ''}`;
+      // The final view is drawn again so the run row appears above the answer.
+      if (targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
     }
 
     return {

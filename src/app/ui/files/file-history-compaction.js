@@ -1,5 +1,6 @@
 import { formatFileBlockSource, scanFileBlocks } from './file-block-protocol.js';
 import { sanitizeFileName } from './file-name-policy.js';
+import { summarizeSandboxRunText } from '../sandbox/sandbox-run-block.js';
 
 // File specifications can be large, and conversation history is re-sent with
 // every request. Only the newest version of each file needs to travel in full:
@@ -74,7 +75,8 @@ export function compactFileHistoryForApi(history = []) {
  * memory capture, history indexing and title summaries.
  */
 export function summarizeFileBlocks(text = '', { excerptLength = 400 } = {}) {
-  const source = String(text || '');
+  // Advanced mode's run record (code and output) shrinks to one line too.
+  const source = summarizeSandboxRunText(String(text || ''));
   const blocks = scanFileBlocks(source);
   if (blocks.length === 0) return source;
   return replaceBlocks(source, blocks, (block) => {

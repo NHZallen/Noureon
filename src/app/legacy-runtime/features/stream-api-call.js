@@ -1,6 +1,8 @@
 import { formatMemoryContextForModel } from '../../runtime/memory/memory-context-builder.js';
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
+import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
+import { applyGeminiTools, applyOpenAiTools, createGeminiCollector, createOpenAiCollector } from './tool-call-formats.js';
 
 export function mergeAdjacentModelMessages(history) {
   return history.reduce((merged, message) => {
@@ -472,7 +474,7 @@ const findCompleteJsonObjectEnd = (source, startIndex) => {
   return -1;
 };
 
-const consumeGeminiStream = async ({ reader, decoder, onChunk, warn }) => {
+const consumeGeminiStream = async ({ reader, decoder, onChunk, warn, collector = createGeminiCollector() }) => {
   let buffer = '';
   let fullText = '';
   while (true) {
@@ -490,7 +492,9 @@ const consumeGeminiStream = async ({ reader, decoder, onChunk, warn }) => {
       buffer = buffer.substring(endIndex + 1);
       try {
         const parsed = JSON.parse(jsonString);
-        const textChunk = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+        // Every part is kept (tool calls and their signatures go back to the
+        // model unchanged); thoughts are not shown.
+        const textChunk = collector.add(parsed);
         if (textChunk) {
           fullText += textChunk;
           onChunk(textChunk);
@@ -503,7 +507,7 @@ const consumeGeminiStream = async ({ reader, decoder, onChunk, warn }) => {
   return fullText;
 };
 
-const consumeOpenAiCompatibleStream = async ({ reader, decoder, onChunk }) => {
+const consumeOpenAiCompatibleStream = async ({ reader, decoder, onChunk, collector = createOpenAiCollector() }) => {
   let buffer = '';
   let fullText = '';
   while (true) {
@@ -518,7 +522,7 @@ const consumeOpenAiCompatibleStream = async ({ reader, decoder, onChunk }) => {
       if (data.trim() === '[DONE]') break;
       try {
         const parsed = JSON.parse(data);
-        const textChunk = parsed.choices[0]?.delta?.content || '';
+        const textChunk = collector.add(parsed);
         if (textChunk) {
           fullText += textChunk;
           onChunk(textChunk);
@@ -573,9 +577,9 @@ export function createStreamApiCall({
       throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
     }
 
-    const historyForApi = mergeAdjacentModelMessages(compactFileHistoryForApi(
+    const historyForApi = mergeAdjacentModelMessages(compactSandboxRunsForApi(compactFileHistoryForApi(
       requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
-    ));
+    )));
     const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;
@@ -661,6 +665,13 @@ export function createStreamApiCall({
           systemInstruction
         });
 
+    // Advanced mode: the Python tool and the tool rounds of this reply so far.
+    const toolOptions = { tools: requestOptions.tools || [], toolTurns: requestOptions.toolTurns || [] };
+    if (toolOptions.tools.length || toolOptions.toolTurns.length) {
+      if (provider === 'gemini') applyGeminiTools(request.payload, toolOptions);
+      else applyOpenAiTools(request.payload, toolOptions);
+    }
+
     const response = await fetchImpl(request.url, {
       method: 'POST',
       headers: request.headers,
@@ -670,13 +681,18 @@ export function createStreamApiCall({
 
     if (!response.ok) {
       const errorBody = await readProviderErrorBody(response);
-      throw new Error(getProviderErrorMessage(errorBody));
+      const error = new Error(getProviderErrorMessage(errorBody));
+      error.status = response.status;
+      throw error;
     }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoderImpl();
-    return provider === 'gemini'
-      ? consumeGeminiStream({ reader, decoder, onChunk, warn })
-      : consumeOpenAiCompatibleStream({ reader, decoder, onChunk });
+    const collector = provider === 'gemini' ? createGeminiCollector() : createOpenAiCollector();
+    const fullText = provider === 'gemini'
+      ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
+      : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });
+    requestOptions.onResponseComplete?.(collector.result());
+    return fullText;
   };
 }

@@ -11,6 +11,9 @@
 import { DESIGN_PRESET_IDS, getPresetText } from '../../ui/files/design/design-presets.js';
 import { DOCUMENT_PRESET_IDS, getDocumentPresetText } from '../../ui/files/design/document-presets.js';
 import { getFileText } from '../../ui/files/file-texts.js';
+import { modelSupportsToolCalling } from '../legacy-core/model-registry.js';
+import { describeFileModeState } from '../sandbox/file-mode.js';
+import { browserSupportsSandbox } from '../sandbox/sandbox-protocol.js';
 
 export const DECK_DESIGN_AUTO = 'auto';
 
@@ -32,6 +35,19 @@ export function createDeckDesignControl({
   saveAppData,
   getUiLanguage = () => 'zh-TW',
   closeAllPopovers = () => {},
+  // For Standard or Advanced mode (the picker's "Mode" row).
+  getConfig = () => ({}),
+  normalizeConversationModel = () => null,
+  isCouncilEnabled = () => false,
+  getModeState = () => describeFileModeState({
+    window,
+    conversation: getActiveConversation(),
+    config: getConfig(),
+    modelInfo: normalizeConversationModel(getActiveConversation()),
+    supportsToolCalling: modelSupportsToolCalling,
+    isCouncil: isCouncilEnabled(getActiveConversation()),
+    browserSupported: browserSupportsSandbox(window)
+  }),
   // The picker's stylesheet loads with it, keeping the startup CSS small.
   loadPicker = () => Promise.all([
     import('../../ui/files/design/deck-design-picker.js'),
@@ -130,6 +146,20 @@ export function createDeckDesignControl({
     }
   };
 
+  // Choosing a mode keeps the picker open; the designs stay one click away.
+  const chooseMode = async (value) => {
+    const conversation = getActiveConversation();
+    if (!conversation || (value !== 'standard' && value !== 'advanced')) return;
+    conversation.fileMode = value;
+    const state = getModeState();
+    if (state) picker?.setMode?.(state);
+    try {
+      await saveAppData();
+    } catch (error) {
+      logError('Saving the mode failed:', error);
+    }
+  };
+
   async function openPicker(popover) {
     try {
       const module = await loadPicker();
@@ -138,6 +168,8 @@ export function createDeckDesignControl({
         window,
         language: getUiLanguage(),
         current: currentChoices(getActiveConversation()),
+        mode: getModeState(),
+        onMode: (value) => { void chooseMode(value); },
         onChoose: (kind, value) => {
           void choose(kind, value);
           popover.classList.remove('visible');
@@ -174,5 +206,5 @@ export function createDeckDesignControl({
     picker?.setCurrent?.(choices);
   }
 
-  return { render, choose };
+  return { render, choose, chooseMode };
 }

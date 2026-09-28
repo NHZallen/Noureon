@@ -140,6 +140,46 @@ export const NVIDIA_VISION_MODELS = [
     'z-ai/glm-5.3-flash',
     'moonshotai/kimi-k3'
 ];
+// Models that can call tools, which Advanced mode (Python in the browser)
+// needs. OpenRouter's list was checked against the `tools` entry of
+// supported_parameters on /api/v1/models (2026-09-28); the NVIDIA models are
+// left out until they are tried with a real key. A model not listed is
+// treated as not supporting tools.
+export const TOOL_CALLING_MODEL_IDS = Object.freeze([
+    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-pro-preview',
+    'anthropic/claude-haiku-4.5',
+    'anthropic/claude-sonnet-5',
+    'anthropic/claude-opus-5.5',
+    'anthropic/claude-fable-5.1',
+    'deepseek/deepseek-v4.1-flash',
+    'minimax/minimax-m3',
+    'moonshotai/kimi-k3',
+    'poolside/laguna-s-2.1:free',
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
+    'nvidia/nemotron-3.5-lightning:free',
+    'openai/gpt-6-astra',
+    'openai/gpt-6-luna',
+    'openai/gpt-5.6-terra',
+    'openai/gpt-6-sol',
+    'qwen/qwen3.7-flash',
+    'qwen/qwen3.7-plus',
+    'qwen/qwen3.8-max-0902',
+    'xiaomi/mimo-v2.6-pro',
+    'xiaomi/mimo-v2.6-flash',
+    'x-ai/grok-4.6',
+    'z-ai/glm-5.3',
+    'z-ai/glm-5.3-flash'
+]);
+// Text models without tool calling (or not yet shown to have it).
+export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([
+    'nvidia/deepseek-ai/deepseek-v4.1-flash',
+    'nvidia/z-ai/glm-5.3-flash',
+    'nvidia/z-ai/glm-5.3',
+    'nvidia/moonshotai/kimi-k3'
+]);
 export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
@@ -426,6 +466,7 @@ export const modelUsesTavilySearch = (model) => Boolean(model && (
     model.provider === 'nvidia'
 ));
 export const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
+export const modelSupportsToolCalling = (model) => Boolean(model && model.outputModality !== 'image' && TOOL_CALLING_MODEL_IDS.includes(model.id));
 
 export function createLegacyModelRegistry({
     getConfig = () => ({}),

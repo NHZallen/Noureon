@@ -1,0 +1,130 @@
+/* Advanced mode in a reply: the "Ran code N times" row, its steps, and the
+   note shown when a reply switched to Standard mode. Black and white; tints
+   follow the text colour so dark themes and wallpapers work too. */
+
+.sandbox-run {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.sandbox-fallback-note {
+    margin: 0 0 0.5rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.8125rem;
+}
+
+.sandbox-run-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.sandbox-run-summary::-webkit-details-marker { display: none; }
+
+.sandbox-run-summary::after {
+    content: '›';
+    display: inline-block;
+    transition: transform 0.15s ease;
+}
+
+.sandbox-run-details[open] > .sandbox-run-summary::after { transform: rotate(90deg); }
+
+.sandbox-run-summary:hover,
+.sandbox-run-summary:focus-visible { color: var(--text-primary, #111827); }
+
+.sandbox-run-steps {
+    margin: 0.6rem 0 0;
+    padding: 0 0 0 0.9rem;
+    border-left: 1px solid color-mix(in srgb, var(--text-primary, #111827) 14%, transparent);
+}
+
+.sandbox-run-step { margin: 0 0 1rem; }
+.sandbox-run-step:last-child { margin-bottom: 0.25rem; }
+
+.sandbox-run-step-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+
+.sandbox-run-step-number {
+    flex: 0 0 auto;
+    color: var(--text-secondary, #6b7280);
+    font-variant-numeric: tabular-nums;
+}
+
+.sandbox-run-step-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--text-primary, #111827);
+    font-weight: 500;
+}
+
+.sandbox-run-step-time {
+    flex: 0 0 auto;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.sandbox-run .sandbox-run-code { margin: 0 0 0.5rem; }
+.sandbox-run .sandbox-run-code code { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.sandbox-run-label {
+    display: block;
+    margin: 0.35rem 0 0.2rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.75rem;
+}
+
+.sandbox-run-files .sandbox-run-label { display: inline; }
+
+.sandbox-run .sandbox-run-output {
+    max-height: 18rem;
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    overflow: auto;
+    border: 1px solid color-mix(in srgb, var(--text-primary, #111827) 12%, transparent);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--text-primary, #111827) 4%, transparent);
+    color: var(--text-primary, #111827);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.sandbox-run-files,
+.sandbox-run-note {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.78rem;
+}
+
+.sandbox-run-live-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.sandbox-run-spinner {
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 1.5px solid color-mix(in srgb, var(--text-primary, #111827) 20%, transparent);
+    border-top-color: var(--text-primary, #111827);
+    border-radius: 50%;
+    animation: sandbox-run-spin 0.9s linear infinite;
+}
+
+@keyframes sandbox-run-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .sandbox-run-spinner { animation-duration: 2.4s; }
+}

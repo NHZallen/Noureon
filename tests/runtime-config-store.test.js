@@ -13,6 +13,7 @@ const expectedConfig = (defaultModelId) => ({
   modelSettings: [],
   enableAutoWebSearch: false,
   visionCheckEnabled: true,
+  fileModeDefault: 'advanced',
   tavilySearchDepth: 'basic',
   outputMode: 'typewriter',
   aiBubbleColor: 'default',

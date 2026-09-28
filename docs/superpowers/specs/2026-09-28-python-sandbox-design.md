@@ -1,7 +1,7 @@
 # 方案 B：瀏覽器內 Python 沙盒（進階模式）詳細設計
 
 **日期：** 2026-09-28
-**狀態：** B0 已由使用者確認（2026-09-28）。B1（沙盒執行環境）已完成，本機 commit、尚未推送；實作時與本文不同的地方記在文末「B1 實作紀錄」，以該節為準。下一步 B2。
+**狀態：** B0 已由使用者確認（2026-09-28）。B1（沙盒執行環境）已上線。B2（工具呼叫與介面）已實作，等待使用者用真實金鑰驗證。實作時與本文不同的地方記在文末的「B1 實作紀錄」「B2 實作紀錄」，以那兩節為準。
 **前置閱讀：** [交接說明](../plans/2026-09-28-downloadable-files-handoff.md)（工作規則）、[總計畫](2026-09-26-downloadable-files-design.md)（決定 1–4、6 與「方案 B 概要」「模式選擇與自動切換」）、[設計系統規格](2026-09-27-design-system.md)、[V1 看圖檢查](2026-09-28-vision-check-design.md)。
 
 ## 0. 使用者已確認的決定（2026-09-28）
@@ -595,8 +595,70 @@ CSP 是主要的防線。另外在執行模型的程式之前，Worker 還會做
 
 ### 尚未驗證（要等部署後）
 
-- `run.noureon.com` 的 HTTPS 憑證，以及強制 CSP、轉址、`frame-ancestors`。
-  - 在 noureon.com 開啟 `/sandbox/` 要被轉到 run.noureon.com。
-  - 其他網站嵌入沙盒頁面要被擋下。
+- ~~`run.noureon.com` 的 HTTPS 憑證、強制 CSP、轉址、`frame-ancestors`~~：2026-09-28 部署後已確認。
+  - 沙盒頁面回傳強制 CSP，沒有 `X-Frame-Options`。
+  - `run.noureon.com/` 會轉到 noureon.com，`noureon.com/sandbox/` 會轉到 run.noureon.com。
+  - 主站 CSP 的 `frame-src` 已包含 run.noureon.com。
+  - 其他網站無法嵌入沙盒，靠的是 `frame-ancestors`，但還沒有用其他網站實際試過。
 - Safari 與 iPhone（記憶體、模組 Worker、Service Worker）。
 - 手機寬度下的進度顯示要等 B2 有介面後才能驗證。
+
+## B2 實作紀錄（2026-09-28）
+
+### 檔案
+
+| 位置 | 內容 |
+|---|---|
+| `src/app/runtime/legacy-core/model-registry.js` | `TOOL_CALLING_MODEL_IDS`、`NON_TOOL_CALLING_MODEL_IDS`、`modelSupportsToolCalling`；有測試要求每個文字模型都要明確列在其中一份 |
+| `src/app/legacy-runtime/features/tool-call-formats.js` | 三家供應商的工具格式：送出工具、把前幾輪送回、解析串流中的工具呼叫（Gemini 的 parts 與簽章原樣保留；OpenAI 相容格式依 index 組合參數片段，並保留 `reasoning_details`） |
+| `stream-api-call.js` | 多了 `tools`、`toolTurns`、`onResponseComplete` 三個選項；Gemini 改為讀取所有 parts（不顯示 thought）；錯誤附上 HTTP 狀態碼；送給模型的歷史會把執行紀錄換成一行摘要 |
+| `src/app/runtime/sandbox/sandbox-reply.js`（延後載入） | 工具迴圈：每則回覆最多執行 10 次；清空環境、執行、把結果回傳給模型；停止、載入失敗、兩次當掉與 Gemini 搜尋衝突時的處理 |
+| `src/app/runtime/sandbox/sandbox-guidance.js`（延後載入） | `run_python` 工具定義與提示詞 |
+| `src/app/runtime/sandbox/file-mode.js` | 對話選擇的模式、這則回覆能不能用進階模式與原因、B3 前的預覽開關、「Python 已下載」標記 |
+| `src/app/runtime/sandbox/sandbox-texts.js` | 5 種語言的介面文字（含七種原因） |
+| `src/app/ui/sandbox/sandbox-run-block.js`、`sandbox-run-view.js`、`src/styles/sandbox-run.css` | 存在回覆文字最前面的執行紀錄區塊、「已執行程式 N 次」收合列、執行中的狀態列、改用標準模式的灰字 |
+| `single-model-response-lifecycle.js` | 進階模式的回覆改走工具迴圈；狀態列放在回覆內容的上方；完成後把紀錄區塊加在回覆最前面，並重畫一次 |
+| `deck-design-picker.js`（`.css`）、`deck-design-control.js` | 「設計」選單最上方的「製作方式：標準｜進階」 |
+| `settings-vision-check-control.js` 與設定相關檔案 | 設定頁「新對話的製作方式」（`config.fileModeDefault`，預設 `advanced`），包含匯入與匯出 |
+
+### 與設計不同或補充的地方
+
+- **執行紀錄存成回覆文字的一部分**：
+  - 形式是 ```` ```noureon-run ```` 區塊，內容是一行 JSON，放在回覆最前面，沒有另外開訊息欄位。所以同步、匯出、P2P 都會自動帶著它，做法和檔案區塊相同。
+  - 顯示前先抽出來，畫成收合列。
+  - 送給模型、記憶、標題與搜尋的只有一行摘要：跑了幾次、產生了哪些檔案。
+  - 每一步保存標題、程式碼、輸出（最多 5 萬字）、錯誤、產生的檔名與大小，不保存檔案內容；檔案內容由 B3 另外存。
+- **執行中的狀態**：顯示在回覆內容上方的一行（轉圈加文字），依序是「正在準備 Python 環境」「已下載 N MB」「正在執行程式（第 N 次）：標題」「正在根據執行結果繼續」。完成後由收合列取代。
+- **「已改用標準模式」只在需要時顯示**：只有訊息看起來和檔案或資料有關（`mayNeedFileGuidance`），或附有檔案時才顯示，以免每則一般對話都多一行。
+- **模型理事會**：理事會走另一條回覆流程，所以理事會的回覆裡沒有提示。「設計」選單會把進階模式設成無法點選，並寫出原因「模型理事會不支援進階模式」。
+- **B3 完成前的預覽開關**：產生的檔案要到 B3 才能下載，所以在那之前，正式站上的進階模式預設不出現：選單沒有「製作方式」、設定頁沒有預設值，回覆也一律走標準模式。
+  - 開發環境一律開啟。
+  - 正式站在網址後面加上 `?advanced-mode=on` 就會在這台裝置開啟，`?advanced-mode=off` 關閉。
+- **Gemini 同時開網路搜尋**：兩個工具一起送出。如果 Gemini 在第一次請求就回 400，就改成不帶 Python 重送，並記錄 `search-conflict`。實際會不會衝突，要等真實金鑰實測。
+
+### 驗證
+
+- **自動測試**：`tests/sandbox/` 共 34 項，涵蓋：
+  - 三家供應商的工具格式與串流解析。
+  - 工具迴圈：執行並回傳結果、10 次上限、載入失敗、停止、Gemini 搜尋衝突。
+  - 模式判斷與預覽開關。
+  - 5 種語言文字齊全。
+  - 執行紀錄的儲存、摘要與顯示。
+- **瀏覽器（開發伺服器）**：
+  - 用真的 `stream-api-call.js`、假的 Gemini 回應和真的沙盒跑完整流程：模型要求執行、沙盒用 pandas 計算並用 matplotlib 畫圖（5.2 秒）、結果回傳給模型。
+  - 第二次請求有把帶 `thoughtSignature` 的 parts 原樣送回，`functionResponse` 裡也有輸出與檔案。
+  - 用 app 自己的 Markdown 渲染器畫出收合列與展開內容。
+  - 「設計」選單的「製作方式」：可以切換、不會關閉選單；模型不支援時，進階無法點選，並顯示原因。
+- **npm 檢查**：`npm test` 共 1980 項全部通過；`build`、`check:sizes`、`check:legacy-runtime`、`npm audit --omit=dev`（0 個漏洞）也都通過。
+
+### 待使用者驗證（需要登入與真實金鑰）
+
+- 三家供應商各跑一次，由使用者操作，我不輸入金鑰：
+  - Gemini：含同時開啟網路搜尋。
+  - OpenRouter：例如 Claude 或 GPT。
+  - NVIDIA：確認四個模型能不能用工具，可以的話就移到支援清單。
+- 在真的對話畫面確認：
+  - 執行中的狀態列、收合列、停止按鈕。
+  - 程式碼有上色。
+  - 不支援的模型會顯示「已改用標準模式」。
+  - 手機寬度下顯示正常。
