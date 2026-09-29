@@ -9,7 +9,7 @@ import { buildVisionPrompt, parseVisionResponse } from './vision-prompt.js';
 import { VISION_TEXTS, visionText } from './vision-texts.js';
 import { eligibleVisionFiles } from './vision-eligibility.js';
 import { buildVisionResult, buildVisionMetadata } from './vision-result.js';
-import { createVisionProgressNotification } from './vision-progress.js';
+import { createVisionProgress } from './vision-progress.js';
 
 const checkAbort = signal => { if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); };
 
@@ -23,7 +23,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
   let checked = 0;
   for (const file of files) {
     checkAbort(controller.signal);
-    const progress = createVisionProgressNotification({ document, notificationContainer, language, controller });
+    const progress = createVisionProgress({ document, language, controller });
     let timedOut = false;
     let timer = null;
     const arm = ms => {
@@ -48,7 +48,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
       const presentation = await layoutDeck(spec, context);
       checkAbort(controller.signal);
       progress.set('rendering');
-      const sheets = await createContactSheets(presentation, { document, window, language, signal: controller.signal });
+      const sheets = await createContactSheets(presentation, { document, window, language, signal: controller.signal, onSlide: progress.slideRendered, onSheet: progress.sheetReady });
       checkAbort(controller.signal);
       progress.set('reviewing', { model: model.name || model.id });
       const prompt = buildVisionPrompt(spec, presentation.layout, { uiLanguage: language, deckDesign: conversation.deckDesign || 'auto', checkedSlides: sheets.checkedSlides });
@@ -71,6 +71,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
         checked++;
         continue;
       }
+      progress.showIssues(result.issues);
       progress.set('applying');
       const edits = applyVisionEdits(spec, result.edits);
       if (!edits.applied.length) throw new Error(labelsForFailure(language));

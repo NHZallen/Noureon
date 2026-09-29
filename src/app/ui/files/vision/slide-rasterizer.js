@@ -68,7 +68,16 @@ async function rasterize(svg, { document, window, signal, width = 960, height = 
 }
 
 /** Four numbered slides per JPEG, up to the first 24 rendered slides. */
-export async function createContactSheets(presentation, { document, window, language = 'zh-TW', signal, onProgress = () => {} }) {
+const thumbnail = (document, canvas, width) => {
+  const small = document.createElement('canvas');
+  small.width = width;
+  small.height = Math.max(1, Math.round((width * canvas.height) / canvas.width));
+  small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+  return small.toDataURL('image/jpeg', 0.6);
+};
+
+/** `onSlide` and `onSheet` show the work as it happens (the progress window). */
+export async function createContactSheets(presentation, { document, window, language = 'zh-TW', signal, onProgress = () => {}, onSlide = () => {}, onSheet = () => {} }) {
   const { layout, fontAlias, measure } = presentation;
   const selected = layout.slides.slice(0, MAX_REVIEWED_SLIDES);
   const groups = groupReviewedSlides(selected);
@@ -97,8 +106,10 @@ export async function createContactSheets(presentation, { document, window, lang
       const fit = Math.min(800 / width, 450 / height);
       ctx.drawImage(picture, x + (800 - width * fit) / 2, y + 28 + (450 - height * fit) / 2, width * fit, height * fit);
       onProgress(groupIndex * 4 + slot + 1, selected.length);
+      onSlide({ index: groupIndex * 4 + slot, total: selected.length, number: slide.number, url: thumbnail(document, picture, 160) });
     }
     images.push(sheet.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    onSheet({ index: groupIndex, total: groups.length, url: thumbnail(document, sheet, 360) });
   }
   return { images, checkedSlides: selected.length, totalSlides: layout.slides.length };
 }

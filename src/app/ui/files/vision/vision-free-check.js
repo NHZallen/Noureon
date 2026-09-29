@@ -32,7 +32,7 @@ export async function checkFreeDeck({
   const presentation = await buildFreePresentation(blob, { JSZip: await loadArchiveVendor(), window, document });
   checkAbort(controller.signal);
   progress.set('rendering');
-  const sheets = await createContactSheets(presentation, { document, window, language, signal: controller.signal });
+  const sheets = await createContactSheets(presentation, { document, window, language, signal: controller.signal, onSlide: progress.slideRendered, onSheet: progress.sheetReady });
   checkAbort(controller.signal);
   progress.set('reviewing', { model: model.name || model.id });
   const prompt = buildFreeVisionPrompt({ file, layout: presentation.layout, uiLanguage: language, checkedSlides: sheets.checkedSlides });
@@ -59,6 +59,7 @@ export async function checkFreeDeck({
     return true;
   }
 
+  progress.showIssues(result.issues);
   progress.set('fixing', { model: model.name || model.id });
   arm(FIX_TIMEOUT_MS);
   const request = [{ text: buildFixRequest({ issues: result.issues, file, uiLanguage: language }) }, ...images];

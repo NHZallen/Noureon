@@ -2,6 +2,7 @@
 // so they are emitted as their own stylesheet next to this lazily loaded chunk.
 import '../styles/file-cards.css';
 import '../styles/sandbox-run.css';
+import '../styles/work-window.css';
 import { startRuntimeEntry } from './runtime-entry.js';
 
 export const legacyAppReady = startRuntimeEntry();

@@ -1,0 +1,208 @@
+/* The window above the composer that shows what the AI is doing (work-window.js). */
+
+.work-window-anchor {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0.75rem 0.5rem;
+    pointer-events: none;
+}
+
+#input-bar-container:has(> .work-window-anchor) {
+    position: relative;
+}
+
+.work-window {
+    width: min(22rem, 100%);
+    max-height: min(24rem, 55vh);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.9rem;
+    background: var(--modal-bg, #ffffff);
+    color: var(--text-primary, #111827);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+    font-size: 0.8125rem;
+    pointer-events: auto;
+    animation: work-window-in 0.2s ease;
+}
+
+.work-window.is-floating {
+    position: fixed;
+    right: 1rem;
+    bottom: 6rem;
+    z-index: 60;
+}
+
+@keyframes work-window-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+.work-window-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+}
+
+.work-window-spinner {
+    flex: none;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 1.5px solid color-mix(in srgb, var(--text-primary, #111827) 20%, transparent);
+    border-top-color: var(--text-primary, #111827);
+    border-radius: 50%;
+    animation: work-window-spin 0.9s linear infinite;
+}
+
+@keyframes work-window-spin { to { transform: rotate(360deg); } }
+
+.work-window-title {
+    flex: 1;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.work-window-timer {
+    flex: none;
+    color: var(--text-secondary, #6b7280);
+    font-variant-numeric: tabular-nums;
+}
+
+.work-window-button {
+    flex: none;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.work-window-button:hover,
+.work-window-button:focus-visible {
+    background: var(--hover-bg, #f3f4f6);
+}
+
+.work-window-meter {
+    height: 2px;
+    background: color-mix(in srgb, var(--text-primary, #111827) 10%, transparent);
+}
+
+.work-window-meter-fill {
+    height: 100%;
+    width: 0;
+    background: var(--text-primary, #111827);
+    transition: width 0.25s ease;
+}
+
+.work-window-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 0;
+    padding: 0.6rem 0.75rem 0.75rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    overflow-y: auto;
+}
+
+.work-window.is-folded .work-window-body { display: none; }
+
+.work-window-phases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.75rem;
+}
+
+.work-window-phase.is-done { text-decoration: line-through; opacity: 0.7; }
+.work-window-phase.is-active { color: var(--text-primary, #111827); font-weight: 700; }
+
+/* What the visual check shows: the slides as they are drawn. */
+.work-thumbs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.35rem;
+}
+
+.work-thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--text-primary, #111827) 5%, transparent);
+}
+
+.work-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    animation: work-window-in 0.25s ease;
+}
+
+.work-thumb.is-current { outline: 1.5px solid var(--text-primary, #111827); outline-offset: 1px; }
+.work-thumb.has-issue { border-color: #dc2626; box-shadow: 0 0 0 1.5px #dc2626; }
+
+.work-thumb-number {
+    position: absolute;
+    left: 0.2rem;
+    bottom: 0.15rem;
+    padding: 0 0.25rem;
+    border-radius: 0.2rem;
+    background: rgba(255, 255, 255, 0.85);
+    color: #111827;
+    font-size: 0.625rem;
+    line-height: 1.3;
+}
+
+.work-sheets {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+}
+
+.work-sheets img {
+    flex: none;
+    width: 62%;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.3rem;
+}
+
+.work-caption { margin: 0; color: var(--text-secondary, #6b7280); font-size: 0.75rem; }
+
+.work-issues {
+    margin: 0;
+    padding: 0 0 0 1rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+    .work-window-anchor { padding: 0 0.5rem 0.4rem; }
+    .work-window { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .work-window, .work-thumb img { animation: none; }
+    .work-window-spinner { animation-duration: 2.4s; }
+}
