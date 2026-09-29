@@ -22,7 +22,8 @@ export function getCouncilRuntimeTexts(uiLanguage) {
       comparisonToggle: 'Summarize agreements and differences',
       retrying: 'Retrying once',
       councilLocked: 'Council is running; settings are locked until this reply finishes.',
-      searchManualNotice: 'Council mode does not enable Search automatically. Turn on Search before sending if this question needs current web information.',
+      searchManualNotice: 'Council doesn\'t search the web on its own.',
+      searchManualAction: 'Turn on Search',
       searchEnabledNote: 'Search is on: the council will use one shared search packet.'
     };
   }
@@ -49,7 +50,8 @@ export function getCouncilRuntimeTexts(uiLanguage) {
       comparisonToggle: 'Resumer les accords et les differences',
       retrying: 'Nouvelle tentative',
       councilLocked: 'Le conseil est en cours; les reglages sont verrouilles jusqu a la fin de cette reponse.',
-      searchManualNotice: 'Le mode Conseil n active pas automatiquement la recherche. Activez la recherche avant l envoi si cette question requiert des informations web actuelles.',
+      searchManualNotice: 'Le conseil n’active pas la recherche seul.',
+      searchManualAction: 'Activer',
       searchEnabledNote: 'La recherche est activee: le conseil utilisera un paquet de recherche partage.'
     };
   }
@@ -66,7 +68,8 @@ export function getCouncilRuntimeTexts(uiLanguage) {
       activeVisionNote: 'На запрос с изображением ответят только модели, которые поддерживают изображения.',
       comparisonToggle: 'Обобщить совпадения и различия', retrying: 'Повторная попытка',
       councilLocked: 'Совет работает; настройки будут доступны после завершения ответа.',
-      searchManualNotice: 'Режим совета не включает поиск автоматически. Если нужны актуальные данные из интернета, включите поиск перед отправкой.',
+      searchManualNotice: 'Совет не ищет в интернете сам.',
+      searchManualAction: 'Включить поиск',
       searchEnabledNote: 'Поиск включён: совет будет использовать общие результаты поиска.'
     };
   }
@@ -83,7 +86,8 @@ export function getCouncilRuntimeTexts(uiLanguage) {
       activeVisionNote: 'Solo los miembros compatibles con imágenes responderán a esta solicitud.',
       comparisonToggle: 'Resumir coincidencias y diferencias', retrying: 'Reintentando',
       councilLocked: 'El consejo está trabajando; la configuración se desbloqueará al terminar la respuesta.',
-      searchManualNotice: 'El modo Consejo no activa la búsqueda automáticamente. Actívala antes de enviar si necesitas información web actualizada.',
+      searchManualNotice: 'El consejo no busca en la web por sí solo.',
+      searchManualAction: 'Activar búsqueda',
       searchEnabledNote: 'La búsqueda está activada: el consejo utilizará resultados compartidos.'
     };
   }
@@ -109,7 +113,8 @@ export function getCouncilRuntimeTexts(uiLanguage) {
     comparisonToggle: '整理共識與差異',
     retrying: '正在重試一次',
     councilLocked: '理事會正在執行，這次回覆完成前設定會暫時鎖定。',
-    searchManualNotice: '理事會模式不會自動開啟搜索。若這個問題需要最新網路資訊，請在送出前手動開啟搜索。',
+    searchManualNotice: '理事會不會自動搜尋網路。',
+    searchManualAction: '開啟搜尋',
     searchEnabledNote: '搜索已開啟：理事會會使用一份共用搜尋資料包。'
   };
 }

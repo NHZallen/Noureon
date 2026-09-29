@@ -458,7 +458,7 @@ export function createCouncilControlsLifecycle(deps) {
         query = '';
         await persistCouncilConfig(conv);
         renderCouncilControls();
-        if (wantCouncil && !conv.isWebSearchEnabled) showNotification(getCouncilRuntimeTexts().searchManualNotice, 'warning');
+        if (wantCouncil && !conv.isWebSearchEnabled) offerSearch(conv);
         return;
       }
       if (target.dataset.mpModel) {
@@ -585,6 +585,23 @@ export function createCouncilControlsLifecycle(deps) {
       }
     });
   }
+
+  // A council does not search the web by itself: say so once, with a button that turns Search on.
+  const offerSearch = (conv) => {
+    if (!hasCouncilWebSearchAccess(models.find((model) => model.id === conv.council?.synthesizerModelId) || normalizeConversationModel(conv))) return;
+    const runtimeTexts = getCouncilRuntimeTexts();
+    showNotification(runtimeTexts.searchManualNotice, 'warning', {
+      action: {
+        label: runtimeTexts.searchManualAction,
+        onClick: async () => {
+          conv.isWebSearchEnabled = true;
+          await saveAppData();
+          renderCouncilControls();
+          renderInputIndicators();
+        }
+      }
+    });
+  };
 
   // Opens the panel on the council page (the attachment menu's "Model council").
   const openModelPicker = async ({ council = false } = {}) => {

@@ -1,0 +1,101 @@
+/* Pop-up notices in the top right (toast-center.js): white, a thin border, one line
+   with a small icon for its kind, an optional single action and a close button.
+   Only the icon carries colour. On a phone they become a bar along the top edge. */
+
+#notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    width: min(22rem, calc(100vw - 2rem));
+    pointer-events: none;
+}
+
+.notification {
+    display: flex;
+    box-sizing: border-box;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.65rem 0.6rem 0.65rem 0.8rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.75rem;
+    background: var(--modal-bg, #ffffff);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    color: var(--text-primary, #111827);
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.4;
+    cursor: pointer;
+    pointer-events: auto;
+    animation: notification-in 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+.notification.is-leaving { animation: notification-out 0.2s ease-in forwards; }
+.notification.is-bumped { animation: notification-bump 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+
+@keyframes notification-in { from { opacity: 0; transform: translate(28px, -8px) scale(0.96); } }
+@keyframes notification-out { to { opacity: 0; transform: translateY(-10px) scale(0.96); } }
+@keyframes notification-bump { 40% { transform: scale(1.03); } }
+
+.notification-icon { display: grid; flex: none; place-items: center; width: 1.25rem; height: 1.25rem; }
+.notification.success .notification-icon { color: #16a34a; }
+.notification.warning .notification-icon { color: #d97706; }
+.notification.error .notification-icon { color: #dc2626; }
+.notification-icon svg,
+.notification-close svg { color: inherit; stroke: currentColor; }
+.notification-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+#notification-container .notification-action {
+    flex: none;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--text-primary, #111827);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+#notification-container .notification-close {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+}
+
+#notification-container .notification-action:hover,
+#notification-container .notification-close:hover {
+    background: var(--hover-bg, #f3f4f6);
+    color: var(--text-primary, #111827);
+    transform: none;
+    filter: none;
+}
+
+@media (max-width: 640px) {
+    #notification-container {
+        top: max(0.5rem, env(safe-area-inset-top, 0px));
+        right: 0.75rem;
+        left: 0.75rem;
+        align-items: stretch;
+        width: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notification,
+    .notification.is-leaving,
+    .notification.is-bumped { animation: none; }
+}

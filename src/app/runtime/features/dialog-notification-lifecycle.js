@@ -1,3 +1,5 @@
+import { createToastCenter } from '../../ui/notifications/toast-center.js';
+
 export function createDialogNotificationLifecycle({
   document,
   elements,
@@ -16,12 +18,17 @@ export function createDialogNotificationLifecycle({
     modalCloseStates.delete(modalElement);
   };
 
-  const showNotification = (message, type = 'success') => {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    elements.notificationContainer.appendChild(notification);
-    setTimeout(() => { notification.remove(); }, 3000);
+  // Pop-up notices in the top right; `options.action` is `{ label, onClick }` for a notice with one button.
+  const toasts = createToastCenter({
+    document,
+    getContainer: () => elements.notificationContainer,
+    setTimeout,
+    clearTimeout,
+    requestAnimationFrame,
+    getText
+  });
+  const showNotification = (message, type = 'success', options = {}) => {
+    toasts.show(message, type, options);
   };
 
   const toggleModal = (modalElement, show) => {

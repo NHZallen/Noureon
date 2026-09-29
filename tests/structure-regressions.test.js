@@ -2367,7 +2367,7 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
   assert.match(fragment00Source, /const\s+runtimeDialogCoordinator\s*=\s*createRuntimeDialogCoordinator\(\{/);
   assert.match(fragment00Source, /showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/);
   assert.match(dialogNotificationSource, /export\s+function\s+createDialogNotificationLifecycle/);
-  assert.match(dialogNotificationSource, /const\s+showNotification\s*=\s*\(message,\s*type\s*=\s*'success'\)\s*=>\s*\{/);
+  assert.match(dialogNotificationSource, /const\s+showNotification\s*=\s*\(message,\s*type\s*=\s*'success',\s*options\s*=\s*\{\}\)\s*=>\s*\{/);
   assert.match(dialogNotificationSource, /const\s+toggleModal\s*=\s*\(modalElement,\s*show\)\s*=>\s*\{/);
   assert.match(dialogNotificationSource, /const\s+showCustomConfirm\s*=\s*\(message,\s*title\s*=\s*[^)]*\)\s*=>\s*showCustomDialog\(/);
   assert.match(dialogNotificationSource, /const\s+showCustomPrompt\s*=\s*\(message,\s*title\s*=\s*[^,]+,\s*inputType\s*=\s*'text'\)\s*=>\s*showCustomDialog\(/);

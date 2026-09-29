@@ -82,7 +82,7 @@ function createHarness({ includeNotificationContainer = true } = {}) {
   };
 }
 
-test('showNotification renders the current text/type contract and removes notifications after 3000ms', () => {
+test('showNotification renders the text and kind, and takes a notice away after 3000ms with a short leaving move', () => {
   const harness = createHarness();
   try {
     harness.functions.showNotification('Saved');
@@ -94,9 +94,13 @@ test('showNotification renders the current text/type contract and removes notifi
     assert.equal(notifications[0].className, 'notification success');
     assert.equal(notifications[1].textContent, 'Could not save');
     assert.equal(notifications[1].className, 'notification error');
+    assert.equal(notifications[1].getAttribute('role'), 'alert');
     assert.deepEqual(harness.timers.map((timer) => timer.delay), [3000, 3000]);
 
     harness.timers[0].callback();
+    assert.equal(notifications[0].classList.contains('is-leaving'), true, 'it moves away first');
+    assert.equal(harness.elements.notificationContainer.contains(notifications[0]), true);
+    harness.timers.at(-1).callback();
     assert.equal(harness.elements.notificationContainer.contains(notifications[0]), false);
     assert.equal(harness.elements.notificationContainer.contains(notifications[1]), true);
   } finally {
