@@ -104,9 +104,14 @@ export function createCouncilControlsLifecycle(deps) {
 
   const groupsOf = (config) => (Array.isArray(config.councilGroups) ? config.councilGroups : []);
   const modelName = (id) => models.find((model) => model.id === id)?.name || '';
-  const saveGroups = async (config, groups) => {
+  // Saving writes everything and can hold the page for a moment, so a change is drawn first and its
+  // save starts two frames later, after the drawing has been painted.
+  const inBackground = (work) => Promise.resolve(work).catch((error) => console.error('Could not save the model picker settings', error));
+  const afterPaint = (work) => requestFrame(() => requestFrame(() => inBackground(work())));
+
+  const saveGroups = (config, groups) => {
     config.councilGroups = groups;
-    await saveConfig();
+    afterPaint(saveConfig);
   };
 
   const describe = (model, { translations, t, selected = false, disabled = false }) => {
@@ -369,6 +374,17 @@ export function createCouncilControlsLifecycle(deps) {
     if (empty) empty.hidden = shown > 0;
   };
 
+  // The council changed: draw it now and save it after the drawing is painted. (When the save ends the
+  // page redraws, which changes nothing that shows.)
+  const commitCouncil = (conv) => {
+    const config = getConfig();
+    // Turning the council on turns Learning mode off, as saving it will; the tag row must agree at once.
+    if (conv.council?.enabled && config.isLearningMode) config.isLearningMode = false;
+    renderCouncilControls();
+    renderInputIndicators();
+    afterPaint(() => persistCouncilConfig(conv));
+  };
+
   const notifyLocked = (container) => {
     showNotification(getCouncilRuntimeTexts().councilLocked, 'warning');
     renderCouncilControls();
@@ -433,10 +449,12 @@ export function createCouncilControlsLifecycle(deps) {
     if (info.outputModality === 'image' && conv.council) conv.council.enabled = false;
     config.lastUsedModel = modelId;
     config.recentModelIds = noteRecent(config.recentModelIds, [modelId]);
-    await saveAppData();
-    await saveConfig();
     renderSidebar();
     renderInputIndicators();
+    afterPaint(async () => {
+      await saveAppData();
+      await saveConfig();
+    });
     return true;
   };
 
@@ -514,7 +532,7 @@ export function createCouncilControlsLifecycle(deps) {
         if (wantCouncil) seedCouncilParticipants(conv);
         view = 'main';
         query = '';
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
         renderCouncilControls();
         if (wantCouncil && !conv.isWebSearchEnabled) offerSearch(conv);
         return;
@@ -536,7 +554,7 @@ export function createCouncilControlsLifecycle(deps) {
         conv.council.participantModelIds = group.participantModelIds.slice(0, councilMaxModels);
         if (group.synthesizerModelId) conv.council.synthesizerModelId = group.synthesizerModelId;
         if (view === 'groups') view = 'main';
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
         renderCouncilControls({ open: 'model' });
         return;
       }
@@ -587,13 +605,13 @@ export function createCouncilControlsLifecycle(deps) {
       if (target.dataset.mpRemove) {
         if (getIsCouncilRunning()) { notifyLocked(container); return; }
         conv.council.participantModelIds = conv.council.participantModelIds.filter((id) => id !== target.dataset.mpRemove);
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
         return;
       }
       if (target.dataset.mpMode) {
         if (getIsCouncilRunning()) { notifyLocked(container); return; }
         conv.council.mode = target.dataset.mpMode;
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
       }
     });
 
@@ -654,22 +672,22 @@ export function createCouncilControlsLifecycle(deps) {
           ids.delete(input.dataset.mpMember);
         }
         conv.council.participantModelIds = [...ids];
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
       } else if (input.matches('[data-mp-combiner]')) {
         if (guarded() || !input.checked) return;
         conv.council.synthesizerModelId = input.dataset.mpCombiner;
         view = 'main';
         query = '';
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
         renderCouncilControls();
       } else if (input.matches('[data-mp-raw]')) {
         if (guarded()) return;
         conv.council.showRawResponses = input.checked;
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
       } else if (input.matches('[data-mp-comparison]')) {
         if (guarded()) return;
         conv.council.showComparisonTable = input.checked;
-        await persistCouncilConfig(conv);
+        commitCouncil(conv);
       } else if (input.matches('[data-mp-search-toggle]')) {
         if (guarded()) return;
         conv.isWebSearchEnabled = input.checked;
@@ -792,7 +810,7 @@ export function createCouncilControlsLifecycle(deps) {
       if (getIsCouncilRunning()) return false;
       conv.council.enabled = true;
       seedCouncilParticipants(conv);
-      await persistCouncilConfig(conv);
+      commitCouncil(conv);
     }
     closeAllPopovers();
     view = 'main';

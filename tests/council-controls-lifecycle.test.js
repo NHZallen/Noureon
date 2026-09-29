@@ -100,11 +100,11 @@ const createHarness = (overrides = {}) => {
     normalizeConversationModel: () => MODELS[0],
     normalizeCouncilConfig: (value = {}) => ({ enabled: false, mode: 'consensus', participantModelIds: [], ...value }),
     normalizeReasoningEffort: (model, value) => (REASONING.options.includes(value) ? value : REASONING.defaultEffort),
-    persistCouncilConfig: async () => calls.push(['persistCouncilConfig']),
+    persistCouncilConfig: overrides.persistCouncilConfig || (async () => calls.push(['persistCouncilConfig'])),
     renderInputIndicators: () => calls.push(['renderInputIndicators']),
     renderSidebar: () => calls.push(['renderSidebar']),
-    requestFrame: (callback) => callback(),
-    saveAppData: async () => calls.push(['saveAppData']),
+    requestFrame: overrides.requestFrame || ((callback) => callback()),
+    saveAppData: overrides.saveAppData || (async () => calls.push(['saveAppData'])),
     saveConfig: async () => calls.push(['saveConfig']),
     seedCouncilParticipants: (target) => {
       calls.push(['seedCouncilParticipants']);
@@ -936,6 +936,87 @@ test('choosing a model, and sending to models, keep them as the ones used lately
     await lifecycle.noteConversationModels({ model: 'unknown-model', council: { enabled: false } });
     assert.deepEqual(config.recentModelIds, ['model-a', 'vendor/model-c', 'model-b'], 'a model that is not on offer is ignored');
     assert.equal(conversation.model, 'vendor/model-c');
+  } finally {
+    cleanup();
+  }
+});
+
+// Saving writes every conversation and can take a while. Switching between a single model and the
+// council must not wait for it: the page changes at once and the save starts after the painting.
+test('switching between a single model and the council is drawn at once, while the save is still to come', async () => {
+  const frames = [];
+  const started = [];
+  const { calls, cleanup, conversation, document, lifecycle } = createHarness({
+    conversation: singleConversation(),
+    requestFrame: (callback) => frames.push(callback),
+    persistCouncilConfig: () => {
+      started.push('save');
+      return new Promise(() => {});
+    }
+  });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-tab="council"]').click();
+    assert.equal(conversation.council.enabled, true);
+    assert.ok(document.querySelector('[data-mp-open="combiner"]'), 'the council page is already there');
+    assert.ok(calls.some(([name]) => name === 'renderInputIndicators'), 'and its tag');
+    assert.deepEqual(started, [], 'the save has not started while the page is being drawn');
+    while (frames.length) frames.shift()();
+    assert.deepEqual(started, ['save'], 'it starts once the drawing is painted');
+
+    document.querySelector('[data-mp-tab="single"]').click();
+    assert.equal(conversation.council.enabled, false);
+    assert.ok(document.querySelector('[data-mp-search]'), 'back on the single-model page, with the save of the first switch still not finished');
+    await settle();
+    assert.equal(document.querySelector('#model-picker-popover').classList.contains('visible'), true, 'the panel stays open throughout');
+  } finally {
+    cleanup();
+  }
+});
+
+test('a save that fails is reported, not thrown into the page', async () => {
+  const errors = [];
+  const original = console.error;
+  console.error = (...args) => errors.push(args);
+  const { cleanup, document, lifecycle } = createHarness({
+    conversation: singleConversation(),
+    persistCouncilConfig: async () => { throw new Error('disk full'); }
+  });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-tab="council"]').click();
+    await settle();
+    assert.ok(document.querySelector('[data-mp-open="combiner"]'), 'the page still shows the change');
+    assert.equal(errors.length, 1);
+  } finally {
+    console.error = original;
+    cleanup();
+  }
+});
+
+test('choosing a model closes the panel at once, and its save is not waited for', async () => {
+  const frames = [];
+  const saved = [];
+  const { cleanup, conversation, document, lifecycle } = createHarness({
+    conversation: singleConversation(),
+    requestFrame: (callback) => frames.push(callback),
+    saveAppData: () => {
+      saved.push('data');
+      return new Promise(() => {});
+    }
+  });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-model="model-b"]').click();
+    await settle();
+    assert.equal(conversation.model, 'model-b');
+    assert.equal(document.querySelector('#model-picker-popover').classList.contains('visible'), false, 'closed before anything is saved');
+    assert.deepEqual(saved, []);
+    while (frames.length) frames.shift()();
+    assert.deepEqual(saved, ['data'], 'saved after the painting');
   } finally {
     cleanup();
   }
