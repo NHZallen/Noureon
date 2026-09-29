@@ -6,6 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
+import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 
 const MAX_OUTPUT_CHARS = 4000;
@@ -51,8 +52,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
       row.enableBody(true);
     }
     row.thoughtText = ((row.thoughtText || '') + chunk).slice(-MAX_THOUGHT_CHARS);
-    fillThinkingText(document, row.thought, row.thoughtText);
-    row.thought.scrollTop = row.thought.scrollHeight;
+    // Reading further up is never pulled down to the newest line.
+    keepEndInView(row.thought, () => fillThinkingText(document, row.thought, row.thoughtText));
   };
 
   // The code as the model writes it (before it runs).
@@ -64,8 +65,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
       row.body.append(row.writing);
       row.enableBody(true);
     }
-    row.writing.textContent = source.length > MAX_CODE_CHARS ? `${source.slice(0, MAX_CODE_CHARS)}\n…` : source;
-    row.writing.scrollTop = row.writing.scrollHeight;
+    keepEndInView(row.writing, () => { row.writing.textContent = source.length > MAX_CODE_CHARS ? `${source.slice(0, MAX_CODE_CHARS)}\n…` : source; });
   };
 
   const startStep = ({ n, title, code }) => {
@@ -90,9 +90,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.row.setDetail('');
     step.written = (step.written + chunk).slice(-MAX_OUTPUT_CHARS);
     step.output.hidden = false;
-    step.output.textContent = step.written;
     step.output.classList.toggle('is-error', stream === 'stderr');
-    step.output.scrollTop = step.output.scrollHeight;
+    keepEndInView(step.output, () => { step.output.textContent = step.written; });
   };
 
   const addFile = (step, file) => {
@@ -131,7 +130,6 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.row.setDetail('');
     step.row.setLabel(step.row.doneLabel);
     step.row.finish(ok ? 'done' : 'failed');
-    step.row.node.scrollIntoView?.({ block: 'nearest' });
   };
 
   return {

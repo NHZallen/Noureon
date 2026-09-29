@@ -4,6 +4,8 @@
 // progress shimmering with its running time, finished steps folded to a line
 // that opens to what happened. The same rows serve every kind of work.
 
+import { setCollapsed } from '../motion/collapse-motion.js';
+
 const element = (document, name, className, text) => {
   const node = document.createElement(name);
   if (className) node.className = className;
@@ -60,6 +62,8 @@ export function createLedger({ document, host, before = null }) {
     let finishedAt = null;
     let expandable = body;
     let open = false;
+    let bodyShown = false;
+    let painted = false;
     const draw = () => {
       mark.textContent = MARKS[state];
       node.classList.remove('is-running', 'is-done', 'is-failed', 'is-pending');
@@ -67,7 +71,13 @@ export function createLedger({ document, host, before = null }) {
       time.textContent = formatElapsed((finishedAt ?? Date.now()) - startedAt);
       head.classList.toggle('is-expandable', expandable);
       head.setAttribute('aria-expanded', expandable ? String(open) : 'false');
-      content.hidden = !(expandable && open);
+      // A body opens and closes with a short ease, once the row is on screen.
+      const showBody = expandable && open;
+      if (showBody !== bodyShown) {
+        bodyShown = showBody;
+        setCollapsed(content, showBody, { animate: painted });
+      }
+      painted = true;
     };
     head.addEventListener('click', () => {
       if (!expandable) return;
@@ -116,7 +126,6 @@ export function createLedger({ document, host, before = null }) {
     };
     rows.push(row);
     draw();
-    node.scrollIntoView?.({ block: 'nearest' });
     return row;
   }
 

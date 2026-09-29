@@ -158,6 +158,8 @@ export function createSingleModelResponseLifecycle({
     // and folds it when the answer starts.
     let thinkingBlock = null;
     let thought = { text: '', kind: 'raw', startedAt: null, endedAt: null };
+    // Whether any of the answer has arrived (stopping before it leaves the thinking interrupted).
+    let answered = false;
     const showThinking = (chunk, kind) => {
       if (!chunk) return;
       thought.startedAt ??= now();
@@ -201,6 +203,7 @@ export function createSingleModelResponseLifecycle({
         return withoutDuplicatedFileBlocks(result.text, sandboxParts.map((part) => part.sandboxFile.name));
       }
       : (onChunk) => streamApiCall(requestParts, (chunk) => {
+        answered = true;
         endThinking();
         onChunk(chunk);
       }, signal, false, { ...streamOptions, onReasoning: showThinking });
@@ -253,11 +256,12 @@ export function createSingleModelResponseLifecycle({
       endThinking();
       thinkingBlock?.remove();
       if (thought.text && !replyMode.advanced) {
-        sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt };
+        sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(signal?.aborted && !answered ? { thoughtInterrupted: true } : {}) };
       }
     }
 
-    if (!String(fullResponse || '').trim() && !sandboxRun?.steps?.length) {
+    // Stopped while thinking, with nothing else to show: the reply is the interrupted thinking.
+    if (!String(fullResponse || '').trim() && !sandboxRun?.steps?.length && !sandboxRun?.thought) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       throw new Error(getRuntimeText(uiLanguage, 'emptyResponse'));
     }

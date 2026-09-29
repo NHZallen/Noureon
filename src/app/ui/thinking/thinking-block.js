@@ -6,6 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
+import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from './thinking-text.js';
 
 const MAX_THOUGHT_CHARS = 12_000;
@@ -28,8 +29,8 @@ export function createThinkingBlock({ document, host, before = null, language = 
       if (!chunk || endedAt !== null) return;
       if (chunkKind) kind = chunkKind;
       text = (text + chunk).slice(0, MAX_THOUGHT_CHARS);
-      fillThinkingText(document, pre, text);
-      pre.scrollTop = pre.scrollHeight;
+      // Reading further up is never pulled down to the newest line.
+      keepEndInView(pre, () => fillThinkingText(document, pre, text));
     },
     // The answer has started: the line says how long it thought and folds.
     collapse() {

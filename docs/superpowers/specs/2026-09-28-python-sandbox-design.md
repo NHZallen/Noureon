@@ -928,3 +928,14 @@ CSP 是主要的防線。另外在執行模型的程式之前，Worker 還會做
 - 新增測試：思考與程式碼進清單、草稿收掉（`ledger.test.js`）；串流收集器的思考與工具參數、`partialJsonString`（`tool-calls.test.js`）；Gemini 要求思考摘要且不混進答案（`stream-api-call.test.js`）；標籤（`message-markup-renderer.test.js`）；重複檔案區塊被拿掉（`sandbox-files.test.js`）；看圖檢查的一行與看圖思考（`vision-check.test.js`）。`npm test` 共 2020 項通過；`build`、`check:sizes`、`check:legacy-runtime`、`npm audit --omit=dev`（0 個漏洞）也通過。
 - 瀏覽器（假資料）：思考文字與程式碼逐段長出來；看圖檢查是一行加停止鈕。
 - **還沒驗證**：真實模型實際會不會送出思考（尤其 DeepSeek 經 OpenRouter 或 NVIDIA）；真實聊天畫面裡的樣子。
+
+## B6-5 實作紀錄（2026-09-29）
+
+使用者的三項回報，來自 B6-4 之後的實測。
+
+- **展開、收起要有過渡動畫**：`src/app/ui/motion/collapse-motion.js`。步驟清單的內容部分用 `setCollapsed`，「已執行程式 N 次」與各種思考行（原生 details）用 `animateDetails`（瀏覽器的 details 會瞬間關上，所以接管點擊）。高度、上下留白與透明度一起緩動 200 毫秒；列剛畫出來時不動畫，只有狀態改變才動畫；使用者設定「減少動態效果」時不動畫。
+- **思考時往上看不要被拉到最新**：以前每來一段思考，文字框就捲到最下面。改成 `keepEndInView`：只有本來就停在最底下的讀者才會跟著最新的一行，往上看的維持原位（重寫文字造成位置被重設時也會還原）。思考、程式碼草稿、執行輸出、看圖思考都用它。步驟清單也不再用 `scrollIntoView` 把頁面拉到新列。
+- **思考被停止時不要什麼都沒有**：使用者在答案出現前按停止，以前整則回覆消失。現在只要已經有思考內容，回覆就保留為「思考中斷」一行（點開是已想到的部分），存進執行紀錄（`thoughtInterrupted`），重新整理後仍在；進階模式與一般對話都一樣，五種語言。還沒有任何思考就停止，維持原來的行為（不保留）。
+- 修一個邊界：動畫被取消後遲到的「完成」事件不會再把部分藏起來。
+
+驗證：新增 `tests/collapse-motion.test.js`（動畫、減少動態、步驟列、details、捲動）與思考中斷的測試；`npm test` 共 2038 項通過，`build`、`check:sizes`、`check:legacy-runtime`、`npm audit --omit=dev`（0 個漏洞）也通過。瀏覽器實測：往上捲時位置不動、停在底部時會跟著、展開收起都有動畫並在結束後正確隱藏（預覽面板的畫面更新有點慢，動畫的中間畫面我沒有逐格看）。

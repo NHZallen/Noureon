@@ -1,5 +1,6 @@
 import { createLedger } from '../../ledger/ledger.js';
 import { createSandboxLedger } from '../../sandbox/sandbox-ledger.js';
+import { keepEndInView } from '../../motion/collapse-motion.js';
 import { fillThinkingText } from '../../thinking/thinking-text.js';
 import { visionText } from './vision-texts.js';
 
@@ -121,8 +122,7 @@ export function createVisionProgress({ document, language, controller, host = nu
         row.enableBody(true);
       }
       thoughtText = (thoughtText + chunk).slice(-12_000);
-      fillThinkingText(document, thought, thoughtText);
-      thought.scrollTop = thought.scrollHeight;
+      keepEndInView(thought, () => fillThinkingText(document, thought, thoughtText));
     },
     // The problems the model found: their slides are outlined, the first few listed.
     showIssues(issues) {

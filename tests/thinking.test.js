@@ -112,3 +112,83 @@ test('an ordinary reply keeps the model\'s thinking in its run record and shows 
     cleanup();
   }
 });
+
+test('stopping while the model is thinking leaves "Thinking interrupted" with what it had thought, not nothing', async () => {
+  const { window, cleanup } = createDom('');
+  try {
+    const { document } = window;
+    const { host, answer } = bubble(document);
+    const controller = new AbortController();
+    const lifecycle = createSingleModelResponseLifecycle({
+      now: (() => { let clock = 0; return () => (clock += 1000); })(),
+      getOutputMode: () => 'playback',
+      renderSingleModelProgress: () => '',
+      startProgressTicker: () => 1,
+      stopProgressTicker: () => {},
+      buildSingleModelTranslatedRequestParts: async (parts) => parts,
+      streamApiCall: async (parts, onChunk, signal, forced, options) => {
+        options.onReasoning('先想第一步', 'raw');
+        controller.abort();
+        throw new DOMException('Aborted', 'AbortError');
+      },
+      streamMarkdownResponse: async () => '',
+      playbackStreamingMarkdownResponse: async () => {},
+      renderIncrementalResponse: () => {},
+      getOpenCouncilDetailKeys: () => new Set(),
+      restoreOpenCouncilDetails: () => {},
+      getDocument: () => document
+    });
+    const result = await lifecycle.run({
+      targetElement: answer,
+      userParts: [{ text: 'Hi' }],
+      modelInfo: { id: 'm', name: 'M' },
+      conversation: { model: 'm' },
+      signal: controller.signal,
+      uiLanguage: 'zh-TW'
+    });
+    const { run, text } = liftSandboxRunBlock(result.fullResponse);
+    assert.equal(text, '', 'no answer');
+    assert.equal(run.thought, '先想第一步');
+    assert.equal(run.thoughtInterrupted, true);
+    assert.equal(host.querySelector('.ledger'), null);
+    const view = createSandboxRunElement(document, run, { language: 'zh-TW' });
+    assert.equal(view.querySelector('summary').textContent, sandboxText('zh-TW', 'thinkingInterrupted'));
+    assert.equal(view.querySelector('.sandbox-run-thought-text').textContent, '先想第一步');
+    // Stopped before it thought anything: still the old behaviour, nothing is kept.
+    const quiet = createSingleModelResponseLifecycle({
+      now: () => 0,
+      getOutputMode: () => 'playback',
+      renderSingleModelProgress: () => '',
+      startProgressTicker: () => 1,
+      stopProgressTicker: () => {},
+      buildSingleModelTranslatedRequestParts: async (parts) => parts,
+      streamApiCall: async () => { throw new DOMException('Aborted', 'AbortError'); },
+      streamMarkdownResponse: async () => '',
+      playbackStreamingMarkdownResponse: async () => {},
+      renderIncrementalResponse: () => {},
+      getOpenCouncilDetailKeys: () => new Set(),
+      restoreOpenCouncilDetails: () => {}
+    });
+    const stopped = new AbortController();
+    stopped.abort();
+    await assert.rejects(quiet.run({ targetElement: answer, userParts: [{ text: 'Hi' }], modelInfo: { id: 'm' }, conversation: { model: 'm' }, signal: stopped.signal, uiLanguage: 'en' }), /Abort/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('an interrupted thought is drawn as interrupted in every language, with or without Python steps', () => {
+  const { window, cleanup } = createDom('');
+  try {
+    for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+      const label = sandboxText(language, 'thinkingInterrupted');
+      assert.notEqual(label, 'thinkingInterrupted');
+      const plain = createSandboxRunElement(window.document, { v: 1, status: 'stopped', steps: [], thought: 'x', thoughtInterrupted: true }, { language });
+      assert.equal(plain.querySelector('summary').textContent, label);
+      const withSteps = createSandboxRunElement(window.document, { v: 1, status: 'stopped', steps: [{ title: '', code: 'a', stdout: '', stderr: '', files: [], elapsedMs: 1 }], thought: 'x', thoughtInterrupted: true }, { language });
+      assert.ok([...withSteps.querySelectorAll('summary')].some((node) => node.textContent === label));
+    }
+  } finally {
+    cleanup();
+  }
+});

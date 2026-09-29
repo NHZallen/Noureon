@@ -5,6 +5,7 @@
 // current step instead.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
 
@@ -24,12 +25,12 @@ const formatSize = (bytes) => {
 const formatSeconds = (language, ms) => sandboxText(language, 'sandboxSeconds', { s: (ms / 1000).toFixed(ms < 10_000 ? 1 : 0) });
 
 // What the model thought before the run, folded behind one line.
-function renderThought(document, thought, language) {
+function renderThought(document, thought, language, { interrupted = false } = {}) {
   const details = element(document, 'details', 'sandbox-run-thought');
   const pre = element(document, 'pre', 'sandbox-run-thought-text');
   fillThinkingText(document, pre, thought);
-  details.append(element(document, 'summary', 'sandbox-run-label', sandboxText(language, 'sandboxThought')), pre);
-  return details;
+  details.append(element(document, 'summary', 'sandbox-run-label', sandboxText(language, interrupted ? 'thinkingInterrupted' : 'sandboxThought')), pre);
+  return animateDetails(details);
 }
 
 function renderStep(document, step, index, language) {
@@ -83,13 +84,15 @@ function summaryText(run, language) {
 // or the summary its provider gives).
 function renderReplyThinking(document, run, language) {
   const details = element(document, 'details', 'sandbox-run-details');
-  const label = run.thoughtMs
+  const label = run.thoughtInterrupted
+    ? sandboxText(language, 'thinkingInterrupted')
+    : run.thoughtMs
     ? sandboxText(language, run.thoughtKind === 'summary' ? 'thinkingDoneSummary' : 'thinkingDoneRaw', { s: Math.max(1, Math.round(run.thoughtMs / 1000)) })
     : sandboxText(language, 'sandboxThought');
   const pre = element(document, 'pre', 'sandbox-run-thought-text');
   fillThinkingText(document, pre, run.thought);
   details.append(element(document, 'summary', 'sandbox-run-summary', label), pre);
-  return details;
+  return animateDetails(details);
 }
 
 // A finished run (from the saved text) or a fallback notice.
@@ -108,8 +111,9 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
   run.steps.forEach((step, index) => list.append(renderStep(document, step, index, language)));
-  if (run.thought) list.append(renderThought(document, run.thought, language));
+  if (run.thought) list.append(renderThought(document, run.thought, language, { interrupted: run.thoughtInterrupted }));
   details.append(summary, list);
+  animateDetails(details);
   container.append(details);
   return container;
 }

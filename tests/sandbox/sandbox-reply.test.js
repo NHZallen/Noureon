@@ -297,3 +297,18 @@ test('the model\'s thinking is kept with the run it led to, and the last round\'
   }
   assert.doesNotMatch(summarizeSandboxRunText(kept + '完成'), /思考/, 'the model never reads it back');
 });
+
+test('stopping while the model thinks keeps what it had thought, marked as interrupted', async () => {
+  const controller = new AbortController();
+  const streamApiCall = async (parts, onChunk, signal, forced, options) => {
+    options.onReasoning('想到一半', 'raw');
+    controller.abort();
+    options.onResponseComplete({ text: '', toolCalls: [], parts: [], reasoningDetails: [] });
+    return '';
+  };
+  const result = await runSandboxReply({ streamApiCall, requestParts: [], signal: controller.signal, getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(result.run.thought, '想到一半');
+  assert.equal(result.run.thoughtInterrupted, true);
+  assert.equal(result.run.status, 'stopped');
+  assert.equal(liftSandboxRunBlock(formatSandboxRunBlock(result.run)).run.thoughtInterrupted, true, 'saved with the message');
+});

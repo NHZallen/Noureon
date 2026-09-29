@@ -174,7 +174,16 @@ export async function runSandboxReply({
       }
       throw error;
     }
-    if (signal?.aborted) break;
+    if (signal?.aborted) {
+      // Stopped while thinking: what was thought so far stays, marked as interrupted.
+      const kept = takeThought();
+      if (kept) {
+        run.thought = kept;
+        run.thoughtKind = thoughtKind;
+        run.thoughtInterrupted = true;
+      }
+      break;
+    }
     const calls = (response?.toolCalls || []).filter((call) => call.name === RUN_PYTHON_TOOL.name);
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
