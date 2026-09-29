@@ -117,7 +117,7 @@ export function createVisionProgress({ document, language, controller, host = nu
       const row = rows.review;
       if (!row || !chunk) return;
       if (!thought) {
-        thought = create('pre', 'ledger-thought');
+        thought = create('div', 'ledger-thought');
         row.body.append(thought);
         row.enableBody(true);
       }

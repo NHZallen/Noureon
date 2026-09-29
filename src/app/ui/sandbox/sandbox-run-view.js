@@ -26,10 +26,10 @@ const formatSeconds = (language, ms) => sandboxText(language, 'sandboxSeconds', 
 
 // What the model thought before the run, folded behind one line.
 function renderThought(document, thought, language, { interrupted = false } = {}) {
-  const details = element(document, 'details', 'sandbox-run-thought');
-  const pre = element(document, 'pre', 'sandbox-run-thought-text');
+  const details = element(document, 'details', 'sandbox-run-details sandbox-run-thought');
+  const pre = element(document, 'div', 'ledger-thought is-saved sandbox-run-thought-text');
   fillThinkingText(document, pre, thought);
-  details.append(element(document, 'summary', 'sandbox-run-label', sandboxText(language, interrupted ? 'thinkingInterrupted' : 'sandboxThought')), pre);
+  details.append(element(document, 'summary', 'sandbox-run-summary', sandboxText(language, interrupted ? 'thinkingInterrupted' : 'sandboxThought')), pre);
   return animateDetails(details);
 }
 
@@ -89,7 +89,7 @@ function renderReplyThinking(document, run, language) {
     : run.thoughtMs
     ? sandboxText(language, run.thoughtKind === 'summary' ? 'thinkingDoneSummary' : 'thinkingDoneRaw', { s: Math.max(1, Math.round(run.thoughtMs / 1000)) })
     : sandboxText(language, 'sandboxThought');
-  const pre = element(document, 'pre', 'sandbox-run-thought-text');
+  const pre = element(document, 'div', 'ledger-thought is-saved sandbox-run-thought-text');
   fillThinkingText(document, pre, run.thought);
   details.append(element(document, 'summary', 'sandbox-run-summary', label), pre);
   return animateDetails(details);

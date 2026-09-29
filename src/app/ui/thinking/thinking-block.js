@@ -15,7 +15,7 @@ export function createThinkingBlock({ document, host, before = null, language = 
   const ledger = createLedger({ document, host, before });
   const row = ledger.addRow(sandboxText(language, 'thinkingLive'));
   row.enableBody(true);
-  const pre = document.createElement('pre');
+  const pre = document.createElement('div');
   pre.className = 'ledger-thought';
   row.body.append(pre);
   const startedAt = now();

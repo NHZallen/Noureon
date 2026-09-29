@@ -47,7 +47,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     const row = list.current;
     if (!row || !chunk) return;
     if (!row.thought) {
-      row.thought = create('pre', 'ledger-thought');
+      row.thought = create('div', 'ledger-thought');
       row.body.append(row.thought);
       row.enableBody(true);
     }
