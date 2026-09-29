@@ -1,55 +1,21 @@
 /* important-audit: required: regression override / legacy compatibility - settings base shell still overrides older utility-heavy modal markup. */
 
 @media (max-width: 640px) {
-    .council-toggle-label {
-        display: none;
-    }
-    .model-council-toggle {
-        width: 2.5rem;
-        padding: 0;
-    }
-    .council-toggle-models {
-        display: none;
-    }
-    .model-switcher-council-copy small {
-        max-width: 54vw;
-    }
+    
+    
+    
+    
     .council-progress-panel {
         min-width: 0;
     }
-    .model-council-popover {
-        bottom: 5.25rem;
-    }
-    .council-model-list {
-        grid-template-columns: 1fr;
-    }
-    .council-family-provider-list {
-        display: none;
-    }
-    .council-popover-header {
-        align-items: flex-start;
-    }
-    .council-popover-header.compact {
-        align-items: stretch;
-        flex-direction: column;
-    }
+    
+    
+    
+    
+    
 }
 
-button,
-[role="button"],
-.btn-primary,
-.sidebar-item,
-.history-sidebar-item,
-.store-category-btn,
-.astras-store-card,
-.section-action-btn,
-.model-option-btn-container,
-.council-done-btn,
-.media-lightbox-action,
-#scroll-to-bottom-btn,
-#file-options-popover button,
-#attachment-menu .menu-item,
-#mobile-context-menu .menu-item {
+button,[role="button"],.btn-primary,.sidebar-item,.history-sidebar-item,.store-category-btn,.astras-store-card,.section-action-btn,.media-lightbox-action,#scroll-to-bottom-btn,#file-options-popover button,#attachment-menu .menu-item,#mobile-context-menu .menu-item {
     background-image: none !important;
     box-shadow: none !important;
     filter: none !important;
@@ -85,8 +51,7 @@ button:active:not(:disabled),
     background: var(--button-primary-hover-bg, var(--button-primary-bg)) !important;
 }
 
-.store-category-btn.active,
-.council-done-btn {
+.store-category-btn.active {
     background: var(--button-primary-bg) !important;
     color: var(--button-primary-text) !important;
     border-color: transparent !important;
@@ -127,12 +92,7 @@ button:active:not(:disabled),
     overflow: hidden !important;
 }
 
-.popover,
-#file-options-popover,
-#model-options-popover,
-.model-council-popover,
-#mobile-context-menu,
-#attachment-menu {
+.popover,#file-options-popover,#mobile-context-menu,#attachment-menu {
     background: var(--gpt-surface) !important;
     border: 1px solid var(--gpt-menu-border) !important;
     border-radius: 1.15rem !important;
@@ -160,10 +120,7 @@ button:active:not(:disabled),
     font-weight: 500 !important;
 }
 
-#file-options-popover button,
-#model-options-popover button,
-#mobile-context-menu .menu-item,
-#attachment-menu .menu-item {
+#file-options-popover button,#mobile-context-menu .menu-item,#attachment-menu .menu-item {
     min-height: 2.55rem !important;
     padding: 0.62rem 0.78rem !important;
     border: 0 !important;
@@ -174,10 +131,7 @@ button:active:not(:disabled),
     font-weight: 400 !important;
 }
 
-#file-options-popover button:hover,
-#model-options-popover button:hover,
-#mobile-context-menu .menu-item:hover,
-#attachment-menu .menu-item:hover {
+#file-options-popover button:hover,#mobile-context-menu .menu-item:hover,#attachment-menu .menu-item:hover {
     background: var(--gpt-subtle) !important;
 }
 
@@ -198,10 +152,7 @@ button:active:not(:disabled),
     border-color: color-mix(in srgb, var(--gpt-border) 70%, var(--text-secondary)) !important;
 }
 
-.store-category-btn,
-.council-mode-tabs button,
-.model-capability-pill,
-.section-add-btn {
+.store-category-btn,.section-add-btn {
     border-radius: 999px !important;
     background: transparent !important;
     border: 1px solid var(--gpt-border) !important;
@@ -209,35 +160,25 @@ button:active:not(:disabled),
     font-weight: 500 !important;
 }
 
-.store-category-btn:hover,
-.council-mode-tabs button:hover,
-.section-add-btn:hover {
+.store-category-btn:hover,.section-add-btn:hover {
     background: var(--gpt-subtle) !important;
     border-color: var(--gpt-border) !important;
 }
 
-.store-category-btn.active,
-.council-mode-tabs button.active,
-.toggle-checkbox:checked + .toggle-label {
+.store-category-btn.active,.toggle-checkbox:checked + .toggle-label {
     background: var(--button-primary-bg) !important;
     border-color: var(--button-primary-bg) !important;
     color: var(--button-primary-text) !important;
 }
 
-.btn-primary:not(#submit-btn),
-.modal .btn-primary:not(#submit-btn),
-#confirm-import-btn,
-.council-done-btn {
+.btn-primary:not(#submit-btn),.modal .btn-primary:not(#submit-btn),#confirm-import-btn {
     background: var(--gpt-primary-action-bg) !important;
     color: var(--gpt-primary-action-text) !important;
     border-color: transparent !important;
     border-radius: 999px !important;
 }
 
-.btn-primary:not(#submit-btn):hover,
-.modal .btn-primary:not(#submit-btn):hover,
-#confirm-import-btn:hover,
-.council-done-btn:hover {
+.btn-primary:not(#submit-btn):hover,.modal .btn-primary:not(#submit-btn):hover,#confirm-import-btn:hover {
     background: color-mix(in srgb, var(--gpt-primary-action-bg) 88%, var(--gpt-surface)) !important;
 }
 
@@ -525,9 +466,7 @@ body svg {
     stroke: currentColor !important;
 }
 
-#settings-modal .text-\[var\(--text-secondary\)\],
-#settings-modal .text-xs,
-#settings-modal .model-description {
+#settings-modal .text-\[var\(--text-secondary\)\],#settings-modal .text-xs {
     color: var(--gpt-control-text) !important;
 }
 
@@ -565,27 +504,7 @@ body svg {
     transform: translateY(-0.04em) !important;
 }
 
-.store-category-btn,
-.council-mode-tabs button,
-.section-add-btn,
-#trash-batch-select-btn,
-#empty-trash-btn,
-#trash-batch-restore-btn,
-#trash-batch-delete-btn,
-#trash-cancel-selection-btn,
-.trash-item-view-btn,
-.trash-item-restore-btn,
-.trash-item-delete-btn,
-#export-data-btn,
-#import-data-btn,
-#open-archived-modal-btn,
-#upload-wallpaper-btn,
-#restore-wallpaper-btn,
-#archived-chats-modal .view-archived-btn,
-#archived-chats-modal .unarchive-btn,
-#archived-chats-modal .delete-btn,
-#close-view-archived-modal-btn-footer,
-.model-row-action {
+.store-category-btn,.section-add-btn,#trash-batch-select-btn,#empty-trash-btn,#trash-batch-restore-btn,#trash-batch-delete-btn,#trash-cancel-selection-btn,.trash-item-view-btn,.trash-item-restore-btn,.trash-item-delete-btn,#export-data-btn,#import-data-btn,#open-archived-modal-btn,#upload-wallpaper-btn,#restore-wallpaper-btn,#archived-chats-modal .view-archived-btn,#archived-chats-modal .unarchive-btn,#archived-chats-modal .delete-btn,#close-view-archived-modal-btn-footer,.model-row-action {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -599,26 +518,7 @@ body svg {
     box-shadow: none !important;
 }
 
-.store-category-btn,
-.council-mode-tabs button,
-.section-add-btn,
-#trash-batch-select-btn,
-#empty-trash-btn,
-#trash-batch-restore-btn,
-#trash-batch-delete-btn,
-#trash-cancel-selection-btn,
-.trash-item-view-btn,
-.trash-item-restore-btn,
-.trash-item-delete-btn,
-#export-data-btn,
-#import-data-btn,
-#open-archived-modal-btn,
-#upload-wallpaper-btn,
-#restore-wallpaper-btn,
-#archived-chats-modal .view-archived-btn,
-#archived-chats-modal .unarchive-btn,
-#archived-chats-modal .delete-btn,
-#close-view-archived-modal-btn-footer {
+.store-category-btn,.section-add-btn,#trash-batch-select-btn,#empty-trash-btn,#trash-batch-restore-btn,#trash-batch-delete-btn,#trash-cancel-selection-btn,.trash-item-view-btn,.trash-item-restore-btn,.trash-item-delete-btn,#export-data-btn,#import-data-btn,#open-archived-modal-btn,#upload-wallpaper-btn,#restore-wallpaper-btn,#archived-chats-modal .view-archived-btn,#archived-chats-modal .unarchive-btn,#archived-chats-modal .delete-btn,#close-view-archived-modal-btn-footer {
     height: 3rem !important;
     min-height: 3rem !important;
     padding: 0 1.15rem !important;
@@ -633,59 +533,16 @@ body svg {
     border-radius: 999px !important;
 }
 
-.store-category-btn:not(.active):hover,
-.council-mode-tabs button:not(.active):hover,
-.section-add-btn:hover,
-#trash-batch-select-btn:hover,
-#empty-trash-btn:hover,
-#trash-batch-restore-btn:hover,
-#trash-batch-delete-btn:hover,
-#trash-cancel-selection-btn:hover,
-.trash-item-view-btn:hover,
-.trash-item-restore-btn:hover,
-.trash-item-delete-btn:hover,
-#export-data-btn:hover,
-#import-data-btn:hover,
-#open-archived-modal-btn:hover,
-#upload-wallpaper-btn:hover,
-#restore-wallpaper-btn:hover,
-#archived-chats-modal .view-archived-btn:hover,
-#archived-chats-modal .unarchive-btn:hover,
-#archived-chats-modal .delete-btn:hover,
-#close-view-archived-modal-btn-footer:hover,
-.model-row-action:hover {
+.store-category-btn:not(.active):hover,.section-add-btn:hover,#trash-batch-select-btn:hover,#empty-trash-btn:hover,#trash-batch-restore-btn:hover,#trash-batch-delete-btn:hover,#trash-cancel-selection-btn:hover,.trash-item-view-btn:hover,.trash-item-restore-btn:hover,.trash-item-delete-btn:hover,#export-data-btn:hover,#import-data-btn:hover,#open-archived-modal-btn:hover,#upload-wallpaper-btn:hover,#restore-wallpaper-btn:hover,#archived-chats-modal .view-archived-btn:hover,#archived-chats-modal .unarchive-btn:hover,#archived-chats-modal .delete-btn:hover,#close-view-archived-modal-btn-footer:hover,.model-row-action:hover {
     background: #f2f2f2 !important;
     color: #000000 !important;
 }
 
-.store-category-btn:not(.active):active,
-.council-mode-tabs button:not(.active):active,
-.section-add-btn:active,
-#trash-batch-select-btn:active,
-#empty-trash-btn:active,
-#trash-batch-restore-btn:active,
-#trash-batch-delete-btn:active,
-#trash-cancel-selection-btn:active,
-.trash-item-view-btn:active,
-.trash-item-restore-btn:active,
-.trash-item-delete-btn:active,
-#export-data-btn:active,
-#import-data-btn:active,
-#open-archived-modal-btn:active,
-#upload-wallpaper-btn:active,
-#restore-wallpaper-btn:active,
-#archived-chats-modal .view-archived-btn:active,
-#archived-chats-modal .unarchive-btn:active,
-#archived-chats-modal .delete-btn:active,
-#close-view-archived-modal-btn-footer:active,
-.model-row-action:active {
+.store-category-btn:not(.active):active,.section-add-btn:active,#trash-batch-select-btn:active,#empty-trash-btn:active,#trash-batch-restore-btn:active,#trash-batch-delete-btn:active,#trash-cancel-selection-btn:active,.trash-item-view-btn:active,.trash-item-restore-btn:active,.trash-item-delete-btn:active,#export-data-btn:active,#import-data-btn:active,#open-archived-modal-btn:active,#upload-wallpaper-btn:active,#restore-wallpaper-btn:active,#archived-chats-modal .view-archived-btn:active,#archived-chats-modal .unarchive-btn:active,#archived-chats-modal .delete-btn:active,#close-view-archived-modal-btn-footer:active,.model-row-action:active {
     background: #eeeeee !important;
 }
 
-.store-category-btn.active,
-.council-mode-tabs button.active,
-#settings-modal .store-category-btn.active,
-#settings-modal .council-mode-tabs button.active {
+.store-category-btn.active,#settings-modal .store-category-btn.active {
     background: var(--button-primary-bg) !important;
     color: var(--button-primary-text) !important;
 }
@@ -769,26 +626,7 @@ body svg {
 }
 
 /* Restore pill outlines for normal buttons; only model row icon controls stay frameless. */
-.store-category-btn:not(.active),
-.council-mode-tabs button:not(.active),
-.section-add-btn,
-#trash-batch-select-btn,
-#empty-trash-btn,
-#trash-batch-restore-btn,
-#trash-batch-delete-btn,
-#trash-cancel-selection-btn,
-.trash-item-view-btn,
-.trash-item-restore-btn,
-.trash-item-delete-btn,
-#export-data-btn,
-#import-data-btn,
-#open-archived-modal-btn,
-#upload-wallpaper-btn,
-#restore-wallpaper-btn,
-#archived-chats-modal .view-archived-btn,
-#archived-chats-modal .unarchive-btn,
-#archived-chats-modal .delete-btn,
-#close-view-archived-modal-btn-footer {
+.store-category-btn:not(.active),.section-add-btn,#trash-batch-select-btn,#empty-trash-btn,#trash-batch-restore-btn,#trash-batch-delete-btn,#trash-cancel-selection-btn,.trash-item-view-btn,.trash-item-restore-btn,.trash-item-delete-btn,#export-data-btn,#import-data-btn,#open-archived-modal-btn,#upload-wallpaper-btn,#restore-wallpaper-btn,#archived-chats-modal .view-archived-btn,#archived-chats-modal .unarchive-btn,#archived-chats-modal .delete-btn,#close-view-archived-modal-btn-footer {
     border: 1px solid #000000 !important;
     background: #ffffff !important;
     color: #000000 !important;

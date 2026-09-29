@@ -3,12 +3,10 @@
     @media (min-width: 1024px) {
     /* --- 新增開始 --- */
 
-
     /* 1. 讓 #app-container 準備好接收 sidebar-open 這個 class */
     #app-container > .relative.flex {
         transition: padding-left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
     }
-
 
     /* 2. 電腦版的側邊欄基礎樣式：不再是 fixed 定位 */
     #sidebar {
@@ -17,7 +15,6 @@
         transition: margin-left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); /* 動畫效果改為控制 margin-left */
         margin-left: -288px; /* 預設將自己藏到左邊 (288px 是 w-72 的寬度) */
     }
-
 
     /* 3. 當側邊欄展開時的樣式 */
     #app-container.sidebar-open #sidebar {
@@ -30,12 +27,10 @@
         /* 如果未來主聊天室有 margin-left, 這裡會確保它被正確推擠 */
     }
 
-
     /* 5. 在電腦版上，永遠隱藏黑色遮罩 */
     #sidebar-overlay {
         display: none !important;
     }
-
 
     /* --- 新增結束 --- */
 }
@@ -130,54 +125,14 @@
         background-color: #fff;
         transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .model-description {
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-        line-height: 1.2;
-        margin-top: 0.25rem;
-    }
-    .model-option-btn-container {
-        display: block;
-        width: 100%;
-        text-align: left;
-        padding: 0.75rem 1rem;
-        cursor: pointer;
-    }
-    .model-option-btn-container:hover {
-        background-color: var(--hover-bg);
-    }
-    .model-option-title {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        min-width: 0;
-    }
-    .model-name-text {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .model-vision-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 1.35rem;
-        height: 1.35rem;
-        border-radius: 9999px;
-        color: var(--button-primary-bg);
-        background-color: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--button-primary-bg) 28%, transparent);
-        flex: 0 0 auto;
-    }
-    .model-vision-badge svg {
-        width: 0.9rem;
-        height: 0.9rem;
-        display: block;
-    }
-    #model-options-popover {
-        max-height: calc(100vh - 150px);
-    }
+    
+    
+    
+    
+    
+    
+    
+    
     .message-bubble {
   position: relative;
   background-color: transparent;

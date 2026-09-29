@@ -24,7 +24,7 @@
         from { opacity: 0; transform: scale(0.95); }
         to { opacity: 1; transform: scale(1); }
     }
-    button, .sidebar-item, .settings-nav-item, .theme-btn, .voice-input-btn, .model-option-btn-container, .color-option {
+    button,.sidebar-item,.settings-nav-item,.theme-btn,.voice-input-btn,.color-option {
         transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
     }
 button:not(.btn-primary):hover:not(:disabled) {

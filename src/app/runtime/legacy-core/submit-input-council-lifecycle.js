@@ -24,7 +24,6 @@ import { createVisionCheckScheduler } from '../features/vision-check-scheduler.j
 import { createChatScrollPosition } from '../features/chat-scroll-position.js';
 import { createProgressTicker } from '../features/progress-ticker.js';
 import {
-  getDefaultReasoningLabel,
   getModelReasoningConfig,
   getReasoningEffortLabel,
   modelSupportsToolCalling,
@@ -156,6 +155,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     normalizeConversationModel(conversation)
   );
   let renderCouncilControls = () => {};
+  let openModelPicker = async () => false;
   let renderModelSwitcher = () => {};
   const imageModeControls = createImageModeControls({
     document,
@@ -179,11 +179,6 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     isCouncilEnabled
   });
 
-  const getReasoningTitle = () => {
-    const uiLanguage = runtimeConfigAccess.getUiLanguage();
-    return getRuntimeText(uiLanguage, 'reasoning');
-  };
-
   const getLocalizedAstraName = (ast) => {
     const officialId = ast?.officialId;
     if (!officialId) return ast?.name || '';
@@ -191,110 +186,11 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     return getLocalizedText(key, ast.name || '');
   };
 
-  const ensureReasoningDepthControl = () => {
-    let control = document.getElementById('reasoning-depth-control');
-    if (!control) {
-      const row = ALL_ELEMENTS.voiceInputBtnMessage?.parentElement || ALL_ELEMENTS.chatForm?.parentElement;
-      if (!row) return null;
-      control = document.createElement('div');
-      control.id = 'reasoning-depth-control';
-      control.className = 'relative';
-      control.innerHTML = `
-        <button type="button" id="reasoning-depth-btn" class="reasoning-depth-btn" aria-haspopup="true" aria-expanded="false" title="思考深度">
-          <span id="reasoning-depth-label">預設</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"></polyline></svg>
-        </button>
-        <div id="reasoning-depth-popover" class="popover reasoning-depth-popover absolute bottom-full right-0 mb-2 z-30"></div>
-      `;
-      row.insertBefore(control, ALL_ELEMENTS.voiceInputBtnMessage || ALL_ELEMENTS.submitButton || null);
-    }
-    const button = control.querySelector('#reasoning-depth-btn');
-    const popover = control.querySelector('#reasoning-depth-popover');
-    const label = control.querySelector('#reasoning-depth-label');
-    if (!button || !popover || !label) return null;
-    if (!button.dataset.reasoningDepthBound) {
-      button.dataset.reasoningDepthBound = 'true';
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (button.disabled) return;
-        const wasVisible = popover.classList.contains('visible');
-        closeAllPopovers();
-        popover.classList.toggle('visible', !wasVisible);
-        button.setAttribute('aria-expanded', String(!wasVisible));
-      });
-    }
-    return { control, button, popover, label };
-  };
-
-  const renderReasoningDepthControl = () => {
-    const elements = ensureReasoningDepthControl();
-    if (!elements) return;
-    const { control, button, popover, label } = elements;
-    const conv = getActiveConversation();
-    const modelInfo = normalizeConversationModel(conv);
-    const config = getModelReasoningConfig(modelInfo);
-    const uiLanguage = runtimeConfigAccess.getUiLanguage();
-    const title = getReasoningTitle();
-    const disabled = !conv || conv.archived || isCouncilEnabled(conv) || !config;
-    const effort = config ? normalizeReasoningEffort(modelInfo, conv?.reasoningEffort) : null;
-    label.textContent = disabled
-      ? getDefaultReasoningLabel(uiLanguage)
-      : getReasoningEffortLabel(effort, uiLanguage);
-    button.title = title;
-    button.disabled = disabled;
-    button.classList.toggle('is-disabled', disabled);
-    button.classList.toggle('is-adjustable', !disabled);
-    control.classList.toggle('is-disabled', disabled);
-    if (disabled) {
-      popover.classList.remove('visible');
-      button.setAttribute('aria-expanded', 'false');
-      return;
-    }
-    const duplicateLabels = new Set();
-    const seenLabels = new Set();
-    config.options.forEach((option) => {
-      const optionLabel = getReasoningEffortLabel(option, uiLanguage);
-      if (seenLabels.has(optionLabel)) duplicateLabels.add(optionLabel);
-      seenLabels.add(optionLabel);
-    });
-    popover.innerHTML = config.options.map((option) => {
-      const optionLabel = getReasoningEffortLabel(option, uiLanguage);
-      const selected = option === effort;
-      const detail = duplicateLabels.has(optionLabel) ? `<small>${escapeHTML(option)}</small>` : '';
-      return `
-        <button type="button" class="reasoning-depth-option ${selected ? 'active' : ''}" data-reasoning-effort="${escapeHTML(option)}" aria-pressed="${selected}">
-          <span>${escapeHTML(optionLabel)}</span>${detail}
-        </button>
-      `;
-    }).join('');
-    button.setAttribute('aria-expanded', String(popover.classList.contains('visible')));
-    popover.querySelectorAll('[data-reasoning-effort]').forEach((optionButton) => {
-      optionButton.addEventListener('click', async (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const selectedEffort = optionButton.dataset.reasoningEffort;
-        const normalizedEffort = normalizeReasoningEffort(modelInfo, selectedEffort);
-        if (!normalizedEffort) return;
-        conv.reasoningEffort = normalizedEffort;
-        await saveAppData();
-        popover.classList.remove('visible');
-        button.setAttribute('aria-expanded', 'false');
-        renderReasoningDepthControl();
-      });
-    });
-  };
-
-  const openCouncilPopoverFromAttachmentMenu = () => {
+  const openCouncilPopoverFromAttachmentMenu = async () => {
     const config = getLiveConfig();
-    renderCouncilControls();
-    const toggleButton = document.getElementById('model-council-toggle-btn');
-    if (!toggleButton) {
-      showNotification(getRuntimeText(config.uiLanguage, 'councilUnavailable'), 'warning');
-      return;
-    }
     closeAllPopovers();
-    toggleButton.click();
+    const opened = await openModelPicker({ council: true });
+    if (!opened) showNotification(getRuntimeText(config.uiLanguage, 'councilUnavailable'), 'warning');
   };
 
   const ensureCouncilMenuButton = () => {
@@ -359,7 +255,6 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       councilMenuButton.classList.toggle('is-active', councilActive);
     }
     imageModeControls.sync();
-    renderReasoningDepthControl();
     if (!councilActive && provider === 'openrouter') {
       const openRouterSupportsVision = supportsVision || openRouterVisionModels.includes(modelInfo?.id);
       if (webSearchPopoverBtn) webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';
@@ -415,10 +310,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     if (!conv) {
       if (container.children.length > 0) container.innerHTML = '';
       wrapper.classList.remove('has-indicators');
-      renderReasoningDepthControl();
       return;
     }
-    renderReasoningDepthControl();
 
     const activeIndicators = new Map();
     const astrasId = getActiveAstrasId();
@@ -622,13 +515,13 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     return visibleModels;
   };
 
-  ({ renderCouncilControls } = createCouncilControlsLifecycle({
+  ({ renderCouncilControls, openModelPicker } = createCouncilControlsLifecycle({
     closeAllPopovers,
     councilMaxModels,
     document,
     escapeHTML,
-    formatCouncilModelSummary,
     getActiveConversation,
+    getComposerAnchor: () => ALL_ELEMENTS.voiceInputBtnMessage,
     getConfig: getLiveConfig,
     getCouncilModelList,
     getCouncilRuntimeTexts,
@@ -640,23 +533,30 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getFileInputContainer,
     getIsCouncilRunning,
     getModelApiId,
-    getModelFamilyKey,
-    getModelFamilyName,
-    getModelPriceLabel,
+    getModelReasoningConfig,
+    getModelRetirementLabel,
+    getModelTiers,
     getModelsByIds,
     getProviderLabel,
+    getReasoningEffortLabel,
+    getSingleDocumentTranslatorModel,
     hasCouncilWebSearchAccess,
+    isImageConversation,
     modelSupportsDocumentUpload,
     modelSupportsVision,
     modelSupportsWebSearch,
     models: MODELS,
     normalizeConversationModel,
     normalizeCouncilConfig,
+    normalizeReasoningEffort,
     persistCouncilConfig,
     renderInputIndicators,
+    renderSidebar,
     requestFrame: requestAnimationFrame,
     saveAppData,
+    saveConfig,
     seedCouncilParticipants,
+    showCustomDialog,
     showNotification
   }));
 
@@ -673,35 +573,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const isCouncilDeferredSectionVisible = (text = '') => /<details\b|共識與差異整理|模型理事會紀錄|Model council record|Compte rendu du conseil/i.test(String(text || ''));
 
   ({ renderModelSwitcher } = createModelSwitcherLifecycle({
-    closeAllPopovers,
-    document,
-    escapeHTML,
-    getActiveConversation,
-    getConfig: getLiveConfig,
-    getCouncilModeLabel,
-    getCouncilSelectedModels,
-    getCouncilTexts,
-    getI18n: () => i18n,
-    getModelApiId,
     getModelSwitcherContainer: () => ALL_ELEMENTS.modelSwitcherContainer,
-    getModelRetirementLabel,
-    getModelReasoningConfig,
-    getModelTiers,
-    getSingleDocumentTranslatorModel,
-    isCouncilEnabled: conversation => !isImageConversation(conversation) && isCouncilEnabled(conversation),
-    modelSupportsDocumentUpload,
-    modelSupportsVision,
-    modelSupportsWebSearch,
-    normalizeReasoningEffort,
-    models: MODELS,
-    renderSidebar,
-    renderInputIndicators,
-    renderCouncilControls,
-    requestFrame: requestAnimationFrame,
-    saveAppData,
-    saveConfig,
-    showCustomDialog,
-    window
+    renderCouncilControls
   }));
 
   async function typewriterStream(targetElement, streamApiCallFn, signal) {

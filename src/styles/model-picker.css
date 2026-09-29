@@ -1,0 +1,514 @@
+/* The model picker in the composer: a button naming what answers, and one panel
+   for a single model, a council of models, and how deeply the model thinks
+   (model-picker-markup.js). Black and white; every tint follows the text colour
+   so dark themes and wallpapers work too. Rules start with #model-council-control
+   so the shared button and popover styles do not reach in. */
+
+#model-council-control {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    align-self: center;
+}
+
+#model-council-control .mp-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 14rem;
+    height: 2.25rem;
+    padding: 0 0.7rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#model-council-control .mp-trigger:hover:not(:disabled),
+#model-council-control .mp-trigger[aria-expanded='true'] {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    transform: none;
+    filter: none;
+}
+
+#model-council-control .mp-trigger:disabled { cursor: default; opacity: 0.55; }
+.mp-trigger-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mp-trigger-effort { flex: none; font-weight: 400; opacity: 0.85; }
+.mp-trigger-dot { flex: none; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: #d97706; }
+.mp-chevron { flex: none; transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1); }
+.mp-trigger[aria-expanded='true'] .mp-chevron { transform: rotate(180deg); }
+
+#model-council-control .mp-panel {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.5rem);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    width: min(24rem, calc(100vw - 1.5rem));
+    max-height: min(34rem, calc(100vh - 8rem));
+    padding: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    background: var(--modal-bg);
+    color: var(--text-primary);
+    transform: translateY(6px) scale(0.98);
+    transform-origin: bottom right;
+    transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1), visibility 0.22s;
+}
+
+#model-council-control .mp-panel.visible { transform: none; }
+.mp-view { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+
+#model-council-control .mp-panel button:hover:not(:disabled),
+#model-council-control .mp-panel button:active:not(:disabled) {
+    transform: none;
+    filter: none;
+    box-shadow: none;
+}
+
+.mp-tabs {
+    display: flex;
+    gap: 2px;
+    margin: 0 0 0.5rem;
+    padding: 3px;
+    border-radius: 0.65rem;
+    background: var(--hover-bg);
+}
+
+#model-council-control .mp-tab {
+    flex: 1;
+    height: 2rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+#model-council-control .mp-tab.is-active {
+    background: var(--modal-bg);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 1px var(--border-color);
+}
+
+#model-council-control .mp-tab:disabled { cursor: default; opacity: 0.5; }
+
+.mp-search {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    margin: 0 0 0.25rem;
+    padding: 0 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.mp-search:focus-within { border-color: color-mix(in srgb, var(--text-primary) 45%, transparent); }
+
+#model-council-control .mp-search input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+.mp-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.mp-scroll::-webkit-scrollbar { width: 4px; }
+.mp-scroll::-webkit-scrollbar-button { display: none; }
+.mp-scroll::-webkit-scrollbar-thumb { border-radius: 2px; background: transparent; }
+.mp-scroll:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-primary) 28%, transparent); }
+
+@supports not selector(::-webkit-scrollbar) {
+    .mp-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+    .mp-scroll:hover { scrollbar-color: color-mix(in srgb, var(--text-primary) 28%, transparent) transparent; }
+}
+
+.mp-group[hidden],
+.mp-row[hidden],
+.mp-empty[hidden] { display: none; }
+
+.mp-group-title {
+    margin: 0.6rem 0.5rem 0.2rem;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.mp-empty { margin: 1.5rem 0.5rem; color: var(--text-secondary); font-size: 0.875rem; text-align: center; }
+
+#model-council-control .mp-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.6rem;
+    border: 0;
+    border-radius: 0.65rem;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+
+#model-council-control .mp-row:hover:not(:disabled),
+#model-council-control .mp-row.is-selected { background: var(--hover-bg); }
+#model-council-control .mp-row:disabled,
+.mp-row.is-disabled { cursor: default; opacity: 0.45; }
+
+.mp-row-main { display: flex; flex: 1; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.mp-row-name { overflow: hidden; font-size: 0.9375rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.mp-row-meta,
+.mp-row-desc { overflow: hidden; color: var(--text-secondary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
+.mp-row-desc { font-size: 0.75rem; opacity: 0.85; }
+.mp-check { flex: none; }
+
+.mp-tag,
+.mp-retire {
+    margin-left: 0.4rem;
+    color: var(--text-secondary);
+    font-size: 0.6875rem;
+    font-weight: 500;
+}
+
+.mp-tag { padding: 0.05rem 0.4rem; border: 1px solid var(--border-color); border-radius: 999px; }
+
+.mp-pick input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.mp-mark {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    border: 1.5px solid color-mix(in srgb, var(--text-primary) 40%, transparent);
+    border-radius: 0.3rem;
+    color: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.mp-mark svg { width: 0.8rem; height: 0.8rem; }
+.mp-pick input[type='radio'] + .mp-mark { border-radius: 50%; }
+.mp-pick input:checked + .mp-mark { border-color: var(--text-primary); background: var(--text-primary); color: var(--modal-bg); }
+.mp-pick input:focus-visible + .mp-mark { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-primary) 35%, transparent); }
+
+.mp-section { padding: 0.25rem 0.1rem 0.6rem; }
+
+.mp-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 0 0.5rem 0.4rem;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.mp-count { font-variant-numeric: tabular-nums; font-weight: 400; }
+.mp-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0 0.4rem; }
+
+#model-council-control .mp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    height: 2rem;
+    padding: 0 0.35rem 0 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--text-primary) 22%, transparent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+#model-council-control .mp-chip.is-add {
+    padding: 0 0.8rem 0 0.65rem;
+    border-style: dashed;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+#model-council-control .mp-chip.is-add:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
+.mp-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#model-council-control .mp-chip-x {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+#model-council-control .mp-chip-x:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
+
+#model-council-control .mp-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem 0.5rem;
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+#model-council-control .mp-line:hover:not(:disabled) { background: var(--hover-bg); }
+.mp-line-label { flex: none; font-weight: 500; }
+.mp-line-value { display: inline-flex; align-items: center; gap: 0.25rem; min-width: 0; overflow: hidden; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+
+.mp-section + .mp-more,
+.mp-modes + .mp-more { margin-top: 0; }
+.mp-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0 0.4rem; }
+
+#model-council-control .mp-mode {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+
+#model-council-control .mp-mode.is-active { border-color: var(--text-primary); background: var(--hover-bg); }
+.mp-mode-name { font-size: 0.9375rem; font-weight: 500; }
+.mp-mode-hint { color: var(--text-secondary); font-size: 0.75rem; line-height: 1.35; }
+
+.mp-more { border-top: 1px solid var(--border-color); }
+
+.mp-more > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mp-more > summary::-webkit-details-marker { display: none; }
+.mp-more > summary::after { content: '›'; transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1); }
+.mp-more[open] > summary::after { transform: rotate(90deg); }
+.mp-more > summary:hover { color: var(--text-primary); }
+
+.mp-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+
+#model-council-control .mp-switch {
+    position: relative;
+    flex: none;
+    width: 2rem;
+    height: 1.15rem;
+    margin: 0;
+    border: 0;
+    border-radius: 999px;
+    outline: 0;
+    background: color-mix(in srgb, var(--text-primary) 22%, transparent);
+    appearance: none;
+    cursor: pointer;
+    transition: background-color 0.18s ease;
+}
+
+.mp-switch::after {
+    content: '';
+    position: absolute;
+    top: 0.15rem;
+    left: 0.15rem;
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 50%;
+    background: var(--modal-bg);
+    transition: transform 0.18s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+#model-council-control .mp-switch:checked { background: var(--text-primary); }
+.mp-switch:checked::after { transform: translateX(0.85rem); }
+.mp-switch:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-primary) 35%, transparent); }
+.mp-switch:disabled { cursor: default; opacity: 0.5; }
+
+.mp-status { margin: 0.4rem 0.5rem 0.25rem; color: var(--text-secondary); font-size: 0.8125rem; }
+.mp-status.is-warning { color: #b45309; }
+
+.mp-pick-head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.4rem; }
+.mp-pick-title { flex: 1; overflow: hidden; font-size: 0.9375rem; font-weight: 500; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+
+#model-council-control .mp-back,
+#model-council-control .mp-done {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    height: 2rem;
+    padding: 0 0.6rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+#model-council-control .mp-done { color: var(--text-primary); font-weight: 500; }
+#model-council-control .mp-back:hover:not(:disabled),
+#model-council-control .mp-done:hover:not(:disabled) { background: var(--hover-bg); }
+
+.mp-depth { flex: none; margin-top: 0.4rem; padding: 0.6rem 0.6rem 0.3rem; border-top: 1px solid var(--border-color); }
+.mp-depth-head { display: flex; flex-direction: column; align-items: center; gap: 0.05rem; }
+.mp-depth-title { color: var(--text-secondary); font-size: 0.75rem; }
+.mp-depth-value { font-size: 1.0625rem; font-weight: 500; }
+
+/* A number the browser can ease, so the thumb hops to each dot in a quick move. */
+@property --mp-p { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+.mp-slider-wrap {
+    --mp-thumb: 2.25rem;
+    position: relative;
+    height: 2.25rem;
+    margin: 0.5rem 0 0.35rem;
+    transition: --mp-p 0.11s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* The track is slimmer than the thumb, so the fill never shows above or below it. */
+.mp-slider-track {
+    position: absolute;
+    inset: 0.325rem 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+
+.mp-slider-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: calc(var(--mp-thumb) / 2 + (100% - var(--mp-thumb)) * var(--mp-p));
+    background: var(--text-primary);
+}
+
+.mp-dots {
+    position: absolute;
+    inset: 0 calc(var(--mp-thumb) / 2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mp-dot { flex: none; width: 4px; height: 4px; margin: 0 -2px; border-radius: 50%; background: color-mix(in srgb, var(--text-secondary) 75%, transparent); }
+.mp-dot.is-default { width: 2px; height: 12px; margin: 0 -1px; border-radius: 1px; }
+
+.mp-thumb {
+    position: absolute;
+    top: 50%;
+    left: calc(var(--mp-thumb) / 2 + (100% - var(--mp-thumb)) * var(--mp-p));
+    width: var(--mp-thumb);
+    height: var(--mp-thumb);
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: box-shadow 0.15s ease;
+}
+
+.mp-slider-wrap:has(.mp-slider:focus-visible) .mp-thumb { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), 0 0 0 3px color-mix(in srgb, var(--text-primary) 35%, transparent); }
+.mp-slider-wrap:has(.mp-slider:disabled) { opacity: 0.5; }
+
+#model-council-control .mp-slider {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    appearance: none;
+    cursor: pointer;
+    touch-action: pan-y;
+}
+
+.mp-slider:disabled { cursor: default; }
+.mp-slider::-webkit-slider-thumb { width: var(--mp-thumb, 2.25rem); height: 2.25rem; appearance: none; }
+.mp-slider::-moz-range-thumb { width: var(--mp-thumb, 2.25rem); height: 2.25rem; border: 0; }
+.mp-depth-ends { display: flex; justify-content: space-between; padding: 0 0.4rem; color: var(--text-secondary); font-size: 0.75rem; }
+
+@media (max-width: 640px) {
+    #model-council-control .mp-trigger { max-width: 9.5rem; padding: 0 0.5rem; }
+    .mp-trigger-effort { display: none; }
+
+    #model-council-control .mp-panel {
+        position: fixed;
+        right: 0.5rem;
+        bottom: 0.5rem;
+        left: 0.5rem;
+        width: auto;
+        max-height: 78vh;
+        padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+        transform-origin: bottom center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #model-council-control .mp-panel,
+    .mp-chevron,
+    .mp-switch,
+    .mp-switch::after,
+    .mp-slider-wrap,
+    .mp-more > summary::after { transition: none; }
+}
+
+/* Icons take the colour of the text around them, whatever the page sets on svg. */
+#model-council-control svg { color: inherit; stroke: currentColor; }

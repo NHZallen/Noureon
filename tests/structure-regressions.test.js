@@ -817,7 +817,7 @@ test('runtime app data normalization moves into a pure non-live kernel helper', 
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   assert.equal(
     ((laterFragmentSources.join('\n') + coreTailSource + folderLifecycleSource + trashLifecycleSource + importExportSource + authImportSource + appBootstrapLifecycleSource + modelMemoryDashboardSource + batchImportVoiceSource + settingsAuthProviderSource + submitInputCouncilSource + sidebarChatAstraRenderSource).match(/\bsaveAppData\(/g) || []).length,
-    43
+    42
   );
   for (const source of laterFragmentSources) {
     assert.doesNotMatch(source, /app-data-normalization|app-data-persistence/);
@@ -3345,9 +3345,10 @@ test('model switcher preparation and lifecycle are isolated from the 01 runtime 
   assert.doesNotMatch(fragment01Source, /providerView\.innerHTML\s*=/);
   assert.doesNotMatch(fragment01Source, /modelListView\.addEventListener\('click'/);
 
+  // The header menu is gone: the one panel in the composer (council-controls-lifecycle.js) chooses the model.
   assert.match(helperSource, /const\s+renderModelSwitcher\s*=\s*\(\)\s*=>/);
-  assert.match(helperSource, /providerView\.innerHTML\s*=/);
-  assert.match(helperSource, /modelListView\.addEventListener\('click'/);
+  assert.doesNotMatch(helperSource, /providerView|modelListView|model-options-popover/);
+  assert.match(helperSource, /renderCouncilControls\(\)/);
   assert.match(fragment01Source, /renderModelSwitcher,/);
   assert.match(fragment01Source, /renderCouncilControls,/);
 
@@ -3369,7 +3370,7 @@ test('council controls lifecycle is isolated from the 01 runtime shell', async (
     fragment01Source,
     /import\s*\{\s*createCouncilControlsLifecycle\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/council-controls-lifecycle\.js['"];/
   );
-  assert.match(fragment01Source, /\{\s*renderCouncilControls\s*\}\s*=\s*createCouncilControlsLifecycle\(\{/);
+  assert.match(fragment01Source, /\{\s*renderCouncilControls,\s*openModelPicker\s*\}\s*=\s*createCouncilControlsLifecycle\(\{/);
   assert.match(helperSource, /\bgetFileInputContainer\b/);
   assert.doesNotMatch(helperSource, /\belements\b/);
   assert.doesNotMatch(helperSource, /elements\.fileInputContainer/);
@@ -3382,9 +3383,10 @@ test('council controls lifecycle is isolated from the 01 runtime shell', async (
   assert.doesNotMatch(fragment01Source, /id="model-council-enabled"/);
   assert.doesNotMatch(fragment01Source, /data-council-participant=/);
   assert.doesNotMatch(fragment01Source, /const\s+applyCouncilModelSearch\s*=/);
-  assert.match(helperSource, /const\s+renderCouncilControls\s*=\s*\(\)\s*=>/);
-  assert.match(helperSource, /id="model-council-enabled"/);
-  assert.match(helperSource, /data-council-participant=/);
+  assert.match(helperSource, /const\s+renderCouncilControls\s*=\s*\(\{[^}]*\}\s*=\s*\{\}\)\s*=>/);
+  assert.match(helperSource, /\[data-mp-member\]/);
+  assert.match(helperSource, /\[data-mp-tab\]|data-mp-tab|mpTab/);
+  assert.match(readSource('src/app/ui/model-picker/model-picker-markup.js'), /id="model-picker-btn"/);
   assert.match(fragment01Source, /persistCouncilConfig,/);
   assert.match(fragment01Source, /seedCouncilParticipants,/);
   assert.match(fragment01Source, /renderCouncilControls,/);

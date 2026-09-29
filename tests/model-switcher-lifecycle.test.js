@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
+import { buildModelGroups, getCompanyLabel, getModelCompany } from '../src/app/ui/model-picker/model-picker-groups.js';
 import {
   createModelSwitcherLifecycle,
   prepareModelSwitcherModels
@@ -10,14 +11,6 @@ import {
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
-
-const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-}[char]));
 
 const MODELS = [
   {
@@ -51,84 +44,6 @@ const SORTED_MODELS = [
   { id: 'older', name: 'Older', provider: 'openrouter', tier: ['paid'] }
 ];
 
-const createHarness = (overrides = {}) => {
-  const { document, window, cleanup } = createDom(`
-    <div id="model-switcher-container"></div>
-    <div id="model-council-popover" class="popover"></div>
-    <button id="model-council-toggle-btn" aria-expanded="false"></button>
-  `);
-  const calls = [];
-  const conversation = overrides.conversation ?? {
-    archived: false,
-    council: { enabled: false },
-    model: 'z-ai/model-a',
-    provider: 'openrouter'
-  };
-  const activeModels = overrides.models ?? MODELS;
-  const config = {
-    lastUsedModel: 'z-ai/model-a',
-    acknowledgedStealthModelTerms: overrides.acknowledgedStealthModelTerms ?? [],
-    modelSettings: overrides.modelSettings ?? [
-      { hidden: false, id: 'z-ai/model-a', order: 1 },
-      { hidden: false, id: 'gemini-pro', order: 2 },
-      { hidden: false, id: 'openai/beta', order: 3 }
-    ],
-    uiLanguage: 'en'
-  };
-  const i18n = {
-    en: {
-      back: 'Back',
-      betaModels: 'Beta models',
-      betaModelsDesc: 'Preview models',
-      categoryGeneral: 'General',
-      categoryImageGeneration: 'Image generation',
-      freeModels: 'Free models',
-      paidModels: 'Paid models',
-      search: 'Search',
-      stealthModelTermsTitle: 'Stealth model terms',
-      stealthModelTermsMessage: 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.',
-      stealthModelTermsLink: 'Stealth Model Terms(opens in new tab)',
-      zaiA_tier_free: 'Fast free model'
-    },
-    'zh-TW': {}
-  };
-  const lifecycle = createModelSwitcherLifecycle({
-    closeAllPopovers: () => calls.push(['closeAllPopovers']),
-    document,
-    escapeHTML,
-    getActiveConversation: () => conversation,
-    getConfig: () => config,
-    getCouncilModeLabel: () => 'Consensus',
-    getCouncilSelectedModels: () => ({ council: conversation.council }),
-    getCouncilTexts: () => ({ title: 'Council' }),
-    getI18n: () => i18n,
-    getModelApiId: (model) => model.id,
-    getModelSwitcherContainer: () => document.querySelector('#model-switcher-container'),
-    getModelRetirementLabel: (model) => model.retirement || '',
-    getModelTiers: (model) => model.tier || [],
-    getSingleDocumentTranslatorModel: () => null,
-    isCouncilEnabled: (conv) => !!conv.council?.enabled,
-    modelSupportsDocumentUpload: (model) => model.id === 'gemini-pro',
-    modelSupportsVision: (model) => model.id === 'gemini-pro',
-    modelSupportsWebSearch: (model) => model.provider === 'openrouter',
-    models: activeModels,
-    renderAll: () => calls.push(['renderAll']),
-    renderCouncilControls: () => calls.push(['renderCouncilControls']),
-    renderSidebar: () => calls.push(['renderSidebar']),
-    renderInputIndicators: () => calls.push(['renderInputIndicators']),
-    requestFrame: (callback) => {
-      calls.push(['requestFrame']);
-      callback();
-    },
-    saveAppData: async () => calls.push(['saveAppData']),
-    saveConfig: async () => calls.push(['saveConfig']),
-    showCustomDialog: overrides.showCustomDialog ?? (async () => true),
-    window
-  });
-
-  return { calls, cleanup, config, conversation, document, lifecycle };
-};
-
 test('prepares visible models with provider-specific company and tier metadata', () => {
   const result = prepareModelSwitcherModels({
     currentModelId: 'z-ai/model-a',
@@ -161,268 +76,42 @@ test('sorts newer releases first and uses output price in descending order withi
   assert.deepEqual(result.visibleModels.map((model) => model.id), ['sol', 'terra', 'luna', 'older']);
 });
 
-test('renders providers in the configured default order', () => {
-  const models = [
-    { id: 'nvidia', name: 'NVIDIA', provider: 'nvidia', descriptionKey: 'zaiA', tier: ['free'] },
-    { id: 'router', name: 'Router', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] },
-    { id: 'gemini', name: 'Gemini', provider: 'gemini', descriptionKey: 'zaiA', tier: ['paid'] }
-  ];
-  const { cleanup, document, lifecycle } = createHarness({
-    models,
-    modelSettings: models.map((model, order) => ({ id: model.id, hidden: false, order }))
-  });
+test('the header slot is cleared and the composer picker redrawn, so nothing is left of the old header menu', () => {
+  const { document, cleanup } = createDom('<div id="model-switcher-container"><button id="current-model-btn">old</button></div>');
+  const calls = [];
   try {
-    lifecycle.renderModelSwitcher();
-    document.querySelector('#current-model-btn').click();
-    assert.deepEqual(
-      [...document.querySelectorAll('.provider-btn')].map((button) => button.dataset.provider),
-      ['gemini', 'openrouter', 'nvidia']
-    );
-  } finally {
-    cleanup();
-  }
-});
-
-test('sorts provider companies alphabetically', () => {
-  const models = [
-    { id: 'zeta/model', name: 'Zeta', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] },
-    { id: 'alpha/model', name: 'Alpha', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] },
-    { id: 'middle/model', name: 'Middle', provider: 'openrouter', descriptionKey: 'zaiA', tier: ['paid'] }
-  ];
-  const { cleanup, document, lifecycle } = createHarness({
-    models,
-    modelSettings: models.map((model, order) => ({ id: model.id, hidden: false, order }))
-  });
-  try {
-    lifecycle.renderModelSwitcher();
-    document.querySelector('#current-model-btn').click();
-    document.querySelector('[data-provider="openrouter"]').click();
-    document.querySelector('[data-tier="paid"]').click();
-    assert.deepEqual(
-      [...document.querySelectorAll('.company-btn')].map((button) => button.dataset.company),
-      ['alpha', 'middle', 'zeta']
-    );
-  } finally {
-    cleanup();
-  }
-});
-
-test('renders model switcher navigation and persists selected model', async () => {
-  const { calls, cleanup, config, conversation, document, lifecycle } = createHarness();
-  try {
-    lifecycle.renderModelSwitcher();
-
-    assert.match(document.querySelector('#current-model-btn').textContent, /Z\.ai A/);
-    document.querySelector('#current-model-btn').click();
-    assert.ok(document.querySelector('#model-options-popover').classList.contains('visible'));
-
-    document.querySelector('[data-provider="gemini"]').click();
-    document.querySelector('[data-tier="paid"]').click();
-    document.querySelector('[data-model-id="gemini-pro"]').click();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    assert.equal(conversation.model, 'gemini-pro');
-    assert.equal(conversation.provider, 'gemini');
-    assert.equal(config.lastUsedModel, 'gemini-pro');
-    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderSidebar', 'renderInputIndicators', 'renderCouncilControls'].includes(name)), [
-      ['saveAppData'],
-      ['saveConfig'],
-      ['renderSidebar'],
-      ['renderInputIndicators'],
-      ['renderCouncilControls']
-    ]);
-    assert.equal(calls.some(([name]) => name === 'renderAll'), false);
-  } finally {
-    cleanup();
-  }
-});
-
-test('model switcher search filters models and persists selected result', async () => {
-  const { calls, cleanup, config, conversation, document, lifecycle } = createHarness();
-  try {
-    lifecycle.renderModelSwitcher();
-
-    document.querySelector('#current-model-btn').click();
-    const searchInput = document.querySelector('#model-search-input');
-    searchInput.value = 'gemini';
-    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-
-    const modelListView = document.querySelector('#model-list-view');
-    assert.match(modelListView.textContent, /Search results/);
-    assert.match(modelListView.textContent, /Gemini Pro/);
-    assert.doesNotMatch(modelListView.textContent, /Z\.ai A/);
-    assert.ok(!document.querySelector('#model-search-clear-btn').classList.contains('hidden'));
-
-    document.querySelector('[data-model-id="gemini-pro"]').click();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    assert.equal(conversation.model, 'gemini-pro');
-    assert.equal(conversation.provider, 'gemini');
-    assert.equal(config.lastUsedModel, 'gemini-pro');
-    assert.deepEqual(calls.filter(([name]) => ['saveAppData', 'saveConfig', 'renderSidebar', 'renderInputIndicators', 'renderCouncilControls'].includes(name)), [
-      ['saveAppData'],
-      ['saveConfig'],
-      ['renderSidebar'],
-      ['renderInputIndicators'],
-      ['renderCouncilControls']
-    ]);
-    assert.equal(calls.some(([name]) => name === 'renderAll'), false);
-  } finally {
-    cleanup();
-  }
-});
-
-test('stealth beta model requires one persisted terms acknowledgement before selection', async () => {
-  const stealthModel = {
-    id: 'stealth/test-beta',
-    name: 'Test Beta',
-    provider: 'openrouter',
-    descriptionKey: 'oxAlpha',
-    isBeta: true,
-    requiresStealthTermsAcknowledgement: true,
-    stealthTermsAcknowledgementId: 'stealth/test-beta@stealth-terms-v1'
-  };
-  const dialogOptions = [];
-  const responses = [false, true];
-  const models = [...MODELS, stealthModel];
-  const { cleanup, config, conversation, document, lifecycle } = createHarness({
-    models,
-    acknowledgedStealthModelTerms: ['stealth/test-beta'],
-    modelSettings: models.map((model, order) => ({ id: model.id, hidden: false, order })),
-    showCustomDialog: async (options) => {
-      dialogOptions.push(options);
-      return responses.shift();
-    }
-  });
-  const flushSelection = async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  };
-  const selectStealthModel = () => {
-    document.querySelector('#current-model-btn').click();
-    document.querySelector('.beta-btn').click();
-    document.querySelector('[data-model-id="stealth/test-beta"]').click();
-  };
-
-  try {
-    lifecycle.renderModelSwitcher();
-    selectStealthModel();
-    await flushSelection();
-
-    assert.equal(conversation.model, 'z-ai/model-a');
-    assert.deepEqual(config.acknowledgedStealthModelTerms, ['stealth/test-beta']);
-
-    document.querySelector('[data-model-id="stealth/test-beta"]').click();
-    await flushSelection();
-
-    assert.equal(conversation.model, 'stealth/test-beta');
-    assert.deepEqual(config.acknowledgedStealthModelTerms, [
-      'stealth/test-beta',
-      'stealth/test-beta@stealth-terms-v1'
-    ]);
-    assert.equal(dialogOptions.length, 2);
-    assert.equal(
-      dialogOptions[1].messageParts.map(part => typeof part === 'string' ? part : part.text).join(''),
-      'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the Stealth Model Terms(opens in new tab).'
-    );
-    assert.deepEqual(dialogOptions[1].messageParts[1], {
-      text: 'Stealth Model Terms(opens in new tab)',
-      href: 'https://openrouter.ai/terms/stealth'
+    const lifecycle = createModelSwitcherLifecycle({
+      getModelSwitcherContainer: () => document.querySelector('#model-switcher-container'),
+      renderCouncilControls: () => calls.push('renderCouncilControls')
     });
-
-    selectStealthModel();
-    await flushSelection();
-    assert.equal(dialogOptions.length, 2);
+    lifecycle.renderModelSwitcher();
+    assert.equal(document.querySelector('#model-switcher-container').innerHTML, '');
+    assert.deepEqual(calls, ['renderCouncilControls']);
+    assert.doesNotThrow(() => createModelSwitcherLifecycle().renderModelSwitcher());
   } finally {
     cleanup();
   }
 });
 
-test('renders snake_case model categories with translated labels', () => {
-  const imageModels = [
-    ...MODELS,
-    {
-      id: 'openai/chat',
-      name: 'OpenAI Chat',
-      provider: 'openrouter',
-      descriptionKey: 'openaiChat',
-      tier: ['paid'],
-      category: 'general'
-    },
-    {
-      id: 'openai/image',
-      name: 'OpenAI Image',
-      provider: 'openrouter',
-      descriptionKey: 'openaiImage',
-      tier: ['paid'],
-      category: 'image_generation'
-    }
+test('the model list is grouped by company: the one in use first, beta models last, the rest by name', () => {
+  const models = [
+    { id: 'zeta/one', name: 'Zeta One', provider: 'openrouter' },
+    { id: 'gemini-pro', name: 'Gemini Pro', provider: 'gemini' },
+    { id: 'deepseek/v4', name: 'DeepSeek V4', provider: 'openrouter' },
+    { id: 'nvidia/deepseek-ai/v4', apiId: 'deepseek-ai/v4', name: 'NVIDIA DeepSeek V4', provider: 'nvidia' },
+    { id: 'lab/beta', name: 'Lab Beta', provider: 'openrouter', isBeta: true }
   ];
-  const { cleanup, document, lifecycle } = createHarness({
-    models: imageModels,
-    modelSettings: imageModels.map((model, index) => ({
-      hidden: false,
-      id: model.id,
-      order: index + 1
-    }))
+  const groups = buildModelGroups(models, {
+    decorate: (model) => ({ id: model.id, name: model.name, company: getModelCompany(model) }),
+    currentId: 'zeta/one',
+    currentLabel: 'In use',
+    betaLabel: 'Beta'
   });
-  try {
-    lifecycle.renderModelSwitcher();
-
-    document.querySelector('#current-model-btn').click();
-    document.querySelector('[data-provider="openrouter"]').click();
-    document.querySelector('[data-tier="paid"]').click();
-    document.querySelector('[data-company="openai"]').click();
-
-    const labels = Array.from(document.querySelectorAll('#category-view .category-btn'))
-      .map(button => button.textContent.trim());
-    assert.ok(labels.includes('Image generation'));
-    assert.ok(!labels.includes('image_generation'));
-  } finally {
-    cleanup();
-  }
-});
-
-test('model switcher reads the container from the injected getter without an elements bundle', () => {
-  const { cleanup, document, lifecycle } = createHarness();
-  try {
-    lifecycle.renderModelSwitcher();
-
-    const container = document.querySelector('#model-switcher-container');
-    assert.match(container.textContent, /Z\.ai A/);
-  } finally {
-    cleanup();
-  }
-});
-
-test('council mode switcher button delegates to council controls without duplicating council rendering', () => {
-  const { calls, cleanup, conversation, document, lifecycle } = createHarness({
-    conversation: {
-      archived: false,
-      council: { enabled: true, mode: 'consensus' },
-      model: 'z-ai/model-a',
-      provider: 'openrouter'
-    }
-  });
-  try {
-    lifecycle.renderModelSwitcher();
-
-    assert.match(document.querySelector('#current-model-btn').textContent, /Council/);
-    document.querySelector('#current-model-btn').click();
-
-    assert.deepEqual(calls.slice(0, 3), [
-      ['renderCouncilControls'],
-      ['closeAllPopovers'],
-      ['requestFrame']
-    ]);
-    assert.ok(document.querySelector('#model-council-popover').classList.contains('visible'));
-    assert.equal(document.querySelector('#model-council-toggle-btn').getAttribute('aria-expanded'), 'true');
-    assert.equal(conversation.model, 'z-ai/model-a');
-  } finally {
-    cleanup();
-  }
+  assert.deepEqual(groups.map((group) => group.label), ['In use', 'DeepSeek', 'Google', 'Beta']);
+  assert.deepEqual(groups.find((group) => group.label === 'DeepSeek').models.map((model) => model.id), ['deepseek/v4', 'nvidia/deepseek-ai/v4'], 'the same maker across providers stays together');
+  assert.equal(getCompanyLabel('x-ai'), 'xAI');
+  assert.equal(getCompanyLabel('mistralai'), 'Mistral');
+  assert.equal(getCompanyLabel('some-lab'), 'Some Lab');
 });
 
 test('model switcher lifecycle source avoids provider parser, storage schema, package, and Vite coupling', () => {

@@ -32,12 +32,10 @@
     transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-
 /* 為了讓 grid 動畫正常運作，需要設定內容的 overflow */
 .folder-item > .folder-content-container > div {
     overflow: hidden;
 }
-
 
 .folder-item[data-open="true"] > .folder-content-container {
     grid-template-rows: 1fr;
@@ -78,18 +76,12 @@
     background: transparent;
 }
 
-
-
-
     #input-bar-container .input-wrapper.has-indicators > .flex.items-end {
     margin-top: 0.9rem; /* 8px 的間距，您可以依喜好調整這個數值 */
 }
     .input-wrapper.has-indicators {
     padding-top: 2.25rem; /* 36px，為指示器留出空間，可微調 */
 }
-
-
-
 
 #input-indicator-container {
     position: absolute;
@@ -104,9 +96,6 @@
     scrollbar-width: none;   /* Firefox */
     -webkit-overflow-scrolling: touch;
 }
-
-
-
 
 #input-indicator-container::-webkit-scrollbar {
     display: none; /* 隱藏滾動條 */
@@ -202,9 +191,6 @@
     background: rgba(64, 64, 64, 0.78);
 }
 
-
-
-
 #input-indicator-container .input-indicator-item {
     flex-shrink: 0; /* 防止項目被壓縮 */
 }
@@ -236,73 +222,19 @@
         visibility: visible;
         transform: scale(1) translateY(0);
     }
-    #model-options-popover { transform-origin: top right; }
-    #model-options-popover {
-    /* 移除內邊距，交給子元素處理 */
-    padding: 0;
-    /* 隱藏從側面滑入的內容 */
-    overflow: hidden;
-    /* 動態高度變化時有過渡效果，這是讓高度變化平滑的關鍵 */
-    transition: opacity 0.15s ease-out, transform 0.15s ease-out, visibility 0.15s, height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
+    
+    
 
 /* 建立一個 flex 容器來水平排列兩個視圖 */
-#model-views-container {
-    display: flex;
-    /* 寬度為父容器的兩倍，因為有兩個視圖 */
-    width: 200%;
-    /* 核心動畫：當 transform 改變時，產生滑動效果 */
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 
 /* 當切換到「其他模型」時，整個容器向左滑動 50% (即一個視圖的寬度) */
-#model-views-container.show-other-models {
-    transform: translateX(-50%);
-}
-
 
 /* 每個獨立的視圖 (Gemini / 其他模型) 的樣式 */
-.model-view {
-    /* 每個視圖佔據容器寬度的一半 */
-    width: 50%;
-    flex-shrink: 0;
-    /* 將原本在父容器的內邊距移到這裡 */
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
+
     
-    /* ▼▼▼ 新增的程式碼 ▼▼▼ */
-    max-height: 100%; /* 確保視圖不會超過父容器的高度 */
-    overflow-y: auto;  /* 如果內容超出，讓這個視圖自己滾動 */
-    /* ▲▲▲ 新增的程式碼 ▲▲▲ */
-}
-    .model-view::-webkit-scrollbar {
-    width: 6px; /* 滾動條寬度 */
-}
-
-
-.model-view::-webkit-scrollbar-track {
-    background: transparent; /* 滾動條軌道背景透明 */
-}
-
-
-.model-view::-webkit-scrollbar-thumb {
-    background-color: var(--border-color); /* 滾動條滑塊顏色 */
-    border-radius: 3px; /* 滑塊圓角 */
-}
-
-
-.model-view::-webkit-scrollbar-thumb:hover {
-    background-color: var(--text-secondary); /* 鼠標懸停時的滑塊顏色 */
-}
-
 
 /* 適用於 Firefox */
-.model-view {
-    scrollbar-width: thin; /* 讓滾動條變細 */
-    scrollbar-color: var(--border-color) transparent; /* 滑塊顏色 軌道顏色 */
-}
+
 #file-options-popover {
     background-color: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(20px);
@@ -515,12 +447,10 @@
     }
 }
 
-
 .fade-in-char {
     display: inline-block; /* 讓 transform 生效 */
     animation: fadeInChar 0.25s ease-out forwards;
 }
-
 
 /* ✨ 新增：打字機游標效果 (可選) */
 .typing-cursor::after {
@@ -528,7 +458,6 @@
     display: inline-block;
     animation: blink 0.7s infinite;
 }
-
 
 .message-content.is-streaming-response {
     overflow: visible !important;
@@ -725,13 +654,11 @@
     table-layout: auto; /* 讓內容決定寬度，這是防止擠壓的關鍵 */
 }
 
-
 /* 讓表頭文字不換行，保持整齊 */
 .prose th {
     white-space: nowrap; 
     background-color: var(--hover-bg);
 }
-
 
 /* 新增：表格專用的滾動容器樣式 */
 .table-scroll-container {
@@ -742,7 +669,6 @@
     border-radius: 0.5rem;
     background-color: var(--modal-bg); /* 確保背景色正確 */
 }
-
 
 /* 自訂滾動條樣式，讓它在電腦上比較美觀 */
 .table-scroll-container::-webkit-scrollbar {
@@ -778,19 +704,15 @@
         color: #000000 !important;
     }
 
-
     /* 特別針對：列表前面的「圓點」或「數字」 */
     .prose li::marker {
         color: #000000 !important; 
     }
 
-
     /* --- 2. 深色模式 (Dark Mode) --- */
-
 
     /* 針對所有標題、段落、列表、粗體 */
     /* 全部強制設定為純白色 #ffffff */
-
 
     /* 特別針對：列表前面的「圓點」或「數字」 */
     .folder-summary {

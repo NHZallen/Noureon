@@ -21,32 +21,34 @@ test('media preview download and share icons stay white over dark media', () => 
   assert.match(css, /\.media-lightbox-toolbar\s*\{[\s\S]*top:\s*1\.15rem;/s);
 });
 
-test('model council manager uses compact pills and a bounded scroll area', () => {
-  const css = readUiSource('src/styles/main.css');
-  const runtime01 = readUiSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
+test('the model picker is one panel with a bounded, quietly scrolling list and a stepped thinking slider', () => {
+  const css = readUiSource('src/styles/model-picker.css');
+  const lifecycle = readUiSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
+  const markup = readUiSource('src/app/ui/model-picker/model-picker-markup.js');
 
-  assert.match(runtime01, /class="council-mode-cluster"[\s\S]*id="model-council-enabled"[\s\S]*class="council-mode-tabs"/);
-  assert.match(runtime01, /class="council-action-cluster"[\s\S]*id="model-council-search-toggle"[\s\S]*data-council-model-search/);
-  assert.match(runtime01, /const\s+previousModelSearch\s*=[\s\S]*data-council-model-search/);
-  assert.match(runtime01, /const\s+applySearch\s*=\s*\(\)\s*=>[\s\S]*council-model-group[\s\S]*group\.hidden/);
-  assert.match(runtime01, /conversation\.council\.mode\s*=\s*button\.dataset\.councilMode;[\s\S]*await\s+persistCouncilConfig\(conversation\);[\s\S]*renderCouncilControls\(\);/);
-  assert.match(runtime01, /conversation\.isWebSearchEnabled\s*=\s*!conversation\.isWebSearchEnabled/);
-  assert.doesNotMatch(runtime01, /council-filter-panel|data-council-filter|filtersHTML|applyCouncilSearchFilter/);
-  assert.doesNotMatch(runtime01, /<p class="council-search-note[^`]*runtimeTexts\.searchManualNotice/);
-  assert.match(runtime01, /<div class="council-popover-scroll-area">[\s\S]*<div class="council-popover-bottom">/);
-  assert.match(css, /\.model-council-popover[^{]*\{[^}]*overflow:\s*hidden\s!important;/s);
-  assert.match(css, /\.council-config-row[^{]*\{[^}]*justify-content:\s*flex-start\s!important;/s);
-  assert.match(css, /\.council-action-cluster[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s!important;[^}]*margin-left:\s*0\s!important;/s);
-  assert.match(css, /\.council-model-search-field[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s!important;[^}]*width:\s*auto\s!important;/s);
-  assert.match(css, /\.council-popover-scroll-area[^{]*\{[^}]*overflow-y:\s*auto\s!important;[^}]*-webkit-overflow-scrolling:\s*touch\s!important;[^}]*scrollbar-color:\s*var\(--gpt-scrollbar\)\s+transparent\s!important;/s);
-  assert.match(css, /\.council-popover-scroll-area::-webkit-scrollbar-thumb[^{]*\{[^}]*background:\s*var\(--gpt-scrollbar\)\s!important;/s);
-  assert.match(css, /\.model-council-popover[^{]*\{[^}]*opacity:\s*0\s!important;[^}]*transition:\s*opacity\s+0\.22s\s+ease[^}]*transform\s+0\.22s/s);
-  assert.match(css, /\.model-council-popover\.visible[^{]*\{[^}]*opacity:\s*1\s!important;[^}]*visibility:\s*visible\s!important;/s);
-  assert.match(css, /\.council-enable-pill\.is-active[^{]*\{[^}]*background:\s*#ffffff\s!important;[^}]*color:\s*var\(--button-primary-bg\)\s!important;/s);
-  assert.match(css, /\.council-search-toggle\.is-active[^{]*\{[^}]*background:\s*#ffffff\s!important;[^}]*color:\s*var\(--button-primary-bg\)\s!important;/s);
-  assert.match(css, /\.model-council-popover\s+\.council-mode-tabs button:not\(\.active\)[^{]*\{[^}]*border-color:\s*transparent\s!important;[^}]*background:\s*transparent\s!important;/s);
-  assert.match(css, /\.council-mode-tabs button\.active[^{]*\{[^}]*border-color:\s*#000000\s!important;[^}]*background:\s*#ffffff\s!important;/s);
-  assert.match(css, /\.council-section-title[^{]*\{[^}]*position:\s*sticky\s!important;[^}]*top:\s*0\s!important;[^}]*text-transform:\s*none\s!important;/s);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-config-row[^{]*\{[^}]*flex-direction:\s*column\s!important;/s);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[^{]*\{[\s\S]*\.council-action-cluster[^{]*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)\s!important;/s);
+  // One panel: the way to answer, the model list or the council, and the thinking slider.
+  assert.match(markup, /data-mp-tab="single"[\s\S]*data-mp-tab="council"/);
+  assert.match(markup, /class="mp-scroll" data-mp-scroll/);
+  assert.match(markup, /type="range" class="mp-slider" data-mp-depth-input/);
+  assert.match(markup, /data-mp-remove=[\s\S]*data-mp-open="members"/);
+  assert.match(markup, /data-mp-open="combiner"/);
+  assert.match(markup, /data-mp-mode=/);
+  assert.match(lifecycle, /const\s+applySearch\s*=\s*\(container\)\s*=>[\s\S]*group\.hidden\s*=\s*!any/);
+  assert.doesNotMatch(lifecycle, /council-filter-panel|data-council-filter|applyCouncilSearchFilter/);
+
+  // Bounded: the list scrolls inside the panel, and the panel never outgrows the screen.
+  assert.match(css, /\.mp-panel\s*\{[^}]*max-height:\s*min\(34rem,\s*calc\(100vh - 8rem\)\);[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /\.mp-scroll\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s);
+  // Quiet: a thin thumb that only shows while the pointer is over the list.
+  assert.match(css, /\.mp-scroll::-webkit-scrollbar\s*\{\s*width:\s*4px;/);
+  assert.match(css, /\.mp-scroll::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*transparent;/s);
+  assert.match(css, /\.mp-scroll:hover::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*color-mix/s);
+  // Flat and black and white: the tints follow the text colour.
+  assert.doesNotMatch(css, /!important/);
+  assert.match(css, /\.mp-mode\.is-active\s*\{[^}]*border-color:\s*var\(--text-primary\)/s);
+  assert.match(css, /\.mp-slider::-webkit-slider-thumb/);
+  assert.match(css, /\.mp-slider::-moz-range-thumb/);
+  // A phone gets the panel as a sheet along the bottom edge.
+  assert.match(css, /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*\.mp-panel\s*\{[^}]*position:\s*fixed;/);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });

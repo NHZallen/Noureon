@@ -192,13 +192,7 @@ body.custom-wallpaper-active .voice-input-btn.active {
         -webkit-backdrop-filter: blur(16px);
         border-color: rgba(200, 200, 200, 0.5) !important;
     }
-    body.custom-wallpaper-active #model-options-popover {
-        background-color: rgba(255, 255, 255, 0.35) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
-        border: 1px solid rgba(200, 200, 200, 0.5) !important;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    }
+    
     body.custom-wallpaper-active main > header {
         background-color: rgba(255, 255, 255, 0.25) !important;
         backdrop-filter: blur(20px) !important;
@@ -214,14 +208,12 @@ body.custom-wallpaper-active .voice-input-btn.active {
     box-shadow: -4px 0px 15px rgba(0, 0, 0, 0.05); /* 加上陰影以突顯層次感，X軸設為負值讓陰影在左側 */
 }
 
-
 /* 針對自訂桌布模式下的右側側邊欄 (深色桌布) */
 body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     background-color: rgba(30, 30, 30, 0.5); /* 設定半透明的深色背景 */
     border-left: 1px solid rgba(255, 255, 255, 0.1) !important; /* 設定半透明的亮色左邊框 */
     box-shadow: -4px 0px 20px rgba(0, 0, 0, 0.2); /* 加上更深的陰影 */
 }
-
 
     body.custom-wallpaper-active.wallpaper-is-dark main > header {
         background-color: rgba(30, 30, 30, 0.25) !important;
@@ -332,10 +324,7 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     #settings-modal .settings-section .text-\[var\(--text-secondary\)\] {
         color: #6b7280 !important;
     }
-    #model-options-popover .model-option-btn-container h4,
-    #model-options-popover .model-option-btn-container .model-description {
-        color: #111827 !important;
-    }
+    
     #settings-modal .p-6.border-b h2 {
         color: #111827;
     }
@@ -382,7 +371,6 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     .modal { pointer-events: none; }
 .modal.visible { pointer-events: auto; }
 
-
 /* 只要不是 .visible，就強制讓內容不可見且不可點（防手機版覆寫） */
 .modal:not(.visible) .settings-section,
 .modal.hidden .settings-section {
@@ -390,7 +378,6 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
   opacity: 0 !important;
   pointer-events: none !important;
 }
-
 
 /* 萬一還有其他子孫元素在搗亂，順手保險一下： */
 .modal:not(.visible) * { pointer-events: none !important; }
@@ -869,7 +856,6 @@ body.custom-wallpaper-active .store-category-btn.active {
             display: none;
         }
     }
-
 
 /* 2. 在深色模式下，強制標題為白色 (主要文字顏色) */
 /* --- 新增結束 --- */

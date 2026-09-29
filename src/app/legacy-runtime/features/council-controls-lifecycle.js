@@ -1,11 +1,20 @@
+// The model picker in the composer: one button that names what will answer
+// (a model, or a council) and the one panel behind it for choosing a model,
+// building a council, and setting how deeply the model thinks.
+
+import { buildModelGroups, getModelCompany } from '../../ui/model-picker/model-picker-groups.js';
+import { renderPickerPanel, renderPickerTrigger } from '../../ui/model-picker/model-picker-markup.js';
+import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
+import { prepareModelSwitcherModels } from './model-switcher-lifecycle.js';
+
 export function createCouncilControlsLifecycle(deps) {
   const {
     closeAllPopovers = () => {},
     councilMaxModels = 4,
     document,
     escapeHTML = (value) => String(value ?? ''),
-    formatCouncilModelSummary = () => '',
     getActiveConversation = () => null,
+    getComposerAnchor = () => null,
     getConfig = () => ({}),
     getCouncilModelList = () => [],
     getCouncilRuntimeTexts = () => ({}),
@@ -15,380 +24,529 @@ export function createCouncilControlsLifecycle(deps) {
     getFileInputContainer = () => undefined,
     getIsCouncilRunning = () => false,
     getModelApiId = (model) => model?.id || '',
-    getModelFamilyKey = (model) => model?.id || '',
-    getModelFamilyName = (model) => model?.name || '',
-    getModelPriceLabel = () => '',
+    getModelReasoningConfig = () => null,
+    getModelRetirementLabel = () => '',
+    getModelTiers = () => [],
     getModelsByIds = () => [],
     getProviderLabel = (provider) => provider || '',
+    getReasoningEffortLabel = (value) => String(value ?? ''),
+    getSingleDocumentTranslatorModel = () => null,
     hasCouncilWebSearchAccess = () => false,
+    isImageConversation = () => false,
     modelSupportsDocumentUpload = () => false,
     modelSupportsVision = () => false,
     modelSupportsWebSearch = () => false,
     models = [],
     normalizeConversationModel = () => null,
     normalizeCouncilConfig = (value) => value,
+    normalizeReasoningEffort = () => null,
     persistCouncilConfig = async () => {},
     renderInputIndicators = () => {},
+    renderSidebar = () => {},
     requestFrame = (callback) => callback(),
     saveAppData = async () => {},
+    saveConfig = async () => {},
     seedCouncilParticipants = () => {},
+    showCustomDialog = async () => true,
     showNotification = () => {}
   } = deps || {};
 
-  // Every submit runs this through the final-cleanup lifecycle, and it rebuilds the whole panel:
-  // the model catalogue twice, a forced layout read, and ~20 listener rebindings. In the common
-  // case the result is byte-identical to what is already on screen, so remember what was last
-  // written and skip the write when nothing would change.
-  //
-  // The remembered markup is the FULL string, including the popover's open state and any typed
-  // model search, both of which are read back from the live DOM on every call. Normalising those
-  // out would be faster on popover toggles but lets the cache disagree with the DOM whenever
-  // something closes the popover without re-rendering, so the full string is compared instead.
+  // What the panel is showing besides the conversation: which page of the
+  // panel (the main one, or a list to pick members / the combining model from),
+  // the search text, whether the extra options are open.
+  let view = 'main';
+  let query = '';
+  let moreOpen = false;
+
+  // Every submit runs this, and the answer is nearly always what is already on
+  // screen, so the last markup is remembered and written again only when it changes.
   let cachedContainer = null;
   let cachedConversation = null;
   let cachedMarkup = null;
-  const dropCouncilMarkupCache = () => {
+  const dropMarkupCache = () => {
     cachedContainer = null;
     cachedConversation = null;
     cachedMarkup = null;
   };
 
-  const renderCouncilControls = () => {
+  const isPanelOpen = (container) => Boolean(container?.querySelector('#model-picker-popover')?.classList.contains('visible'));
+
+  const describe = (model, { translations, t, selected = false, disabled = false }) => {
+    const tiers = getModelTiers(model) || [];
+    const base = model.descriptionKey;
+    const description = translations[base] || (tiers[0] ? translations[`${base}_tier_${tiers[0]}`] : '') || '';
+    return {
+      id: model.id,
+      name: model.name,
+      apiId: getModelApiId(model),
+      company: model.company || getModelCompany(model, getModelApiId(model)),
+      provider: model.provider,
+      providerLabel: getProviderLabel(model.provider),
+      abilities: [
+        modelSupportsVision(model) ? t('vision') : '',
+        modelSupportsDocumentUpload(model) ? t('documents') : (getSingleDocumentTranslatorModel() ? t('translatedDocuments') : ''),
+        modelSupportsWebSearch(model) ? t('search') : ''
+      ].filter(Boolean),
+      free: tiers.includes('free'),
+      retirement: getModelRetirementLabel(model) || '',
+      description,
+      selected,
+      disabled
+    };
+  };
+
+  const renderCouncilControls = ({ open: forceOpen = null } = {}) => {
     const fileInputContainer = getFileInputContainer();
-    const inputControls = fileInputContainer?.parentElement;
-    if (!inputControls) return;
+    const anchor = getComposerAnchor();
+    const parent = anchor?.parentElement || fileInputContainer?.parentElement;
+    if (!parent) return;
 
     let container = document.getElementById('model-council-control');
-    const existingPopover = container?.querySelector('#model-council-popover');
-    const wasVisible = existingPopover?.classList.contains('visible') || false;
-    const existingScrollArea = existingPopover?.querySelector('.council-popover-scroll-area');
-    const previousScrollTop = wasVisible ? (existingScrollArea?.scrollTop || 0) : 0;
-    const previousModelSearch = wasVisible
-      ? (existingPopover?.querySelector('[data-council-model-search]')?.value || '')
-      : '';
+    const existingPanel = container?.querySelector('#model-picker-popover');
+    const wasOpen = forceOpen ?? isPanelOpen(container);
+    const previousScroll = wasOpen ? (existingPanel?.querySelector('[data-mp-scroll]')?.scrollTop || 0) : 0;
+    const refocusSlider = wasOpen && document.activeElement?.matches?.('[data-mp-depth-input]');
 
     if (!container) {
       container = document.createElement('div');
       container.id = 'model-council-control';
+      bindEvents(container);
     }
-    if (container.parentElement !== inputControls || container.previousElementSibling !== fileInputContainer) {
+    // Next to the send controls; where there is no such button, after the attach button.
+    if (anchor && anchor.parentElement === parent) {
+      if (container.parentElement !== parent || container.nextElementSibling !== anchor) parent.insertBefore(container, anchor);
+    } else if (container.parentElement !== parent || container.previousElementSibling !== fileInputContainer) {
       fileInputContainer.insertAdjacentElement('afterend', container);
     }
 
     const conversation = getActiveConversation();
     if (!conversation) {
       container.innerHTML = '';
-      dropCouncilMarkupCache();
+      view = 'main';
+      query = '';
+      dropMarkupCache();
       return;
     }
     conversation.council = normalizeCouncilConfig(conversation.council);
     const config = getConfig();
-    if (config.isLearningMode && !conversation.council.enabled) {
-      container.innerHTML = '';
-      dropCouncilMarkupCache();
-      return;
-    }
-
+    const language = config.uiLanguage;
     const i18n = getI18n();
+    const translations = i18n[language] || i18n['zh-TW'] || {};
+    const t = (key, values) => modelPickerText(language, key, values);
     const texts = getCouncilTexts();
     const runtimeTexts = getCouncilRuntimeTexts();
-    const validation = getCouncilValidation(conversation);
-    const modelList = getCouncilModelList(conversation);
-    const selectedParticipants = getModelsByIds(conversation.council.participantModelIds);
-    const synthesizer = models.find((model) => model.id === conversation.council.synthesizerModelId);
-    const participantSummary = formatCouncilModelSummary(selectedParticipants, 2);
-    const isLocked = getIsCouncilRunning() && conversation.council.enabled;
-    const supportsCouncilSearch = hasCouncilWebSearchAccess(
-      synthesizer || normalizeConversationModel(conversation)
-    );
-    const language = config.uiLanguage;
-    const languageText = i18n[language] || {};
-    const localizedLabels = {
-      'zh-TW': { ability: '能力', document: '文件', noExtraAbility: '文字 / 文件', price: '價格', provider: '供應商', providerCount: '個供應商', searchModels: '搜尋模型', vision: '視覺' },
-      en: { ability: 'Capabilities', document: 'Documents', noExtraAbility: 'Text / file', price: 'Price', provider: 'Provider', providerCount: 'providers', searchModels: 'Search models', vision: 'Vision' },
-      fr: { ability: 'Fonctionnalités', document: 'Documents', noExtraAbility: 'Texte / fichier', price: 'Prix', provider: 'Fournisseur', providerCount: 'fournisseurs', searchModels: 'Rechercher des modèles', vision: 'Vision' },
-      ru: { ability: 'Возможности', document: 'Документы', noExtraAbility: 'Текст / файл', price: 'Цена', provider: 'Поставщик', providerCount: 'поставщика', searchModels: 'Поиск моделей', vision: 'Зрение' },
-      es: { ability: 'Capacidades', document: 'Documentos', noExtraAbility: 'Texto / archivo', price: 'Precio', provider: 'Proveedor', providerCount: 'proveedores', searchModels: 'Buscar modelos', vision: 'Visión' }
-    };
-    const labels = {
-      ...(localizedLabels[language] || localizedLabels['zh-TW']),
-      done: languageText.done || languageText.confirm || '完成',
-      search: languageText.search || '搜尋'
-    };
-    const statusText = conversation.council.enabled
-      ? (validation.ok
-        ? `${texts.ready} · ${selectedParticipants.length} · ${synthesizer?.name || texts.selectSynthesizer}`
-        : validation.message)
-      : texts.disabled;
-    const searchDisabled = isLocked || conversation.archived || !supportsCouncilSearch;
-    const searchTitle = supportsCouncilSearch
-      ? (conversation.isWebSearchEnabled ? runtimeTexts.searchEnabledNote : (languageText.search || 'Search'))
-      : (languageText.webSearchNotAvailable || 'Web search is not available for this model.');
+    const locked = getIsCouncilRunning() && conversation.council.enabled;
+    const image = isImageConversation(conversation);
+    const councilActive = conversation.council.enabled && !image;
+    if (!wasOpen && forceOpen !== true) view = 'main';
+    if (!councilActive && view !== 'main') view = 'main';
+    const showTabs = !image && !(config.isLearningMode && !conversation.council.enabled);
+    const archived = Boolean(conversation.archived);
 
-    const makeModelTooltip = (model) => {
-      const abilities = [
-        labels.noExtraAbility,
-        modelSupportsVision(model) ? labels.vision : '',
-        modelSupportsDocumentUpload(model) ? labels.document : '',
-        modelSupportsWebSearch(model) ? labels.search : ''
-      ].filter(Boolean).join(' · ');
-      return `${model.name}\n${labels.provider}: ${getProviderLabel(model.provider)}\n${labels.ability}: ${abilities}\n${labels.price}: ${getModelPriceLabel(model)}`;
+    const { betaModels, currentModel, visibleModels } = prepareModelSwitcherModels({
+      currentModelId: conversation.model,
+      getModelApiId,
+      getModelTiers,
+      modelSettings: config.modelSettings,
+      models
+    });
+    const context = { translations, t };
+    const state = {
+      open: wasOpen,
+      view,
+      query,
+      locked,
+      showTabs,
+      disabled: archived,
+      council: null,
+      councilBlocked: false,
+      groups: [],
+      pickGroups: [],
+      depth: null,
+      effortLabel: '',
+      modelName: currentModel?.name || '',
+      title: currentModel?.name || t('modelPicker')
     };
-    const renderModelMeta = (model) => `
-      <span class="council-model-badges">
-        ${modelSupportsVision(model) ? `<span class="council-capability-badge" title="${escapeHTML(labels.vision)}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>${escapeHTML(labels.vision)}</span>` : ''}
-        ${modelSupportsDocumentUpload(model) ? `<span class="council-capability-badge">${escapeHTML(labels.document)}</span>` : ''}
-        ${modelSupportsWebSearch(model) ? `<span class="council-capability-badge">${escapeHTML(labels.search)}</span>` : ''}
-      </span>
-      <small>${escapeHTML(getProviderLabel(model.provider))} · ${escapeHTML(labels.price)}: ${escapeHTML(getModelPriceLabel(model))}</small>
-    `;
-    const groups = Array.from(modelList.reduce((map, model) => {
-      const key = getModelFamilyKey(model);
-      if (!map.has(key)) map.set(key, { key, name: getModelFamilyName(model) || model.name, variants: [] });
-      map.get(key).variants.push(model);
-      return map;
-    }, new Map()).values())
-      .map((group) => ({
-        ...group,
-        variants: group.variants.sort((a, b) => {
-          const providerCompare = getProviderLabel(a.provider).localeCompare(getProviderLabel(b.provider));
-          return providerCompare || a.name.localeCompare(b.name);
-        })
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
 
-    const renderRow = (model, type) => {
-      const participant = type === 'participant';
-      const checked = conversation.council.participantModelIds.includes(model.id);
-      const selected = participant ? checked : conversation.council.synthesizerModelId === model.id;
-      const maxed = participant && !checked
-        && conversation.council.participantModelIds.length >= councilMaxModels;
-      const disabled = isLocked || maxed;
-      const searchText = `${model.name} ${getProviderLabel(model.provider)} ${getModelApiId(model)}`.toLowerCase();
-      return `
-        <label class="council-model-row ${selected ? 'selected' : ''} ${disabled ? 'is-disabled' : ''}" title="${escapeHTML(makeModelTooltip(model))}" data-council-search-text="${escapeHTML(searchText)}">
-          <input type="${participant ? 'checkbox' : 'radio'}" ${participant ? '' : 'name="council-synthesizer"'} ${participant ? `data-council-participant="${escapeHTML(model.id)}"` : `data-council-synthesizer="${escapeHTML(model.id)}"`} ${selected ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
-          <span><strong>${escapeHTML(model.name)}</strong>${renderModelMeta(model)}</span>
-        </label>
-      `;
-    };
-    const renderGroups = (type) => groups.map((group) => {
-      if (group.variants.length === 1) return renderRow(group.variants[0], type);
-      const providerNames = group.variants.map((model) => getProviderLabel(model.provider)).join(' · ');
-      return `
-        <div class="council-model-group" data-council-group-search-text="${escapeHTML(`${group.name} ${providerNames}`.toLowerCase())}">
-          <div class="council-model-family-row">
-            <span><strong>${escapeHTML(group.name)}</strong><small>${escapeHTML(String(group.variants.length))} ${escapeHTML(labels.providerCount)}</small></span>
-            <span class="council-family-provider-list">${escapeHTML(providerNames)}</span>
-          </div>
-          <div class="council-provider-variant-list">${group.variants.map((model) => renderRow(model, type)).join('')}</div>
-        </div>
-      `;
-    }).join('');
+    if (councilActive) {
+      const validation = getCouncilValidation(conversation);
+      const participants = getModelsByIds(conversation.council.participantModelIds);
+      const synthesizer = models.find((model) => model.id === conversation.council.synthesizerModelId);
+      const atMax = participants.length >= councilMaxModels;
+      state.council = {
+        count: participants.length,
+        members: participants.map((model) => ({ id: model.id, name: model.name })),
+        max: councilMaxModels,
+        canAdd: !atMax,
+        combinerName: synthesizer?.name || '',
+        combinerPlaceholder: texts.selectSynthesizer,
+        mode: conversation.council.mode,
+        moreOpen,
+        showRaw: Boolean(conversation.council.showRawResponses),
+        showComparison: Boolean(conversation.council.showComparisonTable),
+        searchAvailable: hasCouncilWebSearchAccess(synthesizer || normalizeConversationModel(conversation)) && !archived,
+        searchOn: Boolean(conversation.isWebSearchEnabled),
+        ok: validation.ok,
+        message: validation.ok ? `${texts.ready} · ${participants.length} · ${synthesizer?.name || ''}` : validation.message,
+        labels: {
+          consensus: texts.consensus,
+          deliberation: texts.deliberation,
+          rawNotes: texts.rawNotes,
+          comparison: runtimeTexts.comparisonToggle
+        }
+      };
+      state.title = `${texts.title} · ${participants.length}`;
+      if (view !== 'main') {
+        const list = getCouncilModelList(conversation);
+        const pickMembers = view === 'members';
+        state.pickGroups = buildModelGroups(list, {
+          decorate: (model) => describe(model, {
+            ...context,
+            selected: pickMembers
+              ? conversation.council.participantModelIds.includes(model.id)
+              : conversation.council.synthesizerModelId === model.id,
+            disabled: locked || (pickMembers && atMax && !conversation.council.participantModelIds.includes(model.id))
+          })
+        });
+      }
+    } else {
+      const listed = [...visibleModels.filter((model) => !model.isBeta), ...betaModels];
+      state.groups = buildModelGroups(listed, {
+        decorate: (model) => describe(model, { ...context, selected: model.id === currentModel?.id, disabled: archived }),
+        currentId: currentModel?.id,
+        currentLabel: t('current'),
+        betaLabel: t('beta')
+      });
+      const reasoning = currentModel ? getModelReasoningConfig(currentModel) : null;
+      if (reasoning?.options?.length > 1) {
+        const effort = normalizeReasoningEffort(currentModel, conversation.reasoningEffort);
+        const levels = reasoning.options.map((option) => ({ value: option, label: getReasoningEffortLabel(option, language) }));
+        const index = Math.max(0, levels.findIndex((level) => level.value === effort));
+        state.depth = { levels, index, defaultIndex: levels.findIndex((level) => level.value === reasoning.defaultEffort), disabled: archived };
+        state.effortLabel = levels[index].label;
+      }
+    }
 
-    const councilMarkup = `
-      <div class="model-council-bar ${conversation.council.enabled ? 'is-enabled' : ''} ${isLocked ? 'is-locked' : ''}">
-        <button type="button" id="model-council-toggle-btn" class="model-council-toggle" aria-expanded="${wasVisible ? 'true' : 'false'}" title="${escapeHTML(statusText)}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>
-          <span class="council-toggle-label">${texts.title}</span>
-          ${participantSummary ? `<span class="council-toggle-models">${escapeHTML(participantSummary)}</span>` : ''}
-          <span class="model-council-dot ${conversation.council.enabled ? (validation.ok ? 'ready' : 'warning') : 'off'}" aria-hidden="true"></span>
-        </button>
-        <div id="model-council-popover" class="popover model-council-popover ${wasVisible ? 'visible' : ''}">
-          <div class="council-popover-sticky-controls">
-            <div class="council-popover-header">
-              <div><h3 class="council-popover-title">${texts.title}</h3><p class="model-council-status ${validation.ok || !conversation.council.enabled ? '' : 'warning'}">${escapeHTML(statusText)}</p></div>
-              <button type="button" id="model-council-close-btn" class="council-popover-close" title="${escapeHTML(labels.done)}"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            </div>
-            <div class="council-popover-header compact council-config-row">
-              <div class="council-mode-cluster">
-                <button type="button" id="model-council-enabled" class="council-enable-pill ${conversation.council.enabled ? 'is-active' : ''}" aria-pressed="${conversation.council.enabled ? 'true' : 'false'}" ${isLocked ? 'disabled' : ''}>${texts.enable}</button>
-                <div class="council-mode-tabs">
-                  <button type="button" class="${conversation.council.mode === 'consensus' ? 'active' : ''}" data-council-mode="consensus" ${isLocked ? 'disabled' : ''}>${texts.consensus}</button>
-                  <button type="button" class="${conversation.council.mode === 'deliberation' ? 'active' : ''}" data-council-mode="deliberation" ${isLocked ? 'disabled' : ''}>${texts.deliberation}</button>
-                </div>
-              </div>
-              <div class="council-action-cluster">
-                <button type="button" id="model-council-search-toggle" class="council-search-toggle ${conversation.isWebSearchEnabled ? 'is-active' : ''}" aria-pressed="${conversation.isWebSearchEnabled ? 'true' : 'false'}" title="${escapeHTML(searchTitle)}" ${searchDisabled ? 'disabled' : ''}><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg><span>${escapeHTML(labels.search)}</span></button>
-                <label class="council-model-search-field" title="${escapeHTML(labels.searchModels)}"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg><input type="search" data-council-model-search value="${escapeHTML(previousModelSearch)}" placeholder="${escapeHTML(labels.searchModels)}" aria-label="${escapeHTML(labels.searchModels)}" autocomplete="off"></label>
-              </div>
-            </div>
-            ${isLocked ? `<p class="council-search-note is-locked">${escapeHTML(runtimeTexts.councilLocked)}</p>` : ''}
-          </div>
-          <div class="council-popover-scroll-area">
-            <div class="council-section"><div class="council-section-title">${texts.participants} (${selectedParticipants.length}/${councilMaxModels})</div><div class="council-model-list">${renderGroups('participant')}</div></div>
-            <div class="council-section"><div class="council-section-title">${texts.synthesizer}</div><div class="council-model-list">${renderGroups('synthesizer')}</div></div>
-            <div class="council-popover-bottom">
-              <label class="council-raw-row"><input type="checkbox" id="model-council-show-raw" ${conversation.council.showRawResponses ? 'checked' : ''} ${isLocked ? 'disabled' : ''}><span>${texts.rawNotes}</span></label>
-              <label class="council-raw-row"><input type="checkbox" id="model-council-show-comparison" ${conversation.council.showComparisonTable ? 'checked' : ''} ${isLocked ? 'disabled' : ''}><span>${runtimeTexts.comparisonToggle}</span></label>
-              <p class="council-validation ${validation.ok || !conversation.council.enabled ? '' : 'warning'}">${escapeHTML(conversation.council.enabled ? validation.message : texts.required)}</p>
-              <div class="council-popover-footer"><button type="button" id="model-council-done-btn" class="council-done-btn">${escapeHTML(labels.done)}</button></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Identity is checked alongside the markup: two conversations can render identically, and
-    // bailing then would leave the handlers below closed over the previous conversation object.
-    // existingPopover also catches the panel having been cleared or replaced from outside.
-    //
-    // The open/close handlers set aria-expanded straight on the node without re-rendering, so the
-    // panel can drift from the markup that produced it. Reusing it is only safe while it still
-    // agrees with what would be rendered now.
-    const existingToggle = container.querySelector('#model-council-toggle-btn');
-    const panelMatchesMarkup = existingToggle?.getAttribute('aria-expanded') === String(wasVisible);
+    const ctx = { t, escape: escapeHTML };
+    const markup = `${renderPickerTrigger(state, ctx)}${renderPickerPanel(state, ctx)}`;
+    // The panel can be closed from outside (a click elsewhere) without a render, so
+    // what is on screen is only reused while it still agrees with what would be drawn.
+    const screenMatches = isPanelOpen(container) === wasOpen
+      && container.querySelector('#model-picker-btn')?.getAttribute('aria-expanded') === String(wasOpen);
     if (
-      existingPopover
-      && panelMatchesMarkup
+      existingPanel
+      && screenMatches
       && cachedContainer === container
       && cachedConversation === conversation
-      && cachedMarkup === councilMarkup
+      && cachedMarkup === markup
     ) {
       return;
     }
-    container.innerHTML = councilMarkup;
+    container.innerHTML = markup;
     cachedContainer = container;
     cachedConversation = conversation;
-    cachedMarkup = councilMarkup;
+    cachedMarkup = markup;
 
-    const popover = container.querySelector('#model-council-popover');
-    const scrollArea = container.querySelector('.council-popover-scroll-area');
-    const toggleButton = container.querySelector('#model-council-toggle-btn');
-    const updateStickyOffset = () => {
-      const stickyControls = popover.querySelector('.council-popover-sticky-controls');
-      popover.style.setProperty('--council-sticky-offset', `${stickyControls?.offsetHeight || 0}px`);
-    };
-    requestFrame(updateStickyOffset);
-    if (wasVisible) requestFrame(() => {
-      if (scrollArea) scrollArea.scrollTop = previousScrollTop;
-      updateStickyOffset();
+    applySearch(container);
+    const scroller = container.querySelector('[data-mp-scroll]');
+    if (scroller && previousScroll) scroller.scrollTop = previousScroll;
+    if (refocusSlider) container.querySelector('[data-mp-depth-input]')?.focus();
+  };
+
+  const applySearch = (container) => {
+    const needle = query.trim().toLowerCase();
+    const panel = container.querySelector('#model-picker-popover');
+    if (!panel) return;
+    let shown = 0;
+    panel.querySelectorAll('[data-mp-group]').forEach((group) => {
+      let any = false;
+      group.querySelectorAll('[data-mp-search-text]').forEach((row) => {
+        const match = !needle || (row.dataset.mpSearchText || '').includes(needle);
+        row.hidden = !match;
+        any ||= match;
+      });
+      group.hidden = !any;
+      if (any) shown += 1;
+    });
+    const empty = panel.querySelector('[data-mp-empty]');
+    if (empty) empty.hidden = shown > 0;
+  };
+
+  const notifyLocked = (container) => {
+    showNotification(getCouncilRuntimeTexts().councilLocked, 'warning');
+    renderCouncilControls();
+    return container;
+  };
+
+  const setPanelOpen = (container, open) => {
+    const panel = container.querySelector('#model-picker-popover');
+    const button = container.querySelector('#model-picker-btn');
+    if (!panel || !button) return;
+    closeAllPopovers();
+    if (open) {
+      view = 'main';
+      query = '';
+      renderCouncilControls({ open: true });
+      const search = container.querySelector('[data-mp-search]');
+      const coarse = document.defaultView?.matchMedia?.('(pointer: coarse)')?.matches;
+      if (search && !coarse) requestFrame(() => search.focus({ preventScroll: true }));
+    } else {
+      panel.classList.remove('visible');
+      button.setAttribute('aria-expanded', 'false');
+    }
+  };
+
+  const chooseModel = async (modelId) => {
+    const conv = getActiveConversation();
+    const config = getConfig();
+    if (!conv || conv.archived) return false;
+    const info = models.find((model) => model.id === modelId);
+    if (!info) return false;
+    const translations = getI18n()[config.uiLanguage] || {};
+    const acknowledged = Array.isArray(config.acknowledgedStealthModelTerms) ? config.acknowledgedStealthModelTerms : [];
+    const acknowledgementId = info.stealthTermsAcknowledgementId || info.id;
+    if (info.requiresStealthTermsAcknowledgement && !acknowledged.includes(acknowledgementId)) {
+      const placeholder = '{termsLink}';
+      const template = translations.stealthModelTermsMessage || 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.';
+      const linkText = translations.stealthModelTermsLink || 'Stealth Model Terms(opens in new tab)';
+      const at = template.indexOf(placeholder);
+      const messageParts = at === -1
+        ? [template]
+        : [template.slice(0, at), { text: linkText, href: 'https://openrouter.ai/terms/stealth' }, template.slice(at + placeholder.length)];
+      const accepted = await showCustomDialog({
+        title: translations.stealthModelTermsTitle || 'Stealth model terms',
+        messageParts,
+        buttons: [
+          { text: translations.cancel || 'Cancel', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false },
+          { text: translations.confirm || 'Confirm', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
+        ]
+      });
+      if (!accepted) return false;
+      config.acknowledgedStealthModelTerms = [...acknowledged, acknowledgementId];
+    }
+    conv.model = info.id;
+    conv.provider = info.provider;
+    const defaultEffort = getModelReasoningConfig(info) ? normalizeReasoningEffort(info, null) : null;
+    if (defaultEffort) conv.reasoningEffort = defaultEffort;
+    else delete conv.reasoningEffort;
+    if (info.outputModality === 'image' && conv.council) conv.council.enabled = false;
+    config.lastUsedModel = modelId;
+    await saveAppData();
+    await saveConfig();
+    renderSidebar();
+    renderInputIndicators();
+    return true;
+  };
+
+  const DEPTH_KEYS = Object.freeze({ ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, Home: 'first', End: 'last' });
+
+  // Draws the thumb, the fill and the name at a position between 0 and the last level.
+  const paintDepth = (input, position, { tick = false } = {}) => {
+    const wrap = input.closest('[data-mp-slider]');
+    if (tick && wrap && wrap.dataset.mpLevel !== undefined && Number(wrap.dataset.mpLevel) !== position) {
+      try { document.defaultView?.navigator?.vibrate?.(6); } catch { /* no haptics here */ }
+    }
+    if (wrap) wrap.dataset.mpLevel = String(position);
+    const last = Math.max(1, Number(input.max));
+    wrap?.style.setProperty('--mp-p', String(Math.min(1, Math.max(0, position / last))));
+    const labels = JSON.parse(input.closest('[data-mp-depth]')?.dataset.mpLabels || '[]');
+    const label = labels[Math.min(labels.length - 1, Math.max(0, Math.round(position)))];
+    if (label === undefined) return null;
+    const value = input.closest('[data-mp-depth]')?.querySelector('[data-mp-depth-value]');
+    if (value) value.textContent = label;
+    input.setAttribute('aria-valuetext', label);
+    return label;
+  };
+
+  // Lands on a level: the choice is saved without redrawing the panel, which would cut the
+  // thumb's short move to that dot.
+  const commitDepth = async (container, input, index) => {
+    input.value = String(index);
+    const label = paintDepth(input, index);
+    const conv = getActiveConversation();
+    const info = conv ? normalizeConversationModel(conv) : null;
+    const options = getModelReasoningConfig(info)?.options || [];
+    const chosen = normalizeReasoningEffort(info, options[index]);
+    if (!conv || !chosen || chosen === normalizeReasoningEffort(info, conv.reasoningEffort)) return;
+    conv.reasoningEffort = chosen;
+    const effort = container.querySelector('.mp-trigger-effort');
+    if (effort && label) effort.textContent = label;
+    await saveAppData();
+  };
+
+  function bindEvents(container) {
+    container.addEventListener('click', async (event) => {
+      const target = event.target.closest?.('button, [data-mp-tab]');
+      if (!target || !container.contains(target)) return;
+      // Clicks here redraw the panel, which removes the clicked button before the page's
+      // "click outside closes popovers" handler looks for it inside the picker.
+      event.stopPropagation();
+      const conv = getActiveConversation();
+      if (!conv) return;
+
+      if (target.id === 'model-picker-btn') {
+        event.preventDefault();
+        if (target.disabled) return;
+        setPanelOpen(container, !isPanelOpen(container));
+        return;
+      }
+      if (target.dataset.mpTab) {
+        const wantCouncil = target.dataset.mpTab === 'council';
+        conv.council = normalizeCouncilConfig(conv.council);
+        if (conv.council.enabled === wantCouncil) return;
+        if (getIsCouncilRunning()) { notifyLocked(container); return; }
+        conv.council.enabled = wantCouncil;
+        if (wantCouncil) seedCouncilParticipants(conv);
+        view = 'main';
+        query = '';
+        await persistCouncilConfig(conv);
+        renderCouncilControls();
+        if (wantCouncil && !conv.isWebSearchEnabled) showNotification(getCouncilRuntimeTexts().searchManualNotice, 'warning');
+        return;
+      }
+      if (target.dataset.mpModel) {
+        if (await chooseModel(target.dataset.mpModel)) {
+          container.querySelector('#model-picker-popover')?.classList.remove('visible');
+          container.querySelector('#model-picker-btn')?.setAttribute('aria-expanded', 'false');
+          renderCouncilControls({ open: false });
+        }
+        return;
+      }
+      if (target.dataset.mpOpen) {
+        view = target.dataset.mpOpen;
+        query = '';
+        renderCouncilControls({ open: true });
+        return;
+      }
+      if ('mpBack' in target.dataset) {
+        view = 'main';
+        query = '';
+        renderCouncilControls({ open: true });
+        return;
+      }
+      if (target.dataset.mpRemove) {
+        if (getIsCouncilRunning()) { notifyLocked(container); return; }
+        conv.council.participantModelIds = conv.council.participantModelIds.filter((id) => id !== target.dataset.mpRemove);
+        await persistCouncilConfig(conv);
+        return;
+      }
+      if (target.dataset.mpMode) {
+        if (getIsCouncilRunning()) { notifyLocked(container); return; }
+        conv.council.mode = target.dataset.mpMode;
+        await persistCouncilConfig(conv);
+      }
     });
 
-    const closePopover = () => {
-      popover.classList.remove('visible');
-      toggleButton.setAttribute('aria-expanded', 'false');
-    };
-    const searchInput = container.querySelector('[data-council-model-search]');
-    const applySearch = () => {
-      const query = (searchInput?.value || '').trim().toLowerCase();
-      container.querySelectorAll('.council-model-list > .council-model-row[data-council-search-text]')
-        .forEach((row) => { row.hidden = !!query && !(row.dataset.councilSearchText || '').includes(query); });
-      container.querySelectorAll('.council-model-group').forEach((group) => {
-        const groupMatches = !!query && (group.dataset.councilGroupSearchText || '').includes(query);
-        let visible = false;
-        group.querySelectorAll('.council-model-row[data-council-search-text]').forEach((row) => {
-          const matches = !query || groupMatches || (row.dataset.councilSearchText || '').includes(query);
-          row.hidden = !matches;
-          visible ||= matches;
-        });
-        group.hidden = !!query && !groupMatches && !visible;
-      });
-    };
-    searchInput?.addEventListener('input', applySearch);
-    applySearch();
-    toggleButton.addEventListener('click', () => {
-      const visible = popover.classList.contains('visible');
-      closeAllPopovers();
-      popover.classList.toggle('visible', !visible);
-      if (!visible) requestFrame(() => { if (scrollArea) scrollArea.scrollTop = 0; });
-      toggleButton.setAttribute('aria-expanded', String(!visible));
-    });
-    container.querySelector('#model-council-close-btn').addEventListener('click', closePopover);
-    container.querySelector('#model-council-done-btn').addEventListener('click', closePopover);
-    container.querySelector('#model-council-enabled').addEventListener('click', async () => {
-      if (getIsCouncilRunning()) {
-        showNotification(runtimeTexts.councilLocked, 'warning');
-        renderCouncilControls();
-        return;
-      }
-      conversation.council.enabled = !conversation.council.enabled;
-      if (conversation.council.enabled) seedCouncilParticipants(conversation);
-      await persistCouncilConfig(conversation);
-      renderCouncilControls();
-      if (conversation.council.enabled && !conversation.isWebSearchEnabled) {
-        showNotification(runtimeTexts.searchManualNotice, 'warning');
-      }
-    });
-    container.querySelector('#model-council-search-toggle')?.addEventListener('click', async () => {
-      if (getIsCouncilRunning()) {
-        showNotification(runtimeTexts.councilLocked, 'warning');
-        renderCouncilControls();
-        return;
-      }
-      if (!supportsCouncilSearch || conversation.archived) {
-        showNotification(languageText.webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
-        return;
-      }
-      conversation.isWebSearchEnabled = !conversation.isWebSearchEnabled;
-      await saveAppData();
-      renderCouncilControls();
-      renderInputIndicators();
-    });
-    container.querySelectorAll('[data-council-mode]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        if (getIsCouncilRunning()) {
-          showNotification(runtimeTexts.councilLocked, 'warning');
-          return;
-        }
-        conversation.council.mode = button.dataset.councilMode;
-        await persistCouncilConfig(conversation);
-        renderCouncilControls();
-      });
-    });
-    container.querySelectorAll('[data-council-participant]').forEach((input) => {
-      input.addEventListener('change', async () => {
-        if (getIsCouncilRunning()) {
-          showNotification(runtimeTexts.councilLocked, 'warning');
-          renderCouncilControls();
-          return;
-        }
-        const nextIds = new Set(conversation.council.participantModelIds);
+    container.addEventListener('change', async (event) => {
+      const input = event.target;
+      const conv = getActiveConversation();
+      if (!conv || !input?.matches) return;
+      conv.council = normalizeCouncilConfig(conv.council);
+      const guarded = () => {
+        if (!getIsCouncilRunning()) return false;
+        notifyLocked(container);
+        return true;
+      };
+      if (input.matches('[data-mp-member]')) {
+        if (guarded()) return;
+        const ids = new Set(conv.council.participantModelIds);
         if (input.checked) {
-          if (nextIds.size >= councilMaxModels) {
-            showNotification(texts.tooMany, 'warning');
+          if (ids.size >= councilMaxModels) {
+            showNotification(getCouncilTexts().tooMany, 'warning');
             renderCouncilControls();
             return;
           }
-          nextIds.add(input.dataset.councilParticipant);
+          ids.add(input.dataset.mpMember);
         } else {
-          nextIds.delete(input.dataset.councilParticipant);
+          ids.delete(input.dataset.mpMember);
         }
-        conversation.council.participantModelIds = Array.from(nextIds);
-        await persistCouncilConfig(conversation);
-      });
-    });
-    container.querySelectorAll('[data-council-synthesizer]').forEach((input) => {
-      input.addEventListener('change', async () => {
-        if (getIsCouncilRunning()) {
-          showNotification(runtimeTexts.councilLocked, 'warning');
-          renderCouncilControls();
-          return;
-        }
-        if (!input.checked) return;
-        conversation.council.synthesizerModelId = input.dataset.councilSynthesizer;
-        await persistCouncilConfig(conversation);
-      });
-    });
-    container.querySelector('#model-council-show-raw').addEventListener('change', async (event) => {
-      if (getIsCouncilRunning()) {
-        showNotification(runtimeTexts.councilLocked, 'warning');
+        conv.council.participantModelIds = [...ids];
+        await persistCouncilConfig(conv);
+      } else if (input.matches('[data-mp-combiner]')) {
+        if (guarded() || !input.checked) return;
+        conv.council.synthesizerModelId = input.dataset.mpCombiner;
+        view = 'main';
+        query = '';
+        await persistCouncilConfig(conv);
         renderCouncilControls();
+      } else if (input.matches('[data-mp-raw]')) {
+        if (guarded()) return;
+        conv.council.showRawResponses = input.checked;
+        await persistCouncilConfig(conv);
+      } else if (input.matches('[data-mp-comparison]')) {
+        if (guarded()) return;
+        conv.council.showComparisonTable = input.checked;
+        await persistCouncilConfig(conv);
+      } else if (input.matches('[data-mp-search-toggle]')) {
+        if (guarded()) return;
+        conv.isWebSearchEnabled = input.checked;
+        await saveAppData();
+        renderCouncilControls();
+        renderInputIndicators();
+      } else if (input.matches('[data-mp-depth-input]')) {
+        // Let go: the thumb settles on the nearest dot and that level is kept.
+        await commitDepth(container, input, Math.round(Number(input.value)));
+      }
+    });
+
+    container.addEventListener('input', (event) => {
+      const input = event.target;
+      if (input?.matches?.('[data-mp-search]')) {
+        query = input.value;
+        applySearch(container);
+      } else if (input?.matches?.('[data-mp-depth-input]')) {
+        // It goes to the nearest dot at once, with a tick where the hardware has one.
+        paintDepth(input, Math.round(Number(input.value)), { tick: true });
+      }
+    });
+
+    container.addEventListener('toggle', (event) => {
+      if (event.target?.matches?.('.mp-more')) moreOpen = Boolean(event.target.open);
+    }, true);
+
+    container.addEventListener('keydown', (event) => {
+      if (event.target?.matches?.('[data-mp-depth-input]') && DEPTH_KEYS[event.key]) {
+        event.preventDefault();
+        const input = event.target;
+        const last = Math.max(1, Number(input.max));
+        const current = Math.round(Number(input.value));
+        const step = DEPTH_KEYS[event.key];
+        commitDepth(container, input, step === 'first' ? 0 : step === 'last' ? last : Math.min(last, Math.max(0, current + step)));
         return;
       }
-      conversation.council.showRawResponses = event.target.checked;
-      await persistCouncilConfig(conversation);
-    });
-    container.querySelector('#model-council-show-comparison').addEventListener('change', async (event) => {
-      if (getIsCouncilRunning()) {
-        showNotification(runtimeTexts.councilLocked, 'warning');
-        renderCouncilControls();
-        return;
+      if (event.key === 'Escape' && isPanelOpen(container)) {
+        if (event.target?.matches?.('[data-mp-search]') && event.target.value) {
+          event.target.value = '';
+          query = '';
+          applySearch(container);
+        } else {
+          setPanelOpen(container, false);
+          container.querySelector('#model-picker-btn')?.focus();
+        }
+        event.stopPropagation();
       }
-      conversation.council.showComparisonTable = event.target.checked;
-      await persistCouncilConfig(conversation);
     });
+  }
+
+  // Opens the panel on the council page (the attachment menu's "Model council").
+  const openModelPicker = async ({ council = false } = {}) => {
+    renderCouncilControls();
+    const container = document.getElementById('model-council-control');
+    const conv = getActiveConversation();
+    if (!container || !conv) return false;
+    conv.council = normalizeCouncilConfig(conv.council);
+    if (council && !conv.council.enabled && !isImageConversation(conv)) {
+      if (getIsCouncilRunning()) return false;
+      conv.council.enabled = true;
+      seedCouncilParticipants(conv);
+      await persistCouncilConfig(conv);
+    }
+    closeAllPopovers();
+    view = 'main';
+    query = '';
+    renderCouncilControls({ open: true });
+    return true;
   };
 
-  return { renderCouncilControls };
+  return { renderCouncilControls, openModelPicker };
 }
