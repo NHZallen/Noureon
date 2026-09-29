@@ -93,11 +93,25 @@ export function createSandboxLiveElement(document) {
   const line = element(document, 'div', 'sandbox-run-live-line');
   line.append(element(document, 'span', 'sandbox-run-spinner'), element(document, 'span', 'sandbox-run-live-text'));
   container.append(line);
+  // The wait for each step is counted, so a slow model or a long run does not look stuck.
+  const text = container.querySelector('.sandbox-run-live-text');
+  let label = '';
+  let since = Date.now();
+  const draw = () => {
+    const seconds = Math.floor((Date.now() - since) / 1000);
+    text.textContent = seconds >= 4 ? `${label} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : label;
+  };
+  const ticker = document.defaultView?.setInterval?.(draw, 1000);
   return {
     element: container,
     update(statusText) {
-      container.querySelector('.sandbox-run-live-text').textContent = statusText;
+      label = statusText;
+      since = Date.now();
+      draw();
     },
-    remove: () => container.remove()
+    remove() {
+      if (ticker) document.defaultView.clearInterval(ticker);
+      container.remove();
+    }
   };
 }

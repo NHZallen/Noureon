@@ -62,6 +62,11 @@ export async function runSandboxReply({
   designs = {},
   onStatus = () => {}
 }) {
+  // The model's name in the status lines, so the wait says who is working.
+  const model = requestOptions.modelInfo?.name || requestOptions.modelInfo?.id || 'AI';
+  const say = (key, values = {}) => onStatus(sandboxText(language, key, { model, ...values }));
+  // What the last round of runs came to: the next status says what happens next.
+  let outcome = null;
   const run = { status: RUN_STATUS.running, steps: [], fallback: null };
   const toolTurns = [];
   let text = '';
@@ -104,6 +109,10 @@ export async function runSandboxReply({
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;
     let response = null;
     emit.continuing = false;
+    if (!toolTurns.length) say('sandboxAsking');
+    else if (outcome?.failed) say('sandboxFixing');
+    else if (outcome?.files) say('sandboxContinuedFiles', { count: outcome.files });
+    else say('sandboxThinking');
     const options = {
       ...requestOptions,
       tools: canRun ? [RUN_PYTHON_TOOL] : [],
@@ -197,10 +206,15 @@ export async function runSandboxReply({
     }
     toolTurns.push({ assistant: response, results });
     if (signal?.aborted || run.steps.some((step) => step.stopped)) break;
-    onStatus(sandboxText(language, 'sandboxThinking'));
+    const latest = run.steps.slice(-calls.length);
+    outcome = { failed: latest.some((step) => step.error), files: latest.reduce((sum, step) => sum + step.files.length, 0) };
   }
 
   if (signal?.aborted || run.steps.some((step) => step.stopped)) run.status = RUN_STATUS.stopped;
-  else run.status = RUN_STATUS.done;
+  else {
+    run.status = RUN_STATUS.done;
+    // The files are still being embedded and saved after this returns.
+    if (run.steps.length) say('sandboxFinishing');
+  }
   return { text, run: run.steps.length || run.fallback ? run : null };
 }

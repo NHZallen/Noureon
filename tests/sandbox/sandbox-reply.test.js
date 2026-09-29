@@ -216,3 +216,29 @@ test('the run row opens to each step, and a switch to Standard is one grey line'
     cleanup();
   }
 });
+
+test('the wait says who is working and what happens next, in the model\'s name', async () => {
+  const model = scriptedModel([
+    { calls: [call('c1', 'boom()')] },
+    { calls: [call('c2', 'ok()')] },
+    { text: 'Done.' }
+  ]);
+  const results = [
+    { stdout: '', stderr: '', error: 'NameError', files: [], elapsedMs: 1 },
+    { stdout: '', stderr: '', error: null, files: [{ name: 'a.csv', size: 3 }], elapsedMs: 1 }
+  ];
+  const { sandbox } = fakeSandbox(results);
+  const statuses = [];
+  await runSandboxReply({
+    streamApiCall: model.streamApiCall,
+    requestParts: [],
+    requestOptions: { modelInfo: { name: 'Gemini' } },
+    getSandbox: () => sandbox,
+    language: 'en',
+    onStatus: (status) => statuses.push(status)
+  });
+  assert.equal(statuses[0], 'Gemini is thinking and writing code…', 'shown at once, before the first answer');
+  assert.ok(statuses.includes('The code failed; Gemini is fixing it…'));
+  assert.ok(statuses.includes('1 file(s) made; Gemini is continuing…'));
+  assert.equal(statuses.at(-1), 'Preparing the files…');
+});
