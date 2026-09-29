@@ -6,6 +6,7 @@ import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, withoutDuplicatedFileBlocks } from '../../ui/sandbox/sandbox-files.js';
 import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
+import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
 
 // Advanced mode (Python in the browser) is loaded only for replies that use it.
 const loadSandboxReply = () => Promise.all([
@@ -153,6 +154,24 @@ export function createSingleModelResponseLifecycle({
       return liveRun;
     };
     const showRunStatus = () => {};
+    // A reply without Python shows the model's thinking above the answer, as it streams,
+    // and folds it when the answer starts.
+    let thinkingBlock = null;
+    let thought = { text: '', kind: 'raw', startedAt: null, endedAt: null };
+    const showThinking = (chunk, kind) => {
+      if (!chunk) return;
+      thought.startedAt ??= now();
+      thought = { ...thought, text: (thought.text + chunk).slice(0, 12_000), kind: kind || thought.kind };
+      if (!thinkingBlock && targetElement.parentElement) {
+        thinkingBlock = createThinkingBlock({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, now });
+      }
+      thinkingBlock?.add(chunk, kind);
+    };
+    // The answer has started: the thinking is over.
+    const endThinking = () => {
+      if (thought.startedAt !== null) thought.endedAt ??= now();
+      thinkingBlock?.collapse();
+    };
     const runApiStream = replyMode.advanced
       ? async (onChunk) => {
         const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
@@ -181,7 +200,10 @@ export function createSingleModelResponseLifecycle({
         sandboxDocuments = sandboxDocumentBlocks(result.run);
         return withoutDuplicatedFileBlocks(result.text, sandboxParts.map((part) => part.sandboxFile.name));
       }
-      : (onChunk) => streamApiCall(requestParts, onChunk, signal, false, streamOptions);
+      : (onChunk) => streamApiCall(requestParts, (chunk) => {
+        endThinking();
+        onChunk(chunk);
+      }, signal, false, { ...streamOptions, onReasoning: showThinking });
 
     let fullResponse;
     let responseRenderedInRealtime = false;
@@ -227,6 +249,12 @@ export function createSingleModelResponseLifecycle({
     } finally {
       stop();
       liveRun?.remove();
+      // What was thought is kept with the reply (the run record), so it is still there after a reload.
+      endThinking();
+      thinkingBlock?.remove();
+      if (thought.text && !replyMode.advanced) {
+        sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt };
+      }
     }
 
     if (!String(fullResponse || '').trim() && !sandboxRun?.steps?.length) {

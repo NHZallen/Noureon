@@ -905,16 +905,19 @@ CSP 是主要的防線。另外在執行模型的程式之前，Worker 還會做
 - **這是我從截圖推斷的原因，沒有拿到那段對話重現。** 處理：進階模式回覆裡，與 Python 存下的檔案同名的檔案區塊會從答案裡拿掉（`withoutDuplicatedFileBlocks`），一般回覆與看圖檢查的重做回覆都套用。
 - 如果還會出現，請提供那則訊息的原始文字，我再查是不是別的來源。
 
-### 3. 顯示 AI 的思考（使用者要求：不要思考摘要，重新整理後還要在）
+### 3. 顯示 AI 的思考（所有對話，只要模型支援思考）
 
-- **各供應商調查**（官方文件與社群回報，沒有用真實金鑰逐一實測）：
-  - **Gemini**：API 只提供「思考摘要」，完整思考不公開，也可能只有簽章沒有摘要。→ 不顯示；不再要求 `includeThoughts`。
-  - **OpenRouter**：依模型而定。DeepSeek、GLM、Kimi、MiniMax 這類開放權重模型回傳原始思考文字（`reasoning` 與 `reasoning_details` 的 `reasoning.text`）；Claude 預設回傳「摘要」；OpenAI 系列不回傳思考文字；Grok 沒有資料證明會回傳。→ 只顯示前一類，Claude、OpenAI、Google、xAI 開頭的模型不顯示（`modelStreamsRawThinking`）。
-  - **NVIDIA NIM**：推理模型串流 `reasoning_content`，但社群回報要在請求根層加 `chat_template_kwargs: { enable_thinking: true, thinking: true }` 才穩定（沒有時思考會被丟掉、DeepSeek V4 甚至會卡住）。app 目前只送 `reasoning_effort`，**尚未加**；而 NVIDIA 的模型都在「不支援工具呼叫」清單裡，進階模式不會用到，所以這個改動等標準模式也要顯示思考時再做。
-- `stream-api-call.js` 的 `onReasoning`（思考）與 `onToolArguments`（正在寫的程式碼）兩個回呼；OpenRouter、NVIDIA 的 `reasoning`、`reasoning_content`、`reasoning_details` 任一個有就回報（同一段只一次）；`partialJsonString` 從還沒收完的 JSON 讀出目前寫到哪裡的 `code`。
-- **步驟清單**：「思考並撰寫程式」那一列展開就是串流的思考，下方是程式碼一邊寫一邊長；開始執行時草稿收掉，思考留在「思考完成 ›」後面。看圖檢查的「看圖」那一列也一樣。
-- **重新整理後還在**：思考存進回覆開頭的執行紀錄（`noureon-run` 區塊）：每一輪思考放在它引出的那次執行（`steps[].thought`），最後一輪放在 `run.thought`；每輪最多保留前 6,000 字、整則回覆 30,000 字。展開「已執行程式 N 次」後，每次執行上方有「思考過程」，最後有一段。給模型的歷史仍只有一行摘要，不含思考。
-- **沒存的**：看圖檢查「看圖」那一步的思考（只在畫面上）；沒有執行 Python 的一般回覆（標準模式）沒有思考顯示。
+使用者的要求（第二次澄清）：不只進階模式，**任何對話**，只要模型支援思考，就顯示思考摘要或思考；重新整理後還要在。
+
+- **各供應商能給什麼**（官方文件與社群回報，沒有用真實金鑰逐一實測）：
+  - **Gemini**：只有「思考摘要」，完整思考不公開；要求 `includeThoughts` 才會送，也可能整段沒有摘要。
+  - **OpenRouter**：DeepSeek、GLM、Kimi、MiniMax 等開放權重模型送思考原文（`reasoning`、`reasoning_details` 的 `reasoning.text`）；Claude 預設送摘要；OpenAI 系列不送思考文字。
+  - **NVIDIA NIM**：推理模型串流 `reasoning_content`，但要在請求根層加 `chat_template_kwargs: { enable_thinking: true, thinking: true }` 才穩定（沒加會被丟掉，DeepSeek V4 甚至卡住）。已加在有推理設定的 NVIDIA 模型請求上。
+- `stream-api-call.js`：`onReasoning(text, kind)` 與 `onToolArguments`；`kind` 是 `raw`（模型自己的思考）或 `summary`（供應商給的摘要；Gemini、Anthropic、OpenAI、Google 開頭的模型），畫面照實標示為「思考過程」或「思考摘要」。Gemini 只有在有人聽的時候才要求摘要。
+- **一般對話**（`single-model-response-lifecycle.js`、`thinking-block.js`）：第一段思考出現時，訊息裡答案上方出現「正在思考……」一行（流光、計時），展開就是串流的思考；答案開始後收成「思考摘要 · 12 秒 ›」（或「思考過程」）。**bold** 標題照粗體畫，其他一律當純文字。
+- **進階模式**：思考在步驟清單的那一列（見上）；沒有執行 Python 的進階回覆也保留思考。
+- **重新整理後還在**：存進回覆開頭的執行紀錄（`noureon-run`）：`thought`、`thoughtKind`、`thoughtMs`；有 Python 的回覆，每一輪思考放在它引出的那次執行（`steps[].thought`），最後一輪放在 `run.thought`。每輪最多前 6,000 字、整則 30,000 字；一般對話的即時畫面最多 12,000 字。給模型的歷史、記憶、搜尋、標題仍然拿不到它（執行紀錄本來就被拿掉）。
+- **沒做的**：模型理事會、圖片生成的回覆；看圖檢查「看圖」那一步的思考（只在畫面上）；模型沒送思考（例如 OpenAI 系列、或該模型關掉推理）就沒有東西可以顯示，也不會出現這一行。
 
 ### 順帶修的
 

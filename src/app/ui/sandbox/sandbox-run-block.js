@@ -59,6 +59,8 @@ export function normalizeSandboxRun(run = {}) {
     status,
     steps,
     ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),
+    ...(run.thought && run.thoughtKind === 'summary' ? { thoughtKind: 'summary' } : {}),
+    ...(run.thought && Number(run.thoughtMs) > 0 ? { thoughtMs: Math.round(Number(run.thoughtMs)) } : {}),
     ...(run.fallback ? { fallback: String(run.fallback) } : {})
   };
 }

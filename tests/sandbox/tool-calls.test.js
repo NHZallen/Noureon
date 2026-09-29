@@ -6,7 +6,7 @@ import {
   applyOpenAiTools,
   createGeminiCollector,
   createOpenAiCollector,
-  modelStreamsRawThinking,
+  modelThinkingKind,
   partialJsonString
 } from '../../src/app/legacy-runtime/features/tool-call-formats.js';
 import { RUN_PYTHON_TOOL } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
@@ -113,12 +113,9 @@ test('the thinking and the code being written are reported as they stream, which
   assert.deepEqual(args, ['{"code":"pri', '{"code":"print(1)"}']);
 });
 
-test('only models that stream their own thinking show it', () => {
-  assert.equal(modelStreamsRawThinking('openrouter', 'deepseek/deepseek-v4.1-flash'), true);
-  assert.equal(modelStreamsRawThinking('openrouter', 'z-ai/glm-5.3'), true);
-  assert.equal(modelStreamsRawThinking('openrouter', 'moonshotai/kimi-k3'), true);
-  assert.equal(modelStreamsRawThinking('openrouter', 'minimax/minimax-m3'), true);
-  assert.equal(modelStreamsRawThinking('nvidia', 'moonshotai/kimi-k3'), true);
-  for (const id of ['anthropic/claude-opus-5.5', 'openai/gpt-6-luna', 'google/gemini-3.1-flash-image', 'x-ai/grok-4.6']) assert.equal(modelStreamsRawThinking('openrouter', id), false, id);
-  assert.equal(modelStreamsRawThinking('gemini', 'gemini-3.8-flash'), false);
+test('the thinking is labelled as the model itself or as the summary its provider gives', () => {
+  for (const id of ['deepseek/deepseek-v4.1-flash', 'z-ai/glm-5.3', 'moonshotai/kimi-k3', 'minimax/minimax-m3', 'x-ai/grok-4.6']) assert.equal(modelThinkingKind('openrouter', id), 'raw', id);
+  assert.equal(modelThinkingKind('nvidia', 'moonshotai/kimi-k3'), 'raw');
+  for (const id of ['anthropic/claude-opus-5.5', 'openai/gpt-6-luna', 'google/gemini-3.1-flash-image']) assert.equal(modelThinkingKind('openrouter', id), 'summary', id);
+  assert.equal(modelThinkingKind('gemini', 'gemini-3.8-flash'), 'summary');
 });

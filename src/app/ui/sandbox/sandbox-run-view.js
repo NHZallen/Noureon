@@ -5,6 +5,7 @@
 // current step instead.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { fillThinkingText } from '../thinking/thinking-text.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
 
 const element = (document, tag, className, text) => {
@@ -25,7 +26,9 @@ const formatSeconds = (language, ms) => sandboxText(language, 'sandboxSeconds', 
 // What the model thought before the run, folded behind one line.
 function renderThought(document, thought, language) {
   const details = element(document, 'details', 'sandbox-run-thought');
-  details.append(element(document, 'summary', 'sandbox-run-label', sandboxText(language, 'sandboxThought')), element(document, 'pre', 'sandbox-run-thought-text', thought));
+  const pre = element(document, 'pre', 'sandbox-run-thought-text');
+  fillThinkingText(document, pre, thought);
+  details.append(element(document, 'summary', 'sandbox-run-label', sandboxText(language, 'sandboxThought')), pre);
   return details;
 }
 
@@ -76,6 +79,19 @@ function summaryText(run, language) {
   return sandboxText(language, 'sandboxDone', { n: run.steps.length });
 }
 
+// "Thinking · 12s ›" above an answer, opening to the thinking (the model's own,
+// or the summary its provider gives).
+function renderReplyThinking(document, run, language) {
+  const details = element(document, 'details', 'sandbox-run-details');
+  const label = run.thoughtMs
+    ? sandboxText(language, run.thoughtKind === 'summary' ? 'thinkingDoneSummary' : 'thinkingDoneRaw', { s: Math.max(1, Math.round(run.thoughtMs / 1000)) })
+    : sandboxText(language, 'sandboxThought');
+  const pre = element(document, 'pre', 'sandbox-run-thought-text');
+  fillThinkingText(document, pre, run.thought);
+  details.append(element(document, 'summary', 'sandbox-run-summary', label), pre);
+  return details;
+}
+
 // A finished run (from the saved text) or a fallback notice.
 export function createSandboxRunElement(document, run, { language = 'zh-TW' } = {}) {
   if (!run) return null;
@@ -83,7 +99,11 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   if (run.fallback) {
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
-  if (!run.steps.length) return container;
+  if (!run.steps.length) {
+    // A reply without Python: just how the model thought before it answered.
+    if (run.thought) container.append(renderReplyThinking(document, run, language));
+    return container;
+  }
   const details = element(document, 'details', 'sandbox-run-details');
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');

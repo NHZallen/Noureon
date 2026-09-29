@@ -837,30 +837,36 @@ test('stream API feature source stays isolated from DOM, storage, and runtime pl
   }
 });
 
-test('the thinking is reported only for models that stream it themselves, never as a summary', async () => {
+test('the thinking is reported to whoever listens, with its kind, and never becomes part of the answer', async () => {
   const chunk = (delta) => `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`;
   const stream = [chunk({ reasoning: '先想一下' }), chunk({ content: '答案' }), 'data: [DONE]\n\n'];
-  const run = async (provider, modelInfo, streamChunks) => {
+  const run = async (provider, modelInfo, streamChunks, conversation) => {
     const heard = [];
     const text = [];
-    const harness = createHarness({ provider, modelInfo, fetchImpl: async () => createResponse({ streamChunks }) });
-    await harness.streamApiCall([{ text: 'Hi' }], (piece) => text.push(piece), undefined, false, { onReasoning: (piece) => heard.push(piece) });
+    const harness = createHarness({ provider, modelInfo, conversation, fetchImpl: async () => createResponse({ streamChunks }), getModelReasoningConfig: () => modelInfo.reasoning || null, normalizeReasoningEffort: () => modelInfo.effort || null });
+    await harness.streamApiCall([{ text: 'Hi' }], (piece) => text.push(piece), undefined, false, { onReasoning: (piece, kind) => heard.push([piece, kind]) });
     return { heard, text, request: JSON.parse(harness.requests[0].options.body) };
   };
   const deepseek = await run('openrouter', { apiId: 'deepseek/deepseek-v4.1-flash' }, stream);
-  assert.deepEqual(deepseek.heard, ['先想一下']);
-  assert.deepEqual(deepseek.text, ['答案'], 'the thinking is not part of the answer');
-  const nvidia = await run('nvidia', { apiId: 'deepseek-ai/deepseek-v4.1-flash' }, stream);
-  assert.deepEqual(nvidia.heard, ['先想一下']);
-  for (const apiId of ['anthropic/claude-sonnet-5', 'openai/gpt-6-sol', 'google/gemini-3.1-flash-image', 'x-ai/grok-4.6']) {
-    assert.deepEqual((await run('openrouter', { apiId }, stream)).heard, [], `${apiId} gives only a summary of its thinking`);
-  }
-  const geminiChunk = 'data: ' + JSON.stringify({ candidates: [{ content: { parts: [{ text: '摘要', thought: true }, { text: '答案' }] } }] }) + '\n\n';
+  assert.deepEqual(deepseek.heard, [['先想一下', 'raw']]);
+  assert.deepEqual(deepseek.text, ['答案']);
+  assert.deepEqual((await run('openrouter', { apiId: 'anthropic/claude-sonnet-5' }, stream)).heard, [['先想一下', 'summary']], 'a summary is shown as one');
+  const nvidia = await run('nvidia', { apiId: 'deepseek-ai/deepseek-v4.1-flash', reasoning: { providerParameter: 'nvidiaReasoningEffort', effortValues: { high: 75 } }, effort: 'high' }, stream);
+  assert.deepEqual(nvidia.heard, [['先想一下', 'raw']]);
+  assert.deepEqual(nvidia.request.chat_template_kwargs, { enable_thinking: true, thinking: true }, 'NVIDIA only streams the thinking when told to');
+  assert.equal(nvidia.request.reasoning_effort, 75);
+  const plain = await run('nvidia', { apiId: 'other/model' }, stream);
+  assert.equal(plain.request.chat_template_kwargs, undefined, 'models without a reasoning setting are left as they were');
+
+  const geminiChunk = 'data: ' + JSON.stringify({ candidates: [{ content: { parts: [{ text: '**計畫**\n摘要', thought: true }, { text: '答案' }] } }] }) + '\n\n';
   const gemini = createHarness({ provider: 'gemini', fetchImpl: async () => createResponse({ streamChunks: [geminiChunk] }) });
   const heard = [];
   const text = [];
-  await gemini.streamApiCall([{ text: 'Hi' }], (piece) => text.push(piece), undefined, false, { onReasoning: (piece) => heard.push(piece) });
-  assert.deepEqual(heard, [], 'Gemini only has summaries, which are not shown');
+  await gemini.streamApiCall([{ text: 'Hi' }], (piece) => text.push(piece), undefined, false, { onReasoning: (piece, kind) => heard.push([piece, kind]) });
+  assert.deepEqual(heard, [['**計畫**\n摘要', 'summary']]);
   assert.deepEqual(text, ['答案']);
-  assert.equal(JSON.parse(gemini.requests[0].options.body).generationConfig.thinkingConfig, undefined, 'summaries are not even asked for');
+  assert.equal(JSON.parse(gemini.requests[0].options.body).generationConfig.thinkingConfig.includeThoughts, true);
+  const silent = createHarness({ provider: 'gemini', fetchImpl: async () => createResponse({ streamChunks: [geminiChunk] }) });
+  await silent.streamApiCall([{ text: 'Hi' }], () => {}, undefined, false);
+  assert.equal(JSON.parse(silent.requests[0].options.body).generationConfig.thinkingConfig, undefined, 'summaries are asked for only when someone listens');
 });

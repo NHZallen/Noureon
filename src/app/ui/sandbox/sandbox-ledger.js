@@ -6,6 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
+import { fillThinkingText } from '../thinking/thinking-text.js';
 
 const MAX_OUTPUT_CHARS = 4000;
 const MAX_CODE_CHARS = 6000;
@@ -49,7 +50,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
       row.body.append(row.thought);
       row.enableBody(true);
     }
-    row.thought.textContent = (row.thought.textContent + chunk).slice(-MAX_THOUGHT_CHARS);
+    row.thoughtText = ((row.thoughtText || '') + chunk).slice(-MAX_THOUGHT_CHARS);
+    fillThinkingText(document, row.thought, row.thoughtText);
     row.thought.scrollTop = row.thought.scrollHeight;
   };
 

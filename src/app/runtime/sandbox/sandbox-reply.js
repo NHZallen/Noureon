@@ -89,6 +89,7 @@ export async function runSandboxReply({
   let currentStep = 0;
   let thoughtKept = 0;
   let thought = '';
+  let thoughtKind = 'raw';
   // The round's thinking as it is kept: its start, within what is left.
   const takeThought = () => {
     const kept = thought.slice(0, Math.max(0, Math.min(THOUGHT_CHARS_PER_ROUND, THOUGHT_CHARS_IN_ALL - thoughtKept)));
@@ -148,9 +149,10 @@ export async function runSandboxReply({
     const options = {
       ...requestOptions,
       // What the model is thinking and the code it is writing, as it streams.
-      onReasoning: (chunk) => {
+      onReasoning: (chunk, kind) => {
         thought += chunk;
-        onEvent({ type: 'thinking', text: chunk });
+        if (kind) thoughtKind = kind;
+        onEvent({ type: 'thinking', text: chunk, kind });
       },
       onToolArguments: ({ name, arguments: raw }) => {
         if (name === RUN_PYTHON_TOOL.name) onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
@@ -177,7 +179,10 @@ export async function runSandboxReply({
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     if (!canRun || !calls.length) {
-      if (roundThought) run.thought = roundThought;
+      if (roundThought) {
+        run.thought = roundThought;
+        run.thoughtKind = thoughtKind;
+      }
       break;
     }
 
@@ -268,5 +273,5 @@ export async function runSandboxReply({
       onEvent({ type: 'finishing', label });
     }
   }
-  return { text, run: run.steps.length || run.fallback ? run : null };
+  return { text, run: run.steps.length || run.fallback || run.thought ? run : null };
 }

@@ -2,7 +2,7 @@ import { formatMemoryContextForModel } from '../../runtime/memory/memory-context
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
-import { applyGeminiTools, applyOpenAiTools, createGeminiCollector, createOpenAiCollector, modelStreamsRawThinking } from './tool-call-formats.js';
+import { applyGeminiTools, applyOpenAiTools, createGeminiCollector, createOpenAiCollector, modelThinkingKind } from './tool-call-formats.js';
 
 export function mergeAdjacentModelMessages(history) {
   return history.reduce((merged, message) => {
@@ -225,6 +225,10 @@ const buildGeminiRequest = ({
       thinkingLevel: reasoningEffort
     };
   }
+  // Thought summaries only come when asked for.
+  if (requestOptions.onReasoning) {
+    payload.generationConfig.thinkingConfig = { ...(payload.generationConfig.thinkingConfig || {}), includeThoughts: true };
+  }
   const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch
     && (requestOptions.webSearchEnabled === true || conversation.isWebSearchEnabled);
   if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
@@ -325,6 +329,8 @@ const buildOpenAiCompatibleRequest = ({
   };
   if (reasoningConfig?.providerParameter === 'nvidiaReasoningEffort' && reasoningEffort) {
     payload.reasoning_effort = reasoningConfig.effortValues?.[reasoningEffort] ?? reasoningEffort;
+    // NVIDIA streams the thinking (reasoning_content) only when told to.
+    payload.chat_template_kwargs = { enable_thinking: true, thinking: true };
   }
   return {
     url: '/api/nvidia-chat',
@@ -688,10 +694,11 @@ export function createStreamApiCall({
 
     const reader = response.body.getReader();
     const decoder = new TextDecoderImpl();
-    // The code being written reaches the caller as it streams; so does the model's own
-    // thinking, but never a summary of it (Gemini, Claude and OpenAI give only that).
+    // The thinking and the code being written reach the caller as they stream; the
+    // thinking comes with its kind (the model's own, or a summary of it).
+    const thinkingKind = modelThinkingKind(provider, modelId);
     const hooks = {
-      onReasoning: modelStreamsRawThinking(provider, modelId) ? requestOptions.onReasoning : null,
+      onReasoning: requestOptions.onReasoning ? (chunk) => requestOptions.onReasoning(chunk, thinkingKind) : null,
       onToolArguments: requestOptions.onToolArguments
     };
     const collector = provider === 'gemini' ? createGeminiCollector(hooks) : createOpenAiCollector(hooks);

@@ -1,5 +1,6 @@
 import { createLedger } from '../../ledger/ledger.js';
 import { createSandboxLedger } from '../../sandbox/sandbox-ledger.js';
+import { fillThinkingText } from '../../thinking/thinking-text.js';
 import { visionText } from './vision-texts.js';
 
 /**
@@ -37,6 +38,7 @@ export function createVisionProgress({ document, language, controller, host = nu
   let sheets = null;
   let redo = null;
   let thought = null;
+  let thoughtText = '';
 
   const open = (name, label, options) => {
     // A step starts when the one before it is done.
@@ -118,7 +120,8 @@ export function createVisionProgress({ document, language, controller, host = nu
         row.body.append(thought);
         row.enableBody(true);
       }
-      thought.textContent = (thought.textContent + chunk).slice(-12_000);
+      thoughtText = (thoughtText + chunk).slice(-12_000);
+      fillThinkingText(document, thought, thoughtText);
       thought.scrollTop = thought.scrollHeight;
     },
     // The problems the model found: their slides are outlined, the first few listed.
