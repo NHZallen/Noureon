@@ -420,7 +420,6 @@
 #model-council-control .mp-back:hover:not(:disabled),
 #model-council-control .mp-done:hover:not(:disabled) { background: var(--hover-bg); }
 
-.mp-depth-trigger-value { color: var(--text-primary); }
 
 #model-council-control .mp-panel.mp-depth-panel { width: min(14.5rem, calc(100vw - 1.5rem)); max-height: none; padding: 0.15rem; border-radius: 0.9rem; }
 .mp-depth { padding: 0.55rem 0.65rem 0.6rem; }

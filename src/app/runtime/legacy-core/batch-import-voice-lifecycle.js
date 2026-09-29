@@ -1,6 +1,8 @@
 import { createLegacyImportExportLifecycle } from '../features/import-export-lifecycle.js';
 import { createLegacyAuthImportLifecycle } from '../features/auth-import-lifecycle.js';
 import { compressImage } from '../utils/image-compression.js';
+import { openDictation } from '../../ui/voice/dictation.js';
+import { dictationTip } from '../../ui/voice/dictation-texts.js';
 
 // Speech recognition follows the interface language. Noureon stores bare subtags for four of
 // the five languages, so map them to the regional codes browsers expect for recognition.
@@ -354,6 +356,24 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             ALL_ELEMENTS.voiceInputBtnMessage.addEventListener('click', () => toggleVoiceInput('message'));
             ALL_ELEMENTS.voiceInputBtnSearch.addEventListener('click', () => toggleVoiceInput('search'));
+            // The microphone's own tip (what it does and the key for it), in the language in use when it is reached.
+            const mic = ALL_ELEMENTS.voiceInputBtnMessage;
+            const showTip = () => {
+                const tip = dictationTip(getConfig().uiLanguage);
+                mic.dataset.tip = tip;
+                mic.removeAttribute?.('title');
+                mic.setAttribute?.('aria-label', tip);
+            };
+            mic.addEventListener?.('pointerenter', showTip);
+            mic.addEventListener?.('focus', showTip);
+            // Ctrl+Shift+D starts dictating, and finishes it while it is going.
+            document.addEventListener?.('keydown', (event) => {
+                if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey || String(event.key).toLowerCase() !== 'd' || event.repeat) return;
+                if (document.body?.classList?.contains('modal-open') || mic.offsetParent === null) return;
+                event.preventDefault();
+                if (dictationSession) confirmDictation();
+                else toggleVoiceInput('message');
+            });
         } else {
             ALL_ELEMENTS.voiceInputBtnMessage.style.display = 'none';
             ALL_ELEMENTS.voiceInputBtnSearch.style.display = 'none';
@@ -390,7 +410,79 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
     // reference overwrites the first, leaving the first running and impossible to stop.
     let voiceStartInFlight = false;
 
+    // Dictating into the message: the composer shows the dictation bar and the words are put into the
+    // message only when it is finished (a cross throws them away). Search keeps the plain behaviour.
+    let dictationSession = null;
+
+    const joinDictation = (base, spoken) => {
+        const words = String(spoken).trim();
+        if (!words) return base;
+        return `${base}${base && !/\s$/.test(base) ? ' ' : ''}${words}`;
+    };
+
+    const beginDictation = (recognition) => {
+        try {
+            const host = ALL_ELEMENTS.messageInput?.closest?.('.input-wrapper');
+            if (!host) return null;
+            const bar = openDictation({
+                document,
+                window,
+                navigator,
+                host,
+                language: getConfig().uiLanguage,
+                onConfirm: () => confirmDictation(),
+                onCancel: () => cancelDictation()
+            });
+            if (!bar) return null;
+            dictationSession = { recognition, bar, base: String(ALL_ELEMENTS.messageInput.value ?? ''), transcript: '', phase: 'listening', discarded: false, timer: null };
+            return dictationSession;
+        } catch (error) {
+            logger.warn('The dictation bar could not be shown; dictating without it.', error);
+            return null;
+        }
+    };
+
+    const finishDictation = ({ apply }) => {
+        const session = dictationSession;
+        if (!session || session.phase === 'done') return;
+        session.phase = 'done';
+        session.discarded = !apply;
+        dictationSession = null;
+        window.clearTimeout?.(session.timer);
+        session.bar.close();
+        if (apply && session.transcript.trim()) {
+            ALL_ELEMENTS.messageInput.value = joinDictation(session.base, session.transcript);
+            resolveUploadUpdateInputState();
+            ALL_ELEMENTS.messageInput.focus?.();
+        }
+        clearVoiceInputState();
+    };
+
+    // The tick: stop listening, and put the text in once the recognition has handed it over.
+    function confirmDictation() {
+        const session = dictationSession;
+        if (!session || session.phase !== 'listening') return;
+        session.phase = 'finishing';
+        session.bar.setBusy(true);
+        try { session.recognition.stop(); } catch { /* it had already ended */ }
+        // If the recognition never says it has ended, the words heard so far are used.
+        session.timer = scheduleTimeout(() => finishDictation({ apply: true }), 2500);
+    }
+
+    // The cross: nothing is put into the message.
+    function cancelDictation() {
+        const session = dictationSession;
+        if (!session) return;
+        session.discarded = true;
+        try { (session.recognition.abort || session.recognition.stop).call(session.recognition); } catch { /* it had already ended */ }
+        finishDictation({ apply: false });
+    }
+
     const toggleVoiceInput = async (target) => {
+        if (dictationSession) {
+            confirmDictation();
+            return;
+        }
         if (getCurrentSpeechRecognition?.()) {
             getCurrentSpeechRecognition().stop();
             return;
@@ -421,7 +513,13 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             || SPEECH_RECOGNITION_LANGS['zh-TW'];
         currentSpeechRecognition.continuous = true;
         currentSpeechRecognition.interimResults = true;
+        // Dictating into the message shows the dictation bar; the words wait until it is finished.
+        const session = target === 'message' ? beginDictation(currentSpeechRecognition) : null;
         currentSpeechRecognition.onresult = (event) => {
+            if (session) {
+                if (!session.discarded) session.transcript = Array.from(event.results).map((result) => result[0]?.transcript ?? '').join('');
+                return;
+            }
             let transcript = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 transcript += event.results[i][0].transcript;
@@ -433,8 +531,20 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             }
             resolveUploadUpdateInputState();
         };
-        currentSpeechRecognition.onend = clearVoiceInputState;
+        currentSpeechRecognition.onend = () => {
+            // It ended (the tick, or the browser ended it after a silence): what was heard is used.
+            if (session && dictationSession === session) {
+                finishDictation({ apply: true });
+                return;
+            }
+            clearVoiceInputState();
+        };
         currentSpeechRecognition.onerror = (event) => {
+            if (session?.discarded && event.error === 'aborted') {
+                clearVoiceInputState();
+                return;
+            }
+            if (session && dictationSession === session) finishDictation({ apply: false });
             const texts = getTexts();
             const localized = texts[VOICE_ERROR_TEXT_KEYS[event.error]];
             showNotification(

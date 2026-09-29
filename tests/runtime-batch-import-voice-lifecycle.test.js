@@ -588,3 +588,192 @@ test('import and auth-import composition remains in real lifecycles and module h
   assert.match(source, /initChatApp:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });
+
+// Dictating into the message: a bar over the composer, the words put in only when it is finished.
+class DictationRecognition {
+  constructor() {
+    this.calls = [];
+  }
+  start() { this.calls.push('start'); }
+  stop() { this.calls.push('stop'); }
+  abort() { this.calls.push('abort'); }
+}
+
+const dictationHarness = async ({ base = '', config = {} } = {}) => {
+  const { Window } = await import('happy-dom');
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  document.body.innerHTML = '<div class="input-wrapper"><div id="row">the composer</div></div>';
+  window.SpeechRecognition = DictationRecognition;
+  const timers = [];
+  const harness = createHarness({
+    document,
+    window,
+    navigator: {},
+    config: { voicePrivacyNoticeAcknowledged: true, ...config },
+    scheduleTimeout: (callback) => { timers.push(callback); return timers.length; }
+  });
+  const host = document.querySelector('.input-wrapper');
+  const input = harness.elements.messageInput;
+  input.value = base;
+  input.closest = () => host;
+  input.focus = () => { input.focused = true; };
+  harness.lifecycle.setupVoiceInput();
+  // Assigned onto the harness, so its live readings (the current recognition) stay live.
+  return Object.assign(harness, { document, host, input, timers, window, mic: harness.elements.voiceInputBtnMessage });
+};
+
+const said = (...parts) => ({ results: parts.map((transcript) => [{ transcript }]) });
+
+test('the microphone opens the dictation bar over the composer, and what is said waits until it is finished', async () => {
+  const h = await dictationHarness({ base: 'Hello' });
+  try {
+    h.mic.dispatch('click');
+    await settle();
+    assert.ok(h.host.querySelector('.dictation-bar'), 'the bar is over the composer');
+    assert.equal(h.host.classList.contains('is-dictating'), true);
+    assert.equal(h.mic.classList.contains('active'), true);
+    h.currentSpeechRecognition.onresult(said('good ', 'morning'));
+    assert.equal(h.input.value, 'Hello', 'the message is not touched while dictating');
+    h.host.querySelector('.dictation-confirm').click();
+    assert.deepEqual(h.currentSpeechRecognition.calls, ['start', 'stop']);
+    assert.equal(h.host.querySelector('.dictation-confirm').classList.contains('is-busy'), true, 'the tick is a ring while the text is made');
+    assert.equal(h.input.value, 'Hello', 'not yet: the recognition has not handed the words over');
+    h.currentSpeechRecognition.onresult(said('good ', 'morning', ' everyone'));
+    h.currentSpeechRecognition.onend();
+    assert.equal(h.input.value, 'Hello good morning everyone', 'joined to what was already typed');
+    assert.equal(h.input.focused, true, 'ready to send or edit');
+    assert.ok(h.calls.some((call) => call[0] === 'resolveUploadUpdateInputState'));
+    assert.equal(h.currentSpeechRecognition, null);
+    assert.equal(h.mic.classList.contains('active'), false);
+    assert.equal(h.host.querySelector('.dictation-bar').classList.contains('is-leaving'), true);
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});
+
+test('the cross throws the dictation away without a word from the browser about it', async () => {
+  const h = await dictationHarness({ base: 'Keep me' });
+  try {
+    h.mic.dispatch('click');
+    await settle();
+    const recognition = h.currentSpeechRecognition;
+    recognition.onresult(said('not wanted'));
+    h.host.querySelector('.dictation-cancel').click();
+    assert.deepEqual(recognition.calls, ['start', 'abort']);
+    assert.equal(h.input.value, 'Keep me');
+    assert.equal(h.currentSpeechRecognition, null);
+    recognition.onresult(said('late words'));
+    recognition.onerror({ error: 'aborted' });
+    recognition.onend();
+    assert.equal(h.input.value, 'Keep me', 'words that arrive late are ignored');
+    assert.equal(h.calls.some((call) => call[0] === 'showNotification'), false, 'the abort we asked for is not reported as an error');
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});
+
+test('Enter finishes, Escape cancels, and the microphone or Ctrl+Shift+D finish it while it is going', async () => {
+  const h = await dictationHarness();
+  try {
+    h.mic.dispatch('click');
+    await settle();
+    h.currentSpeechRecognition.onresult(said('one'));
+    h.document.body.dispatchEvent(new h.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    assert.deepEqual(h.currentSpeechRecognition.calls, ['start', 'stop']);
+    h.currentSpeechRecognition.onend();
+    assert.equal(h.input.value, 'one');
+
+    h.mic.dispatch('click');
+    await settle();
+    h.document.body.dispatchEvent(new h.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    assert.deepEqual(h.currentSpeechRecognition ? h.currentSpeechRecognition.calls : ['gone'], ['gone']);
+
+    h.document.dispatchEvent(new h.window.KeyboardEvent('keydown', { key: 'd', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    await settle();
+    assert.ok(h.host.querySelector('.dictation-bar:not(.is-leaving)'), 'the shortcut starts dictating');
+    const started = h.currentSpeechRecognition;
+    started.onresult(said('two'));
+    h.document.dispatchEvent(new h.window.KeyboardEvent('keydown', { key: 'D', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    assert.deepEqual(started.calls, ['start', 'stop'], 'and finishes it');
+    started.onend();
+    assert.equal(h.input.value, 'one two');
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});
+
+test('when the browser ends the listening itself, what was heard is used, and silence adds nothing', async () => {
+  const h = await dictationHarness({ base: 'Hi' });
+  try {
+    h.mic.dispatch('click');
+    await settle();
+    h.currentSpeechRecognition.onresult(said('there'));
+    h.currentSpeechRecognition.onend();
+    assert.equal(h.input.value, 'Hi there');
+    h.mic.dispatch('click');
+    await settle();
+    h.currentSpeechRecognition.onend();
+    assert.equal(h.input.value, 'Hi there', 'nothing heard, nothing added');
+    assert.equal(h.currentSpeechRecognition, null);
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});
+
+test('an error while dictating is reported, the bar goes, and the message is left as it was', async () => {
+  const h = await dictationHarness({ base: 'Draft' });
+  try {
+    h.mic.dispatch('click');
+    await settle();
+    h.currentSpeechRecognition.onresult(said('half a sentence'));
+    h.currentSpeechRecognition.onerror({ error: 'not-allowed' });
+    assert.ok(h.calls.some((call) => call[0] === 'showNotification' && call[2] === 'error'));
+    assert.equal(h.input.value, 'Draft');
+    assert.equal(h.host.querySelector('.dictation-bar').classList.contains('is-leaving'), true);
+    assert.equal(h.mic.classList.contains('active'), false);
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});
+
+test('if the recognition never says it has ended after the tick, the words heard so far are used', async () => {
+  const h = await dictationHarness();
+  try {
+    h.mic.dispatch('click');
+    await settle();
+    h.currentSpeechRecognition.onresult(said('waiting'));
+    h.host.querySelector('.dictation-confirm').click();
+    assert.equal(h.input.value, '');
+    h.timers.at(-1)();
+    assert.equal(h.input.value, 'waiting');
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});
+
+test('the microphone shows what it does and its key, in the language in use', async () => {
+  const h = await dictationHarness({ config: { uiLanguage: 'fr' } });
+  try {
+    h.mic.dispatch('pointerenter');
+    assert.equal(h.mic.dataset.tip, 'Saisie vocale  Ctrl+Shift+D');
+    h.config.uiLanguage = 'zh-TW';
+    h.mic.dispatch('focus');
+    assert.equal(h.mic.dataset.tip, '語音輸入  Ctrl+Shift+D');
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});
+
+test('searching by voice keeps its plain behaviour, without the bar', async () => {
+  const h = await dictationHarness();
+  try {
+    h.elements.voiceInputBtnSearch.dispatch('click');
+    await settle();
+    assert.equal(h.host.querySelector('.dictation-bar'), null);
+    h.currentSpeechRecognition.onresult({ resultIndex: 0, results: [[{ transcript: 'find this' }]] });
+    assert.equal(h.elements.modalSearchInput.value, 'find this');
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});

@@ -5,6 +5,7 @@ import '../styles/sandbox-run.css';
 import '../styles/ledger.css';
 import '../styles/model-picker.css';
 import '../styles/notification.css';
+import '../styles/dictation.css';
 import { startRuntimeEntry } from './runtime-entry.js';
 
 export const legacyAppReady = startRuntimeEntry();
