@@ -1,5 +1,6 @@
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { normalizeHistorySourceConversationIds } from '../../runtime/memory/history-source-references.js';
+import { isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../../../pwa/stale-chunk-recovery.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
@@ -152,7 +153,12 @@ export async function persistAssistantResponseError({
   }
 
   stopSingleModelLifecycle();
-  const errorMessage = `${errorPrefix || '抱歉，發生錯誤：'}${error.message || error.name || 'Unknown error'}`;
+  // A page left open across a deployment cannot load the new build's files: say so, and offer a reload.
+  const stale = isStaleChunkError(error);
+  const errorMessage = stale
+    ? staleChunkMessage()
+    : `${errorPrefix || '抱歉，發生錯誤：'}${error.message || error.name || 'Unknown error'}`;
+  if (stale) void offerReloadForNewVersion();
   const currentProgress = getLatestProgress() || {
     modelName: fallbackModelName,
     elapsedMs: 0

@@ -1,4 +1,5 @@
 import { getRuntimeText } from '../i18n/runtime-texts.js';
+import { installStaleChunkRecovery } from '../../../pwa/stale-chunk-recovery.js';
 
 export function createLegacyStartupLifecycle({
     window,
@@ -218,6 +219,8 @@ export function createLegacyStartupLifecycle({
             : null;
         installTouchGuards();
         registerServiceWorker();
+        // A page left open across a deployment offers a reload when it cannot load a new piece of the app.
+        installStaleChunkRecovery();
     }
 
     return {
