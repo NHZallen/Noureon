@@ -436,6 +436,8 @@
     left: 0;
     width: calc(var(--mp-thumb) / 2 + (100% - var(--mp-thumb)) * var(--mp-p));
     background: var(--text-primary);
+    /* Nothing to fill at the first dot: the fill's corners would show either side of the thumb. */
+    opacity: clamp(0, calc(var(--mp-p) * 40), 1);
 }
 
 .mp-dots {

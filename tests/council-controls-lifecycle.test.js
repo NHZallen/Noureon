@@ -635,3 +635,31 @@ test('a click that redraws the panel does not reach the page\'s click-outside ha
     cleanup();
   }
 });
+
+// In a new chat the composer sits mid-screen, so the panel that opens upward from it has less
+// room than its usual height; it must stay inside the window, with the list scrolling instead.
+test('the panel is kept inside the window: no taller than the room above its button', () => {
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  try {
+    const win = document.defaultView;
+    Object.defineProperty(win, 'innerWidth', { configurable: true, value: 1200 });
+    win.HTMLElement.prototype.getBoundingClientRect = function rect() {
+      return { top: this.id === 'model-picker-btn' ? 500 : 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
+    };
+    lifecycle.renderCouncilControls();
+    assert.equal(document.querySelector('#model-picker-popover').style.maxHeight, '476px');
+    win.HTMLElement.prototype.getBoundingClientRect = function rect() {
+      return { top: this.id === 'model-picker-btn' ? 900 : 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
+    };
+    document.querySelector('#model-picker-btn').click();
+    assert.equal(document.querySelector('#model-picker-popover').style.maxHeight, '544px', 'never taller than the panel\'s usual height');
+    Object.defineProperty(win, 'innerWidth', { configurable: true, value: 400 });
+    win.dispatchEvent(new win.Event('resize'));
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('#model-picker-btn').click();
+    assert.equal(document.querySelector('#model-picker-popover').style.maxHeight, '', 'a phone\'s sheet is sized by the stylesheet');
+  } finally {
+    cleanup();
+  }
+});

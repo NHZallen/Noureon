@@ -69,6 +69,21 @@ export function createCouncilControlsLifecycle(deps) {
     cachedMarkup = null;
   };
 
+  // Above the button there may be less room than the panel's usual height (the composer sits mid-screen
+  // in a new chat), so the panel is kept inside the window and its list scrolls.
+  const fitPanel = (container) => {
+    const panel = container.querySelector('#model-picker-popover');
+    const trigger = container.querySelector('#model-picker-btn');
+    const view = document.defaultView;
+    if (!panel || !trigger || !view) return;
+    if (view.innerWidth <= 640) {
+      panel.style.maxHeight = '';
+      return;
+    }
+    const room = trigger.getBoundingClientRect().top - 24;
+    panel.style.maxHeight = `${Math.round(Math.max(220, Math.min(544, room)))}px`;
+  };
+
   const isPanelOpen = (container) => Boolean(container?.querySelector('#model-picker-popover')?.classList.contains('visible'));
 
   const describe = (model, { translations, t, selected = false, disabled = false }) => {
@@ -240,6 +255,7 @@ export function createCouncilControlsLifecycle(deps) {
       && cachedConversation === conversation
       && cachedMarkup === markup
     ) {
+      if (wasOpen) fitPanel(container);
       return;
     }
     container.innerHTML = markup;
@@ -248,6 +264,7 @@ export function createCouncilControlsLifecycle(deps) {
     cachedMarkup = markup;
 
     applySearch(container);
+    fitPanel(container);
     const scroller = container.querySelector('[data-mp-scroll]');
     if (scroller && previousScroll) scroller.scrollTop = previousScroll;
     if (refocusSlider) container.querySelector('[data-mp-depth-input]')?.focus();
@@ -375,6 +392,7 @@ export function createCouncilControlsLifecycle(deps) {
   };
 
   function bindEvents(container) {
+    document.defaultView?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
     container.addEventListener('click', async (event) => {
       const target = event.target.closest?.('button, [data-mp-tab]');
       if (!target || !container.contains(target)) return;

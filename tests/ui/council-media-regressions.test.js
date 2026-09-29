@@ -48,6 +48,10 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
   assert.match(css, /\.mp-mode\.is-active\s*\{[^}]*border-color:\s*var\(--text-primary\)/s);
   assert.match(css, /\.mp-slider::-webkit-slider-thumb/);
   assert.match(css, /\.mp-slider::-moz-range-thumb/);
+  // The thumb is taller than the track, and the fill is hidden at the first dot, so no black shows around the thumb.
+  assert.match(css, /--mp-thumb:\s*2\.25rem;/);
+  assert.match(css, /\.mp-slider-track\s*\{[^}]*inset:\s*0\.325rem 0;/s);
+  assert.match(css, /\.mp-slider-fill\s*\{[^}]*opacity:\s*clamp\(0,/s);
   // A phone gets the panel as a sheet along the bottom edge.
   assert.match(css, /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*\.mp-panel\s*\{[^}]*position:\s*fixed;/);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
