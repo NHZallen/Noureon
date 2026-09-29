@@ -37,8 +37,8 @@
 | **B1** | ✅ 已上線 | 沙盒執行環境（`public/sandbox/`、`src/app/runtime/sandbox/`），還沒接上模型與介面。DNS：`run.noureon.com` 已由使用者在 Cloudflare 與 Vercel 設定好（CNAME、僅 DNS）。實作與驗證見詳細設計文末「B1 實作紀錄」；部署後要檢查的項目也列在那裡 |
 | **B3** | 🧪 **已實作，待使用者和 B2 一起驗證** | 產出檔案存成訊息 part（`sandboxFile`），跟著同步、匯出；卡片、ZIP、預覽（含 xlsx 讀取器、圖片）；`/input` 放入附件與先前的產出；「檔案不在這台裝置上」與重新執行。見詳細設計文末「B3 實作紀錄」 |
 | **B4** | ✅ **已完成，待推送** | Python 用 `noureon.save_document` 把內容交給設計系統（變成回覆最後的 ````file 區塊）；Word／PDF 支援 `asset:`、`upload:` 圖片；被引用的圖片不另外出卡片。見詳細設計文末「B4 實作紀錄」 |
-| **B4b-1** | ✅ **已完成，待推送** | 進階模式改成 GPT 式自由創作：預設讓模型用 python-docx／python-pptx／reportlab 自己設計 Word、PPT、PDF；選了「設計」範本才走 `noureon.save_document`。沙盒內建 12 個字型檔（Inter、思源黑體／宋體繁簡日韓的 Regular、Bold）與 `noureon.use_fonts`；自由做出的 Word／PPT 會在回覆結束後自動嵌入用到的字型。見詳細設計文末「B4b-1 實作紀錄」 |
-| **B4b-2** | ⬜ 下一步 | 自由 PPT 的預覽：自己寫 PPTX 讀取器（文字方塊、圖片、形狀、表格、圖表），之後看圖檢查也會用到 |
+| **B4b-1** | ✅ 已上線 | 進階模式改成 GPT 式自由創作：預設讓模型用 python-docx／python-pptx／reportlab 自己設計 Word、PPT、PDF；選了「設計」範本才走 `noureon.save_document`。沙盒內建 12 個字型檔（Inter、思源黑體／宋體繁簡日韓的 Regular、Bold）與 `noureon.use_fonts`；自由做出的 Word／PPT 會在回覆結束後自動嵌入用到的字型。見詳細設計文末「B4b-1 實作紀錄」 |
+| **B4b-2** | ✅ **已完成，待推送** | 自由做出的 PPT 有卡片預覽：自己寫的 PPTX 讀取器（文字、圖片、形狀、表格、圖表、群組、版面與母片繼承），和設計系統的簡報用同一套繪圖程式。見詳細設計文末「B4b-2 實作紀錄」 |
 | **B5** | ⬜ 下一步 | 見詳細設計 §9 |
 
 V1 開始前的基準 commit：`1d43cc46 Design the visual check (V1) for the next agent`。V1 初版 commit：`ea4a1688 Implement V1 visual review for presentations`。2026-09-28 使用者要求將進度改為通知並授權推送 `main`。

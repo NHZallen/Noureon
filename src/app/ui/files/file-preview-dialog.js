@@ -176,7 +176,7 @@ function renderPagePreview(context, { onPageCount }) {
       const slides = descriptor.family === 'powerpoint';
       pane.classList.toggle('ac-file-preview-slides', slides);
       // A PDF carries its fonts: what the preview shows is exact, no note.
-      const note = slides ? 'slidePreviewNote' : ({ excel: 'sheetPreviewNote', pdf: null, web: 'htmlPreviewNote' })[descriptor.family] ?? 'previewFontNote';
+      const note = slides ? (descriptor.generator === 'stored' ? 'freeSlidePreviewNote' : 'slidePreviewNote') : ({ excel: 'sheetPreviewNote', pdf: null, web: 'htmlPreviewNote' })[descriptor.family] ?? 'previewFontNote';
       if (note) pane.appendChild(createNote(document, getFileText(language, note)));
       onPageCount(result.pageCount);
     } catch (error) {

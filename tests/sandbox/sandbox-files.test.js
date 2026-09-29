@@ -62,7 +62,7 @@ test('descriptors show saved files as ready, missing or blocked, with text kept 
   assert.equal(missing.state, 'missing');
   assert.equal(missing.canRerun, true);
   assert.equal(describeSandboxFile({ id: 'nothing', name: 'setup.exe' }).state, 'blocked');
-  assert.equal(describeSandboxFile({ id: 'nothing', name: 'deck.pptx' }).pagePreview, false);
+  assert.notEqual(describeSandboxFile({ id: 'nothing', name: 'deck.pptx' }).pagePreview, false, 'decks Python drew are previewed by the slide reader');
   assert.equal(sandboxFileType('plot.png').family, 'image');
   assert.equal(sandboxFileType('bundle.zip').family, 'archive', 'archives Python makes are allowed');
 });

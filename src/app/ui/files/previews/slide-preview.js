@@ -44,7 +44,11 @@ function drawText(document, parent, element, context) {
   const font = element.font;
   const drawnHeight = element.paragraphs.reduce((bottom, paragraph) => Math.max(bottom, paragraph.top + paragraph.lines.length * paragraph.lineStep), 0);
   const offset = element.valign === 'middle' ? (element.h - drawnHeight) / 2 : element.valign === 'bottom' ? element.h - drawnHeight : 0;
-  const group = create(document, 'g', { 'data-element': element.id, opacity: element.alpha < 1 ? element.alpha : null }, parent);
+  const group = create(document, 'g', {
+    'data-element': element.id,
+    opacity: element.alpha < 1 ? element.alpha : null,
+    transform: element.rotate ? `rotate(${element.rotate} ${element.x + element.w / 2} ${element.y + element.h / 2})` : null
+  }, parent);
   for (const paragraph of element.paragraphs) {
     const size = paragraph.size || font.size;
     const align = paragraph.align || element.align;
@@ -52,10 +56,11 @@ function drawText(document, parent, element, context) {
     const width = element.w - (paragraph.indent || 0);
     const hanging = paragraph.hangingEm ? paragraph.hangingEm * size : paragraph.indent || 0;
     const tracking = font.tracking ? font.tracking * size : 0;
+    // Runs of a free-form deck bring their own font stack and size.
     const runFont = (run) => ({
-      size,
+      size: run.size || size,
       weight: run.strong ? font.strongWeight : paragraph.weight ?? font.weight,
-      family: familyFor(context, run.role || font.role),
+      family: run.family || familyFor(context, run.role || font.role),
       tracking: font.tracking,
       uppercase: font.uppercase
     });
@@ -80,6 +85,9 @@ function drawText(document, parent, element, context) {
         const span = create(document, 'tspan', {
           'font-family': face.family,
           'font-weight': face.weight,
+          'font-size': run.size && run.size !== size ? run.size : null,
+          'font-style': run.italic ? 'italic' : null,
+          'text-decoration': run.underline ? 'underline' : null,
           fill: run.outline ? 'none' : color,
           stroke: run.outline ? run.outline.color : null,
           'stroke-width': run.outline ? run.outline.width : null
@@ -92,6 +100,12 @@ function drawText(document, parent, element, context) {
 
 function drawBullet(document, parent, paragraph, { x, baseline, size, color, context }) {
   const { style } = paragraph.bullet;
+  if (style === 'char') {
+    // A bullet of a free-form deck: its own character, font and colour.
+    const text = create(document, 'text', { x, y: baseline, 'font-size': size, 'font-family': paragraph.bullet.family, fill: paragraph.bullet.color || color }, parent);
+    text.textContent = paragraph.bullet.text;
+    return;
+  }
   if (style === 'number') {
     const text = create(document, 'text', { x, y: baseline, 'font-size': size, 'font-family': familyFor(context, paragraph.bullet.role || 'label'), 'font-weight': 700, fill: color }, parent);
     text.textContent = paragraph.bullet.text;
@@ -192,12 +206,24 @@ const FOCUS = Object.freeze({ top: 'xMidYMin', bottom: 'xMidYMax', left: 'xMinYM
 function drawImage(document, parent, defs, element, context) {
   const clip = nextId('ac-slide-clip');
   shapeNode(document, element, {}, create(document, 'clipPath', { id: clip }, defs));
-  const group = create(document, 'g', { 'clip-path': `url(#${clip})`, 'data-element': element.id }, parent);
+  const group = create(document, 'g', {
+    'clip-path': `url(#${clip})`,
+    'data-element': element.id,
+    transform: element.rotate ? `rotate(${element.rotate} ${element.x + element.w / 2} ${element.y + element.h / 2})` : null
+  }, parent);
   const data = element.resolved?.data;
   if (data) {
+    // A picture in a free-form deck fills its frame; a crop shows part of it.
+    const crop = element.crop;
+    const across = crop ? 1 - crop.l - crop.r : 1;
+    const down = crop ? 1 - crop.t - crop.b : 1;
     create(document, 'image', {
-      href: data, x: element.x, y: element.y, width: element.w, height: element.h,
-      preserveAspectRatio: `${FOCUS[element.focus] || 'xMidYMid'} ${element.fit === 'contain' ? 'meet' : 'slice'}`
+      href: data,
+      x: element.x - (crop ? (crop.l / across) * element.w : 0),
+      y: element.y - (crop ? (crop.t / down) * element.h : 0),
+      width: element.w / across,
+      height: element.h / down,
+      preserveAspectRatio: element.stretch ? 'none' : `${FOCUS[element.focus] || 'xMidYMid'} ${element.fit === 'contain' ? 'meet' : 'slice'}`
     }, group);
     return;
   }
@@ -287,9 +313,13 @@ function drawChart(document, parent, element, context) {
 
 /** Builds one slide's SVG. */
 export function renderSlideSvg(document, slide, context) {
-  const svg = create(document, 'svg', { viewBox: `0 0 ${SLIDE_WIDTH} ${SLIDE_HEIGHT}`, class: 'ac-slide-svg', role: 'img', 'aria-label': String(slide.number) });
+  // Free-form decks may be 4:3 or any other size.
+  const width = slide.width || SLIDE_WIDTH;
+  const height = slide.height || SLIDE_HEIGHT;
+  const svg = create(document, 'svg', { viewBox: `0 0 ${width} ${height}`, class: 'ac-slide-svg', role: 'img', 'aria-label': String(slide.number) });
+  if (width * SLIDE_HEIGHT !== height * SLIDE_WIDTH) svg.setAttribute('style', `aspect-ratio:${width} / ${height}`);
   const defs = create(document, 'defs', {}, svg);
-  create(document, 'rect', { width: SLIDE_WIDTH, height: SLIDE_HEIGHT, fill: slide.background }, svg);
+  create(document, 'rect', { width, height, fill: slide.background }, svg);
   for (const element of slide.elements) {
     switch (element.type) {
       case 'text': drawText(document, svg, element, context); break;

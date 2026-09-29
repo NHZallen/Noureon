@@ -48,12 +48,13 @@ const ticksOf = (scale) => {
 /** Draws the chart element into `parent`. Returns false for non-native types. */
 export function drawNativeChart(document, parent, element, { measure }) {
   const installed = installedFonts(element.language);
-  const family = `"${installed.latin}", "${installed.eastAsian}", sans-serif`;
-  const native = nativeChart(element, { fontFace: family });
+  const family = element.family || `"${installed.latin}", "${installed.eastAsian}", sans-serif`;
+  // A chart read from a .pptx (free-form decks) arrives in drawing form already.
+  const native = element.native || nativeChart(element, { fontFace: family });
   if (!native) return false;
   const group = create(document, 'g', { 'data-element': element.id }, parent);
   const box = { left: element.x + 6, right: element.x + element.w - 6, top: element.y + 6, bottom: element.y + element.h - 6 };
-  return drawChart(document, group, native, box, { measure, family, background: element.colors.background });
+  return drawChart(document, group, native, box, { measure, family, background: element.colors?.background });
 }
 
 /**
@@ -105,7 +106,7 @@ export function drawChart(document, group, native, box, { measure, family, backg
     const radius = Math.min(box.right - box.left, box.bottom - box.top) / 2 - 4;
     const cx = (box.left + box.right) / 2;
     const cy = (box.top + box.bottom) / 2;
-    const hole = radius * (options.holeSize || 50) / 100;
+    const hole = radius * (options.holeSize ?? 50) / 100;
     const point = (r, angle) => `${cx + r * Math.cos(angle)} ${cy + r * Math.sin(angle)}`;
     let angle = -Math.PI / 2;
     values.forEach((value, index) => {

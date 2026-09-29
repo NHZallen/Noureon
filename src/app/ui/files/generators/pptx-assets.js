@@ -73,6 +73,28 @@ function familiesOf(tokens, design, { eastAsian = true } = {}) {
   return families;
 }
 
+/** Loads and registers one face of a shipped family under its deck alias (once). */
+export function registerFace(family, weight, { document, window }) {
+  const source = fontSource(family, weight);
+  if (!source) return null;
+  const key = `${family}|${source.file}|${source.variable ? 'var' : source.weight}`;
+  if (registered.has(key)) return registered.get(key);
+  const range = FONT_FAMILIES[family].weights;
+  const load = loadFontFile(source.file).then(async (bytes) => {
+    const face = new window.FontFace(fontAlias(family), bytes, {
+      weight: source.variable ? `${Math.min(...range)} ${Math.max(...range)}` : String(source.weight),
+      style: 'normal',
+      display: 'block'
+    });
+    await face.load();
+    document.fonts.add(face);
+    return face;
+  });
+  load.catch(() => registered.delete(key));
+  registered.set(key, load);
+  return load;
+}
+
 /**
  * Loads and registers the faces a design uses (all its Latin, Cyrillic and
  * East Asian families, at the weights it draws) and waits until they are
@@ -80,35 +102,11 @@ function familiesOf(tokens, design, { eastAsian = true } = {}) {
  * the multi-megabyte CJK faces (template thumbnails).
  */
 export async function registerDeckFonts(tokens, { document, window, eastAsian = true }) {
-  const fontSet = document?.fonts;
-  if (!fontSet || typeof window?.FontFace !== 'function') return false;
+  if (!document?.fonts || typeof window?.FontFace !== 'function') return false;
   const loads = [];
   for (const [family, weights] of familiesOf(tokens, tokens.design, { eastAsian })) {
-    const definition = FONT_FAMILIES[family];
-    for (const weight of weights) {
-      const source = fontSource(family, weight);
-      if (!source) continue;
-      const key = `${family}|${source.file}|${source.variable ? 'var' : source.weight}`;
-      if (registered.has(key)) {
-        loads.push(registered.get(key));
-        continue;
-      }
-      const load = loadFontFile(source.file).then(async (bytes) => {
-        const range = definition.weights;
-        const face = new window.FontFace(fontAlias(family), bytes, {
-          weight: source.variable ? `${Math.min(...range)} ${Math.max(...range)}` : String(source.weight),
-          style: 'normal',
-          display: 'block'
-        });
-        await face.load();
-        fontSet.add(face);
-        return face;
-      });
-      load.catch(() => registered.delete(key));
-      registered.set(key, load);
-      loads.push(load);
-    }
+    for (const weight of weights) loads.push(registerFace(family, weight, { document, window }));
   }
-  await Promise.all(loads);
+  await Promise.all(loads.filter(Boolean));
   return true;
 }

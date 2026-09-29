@@ -159,9 +159,7 @@ export function describeSandboxFile(entry, { canRerun = false } = {}) {
     state: type.policy === 'block' ? 'blocked' : available ? 'ready' : 'missing',
     stats: null,
     size,
-    canRerun,
-    // A deck Python drew itself cannot be laid out by the slide preview.
-    pagePreview: type.family !== 'powerpoint'
+    canRerun
   });
 }
 

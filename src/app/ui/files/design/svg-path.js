@@ -282,6 +282,7 @@ export function blobSegments(w, h) {
 
 /** Outline of a scene shape relative to its box (rounded, arch or blob). */
 export function shapeSegments(element) {
+  if (element.segments) return element.segments;
   if (element.shape === 'blob') return blobSegments(element.w, element.h);
   if (element.shape === 'arch') return roundedRectSegments(0, 0, element.w, element.h, [element.w / 2, element.w / 2, element.radius, element.radius]);
   if (element.shape === 'ellipse') return circleSegments(element.w / 2, element.h / 2, element.w / 2).map((segment) => (segment.type === 'Z' ? segment : { ...segment, y: segment.y * element.h / element.w, ...(segment.type === 'C' ? { y1: segment.y1 * element.h / element.w, y2: segment.y2 * element.h / element.w } : {}) }));

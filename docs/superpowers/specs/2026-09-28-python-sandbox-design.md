@@ -770,3 +770,27 @@ CSP 是主要的防線。另外在執行模型的程式之前，Worker 還會做
 - **瀏覽器（真的沙盒）**：範例程式同時做出 Word（標題、表格）、PPT（文字加原生圖表）、PDF（reportlab 表格）。嵌入後 docx 36,976 → 102,380 位元組，pptx 34,755 → 97,654 位元組，耗時 79 毫秒；PDF 不動。
 - **Office**：Word 與 PowerPoint 開啟都沒有錯誤；PPT 的 `presentation.xml` 有 Inter 與 Noto Sans TC 兩個 `embeddedFont`，Word 的 `fontTable.xml` 也有這兩個。重跑後 Word 樣式裡不再有佈景主題字型屬性。
 - **還沒做**：自由做出的 PPT 沒有卡片預覽（B4b-2 的 PPTX 讀取器）；Word 預覽與看圖檢查的接入留到 B5。
+
+## B4b-2 實作紀錄（2026-09-29）
+
+自由做出的 PPT（python-pptx、PptxGenJS 或 PowerPoint 存的檔）原本沒有卡片預覽。現在用自己寫的 PPTX 讀取器，讓「預覽」和設計系統的簡報看起來一樣。
+
+### 做法
+
+- **讀取**（`src/app/ui/sandbox/pptx-reader.js`，載入時才用）：
+  - 投影片大小照檔案（16:9、4:3 都可以），寬度固定 960，1 pt 換算成對應的像素。
+  - 繼承和 PowerPoint 一樣：簡報預設文字樣式 → 母片文字樣式與版面配置的預留位置 → 該形狀本身。位置與大小沒寫時，從版面配置、母片的預留位置取。顏色經佈景主題與母片的顏色對照（`pptx-styles.js`，含 lumMod、lumOff、tint、shade、alpha）；形狀樣式（`p:style`）的填色、外框、文字顏色也會用。
+  - 內容：文字方塊（多個 run 的大小、粗體、斜體、底線、顏色、字型；項目符號與自動編號、縮排、行距、段落間距、垂直對齊、`normAutofit` 的縮放）、常見圖形（矩形、圓角矩形、橢圓、三角形、箭頭、六邊形…）與自訂路徑、線條與連接線、圖片（含裁切）、表格（合併儲存格、內建表格樣式的近似）、群組（座標轉換）、背景（純色、漸層、圖片）、母片與版面配置上的裝飾。
+  - 圖表（`pptx-chart-reader.js`）：直條圖、橫條圖、折線、區域、圓餅、環圈、散布、雷達，用檔案裡快取的數值；單一數列且沒關掉自動標題時，用數列名稱當標題。不支援的圖表改畫虛線框。
+- **排版**（`free-slide-layout.js`）：用量測器斷行，行距、段落間距與項目符號都算好；表格列高會長到容得下文字，並轉成矩形與文字，所以繪圖程式不用新增表格類型。
+- **繪圖**：`slide-preview.js` 只加了一點：run 自己的字型、大小、斜體、底線；旋轉；項目符號自己的字元；圖片的伸展與裁切；不同的投影片比例。圖表沿用 `drawChart`，環圈的中空大小 0 就是圓餅。
+- **字型**：檔案用的字型不一定在這台電腦上。每個字型的預覽順序是「檔案寫的名稱 → app 內建的相近字型 → 通用字型」（Calibri 對應 Inter；中日韓文字對應對應的 Noto）。內建字型只載入這份簡報用到的（`registerFace`，和設計系統簡報共用）。
+- **接上**：`sandbox-file-blob.js` 對 .pptx 建立 `blob.presentation`；檔案卡片不再關閉頁面預覽；預覽下方的說明改成「這是 Python 做出的簡報的預覽…以下載的檔案為準」（五種語言，`freeSlidePreviewNote`）。
+- **沒做的**：SmartArt、3D、動畫、母片的漸層填色樣式（`fillRef` 只取顏色，PowerPoint 會畫漸層）、藝術字效果、陰影。EMF、WMF 圖片只顯示佔位框。
+
+### 驗證
+
+- **自動測試**：`tests/sandbox/pptx-reader.test.js` 共 7 項，用真的 python-pptx 做的檔案（`tests/sandbox/fixtures/free-deck.pptx`，4:3，含預設佈景主題、標題與內容預留位置、項目符號、文字 run、圓角矩形、箭頭、橢圓、連接線、表格、圖片、群組、直條圖與圓餅圖）：預留位置繼承、字級換算、形狀與表格、圖表數值、繪圖後的 SVG（文字、項目符號、圖片、長條、圓餅）、非簡報檔被拒絕。`npm test` 共 2003 項通過；`build`、`check:sizes`、`check:legacy-runtime`、`npm audit --omit=dev`（0 個漏洞）也通過。
+- **PowerPoint 對照**：同一份檔案用 PowerPoint 匯出 PNG，和預覽並排看第 3、4 張（自由排版、圖表），版面、文字位置、表格、圖表大致相符；差異是形狀的漸層填色（PowerPoint 畫漸層，預覽是單色）。
+- **設計系統的簡報**：用同一個讀取器讀 PptxGenJS 做的 19 張投影片簡報（poster、swiss、bauhaus…，共 11 份），全部讀得進來；poster 前 6 張的預覽外觀看起來符合該範本（沒有逐張和 app 自己的預覽比對）。
+- **給 B5**：`slide-rasterizer.js` 把投影片固定畫成 960 × 540，4:3 的自由簡報要用 `slide.width`、`slide.height` 決定尺寸。
