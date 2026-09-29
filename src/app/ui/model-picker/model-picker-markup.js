@@ -21,9 +21,10 @@ const metaLine = (model, escape) => [model.providerLabel, ...model.abilities].fi
 function renderRowBody(model, { t, escape }) {
   const tag = model.free ? `<span class="mp-tag">${escape(t('free'))}</span>` : '';
   const retire = model.retirement ? `<span class="mp-retire">${escape(model.retirement)}</span>` : '';
-  const description = model.description ? `<span class="mp-row-desc">${escape(model.description)}</span>` : '';
-  return `<span class="mp-row-main"><span class="mp-row-name">${escape(model.name)}${tag}${retire}</span><span class="mp-row-meta">${metaLine(model, escape)}</span>${description}</span>`;
+  return `<span class="mp-row-main"><span class="mp-row-name">${escape(model.name)}${tag}${retire}</span><span class="mp-row-meta">${metaLine(model, escape)}</span></span>`;
 }
+
+const rowTitle = (model, escape) => escape([model.name, model.description].filter(Boolean).join('\n'));
 
 const searchText = (model) => `${model.name} ${model.providerLabel} ${model.company} ${model.apiId} ${model.description}`.toLowerCase();
 
@@ -36,10 +37,10 @@ function renderGroups(groups, kind, ctx) {
       ${group.models.map((model) => {
     const text = escape(searchText(model));
     if (kind === 'single') {
-      return `<button type="button" class="mp-row${model.selected ? ' is-selected' : ''}" data-mp-model="${escape(model.id)}" data-mp-search-text="${text}" ${model.disabled ? 'disabled' : ''}>${renderRowBody(model, ctx)}${model.selected ? ICONS.check : ''}</button>`;
+      return `<button type="button" class="mp-row${model.selected ? ' is-selected' : ''}" data-mp-model="${escape(model.id)}" data-mp-search-text="${text}" title="${rowTitle(model, escape)}" ${model.disabled ? 'disabled' : ''}>${renderRowBody(model, ctx)}${model.selected ? ICONS.check : ''}</button>`;
     }
     const attribute = kind === 'members' ? `data-mp-member="${escape(model.id)}"` : `data-mp-combiner="${escape(model.id)}"`;
-    return `<label class="mp-row mp-pick${model.selected ? ' is-selected' : ''}${model.disabled ? ' is-disabled' : ''}" data-mp-search-text="${text}"><input type="${kind === 'members' ? 'checkbox' : 'radio'}" ${kind === 'combiner' ? 'name="mp-combiner"' : ''} ${attribute} ${model.selected ? 'checked' : ''} ${model.disabled ? 'disabled' : ''}><span class="mp-mark" aria-hidden="true">${ICONS.check}</span>${renderRowBody(model, ctx)}</label>`;
+    return `<label class="mp-row mp-pick${model.selected ? ' is-selected' : ''}${model.disabled ? ' is-disabled' : ''}" data-mp-search-text="${text}" title="${rowTitle(model, escape)}"><input type="${kind === 'members' ? 'checkbox' : 'radio'}" ${kind === 'combiner' ? 'name="mp-combiner"' : ''} ${attribute} ${model.selected ? 'checked' : ''} ${model.disabled ? 'disabled' : ''}><span class="mp-mark" aria-hidden="true">${ICONS.check}</span>${renderRowBody(model, ctx)}</label>`;
   }).join('')}
     </section>`).join('') + `<p class="mp-empty" data-mp-empty hidden>${escape(t('noResults'))}</p>`;
 }
@@ -74,8 +75,7 @@ function renderDepth(depth, ctx) {
 function renderSingle(state, ctx) {
   return `
     ${renderSearch(state.query, ctx)}
-    <div class="mp-scroll" data-mp-scroll>${renderGroups(state.groups, 'single', ctx)}</div>
-    ${renderDepth(state.depth, ctx)}`;
+    <div class="mp-scroll" data-mp-scroll>${renderGroups(state.groups, 'single', ctx)}</div>`;
 }
 
 function renderCouncil(state, ctx) {
@@ -135,9 +135,21 @@ function renderPick(state, ctx) {
 export function renderPickerTrigger(state, ctx) {
   const { escape } = ctx;
   const label = state.council ? ctx.t('councilCount', { n: state.council.count }) : state.modelName;
-  const effort = !state.council && state.effortLabel ? `<span class="mp-trigger-effort">${escape(state.effortLabel)}</span>` : '';
   const dot = state.council && !state.council.ok ? '<span class="mp-trigger-dot" aria-hidden="true"></span>' : '';
-  return `<button type="button" id="model-picker-btn" class="mp-trigger${state.council ? ' is-council' : ''}" aria-haspopup="dialog" aria-expanded="${state.open ? 'true' : 'false'}" title="${escape(state.title)}" ${state.disabled ? 'disabled' : ''}>${state.council ? ICONS.council : ''}<span class="mp-trigger-name">${escape(label)}</span>${effort}${dot}${ICONS.chevron}</button>`;
+  return `<button type="button" id="model-picker-btn" class="mp-trigger${state.council ? ' is-council' : ''}" aria-haspopup="dialog" aria-expanded="${state.open ? 'true' : 'false'}" title="${escape(state.title)}" ${state.disabled ? 'disabled' : ''}>${state.council ? ICONS.council : ''}<span class="mp-trigger-name">${escape(label)}</span>${dot}${ICONS.chevron}</button>`;
+}
+
+/** How deeply it thinks: its own small button next to the model's, shown only where the model has levels. */
+export function renderDepthTrigger(state, ctx) {
+  const { t, escape } = ctx;
+  const label = state.depth.levels[state.depth.index].label;
+  return `<button type="button" id="model-depth-btn" class="mp-trigger mp-depth-trigger" aria-haspopup="dialog" aria-expanded="${state.depthOpen ? 'true' : 'false'}" title="${escape(t('thinkingDepthOf', { level: label }))}" aria-label="${escape(t('thinkingDepthOf', { level: label }))}" ${state.disabled ? 'disabled' : ''}><span class="mp-depth-trigger-value">${escape(label)}</span>${ICONS.chevron}</button>`;
+}
+
+/** The small panel behind it: the level named, the slider, and what each end means. */
+export function renderDepthPanel(state, ctx) {
+  const { t, escape } = ctx;
+  return `<div id="model-depth-popover" class="popover mp-panel mp-depth-panel${state.depthOpen ? ' visible' : ''}" role="dialog" aria-label="${escape(t('thinkingDepth'))}">${renderDepth(state.depth, ctx)}</div>`;
 }
 
 /** The panel: how to answer (single model or council), then that choice's controls. */

@@ -12,6 +12,8 @@
     align-self: center;
 }
 
+.mp-anchor { position: relative; display: flex; flex: 0 0 auto; align-items: center; }
+
 #model-council-control .mp-trigger {
     display: inline-flex;
     align-items: center;
@@ -39,7 +41,6 @@
 
 #model-council-control .mp-trigger:disabled { cursor: default; opacity: 0.55; }
 .mp-trigger-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.mp-trigger-effort { flex: none; font-weight: 400; opacity: 0.85; }
 .mp-trigger-dot { flex: none; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: #d97706; }
 .mp-chevron { flex: none; transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1); }
 .mp-trigger[aria-expanded='true'] .mp-chevron { transform: rotate(180deg); }
@@ -52,19 +53,31 @@
     display: flex;
     flex-direction: column;
     width: min(24rem, calc(100vw - 1.5rem));
-    max-height: min(34rem, calc(100vh - 8rem));
+    max-height: min(40rem, calc(100vh - 8rem));
     padding: 0.5rem;
     overflow: hidden;
     border: 1px solid var(--border-color);
     border-radius: 1rem;
     background: var(--modal-bg);
     color: var(--text-primary);
-    transform: translateY(6px) scale(0.98);
+    transform: translateY(8px) scale(0.96);
     transform-origin: bottom right;
-    transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1), visibility 0.22s;
+    /* Closing is quicker than opening. */
+    transition: opacity 0.12s ease-in, transform 0.12s ease-in, visibility 0.12s;
 }
 
-#model-council-control .mp-panel.visible { transform: none; }
+#model-council-control .mp-panel.visible {
+    transform: none;
+    transition: opacity 0.16s ease-out, transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.08), visibility 0s;
+}
+
+/* Moving to another page of the panel: forward from the right, back from the left, or a fade. */
+@keyframes mp-enter { from { opacity: 0; transform: translateX(14px); } }
+@keyframes mp-back { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes mp-fade { from { opacity: 0; } }
+.mp-view.is-enter { animation: mp-enter 0.22s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.mp-view.is-back { animation: mp-back 0.22s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.mp-view.is-fade { animation: mp-fade 0.18s ease-out; }
 .mp-view { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
 
 #model-council-control .mp-panel button:hover:not(:disabled),
@@ -155,7 +168,7 @@
 .mp-empty[hidden] { display: none; }
 
 .mp-group-title {
-    margin: 0.6rem 0.5rem 0.2rem;
+    margin: 0.45rem 0.5rem 0.1rem;
     color: var(--text-secondary);
     font-size: 0.75rem;
     font-weight: 500;
@@ -167,28 +180,28 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     width: 100%;
     margin: 0;
-    padding: 0.5rem 0.6rem;
+    padding: 0.35rem 0.6rem;
     border: 0;
-    border-radius: 0.65rem;
+    border-radius: 0.6rem;
     background: transparent;
     color: var(--text-primary);
     text-align: left;
     cursor: pointer;
+    transition: background-color 0.08s ease;
 }
 
 #model-council-control .mp-row:hover:not(:disabled),
 #model-council-control .mp-row.is-selected { background: var(--hover-bg); }
+#model-council-control .mp-row:active:not(:disabled) { background: var(--active-bg); }
 #model-council-control .mp-row:disabled,
 .mp-row.is-disabled { cursor: default; opacity: 0.45; }
 
-.mp-row-main { display: flex; flex: 1; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.mp-row-main { display: flex; flex: 1; flex-direction: column; gap: 0; min-width: 0; }
 .mp-row-name { overflow: hidden; font-size: 0.9375rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-.mp-row-meta,
-.mp-row-desc { overflow: hidden; color: var(--text-secondary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
-.mp-row-desc { font-size: 0.75rem; opacity: 0.85; }
+.mp-row-meta { overflow: hidden; color: var(--text-secondary); font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
 .mp-check { flex: none; }
 
 .mp-tag,
@@ -404,26 +417,30 @@
 #model-council-control .mp-back:hover:not(:disabled),
 #model-council-control .mp-done:hover:not(:disabled) { background: var(--hover-bg); }
 
-.mp-depth { flex: none; margin-top: 0.4rem; padding: 0.6rem 0.6rem 0.3rem; border-top: 1px solid var(--border-color); }
-.mp-depth-head { display: flex; flex-direction: column; align-items: center; gap: 0.05rem; }
-.mp-depth-title { color: var(--text-secondary); font-size: 0.75rem; }
-.mp-depth-value { font-size: 1.0625rem; font-weight: 500; }
+.mp-depth-trigger-value { color: var(--text-primary); }
+
+#model-council-control .mp-panel.mp-depth-panel { width: min(14.5rem, calc(100vw - 1.5rem)); max-height: none; padding: 0.15rem; border-radius: 0.9rem; }
+.mp-depth { padding: 0.55rem 0.65rem 0.6rem; }
+.mp-depth-head { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.mp-depth-title { color: var(--text-secondary); font-size: 0.72rem; }
+.mp-depth-value { display: inline-block; font-size: 1.0625rem; font-weight: 500; }
 
 /* A number the browser can ease, so the thumb hops to each dot in a quick move. */
 @property --mp-p { syntax: '<number>'; inherits: true; initial-value: 0; }
 
 .mp-slider-wrap {
-    --mp-thumb: 2.25rem;
+    --mp-thumb: 2rem;
     position: relative;
-    height: 2.25rem;
-    margin: 0.5rem 0 0.35rem;
-    transition: --mp-p 0.11s cubic-bezier(0.2, 0.9, 0.3, 1);
+    height: 2rem;
+    margin: 0.4rem 0 0.3rem;
+    /* A touch of overshoot: the thumb lands on the dot with a little spring. */
+    transition: --mp-p 0.2s cubic-bezier(0.3, 1.3, 0.5, 1);
 }
 
 /* The track is slimmer than the thumb, so the fill never shows above or below it. */
 .mp-slider-track {
     position: absolute;
-    inset: 0.325rem 0;
+    inset: 0.25rem 0;
     overflow: hidden;
     border-radius: 999px;
     background: color-mix(in srgb, var(--text-primary) 12%, transparent);
@@ -460,13 +477,14 @@
     border-radius: 50%;
     background: #ffffff;
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(var(--mp-press, 1));
     pointer-events: none;
-    transition: box-shadow 0.15s ease;
+    transition: box-shadow 0.15s ease, transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
 .mp-slider-wrap:has(.mp-slider:focus-visible) .mp-thumb { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), 0 0 0 3px color-mix(in srgb, var(--text-primary) 35%, transparent); }
 .mp-slider-wrap:has(.mp-slider:disabled) { opacity: 0.5; }
+.mp-slider-wrap:has(.mp-slider:active) .mp-thumb { --mp-press: 1.1; }
 
 #model-council-control .mp-slider {
     position: absolute;
@@ -483,15 +501,14 @@
 }
 
 .mp-slider:disabled { cursor: default; }
-.mp-slider::-webkit-slider-thumb { width: var(--mp-thumb, 2.25rem); height: 2.25rem; appearance: none; }
-.mp-slider::-moz-range-thumb { width: var(--mp-thumb, 2.25rem); height: 2.25rem; border: 0; }
+.mp-slider::-webkit-slider-thumb { width: var(--mp-thumb, 2rem); height: 2rem; appearance: none; }
+.mp-slider::-moz-range-thumb { width: var(--mp-thumb, 2rem); height: 2rem; border: 0; }
 .mp-depth-ends { display: flex; justify-content: space-between; padding: 0 0.4rem; color: var(--text-secondary); font-size: 0.75rem; }
 
 @media (max-width: 640px) {
     #model-council-control .mp-trigger { max-width: 9.5rem; padding: 0 0.5rem; }
-    .mp-trigger-effort { display: none; }
 
-    #model-council-control .mp-panel {
+    #model-council-control .mp-panel:not(.mp-depth-panel) {
         position: fixed;
         right: 0.5rem;
         bottom: 0.5rem;
@@ -509,7 +526,12 @@
     .mp-switch,
     .mp-switch::after,
     .mp-slider-wrap,
+    .mp-thumb,
+    .mp-row,
     .mp-more > summary::after { transition: none; }
+    .mp-view.is-enter,
+    .mp-view.is-back,
+    .mp-view.is-fade { animation: none; }
 }
 
 /* Icons take the colour of the text around them, whatever the page sets on svg. */

@@ -3,7 +3,7 @@
 // building a council, and setting how deeply the model thinks.
 
 import { buildModelGroups, getModelCompany } from '../../ui/model-picker/model-picker-groups.js';
-import { renderPickerPanel, renderPickerTrigger } from '../../ui/model-picker/model-picker-markup.js';
+import { renderDepthPanel, renderDepthTrigger, renderPickerPanel, renderPickerTrigger } from '../../ui/model-picker/model-picker-markup.js';
 import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
 import { prepareModelSwitcherModels } from './model-switcher-lifecycle.js';
 
@@ -81,10 +81,14 @@ export function createCouncilControlsLifecycle(deps) {
       return;
     }
     const room = trigger.getBoundingClientRect().top - 24;
-    panel.style.maxHeight = `${Math.round(Math.max(220, Math.min(544, room)))}px`;
+    panel.style.maxHeight = `${Math.round(Math.max(220, Math.min(640, room)))}px`;
   };
 
   const isPanelOpen = (container) => Boolean(container?.querySelector('#model-picker-popover')?.classList.contains('visible'));
+  const isDepthOpen = (container) => Boolean(container?.querySelector('#model-depth-popover')?.classList.contains('visible'));
+
+  // How the panel last looked (single or council, which page), so a change of page can ease in.
+  let lastLayout = null;
 
   const describe = (model, { translations, t, selected = false, disabled = false }) => {
     const tiers = getModelTiers(model) || [];
@@ -118,9 +122,13 @@ export function createCouncilControlsLifecycle(deps) {
 
     let container = document.getElementById('model-council-control');
     const existingPanel = container?.querySelector('#model-picker-popover');
-    const wasOpen = forceOpen ?? isPanelOpen(container);
+    // `open` is 'model' or 'depth' to open that panel (true means the model one), false to close both,
+    // and left out to keep what is on screen.
+    const target = forceOpen === true ? 'model' : forceOpen;
+    const wasOpen = target === null ? isPanelOpen(container) : target === 'model';
+    let depthOpen = target === null ? isDepthOpen(container) : target === 'depth';
     const previousScroll = wasOpen ? (existingPanel?.querySelector('[data-mp-scroll]')?.scrollTop || 0) : 0;
-    const refocusSlider = wasOpen && document.activeElement?.matches?.('[data-mp-depth-input]');
+    const refocusSlider = depthOpen && document.activeElement?.matches?.('[data-mp-depth-input]');
 
     if (!container) {
       container = document.createElement('div');
@@ -140,6 +148,7 @@ export function createCouncilControlsLifecycle(deps) {
       view = 'main';
       query = '';
       dropMarkupCache();
+      lastLayout = null;
       return;
     }
     conversation.council = normalizeCouncilConfig(conversation.council);
@@ -153,7 +162,7 @@ export function createCouncilControlsLifecycle(deps) {
     const locked = getIsCouncilRunning() && conversation.council.enabled;
     const image = isImageConversation(conversation);
     const councilActive = conversation.council.enabled && !image;
-    if (!wasOpen && forceOpen !== true) view = 'main';
+    if (!wasOpen && target !== 'model') view = 'main';
     if (!councilActive && view !== 'main') view = 'main';
     const showTabs = !image && !(config.isLearningMode && !conversation.council.enabled);
     const archived = Boolean(conversation.archived);
@@ -168,6 +177,7 @@ export function createCouncilControlsLifecycle(deps) {
     const context = { translations, t };
     const state = {
       open: wasOpen,
+      depthOpen: false,
       view,
       query,
       locked,
@@ -178,7 +188,6 @@ export function createCouncilControlsLifecycle(deps) {
       groups: [],
       pickGroups: [],
       depth: null,
-      effortLabel: '',
       modelName: currentModel?.name || '',
       title: currentModel?.name || t('modelPicker')
     };
@@ -238,16 +247,20 @@ export function createCouncilControlsLifecycle(deps) {
         const levels = reasoning.options.map((option) => ({ value: option, label: getReasoningEffortLabel(option, language) }));
         const index = Math.max(0, levels.findIndex((level) => level.value === effort));
         state.depth = { levels, index, defaultIndex: levels.findIndex((level) => level.value === reasoning.defaultEffort), disabled: archived };
-        state.effortLabel = levels[index].label;
       }
     }
 
+    depthOpen = depthOpen && Boolean(state.depth);
+    state.depthOpen = depthOpen;
     const ctx = { t, escape: escapeHTML };
-    const markup = `${renderPickerTrigger(state, ctx)}${renderPickerPanel(state, ctx)}`;
+    const depthMarkup = state.depth ? `<div class="mp-anchor">${renderDepthTrigger(state, ctx)}${renderDepthPanel(state, ctx)}</div>` : '';
+    const markup = `<div class="mp-anchor">${renderPickerTrigger(state, ctx)}${renderPickerPanel(state, ctx)}</div>${depthMarkup}`;
     // The panel can be closed from outside (a click elsewhere) without a render, so
     // what is on screen is only reused while it still agrees with what would be drawn.
     const screenMatches = isPanelOpen(container) === wasOpen
-      && container.querySelector('#model-picker-btn')?.getAttribute('aria-expanded') === String(wasOpen);
+      && isDepthOpen(container) === depthOpen
+      && container.querySelector('#model-picker-btn')?.getAttribute('aria-expanded') === String(wasOpen)
+      && (!state.depth || container.querySelector('#model-depth-btn')?.getAttribute('aria-expanded') === String(depthOpen));
     if (
       existingPanel
       && screenMatches
@@ -265,6 +278,16 @@ export function createCouncilControlsLifecycle(deps) {
 
     applySearch(container);
     fitPanel(container);
+    // Moving to another page of the panel eases in: forward slides from the right, back from the left,
+    // and single/council fades.
+    const layout = `${councilActive ? 'council' : 'single'}:${view}`;
+    const page = container.querySelector('.mp-view');
+    if (page && wasOpen && lastLayout && lastLayout !== layout) {
+      const [beforeKind, beforeView] = lastLayout.split(':');
+      const kind = councilActive ? 'council' : 'single';
+      page.classList.add(beforeKind !== kind && beforeView === view ? 'is-fade' : view === 'main' ? 'is-back' : 'is-enter');
+    }
+    lastLayout = layout;
     const scroller = container.querySelector('[data-mp-scroll]');
     if (scroller && previousScroll) scroller.scrollTop = previousScroll;
     if (refocusSlider) container.querySelector('[data-mp-depth-input]')?.focus();
@@ -295,22 +318,26 @@ export function createCouncilControlsLifecycle(deps) {
     return container;
   };
 
-  const setPanelOpen = (container, open) => {
-    const panel = container.querySelector('#model-picker-popover');
-    const button = container.querySelector('#model-picker-btn');
-    if (!panel || !button) return;
+  // Opens the model panel or the thinking panel, or closes both. Only one is open at a time.
+  const setPanelOpen = (container, which, open) => {
     closeAllPopovers();
     if (open) {
-      view = 'main';
-      query = '';
-      renderCouncilControls({ open: true });
-      const search = container.querySelector('[data-mp-search]');
-      const coarse = document.defaultView?.matchMedia?.('(pointer: coarse)')?.matches;
-      if (search && !coarse) requestFrame(() => search.focus({ preventScroll: true }));
-    } else {
-      panel.classList.remove('visible');
-      button.setAttribute('aria-expanded', 'false');
+      if (which === 'model') {
+        view = 'main';
+        query = '';
+      }
+      renderCouncilControls({ open: which });
+      if (which === 'model') {
+        const search = container.querySelector('[data-mp-search]');
+        const coarse = document.defaultView?.matchMedia?.('(pointer: coarse)')?.matches;
+        if (search && !coarse) requestFrame(() => search.focus({ preventScroll: true }));
+      } else {
+        container.querySelector('[data-mp-depth-input]')?.focus({ preventScroll: true });
+      }
+      return;
     }
+    container.querySelectorAll('.mp-panel').forEach((panel) => panel.classList.remove('visible'));
+    container.querySelectorAll('.mp-trigger').forEach((button) => button.setAttribute('aria-expanded', 'false'));
   };
 
   const chooseModel = async (modelId) => {
@@ -370,7 +397,13 @@ export function createCouncilControlsLifecycle(deps) {
     const label = labels[Math.min(labels.length - 1, Math.max(0, Math.round(position)))];
     if (label === undefined) return null;
     const value = input.closest('[data-mp-depth]')?.querySelector('[data-mp-depth-value]');
-    if (value) value.textContent = label;
+    if (value && value.textContent !== label) {
+      value.textContent = label;
+      const reduce = document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      if (typeof value.animate === 'function' && !reduce) {
+        value.animate([{ opacity: 0.3, transform: 'translateY(5px) scale(0.92)' }, { opacity: 1, transform: 'none' }], { duration: 170, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.2)' });
+      }
+    }
     input.setAttribute('aria-valuetext', label);
     return label;
   };
@@ -386,8 +419,8 @@ export function createCouncilControlsLifecycle(deps) {
     const chosen = normalizeReasoningEffort(info, options[index]);
     if (!conv || !chosen || chosen === normalizeReasoningEffort(info, conv.reasoningEffort)) return;
     conv.reasoningEffort = chosen;
-    const effort = container.querySelector('.mp-trigger-effort');
-    if (effort && label) effort.textContent = label;
+    const shown = container.querySelector('.mp-depth-trigger-value');
+    if (shown && label) shown.textContent = label;
     await saveAppData();
   };
 
@@ -405,7 +438,13 @@ export function createCouncilControlsLifecycle(deps) {
       if (target.id === 'model-picker-btn') {
         event.preventDefault();
         if (target.disabled) return;
-        setPanelOpen(container, !isPanelOpen(container));
+        setPanelOpen(container, 'model', !isPanelOpen(container));
+        return;
+      }
+      if (target.id === 'model-depth-btn') {
+        event.preventDefault();
+        if (target.disabled) return;
+        setPanelOpen(container, 'depth', !isDepthOpen(container));
         return;
       }
       if (target.dataset.mpTab) {
@@ -433,13 +472,13 @@ export function createCouncilControlsLifecycle(deps) {
       if (target.dataset.mpOpen) {
         view = target.dataset.mpOpen;
         query = '';
-        renderCouncilControls({ open: true });
+        renderCouncilControls({ open: 'model' });
         return;
       }
       if ('mpBack' in target.dataset) {
         view = 'main';
         query = '';
-        renderCouncilControls({ open: true });
+        renderCouncilControls({ open: 'model' });
         return;
       }
       if (target.dataset.mpRemove) {
@@ -532,14 +571,15 @@ export function createCouncilControlsLifecycle(deps) {
         commitDepth(container, input, step === 'first' ? 0 : step === 'last' ? last : Math.min(last, Math.max(0, current + step)));
         return;
       }
-      if (event.key === 'Escape' && isPanelOpen(container)) {
+      if (event.key === 'Escape' && (isPanelOpen(container) || isDepthOpen(container))) {
         if (event.target?.matches?.('[data-mp-search]') && event.target.value) {
           event.target.value = '';
           query = '';
           applySearch(container);
         } else {
-          setPanelOpen(container, false);
-          container.querySelector('#model-picker-btn')?.focus();
+          const depth = isDepthOpen(container);
+          setPanelOpen(container, depth ? 'depth' : 'model', false);
+          container.querySelector(depth ? '#model-depth-btn' : '#model-picker-btn')?.focus();
         }
         event.stopPropagation();
       }
@@ -562,7 +602,7 @@ export function createCouncilControlsLifecycle(deps) {
     closeAllPopovers();
     view = 'main';
     query = '';
-    renderCouncilControls({ open: true });
+    renderCouncilControls({ open: 'model' });
     return true;
   };
 

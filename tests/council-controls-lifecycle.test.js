@@ -136,8 +136,14 @@ test('the composer button names the model, or the council, and sits before the s
     assert.equal(container.nextElementSibling.id, 'voice');
     const trigger = container.querySelector('#model-picker-btn');
     assert.equal(trigger.querySelector('.mp-trigger-name').textContent, 'Model A');
-    assert.equal(trigger.querySelector('.mp-trigger-effort').textContent, 'Medium', 'how deeply it thinks is on the button too');
+    assert.equal(trigger.querySelector('.mp-trigger-effort'), null, 'how deeply it thinks has its own button');
     assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+    const depth = container.querySelector('#model-depth-btn');
+    assert.equal(depth.querySelector('.mp-depth-trigger-value').textContent, 'Medium');
+    assert.equal(depth.textContent.trim(), 'Medium', 'the button says only the level, without a label');
+    assert.match(depth.title, /Thinking: Medium/, 'the words are its tooltip');
+    assert.equal(depth.nextElementSibling.id, 'model-depth-popover', 'with its own small panel');
+    assert.equal(trigger.nextElementSibling.id, 'model-picker-popover');
   } finally {
     single.cleanup();
   }
@@ -147,6 +153,7 @@ test('the composer button names the model, or the council, and sits before the s
     const trigger = council.document.querySelector('#model-picker-btn');
     assert.equal(trigger.querySelector('.mp-trigger-name').textContent, 'Council · 1');
     assert.equal(trigger.querySelector('.mp-trigger-effort'), null);
+    assert.equal(council.document.querySelector('#model-depth-btn'), null, 'a council has no single level to set');
   } finally {
     council.cleanup();
   }
@@ -163,9 +170,11 @@ test('a single model is chosen from one searchable list grouped by company, the 
     assert.deepEqual(rows.sort(), ['beta-d', 'model-a', 'model-b', 'vendor/model-c']);
     assert.equal(panel.querySelector('[data-mp-model="model-a"]').classList.contains('is-selected'), true);
     assert.match(panel.querySelector('[data-mp-model="model-a"]').textContent, /GEMINI · Vision · Search/);
-    assert.match(panel.querySelector('[data-mp-model="model-a"]').textContent, /Paid: \$1/);
+    assert.doesNotMatch(panel.querySelector('[data-mp-model="model-a"]').textContent, /Paid/, 'two lines a row, so more models fit');
+    assert.match(panel.querySelector('[data-mp-model="model-a"]').title, /Paid: \$1/, 'the price and notes are its tooltip');
     assert.match(panel.querySelector('[data-mp-model="model-b"]').textContent, /Free/);
-    assert.match(panel.querySelector('[data-mp-model="model-b"]').textContent, /Free tier/);
+    assert.match(panel.querySelector('[data-mp-model="model-b"]').title, /Free tier/);
+    assert.equal(panel.querySelector('[data-mp-depth]'), null, 'the thinking control is not in the model list');
     assert.equal(panel.querySelector('[data-mp-search]').placeholder, 'Search models');
   } finally {
     cleanup();
@@ -258,13 +267,14 @@ test('how deeply it thinks is a slider with a dot for each of the model\'s own l
     assert.equal(buzzes.length, 1, 'one tick for the one step, none for staying on it');
 
     // Let go: that level is kept, and the panel is not redrawn under the thumb.
-    const panel = document.querySelector('#model-picker-popover');
+    const depthPanel = document.querySelector('#model-depth-popover');
+    assert.ok(depthPanel.contains(slider), 'the slider is in the thinking panel');
     slider.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
     await settle();
     assert.equal(conversation.reasoningEffort, 'high');
     assert.ok(calls.some(([name]) => name === 'saveAppData'));
-    assert.equal(document.querySelector('.mp-trigger-effort').textContent, 'High');
-    assert.equal(document.querySelector('#model-picker-popover'), panel);
+    assert.equal(document.querySelector('.mp-depth-trigger-value').textContent, 'High');
+    assert.equal(document.querySelector('#model-depth-popover'), depthPanel);
 
     slider.value = '0';
     slider.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
@@ -652,13 +662,83 @@ test('the panel is kept inside the window: no taller than the room above its but
       return { top: this.id === 'model-picker-btn' ? 900 : 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
     };
     document.querySelector('#model-picker-btn').click();
-    assert.equal(document.querySelector('#model-picker-popover').style.maxHeight, '544px', 'never taller than the panel\'s usual height');
+    assert.equal(document.querySelector('#model-picker-popover').style.maxHeight, '640px', 'never taller than the panel\'s usual height');
     Object.defineProperty(win, 'innerWidth', { configurable: true, value: 400 });
     win.dispatchEvent(new win.Event('resize'));
     lifecycle.renderCouncilControls();
     document.querySelector('#model-picker-btn').click();
     document.querySelector('#model-picker-btn').click();
     assert.equal(document.querySelector('#model-picker-popover').style.maxHeight, '', 'a phone\'s sheet is sized by the stylesheet');
+  } finally {
+    cleanup();
+  }
+});
+
+test('how deeply it thinks has its own button and panel, and only one of the two panels is open at a time', () => {
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation({ reasoningEffort: 'medium' }) });
+  try {
+    lifecycle.renderCouncilControls();
+    const modelPanel = () => document.querySelector('#model-picker-popover');
+    const depthPanel = () => document.querySelector('#model-depth-popover');
+    assert.equal(depthPanel().classList.contains('visible'), false);
+    document.querySelector('#model-depth-btn').click();
+    assert.equal(depthPanel().classList.contains('visible'), true);
+    assert.equal(modelPanel().classList.contains('visible'), false);
+    assert.equal(document.querySelector('#model-depth-btn').getAttribute('aria-expanded'), 'true');
+    assert.ok(depthPanel().querySelector('[data-mp-depth-input]'));
+    assert.equal(depthPanel().querySelector('[data-mp-scroll]'), null, 'no model list in the small panel');
+
+    document.querySelector('#model-picker-btn').click();
+    assert.equal(modelPanel().classList.contains('visible'), true);
+    assert.equal(depthPanel().classList.contains('visible'), false, 'opening one closes the other');
+    document.querySelector('#model-depth-btn').click();
+    document.querySelector('#model-depth-btn').click();
+    assert.equal(depthPanel().classList.contains('visible'), false, 'and the button toggles it');
+  } finally {
+    cleanup();
+  }
+});
+
+test('Escape closes the thinking panel and returns to its button', () => {
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-depth-btn').click();
+    const slider = document.querySelector('[data-mp-depth-input]');
+    slider.dispatchEvent(new document.defaultView.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    assert.equal(document.querySelector('#model-depth-popover').classList.contains('visible'), false);
+    assert.equal(document.querySelector('#model-depth-btn').getAttribute('aria-expanded'), 'false');
+  } finally {
+    cleanup();
+  }
+});
+
+test('the thinking button is left out where there is no level to set', () => {
+  const none = createHarness({ conversation: singleConversation(), noReasoning: true });
+  try {
+    none.lifecycle.renderCouncilControls();
+    assert.equal(none.document.querySelector('#model-depth-btn'), null);
+    assert.equal(none.document.querySelector('#model-depth-popover'), null);
+  } finally {
+    none.cleanup();
+  }
+});
+
+test('moving to another page of the panel eases in: forward from the right, back from the left, and single/council fades', async () => {
+  const { cleanup, document, lifecycle } = createHarness();
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    assert.equal(document.querySelector('.mp-view').classList.contains('is-enter'), false, 'opening the panel is not a page change');
+    document.querySelector('[data-mp-open="members"]').click();
+    assert.equal(document.querySelector('.mp-view').classList.contains('is-enter'), true);
+    document.querySelector('[data-mp-back]').click();
+    assert.equal(document.querySelector('.mp-view').classList.contains('is-back'), true);
+    document.querySelector('[data-mp-tab="single"]').click();
+    await settle();
+    assert.equal(document.querySelector('.mp-view').classList.contains('is-fade'), true);
+    lifecycle.renderCouncilControls();
+    assert.equal(document.querySelector('.mp-view').classList.contains('is-fade'), true, 'an unchanged redraw leaves it alone');
   } finally {
     cleanup();
   }
