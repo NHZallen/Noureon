@@ -11,6 +11,7 @@
 // "not on this device" with a way to run the code again.
 
 import { registerFileBlock, rememberGeneratedFileSize } from '../files/file-block-model.js';
+import { scanFileBlocks } from '../files/file-block-protocol.js';
 import { sanitizeFileName } from '../files/file-name-policy.js';
 import { ARCHIVE_EXTENSIONS, resolveFileType } from '../files/file-type-registry.js';
 
@@ -161,6 +162,18 @@ export function describeSandboxFile(entry, { canRerun = false } = {}) {
     size,
     canRerun
   });
+}
+
+// A model that saved a file with Python sometimes also writes it as a file
+// block of the same name (a second, often empty card). The real file wins:
+// blocks named like a saved file are taken out of the answer.
+export function withoutDuplicatedFileBlocks(text, names = []) {
+  const taken = new Set(names);
+  if (!taken.size || !text) return text;
+  let result = text;
+  const blocks = scanFileBlocks(text).filter((block) => taken.has(block.name));
+  for (const block of blocks.reverse()) result = `${result.slice(0, block.start)}${result.slice(block.end)}`;
+  return result === text ? text : result.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 // Documents the code handed to the design system (noureon.save_document)

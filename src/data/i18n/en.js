@@ -503,6 +503,7 @@
         autoNamed: 'Chat auto-named.',
         autoSearchNotice: 'Search automatically enabled for this query.',
         historySourcesUsed: 'Referenced {count} prior conversations',
+        visionAutoNote: 'Redone after an automatic visual check',
         historySourceUpdated: 'Updated',
         historySourceUnavailable: 'Conversation unavailable',
         voiceNotSupported: 'Your browser does not support voice input.',

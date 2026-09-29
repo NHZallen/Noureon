@@ -6,6 +6,7 @@
 import { MAX_RUNS_PER_REPLY, RUN_PYTHON_TOOL, getSandboxGuidance } from './sandbox-guidance.js';
 import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
+import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
@@ -133,6 +134,11 @@ export async function runSandboxReply({
     else round('sandboxThinking');
     const options = {
       ...requestOptions,
+      // What the model is thinking and the code it is writing, as it streams.
+      onReasoning: (chunk) => onEvent({ type: 'thinking', text: chunk }),
+      onToolArguments: ({ name, arguments: raw }) => {
+        if (name === RUN_PYTHON_TOOL.name) onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
+      },
       tools: canRun ? [RUN_PYTHON_TOOL] : [],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),

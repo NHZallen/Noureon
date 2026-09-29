@@ -505,6 +505,7 @@ const ru = {
   "autoNamed": "Чат получил автоматическое название.",
   "autoSearchNotice": "Поиск автоматически включен для этого запроса.",
   "historySourcesUsed": "Учтено прошлых диалогов: {count}",
+  "visionAutoNote": "Переделано после автоматической визуальной проверки",
   "historySourceUpdated": "Обновлено",
   "historySourceUnavailable": "Диалог недоступен",
   "voiceNotSupported": "Ваш браузер не поддерживает голосовой ввод.",

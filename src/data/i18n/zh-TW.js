@@ -503,6 +503,7 @@
         autoNamed: '對話已自動命名',
         autoSearchNotice: '偵測到問題需要連網搜索，已自動開啟。',
         historySourcesUsed: '已參考 {count} 段舊對話',
+        visionAutoNote: '自動看圖檢查後重新製作',
         historySourceUpdated: '最後更新',
         historySourceUnavailable: '對話已無法使用',
         voiceNotSupported: '您的瀏覽器不支援語音輸入功能。',

@@ -58,6 +58,8 @@ export function buildMessageRenderView({
     let userActionButtons = '';
     let quoteReferenceHTML = '';
     let historySourcesHTML = '';
+    // A reply the automatic visual check asked for is marked, so it does not read as an answer to the user.
+    let autoNoteHTML = '';
     const isImageGenerationLoading = !isUser && message.parts.some(part => part.imageGenerationLoading);
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
@@ -155,6 +157,9 @@ export function buildMessageRenderView({
                     </button>
                 </div>`;
         }
+        if (!isUser && message.metadata?.visionCheck && historySourceTexts.autoCheckLabel) {
+            autoNoteHTML = `<div class="auto-check-note">${escapeHTML(historySourceTexts.autoCheckLabel)}</div>`;
+        }
         if (!isUser && historySources.length > 0) {
             const referenceLabel = historySourceLabel(
                 historySourceTexts.referenceLabel || 'Referenced {count} prior conversations',
@@ -190,6 +195,7 @@ export function buildMessageRenderView({
     const quoteStackClass = quoteReferenceHTML ? ' message-stack-has-quote' : '';
     const messageHTML = `
                 <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}${imageStackClass}${quoteStackClass}">
+                    ${autoNoteHTML}
                     ${mediaGridHTML}
                     ${generatedImageHTML}
                     ${quoteReferenceHTML}

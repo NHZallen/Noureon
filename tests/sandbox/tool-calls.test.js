@@ -5,7 +5,8 @@ import {
   applyGeminiTools,
   applyOpenAiTools,
   createGeminiCollector,
-  createOpenAiCollector
+  createOpenAiCollector,
+  partialJsonString
 } from '../../src/app/legacy-runtime/features/tool-call-formats.js';
 import { RUN_PYTHON_TOOL } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
 
@@ -80,4 +81,33 @@ test('OpenAI-compatible stream: argument pieces are joined per call index', () =
     ['call_2', 'run_python', null]
   ]);
   assert.equal(result.reasoningDetails.length, 1);
+});
+
+test('the code a model is writing can be read while its arguments still stream in', () => {
+  assert.equal(partialJsonString('{"title":"t","code":"print(1)\\nx = \\"a\\"', 'code'), 'print(1)\nx = "a"');
+  assert.equal(partialJsonString('{"code":"', 'code'), '');
+  assert.equal(partialJsonString('{"tit', 'code'), '');
+  assert.equal(partialJsonString('{"code":"a\\u4e2d\\u6', 'code'), 'a中', 'a half-written escape waits');
+  assert.equal(partialJsonString('{"code":"done","title":"x"}', 'code'), 'done');
+});
+
+test('the thinking and the code being written are reported as they stream, whichever the provider', () => {
+  const thoughts = [];
+  const calls = [];
+  const gemini = createGeminiCollector({ onReasoning: (text) => thoughts.push(text), onToolArguments: (call) => calls.push(call) });
+  const visible = gemini.add({ candidates: [{ content: { parts: [{ text: '先想一下', thought: true }, { text: '答案' }, { functionCall: { name: 'run_python', args: { code: 'x' } } }] } }] });
+  assert.equal(visible, '答案', 'thoughts are not part of the answer');
+  assert.deepEqual(thoughts, ['先想一下']);
+  assert.deepEqual(calls, [{ name: 'run_python', arguments: '{"code":"x"}' }]);
+
+  const heard = [];
+  const args = [];
+  const open = createOpenAiCollector({ onReasoning: (text) => heard.push(text), onToolArguments: (call) => args.push(call.arguments) });
+  open.add({ choices: [{ delta: { reasoning: '想', reasoning_details: [{ type: 'reasoning.text', text: '想' }] } }] });
+  open.add({ choices: [{ delta: { reasoning_content: '再想' } }] });
+  open.add({ choices: [{ delta: { reasoning_details: [{ type: 'reasoning.text', text: '只有細節' }] } }] });
+  open.add({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c', function: { name: 'run_python', arguments: '{"code":"pri' } }] } }] });
+  open.add({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'nt(1)"}' } }] } }] });
+  assert.deepEqual(heard, ['想', '再想', '只有細節'], 'one copy of each piece, from whichever field carries it');
+  assert.deepEqual(args, ['{"code":"pri', '{"code":"print(1)"}']);
 });

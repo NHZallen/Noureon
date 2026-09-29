@@ -119,6 +119,22 @@ test('renders expandable history references without exposing source UUIDs', () =
   assert.doesNotMatch(view.messageHTML, new RegExp(sourceId));
 });
 
+test('a reply the automatic visual check asked for is marked before its bubble, and an ordinary one is not', () => {
+  const checked = buildMessageRenderView({
+    message: { role: 'model', parts: [{ text: 'Redone' }], createdAt: '2026-06-24T10:30:00.000Z', metadata: { visionCheck: { issues: [] } } },
+    historySourceTexts: { autoCheckLabel: 'Redone after an <automatic> visual check' },
+    ...dependencies
+  });
+  assert.match(checked.messageHTML, /<div class="auto-check-note">Redone after an &lt;automatic&gt; visual check<\/div>/);
+  assert.ok(checked.messageHTML.indexOf('auto-check-note') < checked.messageHTML.indexOf('message-bubble'));
+  const ordinary = buildMessageRenderView({
+    message: { role: 'model', parts: [{ text: 'Answer' }], createdAt: '2026-06-24T10:30:00.000Z' },
+    historySourceTexts: { autoCheckLabel: 'Redone after an automatic visual check' },
+    ...dependencies
+  });
+  assert.doesNotMatch(ordinary.messageHTML, /auto-check-note/);
+});
+
 test('renders a sent quote above the user bubble without exposing hidden model context', () => {
   const view = buildMessageRenderView({
     message: {

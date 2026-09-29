@@ -1,6 +1,6 @@
 export const VISION_TEXTS = Object.freeze({
   'zh-TW': {
-    ledgerTitle: '看圖檢查', renderedSlides: '已畫出 {total} 頁投影片', sheetsDone: '已拼成 {total} 張聯絡表', reviewedBy: '看完了',
+    ledgerTitle: '自動看圖檢查', renderedSlides: '已畫出 {total} 頁投影片', sheetsDone: '已拼成 {total} 張聯絡表', reviewedBy: '看完了',
     slideProgress: '正在畫第 {n} / {total} 頁', sheetsProgress: '已拼好 {n} / {total} 張圖', reviewingSheets: '正在看 {count} 張圖', issuesFound: '發現 {count} 個問題',
     fixing: '正在重新製作簡報', freeHeading: '看圖檢查完成：發現 {found} 個問題，已請 AI 重新製作簡報。', freeNoFile: 'AI 沒有產生修正後的簡報檔案。',
     preparing: '正在檢查簡報版面…', rendering: '正在把頁面轉成圖片', reviewing: '正在看圖檢查', applying: '正在套用修正', stop: '停止',
@@ -10,7 +10,7 @@ export const VISION_TEXTS = Object.freeze({
     categories: { text: '文字', layout: '版面', image: '圖片', chart: '圖表', consistency: '一致性' }
   },
   en: {
-    ledgerTitle: 'Visual check', renderedSlides: 'Drew {total} slides', sheetsDone: 'Made {total} contact sheets', reviewedBy: 'Finished looking',
+    ledgerTitle: 'Automatic visual check', renderedSlides: 'Drew {total} slides', sheetsDone: 'Made {total} contact sheets', reviewedBy: 'Finished looking',
     slideProgress: 'Drawing slide {n} of {total}', sheetsProgress: 'Sheet {n} of {total} ready', reviewingSheets: 'Looking at {count} pictures', issuesFound: '{count} issues found',
     fixing: 'Redoing the presentation', freeHeading: 'Visual check done: {found} issues found, and the presentation was redone.', freeNoFile: 'The AI did not produce a corrected presentation file.',
     preparing: 'Checking the slide layout…', rendering: 'Turning slides into images', reviewing: 'Reviewing the slides', applying: 'Applying the fixes', stop: 'Stop',
@@ -20,7 +20,7 @@ export const VISION_TEXTS = Object.freeze({
     categories: { text: 'Text', layout: 'Layout', image: 'Image', chart: 'Chart', consistency: 'Consistency' }
   },
   fr: {
-    ledgerTitle: 'Vérification visuelle', renderedSlides: '{total} diapositives dessinées', sheetsDone: '{total} planches créées', reviewedBy: 'Examen terminé',
+    ledgerTitle: 'Vérification visuelle automatique', renderedSlides: '{total} diapositives dessinées', sheetsDone: '{total} planches créées', reviewedBy: 'Examen terminé',
     slideProgress: 'Diapositive {n} sur {total}', sheetsProgress: 'Planche {n} sur {total} prête', reviewingSheets: 'Examen de {count} images', issuesFound: '{count} problèmes trouvés',
     fixing: 'Refonte de la présentation', freeHeading: 'Vérification visuelle terminée : {found} problèmes trouvés, la présentation a été refaite.', freeNoFile: 'L’IA n’a pas produit de présentation corrigée.',
     preparing: 'Vérification de la mise en page…', rendering: 'Conversion des diapositives en images', reviewing: 'Examen des diapositives', applying: 'Application des corrections', stop: 'Arrêter',
@@ -30,7 +30,7 @@ export const VISION_TEXTS = Object.freeze({
     categories: { text: 'Texte', layout: 'Mise en page', image: 'Image', chart: 'Graphique', consistency: 'Cohérence' }
   },
   ru: {
-    ledgerTitle: 'Визуальная проверка', renderedSlides: 'Нарисовано слайдов: {total}', sheetsDone: 'Создано листов: {total}', reviewedBy: 'Просмотр завершён',
+    ledgerTitle: 'Автоматическая визуальная проверка', renderedSlides: 'Нарисовано слайдов: {total}', sheetsDone: 'Создано листов: {total}', reviewedBy: 'Просмотр завершён',
     slideProgress: 'Слайд {n} из {total}', sheetsProgress: 'Лист {n} из {total} готов', reviewingSheets: 'Просмотр изображений: {count}', issuesFound: 'Найдено проблем: {count}',
     fixing: 'Переделка презентации', freeHeading: 'Визуальная проверка завершена: найдено проблем — {found}, презентация переделана.', freeNoFile: 'ИИ не создал исправленный файл презентации.',
     preparing: 'Проверка макета слайдов…', rendering: 'Преобразование слайдов в изображения', reviewing: 'Проверка слайдов', applying: 'Применение исправлений', stop: 'Остановить',
@@ -40,7 +40,7 @@ export const VISION_TEXTS = Object.freeze({
     categories: { text: 'Текст', layout: 'Макет', image: 'Изображение', chart: 'Диаграмма', consistency: 'Единообразие' }
   },
   es: {
-    ledgerTitle: 'Revisión visual', renderedSlides: '{total} diapositivas dibujadas', sheetsDone: '{total} hojas creadas', reviewedBy: 'Revisión terminada',
+    ledgerTitle: 'Revisión visual automática', renderedSlides: '{total} diapositivas dibujadas', sheetsDone: '{total} hojas creadas', reviewedBy: 'Revisión terminada',
     slideProgress: 'Diapositiva {n} de {total}', sheetsProgress: 'Hoja {n} de {total} lista', reviewingSheets: 'Revisando {count} imágenes', issuesFound: '{count} problemas encontrados',
     fixing: 'Rehaciendo la presentación', freeHeading: 'Revisión visual terminada: {found} problemas encontrados y la presentación se rehizo.', freeNoFile: 'La IA no produjo una presentación corregida.',
     preparing: 'Revisando el diseño de las diapositivas…', rendering: 'Convirtiendo las diapositivas en imágenes', reviewing: 'Revisando las diapositivas', applying: 'Aplicando las correcciones', stop: 'Detener',

@@ -17,7 +17,8 @@ import {
   latestRunFiles,
   loadSandboxFileBlob,
   registerSandboxFileParts,
-  sandboxFileType
+  sandboxFileType,
+  withoutDuplicatedFileBlocks
 } from '../../src/app/ui/sandbox/sandbox-files.js';
 import { formatSandboxRunBlock, liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 import { cellPosition, displayNumber, readWorkbookLayout } from '../../src/app/ui/sandbox/xlsx-reader.js';
@@ -193,4 +194,15 @@ wb.save("/tmp/book.xlsx")
   } finally {
     cleanup();
   }
+});
+
+test('a file block named like a file Python saved is taken out of the answer', () => {
+  const answer = ['做好了。', '', '````file 簡報.pptx', '{"title":"空的"}', '````', '', '另外的檔案：', '', '````file 別的.docx', '# 報告', '````', '', '完成。'].join('\n');
+  const cleaned = withoutDuplicatedFileBlocks(answer, ['簡報.pptx']);
+  assert.doesNotMatch(cleaned, /簡報\.pptx/);
+  assert.match(cleaned, /別的\.docx/, 'other blocks stay');
+  assert.match(cleaned, /做好了。/);
+  assert.match(cleaned, /完成。/);
+  assert.equal(withoutDuplicatedFileBlocks(answer, []), answer);
+  assert.equal(withoutDuplicatedFileBlocks(answer, ['none.pptx']), answer);
 });

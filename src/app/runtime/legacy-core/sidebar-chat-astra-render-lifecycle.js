@@ -593,7 +593,8 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     getHistorySourceTexts: () => ({
       referenceLabel: i18n[getConfig().uiLanguage].historySourcesUsed,
       updatedLabel: i18n[getConfig().uiLanguage].historySourceUpdated,
-      unavailableLabel: i18n[getConfig().uiLanguage].historySourceUnavailable
+      unavailableLabel: i18n[getConfig().uiLanguage].historySourceUnavailable,
+      autoCheckLabel: i18n[getConfig().uiLanguage].visionAutoNote
     }),
     openHistorySourceConversation: (id) => {
       const sourceConversation = getConversations().find(conversation => conversation.id === id);

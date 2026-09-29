@@ -7,7 +7,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { modelSupportsToolCalling } from '../../runtime/legacy-core/model-registry.js';
 import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
-import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks } from './sandbox-files.js';
+import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, withoutDuplicatedFileBlocks } from './sandbox-files.js';
 
 /**
  * Runs one Advanced mode reply for `requestParts`. Returns null when the
@@ -46,10 +46,12 @@ export async function runSandboxFix({
     onEvent
   });
   if (result.run?.steps?.length) await offices.embedFontsInRunOutputs(result.run).catch(() => {});
+  const parts = createSandboxFileParts(result.run);
   return {
-    text: result.text,
+    // A file block the model wrote for a file it saved would be a second, empty card.
+    text: withoutDuplicatedFileBlocks(result.text, parts.map((part) => part.sandboxFile.name)),
     run: result.run,
-    parts: createSandboxFileParts(result.run),
+    parts,
     documents: sandboxDocumentBlocks(result.run)
   };
 }

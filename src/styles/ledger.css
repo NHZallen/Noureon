@@ -7,28 +7,20 @@
     color: var(--text-primary, #111827);
 }
 
-.ledger-heading {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0 0 0.35rem;
-    font-weight: 600;
-}
-
-.ledger-stop {
-    padding: 0.1rem 0.6rem;
+.ledger-action {
+    flex: none;
+    padding: 0 0.55rem;
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 0.4rem;
     background: transparent;
-    color: inherit;
+    color: var(--text-secondary, #6b7280);
     font: inherit;
     font-size: 0.75rem;
-    font-weight: 400;
     cursor: pointer;
 }
 
-.ledger-stop:hover,
-.ledger-stop:focus-visible { background: var(--hover-bg, #f3f4f6); }
+.ledger-action:hover,
+.ledger-action:focus-visible { background: var(--hover-bg, #f3f4f6); }
 
 .ledger-list { display: flex; flex-direction: column; gap: 0.1rem; }
 
@@ -136,6 +128,19 @@
 }
 
 .ledger-output { max-height: 10rem; }
+
+/* The model's thinking: prose, quieter than the code. */
+.ledger-thought {
+    margin: 0 0 0.4rem;
+    max-height: 12rem;
+    overflow: auto;
+    color: var(--text-secondary, #6b7280);
+    font: inherit;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
 .ledger-output.is-error { color: #dc2626; }
 
 .ledger-files { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.25rem; }
@@ -220,4 +225,15 @@
     border-radius: 0.8rem;
     background: var(--modal-bg, #fff);
     box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+}
+
+/* The mark on a reply the automatic visual check asked for (message-markup-renderer.js). */
+.auto-check-note {
+    width: fit-content;
+    margin: 0 0 0.35rem;
+    padding: 0.05rem 0.55rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 999px;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.75rem;
 }

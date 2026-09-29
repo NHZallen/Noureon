@@ -225,6 +225,10 @@ const buildGeminiRequest = ({
       thinkingLevel: reasoningEffort
     };
   }
+  // Thought summaries only come when asked for; they are shown, never kept in the answer.
+  if (requestOptions.onReasoning) {
+    payload.generationConfig.thinkingConfig = { ...(payload.generationConfig.thinkingConfig || {}), includeThoughts: true };
+  }
   const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch
     && (requestOptions.webSearchEnabled === true || conversation.isWebSearchEnabled);
   if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
@@ -688,7 +692,9 @@ export function createStreamApiCall({
 
     const reader = response.body.getReader();
     const decoder = new TextDecoderImpl();
-    const collector = provider === 'gemini' ? createGeminiCollector() : createOpenAiCollector();
+    // The thinking and the code being written reach the caller as they stream.
+    const hooks = { onReasoning: requestOptions.onReasoning, onToolArguments: requestOptions.onToolArguments };
+    const collector = provider === 'gemini' ? createGeminiCollector(hooks) : createOpenAiCollector(hooks);
     const fullText = provider === 'gemini'
       ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
       : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });

@@ -23,25 +23,13 @@ export function formatElapsed(milliseconds, { always = false } = {}) {
 
 /**
  * `host` is the element the list is put into (the message); with `before` it
- * goes in front of that child. `title` and `onStop` add a heading line with a
- * stop button. `texts.stop` is the button's word.
+ * goes in front of that child.
  */
-export function createLedger({ document, host, before = null, title = '', onStop = null, texts = {} }) {
+export function createLedger({ document, host, before = null }) {
   const window = document.defaultView;
   const root = element(document, 'div', 'ledger');
   root.setAttribute('role', 'status');
   root.setAttribute('aria-live', 'polite');
-  if (title) {
-    const heading = element(document, 'div', 'ledger-heading');
-    heading.append(element(document, 'span', 'ledger-heading-text', title));
-    if (onStop) {
-      const stop = element(document, 'button', 'ledger-stop', texts.stop || 'Stop');
-      stop.type = 'button';
-      stop.addEventListener('click', onStop);
-      heading.append(stop);
-    }
-    root.append(heading);
-  }
   const list = element(document, 'div', 'ledger-list');
   root.append(list);
   if (before && before.parentNode === host) host.insertBefore(root, before);
@@ -92,6 +80,17 @@ export function createLedger({ document, host, before = null, title = '', onStop
       body: content,
       draw,
       get state() { return state; },
+      get label() { return text.textContent; },
+      // A small button at the end of the row (stopping the work).
+      addAction(labelText, handler) {
+        const button = element(document, 'button', 'ledger-action', labelText);
+        button.type = 'button';
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          handler();
+        });
+        head.append(button);
+      },
       setLabel(value) { text.textContent = value; },
       setDetail(value) {
         detail.textContent = value || '';

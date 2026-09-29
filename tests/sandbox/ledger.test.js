@@ -108,3 +108,27 @@ test('a failed run keeps its error in the list, and a run of another number is i
   list.remove();
   window.happyDOM.abort();
 });
+
+test('the model\'s thinking and the code it is writing stream into its row, and the draft goes when the run starts', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'round', label: 'Thinking and writing code…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'thinking', text: 'The user wants ' });
+  list.event({ type: 'thinking', text: 'a chart.' });
+  list.event({ type: 'code', text: 'import ma' });
+  list.event({ type: 'code', text: 'import matplotlib' });
+  const row = message.querySelector('.ledger-row');
+  assert.equal(row.querySelector('.ledger-thought').textContent, 'The user wants a chart.');
+  assert.equal(row.querySelectorAll('.ledger-code').length, 1);
+  assert.equal(row.querySelector('.ledger-code').textContent, 'import matplotlib', 'the code so far, not a pile of pieces');
+  assert.equal(row.querySelector('.ledger-body').hidden, false, 'the thinking is open while it streams');
+  list.event({ type: 'step', n: 1, title: '', code: 'import matplotlib' });
+  assert.equal(row.classList.contains('is-done'), true);
+  assert.equal(row.querySelector('.ledger-label').textContent, 'Finished thinking');
+  assert.equal(row.querySelectorAll('.ledger-code').length, 0, 'the run shows the code itself');
+  assert.equal(row.querySelector('.ledger-thought').textContent, 'The user wants a chart.', 'the thinking stays to read');
+  assert.equal(row.querySelector('.ledger-body').hidden, true, 'and folds behind its line');
+  list.event({ type: 'thinking', text: 'ignored: no row is thinking' });
+  list.remove();
+  window.happyDOM.abort();
+});

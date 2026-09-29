@@ -71,9 +71,42 @@ export function applyOpenAiTools(payload, { tools = [], toolTurns = [] } = {}) {
   return payload;
 }
 
+/**
+ * The string value of `key` in JSON that is still arriving (a tool call's
+ * arguments so far): what has been written of it, escapes decoded.
+ */
+export function partialJsonString(raw = '', key = 'code') {
+  const start = new RegExp(`"${key}"\\s*:\\s*"`).exec(raw);
+  if (!start) return '';
+  const escapes = { n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', '"': '"', '\\': '\\', '/': '/' };
+  let out = '';
+  for (let index = start.index + start[0].length; index < raw.length; index += 1) {
+    const char = raw[index];
+    if (char === '"') break;
+    if (char !== '\\') {
+      out += char;
+      continue;
+    }
+    const next = raw[index + 1];
+    if (next === undefined) break;
+    if (next === 'u') {
+      const hex = raw.slice(index + 2, index + 6);
+      if (hex.length < 4) break;
+      out += String.fromCharCode(Number.parseInt(hex, 16));
+      index += 5;
+    } else {
+      out += escapes[next] ?? next;
+      index += 1;
+    }
+  }
+  return out;
+}
+
 // Collects one Gemini streamed response: its visible text, every part (to
-// send back unchanged) and its function calls.
-export function createGeminiCollector() {
+// send back unchanged) and its function calls. `onReasoning(text)` hears the
+// model's thought summaries and `onToolArguments({ name, arguments })` its
+// function calls, as they arrive.
+export function createGeminiCollector({ onReasoning = null, onToolArguments = null } = {}) {
   const parts = [];
   const toolCalls = [];
   let text = '';
@@ -85,6 +118,7 @@ export function createGeminiCollector() {
         parts.push(part);
         if (part.functionCall) {
           const args = part.functionCall.args && typeof part.functionCall.args === 'object' ? part.functionCall.args : {};
+          onToolArguments?.({ name: String(part.functionCall.name || ''), arguments: JSON.stringify(args) });
           toolCalls.push({
             id: part.functionCall.id || `gemini-call-${toolCalls.length + 1}`,
             geminiId: part.functionCall.id || '',
@@ -92,7 +126,9 @@ export function createGeminiCollector() {
             arguments: JSON.stringify(args),
             args
           });
-        } else if (typeof part.text === 'string' && !part.thought) {
+        } else if (typeof part.text === 'string' && part.thought) {
+          if (part.text) onReasoning?.(part.text);
+        } else if (typeof part.text === 'string') {
           visible += part.text;
         }
       }
@@ -105,7 +141,7 @@ export function createGeminiCollector() {
 
 // Collects one OpenAI-compatible streamed response. Tool call arguments
 // arrive in pieces keyed by `index`.
-export function createOpenAiCollector() {
+export function createOpenAiCollector({ onReasoning = null, onToolArguments = null } = {}) {
   const calls = new Map();
   const reasoningDetails = [];
   let text = '';
@@ -122,8 +158,15 @@ export function createOpenAiCollector() {
         if (piece.function?.name) call.name += piece.function.name;
         if (typeof piece.function?.arguments === 'string') call.arguments += piece.function.arguments;
         calls.set(index, call);
+        onToolArguments?.({ name: call.name, arguments: call.arguments });
       }
       if (Array.isArray(delta.reasoning_details)) reasoningDetails.push(...delta.reasoning_details);
+      // The thinking, whichever way the provider names it (OpenRouter, DeepSeek, NVIDIA).
+      let thought = typeof delta.reasoning === 'string' ? delta.reasoning : typeof delta.reasoning_content === 'string' ? delta.reasoning_content : '';
+      if (!thought && Array.isArray(delta.reasoning_details)) {
+        thought = delta.reasoning_details.map((detail) => (typeof detail?.text === 'string' ? detail.text : typeof detail?.summary === 'string' ? detail.summary : '')).join('');
+      }
+      if (thought) onReasoning?.(thought);
       const visible = typeof delta.content === 'string' ? delta.content : '';
       text += visible;
       return visible;

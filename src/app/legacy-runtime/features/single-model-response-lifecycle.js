@@ -4,7 +4,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
-import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
+import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, withoutDuplicatedFileBlocks } from '../../ui/sandbox/sandbox-files.js';
 import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 
 // Advanced mode (Python in the browser) is loaded only for replies that use it.
@@ -179,7 +179,7 @@ export function createSingleModelResponseLifecycle({
         }
         sandboxParts = createSandboxFileParts(result.run);
         sandboxDocuments = sandboxDocumentBlocks(result.run);
-        return result.text;
+        return withoutDuplicatedFileBlocks(result.text, sandboxParts.map((part) => part.sandboxFile.name));
       }
       : (onChunk) => streamApiCall(requestParts, onChunk, signal, false, streamOptions);
 

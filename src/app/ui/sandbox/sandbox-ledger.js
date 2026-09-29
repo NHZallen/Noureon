@@ -9,6 +9,7 @@ import { createLedger } from '../ledger/ledger.js';
 
 const MAX_OUTPUT_CHARS = 4000;
 const MAX_CODE_CHARS = 6000;
+const MAX_THOUGHT_CHARS = 12_000;
 const IMAGE_TYPES = Object.freeze({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' });
 
 const extensionOf = (name) => String(name || '').split('.').pop().toLowerCase();
@@ -39,7 +40,35 @@ export function createSandboxLedger({ document, host, before = null, language = 
     return list.addRow(label, options);
   };
 
+  // The model's thinking, as it streams, in the row of the round it belongs to.
+  const addThought = ({ text: chunk }) => {
+    const row = list.current;
+    if (!row || !chunk) return;
+    if (!row.thought) {
+      row.thought = create('pre', 'ledger-thought');
+      row.body.append(row.thought);
+      row.enableBody(true);
+    }
+    row.thought.textContent = (row.thought.textContent + chunk).slice(-MAX_THOUGHT_CHARS);
+    row.thought.scrollTop = row.thought.scrollHeight;
+  };
+
+  // The code as the model writes it (before it runs).
+  const addCode = ({ text: source }) => {
+    const row = list.current;
+    if (!row || !source) return;
+    if (!row.writing) {
+      row.writing = create('pre', 'ledger-code');
+      row.body.append(row.writing);
+      row.enableBody(true);
+    }
+    row.writing.textContent = source.length > MAX_CODE_CHARS ? `${source.slice(0, MAX_CODE_CHARS)}\n…` : source;
+    row.writing.scrollTop = row.writing.scrollHeight;
+  };
+
   const startStep = ({ n, title, code }) => {
+    // The run shows the code itself; the draft in the thinking row goes.
+    list.current?.writing?.remove();
     const running = title ? text('sandboxRunning', { n, title }) : text('sandboxRunningUntitled', { n });
     const row = begin(running, { body: true });
     row.doneLabel = title ? text('ledgerRan', { n, title }) : text('ledgerRanUntitled', { n });
@@ -112,6 +141,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
         list.current?.setDetail(event.text);
       } else if (event.type === 'finishing') {
         begin(event.label);
+      } else if (event.type === 'thinking') {
+        addThought(event);
+      } else if (event.type === 'code') {
+        addCode(event);
       } else if (event.type === 'step') {
         startStep(event);
       } else if (event.type === 'output') {

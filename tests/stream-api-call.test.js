@@ -836,3 +836,17 @@ test('stream API feature source stays isolated from DOM, storage, and runtime pl
     assert.doesNotMatch(source, new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });
+
+test('thought summaries are requested from Gemini and reported only when the caller listens', async () => {
+  const chunk = 'data: ' + JSON.stringify({ candidates: [{ content: { parts: [{ text: '先想', thought: true }, { text: '答案' }] } }] }) + '\n\n';
+  const heard = [];
+  const text = [];
+  const listening = createHarness({ provider: 'gemini', fetchImpl: async () => createResponse({ streamChunks: [chunk] }) });
+  await listening.streamApiCall([{ text: 'Hi' }], (piece) => text.push(piece), undefined, false, { onReasoning: (piece) => heard.push(piece) });
+  assert.equal(JSON.parse(listening.requests[0].options.body).generationConfig.thinkingConfig.includeThoughts, true);
+  assert.deepEqual(heard, ['先想']);
+  assert.deepEqual(text, ['答案'], 'the thinking is not part of the answer');
+  const silent = createHarness({ provider: 'gemini', fetchImpl: async () => createResponse({ streamChunks: [chunk] }) });
+  await silent.streamApiCall([{ text: 'Hi' }], () => {}, undefined, false);
+  assert.equal(JSON.parse(silent.requests[0].options.body).generationConfig.thinkingConfig, undefined);
+});

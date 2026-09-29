@@ -56,6 +56,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
       let answer = '';
       await streamApiCall(parts, chunk => { answer += chunk; }, controller.signal, false, {
         modelInfo: model, conversation, historyForApi: [], currentMessageForApi: { role: 'user', parts },
+        onReasoning: chunk => progress.thinking(chunk),
         disableReasoning: false, ignoreConversationWebSearch: true, skipMemoryContext: true,
         skipConversationSystemContext: true, requestPurpose: NOURAS_REQUEST_PURPOSE.VISION_CHECK,
         genConfig: { temperature: 0.2, topP: null, maxTokens: 4000 }

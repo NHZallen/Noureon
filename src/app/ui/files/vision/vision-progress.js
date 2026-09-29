@@ -3,10 +3,11 @@ import { createSandboxLedger } from '../../sandbox/sandbox-ledger.js';
 import { visionText } from './vision-texts.js';
 
 /**
- * The visual check as a step list under the message it checks: the slides
- * as they are drawn, the contact sheets, the model looking, the problems
- * found and the redoing. `host` is the message; `controller` is stopped by
- * the list's stop button.
+ * The automatic visual check as one quiet line under the message it checks
+ * (`Visual check · Drawing slide 3 of 13`, shimmering while it works), which
+ * opens to the steps: the slides as they are drawn, the contact sheets, the
+ * model looking, the problems found and the redoing. `host` is the message;
+ * the line's stop button stops the check through `controller`.
  */
 export function createVisionProgress({ document, language, controller, host = null, before = null }) {
   const text = (key, values) => visionText(language, key, values);
@@ -17,14 +18,16 @@ export function createVisionProgress({ document, language, controller, host = nu
     floating.className = 'ledger-floating';
     document.body.append(floating);
   }
-  const ledger = createLedger({
-    document,
-    host: host || floating,
-    before,
-    title: text('ledgerTitle'),
-    onStop: () => controller?.abort(),
-    texts: { stop: text('stop') }
-  });
+  const outer = createLedger({ document, host: host || floating, before });
+  const parent = outer.addRow(text('ledgerTitle'));
+  parent.enableBody(false);
+  parent.addAction(text('stop'), () => controller?.abort());
+  const ledger = createLedger({ document, host: parent.body });
+  // The line says which step it is at, so it can stay folded.
+  const sync = () => {
+    const current = ledger.current;
+    parent.setLabel(current ? `${text('ledgerTitle')} · ${current.label}` : text('ledgerTitle'));
+  };
   controller?.signal?.addEventListener('abort', () => remove(), { once: true });
 
   const create = (name, className) => Object.assign(document.createElement(name), { className });
@@ -33,6 +36,7 @@ export function createVisionProgress({ document, language, controller, host = nu
   const cells = new Map();
   let sheets = null;
   let redo = null;
+  let thought = null;
 
   const open = (name, label, options) => {
     // A step starts when the one before it is done.
@@ -105,6 +109,18 @@ export function createVisionProgress({ document, language, controller, host = nu
       sheets.append(Object.assign(document.createElement('img'), { src: url, alt: '' }));
       rows.sheets.setLabel(text('sheetsProgress', { n: index + 1, total }));
     },
+    // What the model is thinking while it looks, as it streams.
+    thinking(chunk) {
+      const row = rows.review;
+      if (!row || !chunk) return;
+      if (!thought) {
+        thought = create('pre', 'ledger-thought');
+        row.body.append(thought);
+        row.enableBody(true);
+      }
+      thought.textContent = (thought.textContent + chunk).slice(-12_000);
+      thought.scrollTop = thought.scrollHeight;
+    },
     // The problems the model found: their slides are outlined, the first few listed.
     showIssues(issues) {
       for (const issue of issues) cells.get(issue.slide - 1)?.classList.add('has-issue');
@@ -129,8 +145,16 @@ export function createVisionProgress({ document, language, controller, host = nu
     }
   };
   function remove() {
-    ledger.remove();
+    outer.remove();
     floating?.remove();
+  }
+  for (const key of ['set', 'slideRendered', 'sheetReady', 'showIssues', 'python']) {
+    const method = progress[key];
+    progress[key] = (...args) => {
+      const result = method(...args);
+      sync();
+      return result;
+    };
   }
   return { ...progress, remove };
 }

@@ -505,6 +505,7 @@ const es = {
   "autoNamed": "Chat con nombre automático.",
   "autoSearchNotice": "Búsqueda habilitada automáticamente para esta consulta.",
   "historySourcesUsed": "Se consultaron {count} conversaciones anteriores",
+  "visionAutoNote": "Rehecho tras una revisión visual automática",
   "historySourceUpdated": "Actualizado",
   "historySourceUnavailable": "Conversación no disponible",
   "voiceNotSupported": "Su navegador no admite entrada de voz.",
