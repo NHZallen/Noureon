@@ -21,9 +21,10 @@ const clock = (milliseconds) => {
 /**
  * `anchor` is the composer's container (the window sits above it); without
  * one the window is fixed to the bottom of the page. `texts` gives the words
- * of the buttons: { stop, fold, unfold }. `phases` is [{ key, label }].
+ * of the buttons: { stop, fold, unfold }. `phases` is [{ key, label }]. Without
+ * `showStop` the window has no stop button (something else stops the work).
  */
-export function createWorkWindow({ document, anchor = null, controller, texts, phases = [], startFolded = null }) {
+export function createWorkWindow({ document, anchor = null, controller, texts, phases = [], startFolded = null, showStop = true }) {
   const window = document.defaultView;
   const root = element(document, 'div', 'work-window');
   const bar = element(document, 'div', 'work-window-bar');
@@ -36,7 +37,8 @@ export function createWorkWindow({ document, anchor = null, controller, texts, p
   foldButton.type = 'button';
   const stopButton = element(document, 'button', 'work-window-button work-window-stop', texts.stop);
   stopButton.type = 'button';
-  bar.append(spinner, title, timer, foldButton, stopButton);
+  bar.append(spinner, title, timer, foldButton);
+  if (showStop) bar.append(stopButton);
 
   const meter = element(document, 'div', 'work-window-meter');
   const meterFill = element(document, 'div', 'work-window-meter-fill');
@@ -44,6 +46,7 @@ export function createWorkWindow({ document, anchor = null, controller, texts, p
 
   const body = element(document, 'div', 'work-window-body');
   const phaseList = element(document, 'ol', 'work-window-phases');
+  phaseList.hidden = phases.length === 0;
   const phaseNodes = new Map();
   for (const phase of phases) {
     const item = element(document, 'li', 'work-window-phase', phase.label);

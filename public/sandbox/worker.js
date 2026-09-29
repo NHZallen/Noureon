@@ -188,7 +188,23 @@ const handlers = {
     await loadFonts(pyodide);
     post({ type: MESSAGE_TYPES.progress, id: message.id, stage: 'running' });
     const before = snapshotOutput(pyodide);
-    const run = await runCode(pyodide, code, globals);
+    // What the code prints is sent on while it runs, at most ten times a second.
+    const pending = { stdout: '', stderr: '' };
+    let lastSent = 0;
+    const sendOutput = () => {
+      for (const stream of ['stdout', 'stderr']) {
+        if (pending[stream]) post({ type: MESSAGE_TYPES.progress, id: message.id, stage: 'output', stream, text: pending[stream] });
+        pending[stream] = '';
+      }
+      lastSent = Date.now();
+    };
+    const run = await runCode(pyodide, code, globals, {
+      onOutput: (stream, text) => {
+        pending[stream] += text;
+        if (Date.now() - lastSent >= 100) sendOutput();
+      }
+    });
+    sendOutput();
     const output = collectOutput(pyodide, before);
     const transfer = output.files.map((file) => file.bytes.buffer);
     post({

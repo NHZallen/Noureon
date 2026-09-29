@@ -60,7 +60,10 @@ export async function runSandboxReply({
   inputFiles = [],
   // The Design menu's choices: a template means the design system.
   designs = {},
-  onStatus = () => {}
+  onStatus = () => {},
+  // What happens in each run, for the work window: { type: 'step', n, title, code },
+  // { type: 'output', n, stream, text } and { type: 'step-end', n, ok, error, files, elapsedMs }.
+  onEvent = () => {}
 }) {
   // The model's name in the status lines, so the wait says who is working.
   const model = requestOptions.modelInfo?.name || requestOptions.modelInfo?.id || 'AI';
@@ -89,6 +92,10 @@ export async function runSandboxReply({
       onStatus(sandboxText(language, 'sandboxPreparing'));
       const sandbox = getSandbox({
         onProgress: (message) => {
+          if (message.stage === 'output') {
+            onEvent({ type: 'output', n: currentStep, stream: message.stream, text: String(message.text || '') });
+            return;
+          }
           const status = describeProgress(language, message);
           if (status && message.stage !== 'running') onStatus(status);
         }
@@ -152,6 +159,7 @@ export async function runSandboxReply({
       const step = { title, code, stdout: '', stderr: '', files: [], elapsedMs: 0 };
       run.steps.push(step);
       currentStep = run.steps.length;
+      onEvent({ type: 'step', n: currentStep, title, code });
       onStatus(title
         ? sandboxText(language, 'sandboxRunning', { n: currentStep, title })
         : sandboxText(language, 'sandboxRunningUntitled', { n: currentStep }));
@@ -193,6 +201,7 @@ export async function runSandboxReply({
         // Kept in memory for B3, which saves them with the message.
         outputs: result.files || []
       });
+      onEvent({ type: 'step-end', n: currentStep, ok: !result.error, error: result.error || '', files: result.files || [], elapsedMs: result.elapsedMs || 0 });
       let note = '';
       if (result.crashed) {
         crashes += 1;

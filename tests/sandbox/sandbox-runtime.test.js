@@ -125,3 +125,16 @@ test('only files a run creates or changes in /output are collected, within the l
   assert.equal(many.skipped.length, 2);
   assert.ok(many.skipped.every((file) => file.reason === 'too-many-files'));
 });
+
+test('what the code prints is reported while it runs, kept text only', async () => {
+  const pyodide = await loadPyodide();
+  prepareFolders(pyodide);
+  const heard = [];
+  const result = await runCode(pyodide, 'import sys\nprint("one")\nprint("two", file=sys.stderr)\nprint("三")', newGlobals(pyodide), { onOutput: (stream, text) => heard.push([stream, text]) });
+  assert.equal(result.stdout.text, 'one\n三\n');
+  assert.equal(heard.filter(([stream]) => stream === 'stdout').map(([, text]) => text).join(''), 'one\n三\n');
+  assert.equal(heard.filter(([stream]) => stream === 'stderr').map(([, text]) => text).join(''), 'two\n');
+  const long = [];
+  await runCode(pyodide, `print("a" * ${LIMITS.capturedTextChars + 10}, end="")`, newGlobals(pyodide), { onOutput: (stream, text) => long.push(text) });
+  assert.equal(long.join('').length, LIMITS.capturedTextChars, 'what was dropped is not sent either');
+});

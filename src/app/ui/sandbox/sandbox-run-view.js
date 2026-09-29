@@ -84,34 +84,3 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   container.append(details);
   return container;
 }
-
-// The live line while the reply is being written: a status and the steps so far.
-export function createSandboxLiveElement(document) {
-  const container = element(document, 'div', 'sandbox-run sandbox-run-live');
-  container.setAttribute('role', 'status');
-  container.setAttribute('aria-live', 'polite');
-  const line = element(document, 'div', 'sandbox-run-live-line');
-  line.append(element(document, 'span', 'sandbox-run-spinner'), element(document, 'span', 'sandbox-run-live-text'));
-  container.append(line);
-  // The wait for each step is counted, so a slow model or a long run does not look stuck.
-  const text = container.querySelector('.sandbox-run-live-text');
-  let label = '';
-  let since = Date.now();
-  const draw = () => {
-    const seconds = Math.floor((Date.now() - since) / 1000);
-    text.textContent = seconds >= 4 ? `${label} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : label;
-  };
-  const ticker = document.defaultView?.setInterval?.(draw, 1000);
-  return {
-    element: container,
-    update(statusText) {
-      label = statusText;
-      since = Date.now();
-      draw();
-    },
-    remove() {
-      if (ticker) document.defaultView.clearInterval(ticker);
-      container.remove();
-    }
-  };
-}

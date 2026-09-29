@@ -242,18 +242,21 @@ export function collectOutput(pyodide, before = new Map()) {
 }
 
 // Collects text written to stdout or stderr, keeping at most `limit`
-// characters and counting the rest.
-export function createTextSink(limit = LIMITS.capturedTextChars) {
+// characters and counting the rest. `onText` hears each part that was kept.
+export function createTextSink(limit = LIMITS.capturedTextChars, onText = null) {
   const decoder = new TextDecoder();
   let text = '';
   let dropped = 0;
   const add = (chunk) => {
     const room = limit - text.length;
-    if (room >= chunk.length) text += chunk;
+    let kept = '';
+    if (room >= chunk.length) kept = chunk;
     else {
-      if (room > 0) text += chunk.slice(0, room);
+      if (room > 0) kept = chunk.slice(0, room);
       dropped += chunk.length - Math.max(room, 0);
     }
+    text += kept;
+    if (kept && onText) onText(kept);
   };
   return {
     write(buffer) {
@@ -278,9 +281,10 @@ export function trimTraceback(message = '') {
 }
 
 // Runs code in the given globals with stdout and stderr captured.
-export async function runCode(pyodide, code, globals) {
-  const stdout = createTextSink();
-  const stderr = createTextSink();
+// `onOutput(stream, text)` hears the text as it is written.
+export async function runCode(pyodide, code, globals, { onOutput = null } = {}) {
+  const stdout = createTextSink(LIMITS.capturedTextChars, onOutput && ((text) => onOutput('stdout', text)));
+  const stderr = createTextSink(LIMITS.capturedTextChars, onOutput && ((text) => onOutput('stderr', text)));
   pyodide.setStdout({ write: (buffer) => stdout.write(buffer), isatty: false });
   pyodide.setStderr({ write: (buffer) => stderr.write(buffer), isatty: false });
   const started = Date.now();
