@@ -25,8 +25,8 @@ export async function openMicLevel({ navigator, window }) {
           const centred = (sample - 128) / 128;
           sum += centred * centred;
         }
-        // Speech sits low in the raw level: lift it so ordinary talking fills most of the height.
-        return Math.min(1, Math.sqrt(sum / samples.length) * 3.4);
+        // Speech sits low in the raw level: lifted, so ordinary talking is well above the noise.
+        return Math.min(1, Math.sqrt(sum / samples.length) * 6);
       },
       stop() {
         stream?.getTracks?.().forEach((track) => track.stop());

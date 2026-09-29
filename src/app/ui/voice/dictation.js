@@ -7,7 +7,7 @@ import { openMicLevel } from './mic-level.js';
 import { dictationText } from './dictation-texts.js';
 
 const STEP_MS = 55;
-const BAR_WIDTH = 2;
+const BAR_WIDTH = 3;
 const BAR_GAP = 3;
 const DOT_GAP = 6;
 const LEAVE_MS = 170;
@@ -83,9 +83,18 @@ export function openDictation({ document, window, navigator, host, language = 'z
   const history = createWaveformHistory();
   const context = canvas.getContext?.('2d') || null;
 
-  // No reading (the microphone is not shared, or is not offered): the bars breathe a little.
-  const breathing = (now) => 0.06 + 0.05 * Math.sin(now / 240);
-  const readLevel = (now) => (meter ? meter.read() : breathing(now));
+  // No reading (the microphone is not shared, or is not offered): the bars rise and fall by themselves.
+  const breathing = (now) => 0.3 + 0.22 * Math.sin(now / 210) + 0.12 * Math.sin(now / 97);
+  // The loudest lately, which slowly settles: a quiet microphone still fills the height when its
+  // owner speaks, and room noise below a floor stays flat.
+  let peak = 0.25;
+  const NOISE_FLOOR = 0.03;
+  const fromMicrophone = () => {
+    const raw = meter.read();
+    peak = Math.max(0.25, raw, peak * 0.992);
+    return raw < NOISE_FLOOR ? 0 : Math.min(1, (raw / peak) ** 0.7);
+  };
+  const readLevel = (now) => (meter ? fromMicrophone() : breathing(now));
 
   const size = () => {
     const ratio = window?.devicePixelRatio || 1;
@@ -110,17 +119,19 @@ export function openDictation({ document, window, navigator, host, language = 'z
     for (let x = DOT_GAP / 2; x < width; x += DOT_GAP) context.fillRect(x, height / 2 - 0.75, 1.5, 1.5);
     context.globalAlpha = 0.9;
     for (const bar of history.bars(width)) {
-      const barHeight = Math.max(2, bar.height * height * 0.9);
+      const barHeight = Math.max(3, bar.height * height);
       context.fillRect(bar.x, (height - barHeight) / 2, BAR_WIDTH, barHeight);
     }
   };
 
   const tick = (now) => {
     if (closed) return;
-    if (now - lastStep >= STEP_MS) {
-      lastStep = now;
+    // One bar every STEP_MS whatever the frame rate (a slow or throttled page catches up).
+    const due = lastStep === 0 ? 1 : Math.min(8, Math.floor((now - lastStep) / STEP_MS));
+    if (due > 0) {
+      lastStep = lastStep === 0 ? now : lastStep + due * STEP_MS;
       // Once the text is being made nothing new is heard; the bars hold still.
-      if (!busy) history.push(readLevel(now));
+      if (!busy) for (let index = 0; index < due; index += 1) history.push(readLevel(now));
     }
     draw();
     frame = window.requestAnimationFrame(tick);

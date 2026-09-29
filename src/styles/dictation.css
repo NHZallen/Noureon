@@ -22,7 +22,7 @@
 @keyframes dictation-out { to { opacity: 0; } }
 
 .dictation-plus { display: grid; flex: none; place-items: center; width: 2.5rem; height: 2.5rem; opacity: 0.35; }
-.dictation-wave { display: block; flex: 1; min-width: 0; height: 2rem; color: var(--text-secondary); }
+.dictation-wave { display: block; flex: 1; min-width: 0; height: 2.6rem; max-height: calc(100% - 0.4rem); color: var(--text-secondary); }
 
 .input-wrapper .dictation-bar button {
     display: grid;
