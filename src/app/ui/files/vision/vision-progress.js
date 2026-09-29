@@ -23,6 +23,8 @@ export function createVisionProgressNotification({ document, notificationContain
   notificationContainer.appendChild(notification);
   return {
     set(key, values) { status.textContent = visionText(language, key, values); },
+    // Free text (what the sandbox is doing while a deck is redone).
+    setText(text) { status.textContent = text; },
     remove
   };
 }

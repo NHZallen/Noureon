@@ -1,5 +1,6 @@
 // Keeps V1's heavy renderer and font pipeline outside the chat startup chunk.
 import { conversationImageSources } from '../../ui/files/conversation-images.js';
+import { freeDecks } from '../../ui/files/vision/vision-eligibility.js';
 
 export function createVisionCheckScheduler({ getConfig, getActiveConversation, normalizeConversationModel,
   isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer,
@@ -13,7 +14,7 @@ export function createVisionCheckScheduler({ getConfig, getActiveConversation, n
     const model = normalizeConversationModel(conversation);
     if (getConfig().visionCheckEnabled === false || isCouncilEnabled(conversation)
       || !modelSupportsVision(model) || model?.outputModality === 'image'
-      || !/(?:`{3,}|~{3,})\s*file\s+[^\n]*\.pptx/i.test(message.parts?.[0]?.text || '')) return;
+      || !(/(?:`{3,}|~{3,})\s*file\s+[^\n]*\.pptx/i.test(message.parts?.[0]?.text || '') || freeDecks(message).length)) return;
     const controller = new AbortController();
     const imageSources = conversationImageSources(document);
     jobs.set(conversation.id, controller);

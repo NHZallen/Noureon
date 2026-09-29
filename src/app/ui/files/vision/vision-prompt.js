@@ -44,7 +44,7 @@ JSON only:
 Write problem, fix and summary in ${LANGUAGE_NAMES[uiLanguage] || LANGUAGE_NAMES.en}. Return {"issues":[],"edits":[],"summary":""} when nothing needs fixing.`;
 }
 
-export function parseVisionResponse(response) {
+export function parseVisionResponse(response, { requireEdits = true } = {}) {
   let source = String(response || '').trim();
   const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(source);
   if (fenced) source = fenced[1];
@@ -63,8 +63,8 @@ export function parseVisionResponse(response) {
     if (char === '}' && --depth === 0) { source = source.slice(0, index + 1); break; }
   }
   const { value } = parseRelaxedJson(source);
-  if (!value || typeof value !== 'object' || !Array.isArray(value.issues) || !Array.isArray(value.edits)) throw new Error('invalid vision response');
+  if (!value || typeof value !== 'object' || !Array.isArray(value.issues) || (requireEdits && !Array.isArray(value.edits))) throw new Error('invalid vision response');
   const issues = value.issues.filter(issue => Number.isInteger(issue?.slide) && issue.slide > 0
     && CATEGORIES.has(issue.category) && typeof issue.problem === 'string' && typeof issue.fix === 'string');
-  return { issues, edits: value.edits, summary: typeof value.summary === 'string' ? value.summary.slice(0, 1000) : '' };
+  return { issues, edits: Array.isArray(value.edits) ? value.edits : [], summary: typeof value.summary === 'string' ? value.summary.slice(0, 1000) : '' };
 }

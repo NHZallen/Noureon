@@ -25,8 +25,21 @@ export async function runVisionCheck({ conversation, message, model, config, con
     checkAbort(controller.signal);
     const progress = createVisionProgressNotification({ document, notificationContainer, language, controller });
     let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 120_000);
+    let timer = null;
+    const arm = ms => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { timedOut = true; controller.abort(); }, ms);
+    };
+    arm(120_000);
     try {
+      if (file.free) {
+        // A deck Python drew: reviewed as images, redone by the model when needed.
+        const { checkFreeDeck } = await import('./vision-free-check.js');
+        if (await checkFreeDeck({ file, conversation, message, model, config, controller, language, progress, arm, streamApiCall,
+          document, window, getActiveConversation, addMessageToUI, saveAppData, showNotification, crypto })) checked++;
+        else progress.remove();
+        continue;
+      }
       const parsed = parseDocumentSpec(file.content, { uiLanguage: language });
       const spec = parsed.spec;
       const context = { language, document, window,

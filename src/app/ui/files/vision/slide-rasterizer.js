@@ -43,12 +43,12 @@ export async function embedSlideFonts(svg, { document }) {
 
 const abortIfNeeded = signal => { if (signal?.aborted) throw new DOMException('Aborted', 'AbortError'); };
 
-async function rasterize(svg, { document, window, signal }) {
+async function rasterize(svg, { document, window, signal, width = 960, height = 540 }) {
   abortIfNeeded(signal);
   // Without an intrinsic size Firefox cannot draw an SVG image to a canvas
   // and other browsers may rasterize it at 300 × 150 before scaling.
-  svg.setAttribute('width', '960');
-  svg.setAttribute('height', '540');
+  svg.setAttribute('width', String(width));
+  svg.setAttribute('height', String(height));
   const serialized = new window.XMLSerializer().serializeToString(svg);
   const url = window.URL.createObjectURL(new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' }));
   try {
@@ -58,9 +58,9 @@ async function rasterize(svg, { document, window, signal }) {
     else await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
     abortIfNeeded(signal);
     const canvas = document.createElement('canvas');
-    canvas.width = 960;
-    canvas.height = 540;
-    canvas.getContext('2d').drawImage(image, 0, 0, 960, 540);
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(image, 0, 0, width, height);
     return canvas;
   } finally {
     window.URL.revokeObjectURL(url);
@@ -85,13 +85,17 @@ export async function createContactSheets(presentation, { document, window, lang
       const slide = group[slot];
       const svg = renderSlideSvg(document, slide, { layout, fontAlias, measure });
       await embedSlideFonts(svg, { document });
-      const picture = await rasterize(svg, { document, window, signal });
+      // Decks of other proportions (4:3) are drawn whole, centred in the cell.
+      const width = slide.width || 960;
+      const height = slide.height || 540;
+      const picture = await rasterize(svg, { document, window, signal, width, height });
       const x = slot % 2 * 800;
       const y = Math.floor(slot / 2) * 478;
       ctx.font = '20px Arial, "Microsoft JhengHei", "PingFang TC", sans-serif';
       ctx.fillStyle = '#111111';
       ctx.fillText((labels[language] || labels.en).replace('{number}', String(slide.number)), x + 8, y + 22);
-      ctx.drawImage(picture, x, y + 28, 800, 450);
+      const fit = Math.min(800 / width, 450 / height);
+      ctx.drawImage(picture, x + (800 - width * fit) / 2, y + 28 + (450 - height * fit) / 2, width * fit, height * fit);
       onProgress(groupIndex * 4 + slot + 1, selected.length);
     }
     images.push(sheet.toDataURL('image/jpeg', 0.85).split(',')[1]);
