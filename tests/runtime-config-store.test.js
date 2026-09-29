@@ -52,6 +52,8 @@ const expectedConfig = (defaultModelId) => ({
     showRawResponses: true,
     showComparisonTable: true
   },
+  councilGroups: [],
+  recentModelIds: [],
   councilTranslatorModelId: null,
   singleDocumentTranslatorModelId: null
 });

@@ -51,6 +51,8 @@ const baseConfig = () => ({
     showRawResponses: true,
     showComparisonTable: true
   },
+  councilGroups: [],
+  recentModelIds: [],
   councilTranslatorModelId: null,
   singleDocumentTranslatorModelId: null
 });
@@ -138,7 +140,13 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
       showRawResponses: false
     },
     councilTranslatorModelId: 'missing-translator',
-    singleDocumentTranslatorModelId: 'missing-single'
+    singleDocumentTranslatorModelId: 'missing-single',
+    councilGroups: [
+      { id: 'g1', name: '  Research  ', participantModelIds: ['legacy-nvidia-id', 'openrouter-pro', 'missing'], synthesizerModelId: 'gemini-default' },
+      { id: 'g1', name: 'Same id', participantModelIds: [], synthesizerModelId: 'missing' },
+      'not a group'
+    ],
+    recentModelIds: ['legacy-nvidia-id', 'missing', 'gemini-default', 'gemini-default']
   };
 
   const normalized = normalizeLoadedLegacyConfig({
@@ -173,6 +181,11 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
     showRawResponses: false,
     showComparisonTable: true
   });
+  assert.deepEqual(normalized.councilGroups, [
+    { id: 'g1', name: 'Research', participantModelIds: ['nvidia-modern', 'openrouter-pro'], synthesizerModelId: 'gemini-default' },
+    { id: 'g1-x', name: 'Same id', participantModelIds: [], synthesizerModelId: null }
+  ], 'saved groups keep known models only, and each id is its own');
+  assert.deepEqual(normalized.recentModelIds, ['nvidia-modern', 'gemini-default']);
   assert.equal(normalized.councilTranslatorModelId, 'nvidia-modern');
   assert.equal(normalized.singleDocumentTranslatorModelId, 'openrouter-pro');
   assert.equal(normalized.uiTheme.style, 'single');

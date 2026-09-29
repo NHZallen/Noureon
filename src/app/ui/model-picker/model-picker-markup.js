@@ -12,6 +12,7 @@ const ICONS = Object.freeze({
   plus: '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
   x: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
   next: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>',
+  trash: '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>',
   back: '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg>'
 });
 
@@ -90,8 +91,16 @@ function renderCouncil(state, ctx) {
   const searchRow = council.searchAvailable
     ? `<label class="mp-switch-row"><span>${escape(t('webSearch'))}</span><input type="checkbox" class="mp-switch" data-mp-search-toggle ${council.searchOn ? 'checked' : ''} ${state.locked ? 'disabled' : ''}></label>`
     : '';
+  const groupChips = council.groups.map((group) => `<button type="button" class="mp-chip is-group${group.active ? ' is-active' : ''}" data-mp-group-apply="${escape(group.id)}" aria-pressed="${group.active}" title="${escape(group.summary)}" ${state.locked ? 'disabled' : ''}><span class="mp-chip-name">${escape(group.label)}</span></button>`).join('');
+  const groupSave = council.canSaveGroup
+    ? `<button type="button" class="mp-chip is-add" data-mp-group-save ${state.locked ? 'disabled' : ''}>${ICONS.plus}<span>${escape(t('groupSaveCurrent'))}</span></button>`
+    : '';
   return `
     <div class="mp-scroll" data-mp-scroll>
+      <div class="mp-section">
+        <div class="mp-section-head"><span>${escape(t('groupsTitle'))}</span><span class="mp-head-tools"><span class="mp-count">${council.groups.length}/${council.groupLimit}</span><button type="button" class="mp-text-btn" data-mp-open="groups">${escape(t('groupsEdit'))}</button></span></div>
+        <div class="mp-chips">${groupChips}${groupSave}${!groupChips && !groupSave ? `<span class="mp-hint">${escape(t('groupsEmpty'))}</span>` : ''}</div>
+      </div>
       <div class="mp-section">
         <div class="mp-section-head"><span>${escape(t('membersTitle'))}</span><span class="mp-count">${council.members.length}/${council.max}</span></div>
         <div class="mp-chips">${chips}${add}</div>
@@ -117,10 +126,38 @@ function renderCouncil(state, ctx) {
     </div>`;
 }
 
+/** The saved groups, each with its name to edit, who is in it, and what can be done with it. */
+function renderGroupsView(state, ctx) {
+  const { t, escape } = ctx;
+  const groups = state.groupsPage.groups.map((group) => `
+    <div class="mp-group-card">
+      <div class="mp-group-card-head">
+        <input type="text" class="mp-group-name" data-mp-group-name="${escape(group.id)}" value="${escape(group.name)}" maxlength="${state.groupsPage.nameLimit}" placeholder="${escape(group.label)}" aria-label="${escape(t('groupName'))}" autocomplete="off">
+        <button type="button" class="mp-icon-btn" data-mp-group-delete="${escape(group.id)}" aria-label="${escape(t('groupDelete', { name: group.label }))}" title="${escape(t('groupDelete', { name: group.label }))}">${ICONS.trash}</button>
+      </div>
+      <p class="mp-group-summary">${escape(group.summary)}</p>
+      <div class="mp-group-actions">
+        <button type="button" class="mp-small-btn" data-mp-group-edit="${escape(group.id)}">${escape(t('groupEditMembers'))}</button>
+        <button type="button" class="mp-small-btn" data-mp-group-edit-combiner="${escape(group.id)}">${escape(t('groupEditCombiner'))}</button>
+        <button type="button" class="mp-small-btn is-primary" data-mp-group-apply="${escape(group.id)}" ${state.locked || !group.canApply ? 'disabled' : ''}>${escape(t('groupApply'))}</button>
+      </div>
+    </div>`).join('');
+  return `
+    <div class="mp-pick-head">
+      <button type="button" class="mp-back" data-mp-back aria-label="${escape(t('back'))}">${ICONS.back}<span>${escape(t('back'))}</span></button>
+      <span class="mp-pick-title">${escape(t('groupsPageTitle'))} ${state.groupsPage.groups.length}/${state.groupsPage.limit}</span>
+      <button type="button" class="mp-done" data-mp-back>${escape(t('done'))}</button>
+    </div>
+    <div class="mp-scroll" data-mp-scroll>
+      ${groups || `<p class="mp-hint mp-hint-block">${escape(t('groupsEmpty'))}</p>`}
+      <button type="button" class="mp-line mp-line-add" data-mp-group-new ${state.groupsPage.canAdd ? '' : 'disabled'}>${ICONS.plus}<span>${escape(state.groupsPage.canAdd ? t('groupNew') : t('groupLimit', { n: state.groupsPage.limit }))}</span></button>
+    </div>`;
+}
+
 function renderPick(state, ctx) {
   const { t, escape } = ctx;
   const members = state.view === 'members';
-  const title = members ? `${t('pickMembers')} (${state.council.members.length}/${state.council.max})` : t('pickCombiner');
+  const title = state.pickTitle;
   return `
     <div class="mp-pick-head">
       <button type="button" class="mp-back" data-mp-back aria-label="${escape(t('back'))}">${ICONS.back}<span>${escape(t('back'))}</span></button>
@@ -162,6 +199,8 @@ export function renderPickerPanel(state, ctx) {
         <button type="button" role="tab" class="mp-tab${state.council ? ' is-active' : ''}" aria-selected="${Boolean(state.council)}" data-mp-tab="council" ${state.locked || state.councilBlocked ? 'disabled' : ''}>${escape(t('tabCouncil'))}</button>
       </div>`
     : '';
-  const body = pick ? renderPick(state, ctx) : (state.council ? renderCouncil(state, ctx) : renderSingle(state, ctx));
+  const body = state.view === 'groups'
+    ? renderGroupsView(state, ctx)
+    : (pick ? renderPick(state, ctx) : (state.council ? renderCouncil(state, ctx) : renderSingle(state, ctx)));
   return `<div id="model-picker-popover" class="popover mp-panel${state.open ? ' visible' : ''}" role="dialog" aria-label="${escape(t('modelPicker'))}">${tabs}<div class="mp-view" data-mp-view="${state.view}">${body}</div></div>`;
 }

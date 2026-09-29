@@ -2449,7 +2449,9 @@ test('runtime config access owns selected uiLanguage reads through the config st
   assert.match(getModelRetirementLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(getModelPriceLabelBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   assert.match(getCouncilModeLabelBody, /const\s+texts\s*=\s*getCouncilTexts\(\);/);
-  assert.match(getCouncilModeLabelBody, /return\s+`\$\{texts\.title\}:\s*\$\{modeLabel\}`;/);
+  // The composer chip says only how the council works; its icon says it is the council.
+  assert.match(getCouncilModeLabelBody, /return\s+council\.mode\s*===\s*'deliberation'\s*\?\s*texts\.deliberation\s*:\s*texts\.consensus;/);
+  assert.doesNotMatch(getCouncilModeLabelBody, /texts\.title/);
   assert.match(renderArchivedChatsBody, /const\s+uiLanguage\s*=\s*runtimeConfigAccess\.getUiLanguage\(\);/);
   for (const key of ['noArchivedChats', 'view', 'restore', 'delete']) {
     assert.match(renderArchivedChatsBody, new RegExp(`i18n\\[uiLanguage\\]\\.${key}\\s*\\|\\|`));
@@ -3370,7 +3372,7 @@ test('council controls lifecycle is isolated from the 01 runtime shell', async (
     fragment01Source,
     /import\s*\{\s*createCouncilControlsLifecycle\s*\}\s*from\s+['"][^'"]*legacy-runtime\/features\/council-controls-lifecycle\.js['"];/
   );
-  assert.match(fragment01Source, /\{\s*renderCouncilControls,\s*openModelPicker\s*\}\s*=\s*createCouncilControlsLifecycle\(\{/);
+  assert.match(fragment01Source, /\{\s*renderCouncilControls,\s*openModelPicker,\s*noteConversationModels\s*\}\s*=\s*createCouncilControlsLifecycle\(\{/);
   assert.match(helperSource, /\bgetFileInputContainer\b/);
   assert.doesNotMatch(helperSource, /\belements\b/);
   assert.doesNotMatch(helperSource, /elements\.fileInputContainer/);

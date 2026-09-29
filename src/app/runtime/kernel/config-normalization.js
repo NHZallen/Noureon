@@ -1,3 +1,5 @@
+import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
+
 export function normalizeApiKeyValue(value) {
   if (typeof value === 'string') {
     return value.trim();
@@ -142,6 +144,15 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.lastCouncilConfig = normalizeCouncilConfig(normalizedConfig.lastCouncilConfig, {
     models,
     maxCouncilModels,
+    canonicalizeModelId
+  });
+  normalizedConfig.councilGroups = normalizeCouncilGroups(normalizedConfig.councilGroups, {
+    isKnownModel: (id) => allModelIds.has(id),
+    canonicalizeModelId,
+    maxMembers: maxCouncilModels
+  });
+  normalizedConfig.recentModelIds = normalizeRecentModelIds(normalizedConfig.recentModelIds, {
+    isKnownModel: (id) => allModelIds.has(id),
     canonicalizeModelId
   });
   if (!councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)) {

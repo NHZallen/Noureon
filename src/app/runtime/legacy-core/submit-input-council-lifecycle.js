@@ -156,6 +156,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   );
   let renderCouncilControls = () => {};
   let openModelPicker = async () => false;
+  let noteConversationModels = async () => {};
   let renderModelSwitcher = () => {};
   const imageModeControls = createImageModeControls({
     document,
@@ -496,8 +497,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const getCouncilModeLabel = (council = {}) => {
     const texts = getCouncilTexts();
-    const modeLabel = council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
-    return `${texts.title}: ${modeLabel}`;
+    // Just how it works (Consensus or Discussion): the icon beside it already says it is the council.
+    return council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
   };
 
   const getCouncilModelList = (conv) => {
@@ -515,7 +516,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     return visibleModels;
   };
 
-  ({ renderCouncilControls, openModelPicker } = createCouncilControlsLifecycle({
+  ({ renderCouncilControls, openModelPicker, noteConversationModels } = createCouncilControlsLifecycle({
     closeAllPopovers,
     councilMaxModels,
     document,
@@ -960,8 +961,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       if (conv.__astraPendingResponse?.loadingMessageDiv === loadingMessageDiv) {
         delete conv.__astraPendingResponse;
       }
-      if (submitAbortController.signal.aborted && conv.messages.at(-1)?.role === 'user') {
+      const nothingSent = submitAbortController.signal.aborted && conv.messages.at(-1)?.role === 'user';
+      if (nothingSent) {
         loadingMessageDiv?.remove();
+      } else {
+        // The models this message went to are the ones offered first next time.
+        noteConversationModels(conv).catch(() => {});
       }
       const lastMessageElement = runSubmitFinalCleanupLifecycle(
         () => singleModelResponseLifecycle.stop(),

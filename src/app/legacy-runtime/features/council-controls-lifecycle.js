@@ -1,9 +1,19 @@
 // The model picker in the composer: one button that names what will answer
 // (a model, or a council) and the one panel behind it for choosing a model,
-// building a council, and setting how deeply the model thinks.
+// building a council (and saving up to five named groups of members), and setting
+// how deeply the model thinks. The models used lately are offered first.
 
 import { buildModelGroups, getModelCompany } from '../../ui/model-picker/model-picker-groups.js';
 import { renderDepthPanel, renderDepthTrigger, renderPickerPanel, renderPickerTrigger } from '../../ui/model-picker/model-picker-markup.js';
+import {
+  GROUP_LIMIT,
+  GROUP_NAME_LIMIT,
+  councilMatchesGroup,
+  newGroupId,
+  nextGroupNumber,
+  noteModelsUsed as noteRecent,
+  pickRecentModels
+} from '../../ui/model-picker/model-groups.js';
 import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
 import { prepareModelSwitcherModels } from './model-switcher-lifecycle.js';
 
@@ -57,6 +67,8 @@ export function createCouncilControlsLifecycle(deps) {
   let view = 'main';
   let query = '';
   let moreOpen = false;
+  // Which saved group the member or combiner list is editing (none: the council itself).
+  let pickGroupId = null;
 
   // Every submit runs this, and the answer is nearly always what is already on
   // screen, so the last markup is remembered and written again only when it changes.
@@ -89,6 +101,13 @@ export function createCouncilControlsLifecycle(deps) {
 
   // How the panel last looked (single or council, which page), so a change of page can ease in.
   let lastLayout = null;
+
+  const groupsOf = (config) => (Array.isArray(config.councilGroups) ? config.councilGroups : []);
+  const modelName = (id) => models.find((model) => model.id === id)?.name || '';
+  const saveGroups = async (config, groups) => {
+    config.councilGroups = groups;
+    await saveConfig();
+  };
 
   const describe = (model, { translations, t, selected = false, disabled = false }) => {
     const tiers = getModelTiers(model) || [];
@@ -175,6 +194,14 @@ export function createCouncilControlsLifecycle(deps) {
       models
     });
     const context = { translations, t };
+    const groupList = groupsOf(config);
+    if (pickGroupId && !groupList.some((group) => group.id === pickGroupId)) pickGroupId = null;
+    const pickTarget = pickGroupId ? groupList.find((group) => group.id === pickGroupId) : null;
+    const groupLabel = (group, index) => group.name || t('groupDefaultName', { n: index + 1 });
+    const groupSummary = (group) => [
+      group.participantModelIds.length ? group.participantModelIds.map(modelName).filter(Boolean).join(', ') : t('groupNoMembers'),
+      group.synthesizerModelId ? t('groupCombinerIs', { name: modelName(group.synthesizerModelId) }) : t('groupNoCombiner')
+    ].join(' · ');
     const state = {
       open: wasOpen,
       depthOpen: false,
@@ -187,6 +214,8 @@ export function createCouncilControlsLifecycle(deps) {
       councilBlocked: false,
       groups: [],
       pickGroups: [],
+      pickTitle: '',
+      groupsPage: null,
       depth: null,
       modelName: currentModel?.name || '',
       title: currentModel?.name || t('modelPicker')
@@ -202,6 +231,14 @@ export function createCouncilControlsLifecycle(deps) {
         members: participants.map((model) => ({ id: model.id, name: model.name })),
         max: councilMaxModels,
         canAdd: !atMax,
+        groupLimit: GROUP_LIMIT,
+        canSaveGroup: groupList.length < GROUP_LIMIT && participants.length > 0,
+        groups: groupList.map((group, index) => ({
+          id: group.id,
+          label: groupLabel(group, index),
+          summary: groupSummary(group),
+          active: councilMatchesGroup(group, conversation.council)
+        })),
         combinerName: synthesizer?.name || '',
         combinerPlaceholder: texts.selectSynthesizer,
         mode: conversation.council.mode,
@@ -220,25 +257,45 @@ export function createCouncilControlsLifecycle(deps) {
         }
       };
       state.title = `${texts.title} · ${participants.length}`;
-      if (view !== 'main') {
+      if (view === 'groups') {
+        state.groupsPage = {
+          limit: GROUP_LIMIT,
+          nameLimit: GROUP_NAME_LIMIT,
+          canAdd: groupList.length < GROUP_LIMIT,
+          groups: groupList.map((group, index) => ({
+            id: group.id,
+            name: group.name,
+            label: groupLabel(group, index),
+            summary: groupSummary(group),
+            canApply: group.participantModelIds.length > 0
+          }))
+        };
+      } else if (view !== 'main') {
         const list = getCouncilModelList(conversation);
         const pickMembers = view === 'members';
+        const memberIds = pickTarget ? pickTarget.participantModelIds : conversation.council.participantModelIds;
+        const combinerId = pickTarget ? pickTarget.synthesizerModelId : conversation.council.synthesizerModelId;
+        const full = memberIds.length >= councilMaxModels;
+        const targetLabel = pickTarget ? groupLabel(pickTarget, groupList.indexOf(pickTarget)) : '';
+        state.pickTitle = pickMembers
+          ? (pickTarget ? t('groupPickMembers', { name: targetLabel }) : `${t('pickMembers')} (${memberIds.length}/${councilMaxModels})`)
+          : (pickTarget ? t('groupPickCombiner', { name: targetLabel }) : t('pickCombiner'));
         state.pickGroups = buildModelGroups(list, {
           decorate: (model) => describe(model, {
             ...context,
-            selected: pickMembers
-              ? conversation.council.participantModelIds.includes(model.id)
-              : conversation.council.synthesizerModelId === model.id,
-            disabled: locked || (pickMembers && atMax && !conversation.council.participantModelIds.includes(model.id))
-          })
+            selected: pickMembers ? memberIds.includes(model.id) : combinerId === model.id,
+            disabled: (!pickTarget && locked) || (pickMembers && full && !memberIds.includes(model.id))
+          }),
+          recentIds: pickRecentModels(config.recentModelIds, list.map((model) => model.id)),
+          recentLabel: t('recent')
         });
       }
     } else {
       const listed = [...visibleModels.filter((model) => !model.isBeta), ...betaModels];
       state.groups = buildModelGroups(listed, {
         decorate: (model) => describe(model, { ...context, selected: model.id === currentModel?.id, disabled: archived }),
-        currentId: currentModel?.id,
-        currentLabel: t('current'),
+        recentIds: pickRecentModels(config.recentModelIds, listed.map((model) => model.id), { current: currentModel?.id }),
+        recentLabel: t('recent'),
         betaLabel: t('beta')
       });
       const reasoning = currentModel ? getModelReasoningConfig(currentModel) : null;
@@ -375,6 +432,7 @@ export function createCouncilControlsLifecycle(deps) {
     else delete conv.reasoningEffort;
     if (info.outputModality === 'image' && conv.council) conv.council.enabled = false;
     config.lastUsedModel = modelId;
+    config.recentModelIds = noteRecent(config.recentModelIds, [modelId]);
     await saveAppData();
     await saveConfig();
     renderSidebar();
@@ -469,14 +527,59 @@ export function createCouncilControlsLifecycle(deps) {
         }
         return;
       }
+      if (target.dataset.mpGroupApply !== undefined) {
+        const config = getConfig();
+        const group = groupsOf(config).find((item) => item.id === target.dataset.mpGroupApply);
+        if (!group || !group.participantModelIds.length) return;
+        if (getIsCouncilRunning()) { notifyLocked(container); return; }
+        conv.council = normalizeCouncilConfig(conv.council);
+        conv.council.participantModelIds = group.participantModelIds.slice(0, councilMaxModels);
+        if (group.synthesizerModelId) conv.council.synthesizerModelId = group.synthesizerModelId;
+        if (view === 'groups') view = 'main';
+        await persistCouncilConfig(conv);
+        renderCouncilControls({ open: 'model' });
+        return;
+      }
+      if (target.dataset.mpGroupSave !== undefined) {
+        const council = normalizeCouncilConfig(conv.council);
+        await addGroup(getConfig(), { participantModelIds: council.participantModelIds.slice(), synthesizerModelId: council.synthesizerModelId });
+        renderCouncilControls({ open: 'model' });
+        return;
+      }
+      if (target.dataset.mpGroupNew !== undefined) {
+        const group = await addGroup(getConfig(), {});
+        if (group) {
+          pickGroupId = group.id;
+          view = 'members';
+          query = '';
+        }
+        renderCouncilControls({ open: 'model' });
+        return;
+      }
+      if (target.dataset.mpGroupEdit || target.dataset.mpGroupEditCombiner) {
+        pickGroupId = target.dataset.mpGroupEdit || target.dataset.mpGroupEditCombiner;
+        view = target.dataset.mpGroupEdit ? 'members' : 'combiner';
+        query = '';
+        renderCouncilControls({ open: 'model' });
+        return;
+      }
+      if (target.dataset.mpGroupDelete) {
+        const config = getConfig();
+        await saveGroups(config, groupsOf(config).filter((group) => group.id !== target.dataset.mpGroupDelete));
+        renderCouncilControls({ open: 'model' });
+        return;
+      }
       if (target.dataset.mpOpen) {
+        pickGroupId = null;
         view = target.dataset.mpOpen;
         query = '';
         renderCouncilControls({ open: 'model' });
         return;
       }
       if ('mpBack' in target.dataset) {
-        view = 'main';
+        // Back from a group's own list goes to the groups page, otherwise to the council page.
+        view = pickGroupId ? 'groups' : 'main';
+        pickGroupId = null;
         query = '';
         renderCouncilControls({ open: 'model' });
         return;
@@ -504,7 +607,40 @@ export function createCouncilControlsLifecycle(deps) {
         notifyLocked(container);
         return true;
       };
-      if (input.matches('[data-mp-member]')) {
+      if (input.matches('[data-mp-group-name]')) {
+        const config = getConfig();
+        const groups = groupsOf(config);
+        const index = groups.findIndex((group) => group.id === input.dataset.mpGroupName);
+        if (index < 0) return;
+        const name = input.value.trim().slice(0, GROUP_NAME_LIMIT)
+          || modelPickerText(config.uiLanguage, 'groupDefaultName', { n: index + 1 });
+        await updateGroup(config, input.dataset.mpGroupName, { name });
+        renderCouncilControls({ open: 'model' });
+      } else if (pickGroupId && input.matches('[data-mp-member], [data-mp-combiner]')) {
+        const config = getConfig();
+        const group = groupsOf(config).find((item) => item.id === pickGroupId);
+        if (!group) return;
+        if (input.matches('[data-mp-member]')) {
+          const ids = new Set(group.participantModelIds);
+          if (input.checked) {
+            if (ids.size >= councilMaxModels) {
+              showNotification(getCouncilTexts().tooMany, 'warning');
+              renderCouncilControls({ open: 'model' });
+              return;
+            }
+            ids.add(input.dataset.mpMember);
+          } else {
+            ids.delete(input.dataset.mpMember);
+          }
+          await updateGroup(config, group.id, { participantModelIds: [...ids] });
+        } else if (input.checked) {
+          await updateGroup(config, group.id, { synthesizerModelId: input.dataset.mpCombiner });
+          view = 'groups';
+          pickGroupId = null;
+          query = '';
+        }
+        renderCouncilControls({ open: 'model' });
+      } else if (input.matches('[data-mp-member]')) {
         if (guarded()) return;
         const ids = new Set(conv.council.participantModelIds);
         if (input.checked) {
@@ -586,6 +722,48 @@ export function createCouncilControlsLifecycle(deps) {
     });
   }
 
+  // Groups: saved sets of members and who combines them.
+  const addGroup = async (config, values) => {
+    const groups = groupsOf(config);
+    if (groups.length >= GROUP_LIMIT) return null;
+    const language = config.uiLanguage;
+    const number = nextGroupNumber(groups, (n) => modelPickerText(language, 'groupDefaultName', { n }));
+    const group = {
+      id: newGroupId(groups),
+      name: modelPickerText(language, 'groupDefaultName', { n: number }),
+      participantModelIds: values.participantModelIds || [],
+      synthesizerModelId: values.synthesizerModelId || null
+    };
+    await saveGroups(config, [...groups, group]);
+    return group;
+  };
+
+  const updateGroup = async (config, id, change) => {
+    const groups = groupsOf(config);
+    if (!groups.some((group) => group.id === id)) return;
+    await saveGroups(config, groups.map((group) => (group.id === id ? { ...group, ...change } : group)));
+  };
+
+  // What the council now uses is recorded as used lately, so it is offered first next time.
+  const noteModelsUsed = async (ids) => {
+    const config = getConfig();
+    const before = Array.isArray(config.recentModelIds) ? config.recentModelIds : [];
+    const next = noteRecent(before, ids.filter((id) => models.some((model) => model.id === id)));
+    if (next.join('|') === before.join('|')) return;
+    config.recentModelIds = next;
+    await saveConfig();
+  };
+
+  const noteConversationModels = async (conv) => {
+    if (!conv) return;
+    const council = normalizeCouncilConfig(conv.council);
+    if (council.enabled && !isImageConversation(conv)) {
+      await noteModelsUsed([...(council.participantModelIds || []), council.synthesizerModelId].filter(Boolean));
+    } else if (conv.model) {
+      await noteModelsUsed([conv.model]);
+    }
+  };
+
   // A council does not search the web by itself: say so once, with a button that turns Search on.
   const offerSearch = (conv) => {
     if (!hasCouncilWebSearchAccess(models.find((model) => model.id === conv.council?.synthesizerModelId) || normalizeConversationModel(conv))) return;
@@ -623,5 +801,5 @@ export function createCouncilControlsLifecycle(deps) {
     return true;
   };
 
-  return { renderCouncilControls, openModelPicker };
+  return { renderCouncilControls, openModelPicker, noteConversationModels };
 }

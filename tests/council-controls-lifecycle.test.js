@@ -165,9 +165,9 @@ test('a single model is chosen from one searchable list grouped by company, the 
     lifecycle.renderCouncilControls();
     const panel = document.querySelector('#model-picker-popover');
     const titles = [...panel.querySelectorAll('.mp-group-title')].map((node) => node.textContent);
-    assert.deepEqual(titles, ['In use', 'Model B', 'Vendor', 'Beta models']);
+    assert.deepEqual(titles, ['Recent', 'Google', 'Model B', 'Vendor', 'Beta models'], 'the models used lately first, then by company');
     const rows = [...panel.querySelectorAll('[data-mp-model]')].map((node) => node.dataset.mpModel);
-    assert.deepEqual(rows.sort(), ['beta-d', 'model-a', 'model-b', 'vendor/model-c']);
+    assert.deepEqual(rows.sort(), ['beta-d', 'model-a', 'model-a', 'model-b', 'vendor/model-c'], 'a recent model is also in its company group');
     assert.equal(panel.querySelector('[data-mp-model="model-a"]').classList.contains('is-selected'), true);
     assert.match(panel.querySelector('[data-mp-model="model-a"]').textContent, /GEMINI · Vision · Search/);
     assert.doesNotMatch(panel.querySelector('[data-mp-model="model-a"]').textContent, /Paid/, 'two lines a row, so more models fit');
@@ -348,7 +348,7 @@ test('the council page shows members as removable tags, who combines them, and h
     lifecycle.renderCouncilControls();
     const panel = document.querySelector('#model-picker-popover');
     assert.deepEqual([...panel.querySelectorAll('.mp-chip-name')].map((node) => node.textContent), ['Model A', 'Model C']);
-    assert.equal(panel.querySelector('.mp-count').textContent, '2/4');
+    assert.deepEqual([...panel.querySelectorAll('.mp-count')].map((node) => node.textContent), ['0/5', '2/4'], 'groups, then members');
     assert.match(panel.querySelector('[data-mp-open="combiner"]').textContent, /Model B/);
     assert.equal(panel.querySelector('[data-mp-mode="consensus"]').getAttribute('aria-checked'), 'true');
     assert.match(panel.querySelector('[data-mp-mode="deliberation"]').textContent, /Discussion/);
@@ -405,7 +405,7 @@ test('a full council cannot take another member, and says so', async () => {
   try {
     lifecycle.renderCouncilControls();
     assert.equal(document.querySelector('[data-mp-open="members"]'), null, 'nothing left to add');
-    assert.equal(document.querySelector('.mp-count').textContent, '4/4');
+    assert.equal([...document.querySelectorAll('.mp-count')].at(-1).textContent, '4/4');
     assert.equal(calls.length, 0);
   } finally {
     cleanup();
@@ -739,6 +739,203 @@ test('moving to another page of the panel eases in: forward from the right, back
     assert.equal(document.querySelector('.mp-view').classList.contains('is-fade'), true);
     lifecycle.renderCouncilControls();
     assert.equal(document.querySelector('.mp-view').classList.contains('is-fade'), true, 'an unchanged redraw leaves it alone');
+  } finally {
+    cleanup();
+  }
+});
+
+const groupHarness = (extra = {}) => {
+  const harness = createHarness(extra);
+  harness.config.councilGroups = extra.groups || [];
+  harness.config.recentModelIds = extra.recent || [];
+  return harness;
+};
+
+test('the current members and combiner can be saved as a group, which then shows as the one in use', async () => {
+  const { calls, cleanup, config, conversation, document, lifecycle } = groupHarness();
+  conversation.council.participantModelIds = ['model-a', 'vendor/model-c'];
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    assert.equal(document.querySelector('[data-mp-group-apply]'), null, 'no groups yet');
+    document.querySelector('[data-mp-group-save]').click();
+    await settle();
+    assert.deepEqual(config.councilGroups, [{ id: 'group-1', name: 'Group 1', participantModelIds: ['model-a', 'vendor/model-c'], synthesizerModelId: 'model-b' }]);
+    assert.ok(calls.some(([name]) => name === 'saveConfig'), 'kept with the settings');
+    const chip = document.querySelector('[data-mp-group-apply="group-1"]');
+    assert.equal(chip.textContent, 'Group 1');
+    assert.equal(chip.classList.contains('is-active'), true, 'it is what the council is now');
+    assert.match(chip.title, /Model A, Model C · Combined by Model B/);
+    assert.equal(document.querySelector('#model-picker-popover').classList.contains('visible'), true, 'the panel stays open');
+  } finally {
+    cleanup();
+  }
+});
+
+test('choosing a group sets the council to its members and combiner', async () => {
+  const groups = [
+    { id: 'g1', name: 'Fast', participantModelIds: ['model-b', 'vendor/model-c'], synthesizerModelId: 'model-a' },
+    { id: 'g2', name: 'Deep', participantModelIds: ['model-a'], synthesizerModelId: null }
+  ];
+  const { calls, cleanup, conversation, document, lifecycle } = groupHarness({ groups });
+  try {
+    lifecycle.renderCouncilControls();
+    assert.deepEqual([...document.querySelectorAll('[data-mp-group-apply]')].map((node) => node.textContent), ['Fast', 'Deep']);
+    document.querySelector('[data-mp-group-apply="g1"]').click();
+    await settle();
+    assert.deepEqual(conversation.council.participantModelIds, ['model-b', 'vendor/model-c']);
+    assert.equal(conversation.council.synthesizerModelId, 'model-a');
+    assert.ok(calls.some(([name]) => name === 'persistCouncilConfig'));
+    document.querySelector('[data-mp-group-apply="g2"]').click();
+    await settle();
+    assert.deepEqual(conversation.council.participantModelIds, ['model-a']);
+    assert.equal(conversation.council.synthesizerModelId, 'model-a', 'a group with no combiner leaves the combiner as it was');
+  } finally {
+    cleanup();
+  }
+});
+
+test('no more than five groups can be saved', async () => {
+  const groups = Array.from({ length: 5 }, (_, index) => ({ id: `g${index}`, name: `G${index}`, participantModelIds: ['model-a'], synthesizerModelId: null }));
+  const { cleanup, config, document, lifecycle } = groupHarness({ groups });
+  try {
+    lifecycle.renderCouncilControls();
+    assert.equal(document.querySelector('[data-mp-group-save]'), null, 'no way to add a sixth');
+    assert.equal(document.querySelector('.mp-count').textContent, '5/5');
+    document.querySelector('[data-mp-open="groups"]').click();
+    const add = document.querySelector('[data-mp-group-new]');
+    assert.equal(add.disabled, true);
+    assert.match(add.textContent, /Up to 5 groups/);
+    assert.equal(config.councilGroups.length, 5);
+  } finally {
+    cleanup();
+  }
+});
+
+test('the groups page renames a group, and an empty name goes back to its number', async () => {
+  const groups = [{ id: 'g1', name: 'Fast', participantModelIds: ['model-b'], synthesizerModelId: 'model-a' }];
+  const { cleanup, config, document, lifecycle } = groupHarness({ groups });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-open="groups"]').click();
+    assert.equal(document.querySelector('.mp-view').dataset.mpView, 'groups');
+    const name = document.querySelector('[data-mp-group-name="g1"]');
+    assert.equal(name.value, 'Fast');
+    assert.equal(name.getAttribute('maxlength'), '20');
+    name.value = '  Careful review  ';
+    name.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
+    await settle();
+    assert.equal(config.councilGroups[0].name, 'Careful review');
+    assert.equal(document.querySelector('.mp-view').dataset.mpView, 'groups', 'still on the groups page');
+    const again = document.querySelector('[data-mp-group-name="g1"]');
+    again.value = '   ';
+    again.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
+    await settle();
+    assert.equal(config.councilGroups[0].name, 'Group 1');
+  } finally {
+    cleanup();
+  }
+});
+
+test('a group\'s members and combiner are picked from the same lists, and change the group, not the council', async () => {
+  const groups = [{ id: 'g1', name: 'Fast', participantModelIds: ['model-b'], synthesizerModelId: null }];
+  const { cleanup, config, conversation, document, lifecycle } = groupHarness({ groups });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-open="groups"]').click();
+    document.querySelector('[data-mp-group-edit="g1"]').click();
+    assert.equal(document.querySelector('.mp-view').dataset.mpView, 'members');
+    assert.equal(document.querySelector('.mp-pick-title').textContent, 'Fast: choose members');
+    assert.equal(document.querySelector('[data-mp-member="model-b"]').checked, true, 'the group\'s own members are ticked');
+    assert.equal(document.querySelector('[data-mp-member="model-a"]').checked, false, 'not the council\'s');
+    const member = document.querySelector('[data-mp-member="vendor/model-c"]');
+    member.checked = true;
+    member.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
+    await settle();
+    assert.deepEqual(config.councilGroups[0].participantModelIds, ['model-b', 'vendor/model-c']);
+    assert.deepEqual(conversation.council.participantModelIds, ['model-a'], 'the council itself is untouched');
+
+    document.querySelector('[data-mp-back]').click();
+    assert.equal(document.querySelector('.mp-view').dataset.mpView, 'groups', 'back goes to the groups page');
+    document.querySelector('[data-mp-group-edit-combiner="g1"]').click();
+    assert.equal(document.querySelector('.mp-pick-title').textContent, 'Fast: choose the combiner');
+    const combiner = document.querySelector('[data-mp-combiner="model-a"]');
+    combiner.checked = true;
+    combiner.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
+    await settle();
+    assert.equal(config.councilGroups[0].synthesizerModelId, 'model-a');
+    assert.equal(conversation.council.synthesizerModelId, 'model-b');
+    assert.equal(document.querySelector('.mp-view').dataset.mpView, 'groups', 'back on the groups page once one is chosen');
+    assert.match(document.querySelector('.mp-group-summary').textContent, /Model B, Model C · Combined by Model A/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('a new group starts empty and opens on its members, and a group can be deleted', async () => {
+  const groups = [{ id: 'group-1', name: 'Fast', participantModelIds: [], synthesizerModelId: null }];
+  const { cleanup, config, document, lifecycle } = groupHarness({ groups });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-open="groups"]').click();
+    assert.equal(document.querySelector('[data-mp-group-apply="group-1"]').disabled, true, 'nothing to apply while it has no members');
+    document.querySelector('[data-mp-group-new]').click();
+    await settle();
+    assert.equal(config.councilGroups.length, 2);
+    assert.equal(config.councilGroups[1].name, 'Group 1', 'the lowest number no group name uses');
+    assert.equal(document.querySelector('.mp-view').dataset.mpView, 'members', 'ready to choose its members');
+    document.querySelector('[data-mp-back]').click();
+    document.querySelector('[data-mp-group-delete="group-1"]').click();
+    await settle();
+    assert.deepEqual(config.councilGroups.map((group) => group.id), ['group-2']);
+  } finally {
+    cleanup();
+  }
+});
+
+test('the models used lately are offered first, three of them, in the single list and in the council lists', () => {
+  const recent = ['vendor/model-c', 'model-b', 'model-a', 'beta-d'];
+  const single = groupHarness({ conversation: singleConversation({ model: 'model-b' }), recent });
+  try {
+    single.lifecycle.renderCouncilControls();
+    const group = single.document.querySelector('.mp-group');
+    assert.equal(group.querySelector('.mp-group-title').textContent, 'Recent');
+    assert.deepEqual([...group.querySelectorAll('[data-mp-model]')].map((row) => row.dataset.mpModel), ['model-b', 'vendor/model-c', 'model-a'], 'three, the one in use among them');
+  } finally {
+    single.cleanup();
+  }
+  const council = groupHarness({ recent });
+  try {
+    council.lifecycle.renderCouncilControls();
+    council.document.querySelector('#model-picker-btn').click();
+    council.document.querySelector('[data-mp-open="members"]').click();
+    const first = council.document.querySelector('.mp-group');
+    assert.equal(first.querySelector('.mp-group-title').textContent, 'Recent');
+    assert.deepEqual([...first.querySelectorAll('[data-mp-member]')].map((row) => row.dataset.mpMember), ['vendor/model-c', 'model-b', 'model-a'], 'beta-d is not offered to a council');
+  } finally {
+    council.cleanup();
+  }
+});
+
+test('choosing a model, and sending to models, keep them as the ones used lately', async () => {
+  const { cleanup, config, conversation, document, lifecycle } = groupHarness({ conversation: singleConversation(), recent: ['model-a'] });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-model="vendor/model-c"]').click();
+    await settle();
+    assert.deepEqual(config.recentModelIds, ['vendor/model-c', 'model-a']);
+
+    await lifecycle.noteConversationModels({ model: 'model-b', council: { enabled: false } });
+    assert.deepEqual(config.recentModelIds, ['model-b', 'vendor/model-c', 'model-a']);
+    await lifecycle.noteConversationModels({ model: 'x', council: { enabled: true, participantModelIds: ['model-a', 'vendor/model-c'], synthesizerModelId: 'model-b' } });
+    assert.deepEqual(config.recentModelIds, ['model-a', 'vendor/model-c', 'model-b'], 'a council counts each member and the combiner');
+    await lifecycle.noteConversationModels({ model: 'unknown-model', council: { enabled: false } });
+    assert.deepEqual(config.recentModelIds, ['model-a', 'vendor/model-c', 'model-b'], 'a model that is not on offer is ignored');
+    assert.equal(conversation.model, 'vendor/model-c');
   } finally {
     cleanup();
   }

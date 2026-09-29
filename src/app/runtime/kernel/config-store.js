@@ -45,6 +45,9 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
       showRawResponses: true,
       showComparisonTable: true
     },
+    // Up to five named sets of council members (and who combines them), and the models used lately.
+    councilGroups: [],
+    recentModelIds: [],
     councilTranslatorModelId: null,
     singleDocumentTranslatorModelId: null
   };

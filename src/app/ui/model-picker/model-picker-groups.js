@@ -1,5 +1,5 @@
 // Turns a flat list of models into the picker's groups: one group per company
-// (Google, OpenAI, DeepSeek, …), the model in use first, beta models last.
+// (Google, OpenAI, DeepSeek, …), the models used lately first, beta models last.
 
 const COMPANY_LABELS = Object.freeze({
   google: 'Google',
@@ -36,18 +36,16 @@ export const getCompanyLabel = (company) => COMPANY_LABELS[String(company).toLow
 
 /**
  * `models` are already in the order they should appear within a group.
- * `decorate(model)` returns the row's own fields.
+ * `decorate(model)` returns the row's own fields. The models used lately (by id) are
+ * shown first as their own group, and stay in their company group as well.
  */
-export function buildModelGroups(models, { decorate, currentId = null, currentLabel = '', betaLabel = '' }) {
+export function buildModelGroups(models, { decorate, recentIds = [], recentLabel = '', betaLabel = '' }) {
   const groups = new Map();
-  const current = [];
+  const rows = new Map();
   const beta = [];
   for (const model of models) {
     const row = decorate(model);
-    if (currentId && model.id === currentId) {
-      current.push(row);
-      continue;
-    }
+    rows.set(model.id, row);
     if (model.isBeta) {
       beta.push(row);
       continue;
@@ -56,11 +54,12 @@ export function buildModelGroups(models, { decorate, currentId = null, currentLa
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label).push(row);
   }
+  const recent = recentIds.map((id) => rows.get(id)).filter(Boolean);
   const result = [];
-  if (current.length && currentLabel) result.push({ label: currentLabel, models: current });
+  if (recent.length && recentLabel) result.push({ label: recentLabel, models: recent });
   [...groups.entries()]
     .sort(([left], [right]) => left.localeCompare(right, 'en', { sensitivity: 'base' }))
-    .forEach(([label, rows]) => result.push({ label, models: rows }));
+    .forEach(([label, list]) => result.push({ label, models: list }));
   if (beta.length) result.push({ label: betaLabel, models: beta });
   return result;
 }

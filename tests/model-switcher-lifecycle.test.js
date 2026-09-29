@@ -93,7 +93,7 @@ test('the header slot is cleared and the composer picker redrawn, so nothing is 
   }
 });
 
-test('the model list is grouped by company: the one in use first, beta models last, the rest by name', () => {
+test('the model list is grouped by company: the models used lately first (and still in their company), beta models last', () => {
   const models = [
     { id: 'zeta/one', name: 'Zeta One', provider: 'openrouter' },
     { id: 'gemini-pro', name: 'Gemini Pro', provider: 'gemini' },
@@ -103,12 +103,15 @@ test('the model list is grouped by company: the one in use first, beta models la
   ];
   const groups = buildModelGroups(models, {
     decorate: (model) => ({ id: model.id, name: model.name, company: getModelCompany(model) }),
-    currentId: 'zeta/one',
-    currentLabel: 'In use',
+    recentIds: ['zeta/one', 'gemini-pro', 'not-on-offer'],
+    recentLabel: 'Recent',
     betaLabel: 'Beta'
   });
-  assert.deepEqual(groups.map((group) => group.label), ['In use', 'DeepSeek', 'Google', 'Beta']);
+  assert.deepEqual(groups.map((group) => group.label), ['Recent', 'DeepSeek', 'Google', 'Zeta', 'Beta']);
+  assert.deepEqual(groups[0].models.map((model) => model.id), ['zeta/one', 'gemini-pro'], 'in the order used, and only ones on offer');
   assert.deepEqual(groups.find((group) => group.label === 'DeepSeek').models.map((model) => model.id), ['deepseek/v4', 'nvidia/deepseek-ai/v4'], 'the same maker across providers stays together');
+  assert.equal(groups.find((group) => group.label === 'Zeta').models.length, 1, 'a recent model is also in its company');
+  assert.equal(buildModelGroups(models, { decorate: (model) => ({ id: model.id, company: getModelCompany(model) }), recentLabel: 'Recent' }).some((group) => group.label === 'Recent'), false, 'no recent group when nothing was used');
   assert.equal(getCompanyLabel('x-ai'), 'xAI');
   assert.equal(getCompanyLabel('mistralai'), 'Mistral');
   assert.equal(getCompanyLabel('some-lab'), 'Some Lab');
