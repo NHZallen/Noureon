@@ -11,6 +11,10 @@ import { embedFontsInRunOutputs, scanOfficeFonts } from '../../src/app/ui/sandbo
 test('Advanced mode designs Office files freely unless a template was chosen', () => {
   const free = getSandboxGuidance({ designs: { deck: 'auto', document: 'auto' } });
   assert.match(free, /full freedom over layout/);
+  assert.match(free, /Make a file only when the user asks for one/);
+  assert.match(free, /Never turn an ordinary request into a file on your own/);
+  assert.match(free, /Writing \(stories, essays, letters, summaries, explanations, code\) is answered in the chat as text/);
+  assert.match(free, /Do not run code for ordinary conversation, writing/);
   assert.match(free, /do not write them as ````file blocks/);
   assert.doesNotMatch(free, /noureon\.save_document/);
   assert.match(free, /noureon\.use_fonts/);

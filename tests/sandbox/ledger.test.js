@@ -58,7 +58,7 @@ test('a step list puts itself before the answer, marks each step and lets finish
 test('the sandbox list shows the model, each run with its code, output as it comes and files', () => {
   const { window, document, message, answer } = setup();
   const list = createSandboxLedger({ document, host: message, before: answer, language: 'en' });
-  list.event({ type: 'round', label: 'Thinking and writing code…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
   const rows = () => [...message.querySelectorAll('.ledger-row')];
   assert.equal(rows()[0].classList.contains('is-running'), true, 'shown at once');
   list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1 + 1)' });
@@ -112,7 +112,7 @@ test('a failed run keeps its error in the list, and a run of another number is i
 test('the model\'s thinking and the code it is writing stream into its row, and the draft goes when the run starts', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en' });
-  list.event({ type: 'round', label: 'Thinking and writing code…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
   list.event({ type: 'thinking', text: 'The user wants ' });
   list.event({ type: 'thinking', text: 'a chart.' });
   list.event({ type: 'code', text: 'import ma' });
