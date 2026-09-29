@@ -63,10 +63,16 @@ export async function checkFreeDeck({
   progress.set('fixing', { model: model.name || model.id });
   arm(FIX_TIMEOUT_MS);
   const request = [{ text: buildFixRequest({ issues: result.issues, file, uiLanguage: language }) }, ...images];
-  const fix = await runSandboxFix({
-    conversation, model, config, streamApiCall, requestParts: request, signal: controller.signal, language, window,
-    onStatus: (text) => progress.setText(text)
-  });
+  const steps = progress.python(language);
+  let fix;
+  try {
+    fix = await runSandboxFix({
+      conversation, model, config, streamApiCall, requestParts: request, signal: controller.signal, language, window,
+      onEvent: (event) => steps.event(event)
+    });
+  } finally {
+    steps.remove();
+  }
   checkAbort(controller.signal);
   // Advanced mode is off for this conversation now: the deck stays as it is.
   if (!fix) return false;

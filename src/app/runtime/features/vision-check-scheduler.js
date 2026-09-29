@@ -10,7 +10,7 @@ export function createVisionCheckScheduler({ getConfig, getActiveConversation, n
   const cancel = conversationId => {
     jobs.get(conversationId)?.abort();
   };
-  const schedule = ({ conversation, message }) => {
+  const schedule = ({ conversation, message, targetElement = null }) => {
     const model = normalizeConversationModel(conversation);
     if (getConfig().visionCheckEnabled === false || isCouncilEnabled(conversation)
       || !modelSupportsVision(model) || model?.outputModality === 'image'
@@ -21,7 +21,9 @@ export function createVisionCheckScheduler({ getConfig, getActiveConversation, n
     void import('../../ui/files/vision/vision-check.js').then(({ runVisionCheck }) => runVisionCheck({
       conversation, message, model, config: getConfig(), controller,
       modelSupportsVision, streamApiCall, document, window, notificationContainer,
-      getActiveConversation, addMessageToUI, saveAppData, showNotification, crypto, imageSources
+      getActiveConversation, addMessageToUI, saveAppData, showNotification, crypto, imageSources,
+      // The check's step list goes under the message it checks.
+      host: targetElement?.closest?.('.message-stack') || null
     })).catch(error => logger.error?.('Visual check failed:', error)).finally(() => {
       if (jobs.get(conversation.id) === controller) jobs.delete(conversation.id);
     });

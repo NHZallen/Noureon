@@ -1,0 +1,223 @@
+/* The live step list inside a message (ledger.js): Python runs, the visual check. */
+
+.ledger {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: var(--text-primary, #111827);
+}
+
+.ledger-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.35rem;
+    font-weight: 600;
+}
+
+.ledger-stop {
+    padding: 0.1rem 0.6rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.ledger-stop:hover,
+.ledger-stop:focus-visible { background: var(--hover-bg, #f3f4f6); }
+
+.ledger-list { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.ledger-row { animation: ledger-in 0.18s ease; }
+
+@keyframes ledger-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: none; }
+}
+
+.ledger-row-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.1rem 0;
+}
+
+.ledger-row-head.is-expandable { cursor: pointer; }
+.ledger-row-head.is-expandable .ledger-label::after {
+    content: '›';
+    display: inline-block;
+    margin-left: 0.35rem;
+    color: var(--text-secondary, #6b7280);
+    transition: transform 0.15s ease;
+}
+.ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after { transform: rotate(90deg); }
+
+.ledger-mark {
+    flex: none;
+    width: 1rem;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+}
+
+.is-failed > .ledger-row-head .ledger-mark,
+.is-failed > .ledger-row-head .ledger-label { color: #dc2626; }
+
+/* The step in progress: a ring turning in front, the label shimmering. */
+.is-running > .ledger-row-head .ledger-mark::before {
+    content: '';
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border: 1.5px solid color-mix(in srgb, var(--text-primary, #111827) 20%, transparent);
+    border-top-color: var(--text-primary, #111827);
+    border-radius: 50%;
+    animation: ledger-spin 0.9s linear infinite;
+    vertical-align: -0.05em;
+}
+
+@keyframes ledger-spin { to { transform: rotate(360deg); } }
+
+.ledger-label { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+.is-running > .ledger-row-head .ledger-label {
+    background: linear-gradient(90deg, var(--text-secondary, #6b7280) 0%, var(--text-primary, #111827) 45%, var(--text-secondary, #6b7280) 90%);
+    background-size: 200% 100%;
+    background-repeat: repeat-x;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: ledger-shimmer 1.8s linear infinite;
+}
+
+@keyframes ledger-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: 0 0; }
+}
+
+.is-done > .ledger-row-head .ledger-label { color: var(--text-secondary, #6b7280); }
+
+.ledger-time {
+    flex: none;
+    margin-left: -0.15rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ledger-detail {
+    margin: 0 0 0.1rem 1.5rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.8rem;
+}
+
+.ledger-body {
+    margin: 0.25rem 0 0.4rem 0.5rem;
+    padding-left: 1rem;
+    border-left: 1px solid color-mix(in srgb, var(--text-primary, #111827) 14%, transparent);
+}
+
+.ledger-code,
+.ledger-output {
+    margin: 0 0 0.4rem;
+    padding: 0.5rem 0.65rem;
+    max-height: 9rem;
+    overflow: auto;
+    border: 1px solid color-mix(in srgb, var(--text-primary, #111827) 12%, transparent);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--text-primary, #111827) 4%, transparent);
+    font: 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.ledger-output { max-height: 10rem; }
+.ledger-output.is-error { color: #dc2626; }
+
+.ledger-files { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.25rem; }
+.ledger-file { margin: 0; font-size: 0.75rem; }
+.ledger-file-image { width: 7rem; }
+.ledger-file-image img {
+    display: block;
+    width: 100%;
+    height: 4.5rem;
+    object-fit: contain;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.3rem;
+    background: #fff;
+}
+.ledger-file-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ledger-file-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.4rem;
+}
+.ledger-file-type { flex: none; font-weight: 700; }
+.ledger-file-size { flex: none; color: var(--text-secondary, #6b7280); }
+
+/* The visual check: slides as they are drawn, contact sheets, problems. */
+.ledger-thumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+    gap: 0.35rem;
+    margin: 0 0 0.4rem;
+}
+
+.ledger-thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--text-primary, #111827) 5%, transparent);
+}
+
+.ledger-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; animation: ledger-in 0.25s ease; }
+.ledger-thumb.is-current { outline: 1.5px solid var(--text-primary, #111827); outline-offset: 1px; }
+.ledger-thumb.has-issue { border-color: #dc2626; box-shadow: 0 0 0 1.5px #dc2626; }
+
+.ledger-thumb-number {
+    position: absolute;
+    left: 0.2rem;
+    bottom: 0.15rem;
+    padding: 0 0.25rem;
+    border-radius: 0.2rem;
+    background: rgba(255, 255, 255, 0.85);
+    color: #111827;
+    font-size: 0.625rem;
+    line-height: 1.3;
+}
+
+.ledger-sheets { display: flex; gap: 0.4rem; margin: 0 0 0.4rem; overflow-x: auto; }
+.ledger-sheets img { flex: none; width: 22rem; max-width: 92%; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.3rem; }
+
+.ledger-issues { margin: 0 0 0.4rem; padding: 0 0 0 1.1rem; font-size: 0.8125rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ledger-row, .ledger-thumb img { animation: none; }
+    .is-running > .ledger-row-head .ledger-mark::before { animation-duration: 2.4s; }
+    .is-running > .ledger-row-head .ledger-label { animation: none; -webkit-text-fill-color: currentColor; color: var(--text-primary, #111827); background: none; }
+}
+
+/* The visual check of a message that is no longer on screen. */
+.ledger-floating {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 60;
+    width: min(22rem, calc(100vw - 2rem));
+    padding: 0.6rem 0.75rem 0.25rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.8rem;
+    background: var(--modal-bg, #fff);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+}

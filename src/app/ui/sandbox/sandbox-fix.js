@@ -15,7 +15,7 @@ import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks } f
  * as it is), otherwise { text, run, parts, documents }.
  */
 export async function runSandboxFix({
-  conversation, model, config, streamApiCall, requestParts, signal, onStatus = () => {}, language, window = globalThis.window
+  conversation, model, config, streamApiCall, requestParts, signal, onStatus = () => {}, onEvent = () => {}, language, window = globalThis.window
 }) {
   const mode = resolveReplyMode({
     conversation, config, modelInfo: model, supportsToolCalling: modelSupportsToolCalling, browserSupported: browserSupportsSandbox(window)
@@ -42,7 +42,8 @@ export async function runSandboxFix({
     provider: model?.provider,
     inputFiles: collectSandboxInputs(conversation),
     designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
-    onStatus
+    onStatus,
+    onEvent
   });
   if (result.run?.steps?.length) await offices.embedFontsInRunOutputs(result.run).catch(() => {});
   return {

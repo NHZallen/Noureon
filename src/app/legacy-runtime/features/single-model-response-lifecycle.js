@@ -5,7 +5,7 @@ import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.j
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
-import { createSandboxWorkWindow } from '../../ui/sandbox/sandbox-work-window.js';
+import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 
 // Advanced mode (Python in the browser) is loaded only for replies that use it.
 const loadSandboxReply = () => Promise.all([
@@ -144,13 +144,15 @@ export function createSingleModelResponseLifecycle({
     let sandboxParts = [];
     // Documents the code handed to the design system, as file blocks.
     let sandboxDocuments = '';
-    // The window above the composer: the status, and each run's code, output and files.
+    // The step list in the message, above the answer: what the model and Python are doing now.
     let liveRun = null;
-    const workWindow = () => {
-      liveRun ||= createSandboxWorkWindow({ document: getDocument(), language: uiLanguage });
+    const stepList = () => {
+      if (!liveRun && targetElement.parentElement) {
+        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage });
+      }
       return liveRun;
     };
-    const showRunStatus = (statusText) => workWindow().status(statusText);
+    const showRunStatus = () => {};
     const runApiStream = replyMode.advanced
       ? async (onChunk) => {
         const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
@@ -166,7 +168,7 @@ export function createSingleModelResponseLifecycle({
           inputFiles: collectSandboxInputs(conversation, userParts),
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           onStatus: showRunStatus,
-          onEvent: (event) => workWindow().event(event)
+          onEvent: (event) => stepList()?.event(event)
         });
         sandboxRun = result.run;
         // Word and PowerPoint files made freely get the app's fonts embedded.

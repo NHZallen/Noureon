@@ -15,7 +15,7 @@ const checkAbort = signal => { if (signal.aborted) throw new DOMException('Abort
 
 /** Background V1 pass. The caller owns cancellation and keeps this promise observed. */
 export async function runVisionCheck({ conversation, message, model, config, controller, responseUsesCouncil = false,
-  modelSupportsVision, streamApiCall, document, window, notificationContainer, getActiveConversation,
+  modelSupportsVision, streamApiCall, document, window, notificationContainer, host = null, getActiveConversation,
   addMessageToUI, saveAppData, showNotification, imageSources = null, crypto = globalThis.crypto }) {
   const language = config?.uiLanguage || 'zh-TW';
   const files = eligibleVisionFiles({ conversation, message, model, config, signal: controller.signal, responseUsesCouncil, modelSupportsVision });
@@ -23,7 +23,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
   let checked = 0;
   for (const file of files) {
     checkAbort(controller.signal);
-    const progress = createVisionProgress({ document, language, controller });
+    const progress = createVisionProgress({ document, language, controller, host });
     let timedOut = false;
     let timer = null;
     const arm = ms => {

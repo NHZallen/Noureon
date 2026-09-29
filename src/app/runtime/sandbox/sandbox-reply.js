@@ -68,6 +68,12 @@ export async function runSandboxReply({
   // The model's name in the status lines, so the wait says who is working.
   const model = requestOptions.modelInfo?.name || requestOptions.modelInfo?.id || 'AI';
   const say = (key, values = {}) => onStatus(sandboxText(language, key, { model, ...values }));
+  // A new stretch of work with its own line in the step list.
+  const round = (key, values = {}) => {
+    const label = sandboxText(language, key, { model, ...values });
+    onStatus(label);
+    onEvent({ type: 'round', label, doneLabel: sandboxText(language, 'ledgerThought', { model }) });
+  };
   // What the last round of runs came to: the next status says what happens next.
   let outcome = null;
   const run = { status: RUN_STATUS.running, steps: [], fallback: null };
@@ -89,7 +95,9 @@ export async function runSandboxReply({
 
   const ensureSandbox = () => {
     sandboxReady ||= (async () => {
-      onStatus(sandboxText(language, 'sandboxPreparing'));
+      const preparing = sandboxText(language, 'sandboxPreparing');
+      onStatus(preparing);
+      onEvent({ type: 'prepare', text: preparing });
       const sandbox = getSandbox({
         onProgress: (message) => {
           if (message.stage === 'output') {
@@ -97,7 +105,10 @@ export async function runSandboxReply({
             return;
           }
           const status = describeProgress(language, message);
-          if (status && message.stage !== 'running') onStatus(status);
+          if (status && message.stage !== 'running') {
+            onStatus(status);
+            onEvent({ type: 'prepare', text: status });
+          }
         }
       });
       await sandbox.prepare();
@@ -116,10 +127,10 @@ export async function runSandboxReply({
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;
     let response = null;
     emit.continuing = false;
-    if (!toolTurns.length) say('sandboxAsking');
-    else if (outcome?.failed) say('sandboxFixing');
-    else if (outcome?.files) say('sandboxContinuedFiles', { count: outcome.files });
-    else say('sandboxThinking');
+    if (!toolTurns.length) round('sandboxAsking');
+    else if (outcome?.failed) round('sandboxFixing');
+    else if (outcome?.files) round('sandboxContinuedFiles', { count: outcome.files });
+    else round('sandboxThinking');
     const options = {
       ...requestOptions,
       tools: canRun ? [RUN_PYTHON_TOOL] : [],
@@ -223,7 +234,11 @@ export async function runSandboxReply({
   else {
     run.status = RUN_STATUS.done;
     // The files are still being embedded and saved after this returns.
-    if (run.steps.length) say('sandboxFinishing');
+    if (run.steps.length) {
+      const label = sandboxText(language, 'sandboxFinishing', { model });
+      onStatus(label);
+      onEvent({ type: 'finishing', label });
+    }
   }
   return { text, run: run.steps.length || run.fallback ? run : null };
 }

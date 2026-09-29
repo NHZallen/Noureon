@@ -19,50 +19,45 @@ const fixture = JSON.parse(readFileSync(new URL('./fixtures/sample-deck.json', i
 const parse = (raw, language = 'en') => parseDocumentSpec(JSON.stringify(raw), { uiLanguage: language }).spec;
 const sample = () => parse(fixture.en);
 
-test('the visual check shows its work in a window above the composer, in five languages, and stops on abort', () => {
+test('the visual check is a step list under the message it checks, in five languages, and stops on request', () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
     const window = new Window();
     const { document } = window;
-    const messages = document.createElement('div');
-    const composer = document.createElement('div');
-    composer.id = 'input-bar-container';
-    document.body.append(messages, composer);
+    const stack = document.createElement('div');
+    document.body.append(stack);
     const controller = new AbortController();
-    const progress = createVisionProgress({ document, language, controller });
-    const box = composer.querySelector('.work-window');
-    assert.ok(box, 'the window is in the composer container');
-    assert.equal(messages.children.length, 0);
-    const title = box.querySelector('[role="status"]');
-    assert.equal(title.textContent, visionText(language, 'preparing'));
-    progress.set('rendering');
-    assert.equal(title.textContent, visionText(language, 'rendering'));
-    assert.ok(box.querySelector('.work-window-phase.is-active').textContent === visionText(language, 'phaseRender'));
+    const progress = createVisionProgress({ document, language, controller, host: stack });
+    const list = stack.querySelector('.ledger');
+    assert.ok(list, 'the list is inside the message');
+    assert.equal(list.querySelector('.ledger-heading-text').textContent, visionText(language, 'ledgerTitle'));
+    progress.set('preparing');
+    assert.equal(list.querySelector('.ledger-row.is-running .ledger-label').textContent, visionText(language, 'preparing'));
 
     progress.slideRendered({ index: 0, total: 4, number: 1, url: 'data:image/jpeg;base64,AA' });
     progress.slideRendered({ index: 1, total: 4, number: 2, url: 'data:image/jpeg;base64,BB' });
-    assert.equal(box.querySelectorAll('.work-thumb').length, 4, 'a cell for every slide');
-    assert.equal(box.querySelectorAll('.work-thumb img').length, 2, 'drawn slides show their picture');
-    assert.equal(box.querySelectorAll('.work-thumb.is-current').length, 1);
-    assert.equal(box.querySelector('.work-caption').textContent, visionText(language, 'slideProgress', { n: 2, total: 4 }));
+    assert.equal(list.querySelectorAll('.ledger-thumb').length, 4, 'a cell for every slide');
+    assert.equal(list.querySelectorAll('.ledger-thumb img').length, 2, 'drawn slides show their picture');
+    assert.equal(list.querySelectorAll('.ledger-thumb.is-current').length, 1);
+    assert.equal(list.querySelector('.ledger-row.is-running .ledger-label').textContent, visionText(language, 'slideProgress', { n: 2, total: 4 }));
+    assert.equal(list.querySelectorAll('.ledger-row.is-done').length, 1, 'the step before is done');
 
     progress.sheetReady({ index: 0, total: 1, url: 'data:image/jpeg;base64,CC' });
-    assert.ok(box.querySelector('.work-phase-check, .work-window-phase.is-done'), 'earlier phases are done');
+    assert.equal(list.querySelector('.ledger-row.is-done:nth-child(2) .ledger-label').textContent, visionText(language, 'renderedSlides', { total: 4 }));
     progress.set('reviewing', { model: 'Test model' });
-    assert.equal(title.textContent, visionText(language, 'reviewing', { model: 'Test model' }));
-    assert.equal(box.querySelector('.work-caption').textContent, visionText(language, 'reviewingSheets', { model: 'Test model', count: 1 }));
+    assert.equal(list.querySelector('.ledger-row.is-running .ledger-label').textContent, visionText(language, 'reviewingSheets', { model: 'Test model', count: 1 }));
     progress.showIssues([{ slide: 2, category: 'text', problem: 'Too small', fix: 'Bigger' }]);
-    assert.equal(box.querySelectorAll('.work-thumb.has-issue').length, 1);
-    assert.match(box.querySelector('.work-issues').textContent, /Too small/);
+    assert.equal(list.querySelectorAll('.ledger-thumb.has-issue').length, 1);
+    assert.match(list.querySelector('.ledger-issues').textContent, /Too small/);
+    assert.equal(list.querySelectorAll('.ledger-row.is-running').length, 0, 'nothing is left spinning');
 
-    const fold = box.querySelector('.work-window-button');
-    fold.click();
-    assert.equal(box.classList.contains('is-folded'), true);
-    fold.click();
-    assert.equal(box.classList.contains('is-folded'), false);
+    const steps = (progress.set('fixing', { model: 'Test model' }), progress.python(language));
+    steps.event({ type: 'round', label: 'thinking', doneLabel: 'thought' });
+    assert.equal(list.querySelectorAll('.ledger .ledger-row.is-running').length, 2, 'the redoing and its own step run inside it');
+    steps.remove();
 
-    box.querySelector('.work-window-stop').click();
+    list.querySelector('.ledger-stop').click();
     assert.equal(controller.signal.aborted, true);
-    assert.equal(composer.querySelector('.work-window'), null, 'stopping removes the window');
+    assert.equal(stack.querySelector('.ledger'), null, 'stopping removes the list');
     progress.remove();
     window.happyDOM.abort();
   }
