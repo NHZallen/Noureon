@@ -90,6 +90,10 @@ export async function runSandboxReply({
   let thoughtKept = 0;
   let thought = '';
   let thoughtKind = 'raw';
+  // When this round's thinking began and when it ended (the answer, or the end of the round).
+  let thoughtStartedAt = null;
+  let thoughtEndedAt = null;
+  const thoughtMs = () => (thoughtStartedAt === null ? 0 : Math.max(1, (thoughtEndedAt ?? Date.now()) - thoughtStartedAt));
   // The round's thinking as it is kept: its start, within what is left.
   const takeThought = () => {
     const kept = thought.slice(0, Math.max(0, Math.min(THOUGHT_CHARS_PER_ROUND, THOUGHT_CHARS_IN_ALL - thoughtKept)));
@@ -102,6 +106,11 @@ export async function runSandboxReply({
     if (!chunk) return;
     // Text written after a tool round starts on a new paragraph.
     const separator = text && toolTurns.length && !text.endsWith('\n') && !emit.continuing ? '\n\n' : '';
+    if (!emit.continuing) {
+      // The answer has begun: the model is no longer thinking.
+      thoughtEndedAt ??= Date.now();
+      onEvent({ type: 'answering' });
+    }
     emit.continuing = true;
     text += separator + chunk;
     onChunk(separator + chunk);
@@ -142,6 +151,8 @@ export async function runSandboxReply({
     let response = null;
     emit.continuing = false;
     thought = '';
+    thoughtStartedAt = null;
+    thoughtEndedAt = null;
     if (!toolTurns.length) round('sandboxAsking');
     else if (outcome?.failed) round('sandboxFixing');
     else if (outcome?.files) round('sandboxContinuedFiles', { count: outcome.files });
@@ -151,6 +162,7 @@ export async function runSandboxReply({
       // What the model is thinking and the code it is writing, as it streams.
       onReasoning: (chunk, kind) => {
         thought += chunk;
+        thoughtStartedAt ??= Date.now();
         if (kind) thoughtKind = kind;
         onEvent({ type: 'thinking', text: chunk, kind });
       },
@@ -180,6 +192,7 @@ export async function runSandboxReply({
       if (kept) {
         run.thought = kept;
         run.thoughtKind = thoughtKind;
+        run.thoughtMs = thoughtMs();
         run.thoughtInterrupted = true;
       }
       break;
@@ -191,6 +204,7 @@ export async function runSandboxReply({
       if (roundThought) {
         run.thought = roundThought;
         run.thoughtKind = thoughtKind;
+        run.thoughtMs = thoughtMs();
       }
       break;
     }

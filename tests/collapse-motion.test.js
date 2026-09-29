@@ -37,7 +37,7 @@ test('a folded part eases open and shut, and only when it changes', () => {
   assert.equal(runs.length, 1, 'already open: nothing to animate');
   setCollapsed(node, false);
   assert.equal(node.hidden, false, 'still there while it closes');
-  assert.equal(runs[1].frames[1].height, '0px');
+  assert.equal(runs[1].frames[2].height, '0px');
   runs[1].finish();
   assert.equal(node.hidden, true);
   setCollapsed(node, false);

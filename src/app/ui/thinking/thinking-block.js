@@ -38,6 +38,8 @@ export function createThinkingBlock({ document, host, before = null, language = 
       endedAt = now();
       row.setLabel(sandboxText(language, kind === 'summary' ? 'thinkingDoneSummary' : 'thinkingDoneRaw', { s: seconds() }));
       row.finish('done');
+      // The same line the saved reply shows: no tick, no timer, so drawing it again does not shift.
+      row.node.classList.add('is-quiet');
       row.setOpen(false);
     },
     remove() { ledger.remove(); }

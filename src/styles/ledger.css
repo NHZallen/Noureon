@@ -1,7 +1,7 @@
 /* The live step list inside a message (ledger.js): Python runs, the visual check. */
 
 .ledger {
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.5rem;
     font-size: 1rem;
     line-height: 1.45;
     color: var(--text-primary, #111827);
@@ -44,7 +44,7 @@
     display: inline-block;
     margin-left: 0.35rem;
     color: var(--text-secondary, #6b7280);
-    transition: transform 0.15s ease;
+    transition: transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 .ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after { transform: rotate(90deg); }
 
@@ -100,6 +100,10 @@
 }
 
 .is-done > .ledger-row-head .ledger-label { color: var(--text-secondary, #6b7280); }
+
+/* A finished thinking line is just its label, the way the saved reply draws it. */
+.ledger-row.is-quiet > .ledger-row-head .ledger-mark,
+.ledger-row.is-quiet > .ledger-row-head .ledger-time { display: none; }
 
 .ledger-time {
     flex: none;
@@ -166,9 +170,7 @@
 }
 
 .ledger-thought::-webkit-scrollbar { width: 4px; }
-.ledger-thought::-webkit-scrollbar-track,
-.ledger-thought::-webkit-scrollbar-button,
-.ledger-thought::-webkit-scrollbar-corner { background: transparent; display: none; }
+.ledger-thought::-webkit-scrollbar-button { display: none; }
 .ledger-thought::-webkit-scrollbar-thumb { border-radius: 2px; background: transparent; }
 .ledger-thought:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-primary, #111827) 28%, transparent); }
 

@@ -255,7 +255,7 @@ test('the reply reports each stretch of work as an event for the step list', asy
     language: 'en',
     onEvent: (event) => events.push(event)
   });
-  assert.deepEqual(events.map((event) => event.type), ['round', 'step', 'prepare', 'step-end', 'round', 'finishing']);
+  assert.deepEqual(events.map((event) => event.type), ['round', 'step', 'prepare', 'step-end', 'round', 'answering', 'finishing']);
   assert.equal(events[0].label, 'Thinking…');
   assert.equal(events[0].doneLabel, 'Finished thinking');
   assert.deepEqual([events[1].n, events[1].title, events[1].code], [1, 'One', 'print(1)']);
@@ -283,6 +283,9 @@ test('the model\'s thinking is kept with the run it led to, and the last round\'
   assert.equal(result.run.steps[0].thought, '思考第一輪', 'the thinking before the run belongs to the run');
   assert.equal(result.run.thought, '思考最後一輪', 'the thinking before the answer belongs to the reply');
   assert.deepEqual(events.filter((event) => event.type === 'thinking').map((event) => event.text), ['思考', '第一輪', '思考', '最後一輪']);
+  assert.equal(events.filter((event) => event.type === 'answering').length, 1, 'told once, when the answer begins');
+  assert.ok(events.findIndex((event) => event.type === 'answering') > events.findLastIndex((event) => event.type === 'thinking'), 'after the thinking');
+  assert.ok(result.run.thoughtMs >= 1, 'how long it thought is kept, so the saved line can say it');
   const kept = formatSandboxRunBlock(result.run);
   const lifted = liftSandboxRunBlock(kept + '完成').run;
   assert.equal(lifted.steps[0].thought, '思考第一輪', 'saved with the message');

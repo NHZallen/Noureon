@@ -137,6 +137,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
       if (event.type === 'round') {
         const row = begin(event.label);
         row.doneLabel = event.doneLabel;
+      } else if (event.type === 'answering') {
+        // Writing the answer is not thinking: that row is over and folds.
+        endCurrent();
+        list.foldFinished();
       } else if (event.type === 'prepare') {
         list.current?.setDetail(event.text);
       } else if (event.type === 'finishing') {

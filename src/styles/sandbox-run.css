@@ -3,7 +3,7 @@
    follow the text colour so dark themes and wallpapers work too. */
 
 .sandbox-run {
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.5rem;
     font-size: 1rem;
     line-height: 1.45;
 }
@@ -20,6 +20,7 @@
     gap: 0.35rem;
     color: var(--text-secondary, #6b7280);
     cursor: pointer;
+    padding: 0.1rem 0;
     list-style: none;
     user-select: none;
 }
@@ -29,7 +30,7 @@
 .sandbox-run-summary::after {
     content: '›';
     display: inline-block;
-    transition: transform 0.15s ease;
+    transition: transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .sandbox-run-details[open] > .sandbox-run-summary::after { transform: rotate(90deg); }
@@ -110,3 +111,6 @@
 /* The model's thinking after the reply is written: the same look as while it
    streams (.ledger-thought in ledger.css), under the one-line summary. */
 .sandbox-run-thought { margin: 0 0 0.5rem; }
+
+/* The answer's own heading does not add its usual big gap under the line. */
+.prose .sandbox-run + :is(h1, h2, h3, h4, h5, h6) { margin-top: 0.5rem; }

@@ -2,7 +2,9 @@
 // jumping, unless the person asked for less motion. Used by the step list and
 // by the "Ran code" and thinking lines.
 
-const DURATION_MS = 200;
+const DURATION_MS = 280;
+// Quick to start, long to settle: the way accordions move in ChatGPT and Claude.
+const EASING = 'cubic-bezier(0.25, 0.8, 0.25, 1)';
 
 const prefersLessMotion = (node) => Boolean(node.ownerDocument?.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
@@ -30,7 +32,7 @@ const closedFrame = { height: '0px', marginTop: '0px', marginBottom: '0px', padd
 
 const run = (node, frames, onDone) => {
   node.style.overflow = 'hidden';
-  const animation = node.animate(frames, { duration: DURATION_MS, easing: 'ease' });
+  const animation = node.animate(frames, { duration: DURATION_MS, easing: EASING });
   node.__collapseAnimation = animation;
   animation.onfinish = () => {
     // A finish that arrives after the part was moved on again is not for this animation.
@@ -55,11 +57,17 @@ export function setCollapsed(node, show, { animate = true } = {}) {
   if (show) {
     if (!node.hidden) return;
     node.hidden = false;
-    run(node, [closedFrame, openFrame(node)]);
+    run(node, [closedFrame, { opacity: 1, offset: 0.6 }, openFrame(node)]);
     return;
   }
   if (node.hidden) return;
-  run(node, [openFrame(node), closedFrame], () => { node.hidden = true; });
+  run(node, [openFrame(node), { opacity: 0, offset: 0.5 }, closedFrame], () => { node.hidden = true; });
+}
+
+/** A label that changes (thinking → done) eases in instead of switching. */
+export function softChange(node) {
+  if (!canAnimate(node)) return;
+  node.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 240, easing: EASING });
 }
 
 /**
@@ -76,10 +84,10 @@ export function animateDetails(details) {
     content.__collapseAnimation?.cancel();
     settle(content);
     if (details.open) {
-      run(content, [openFrame(content), closedFrame], () => { details.open = false; });
+      run(content, [openFrame(content), { opacity: 0, offset: 0.5 }, closedFrame], () => { details.open = false; });
     } else {
       details.open = true;
-      run(content, [closedFrame, openFrame(content)]);
+      run(content, [closedFrame, { opacity: 1, offset: 0.6 }, openFrame(content)]);
     }
   });
   return details;

@@ -4,7 +4,7 @@
 // progress shimmering with its running time, finished steps folded to a line
 // that opens to what happened. The same rows serve every kind of work.
 
-import { setCollapsed } from '../motion/collapse-motion.js';
+import { setCollapsed, softChange } from '../motion/collapse-motion.js';
 
 const element = (document, name, className, text) => {
   const node = document.createElement(name);
@@ -101,7 +101,11 @@ export function createLedger({ document, host, before = null }) {
         });
         head.append(button);
       },
-      setLabel(value) { text.textContent = value; },
+      setLabel(value) {
+        if (text.textContent === value) return;
+        text.textContent = value;
+        softChange(text);
+      },
       setDetail(value) {
         detail.textContent = value || '';
         detail.hidden = !value;

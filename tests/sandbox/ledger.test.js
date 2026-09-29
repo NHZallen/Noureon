@@ -132,3 +132,20 @@ test('the model\'s thinking and the code it is writing stream into its row, and 
   list.remove();
   window.happyDOM.abort();
 });
+
+test('once the answer is being written the thinking row is finished and folded, not still counting', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'thinking', text: 'Plan the answer.' });
+  const row = message.querySelector('.ledger-row');
+  assert.equal(row.classList.contains('is-running'), true);
+  list.event({ type: 'answering' });
+  assert.equal(row.classList.contains('is-done'), true, 'no longer "Thinking…"');
+  assert.equal(row.classList.contains('is-running'), false);
+  assert.equal(row.querySelector('.ledger-label').textContent, 'Finished thinking');
+  assert.equal(row.querySelector('.ledger-body').hidden, true);
+  assert.equal(row.querySelector('.ledger-thought').textContent, 'Plan the answer.', 'still there to read');
+  list.remove();
+  window.happyDOM.abort();
+});
