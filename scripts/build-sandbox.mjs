@@ -59,6 +59,11 @@ const WHEELS = [
     sha256: 'a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61'
   },
   {
+    name: 'reportlab', version: '5.0.1', imports: ['reportlab'], depends: ['pillow', 'charset-normalizer'],
+    url: 'https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd85266195a9ab3e677449589ddae59bd7542ac/reportlab-5.0.1-py3-none-any.whl',
+    sha256: '1c36e6bb0e71780c72331eba60da7f602e8d4389a8723825af71342e49d791e8'
+  },
+  {
     name: 'pypdf', version: '6.19.0', imports: ['pypdf'], depends: [],
     url: 'https://files.pythonhosted.org/packages/3c/2c/c43c03eaf630435f023f1dc61ec4a4a78951ad5530a62c71cc89bde307b7/pypdf-6.19.0-py3-none-any.whl',
     sha256: '7e5d6e730e7dae87d560a2cee218b852f6498c8be61966f3cd02ead971e48d14'

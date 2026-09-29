@@ -16,12 +16,39 @@ export const RUN_PYTHON_TOOL = Object.freeze({
 
 export const MAX_RUNS_PER_REPLY = 10;
 
-const PACKAGES = 'numpy, pandas, matplotlib, scipy, scikit-learn, sympy, Pillow, lxml, beautifulsoup4, python-docx (import docx), python-pptx (import pptx), openpyxl, XlsxWriter, fpdf2 (import fpdf), pypdf, and the standard library';
+const PACKAGES = 'numpy, pandas, matplotlib, scipy, scikit-learn, sympy, Pillow, lxml, beautifulsoup4, python-docx (import docx), python-pptx (import pptx), openpyxl, XlsxWriter, reportlab, fpdf2 (import fpdf), pypdf, and the standard library';
 
-export function getSandboxGuidance({ inputFiles = [] } = {}) {
+const FONTS = `Fonts (open source; Word and PowerPoint files get them embedded automatically, so use these names):
+- "Noto Sans TC" (Traditional Chinese sans), "Noto Serif TC" (Traditional Chinese serif), "Noto Sans SC", "Noto Sans JP", "Noto Sans KR", and "Inter" for Latin text.
+- python-docx / python-pptx: set both the Latin and the East Asian font with \`noureon.use_fonts(target, latin="Inter", east_asian="Noto Sans TC")\` (target: a Document, style, paragraph, run, or a pptx text frame / paragraph / run). Plain \`font.name\` only sets the Latin font.
+- PDF tools need the files: /fonts/Inter-Regular.ttf, /fonts/Inter-Bold.ttf, /fonts/NotoSansTC-Regular.ttf, /fonts/NotoSansTC-Bold.ttf, /fonts/NotoSerifTC-Regular.ttf, /fonts/NotoSerifTC-Bold.ttf, and NotoSansSC / NotoSansJP / NotoSansKR in the same two weights. reportlab: \`pdfmetrics.registerFont(TTFont("NotoSansTC", "/fonts/NotoSansTC-Regular.ttf"))\`; fpdf2: \`pdf.add_font("NotoSansTC", "", "/fonts/NotoSansTC-Regular.ttf")\`. They appear once reportlab, fpdf2 or matplotlib is imported.
+- matplotlib already uses these fonts; do not change its font family.`;
+
+const FREE_DESIGN = `Designing the file yourself (like a professional designer, never the bare default Office look):
+- Plan the structure first, then build it with python-docx, python-pptx, openpyxl or reportlab.
+- A clear hierarchy (title, headings, body), consistent spacing and margins, one restrained palette (a dark text colour, one accent, light neutrals), aligned grids.
+- Charts from the real numbers: native python-pptx charts (chart_data) in decks, matplotlib images (dpi 200) in Word/PDF; styled tables with a header row and right-aligned numbers.
+- Slides: 16:9 (prs.slide_width = Inches(13.333), prs.slide_height = Inches(7.5)), one message per slide, generous margins, large titles, few words.
+- Word: set page margins, styles for headings and body, a cover or title block when it suits; PDF: reportlab platypus (SimpleDocTemplate, Paragraph, Table, Image) with registered fonts.`;
+
+function templateRule(kind, template) {
+  const formats = kind === 'deck' ? 'PowerPoint files' : 'Word and PDF files';
+  const example = kind === 'deck' ? '"簡報.pptx", {"slides": [...]}' : '"報告.docx", markdown_text';
+  return `- ${formats}: the user chose the "${template}" template, so hand the finished content to Noureon's design system instead of designing it yourself: \`import noureon; noureon.save_document(${example})\`. The content is exactly what a \`\`\`\`file block for that format holds (see the file instructions); Noureon applies the template, embeds fonts and shows a preview. Pictures you saved in /output are used as asset:<name> (\`![說明](asset:trend.png)\` in Markdown; on a slide \`{"src": "asset:trend.png", "fit": "contain"}\` in the "split" layout).`;
+}
+
+/**
+ * `designs`: the conversation's choices from the Design menu,
+ * { deck, document }, each "auto" or a template name.
+ */
+export function getSandboxGuidance({ inputFiles = [], designs = {} } = {}) {
   const inputs = inputFiles.length
     ? inputFiles.map((file) => `- /input/${file.name} (${file.type || 'file'}, ${file.size} bytes)`).join('\n')
     : '- (none)';
+  const templates = [
+    designs.deck && designs.deck !== 'auto' ? templateRule('deck', designs.deck) : '',
+    designs.document && designs.document !== 'auto' ? templateRule('document', designs.document) : ''
+  ].filter(Boolean);
   return `## Advanced mode: Python in the browser
 
 You can call the tool run_python to run Python 3.14 (Pyodide) in a sandbox in the user's browser.
@@ -29,18 +56,17 @@ You can call the tool run_python to run Python 3.14 (Pyodide) in a sandbox in th
 - Each call may take up to 60 seconds. Variables persist between calls in this reply; a new reply starts with a clean environment.
 - Files from the user are in /input:
 ${inputs}
-- Save every file meant for the user in /output (e.g. /output/report.xlsx). Files elsewhere are not delivered. Never write macro-enabled or executable files.
-- matplotlib already uses fonts that cover Chinese, Japanese and Korean; do not change the font family. Save charts with plt.savefig('/output/<name>.png', dpi=150, bbox_inches='tight').
+- Save every file meant for the user in /output (e.g. /output/報告.docx). Files elsewhere are not delivered. Never write macro-enabled or executable files.
 
-Word, PowerPoint, Excel and PDF files:
-- Compute in Python, then hand the finished content to Noureon's design system: \`import noureon; noureon.save_document("報告.docx", content)\`. \`content\` is exactly what a \`\`\`\`file block for that format holds (Markdown text, or a dict / list for the JSON form, as described in the file instructions). Noureon lays it out with the design chosen in the chat, embeds the fonts and shows a preview; the file appears after your answer.
-- Put computed numbers into native charts (a \`\`\`chart block in Word/PDF Markdown, the chart fields of a slide or sheet) so they stay editable in Office.
-- For a picture only matplotlib can draw, save it to /output (e.g. /output/trend.png) and refer to it as asset:trend.png: \`![Trend](asset:trend.png)\` in Word/PDF Markdown, or on a slide an image \`{"src": "asset:trend.png", "fit": "contain"}\` in the "split" layout (the "image" layout is a full-bleed photo and crops charts).
-- Use python-docx, python-pptx, openpyxl or fpdf2 directly only for what the design system cannot do (for example editing a file the user uploaded, or merging PDFs); save the result in /output.
+Word, PowerPoint, Excel and PDF files: create them with Python and save them in /output. You have full freedom over layout, colour, typography and graphics; do not write them as \`\`\`\`file blocks.
+${templates.length ? `${templates.join('\n')}\n` : ''}
+${FREE_DESIGN}
+
+${FONTS}
 
 When to use it:
-- Use Python for calculations, data analysis, reading or transforming the user's files, and charts or files that need exact numbers. Do not run code for ordinary conversation or plain writing.
-- A document that is only text can still be written directly as a \`\`\`\`file block, which is faster.
+- Use Python for files like the above, calculations, data analysis, reading or transforming the user's files, and charts. Do not run code for ordinary conversation.
+- Plain text files (Markdown, CSV, code, JSON) can still be written directly as \`\`\`\`file blocks.
 - Print short summaries (for example df.head() or totals), not whole datasets.
 - If a run fails, read the error, fix the code and try again; do not repeat the same code. You can run code at most ${MAX_RUNS_PER_REPLY} times per reply.
 

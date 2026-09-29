@@ -750,3 +750,23 @@ CSP 是主要的防線。另外在執行模型的程式之前，Worker 還會做
   - 回覆最後只有兩張設計系統的卡片，圖表圖片沒有另外出現。
   - Word 預覽有標題、表格和圖表圖片；簡報預覽的圖片也有正確顯示。
 - **Office**：用 Word 開啟含 `asset:` 圖片的 docx 並匯出 PDF（2 頁，圖片與圖說正確）；用 PowerPoint 開啟 split 版型加 contain 的 pptx 並匯出 PDF（2 張，圖在文字右側）。兩者開啟時都沒有出現錯誤。
+
+## B4b-1 實作紀錄（2026-09-29）
+
+使用者說明方案 B 要的是像 GPT 一樣不受限制地做出 Word、PDF、PPT。B4 的做法（一律交給設計系統）改成「預設自由創作，選了範本才套範本」。
+
+### 做法
+
+- **提示詞**（`sandbox-guidance.js`）：預設告訴模型「版面、顏色、字型、圖形都由你決定，用 Python 存到 /output，不要寫成 ````file 區塊」，並附上專業設計的簡短要求。只有「設計」選單裡簡報或 Word／PDF 選了範本（不是 auto）時，才加上該類檔案改用 `noureon.save_document` 的規則。
+- **字型**：
+  - 沙盒有 `/fonts` 12 個檔案：Inter、Noto Sans TC、Noto Serif TC、Noto Sans SC、Noto Sans JP、Noto Sans KR 各有 Regular（400）與 Bold（700）。字型由 app 端用 HarfBuzz 固定字重並改名後傳進沙盒。
+  - matplotlib 用這些字型（含中日韓後備）；reportlab（新加入，5.0.1）與 fpdf2 可以用 `TTFont("NotoSansTC", "/fonts/NotoSansTC-Regular.ttf")` 註冊。
+  - `noureon.use_fonts(物件, latin, east_asian)`：python-docx 的文件、樣式、段落、run；python-pptx 的文字框、段落、run。Word 會清掉樣式裡的佈景主題字型屬性（`asciiTheme` 等，否則會蓋過指定的字型），一併處理文件預設值與表格樣式的條件格式。
+- **自動嵌入字型**（`office-fonts.js`）：回覆結束、存檔之前，掃描自由做出的 .docx、.pptx 用到的字型（`w:ascii/eastAsia`、`a:latin/ea/cs`），只嵌入 app 有的字型，並依實際用到的字元做子集。找不到的字型（Calibri、微軟正黑體）交給閱讀者的電腦。失敗時保留原檔。`.noureon/` 交給設計系統的文件不處理（它們自己會嵌入）。
+
+### 驗證
+
+- **自動測試**：`tests/sandbox/sandbox-free-design.test.js` 4 項（提示詞、字型清單、掃描、嵌入略過與失敗保留原檔）；`sandbox-protocol.test.js` 的套件清單加入 reportlab。`npm test` 共 1996 項通過；`build`、`check:sizes`、`check:legacy-runtime`、`npm audit --omit=dev`（0 個漏洞）也通過。
+- **瀏覽器（真的沙盒）**：範例程式同時做出 Word（標題、表格）、PPT（文字加原生圖表）、PDF（reportlab 表格）。嵌入後 docx 36,976 → 102,380 位元組，pptx 34,755 → 97,654 位元組，耗時 79 毫秒；PDF 不動。
+- **Office**：Word 與 PowerPoint 開啟都沒有錯誤；PPT 的 `presentation.xml` 有 Inter 與 Noto Sans TC 兩個 `embeddedFont`，Word 的 `fontTable.xml` 也有這兩個。重跑後 Word 樣式裡不再有佈景主題字型屬性。
+- **還沒做**：自由做出的 PPT 沒有卡片預覽（B4b-2 的 PPTX 讀取器）；Word 預覽與看圖檢查的接入留到 B5。

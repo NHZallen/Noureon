@@ -58,6 +58,8 @@ export async function runSandboxReply({
   provider = '',
   // Files for /input: [{ name, type, size, bytes: () => Uint8Array }].
   inputFiles = [],
+  // The Design menu's choices: a template means the design system.
+  designs = {},
   onStatus = () => {}
 }) {
   const run = { status: RUN_STATUS.running, steps: [], fallback: null };
@@ -96,7 +98,7 @@ export async function runSandboxReply({
     return sandboxReady;
   };
 
-  const guidance = getSandboxGuidance({ inputFiles });
+  const guidance = getSandboxGuidance({ inputFiles, designs });
 
   for (;;) {
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;

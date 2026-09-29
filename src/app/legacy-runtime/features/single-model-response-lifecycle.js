@@ -166,9 +166,16 @@ export function createSingleModelResponseLifecycle({
           language: uiLanguage,
           provider: modelInfo?.provider,
           inputFiles: collectSandboxInputs(conversation, userParts),
+          designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           onStatus: showRunStatus
         });
         sandboxRun = result.run;
+        // Word and PowerPoint files made freely get the app's fonts embedded.
+        if (result.run?.steps?.length) {
+          await import('../../ui/sandbox/office-fonts.js')
+            .then((module) => module.embedFontsInRunOutputs(result.run))
+            .catch(() => {});
+        }
         sandboxParts = createSandboxFileParts(result.run);
         sandboxDocuments = sandboxDocumentBlocks(result.run);
         return result.text;

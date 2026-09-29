@@ -78,7 +78,6 @@ const jsglobals = Object.freeze({
 let pyodidePromise = null;
 let globals = null;
 let settings = { language: 'zh-TW' };
-let fontsConfigured = false;
 let fontsWaiter = null;
 const FONTS_TIMEOUT_MS = 30_000;
 
@@ -109,8 +108,11 @@ const ensurePyodide = () => {
   return pyodidePromise;
 };
 
-// Chart fonts come from the app (through the page) the first time
-// matplotlib is used; without them charts use matplotlib's own fonts.
+// Fonts come from the app (through the page) the first time code uses a
+// package that draws text itself; without them charts use matplotlib's own
+// fonts and PDFs cannot show Chinese.
+const FONT_USERS = Object.freeze(['matplotlib', 'reportlab', 'fpdf2']);
+
 const requestFonts = () => new Promise((resolve) => {
   const timer = setTimeout(() => resolve([]), FONTS_TIMEOUT_MS);
   fontsWaiter = (fonts) => {
@@ -121,21 +123,28 @@ const requestFonts = () => new Promise((resolve) => {
   post({ type: MESSAGE_TYPES.fontsRequest });
 });
 
-const loadChartFonts = async (pyodide) => {
-  if (fontsConfigured || !pyodide.loadedPackages.matplotlib) return;
-  fontsConfigured = true;
-  const fonts = await requestFonts();
-  const names = [];
-  fonts.slice(0, 12).forEach((font, index) => {
-    if (!(font?.bytes instanceof Uint8Array) || !font.bytes.byteLength) return;
-    const name = `font-${index}.ttf`;
-    pyodide.FS.writeFile(`${FOLDERS.fonts}/${name}`, font.bytes);
-    names.push(name);
-  });
-  try {
-    configureChartFonts(pyodide, names, settings.language);
-  } catch {
-    // Charts fall back to matplotlib's own fonts.
+let chartFontNames = null;
+let chartsConfigured = false;
+
+const loadFonts = async (pyodide) => {
+  if (!chartFontNames && FONT_USERS.some((name) => pyodide.loadedPackages[name])) {
+    chartFontNames = [];
+    const fonts = await requestFonts();
+    fonts.slice(0, 12).forEach((font, index) => {
+      if (!(font?.bytes instanceof Uint8Array) || !font.bytes.byteLength) return;
+      // The names the model is told (NotoSansTC-Bold.ttf …).
+      const name = /^[\w-]{1,60}\.ttf$/.test(String(font.name || '')) ? font.name : `font-${index}.ttf`;
+      pyodide.FS.writeFile(`${FOLDERS.fonts}/${name}`, font.bytes);
+      chartFontNames.push(name);
+    });
+  }
+  if (!chartsConfigured && chartFontNames && pyodide.loadedPackages.matplotlib) {
+    chartsConfigured = true;
+    try {
+      configureChartFonts(pyodide, chartFontNames, settings.language);
+    } catch {
+      // Charts fall back to matplotlib's own fonts.
+    }
   }
 };
 
@@ -176,7 +185,7 @@ const handlers = {
       messageCallback: () => {},
       errorCallback: (text) => { packageError = String(text); }
     }).catch((error) => { packageError = describeError(error); });
-    await loadChartFonts(pyodide);
+    await loadFonts(pyodide);
     post({ type: MESSAGE_TYPES.progress, id: message.id, stage: 'running' });
     const before = snapshotOutput(pyodide);
     const run = await runCode(pyodide, code, globals);

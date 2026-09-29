@@ -51,6 +51,62 @@ def _plain(value):
     return str(value)
 
 
+def use_fonts(target, latin="Inter", east_asian="Noto Sans TC"):
+    """Sets the Latin and the East Asian font of a python-docx run, paragraph
+    style or document, or of a python-pptx run, paragraph or text frame.
+    Noureon embeds these open-source fonts in the file afterwards, so the
+    document looks the same on every computer."""
+    module = type(target).__module__
+    if module.startswith("docx"):
+        from docx.oxml.ns import qn
+        if hasattr(target, "styles"):
+            # A whole document: every style that has a font.
+            items = [style for style in target.styles if hasattr(style, "font")]
+        elif hasattr(target, "font"):
+            items = [target]
+        elif hasattr(target, "runs"):
+            items = list(target.runs)
+        else:
+            items = [run for paragraph in target.paragraphs for run in paragraph.runs]
+        def assign(fonts):
+            # Theme attributes win over the names, so they have to go.
+            for key in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
+                if fonts.get(qn(key)) is not None:
+                    del fonts.attrib[qn(key)]
+            fonts.set(qn("w:ascii"), latin)
+            fonts.set(qn("w:hAnsi"), latin)
+            fonts.set(qn("w:eastAsia"), east_asian)
+        for item in items:
+            assign(item.element.get_or_add_rPr().get_or_add_rFonts())
+        if hasattr(target, "styles"):
+            # Document defaults and the conditional parts of table styles.
+            for fonts in list(target.styles.element.iter(qn("w:rFonts"))):
+                assign(fonts)
+        return target
+    if module.startswith("pptx"):
+        from pptx.oxml.ns import qn
+        from lxml import etree
+        if hasattr(target, "paragraphs"):
+            runs = [run for paragraph in target.paragraphs for run in paragraph.runs]
+            fonts = [run.font for run in runs] + [paragraph.font for paragraph in target.paragraphs]
+        elif hasattr(target, "runs"):
+            fonts = [run.font for run in target.runs] + [target.font]
+        else:
+            fonts = [target.font if hasattr(target, "font") else target]
+        for font in fonts:
+            font.name = latin
+            properties = font._rPr
+            latin_element = properties.find(qn("a:latin"))
+            east = properties.find(qn("a:ea"))
+            if east is None:
+                east = etree.SubElement(properties, qn("a:ea"))
+                if latin_element is not None:
+                    latin_element.addnext(east)
+            east.set("typeface", east_asian)
+        return target
+    raise TypeError("use_fonts works on python-docx or python-pptx objects")
+
+
 def save_document(name, content):
     name = _os.path.basename(str(name)).strip()
     if not name.lower().endswith(_KINDS):

@@ -109,7 +109,7 @@ test('the committed lock file lists our wheels with matching files and hashes', 
   assert.deepEqual(Object.keys(integrity.core).sort(), ['pyodide.asm.mjs', 'pyodide.asm.wasm', 'python_stdlib.zip']);
   const ours = Object.values(lock.packages).filter((entry) => entry.file_name.startsWith(sandbox.WHEEL_ORIGIN_PLACEHOLDER));
   assert.deepEqual(ours.map((entry) => entry.name).sort(), [
-    'defusedxml', 'et-xmlfile', 'fpdf2', 'openpyxl', 'pypdf', 'python-docx', 'python-pptx', 'xlsxwriter'
+    'defusedxml', 'et-xmlfile', 'fpdf2', 'openpyxl', 'pypdf', 'python-docx', 'python-pptx', 'reportlab', 'xlsxwriter'
   ]);
   for (const entry of ours) {
     const path = entry.file_name.replace(`${sandbox.WHEEL_ORIGIN_PLACEHOLDER}/`, 'public/');
