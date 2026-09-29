@@ -40,6 +40,14 @@ function sampleSpec(language) {
   return parseDocumentSpec(JSON.stringify(source), { uiLanguage: language }).spec;
 }
 
+// Between one thumbnail and the next the page gets a breath, so drawing them never holds up a click
+// or the picker opening. Drawn ones are kept, so they cost nothing to show again.
+const thumbnailKey = (kind, language, preset) => `${kind}:${language}:${preset}`;
+const whenIdle = (window) => new Promise((resolve) => {
+  if (typeof window?.requestIdleCallback === 'function') window.requestIdleCallback(() => resolve(), { timeout: 250 });
+  else setTimeout(resolve, 0);
+});
+
 const cached = (key, draw) => {
   if (!THUMBNAILS.has(key)) {
     THUMBNAILS.set(key, draw().catch((error) => {
@@ -235,6 +243,8 @@ export function renderDeckDesignPicker(container, { document, window, language =
       for (const button of grid.children) {
         if (!container.isConnected || kind !== id) return;
         try {
+          if (!THUMBNAILS.has(thumbnailKey(id, language, button.dataset.deckDesign))) await whenIdle(window);
+          if (!container.isConnected || kind !== id) return;
           const svg = await entry.thumbnail(button.dataset.deckDesign, language, { document, window });
           if (svg) button.querySelector('.deck-design-thumb').replaceChildren(svg);
         } catch {

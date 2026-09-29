@@ -11,6 +11,9 @@
     overflow-y: auto;
     padding: 0.9rem !important;
     transform-origin: bottom left;
+    /* No blur behind it: the panel is near-opaque, and the blur costs while it opens. */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 .deck-design-title {
     margin: 0;

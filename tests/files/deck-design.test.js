@@ -286,3 +286,157 @@ test('on a phone the picker stays inside the screen horizontally', async () => {
     cleanup();
   }
 });
+
+// The Design button felt slow: the picker's code was fetched on the first click and every template was
+// drawn again at every opening. It is now fetched ahead, drawn once, and the click always answers.
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const pickerControl = (extra = {}) => {
+  const { document, window, cleanup } = createDom('<div id="file-input-container"></div>');
+  const drawn = [];
+  const current = [];
+  let language = extra.language || 'en';
+  const control = createDeckDesignControl({
+    document,
+    window,
+    getActiveConversation: () => ({ id: 'a', messages: [] }),
+    saveAppData: async () => {},
+    getUiLanguage: () => language,
+    closeAllPopovers: () => document.querySelectorAll('.popover.visible').forEach((node) => node.classList.remove('visible')),
+    logError: extra.logError || (() => {}),
+    loadPicker: extra.loadPicker || (async () => ({
+      renderDeckDesignPicker: (popover, options) => {
+        drawn.push(options.language);
+        popover.replaceChildren(document.createElement('div'));
+        return { setCurrent: (choices) => current.push(choices), setMode() {} };
+      }
+    }))
+  });
+  control.render();
+  return { control, cleanup, current, document, drawn, setLanguage: (value) => { language = value; }, window };
+};
+
+test('the picker is fetched before the click: when the browser is idle, and when the pointer or a finger reaches the button', async () => {
+  const idle = pickerControl();
+  try {
+    assert.equal(idle.drawn.length, 0);
+  } finally {
+    idle.cleanup();
+  }
+  const { document, window, cleanup } = createDom('<div id="file-input-container"></div>');
+  try {
+    const idleWork = [];
+    window.requestIdleCallback = (callback) => idleWork.push(callback);
+    let loads = 0;
+    const control = createDeckDesignControl({
+      document,
+      window,
+      getActiveConversation: () => ({ id: 'a', messages: [] }),
+      saveAppData: async () => {},
+      getUiLanguage: () => 'en',
+      loadPicker: async () => { loads += 1; return { renderDeckDesignPicker: () => ({ setCurrent() {} }) }; }
+    });
+    control.render();
+    assert.equal(loads, 0, 'nothing is fetched while the page starts');
+    idleWork.shift()();
+    await tick();
+    assert.equal(loads, 1, 'fetched once the browser is idle');
+    document.getElementById('deck-design-btn').click();
+    await tick();
+    assert.equal(loads, 1, 'and not again for the click');
+  } finally {
+    cleanup();
+  }
+  for (const type of ['pointerenter', 'focus', 'touchstart']) {
+    const hover = pickerControl();
+    try {
+      const button = hover.document.getElementById('deck-design-btn');
+      button.dispatchEvent(new hover.window.Event(type));
+      await tick();
+      assert.equal(hover.drawn.length, 1, `${type}: drawn before any click`);
+      assert.equal(hover.document.getElementById('deck-design-popover').classList.contains('visible'), false, 'but not shown');
+      button.click();
+      await tick();
+      assert.equal(hover.drawn.length, 1, `${type}: the click does not draw it again`);
+      assert.equal(hover.document.getElementById('deck-design-popover').classList.contains('visible'), true);
+    } finally {
+      hover.cleanup();
+    }
+  }
+});
+
+test('opening the picker again only brings its choices up to date; a new language draws it again', async () => {
+  const harness = pickerControl();
+  try {
+    const button = harness.document.getElementById('deck-design-btn');
+    const popover = harness.document.getElementById('deck-design-popover');
+    button.click();
+    await tick();
+    assert.equal(harness.drawn.length, 1);
+    button.click();
+    await tick();
+    assert.equal(popover.classList.contains('visible'), false, 'the second click closes it');
+    const before = harness.current.length;
+    button.click();
+    await tick();
+    assert.equal(popover.classList.contains('visible'), true);
+    assert.equal(harness.drawn.length, 1, 'not drawn again');
+    assert.ok(harness.current.length > before, 'its choices were refreshed');
+    button.click();
+    harness.setLanguage('fr');
+    button.click();
+    await tick();
+    assert.deepEqual(harness.drawn, ['en', 'fr']);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('a click answers at once with a turning ring while the picker is still arriving, and the ring gives way to the picker', async () => {
+  let arrive;
+  const late = new Promise((resolve) => { arrive = resolve; });
+  const harness = pickerControl({
+    loadPicker: () => late
+  });
+  try {
+    const button = harness.document.getElementById('deck-design-btn');
+    const popover = harness.document.getElementById('deck-design-popover');
+    button.click();
+    assert.equal(popover.classList.contains('visible'), true, 'open before anything has loaded');
+    assert.ok(popover.querySelector('[role="status"][aria-busy="true"] svg animateTransform'), 'a ring that needs no stylesheet');
+    assert.equal(button.getAttribute('aria-expanded'), 'true');
+    arrive({
+      renderDeckDesignPicker: (target, options) => {
+        target.replaceChildren(harness.document.createElement('section'));
+        return { setCurrent() {}, setMode() {} };
+      }
+    });
+    await tick();
+    await tick();
+    assert.equal(popover.querySelector('[role="status"]'), null, 'the ring is replaced');
+    assert.ok(popover.querySelector('section'));
+    assert.equal(popover.classList.contains('visible'), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('when the picker cannot be loaded the ring goes away, the button closes and the failure is logged', async () => {
+  const errors = [];
+  const harness = pickerControl({
+    logError: (...args) => errors.push(args),
+    loadPicker: async () => { throw new Error('offline'); }
+  });
+  try {
+    const button = harness.document.getElementById('deck-design-btn');
+    const popover = harness.document.getElementById('deck-design-popover');
+    button.click();
+    await tick();
+    await tick();
+    assert.equal(popover.classList.contains('visible'), false);
+    assert.equal(popover.childElementCount, 0);
+    assert.equal(button.getAttribute('aria-expanded'), 'false');
+    assert.equal(errors.length, 1);
+  } finally {
+    harness.cleanup();
+  }
+});

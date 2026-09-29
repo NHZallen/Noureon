@@ -5,8 +5,10 @@
 // conversation (deckDesign, documentDesign) and sent with the file authoring
 // guidance.
 //
-// The button sits next to the attachment button in both composer layouts;
-// the picker (thumbnails of each template) loads when it is first opened.
+// The button sits next to the attachment button in both composer layouts.
+// The picker (thumbnails of each template) loads while the browser is idle and
+// when the pointer or a finger reaches the button, is drawn once and kept, and
+// on opening only brings its choices up to date.
 
 import { DESIGN_PRESET_IDS, getPresetText } from '../../ui/files/design/design-presets.js';
 import { DOCUMENT_PRESET_IDS, getDocumentPresetText } from '../../ui/files/design/document-presets.js';
@@ -56,6 +58,18 @@ export function createDeckDesignControl({
   logError = (...args) => console.error(...args)
 }) {
   let picker = null;
+  let pickerLanguage = null;
+  let loading = null;
+  let preparing = null;
+
+  // The picker's code and stylesheet, fetched once, before they are asked for where possible.
+  const load = () => {
+    loading ||= loadPicker().catch((error) => {
+      loading = null;
+      throw error;
+    });
+    return loading;
+  };
 
   // Opens above the composer when there is room (the composer is usually at
   // the bottom), otherwise below it (a new chat centres the composer), and
@@ -88,6 +102,13 @@ export function createDeckDesignControl({
     });
   };
 
+  // Shown at once when the picker's code has not arrived yet, so the click answers straight away.
+  // A turning ring drawn in the markup itself: it needs no stylesheet, which is one of the things loading.
+  const showLoading = (popover) => {
+    if (popover.childElementCount > 0) return;
+    popover.innerHTML = '<div role="status" aria-busy="true" style="display:grid;place-items:center;min-height:4.5rem"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" opacity="0.2"></circle><path d="M21 12a9 9 0 0 0-9-9"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"></animateTransform></path></svg></div>';
+  };
+
   const ensure = () => {
     let control = document.getElementById('deck-design-control');
     if (control) return control;
@@ -108,6 +129,19 @@ export function createDeckDesignControl({
     container.appendChild(control);
     const button = control.querySelector('#deck-design-btn');
     const popover = control.querySelector('#deck-design-popover');
+    // Before the click: the browser is idle, or the pointer or a finger is on its way to the button.
+    const warm = () => {
+      if (button.disabled) return;
+      preparing ||= prepare(popover).then((ready) => {
+        if (!ready) preparing = null;
+        return ready;
+      });
+    };
+    const idle = window?.requestIdleCallback;
+    if (typeof idle === 'function') idle.call(window, () => { void load().catch(() => {}); }, { timeout: 6000 });
+    button.addEventListener('pointerenter', warm);
+    button.addEventListener('focus', warm);
+    button.addEventListener('touchstart', warm, { passive: true });
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -116,9 +150,21 @@ export function createDeckDesignControl({
       closeAllPopovers();
       button.setAttribute('aria-expanded', String(opening));
       if (!opening) return;
-      // The popover's styles load with the picker, so it opens once both are in.
-      void openPicker(popover).then((ready) => {
-        if (!ready || button.getAttribute('aria-expanded') !== 'true') return;
+      // Ready (loaded before the click, as it usually is): open now. Otherwise open on a turning ring
+      // and fill it in when the picker and its styles are in.
+      if (!picker) {
+        showLoading(popover);
+        place(button, popover);
+        popover.classList.add('visible');
+      }
+      void prepare(popover).then((ready) => {
+        if (button.getAttribute('aria-expanded') !== 'true') return;
+        if (!ready) {
+          popover.classList.remove('visible');
+          popover.replaceChildren();
+          button.setAttribute('aria-expanded', 'false');
+          return;
+        }
         place(button, popover);
         popover.classList.add('visible');
       });
@@ -160,9 +206,19 @@ export function createDeckDesignControl({
     }
   };
 
-  async function openPicker(popover) {
+  // Draws the picker the first time (and again if the language changed), otherwise only brings the
+  // choices and the mode up to date: redrawing every template each time it opened was the delay.
+  async function prepare(popover) {
     try {
-      const module = await loadPicker();
+      const module = await load();
+      const language = getUiLanguage();
+      if (picker && pickerLanguage === language && popover.childElementCount > 0) {
+        picker.setCurrent?.(currentChoices(getActiveConversation()));
+        const mode = getModeState();
+        if (mode) picker.setMode?.(mode);
+        return true;
+      }
+      pickerLanguage = language;
       picker = module.renderDeckDesignPicker(popover, {
         document,
         window,

@@ -60,6 +60,9 @@
     border-radius: 1rem;
     background: var(--modal-bg);
     color: var(--text-primary);
+    /* The page's blur behind popovers is not needed under a near-opaque panel, and costs while it moves. */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     transform: translateY(8px) scale(0.96);
     transform-origin: bottom right;
     /* Closing is quicker than opening. */
