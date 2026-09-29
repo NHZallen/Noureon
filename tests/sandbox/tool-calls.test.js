@@ -6,6 +6,7 @@ import {
   applyOpenAiTools,
   createGeminiCollector,
   createOpenAiCollector,
+  modelStreamsRawThinking,
   partialJsonString
 } from '../../src/app/legacy-runtime/features/tool-call-formats.js';
 import { RUN_PYTHON_TOOL } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
@@ -110,4 +111,14 @@ test('the thinking and the code being written are reported as they stream, which
   open.add({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'nt(1)"}' } }] } }] });
   assert.deepEqual(heard, ['想', '再想', '只有細節'], 'one copy of each piece, from whichever field carries it');
   assert.deepEqual(args, ['{"code":"pri', '{"code":"print(1)"}']);
+});
+
+test('only models that stream their own thinking show it', () => {
+  assert.equal(modelStreamsRawThinking('openrouter', 'deepseek/deepseek-v4.1-flash'), true);
+  assert.equal(modelStreamsRawThinking('openrouter', 'z-ai/glm-5.3'), true);
+  assert.equal(modelStreamsRawThinking('openrouter', 'moonshotai/kimi-k3'), true);
+  assert.equal(modelStreamsRawThinking('openrouter', 'minimax/minimax-m3'), true);
+  assert.equal(modelStreamsRawThinking('nvidia', 'moonshotai/kimi-k3'), true);
+  for (const id of ['anthropic/claude-opus-5.5', 'openai/gpt-6-luna', 'google/gemini-3.1-flash-image', 'x-ai/grok-4.6']) assert.equal(modelStreamsRawThinking('openrouter', id), false, id);
+  assert.equal(modelStreamsRawThinking('gemini', 'gemini-3.8-flash'), false);
 });

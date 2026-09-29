@@ -10,6 +10,9 @@ import { partialJsonString } from '../../legacy-runtime/features/tool-call-forma
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
+// The thinking kept with the run (it is saved with the message), per round and in all.
+const THOUGHT_CHARS_PER_ROUND = 6000;
+const THOUGHT_CHARS_IN_ALL = 30_000;
 
 // Long output keeps its start and end for the model.
 export function trimForModel(text = '', limit = MODEL_TEXT_CHARS) {
@@ -84,6 +87,15 @@ export async function runSandboxReply({
   let crashes = 0;
   let sandboxReady = null;
   let currentStep = 0;
+  let thoughtKept = 0;
+  let thought = '';
+  // The round's thinking as it is kept: its start, within what is left.
+  const takeThought = () => {
+    const kept = thought.slice(0, Math.max(0, Math.min(THOUGHT_CHARS_PER_ROUND, THOUGHT_CHARS_IN_ALL - thoughtKept)));
+    thoughtKept += kept.length;
+    thought = '';
+    return kept;
+  };
 
   const emit = (chunk) => {
     if (!chunk) return;
@@ -128,6 +140,7 @@ export async function runSandboxReply({
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;
     let response = null;
     emit.continuing = false;
+    thought = '';
     if (!toolTurns.length) round('sandboxAsking');
     else if (outcome?.failed) round('sandboxFixing');
     else if (outcome?.files) round('sandboxContinuedFiles', { count: outcome.files });
@@ -135,7 +148,10 @@ export async function runSandboxReply({
     const options = {
       ...requestOptions,
       // What the model is thinking and the code it is writing, as it streams.
-      onReasoning: (chunk) => onEvent({ type: 'thinking', text: chunk }),
+      onReasoning: (chunk) => {
+        thought += chunk;
+        onEvent({ type: 'thinking', text: chunk });
+      },
       onToolArguments: ({ name, arguments: raw }) => {
         if (name === RUN_PYTHON_TOOL.name) onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
       },
@@ -158,7 +174,12 @@ export async function runSandboxReply({
     }
     if (signal?.aborted) break;
     const calls = (response?.toolCalls || []).filter((call) => call.name === RUN_PYTHON_TOOL.name);
-    if (!canRun || !calls.length) break;
+    // The thinking goes to the run it led to, or to the end of the reply.
+    let roundThought = takeThought();
+    if (!canRun || !calls.length) {
+      if (roundThought) run.thought = roundThought;
+      break;
+    }
 
     const results = [];
     for (const call of calls) {
@@ -173,7 +194,8 @@ export async function runSandboxReply({
         continue;
       }
       const title = typeof call.args?.title === 'string' ? call.args.title.trim() : '';
-      const step = { title, code, stdout: '', stderr: '', files: [], elapsedMs: 0 };
+      const step = { title, code, stdout: '', stderr: '', files: [], elapsedMs: 0, ...(roundThought ? { thought: roundThought } : {}) };
+      roundThought = '';
       run.steps.push(step);
       currentStep = run.steps.length;
       onEvent({ type: 'step', n: currentStep, title, code });

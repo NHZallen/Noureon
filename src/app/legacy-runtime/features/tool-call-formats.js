@@ -71,6 +71,19 @@ export function applyOpenAiTools(payload, { tools = [], toolTurns = [] } = {}) {
   return payload;
 }
 
+// Providers whose API only ever gives a summary of the thinking, or none at
+// all (Gemini's thought summaries, Claude's summarized thinking, OpenAI's
+// hidden reasoning). Everyone else (DeepSeek, GLM, Kimi, MiniMax and other
+// open-weight models, on OpenRouter or NVIDIA) streams the thinking itself.
+const SUMMARY_ONLY_PREFIXES = ['anthropic/', 'openai/', 'google/', 'x-ai/'];
+
+/** Whether `provider`'s model streams its own thinking (not a summary of it). */
+export function modelStreamsRawThinking(provider, modelId = '') {
+  if (provider === 'gemini') return false;
+  const id = String(modelId).toLowerCase();
+  return !SUMMARY_ONLY_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
+
 /**
  * The string value of `key` in JSON that is still arriving (a tool call's
  * arguments so far): what has been written of it, escapes decoded.

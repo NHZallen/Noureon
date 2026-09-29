@@ -262,3 +262,38 @@ test('the reply reports each stretch of work as an event for the step list', asy
   assert.deepEqual([events[3].ok, events[3].files.length, events[3].elapsedMs], [true, 1, 12]);
   assert.equal(events[4].label, '1 file(s) made; continuing…');
 });
+
+test('the model\'s thinking is kept with the run it led to, and the last round\'s with the run', async () => {
+  let turn = 0;
+  const streamApiCall = async (parts, onChunk, signal, forced, options) => {
+    turn += 1;
+    options.onReasoning('思考');
+    options.onReasoning(turn === 1 ? '第一輪' : '最後一輪');
+    if (turn === 1) {
+      options.onResponseComplete({ text: '', toolCalls: [call('c1', 'print(1)', 'One')], parts: [], reasoningDetails: [] });
+      return '';
+    }
+    onChunk('完成');
+    options.onResponseComplete({ text: '完成', toolCalls: [], parts: [], reasoningDetails: [] });
+    return '完成';
+  };
+  const { sandbox } = fakeSandbox([{ stdout: '1\n', stderr: '', error: null, files: [], elapsedMs: 1 }]);
+  const events = [];
+  const result = await runSandboxReply({ streamApiCall, requestParts: [], getSandbox: () => sandbox, onEvent: (event) => events.push(event) });
+  assert.equal(result.run.steps[0].thought, '思考第一輪', 'the thinking before the run belongs to the run');
+  assert.equal(result.run.thought, '思考最後一輪', 'the thinking before the answer belongs to the reply');
+  assert.deepEqual(events.filter((event) => event.type === 'thinking').map((event) => event.text), ['思考', '第一輪', '思考', '最後一輪']);
+  const kept = formatSandboxRunBlock(result.run);
+  const lifted = liftSandboxRunBlock(kept + '完成').run;
+  assert.equal(lifted.steps[0].thought, '思考第一輪', 'saved with the message');
+  assert.equal(lifted.thought, '思考最後一輪');
+  const { window, cleanup } = createDom('');
+  try {
+    const view = createSandboxRunElement(window.document, lifted, { language: 'zh-TW' });
+    const thoughts = [...view.querySelectorAll('.sandbox-run-thought-text')].map((node) => node.textContent);
+    assert.deepEqual(thoughts, ['思考第一輪', '思考最後一輪'], 'and shown after a reload');
+  } finally {
+    cleanup();
+  }
+  assert.doesNotMatch(summarizeSandboxRunText(kept + '完成'), /思考/, 'the model never reads it back');
+});

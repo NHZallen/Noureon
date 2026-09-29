@@ -2,7 +2,7 @@ import { formatMemoryContextForModel } from '../../runtime/memory/memory-context
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
-import { applyGeminiTools, applyOpenAiTools, createGeminiCollector, createOpenAiCollector } from './tool-call-formats.js';
+import { applyGeminiTools, applyOpenAiTools, createGeminiCollector, createOpenAiCollector, modelStreamsRawThinking } from './tool-call-formats.js';
 
 export function mergeAdjacentModelMessages(history) {
   return history.reduce((merged, message) => {
@@ -224,10 +224,6 @@ const buildGeminiRequest = ({
       ...(payload.generationConfig.thinkingConfig || {}),
       thinkingLevel: reasoningEffort
     };
-  }
-  // Thought summaries only come when asked for; they are shown, never kept in the answer.
-  if (requestOptions.onReasoning) {
-    payload.generationConfig.thinkingConfig = { ...(payload.generationConfig.thinkingConfig || {}), includeThoughts: true };
   }
   const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch
     && (requestOptions.webSearchEnabled === true || conversation.isWebSearchEnabled);
@@ -692,8 +688,12 @@ export function createStreamApiCall({
 
     const reader = response.body.getReader();
     const decoder = new TextDecoderImpl();
-    // The thinking and the code being written reach the caller as they stream.
-    const hooks = { onReasoning: requestOptions.onReasoning, onToolArguments: requestOptions.onToolArguments };
+    // The code being written reaches the caller as it streams; so does the model's own
+    // thinking, but never a summary of it (Gemini, Claude and OpenAI give only that).
+    const hooks = {
+      onReasoning: modelStreamsRawThinking(provider, modelId) ? requestOptions.onReasoning : null,
+      onToolArguments: requestOptions.onToolArguments
+    };
     const collector = provider === 'gemini' ? createGeminiCollector(hooks) : createOpenAiCollector(hooks);
     const fullText = provider === 'gemini'
       ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })

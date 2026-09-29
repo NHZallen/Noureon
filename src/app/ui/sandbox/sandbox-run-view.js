@@ -22,6 +22,13 @@ const formatSize = (bytes) => {
 
 const formatSeconds = (language, ms) => sandboxText(language, 'sandboxSeconds', { s: (ms / 1000).toFixed(ms < 10_000 ? 1 : 0) });
 
+// What the model thought before the run, folded behind one line.
+function renderThought(document, thought, language) {
+  const details = element(document, 'details', 'sandbox-run-thought');
+  details.append(element(document, 'summary', 'sandbox-run-label', sandboxText(language, 'sandboxThought')), element(document, 'pre', 'sandbox-run-thought-text', thought));
+  return details;
+}
+
 function renderStep(document, step, index, language) {
   // Plain blocks rather than a list: the chat's list styles would number
   // the steps a second time.
@@ -33,6 +40,7 @@ function renderStep(document, step, index, language) {
   );
   if (step.elapsedMs) head.append(element(document, 'span', 'sandbox-run-step-time', formatSeconds(language, step.elapsedMs)));
   item.append(head);
+  if (step.thought) item.append(renderThought(document, step.thought, language));
 
   const pre = element(document, 'pre', 'sandbox-run-code');
   pre.append(element(document, 'code', 'language-python', step.code));
@@ -80,6 +88,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
   run.steps.forEach((step, index) => list.append(renderStep(document, step, index, language)));
+  if (run.thought) list.append(renderThought(document, run.thought, language));
   details.append(summary, list);
   container.append(details);
   return container;

@@ -18,6 +18,7 @@ const BLOCK_PATTERN = /^```noureon-run\n([^\n]*)\n```[ \t]*(?:\n+|$)/;
 export const STORED_TEXT_CHARS = 50_000;
 const STORED_CODE_CHARS = 100_000;
 const MAX_STEPS = 20;
+const STORED_THOUGHT_CHARS = 6000;
 
 export const RUN_STATUS = Object.freeze({ running: 'running', done: 'done', failed: 'failed', stopped: 'stopped' });
 
@@ -31,6 +32,7 @@ const cleanStep = (step = {}) => {
   const stderr = clip(step.stderr, STORED_TEXT_CHARS);
   return {
     title: String(step.title || '').slice(0, 200),
+    ...(step.thought ? { thought: clip(step.thought, STORED_THOUGHT_CHARS).text } : {}),
     code: clip(step.code, STORED_CODE_CHARS).text,
     stdout: stdout.text,
     stderr: stderr.text,
@@ -56,6 +58,7 @@ export function normalizeSandboxRun(run = {}) {
     v: 1,
     status,
     steps,
+    ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),
     ...(run.fallback ? { fallback: String(run.fallback) } : {})
   };
 }
