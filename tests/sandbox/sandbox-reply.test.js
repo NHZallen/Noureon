@@ -217,7 +217,7 @@ test('the run row opens to each step, and a switch to Standard is one grey line'
   }
 });
 
-test('the wait says who is working and what happens next, in the model\'s name', async () => {
+test('the wait says what is happening and what comes next', async () => {
   const model = scriptedModel([
     { calls: [call('c1', 'boom()')] },
     { calls: [call('c2', 'ok()')] },
@@ -237,9 +237,9 @@ test('the wait says who is working and what happens next, in the model\'s name',
     language: 'en',
     onStatus: (status) => statuses.push(status)
   });
-  assert.equal(statuses[0], 'Gemini is thinking and writing code…', 'shown at once, before the first answer');
-  assert.ok(statuses.includes('The code failed; Gemini is fixing it…'));
-  assert.ok(statuses.includes('1 file(s) made; Gemini is continuing…'));
+  assert.equal(statuses[0], 'Thinking and writing code…', 'shown at once, before the first answer');
+  assert.ok(statuses.includes('The code failed; fixing it…'));
+  assert.ok(statuses.includes('1 file(s) made; continuing…'));
   assert.equal(statuses.at(-1), 'Preparing the files…');
 });
 
@@ -256,9 +256,9 @@ test('the reply reports each stretch of work as an event for the step list', asy
     onEvent: (event) => events.push(event)
   });
   assert.deepEqual(events.map((event) => event.type), ['round', 'step', 'prepare', 'step-end', 'round', 'finishing']);
-  assert.equal(events[0].label, 'Gemini is thinking and writing code…');
-  assert.equal(events[0].doneLabel, 'Gemini finished thinking');
+  assert.equal(events[0].label, 'Thinking and writing code…');
+  assert.equal(events[0].doneLabel, 'Finished thinking');
   assert.deepEqual([events[1].n, events[1].title, events[1].code], [1, 'One', 'print(1)']);
   assert.deepEqual([events[3].ok, events[3].files.length, events[3].elapsedMs], [true, 1, 12]);
-  assert.equal(events[4].label, '1 file(s) made; Gemini is continuing…');
+  assert.equal(events[4].label, '1 file(s) made; continuing…');
 });

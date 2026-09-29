@@ -58,11 +58,11 @@ test('a step list puts itself before the answer, marks each step and lets finish
 test('the sandbox list shows the model, each run with its code, output as it comes and files', () => {
   const { window, document, message, answer } = setup();
   const list = createSandboxLedger({ document, host: message, before: answer, language: 'en' });
-  list.event({ type: 'round', label: 'Gemini is thinking and writing code…', doneLabel: 'Gemini finished thinking' });
+  list.event({ type: 'round', label: 'Thinking and writing code…', doneLabel: 'Finished thinking' });
   const rows = () => [...message.querySelectorAll('.ledger-row')];
   assert.equal(rows()[0].classList.contains('is-running'), true, 'shown at once');
   list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1 + 1)' });
-  assert.equal(rows()[0].querySelector('.ledger-label').textContent, 'Gemini finished thinking');
+  assert.equal(rows()[0].querySelector('.ledger-label').textContent, 'Finished thinking');
   assert.equal(rows()[0].classList.contains('is-done'), true);
   assert.equal(rows()[1].querySelector('.ledger-label').textContent, sandboxText('en', 'sandboxRunning', { n: 1, title: 'Sum' }));
   assert.equal(rows()[1].querySelector('.ledger-code').textContent, 'print(1 + 1)');
