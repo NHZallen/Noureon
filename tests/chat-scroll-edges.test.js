@@ -37,3 +37,15 @@ test('a finger landing mid-chat or on a chat that cannot scroll changes nothing'
   short.touch();
   assert.equal(short.scrollTop, 0);
 });
+
+test('a chat still bouncing past an end is left to finish the bounce', () => {
+  const pastTop = createScroller({ scrollTop: -62 });
+  keepChatOffItsEdges(pastTop);
+  pastTop.touch();
+  assert.equal(pastTop.scrollTop, -62);
+
+  const pastBottom = createScroller({ scrollTop: 1465 });
+  keepChatOffItsEdges(pastBottom);
+  pastBottom.touch();
+  assert.equal(pastBottom.scrollTop, 1465);
+});

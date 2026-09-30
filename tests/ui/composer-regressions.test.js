@@ -199,13 +199,3 @@ test('the chat scroller does not contain overscroll, which made iPhone swipes fr
 
   assert.match(css, /#chat-container\s*\{[^}]*overscroll-behavior-y:\s*auto;/s);
 });
-
-test('temporary scroll diagnostics never run inside start-up', () => {
-  const main = readUiSource('src/main.js');
-
-  assert.match(main, /TEMPORARY: scroll diagnostics/);
-  assert.match(main, /import\('\.\/app\/debug\/scroll-debug\.js'\)/);
-  assert.doesNotMatch(main, /^import .*scroll-debug/m);
-  // The scroll watching starts only after the start-up screen is gone.
-  assert.ok(main.indexOf('dismissStartupSkeleton(document);') < main.indexOf('module?.watchChatScrolling()'));
-});
