@@ -113,6 +113,21 @@ test('the thinking and the code being written are reported as they stream, which
   assert.deepEqual(args, ['{"code":"pri', '{"code":"print(1)"}']);
 });
 
+test('the pages Gemini searched (grounding) are collected once each, and shown by their domain', async () => {
+  const collector = createGeminiCollector();
+  const redirect = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbC';
+  collector.add({ candidates: [{ content: { parts: [{ text: 'Hi' }] } }] });
+  assert.deepEqual(collector.result().sources, []);
+  collector.add({ candidates: [{ content: { parts: [] }, groundingMetadata: { groundingChunks: [{ web: { uri: redirect, title: 'mozilla.org' } }, { web: { uri: `${redirect}2`, title: 'www.owasp.org' } }, { retrievedContext: {} }] } }] });
+  collector.add({ candidates: [{ groundingMetadata: { groundingChunks: [{ web: { uri: redirect, title: 'mozilla.org' } }] } }] });
+  assert.deepEqual(collector.result().sources, [{ title: 'mozilla.org', url: redirect }, { title: 'www.owasp.org', url: `${redirect}2` }]);
+  const { displayHost } = await import('../../src/app/ui/sandbox/run-sources.js');
+  assert.equal(displayHost({ title: 'mozilla.org', url: redirect }), 'mozilla.org');
+  assert.equal(displayHost({ title: 'www.owasp.org', url: redirect }), 'owasp.org');
+  assert.equal(displayHost({ title: 'Some page title', url: redirect }), 'vertexaisearch.cloud.google.com', 'a title that is no domain is not trusted as one');
+  assert.equal(displayHost({ title: 'mozilla.org', url: 'https://www.example.com/a' }), 'example.com', 'an ordinary address is its own name');
+});
+
 test('the thinking is labelled as the model itself or as the summary its provider gives', () => {
   for (const id of ['deepseek/deepseek-v4.1-flash', 'z-ai/glm-5.3', 'moonshotai/kimi-k3', 'minimax/minimax-m3', 'x-ai/grok-4.6']) assert.equal(modelThinkingKind('openrouter', id), 'raw', id);
   assert.equal(modelThinkingKind('nvidia', 'moonshotai/kimi-k3'), 'raw');

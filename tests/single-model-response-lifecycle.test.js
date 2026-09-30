@@ -22,6 +22,7 @@ const createHarness = ({
   translatedParts,
   streamResult = 'Hello Astra',
   foundSources = null,
+  reportWhileStreaming = null,
   streamError,
   afterChunks = () => {},
   signal = new AbortController().signal
@@ -60,6 +61,7 @@ const createHarness = ({
     streamApiCall: async (parts, onChunk, receivedSignal, forced, options) => {
       calls.push(['api', parts, receivedSignal, forced, options]);
       if (streamError) throw streamError;
+      if (reportWhileStreaming) options?.onSources?.(reportWhileStreaming);
       onChunk('Hello');
       onChunk(' Astra');
       afterChunks();
@@ -200,6 +202,23 @@ test('the pages a web search found are kept with the reply, ahead of its text', 
   assert.deepEqual(run.sources, sources);
   assert.deepEqual(run.steps, []);
   assert.match(text, /Hello/);
+});
+
+test('pages the provider\'s own search reports while it answers are kept with the reply too', async () => {
+  const { lifecycle, signal, targetElement } = createHarness({
+    foundSources: [{ title: 'A', url: 'https://a.example/1' }],
+    reportWhileStreaming: [{ title: 'B', url: 'https://vertexaisearch.cloud.google.com/x' }, { title: 'A', url: 'https://a.example/1' }]
+  });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'News?' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: false },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.deepEqual(liftSandboxRunBlock(result.fullResponse).run.sources.map((source) => source.title), ['A', 'B'], 'each page once');
 });
 
 test('empty provider responses preserve the current localized failure boundary', async () => {

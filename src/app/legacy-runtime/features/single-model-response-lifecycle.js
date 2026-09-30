@@ -133,7 +133,12 @@ export function createSingleModelResponseLifecycle({
         );
       }
     };
-    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
+    // The provider's own web search (Gemini) reports the pages it used as the answer streams; rounds add to them.
+    const addSearchSources = (found) => {
+      const known = new Set(searchSources.map((source) => source.url));
+      searchSources = [...searchSources, ...found.filter((source) => source?.url && !known.has(source.url))];
+    };
+    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
     const replyMode = supportsToolCalling ? resolveReplyMode({
       conversation,
       config: getConfig(),

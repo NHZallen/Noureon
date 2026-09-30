@@ -705,7 +705,10 @@ export function createStreamApiCall({
     const fullText = provider === 'gemini'
       ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
       : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });
-    requestOptions.onResponseComplete?.(collector.result());
+    const collected = collector.result();
+    // The pages the provider's own web search used, for the reply's "Searched N sites" row.
+    if (collected.sources?.length) requestOptions.onSources?.(collected.sources);
+    requestOptions.onResponseComplete?.(collected);
     return fullText;
   };
 }

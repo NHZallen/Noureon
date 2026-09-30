@@ -512,6 +512,22 @@ test('Gemini requests preserve native payload, headers, web search, and partial 
   assert.equal(warnings[0].at(-1), '{"candidates":[}');
 });
 
+test('the pages Gemini\'s web search used are reported once the answer has streamed', async () => {
+  const { streamApiCall } = createHarness({
+    provider: 'gemini',
+    conversation: { isWebSearchEnabled: true },
+    fetchImpl: async () => createResponse({
+      streamChunks: [
+        '{"candidates":[{"content":{"parts":[{"text":"Answer"}]}}]}',
+        '{"candidates":[{"groundingMetadata":{"groundingChunks":[{"web":{"uri":"https://vertexaisearch.cloud.google.com/grounding-api-redirect/x","title":"mozilla.org"}}]}}]}'
+      ]
+    })
+  });
+  const found = [];
+  await streamApiCall([{ text: 'Hi' }], () => {}, undefined, false, { onSources: (sources) => found.push(sources) });
+  assert.deepEqual(found, [[{ title: 'mozilla.org', url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/x' }]]);
+});
+
 test('Gemini request-scoped web search works without mutating conversation search state', async () => {
   const { streamApiCall, requests, conversation } = createHarness({
     provider: 'gemini',

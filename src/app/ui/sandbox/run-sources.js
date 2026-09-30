@@ -13,6 +13,14 @@ export const hostOf = (url) => {
   }
 };
 
+// Gemini gives a Google redirect address for each page and the page's own domain as its title: the domain is the name.
+export const displayHost = (source) => {
+  const host = hostOf(source?.url);
+  const title = String(source?.title || '').trim().toLowerCase();
+  if (host.endsWith('vertexaisearch.cloud.google.com') && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(title)) return title.replace(/^www\./, '');
+  return host;
+};
+
 const element = (document, tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -24,10 +32,11 @@ const element = (document, tag, className, text) => {
 export function createSourceChips(document, sources) {
   const list = element(document, 'div', 'run-sources');
   for (const source of sources) {
-    const host = hostOf(source.url);
+    const host = displayHost(source);
     const chip = element(document, 'button', 'run-source-chip');
     chip.type = 'button';
     chip.dataset.url = source.url;
+    chip.dataset.host = host;
     chip.title = source.title ? `${source.title}\n${source.url}` : source.url;
     const icon = element(document, 'span', 'run-source-icon');
     const image = document.createElement('img');
@@ -74,7 +83,9 @@ export function watchSourceIcons(doc = document) {
 export async function openSourceChip(chip, { confirm, language, open }) {
   const url = chip?.dataset?.url || '';
   if (!/^https?:\/\//i.test(url)) return false;
-  const accepted = await confirm(sandboxText(language, 'openSourceMessage', { url }), sandboxText(language, 'openSourceTitle'));
+  // The name of the site (a Gemini address is a long redirect that says nothing).
+  const shown = chip.dataset.host && !url.includes(chip.dataset.host) ? chip.dataset.host : url;
+  const accepted = await confirm(sandboxText(language, 'openSourceMessage', { url: shown }), sandboxText(language, 'openSourceTitle'));
   if (!accepted) return false;
   open(url, '_blank', 'noopener,noreferrer');
   return true;

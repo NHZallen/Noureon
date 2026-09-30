@@ -121,10 +121,16 @@ export function partialJsonString(raw = '', key = 'code') {
 export function createGeminiCollector({ onReasoning = null, onToolArguments = null } = {}) {
   const parts = [];
   const toolCalls = [];
+  // The pages Gemini's own web search used (grounding chunks), once each.
+  const sources = [];
   let text = '';
   return {
     // Returns the visible text of one streamed chunk.
     add(chunk) {
+      for (const found of chunk?.candidates?.[0]?.groundingMetadata?.groundingChunks || []) {
+        const url = String(found?.web?.uri || '');
+        if (url && !sources.some((source) => source.url === url)) sources.push({ title: String(found.web.title || ''), url });
+      }
       let visible = '';
       for (const part of chunk?.candidates?.[0]?.content?.parts || []) {
         parts.push(part);
@@ -147,7 +153,7 @@ export function createGeminiCollector({ onReasoning = null, onToolArguments = nu
       text += visible;
       return visible;
     },
-    result: () => ({ text, parts, toolCalls, reasoningDetails: [] })
+    result: () => ({ text, parts, toolCalls, reasoningDetails: [], sources: [...sources] })
   };
 }
 
