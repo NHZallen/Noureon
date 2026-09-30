@@ -6,7 +6,7 @@ import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.j
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
-import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, withoutDuplicatedFileBlocks } from '../../ui/sandbox/sandbox-files.js';
+import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
 import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
 
@@ -235,7 +235,8 @@ export function createSingleModelResponseLifecycle({
         }
         sandboxParts = createSandboxFileParts(result.run);
         sandboxDocuments = sandboxDocumentBlocks(result.run);
-        return withoutDuplicatedFileBlocks(result.text, sandboxParts.map((part) => part.sandboxFile.name));
+        // A block the model also wrote under the name of a file it made (with Python, or through the design system) is a second, empty card.
+        return withoutEmptyDocumentBlocks(withoutDuplicatedFileBlocks(result.text, [...sandboxParts.map((part) => part.sandboxFile.name), ...sandboxDocumentNames(result.run)]));
       }
       : (onChunk) => streamApiCall(requestParts, (chunk) => {
         answered = true;

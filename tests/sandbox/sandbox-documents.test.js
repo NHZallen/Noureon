@@ -12,7 +12,7 @@ import { buildDocumentModel } from '../../src/app/ui/files/generators/document-m
 import { generateDocxFile } from '../../src/app/ui/files/generators/docx-file.js';
 import { createFontSubsetter } from '../../src/app/ui/files/generators/font-embedding.js';
 import { composePdf } from '../../src/app/ui/files/generators/pdf-file.js';
-import { createSandboxFileParts, referencedAssetNames, sandboxDocumentBlocks } from '../../src/app/ui/sandbox/sandbox-files.js';
+import { createSandboxFileParts, referencedAssetNames, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../src/app/ui/sandbox/sandbox-files.js';
 
 // A 1 × 1 PNG.
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
@@ -69,6 +69,37 @@ test('handed documents become file blocks after the answer, not saved files', ()
   assert.ok(text.startsWith('`````file 報告.docx\n'));
   const parts = createSandboxFileParts(run, { createId: () => 'id-1' });
   assert.deepEqual(parts.map((part) => part.sandboxFile.name), ['trend.png'], 'the handed document is not also a saved file');
+});
+
+test('a file block the model also wrote under the name of a design-system document is taken out, so no second, empty card shows', () => {
+  const run = {
+    status: 'done',
+    steps: [{
+      code: 'x',
+      files: [{ name: '.noureon/簡報.pptx', size: 1 }, { name: '.noureon/notes.txt', size: 1 }],
+      outputs: [{ name: '.noureon/簡報.pptx', bytes: bytes('{"slides":[]}') }, { name: '.noureon/簡報.pptx', bytes: bytes('{"slides":[1]}') }, { name: '.noureon/notes.txt', bytes: bytes('x') }]
+    }]
+  };
+  assert.deepEqual(sandboxDocumentNames(run), ['簡報.pptx'], 'each once, only design-system formats');
+  const answer = ['十二頁都做好了。', '', '````file 簡報.pptx', '````', '', '要調整嗎？'].join('\n');
+  const cleaned = withoutDuplicatedFileBlocks(answer, sandboxDocumentNames(run));
+  assert.doesNotMatch(cleaned, /簡報\.pptx|````/);
+  assert.match(cleaned, /十二頁都做好了/);
+  assert.match(cleaned, /要調整嗎/);
+  assert.deepEqual(sandboxDocumentNames({ steps: [] }), []);
+  assert.deepEqual(sandboxDocumentNames(null), []);
+});
+
+test('an office file block with nothing in it is dropped, whatever its name, and real ones stay', () => {
+  const answer = ['好了。', '', '````file 空的.pptx', '', '````', '', '````file 有內容.docx', '# 報告', '````', '', '````file notes.txt', '', '````', '', '完成。'].join('\n');
+  const cleaned = withoutEmptyDocumentBlocks(answer);
+  assert.doesNotMatch(cleaned, /空的\.pptx/);
+  assert.match(cleaned, /有內容\.docx/, 'a block with content stays');
+  assert.match(cleaned, /notes\.txt/, 'only office formats are judged this way');
+  assert.match(cleaned, /好了。/);
+  assert.match(cleaned, /完成。/);
+  assert.equal(withoutEmptyDocumentBlocks('沒有檔案。'), '沒有檔案。');
+  assert.equal(withoutEmptyDocumentBlocks(''), '');
 });
 
 test('pictures a document refers to are found, whether written plainly or URL-encoded', () => {

@@ -176,12 +176,23 @@ export function withoutDuplicatedFileBlocks(text, names = []) {
   return result === text ? text : result.replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// A Word, PowerPoint, Excel or PDF block with nothing in it can only make a blank file: it is never wanted, whatever
+// it is named (the model wrote its header and then went on to make the real file another way).
+export function withoutEmptyDocumentBlocks(text) {
+  if (!text) return text;
+  let result = text;
+  const empty = scanFileBlocks(text).filter((block) => block.complete && !String(block.content || '').trim() && /\.(?:docx|pptx|xlsx|pdf)$/i.test(block.name));
+  for (const block of empty.reverse()) result = `${result.slice(0, block.start)}${result.slice(block.end)}`;
+  return result === text ? text : result.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // Documents the code handed to the design system (noureon.save_document)
 // land in /output/.noureon/; they become file blocks after the answer.
 export const DOCUMENT_PREFIX = '.noureon/';
 const DOCUMENT_KINDS = /\.(?:docx|pptx|xlsx|pdf)$/i;
 
-export function sandboxDocumentBlocks(run) {
+// The newest version of each document the code handed to the design system, by name.
+function newestDocuments(run) {
   const newest = new Map();
   for (const step of run?.steps || []) {
     for (const output of step.outputs || []) {
@@ -192,7 +203,14 @@ export function sandboxDocumentBlocks(run) {
       newest.set(name, output.bytes);
     }
   }
-  return [...newest].map(([name, bytes]) => {
+  return newest;
+}
+
+/** The names of those documents: a file block the model also wrote under one of them is a second, empty card. */
+export const sandboxDocumentNames = (run) => [...newestDocuments(run).keys()];
+
+export function sandboxDocumentBlocks(run) {
+  return [...newestDocuments(run)].map(([name, bytes]) => {
     const content = new TextDecoder().decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || 0)).replace(/\s+$/, '');
     // The fence is longer than any backtick run inside, so it cannot close early.
     const longest = Math.max(3, ...[...content.matchAll(/`+/g)].map((match) => match[0].length));
