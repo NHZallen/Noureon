@@ -819,6 +819,17 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
     chatContainer.addEventListener('wheel', scheduleScrollButtonUpdate, { passive: true });
     chatContainer.addEventListener('touchend', scheduleScrollButtonUpdate, { passive: true });
     updateScrollButtonVisibility();
+    // Opening another chat or a new one swaps the messages without a scroll event when the old scroll position
+    // no longer exists, so the button would stay up over a chat that has nothing below it. Watch the content
+    // and the scroller's size as well.
+    if (typeof ResizeObserver === 'function') {
+        const contentSizeObserver = new ResizeObserver(scheduleScrollButtonUpdate);
+        contentSizeObserver.observe(chatContainer);
+        if (ALL_ELEMENTS.messageList) contentSizeObserver.observe(ALL_ELEMENTS.messageList);
+    }
+    if (typeof MutationObserver === 'function' && ALL_ELEMENTS.messageList) {
+        new MutationObserver(scheduleScrollButtonUpdate).observe(ALL_ELEMENTS.messageList, { childList: true });
+    }
 
 
     // ✨ 這是核心修正 ✨

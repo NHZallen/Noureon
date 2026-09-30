@@ -163,14 +163,14 @@ test('mobile web search typing does not disable the message input when Tavily is
   assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });
 
-test('the header is a slim block without a divider and the chat fades at both edges', () => {
+test('the header is a slim block without a divider and the chat fades under it', () => {
   const css = readUiSource('src/styles/chat-edge-fade.css');
 
   assert.match(css, /#chat-workspace\s*>\s*header\s*\{[^}]*padding:\s*0\.25rem 0\.5rem;[^}]*border-bottom:\s*0;/s);
   assert.doesNotMatch(css, /position:\s*absolute/);
   assert.doesNotMatch(css, /(?<!-)mask-image\s*:/);
   assert.match(css, /#chat-container::before\s*\{[^}]*top:\s*calc\(var\(--chat-pad\) \* -1\);[^}]*linear-gradient\(to bottom, var\(--chat-bg\), transparent\)/s);
-  assert.match(css, /#chat-container::after\s*\{[^}]*bottom:\s*calc\(var\(--chat-pad\) \* -1\);[^}]*linear-gradient\(to top, var\(--chat-bg\), transparent\)/s);
+  assert.doesNotMatch(css, /#chat-container::after/);
   assert.match(css, /body\.custom-wallpaper-active #chat-container::before/);
   assert.doesNotMatch(css, /backdrop-filter/);
 });
