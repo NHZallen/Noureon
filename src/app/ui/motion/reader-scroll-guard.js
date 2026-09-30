@@ -7,6 +7,11 @@
 // follows new text (always exactly at its end) could not be scrolled at all. One pixel of room in both directions
 // lets WebKit give every swipe to the box (measured on an iPhone for the chat, see chat-scroll-edges.js).
 
+// How far off an end a box is kept. One pixel was enough for the chat; a thinking box's height and content are
+// often fractions of a pixel, so its real end can be a fraction short of the reported one, and two pixels of room
+// leave a clear gap on both sides.
+export const EDGE_ROOM = 2;
+
 const SETTLE_MS = 250; // a flick keeps scrolling after the finger lifts; its scroll events push this forward
 
 // The scroll event for a position the app set arrives a frame later, so the app's own moves are known by where
@@ -18,10 +23,11 @@ const moveBox = (box, guard, top) => {
 
 const nudgeOffEdges = (box, guard = { expected: null }) => {
   const max = box.scrollHeight - box.clientHeight;
-  if (max <= 2) return;
+  if (max <= EDGE_ROOM * 2) return;
   const top = box.scrollTop;
-  if (top === 0) moveBox(box, guard, 1);
-  else if (Math.abs(top - max) < 0.5) moveBox(box, guard, max - 1);
+  // Anything within a hair of an end counts as resting on it (fractional positions), not only exactly on it.
+  if (top < 1) moveBox(box, guard, EDGE_ROOM);
+  else if (top > max - 1) moveBox(box, guard, max - EDGE_ROOM);
 };
 
 export function watchReader(box, { nudge = true } = {}) {
@@ -68,6 +74,12 @@ export function setScrollTopQuietly(box, top) {
   return true;
 }
 
+/** Where a box that follows its end rests: a little short of the end, never on it. */
+export function followTop(box) {
+  const max = box.scrollHeight - box.clientHeight;
+  return Math.max(0, max - (max > EDGE_ROOM * 2 ? EDGE_ROOM : 0));
+}
+
 /** Whether the box is following its end: it was sent there, or is resting there, and the reader has not scrolled since. */
 export function isFollowingEnd(box, threshold = 24) {
   const guard = watchReader(box);
@@ -79,8 +91,7 @@ export function pinToEnd(box) {
   const guard = watchReader(box);
   if (!guard) return;
   guard.pinned = true;
-  const max = box.scrollHeight - box.clientHeight;
-  moveBox(box, guard, Math.max(0, max - (max > 2 ? 1 : 0)));
+  moveBox(box, guard, followTop(box));
 }
 
 const NUDGED_BOXES = '.ledger-thought, .ledger-code, .ledger-output';

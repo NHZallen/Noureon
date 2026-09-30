@@ -2,7 +2,7 @@
 // jumping, unless the person asked for less motion. Used by the step list and
 // by the "Ran code" and thinking lines.
 
-import { isFollowingEnd, isReaderScrolling, setScrollTopQuietly, watchReader } from './reader-scroll-guard.js';
+import { followTop, isFollowingEnd, isReaderScrolling, setScrollTopQuietly, watchReader } from './reader-scroll-guard.js';
 
 const DURATION_MS = 280;
 // Quick to start, long to settle: the way accordions move in ChatGPT and Claude.
@@ -100,7 +100,7 @@ export function animateDetails(details) {
  * only when the reader was already there, so reading further up is never
  * pulled down. The text always goes in at once, also while someone scrolls
  * (they can read up while it keeps coming); only the box is not moved while
- * they are scrolling. Following stops one pixel short of the end: on iPhone a
+ * they are scrolling. Following stops a little short of the end: on iPhone a
  * swipe that starts exactly at a box's end goes to the page instead, so a box
  * pinned to its end could not be scrolled.
  */
@@ -110,7 +110,6 @@ export function keepEndInView(box, update) {
   const atEnd = isFollowingEnd(box);
   update();
   if (isReaderScrolling(box)) return;
-  const max = box.scrollHeight - box.clientHeight;
   // Rewriting the text can reset the position; where the reader was is kept.
-  setScrollTopQuietly(box, atEnd ? Math.max(0, max - (max > 2 ? 1 : 0)) : top);
+  setScrollTopQuietly(box, atEnd ? followTop(box) : top);
 }

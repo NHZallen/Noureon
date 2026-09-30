@@ -113,7 +113,7 @@ test('a details element eases open and shut when its summary is clicked', () => 
 test('text added to a scrolling box follows the end only for a reader who is at the end', () => {
   const box = { scrollHeight: 500, scrollTop: 300, clientHeight: 200 };
   keepEndInView(box, () => { box.scrollHeight = 600; });
-  assert.equal(box.scrollTop, 399, 'reading the newest line: it keeps up, one pixel short of the end');
+  assert.equal(box.scrollTop, 398, 'reading the newest line: it keeps up, a little short of the end');
   const reading = { scrollHeight: 500, scrollTop: 40, clientHeight: 200 };
   keepEndInView(reading, () => { reading.scrollHeight = 700; });
   assert.equal(reading.scrollTop, 40, 'reading further up: not pulled down');
@@ -142,7 +142,7 @@ test('the thinking keeps coming while the reader scrolls, and the box is not mov
 test('a box that follows its end never rests exactly on it, so an iPhone swipe goes to the box', () => {
   const box = { scrollHeight: 500, scrollTop: 300, clientHeight: 200 };
   keepEndInView(box, () => { box.scrollHeight = 900; });
-  assert.equal(box.scrollTop, 699);
+  assert.equal(box.scrollTop, 698);
   assert.notEqual(box.scrollTop, box.scrollHeight - box.clientHeight);
 });
 
