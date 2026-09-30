@@ -916,11 +916,15 @@
     }
 }
 
-/* A short reply (a word, or only the "thinking interrupted" line) still gives its copy button and time room: the
-   bubble is at least this wide, so the time sits on the right on one line instead of wrapping beside the button. */
+/* Every reply takes the full width of the chat column, so its copy button and time sit in the same place under
+   a one-word reply (or only the "thinking interrupted" line) as under a long one: the time always at the far right. */
+.model-message > .message-stack-model {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .model-message .message-bubble {
-    /* Not a percentage: the bubble sits in a shrink-to-fit stack, so 100% would be as narrow as its content. */
-    min-width: min(18rem, calc(100vw - 4rem));
+    width: 100%;
 }
 
 .model-message .message-bubble > .absolute.bottom-2 > .text-xs {

@@ -252,7 +252,8 @@ test('the thinking box has no mask on a touch screen', () => {
 test('a short model reply keeps its copy button left and its time right on one line', () => {
   const css = readUiSource('src/styles/chat.css');
 
-  assert.match(css, /\.model-message\s+\.message-bubble\s*\{[^}]*min-width:\s*min\(18rem,\s*calc\(100vw\s*-\s*4rem\)\);/s);
+  assert.match(css, /\.model-message\s*>\s*\.message-stack-model\s*\{[^}]*flex:\s*1 1 auto;/s);
+  assert.match(css, /\.model-message\s+\.message-bubble\s*\{\s*width:\s*100%;/s);
   assert.match(css, /\.model-message\s+\.message-bubble\s*>\s*\.absolute\.bottom-2\s*>\s*\.text-xs\s*\{[^}]*white-space:\s*nowrap;/s);
 });
 
