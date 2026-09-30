@@ -33,6 +33,7 @@ import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewa
 import { loadSharingVendor } from './app/vendors/sharing-vendor.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
 import { keepChatOffItsEdges } from './app/runtime/features/chat-scroll-edges.js';
+import { installPressFeedback } from './app/ui/motion/press-feedback.js';
 
 const recordBootstrapMilestone = (markName, measureName) => {
   markStartup(markName);
@@ -121,6 +122,7 @@ async function bootstrap() {
   await legacyApp.legacyAppReady;
   dismissStartupSkeleton(document);
   keepChatOffItsEdges(document.getElementById('chat-container'));
+  installPressFeedback(document);
   recordBootstrapMilestone(
     STARTUP_MARKS.RUNTIME_INTERACTIVE,
     STARTUP_MEASURES.TO_RUNTIME_INTERACTIVE
