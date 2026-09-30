@@ -107,11 +107,14 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
       menu.classList.toggle('show');
       const rect = btn.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
-      if (rect.bottom + menuRect.height > window.innerHeight) {
+      const roomBelow = window.innerHeight - rect.bottom;
+      const roomAbove = rect.top;
+      // Open upward only when it does not fit below and there is more room above; the gap matches the CSS default.
+      if (menuRect.height > roomBelow && roomAbove > roomBelow) {
         menu.style.top = 'auto';
-        menu.style.bottom = '100%';
+        menu.style.bottom = 'calc(100% + 0.45rem)';
       } else {
-        menu.style.top = '100%';
+        menu.style.top = 'calc(100% + 0.45rem)';
         menu.style.bottom = 'auto';
       }
     });

@@ -218,7 +218,7 @@ test('shared dropdown helper positions menu without global state', () => {
   button.dispatch('click');
 
   assert.equal(menu.classList.contains('show'), true);
-  assert.equal(menu.style.top, '100%');
+  assert.equal(menu.style.top, 'calc(100% + 0.45rem)');
   assert.equal(menu.style.bottom, 'auto');
 });
 

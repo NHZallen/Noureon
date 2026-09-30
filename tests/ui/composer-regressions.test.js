@@ -99,19 +99,19 @@ test('desktop active modes have no hover close control and remain selectable tex
   assert.match(css, /#input-indicator-container[^{]*\{[^}]*display:\s*none\s!important;/s);
 });
 
-test('mobile keeps the existing stacked indicator layout and hides message mic', () => {
+test('mobile keeps the existing stacked indicator layout and the message mic', () => {
   const css = readUiSource('src/styles/main.css');
 
-  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s!important;/s);
+  assert.doesNotMatch(css, /#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s*!important;/s);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button\s*>\s*\.composer-menu-icon[^{]*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;[^}]*max-width:\s*1\.25rem;[^}]*flex:\s*0\s+0\s+1\.25rem;[^}]*object-fit:\s*contain;/s);
 });
 
 test('mobile composer puts the editor on its own row above the tools', () => {
   const mobile = readUiSource('src/styles/mobile-composer-layout.css');
 
-  assert.match(mobile, /#input-bar-container\s+\.input-wrapper\s*\{[^}]*display:\s*grid\s*!important;[^}]*"input input input"\s*"file model submit"/s);
+  assert.match(mobile, /#input-bar-container\s+\.input-wrapper\s*\{[^}]*display:\s*grid\s*!important;[^}]*"input input input voice"\s*"file model model submit"/s);
   assert.match(mobile, /#model-council-control\s*\{[^}]*grid-area:\s*model;[^}]*min-width:\s*0;/s);
-  assert.match(mobile, /#model-council-control\s+\.mp-trigger\s*\{[^}]*max-width:\s*100%;/s);
+  assert.match(mobile, /#model-council-control\s+\.mp-anchor\s+\.mp-trigger\s*\{[^}]*max-width:\s*100%;/s);
   assert.match(mobile, /\.input-media-preview\s*\{[^}]*grid-area:\s*preview;/s);
 });
 
@@ -166,7 +166,7 @@ test('mobile web search typing does not disable the message input when Tavily is
 test('the header is a slim block without a divider and the chat fades under it', () => {
   const css = readUiSource('src/styles/chat-edge-fade.css');
 
-  assert.match(css, /#chat-workspace\s*>\s*header\s*\{[^}]*padding:\s*0\.25rem 0\.5rem;[^}]*border-bottom:\s*0;/s);
+  assert.match(css, /#chat-workspace\s*>\s*header\s*\{[^}]*height:\s*3\.25rem;[^}]*border-bottom:\s*0;/s);
   assert.doesNotMatch(css, /position:\s*absolute/);
   assert.doesNotMatch(css, /(?<!-)mask-image\s*:/);
   assert.match(css, /#chat-container::before\s*\{[^}]*top:\s*calc\(var\(--chat-pad\) \* -1\);[^}]*linear-gradient\(to bottom, var\(--chat-bg\), transparent\)/s);
@@ -198,4 +198,21 @@ test('the chat scroller does not contain overscroll, which made iPhone swipes fr
   const css = readUiSource('src/styles/chat-edge-fade.css');
 
   assert.match(css, /#chat-container\s*\{[^}]*overscroll-behavior-y:\s*auto;/s);
+});
+
+test('switching chats fades the previous chat out instead of blanking the screen', () => {
+  const list = readUiSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
+  const ghost = readUiSource('src/app/ui/motion/chat-switch-ghost.js');
+
+  assert.match(list, /renderedConversationId !== conversation\.id/);
+  assert.ok(list.indexOf('fadeOutPreviousChat(') < list.indexOf("messageList.innerHTML = '';", list.indexOf('fadeOutPreviousChat(')));
+  assert.match(ghost, /prefers-reduced-motion: reduce/);
+  assert.match(ghost, /setAttribute\('inert', ''\)/);
+});
+
+test('the bubble colour menu keeps a top the script can flip (an important top collapsed it to zero height)', () => {
+  const css = readUiSource('src/styles/settings-theme-bubble.css');
+
+  assert.match(css, /\.color-dropdown-menu\s*\{[^}]*top:\s*calc\(100%\s*\+\s*0\.45rem\);/s);
+  assert.doesNotMatch(css, /\.color-dropdown-menu\s*\{[^}]*\btop:[^;]*!important/s);
 });

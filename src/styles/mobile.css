@@ -208,10 +208,6 @@
 }
 
 @media (max-width: 768px) {
-    #voice-input-btn-message {
-        display: none !important;
-    }
-
     #input-bar-container .input-wrapper.has-indicators {
         padding-top: 2.9rem !important;
     }

@@ -46,7 +46,8 @@
 }
 
 .color-dropdown-menu {
-    top: calc(100% + 0.45rem) !important;
+    /* Not important: the script flips the menu above the button with an inline top/bottom when it would not fit below. */
+    top: calc(100% + 0.45rem);
 }
 
 .color-option.selected {

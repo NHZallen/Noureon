@@ -10,7 +10,10 @@
 }
 
 #chat-workspace > header {
-    padding: 0.25rem 0.5rem;
+    /* A fixed height, so the header does not grow when a control on the right (the temporary chat button, 44px)
+       appears in a new chat and is absent in a chat with messages. */
+    height: 3.25rem;
+    padding: 0 0.5rem;
     border-bottom: 0;
 }
 

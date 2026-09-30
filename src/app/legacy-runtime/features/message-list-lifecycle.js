@@ -1,3 +1,5 @@
+import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
+
 export function createMessageListLifecycle({
     document,
     elements,
@@ -28,6 +30,7 @@ export function createMessageListLifecycle({
 }) {
     let renderSequence = 0;
     let clearPendingBottomAnchor = () => {};
+    let renderedConversationId = null;
 
     // This intentionally reflects only what can change a message view. Cloud sync assigns
     // storage ids/status fields after a local response, but those fields do not alter the DOM.
@@ -297,6 +300,11 @@ export function createMessageListLifecycle({
         }
         const renderToken = ++renderSequence;
         clearPendingBottomAnchor();
+        // A different chat than the one on screen: let the old one fade out instead of vanishing.
+        if (animate && renderedConversationId !== null && renderedConversationId !== conversation.id) {
+            fadeOutPreviousChat({ messageList, chatContainer, document });
+        }
+        renderedConversationId = conversation.id;
         messageList.classList.remove('chat-view-transition');
         messageList.innerHTML = '';
         if (conversation.messages.length === 0) {
