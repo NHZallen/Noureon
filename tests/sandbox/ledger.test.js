@@ -107,6 +107,24 @@ test('each kind of step has its own icon instead of a tick, and the code is a co
   window.happyDOM.abort();
 });
 
+test('the code of a step sits in a card with the language and a copy button, live and saved alike', async () => {
+  const { window, document, message } = setup();
+  const { createCodeCard, codeOfCard } = await import('../../src/app/ui/sandbox/run-code-card.js');
+  const card = createCodeCard(document, 'print(1)', 'fr');
+  message.append(card);
+  assert.equal(card.querySelector('.run-code-name').textContent, 'Python');
+  const button = card.querySelector('button.run-code-copy');
+  assert.equal(button.type, 'button');
+  assert.equal(button.getAttribute('aria-label'), sandboxText('fr', 'copyCode'));
+  assert.equal(codeOfCard(button), 'print(1)');
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) assert.notEqual(sandboxText(language, 'copyCode'), 'copyCode', language);
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'step', n: 1, title: '', code: 'x = 1' });
+  assert.equal(message.querySelectorAll('.run-code-card').length, 2, 'the live step uses the same card');
+  list.remove();
+  window.happyDOM.abort();
+});
+
 test('a failed run keeps its error in the list, and a run of another number is ignored', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'zh-TW' });

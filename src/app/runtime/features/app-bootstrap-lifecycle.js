@@ -8,6 +8,7 @@ import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboa
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
+import { codeOfCard } from '../../ui/sandbox/run-code-card.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -477,6 +478,14 @@ export function createLegacyAppBootstrapLifecycle({
                         } else if (userAction.dataset.messageAction === 'edit') {
                             startMessageEditing(messageIndex);
                         }
+                        return;
+                    }
+                    // The copy button on the code card of a process step (live or saved).
+                    const codeCopy = e.target.closest('.run-code-copy');
+                    if (codeCopy) {
+                        copyTextToClipboard(codeOfCard(codeCopy))
+                            .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製。', 'success'))
+                            .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '複製失敗。', 'error'));
                         return;
                     }
                     const copyBtn = e.target.closest('.copy-content-btn');

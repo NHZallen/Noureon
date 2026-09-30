@@ -7,6 +7,7 @@ import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { formatElapsed } from '../ledger/ledger.js';
+import { createCodeCard } from './run-code-card.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
 
 const element = (document, tag, className, text) => {
@@ -49,9 +50,7 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
 }
 
 function stepRow(document, step, index, language) {
-  const codeBox = element(document, 'pre', 'ledger-code sandbox-run-code');
-  codeBox.append(element(document, 'code', 'language-python', step.code));
-  const body = [codeBox];
+  const body = [createCodeCard(document, step.code, language)];
 
   const output = [step.stdout, step.stderr].filter(Boolean).join(step.stdout && step.stderr ? '\n' : '');
   if (output) {

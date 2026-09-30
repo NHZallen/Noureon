@@ -306,9 +306,24 @@
     border: solid currentColor;
     border-width: 0 1.5px 1.5px 0;
     vertical-align: middle;
-    /* Always pointing down, open or shut, the way ChatGPT's rows do. */
+    /* Shut, no chevron shows until the pointer is over the row, and then it points on (›); open, it points down. */
+    opacity: 0;
+    transform: rotate(-45deg);
+    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+@media (hover: hover) {
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable:hover { color: var(--text-primary, #111827); }
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable:hover .ledger-label { color: var(--text-primary, #111827); }
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable:hover .ledger-label::after { opacity: 1; }
+}
+
+.ledger-row[data-kind].is-failed > .ledger-row-head.is-expandable:hover .ledger-label { color: #dc2626; }
+
+.ledger-row[data-kind] > .ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after,
+.ledger-row[data-kind][open] > .ledger-row-head.is-expandable .ledger-label::after {
+    opacity: 1;
     transform: rotate(45deg);
-    transition: none;
 }
 
 .ledger-row[data-kind] > .ledger-body {
@@ -319,6 +334,64 @@
 
 .ledger-row[data-kind='thought'] > .ledger-row-head .ledger-mark { display: none; }
 .ledger-row[data-kind='thought'] > .ledger-row-head { gap: 0; }
+
+/* The code of a step sits in a light card headed by the language and a copy button. */
+.run-code-card {
+    margin: 0.25rem 0 0.6rem;
+    padding: 0.7rem 1rem 0.4rem;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--text-primary, #111827) 5%, transparent);
+}
+
+.run-code-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary, #111827);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.run-code-icon,
+.run-code-copy-icon {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    background: currentColor;
+    -webkit-mask: var(--run-card-icon) center / contain no-repeat;
+    mask: var(--run-card-icon) center / contain no-repeat;
+}
+
+.run-code-icon { --run-card-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 6L3 10l4 4M13 6l4 4-4 4'/%3E%3C/svg%3E"); }
+.run-code-copy-icon { --run-card-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='7' y='7' width='9.5' height='9.5' rx='2'/%3E%3Cpath d='M13 7V5.5A2 2 0 0 0 11 3.5H5.5a2 2 0 0 0-2 2V11a2 2 0 0 0 2 2H7'/%3E%3C/svg%3E"); }
+
+.run-code-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    padding: 0.2rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+}
+
+.run-code-copy:hover,
+.run-code-copy:focus-visible { color: var(--text-primary, #111827); background: color-mix(in srgb, var(--text-primary, #111827) 8%, transparent); }
+
+/* The code runs on one line and scrolls sideways, like a code editor. */
+.ledger-row[data-kind] .run-code-card .ledger-code {
+    margin: 0;
+    padding: 0.25rem 0 0.5rem;
+    white-space: pre;
+    overflow-wrap: normal;
+}
+
+.ledger-row[data-kind] .sandbox-run-label,
+.ledger-row[data-kind] .ledger-output { margin-left: 0.5rem; }
 
 .ledger-row[data-kind] .ledger-code,
 .ledger-row[data-kind] .ledger-output {

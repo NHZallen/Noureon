@@ -6,6 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
+import { createCodeCard } from './run-code-card.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 
@@ -80,10 +81,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     output.hidden = true;
     const files = create('div', 'ledger-files');
     files.hidden = true;
-    // A code element inside, so the page's code colouring picks the code up once it is on screen.
-    const codeBox = create('pre', 'ledger-code');
-    codeBox.append(create('code', 'language-python', source));
-    row.body.append(codeBox, output, files);
+    row.body.append(createCodeCard(document, source, language), output, files);
     steps.set(n, { row, output, files, written: '' });
   };
 
