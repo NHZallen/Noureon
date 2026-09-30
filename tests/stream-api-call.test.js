@@ -866,7 +866,7 @@ test('the thinking is reported to whoever listens, with its kind, and never beco
   const deepseek = await run('openrouter', { apiId: 'deepseek/deepseek-v4.1-flash' }, stream);
   assert.deepEqual(deepseek.heard, [['先想一下', 'raw']]);
   assert.deepEqual(deepseek.text, ['答案']);
-  assert.deepEqual((await run('openrouter', { apiId: 'anthropic/claude-sonnet-5' }, stream)).heard, [['先想一下', 'summary']], 'a summary is shown as one');
+  assert.deepEqual((await run('openrouter', { apiId: 'anthropic/claude-sonnet-5.5' }, stream)).heard, [['先想一下', 'summary']], 'a summary is shown as one');
   const nvidia = await run('nvidia', { apiId: 'deepseek-ai/deepseek-v4.1-flash', reasoning: { providerParameter: 'nvidiaReasoningEffort', effortValues: { high: 75 } }, effort: 'high' }, stream);
   assert.deepEqual(nvidia.heard, [['先想一下', 'raw']]);
   assert.deepEqual(nvidia.request.chat_template_kwargs, { enable_thinking: true, thinking: true }, 'NVIDIA only streams the thinking when told to');

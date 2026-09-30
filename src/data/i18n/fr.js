@@ -615,10 +615,10 @@
         model_gpt_6_astra_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
         model_gpt_6_luna_desc_tier_paid: '0,10 $/M entrée, 0,50 $/M sortie',
         model_gpt_5_6_terra_desc_tier_paid: '2,50 $/M entrée, 15 $/M sortie',
-        model_gpt_6_sol_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
+        model_gpt_6_1_sol_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
         // Anthropic Paid
         model_claude_opus_5_5_desc_tier_paid: '4 $/M entrée, 20 $/M sortie',
-        model_claude_sonnet_5_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
+        model_claude_sonnet_5_5_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
         model_claude_haiku_4_5_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
         model_claude_fable_5_1_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
         // Qwen Paid

@@ -86,7 +86,9 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(getCanonicalModelId('nvidia/deepseek-ai/deepseek-v4-pro'), 'nvidia/deepseek-ai/deepseek-v4.1-flash');
   assert.equal(getCanonicalModelId('nvidia/z-ai/glm-5.2'), 'nvidia/z-ai/glm-5.3');
   assert.equal(getCanonicalModelId('qwen/qwen3.8-max'), 'qwen/qwen3.8-max-0902');
-  assert.equal(getCanonicalModelId('openai/gpt-5.6-sol'), 'openai/gpt-6-sol');
+  assert.equal(getCanonicalModelId('openai/gpt-5.6-sol'), 'openai/gpt-6.1-sol');
+  assert.equal(getCanonicalModelId('openai/gpt-6-sol'), 'openai/gpt-6.1-sol', 'chats saved with GPT-6 Sol move to 6.1');
+  assert.equal(getCanonicalModelId('anthropic/claude-sonnet-5'), 'anthropic/claude-sonnet-5.5', 'chats saved with Sonnet 5 move to 5.5');
   assert.equal(getCanonicalModelId('openai/gpt-5.6-luna'), 'openai/gpt-6-luna');
   assert.equal(getCanonicalModelId('anthropic/claude-opus-5'), 'anthropic/claude-opus-5.5');
   assert.equal(getCanonicalModelId('nvidia/moonshotai/kimi-k2.6'), 'nvidia/moonshotai/kimi-k3');
@@ -113,7 +115,7 @@ test('model registry preserves vision and document capability behavior', () => {
   const lagunaModel = MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free');
   const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5.5');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
-  const openRouterGpt56Models = ['openai/gpt-6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-6-sol']
+  const openRouterGpt56Models = ['openai/gpt-6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-6.1-sol']
     .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
@@ -151,7 +153,9 @@ test('model registry exposes precise reasoning depth options for supported model
   const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
   const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
-  const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-6-sol');
+  const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-terra');
+  const gpt61SolModel = MODELS.find((model) => model.id === 'openai/gpt-6.1-sol');
+  const sonnet55Model = MODELS.find((model) => model.id === 'anthropic/claude-sonnet-5.5');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
   const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.8-flash');
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
@@ -173,6 +177,11 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.deepEqual(getModelReasoningConfig(openAiModel)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(normalizeReasoningEffort(openAiModel, 'none'), 'medium');
   assert.deepEqual(getModelReasoningConfig(gpt56Model)?.options, ['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+  // GPT-6.1 Sol has no "none" and defaults to medium; Sonnet 5.5 keeps the five Claude levels.
+  assert.deepEqual(getModelReasoningConfig(gpt61SolModel)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(normalizeReasoningEffort(gpt61SolModel, 'none'), 'medium', 'a chat saved with GPT-6 Sol at "none" falls back');
+  assert.deepEqual(getModelReasoningConfig(sonnet55Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(normalizeReasoningEffort(sonnet55Model, 'max'), 'max');
   assert.equal(normalizeReasoningEffort(gpt56Model, 'max'), 'max');
   assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');
 
