@@ -71,10 +71,14 @@ async function bootstrap() {
   }
 
   mountAppShell(appShell);
-  // Developer-only scroll diagnostics for phones (src/app/debug/scroll-debug.js).
-  if (new URLSearchParams(window.location.search).has('scrolldebug')) {
-    void import('./app/debug/scroll-debug.js').then(({ installScrollDebug }) => installScrollDebug());
-  }
+  // TEMPORARY: scroll diagnostics shown to everyone while the iPhone scrolling bug is traced; remove this
+  // block and src/app/debug/ afterwards. The panel now, the scroll watching only once the app is
+  // interactive, so it never touches start-up. ?noscrolldebug hides it.
+  const scrollDebug = new URLSearchParams(window.location.search).has('noscrolldebug')
+    ? null
+    : import('./app/debug/scroll-debug.js')
+      .then((module) => { module.installScrollDebugPanel(); return module; })
+      .catch(() => null);
   recordBootstrapMilestone(
     STARTUP_MARKS.SHELL_MOUNTED,
     STARTUP_MEASURES.TO_SHELL
@@ -123,6 +127,7 @@ async function bootstrap() {
   const legacyApp = await import('./app/legacy-app.js');
   await legacyApp.legacyAppReady;
   dismissStartupSkeleton(document);
+  void scrollDebug?.then((module) => module?.watchChatScrolling());
   recordBootstrapMilestone(
     STARTUP_MARKS.RUNTIME_INTERACTIVE,
     STARTUP_MEASURES.TO_RUNTIME_INTERACTIVE

@@ -22,10 +22,13 @@ const callerOf = (stack) => {
   return match ? `${match[1] || 'anon'} ${match[2]}:${match[3]}` : frame.slice(0, 60);
 };
 
-export function installScrollDebug(doc = document) {
+let debugLog = null;
+
+// Stage 1, right after the shell mounts: only the panel and a log of page errors, so a start-up that never
+// finishes shows why. Nothing is wrapped yet, so start-up runs exactly as it does without the panel.
+export function installScrollDebugPanel(doc = document) {
   const view = doc.defaultView;
-  const chat = doc.getElementById('chat-container');
-  if (!view || !chat || doc.getElementById('scroll-debug-panel')) return;
+  if (!view || debugLog) return;
 
   const started = view.performance.now();
   const stamp = () => `${((view.performance.now() - started) / 1000).toFixed(2)}`.padStart(6, ' ');
@@ -41,8 +44,10 @@ export function installScrollDebug(doc = document) {
   ].join(';');
   doc.body.appendChild(panel);
 
-  const maxTop = () => Math.max(0, chat.scrollHeight - chat.clientHeight);
   const status = () => {
+    const chat = doc.getElementById('chat-container');
+    if (!chat) return 'chat -';
+    const maxTop = () => Math.max(0, chat.scrollHeight - chat.clientHeight);
     const top = Math.round(chat.scrollTop);
     const max = Math.round(maxTop());
     const main = chat.parentElement;
@@ -59,6 +64,20 @@ export function installScrollDebug(doc = document) {
     while (lines.length > MAX_LINES) lines.shift();
     if (!frame) frame = view.requestAnimationFrame(render);
   };
+
+  view.addEventListener('error', (event) => log(`ERR ${event.message || event.type} ${String(event.filename || '').split('/').pop()}:${event.lineno || ''}`));
+  view.addEventListener('unhandledrejection', (event) => log(`REJ ${event.reason?.message || String(event.reason).slice(0, 120)}`));
+  view.setInterval(render, 250);
+  debugLog = { log, view };
+  log('scroll debug on (waiting for the app)');
+}
+
+// Stage 2, once the app is interactive: watch touches, scrolling and every write to the chat's position.
+export function watchChatScrolling(doc = document) {
+  const chat = doc.getElementById('chat-container');
+  if (!debugLog || !chat || chat.dataset.scrollDebug) return;
+  chat.dataset.scrollDebug = 'on';
+  const { log, view } = debugLog;
 
   // Touches: one line when a finger lands and one summary when it lifts or is cancelled.
   let gesture = null;
@@ -134,6 +153,5 @@ export function installScrollDebug(doc = document) {
 
   view.visualViewport?.addEventListener('resize', () => log(`VV  resize h=${Math.round(view.visualViewport.height)}`));
   view.addEventListener('resize', () => log(`WIN resize h=${view.innerHeight}`));
-  view.setInterval(render, 250);
-  log('scroll debug on');
+  log('watching the chat');
 }
