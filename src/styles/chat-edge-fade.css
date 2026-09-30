@@ -1,45 +1,33 @@
-/* The chat scrolls under a floating header and fades out at both edges instead of being cut by a
-   divider line. The fade is a mask on the scrolling area, so it needs no background colour to match
-   the theme or wallpaper. */
+/* The header is a slim block at the top of the screen with no divider line. Messages scroll up to its
+   lower edge and fade out over a short distance there, and fade out at the bottom edge above the
+   composer too. The fade is a mask on the scrolling area, so it needs no background colour and
+   follows the theme and any wallpaper. */
 
 #chat-workspace {
-    --chat-header-height: 3.5rem;
+    --chat-fade-top: 0.75rem;
     --chat-fade-bottom: 1rem;
 }
 
 #chat-workspace > header {
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
+    padding: 0.25rem 0.5rem;
     border-bottom: 0;
-    background: transparent;
-    /* Only the buttons take taps; the strip between them lets scrolling and text selection through. */
-    pointer-events: none;
-}
-
-#chat-workspace > header :is(button, #api-key-warning-badge, #temporary-chat-header-status, #model-switcher-container, #temporary-memory-menu) {
-    pointer-events: auto;
 }
 
 #chat-container {
-    /* Sticky headings inside messages stop just under the floating header. */
+    /* Sticky headings inside messages stop just under the fade, and so do scrolled-to messages. */
     --chat-scroll-padding-top: 0px;
-    padding-top: calc(var(--chat-header-height) + 0.5rem);
-    scroll-padding-top: calc(var(--chat-header-height) + 0.5rem);
+    scroll-padding-top: calc(var(--chat-fade-top) + 0.5rem);
     -webkit-mask-image: linear-gradient(
         to bottom,
         transparent 0,
-        transparent 0.5rem,
-        #000 calc(var(--chat-header-height) + 0.25rem),
+        #000 var(--chat-fade-top),
         #000 calc(100% - var(--chat-fade-bottom)),
         transparent 100%
     );
     mask-image: linear-gradient(
         to bottom,
         transparent 0,
-        transparent 0.5rem,
-        #000 calc(var(--chat-header-height) + 0.25rem),
+        #000 var(--chat-fade-top),
         #000 calc(100% - var(--chat-fade-bottom)),
         transparent 100%
     );
