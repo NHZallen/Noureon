@@ -89,6 +89,24 @@ test('the sandbox list shows the model, each run with its code, output as it com
   window.happyDOM.abort();
 });
 
+test('each kind of step has its own icon instead of a tick, and the code is a code element for the colouring', () => {
+  const { window, document, message, answer } = setup();
+  const list = createSandboxLedger({ document, host: message, before: answer, language: 'en' });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1 + 1)' });
+  list.event({ type: 'step-end', n: 1, ok: true, error: '', files: [], elapsedMs: 10 });
+  list.event({ type: 'finishing', label: 'Preparing the files…' });
+  const rows = [...message.querySelectorAll('.ledger-row')];
+  assert.deepEqual(rows.map((row) => row.dataset.kind), ['thought', 'code', 'file']);
+  for (const row of rows.slice(0, 2)) {
+    assert.equal(row.querySelector('.ledger-mark').classList.contains('run-icon'), true);
+    assert.equal(row.querySelector('.ledger-mark').textContent, '', 'no tick: the icon stays');
+  }
+  assert.equal(rows[1].querySelector('.ledger-code > code.language-python').textContent, 'print(1 + 1)');
+  list.remove();
+  window.happyDOM.abort();
+});
+
 test('a failed run keeps its error in the list, and a run of another number is ignored', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'zh-TW' });

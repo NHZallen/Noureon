@@ -72,7 +72,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     // The run shows the code itself; the draft in the thinking row goes.
     list.current?.writing?.remove();
     const running = title ? text('sandboxRunning', { n, title }) : text('sandboxRunningUntitled', { n });
-    const row = begin(running, { body: true });
+    const row = begin(running, { body: true, kind: 'code' });
     row.doneLabel = title ? text('ledgerRan', { n, title }) : text('ledgerRanUntitled', { n });
     row.enableBody(true);
     const source = code.length > MAX_CODE_CHARS ? `${code.slice(0, MAX_CODE_CHARS)}\n…` : code;
@@ -80,7 +80,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
     output.hidden = true;
     const files = create('div', 'ledger-files');
     files.hidden = true;
-    row.body.append(create('pre', 'ledger-code', source), output, files);
+    // A code element inside, so the page's code colouring picks the code up once it is on screen.
+    const codeBox = create('pre', 'ledger-code');
+    codeBox.append(create('code', 'language-python', source));
+    row.body.append(codeBox, output, files);
     steps.set(n, { row, output, files, written: '' });
   };
 
@@ -135,7 +138,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   return {
     event(event) {
       if (event.type === 'round') {
-        const row = begin(event.label);
+        const row = begin(event.label, { kind: 'thought' });
         row.doneLabel = event.doneLabel;
       } else if (event.type === 'answering') {
         // Writing the answer is not thinking: that row is over and folds.
@@ -144,7 +147,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'prepare') {
         list.current?.setDetail(event.text);
       } else if (event.type === 'finishing') {
-        begin(event.label);
+        begin(event.label, { kind: 'file' });
       } else if (event.type === 'thinking') {
         addThought(event);
       } else if (event.type === 'code') {

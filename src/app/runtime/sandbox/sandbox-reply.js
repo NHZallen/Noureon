@@ -81,6 +81,7 @@ export async function runSandboxReply({
   // What the last round of runs came to: the next status says what happens next.
   let outcome = null;
   const run = { status: RUN_STATUS.running, steps: [], fallback: null };
+  const startedAt = Date.now();
   const toolTurns = [];
   let text = '';
   let toolsAllowed = true;
@@ -299,5 +300,6 @@ export async function runSandboxReply({
       onEvent({ type: 'finishing', label });
     }
   }
+  run.elapsedMs = Date.now() - startedAt;
   return { text, run: run.steps.length || run.fallback || run.thought ? run : null };
 }

@@ -44,10 +44,13 @@ export function createLedger({ document, host, before = null }) {
   const timer = window?.setInterval?.(tick, 1000);
   let gone = false;
 
-  function addRow(label, { body = false } = {}) {
+  // `kind` (thought, code, file) gives the row its own icon in front of the label, the way chat products draw
+  // each kind of step, instead of a tick.
+  function addRow(label, { body = false, kind = '' } = {}) {
     const node = element(document, 'div', 'ledger-row is-running');
     const head = element(document, 'div', 'ledger-row-head');
-    const mark = element(document, 'span', 'ledger-mark');
+    const mark = element(document, 'span', kind ? 'ledger-mark run-icon' : 'ledger-mark');
+    if (kind) node.dataset.kind = kind;
     const text = element(document, 'span', 'ledger-label', label);
     const time = element(document, 'span', 'ledger-time');
     head.append(mark, text, time);
@@ -74,7 +77,7 @@ export function createLedger({ document, host, before = null }) {
     };
     const setText = (target, value) => { if (target.textContent !== value) target.textContent = value; };
     const draw = () => {
-      setText(mark, MARKS[state]);
+      setText(mark, kind ? '' : MARKS[state]);
       ['running', 'done', 'failed', 'pending'].forEach((name) => {
         if (node.classList.contains(`is-${name}`) !== (name === state)) node.classList.toggle(`is-${name}`, name === state);
       });

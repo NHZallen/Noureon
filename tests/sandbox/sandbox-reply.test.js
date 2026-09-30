@@ -111,6 +111,7 @@ test('the loop runs each requested call, returns the results and stops when the 
   assert.equal(turn.results[0].id, 'c1');
   assert.deepEqual(JSON.parse(turn.results[0].content), { ok: true, stdout: '15\n', stderr: '', files: [{ path: '/output/a.csv', size: 3 }], elapsed_ms: 12 });
   assert.equal(result.run.status, 'done');
+  assert.equal(result.run.elapsedMs >= 0, true, 'how long the whole reply took is recorded');
   assert.deepEqual(result.run.steps.map((step) => [step.title, step.stdout, step.files]), [['加總', '15\n', [{ name: 'a.csv', size: 3 }]]]);
   assert.ok(statuses.includes('正在執行程式（第 1 次）：加總'));
 });
@@ -204,14 +205,46 @@ test('the run row opens to each step, and a switch to Standard is one grey line'
       ]
     })}x`).run;
     const element = createSandboxRunElement(document, run, { language: 'zh-TW' });
-    assert.equal(element.querySelector('summary').textContent, '已執行程式 2 次 · 執行失敗');
-    assert.equal(element.querySelectorAll('.sandbox-run-step').length, 2);
-    assert.equal(element.querySelector('code.language-python').textContent, 'import pandas');
-    assert.match(element.querySelector('.sandbox-run-files').textContent, /\/output\/報告\.xlsx（2 KB）/);
-    assert.equal(element.querySelectorAll('.sandbox-run-step-title')[1].textContent, '第 2 次');
+    // Saved before the total was kept: the steps add up to it.
+    assert.equal(element.querySelector('summary').textContent, '處理時間為 2s · 執行失敗');
+    const rows = [...element.querySelectorAll('.sandbox-run-row')];
+    assert.equal(rows.length, 2, 'one line per step');
+    assert.deepEqual(rows.map((row) => row.dataset.kind), ['code', 'code']);
+    assert.equal(rows[0].querySelector('.ledger-label').textContent, '已執行程式（第 1 次）：讀取資料');
+    assert.equal(rows[1].querySelector('.ledger-label').textContent, '已執行程式（第 2 次）');
+    assert.equal(rows[1].classList.contains('is-failed'), true);
+    assert.equal(rows[0].open, false, 'every step is folded on its own');
+    assert.equal(rows[0].querySelector('code.language-python').textContent, 'import pandas');
+    assert.match(rows[0].querySelector('.sandbox-run-files').textContent, /\/output\/報告\.xlsx（2 KB）/);
+    assert.equal(rows[1].querySelector('.ledger-output.is-error').textContent, 'NameError: boom');
     const note = createSandboxRunElement(document, { status: 'done', steps: [], fallback: 'model-unsupported' }, { language: 'en' });
     assert.equal(note.textContent, 'Switched to Standard mode: the current model cannot run code');
     assert.equal(note.querySelector('details'), null);
+  } finally {
+    cleanup();
+  }
+});
+
+test('the run line says how long the whole reply took, and the rows follow the order things happened in', () => {
+  const { document, cleanup } = createDom('<div id="root"></div>');
+  try {
+    const run = liftSandboxRunBlock(`${formatSandboxRunBlock({
+      status: 'done',
+      elapsedMs: 628_000,
+      thought: 'Now write the answer',
+      steps: [{ title: 'Sum', code: 'print(1)', stdout: '1', thought: 'First look', elapsedMs: 4200 }]
+    })}x`).run;
+    assert.equal(run.elapsedMs, 628_000, 'the total is kept with the reply');
+    const view = createSandboxRunElement(document, run, { language: 'en' });
+    assert.equal(view.querySelector(':scope > details > summary').textContent, 'Processed for 10m 28s');
+    const rows = [...view.querySelectorAll('.sandbox-run-row')];
+    assert.deepEqual(rows.map((row) => row.dataset.kind), ['thought', 'code', 'thought'], 'thinking, the run, thinking before the answer');
+    assert.equal(rows[0].querySelector('.sandbox-run-thought-text').textContent, 'First look');
+    assert.equal(rows[1].querySelector('.ledger-time').textContent, '4s');
+    assert.equal(rows[2].querySelector('.sandbox-run-thought-text').textContent, 'Now write the answer');
+    for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+      assert.match(sandboxText(language, 'processedIn', { t: '1m 5s' }), /1m 5s/, language);
+    }
   } finally {
     cleanup();
   }

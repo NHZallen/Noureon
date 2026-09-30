@@ -38,68 +38,25 @@
 .sandbox-run-summary:hover,
 .sandbox-run-summary:focus-visible { color: var(--text-primary, #111827); }
 
-.sandbox-run-steps {
-    margin: 0.6rem 0 0;
-    padding: 0 0 0 0.9rem;
-    border-left: 1px solid color-mix(in srgb, var(--text-primary, #111827) 14%, transparent);
-}
+.sandbox-run-steps { margin: 0.3rem 0 0; }
 
-.sandbox-run-step { margin: 0 0 1rem; }
-.sandbox-run-step:last-child { margin-bottom: 0.25rem; }
-
-.sandbox-run-step-head {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-bottom: 0.35rem;
-}
-
-.sandbox-run-step-number {
-    flex: 0 0 auto;
-    color: var(--text-secondary, #6b7280);
-    font-variant-numeric: tabular-nums;
-}
-
-.sandbox-run-step-title {
-    flex: 1 1 auto;
-    min-width: 0;
+/* A saved row opens in place; the answer's own code-block look (dark, boxed) is dropped for the process rows. */
+.sandbox-run .ledger-row { animation: none; }
+.sandbox-run .ledger-row.sandbox-run-row[data-kind] .ledger-code,
+.sandbox-run .ledger-row.sandbox-run-row[data-kind] .ledger-output {
+    background: none;
+    border-radius: 0;
     color: var(--text-primary, #111827);
-    font-weight: 500;
 }
-
-.sandbox-run-step-time {
-    flex: 0 0 auto;
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.75rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.sandbox-run .sandbox-run-code { margin: 0 0 0.5rem; }
-.sandbox-run .sandbox-run-code code { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .sandbox-run-label {
     display: block;
-    margin: 0.35rem 0 0.2rem;
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.75rem;
+    margin: 0.35rem 0 0.1rem;
+    color: var(--text-primary, #111827);
+    font-size: 0.8125rem;
 }
 
 .sandbox-run-files .sandbox-run-label { display: inline; }
-
-.sandbox-run .sandbox-run-output {
-    max-height: 18rem;
-    margin: 0;
-    padding: 0.55rem 0.7rem;
-    overflow: auto;
-    border: 1px solid color-mix(in srgb, var(--text-primary, #111827) 12%, transparent);
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--text-primary, #111827) 4%, transparent);
-    color: var(--text-primary, #111827);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.78rem;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
 
 .sandbox-run-files,
 .sandbox-run-note {
@@ -108,9 +65,6 @@
     font-size: 0.78rem;
 }
 
-/* The model's thinking after the reply is written: the same look as while it
-   streams (.ledger-thought in ledger.css), under the one-line summary. */
-.sandbox-run-thought { margin: 0 0 0.5rem; }
 
 /* The answer's own heading does not add its usual big gap under the line. */
 .prose .sandbox-run + :is(h1, h2, h3, h4, h5, h6) { margin-top: 0.5rem; }

@@ -90,6 +90,14 @@ const STYLE_ID = 'noureon-code-highlight';
 const STYLE = [
   themeRules('.prose pre code', THEMES.dark),
   themeRules('body.custom-wallpaper-active:not(.wallpaper-is-dark) .model-message .message-bubble .prose pre code', THEMES.light),
+  // The process list's code (ledger.css) sits on the page itself, unboxed: light colours, dark ones on a dark wallpaper.
+  // Saved in a reply it is also inside .prose, whose dark rules are more specific, hence the second scope.
+  ...['.ledger-code code', '.sandbox-run .ledger-code code'].flatMap((scope) => [
+    themeRules(scope, THEMES.light),
+    `${scope} { color: ${THEMES.light.base}; }`,
+    themeRules(`body.custom-wallpaper-active.wallpaper-is-dark ${scope}`, THEMES.dark),
+    `body.custom-wallpaper-active.wallpaper-is-dark ${scope} { color: ${THEMES.dark.base}; }`
+  ]),
   themeRules('.ac-file-preview-source code', THEMES.light),
   `.ac-file-preview-source code { color: ${THEMES.light.base}; }`
 ].join('\n');

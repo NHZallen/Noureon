@@ -58,6 +58,8 @@ export function normalizeSandboxRun(run = {}) {
     v: 1,
     status,
     steps,
+    // How long the reply took in all (thinking, runs and files), for the "Processed for 1m 5s" line.
+    ...(Number(run.elapsedMs) > 0 ? { elapsedMs: Math.round(Number(run.elapsedMs)) } : {}),
     ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),
     ...(run.thought && run.thoughtKind === 'summary' ? { thoughtKind: 'summary' } : {}),
     ...(run.thought && run.thoughtInterrupted ? { thoughtInterrupted: true } : {}),

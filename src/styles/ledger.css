@@ -253,6 +253,96 @@
 
 .ledger-issues { margin: 0 0 0.4rem; padding: 0 0 0 1.1rem; font-size: 0.8125rem; }
 
+/* The process list drawn like ChatGPT's: grey lines, an outline icon for the kind of step, a small chevron on the
+   ones that open, and what opens (thinking, code, output) as plain text with no box and no rule beside it. The
+   saved reply draws the same rows (sandbox-run-view.js), so what streamed in is what stays. */
+.run-icon::before {
+    content: '';
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: currentColor;
+    -webkit-mask: var(--run-icon) center / contain no-repeat;
+    mask: var(--run-icon) center / contain no-repeat;
+}
+
+.ledger-row[data-kind='code'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='15' height='13' rx='3'/%3E%3Cpath d='M6.5 8l3 2-3 2M11.5 12.5h2.5'/%3E%3C/svg%3E"); }
+.ledger-row[data-kind='file'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 2.5h6l4 4v10a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 16.5v-12A1.5 1.5 0 0 1 5.5 2.5z'/%3E%3Cpath d='M11.5 2.7v4h4'/%3E%3C/svg%3E"); }
+
+/* In progress the icon gives way to the turning ring. */
+.is-running > .ledger-row-head .ledger-mark.run-icon::before {
+    -webkit-mask: none;
+    mask: none;
+    background: none;
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.ledger-row[data-kind] > .ledger-row-head {
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    list-style: none;
+}
+
+.ledger-row[data-kind] > .ledger-row-head::-webkit-details-marker { display: none; }
+
+.ledger-row[data-kind] > .ledger-row-head .ledger-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.45rem;
+}
+
+.ledger-row[data-kind] > .ledger-row-head .ledger-time { margin-left: 0; align-self: center; }
+
+.ledger-row[data-kind] > .ledger-row-head.is-expandable .ledger-label::after {
+    content: '';
+    display: inline-block;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin: 0 0 0.2rem 0.5rem;
+    border: solid currentColor;
+    border-width: 0 1.5px 1.5px 0;
+    vertical-align: middle;
+    /* Always pointing down, open or shut, the way ChatGPT's rows do. */
+    transform: rotate(45deg);
+    transition: none;
+}
+
+.ledger-row[data-kind] > .ledger-body {
+    margin: 0 0 0.5rem;
+    padding: 0;
+    border-left: 0;
+}
+
+.ledger-row[data-kind='thought'] > .ledger-row-head .ledger-mark { display: none; }
+.ledger-row[data-kind='thought'] > .ledger-row-head { gap: 0; }
+
+.ledger-row[data-kind] .ledger-code,
+.ledger-row[data-kind] .ledger-output {
+    padding: 0.25rem 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text-primary, #111827);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+}
+
+.ledger-row[data-kind] .ledger-output { color: var(--text-primary, #111827); }
+.ledger-row[data-kind] .ledger-output.is-error { color: #dc2626; }
+
+.ledger-row[data-kind] .ledger-code code {
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+}
+
+.ledger-row[data-kind] .ledger-output { margin-top: 0.15rem; }
+
 @media (prefers-reduced-motion: reduce) {
     .ledger-row, .ledger-thumb img { animation: none; }
     .is-running > .ledger-row-head .ledger-mark::before { animation-duration: 2.4s; }

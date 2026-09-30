@@ -1,12 +1,12 @@
-// The "Ran code N times ›" row at the top of an Advanced mode reply, after
-// ChatGPT's "Analyzed" row and Claude's tool steps: collapsed to one line,
-// opening to each run's code (coloured like other code blocks), output and
-// created files. While the reply is being written the same element shows the
-// current step instead.
+// The "Processed for 10m 28s ›" line at the top of an Advanced mode reply, after ChatGPT's: collapsed to one
+// line, opening to the process as one line per step (thinking, each Python run), each opening on its own to what
+// the model thought, the code (coloured like other code blocks), its output and the files it made. The rows are
+// drawn like the live step list is (ledger.js), so what streamed in is what stays.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
+import { formatElapsed } from '../ledger/ledger.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
 
 const element = (document, tag, className, text) => {
@@ -22,43 +22,46 @@ const formatSize = (bytes) => {
   return `${bytes} B`;
 };
 
-const formatSeconds = (language, ms) => sandboxText(language, 'sandboxSeconds', { s: (ms / 1000).toFixed(ms < 10_000 ? 1 : 0) });
-
-// What the model thought before the run, folded behind one line.
-function renderThought(document, thought, language, { interrupted = false } = {}) {
-  const details = element(document, 'details', 'sandbox-run-details sandbox-run-thought');
-  const pre = element(document, 'div', 'ledger-thought is-saved sandbox-run-thought-text');
-  fillThinkingText(document, pre, thought);
-  details.append(element(document, 'summary', 'sandbox-run-summary', sandboxText(language, interrupted ? 'thinkingInterrupted' : 'sandboxThought')), pre);
-  return animateDetails(details);
+// One line of the process list, the same look the live step list has (ledger.js): an icon for the kind of step, the
+// label, the time, and a small chevron when there is something to open. It is a details element so it also works from
+// the saved markup, where no listener was attached.
+function renderRow(document, { kind, label, time = '', failed = false, body }) {
+  const row = element(document, 'details', `ledger-row sandbox-run-row is-${failed ? 'failed' : 'done'}`);
+  row.dataset.kind = kind;
+  const head = element(document, 'summary', 'ledger-row-head is-expandable');
+  head.append(element(document, 'span', 'ledger-mark run-icon'), element(document, 'span', 'ledger-label', label));
+  if (time) head.append(element(document, 'span', 'ledger-time', time));
+  const content = element(document, 'div', 'ledger-body');
+  content.append(...body);
+  row.append(head, content);
+  return animateDetails(row);
 }
 
-function renderStep(document, step, index, language) {
-  // Plain blocks rather than a list: the chat's list styles would number
-  // the steps a second time.
-  const item = element(document, 'div', 'sandbox-run-step');
-  const head = element(document, 'div', 'sandbox-run-step-head');
-  head.append(
-    element(document, 'span', 'sandbox-run-step-number', String(index + 1)),
-    element(document, 'span', 'sandbox-run-step-title', step.title || sandboxText(language, 'sandboxStep', { n: index + 1 }))
-  );
-  if (step.elapsedMs) head.append(element(document, 'span', 'sandbox-run-step-time', formatSeconds(language, step.elapsedMs)));
-  item.append(head);
-  if (step.thought) item.append(renderThought(document, step.thought, language));
+// What the model thought before a run, or before the answer.
+function thoughtRow(document, thought, language, { interrupted = false, label } = {}) {
+  const pre = element(document, 'div', 'ledger-thought sandbox-run-thought-text');
+  fillThinkingText(document, pre, thought);
+  return renderRow(document, {
+    kind: 'thought',
+    label: label || sandboxText(language, interrupted ? 'thinkingInterrupted' : 'ledgerThought'),
+    body: [pre]
+  });
+}
 
-  const pre = element(document, 'pre', 'sandbox-run-code');
-  pre.append(element(document, 'code', 'language-python', step.code));
-  item.append(pre);
+function stepRow(document, step, index, language) {
+  const codeBox = element(document, 'pre', 'ledger-code sandbox-run-code');
+  codeBox.append(element(document, 'code', 'language-python', step.code));
+  const body = [codeBox];
 
   const output = [step.stdout, step.stderr].filter(Boolean).join(step.stdout && step.stderr ? '\n' : '');
   if (output) {
-    item.append(element(document, 'div', 'sandbox-run-label', sandboxText(language, 'sandboxOutput')));
-    item.append(element(document, 'pre', 'sandbox-run-output', output));
+    body.push(element(document, 'div', 'sandbox-run-label', sandboxText(language, 'sandboxOutput')));
+    body.push(element(document, 'pre', 'ledger-output sandbox-run-output', output));
   }
-  if (step.outputTrimmed) item.append(element(document, 'p', 'sandbox-run-note', sandboxText(language, 'sandboxOutputTrimmed')));
+  if (step.outputTrimmed) body.push(element(document, 'p', 'sandbox-run-note', sandboxText(language, 'sandboxOutputTrimmed')));
   if (step.error) {
-    item.append(element(document, 'div', 'sandbox-run-label', step.timedOut ? sandboxText(language, 'sandboxTimedOut') : sandboxText(language, 'sandboxError')));
-    item.append(element(document, 'pre', 'sandbox-run-output sandbox-run-error', step.error));
+    body.push(element(document, 'div', 'sandbox-run-label', step.timedOut ? sandboxText(language, 'sandboxTimedOut') : sandboxText(language, 'sandboxError')));
+    body.push(element(document, 'pre', 'ledger-output is-error sandbox-run-output sandbox-run-error', step.error));
   }
   if (step.files.length) {
     const files = element(document, 'p', 'sandbox-run-files');
@@ -66,18 +69,39 @@ function renderStep(document, step, index, language) {
     // Documents handed to the design system show under their own names.
     const shown = (name) => (name.startsWith('.noureon/') ? name.slice('.noureon/'.length) : `/output/${name}`);
     files.append(document.createTextNode(` ${step.files.map((file) => `${shown(file.name)}（${formatSize(file.size)}）`).join('、')}`));
-    item.append(files);
+    body.push(files);
   }
-  return item;
+  const number = index + 1;
+  return renderRow(document, {
+    kind: 'code',
+    label: step.title ? sandboxText(language, 'ledgerRan', { n: number, title: step.title }) : sandboxText(language, 'ledgerRanUntitled', { n: number }),
+    time: formatElapsed(step.elapsedMs || 0),
+    failed: Boolean(step.error),
+    body
+  });
+}
+
+// "Processed for 10m 28s": the time of the whole reply, the way ChatGPT words it.
+const formatTotal = (ms) => {
+  const seconds = Math.max(1, Math.round(ms / 1000));
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+};
+
+function totalMs(run) {
+  if (run.elapsedMs) return run.elapsedMs;
+  // Replies saved before the total was kept: what the steps and the thinking add up to.
+  return run.steps.reduce((sum, step) => sum + (step.elapsedMs || 0), 0) + (run.thoughtMs || 0);
 }
 
 function summaryText(run, language) {
-  if (run.status === RUN_STATUS.stopped) return `${sandboxText(language, 'sandboxDone', { n: run.steps.length })} · ${sandboxText(language, 'sandboxStopped')}`;
+  const total = totalMs(run);
+  const head = total > 0 ? sandboxText(language, 'processedIn', { t: formatTotal(total) }) : sandboxText(language, 'sandboxDone', { n: run.steps.length });
+  if (run.status === RUN_STATUS.stopped) return `${head} · ${sandboxText(language, 'sandboxStopped')}`;
   const last = run.steps.at(-1);
   if (run.status === RUN_STATUS.failed || (last && last.error && run.status !== RUN_STATUS.running)) {
-    return `${sandboxText(language, 'sandboxDone', { n: run.steps.length })} · ${sandboxText(language, 'sandboxFailed')}`;
+    return `${head} · ${sandboxText(language, 'sandboxFailed')}`;
   }
-  return sandboxText(language, 'sandboxDone', { n: run.steps.length });
+  return head;
 }
 
 // "Thinking · 12s ›" above an answer, opening to the thinking (the model's own,
@@ -110,8 +134,11 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const details = element(document, 'details', 'sandbox-run-details');
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
-  run.steps.forEach((step, index) => list.append(renderStep(document, step, index, language)));
-  if (run.thought) list.append(renderThought(document, run.thought, language, { interrupted: run.thoughtInterrupted }));
+  run.steps.forEach((step, index) => {
+    if (step.thought) list.append(thoughtRow(document, step.thought, language));
+    list.append(stepRow(document, step, index, language));
+  });
+  if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted }));
   details.append(summary, list);
   animateDetails(details);
   container.append(details);

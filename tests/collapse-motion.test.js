@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 
-import { animateDetails, keepEndInView, setCollapsed } from '../src/app/ui/motion/collapse-motion.js';
+import { animateDetails, easeSavedDetails, keepEndInView, setCollapsed } from '../src/app/ui/motion/collapse-motion.js';
 import { createLedger } from '../src/app/ui/ledger/ledger.js';
 
 // happy-dom cannot animate: give elements a small fake that records what was asked.
@@ -107,6 +107,39 @@ test('a details element eases open and shut when its summary is clicked', () => 
   assert.equal(details.open, true, 'it stays open while it closes');
   runs[1].finish();
   assert.equal(details.open, false);
+  window.happyDOM.abort();
+});
+
+test('details drawn from saved markup ease too, through one listener on the page', () => {
+  const window = new Window();
+  const runs = withAnimation(window);
+  window.document.body.innerHTML = '<div class="sandbox-run"><details><summary>Row</summary><div>Body</div></details></div><details id="other"><summary>Other</summary><div>x</div></details>';
+  const stop = easeSavedDetails(window.document);
+  const click = (summary) => {
+    const event = new window.MouseEvent('click', { bubbles: true, cancelable: true });
+    summary.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  const details = window.document.querySelector('.sandbox-run details');
+  assert.equal(click(details.querySelector('summary')), true);
+  assert.equal(details.open, true);
+  assert.equal(runs.length, 1);
+  runs[0].finish();
+  assert.equal(click(window.document.querySelector('#other summary')), false, 'other details are left to the browser');
+  stop();
+  window.happyDOM.abort();
+});
+
+test('a details element that animateDetails already handles is not toggled twice by the page listener', () => {
+  const window = new Window();
+  const runs = withAnimation(window);
+  window.document.body.innerHTML = '<div class="sandbox-run"><details><summary>Row</summary><div>Body</div></details></div>';
+  const details = window.document.querySelector('details');
+  animateDetails(details);
+  easeSavedDetails(window.document);
+  details.querySelector('summary').dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert.equal(runs.length, 1, 'one animation, not two');
+  assert.equal(details.open, true);
   window.happyDOM.abort();
 });
 

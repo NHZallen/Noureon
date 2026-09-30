@@ -42,7 +42,10 @@ const run = (node, frames, onDone) => {
     onDone?.();
     settle(node);
   };
-  animation.oncancel = () => settle(node);
+  // A cancel event arrives a moment after the cancel: by then a newer animation may own the node.
+  animation.oncancel = () => {
+    if (node.__collapseAnimation === animation) settle(node);
+  };
 };
 
 /**
@@ -72,6 +75,18 @@ export function softChange(node) {
   node.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 240, easing: EASING });
 }
 
+// Opens or closes a details element with the ease: the browser closes one at once.
+const toggleDetails = (details, content) => {
+  content.__collapseAnimation?.cancel();
+  settle(content);
+  if (details.open) {
+    run(content, [openFrame(content), { opacity: 0, offset: 0.5 }, closedFrame], () => { details.open = false; });
+  } else {
+    details.open = true;
+    run(content, [closedFrame, { opacity: 1, offset: 0.6 }, openFrame(content)]);
+  }
+};
+
 /**
  * Makes a details element (a summary and one part to show) ease open and
  * shut. A browser closes a details at once, so the click is taken over.
@@ -80,19 +95,33 @@ export function animateDetails(details) {
   const summary = details.querySelector(':scope > summary');
   const content = details.querySelector(':scope > :not(summary)');
   if (!summary || !content) return details;
+  details.__eased = true;
   summary.addEventListener('click', (event) => {
     if (!canAnimate(content)) return;
     event.preventDefault();
-    content.__collapseAnimation?.cancel();
-    settle(content);
-    if (details.open) {
-      run(content, [openFrame(content), { opacity: 0, offset: 0.5 }, closedFrame], () => { details.open = false; });
-    } else {
-      details.open = true;
-      run(content, [closedFrame, { opacity: 1, offset: 0.6 }, openFrame(content)]);
-    }
+    toggleDetails(details, content);
   });
   return details;
+}
+
+/**
+ * The same ease for the details of a reply that was drawn from saved text: its markup is set as a string, so no
+ * listener was put on its summaries. One listener on the page covers them (the ones animateDetails made are skipped).
+ */
+export function easeSavedDetails(doc = document) {
+  const onClick = (event) => {
+    // Already taken over (by animateDetails, or by another copy of this listener).
+    if (event.defaultPrevented) return;
+    const summary = event.target?.closest?.('.sandbox-run summary');
+    const details = summary?.parentElement;
+    if (!details || details.tagName !== 'DETAILS' || details.__eased) return;
+    const content = details.querySelector(':scope > :not(summary)');
+    if (!content || !canAnimate(content)) return;
+    event.preventDefault();
+    toggleDetails(details, content);
+  };
+  doc.addEventListener('click', onClick);
+  return () => doc.removeEventListener('click', onClick);
 }
 
 /**
