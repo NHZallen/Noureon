@@ -15,6 +15,7 @@ Rules that always apply:
 - Do one phase at a time and report; push to `main` only when the owner says so (every push deploys to noureon.com).
 - Never add `Co-Authored-By` or any AI attribution to commit messages.
 - Do not commit `.claude/`.
+- Tag every minor release (`x.y.0`) as `v<version>` on its release commit (see `RELEASING.md`); patch releases need no tag.
 - Every feature and text covers zh-TW, en, fr, ru and es.
 - Base visual designs on real vendor designs with references; the owner prefers minimal black and white. Ask before deciding user-facing layout.
 - Before finishing: `npm test`, `npm run build`, `npm run check:sizes`, `npm run check:legacy-runtime`, `npm audit --omit=dev`.
