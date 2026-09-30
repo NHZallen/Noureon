@@ -105,7 +105,7 @@ const STILL_MS = 160;
  * text, so the place to move them is when they stop. Scroll events do not bubble, so one listener on the page
  * catches them on the way down.
  */
-export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${NUDGED_BOXES}, #chat-container`, view = doc.defaultView } = {}) {
+export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${NUDGED_BOXES}, #chat-container`, view = doc.defaultView, glide = true } = {}) {
   if (!view || typeof doc.addEventListener !== 'function') return () => {};
   const timers = new WeakMap();
   let touching = 0;
@@ -122,8 +122,18 @@ export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${N
     const guard = watchReader(box, { nudge: false });
     if (!guard) return;
     // Past an end (still bouncing) is left alone.
-    if (top >= 0 && top < 1 && top !== EDGE_ROOM) moveBox(box, guard, EDGE_ROOM);
-    else if (top <= max && top > max - 1) moveBox(box, guard, max - EDGE_ROOM);
+    let target = null;
+    if (top >= 0 && top < 1 && top !== EDGE_ROOM) target = EDGE_ROOM;
+    else if (top <= max && top > max - 1) target = max - EDGE_ROOM;
+    if (target === null) return;
+    // A jump of two pixels a moment after the scrolling stopped shows as a tick; glided, it is not seen.
+    const reduced = Boolean(view.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+    if (glide && !reduced && typeof box.scrollTo === 'function') {
+      guard.expected = target;
+      box.scrollTo({ top: target, behavior: 'smooth' });
+    } else {
+      moveBox(box, guard, target);
+    }
   };
   const onScroll = (event) => {
     const target = event.target;

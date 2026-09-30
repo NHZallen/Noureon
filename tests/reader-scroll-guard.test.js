@@ -141,7 +141,7 @@ test('a box that comes to rest on an end goes off it once it is still, never whi
     clearTimeout: (id) => { timers.delete(id); }
   };
   const runTimers = () => { const due = [...timers]; timers.clear(); due.forEach(([, callback]) => callback()); };
-  const stop = settleScrollBoxesOffTheirEdges(document, { view });
+  const stop = settleScrollBoxesOffTheirEdges(document, { view, glide: false });
   const size = (node, top, height = 1000) => {
     Object.defineProperty(node, 'scrollHeight', { value: height, configurable: true });
     Object.defineProperty(node, 'clientHeight', { value: 200, configurable: true });
@@ -212,4 +212,37 @@ test('a box that comes to rest on an end goes off it once it is still, never whi
   scrolled(chat);
   assert.equal(timers.size, 0, 'stopped');
   window.happyDOM.abort();
+});
+
+test('settling off an end glides the two pixels instead of jumping, unless the reader asked for less motion', async () => {
+  const { Window } = await import('happy-dom');
+  const { settleScrollBoxesOffTheirEdges } = await import('../src/app/ui/motion/reader-scroll-guard.js');
+  for (const reduced of [false, true]) {
+    const window = new Window();
+    const document = window.document;
+    document.body.innerHTML = '<div id="chat-container"></div>';
+    const chat = document.getElementById('chat-container');
+    Object.defineProperty(chat, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(chat, 'clientHeight', { value: 200, configurable: true });
+    chat.scrollTop = 800;
+    const glides = [];
+    chat.scrollTo = (options) => glides.push(options);
+    let pending = null;
+    const view = {
+      setTimeout: (callback) => { pending = callback; return 1; },
+      clearTimeout: () => {},
+      matchMedia: () => ({ matches: reduced })
+    };
+    settleScrollBoxesOffTheirEdges(document, { view });
+    chat.dispatchEvent(new window.Event('scroll'));
+    pending();
+    if (reduced) {
+      assert.deepEqual(glides, [], 'no animation asked for');
+      assert.equal(chat.scrollTop, 798, 'a plain move');
+    } else {
+      assert.deepEqual(glides, [{ top: 798, behavior: 'smooth' }]);
+      assert.equal(chat.scrollTop, 800, 'the browser moves it, over a moment');
+    }
+    window.happyDOM.abort();
+  }
 });
