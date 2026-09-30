@@ -95,7 +95,10 @@ export function createCouncilControlsLifecycle(deps) {
       const cap = Math.min(view.innerHeight * 0.7, 544);
       const room = trigger.getBoundingClientRect().top - (visible?.offsetTop || 0) - 18;
       panel.style.maxHeight = '';
-      panel.style.height = room < cap ? `${Math.round(Math.max(220, room))}px` : '';
+      // Small moves are ignored: the keyboard's slide fires many events, and following each one shakes the panel.
+      const next = room < cap ? Math.round(Math.max(220, room)) : 0;
+      const current = parseFloat(panel.style.height) || 0;
+      if (Math.abs(next - current) > 8 || (!next && current)) panel.style.height = next ? `${next}px` : '';
       return;
     }
     panel.style.height = '';
@@ -510,7 +513,14 @@ export function createCouncilControlsLifecycle(deps) {
   function bindEvents(container) {
     document.defaultView?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
     // The on-screen keyboard resizes the visual viewport, not the window.
-    document.defaultView?.visualViewport?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
+    // Fitted once it settles, not while it slides, and eased so the change is a glide instead of a jump.
+    let keyboardTimer = null;
+    const refitAfterKeyboard = () => {
+      clearTimeout(keyboardTimer);
+      keyboardTimer = setTimeout(() => { if (isPanelOpen(container)) fitPanel(container); }, 180);
+    };
+    document.defaultView?.visualViewport?.addEventListener?.('resize', refitAfterKeyboard);
+    document.defaultView?.visualViewport?.addEventListener?.('scroll', refitAfterKeyboard);
     container.addEventListener('click', async (event) => {
       const target = event.target.closest?.('button, [data-mp-tab]');
       if (!target || !container.contains(target)) return;
