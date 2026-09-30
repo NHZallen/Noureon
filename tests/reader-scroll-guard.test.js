@@ -86,3 +86,27 @@ test('a box sent to its end keeps following until the reader scrolls it', async 
   box.listeners.touchstart();
   assert.equal(isFollowingEnd(box), false, 'the reader took over');
 });
+
+test('a finger on any thinking, code or output box resting on an end moves it one pixel off that end', async () => {
+  const { Window } = await import('happy-dom');
+  const { keepScrollBoxesOffTheirEdges } = await import('../src/app/ui/motion/reader-scroll-guard.js');
+  const window = new Window();
+  const document = window.document;
+  document.body.innerHTML = '<div class="ledger-thought" id="a"><span id="inner"></span></div><div id="plain"></div>';
+  const stop = keepScrollBoxesOffTheirEdges(document);
+  const setSize = (node, top) => {
+    Object.defineProperty(node, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(node, 'clientHeight', { value: 200, configurable: true });
+    node.scrollTop = top;
+  };
+  const a = document.getElementById('a');
+  setSize(a, 800);
+  document.getElementById('inner').dispatchEvent(new window.Event('touchstart', { bubbles: true }));
+  assert.equal(a.scrollTop, 799);
+  const plain = document.getElementById('plain');
+  setSize(plain, 800);
+  plain.dispatchEvent(new window.Event('touchstart', { bubbles: true }));
+  assert.equal(plain.scrollTop, 800, 'other elements are left alone');
+  stop();
+  window.happyDOM.abort();
+});

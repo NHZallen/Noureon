@@ -16,7 +16,7 @@ const moveBox = (box, guard, top) => {
   box.scrollTop = top;
 };
 
-const nudgeOffEdges = (box, guard) => {
+const nudgeOffEdges = (box, guard = { expected: null }) => {
   const max = box.scrollHeight - box.clientHeight;
   if (max <= 2) return;
   const top = box.scrollTop;
@@ -81,4 +81,20 @@ export function pinToEnd(box) {
   guard.pinned = true;
   const max = box.scrollHeight - box.clientHeight;
   moveBox(box, guard, Math.max(0, max - (max > 2 ? 1 : 0)));
+}
+
+const NUDGED_BOXES = '.ledger-thought, .ledger-code, .ledger-output';
+
+/**
+ * One listener for every box the app fills with thinking, code or output, also the ones saved with a reply and
+ * opened later: a finger landing on one that rests exactly at its end moves it one pixel off that end, so an
+ * iPhone gives the swipe to the box (the thinking box "could not be scrolled" from its bottom).
+ */
+export function keepScrollBoxesOffTheirEdges(doc = document) {
+  const onTouchStart = (event) => {
+    const box = event.target?.closest?.(NUDGED_BOXES);
+    if (box) nudgeOffEdges(box, box.__readerGuard);
+  };
+  doc.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+  return () => doc.removeEventListener('touchstart', onTouchStart, { capture: true });
 }

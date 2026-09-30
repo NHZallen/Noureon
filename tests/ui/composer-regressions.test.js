@@ -298,3 +298,9 @@ test('a folded thinking row shows its newest end again when it is opened', () =>
   assert.match(ledger, /if \(showBody && painted\) jumpToEnd\(content\);/);
   assert.match(ledger, /forEach\(pinToEnd\)/);
 });
+
+test('every thinking, code and output box is kept off its edges when a finger lands, from start-up', () => {
+  const main = readUiSource('src/main.js');
+
+  assert.match(main, /keepScrollBoxesOffTheirEdges\(document\);/);
+});
