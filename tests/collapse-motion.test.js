@@ -122,7 +122,7 @@ test('text added to a scrolling box follows the end only for a reader who is at 
   assert.equal(reset.scrollTop, 40, 'and where they were is kept if rewriting the text moved it');
 });
 
-test('text is not rewritten under a finger: the update waits until the reader lets go', async () => {
+test('the thinking keeps coming while the reader scrolls, and the box is not moved under their finger', () => {
   const listeners = {};
   const box = {
     scrollHeight: 500, scrollTop: 40, clientHeight: 200,
@@ -130,14 +130,13 @@ test('text is not rewritten under a finger: the update waits until the reader le
   };
   let writes = 0;
   keepEndInView(box, () => { writes += 1; });
-  assert.equal(writes, 1, 'nobody is touching it: written at once');
+  assert.equal(writes, 1);
   listeners.touchstart();
-  keepEndInView(box, () => { writes += 1; });
-  keepEndInView(box, () => { writes += 10; });
-  assert.equal(writes, 1, 'a finger is down: nothing is rewritten');
-  listeners.touchend();
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  assert.equal(writes, 11, 'only the latest update runs afterwards');
+  const held = box.scrollTop;
+  keepEndInView(box, () => { writes += 1; box.scrollHeight += 100; box.scrollTop = 0; });
+  assert.equal(writes, 2, 'the text goes in at once, also under a finger');
+  assert.equal(box.scrollTop, 0, 'and the app does not move the box while it is held');
+  assert.notEqual(held, undefined);
 });
 
 test('a box that follows its end never rests exactly on it, so an iPhone swipe goes to the box', () => {
@@ -145,4 +144,18 @@ test('a box that follows its end never rests exactly on it, so an iPhone swipe g
   keepEndInView(box, () => { box.scrollHeight = 900; });
   assert.equal(box.scrollTop, 699);
   assert.notEqual(box.scrollTop, box.scrollHeight - box.clientHeight);
+});
+
+test('streamed thinking only extends the last text node, nothing is replaced', async () => {
+  const { Window } = await import('happy-dom');
+  const { fillThinkingText } = await import('../src/app/ui/thinking/thinking-text.js');
+  const window = new Window();
+  const node = window.document.createElement('div');
+  fillThinkingText(window.document, node, '**標題** 想一');
+  const [strong, text] = node.childNodes;
+  fillThinkingText(window.document, node, '**標題** 想一想');
+  assert.equal(node.childNodes[0], strong);
+  assert.equal(node.childNodes[1], text);
+  assert.equal(node.innerHTML, '<strong>標題</strong> 想一想');
+  window.happyDOM.abort();
 });

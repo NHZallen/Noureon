@@ -177,14 +177,17 @@ export async function runSandboxReply({
     try {
       await streamApiCall(requestParts, emit, signal, false, options);
     } catch (error) {
-      // Gemini may refuse its web search together with our tool; answer with
-      // the search and without Python then.
-      if (provider === 'gemini' && error?.status === 400 && canRun && !toolTurns.length && !text && (requestOptions.webSearchEnabled || requestOptions.conversation?.isWebSearchEnabled)) {
-        toolsAllowed = false;
-        run.fallback = 'search-conflict';
-        continue;
+      // Stopping ends the stream with an error: what was thought so far is kept below, not thrown away.
+      if (!signal?.aborted) {
+        // Gemini may refuse its web search together with our tool; answer with
+        // the search and without Python then.
+        if (provider === 'gemini' && error?.status === 400 && canRun && !toolTurns.length && !text && (requestOptions.webSearchEnabled || requestOptions.conversation?.isWebSearchEnabled)) {
+          toolsAllowed = false;
+          run.fallback = 'search-conflict';
+          continue;
+        }
+        throw error;
       }
-      throw error;
     }
     if (signal?.aborted) {
       // Stopped while thinking: what was thought so far stays, marked as interrupted.

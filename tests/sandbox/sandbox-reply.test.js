@@ -315,3 +315,15 @@ test('stopping while the model thinks keeps what it had thought, marked as inter
   assert.equal(result.run.status, 'stopped');
   assert.equal(liftSandboxRunBlock(formatSandboxRunBlock(result.run)).run.thoughtInterrupted, true, 'saved with the message');
 });
+
+test('stopping while the model thinks keeps the thought also when the stream ends with an abort error', async () => {
+  const controller = new AbortController();
+  const streamApiCall = async (parts, onChunk, signal, forced, options) => {
+    options.onReasoning('想到一半', 'raw');
+    controller.abort();
+    throw new DOMException('Aborted', 'AbortError');
+  };
+  const result = await runSandboxReply({ streamApiCall, requestParts: [], signal: controller.signal, getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(result.run.thought, '想到一半');
+  assert.equal(result.run.thoughtInterrupted, true);
+});

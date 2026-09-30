@@ -9,34 +9,44 @@
 
 const SETTLE_MS = 250; // a flick keeps scrolling after the finger lifts; its scroll events push this forward
 
-const nudgeOffEdges = (box) => {
+// The scroll event for a position the app set arrives a frame later, so the app's own moves are known by where
+// they land, not by a flag around the assignment.
+const moveBox = (box, guard, top) => {
+  guard.expected = top;
+  box.scrollTop = top;
+};
+
+const nudgeOffEdges = (box, guard) => {
   const max = box.scrollHeight - box.clientHeight;
   if (max <= 2) return;
   const top = box.scrollTop;
-  if (top === 0) box.scrollTop = 1;
-  else if (Math.abs(top - max) < 0.5) box.scrollTop = max - 1;
+  if (top === 0) moveBox(box, guard, 1);
+  else if (Math.abs(top - max) < 0.5) moveBox(box, guard, max - 1);
 };
 
 export function watchReader(box, { nudge = true } = {}) {
   if (!box) return null;
   if (box.__readerGuard) return box.__readerGuard;
-  const guard = { holding: false, lastScroll: 0, own: false };
+  const guard = { holding: false, lastScroll: 0, expected: null };
   box.__readerGuard = guard;
   if (typeof box.addEventListener !== 'function') return guard;
   const stamp = () => { guard.lastScroll = Date.now(); };
   box.addEventListener('touchstart', () => {
     guard.holding = true;
     stamp();
-    if (nudge) {
-      guard.own = true;
-      nudgeOffEdges(box);
-      guard.own = false;
-    }
+    if (nudge) nudgeOffEdges(box, guard);
   }, { passive: true });
   const release = () => { guard.holding = false; stamp(); };
   box.addEventListener('touchend', release, { passive: true });
   box.addEventListener('touchcancel', release, { passive: true });
-  box.addEventListener('scroll', () => { if (!guard.own) stamp(); }, { passive: true });
+  box.addEventListener('scroll', () => {
+    if (guard.expected !== null && Math.abs(box.scrollTop - guard.expected) <= 1) {
+      guard.expected = null;
+      return;
+    }
+    guard.expected = null;
+    stamp();
+  }, { passive: true });
   return guard;
 }
 
@@ -51,8 +61,7 @@ export function setScrollTopQuietly(box, top) {
   if (!box || isReaderScrolling(box)) return false;
   if (Math.abs(box.scrollTop - top) <= 0.5) return false;
   const guard = watchReader(box);
-  if (guard) guard.own = true;
-  box.scrollTop = top;
-  if (guard) guard.own = false;
+  if (guard) moveBox(box, guard, top);
+  else box.scrollTop = top;
   return true;
 }

@@ -1,3 +1,4 @@
+import { patchHTML } from '../../ui/dom/patch-html.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
@@ -55,7 +56,7 @@ export function createSingleModelResponseLifecycle({
       elapsedMs: now() - startedAt,
       ...extra
     };
-    targetElement.innerHTML = renderSingleModelProgress(latestProgress);
+    patchHTML(targetElement, renderSingleModelProgress(latestProgress));
     return latestProgress;
   };
 
@@ -65,7 +66,8 @@ export function createSingleModelResponseLifecycle({
         ...latestProgress,
         elapsedMs: now() - startedAt
       };
-      targetElement.innerHTML = renderSingleModelProgress(latestProgress);
+      // Only the numbers change in place: see patch-html.js.
+      patchHTML(targetElement, renderSingleModelProgress(latestProgress));
     });
   };
 
@@ -124,7 +126,7 @@ export function createSingleModelResponseLifecycle({
           targetElement,
           startedAt,
           'streaming',
-          'Model is answering',
+          undefined,
           { receivedChars }
         );
       }
@@ -216,11 +218,11 @@ export function createSingleModelResponseLifecycle({
         const realtimeProgress = {
           ...latestProgress,
           stage: 'streaming',
-          message: 'Model is answering',
+          message: undefined,
           elapsedMs: now() - startedAt
         };
         latestProgress = realtimeProgress;
-        targetElement.innerHTML = renderSingleModelProgress(realtimeProgress);
+        patchHTML(targetElement, renderSingleModelProgress(realtimeProgress));
         startTicker(targetElement, startedAt);
         fullResponse = await streamMarkdownResponse(
           targetElement,
@@ -238,7 +240,7 @@ export function createSingleModelResponseLifecycle({
             targetElement,
             startedAt,
             'streaming',
-            'Model is answering'
+            undefined
           );
           startTicker(targetElement, startedAt);
         }

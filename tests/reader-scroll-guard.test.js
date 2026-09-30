@@ -65,3 +65,13 @@ test('the app\'s own scroll does not count as the reader scrolling', () => {
   assert.equal(setScrollTopQuietly(box, 500), true);
   assert.equal(isReaderScrolling(box), false);
 });
+
+test('the app\'s own move is recognised when its scroll event arrives a frame later', async () => {
+  const box = makeBox(0, 1000, 200);
+  watchReader(box);
+  setScrollTopQuietly(box, 799);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  box.listeners.scroll();
+  assert.equal(isReaderScrolling(box), false, 'following the end is not mistaken for the reader');
+  assert.equal(setScrollTopQuietly(box, 899), true, 'so it keeps following');
+});

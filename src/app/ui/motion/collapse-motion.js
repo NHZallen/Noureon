@@ -95,36 +95,22 @@ export function animateDetails(details) {
   return details;
 }
 
-const RETRY_MS = 120;
-
 /**
  * Runs `update` (which adds to a scrolling box) and keeps the box at its end
  * only when the reader was already there, so reading further up is never
- * pulled down. While someone is touching the box (or it is still coasting) the
- * update waits, and the latest one runs when they let go. Following stops one
- * pixel short of the end: on iPhone a swipe that starts exactly at a box's end
- * goes to the page instead, so a box pinned to its end could not be scrolled.
+ * pulled down. The text always goes in at once, also while someone scrolls
+ * (they can read up while it keeps coming); only the box is not moved while
+ * they are scrolling. Following stops one pixel short of the end: on iPhone a
+ * swipe that starts exactly at a box's end goes to the page instead, so a box
+ * pinned to its end could not be scrolled.
  */
 export function keepEndInView(box, update) {
   watchReader(box);
-  const queue = box.__endInView || (box.__endInView = { pending: null, timer: null });
-  queue.pending = update;
-  if (isReaderScrolling(box)) {
-    if (queue.timer === null) {
-      queue.timer = setTimeout(() => {
-        queue.timer = null;
-        const latest = queue.pending;
-        queue.pending = null;
-        if (latest) keepEndInView(box, latest);
-      }, RETRY_MS);
-    }
-    return;
-  }
-  queue.pending = null;
   const top = box.scrollTop;
   const atEnd = box.scrollHeight - top - box.clientHeight < 24;
   update();
-  // Rewriting the text can reset the position; where the reader was is kept.
+  if (isReaderScrolling(box)) return;
   const max = box.scrollHeight - box.clientHeight;
+  // Rewriting the text can reset the position; where the reader was is kept.
   setScrollTopQuietly(box, atEnd ? Math.max(0, max - (max > 2 ? 1 : 0)) : top);
 }

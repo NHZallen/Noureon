@@ -64,13 +64,18 @@ export function createLedger({ document, host, before = null }) {
     let open = false;
     let bodyShown = false;
     let painted = false;
+    // The clock redraws every second: only what changed is touched, so a tap on the row is not taken for a hover
+    // on iPhone (see patch-html.js).
+    const setText = (target, value) => { if (target.textContent !== value) target.textContent = value; };
     const draw = () => {
-      mark.textContent = MARKS[state];
-      node.classList.remove('is-running', 'is-done', 'is-failed', 'is-pending');
-      node.classList.add(`is-${state}`);
-      time.textContent = formatElapsed((finishedAt ?? Date.now()) - startedAt);
-      head.classList.toggle('is-expandable', expandable);
-      head.setAttribute('aria-expanded', expandable ? String(open) : 'false');
+      setText(mark, MARKS[state]);
+      ['running', 'done', 'failed', 'pending'].forEach((name) => {
+        if (node.classList.contains(`is-${name}`) !== (name === state)) node.classList.toggle(`is-${name}`, name === state);
+      });
+      setText(time, formatElapsed((finishedAt ?? Date.now()) - startedAt));
+      if (head.classList.contains('is-expandable') !== expandable) head.classList.toggle('is-expandable', expandable);
+      const expanded = expandable ? String(open) : 'false';
+      if (head.getAttribute('aria-expanded') !== expanded) head.setAttribute('aria-expanded', expanded);
       // A body opens and closes with a short ease, once the row is on screen.
       const showBody = expandable && open;
       if (showBody !== bodyShown) {

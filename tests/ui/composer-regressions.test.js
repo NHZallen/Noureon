@@ -280,3 +280,13 @@ test('opening a chat fades it in without sliding anything, so it does not jump',
   assert.match(css, /\.message-item\.is-history\s*\{\s*animation:\s*none;\s*\}/);
   assert.match(lifecycle, /classList\.add\('is-history'\)/);
 });
+
+test('the waiting panel is updated in place and says what the model does in the chosen language', () => {
+  const single = readUiSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
+  const ledger = readUiSource('src/app/ui/ledger/ledger.js');
+
+  assert.doesNotMatch(single, /targetElement\.innerHTML = renderSingleModelProgress/);
+  assert.match(single, /patchHTML\(targetElement, renderSingleModelProgress\(/);
+  assert.doesNotMatch(single, /'Model is answering'/);
+  assert.match(ledger, /const setText = \(target, value\) => \{ if \(target\.textContent !== value\) target\.textContent = value; \};/);
+});
