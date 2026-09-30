@@ -84,6 +84,8 @@ export async function runSandboxReply({
   const startedAt = Date.now();
   const toolTurns = [];
   let text = '';
+  // The end of what the live view has been sent (only its last characters matter).
+  let streamed = '';
   let toolsAllowed = true;
   let crashes = 0;
   let sandboxReady = null;
@@ -105,8 +107,11 @@ export async function runSandboxReply({
 
   const emit = (chunk) => {
     if (!chunk) return;
-    // Text written after a tool round starts on a new paragraph.
-    const separator = text && toolTurns.length && !text.endsWith('\n') && !emit.continuing ? '\n\n' : '';
+    // Text written after a tool round starts on a new paragraph (in the live view, which still shows what was
+    // said before the runs; the kept text no longer has it).
+    const newRound = toolTurns.length && !emit.continuing;
+    const liveSeparator = newRound && streamed && !streamed.endsWith('\n') ? '\n\n' : '';
+    const separator = newRound && text && !text.endsWith('\n') ? '\n\n' : '';
     if (!emit.continuing) {
       // The answer has begun: the model is no longer thinking.
       thoughtEndedAt ??= Date.now();
@@ -114,7 +119,8 @@ export async function runSandboxReply({
     }
     emit.continuing = true;
     text += separator + chunk;
-    onChunk(separator + chunk);
+    streamed = (streamed + liveSeparator + chunk).slice(-8);
+    onChunk(liveSeparator + chunk);
   };
 
   const ensureSandbox = () => {
@@ -150,6 +156,9 @@ export async function runSandboxReply({
   for (;;) {
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;
     let response = null;
+    // Where this round's own text starts: what the model says before its runs is kept with them (below), not in the answer.
+    const roundTextStart = text.length;
+    let narrationTaken = false;
     emit.continuing = false;
     thought = '';
     thoughtStartedAt = null;
@@ -228,6 +237,16 @@ export async function runSandboxReply({
       const title = typeof call.args?.title === 'string' ? call.args.title.trim() : '';
       const step = { title, code, stdout: '', stderr: '', files: [], elapsedMs: 0, ...(roundThought ? { thought: roundThought } : {}) };
       roundThought = '';
+      // "I'll check the environment first": said before the runs of this round, it goes with the first of them
+      // and leaves the answer, so the answer is only the answer.
+      if (!narrationTaken) {
+        narrationTaken = true;
+        const narration = text.slice(roundTextStart).trim();
+        if (narration) {
+          step.narration = narration;
+          text = text.slice(0, roundTextStart);
+        }
+      }
       run.steps.push(step);
       currentStep = run.steps.length;
       onEvent({ type: 'step', n: currentStep, title, code });

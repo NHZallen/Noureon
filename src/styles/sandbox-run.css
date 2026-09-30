@@ -49,6 +49,16 @@
     color: var(--text-primary, #111827);
 }
 
+/* What the model said before a run: ordinary text between the grey step lines, as in ChatGPT. */
+.sandbox-run-narration {
+    margin: 0.4rem 0 0.5rem;
+    color: var(--text-primary, #111827);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.sandbox-run-narration strong { font-weight: 600; }
+
 .sandbox-run-label {
     display: block;
     margin: 0.35rem 0 0.1rem;

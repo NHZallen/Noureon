@@ -7,6 +7,7 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
+import { createSourceChips, sourcesLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 
@@ -133,9 +134,20 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.row.finish(ok ? 'done' : 'failed');
   };
 
+  // The pages the web search found before the model started: one finished row, folded, that opens to the chips.
+  const addSources = ({ sources }) => {
+    if (!sources?.length) return;
+    const row = begin(sourcesLabel(language, sources.length), { body: true, kind: 'search' });
+    row.body.append(createSourceChips(document, sources));
+    row.enableBody(false);
+    row.finish('done');
+  };
+
   return {
     event(event) {
-      if (event.type === 'round') {
+      if (event.type === 'sources') {
+        addSources(event);
+      } else if (event.type === 'round') {
         const row = begin(event.label, { kind: 'thought' });
         row.doneLabel = event.doneLabel;
       } else if (event.type === 'answering') {

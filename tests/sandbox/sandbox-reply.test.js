@@ -102,8 +102,10 @@ test('the loop runs each requested call, returns the results and stops when the 
     onStatus: (status) => statuses.push(status)
   });
   assert.deepEqual(runs, ['print(sum([3, 5, 7]))']);
-  assert.equal(result.text, '我來算一下。\n\n總和是 15。');
-  assert.equal(chunks.join(''), result.text);
+  // What was said before the run goes with the run; the answer is only the answer (it still streamed live).
+  assert.equal(result.text, '總和是 15。');
+  assert.equal(result.run.steps[0].narration, '我來算一下。');
+  assert.equal(chunks.join(''), '我來算一下。\n\n總和是 15。');
   assert.equal(model.requests.length, 2);
   assert.equal(model.requests[0].tools[0].name, 'run_python');
   assert.match(model.requests[0].additionalSystemInstruction, /Advanced mode: Python in the browser/);
@@ -248,6 +250,59 @@ test('the run line says how long the whole reply took, and the rows follow the o
   } finally {
     cleanup();
   }
+});
+
+test('the pages a search found and what the model said before a run are kept, shown, and safe', async () => {
+  const { document, cleanup } = createDom('<div id="root"></div>');
+  try {
+    const block = formatSandboxRunBlock({
+      status: 'done',
+      sources: [
+        { title: 'MDN', url: 'https://developer.mozilla.org/docs' },
+        { title: 'dup', url: 'https://developer.mozilla.org/docs' },
+        { title: 'bad', url: 'javascript:alert(1)' },
+        { title: 'plain', url: 'http://example.com/a b' }
+      ],
+      steps: [{ title: 'Sum', code: 'print(1)', stdout: '1', narration: 'First **check** the tools.', elapsedMs: 10 }]
+    });
+    const run = liftSandboxRunBlock(`${block}x`).run;
+    assert.deepEqual(run.sources, [{ title: 'MDN', url: 'https://developer.mozilla.org/docs' }], 'web addresses only, once each');
+    const view = createSandboxRunElement(document, run, { language: 'en' });
+    const rows = [...view.querySelectorAll('.sandbox-run-row')];
+    assert.equal(rows[0].dataset.kind, 'search');
+    assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Searched 1 sites');
+    const chip = rows[0].querySelector('button.run-source-chip');
+    assert.equal(chip.dataset.url, 'https://developer.mozilla.org/docs');
+    assert.equal(chip.querySelector('.run-source-host').textContent, 'developer.mozilla.org');
+    assert.equal(chip.getAttribute('href'), null, 'a chip is no link: the page asks first');
+    const narration = view.querySelector('.sandbox-run-narration');
+    assert.equal(narration.textContent, 'First check the tools.');
+    assert.equal(narration.querySelector('strong').textContent, 'check');
+    assert.equal(narration.compareDocumentPosition(view.querySelectorAll('.sandbox-run-row')[1]) & 4, 4, 'said before its run');
+    // A reply that only searched (Standard mode) is the search row alone.
+    const only = createSandboxRunElement(document, { status: 'done', steps: [], sources: run.sources }, { language: 'en' });
+    assert.equal(only.querySelectorAll('.sandbox-run-row').length, 1);
+    for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+      for (const key of ['sourcesSearched', 'openSourceTitle', 'openSourceMessage']) assert.notEqual(sandboxText(language, key), key, `${language} ${key}`);
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test('a tap on a source asks first and opens a new tab only when it is accepted', async () => {
+  const { openSourceChip } = await import('../../src/app/ui/sandbox/run-sources.js');
+  const opened = [];
+  const asked = [];
+  const chip = (url) => ({ dataset: { url } });
+  const options = (answer) => ({ language: 'en', confirm: async (message, title) => { asked.push([message, title]); return answer; }, open: (...args) => opened.push(args) });
+  assert.equal(await openSourceChip(chip('https://a.example/x'), options(false)), false);
+  assert.deepEqual(opened, [], 'declined: nothing opens');
+  assert.equal(await openSourceChip(chip('https://a.example/x'), options(true)), true);
+  assert.deepEqual(opened, [['https://a.example/x', '_blank', 'noopener,noreferrer']]);
+  assert.match(asked[0][0], /https:\/\/a\.example\/x/);
+  assert.equal(await openSourceChip(chip('javascript:alert(1)'), options(true)), false, 'only web addresses');
+  assert.equal(asked.length, 2, 'and it does not even ask about the others');
 });
 
 test('the wait says what is happening and what comes next', async () => {

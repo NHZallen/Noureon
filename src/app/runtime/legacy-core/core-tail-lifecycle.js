@@ -1097,6 +1097,7 @@ function setupMessageIntersectionObserver() {
                 copyTextToClipboard,
                 startMessageEditing,
                 showNotification,
+                showCustomConfirm,
                 normalizeConversationModel,
                 getCouncilSelectedModels,
                 isCouncilEnabled,

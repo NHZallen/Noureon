@@ -34,6 +34,7 @@ import { loadSharingVendor } from './app/vendors/sharing-vendor.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
 import { keepChatOffItsEdges } from './app/runtime/features/chat-scroll-edges.js';
 import { easeSavedDetails } from './app/ui/motion/collapse-motion.js';
+import { watchSourceIcons } from './app/ui/sandbox/run-sources.js';
 import { keepScrollBoxesOffTheirEdges } from './app/ui/motion/reader-scroll-guard.js';
 import { installPressFeedback } from './app/ui/motion/press-feedback.js';
 
@@ -126,6 +127,7 @@ async function bootstrap() {
   keepChatOffItsEdges(document.getElementById('chat-container'));
   keepScrollBoxesOffTheirEdges(document);
   easeSavedDetails(document);
+  watchSourceIcons(document);
   installPressFeedback(document);
   recordBootstrapMilestone(
     STARTUP_MARKS.RUNTIME_INTERACTIVE,

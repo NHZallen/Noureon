@@ -147,12 +147,15 @@ Output requirements:
       throw new Error(getErrorMessage(errorBody, `Tavily HTTP ${response.status}`));
     }
     const data = await response.json();
+    // The pages found, for the "Searched N sites" row of the reply.
+    options.onSources?.((Array.isArray(data?.results) ? data.results : []).slice(0, 8).map((result) => ({ title: result.title || '', url: result.url || '' })));
     return formatTavilySearchPacket(data, query, options.label || 'Web search packet');
   };
 
   const buildSingleModelTranslatedRequestParts = async (parts, modelInfo, signal, onProgress, {
     webSearchEnabled = false,
-    conversation = null
+    conversation = null,
+    onSources = undefined
   } = {}) => {
     const config = getConfig();
     const translatedSections = [];
@@ -185,7 +188,8 @@ Output requirements:
     if (webSearchEnabled && modelUsesTavilySearch(modelInfo)) {
       onProgress?.('searchTranslation', getRuntimeText(config.uiLanguage, 'searchingTavily'));
       const searchPacket = await fetchTavilySearchPacket(parts, signal, {
-        label: 'Single-model web search packet'
+        label: 'Single-model web search packet',
+        onSources
       });
       translatedSections.push(`# Web search packet\nThis packet was retrieved with Tavily for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, 7000)}`);
     }

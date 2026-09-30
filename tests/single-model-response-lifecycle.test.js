@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createSingleModelResponseLifecycle } from '../src/app/legacy-runtime/features/single-model-response-lifecycle.js';
+import { liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -20,6 +21,7 @@ const createHarness = ({
   outputMode = 'realtime',
   translatedParts,
   streamResult = 'Hello Astra',
+  foundSources = null,
   streamError,
   afterChunks = () => {},
   signal = new AbortController().signal
@@ -52,6 +54,7 @@ const createHarness = ({
     buildSingleModelTranslatedRequestParts: async (...args) => {
       calls.push(['translate', args[0], args[4]]);
       args[3]?.('translation', 'Preparing translated packet');
+      if (foundSources) args[4]?.onSources?.(foundSources);
       return translatedParts ?? args[0];
     },
     streamApiCall: async (parts, onChunk, receivedSignal, forced, options) => {
@@ -174,9 +177,29 @@ test('request-scoped search reaches both translation and provider request option
     uiLanguage: 'en'
   });
 
-  assert.deepEqual(calls.find((call) => call[0] === 'translate')[2], { webSearchEnabled: true, conversation });
+  const { onSources, ...translateOptions } = calls.find((call) => call[0] === 'translate')[2];
+  assert.deepEqual(translateOptions, { webSearchEnabled: true, conversation });
+  assert.equal(typeof onSources, 'function', 'the pages the search finds are reported back for the reply');
   assert.equal(calls.find((call) => call[0] === 'api')[4].webSearchEnabled, true);
   assert.equal(calls.find((call) => call[0] === 'api')[4].conversation, conversation);
+});
+
+test('the pages a web search found are kept with the reply, ahead of its text', async () => {
+  const sources = [{ title: 'MDN', url: 'https://developer.mozilla.org/x' }];
+  const { lifecycle, signal, targetElement } = createHarness({ foundSources: sources });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'What is new?' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: false },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  const { run, text } = liftSandboxRunBlock(result.fullResponse);
+  assert.deepEqual(run.sources, sources);
+  assert.deepEqual(run.steps, []);
+  assert.match(text, /Hello/);
 });
 
 test('empty provider responses preserve the current localized failure boundary', async () => {

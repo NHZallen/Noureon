@@ -125,6 +125,23 @@ test('the code of a step sits in a card with the language and a copy button, liv
   window.happyDOM.abort();
 });
 
+test('the pages a search found show as a finished, folded row before the model starts', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1' }, { title: 'B', url: 'https://www.b.example/2' }] });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  const rows = [...message.querySelectorAll('.ledger-row')];
+  assert.equal(rows[0].dataset.kind, 'search');
+  assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Searched 2 sites');
+  assert.equal(rows[0].classList.contains('is-done'), true);
+  assert.deepEqual([...rows[0].querySelectorAll('.run-source-host')].map((node) => node.textContent), ['a.example', 'b.example']);
+  assert.equal(rows[0].querySelector('.ledger-body').hidden, true, 'folded until it is opened');
+  list.event({ type: 'sources', sources: [] });
+  assert.equal(message.querySelectorAll('.ledger-row').length, 2, 'no pages, no row');
+  list.remove();
+  window.happyDOM.abort();
+});
+
 test('a failed run keeps its error in the list, and a run of another number is ignored', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'zh-TW' });

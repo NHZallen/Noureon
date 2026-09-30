@@ -95,6 +95,8 @@ export function createSingleModelResponseLifecycle({
     const hasTranslationInputs = userParts.some((part) => part.inlineData) ||
       Boolean(webSearchEnabled);
     let requestParts = userParts;
+    // The pages a web search found (kept with the reply, shown as "Searched N sites").
+    let searchSources = [];
     if (hasTranslationInputs) {
       renderProgress(
         targetElement,
@@ -108,7 +110,7 @@ export function createSingleModelResponseLifecycle({
         modelInfo,
         signal,
         (stage, message) => renderProgress(targetElement, startedAt, stage, message),
-        { webSearchEnabled, conversation }
+        { webSearchEnabled, conversation, onSources: (sources) => { searchSources = sources; } }
       );
     }
 
@@ -179,6 +181,7 @@ export function createSingleModelResponseLifecycle({
     const runApiStream = replyMode.advanced
       ? async (onChunk) => {
         const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
+        if (searchSources.length) stepList()?.event({ type: 'sources', sources: searchSources });
         const result = await runSandboxReply({
           streamApiCall,
           requestParts,
@@ -257,6 +260,7 @@ export function createSingleModelResponseLifecycle({
       // What was thought is kept with the reply (the run record), so it is still there after a reload.
       endThinking();
       thinkingBlock?.remove();
+      if (searchSources.length) sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), sources: searchSources };
       if (thought.text && !replyMode.advanced) {
         sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(signal?.aborted && !answered ? { thoughtInterrupted: true } : {}) };
       }

@@ -9,6 +9,7 @@ import { installFileCardInteractions } from '../../ui/files/file-card-interactio
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 import { codeOfCard } from '../../ui/sandbox/run-code-card.js';
+import { openSourceChip } from '../../ui/sandbox/run-sources.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -62,6 +63,7 @@ export function createLegacyAppBootstrapLifecycle({
     copyTextToClipboard,
     startMessageEditing = () => {},
     showNotification,
+    showCustomConfirm = async () => false,
     normalizeConversationModel,
     getCouncilSelectedModels,
     isCouncilEnabled,
@@ -486,6 +488,12 @@ export function createLegacyAppBootstrapLifecycle({
                         copyTextToClipboard(codeOfCard(codeCopy))
                             .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製。', 'success'))
                             .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '複製失敗。', 'error'));
+                        return;
+                    }
+                    // A page the reply's web search found: ask first, then open it in a new tab.
+                    const sourceChip = e.target.closest('.run-source-chip');
+                    if (sourceChip) {
+                        openSourceChip(sourceChip, { confirm: showCustomConfirm, language: getConfig().uiLanguage, open: (...args) => window.open(...args) });
                         return;
                     }
                     const copyBtn = e.target.closest('.copy-content-btn');

@@ -19,6 +19,9 @@ export const STORED_TEXT_CHARS = 50_000;
 const STORED_CODE_CHARS = 100_000;
 const MAX_STEPS = 20;
 const STORED_THOUGHT_CHARS = 6000;
+// What the model said before a run ("I'll check the environment first"), shown between the steps.
+const STORED_NARRATION_CHARS = 2000;
+const MAX_SOURCES = 12;
 
 export const RUN_STATUS = Object.freeze({ running: 'running', done: 'done', failed: 'failed', stopped: 'stopped' });
 
@@ -33,6 +36,7 @@ const cleanStep = (step = {}) => {
   return {
     title: String(step.title || '').slice(0, 200),
     ...(step.thought ? { thought: clip(step.thought, STORED_THOUGHT_CHARS).text } : {}),
+    ...(String(step.narration || '').trim() ? { narration: clip(String(step.narration).trim(), STORED_NARRATION_CHARS).text } : {}),
     code: clip(step.code, STORED_CODE_CHARS).text,
     stdout: stdout.text,
     stderr: stderr.text,
@@ -51,6 +55,20 @@ const cleanStep = (step = {}) => {
   };
 };
 
+// The pages a web search found, for the "Searched N sites" row: only web addresses are kept.
+export function normalizeSources(sources) {
+  const seen = new Set();
+  const kept = [];
+  for (const source of Array.isArray(sources) ? sources : []) {
+    const url = String(source?.url || '').trim().slice(0, 600);
+    if (!/^https?:\/\/[^\s]+$/i.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    kept.push({ title: String(source?.title || '').slice(0, 160), url });
+    if (kept.length >= MAX_SOURCES) break;
+  }
+  return kept;
+}
+
 export function normalizeSandboxRun(run = {}) {
   const steps = (Array.isArray(run.steps) ? run.steps : []).slice(0, MAX_STEPS).map(cleanStep);
   const status = Object.values(RUN_STATUS).includes(run.status) ? run.status : RUN_STATUS.done;
@@ -60,6 +78,7 @@ export function normalizeSandboxRun(run = {}) {
     steps,
     // How long the reply took in all (thinking, runs and files), for the "Processed for 1m 5s" line.
     ...(Number(run.elapsedMs) > 0 ? { elapsedMs: Math.round(Number(run.elapsedMs)) } : {}),
+    ...(normalizeSources(run.sources).length ? { sources: normalizeSources(run.sources) } : {}),
     ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),
     ...(run.thought && run.thoughtKind === 'summary' ? { thoughtKind: 'summary' } : {}),
     ...(run.thought && run.thoughtInterrupted ? { thoughtInterrupted: true } : {}),
