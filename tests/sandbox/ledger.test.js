@@ -125,6 +125,21 @@ test('the code of a step sits in a card with the language and a copy button, liv
   window.happyDOM.abort();
 });
 
+test('what the model says before a run appears between the step lines, in ordinary text', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'narration', text: "First I'll **check** the folder." });
+  list.event({ type: 'narration', text: '   ' });
+  list.event({ type: 'step', n: 1, title: 'Look', code: 'import os' });
+  const children = [...message.querySelector('.ledger-list').children];
+  assert.deepEqual(children.map((node) => (node.classList.contains('sandbox-run-narration') ? 'narration' : 'row')), ['row', 'narration', 'row'], 'between the thinking line and the run');
+  assert.equal(children[1].textContent, "First I'll check the folder.");
+  assert.equal(children[1].querySelector('strong').textContent, 'check');
+  list.remove();
+  window.happyDOM.abort();
+});
+
 test('a search that runs first is a row in progress that becomes the finished row of pages, or goes if it found none', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en' });
@@ -198,7 +213,11 @@ test('the model\'s thinking and the code it is writing stream into its row, and 
   assert.equal(row.querySelector('.ledger-thought').textContent, 'The user wants a chart.');
   assert.equal(row.querySelectorAll('.ledger-code').length, 1);
   assert.equal(row.querySelector('.ledger-code').textContent, 'import matplotlib', 'the code so far, not a pile of pieces');
-  assert.equal(row.querySelector('.ledger-body').hidden, false, 'the thinking is open while it streams');
+  assert.equal(row.querySelector('.ledger-body').hidden, true, 'the thinking is folded while it streams: nothing opens by itself');
+  row.querySelector('.ledger-row-head').click();
+  assert.equal(row.querySelector('.ledger-body').hidden, false, 'and opens when the reader asks');
+  list.event({ type: 'code', text: 'import matplotlib.pyplot' });
+  assert.equal(row.querySelector('.ledger-body').hidden, false, 'more of it arriving does not close what they opened');
   list.event({ type: 'step', n: 1, title: '', code: 'import matplotlib' });
   assert.equal(row.classList.contains('is-done'), true);
   assert.equal(row.querySelector('.ledger-label').textContent, 'Finished thinking');

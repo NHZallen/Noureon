@@ -64,7 +64,7 @@ export function createDialogNotificationLifecycle({
 
   const showCustomDialog = (options) => {
     return new Promise((resolve) => {
-      const { title, message, messageParts = null, input = null, buttons, dialogClass = '' } = options;
+      const { title, message, messageParts = null, input = null, checkbox = null, buttons, dialogClass = '' } = options;
       const dialogBox = elements.customDialogModal.querySelector('.bg-\\[var\\(--modal-bg\\)\\]');
       if (dialogClass) {
         dialogBox.classList.add(dialogClass);
@@ -89,6 +89,17 @@ export function createDialogNotificationLifecycle({
       } else {
         elements.customDialogMessage.textContent = message || '';
       }
+      // An optional tick box under the message ("don't ask again"); its state goes to the button's `value`.
+      let checkboxInput = null;
+      if (checkbox) {
+        const label = document.createElement('label');
+        label.className = 'mt-4 flex cursor-pointer select-none items-center gap-2 text-sm';
+        checkboxInput = document.createElement('input');
+        checkboxInput.type = 'checkbox';
+        checkboxInput.className = 'h-4 w-4 cursor-pointer';
+        label.append(checkboxInput, document.createTextNode(checkbox.label));
+        elements.customDialogMessage.appendChild(label);
+      }
       if (input) {
         elements.customDialogInput.type = input.type || 'text';
         elements.customDialogInput.value = input.value || '';
@@ -108,7 +119,7 @@ export function createDialogNotificationLifecycle({
             dialogBox.classList.remove(dialogClass);
           }
           const inputValue = input ? elements.customDialogInput.value : null;
-          resolve(btnInfo.value(inputValue));
+          resolve(btnInfo.value(inputValue, Boolean(checkboxInput?.checked)));
         };
         elements.customDialogButtons.appendChild(button);
       });
@@ -117,7 +128,16 @@ export function createDialogNotificationLifecycle({
     });
   };
 
-  const showCustomConfirm = (message, title = null) => showCustomDialog({ title: title || getText('pleaseConfirm', '請確認'), message, buttons: [{ text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false }, { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: () => true }] });
+  // With `remember` (the label of a tick box) it answers `{ accepted, remember }` instead of a plain true or false.
+  const showCustomConfirm = (message, title = null, { remember = null } = {}) => showCustomDialog({
+    title: title || getText('pleaseConfirm', '請確認'),
+    message,
+    ...(remember ? { checkbox: { label: remember } } : {}),
+    buttons: [
+      { text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => (remember ? { accepted: false, remember: false } : false) },
+      { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (_input, checked) => (remember ? { accepted: true, remember: checked } : true) }
+    ]
+  });
   const showCustomPrompt = (message, title = null, inputType = 'text') => showCustomDialog({ title: title || getText('dialogPromptTitle', '請輸入'), message, input: { type: inputType, placeholder: getText('dialogInputPlaceholder', '請在此輸入…') }, buttons: [{ text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null }, { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (val) => val }] });
 
   return {

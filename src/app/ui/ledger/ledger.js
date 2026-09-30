@@ -66,6 +66,7 @@ export function createLedger({ document, host, before = null }) {
     let finishedAt = null;
     let expandable = body;
     let open = false;
+    let bodyChosen = false;
     let bodyShown = false;
     let painted = false;
     // The clock redraws every second: only what changed is touched, so a tap on the row is not taken for a hover
@@ -127,9 +128,14 @@ export function createLedger({ document, host, before = null }) {
         detail.hidden = !value;
       },
       // A row with something to show opens to it; `open` says whether it starts open.
+      // Only the first call chooses whether the body starts open; later calls (more content arriving in it) leave
+      // whatever the reader has done with the row.
       enableBody(startOpen = true) {
         expandable = true;
-        open = startOpen;
+        if (!bodyChosen) {
+          bodyChosen = true;
+          open = startOpen;
+        }
         draw();
       },
       setOpen(value) {

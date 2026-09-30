@@ -1,6 +1,7 @@
 // The model's thinking while a reply is written, above the answer: a line that
-// shimmers with "Thinking…" and the time, open on the thinking as it streams,
-// folded to "Thinking · 12s ›" when the answer starts. Made with the same step
+// shimmers with "Thinking…" and the time, opening to the thinking as it streams
+// when the reader opens it (folded until then), "Thinking · 12s ›" when the
+// answer starts. Made with the same step
 // list the Python runs use (ledger.js). What it collected is kept with the
 // reply by the caller (the run record), so it is still there after a reload.
 
@@ -14,7 +15,8 @@ const MAX_THOUGHT_CHARS = 12_000;
 export function createThinkingBlock({ document, host, before = null, language = 'zh-TW', now = () => Date.now() }) {
   const ledger = createLedger({ document, host, before });
   const row = ledger.addRow(sandboxText(language, 'thinkingLive'));
-  row.enableBody(true);
+  // Folded while it thinks (the shimmering line says so); opened by the reader when they want to read along.
+  row.enableBody(false);
   const pre = document.createElement('div');
   pre.className = 'ledger-thought';
   row.body.append(pre);

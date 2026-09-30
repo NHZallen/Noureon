@@ -31,7 +31,7 @@ test('thought summaries show their headings in bold, and nothing else is treated
   }
 });
 
-test('the thinking line streams open above the answer and folds to how long it took', () => {
+test('the thinking line streams above the answer, folded until it is opened, and shows how long it took', () => {
   const { window, cleanup } = createDom('');
   try {
     const { document } = window;
@@ -43,7 +43,9 @@ test('the thinking line streams open above the answer and folds to how long it t
     block.add('**Plan**\n', 'summary');
     block.add('Read the file.', 'summary');
     assert.equal(host.querySelector('.ledger-thought').textContent, 'Plan\nRead the file.');
-    assert.equal(host.querySelector('.ledger-body').hidden, false, 'open while it thinks');
+    assert.equal(host.querySelector('.ledger-body').hidden, true, 'folded while it thinks: nothing opens by itself');
+    host.querySelector('.ledger-row-head').click();
+    assert.equal(host.querySelector('.ledger-body').hidden, false, 'opened by the reader');
     clock = 12_400;
     block.collapse();
     assert.equal(host.querySelector('.ledger-label').textContent, sandboxText('en', 'thinkingDoneSummary', { s: 12 }));

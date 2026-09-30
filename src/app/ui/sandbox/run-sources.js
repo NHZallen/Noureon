@@ -76,17 +76,51 @@ export function watchSourceIcons(doc = document) {
   };
 }
 
+const TRUST_KEY = 'noureon.openSourcesWithoutAsking';
+
 /**
- * A tap on a chip: ask before leaving, then open the page in a new tab. `confirm(message, title)` is the app's own
- * dialog. Returns whether the page was opened.
+ * "Don't ask again" for opening a source, kept on this device only. A browser that does not allow storage just
+ * asks every time.
  */
-export async function openSourceChip(chip, { confirm, language, open }) {
+export function createSourceTrust(win) {
+  return {
+    isTrusted: () => {
+      try {
+        return win?.localStorage?.getItem(TRUST_KEY) === '1';
+      } catch {
+        return false;
+      }
+    },
+    trust: () => {
+      try {
+        win?.localStorage?.setItem(TRUST_KEY, '1');
+      } catch {
+        // The choice is just not kept.
+      }
+    }
+  };
+}
+
+/**
+ * A tap on a chip: ask before leaving, then open the page in a new tab. `confirm(message, title, { remember })` is
+ * the app's own dialog; with a tick box ("don't ask again") it answers `{ accepted, remember }`. `isTrusted()` says
+ * the reader chose not to be asked, and `trust()` keeps that choice. Returns whether the page was opened.
+ */
+export async function openSourceChip(chip, { confirm, language, open, isTrusted = () => false, trust = () => {} }) {
   const url = chip?.dataset?.url || '';
   if (!/^https?:\/\//i.test(url)) return false;
-  // The name of the site (a Gemini address is a long redirect that says nothing).
-  const shown = chip.dataset.host && !url.includes(chip.dataset.host) ? chip.dataset.host : url;
-  const accepted = await confirm(sandboxText(language, 'openSourceMessage', { url: shown }), sandboxText(language, 'openSourceTitle'));
-  if (!accepted) return false;
+  if (!isTrusted()) {
+    // The name of the site (a Gemini address is a long redirect that says nothing).
+    const shown = chip.dataset.host && !url.includes(chip.dataset.host) ? chip.dataset.host : url;
+    const answer = await confirm(
+      sandboxText(language, 'openSourceMessage', { url: shown }),
+      sandboxText(language, 'openSourceTitle'),
+      { remember: sandboxText(language, 'openSourceRemember') }
+    );
+    const accepted = typeof answer === 'object' && answer !== null ? answer.accepted : Boolean(answer);
+    if (!accepted) return false;
+    if (answer?.remember) trust();
+  }
   open(url, '_blank', 'noopener,noreferrer');
   return true;
 }

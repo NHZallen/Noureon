@@ -82,6 +82,33 @@ function createHarness({ includeNotificationContainer = true } = {}) {
   };
 }
 
+test('a confirmation can carry a tick box, and then answers with what was chosen and whether it was ticked', async () => {
+  for (const [buttonIndex, tick, expected] of [[1, true, { accepted: true, remember: true }], [1, false, { accepted: true, remember: false }], [0, true, { accepted: false, remember: false }]]) {
+    const harness = createHarness();
+    try {
+      const answer = harness.functions.showCustomConfirm('Open it?', 'Open', { remember: 'Do not ask again' });
+      const label = harness.elements.customDialogMessage.querySelector('label');
+      assert.equal(label.textContent, 'Do not ask again');
+      const box = label.querySelector('input[type="checkbox"]');
+      box.checked = tick;
+      harness.elements.customDialogButtons.children[buttonIndex].onclick();
+      assert.deepEqual(await answer, expected);
+    } finally {
+      harness.window.close();
+    }
+  }
+  // Without the option nothing changes: a plain true or false, and no tick box.
+  const plain = createHarness();
+  try {
+    const answer = plain.functions.showCustomConfirm('Sure?', 'Confirm');
+    assert.equal(plain.elements.customDialogMessage.querySelector('input'), null);
+    plain.elements.customDialogButtons.children[1].onclick();
+    assert.equal(await answer, true);
+  } finally {
+    plain.window.close();
+  }
+});
+
 test('showNotification renders the text and kind, and takes a notice away after 3000ms with a short leaving move', () => {
   const harness = createHarness();
   try {

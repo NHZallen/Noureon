@@ -51,7 +51,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
     if (!row.thought) {
       row.thought = create('div', 'ledger-thought');
       row.body.append(row.thought);
-      row.enableBody(true);
+      // The thinking is there to open when wanted, not opened for the reader while it streams.
+      row.enableBody(false);
     }
     row.thoughtText = ((row.thoughtText || '') + chunk).slice(-MAX_THOUGHT_CHARS);
     // Reading further up is never pulled down to the newest line.
@@ -65,7 +66,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     if (!row.writing) {
       row.writing = create('pre', 'ledger-code');
       row.body.append(row.writing);
-      row.enableBody(true);
+      row.enableBody(false);
     }
     keepEndInView(row.writing, () => { row.writing.textContent = source.length > MAX_CODE_CHARS ? `${source.slice(0, MAX_CODE_CHARS)}\n…` : source; });
   };
@@ -134,6 +135,14 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.row.finish(ok ? 'done' : 'failed');
   };
 
+  // What the model says before a run, in ordinary text between the step lines (the saved reply draws it the same way).
+  const addNarration = ({ text: said }) => {
+    if (!String(said || '').trim()) return;
+    const block = create('div', 'sandbox-run-narration');
+    fillThinkingText(document, block, String(said).trim());
+    list.list.append(block);
+  };
+
   // A web search that runs before the model: a row in progress, which becomes the finished, folded row that opens
   // to the pages it found (or goes, if it found none).
   const startSearch = ({ label }) => {
@@ -156,7 +165,9 @@ export function createSandboxLedger({ document, host, before = null, language = 
 
   return {
     event(event) {
-      if (event.type === 'searching') {
+      if (event.type === 'narration') {
+        addNarration(event);
+      } else if (event.type === 'searching') {
         startSearch(event);
       } else if (event.type === 'sources') {
         addSources(event);

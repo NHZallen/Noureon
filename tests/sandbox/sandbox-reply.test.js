@@ -83,7 +83,7 @@ test('interface texts exist in all five languages', () => {
       assert.ok(value && value !== key, `${language} ${key}`);
     }
   }
-  assert.equal(sandboxText('en', 'sandboxRunning', { n: 2, title: 'Charts' }), 'Running code (2): Charts');
+  assert.equal(sandboxText('en', 'sandboxRunning', { n: 2, title: 'Charts' }), 'Running code: Charts');
 });
 
 test('the loop runs each requested call, returns the results and stops when the model answers', async () => {
@@ -94,18 +94,24 @@ test('the loop runs each requested call, returns the results and stops when the 
   const { sandbox, runs } = fakeSandbox([{ stdout: { text: '15\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [{ name: 'a.csv', size: 3, bytes: new Uint8Array(3) }], elapsedMs: 12 }]);
   const statuses = [];
   const chunks = [];
+  const events = [];
   const result = await runSandboxReply({
     streamApiCall: model.streamApiCall,
     requestParts: [{ text: '算總和' }],
     onChunk: (chunk) => chunks.push(chunk),
     getSandbox: () => sandbox,
-    onStatus: (status) => statuses.push(status)
+    onStatus: (status) => statuses.push(status),
+    onEvent: (event) => events.push(event)
   });
   assert.deepEqual(runs, ['print(sum([3, 5, 7]))']);
-  // What was said before the run goes with the run; the answer is only the answer (it still streamed live).
+  // What was said before the run goes with the run; the answer is only the answer, live and kept.
   assert.equal(result.text, '總和是 15。');
   assert.equal(result.run.steps[0].narration, '我來算一下。');
-  assert.equal(chunks.join(''), '我來算一下。\n\n總和是 15。');
+  assert.equal(chunks.join(''), '總和是 15。', 'the announcement is not streamed into the answer');
+  const kinds = events.map((event) => event.type);
+  assert.equal(kinds.indexOf('narration') < kinds.indexOf('step'), true, 'shown between the steps before the run starts');
+  assert.equal(events.find((event) => event.type === 'narration').text, '我來算一下。');
+  assert.equal(kinds.filter((kind) => kind === 'narration').length, 1);
   assert.equal(model.requests.length, 2);
   assert.equal(model.requests[0].tools[0].name, 'run_python');
   assert.match(model.requests[0].additionalSystemInstruction, /Advanced mode: Python in the browser/);
@@ -115,7 +121,21 @@ test('the loop runs each requested call, returns the results and stops when the 
   assert.equal(result.run.status, 'done');
   assert.equal(result.run.elapsedMs >= 0, true, 'how long the whole reply took is recorded');
   assert.deepEqual(result.run.steps.map((step) => [step.title, step.stdout, step.files]), [['加總', '15\n', [{ name: 'a.csv', size: 3 }]]]);
-  assert.ok(statuses.includes('正在執行程式（第 1 次）：加總'));
+  assert.ok(statuses.includes('正在執行程式：加總'));
+});
+
+test('a long first stretch of text is the answer and streams; a short one that no run follows is flushed at the end', async () => {
+  const long = '長'.repeat(500);
+  const model = scriptedModel([{ text: long }]);
+  const chunks = [];
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => chunks.push(chunk), getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(result.text, long);
+  assert.equal(chunks.join(''), long);
+  const short = scriptedModel([{ text: '短的答案。' }]);
+  const shortChunks = [];
+  const shortResult = await runSandboxReply({ streamApiCall: short.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => shortChunks.push(chunk), getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(shortResult.text, '短的答案。');
+  assert.equal(shortChunks.join(''), '短的答案。', 'held while it might have been an announcement, then given as the answer');
 });
 
 test('after the run limit the model gets no tool and must answer', async () => {
@@ -212,8 +232,8 @@ test('the run row opens to each step, and a switch to Standard is one grey line'
     const rows = [...element.querySelectorAll('.sandbox-run-row')];
     assert.equal(rows.length, 2, 'one line per step');
     assert.deepEqual(rows.map((row) => row.dataset.kind), ['code', 'code']);
-    assert.equal(rows[0].querySelector('.ledger-label').textContent, '已執行程式（第 1 次）：讀取資料');
-    assert.equal(rows[1].querySelector('.ledger-label').textContent, '已執行程式（第 2 次）');
+    assert.equal(rows[0].querySelector('.ledger-label').textContent, '已執行程式：讀取資料');
+    assert.equal(rows[1].querySelector('.ledger-label').textContent, '已執行程式');
     assert.equal(rows[1].classList.contains('is-failed'), true);
     assert.equal(rows[0].open, false, 'every step is folded on its own');
     assert.equal(rows[0].querySelector('code.language-python').textContent, 'import pandas');
@@ -303,6 +323,47 @@ test('a tap on a source asks first and opens a new tab only when it is accepted'
   assert.match(asked[0][0], /https:\/\/a\.example\/x/);
   assert.equal(await openSourceChip(chip('javascript:alert(1)'), options(true)), false, 'only web addresses');
   assert.equal(asked.length, 2, 'and it does not even ask about the others');
+});
+
+test('the choice not to be asked is kept on the device, and a browser without storage just asks', async () => {
+  const { createSourceTrust } = await import('../../src/app/ui/sandbox/run-sources.js');
+  const store = new Map();
+  const win = { localStorage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) } };
+  const trust = createSourceTrust(win);
+  assert.equal(trust.isTrusted(), false);
+  trust.trust();
+  assert.equal(createSourceTrust(win).isTrusted(), true, 'still there for the next tap');
+  const blocked = createSourceTrust({ get localStorage() { throw new Error('blocked'); } });
+  assert.equal(blocked.isTrusted(), false);
+  assert.doesNotThrow(() => blocked.trust());
+  assert.equal(createSourceTrust(null).isTrusted(), false);
+});
+
+test('"don\'t ask again" is kept only when the page is opened, and then a tap opens at once', async () => {
+  const { openSourceChip } = await import('../../src/app/ui/sandbox/run-sources.js');
+  let trusted = false;
+  const opened = [];
+  let asked = 0;
+  const chip = { dataset: { url: 'https://a.example/x' } };
+  const make = (answer) => ({
+    language: 'en',
+    confirm: async (message, title, options) => { asked += 1; assert.equal(options.remember, sandboxText('en', 'openSourceRemember')); return answer; },
+    open: (...args) => opened.push(args),
+    isTrusted: () => trusted,
+    trust: () => { trusted = true; }
+  });
+  await openSourceChip(chip, make({ accepted: false, remember: true }));
+  assert.equal(trusted, false, 'ticked but declined: nothing is remembered');
+  await openSourceChip(chip, make({ accepted: true, remember: false }));
+  assert.equal(trusted, false);
+  assert.equal(opened.length, 1);
+  await openSourceChip(chip, make({ accepted: true, remember: true }));
+  assert.equal(trusted, true);
+  assert.equal(opened.length, 2);
+  await openSourceChip(chip, make(false));
+  assert.equal(asked, 3, 'once trusted it does not ask again');
+  assert.equal(opened.length, 3);
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) assert.notEqual(sandboxText(language, 'openSourceRemember'), 'openSourceRemember', language);
 });
 
 test('the wait says what is happening and what comes next', async () => {

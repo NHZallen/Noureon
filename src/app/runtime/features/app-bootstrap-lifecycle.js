@@ -9,7 +9,7 @@ import { installFileCardInteractions } from '../../ui/files/file-card-interactio
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 import { codeOfCard } from '../../ui/sandbox/run-code-card.js';
-import { openSourceChip } from '../../ui/sandbox/run-sources.js';
+import { createSourceTrust, openSourceChip } from '../../ui/sandbox/run-sources.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -493,7 +493,12 @@ export function createLegacyAppBootstrapLifecycle({
                     // A page the reply's web search found: ask first, then open it in a new tab.
                     const sourceChip = e.target.closest('.run-source-chip');
                     if (sourceChip) {
-                        openSourceChip(sourceChip, { confirm: showCustomConfirm, language: getConfig().uiLanguage, open: (...args) => window.open(...args) });
+                        openSourceChip(sourceChip, {
+                            confirm: showCustomConfirm,
+                            language: getConfig().uiLanguage,
+                            open: (...args) => window.open(...args),
+                            ...createSourceTrust(window)
+                        });
                         return;
                     }
                     const copyBtn = e.target.closest('.copy-content-btn');
