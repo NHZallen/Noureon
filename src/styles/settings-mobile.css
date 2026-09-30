@@ -94,10 +94,6 @@
         text-align: center !important;
     }
 
-    #settings-modal:not(.settings-mobile-detail-open) #settings-mobile-title {
-        opacity: 0 !important;
-    }
-
     #settings-mobile-back-btn {
         position: absolute !important;
         left: 1.1rem !important;
@@ -114,10 +110,13 @@
         color: #000000 !important;
         opacity: 0;
         pointer-events: none !important;
-        transform: translateX(-0.35rem) scale(0.96);
+        /* Buttons get transform: none !important globally, so this motion uses translate/scale. */
+        translate: 0 -0.35rem;
+        scale: 0.96;
         transition:
             opacity 0.34s ease-in-out,
-            transform 0.34s ease-in-out !important;
+            translate 0.34s ease-in-out,
+            scale 0.34s ease-in-out !important;
         box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
     }
 
@@ -132,7 +131,8 @@
     #settings-modal.settings-mobile-detail-open #settings-mobile-back-btn {
         opacity: 1;
         pointer-events: auto !important;
-        transform: translateX(0) scale(1);
+        translate: 0 0;
+        scale: 1;
     }
 
     #settings-modal.settings-mobile-returning #settings-mobile-back-btn {
@@ -154,11 +154,13 @@
     @keyframes settingsBackReturnOut {
         from {
             opacity: 1;
-            transform: translateX(0) scale(1);
+            translate: 0 0;
+            scale: 1;
         }
         to {
             opacity: 0;
-            transform: translateX(-0.35rem) scale(0.96);
+            translate: 0 -0.35rem;
+            scale: 0.96;
         }
     }
 

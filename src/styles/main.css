@@ -22,6 +22,7 @@
 @import './regression-overrides.css';
 @import './desktop-composer-layout.css';
 @import './mobile.css';
+@import './mobile-composer-layout.css';
 @import './typography.css';
 
 /* Ordered CSS split manifest. Keep imports in the original cascade order. */

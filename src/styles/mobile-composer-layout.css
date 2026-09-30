@@ -1,0 +1,60 @@
+/* important-audit: required: mobile override - the mobile composer grid must outrank the flex utilities on the shared input wrapper. */
+
+@media (max-width: 768px) {
+    /* Two rows: the editor takes the full width, the tools sit underneath.
+       A single row leaves the editor a few pixels wide next to the model picker. */
+    #input-bar-container .input-wrapper {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "preview preview preview"
+            "input input input"
+            "file model submit";
+        align-items: center !important;
+        gap: 0 0.3rem !important;
+        padding: 0.35rem 0.55rem 0.45rem !important;
+        border-radius: 1.75rem !important;
+    }
+
+    #input-bar-container .input-wrapper > .input-media-preview {
+        grid-area: preview;
+        align-self: stretch;
+        margin-bottom: 0.25rem;
+    }
+
+    #input-bar-container .input-wrapper > .flex.items-end {
+        display: contents !important;
+    }
+
+    #chat-form {
+        grid-area: input;
+        width: 100%;
+        min-width: 0;
+    }
+
+    #file-input-container {
+        grid-area: file;
+        display: flex;
+        align-items: center;
+    }
+
+    #model-council-control {
+        grid-area: model;
+        min-width: 0;
+        max-width: 100%;
+        justify-self: start;
+    }
+
+    #model-council-control .mp-anchor:first-child {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+
+    #model-council-control .mp-trigger {
+        max-width: 100%;
+    }
+
+    #submit-btn {
+        grid-area: submit;
+    }
+}

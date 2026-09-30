@@ -2755,6 +2755,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'regression-overrides.css',
     'desktop-composer-layout.css',
     'mobile.css',
+    'mobile-composer-layout.css',
     'typography.css'
   ];
 

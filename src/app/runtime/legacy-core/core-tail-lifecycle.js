@@ -531,7 +531,8 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             const activeSettingsItem = document.querySelector('#settings-nav .settings-nav-item.active');
             if (mobileSettingsTitle && activeSettingsItem) {
                 const activeTitleKey = activeSettingsItem.dataset.langKey;
-                mobileSettingsTitle.textContent = translations[activeTitleKey] || translations.settings || 'Settings';
+                const showsSectionTitle = ALL_ELEMENTS.settingsModal?.classList.contains('settings-mobile-detail-open');
+                mobileSettingsTitle.textContent = (showsSectionTitle && translations[activeTitleKey]) || translations.settings || 'Settings';
             }
             if(ALL_ELEMENTS.loginLangLabel) {
                 ALL_ELEMENTS.loginLangLabel.textContent = translations.currentLanguageName || '繁體中文';

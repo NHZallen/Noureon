@@ -42,6 +42,10 @@ const documentedImportantUsage = {
     max: 41,
     category: 'required: mobile override'
   },
+  'src/styles/mobile-composer-layout.css': {
+    max: 6,
+    category: 'required: mobile override'
+  },
   'src/styles/modals.css': {
     max: 11,
     category: 'required: regression override / legacy compatibility'

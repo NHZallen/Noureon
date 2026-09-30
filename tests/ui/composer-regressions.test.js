@@ -106,6 +106,15 @@ test('mobile keeps the existing stacked indicator layout and hides message mic',
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button\s*>\s*\.composer-menu-icon[^{]*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;[^}]*max-width:\s*1\.25rem;[^}]*flex:\s*0\s+0\s+1\.25rem;[^}]*object-fit:\s*contain;/s);
 });
 
+test('mobile composer puts the editor on its own row above the tools', () => {
+  const mobile = readUiSource('src/styles/mobile-composer-layout.css');
+
+  assert.match(mobile, /#input-bar-container\s+\.input-wrapper\s*\{[^}]*display:\s*grid\s*!important;[^}]*"input input input"\s*"file model submit"/s);
+  assert.match(mobile, /#model-council-control\s*\{[^}]*grid-area:\s*model;[^}]*min-width:\s*0;/s);
+  assert.match(mobile, /#model-council-control\s+\.mp-trigger\s*\{[^}]*max-width:\s*100%;/s);
+  assert.match(mobile, /\.input-media-preview\s*\{[^}]*grid-area:\s*preview;/s);
+});
+
 test('desktop tools menu follows the centered or docked composer without changing mobile rules', () => {
   const css = readUiSource('src/styles/main.css');
   const bootstrap = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
