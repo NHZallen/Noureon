@@ -169,5 +169,6 @@ test('the chat scrolls under a floating glass header and fades at both edges', (
   assert.match(css, /#chat-workspace\s*>\s*header\s*\{[^}]*position:\s*absolute;[^}]*border-bottom:\s*0;[^}]*pointer-events:\s*none;/s);
   assert.match(css, /#menu-toggle-btn[\s\S]*?\{[^}]*backdrop-filter:\s*blur\([^}]*saturate\(/s);
   assert.match(css, /#chat-container\s*\{[^}]*padding-top:\s*calc\(var\(--chat-header-height\)[^}]*mask-image:\s*linear-gradient\(/s);
-  assert.doesNotMatch(css, /background:\s*var\(--input-field-bg\);/);
+  assert.match(css, /color-mix\(in srgb, var\(--hover-bg\) 42%, transparent\)/);
+  assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[^{]*\{[\s\S]*?background:\s*var\(--input-field-bg\);[\s\S]*?backdrop-filter:\s*none;/);
 });
