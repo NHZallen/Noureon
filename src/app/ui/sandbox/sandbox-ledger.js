@@ -134,18 +134,31 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.row.finish(ok ? 'done' : 'failed');
   };
 
-  // The pages the web search found before the model started: one finished row, folded, that opens to the chips.
+  // A web search that runs before the model: a row in progress, which becomes the finished, folded row that opens
+  // to the pages it found (or goes, if it found none).
+  const startSearch = ({ label }) => {
+    const row = begin(label, { body: true, kind: 'search' });
+    row.searching = true;
+  };
   const addSources = ({ sources }) => {
-    if (!sources?.length) return;
-    const row = begin(sourcesLabel(language, sources.length), { body: true, kind: 'search' });
+    const searching = list.current?.searching ? list.current : null;
+    if (!sources?.length) {
+      searching?.discard();
+      return;
+    }
+    const row = searching || begin(sourcesLabel(language, sources.length), { body: true, kind: 'search' });
+    if (searching) row.setLabel(sourcesLabel(language, sources.length));
     row.body.append(createSourceChips(document, sources));
     row.enableBody(false);
+    row.searching = false;
     row.finish('done');
   };
 
   return {
     event(event) {
-      if (event.type === 'sources') {
+      if (event.type === 'searching') {
+        startSearch(event);
+      } else if (event.type === 'sources') {
         addSources(event);
       } else if (event.type === 'round') {
         const row = begin(event.label, { kind: 'thought' });

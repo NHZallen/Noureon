@@ -125,6 +125,30 @@ test('the code of a step sits in a card with the language and a copy button, liv
   window.happyDOM.abort();
 });
 
+test('a search that runs first is a row in progress that becomes the finished row of pages, or goes if it found none', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'searching', label: 'Searching the web…' });
+  let rows = [...message.querySelectorAll('.ledger-row')];
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].classList.contains('is-running'), true, 'in progress while it searches');
+  assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Searching the web…');
+  list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1' }] });
+  rows = [...message.querySelectorAll('.ledger-row')];
+  assert.equal(rows.length, 1, 'the same row, not a second one');
+  assert.equal(rows[0].classList.contains('is-done'), true);
+  assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Searched 1 sites');
+  assert.equal(rows[0].querySelectorAll('.run-source-chip').length, 1);
+
+  const empty = createSandboxLedger({ document, host: message, language: 'en' });
+  empty.event({ type: 'searching', label: 'Searching the web…' });
+  empty.event({ type: 'sources', sources: [] });
+  assert.equal(message.querySelectorAll('.ledger-row').length, 1, 'a search that found nothing leaves no row');
+  list.remove();
+  empty.remove();
+  window.happyDOM.abort();
+});
+
 test('the pages a search found show as a finished, folded row before the model starts', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en' });

@@ -136,6 +136,12 @@ export function createLedger({ document, host, before = null }) {
         open = Boolean(value);
         draw();
       },
+      // The row was for something that came to nothing (a search that found no pages).
+      discard() {
+        node.remove();
+        const index = rows.indexOf(row);
+        if (index >= 0) rows.splice(index, 1);
+      },
       finish(next = 'done') {
         if (state !== 'running') return;
         state = next;

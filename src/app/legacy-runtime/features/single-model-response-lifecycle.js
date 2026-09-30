@@ -3,6 +3,7 @@ import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
+import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, withoutDuplicatedFileBlocks } from '../../ui/sandbox/sandbox-files.js';
@@ -186,13 +187,35 @@ export function createSingleModelResponseLifecycle({
     const runApiStream = replyMode.advanced
       ? async (onChunk) => {
         const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
-        if (searchSources.length) stepList()?.event({ type: 'sources', sources: searchSources });
+        let advancedParts = requestParts;
+        let advancedOptions = streamOptions;
+        let searchMs = 0;
+        const { needsSearchBriefing, runSearchBriefing, briefingPart } = await import('../../runtime/sandbox/search-briefing.js');
+        if (needsSearchBriefing({ modelInfo, webSearchEnabled, conversation })) {
+          // A provider that cannot search and run Python in one request searches first; the Python round gets the briefing.
+          const searchStartedAt = now();
+          stepList()?.event({ type: 'searching', label: sandboxText(uiLanguage, 'sandboxSearching') });
+          try {
+            const briefing = await runSearchBriefing({ streamApiCall, requestParts, requestOptions: streamOptions, signal });
+            addSearchSources(briefing.sources);
+            const part = briefingPart(briefing, modelInfo?.name);
+            if (part) advancedParts = [part, ...requestParts];
+          } catch (error) {
+            // Stopping stops the reply; a search that failed leaves the reply to go on without it.
+            if (signal?.aborted) throw error;
+          }
+          searchMs = now() - searchStartedAt;
+          stepList()?.event({ type: 'sources', sources: searchSources });
+          advancedOptions = { ...streamOptions, webSearchEnabled: false, ignoreConversationWebSearch: true };
+        } else if (searchSources.length) {
+          stepList()?.event({ type: 'sources', sources: searchSources });
+        }
         const result = await runSandboxReply({
           streamApiCall,
-          requestParts,
+          requestParts: advancedParts,
           onChunk,
           signal,
-          requestOptions: streamOptions,
+          requestOptions: advancedOptions,
           getSandbox: (options) => getPythonSandbox({ ...options, language: getConfig().aiDefaultLanguage || uiLanguage }),
           language: uiLanguage,
           provider: modelInfo?.provider,
@@ -202,6 +225,8 @@ export function createSingleModelResponseLifecycle({
           onEvent: (event) => stepList()?.event(event)
         });
         sandboxRun = result.run;
+        // The search before the run is part of the time the reply took.
+        if (sandboxRun && searchMs) sandboxRun.elapsedMs = (sandboxRun.elapsedMs || 0) + searchMs;
         // Word and PowerPoint files made freely get the app's fonts embedded.
         if (result.run?.steps?.length) {
           await import('../../ui/sandbox/office-fonts.js')
