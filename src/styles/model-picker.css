@@ -615,15 +615,11 @@
         bottom: calc(0.45rem + 2.75rem);
         left: min(0.55rem, calc(100vw - 21px - var(--mp-phone-width)));
         width: var(--mp-phone-width);
-        /* A fixed size, so searching does not shrink the panel; council-controls-lifecycle.js
-           lowers it while the keyboard takes part of the screen. */
+        /* A fixed size: searching does not shrink the panel, and the on-screen keyboard does not
+           resize it (following the keyboard made it shake as the keyboard slid in and out). */
         height: min(70vh, 34rem);
         max-height: min(70vh, 34rem);
         transform-origin: bottom left;
-    }
-
-    #model-council-control .mp-panel.visible:not(.mp-depth-panel) {
-        transition: opacity 0.16s ease-out, transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.08), height 0.2s ease-out, visibility 0s;
     }
 }
 

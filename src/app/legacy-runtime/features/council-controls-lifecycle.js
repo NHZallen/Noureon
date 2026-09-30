@@ -89,16 +89,9 @@ export function createCouncilControlsLifecycle(deps) {
     const view = document.defaultView;
     if (!panel || !trigger || !view) return;
     if (view.innerWidth <= 768) {
-      // A phone panel keeps one size (see model-picker.css) but never rises above the part of the
-      // screen the keyboard leaves: it ends about 6px above the button and stops 12px short of the top.
-      const visible = view.visualViewport;
-      const cap = Math.min(view.innerHeight * 0.7, 544);
-      const room = trigger.getBoundingClientRect().top - (visible?.offsetTop || 0) - 18;
+      // A phone panel keeps one size (model-picker.css), whatever the keyboard or the search results do.
       panel.style.maxHeight = '';
-      // Small moves are ignored: the keyboard's slide fires many events, and following each one shakes the panel.
-      const next = room < cap ? Math.round(Math.max(220, room)) : 0;
-      const current = parseFloat(panel.style.height) || 0;
-      if (Math.abs(next - current) > 8 || (!next && current)) panel.style.height = next ? `${next}px` : '';
+      panel.style.height = '';
       return;
     }
     panel.style.height = '';
@@ -512,15 +505,6 @@ export function createCouncilControlsLifecycle(deps) {
 
   function bindEvents(container) {
     document.defaultView?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
-    // The on-screen keyboard resizes the visual viewport, not the window.
-    // Fitted once it settles, not while it slides, and eased so the change is a glide instead of a jump.
-    let keyboardTimer = null;
-    const refitAfterKeyboard = () => {
-      clearTimeout(keyboardTimer);
-      keyboardTimer = setTimeout(() => { if (isPanelOpen(container)) fitPanel(container); }, 180);
-    };
-    document.defaultView?.visualViewport?.addEventListener?.('resize', refitAfterKeyboard);
-    document.defaultView?.visualViewport?.addEventListener?.('scroll', refitAfterKeyboard);
     container.addEventListener('click', async (event) => {
       const target = event.target.closest?.('button, [data-mp-tab]');
       if (!target || !container.contains(target)) return;
