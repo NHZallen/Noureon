@@ -2,7 +2,7 @@ import { formatMemoryContextForModel } from '../../runtime/memory/memory-context
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
-import { applyGeminiTools, applyOpenAiTools, createGeminiCollector, createOpenAiCollector, modelThinkingKind } from './tool-call-formats.js';
+import { applyGeminiTools, applyOpenAiTools, applyResponsesTools, createGeminiCollector, createOpenAiCollector, createResponsesCollector, modelThinkingKind } from './tool-call-formats.js';
 
 export function mergeAdjacentModelMessages(history) {
   return history.reduce((merged, message) => {
@@ -434,6 +434,71 @@ const buildOpenRouterRequest = ({
   };
 };
 
+// The same conversation as Responses API input items. Models flagged for it (GPT-6.1 Sol) take tools only there;
+// OpenRouter's Responses endpoint is OpenAI's, so the shapes follow OpenAI's (input_text, input_image, input_file).
+const buildOpenRouterResponsesInput = (messages) => messages.map((message) => {
+  const role = message.role === 'model' ? 'assistant' : message.role;
+  const content = [];
+  for (const part of message.parts || []) {
+    if (part.text) {
+      content.push({ type: role === 'assistant' ? 'output_text' : 'input_text', text: part.text });
+    } else if (part.inlineData && role !== 'assistant') {
+      const mimeType = part.inlineData.mimeType || 'application/octet-stream';
+      const dataUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+      if (mimeType.startsWith('image/')) {
+        content.push({ type: 'input_image', image_url: dataUrl });
+      } else if (mimeType.startsWith('video/')) {
+        content.push({ type: 'input_text', text: `[Attachment omitted: ${part.inlineData.name || mimeType}]` });
+      } else {
+        content.push({ type: 'input_file', filename: part.inlineData.name || 'document.pdf', file_data: dataUrl });
+      }
+    }
+  }
+  return content.length ? { role, content } : null;
+}).filter(Boolean);
+
+const buildOpenRouterResponsesRequest = ({
+  modelId,
+  apiKey,
+  historyForApi,
+  currentMessageForApi,
+  generationConfig,
+  reasoningEffort,
+  reasoningConfig,
+  systemInstruction,
+  wantsReasoningSummary
+}) => {
+  const input = buildOpenRouterResponsesInput([...historyForApi, currentMessageForApi]);
+  const instructions = systemInstruction?.parts?.map((part) => part.text).filter(Boolean).join('\n');
+  const payload = {
+    model: modelId,
+    input,
+    stream: true,
+    // Nothing is kept on the server; the reasoning comes back encrypted and is sent again with the tool results.
+    store: false,
+    include: ['reasoning.encrypted_content'],
+    ...(instructions ? { instructions } : {}),
+    ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+    ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
+    ...(generationConfig.maxTokens !== null && { max_output_tokens: generationConfig.maxTokens })
+  };
+  const hasFile = input.some((item) => item.content.some((part) => part.type === 'input_file'));
+  if (hasFile) payload.plugins = [{ id: 'file-parser', pdf: { engine: 'mistral-ocr' } }];
+  if (reasoningConfig?.providerParameter === 'openrouterReasoningEffort' && reasoningEffort) {
+    payload.reasoning = { effort: reasoningEffort, ...(wantsReasoningSummary ? { summary: 'auto' } : {}) };
+  } else if (wantsReasoningSummary) {
+    payload.reasoning = { summary: 'auto' };
+  }
+  return {
+    url: 'https://openrouter.ai/api/v1/responses',
+    payload,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  };
+};
+
 const readProviderErrorBody = async (response) => {
   const text = await response.text();
   try {
@@ -630,7 +695,26 @@ export function createStreamApiCall({
       requestPurpose: requestOptions.requestPurpose
     });
 
-    const request = provider === 'gemini'
+    // Advanced mode: the Python tool and the tool rounds of this reply so far.
+    const toolOptions = { tools: requestOptions.tools || [], toolTurns: requestOptions.toolTurns || [] };
+    const hasTools = toolOptions.tools.length > 0 || toolOptions.toolTurns.length > 0;
+    // A model that takes tools only through the Responses API uses it for the rounds of an Advanced mode reply;
+    // everything else it does goes the usual way.
+    const useResponsesApi = provider === 'openrouter' && modelInfo.responsesApiForTools === true && hasTools;
+
+    const request = useResponsesApi
+      ? buildOpenRouterResponsesRequest({
+        modelId,
+        apiKey,
+        historyForApi,
+        currentMessageForApi,
+        generationConfig,
+        reasoningEffort,
+        reasoningConfig,
+        systemInstruction,
+        wantsReasoningSummary: Boolean(requestOptions.onReasoning)
+      })
+      : provider === 'gemini'
       ? buildGeminiRequest({
         modelId,
         apiKey,
@@ -671,10 +755,9 @@ export function createStreamApiCall({
           systemInstruction
         });
 
-    // Advanced mode: the Python tool and the tool rounds of this reply so far.
-    const toolOptions = { tools: requestOptions.tools || [], toolTurns: requestOptions.toolTurns || [] };
-    if (toolOptions.tools.length || toolOptions.toolTurns.length) {
-      if (provider === 'gemini') applyGeminiTools(request.payload, toolOptions);
+    if (hasTools) {
+      if (useResponsesApi) applyResponsesTools(request.payload, toolOptions);
+      else if (provider === 'gemini') applyGeminiTools(request.payload, toolOptions);
       else applyOpenAiTools(request.payload, toolOptions);
     }
 
@@ -701,10 +784,12 @@ export function createStreamApiCall({
       onReasoning: requestOptions.onReasoning ? (chunk) => requestOptions.onReasoning(chunk, thinkingKind) : null,
       onToolArguments: requestOptions.onToolArguments
     };
-    const collector = provider === 'gemini' ? createGeminiCollector(hooks) : createOpenAiCollector(hooks);
+    const collector = provider === 'gemini' ? createGeminiCollector(hooks) : useResponsesApi ? createResponsesCollector(hooks) : createOpenAiCollector(hooks);
     const fullText = provider === 'gemini'
       ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
       : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });
+    // The Responses stream reports a failed response as an event; it is an error like any other.
+    if (collector.failure) throw new Error(collector.failure);
     const collected = collector.result();
     // The pages the provider's own web search used, for the reply's "Searched N sites" row.
     if (collected.sources?.length) requestOptions.onSources?.(collected.sources);

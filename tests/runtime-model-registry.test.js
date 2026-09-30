@@ -182,6 +182,8 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(normalizeReasoningEffort(gpt61SolModel, 'none'), 'medium', 'a chat saved with GPT-6 Sol at "none" falls back');
   assert.deepEqual(getModelReasoningConfig(sonnet55Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(normalizeReasoningEffort(sonnet55Model, 'max'), 'max');
+  assert.equal(gpt61SolModel.responsesApiForTools, true, 'GPT-6.1 Sol takes tools through the Responses API');
+  assert.equal(MODELS.filter((model) => model.responsesApiForTools).length, 1, 'and no other model is sent there');
   assert.equal(getModelReasoningConfig(sonnet55Model)?.defaultEffort, 'high', 'Sonnet 5.5 starts at high, as Anthropic\'s API does');
   assert.equal(normalizeReasoningEffort(gpt56Model, 'max'), 'max');
   assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');

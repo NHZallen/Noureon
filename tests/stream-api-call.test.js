@@ -512,6 +512,128 @@ test('Gemini requests preserve native payload, headers, web search, and partial 
   assert.equal(warnings[0].at(-1), '{"candidates":[}');
 });
 
+const sse = (event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+const PYTHON_TOOL = { name: 'run_python', description: 'Run Python', parameters: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] } };
+
+test('a model that takes tools only through the Responses API uses it for an Advanced reply, and its rounds carry the items back', async () => {
+  const functionCall = { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'run_python', arguments: '{"code":"print(1)"}', status: 'completed' };
+  const reasoning = { type: 'reasoning', id: 'rs_1', summary: [{ type: 'summary_text', text: 'Plan' }], encrypted_content: 'enc' };
+  const round1 = [
+    { type: 'response.created', response: {} },
+    { type: 'response.output_item.added', output_index: 0, item: { type: 'reasoning', id: 'rs_1' } },
+    { type: 'response.reasoning_summary_part.added', item_id: 'rs_1', summary_index: 0 },
+    { type: 'response.reasoning_summary_text.delta', item_id: 'rs_1', delta: 'Plan' },
+    { type: 'response.reasoning_summary_part.added', item_id: 'rs_1', summary_index: 1 },
+    { type: 'response.reasoning_summary_text.delta', item_id: 'rs_1', delta: 'Then run' },
+    { type: 'response.output_item.done', output_index: 0, item: reasoning },
+    { type: 'response.output_text.delta', delta: 'Let me check. ' },
+    { type: 'response.output_item.added', output_index: 1, item: { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'run_python', arguments: '' } },
+    { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '{"code":"pri' },
+    { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: 'nt(1)"}' },
+    { type: 'response.function_call_arguments.done', item_id: 'fc_1', arguments: '{"code":"print(1)"}' },
+    { type: 'response.output_item.done', output_index: 1, item: functionCall },
+    { type: 'response.completed', response: { status: 'completed', output: [reasoning, functionCall] } }
+  ];
+  const round2 = [
+    { type: 'response.output_text.delta', delta: 'Done: 1' },
+    { type: 'response.completed', response: { status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Done: 1' }] }] } }
+  ];
+  let round = 0;
+  const { streamApiCall, requests } = createHarness({
+    modelInfo: { responsesApiForTools: true, apiId: 'openai/gpt-6.1-sol' },
+    getModelReasoningConfig: () => ({ providerParameter: 'openrouterReasoningEffort', options: ['low', 'medium'], defaultEffort: 'medium' }),
+    normalizeReasoningEffort: () => 'medium',
+    fetchImpl: async () => createResponse({ streamChunks: (round++ === 0 ? round1 : round2).map(sse) })
+  });
+  const heard = [];
+  const args = [];
+  let first = null;
+  const text = [];
+  await streamApiCall([{ text: 'Sum 1' }], (chunk) => text.push(chunk), undefined, false, {
+    tools: [PYTHON_TOOL],
+    toolTurns: [],
+    onReasoning: (chunk) => heard.push(chunk),
+    onToolArguments: (call) => args.push(call),
+    onResponseComplete: (value) => { first = value; }
+  });
+  assert.equal(requests[0].url, 'https://openrouter.ai/api/v1/responses');
+  const one = JSON.parse(requests[0].options.body);
+  assert.equal(one.model, 'openai/gpt-6.1-sol');
+  assert.deepEqual(one.input.at(-1), { role: 'user', content: [{ type: 'input_text', text: 'Sum 1' }] });
+  assert.deepEqual(one.tools, [{ type: 'function', name: 'run_python', description: 'Run Python', parameters: PYTHON_TOOL.parameters }], 'flat, not under a function key');
+  assert.equal(one.tool_choice, 'auto');
+  assert.equal(one.store, false);
+  assert.deepEqual(one.include, ['reasoning.encrypted_content']);
+  assert.deepEqual(one.reasoning, { effort: 'medium', summary: 'auto' });
+  assert.equal(one.max_output_tokens, 321);
+  assert.equal(one.messages, undefined);
+  assert.deepEqual(text, ['Let me check. ']);
+  assert.deepEqual(heard, ['Plan', '\n\n', 'Then run'], 'the thinking summary streams, a paragraph for each part');
+  assert.deepEqual(args.at(-1), { name: 'run_python', arguments: '{"code":"print(1)"}' });
+  assert.equal(first.toolCalls.length, 1);
+  assert.deepEqual({ id: first.toolCalls[0].id, name: first.toolCalls[0].name, args: first.toolCalls[0].args }, { id: 'call_1', name: 'run_python', args: { code: 'print(1)' } });
+  assert.deepEqual(first.responseItems, [reasoning, functionCall]);
+
+  // The next round sends what the model produced back, then the result of its call.
+  let second = null;
+  await streamApiCall([{ text: 'Sum 1' }], () => {}, undefined, false, {
+    tools: [],
+    toolTurns: [{ assistant: first, results: [{ id: 'call_1', name: 'run_python', content: '{"ok":true,"stdout":"1\\n"}' }] }],
+    onResponseComplete: (value) => { second = value; }
+  });
+  const two = JSON.parse(requests[1].options.body);
+  assert.equal(requests[1].url, 'https://openrouter.ai/api/v1/responses', 'still the Responses API once the tools are gone');
+  assert.deepEqual(two.input.slice(-3), [reasoning, functionCall, { type: 'function_call_output', call_id: 'call_1', output: '{"ok":true,"stdout":"1\\n"}' }]);
+  assert.equal(two.tools, undefined);
+  assert.equal(second.text, 'Done: 1');
+  assert.deepEqual(second.toolCalls, []);
+});
+
+test('a model with tools only in the Responses API still answers ordinary requests the usual way', async () => {
+  const { streamApiCall, requests } = createHarness({ modelInfo: { responsesApiForTools: true, apiId: 'openai/gpt-6.1-sol' } });
+  await streamApiCall([{ text: 'Hello' }], () => {});
+  assert.equal(requests[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+  assert.ok(JSON.parse(requests[0].options.body).messages);
+  // And other models keep tool calls in chat completions.
+  const other = createHarness({ modelInfo: { apiId: 'openai/gpt-6-luna' } });
+  await other.streamApiCall([{ text: 'Hello' }], () => {}, undefined, false, { tools: [PYTHON_TOOL], toolTurns: [] });
+  assert.equal(other.requests[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal(JSON.parse(other.requests[0].options.body).tools[0].function.name, 'run_python');
+});
+
+test('a failed Responses stream is an error, and pictures and files go as input items', async () => {
+  const failed = createHarness({
+    modelInfo: { responsesApiForTools: true },
+    fetchImpl: async () => createResponse({ streamChunks: [sse({ type: 'response.failed', response: { error: { code: 'server_error', message: 'The model is overloaded' } } })] })
+  });
+  await assert.rejects(() => failed.streamApiCall([{ text: 'Hi' }], () => {}, undefined, false, { tools: [PYTHON_TOOL] }), /The model is overloaded/);
+  const errored = createHarness({
+    modelInfo: { responsesApiForTools: true },
+    fetchImpl: async () => createResponse({ streamChunks: [sse({ type: 'error', message: 'Bad request from the provider' })] })
+  });
+  await assert.rejects(() => errored.streamApiCall([{ text: 'Hi' }], () => {}, undefined, false, { tools: [PYTHON_TOOL] }), /Bad request from the provider/);
+
+  const { streamApiCall, requests } = createHarness({
+    modelInfo: { responsesApiForTools: true },
+    conversation: { messages: [{ role: 'user', parts: [{ text: 'Earlier' }] }, { role: 'model', parts: [{ text: 'Earlier answer' }] }, { role: 'user', parts: [{ text: 'Now' }] }] },
+    fetchImpl: async () => createResponse({ streamChunks: [sse({ type: 'response.completed', response: { output: [] } })] })
+  });
+  await streamApiCall(
+    [{ text: 'Look' }, { inlineData: { mimeType: 'image/png', data: 'AAAA', name: 'a.png' } }, { inlineData: { mimeType: 'application/pdf', data: 'BBBB', name: 'r.pdf' } }],
+    () => {}, undefined, false, { tools: [PYTHON_TOOL], additionalSystemInstruction: 'Be brief.' }
+  );
+  const body = JSON.parse(requests[0].options.body);
+  assert.match(body.instructions, /Be brief\./);
+  assert.deepEqual(body.input.map((item) => item.role), ['user', 'assistant', 'user']);
+  assert.deepEqual(body.input[1].content, [{ type: 'output_text', text: 'Earlier answer' }], 'earlier answers are output text');
+  assert.deepEqual(body.input.at(-1).content, [
+    { type: 'input_text', text: 'Look' },
+    { type: 'input_image', image_url: 'data:image/png;base64,AAAA' },
+    { type: 'input_file', filename: 'r.pdf', file_data: 'data:application/pdf;base64,BBBB' }
+  ]);
+  assert.deepEqual(body.plugins, [{ id: 'file-parser', pdf: { engine: 'mistral-ocr' } }]);
+});
+
 test('the pages Gemini\'s web search used are reported once the answer has streamed', async () => {
   const { streamApiCall } = createHarness({
     provider: 'gemini',

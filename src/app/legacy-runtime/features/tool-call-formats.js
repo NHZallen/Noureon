@@ -9,7 +9,10 @@
 // Gemini wants the model's own parts back exactly as sent (they carry the
 // thought signatures Gemini 3 checks); OpenAI-compatible APIs (OpenRouter,
 // NVIDIA) want the assistant message with its tool_calls, then one `tool`
-// message per result, and OpenRouter the reasoning details as well.
+// message per result, and OpenRouter the reasoning details as well. The Responses
+// API (used for GPT-6.1 Sol, which only accepts tools there) wants the items the
+// model produced (reasoning, function calls, messages) sent back unchanged, each
+// call answered by a `function_call_output` item with the same call_id.
 
 const parseArguments = (text) => {
   if (!text) return {};
@@ -66,6 +69,28 @@ export function applyOpenAiTools(payload, { tools = [], toolTurns = [] } = {}) {
     payload.messages.push(assistant);
     for (const result of turn.results || []) {
       payload.messages.push({ role: 'tool', tool_call_id: result.id, content: result.content });
+    }
+  }
+  return payload;
+}
+
+export function applyResponsesTools(payload, { tools = [], toolTurns = [] } = {}) {
+  if (tools.length) {
+    // The Responses API describes a function flat, not under a `function` key.
+    payload.tools = tools.map(({ name, description, parameters }) => ({ type: 'function', name, description, parameters }));
+    payload.tool_choice = 'auto';
+  }
+  for (const turn of toolTurns) {
+    const items = turn.assistant?.responseItems;
+    if (items?.length) {
+      payload.input.push(...items);
+    } else {
+      for (const call of turn.assistant?.toolCalls || []) {
+        payload.input.push({ type: 'function_call', call_id: call.id, name: call.name, arguments: call.arguments || '{}' });
+      }
+    }
+    for (const result of turn.results || []) {
+      payload.input.push({ type: 'function_call_output', call_id: result.id, output: result.content });
     }
   }
   return payload;
@@ -154,6 +179,106 @@ export function createGeminiCollector({ onReasoning = null, onToolArguments = nu
       return visible;
     },
     result: () => ({ text, parts, toolCalls, reasoningDetails: [], sources: [...sources] })
+  };
+}
+
+// Collects one Responses API streamed response (server-sent events, each a JSON
+// object with a `type`). Text, the thinking summary and function call arguments
+// arrive in pieces; the finished items are kept to be sent back with the tool
+// results. An error event is not thrown here (the stream reader swallows what
+// a collector throws): it is left in `failure` for the caller.
+export function createResponsesCollector({ onReasoning = null, onToolArguments = null } = {}) {
+  const calls = new Map();
+  const items = [];
+  let text = '';
+  let finishReason = '';
+  let failure = '';
+  let summaryStarted = false;
+  const callFor = (itemId) => {
+    if (!calls.has(itemId)) calls.set(itemId, { id: '', name: '', arguments: '' });
+    return calls.get(itemId);
+  };
+  return {
+    add(event) {
+      switch (event?.type) {
+        case 'response.output_text.delta':
+          if (typeof event.delta === 'string') {
+            text += event.delta;
+            return event.delta;
+          }
+          return '';
+        case 'response.reasoning_summary_part.added':
+          // Each summary part is its own paragraph.
+          if (summaryStarted) onReasoning?.('\n\n');
+          summaryStarted = true;
+          return '';
+        case 'response.reasoning_summary_text.delta':
+        case 'response.reasoning_text.delta':
+          summaryStarted = true;
+          if (event.delta) onReasoning?.(event.delta);
+          return '';
+        case 'response.output_item.added':
+          if (event.item?.type === 'function_call') {
+            const call = callFor(event.item.id);
+            call.id = event.item.call_id || call.id;
+            call.name = event.item.name || call.name;
+          }
+          return '';
+        case 'response.function_call_arguments.delta': {
+          const call = callFor(event.item_id);
+          if (typeof event.delta === 'string') call.arguments += event.delta;
+          onToolArguments?.({ name: call.name, arguments: call.arguments });
+          return '';
+        }
+        case 'response.function_call_arguments.done': {
+          const call = callFor(event.item_id);
+          if (typeof event.arguments === 'string') call.arguments = event.arguments;
+          return '';
+        }
+        case 'response.output_item.done':
+          if (event.item) {
+            items[Number.isInteger(event.output_index) ? event.output_index : items.length] = event.item;
+            if (event.item.type === 'function_call') {
+              const call = callFor(event.item.id);
+              call.id = event.item.call_id || call.id;
+              call.name = event.item.name || call.name;
+              if (typeof event.item.arguments === 'string') call.arguments = event.item.arguments;
+            }
+          }
+          return '';
+        case 'response.completed':
+        case 'response.incomplete':
+          finishReason = event.type === 'response.completed' ? 'completed' : (event.response?.incomplete_details?.reason || 'incomplete');
+          // The final list is the one to send back.
+          if (Array.isArray(event.response?.output) && event.response.output.length) {
+            items.length = 0;
+            items.push(...event.response.output);
+          }
+          return '';
+        case 'response.failed':
+          failure = event.response?.error?.message || event.response?.error?.code || 'The response failed.';
+          return '';
+        case 'error':
+          failure = event.message || event.error?.message || 'The response stream reported an error.';
+          return '';
+        default:
+          return '';
+      }
+    },
+    get failure() { return failure; },
+    result: () => ({
+      text,
+      parts: [],
+      reasoningDetails: [],
+      responseItems: items.filter(Boolean),
+      finishReason,
+      toolCalls: [...calls.values()].filter((call) => call.id || call.name).map((call, index) => ({
+        id: call.id || `call_${index}`,
+        name: call.name,
+        arguments: call.arguments || '{}',
+        args: parseArguments(call.arguments)
+      }))
+    })
   };
 }
 
