@@ -5,6 +5,7 @@
 // that opens to what happened. The same rows serve every kind of work.
 
 import { setCollapsed, softChange } from '../motion/collapse-motion.js';
+import { pinToEnd } from '../motion/reader-scroll-guard.js';
 
 const element = (document, name, className, text) => {
   const node = document.createElement(name);
@@ -66,6 +67,11 @@ export function createLedger({ document, host, before = null }) {
     let painted = false;
     // The clock redraws every second: only what changed is touched, so a tap on the row is not taken for a hover
     // on iPhone (see patch-html.js).
+    const jumpToEnd = (part) => {
+      const scrollToEnd = () => part.querySelectorAll('.ledger-thought, .ledger-code, .ledger-output').forEach(pinToEnd);
+      scrollToEnd();
+      window?.requestAnimationFrame?.(scrollToEnd);
+    };
     const setText = (target, value) => { if (target.textContent !== value) target.textContent = value; };
     const draw = () => {
       setText(mark, MARKS[state]);
@@ -81,6 +87,8 @@ export function createLedger({ document, host, before = null }) {
       if (showBody !== bodyShown) {
         bodyShown = showBody;
         setCollapsed(content, showBody, { animate: painted });
+        // Opened again, the thinking (or code) shows its newest end, not where it was left when it was folded.
+        if (showBody && painted) jumpToEnd(content);
       }
       painted = true;
     };

@@ -27,16 +27,18 @@ const nudgeOffEdges = (box, guard) => {
 export function watchReader(box, { nudge = true } = {}) {
   if (!box) return null;
   if (box.__readerGuard) return box.__readerGuard;
-  const guard = { holding: false, lastScroll: 0, expected: null };
+  const guard = { holding: false, lastScroll: 0, expected: null, pinned: false };
   box.__readerGuard = guard;
   if (typeof box.addEventListener !== 'function') return guard;
   const stamp = () => { guard.lastScroll = Date.now(); };
   box.addEventListener('touchstart', () => {
+    guard.pinned = false;
     guard.holding = true;
     stamp();
     if (nudge) nudgeOffEdges(box, guard);
   }, { passive: true });
   const release = () => { guard.holding = false; stamp(); };
+  box.addEventListener('wheel', () => { guard.pinned = false; }, { passive: true });
   box.addEventListener('touchend', release, { passive: true });
   box.addEventListener('touchcancel', release, { passive: true });
   box.addEventListener('scroll', () => {
@@ -64,4 +66,19 @@ export function setScrollTopQuietly(box, top) {
   if (guard) moveBox(box, guard, top);
   else box.scrollTop = top;
   return true;
+}
+
+/** Whether the box is following its end: it was sent there, or is resting there, and the reader has not scrolled since. */
+export function isFollowingEnd(box, threshold = 24) {
+  const guard = watchReader(box);
+  return Boolean(guard?.pinned) || box.scrollHeight - box.scrollTop - box.clientHeight < threshold;
+}
+
+/** Sends the box to its newest end and keeps it following from there until the reader scrolls it. */
+export function pinToEnd(box) {
+  const guard = watchReader(box);
+  if (!guard) return;
+  guard.pinned = true;
+  const max = box.scrollHeight - box.clientHeight;
+  moveBox(box, guard, Math.max(0, max - (max > 2 ? 1 : 0)));
 }

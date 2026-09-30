@@ -2,7 +2,7 @@
 // jumping, unless the person asked for less motion. Used by the step list and
 // by the "Ran code" and thinking lines.
 
-import { isReaderScrolling, setScrollTopQuietly, watchReader } from './reader-scroll-guard.js';
+import { isFollowingEnd, isReaderScrolling, setScrollTopQuietly, watchReader } from './reader-scroll-guard.js';
 
 const DURATION_MS = 280;
 // Quick to start, long to settle: the way accordions move in ChatGPT and Claude.
@@ -107,7 +107,7 @@ export function animateDetails(details) {
 export function keepEndInView(box, update) {
   watchReader(box);
   const top = box.scrollTop;
-  const atEnd = box.scrollHeight - top - box.clientHeight < 24;
+  const atEnd = isFollowingEnd(box);
   update();
   if (isReaderScrolling(box)) return;
   const max = box.scrollHeight - box.clientHeight;

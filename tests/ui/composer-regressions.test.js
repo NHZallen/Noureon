@@ -252,14 +252,14 @@ test('the thinking box has no mask on a touch screen', () => {
 test('a short model reply keeps its copy button left and its time right on one line', () => {
   const css = readUiSource('src/styles/chat.css');
 
-  assert.match(css, /\.model-message\s+\.message-bubble\s*\{[^}]*min-width:\s*min\(100%,\s*18rem\);/s);
+  assert.match(css, /\.model-message\s+\.message-bubble\s*\{[^}]*min-width:\s*min\(18rem,\s*calc\(100vw\s*-\s*4rem\)\);/s);
   assert.match(css, /\.model-message\s+\.message-bubble\s*>\s*\.absolute\.bottom-2\s*>\s*\.text-xs\s*\{[^}]*white-space:\s*nowrap;/s);
 });
 
-test('stopping while thinking shows the thinking, not a folded line', () => {
+test('stopping while thinking leaves the thinking folded under its label', () => {
   const view = readUiSource('src/app/ui/sandbox/sandbox-run-view.js');
 
-  assert.match(view, /if \(run\.thoughtInterrupted\) details\.open = true;/);
+  assert.doesNotMatch(view, /details\.open\s*=\s*true/);
 });
 
 test('the chat is never moved under a finger while a reply streams', () => {
@@ -289,4 +289,11 @@ test('the waiting panel is updated in place and says what the model does in the 
   assert.match(single, /patchHTML\(targetElement, renderSingleModelProgress\(/);
   assert.doesNotMatch(single, /'Model is answering'/);
   assert.match(ledger, /const setText = \(target, value\) => \{ if \(target\.textContent !== value\) target\.textContent = value; \};/);
+});
+
+test('a folded thinking row shows its newest end again when it is opened', () => {
+  const ledger = readUiSource('src/app/ui/ledger/ledger.js');
+
+  assert.match(ledger, /if \(showBody && painted\) jumpToEnd\(content\);/);
+  assert.match(ledger, /forEach\(pinToEnd\)/);
 });

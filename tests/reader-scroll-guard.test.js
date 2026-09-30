@@ -75,3 +75,14 @@ test('the app\'s own move is recognised when its scroll event arrives a frame la
   assert.equal(isReaderScrolling(box), false, 'following the end is not mistaken for the reader');
   assert.equal(setScrollTopQuietly(box, 899), true, 'so it keeps following');
 });
+
+test('a box sent to its end keeps following until the reader scrolls it', async () => {
+  const { isFollowingEnd, pinToEnd } = await import('../src/app/ui/motion/reader-scroll-guard.js');
+  const box = makeBox(100, 1000, 200);
+  pinToEnd(box);
+  assert.equal(box.scrollTop, 799);
+  box.scrollHeight = 2000;
+  assert.equal(isFollowingEnd(box), true, 'content grew, still following');
+  box.listeners.touchstart();
+  assert.equal(isFollowingEnd(box), false, 'the reader took over');
+});

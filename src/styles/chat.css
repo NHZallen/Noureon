@@ -919,7 +919,8 @@
 /* A short reply (a word, or only the "thinking interrupted" line) still gives its copy button and time room: the
    bubble is at least this wide, so the time sits on the right on one line instead of wrapping beside the button. */
 .model-message .message-bubble {
-    min-width: min(100%, 18rem);
+    /* Not a percentage: the bubble sits in a shrink-to-fit stack, so 100% would be as narrow as its content. */
+    min-width: min(18rem, calc(100vw - 4rem));
 }
 
 .model-message .message-bubble > .absolute.bottom-2 > .text-xs {
