@@ -23,12 +23,22 @@ const callerOf = (stack) => {
 };
 
 let debugLog = null;
+// The address as it was when the page loaded (main.js reads it before start-up rewrites it).
+let initialParams = new URLSearchParams();
 
 // Stage 1, right after the shell mounts: only the panel and a log of page errors, so a start-up that never
 // finishes shows why. Nothing is wrapped yet, so start-up runs exactly as it does without the panel.
-export function installScrollDebugPanel(doc = document) {
+export function installScrollDebugPanel(doc = document, params = new URLSearchParams()) {
   const view = doc.defaultView;
   if (!view || debugLog) return;
+  initialParams = params;
+  // ?osb=off / ?osb=on is remembered on this device, so the A/B choice survives reloads and addresses
+  // that lose their query.
+  try {
+    const osb = params.get('osb');
+    if (osb === 'off') view.localStorage.setItem('scrollDebugOsb', 'off');
+    if (osb === 'on') view.localStorage.removeItem('scrollDebugOsb');
+  } catch {}
 
   const started = view.performance.now();
   const stamp = () => `${((view.performance.now() - started) / 1000).toFixed(2)}`.padStart(6, ' ');
@@ -80,7 +90,9 @@ export function watchChatScrolling(doc = document) {
   const { log, view } = debugLog;
   // A/B switch: ?osb=off turns off overscroll-behavior on the chat scroller only, to test whether it
   // causes the swipe from the end of the chat to spring back.
-  if (new URLSearchParams(view.location.search).get('osb') === 'off') {
+  let osbOff = initialParams.get('osb') === 'off';
+  try { osbOff = osbOff || view.localStorage.getItem('scrollDebugOsb') === 'off'; } catch {}
+  if (osbOff) {
     chat.style.setProperty('overscroll-behavior-y', 'auto', 'important');
     chat.style.setProperty('overscroll-behavior', 'auto', 'important');
   }
@@ -107,11 +119,24 @@ export function watchChatScrolling(doc = document) {
     log(`${kind} moves=${gesture.moves} finger=${dy} chatMoved=${moved}${gesture.prevented || event.defaultPrevented ? ' PREVENTED' : ''}`);
     gesture = null;
   };
-  // Window, bubble phase, passive: runs after every other listener, so defaultPrevented is final.
-  view.addEventListener('touchstart', onTouchStart, { passive: true });
-  view.addEventListener('touchmove', onTouchMove, { passive: true });
-  view.addEventListener('touchend', finish('TE '), { passive: true });
-  view.addEventListener('touchcancel', finish('TC!'), { passive: true });
+  // Capture phase on window runs before any page listener, so a listener that stops propagation cannot hide a
+  // touch. Whether anything cancelled it is read once the event has been fully dispatched.
+  const afterDispatch = (event, callback) => view.setTimeout(() => callback(event.defaultPrevented), 0);
+  view.addEventListener('touchstart', (event) => {
+    onTouchStart(event);
+    afterDispatch(event, (prevented) => { if (prevented) log('TS  was PREVENTED'); });
+  }, { capture: true, passive: true });
+  view.addEventListener('touchmove', (event) => {
+    onTouchMove(event);
+    const current = gesture;
+    afterDispatch(event, (prevented) => { if (prevented && current) current.prevented = true; });
+  }, { capture: true, passive: true });
+  const endGesture = (kind) => (event) => afterDispatch(event, (prevented) => {
+    if (prevented && gesture) gesture.prevented = true;
+    finish(kind)(event);
+  });
+  view.addEventListener('touchend', endGesture('TE '), { capture: true, passive: true });
+  view.addEventListener('touchcancel', endGesture('TC!'), { capture: true, passive: true });
 
   // Scroll events on any element, grouped per element for 150 ms so a fling is one line.
   const pending = new Map();
