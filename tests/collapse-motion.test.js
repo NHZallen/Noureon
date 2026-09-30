@@ -121,3 +121,21 @@ test('text added to a scrolling box follows the end only for a reader who is at 
   keepEndInView(reset, () => { reset.scrollHeight = 700; reset.scrollTop = 0; });
   assert.equal(reset.scrollTop, 40, 'and where they were is kept if rewriting the text moved it');
 });
+
+test('text is not rewritten under a finger: the update waits until the reader lets go', async () => {
+  const listeners = {};
+  const box = {
+    scrollHeight: 500, scrollTop: 40, clientHeight: 200,
+    addEventListener: (type, handler) => { listeners[type] = handler; }
+  };
+  let writes = 0;
+  keepEndInView(box, () => { writes += 1; });
+  assert.equal(writes, 1, 'nobody is touching it: written at once');
+  listeners.touchstart();
+  keepEndInView(box, () => { writes += 1; });
+  keepEndInView(box, () => { writes += 10; });
+  assert.equal(writes, 1, 'a finger is down: nothing is rewritten');
+  listeners.touchend();
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(writes, 11, 'only the latest update runs afterwards');
+});

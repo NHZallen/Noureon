@@ -160,6 +160,14 @@
     mask-image: linear-gradient(to bottom, transparent, #000 var(--thought-fade), #000 calc(100% - var(--thought-fade)), transparent);
 }
 
+/* No mask on a touch screen: a mask on a scrolling box made it drag on phones. */
+@media (pointer: coarse) {
+    .ledger-thought {
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+}
+
 .ledger-thought strong { color: var(--text-primary, #111827); font-weight: 600; }
 
 /* Saved with the reply, under its summary line. */

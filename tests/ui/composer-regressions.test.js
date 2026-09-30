@@ -217,22 +217,34 @@ test('the bubble colour menu keeps a top the script can flip (an important top c
   assert.doesNotMatch(css, /\.color-dropdown-menu\s*\{[^}]*\btop:[^;]*!important/s);
 });
 
-test('long-running buttons share one working ring (export, import, sign-in, send while replying)', () => {
+test('long-running buttons share one working ring (export, import, sign-in)', () => {
   const css = readUiSource('src/styles/busy-feedback.css');
   const helper = readUiSource('src/app/ui/motion/busy-button.js');
 
-  assert.match(css, /button\[data-busy="true"\]:not\(#submit-btn\)::after[^{]*\{[^}]*animation:\s*busy-spin/s);
-  assert.match(css, /#submit-btn\[data-busy="true"\]::after[^{]*\{[^}]*animation:\s*busy-spin/s);
+  assert.match(css, /button\[data-busy="true"\]::after[^{]*\{[^}]*animation:\s*busy-spin/s);
+  assert.doesNotMatch(css, /#submit-btn/, 'the stop button gets no ring');
   assert.match(helper, /dataset\.busy\s*=\s*'true'/);
   for (const file of [
     'src/app/runtime/features/import-export-lifecycle.js',
     'src/app/runtime/features/auth-import-lifecycle.js',
     'src/app/auth/supabase-auth-bridge.js',
     'src/app/auth/password-recovery-page.js',
-    'src/app/legacy-runtime/features/generated-image-interactions.js',
-    'src/app/runtime/legacy-core/settings-update-input-state-helper.js',
-    'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js'
+    'src/app/legacy-runtime/features/generated-image-interactions.js'
   ]) {
     assert.match(readUiSource(file), /busy-button\.js/, `${file} should use the shared busy button`);
   }
+});
+
+test('streamed letters fade with opacity only, so phones do not leave them blurry', () => {
+  const css = readUiSource('src/styles/chat.css');
+  const fade = css.match(/@keyframes streamingFadeIn\s*\{[\s\S]*?\n\}/)[0];
+
+  assert.doesNotMatch(fade, /filter|blur/);
+  assert.match(css, /\.streaming-fade-char\s*\{[^}]*animation:\s*streamingFadeIn\s+0\.22s\s+ease-out\s+backwards;/s);
+});
+
+test('the thinking box has no mask on a touch screen', () => {
+  const css = readUiSource('src/styles/ledger.css');
+
+  assert.match(css, /@media\s*\(pointer:\s*coarse\)\s*\{\s*\.ledger-thought\s*\{[^}]*mask-image:\s*none;/s);
 });

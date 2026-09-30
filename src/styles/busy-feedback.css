@@ -1,16 +1,15 @@
-/* A button that is working shows a turning ring. Text buttons keep their label and get the ring after it (::before is switched off for every button in settings.css);
-   the send button, which has only an icon, gets a ring around it while a reply is being written.
+/* A button that is working shows a turning ring. Text buttons keep their label and get the ring after it (::before is switched off for every button in settings.css).
    Only the pseudo-elements turn, so the global no-transform rule for buttons does not apply. */
 
 @keyframes busy-spin {
     to { transform: rotate(360deg); }
 }
 
-button[data-busy="true"]:not(#submit-btn) {
+button[data-busy="true"] {
     cursor: progress;
 }
 
-button[data-busy="true"]:not(#submit-btn)::after {
+button[data-busy="true"]::after {
     content: "";
     display: inline-block;
     flex: none;
@@ -25,25 +24,8 @@ button[data-busy="true"]:not(#submit-btn)::after {
     animation: busy-spin 0.8s linear infinite;
 }
 
-#submit-btn {
-    position: relative;
-}
-
-#submit-btn[data-busy="true"]::after {
-    content: "";
-    position: absolute;
-    inset: -4px;
-    box-sizing: border-box;
-    border: 2px solid transparent;
-    border-top-color: var(--text-primary, #111827);
-    border-radius: 50%;
-    pointer-events: none;
-    animation: busy-spin 1s linear infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
-    button[data-busy="true"]:not(#submit-btn)::after,
-    #submit-btn[data-busy="true"]::after {
+    button[data-busy="true"]::after {
         animation-duration: 2.4s;
     }
 }

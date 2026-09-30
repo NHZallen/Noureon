@@ -521,18 +521,17 @@
 }
 
 .streaming-fade-char {
-    opacity: 0;
-    animation: streamingFadeIn 0.22s ease-out forwards;
+    /* Only opacity, and no fill after the end: a blur filter on every letter left the text soft on phones, and a
+       held final state kept a compositing layer for each letter. */
+    animation: streamingFadeIn 0.22s ease-out backwards;
 }
 
 @keyframes streamingFadeIn {
     from {
         opacity: 0;
-        filter: blur(2px);
     }
     to {
         opacity: 1;
-        filter: blur(0);
     }
 }
 

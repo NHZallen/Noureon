@@ -93,15 +93,54 @@ export function animateDetails(details) {
   return details;
 }
 
+const READER_SETTLE_MS = 250; // a flick keeps scrolling after the finger lifts
+const RETRY_MS = 120;
+
+// Whether a person is dragging the box or it is still coasting from their flick. Touching a box while its text is
+// rewritten (and its scroll position set) makes iPhone drop the gesture: the box "will not scroll".
+function readerGuard(box) {
+  if (box.__readerGuard) return box.__readerGuard;
+  const guard = { holding: false, lastScroll: 0, own: false, pending: null, timer: null };
+  box.__readerGuard = guard;
+  if (typeof box.addEventListener !== 'function') return guard;
+  const stamp = () => { guard.lastScroll = Date.now(); };
+  box.addEventListener('touchstart', () => { guard.holding = true; stamp(); }, { passive: true });
+  const release = () => { guard.holding = false; stamp(); };
+  box.addEventListener('touchend', release, { passive: true });
+  box.addEventListener('touchcancel', release, { passive: true });
+  box.addEventListener('scroll', () => { if (!guard.own) stamp(); }, { passive: true });
+  return guard;
+}
+
 /**
  * Runs `update` (which adds to a scrolling box) and keeps the box at its end
  * only when the reader was already there, so reading further up is never
- * pulled down.
+ * pulled down. While someone is touching the box (or it is still coasting) the
+ * update waits, and the latest one runs when they let go.
  */
 export function keepEndInView(box, update) {
+  const guard = readerGuard(box);
+  guard.pending = update;
+  if (guard.holding || Date.now() - guard.lastScroll < READER_SETTLE_MS) {
+    if (guard.timer === null) {
+      guard.timer = setTimeout(() => {
+        guard.timer = null;
+        const latest = guard.pending;
+        guard.pending = null;
+        if (latest) keepEndInView(box, latest);
+      }, RETRY_MS);
+    }
+    return;
+  }
+  guard.pending = null;
   const top = box.scrollTop;
   const atEnd = box.scrollHeight - top - box.clientHeight < 24;
   update();
   // Rewriting the text can reset the position; where the reader was is kept.
-  box.scrollTop = atEnd ? box.scrollHeight : top;
+  const target = atEnd ? box.scrollHeight : top;
+  if (Math.abs(box.scrollTop - target) > 0.5) {
+    guard.own = true;
+    box.scrollTop = target;
+    guard.own = false;
+  }
 }
