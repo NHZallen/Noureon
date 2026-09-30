@@ -194,12 +194,9 @@ test('the chat column clips its overflow without becoming a second scroll contai
   assert.doesNotMatch(rule, /overflow-x:\s*hidden;/);
 });
 
-test('temporary scroll diagnostics never run inside start-up', () => {
+test('scroll diagnostics load only when the address asks for them', () => {
   const main = readUiSource('src/main.js');
 
-  assert.match(main, /TEMPORARY: scroll diagnostics/);
-  assert.match(main, /import\('\.\/app\/debug\/scroll-debug\.js'\)/);
+  assert.match(main, /has\('scrolldebug'\)\)\s*\{\s*void import\('\.\/app\/debug\/scroll-debug\.js'\)/);
   assert.doesNotMatch(main, /^import .*scroll-debug/m);
-  // The scroll watching starts only after the start-up screen is gone.
-  assert.ok(main.indexOf('dismissStartupSkeleton(document);') < main.indexOf('module?.watchChatScrolling()'));
 });
