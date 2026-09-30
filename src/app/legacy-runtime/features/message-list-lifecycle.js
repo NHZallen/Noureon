@@ -314,6 +314,9 @@ export function createMessageListLifecycle({
             conversation.messages.forEach((message, index) => {
                 addMessageToUI(message, index, false, false);
             });
+            // The history appears as one piece (the list fades in): each message sliding up on its own made the chat
+            // jump when it was opened. New messages added later still slide in.
+            messageList.querySelectorAll(':scope > .message-item').forEach((element) => element.classList.add('is-history'));
         }
         const pendingElement = conversation.__astraPendingResponse?.loadingMessageDiv;
         if (pendingElement && conversation.messages.at(-1)?.role === 'user') {

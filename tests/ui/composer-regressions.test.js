@@ -248,3 +248,35 @@ test('the thinking box has no mask on a touch screen', () => {
 
   assert.match(css, /@media\s*\(pointer:\s*coarse\)\s*\{\s*\.ledger-thought\s*\{[^}]*mask-image:\s*none;/s);
 });
+
+test('a short model reply keeps its copy button left and its time right on one line', () => {
+  const css = readUiSource('src/styles/chat.css');
+
+  assert.match(css, /\.model-message\s+\.message-bubble\s*\{[^}]*min-width:\s*min\(100%,\s*18rem\);/s);
+  assert.match(css, /\.model-message\s+\.message-bubble\s*>\s*\.absolute\.bottom-2\s*>\s*\.text-xs\s*\{[^}]*white-space:\s*nowrap;/s);
+});
+
+test('stopping while thinking shows the thinking, not a folded line', () => {
+  const view = readUiSource('src/app/ui/sandbox/sandbox-run-view.js');
+
+  assert.match(view, /if \(run\.thoughtInterrupted\) details\.open = true;/);
+});
+
+test('the chat is never moved under a finger while a reply streams', () => {
+  const position = readUiSource('src/app/runtime/features/chat-scroll-position.js');
+  const submit = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+
+  assert.match(position, /setScrollTopQuietly\(/);
+  assert.match(position, /isReaderScrolling\(chatContainer\)/);
+  assert.doesNotMatch(submit, /chatContainer\.scrollTo\(\{\s*top:\s*chatContainer\.scrollHeight/);
+});
+
+test('opening a chat fades it in without sliding anything, so it does not jump', () => {
+  const css = readUiSource('src/styles/chat.css');
+  const lifecycle = readUiSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
+  const fadeIn = css.match(/@keyframes chatFadeIn\s*\{[\s\S]*?\n\s*\}\n/)[0];
+
+  assert.doesNotMatch(fadeIn, /transform|translate/);
+  assert.match(css, /\.message-item\.is-history\s*\{\s*animation:\s*none;\s*\}/);
+  assert.match(lifecycle, /classList\.add\('is-history'\)/);
+});

@@ -92,6 +92,8 @@ function renderReplyThinking(document, run, language) {
   const pre = element(document, 'div', 'ledger-thought is-saved sandbox-run-thought-text');
   fillThinkingText(document, pre, run.thought);
   details.append(element(document, 'summary', 'sandbox-run-summary', label), pre);
+  // Stopped while thinking: the thinking is all the reply has, so it is shown, not folded away.
+  if (run.thoughtInterrupted) details.open = true;
   return animateDetails(details);
 }
 

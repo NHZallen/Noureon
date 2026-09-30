@@ -19,9 +19,11 @@
         opacity: 1;
         transform: scale(1);
     }
+    /* Opacity only: a slide on the whole list also changed the chat's scroll height while it ran, so a chat
+       opened at its end visibly jumped up as it appeared. */
     @keyframes chatFadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
     .chat-view-transition {
         animation: chatFadeIn 0.3s ease-out forwards;
@@ -408,6 +410,7 @@
     .scroll-area::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
     .scroll-area::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
     .message-item { animation: slideInUp 0.4s ease-out forwards; }
+    .message-item.is-history { animation: none; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes fadeInChar {
@@ -911,4 +914,14 @@
         border-radius: 1.1rem;
         min-height: min(22rem, calc(100vw - 3.5rem));
     }
+}
+
+/* A short reply (a word, or only the "thinking interrupted" line) still gives its copy button and time room: the
+   bubble is at least this wide, so the time sits on the right on one line instead of wrapping beside the button. */
+.model-message .message-bubble {
+    min-width: min(100%, 18rem);
+}
+
+.model-message .message-bubble > .absolute.bottom-2 > .text-xs {
+    white-space: nowrap;
 }

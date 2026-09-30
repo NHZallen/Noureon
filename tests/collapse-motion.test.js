@@ -113,7 +113,7 @@ test('a details element eases open and shut when its summary is clicked', () => 
 test('text added to a scrolling box follows the end only for a reader who is at the end', () => {
   const box = { scrollHeight: 500, scrollTop: 300, clientHeight: 200 };
   keepEndInView(box, () => { box.scrollHeight = 600; });
-  assert.equal(box.scrollTop, 600, 'reading the newest line: it keeps up');
+  assert.equal(box.scrollTop, 399, 'reading the newest line: it keeps up, one pixel short of the end');
   const reading = { scrollHeight: 500, scrollTop: 40, clientHeight: 200 };
   keepEndInView(reading, () => { reading.scrollHeight = 700; });
   assert.equal(reading.scrollTop, 40, 'reading further up: not pulled down');
@@ -138,4 +138,11 @@ test('text is not rewritten under a finger: the update waits until the reader le
   listeners.touchend();
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(writes, 11, 'only the latest update runs afterwards');
+});
+
+test('a box that follows its end never rests exactly on it, so an iPhone swipe goes to the box', () => {
+  const box = { scrollHeight: 500, scrollTop: 300, clientHeight: 200 };
+  keepEndInView(box, () => { box.scrollHeight = 900; });
+  assert.equal(box.scrollTop, 699);
+  assert.notEqual(box.scrollTop, box.scrollHeight - box.clientHeight);
 });

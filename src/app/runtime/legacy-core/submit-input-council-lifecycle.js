@@ -1,4 +1,5 @@
 import { createCouncilControlsLifecycle } from '../../legacy-runtime/features/council-controls-lifecycle.js';
+import { setScrollTopQuietly } from '../../ui/motion/reader-scroll-guard.js';
 import { createModelSwitcherLifecycle } from '../../legacy-runtime/features/model-switcher-lifecycle.js';
 import { createResponseProgressRenderers } from '../../legacy-runtime/features/response-progress-renderers.js';
 import { createSingleModelResponseLifecycle } from '../../legacy-runtime/features/single-model-response-lifecycle.js';
@@ -599,9 +600,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         targetElement.appendChild(fragment);
         const chatContainer = ALL_ELEMENTS.chatContainer;
         const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
-        if (isNearBottom) {
-          chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
-        }
+        if (isNearBottom) setScrollTopQuietly(chatContainer, chatContainer.scrollHeight - chatContainer.clientHeight);
       },
       scheduleFrame: (callback) => requestAnimationFrame(callback),
       waitForFrame: () => new Promise((resolve) => scheduleTimeout(resolve, 16))
@@ -638,7 +637,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
         const pauseCouncilAutoScroll = preserveCouncilDetails && isCouncilDeferredSectionVisible(currentText);
         if (!pauseCouncilAutoScroll && isNearBottom) {
-          chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
+          setScrollTopQuietly(chatContainer, chatContainer.scrollHeight - chatContainer.clientHeight);
         }
       },
       onFinish: () => {
