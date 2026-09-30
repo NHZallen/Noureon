@@ -33,6 +33,7 @@ import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewa
 import { loadSharingVendor } from './app/vendors/sharing-vendor.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
 import { installGlassButtonFeel } from './app/ui/motion/glass-button-feel.js';
+import { installGlassLens } from './app/ui/motion/glass-lens.js';
 
 const recordBootstrapMilestone = (markName, measureName) => {
   markStartup(markName);
@@ -73,6 +74,7 @@ async function bootstrap() {
 
   mountAppShell(appShell);
   installGlassButtonFeel();
+  void installGlassLens().catch(() => {});
   recordBootstrapMilestone(
     STARTUP_MARKS.SHELL_MOUNTED,
     STARTUP_MEASURES.TO_SHELL
