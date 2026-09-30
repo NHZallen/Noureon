@@ -13,6 +13,11 @@ export default {
     '!./src/app/ui/files/design/**'
   ],
   darkMode: 'class',
+  // hover: utilities only apply where a pointer can hover: a tapped button on a touch screen no longer keeps
+  // its hover colour (scripts/postcss-hover-only.mjs does the same for the hand-written CSS).
+  future: {
+    hoverOnlyWhenSupported: true
+  },
   safelist: [
     'hidden',
     'block',
