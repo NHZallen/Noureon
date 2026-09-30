@@ -20,6 +20,10 @@
     /* Sticky headings inside messages stop just under the fade. */
     --chat-scroll-padding-top: calc(var(--chat-pad) - var(--chat-fade-top));
     scroll-padding-top: calc(var(--chat-fade-top) + 0.5rem);
+    /* Not contain (the .scroll-area default): on iPhone, overscroll-behavior: contain on this scroller made
+       a swipe that starts at the end of the chat spring back to the bottom after the finger lifted.
+       Measured on a device: with contain, about half of such swipes sprang back; with auto, none did. */
+    overscroll-behavior-y: auto;
 }
 
 @media (min-width: 768px) {

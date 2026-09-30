@@ -194,6 +194,12 @@ test('the chat column clips its overflow without becoming a second scroll contai
   assert.doesNotMatch(rule, /overflow-x:\s*hidden;/);
 });
 
+test('the chat scroller does not contain overscroll, which made iPhone swipes from the end spring back', () => {
+  const css = readUiSource('src/styles/chat-edge-fade.css');
+
+  assert.match(css, /#chat-container\s*\{[^}]*overscroll-behavior-y:\s*auto;/s);
+});
+
 test('temporary scroll diagnostics never run inside start-up', () => {
   const main = readUiSource('src/main.js');
 
