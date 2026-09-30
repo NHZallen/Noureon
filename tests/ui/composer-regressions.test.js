@@ -185,3 +185,11 @@ test('the header leads with a sidebar icon and a new chat button', () => {
   assert.match(header, /id="header-actions"/);
   assert.doesNotMatch(header.slice(header.indexOf('id="new-chat-btn-header"'), header.indexOf('id="model-switcher-container"')), /\bhidden\b/);
 });
+
+test('the chat column clips its overflow without becoming a second scroll container', () => {
+  const base = readUiSource('src/styles/base.css');
+  const rule = base.match(/main\.flex-1\s*\{[^}]*\}/s)?.[0] || '';
+
+  assert.match(rule, /overflow:\s*clip;/);
+  assert.doesNotMatch(rule, /overflow-x:\s*hidden;/);
+});

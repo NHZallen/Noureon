@@ -19,8 +19,12 @@ body {
     color: var(--button-primary-bg);
 }
     main.flex-1 {
-    /* 強制隱藏所有超出寬度的內容 */
-    overflow-x: hidden;
+    /* Hide whatever is wider than the chat (the history sidebar waits off to the right) without making
+       main a scroll container: overflow-x: hidden turns overflow-y into auto, and on iPhone that nested,
+       viewport-sized scroller around #chat-container could take over a swipe that starts at the end of
+       the chat, so the chat did not move. clip cuts off the overflow and scrolls nothing. */
+    overflow: hidden;
+    overflow: clip;
 }
     #history-sidebar .history-sidebar-item {
     /* 這是為了讓指示條可以相對於它定位，非常重要！ */
