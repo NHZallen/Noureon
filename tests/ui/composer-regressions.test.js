@@ -193,10 +193,3 @@ test('the chat column clips its overflow without becoming a second scroll contai
   assert.match(rule, /overflow:\s*clip;/);
   assert.doesNotMatch(rule, /overflow-x:\s*hidden;/);
 });
-
-test('scroll diagnostics load only when the address asks for them', () => {
-  const main = readUiSource('src/main.js');
-
-  assert.match(main, /has\('scrolldebug'\)\)\s*\{\s*void import\('\.\/app\/debug\/scroll-debug\.js'\)/);
-  assert.doesNotMatch(main, /^import .*scroll-debug/m);
-});

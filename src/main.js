@@ -71,10 +71,6 @@ async function bootstrap() {
   }
 
   mountAppShell(appShell);
-  // Developer-only scroll diagnostics for phones (src/app/debug/scroll-debug.js).
-  if (new URLSearchParams(window.location.search).has('scrolldebug')) {
-    void import('./app/debug/scroll-debug.js').then(({ installScrollDebug }) => installScrollDebug());
-  }
   recordBootstrapMilestone(
     STARTUP_MARKS.SHELL_MOUNTED,
     STARTUP_MEASURES.TO_SHELL
