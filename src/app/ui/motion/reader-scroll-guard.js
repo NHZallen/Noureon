@@ -1,6 +1,6 @@
 // Scroll boxes that the app moves by itself (the chat following a reply, the thinking box following the
-// thinking) must never be moved while a person is scrolling them, and must never rest exactly on an end when a
-// finger lands on them.
+// thinking) must never be moved while a person is scrolling them, and must never be left resting exactly on an
+// end when a finger lands on them.
 //
 // On iPhone, setting scrollTop while a finger is down, or while a flick is still coasting, stops the scroll dead.
 // And a swipe that starts with a box exactly at its end is handed to the page instead of the box, so a box that
@@ -21,14 +21,45 @@ const moveBox = (box, guard, top) => {
   box.scrollTop = top;
 };
 
-const nudgeOffEdges = (box, guard = { expected: null }) => {
-  const max = box.scrollHeight - box.clientHeight;
-  if (max <= EDGE_ROOM * 2) return;
-  const top = box.scrollTop;
-  // Anything within a hair of an end counts as resting on it (fractional positions), not only exactly on it.
-  if (top < 1) moveBox(box, guard, EDGE_ROOM);
-  else if (top > max - 1) moveBox(box, guard, max - EDGE_ROOM);
+// A box resting on its end is taken off it by making its range two pixels longer, not by moving it: what is on
+// screen does not change at all (moving it, even by two pixels, shows as a tick). The room is a CSS variable that
+// an empty block at the end of the box (::after, see chat-edge-fade.css and ledger.css) takes its height from.
+const END_ROOM = '--end-room';
+const ROOM_STEP = 2;
+const ROOM_MAX = 6;
+// Further than this from the content's end, the room is given back.
+const ROOM_AWAY = 8;
+
+const readRoom = (box) => Number.parseFloat(box.style?.getPropertyValue?.(END_ROOM)) || 0;
+const setRoom = (box, px) => {
+  if (!box.style) return;
+  if (px > 0) box.style.setProperty(END_ROOM, `${px}px`);
+  else box.style.removeProperty(END_ROOM);
 };
+
+/** A box resting on (within a pixel of) its end gets two more pixels of range, so it rests off the end. */
+export function giveEndRoom(box) {
+  if (!box) return false;
+  const max = box.scrollHeight - box.clientHeight;
+  if (max <= EDGE_ROOM * 2) return false;
+  const top = box.scrollTop;
+  // Only when resting on the end: past it (still bouncing) is left alone.
+  if (!(top <= max && top > max - 1)) return false;
+  const room = readRoom(box);
+  if (room >= ROOM_MAX) return false;
+  setRoom(box, room + ROOM_STEP);
+  return true;
+}
+
+/** Far from the end, the room is given back (nothing moves: the box is nowhere near the end it shortens). */
+export function takeBackEndRoom(box) {
+  const room = box ? readRoom(box) : 0;
+  if (!room) return false;
+  const max = box.scrollHeight - box.clientHeight;
+  if (max - box.scrollTop - room <= ROOM_AWAY) return false;
+  setRoom(box, 0);
+  return true;
+}
 
 export function watchReader(box, { nudge = true } = {}) {
   if (!box) return null;
@@ -41,7 +72,7 @@ export function watchReader(box, { nudge = true } = {}) {
     guard.pinned = false;
     guard.holding = true;
     stamp();
-    if (nudge) nudgeOffEdges(box, guard);
+    if (nudge) giveEndRoom(box);
   }, { passive: true });
   const release = () => { guard.holding = false; stamp(); };
   box.addEventListener('wheel', () => { guard.pinned = false; }, { passive: true });
@@ -98,14 +129,14 @@ const NUDGED_BOXES = '.ledger-thought, .ledger-code, .ledger-output';
 const STILL_MS = 160;
 
 /**
- * A scroll box that has come to rest within a pixel of an end goes two pixels off it, once it is still and no finger
- * is on the screen. The nudge when a finger lands (keepScrollBoxesOffTheirEdges, chat-scroll-edges.js) is too late:
- * measured on an iPhone, writing the position as the finger lands stops that swipe dead (the next swipe, from the
- * position it left, scrolls). Boxes reach an end by the reader's own fling, by opening a chat or by following new
- * text, so the place to move them is when they stop. Scroll events do not bubble, so one listener on the page
- * catches them on the way down.
+ * A scroll box that has come to rest within a pixel of its end is given two more pixels of range there (giveEndRoom), once
+ * it is still and no finger is on the screen, so it rests off the end and the next swipe goes to the box. Nothing
+ * moves: measured on an iPhone, writing the position as the finger lands stops that swipe dead, and moving the box
+ * a moment after it stopped shows as a tick. Boxes reach an end by the reader's own fling, by opening a chat or by
+ * following new text, so this is done when they stop. Scroll events do not bubble, so one listener on the page
+ * catches them on the way down. Far from the end again, the extra range is given back.
  */
-export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${NUDGED_BOXES}, #chat-container`, view = doc.defaultView, glide = true } = {}) {
+export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${NUDGED_BOXES}, #chat-container`, view = doc.defaultView } = {}) {
   if (!view || typeof doc.addEventListener !== 'function') return () => {};
   const timers = new WeakMap();
   let touching = 0;
@@ -116,24 +147,8 @@ export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${N
       timers.set(box, view.setTimeout(() => settle(box), STILL_MS));
       return;
     }
-    const max = box.scrollHeight - box.clientHeight;
-    if (max <= EDGE_ROOM * 2) return;
-    const top = box.scrollTop;
-    const guard = watchReader(box, { nudge: false });
-    if (!guard) return;
-    // Past an end (still bouncing) is left alone.
-    let target = null;
-    if (top >= 0 && top < 1 && top !== EDGE_ROOM) target = EDGE_ROOM;
-    else if (top <= max && top > max - 1) target = max - EDGE_ROOM;
-    if (target === null) return;
-    // A jump of two pixels a moment after the scrolling stopped shows as a tick; glided, it is not seen.
-    const reduced = Boolean(view.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
-    if (glide && !reduced && typeof box.scrollTo === 'function') {
-      guard.expected = target;
-      box.scrollTo({ top: target, behavior: 'smooth' });
-    } else {
-      moveBox(box, guard, target);
-    }
+    // On the end: more range, so it rests off it. Far from it: the extra range goes again.
+    if (!giveEndRoom(box)) takeBackEndRoom(box);
   };
   const onScroll = (event) => {
     const target = event.target;
@@ -165,7 +180,7 @@ export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${N
 export function keepScrollBoxesOffTheirEdges(doc = document) {
   const onTouchStart = (event) => {
     const box = event.target?.closest?.(NUDGED_BOXES);
-    if (box) nudgeOffEdges(box, box.__readerGuard);
+    if (box) giveEndRoom(box);
   };
   doc.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
   return () => doc.removeEventListener('touchstart', onTouchStart, { capture: true });

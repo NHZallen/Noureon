@@ -253,6 +253,15 @@
 
 .ledger-issues { margin: 0 0 0.4rem; padding: 0 0 0 1.1rem; font-size: 0.8125rem; }
 
+/* The same end room as the chat has (chat-edge-fade.css): a box resting on its end is taken off it without moving. */
+.ledger-thought::after,
+.ledger-code::after,
+.ledger-output::after {
+    content: '';
+    display: block;
+    height: var(--end-room, 0px);
+}
+
 /* The process list drawn like ChatGPT's: grey lines, an outline icon for the kind of step, a small chevron on the
    ones that open, and what opens (thinking, code, output) as plain text with no box and no rule beside it. The
    saved reply draws the same rows (sandbox-run-view.js), so what streamed in is what stays. */
