@@ -1,4 +1,4 @@
-// How the glass header buttons answer a finger, after iOS liquid glass: pressing lifts and lights the
+// How the glass buttons (the header's and the temporary chat controls) answer a finger, after iOS liquid glass: pressing lifts and lights the
 // button (the light follows the finger), dragging pulls it toward the finger and stretches it along the
 // pull like a drop, and letting go springs it back. Letting go away from the button cancels the tap.
 // One delegated listener, so buttons added later (the temporary chat controls) work without wiring.
@@ -10,7 +10,7 @@ export const GLASS_BUTTON_SELECTOR = [
   '#temporary-chat-entry-button',
   '#temporary-memory-button',
   '#save-temporary-chat-button'
-].map((id) => `#chat-workspace > header ${id}`).join(', ');
+].map((id) => `#chat-workspace ${id}`).join(', ');
 
 const PRESS_SCALE = 1.1;
 const MAX_PULL = 22;

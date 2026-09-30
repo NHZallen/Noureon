@@ -19,11 +19,11 @@ export async function installGlassLens(doc = document) {
   const attach = (button) => {
     if (lenses.has(button)) return;
     const glass = createGlass(button, { ...RESTING, mode: 'backdrop', fit: true, fallback: '' });
-    const watch = new view.MutationObserver(() => {
+    const classWatch = new view.MutationObserver(() => {
       glass.update(button.classList.contains('is-glass-pressed') ? PRESSED : { refraction: RESTING.refraction, specular: RESTING.specular });
     });
-    watch.observe(button, { attributes: true, attributeFilter: ['class'] });
-    lenses.set(button, { glass, watch });
+    classWatch.observe(button, { attributes: true, attributeFilter: ['class'] });
+    lenses.set(button, { glass, watch: classWatch });
   };
   const sweep = () => {
     doc.querySelectorAll(GLASS_BUTTON_SELECTOR).forEach(attach);
@@ -36,11 +36,15 @@ export async function installGlassLens(doc = document) {
   };
 
   sweep();
-  const header = doc.querySelector('#chat-workspace > header');
-  const headerWatch = header ? new view.MutationObserver(sweep) : null;
-  headerWatch?.observe(header, { childList: true, subtree: true });
+  // The temporary chat controls move between the header and the workspace, so watch both, but only
+  // the header's whole subtree: the workspace's own children change rarely, its messages often.
+  const workspace = doc.getElementById('chat-workspace');
+  const header = workspace?.querySelector(':scope > header');
+  const structureWatch = new view.MutationObserver(sweep);
+  if (workspace) structureWatch.observe(workspace, { childList: true });
+  if (header) structureWatch.observe(header, { childList: true, subtree: true });
   return () => {
-    headerWatch?.disconnect();
+    structureWatch.disconnect();
     lenses.forEach(({ glass, watch }) => { watch.disconnect(); glass.destroy(); });
     lenses.clear();
     delete doc.documentElement.dataset.glassLens;
