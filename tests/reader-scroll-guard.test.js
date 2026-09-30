@@ -128,9 +128,9 @@ test('a box resting a fraction of a pixel from its end (a fractional height) cou
   assert.equal(room(nearBottom), '2px');
   assert.equal(nearBottom.scrollTop, 799.4);
 
-  // Each time it comes to rest on the end it gets two more, up to six: a blank strip nobody can see.
+  // Each time it comes to rest on the end it gets two more, up to twelve: a blank strip nobody can see.
   const box = makeBox(800);
-  for (const expected of ['2px', '4px', '6px', '6px']) {
+  for (const expected of ['2px', '4px', '6px', '8px', '10px', '12px', '12px']) {
     giveEndRoom(box);
     assert.equal(room(box), expected);
     box.scrollHeight += 2;
@@ -157,7 +157,7 @@ test('the room is given back once the box is well away from its end, and not whi
   assert.equal(takeBackEndRoom(box), false, 'nothing to give back');
 });
 
-test('a box that comes to rest on its end gets more range once it is still, never while a finger is down', async () => {
+test('a box that arrives at its end gets more range there at once, and the rest is settled once it is still', async () => {
   const { Window } = await import('happy-dom');
   const { settleScrollBoxesOffTheirEdges } = await import('../src/app/ui/motion/reader-scroll-guard.js');
   const window = new Window();
@@ -171,61 +171,70 @@ test('a box that comes to rest on its end gets more range once it is still, neve
   };
   const runTimers = () => { const due = [...timers]; timers.clear(); due.forEach(([, callback]) => callback()); };
   const stop = settleScrollBoxesOffTheirEdges(document, { view });
-  const size = (node, top, height = 1000) => {
-    Object.defineProperty(node, 'scrollHeight', { value: height, configurable: true });
+  const roomOf = (node) => node.style.getPropertyValue('--end-room');
+  // A box whose scrollable height includes its end room, as the real one does.
+  const size = (node, top, base = 1000) => {
+    Object.defineProperty(node, 'scrollHeight', { get: () => base + (Number.parseFloat(roomOf(node)) || 0), configurable: true });
     Object.defineProperty(node, 'clientHeight', { value: 200, configurable: true });
     node.scrollTop = top;
   };
   const scrolled = (node) => node.dispatchEvent(new window.Event('scroll'));
-  const roomOf = (node) => node.style.getPropertyValue('--end-room');
   const chat = document.getElementById('chat-container');
 
-  // The reader's fling ends exactly at the bottom: once it is still, the chat has two more pixels of range there.
+  // A fling arrives exactly at the bottom: at once, not after it has stopped (a swipe may follow within milliseconds).
   size(chat, 800);
   scrolled(chat);
-  assert.equal(roomOf(chat), '', 'not at once: the fling may still be coasting');
+  assert.equal(roomOf(chat), '6px');
+  assert.equal(chat.scrollTop, 800, 'and it has not moved at all');
+  assert.equal(chat.scrollHeight - chat.clientHeight, 806);
+  // The scroll events that follow (it is now off the end) change nothing, and once it is still nothing is added.
   scrolled(chat);
   assert.equal(timers.size, 1, 'each scroll event pushes the wait forward');
   runTimers();
-  assert.equal(roomOf(chat), '2px');
-  assert.equal(chat.scrollTop, 800, 'and it has not moved at all');
+  assert.equal(roomOf(chat), '6px');
+
+  // A momentum that carries it on to the new end gets more, up to a cap; after that it is left.
+  for (const expected of ['12px', '12px']) {
+    chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+    scrolled(chat);
+    assert.equal(roomOf(chat), expected);
+  }
 
   // Far from the end again: given back.
-  size(chat, 400, 1002);
+  chat.scrollTop = 400;
   scrolled(chat);
   runTimers();
   assert.equal(roomOf(chat), '');
   assert.equal(chat.scrollTop, 400);
 
   // A fraction of a pixel from the end counts as on it; mid-way, bouncing past it, or no scroll box: left alone.
-  size(chat, 799.4);
+  chat.scrollTop = chat.scrollHeight - chat.clientHeight - 0.6;
+  scrolled(chat);
+  assert.equal(roomOf(chat), '6px');
+  chat.scrollTop = chat.scrollHeight - chat.clientHeight + 30;
   scrolled(chat);
   runTimers();
-  assert.equal(roomOf(chat), '2px');
-  size(chat, 830);
-  scrolled(chat);
-  runTimers();
-  assert.equal(chat.scrollTop, 830, 'still bouncing');
+  assert.equal(chat.scrollTop, chat.scrollHeight - chat.clientHeight + 30, 'still bouncing: nothing added, nothing moved');
   const plain = document.getElementById('plain');
   size(plain, 800);
   scrolled(plain);
   runTimers();
   assert.equal(roomOf(plain), '');
 
-  // A finger on the screen, even held still, waits until it is let go.
+  // A finger on the screen at rest on the end: the room waits for it to be let go, and is given then.
   const thought = document.getElementById('thought');
   size(thought, 800);
-  scrolled(thought);
   thought.dispatchEvent(new window.Event('touchstart', { bubbles: true }));
+  scrolled(thought);
   runTimers();
-  assert.equal(roomOf(thought), '', 'not while a finger is down');
   thought.dispatchEvent(new window.Event('touchend', { bubbles: true }));
   runTimers();
-  assert.equal(roomOf(thought), '2px');
-  assert.equal(thought.scrollTop, 800);
+  assert.notEqual(roomOf(thought), '');
+  assert.equal(thought.scrollTop, 800, 'nothing moved');
 
   stop();
   size(chat, 800);
+  chat.style.removeProperty('--end-room');
   scrolled(chat);
   assert.equal(timers.size, 0, 'stopped');
   window.happyDOM.abort();

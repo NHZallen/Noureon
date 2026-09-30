@@ -26,7 +26,10 @@ const moveBox = (box, guard, top) => {
 // an empty block at the end of the box (::after, see chat-edge-fade.css and ledger.css) takes its height from.
 const END_ROOM = '--end-room';
 const ROOM_STEP = 2;
-const ROOM_MAX = 6;
+// When a scroll arrives at the end (a fling, the end of a chat being opened) it is given more at once, while it is still
+// moving: a swipe started a moment after the scrolling stopped lands on a chat already off the end.
+const ROOM_ON_ARRIVAL = 6;
+const ROOM_MAX = 12;
 // Further than this from the content's end, the room is given back.
 const ROOM_AWAY = 8;
 
@@ -37,8 +40,8 @@ const setRoom = (box, px) => {
   else box.style.removeProperty(END_ROOM);
 };
 
-/** A box resting on (within a pixel of) its end gets two more pixels of range, so it rests off the end. */
-export function giveEndRoom(box) {
+/** A box on (within a pixel of) its end gets a little more range there, so it rests off the end. */
+export function giveEndRoom(box, step = ROOM_STEP) {
   if (!box) return false;
   const max = box.scrollHeight - box.clientHeight;
   if (max <= EDGE_ROOM * 2) return false;
@@ -47,7 +50,7 @@ export function giveEndRoom(box) {
   if (!(top <= max && top > max - 1)) return false;
   const room = readRoom(box);
   if (room >= ROOM_MAX) return false;
-  setRoom(box, room + ROOM_STEP);
+  setRoom(box, Math.min(room + step, ROOM_MAX));
   return true;
 }
 
@@ -129,8 +132,8 @@ const NUDGED_BOXES = '.ledger-thought, .ledger-code, .ledger-output';
 const STILL_MS = 160;
 
 /**
- * A scroll box that has come to rest within a pixel of its end is given two more pixels of range there (giveEndRoom), once
- * it is still and no finger is on the screen, so it rests off the end and the next swipe goes to the box. Nothing
+ * A scroll box that arrives at its end, or rests within a pixel of it, is given more range there (giveEndRoom), so it rests
+ * off the end and the next swipe goes to the box. Nothing
  * moves: measured on an iPhone, writing the position as the finger lands stops that swipe dead, and moving the box
  * a moment after it stopped shows as a tick. Boxes reach an end by the reader's own fling, by opening a chat or by
  * following new text, so this is done when they stop. Scroll events do not bubble, so one listener on the page
@@ -154,6 +157,9 @@ export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${N
     const target = event.target;
     const box = target?.nodeType === 1 ? (target.matches?.(selector) ? target : target.closest?.(selector)) : null;
     if (!box) return;
+    // Arriving at the end: more range at once, not after the scrolling has stopped. Measured on an iPhone, a swipe
+    // that began 50 ms after a fling came to rest on the end did not scroll the chat.
+    giveEndRoom(box, ROOM_ON_ARRIVAL);
     const pending = timers.get(box);
     if (pending !== undefined) view.clearTimeout(pending);
     timers.set(box, view.setTimeout(() => settle(box), STILL_MS));

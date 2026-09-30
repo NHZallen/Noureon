@@ -69,5 +69,5 @@ test('the room stays at most a few pixels however often the chat comes to rest o
     chat.scrollHeight += 2;
     chat.scrollTop = chat.scrollHeight - chat.clientHeight;
   }
-  assert.equal(room(chat), '6px');
+  assert.equal(room(chat), '12px');
 });
