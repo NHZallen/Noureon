@@ -1,4 +1,5 @@
 import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
+import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import {
   decryptSyncVaultPayload,
@@ -258,6 +259,7 @@ export function createLegacyImportExportLifecycle({
     const originalBtnText = elements.confirmExportBtn.textContent;
     elements.confirmExportBtn.textContent = getRuntimeText(getConfig().uiLanguage, 'processingFile');
     elements.confirmExportBtn.disabled = true;
+    setButtonBusy(elements.confirmExportBtn, true);
 
     const dataClone = JSON.parse(JSON.stringify(rawData));
     Object.assign(dataToExport, dataClone);
@@ -379,6 +381,7 @@ export function createLegacyImportExportLifecycle({
     } finally {
       elements.confirmExportBtn.textContent = originalBtnText;
       elements.confirmExportBtn.disabled = false;
+      setButtonBusy(elements.confirmExportBtn, false);
     }
   }
 
@@ -417,6 +420,7 @@ export function createLegacyImportExportLifecycle({
     importProgressContainer.classList.remove('hidden');
     importWarningText.classList.remove('hidden');
     confirmImportBtn.disabled = true;
+    setButtonBusy(confirmImportBtn, true);
     confirmImportBtn.textContent = getRuntimeText(getConfig().uiLanguage, 'processing');
 
     const updateProgress = (percent, message) => {
@@ -608,6 +612,7 @@ export function createLegacyImportExportLifecycle({
       }
     } finally {
       confirmImportBtn.disabled = false;
+      setButtonBusy(confirmImportBtn, false);
       confirmImportBtn.textContent = text('confirmAndImport', '確認並匯入');
     }
   }

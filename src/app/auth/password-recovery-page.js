@@ -1,4 +1,5 @@
 import i18n from '../../data/i18n/index.js';
+import { setButtonBusy as markButtonBusy } from '../ui/motion/busy-button.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 import {
@@ -199,7 +200,7 @@ function setStatus(element, message, type = 'info') {
 function setButtonBusy(button, busy) {
   if (!button) return;
   button.disabled = busy;
-  button.setAttribute('aria-busy', String(busy));
+  markButtonBusy(button, busy);
 }
 
 function readVerification(window) {

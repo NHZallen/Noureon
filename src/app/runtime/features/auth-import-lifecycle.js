@@ -1,3 +1,4 @@
+import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 
 const getText = (i18n, language, key, fallback) => i18n?.[language]?.[key] || fallback;
@@ -77,6 +78,7 @@ export function createLegacyAuthImportLifecycle({
 
     importProgressContainerAuth.classList.remove('hidden');
     confirmImportBtnAuth.disabled = true;
+    setButtonBusy(confirmImportBtnAuth, true);
     confirmImportBtnAuth.textContent = getRuntimeText(getConfig().uiLanguage, 'processing');
 
     const updateProgress = (percent, statusText) => {
@@ -265,6 +267,7 @@ export function createLegacyAuthImportLifecycle({
       importStatusTextAuth.classList.add('text-red-500');
     } finally {
       confirmImportBtnAuth.disabled = false;
+      setButtonBusy(confirmImportBtnAuth, false);
       confirmImportBtnAuth.textContent = text('confirmAndImport', 'Confirm and import');
     }
   }

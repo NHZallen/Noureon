@@ -216,3 +216,23 @@ test('the bubble colour menu keeps a top the script can flip (an important top c
   assert.match(css, /\.color-dropdown-menu\s*\{[^}]*top:\s*calc\(100%\s*\+\s*0\.45rem\);/s);
   assert.doesNotMatch(css, /\.color-dropdown-menu\s*\{[^}]*\btop:[^;]*!important/s);
 });
+
+test('long-running buttons share one working ring (export, import, sign-in, send while replying)', () => {
+  const css = readUiSource('src/styles/busy-feedback.css');
+  const helper = readUiSource('src/app/ui/motion/busy-button.js');
+
+  assert.match(css, /button\[data-busy="true"\]:not\(#submit-btn\)::after[^{]*\{[^}]*animation:\s*busy-spin/s);
+  assert.match(css, /#submit-btn\[data-busy="true"\]::after[^{]*\{[^}]*animation:\s*busy-spin/s);
+  assert.match(helper, /dataset\.busy\s*=\s*'true'/);
+  for (const file of [
+    'src/app/runtime/features/import-export-lifecycle.js',
+    'src/app/runtime/features/auth-import-lifecycle.js',
+    'src/app/auth/supabase-auth-bridge.js',
+    'src/app/auth/password-recovery-page.js',
+    'src/app/legacy-runtime/features/generated-image-interactions.js',
+    'src/app/runtime/legacy-core/settings-update-input-state-helper.js',
+    'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js'
+  ]) {
+    assert.match(readUiSource(file), /busy-button\.js/, `${file} should use the shared busy button`);
+  }
+});

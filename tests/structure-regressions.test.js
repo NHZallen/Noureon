@@ -2757,6 +2757,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'mobile.css',
     'mobile-composer-layout.css',
     'chat-edge-fade.css',
+    'busy-feedback.css',
     'typography.css'
   ];
 

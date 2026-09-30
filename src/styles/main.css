@@ -24,6 +24,7 @@
 @import './mobile.css';
 @import './mobile-composer-layout.css';
 @import './chat-edge-fade.css';
+@import './busy-feedback.css';
 @import './typography.css';
 
 /* Ordered CSS split manifest. Keep imports in the original cascade order. */

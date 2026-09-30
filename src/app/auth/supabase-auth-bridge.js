@@ -1,3 +1,4 @@
+import { setButtonBusy } from '../ui/motion/busy-button.js';
 import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
 import { reconcileStoredWorkspaceOwner, STORAGE_OWNER_KEY } from '../runtime/kernel/user-data-retention.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
@@ -235,10 +236,13 @@ function getAuthText(elements, key, fallback) {
   return i18n[lang]?.[key] || i18n['zh-TW']?.[key] || fallback;
 }
 
-function setBusy(elements, busy) {
+// `source` is the button the person pressed: it shows the working ring, the others are only switched off.
+function setBusy(elements, busy, source = elements.loginButton) {
   for (const button of [elements.loginButton, elements.googleButton, elements.forgotButton, elements.localButton]) {
     if (button) button.disabled = busy;
   }
+  setButtonBusy(busy ? source : null, true);
+  if (!busy) for (const button of [elements.loginButton, elements.googleButton, elements.localButton]) setButtonBusy(button, false);
 }
 
 function getAuthValues(elements) {
@@ -446,7 +450,7 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
   }, true);
 
   elements.googleButton.addEventListener('click', async () => {
-    setBusy(elements, true);
+    setBusy(elements, true, elements.googleButton);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin }

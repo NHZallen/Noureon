@@ -1,3 +1,4 @@
+import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { createMediaPreviewLifecycle } from './media-preview-lifecycle.js';
 import { getRuntimeTexts } from '../../runtime/i18n/runtime-texts.js';
 
@@ -347,6 +348,7 @@ export function createGeneratedImageInteractions({
     confirmButton.addEventListener('click', async () => {
       if (!ready || !annotated) return;
       confirmButton.disabled = true;
+      setButtonBusy(confirmButton, true);
       try {
         const output = document.createElement('canvas');
         output.width = canvas.width;
@@ -361,6 +363,7 @@ export function createGeneratedImageInteractions({
         close();
       } catch (error) {
         confirmButton.disabled = false;
+        setButtonBusy(confirmButton, false);
         logWarn('Targeted image edit preparation failed:', error);
       }
     });
