@@ -52,7 +52,7 @@ export function installScrollDebugPanel(doc = document) {
     const max = Math.round(maxTop());
     const main = chat.parentElement;
     const root = doc.scrollingElement;
-    return `chat ${top}/${max}${max - top <= 1 ? ' BOTTOM' : ''} | main ${Math.round(main?.scrollTop || 0)} | root ${Math.round(root?.scrollTop || 0)} | vv ${Math.round(view.visualViewport?.height || 0)}@${Math.round(view.visualViewport?.offsetTop || 0)} | win ${view.innerHeight}`;
+    return `chat ${top}/${max}${max - top <= 1 ? ' BOTTOM' : ''} osb=${view.getComputedStyle(chat).overscrollBehaviorY} | main ${Math.round(main?.scrollTop || 0)} | root ${Math.round(root?.scrollTop || 0)} | vv ${Math.round(view.visualViewport?.height || 0)}@${Math.round(view.visualViewport?.offsetTop || 0)} | win ${view.innerHeight}`;
   };
   let frame = 0;
   const render = () => {
@@ -78,6 +78,13 @@ export function watchChatScrolling(doc = document) {
   if (!debugLog || !chat || chat.dataset.scrollDebug) return;
   chat.dataset.scrollDebug = 'on';
   const { log, view } = debugLog;
+  // A/B switch: ?osb=off turns off overscroll-behavior on the chat scroller only, to test whether it
+  // causes the swipe from the end of the chat to spring back.
+  if (new URLSearchParams(view.location.search).get('osb') === 'off') {
+    chat.style.setProperty('overscroll-behavior-y', 'auto', 'important');
+    chat.style.setProperty('overscroll-behavior', 'auto', 'important');
+  }
+  log(`overscroll-behavior-y=${view.getComputedStyle(chat).overscrollBehaviorY}`);
 
   // Touches: one line when a finger lands and one summary when it lifts or is cancelled.
   let gesture = null;
