@@ -630,6 +630,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         document.querySelectorAll('.popover.visible').forEach(popover => {
             popover.classList.remove('visible');
         });
+        // The model and thinking buttons stay highlighted while they read as expanded.
+        document.querySelectorAll('#model-council-control .mp-trigger[aria-expanded="true"]').forEach(trigger => {
+            trigger.setAttribute('aria-expanded', 'false');
+        });
     }
 
     async function copyTextToClipboard(text) {

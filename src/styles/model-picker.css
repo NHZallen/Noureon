@@ -597,16 +597,26 @@
 
 @media (max-width: 640px) {
     #model-council-control .mp-trigger { max-width: 9.5rem; padding: 0 0.5rem; }
+}
+
+/* On a phone the panel opens the way the design picker does (deck-design-control.js): above the
+   tools row, starting at the first button and shifted in from the right edge, with the same width,
+   height limit and distance from that row. It is positioned against the composer, so the control
+   itself stays unpositioned. The tools row is 2.5rem tall inside 0.45rem of padding, and the
+   design button sits 4px below the row's top. */
+@media (max-width: 768px) {
+    #model-council-control,
+    #model-council-control .mp-anchor:first-child { position: static; }
 
     #model-council-control .mp-panel:not(.mp-depth-panel) {
-        position: fixed;
-        right: 0.5rem;
-        bottom: 0.5rem;
-        left: 0.5rem;
-        width: auto;
-        max-height: 78vh;
-        padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
-        transform-origin: bottom center;
+        --mp-phone-width: max(200px, min(400px, calc(100vw - 24px)));
+        position: absolute;
+        right: auto;
+        bottom: calc(0.45rem + 2.75rem);
+        left: min(0.55rem, calc(100vw - 21px - var(--mp-phone-width)));
+        width: var(--mp-phone-width);
+        max-height: min(70vh, 34rem);
+        transform-origin: bottom left;
     }
 }
 

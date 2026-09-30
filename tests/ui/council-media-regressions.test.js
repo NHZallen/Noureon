@@ -52,9 +52,15 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
   assert.match(css, /--mp-thumb:\s*2rem;/);
   assert.match(css, /\.mp-slider-track\s*\{[^}]*inset:\s*0\.25rem 0;/s);
   assert.match(css, /\.mp-slider-fill\s*\{[^}]*opacity:\s*clamp\(0,/s);
-  // A phone gets the panel as a sheet along the bottom edge.
-  assert.match(css, /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*\.mp-panel:not\(\.mp-depth-panel\)\s*\{[^}]*position:\s*fixed;/);
+  // A phone gets the panel where the design picker opens: the same width, height limit and bottom edge.
+  assert.match(css, /@media\s*\(max-width:\s*768px\)\s*\{[\s\S]*\.mp-panel:not\(\.mp-depth-panel\)\s*\{[^}]*position:\s*absolute;[^}]*bottom:\s*calc\(0\.45rem \+ 2\.75rem\);[^}]*width:\s*var\(--mp-phone-width\);[^}]*max-height:\s*min\(70vh,\s*34rem\);/);
   // The thinking control is small: its own button and a narrow panel, not part of the model list.
   assert.match(css, /\.mp-panel\.mp-depth-panel\s*\{[^}]*width:\s*min\(14\.5rem,/);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+});
+
+test('closing popovers from outside also collapses the model and thinking buttons', () => {
+  const source = readUiSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+
+  assert.match(source, /function closeAllPopovers\(\)\s*\{[\s\S]*#model-council-control \.mp-trigger\[aria-expanded="true"\][\s\S]*setAttribute\('aria-expanded',\s*'false'\)/);
 });

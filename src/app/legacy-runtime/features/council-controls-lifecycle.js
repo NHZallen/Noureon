@@ -88,7 +88,7 @@ export function createCouncilControlsLifecycle(deps) {
     const trigger = container.querySelector('#model-picker-btn');
     const view = document.defaultView;
     if (!panel || !trigger || !view) return;
-    if (view.innerWidth <= 640) {
+    if (view.innerWidth <= 768) {
       panel.style.maxHeight = '';
       return;
     }
