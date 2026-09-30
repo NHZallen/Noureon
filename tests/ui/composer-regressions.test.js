@@ -162,3 +162,12 @@ test('mobile web search typing does not disable the message input when Tavily is
   assert.match(updateInputStateHelper, /elements\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
   assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });
+
+test('the chat scrolls under a floating glass header and fades at both edges', () => {
+  const css = readUiSource('src/styles/chat-edge-fade.css');
+
+  assert.match(css, /#chat-workspace\s*>\s*header\s*\{[^}]*position:\s*absolute;[^}]*border-bottom:\s*0;[^}]*pointer-events:\s*none;/s);
+  assert.match(css, /#menu-toggle-btn[\s\S]*?\{[^}]*backdrop-filter:\s*blur\([^}]*saturate\(/s);
+  assert.match(css, /#chat-container\s*\{[^}]*padding-top:\s*calc\(var\(--chat-header-height\)[^}]*mask-image:\s*linear-gradient\(/s);
+  assert.doesNotMatch(css, /background:\s*var\(--input-field-bg\);/);
+});
