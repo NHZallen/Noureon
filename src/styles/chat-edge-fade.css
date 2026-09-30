@@ -1,7 +1,9 @@
 /* The header is a slim block at the top of the screen with no divider line. Messages scroll up to its
    lower edge and fade out over a short distance there, and fade out at the bottom edge above the
-   composer too. The fade is a mask on the scrolling area, so it needs no background colour and
-   follows the theme and any wallpaper. */
+   composer too.
+   The fade is two sticky gradient strips inside the scroller, not a mask on it: a mask on a scrolling
+   element made scrolling sluggish and sticky on phones. With a wallpaper there is no page colour to
+   fade into, so the strips are left out. */
 
 #chat-workspace {
     --chat-fade-top: 0.75rem;
@@ -14,21 +16,47 @@
 }
 
 #chat-container {
-    /* Sticky headings inside messages stop just under the fade, and so do scrolled-to messages. */
-    --chat-scroll-padding-top: 0px;
+    /* The scroller's own padding (p-4, md:p-6): sticky offsets are measured from inside it. */
+    --chat-pad: 1rem;
+    /* Sticky headings inside messages stop just under the fade. */
+    --chat-scroll-padding-top: calc(var(--chat-pad) - var(--chat-fade-top));
     scroll-padding-top: calc(var(--chat-fade-top) + 0.5rem);
-    -webkit-mask-image: linear-gradient(
-        to bottom,
-        transparent 0,
-        #000 var(--chat-fade-top),
-        #000 calc(100% - var(--chat-fade-bottom)),
-        transparent 100%
-    );
-    mask-image: linear-gradient(
-        to bottom,
-        transparent 0,
-        #000 var(--chat-fade-top),
-        #000 calc(100% - var(--chat-fade-bottom)),
-        transparent 100%
-    );
+}
+
+@media (min-width: 768px) {
+    #chat-container {
+        --chat-pad: 1.5rem;
+    }
+}
+
+#chat-container::before,
+#chat-container::after {
+    content: "";
+    display: block;
+    position: sticky;
+    z-index: 4;
+    pointer-events: none;
+}
+
+/* Both strips take no room: at rest they sit in the scroller's own padding, over no text, and only
+   cover text once it has scrolled under them. */
+#chat-container::before {
+    top: calc(var(--chat-pad) * -1);
+    height: var(--chat-fade-top);
+    margin-top: calc(var(--chat-pad) * -1);
+    margin-bottom: calc(var(--chat-pad) - var(--chat-fade-top));
+    background: linear-gradient(to bottom, var(--chat-bg), transparent);
+}
+
+#chat-container::after {
+    bottom: calc(var(--chat-pad) * -1);
+    height: var(--chat-fade-bottom);
+    margin-top: calc(var(--chat-pad) - var(--chat-fade-bottom));
+    margin-bottom: calc(var(--chat-pad) * -1);
+    background: linear-gradient(to top, var(--chat-bg), transparent);
+}
+
+body.custom-wallpaper-active #chat-container::before,
+body.custom-wallpaper-active #chat-container::after {
+    display: none;
 }

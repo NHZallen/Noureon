@@ -13,11 +13,14 @@
   left: 0;
   bottom: calc(100% + .55rem);
   width: min(24rem, calc(100vw - 2rem));
-  padding: .5rem;
+  padding: .4rem;
   border-radius: 1.25rem;
-  border: 1px solid var(--border-color);
-  background: var(--input-field-bg);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  background: var(--modal-bg);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .1), 0 2px 6px rgba(15, 23, 42, .05);
 }
+
+.temporary-memory-menu button { background: transparent; }
 
 .temporary-memory-option-copy small { color: var(--text-secondary); line-height: 1.35; }
 .temporary-memory-check { opacity: 0; }

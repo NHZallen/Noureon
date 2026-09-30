@@ -168,7 +168,10 @@ test('the header is a slim block without a divider and the chat fades at both ed
 
   assert.match(css, /#chat-workspace\s*>\s*header\s*\{[^}]*padding:\s*0\.25rem 0\.5rem;[^}]*border-bottom:\s*0;/s);
   assert.doesNotMatch(css, /position:\s*absolute/);
-  assert.match(css, /#chat-container\s*\{[^}]*mask-image:\s*linear-gradient\(\s*to bottom,\s*transparent 0,\s*#000 var\(--chat-fade-top\)/s);
+  assert.doesNotMatch(css, /(?<!-)mask-image\s*:/);
+  assert.match(css, /#chat-container::before\s*\{[^}]*top:\s*calc\(var\(--chat-pad\) \* -1\);[^}]*linear-gradient\(to bottom, var\(--chat-bg\), transparent\)/s);
+  assert.match(css, /#chat-container::after\s*\{[^}]*bottom:\s*calc\(var\(--chat-pad\) \* -1\);[^}]*linear-gradient\(to top, var\(--chat-bg\), transparent\)/s);
+  assert.match(css, /body\.custom-wallpaper-active #chat-container::before/);
   assert.doesNotMatch(css, /backdrop-filter/);
 });
 
