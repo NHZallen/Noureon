@@ -1,16 +1,10 @@
 /* The chat scrolls under a floating header and fades out at both edges instead of being cut by a
-   divider line. The header buttons (and the temporary chat controls) sit on round liquid-glass
-   backings so they stay readable over any text, theme or wallpaper. The fade is a mask on the
-   scrolling area, so it needs no background colour to match. */
+   divider line. The fade is a mask on the scrolling area, so it needs no background colour to match
+   the theme or wallpaper. */
 
 #chat-workspace {
     --chat-header-height: 3.5rem;
     --chat-fade-bottom: 1rem;
-    /* Where the light comes from: a unit vector toward the light and the matching gradient angle.
-       glass-light.js turns it slightly as the chat scrolls, like tilting the phone. */
-    --glass-lx: -0.707;
-    --glass-ly: -0.707;
-    --glass-sheen: 135deg;
 }
 
 #chat-workspace > header {
@@ -24,60 +18,8 @@
     pointer-events: none;
 }
 
-#chat-workspace > header button,
-#chat-workspace > header #api-key-warning-badge,
-#chat-workspace > header #temporary-chat-header-status,
-#chat-workspace > header #model-switcher-container,
-#chat-workspace > header #temporary-memory-menu {
+#chat-workspace > header :is(button, #api-key-warning-badge, #temporary-chat-header-status, #model-switcher-container, #temporary-memory-menu) {
     pointer-events: auto;
-}
-
-#chat-workspace #menu-toggle-btn,
-#chat-workspace #new-chat-btn-header,
-#chat-workspace #api-key-warning-badge,
-#chat-workspace #temporary-chat-entry-button,
-#chat-workspace #temporary-memory-button,
-#chat-workspace #save-temporary-chat-button,
-#chat-workspace #temporary-chat-header-status:not(.hidden) {
-    /* Liquid glass, CSS only (what Safari and every iOS browser can draw): a tinted see-through fill over
-       a blurred, saturated copy of what is behind, a crescent of light on the lit edge and a dimmer one
-       opposite, a faint full rim, a soft glow just inside the edge where real glass would bend the
-       backdrop, and a layered shadow. The tints come from the theme, so dark themes and wallpapers get
-       the matching glass. */
-    border: 1px solid color-mix(in srgb, var(--border-color) 45%, transparent);
-    border-radius: 999px;
-    background:
-        linear-gradient(var(--glass-sheen), color-mix(in srgb, var(--modal-bg) 60%, transparent), transparent 52%),
-        color-mix(in srgb, var(--hover-bg) 42%, transparent);
-    -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.03);
-    backdrop-filter: blur(14px) saturate(180%) brightness(1.03);
-    box-shadow:
-        inset calc(var(--glass-lx) * -2px) calc(var(--glass-ly) * -2px) 0.5px -0.5px color-mix(in srgb, var(--modal-bg) 95%, transparent),
-        inset calc(var(--glass-lx) * 2px) calc(var(--glass-ly) * 2px) 0.5px -0.5px color-mix(in srgb, var(--modal-bg) 45%, transparent),
-        inset 0 0 0 1px color-mix(in srgb, var(--modal-bg) 30%, transparent),
-        inset 0 0 10px color-mix(in srgb, var(--modal-bg) 35%, transparent),
-        inset calc(var(--glass-lx) * 1px) calc(var(--glass-ly) * 2px) 3px rgba(15, 23, 42, 0.06),
-        0 1px 2px rgba(15, 23, 42, 0.08),
-        0 8px 22px rgba(15, 23, 42, 0.1);
-}
-
-#chat-workspace #menu-toggle-btn:hover,
-#chat-workspace #new-chat-btn-header:hover,
-#chat-workspace #api-key-warning-badge:hover,
-#chat-workspace #temporary-chat-entry-button:hover,
-#chat-workspace #temporary-memory-button:hover,
-#chat-workspace #save-temporary-chat-button:hover {
-    background:
-        linear-gradient(var(--glass-sheen), color-mix(in srgb, var(--modal-bg) 55%, transparent), transparent 55%),
-        color-mix(in srgb, var(--hover-bg) 62%, transparent);
-}
-
-#chat-workspace > header #api-key-warning-badge:not(.hidden) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
 }
 
 #chat-container {
@@ -101,94 +43,4 @@
         #000 calc(100% - var(--chat-fade-bottom)),
         transparent 100%
     );
-}
-
-/* Press feel (glass-button-feel.js): the button lifts and lights up under a finger, follows a drag
-   like a drop of glass, and springs back on release. Buttons force transform: none globally, so
-   the motion uses the translate and scale properties. */
-#chat-workspace #menu-toggle-btn,
-#chat-workspace #new-chat-btn-header,
-#chat-workspace #api-key-warning-badge,
-#chat-workspace #temporary-chat-entry-button,
-#chat-workspace #temporary-memory-button,
-#chat-workspace #save-temporary-chat-button {
-    position: relative;
-    isolation: isolate;
-    will-change: translate, scale;
-    translate: 0 0;
-    scale: 1;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    transition:
-        translate 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-        scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow 0.3s ease,
-        background-color 0.3s ease,
-        -webkit-backdrop-filter 0.3s ease,
-        backdrop-filter 0.3s ease;
-}
-
-#chat-workspace #menu-toggle-btn::after,
-#chat-workspace #new-chat-btn-header::after,
-#chat-workspace #api-key-warning-badge::after,
-#chat-workspace #temporary-chat-entry-button::after,
-#chat-workspace #temporary-memory-button::after,
-#chat-workspace #save-temporary-chat-button::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0;
-    background: radial-gradient(circle at var(--glass-x, 50%) var(--glass-y, 35%), color-mix(in srgb, var(--modal-bg) 90%, transparent), transparent 65%);
-    transition: opacity 0.3s ease;
-}
-
-#chat-workspace :is(#menu-toggle-btn, #new-chat-btn-header, #api-key-warning-badge, #temporary-chat-entry-button, #temporary-memory-button, #save-temporary-chat-button).is-glass-pressed {
-    scale: 1.1;
-    -webkit-backdrop-filter: blur(18px) saturate(230%) brightness(1.06);
-    backdrop-filter: blur(18px) saturate(230%) brightness(1.06);
-    box-shadow:
-        inset calc(var(--glass-lx) * -2.5px) calc(var(--glass-ly) * -2.5px) 0.5px -0.5px var(--modal-bg),
-        inset calc(var(--glass-lx) * 2px) calc(var(--glass-ly) * 2px) 0.5px -0.5px color-mix(in srgb, var(--modal-bg) 70%, transparent),
-        inset 0 0 0 1px color-mix(in srgb, var(--modal-bg) 50%, transparent),
-        inset 0 0 14px color-mix(in srgb, var(--modal-bg) 55%, transparent),
-        0 2px 4px rgba(15, 23, 42, 0.1),
-        0 12px 28px rgba(15, 23, 42, 0.16);
-    transition:
-        translate 0.06s linear,
-        scale 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2),
-        box-shadow 0.18s ease,
-        -webkit-backdrop-filter 0.18s ease,
-        backdrop-filter 0.18s ease;
-}
-
-#chat-workspace :is(#menu-toggle-btn, #new-chat-btn-header, #api-key-warning-badge, #temporary-chat-entry-button, #temporary-memory-button, #save-temporary-chat-button).is-glass-pressed::after {
-    opacity: 1;
-    transition: opacity 0.12s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    #chat-workspace :is(#menu-toggle-btn, #new-chat-btn-header, #api-key-warning-badge, #temporary-chat-entry-button, #temporary-memory-button, #save-temporary-chat-button).is-glass-pressed {
-        scale: 1;
-    }
-}
-
-/* Less see-through where the system asks for it or the browser cannot blur: a solid, high-contrast surface. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-    #chat-workspace :is(#menu-toggle-btn, #new-chat-btn-header, #api-key-warning-badge, #temporary-chat-entry-button, #temporary-memory-button, #save-temporary-chat-button, #temporary-chat-header-status) {
-        border-color: var(--border-color);
-        background: var(--input-field-bg);
-        -webkit-backdrop-filter: none;
-        backdrop-filter: none;
-    }
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    #chat-workspace :is(#menu-toggle-btn, #new-chat-btn-header, #api-key-warning-badge, #temporary-chat-entry-button, #temporary-memory-button, #save-temporary-chat-button, #temporary-chat-header-status) {
-        background: var(--input-field-bg);
-    }
 }

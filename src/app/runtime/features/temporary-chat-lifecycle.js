@@ -65,7 +65,7 @@ export function createTemporaryChatLifecycle({
     const memoryButtonIcon = memoryButton?.querySelector('svg');
 
     if (useHeader && root.parentElement !== headerActions) {
-      headerActions.insertBefore(root, elements.newChatBtnHeader || null);
+      headerActions.append(root);
     } else if (!useHeader && root.parentElement !== elements.chatWorkspace) {
       elements.chatWorkspace.appendChild(root);
     }
@@ -175,14 +175,14 @@ export function createTemporaryChatLifecycle({
       messageObserver.observe(elements.messageList, { childList: true });
     }
 
-    headerActions = elements.newChatBtnHeader?.parentElement;
+    headerActions = document.getElementById('header-actions');
     if (headerActions) {
       headerStatus = document.createElement('span');
       headerStatus.id = 'temporary-chat-header-status';
       headerStatus.className = 'temporary-chat-header-status hidden h-9 px-2 items-center text-sm font-medium whitespace-nowrap';
       headerStatus.dataset.langKey = 'temporaryChatTitle';
       headerStatus.textContent = '臨時對話';
-      headerActions.insertBefore(headerStatus, elements.newChatBtnHeader || null);
+      headerActions.append(headerStatus);
     }
 
     mobileLayoutQuery = document.defaultView?.matchMedia?.('(max-width: 768px)');

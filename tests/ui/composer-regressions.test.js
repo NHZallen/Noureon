@@ -163,12 +163,21 @@ test('mobile web search typing does not disable the message input when Tavily is
   assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });
 
-test('the chat scrolls under a floating glass header and fades at both edges', () => {
+test('the chat scrolls under a floating plain header and fades at both edges', () => {
   const css = readUiSource('src/styles/chat-edge-fade.css');
 
   assert.match(css, /#chat-workspace\s*>\s*header\s*\{[^}]*position:\s*absolute;[^}]*border-bottom:\s*0;[^}]*pointer-events:\s*none;/s);
-  assert.match(css, /#menu-toggle-btn[\s\S]*?\{[^}]*backdrop-filter:\s*blur\([^}]*saturate\(/s);
   assert.match(css, /#chat-container\s*\{[^}]*padding-top:\s*calc\(var\(--chat-header-height\)[^}]*mask-image:\s*linear-gradient\(/s);
-  assert.match(css, /color-mix\(in srgb, var\(--hover-bg\) 42%, transparent\)/);
-  assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[^{]*\{[\s\S]*?background:\s*var\(--input-field-bg\);[\s\S]*?backdrop-filter:\s*none;/);
+  assert.doesNotMatch(css, /backdrop-filter/);
+});
+
+test('the header leads with a sidebar icon and a new chat button', () => {
+  const header = appShell.slice(appShell.indexOf('<header class="relative z-10'), appShell.indexOf('id="chat-container"'));
+
+  assert.ok(header.indexOf('id="menu-toggle-btn"') < header.indexOf('id="new-chat-btn-header"'));
+  assert.ok(header.indexOf('id="new-chat-btn-header"') < header.indexOf('id="model-switcher-container"'));
+  assert.doesNotMatch(header.slice(0, header.indexOf('id="new-chat-btn-header"')), /<line x1="3" y1="6"/);
+  assert.match(header, /<rect x="3" y="4" width="18" height="16" rx="4.5">/);
+  assert.match(header, /id="header-actions"/);
+  assert.doesNotMatch(header.slice(header.indexOf('id="new-chat-btn-header"'), header.indexOf('id="model-switcher-container"')), /\bhidden\b/);
 });
