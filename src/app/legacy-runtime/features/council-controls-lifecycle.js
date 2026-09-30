@@ -89,9 +89,16 @@ export function createCouncilControlsLifecycle(deps) {
     const view = document.defaultView;
     if (!panel || !trigger || !view) return;
     if (view.innerWidth <= 768) {
+      // A phone panel keeps one size (see model-picker.css) but never rises above the part of the
+      // screen the keyboard leaves: it ends about 6px above the button and stops 12px short of the top.
+      const visible = view.visualViewport;
+      const cap = Math.min(view.innerHeight * 0.7, 544);
+      const room = trigger.getBoundingClientRect().top - (visible?.offsetTop || 0) - 18;
       panel.style.maxHeight = '';
+      panel.style.height = room < cap ? `${Math.round(Math.max(220, room))}px` : '';
       return;
     }
+    panel.style.height = '';
     const room = trigger.getBoundingClientRect().top - 24;
     panel.style.maxHeight = `${Math.round(Math.max(220, Math.min(640, room)))}px`;
   };
@@ -502,6 +509,8 @@ export function createCouncilControlsLifecycle(deps) {
 
   function bindEvents(container) {
     document.defaultView?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
+    // The on-screen keyboard resizes the visual viewport, not the window.
+    document.defaultView?.visualViewport?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
     container.addEventListener('click', async (event) => {
       const target = event.target.closest?.('button, [data-mp-tab]');
       if (!target || !container.contains(target)) return;

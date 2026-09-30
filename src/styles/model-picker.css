@@ -615,6 +615,9 @@
         bottom: calc(0.45rem + 2.75rem);
         left: min(0.55rem, calc(100vw - 21px - var(--mp-phone-width)));
         width: var(--mp-phone-width);
+        /* A fixed size, so searching does not shrink the panel; council-controls-lifecycle.js
+           lowers it while the keyboard takes part of the screen. */
+        height: min(70vh, 34rem);
         max-height: min(70vh, 34rem);
         transform-origin: bottom left;
     }
