@@ -95,6 +95,57 @@ export function pinToEnd(box) {
 }
 
 const NUDGED_BOXES = '.ledger-thought, .ledger-code, .ledger-output';
+const STILL_MS = 160;
+
+/**
+ * A scroll box that has come to rest within a pixel of an end goes two pixels off it, once it is still and no finger
+ * is on the screen. The nudge when a finger lands (keepScrollBoxesOffTheirEdges, chat-scroll-edges.js) is too late:
+ * measured on an iPhone, writing the position as the finger lands stops that swipe dead (the next swipe, from the
+ * position it left, scrolls). Boxes reach an end by the reader's own fling, by opening a chat or by following new
+ * text, so the place to move them is when they stop. Scroll events do not bubble, so one listener on the page
+ * catches them on the way down.
+ */
+export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${NUDGED_BOXES}, #chat-container`, view = doc.defaultView } = {}) {
+  if (!view || typeof doc.addEventListener !== 'function') return () => {};
+  const timers = new WeakMap();
+  let touching = 0;
+  const settle = (box) => {
+    timers.delete(box);
+    // A finger on the screen, even one held still, is not the time to move anything.
+    if (touching > 0) {
+      timers.set(box, view.setTimeout(() => settle(box), STILL_MS));
+      return;
+    }
+    const max = box.scrollHeight - box.clientHeight;
+    if (max <= EDGE_ROOM * 2) return;
+    const top = box.scrollTop;
+    const guard = watchReader(box, { nudge: false });
+    if (!guard) return;
+    // Past an end (still bouncing) is left alone.
+    if (top >= 0 && top < 1 && top !== EDGE_ROOM) moveBox(box, guard, EDGE_ROOM);
+    else if (top <= max && top > max - 1) moveBox(box, guard, max - EDGE_ROOM);
+  };
+  const onScroll = (event) => {
+    const target = event.target;
+    const box = target?.nodeType === 1 ? (target.matches?.(selector) ? target : target.closest?.(selector)) : null;
+    if (!box) return;
+    const pending = timers.get(box);
+    if (pending !== undefined) view.clearTimeout(pending);
+    timers.set(box, view.setTimeout(() => settle(box), STILL_MS));
+  };
+  const down = () => { touching += 1; };
+  const up = () => { touching = Math.max(0, touching - 1); };
+  doc.addEventListener('scroll', onScroll, { capture: true, passive: true });
+  doc.addEventListener('touchstart', down, { capture: true, passive: true });
+  doc.addEventListener('touchend', up, { capture: true, passive: true });
+  doc.addEventListener('touchcancel', up, { capture: true, passive: true });
+  return () => {
+    doc.removeEventListener('scroll', onScroll, { capture: true });
+    doc.removeEventListener('touchstart', down, { capture: true });
+    doc.removeEventListener('touchend', up, { capture: true });
+    doc.removeEventListener('touchcancel', up, { capture: true });
+  };
+}
 
 /**
  * One listener for every box the app fills with thinking, code or output, also the ones saved with a reply and

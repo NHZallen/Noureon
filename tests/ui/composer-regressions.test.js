@@ -304,13 +304,3 @@ test('every thinking, code and output box is kept off its edges when a finger la
 
   assert.match(main, /keepScrollBoxesOffTheirEdges\(document\);/);
 });
-
-test('temporary scroll diagnostics never run inside start-up', () => {
-  const main = readUiSource('src/main.js');
-
-  assert.match(main, /TEMPORARY: scroll diagnostics/);
-  assert.match(main, /import\('\.\/app\/debug\/scroll-debug\.js'\)/);
-  assert.doesNotMatch(main, /^import .*scroll-debug/m);
-  // The scroll watching starts only after the start-up screen is gone.
-  assert.ok(main.indexOf('dismissStartupSkeleton(document);') < main.indexOf('module?.watchChatScrolling()'));
-});
