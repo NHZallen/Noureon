@@ -8,9 +8,9 @@ export const updateLogEntries = [
       "<strong>Noureon 17.2.1 發布說明</strong>",
       "本版本把 OpenRouter 上的 Claude Sonnet 5 與 OpenAI GPT-6 Sol 更新為較新的 Claude Sonnet 5.5 與 GPT-6.1 Sol，並依 OpenRouter 與原廠文件核對價格、圖片能力與思考程度。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>Claude Sonnet 5.5：</strong>取代 Claude Sonnet 5。價格維持每百萬輸入 2 美元、輸出 10 美元；支援圖片與檔案輸入；思考程度為低、中、高、超高、極致五段，預設為高。</li><li><strong>OpenAI GPT-6.1 Sol：</strong>取代 OpenAI GPT-6 Sol。價格維持每百萬輸入 2 美元、輸出 10 美元；支援圖片與檔案輸入。思考程度改為低、中、高、超高、極致，不再提供「快速模式」，預設為中。</li><li><strong>既有對話：</strong>原本選用 Sonnet 5 或 GPT-6 Sol 的對話、模型理事會分組與最近使用的模型，會自動改用新版；GPT-6 Sol 對話若設為「快速模式」，改用預設的「中」。</li></ul>",
+      "<ul><li><strong>Claude Sonnet 5.5：</strong>取代 Claude Sonnet 5。價格維持每百萬輸入 2 美元、輸出 10 美元；支援圖片與檔案輸入；思考程度為低、中、高、超高、極致五段，預設為高。</li><li><strong>OpenAI GPT-6.1 Sol：</strong>取代 OpenAI GPT-6 Sol。價格維持每百萬輸入 2 美元、輸出 10 美元；支援圖片與檔案輸入。思考程度改為低、中、高、超高、極致，不再提供「快速模式」，預設為中。</li><li><strong>GPT-6.1 Sol 的進階模式：</strong>OpenAI 文件指出此模型的工具呼叫需使用 Responses API，因此它在進階模式（Python）回覆的每一輪改走 OpenRouter 的 Responses API，思考摘要仍即時顯示，模型的思考與工具呼叫在輪與輪之間原樣帶回；一般對話與標準模式、其他模型維持原來的呼叫方式。</li><li><strong>既有對話：</strong>原本選用 Sonnet 5 或 GPT-6 Sol 的對話、模型理事會分組與最近使用的模型，會自動改用新版；GPT-6 Sol 對話若設為「快速模式」，改用預設的「中」。</li></ul>",
       "<strong>已知限制</strong>",
-      "<ul><li>OpenAI 文件指出 GPT-6.1 Sol 的工具呼叫需使用 Responses API；Noureon 透過 OpenRouter 呼叫此模型，進階模式（Python）對它的工具呼叫尚未以實際帳號驗證。</li></ul>",
+      "<ul><li>GPT-6.1 Sol 的 Responses API 路徑依 OpenAI 與 OpenRouter 的文件實作，尚未以實際帳號驗證；若進階模式出現錯誤，請回報錯誤訊息。</li></ul>",
       "<strong>相容性</strong>",
       "本次更新不需要資料遷移，既有對話、記憶與同步資料不受影響。"
     ]
