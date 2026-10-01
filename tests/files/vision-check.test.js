@@ -14,6 +14,8 @@ import { buildVisionResult, buildVisionMetadata } from '../../src/app/ui/files/v
 import { groupReviewedSlides } from '../../src/app/ui/files/vision/vision-sheet-plan.js';
 import { mergeAdjacentModelMessages } from '../../src/app/legacy-runtime/features/stream-api-call.js';
 import { createConversationImageResolver } from '../../src/app/ui/files/conversation-images.js';
+import { drawWhenFontsAreIn } from '../../src/app/ui/files/vision/slide-draw.js';
+import { watchSourceIcons } from '../../src/app/ui/sandbox/run-sources.js';
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/sample-deck.json', import.meta.url), 'utf8'));
 const parse = (raw, language = 'en') => parseDocumentSpec(JSON.stringify(raw), { uiLanguage: language }).spec;
@@ -224,4 +226,49 @@ test('result messages and metadata identify the source file in every language', 
     assert.ok(text.includes(visionText(language, 'partial', { count: 4 })));
     assert.equal(parseDocumentSpec(text.slice(text.indexOf('file deck.pptx') + 'file deck.pptx'.length, text.lastIndexOf('````'))).ok, true);
   }
+});
+
+// A picture's own fonts arrive after it has been decoded; drawing it at once leaves the text out.
+const fakeCanvas = (readyAt) => {
+  const started = Date.now();
+  const pixels = new Uint8ClampedArray(16);
+  const context = {
+    pixels, draws: 0,
+    fillStyle: '', fillRect() {},
+    drawImage() { context.draws++; pixels.fill(Date.now() - started >= readyAt ? 200 : 20); },
+    getImageData: () => ({ data: pixels })
+  };
+  return context;
+};
+
+test('a slide with embedded fonts is drawn again until the text is in', async () => {
+  const context = fakeCanvas(260);
+  await drawWhenFontsAreIn(context, {}, { width: 2, height: 2, embedded: true });
+  assert.equal(context.pixels[0], 200, 'the final drawing has its text');
+  assert.ok(context.draws > 2, 'it drew more than once');
+});
+
+test('a slide without embedded fonts is drawn once, and a stopped check stops waiting', async () => {
+  const plain = fakeCanvas(10_000);
+  await drawWhenFontsAreIn(plain, {}, { width: 2, height: 2, embedded: false });
+  assert.equal(plain.draws, 1);
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(drawWhenFontsAreIn(fakeCanvas(10_000), {}, { width: 2, height: 2, embedded: true, signal: controller.signal }), { name: 'AbortError' });
+});
+
+test('a site icon that loads replaces the globe, and one that fails is removed, without errors', () => {
+  const window = new Window();
+  const { document } = window;
+  document.body.innerHTML = '<span class="run-source-icon"><img id="a"></span><span class="link-chip-icon"><img id="b"></span><img id="c">';
+  const stop = watchSourceIcons(document);
+  const a = document.getElementById('a');
+  Object.defineProperty(a, 'naturalWidth', { value: 16 });
+  a.dispatchEvent(new window.Event('load'));
+  assert.ok(a.parentElement.classList.contains('is-loaded'));
+  document.getElementById('b').dispatchEvent(new window.Event('error'));
+  assert.equal(document.getElementById('b'), null, 'a failed icon leaves the globe');
+  document.getElementById('c').dispatchEvent(new window.Event('load'));
+  assert.ok(document.getElementById('c'), 'images elsewhere are left alone');
+  stop();
 });

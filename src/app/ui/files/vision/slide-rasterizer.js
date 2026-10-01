@@ -2,6 +2,7 @@ import { fontSource } from '../design/fonts.js';
 import { bytesToBase64 } from '../generators/pptx-layout.js';
 import { loadFontFile, loadSubsetter } from '../generators/pptx-assets.js';
 import { renderSlideSvg } from '../previews/slide-preview.js';
+import { drawWhenFontsAreIn } from './slide-draw.js';
 import { groupReviewedSlides, MAX_REVIEWED_SLIDES } from './vision-sheet-plan.js';
 
 export { MAX_REVIEWED_SLIDES };
@@ -42,13 +43,13 @@ export async function embedSlideFonts(svg, { document }) {
 }
 
 const abortIfNeeded = signal => { if (signal?.aborted) throw new DOMException('Aborted', 'AbortError'); };
-
 async function rasterize(svg, { document, window, signal, width = 960, height = 540 }) {
   abortIfNeeded(signal);
   // Without an intrinsic size Firefox cannot draw an SVG image to a canvas
   // and other browsers may rasterize it at 300 × 150 before scaling.
   svg.setAttribute('width', String(width));
   svg.setAttribute('height', String(height));
+  const embedded = Boolean(svg.querySelector('style'));
   const serialized = new window.XMLSerializer().serializeToString(svg);
   const url = window.URL.createObjectURL(new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' }));
   try {
@@ -60,7 +61,7 @@ async function rasterize(svg, { document, window, signal, width = 960, height = 
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
-    canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+    await drawWhenFontsAreIn(canvas.getContext('2d', { willReadFrequently: true }), image, { width, height, signal, embedded });
     return canvas;
   } finally {
     window.URL.revokeObjectURL(url);

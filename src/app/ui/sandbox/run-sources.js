@@ -96,6 +96,8 @@ export const sourcesRowLabel = (language, sources) => (sources.some((source) => 
   ? sourcesLabel(language, sources.length)
   : pagesReadLabel(language, sources.length));
 
+const ICON_BOX = '.run-source-icon, .link-chip-icon';
+
 /**
  * A site's icon that loads replaces the globe under it; one that does not (many sites have no /favicon.ico) is
  * removed, leaving the globe. Image events do not bubble, so they are caught on the way down.
