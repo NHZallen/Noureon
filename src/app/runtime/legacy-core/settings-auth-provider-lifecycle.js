@@ -229,8 +229,6 @@ const streamApiCall = createStreamApiCall({
 });
 const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS });
 const providerRequestSupport = createProviderRequestSupport({
-    models: MODELS,
-    cheapModelId: CHEAP_MODEL_ID,
     buildTavilySearchQuery,
     formatTavilySearchPacket,
     normalizeTinyfishSearch,

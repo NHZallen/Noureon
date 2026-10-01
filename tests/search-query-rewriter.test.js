@@ -11,22 +11,13 @@ import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.
 const user = (text) => ({ role: 'user', parts: [{ text }] });
 const assistant = (text) => ({ role: 'model', parts: [{ text }] });
 
-const MODELS = [
-  { id: 'gemini-3.5-flash-lite', name: 'Gemini Flash Lite', provider: 'gemini' },
-  { id: 'qwen/qwen3.7-flash', name: 'Qwen Flash', provider: 'openrouter' },
-  { id: 'anthropic/claude-opus-5.5', name: 'Opus', provider: 'openrouter' },
-  { id: 'nvidia/z-ai/glm-5.3-flash', name: 'GLM Flash', provider: 'nvidia' },
-  { id: 'nvidia/z-ai/glm-5.3', name: 'GLM', provider: 'nvidia' },
-  { id: 'google/gemini-3.1-flash-image', name: 'Image', provider: 'openrouter', category: 'image_generation', outputModality: 'image' }
-];
+const OPUS = { id: 'anthropic/claude-opus-5.5', name: 'Opus', provider: 'openrouter' };
 
 const createHarness = ({ keys = { openrouter: 'or' }, answers = ['  "DeepSeek V4.1 Flash reasoning effort parameter"  '], now = () => new Date('2026-10-01T12:00:00Z') } = {}) => {
   const calls = [];
   const timers = [];
   let index = 0;
   const rewrite = createSearchQueryRewriter({
-    models: MODELS,
-    cheapModelId: 'gemini-3.5-flash-lite',
     getApiKeyForProvider: (provider) => keys[provider] || '',
     now,
     setTimeoutFn: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
@@ -84,20 +75,20 @@ test('only the last six earlier messages are given, each cut, the answers shorte
 
 test('a message that is short and has nothing before it is not sent to a model, a long one or one with a history is', async () => {
   const { rewrite, calls } = createHarness();
-  assert.equal(await rewrite({ text: 'What is the capital of Australia?', messages: [user('What is the capital of Australia?')], modelInfo: { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' } }), null);
+  assert.equal(await rewrite({ text: 'What is the capital of Australia?', messages: [user('What is the capital of Australia?')], modelInfo: OPUS }), null);
   assert.equal(await rewrite({ text: '', messages: [], modelInfo: { provider: 'openrouter' } }), null);
   assert.equal(calls.length, 0);
 
-  assert.equal(await rewrite({ text: '你去查阿', messages: conversation, modelInfo: { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' } }), 'DeepSeek V4.1 Flash reasoning effort parameter');
+  assert.equal(await rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS }), 'DeepSeek V4.1 Flash reasoning effort parameter');
   assert.equal(calls.length, 1);
 
-  assert.ok(await rewrite({ text: 'long '.repeat(60), messages: [], modelInfo: { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' } }));
+  assert.ok(await rewrite({ text: 'long '.repeat(60), messages: [], modelInfo: OPUS }));
   assert.equal(calls.length, 2, 'a long message is written down to a query even with no history');
 });
 
 test('the request is a small, quiet one: no reasoning, no search, no memory, nothing saved to the conversation', async () => {
   const { rewrite, calls } = createHarness();
-  await rewrite({ text: '你去查阿', messages: conversation, modelInfo: { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' } });
+  await rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS });
   const { options, forced } = calls[0];
   assert.equal(forced, false);
   assert.equal(options.disableReasoning, true);
@@ -111,66 +102,50 @@ test('the request is a small, quiet one: no reasoning, no search, no memory, not
   assert.deepEqual(options.conversation.messages, []);
 });
 
-test('the small model is the cheap Google one when there is a key for it, else the provider\'s cheap one, and last the reply\'s own', async () => {
-  const chosen = async (keys, modelInfo, models = MODELS) => {
-    const { rewrite, calls } = createHarness({ keys });
-    await rewrite({ text: '你去查阿', messages: conversation, modelInfo });
-    return calls.map((call) => call.options.modelInfo.id);
-  };
-  const openrouterOpus = { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' };
-  assert.deepEqual(await chosen({ gemini: 'g', openrouter: 'or' }, openrouterOpus), ['gemini-3.5-flash-lite']);
-  assert.deepEqual(await chosen({ openrouter: 'or' }, openrouterOpus), ['qwen/qwen3.7-flash']);
-  assert.deepEqual(await chosen({ nvidia: 'nv' }, { provider: 'nvidia', id: 'nvidia/z-ai/glm-5.3' }), ['nvidia/z-ai/glm-5.3-flash']);
-  // The reply's own model when it is the cheap one's provider's only: a key for it is enough.
-  assert.deepEqual(await chosen({ openrouter: 'or' }, { provider: 'openrouter', id: 'qwen/qwen3.7-flash' }), ['qwen/qwen3.7-flash'], 'the same model is not asked twice');
-  // No key for the cheap one's provider, no cheap model of the provider listed: the reply's model.
-  assert.deepEqual(await chosen({ openrouter: 'or' }, { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' }), ['qwen/qwen3.7-flash']);
+test('the model asked is the one that is answering: the reply\'s own, with its own key', async () => {
+  const { rewrite, calls } = createHarness({ keys: { openrouter: 'or', gemini: 'g' } });
+  await rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS });
+  assert.deepEqual(calls.map((call) => call.options.modelInfo.id), ['anthropic/claude-opus-5.5'], 'not a cheaper one, whatever other keys there are');
+
+  const nvidia = createHarness({ keys: { nvidia: 'nv' } });
+  await nvidia.rewrite({ text: '你去查阿', messages: conversation, modelInfo: { id: 'nvidia/z-ai/glm-5.3', name: 'GLM', provider: 'nvidia' } });
+  assert.deepEqual(nvidia.calls.map((call) => call.options.modelInfo.id), ['nvidia/z-ai/glm-5.3']);
 });
 
-test('a model that fails or says nothing is followed by the next, at most two are tried, and then there is no query', async () => {
-  const opus = { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' };
-  const failing = createHarness({ keys: { gemini: 'g', openrouter: 'or' }, answers: [new Error('HTTP 500'), 'Fallback query'] });
-  assert.equal(await failing.rewrite({ text: '你去查阿', messages: conversation, modelInfo: opus }), 'Fallback query');
-  assert.deepEqual(failing.calls.map((call) => call.options.modelInfo.id), ['gemini-3.5-flash-lite', 'qwen/qwen3.7-flash']);
+test('no query when the model cannot be asked, fails, or says nothing; the search goes on without one', async () => {
+  const failing = createHarness({ answers: [new Error('HTTP 500')] });
+  assert.equal(await failing.rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS }), null);
+  assert.equal(failing.calls.length, 1, 'one attempt, no other model is tried');
 
-  const empty = createHarness({ keys: { gemini: 'g', openrouter: 'or' }, answers: ['   ', 'x'] });
-  assert.equal(await empty.rewrite({ text: '你去查阿', messages: conversation, modelInfo: opus }), null, 'a one-character reply is no query');
-  assert.equal(empty.calls.length, 2);
+  const empty = createHarness({ answers: ['   '] });
+  assert.equal(await empty.rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS }), null);
+  const oneChar = createHarness({ answers: ['x'] });
+  assert.equal(await oneChar.rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS }), null, 'a one-character reply is no query');
 
-  const allFail = createHarness({ keys: { gemini: 'g', openrouter: 'or' }, answers: [new Error('a'), new Error('b')] });
-  assert.equal(await allFail.rewrite({ text: '你去查阿', messages: conversation, modelInfo: opus }), null);
+  const noKey = createHarness({ keys: {} });
+  assert.equal(await noKey.rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS }), null);
+  assert.equal(noKey.calls.length, 0);
 
-  const noKeys = createHarness({ keys: {} });
-  assert.equal(await noKeys.rewrite({ text: '你去查阿', messages: conversation, modelInfo: opus }), null);
-  assert.equal(noKeys.calls.length, 0);
-
-  const imageOnly = createHarness({ keys: { openrouter: 'or' } });
-  assert.equal(await imageOnly.rewrite({ text: '你去查阿', messages: conversation, modelInfo: { provider: 'openrouter', id: 'google/gemini-3.1-flash-image' } }), 'DeepSeek V4.1 Flash reasoning effort parameter', 'an image model is never the one asked');
-  assert.equal(imageOnly.calls[0].options.modelInfo.id, 'qwen/qwen3.7-flash');
+  const image = createHarness();
+  assert.equal(await image.rewrite({ text: '你去查阿', messages: conversation, modelInfo: { id: 'img', provider: 'openrouter', category: 'image_generation', outputModality: 'image' } }), null, 'an image model cannot write a query');
+  assert.equal(await image.rewrite({ text: '你去查阿', messages: conversation, modelInfo: undefined }), null);
+  assert.equal(image.calls.length, 0);
 });
 
-test('an attempt that takes too long is ended, and a stop by the person is not swallowed', async () => {
-  const opus = { provider: 'openrouter', id: 'anthropic/claude-opus-5.5' };
+test('an attempt that takes too long is ended and gives no query, and a stop by the person is not swallowed', async () => {
   const slow = createHarness({
-    keys: { gemini: 'g', openrouter: 'or' },
-    answers: [
-      ({ signal, timers }) => new Promise((resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
-        timers[0].callback();
-      }),
-      'After the timeout'
-    ]
+    answers: [({ signal, timers }) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      timers[0].callback();
+    })]
   });
-  assert.equal(await slow.rewrite({ text: '你去查阿', messages: conversation, modelInfo: opus }), 'After the timeout');
-  assert.equal(slow.timers[0].delay, 8000, 'eight seconds an attempt');
+  assert.equal(await slow.rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS }), null);
+  assert.equal(slow.timers[0].delay, 8000, 'eight seconds');
 
   const controller = new AbortController();
-  const stopped = createHarness({
-    keys: { gemini: 'g', openrouter: 'or' },
-    answers: [() => { controller.abort(); throw new DOMException('Aborted', 'AbortError'); }, 'never']
-  });
-  await assert.rejects(() => stopped.rewrite({ text: '你去查阿', messages: conversation, modelInfo: opus, signal: controller.signal }), (error) => error.name === 'AbortError');
-  assert.equal(stopped.calls.length, 1, 'no second attempt after a stop');
+  const stopped = createHarness({ answers: [() => { controller.abort(); throw new DOMException('Aborted', 'AbortError'); }] });
+  await assert.rejects(() => stopped.rewrite({ text: '你去查阿', messages: conversation, modelInfo: OPUS, signal: controller.signal }), (error) => error.name === 'AbortError');
+  assert.equal(stopped.calls.length, 1);
 });
 
 test('the rewriter needs a streamApiCall', () => {

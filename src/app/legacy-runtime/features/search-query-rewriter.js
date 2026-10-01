@@ -1,8 +1,8 @@
-// The web search query for a message, written by a small model from the conversation. Searching the message as it stands
-// fails when it refers to what was said before ("go look it up", "and the second one?", "what about its price"): a model that
-// reads the conversation says what it is about in one line. Used for the models that have no search of their own; the
-// reply's model is not the one asked, as a cheap one does it as well, and nothing here may stop a search: when no
-// model answers, the caller falls back to the rule that adds the earlier messages (model-request-formatting.js).
+// The web search query for a message, written by the reply's own model from the conversation. Searching the message as it
+// stands fails when it refers to what was said before ("go look it up", "and the second one?", "what about its price"): a
+// model that reads the conversation says what it is about in one line. Used for the models that have no search of their
+// own, and nothing here may stop a search: when the model does not answer, the caller falls back to the rule that adds the
+// earlier messages (model-request-formatting.js).
 
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 
@@ -11,15 +11,8 @@ const USER_MESSAGE_CHARS = 500;
 const ANSWER_CHARS = 300;
 const QUERY_CHARS = 200;
 const ATTEMPT_MS = 8000;
-const MAX_ATTEMPTS = 2;
 // A long message cannot be searched as it is, so it is written down to a query even when nothing came before it.
 const LONG_MESSAGE_CHARS = 200;
-
-// The small model for the provider of the reply's model, so it is one the person has a key for.
-const CHEAP_MODEL_BY_PROVIDER = Object.freeze({
-  openrouter: 'qwen/qwen3.7-flash',
-  nvidia: 'nvidia/z-ai/glm-5.3-flash'
-});
 
 const INSTRUCTION = [
   'You write the web search query for the latest user message of a conversation.',
@@ -70,23 +63,14 @@ export const buildRewritePrompt = ({ text, messages, now = new Date() }) => {
 export function createSearchQueryRewriter({
   streamApiCall,
   getApiKeyForProvider,
-  models = [],
-  cheapModelId = null,
   setTimeoutFn = setTimeout,
   clearTimeoutFn = clearTimeout,
   now = () => new Date()
 } = {}) {
   if (typeof streamApiCall !== 'function') throw new TypeError('The search query rewriter requires streamApiCall.');
 
-  // The cheap model of Google if there is a key for it, the cheap one of the provider of the reply's model, and last the
-  // reply's model itself.
-  const candidatesFor = (modelInfo) => [...new Set([
-    getApiKeyForProvider('gemini') ? cheapModelId : null,
-    CHEAP_MODEL_BY_PROVIDER[modelInfo?.provider],
-    modelInfo?.id
-  ].filter(Boolean))]
-    .map((id) => models.find((model) => model.id === id))
-    .filter((model) => model && model.category !== 'image_generation' && model.outputModality !== 'image' && getApiKeyForProvider(model.provider));
+  // The reply's own model (an image model cannot write one, and one with no key cannot be asked).
+  const canAsk = (model) => Boolean(model && model.category !== 'image_generation' && model.outputModality !== 'image' && getApiKeyForProvider(model.provider));
 
   /** Whether the message is worth a model's time: something came before it, or it is too long to be a query itself. */
   const needed = (text, messages) => {
@@ -124,18 +108,17 @@ export function createSearchQueryRewriter({
 
   /**
    * The search query for `text` written from the conversation, or null when there is nothing to improve (the message is
-   * short and nothing came before it) or no model could be asked. Only a stop by the person throws.
+   * short and nothing came before it) or the model could not be asked or gave none. Only a stop by the person throws.
    */
   return async function rewriteSearchQuery({ text, messages, modelInfo, signal } = {}) {
     if (!needed(text, messages)) return null;
+    if (!canAsk(modelInfo)) return null;
     const prompt = buildRewritePrompt({ text, messages, now: now() });
-    for (const model of candidatesFor(modelInfo).slice(0, MAX_ATTEMPTS)) {
-      try {
-        const query = await ask(model, prompt, signal);
-        if (query.length >= 2) return query;
-      } catch (error) {
-        if (signal?.aborted) throw error;
-      }
+    try {
+      const query = await ask(modelInfo, prompt, signal);
+      if (query.length >= 2) return query;
+    } catch (error) {
+      if (signal?.aborted) throw error;
     }
     return null;
   };
