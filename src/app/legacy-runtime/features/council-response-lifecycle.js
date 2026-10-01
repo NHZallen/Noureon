@@ -19,6 +19,7 @@ export function createCouncilResponseLifecycle({
   truncateCouncilText,
   filterPartsForModelCapability,
   getSearchQueryFromParts,
+  buildSearchQuery = async (parts, options = {}) => getSearchQueryFromParts(parts, options.conversation),
   fetchTavilySearchPacket,
   readLinkedPages = async () => '',
   readsLinkedPages = () => false,
@@ -420,7 +421,7 @@ export function createCouncilResponseLifecycle({
               const searchStreamTracker = createCouncilStageTracker('search', () => runtimeTexts.searchRunning);
               sharedSearchPacket = await getSearchPacketFromModel(
                   sharedSearchModel,
-                  modelUsesNativeWebSearch(sharedSearchModel) ? buildCouncilSharedSearchPrompt(parts) : getSearchQueryFromParts(parts, conv),
+                  modelUsesNativeWebSearch(sharedSearchModel) ? buildCouncilSharedSearchPrompt(parts) : await buildSearchQuery(parts, { conversation: conv, modelInfo: synthesizer, signal }),
                   signal,
                   {
                       conversation: conv,

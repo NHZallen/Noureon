@@ -2,6 +2,7 @@ import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { getSearchProvider, searchProviderLabel } from '../../runtime/kernel/search-provider.js';
 import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-pages.js';
+import { createSearchQueryRewriter } from './search-query-rewriter.js';
 
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
@@ -14,6 +15,9 @@ export function createProviderRequestSupport({
   getApiKeyForProvider,
   getConfig,
   streamApiCall,
+  models = [],
+  cheapModelId = null,
+  rewriteSearchQuery = createSearchQueryRewriter({ streamApiCall, getApiKeyForProvider, models, cheapModelId }),
   fetchImpl = fetch,
   getSingleDocumentTranslatorModel,
   modelUsesTavilySearch,
@@ -116,6 +120,14 @@ Output requirements:
   const getTavilySearchDepth = () => getConfig().tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
   const getSearchQueryFromParts = (parts = [], conversation = null) => buildTavilySearchQuery(withSearchContext(extractTextFromParts(parts), conversation?.messages));
 
+  // The query for a message: written from the conversation by a small model (search-query-rewriter.js), and where that is not
+  // possible by the rule that puts the earlier messages in front of a message with no subject of its own.
+  const buildSearchQuery = async (parts, { conversation = null, modelInfo = null, signal } = {}) => {
+    const text = extractTextFromParts(parts);
+    const written = await rewriteSearchQuery({ text, messages: conversation?.messages, modelInfo, signal });
+    return buildTavilySearchQuery(written || withSearchContext(text, conversation?.messages));
+  };
+
   const postWithKey = async (url, { apiKey, body, signal, failure }) => {
     const response = await fetchImpl(url, {
       method: 'POST',
@@ -198,9 +210,9 @@ Output requirements:
     if (!apiKey) {
       throw new Error(getRuntimeText(config.uiLanguage, source === 'tinyfish' ? 'tinyfishKeyRequired' : 'tavilyKeyRequired'));
     }
-    const query = buildTavilySearchQuery(Array.isArray(querySource)
-      ? getSearchQueryFromParts(querySource, options.conversation)
-      : querySource);
+    const query = Array.isArray(querySource)
+      ? await buildSearchQuery(querySource, { conversation: options.conversation, modelInfo: options.modelInfo, signal })
+      : buildTavilySearchQuery(querySource);
     if (!query) {
       throw new Error(getRuntimeText(config.uiLanguage, 'noSearchableText'));
     }
@@ -274,6 +286,7 @@ Output requirements:
       const searchPacket = await fetchTavilySearchPacket(parts, signal, {
         label: 'Single-model web search packet',
         conversation,
+        modelInfo,
         onSources
       });
       translatedSections.push(`# Web search packet\nThis packet was retrieved with ${searchProviderLabel(getSearchProvider(config))} for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, 7000)}`);
@@ -292,6 +305,7 @@ Output requirements:
   return {
     buildSingleModelTranslatedRequestParts,
     extractTextFromParts,
+    buildSearchQuery,
     fetchPageContents,
     fetchTavilySearchPacket,
     readLinkedPages,

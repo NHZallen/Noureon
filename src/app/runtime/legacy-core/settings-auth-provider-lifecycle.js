@@ -229,6 +229,8 @@ const streamApiCall = createStreamApiCall({
 });
 const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS });
 const providerRequestSupport = createProviderRequestSupport({
+    models: MODELS,
+    cheapModelId: CHEAP_MODEL_ID,
     buildTavilySearchQuery,
     formatTavilySearchPacket,
     normalizeTinyfishSearch,
@@ -251,6 +253,7 @@ const {
     fetchTavilySearchPacket,
     filterPartsForModelCapability,
     getSearchQueryFromParts,
+    buildSearchQuery,
     readLinkedPages,
     readsLinkedPages,
     streamCouncilApiCallWithRetry,
@@ -273,6 +276,7 @@ const councilResponseLifecycle = createCouncilResponseLifecycle({
     truncateCouncilText,
     filterPartsForModelCapability,
     getSearchQueryFromParts,
+    buildSearchQuery,
     fetchTavilySearchPacket,
     readLinkedPages,
     readsLinkedPages,

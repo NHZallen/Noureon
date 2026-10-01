@@ -20,6 +20,7 @@ const createHarness = ({
   webSearchEnabled = false,
   attachmentNeed = { needsAnyPacket: false },
   fetchTavilySearchPacket,
+  buildSearchQuery,
   readLinkedPages,
   readsLinkedPages,
   filterPartsForModelCapability,
@@ -112,6 +113,7 @@ const createHarness = ({
       tavilyCalls.push(args);
       return `search packet ${tavilyCalls.length}`;
     }),
+    ...(buildSearchQuery ? { buildSearchQuery } : {}),
     ...(readLinkedPages ? { readLinkedPages } : {}),
     ...(readsLinkedPages ? { readsLinkedPages } : {}),
     streamCouncilApiCallWithRetry: streamImpl || defaultStream,
@@ -235,6 +237,22 @@ test('the council\'s search is for the conversation, so a message that only says
   await run([{ text: 'Question' }]);
   assert.equal(queryConversations.length, 1);
   assert.equal(queryConversations[0].messages.at(-1).parts[0].text, 'Current question', 'the conversation, with its earlier messages');
+});
+
+test('the council\'s search query is built for its conversation and synthesizer, and a stop while it is built stops the council', async () => {
+  const built = [];
+  const { run, tavilyCalls } = createHarness({
+    webSearchEnabled: true,
+    buildSearchQuery: async (parts, options) => {
+      built.push(options);
+      return 'written query';
+    }
+  });
+  await run([{ text: '你去查阿' }]);
+  assert.equal(tavilyCalls[0][0], 'written query');
+  assert.equal(built[0].conversation.messages.at(-1).parts[0].text, 'Current question');
+  assert.equal(built[0].modelInfo.id, 'synth', 'the model whose search it is');
+  assert.ok(built[0].signal, 'and the signal, so a stop reaches it');
 });
 
 test('web search branch uses Tavily fallback for shared and deliberation second search packets', async () => {

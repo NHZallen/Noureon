@@ -28,6 +28,7 @@ const createHarness = ({
   activeConversation = { isWebSearchEnabled: false },
   apiKeys = { tavily: 'tavily-key' },
   config = {},
+  rewriteSearchQuery,
   fetchImpl,
   modelUsesTavilySearch = () => false,
   streamImpl,
@@ -46,6 +47,7 @@ const createHarness = ({
     normalizeTinyfishSearch,
     normalizePageReads,
     withSearchContext,
+    ...(rewriteSearchQuery ? { rewriteSearchQuery } : {}),
     getErrorMessage: (body, fallback) => body?.error?.message || fallback,
     readErrorBody: async (response) => JSON.parse(await response.text()),
     getApiKeyForProvider: (provider) => apiKeys[provider] || '',
@@ -479,5 +481,59 @@ test('a message that only says to search is searched with what the conversation 
     const search = fetchCalls.find((call) => call[0] === route);
     assert.equal(JSON.parse(search[1].body).query, 'Does DeepSeek V4.1 Flash have a reasoning effort parameter? 你去查阿', route);
   }
+});
+
+test('the search query is the one a small model wrote from the conversation, for either source, and the chat model is passed along', async () => {
+  const asked = [];
+  const conversation = { messages: [{ role: 'user', parts: [{ text: 'DeepSeek V4.1 Flash thinking?' }] }, { role: 'user', parts: [{ text: '你去查阿' }] }] };
+  const model = { id: 'm', name: 'M', provider: 'openrouter' };
+  for (const [apiKeys, config, route] of [
+    [{ tavily: 'tv' }, {}, '/api/tavily-search'],
+    [{ tinyfish: 'tf' }, { searchProvider: 'tinyfish' }, '/api/tinyfish-search']
+  ]) {
+    const { fetchCalls, support } = createHarness({
+      apiKeys,
+      config,
+      modelUsesTavilySearch: () => true,
+      rewriteSearchQuery: async (request) => { asked.push(request); return 'DeepSeek V4.1 Flash reasoning effort'; }
+    });
+    await support.buildSingleModelTranslatedRequestParts([{ text: '你去查阿' }], model, new AbortController().signal, () => {}, { webSearchEnabled: true, conversation });
+    assert.equal(JSON.parse(fetchCalls.find((call) => call[0] === route)[1].body).query, 'DeepSeek V4.1 Flash reasoning effort', route);
+  }
+  assert.equal(asked.length, 2);
+  assert.equal(asked[0].text, '你去查阿');
+  assert.equal(asked[0].messages, conversation.messages);
+  assert.equal(asked[0].modelInfo, model);
+});
+
+test('what the small model wrote goes through the same query builder as any other text (which adds the date only to a question about what is current)', async () => {
+  const run = async (written) => {
+    const { fetchCalls, support } = createHarness({ rewriteSearchQuery: async () => written });
+    await support.fetchTavilySearchPacket([{ text: 'x' }], new AbortController().signal, { conversation: { messages: [{ role: 'user', parts: [{ text: 'earlier' }] }] } });
+    return JSON.parse(fetchCalls[0][1].body).query;
+  };
+  assert.equal(await run('reverse a list in python'), 'reverse a list in python');
+});
+
+test('when no small model answers, the earlier messages are put in front instead, and the search still goes', async () => {
+  const conversation = { messages: [
+    { role: 'user', parts: [{ text: 'Does DeepSeek V4.1 Flash have a reasoning effort parameter?' }] },
+    { role: 'user', parts: [{ text: '你去查阿' }] }
+  ] };
+  const { fetchCalls, support } = createHarness({ rewriteSearchQuery: async () => null });
+  await support.fetchTavilySearchPacket([{ text: '你去查阿' }], new AbortController().signal, { conversation });
+  assert.equal(JSON.parse(fetchCalls[0][1].body).query, 'Does DeepSeek V4.1 Flash have a reasoning effort parameter? 你去查阿');
+
+  const failing = createHarness({ rewriteSearchQuery: async () => { throw new Error('unexpected'); } });
+  await assert.rejects(() => failing.support.fetchTavilySearchPacket([{ text: '你去查阿' }], new AbortController().signal, { conversation }), /unexpected/, 'the rewriter itself never throws; a stop is the only error it passes on');
+});
+
+test('a query that is already written (the council\'s) is searched as it is, and buildSearchQuery is the same thing for the council', async () => {
+  const { fetchCalls, support } = createHarness({ rewriteSearchQuery: async () => { throw new Error('not asked'); } });
+  await support.fetchTavilySearchPacket('already a query', new AbortController().signal);
+  assert.equal(JSON.parse(fetchCalls[0][1].body).query, 'already a query');
+
+  const { support: withRewriter } = createHarness({ rewriteSearchQuery: async ({ modelInfo }) => `written for ${modelInfo.id}` });
+  assert.equal(await withRewriter.buildSearchQuery([{ text: '你去查阿' }], { conversation: { messages: [] }, modelInfo: { id: 'synth' } }), 'written for synth');
 });
 
