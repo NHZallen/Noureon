@@ -592,6 +592,7 @@
         model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_5_lightning_desc_tier_free: 'Coût - Gratuit',
         model_laguna_s_2_1_desc_tier_free: 'Coût - Gratuit',
+        model_space_bunny_alpha_desc: 'Modèle de test gratuit d’un fournisseur anonyme ; contexte de 1 M de jetons, entrée image et vidéo, raisonnement réglable',
         // OpenAI Paid
         model_gpt_image_2_5_flare_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',
         model_gpt_image_2_5_sunburst_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',

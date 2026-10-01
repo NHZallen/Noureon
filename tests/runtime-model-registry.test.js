@@ -273,3 +273,18 @@ test('model registry import is inert and independent from retired runtime fragme
   assert.doesNotMatch(source, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.doesNotMatch(source, /runtime-entry|legacy-app\.js|document\.querySelector|indexedDB|localStorage|sessionStorage/);
 });
+
+test('the Space Bunny Alpha test model is listed with its retirement date, vision, tools and reasoning levels', async () => {
+  const { modelSupportsToolCalling, getModelTiers } = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const model = MODELS.find((entry) => entry.id === 'stealth/space-bunny-alpha');
+  assert.ok(model, 'listed');
+  assert.equal(model.provider, 'openrouter');
+  assert.equal(model.retirementDate, '2026-10-05', 'OpenRouter takes it down on 5 October 2026: the picker shows the date');
+  assert.equal(model.isBeta, true, 'a test model: the beta group of the picker');
+  assert.equal(model.outputPricePerMillion, 0);
+  assert.equal(modelSupportsVision(model), true, 'images (and video) in');
+  assert.equal(modelSupportsToolCalling(model), true);
+  assert.deepEqual(getModelReasoningConfig(model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(normalizeReasoningEffort(model, 'none'), 'medium');
+  assert.deepEqual(getModelTiers(model), [], 'a beta model has no price tier');
+});
