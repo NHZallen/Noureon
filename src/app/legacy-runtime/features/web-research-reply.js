@@ -95,27 +95,22 @@ const throwIfStopped = (signal) => {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 };
 
-export async function runWebResearchReply({
-  streamApiCall,
-  requestParts,
-  onChunk = () => {},
-  signal,
-  requestOptions = {},
+/**
+ * The model's searches and page openings, run for it: `run(call)` does one call (a row in the step list, the pages reported)
+ * and answers with the text the model reads. A call over the limit, a repeated page and a bad argument are answered with
+ * what to do instead. Shared by the reply that only searches (below) and Advanced mode, where it goes with Python.
+ */
+export function createResearchCalls({
   searchWeb,
   openPage,
   language = 'zh-TW',
   maxCalls = MAX_RESEARCH_CALLS,
-  today,
-  // { type: 'searching', label }, { type: 'sources', sources }, { type: 'narration', text }, { type: 'answering' }.
+  signal,
   onEvent = () => {},
   onSources = () => {}
 }) {
-  const toolTurns = [];
   const opened = new Set();
-  let text = '';
   let used = 0;
-  let answering = false;
-  const guidance = researchGuidance(today);
 
   const doSearch = async (call) => {
     const query = typeof call.args?.query === 'string' ? call.args.query.trim() : '';
@@ -161,8 +156,41 @@ export async function runWebResearchReply({
     }
   };
 
+  return {
+    handles: (name) => TOOL_NAMES.has(name),
+    get used() { return used; },
+    get left() { return Math.max(0, maxCalls - used); },
+    async run(call) {
+      if (used >= maxCalls) return `The limit of ${maxCalls} searches and pages per reply is reached. Answer with what you have.`;
+      used += 1;
+      return call.name === WEB_SEARCH_TOOL.name ? doSearch(call) : doOpen(call);
+    }
+  };
+}
+
+export async function runWebResearchReply({
+  streamApiCall,
+  requestParts,
+  onChunk = () => {},
+  signal,
+  requestOptions = {},
+  searchWeb,
+  openPage,
+  language = 'zh-TW',
+  maxCalls = MAX_RESEARCH_CALLS,
+  today,
+  // { type: 'searching', label }, { type: 'sources', sources }, { type: 'narration', text }, { type: 'answering' }.
+  onEvent = () => {},
+  onSources = () => {}
+}) {
+  const toolTurns = [];
+  const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources });
+  let text = '';
+  let answering = false;
+  const guidance = researchGuidance(today);
+
   for (;;) {
-    const canCall = used < maxCalls;
+    const canCall = research.left > 0;
     let response = null;
     let held = '';
     let holding = canCall;
@@ -205,7 +233,7 @@ export async function runWebResearchReply({
       // A stop keeps what was written; anything else is the caller's to handle.
       if (!signal?.aborted) throw error;
     }
-    const calls = (response?.toolCalls || []).filter((call) => TOOL_NAMES.has(call.name));
+    const calls = (response?.toolCalls || []).filter((call) => research.handles(call.name));
     if (signal?.aborted || !canCall || calls.length === 0) {
       holding = false;
       deliver(held);
@@ -216,13 +244,7 @@ export async function runWebResearchReply({
     if (held.trim()) onEvent({ type: 'narration', text: held.trim() });
     const results = [];
     for (const call of calls) {
-      let content;
-      if (used >= maxCalls) {
-        content = `The limit of ${maxCalls} searches and pages per reply is reached. Answer with what you have.`;
-      } else {
-        used += 1;
-        content = call.name === WEB_SEARCH_TOOL.name ? await doSearch(call) : await doOpen(call);
-      }
+      const content = await research.run(call);
       results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
       if (signal?.aborted) break;
     }
@@ -230,5 +252,5 @@ export async function runWebResearchReply({
     if (signal?.aborted) break;
   }
 
-  return { text, calls: used };
+  return { text, calls: research.used };
 }

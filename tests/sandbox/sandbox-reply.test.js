@@ -124,6 +124,44 @@ test('the loop runs each requested call, returns the results and stops when the 
   assert.ok(statuses.includes('正在執行程式：加總'));
 });
 
+test('with web research, the model searches and opens pages next to Python, and the words before them are not the answer', async () => {
+  const model = scriptedModel([
+    { text: '先查一下。', calls: [{ id: 's1', name: 'web_search', arguments: '{}', args: { query: 'noureon version' } }] },
+    { text: '', calls: [{ id: 'o1', name: 'open_page', arguments: '{}', args: { url: 'https://example.com/v' } }, call('c1', 'print(1)', '算')] },
+    { text: '版本是 17.3.0。' }
+  ]);
+  const { sandbox, runs } = fakeSandbox([{ stdout: { text: '1\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]);
+  const searched = [];
+  const opened = [];
+  const found = [];
+  const events = [];
+  const chunks = [];
+  const result = await runSandboxReply({
+    streamApiCall: model.streamApiCall,
+    requestParts: [{ text: 'q' }],
+    onChunk: (chunk) => chunks.push(chunk),
+    getSandbox: () => sandbox,
+    language: 'en',
+    research: {
+      searchWeb: async ({ query }) => { searched.push(query); return { results: [{ title: 'V', url: 'https://example.com/v', content: '17.3.0' }] }; },
+      openPage: async (urls) => { opened.push(...urls); return { pages: [{ url: urls[0], text: 'version 17.3.0' }], failed: [] }; },
+      onSources: (sources) => found.push(...sources)
+    },
+    onEvent: (event) => events.push(event)
+  });
+  assert.deepEqual(model.requests[0].tools.map((tool) => tool.name), ['run_python', 'web_search', 'open_page']);
+  assert.match(model.requests[0].additionalSystemInstruction, /web_search/);
+  assert.deepEqual(searched, ['noureon version']);
+  assert.deepEqual(opened, ['https://example.com/v']);
+  assert.deepEqual(runs, ['print(1)']);
+  assert.equal(found.length, 2);
+  assert.equal(result.text, '版本是 17.3.0。');
+  assert.equal(chunks.join(''), '版本是 17.3.0。');
+  assert.equal(events.find((event) => event.type === 'narration').text, '先查一下。');
+  assert.deepEqual(model.requests[2].toolTurns.map((turn) => turn.results.map((entry) => entry.name)), [['web_search'], ['open_page', 'run_python']]);
+  assert.equal(result.run.steps.length, 1, 'only Python is a step');
+});
+
 test('a long first stretch of text is the answer and streams; a short one that no run follows is flushed at the end', async () => {
   const long = '長'.repeat(500);
   const model = scriptedModel([{ text: long }]);

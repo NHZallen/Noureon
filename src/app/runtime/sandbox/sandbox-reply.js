@@ -7,6 +7,7 @@ import { MAX_RUNS_PER_REPLY, RUN_PYTHON_TOOL, getSandboxGuidance } from './sandb
 import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
+import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../../legacy-runtime/features/web-research-reply.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
@@ -67,6 +68,8 @@ export async function runSandboxReply({
   inputFiles = [],
   // The Design menu's choices: a template means the design system.
   designs = {},
+  // The model's own web searching and page opening next to Python: { searchWeb, openPage, onSources }, or null.
+  research: researchTools = null,
   onStatus = () => {},
   // What happens in each run, for the work window: { type: 'step', n, title, code },
   // { type: 'output', n, stream, text } and { type: 'step-end', n, ok, error, files, elapsedMs }.
@@ -173,17 +176,23 @@ export async function runSandboxReply({
     return sandboxReady;
   };
 
-  const guidance = getSandboxGuidance({ inputFiles, designs });
+  const guidance = [getSandboxGuidance({ inputFiles, designs }), researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  const research = researchTools
+    ? createResearchCalls({ ...researchTools, language, signal, onEvent })
+    : null;
 
   for (;;) {
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;
+    const canResearch = Boolean(research && research.left > 0);
+    // Either kind of call may follow, so what the round says first is held back.
+    const canCall = canRun || canResearch;
     let response = null;
     // Where this round's own text starts: what the model says before its runs is kept with them (below), not in the answer.
     const roundTextStart = text.length;
     let narrationTaken = false;
     deliver.continuing = false;
     held = '';
-    holding = canRun;
+    holding = canCall;
     let narrationShown = false;
     thought = '';
     thoughtStartedAt = null;
@@ -202,15 +211,15 @@ export async function runSandboxReply({
         onEvent({ type: 'thinking', text: chunk, kind });
       },
       onToolArguments: ({ name, arguments: raw }) => {
-        if (name !== RUN_PYTHON_TOOL.name) return;
-        // A run is coming: what was held back was the model saying what it is about to do.
+        if (name !== RUN_PYTHON_TOOL.name && !research?.handles(name)) return;
+        // A call is coming: what was held back was the model saying what it is about to do.
         if (!narrationShown && held.trim()) {
           narrationShown = true;
           onEvent({ type: 'narration', text: held.trim() });
         }
-        onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
+        if (name === RUN_PYTHON_TOOL.name) onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
       },
-      tools: canRun ? [RUN_PYTHON_TOOL] : [],
+      tools: [...(canRun ? [RUN_PYTHON_TOOL] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }
@@ -245,15 +254,15 @@ export async function runSandboxReply({
       }
       break;
     }
-    const calls = (response?.toolCalls || []).filter((call) => call.name === RUN_PYTHON_TOOL.name);
+    const calls = (response?.toolCalls || []).filter((call) => call.name === RUN_PYTHON_TOOL.name || research?.handles(call.name));
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     // What the round held back: the answer (no run follows), or the model saying what it is about to do (below).
     const heldText = held;
     held = '';
     holding = false;
-    if ((!canRun || !calls.length) && heldText) deliver(heldText);
-    if (!canRun || !calls.length) {
+    if ((!canCall || !calls.length) && heldText) deliver(heldText);
+    if (!canCall || !calls.length) {
       if (roundThought) {
         run.thought = roundThought;
         run.thoughtKind = thoughtKind;
@@ -265,6 +274,20 @@ export async function runSandboxReply({
     const results = [];
     for (const call of calls) {
       const reply = (content) => results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
+      if (call.name !== RUN_PYTHON_TOOL.name) {
+        // A search or a page: the words before it are shown between the rows, and are not the answer.
+        if (!narrationShown && heldText.trim()) {
+          narrationShown = true;
+          onEvent({ type: 'narration', text: heldText.trim() });
+        }
+        try {
+          reply(await research.run(call));
+        } catch (error) {
+          if (signal?.aborted) break;
+          throw error;
+        }
+        continue;
+      }
       const code = typeof call.args?.code === 'string' ? call.args.code : '';
       if (!code.trim()) {
         reply(toolResultFor({ error: 'The call had no "code" argument (or its arguments were not valid JSON).' }));
@@ -350,8 +373,9 @@ export async function runSandboxReply({
     }
     toolTurns.push({ assistant: response, results });
     if (signal?.aborted || run.steps.some((step) => step.stopped)) break;
-    const latest = run.steps.slice(-calls.length);
-    outcome = { failed: latest.some((step) => step.error), files: latest.reduce((sum, step) => sum + step.files.length, 0) };
+    const pythonCalls = calls.filter((entry) => entry.name === RUN_PYTHON_TOOL.name).length;
+    const latest = run.steps.slice(-pythonCalls);
+    outcome = !pythonCalls ? null : { failed: latest.some((step) => step.error), files: latest.reduce((sum, step) => sum + step.files.length, 0) };
   }
 
   if (signal?.aborted || run.steps.some((step) => step.stopped)) run.status = RUN_STATUS.stopped;

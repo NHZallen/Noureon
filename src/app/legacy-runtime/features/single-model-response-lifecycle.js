@@ -104,8 +104,9 @@ export function createSingleModelResponseLifecycle({
       supportsToolCalling,
       browserSupported: browserSupportsSandbox(getWindow())
     }) : { advanced: false, reason: null };
-    // A model that calls tools searches the web by itself in a Standard reply (the search packet is for the others).
-    const researchByModel = Boolean(webSearchEnabled && !replyMode.advanced && webResearch?.canUse(modelInfo));
+    // A model that calls tools searches the web by itself, in a Standard reply and next to Python in Advanced mode (the search
+    // packet is for the others).
+    const researchByModel = Boolean(webSearchEnabled && webResearch?.canUse(modelInfo));
     // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which).
     const hasTranslationInputs = userParts.some((part) => part.inlineData) ||
       Boolean(webSearchEnabled && !researchByModel) ||
@@ -238,6 +239,7 @@ export function createSingleModelResponseLifecycle({
           provider: modelInfo?.provider,
           inputFiles: collectSandboxInputs(conversation, userParts),
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
+          research: researchByModel ? { searchWeb: webResearch.searchWeb, openPage: webResearch.openPage, onSources: addSearchSources } : null,
           onStatus: showRunStatus,
           onEvent: (event) => stepList()?.event(event)
         });
