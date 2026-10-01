@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { giveEndRoom, isReaderScrolling, setScrollTopQuietly, takeBackEndRoom, watchReader } from '../src/app/ui/motion/reader-scroll-guard.js';
+import { giveEndRoom, isReaderScrolling, setEndRoomEnabled, setScrollTopQuietly, takeBackEndRoom, watchReader } from '../src/app/ui/motion/reader-scroll-guard.js';
 
 const makeBox = (top = 0, height = 1000, client = 200) => {
   const listeners = {};
@@ -321,4 +321,17 @@ test('a finger whose touchend never arrived does not stop the room being given a
     stop();
     window.happyDOM.abort();
   }
+});
+
+test('the diagnostics can switch the end room off and on again', () => {
+  const box = makeBox(800);
+  setEndRoomEnabled(false);
+  try {
+    assert.equal(giveEndRoom(box), false);
+    assert.equal(room(box), '');
+  } finally {
+    setEndRoomEnabled(true);
+  }
+  assert.equal(giveEndRoom(box), true);
+  assert.equal(room(box), '2px');
 });

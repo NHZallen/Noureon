@@ -46,9 +46,16 @@ const setRoom = (box, px) => {
   else box.style.removeProperty(END_ROOM);
 };
 
+// TEMPORARY (scroll diagnostics): the scroll diagnostics can switch the end room off (?room=off) to tell whether swipes
+// from the very end of the chat still fail without it, or whether the room itself is what makes some of them fail.
+let endRoomEnabled = true;
+export function setEndRoomEnabled(enabled) {
+  endRoomEnabled = Boolean(enabled);
+}
+
 /** A box on (within a pixel of) its end gets a little more range there, so it rests off the end. */
 export function giveEndRoom(box, step = ROOM_STEP) {
-  if (!box) return false;
+  if (!box || !endRoomEnabled) return false;
   const max = box.scrollHeight - box.clientHeight;
   if (max <= EDGE_ROOM * 2) return false;
   const top = box.scrollTop;
