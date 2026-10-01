@@ -7,6 +7,7 @@ import {
   formatTavilySearchPacket,
   getSearchCurrentDate,
   normalizeSearchQuery,
+  normalizeTinyfishFetch,
   normalizeTinyfishSearch
 } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -128,4 +129,37 @@ test('the search packet names the source it came from', () => {
   assert.doesNotMatch(packet, /Tavily/);
   assert.match(formatTavilySearchPacket({ results: [] }, 'query', 'Web search packet', 'TinyFish'), /No TinyFish results were returned/);
   assert.match(formatTavilySearchPacket({ results: [] }, 'query'), /Provider: Tavily/, 'Tavily stays the default');
+});
+
+test('a page that was read in full goes in the packet in place of its snippet', () => {
+  const packet = formatTavilySearchPacket({ results: [
+    { title: 'Read', url: 'https://example.org/1', content: 'Short snippet', page: 'The whole page text' },
+    { title: 'Not read', url: 'https://example.org/2', content: 'Only a snippet' }
+  ] }, 'query', 'Web search packet', 'TinyFish');
+  assert.match(packet, /Page text: The whole page text/);
+  assert.doesNotMatch(packet, /Short snippet/);
+  assert.match(packet, /Content: Only a snippet/);
+});
+
+test('TinyFish Fetch results are cut to length, and the pages that did not come back are named', () => {
+  const data = { results: [
+    { url: 'https://a.test/1', final_url: 'https://a.test/redirected', title: ' A ', text: ' ' + 'y'.repeat(30), language: 'fr' },
+    { url: 'https://a.test/2', title: 'Empty', text: '   ' },
+    { title: 'No address', text: 'lost' },
+    { url: 'https://a.test/4', markdown: 'In another field' }
+  ] };
+  const { pages, failed } = normalizeTinyfishFetch(data, {
+    requested: ['https://a.test/1', 'https://a.test/2', 'https://a.test/4', 'https://a.test/5'],
+    maxChars: 10
+  });
+  assert.deepEqual(pages.map((page) => [page.url, page.text, page.truncated]), [
+    ['https://a.test/1', 'yyyyyyyyyy', true],
+    ['https://a.test/4', 'In another', true]
+  ]);
+  assert.equal(pages[0].finalUrl, 'https://a.test/redirected');
+  assert.equal(pages[0].title, 'A');
+  assert.equal(pages[0].language, 'fr');
+  assert.deepEqual(failed, ['https://a.test/2', 'https://a.test/5']);
+  assert.deepEqual(normalizeTinyfishFetch(undefined, { requested: ['https://a.test/1'] }), { pages: [], failed: ['https://a.test/1'] });
+  assert.equal(normalizeTinyfishFetch({ results: [{ url: 'https://a.test/1', text: 'z'.repeat(9000) }] }).pages[0].text.length, 8000, 'eight thousand characters by default');
 });

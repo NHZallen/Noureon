@@ -181,7 +181,7 @@ Provider API keys do not need to be added to `.env`.
 | OpenRouter | Models from multiple AI labs and image generation | Noureon Settings |
 | NVIDIA | Supported NVIDIA-hosted models | Noureon Settings |
 | Tavily | Web search for supported non-native providers | Noureon Settings |
-| TinyFish | Free web search for supported non-native providers (alternative to Tavily) | Noureon Settings |
+| TinyFish | Free web search, and reading of the top pages in full, for supported non-native providers (alternative to Tavily) | Noureon Settings |
 
 Model availability, pricing, rate limits, and regional access are determined by each provider.
 

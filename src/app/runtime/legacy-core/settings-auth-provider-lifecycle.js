@@ -2,6 +2,7 @@ import {
     buildTavilySearchQuery,
     formatTavilySearchPacket,
     getSearchCurrentDate,
+    normalizeTinyfishFetch,
     normalizeTinyfishSearch
 } from '../../legacy-runtime/features/model-request-formatting.js';
 import { createStreamApiCall } from '../../legacy-runtime/features/stream-api-call.js';
@@ -230,6 +231,7 @@ const providerRequestSupport = createProviderRequestSupport({
     buildTavilySearchQuery,
     formatTavilySearchPacket,
     normalizeTinyfishSearch,
+    normalizeTinyfishFetch,
     getErrorMessage,
     readErrorBody,
     getApiKeyForProvider,

@@ -13,6 +13,7 @@ import {
 } from '../src/app/runtime/kernel/search-provider.js';
 import { normalizeLoadedLegacyConfig } from '../src/app/runtime/kernel/config-normalization.js';
 import handler from '../api/tinyfish-search.js';
+import fetchHandler from '../api/tinyfish-fetch.js';
 
 test('Tavily stays the search source unless TinyFish is chosen', () => {
   assert.equal(DEFAULT_SEARCH_PROVIDER, 'tavily');
@@ -162,6 +163,78 @@ test('the TinyFish proxy refuses what it cannot send on', async () => {
   try {
     const failed = createResponse();
     await handler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: { query: 'q' } }, failed);
+    assert.equal(failed.statusCode, 502);
+    assert.match(failed.body, /offline/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('the TinyFish Fetch proxy carries the page addresses on with the key in a header', async () => {
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push([String(url), init]);
+    return { status: 200, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({ results: [{ url: 'https://a.test/1', text: 'Page' }] }) };
+  };
+  try {
+    const response = createResponse();
+    await fetchHandler({
+      method: 'POST',
+      headers: { authorization: 'Bearer secret-key' },
+      body: {
+        urls: ['https://a.test/1', ' https://a.test/1 ', 'http://b.test/2', 'ftp://c.test/3', 'javascript:alert(1)', 'not an address', '', null, ...Array.from({ length: 14 }, (_, n) => `https://d.test/${n}`)],
+        format: 'html',
+        links: true,
+        proxy: 'x'
+      }
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['Cache-Control'], 'no-store');
+    assert.match(response.body, /a\.test/);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], 'https://api.fetch.tinyfish.ai');
+    assert.equal(calls[0][1].method, 'POST');
+    assert.deepEqual(calls[0][1].headers, { 'X-API-Key': 'secret-key', 'Content-Type': 'application/json' });
+    const sent = JSON.parse(calls[0][1].body);
+    assert.deepEqual(Object.keys(sent).sort(), ['format', 'urls'], 'only the addresses and the format are passed on');
+    assert.equal(sent.format, 'html');
+    assert.equal(sent.urls.length, 10, 'ten at most');
+    assert.deepEqual(sent.urls.slice(0, 2), ['https://a.test/1', 'http://b.test/2'], 'repeats and addresses that are not http(s) are dropped');
+
+    const otherFormat = createResponse();
+    await fetchHandler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: JSON.stringify({ urls: ['https://a.test/1'], format: 'pdf' }) }, otherFormat);
+    assert.equal(JSON.parse(calls[1][1].body).format, 'markdown', 'markdown unless it is a format TinyFish has');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('the TinyFish Fetch proxy refuses what it cannot send on', async () => {
+  const noKey = createResponse();
+  await fetchHandler({ method: 'POST', headers: {}, body: { urls: ['https://a.test/1'] } }, noKey);
+  assert.equal(noKey.statusCode, 401);
+
+  for (const urls of [undefined, [], ['ftp://a.test'], 'https://a.test/1']) {
+    const empty = createResponse();
+    await fetchHandler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: { urls } }, empty);
+    assert.equal(empty.statusCode, 400);
+  }
+
+  const wrongMethod = createResponse();
+  await fetchHandler({ method: 'GET', headers: {} }, wrongMethod);
+  assert.equal(wrongMethod.statusCode, 405);
+
+  const preflight = createResponse();
+  await fetchHandler({ method: 'OPTIONS', headers: {} }, preflight);
+  assert.equal(preflight.statusCode, 204);
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  try {
+    const failed = createResponse();
+    await fetchHandler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: { urls: ['https://a.test/1'] } }, failed);
     assert.equal(failed.statusCode, 502);
     assert.match(failed.body, /offline/);
   } finally {

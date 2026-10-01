@@ -39,6 +39,28 @@ export const normalizeTinyfishSearch = (data, limit = 6) => {
   };
 };
 
+// The pages TinyFish's Fetch read, each cut to `maxChars` (a page can be long, and the model reads many of them).
+// `requested` is what was asked for: the ones that did not come back are `failed`, so the model is told what it
+// could not read instead of silently getting fewer pages.
+export const normalizeTinyfishFetch = (data, { requested = [], maxChars = 8000 } = {}) => {
+  const list = Array.isArray(data?.results) ? data.results : [];
+  const pages = list
+    .map((item) => {
+      const text = String(item?.text || item?.markdown || item?.content || '').trim();
+      return {
+        url: String(item?.url || '').trim(),
+        finalUrl: String(item?.final_url || item?.url || '').trim(),
+        title: String(item?.title || '').trim(),
+        language: String(item?.language || '').trim(),
+        text: text.slice(0, maxChars),
+        truncated: text.length > maxChars
+      };
+    })
+    .filter((page) => page.url && page.text);
+  const got = new Set(pages.flatMap((page) => [page.url, page.finalUrl]));
+  return { pages, failed: requested.filter((url) => !got.has(url)) };
+};
+
 export const formatTavilySearchPacket = (data, query, label = 'Web search packet', provider = 'Tavily') => {
   const results = Array.isArray(data?.results) ? data.results : [];
   const lines = [
@@ -58,9 +80,12 @@ export const formatTavilySearchPacket = (data, query, label = 'Web search packet
       lines.push(
         '',
         `${index + 1}. ${result.title || 'Untitled source'}`,
-        `URL: ${result.url || ''}`,
-        `Content: ${String(result.content || result.raw_content || '').trim().slice(0, 1400) || 'No snippet returned.'}`
+        `URL: ${result.url || ''}`
       );
+      // The text of the page itself when it was read in full (TinyFish's Fetch), which holds the snippet and more.
+      lines.push(result.page
+        ? `Page text: ${result.page}`
+        : `Content: ${String(result.content || result.raw_content || '').trim().slice(0, 1400) || 'No snippet returned.'}`);
       if (typeof result.score === 'number') {
         lines.push(`Score: ${result.score.toFixed(3)}`);
       }

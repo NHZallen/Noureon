@@ -6,6 +6,7 @@ export function createProviderRequestSupport({
   buildTavilySearchQuery,
   formatTavilySearchPacket,
   normalizeTinyfishSearch,
+  normalizeTinyfishFetch,
   getErrorMessage,
   readErrorBody,
   getApiKeyForProvider,
@@ -130,6 +131,44 @@ Output requirements:
     return response.json();
   };
 
+  // The full text of pages (up to ten at a time) from TinyFish's Fetch, as { pages, failed }. It uses the TinyFish key,
+  // whichever source the search comes from. The search packet uses it for the top results (addPageTexts).
+  const fetchPageContents = async (urls, signal, options = {}) => {
+    const config = getConfig();
+    const apiKey = getApiKeyForProvider('tinyfish');
+    if (!apiKey) {
+      throw new Error(getRuntimeText(config.uiLanguage, 'tinyfishKeyRequired'));
+    }
+    const requested = [...new Set((urls || []).map((url) => String(url || '').trim()).filter((url) => /^https?:\/\//i.test(url)))].slice(0, 10);
+    if (requested.length === 0) return { pages: [], failed: [] };
+    const data = await postSearch('/api/tinyfish-fetch', {
+      apiKey,
+      signal,
+      failure: 'TinyFish',
+      body: { urls: requested, format: 'markdown' }
+    });
+    return normalizeTinyfishFetch(data, { requested, maxChars: options.maxChars || 8000 });
+  };
+
+  // With TinyFish as the search source, the top results are read in full too (one more request, free with the same key),
+  // so the model has the pages and not only their snippets. If that fails the snippets are still a packet; only a stop
+  // by the person ends it.
+  const PAGES_TO_READ = 3;
+  const PAGE_TEXT_CHARS = 3000;
+  const addPageTexts = async (data, signal) => {
+    const wanted = (data.results || []).slice(0, PAGES_TO_READ).map((result) => result.url);
+    if (wanted.length === 0) return;
+    try {
+      const { pages } = await fetchPageContents(wanted, signal, { maxChars: PAGE_TEXT_CHARS });
+      for (const page of pages) {
+        const result = data.results.find((entry) => entry.url === page.url || entry.url === page.finalUrl);
+        if (result) result.page = page.text;
+      }
+    } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') throw error;
+    }
+  };
+
   // The web search for the models that have none of their own, from the source chosen in Settings (Tavily or TinyFish),
   // as the packet that goes in front of the request. The name is from when Tavily was the only source.
   const fetchTavilySearchPacket = async (querySource, signal, options = {}) => {
@@ -168,6 +207,7 @@ Output requirements:
           topic: options.topic || 'general'
         }
       });
+    if (source === 'tinyfish') await addPageTexts(data, signal);
     // The pages found, for the "Searched N sites" row of the reply.
     options.onSources?.((Array.isArray(data?.results) ? data.results : []).slice(0, 8).map((result) => ({ title: result.title || '', url: result.url || '' })));
     return formatTavilySearchPacket(data, query, options.label || 'Web search packet', searchProviderLabel(source));
@@ -212,7 +252,7 @@ Output requirements:
         label: 'Single-model web search packet',
         onSources
       });
-      translatedSections.push(`# Web search packet\nThis packet was retrieved with ${searchProviderLabel(getSearchProvider(config))} for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, 7000)}`);
+      translatedSections.push(`# Web search packet\nThis packet was retrieved with ${searchProviderLabel(getSearchProvider(config))} for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, getSearchProvider(config) === 'tinyfish' ? 14000 : 7000)}`);
     }
 
     const requestParts = [];
@@ -228,6 +268,7 @@ Output requirements:
   return {
     buildSingleModelTranslatedRequestParts,
     extractTextFromParts,
+    fetchPageContents,
     fetchTavilySearchPacket,
     filterPartsForModelCapability,
     getSearchQueryFromParts,

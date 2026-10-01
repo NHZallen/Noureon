@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
-import { normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
+import { normalizeTinyfishFetch, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -34,12 +34,17 @@ const createHarness = ({
   translatorModel = { id: 'translator', name: 'Translator' }
 } = {}) => {
   const fetchCalls = [];
+  const searchData = [];
   const streamCalls = [];
   const timers = [];
   const support = createProviderRequestSupport({
     buildTavilySearchQuery: (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 120),
-    formatTavilySearchPacket: (data, query, label, provider = 'Tavily') => `${label}: ${query}: ${data.results?.[0]?.title || 'none'}${provider === 'Tavily' ? '' : ` (${provider})`}`,
+    formatTavilySearchPacket: (data, query, label, provider = 'Tavily') => {
+      searchData.push(data);
+      return `${label}: ${query}: ${data.results?.[0]?.title || 'none'}${provider === 'Tavily' ? '' : ` (${provider})`}`;
+    },
     normalizeTinyfishSearch,
+    normalizeTinyfishFetch,
     getErrorMessage: (body, fallback) => body?.error?.message || fallback,
     readErrorBody: async (response) => JSON.parse(await response.text()),
     getApiKeyForProvider: (provider) => apiKeys[provider] || '',
@@ -68,7 +73,7 @@ const createHarness = ({
     clearTimeoutFn: () => {}
   });
 
-  return { fetchCalls, streamCalls, support, timers };
+  return { fetchCalls, searchData, streamCalls, support, timers };
 };
 
 test('provider request support retries once after a transient stream failure', async () => {
@@ -288,4 +293,103 @@ test('a TinyFish HTTP error is reported by name', async () => {
     () => support.fetchTavilySearchPacket('hello', new AbortController().signal),
     /TinyFish HTTP 429/
   );
+});
+
+const tinyfishRoutes = ({ search, fetchPages }) => async (url, init) => {
+  if (url === '/api/tinyfish-search') return createResponse({ jsonValue: search });
+  if (url === '/api/tinyfish-fetch') return fetchPages(init);
+  throw new Error(`unexpected request ${url}`);
+};
+
+const searchResults = {
+  results: [1, 2, 3, 4, 5].map((n) => ({ title: `Page ${n}`, url: `https://example.org/${n}`, snippet: `Snippet ${n}` }))
+};
+
+test('Fetch reads whole pages for the TinyFish key, up to ten, with the text cut and the unread ones listed', async () => {
+  const calls = [];
+  const { support } = createHarness({
+    apiKeys: { tinyfish: 'tinyfish-key' },
+    config: { searchProvider: 'tavily' },
+    fetchImpl: async (url, init) => {
+      calls.push([url, init]);
+      return createResponse({ jsonValue: { results: [{ url: 'https://a.test/1', final_url: 'https://a.test/one', title: 'One', text: 'x'.repeat(50), language: 'en' }] } });
+    }
+  });
+
+  const { pages, failed } = await support.fetchPageContents(
+    ['https://a.test/1', 'https://a.test/1', 'https://b.test/2', 'ftp://c.test/3', 'not an address', ...Array.from({ length: 12 }, (_, n) => `https://d.test/${n}`)],
+    new AbortController().signal,
+    { maxChars: 20 }
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], '/api/tinyfish-fetch');
+  assert.equal(calls[0][1].headers.Authorization, 'Bearer tinyfish-key');
+  const body = JSON.parse(calls[0][1].body);
+  assert.equal(body.format, 'markdown');
+  assert.equal(body.urls.length, 10, 'ten at most');
+  assert.deepEqual(body.urls.slice(0, 2), ['https://a.test/1', 'https://b.test/2'], 'repeats and addresses that are not http(s) are left out');
+  assert.equal(pages.length, 1);
+  assert.deepEqual(pages[0], { url: 'https://a.test/1', finalUrl: 'https://a.test/one', title: 'One', language: 'en', text: 'x'.repeat(20), truncated: true });
+  assert.ok(failed.includes('https://b.test/2'), 'what did not come back is named');
+  assert.ok(!failed.includes('https://a.test/1'));
+
+  assert.deepEqual(await support.fetchPageContents([], new AbortController().signal), { pages: [], failed: [] });
+  const { support: noKey } = createHarness({ apiKeys: { tavily: 'tavily-key' } });
+  await assert.rejects(() => noKey.fetchPageContents(['https://a.test/1'], new AbortController().signal), /TinyFish API key is required/);
+});
+
+test('in a normal chat with TinyFish as the source, the top three results are read in full and go in the packet', async () => {
+  const fetched = [];
+  const { support, searchData } = createHarness({
+    apiKeys: { tinyfish: 'tinyfish-key' },
+    config: { searchProvider: 'tinyfish' },
+    fetchImpl: tinyfishRoutes({
+      search: searchResults,
+      fetchPages: async (init) => {
+        fetched.push(JSON.parse(init.body).urls);
+        return createResponse({ jsonValue: { results: [
+          { url: 'https://example.org/1', title: 'Page 1', text: 'Full text one' },
+          { url: 'https://example.org/3', final_url: 'https://example.org/three', title: 'Page 3', text: 'Full text three' }
+        ] } });
+      }
+    })
+  });
+
+  await support.fetchTavilySearchPacket('hello', new AbortController().signal);
+
+  assert.deepEqual(fetched, [['https://example.org/1', 'https://example.org/2', 'https://example.org/3']]);
+  const [first, second, third, fourth] = searchData[0].results;
+  assert.equal(first.page, 'Full text one');
+  assert.equal(second.page, undefined, 'a page that could not be read keeps its snippet');
+  assert.equal(third.page, 'Full text three');
+  assert.equal(fourth.page, undefined, 'only the top results are read');
+});
+
+test('a failed or empty page read does not fail the search, but a stop does', async () => {
+  const { support, searchData } = createHarness({
+    apiKeys: { tinyfish: 'tinyfish-key' },
+    config: { searchProvider: 'tinyfish' },
+    fetchImpl: tinyfishRoutes({ search: searchResults, fetchPages: async () => { throw new Error('fetch is down'); } })
+  });
+  const packet = await support.fetchTavilySearchPacket('hello', new AbortController().signal);
+  assert.match(packet, /Page 1/);
+  assert.equal(searchData[0].results.some((result) => result.page), false);
+
+  const controller = new AbortController();
+  const { support: stopped } = createHarness({
+    apiKeys: { tinyfish: 'tinyfish-key' },
+    config: { searchProvider: 'tinyfish' },
+    fetchImpl: tinyfishRoutes({
+      search: searchResults,
+      fetchPages: async () => { controller.abort(); throw new DOMException('Aborted', 'AbortError'); }
+    })
+  });
+  await assert.rejects(() => stopped.fetchTavilySearchPacket('hello', controller.signal), (error) => error.name === 'AbortError');
+});
+
+test('Tavily searches do not read whole pages', async () => {
+  const { fetchCalls, support } = createHarness();
+  await support.fetchTavilySearchPacket('hello', new AbortController().signal);
+  assert.deepEqual(fetchCalls.map((call) => call[0]), ['/api/tavily-search']);
 });
