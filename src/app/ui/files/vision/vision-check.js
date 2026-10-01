@@ -1,11 +1,12 @@
-import { NOURAS_REQUEST_PURPOSE } from '../../../runtime/nouras/nouras-policy.js';
 import { createConversationImageResolver } from '../conversation-images.js';
 import { parseDocumentSpec } from '../design/document-spec.js';
 import { serializeDeckSpec } from '../design/spec-serializer.js';
 import { layoutDeck } from '../generators/pptx-layout.js';
 import { createContactSheets } from './slide-rasterizer.js';
 import { applyVisionEdits } from './vision-edits.js';
-import { buildVisionPrompt, parseVisionResponse } from './vision-prompt.js';
+import { buildVisionPrompt } from './vision-prompt.js';
+import { askVision } from './vision-ask.js';
+import { INVALID_VISION_RESPONSE } from './vision-prompt.js';
 import { VISION_TEXTS, visionText } from './vision-texts.js';
 import { eligibleVisionFiles } from './vision-eligibility.js';
 import { buildVisionResult, buildVisionMetadata } from './vision-result.js';
@@ -52,17 +53,8 @@ export async function runVisionCheck({ conversation, message, model, config, con
       checkAbort(controller.signal);
       progress.set('reviewing', { model: model.name || model.id });
       const prompt = buildVisionPrompt(spec, presentation.layout, { uiLanguage: language, deckDesign: conversation.deckDesign || 'auto', checkedSlides: sheets.checkedSlides });
-      const parts = [{ text: prompt }, ...sheets.images.map(data => ({ inlineData: { mimeType: 'image/jpeg', data } }))];
-      let answer = '';
-      await streamApiCall(parts, chunk => { answer += chunk; }, controller.signal, false, {
-        modelInfo: model, conversation, historyForApi: [], currentMessageForApi: { role: 'user', parts },
-        onReasoning: chunk => progress.thinking(chunk),
-        disableReasoning: false, ignoreConversationWebSearch: true, skipMemoryContext: true,
-        skipConversationSystemContext: true, requestPurpose: NOURAS_REQUEST_PURPOSE.VISION_CHECK,
-        genConfig: { temperature: 0.2, topP: null, maxTokens: 4000 }
-      });
-      checkAbort(controller.signal);
-      const result = parseVisionResponse(answer);
+      const images = sheets.images.map(data => ({ inlineData: { mimeType: 'image/jpeg', data } }));
+      const result = await askVision({ streamApiCall, prompt, images, model, conversation, signal: controller.signal, progress, arm });
       if (!result.issues.length) {
         progress.remove();
         if (getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
@@ -95,7 +87,9 @@ export async function runVisionCheck({ conversation, message, model, config, con
     } catch (error) {
       progress.remove();
       if (!controller.signal.aborted || timedOut) {
-        const reason = timedOut ? 'timeout' : String(error?.message || error?.name || 'unknown error');
+        const reason = timedOut ? visionText(language, 'timedOut')
+          : error?.code === INVALID_VISION_RESPONSE ? visionText(language, 'invalidResponse')
+          : String(error?.message || error?.name || 'unknown error');
         if (getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'failed', { reason }), 'warning');
       }
       if (controller.signal.aborted) break;

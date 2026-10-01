@@ -3,10 +3,9 @@
 // to redo the deck in a new Advanced mode run. The result is a new reply with
 // the run, the problems and the redone file. Loaded with the visual check.
 
-import { NOURAS_REQUEST_PURPOSE } from '../../../runtime/nouras/nouras-policy.js';
 import { formatSandboxRunBlock } from '../../sandbox/sandbox-run-block.js';
 import { createContactSheets } from './slide-rasterizer.js';
-import { parseVisionResponse } from './vision-prompt.js';
+import { askVision } from './vision-ask.js';
 import { buildFixRequest, buildFreeVisionMetadata, buildFreeVisionPrompt, buildFreeVisionResult } from './vision-free.js';
 import { visionText } from './vision-texts.js';
 
@@ -37,17 +36,7 @@ export async function checkFreeDeck({
   progress.set('reviewing', { model: model.name || model.id });
   const prompt = buildFreeVisionPrompt({ file, layout: presentation.layout, uiLanguage: language, checkedSlides: sheets.checkedSlides });
   const images = sheets.images.map((data) => ({ inlineData: { mimeType: 'image/jpeg', data } }));
-  const parts = [{ text: prompt }, ...images];
-  let answer = '';
-  await streamApiCall(parts, (chunk) => { answer += chunk; }, controller.signal, false, {
-    modelInfo: model, conversation, historyForApi: [], currentMessageForApi: { role: 'user', parts },
-    onReasoning: (chunk) => progress.thinking(chunk),
-    disableReasoning: false, ignoreConversationWebSearch: true, skipMemoryContext: true,
-    skipConversationSystemContext: true, requestPurpose: NOURAS_REQUEST_PURPOSE.VISION_CHECK,
-    genConfig: { temperature: 0.2, topP: null, maxTokens: 4000 }
-  });
-  checkAbort(controller.signal);
-  const result = parseVisionResponse(answer, { requireEdits: false });
+  const result = await askVision({ streamApiCall, prompt, images, model, conversation, signal: controller.signal, progress, arm, requireEdits: false });
   const markChecked = () => {
     message.metadata = { ...(message.metadata || {}), visionChecked: [...(message.metadata?.visionChecked || []), file.id] };
   };

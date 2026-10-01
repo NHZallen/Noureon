@@ -44,12 +44,16 @@ JSON only:
 Write problem, fix and summary in ${LANGUAGE_NAMES[uiLanguage] || LANGUAGE_NAMES.en}. Return {"issues":[],"edits":[],"summary":""} when nothing needs fixing.`;
 }
 
+export const INVALID_VISION_RESPONSE = 'invalid-vision-response';
+const invalidResponse = () => Object.assign(new Error('invalid vision response'), { code: INVALID_VISION_RESPONSE });
+
 export function parseVisionResponse(response, { requireEdits = true } = {}) {
   let source = String(response || '').trim();
   const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(source);
   if (fenced) source = fenced[1];
-  if (!source.startsWith('{')) source = source.slice(source.indexOf('{'));
-  if (!source) throw new Error('invalid vision response');
+  // Prose, or nothing, is an unreadable reply, not something to be parsed from its last character.
+  if (!source.startsWith('{')) source = source.indexOf('{') === -1 ? '' : source.slice(source.indexOf('{'));
+  if (!source) throw invalidResponse();
   let depth = 0;
   let quoted = false;
   let escaped = false;
@@ -62,8 +66,14 @@ export function parseVisionResponse(response, { requireEdits = true } = {}) {
     if (char === '{') depth++;
     if (char === '}' && --depth === 0) { source = source.slice(0, index + 1); break; }
   }
-  const { value } = parseRelaxedJson(source);
-  if (!value || typeof value !== 'object' || !Array.isArray(value.issues) || (requireEdits && !Array.isArray(value.edits))) throw new Error('invalid vision response');
+  let value;
+  try {
+    ({ value } = parseRelaxedJson(source));
+  } catch {
+    // A reply that stops in the middle of the JSON (it ran out of room) is unreadable like the rest.
+    throw invalidResponse();
+  }
+  if (!value || typeof value !== 'object' || !Array.isArray(value.issues) || (requireEdits && !Array.isArray(value.edits))) throw invalidResponse();
   const issues = value.issues.filter(issue => Number.isInteger(issue?.slide) && issue.slide > 0
     && CATEGORIES.has(issue.category) && typeof issue.problem === 'string' && typeof issue.fix === 'string');
   return { issues, edits: Array.isArray(value.edits) ? value.edits : [], summary: typeof value.summary === 'string' ? value.summary.slice(0, 1000) : '' };
