@@ -577,6 +577,7 @@ export function createLegacyAppBootstrapLifecycle({
                     }
                 });
                 ALL_ELEMENTS.messageInput.addEventListener('input', adjustTextareaHeight);
+                ALL_ELEMENTS.messageInput.addEventListener('composerplaceholderchange', adjustTextareaHeight);
                 ALL_ELEMENTS.expandInputButton?.addEventListener('click', () => {
                     const wrapper = ALL_ELEMENTS.messageInput.closest('.input-wrapper');
                     if (!wrapper) return;

@@ -328,6 +328,11 @@
     .ledger-row[data-kind] > .ledger-row-head.is-expandable:hover .ledger-label::after { opacity: 1; }
 }
 
+/* A touch screen has no pointer to hover with: a row that opens always shows its chevron, shut as well as open. */
+@media (hover: none) {
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable .ledger-label::after { opacity: 1; }
+}
+
 .ledger-row[data-kind].is-failed > .ledger-row-head.is-expandable:hover .ledger-label { color: #dc2626; }
 
 .ledger-row[data-kind] > .ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after,

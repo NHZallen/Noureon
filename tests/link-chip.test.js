@@ -134,3 +134,16 @@ test('an address typed and followed by a space becomes a chip', () => {
   assert.equal(editor.value, 'go https://example.com/x ');
   window.close();
 });
+
+test('changing the placeholder (a notice that wraps) asks for the box to be sized again, once, and only when it changes', () => {
+  const { window, editor } = createEditor();
+  let asked = 0;
+  editor.addEventListener('composerplaceholderchange', () => { asked += 1; });
+  editor.placeholder = 'The visual check is running. You can send again when it finishes or after you press Stop';
+  editor.placeholder = 'The visual check is running. You can send again when it finishes or after you press Stop';
+  assert.equal(asked, 1);
+  assert.equal(editor.dataset.placeholder.startsWith('The visual check'), true);
+  editor.placeholder = '';
+  assert.equal(asked, 2);
+  window.close();
+});

@@ -249,7 +249,7 @@ test('once the answer is being written the thinking row is finished and folded, 
   window.happyDOM.abort();
 });
 
-test('the pages that were read are their own row, after the pages that were searched', () => {
+test('the pages that were read and the pages that were searched for are one row, since to the person both are sites consulted', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en' });
   list.event({
@@ -261,17 +261,41 @@ test('the pages that were read are their own row, after the pages that were sear
     ]
   });
   const rows = [...message.querySelectorAll('.ledger-row')];
-  assert.deepEqual(rows.map((row) => row.querySelector('.ledger-label').textContent), ['Searched 1 sites', 'Read 2 pages']);
-  assert.deepEqual([...rows[1].querySelectorAll('.run-source-host')].map((node) => node.textContent), ['linked.example', 'linked.example']);
+  assert.deepEqual(rows.map((row) => row.querySelector('.ledger-label').textContent), ['Searched 3 sites']);
+  assert.deepEqual([...rows[0].querySelectorAll('.run-source-host')].map((node) => node.textContent), ['linked.example', 'found.example', 'linked.example']);
   assert.equal(rows.every((row) => row.classList.contains('is-done')), true);
 
   const onlyRead = createSandboxLedger({ document, host: message, language: 'zh-TW' });
   onlyRead.event({ type: 'sources', sources: [{ title: 'Linked', url: 'https://linked.example/a', read: true }] });
   const labels = [...message.querySelectorAll('.ledger-label')].map((node) => node.textContent);
   assert.equal(labels.at(-1), '已讀取 1 個網頁');
-  assert.equal(labels.filter((label) => label.startsWith('已搜尋')).length, 0, 'no pages searched, no such row');
+  assert.equal(labels.filter((label) => label.startsWith('已搜尋')).length, 0, 'nothing was searched for, so it is not said to be');
   list.remove();
   onlyRead.remove();
   window.happyDOM.abort();
 });
 
+
+test('every search and page of a reply adds to one row of sites, and the rows of the calls after the first are only there while they run', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'searching', label: 'Searching: a' });
+  list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1' }, { title: 'B', url: 'https://b.example/1' }] });
+  list.event({ type: 'narration', text: 'Now the page.' });
+  list.event({ type: 'searching', label: 'Reading page: a.example' });
+  assert.equal(message.querySelectorAll('.ledger-row').length, 2, 'the call that is running has its row for now');
+  list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1', read: true }] });
+  list.event({ type: 'searching', label: 'Searching: b' });
+  list.event({ type: 'sources', sources: [{ title: 'C', url: 'https://c.example/1' }, { title: 'A', url: 'https://a.example/1' }] });
+  const rows = [...message.querySelectorAll('.ledger-row')];
+  assert.equal(rows.length, 1, 'one row, whatever the number of calls');
+  assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Searched 3 sites', 'a site found and then read is counted once');
+  assert.deepEqual([...rows[0].querySelectorAll('.run-source-host')].map((node) => node.textContent), ['a.example', 'b.example', 'c.example']);
+  assert.equal(rows[0].querySelectorAll('.ledger-mark .run-mark-site').length, 1);
+  // A call that found nothing leaves nothing behind.
+  list.event({ type: 'searching', label: 'Searching: nothing' });
+  list.event({ type: 'sources', sources: [] });
+  assert.equal(message.querySelectorAll('.ledger-row').length, 1);
+  list.remove();
+  window.happyDOM.abort();
+});

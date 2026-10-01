@@ -36,6 +36,9 @@ const ROOM_STEP = 2;
 // moving: a swipe started a moment after the scrolling stopped lands on a chat already off the end.
 const ROOM_ON_ARRIVAL = 6;
 const ROOM_MAX = 12;
+// A box that has come to rest on its end with the arrival room used up (a fling that carried it through the room it was
+// given) is given more once it is still, whatever the cap: a box resting exactly on its end is the one swipes cannot move.
+const ROOM_SETTLED_MAX = 60;
 // Further than this from the content's end, the room is given back.
 const ROOM_AWAY = 8;
 
@@ -50,7 +53,7 @@ const setRoom = (box, px) => {
 // sometimes fails over and over (the chat does not move at all), in some sessions and not in others.
 
 /** A box on (within a pixel of) its end gets a little more range there, so it rests off the end. */
-export function giveEndRoom(box, step = ROOM_STEP) {
+export function giveEndRoom(box, step = ROOM_STEP, cap = ROOM_MAX) {
   if (!box) return false;
   const max = box.scrollHeight - box.clientHeight;
   if (max <= EDGE_ROOM * 2) return false;
@@ -58,8 +61,8 @@ export function giveEndRoom(box, step = ROOM_STEP) {
   // Only when resting on the end: past it (still bouncing) is left alone.
   if (!(top <= max && top > max - 1)) return false;
   const room = readRoom(box);
-  if (room >= ROOM_MAX) return false;
-  setRoom(box, Math.min(room + step, ROOM_MAX));
+  if (room >= cap) return false;
+  setRoom(box, Math.min(room + step, cap));
   return true;
 }
 
@@ -176,7 +179,7 @@ export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${N
       return;
     }
     // On the end: more range, so it rests off it. Far from it: the extra range goes again.
-    if (!giveEndRoom(box)) takeBackEndRoom(box);
+    if (!giveEndRoom(box, ROOM_STEP, ROOM_SETTLED_MAX)) takeBackEndRoom(box);
   };
   const onScroll = (event) => {
     const target = event.target;

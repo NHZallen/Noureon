@@ -516,7 +516,7 @@ test('stopping while the model thinks keeps the thought also when the stream end
   assert.equal(result.run.thoughtInterrupted, true);
 });
 
-test('the pages that were read are kept apart from the pages that were searched, in the saved reply', async () => {
+test('the pages that were read and the pages that were searched for are one row in the saved reply', async () => {
   const { document, cleanup } = createDom('<div id="root"></div>');
   try {
     const run = liftSandboxRunBlock(`${formatSandboxRunBlock({
@@ -533,7 +533,7 @@ test('the pages that were read are kept apart from the pages that were searched,
       { title: 'Found', url: 'https://found.example/1' }
     ]);
     const view = createSandboxRunElement(document, run, { language: 'en' });
-    assert.deepEqual([...view.querySelectorAll('.ledger-label')].map((node) => node.textContent), ['Searched 1 sites', 'Read 1 pages']);
+    assert.deepEqual([...view.querySelectorAll('.ledger-label')].map((node) => node.textContent), ['Searched 2 sites']);
     for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
       assert.match(sandboxText(language, 'sourcesRead', { n: 3 }), /3/, language);
     }

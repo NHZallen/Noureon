@@ -70,16 +70,31 @@ export function createSourceChips(document, sources) {
 /** "Searched 2 sites". */
 export const sourcesLabel = (language, count) => sandboxText(language, 'sourcesSearched', { n: count });
 
-/** "Read 2 pages": the pages the user linked, which were read in full (their sources are marked `read`). */
+/** "Read 2 pages": for a message whose pages were only read (the ones the user linked), not searched for. */
 export const pagesReadLabel = (language, count) => sandboxText(language, 'sourcesRead', { n: count });
 
-/** The pages a search found, and the pages that were read. */
-export const splitSources = (sources = []) => ({
-  searched: sources.filter((source) => !source?.read),
-  read: sources.filter((source) => source?.read)
-});
+/**
+ * The sites a reply looked at, once each: what a search found and what was read in full are one list, since to the person
+ * both are "a site that was consulted". A page that was found and then read is one entry (marked `read`).
+ */
+export function mergeSources(...lists) {
+  const merged = new Map();
+  for (const source of lists.flat()) {
+    if (!source?.url) continue;
+    const known = merged.get(source.url);
+    if (known) {
+      if (source.read && !known.read) merged.set(source.url, { ...known, read: true });
+    } else {
+      merged.set(source.url, source);
+    }
+  }
+  return [...merged.values()];
+}
 
-const ICON_BOX = '.run-source-icon, .link-chip-icon';
+/** The one row's label: "Searched 4 sites", or "Read 2 pages" when nothing was searched for (only linked pages were read). */
+export const sourcesRowLabel = (language, sources) => (sources.some((source) => !source?.read)
+  ? sourcesLabel(language, sources.length)
+  : pagesReadLabel(language, sources.length));
 
 /**
  * A site's icon that loads replaces the globe under it; one that does not (many sites have no /favicon.ico) is

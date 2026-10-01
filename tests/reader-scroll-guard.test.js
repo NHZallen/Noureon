@@ -200,6 +200,13 @@ test('a box that arrives at its end gets more range there at once, and the rest 
     assert.equal(roomOf(chat), expected);
   }
 
+  // The fling used all of the arrival room and came to rest exactly on the new end, the one place a swipe cannot start from:
+  // once it is still it is given more, past the cap, so it rests off the end.
+  assert.equal(chat.scrollTop, chat.scrollHeight - chat.clientHeight);
+  runTimers();
+  assert.equal(roomOf(chat), '14px');
+  assert.equal(chat.scrollTop < chat.scrollHeight - chat.clientHeight, true, 'two pixels off the end, and nothing moved');
+
   // Far from the end again: given back.
   chat.scrollTop = 400;
   scrolled(chat);

@@ -8,7 +8,7 @@ import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
-import { createSourceChips, pagesReadLabel, putFirstSiteIcon, sourcesLabel, splitSources } from './run-sources.js';
+import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
 
 const element = (document, tag, className, text) => {
@@ -51,13 +51,10 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
   });
 }
 
-// "Searched 2 sites": the pages the web search found, as chips; and "Read 2 pages": the pages the user linked, which were read.
+// "Searched 2 sites": the sites the reply looked at, found by a search or read in full, as one row of chips.
 function sourcesRows(document, sources, language) {
-  const { searched, read } = splitSources(sources);
-  return [
-    ...(searched.length ? [renderRow(document, { kind: 'search', label: sourcesLabel(language, searched.length), body: [createSourceChips(document, searched)], sources: searched })] : []),
-    ...(read.length ? [renderRow(document, { kind: 'search', label: pagesReadLabel(language, read.length), body: [createSourceChips(document, read)], sources: read })] : [])
-  ];
+  const all = mergeSources(sources);
+  return all.length ? [renderRow(document, { kind: 'search', label: sourcesRowLabel(language, all), body: [createSourceChips(document, all)], sources: all })] : [];
 }
 
 // What the model said before a run, between the steps in ordinary text.

@@ -7,7 +7,7 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
-import { createSourceChips, pagesReadLabel, putFirstSiteIcon, sourcesLabel, splitSources } from './run-sources.js';
+import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 
@@ -149,21 +149,33 @@ export function createSandboxLedger({ document, host, before = null, language = 
     const row = begin(label, { body: true, kind: 'search' });
     row.searching = true;
   };
+  // The sites a reply looked at are one row however many searches and pages that took: the row of the first grows, and the
+  // rows of the calls after it are only there while they run.
+  let webRow = null;
+  let webSources = [];
   const addSources = ({ sources }) => {
-    const { searched, read } = splitSources(sources || []);
     const searching = list.current?.searching ? list.current : null;
-    if (!searched.length) searching?.discard();
-    else addSourceRow(searched, sourcesLabel(language, searched.length), searching);
-    if (read.length) addSourceRow(read, pagesReadLabel(language, read.length), null);
-  };
-  const addSourceRow = (sources, label, searching) => {
-    const row = searching || begin(label, { body: true, kind: 'search' });
-    if (searching) row.setLabel(label);
-    row.body.append(createSourceChips(document, sources));
-    putFirstSiteIcon(document, row.node, sources);
-    row.enableBody(false);
-    row.searching = false;
-    row.finish('done');
+    const all = mergeSources(webSources, sources || []);
+    if (!all.length) {
+      searching?.discard();
+      return;
+    }
+    const label = sourcesRowLabel(language, all);
+    if (webRow) {
+      searching?.discard();
+      webRow.setLabel(label);
+      webRow.body.replaceChildren(createSourceChips(document, all));
+    } else {
+      const row = searching || begin(label, { body: true, kind: 'search' });
+      if (searching) row.setLabel(label);
+      row.body.append(createSourceChips(document, all));
+      putFirstSiteIcon(document, row.node, all);
+      row.enableBody(false);
+      row.searching = false;
+      row.finish('done');
+      webRow = row;
+    }
+    webSources = all;
   };
 
   return {

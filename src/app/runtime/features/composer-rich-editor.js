@@ -248,7 +248,13 @@ export function initializeComposerRichEditor({
         placeholder: {
             configurable: true,
             get: () => editor.dataset.placeholder || '',
-            set: (value) => { editor.dataset.placeholder = String(value ?? ''); }
+            set: (value) => {
+                const next = String(value ?? '');
+                if (editor.dataset.placeholder === next) return;
+                editor.dataset.placeholder = next;
+                // A long notice wraps: the box is sized again for it, as it is for what is typed.
+                editor.dispatchEvent(new editor.ownerDocument.defaultView.Event('composerplaceholderchange'));
+            }
         },
         disabled: {
             configurable: true,
