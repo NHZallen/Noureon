@@ -7,7 +7,7 @@ import { createContactSheets } from './slide-rasterizer.js';
 import { applyVisionEdits } from './vision-edits.js';
 import { buildVisionPrompt, parseVisionResponse } from './vision-prompt.js';
 import { VISION_TEXTS, visionText } from './vision-texts.js';
-import { eligibleVisionFiles, findMessageInChat } from './vision-eligibility.js';
+import { eligibleVisionFiles } from './vision-eligibility.js';
 import { buildVisionResult, buildVisionMetadata } from './vision-result.js';
 import { createVisionProgress } from './vision-progress.js';
 
@@ -82,19 +82,14 @@ export async function runVisionCheck({ conversation, message, model, config, con
       checkAbort(controller.signal);
       const content = buildVisionResult({ result, edits, renderedSlides: presentation.layout.slides, file, language,
         checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides });
-      // The message was cut away meanwhile (the person edited an earlier one, or deleted it): its result has no place in the chat.
-      const inChat = findMessageInChat({ conversation, message, getActiveConversation });
-      if (!inChat) { progress.remove(); continue; }
       const revised = { id: crypto.randomUUID(), role: 'model', parts: [{ text: content }], createdAt: new Date().toISOString(),
         metadata: { visionCheck: buildVisionMetadata({ file, model, result, edits,
           checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) } };
-      for (const target of new Set([message, inChat.message])) {
-        target.metadata = { ...(target.metadata || {}), visionChecked: [...new Set([...(target.metadata?.visionChecked || []), file.id])] };
-      }
-      inChat.conversation.messages.push(revised);
-      inChat.conversation.lastUpdatedAt = new Date().toISOString();
+      message.metadata = { ...(message.metadata || {}), visionChecked: [...(message.metadata?.visionChecked || []), file.id] };
+      conversation.messages.push(revised);
+      conversation.lastUpdatedAt = new Date().toISOString();
       progress.remove();
-      addMessageToUI(revised, inChat.conversation.messages.length - 1, false, true, { conversation: inChat.conversation });
+      addMessageToUI(revised, conversation.messages.length - 1, false, true, { conversation });
       await saveAppData();
       checked++;
     } catch (error) {
