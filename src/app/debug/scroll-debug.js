@@ -58,17 +58,18 @@ export function installScrollDebugPanel(doc = document, params = new URLSearchPa
     if (osb === 'on') view.localStorage.removeItem('scrollDebugOsb');
   } catch {}
 
-  // ?room=off switches the extra range at the end of the chat off, ?room=on puts it back; remembered on this device.
-  let roomOff = false;
+  // ?room=on gives the chat and the thinking boxes extra range at their ends (off by default), ?room=off takes it away
+  // again; remembered on this device.
+  let roomOn = false;
   try {
     const room = params.get('room');
-    if (room === 'off') view.localStorage.setItem('scrollDebugRoom', 'off');
-    if (room === 'on') view.localStorage.removeItem('scrollDebugRoom');
-    roomOff = view.localStorage.getItem('scrollDebugRoom') === 'off';
+    if (room === 'on') view.localStorage.setItem('scrollDebugRoom', 'on');
+    if (room === 'off') view.localStorage.removeItem('scrollDebugRoom');
+    roomOn = view.localStorage.getItem('scrollDebugRoom') === 'on';
   } catch {
-    roomOff = params.get('room') === 'off';
+    roomOn = params.get('room') === 'on';
   }
-  setEndRoomEnabled(!roomOff);
+  setEndRoomEnabled(roomOn);
 
   const started = view.performance.now();
   const stamp = () => `${((view.performance.now() - started) / 1000).toFixed(2)}`.padStart(6, ' ');
@@ -93,7 +94,7 @@ export function installScrollDebugPanel(doc = document, params = new URLSearchPa
     const root = doc.scrollingElement;
     const guard = chat.__readerGuard;
     const hold = guard ? `${guard.holding ? 'HOLD' : 'free'}${guard.holding ? `(${Math.round((Date.now() - guard.holdStamp) / 100) / 10}s)` : ''}` : 'noguard';
-    return `chat ${chat.scrollTop.toFixed(2)}/${max}${max - chat.scrollTop <= 1.5 ? ' BOTTOM' : ''} guard=${hold} stall=${stallMax}ms lock=${chatsUnderVisionCheck.size} ROOM-${roomOff ? 'OFF' : 'on'} room=${chat.style.getPropertyValue('--end-room') || '0'} osb=${view.getComputedStyle(chat).overscrollBehaviorY} | main ${Math.round(main?.scrollTop || 0)} | root ${Math.round(root?.scrollTop || 0)} | vv ${Math.round(view.visualViewport?.height || 0)}@${Math.round(view.visualViewport?.offsetTop || 0)} | win ${view.innerHeight}`;
+    return `chat ${chat.scrollTop.toFixed(2)}/${max}${max - chat.scrollTop <= 1.5 ? ' BOTTOM' : ''} guard=${hold} stall=${stallMax}ms lock=${chatsUnderVisionCheck.size} ROOM-${roomOn ? 'ON' : 'OFF'} room=${chat.style.getPropertyValue('--end-room') || '0'} osb=${view.getComputedStyle(chat).overscrollBehaviorY} | main ${Math.round(main?.scrollTop || 0)} | root ${Math.round(root?.scrollTop || 0)} | vv ${Math.round(view.visualViewport?.height || 0)}@${Math.round(view.visualViewport?.offsetTop || 0)} | win ${view.innerHeight}`;
   };
   let frame = 0;
   const render = () => {

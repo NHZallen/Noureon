@@ -3,6 +3,9 @@ import test from 'node:test';
 
 import { giveEndRoom, isReaderScrolling, setEndRoomEnabled, setScrollTopQuietly, takeBackEndRoom, watchReader } from '../src/app/ui/motion/reader-scroll-guard.js';
 
+// The extra range is off by default in the app; these tests are about what it does when it is on.
+setEndRoomEnabled(true);
+
 const makeBox = (top = 0, height = 1000, client = 200) => {
   const listeners = {};
   const values = new Map();
@@ -170,7 +173,7 @@ test('a box that arrives at its end gets more range there at once, and the rest 
     clearTimeout: (id) => { timers.delete(id); }
   };
   const runTimers = () => { const due = [...timers]; timers.clear(); due.forEach(([, callback]) => callback()); };
-  const stop = settleScrollBoxesOffTheirEdges(document, { view, selector: '#chat-container, .ledger-thought' });
+  const stop = settleScrollBoxesOffTheirEdges(document, { view });
   const roomOf = (node) => node.style.getPropertyValue('--end-room');
   // A box whose scrollable height includes its end room, as the real one does.
   const size = (node, top, base = 1000) => {
@@ -285,7 +288,7 @@ test('a finger whose touchend never arrived does not stop the room being given a
     clearTimeout: (id) => { timers.delete(id); }
   };
   const runTimers = () => { const due = [...timers]; timers.clear(); due.forEach(([, callback]) => callback()); };
-  const stop = settleScrollBoxesOffTheirEdges(document, { view, selector: '#chat-container, .ledger-thought' });
+  const stop = settleScrollBoxesOffTheirEdges(document, { view });
   const chat = document.getElementById('chat-container');
   const touch = (type, touches) => {
     const event = new window.Event(type, { bubbles: true });
@@ -334,4 +337,10 @@ test('the diagnostics can switch the end room off and on again', () => {
   }
   assert.equal(giveEndRoom(box), true);
   assert.equal(room(box), '2px');
+});
+
+test('the extra range at an end is off unless it is switched on', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../src/app/ui/motion/reader-scroll-guard.js', import.meta.url), 'utf8');
+  assert.match(source, /let endRoomEnabled = false;/);
 });
