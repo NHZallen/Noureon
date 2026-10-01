@@ -23,6 +23,9 @@ import { canCaptureConversationMessage } from '../features/temporary-chat-state.
 import { createDeckDesignControl } from '../features/deck-design-control.js';
 import { createVisionCheckScheduler } from '../features/vision-check-scheduler.js';
 import { getSearchProvider } from '../kernel/search-provider.js';
+import { createWebResearchTools } from '../../legacy-runtime/features/web-research-tools.js';
+import { normalizePageReads, normalizeTinyfishSearch } from '../../legacy-runtime/features/model-request-formatting.js';
+import { getErrorMessage, readErrorBody } from './legacy-core-utilities.js';
 import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { createChatScrollPosition } from '../features/chat-scroll-position.js';
@@ -697,6 +700,14 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const { startProgressTicker, stopProgressTicker } = createProgressTicker(scheduleTimeout, clearScheduledTimeout);
 
+  // What a model that calls tools searches the web with, by itself, in a reply (web-research-reply.js).
+  const researchTools = createWebResearchTools({ getConfig: getLiveConfig, getApiKeyForProvider, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch });
+  const webResearch = {
+    canUse: (model) => Boolean(modelUsesTavilySearch(model) && modelSupportsToolCalling(model) && researchTools.hasKey()),
+    searchWeb: researchTools.searchWeb,
+    openPage: researchTools.fetchPageContents
+  };
+
   const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
     now: () => Date.now(),
     getOutputMode,
@@ -711,7 +722,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getOpenCouncilDetailKeys,
     restoreOpenCouncilDetails,
     getConfig: getLiveConfig,
-    supportsToolCalling: modelSupportsToolCalling
+    supportsToolCalling: modelSupportsToolCalling,
+    webResearch
   });
 
   const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({

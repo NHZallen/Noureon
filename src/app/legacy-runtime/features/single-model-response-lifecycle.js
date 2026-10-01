@@ -38,6 +38,9 @@ export function createSingleModelResponseLifecycle({
   getConfig = () => ({}),
   // Without it (older callers, tests) replies never use Advanced mode.
   supportsToolCalling = null,
+  // The model's own web searching ({ canUse(modelInfo), searchWeb, openPage }, see web-research-reply.js). Without it a search is
+  // a packet in front of the request.
+  webResearch = null,
   getWindow = () => globalThis.window,
   getDocument = () => globalThis.document
 }) {
@@ -94,13 +97,28 @@ export function createSingleModelResponseLifecycle({
       receivedChars: 0
     };
 
+    const replyMode = supportsToolCalling ? resolveReplyMode({
+      conversation,
+      config: getConfig(),
+      modelInfo,
+      supportsToolCalling,
+      browserSupported: browserSupportsSandbox(getWindow())
+    }) : { advanced: false, reason: null };
+    // A model that calls tools searches the web by itself in a Standard reply (the search packet is for the others).
+    const researchByModel = Boolean(webSearchEnabled && !replyMode.advanced && webResearch?.canUse(modelInfo));
     // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which).
     const hasTranslationInputs = userParts.some((part) => part.inlineData) ||
-      Boolean(webSearchEnabled) ||
+      Boolean(webSearchEnabled && !researchByModel) ||
       extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0;
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
     let searchSources = [];
+    // The provider's own web search (Gemini) reports the pages it used as the answer streams; rounds add to them. A page
+    // that was found and then read is both, so each is kept once.
+    const addSearchSources = (found) => {
+      const known = new Set(searchSources.map((source) => `${Boolean(source.read)} ${source.url}`));
+      searchSources = [...searchSources, ...found.filter((source) => source?.url && !known.has(`${Boolean(source.read)} ${source.url}`))];
+    };
     if (hasTranslationInputs) {
       renderProgress(
         targetElement,
@@ -115,12 +133,11 @@ export function createSingleModelResponseLifecycle({
         signal,
         (stage, message) => renderProgress(targetElement, startedAt, stage, message),
         {
-          webSearchEnabled,
+          webSearchEnabled: webSearchEnabled && !researchByModel,
           conversation,
           // The pages a search found, and then the pages that were read (marked `read`).
           onSources: (sources) => {
-            const known = new Set(searchSources.map((source) => source.url));
-            searchSources = [...searchSources, ...sources.filter((source) => source?.url && !known.has(source.url))];
+            addSearchSources(sources);
           }
         }
       );
@@ -145,19 +162,8 @@ export function createSingleModelResponseLifecycle({
         );
       }
     };
-    // The provider's own web search (Gemini) reports the pages it used as the answer streams; rounds add to them.
-    const addSearchSources = (found) => {
-      const known = new Set(searchSources.map((source) => source.url));
-      searchSources = [...searchSources, ...found.filter((source) => source?.url && !known.has(source.url))];
-    };
+
     const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
-    const replyMode = supportsToolCalling ? resolveReplyMode({
-      conversation,
-      config: getConfig(),
-      modelInfo,
-      supportsToolCalling,
-      browserSupported: browserSupportsSandbox(getWindow())
-    }) : { advanced: false, reason: null };
     // The run record (or the reason for Standard mode) kept above the answer.
     let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
       ? { status: 'done', steps: [], fallback: replyMode.reason }
@@ -249,11 +255,42 @@ export function createSingleModelResponseLifecycle({
         // A block the model also wrote under the name of a file it made (with Python, or through the design system) is a second, empty card.
         return withoutEmptyDocumentBlocks(withoutDuplicatedFileBlocks(result.text, [...sandboxParts.map((part) => part.sandboxFile.name), ...sandboxDocumentNames(result.run)]));
       }
-      : (onChunk) => streamApiCall(requestParts, (chunk) => {
-        answered = true;
-        endThinking();
-        onChunk(chunk);
-      }, signal, false, { ...streamOptions, onReasoning: showThinking });
+      : async (onChunk) => {
+        const onAnswer = (chunk) => {
+          answered = true;
+          endThinking();
+          onChunk(chunk);
+        };
+        if (researchByModel) {
+          let started = false;
+          try {
+            const { runWebResearchReply } = await import('./web-research-reply.js');
+            const result = await runWebResearchReply({
+              streamApiCall,
+              requestParts,
+              onChunk: (chunk) => { started = true; onAnswer(chunk); },
+              signal,
+              requestOptions: { ...streamOptions, onReasoning: showThinking },
+              searchWeb: webResearch.searchWeb,
+              openPage: webResearch.openPage,
+              language: uiLanguage,
+              onSources: addSearchSources,
+              onEvent: (event) => {
+                if (event.type === 'searching') started = true;
+                stepList()?.event(event);
+              }
+            });
+            return result.text;
+          } catch (error) {
+            // A provider that refuses the tools answers with the search done first, as the others do.
+            if (signal?.aborted || started) throw error;
+          }
+          requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, () => {}, {
+            webSearchEnabled, conversation, onSources: addSearchSources
+          });
+        }
+        return streamApiCall(requestParts, onAnswer, signal, false, { ...streamOptions, onReasoning: showThinking });
+      };
 
     let fullResponse;
     let responseRenderedInRealtime = false;

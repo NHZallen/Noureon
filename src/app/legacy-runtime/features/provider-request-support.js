@@ -3,6 +3,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { getSearchProvider, searchProviderLabel } from '../../runtime/kernel/search-provider.js';
 import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-pages.js';
 import { createSearchQueryRewriter } from './search-query-rewriter.js';
+import { createWebResearchTools } from './web-research-tools.js';
 
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
@@ -115,7 +116,6 @@ Output requirements:
     return modelSupportsUploadedFile(model, { inlineData: part.inlineData });
   });
 
-  const getTavilySearchDepth = () => getConfig().tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
   const getSearchQueryFromParts = (parts = [], conversation = null) => buildTavilySearchQuery(withSearchContext(extractTextFromParts(parts), conversation?.messages));
 
   // The query for a message: written from the conversation by a small model (search-query-rewriter.js), and where that is not
@@ -126,66 +126,15 @@ Output requirements:
     return buildTavilySearchQuery(written || withSearchContext(text, conversation?.messages));
   };
 
-  const postWithKey = async (url, { apiKey, body, signal, failure }) => {
-    const response = await fetchImpl(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body),
-      signal
-    });
-    if (!response.ok) {
-      const errorBody = await readErrorBody(response);
-      throw new Error(getErrorMessage(errorBody, `${failure} HTTP ${response.status}`));
-    }
-    return response.json();
-  };
-
-  // Reading whole pages (up to ten at a time) with a page reader: TinyFish's Fetch or Tavily's Extract, each with its own
-  // key. The one that is the search source is tried first, the other if it has no key or leaves pages unread, so having
-  // either key is enough. Returns { pages, failed, reader }, with `failed` as [{ url, reason }] ('noReader' when there
-  // is no key at all, 'failed' when the pages could not be read). Only a stop by the person throws.
-  const PAGE_READERS = {
-    tinyfish: (urls, apiKey, signal) => postWithKey('/api/tinyfish-fetch', {
-      apiKey,
-      signal,
-      failure: 'TinyFish',
-      body: { urls, format: 'markdown' }
-    }),
-    tavily: (urls, apiKey, signal) => postWithKey('/api/tavily-extract', {
-      apiKey,
-      signal,
-      failure: 'Tavily',
-      body: { urls, extract_depth: 'advanced', format: 'markdown', include_images: false }
-    })
-  };
-  const fetchPageContents = async (urls, signal, options = {}) => {
-    const requested = [...new Set((urls || []).map((url) => String(url || '').trim()).filter((url) => /^https?:\/\//i.test(url)))].slice(0, 10);
-    if (requested.length === 0) return { pages: [], failed: [], reader: null };
-    const first = getSearchProvider(getConfig());
-    const readers = [first, first === 'tinyfish' ? 'tavily' : 'tinyfish'].filter((reader) => getApiKeyForProvider(reader));
-    if (readers.length === 0) {
-      return { pages: [], failed: requested.map((url) => ({ url, reason: 'noReader' })), reader: null };
-    }
-    const pages = [];
-    let unread = requested;
-    let used = null;
-    for (const reader of readers) {
-      if (unread.length === 0) break;
-      try {
-        const data = await PAGE_READERS[reader](unread, getApiKeyForProvider(reader), signal);
-        const read = normalizePageReads(data, { requested: unread, maxChars: options.maxChars || 8000 });
-        if (read.pages.length > 0) used ??= reader;
-        pages.push(...read.pages);
-        unread = read.failed;
-      } catch (error) {
-        if (signal?.aborted || error?.name === 'AbortError') throw error;
-      }
-    }
-    return { pages, failed: unread.map((url) => ({ url, reason: 'failed' })), reader: used };
-  };
+  const { fetchPageContents, searchWeb } = createWebResearchTools({
+    getConfig,
+    getApiKeyForProvider,
+    fetchImpl,
+    getErrorMessage,
+    readErrorBody,
+    normalizeTinyfishSearch,
+    normalizePageReads
+  });
 
   // The addresses in the user's message, read for the models that cannot open a link (OpenRouter and NVIDIA ones, not
   // image ones): the text for the model, with the pages read as sources of the reply (marked `read`).
@@ -214,29 +163,13 @@ Output requirements:
     if (!query) {
       throw new Error(getRuntimeText(config.uiLanguage, 'noSearchableText'));
     }
-    const maxResults = options.maxResults || 6;
-    const data = source === 'tinyfish'
-      ? normalizeTinyfishSearch(await postWithKey('/api/tinyfish-search', {
-        apiKey,
-        signal,
-        failure: 'TinyFish',
-        body: { query, domain_type: options.topic === 'news' ? 'news' : 'web' }
-      }), maxResults)
-      : await postWithKey('/api/tavily-search', {
-        apiKey,
-        signal,
-        failure: 'Tavily',
-        body: {
-          query,
-          search_depth: options.searchDepth || getTavilySearchDepth(),
-          max_results: maxResults,
-          include_answer: false,
-          include_raw_content: false,
-          include_images: false,
-          include_usage: true,
-          topic: options.topic || 'general'
-        }
-      });
+    const data = await searchWeb({
+      query,
+      topic: options.topic === 'news' ? 'news' : 'general',
+      maxResults: options.maxResults || 6,
+      searchDepth: options.searchDepth,
+      signal
+    });
     // The pages found, for the "Searched N sites" row of the reply.
     options.onSources?.((Array.isArray(data?.results) ? data.results : []).slice(0, 8).map((result) => ({ title: result.title || '', url: result.url || '' })));
     return formatTavilySearchPacket(data, query, options.label || 'Web search packet', searchProviderLabel(source));

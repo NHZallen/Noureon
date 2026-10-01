@@ -25,6 +25,7 @@ const createHarness = ({
   reportWhileStreaming = null,
   streamError,
   afterChunks = () => {},
+  extraDependencies = {},
   signal = new AbortController().signal
 } = {}) => {
   const calls = [];
@@ -85,7 +86,8 @@ const createHarness = ({
     getOpenCouncilDetailKeys: () => new Set(['Consensus']),
     restoreOpenCouncilDetails: (...args) => {
       calls.push(['restore-details', ...args]);
-    }
+    },
+    ...extraDependencies
   });
 
   return { calls, lifecycle, signal, targetElement };
@@ -239,6 +241,102 @@ test('a web address in the message has the request prepared even with no search 
   calls.length = 0;
   await run('Nothing to read here');
   assert.equal(calls.filter((call) => call[0] === 'translate').length, 0, 'the request goes as it is');
+});
+
+const researchHarness = ({ rounds, canUse = true }) => {
+  let round = 0;
+  const requests = [];
+  const searches = [];
+  const opened = [];
+  const harness = createHarness({
+    extraDependencies: {
+      supportsToolCalling: () => true,
+      webResearch: {
+        canUse: () => canUse,
+        searchWeb: async ({ query }) => {
+          searches.push(query);
+          return { results: [{ title: 'Repo releases', url: 'https://github.com/a/b/releases', content: 'v2.0 is out' }] };
+        },
+        openPage: async (urls) => {
+          opened.push(...urls);
+          return { pages: [{ url: urls[0], title: 'Releases', text: 'v2.0 notes' }], failed: [] };
+        }
+      },
+      streamApiCall: async (parts, onChunk, signal, forced, options) => {
+        requests.push({ parts, options });
+        const current = rounds[round++];
+        if (current.error) throw current.error;
+        onChunk(current.text);
+        options.onResponseComplete?.({ text: current.text, toolCalls: current.calls || [] });
+        return current.text;
+      }
+    }
+  });
+  return { ...harness, requests, searches, opened };
+};
+
+test('a model that calls tools searches and opens pages by itself, and the pages are kept with the reply', async () => {
+  const { lifecycle, signal, targetElement, requests, searches, opened, calls } = researchHarness({
+    rounds: [
+      { text: '', calls: [{ id: '1', name: 'web_search', args: { query: 'a/b releases' } }] },
+      { text: '', calls: [{ id: '2', name: 'open_page', args: { url: 'https://github.com/a/b/releases' } }] },
+      { text: 'v2.0 is the latest.' }
+    ]
+  });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'what is the latest release of a/b' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: true },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.deepEqual(searches, ['a/b releases']);
+  assert.deepEqual(opened, ['https://github.com/a/b/releases']);
+  assert.equal(requests.length, 3);
+  assert.deepEqual(requests[0].options.tools.map((tool) => tool.name), ['web_search', 'open_page']);
+  assert.equal(requests[2].options.toolTurns.length, 2);
+  assert.equal(calls.some((entry) => entry[0] === 'translate' && entry[2]?.webSearchEnabled), false, 'no search packet is made before the model');
+  const { run, text } = liftSandboxRunBlock(result.fullResponse);
+  assert.match(text, /v2\.0 is the latest/);
+  assert.deepEqual(run.sources.map((source) => [source.url, Boolean(source.read)]), [
+    ['https://github.com/a/b/releases', false],
+    ['https://github.com/a/b/releases', true]
+  ], 'the page that was searched and then opened shows as found and as read');
+});
+
+test('a model without tools, or with no search key, gets the search packet as before', async () => {
+  const { lifecycle, signal, targetElement, searches, calls } = researchHarness({ rounds: [{ text: 'plain' }], canUse: false });
+  await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'news?' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: true },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.deepEqual(searches, []);
+  assert.equal(calls.find((entry) => entry[0] === 'translate')[2].webSearchEnabled, true);
+});
+
+test('a provider that refuses the tools answers with the search done first', async () => {
+  const { lifecycle, signal, targetElement, requests, calls } = researchHarness({
+    rounds: [{ error: new Error('tools not supported') }, { text: 'answer from the packet' }]
+  });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'news?' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: true },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.match(result.fullResponse, /answer from the packet/);
+  assert.equal(requests.length, 2);
+  assert.equal(calls.filter((entry) => entry[0] === 'translate').at(-1)[2].webSearchEnabled, true);
 });
 
 test('the pages that were read and the pages that were searched are both kept with the reply, once each', async () => {

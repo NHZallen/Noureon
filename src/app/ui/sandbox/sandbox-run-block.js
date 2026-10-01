@@ -21,7 +21,7 @@ const MAX_STEPS = 20;
 const STORED_THOUGHT_CHARS = 6000;
 // What the model said before a run ("I'll check the environment first"), shown between the steps.
 const STORED_NARRATION_CHARS = 2000;
-const MAX_SOURCES = 12;
+const MAX_SOURCES = 40;
 
 export const RUN_STATUS = Object.freeze({ running: 'running', done: 'done', failed: 'failed', stopped: 'stopped' });
 
@@ -61,8 +61,10 @@ export function normalizeSources(sources) {
   const kept = [];
   for (const source of Array.isArray(sources) ? sources : []) {
     const url = String(source?.url || '').trim().slice(0, 600);
-    if (!/^https?:\/\/[^\s]+$/i.test(url) || seen.has(url)) continue;
-    seen.add(url);
+    // A page that was searched and then opened is both, so each is kept once.
+    const key = `${source?.read ? 'read' : 'found'} ${url}`;
+    if (!/^https?:\/\/[^\s]+$/i.test(url) || seen.has(key)) continue;
+    seen.add(key);
     kept.push({ title: String(source?.title || '').slice(0, 160), url, ...(source?.read ? { read: true } : {}) });
     if (kept.length >= MAX_SOURCES) break;
   }
