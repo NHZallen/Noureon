@@ -188,19 +188,26 @@ export function createSingleModelResponseLifecycle({
     let thought = { text: '', kind: 'raw', startedAt: null, endedAt: null };
     // Whether any of the answer has arrived (stopping before it leaves the thinking interrupted).
     let answered = false;
+    let answerStarted = false;
     const showThinking = (chunk, kind) => {
       if (!chunk) return;
       thought.startedAt ??= now();
       thought = { ...thought, text: (thought.text + chunk).slice(0, 12_000), kind: kind || thought.kind };
       if (!thinkingBlock && targetElement.parentElement) {
-        thinkingBlock = createThinkingBlock({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, now });
+        // The thinking is a step of the work: its row is under the "Working" line, above the other steps.
+        const steps = stepList();
+        thinkingBlock = steps?.body
+          ? createThinkingBlock({ document: getDocument(), host: steps.body, before: steps.stepsElement, language: uiLanguage, now })
+          : createThinkingBlock({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, now });
       }
       thinkingBlock?.add(chunk, kind);
+      liveRun?.activity(sandboxText(uiLanguage, 'thinkingLive'));
     };
     // The answer has started: the thinking is over.
     const endThinking = () => {
       if (thought.startedAt !== null) thought.endedAt ??= now();
       thinkingBlock?.collapse();
+      liveRun?.activity('');
     };
     const runApiStream = replyMode.advanced
       ? async (onChunk) => {
@@ -261,6 +268,11 @@ export function createSingleModelResponseLifecycle({
         const onAnswer = (chunk) => {
           answered = true;
           endThinking();
+          // The answer has begun: the "Working" line is over and says how long it took.
+          if (!answerStarted) {
+            answerStarted = true;
+            liveRun?.event({ type: 'answering' });
+          }
           onChunk(chunk);
         };
         if (researchByModel) {

@@ -342,3 +342,38 @@ test('the line can start open, and without a summary the steps are the list itse
   plain.remove();
   window.happyDOM.abort();
 });
+
+test('the line says what the work is at while no step runs, hands out its body for other rows, and a step overrides it', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en', summary: true });
+  const label = () => message.querySelector('.ledger-row .ledger-label').textContent;
+  assert.ok(list.body && list.stepsElement, 'a place for other rows, above the steps');
+  list.activity('Thinking…');
+  assert.equal(label(), 'Working · Thinking…');
+  list.event({ type: 'searching', label: 'Searching: a' });
+  assert.equal(label(), 'Working · Searching: a', 'a step that runs is what the work is at');
+  list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1' }] });
+  assert.equal(label(), 'Working · Thinking…', 'and when it is over, back to what was going on');
+  list.activity('');
+  assert.equal(label(), 'Working');
+  list.event({ type: 'answering' });
+  list.activity('Thinking…');
+  assert.match(label(), /^Processed for/, 'nothing changes the line once the answer has started');
+  list.remove();
+  assert.equal(createSandboxLedger({ document, host: message, language: 'en' }).body, null, 'without a line there is no body');
+  window.happyDOM.abort();
+});
+
+test('removing a ledger with a summary stops every clock it started, the one of the line and the one of its steps', () => {
+  const { window, document, message } = setup();
+  const active = new Set();
+  const realSet = window.setInterval.bind(window);
+  const realClear = window.clearInterval.bind(window);
+  window.setInterval = (...args) => { const id = realSet(...args); active.add(id); return id; };
+  window.clearInterval = (id) => { active.delete(id); realClear(id); };
+  const list = createSandboxLedger({ document, host: message, language: 'en', summary: true });
+  assert.equal(active.size, 2);
+  list.remove();
+  assert.equal(active.size, 0);
+  window.happyDOM.abort();
+});

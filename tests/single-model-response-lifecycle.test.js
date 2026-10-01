@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { Window } from 'happy-dom';
 import { createSingleModelResponseLifecycle } from '../src/app/legacy-runtime/features/single-model-response-lifecycle.js';
 import { liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 
@@ -457,4 +458,45 @@ test('single-model lifecycle source avoids provider parsing, storage, and runtim
   ]) {
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
+});
+
+test('the model\'s thinking is a step under the "Working" line, which says it is thinking and then how long the work took', async () => {
+  const window = new Window();
+  const { document } = window;
+  const host = document.createElement('div');
+  const target = document.createElement('div');
+  host.append(target);
+  document.body.append(host);
+  const seen = {};
+  const { lifecycle, signal } = createHarness({
+    extraDependencies: {
+      getDocument: () => document,
+      streamApiCall: async (parts, onChunk, receivedSignal, forced, options) => {
+        options.onReasoning('Let me think. ', 'raw');
+        const rows = [...host.querySelectorAll('.ledger-row')];
+        seen.labels = rows.map((row) => row.querySelector('.ledger-label').textContent);
+        seen.parent = rows[0].querySelector('.ledger-label').textContent;
+        seen.thoughtInsideParent = rows[0].querySelector('.ledger-body .ledger-thought')?.textContent;
+        seen.topLevelRows = [...host.querySelectorAll(':scope > .ledger')].length;
+        onChunk('The answer.');
+        seen.afterAnswer = host.querySelector('.ledger-row .ledger-label').textContent;
+        return 'The answer.';
+      }
+    }
+  });
+  const result = await lifecycle.run({
+    targetElement: target,
+    userParts: [{ text: 'hello' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model' },
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.equal(seen.parent, 'Working · Thinking…', 'the line says what the work is at');
+  assert.equal(seen.topLevelRows, 1, 'one list in the message: the thinking is not a second one beside it');
+  assert.equal(seen.thoughtInsideParent, 'Let me think. ', 'the thinking is a step inside the line');
+  assert.match(seen.afterAnswer, /^Processed for \d/, 'once the answer starts, the line is the time the work took');
+  assert.equal(host.querySelectorAll('.ledger').length, 0, 'it goes when the reply is finished: the saved reply shows it');
+  assert.match(result.fullResponse, /The answer\./);
+  window.happyDOM.abort();
 });

@@ -32,9 +32,12 @@ export function createSandboxLedger({ document, host, before = null, language = 
   const list = line ? createLedger({ document, host: line.body }) : createLedger({ document, host, before });
   const startedAt = Date.now();
   // The line says which step the work is at, so the steps can stay folded.
+  // What the work is at when no step of the list is running (the model thinking, with no step yet): set by the caller.
+  let activityLabel = '';
   const syncLine = () => {
-    const current = list.current;
-    if (line && current) line.setLabel(`${text('processWorking')} · ${current.label}`);
+    if (!line || line.state !== 'running') return;
+    const doing = list.current?.label || activityLabel;
+    line.setLabel(doing ? `${text('processWorking')} · ${doing}` : text('processWorking'));
   };
   const urls = [];
   const steps = new Map();
@@ -234,10 +237,21 @@ export function createSandboxLedger({ document, host, before = null, language = 
       handle(event);
       syncLine();
     },
+    // Where something else can put its own rows under the line (the model's thinking), above the steps; null without a line.
+    get body() { return line ? line.body : null; },
+    get stepsElement() { return list.element; },
+    // What the work is at while no step runs, "" when it is at nothing in particular.
+    activity(label) {
+      if (activityLabel === label) return;
+      activityLabel = label;
+      syncLine();
+    },
     // The status line for callers that only have text (the visual check's redo).
     detail(status) { list.current?.setDetail(status); },
     remove() {
-      (outer || list).remove();
+      // Each list has its own clock: both are stopped.
+      list.remove();
+      outer?.remove();
       urls.forEach((url) => document.defaultView.URL.revokeObjectURL(url));
     }
   };

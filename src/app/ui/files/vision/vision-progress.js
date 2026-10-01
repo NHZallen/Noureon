@@ -148,6 +148,7 @@ export function createVisionProgress({ document, language, controller, host = nu
     }
   };
   function remove() {
+    ledger.remove();
     outer.remove();
     floating?.remove();
   }
