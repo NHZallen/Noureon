@@ -78,7 +78,7 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
       depthBlock.insertAdjacentHTML('afterend', `
                 <div>
                     <label for="tinyfish-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="tinyfishApiKey">TinyFish API Key</label>
-                    <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="tinyfishApiDesc">Free web search for OpenRouter and NVIDIA models. Get a key at agent.tinyfish.ai.</p>
+                    <p class="text-xs text-[var(--text-secondary)] mb-2"><span data-lang-key="tinyfishApiDesc">Free web search for OpenRouter and NVIDIA models, also used to read the web addresses you paste.</span> <span data-lang-key="tinyfishApiGetKey">Get a key at </span><a id="tinyfish-api-key-link" href="https://agent.tinyfish.ai" target="_blank" rel="noopener noreferrer" class="underline text-[var(--text-primary)]">agent.tinyfish.ai</a><span data-lang-key="tinyfishApiGetKeyEnd">.</span></p>
                     <input type="password" id="tinyfish-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="sk-tinyfish-..." data-lang-key-placeholder="tinyfishApiPlaceholder">
                 </div>
             `);

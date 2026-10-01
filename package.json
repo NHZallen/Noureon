@@ -1,6 +1,6 @@
 {
   "name": "noureon",
-  "version": "17.2.1",
+  "version": "17.3.0",
   "description": "A multi-provider AI workspace with reusable Nouras, model collaboration, image generation, and cloud sync.",
   "private": true,
   "license": "MIT",

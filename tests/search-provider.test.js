@@ -69,6 +69,13 @@ test('the search source select and the TinyFish key are added to the settings, a
   assert.equal(elements.searchProviderSelect, select);
   assert.equal(elements.tinyfishApiKeyInput, document.getElementById('tinyfish-api-key-input'));
   assert.ok(elements.tinyfishApiKeyInput, 'the TinyFish key field exists');
+  const link = document.getElementById('tinyfish-api-key-link');
+  assert.ok(link, 'where to get a key is a link');
+  assert.equal(link.getAttribute('href'), 'https://agent.tinyfish.ai');
+  assert.equal(link.getAttribute('target'), '_blank');
+  assert.match(link.getAttribute('rel'), /noopener/);
+  assert.equal(link.textContent, 'agent.tinyfish.ai');
+  assert.deepEqual([...link.parentElement.querySelectorAll('[data-lang-key]')].map((node) => node.dataset.langKey), ['tinyfishApiDesc', 'tinyfishApiGetKey', 'tinyfishApiGetKeyEnd'], 'the words around it follow the language');
   const block = (id) => document.getElementById(id).closest('div');
   assert.equal(block('search-provider-select').nextElementSibling, block('tavily-api-key-input'), 'the select is right above the Tavily key');
   assert.equal(block('tavily-search-depth-select').nextElementSibling, block('tinyfish-api-key-input'), 'the TinyFish key is right after the Tavily depth');
