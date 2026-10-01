@@ -3,7 +3,8 @@ import {
     formatTavilySearchPacket,
     getSearchCurrentDate,
     normalizePageReads,
-    normalizeTinyfishSearch
+    normalizeTinyfishSearch,
+    withSearchContext
 } from '../../legacy-runtime/features/model-request-formatting.js';
 import { createStreamApiCall } from '../../legacy-runtime/features/stream-api-call.js';
 import { createCurrentMemoryContextProvider } from '../memory/current-memory-context-provider.js';
@@ -232,6 +233,7 @@ const providerRequestSupport = createProviderRequestSupport({
     formatTavilySearchPacket,
     normalizeTinyfishSearch,
     normalizePageReads,
+    withSearchContext,
     getErrorMessage,
     readErrorBody,
     getApiKeyForProvider,

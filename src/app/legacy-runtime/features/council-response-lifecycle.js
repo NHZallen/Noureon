@@ -420,7 +420,7 @@ export function createCouncilResponseLifecycle({
               const searchStreamTracker = createCouncilStageTracker('search', () => runtimeTexts.searchRunning);
               sharedSearchPacket = await getSearchPacketFromModel(
                   sharedSearchModel,
-                  modelUsesNativeWebSearch(sharedSearchModel) ? buildCouncilSharedSearchPrompt(parts) : getSearchQueryFromParts(parts),
+                  modelUsesNativeWebSearch(sharedSearchModel) ? buildCouncilSharedSearchPrompt(parts) : getSearchQueryFromParts(parts, conv),
                   signal,
                   {
                       conversation: conv,

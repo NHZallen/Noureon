@@ -20,6 +20,11 @@ const VOLATILE_TOPIC_PATTERNS = [
  * model request, cost, or data transfer.
  */
 export function shouldAutoEnableWebSearch(value) {
+  return asksForCurrentFacts(value);
+}
+
+/** Whether a text asks about what is current (latest, today, news, weather, prices...), in any of the five languages. */
+export function asksForCurrentFacts(value) {
   const text = String(value || '').trim();
   if (!text) return false;
   return RECENCY_PATTERNS.some(pattern => pattern.test(text))

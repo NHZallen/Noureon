@@ -6,6 +6,7 @@ import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
   formatTavilySearchPacket,
+  withSearchContext = (text) => text,
   normalizeTinyfishSearch,
   normalizePageReads,
   getErrorMessage,
@@ -113,7 +114,7 @@ Output requirements:
   });
 
   const getTavilySearchDepth = () => getConfig().tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
-  const getSearchQueryFromParts = (parts = []) => buildTavilySearchQuery(extractTextFromParts(parts));
+  const getSearchQueryFromParts = (parts = [], conversation = null) => buildTavilySearchQuery(withSearchContext(extractTextFromParts(parts), conversation?.messages));
 
   const postWithKey = async (url, { apiKey, body, signal, failure }) => {
     const response = await fetchImpl(url, {
@@ -198,7 +199,7 @@ Output requirements:
       throw new Error(getRuntimeText(config.uiLanguage, source === 'tinyfish' ? 'tinyfishKeyRequired' : 'tavilyKeyRequired'));
     }
     const query = buildTavilySearchQuery(Array.isArray(querySource)
-      ? getSearchQueryFromParts(querySource)
+      ? getSearchQueryFromParts(querySource, options.conversation)
       : querySource);
     if (!query) {
       throw new Error(getRuntimeText(config.uiLanguage, 'noSearchableText'));
@@ -272,6 +273,7 @@ Output requirements:
       onProgress?.('searchTranslation', getRuntimeText(config.uiLanguage, getSearchProvider(config) === 'tinyfish' ? 'searchingTinyfish' : 'searchingTavily'));
       const searchPacket = await fetchTavilySearchPacket(parts, signal, {
         label: 'Single-model web search packet',
+        conversation,
         onSources
       });
       translatedSections.push(`# Web search packet\nThis packet was retrieved with ${searchProviderLabel(getSearchProvider(config))} for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, 7000)}`);

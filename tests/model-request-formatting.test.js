@@ -8,7 +8,8 @@ import {
   getSearchCurrentDate,
   normalizeSearchQuery,
   normalizePageReads,
-  normalizeTinyfishSearch
+  normalizeTinyfishSearch,
+  withSearchContext
 } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -155,3 +156,66 @@ test('page reader results are cut to length, and the pages that did not come bac
   assert.deepEqual(normalizePageReads(undefined, { requested: ['https://a.test/1'] }), { pages: [], failed: ['https://a.test/1'] });
   assert.equal(normalizePageReads({ results: [{ url: 'https://a.test/1', text: 'z'.repeat(9000) }] }).pages[0].text.length, 8000, 'eight thousand characters by default');
 });
+
+test('a search is for what the text says: no date and no "latest" unless the text asks about what is current', () => {
+  // These were the whole query of "go look it up": time converters, exam timetables and pre-order pages came back.
+  assert.equal(buildTavilySearchQuery('你去查阿'), '你去查阿');
+  assert.equal(buildTavilySearchQuery('DeepSeek V4.1 Flash 的思考參數是什麼'), 'DeepSeek V4.1 Flash 的思考參數是什麼');
+  assert.doesNotMatch(buildTavilySearchQuery('How do I reverse a list in Python?'), /current date|latest|\d{4}-\d{2}-\d{2}/);
+
+  const today = getSearchCurrentDate();
+  for (const text of ['最新的 iPhone 價格', 'What is the weather today?', 'latest news about the election', 'météo à Paris', 'новости сегодня']) {
+    assert.equal(buildTavilySearchQuery(text), `${text} ${today} latest`, text);
+  }
+});
+
+test('a query that was built is not given its date and boost a second time', () => {
+  for (const text of ['latest news', 'FIFA World Cup 2026 scores', '世界盃賽程']) {
+    const once = buildTavilySearchQuery(text);
+    assert.equal(buildTavilySearchQuery(once), once, text);
+  }
+  assert.match(buildTavilySearchQuery('世界盃賽程'), /FIFA World Cup official match report/);
+});
+
+const userMessage = (text) => ({ role: 'user', parts: [{ text }] });
+const modelMessage = (text) => ({ role: 'model', parts: [{ text }] });
+
+test('a message that only says to search takes its subject from the messages before it', () => {
+  const messages = [
+    userMessage('DeepSeek V4.1 Flash 有沒有思考深度參數？'),
+    modelMessage('我不確定，需要查證。'),
+    userMessage('你去查阿')
+  ];
+  assert.equal(withSearchContext('你去查阿', messages), 'DeepSeek V4.1 Flash 有沒有思考深度參數？ 你去查阿');
+  // The same with the current message not in the list yet.
+  assert.equal(withSearchContext('你去查阿', messages.slice(0, 2)), 'DeepSeek V4.1 Flash 有沒有思考深度參數？ 你去查阿');
+  for (const thin of ['搜索 你去查阿', 'please search', 'search again', 'go look it up', 'cherche', '查一下', '幫我查！']) {
+    assert.match(withSearchContext(thin, [userMessage('What is the context window of Claude Opus 5.5?'), userMessage(thin)]), /^What is the context window of Claude Opus 5\.5\? /, thin);
+  }
+});
+
+test('only the last two earlier messages that have a subject are used, each cut, and the assistant\'s are not', () => {
+  const messages = [
+    userMessage('first question about the Rust borrow checker'),
+    userMessage('second question about Go generics in detail'),
+    userMessage('ok'),
+    modelMessage('A long answer about something else entirely, which is not a question'),
+    userMessage('third question about Python decorators ' + 'x'.repeat(400)),
+    userMessage('search')
+  ];
+  const query = withSearchContext('search', messages);
+  assert.ok(query.startsWith('second question about Go generics in detail third question about Python decorators'));
+  assert.doesNotMatch(query, /Rust|something else|\bok\b/);
+  assert.equal(query.length, 'second question about Go generics in detail'.length + 1 + 200 + 1 + 'search'.length, 'each earlier message is cut to 200 characters');
+});
+
+test('a message with a subject of its own is searched as it is, and one with no history is left alone', () => {
+  const history = [userMessage('something earlier about Kubernetes operators')];
+  assert.equal(withSearchContext('What is the capital of Australia?', history), 'What is the capital of Australia?');
+  assert.equal(withSearchContext('DeepSeek V4.1 Flash 思考', history), 'DeepSeek V4.1 Flash 思考');
+  assert.equal(withSearchContext('你去查阿', []), '你去查阿');
+  assert.equal(withSearchContext('你去查阿', undefined), '你去查阿');
+  assert.equal(withSearchContext('你去查阿', [userMessage('ok'), userMessage('你去查阿')]), '你去查阿', 'earlier messages with no subject do not help');
+  assert.equal(withSearchContext('', history), 'something earlier about Kubernetes operators');
+});
+

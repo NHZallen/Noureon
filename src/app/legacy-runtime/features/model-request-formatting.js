@@ -1,3 +1,5 @@
+import { asksForCurrentFacts } from '../../runtime/features/auto-web-search.js';
+
 const TAVILY_QUERY_CHAR_LIMIT = 380;
 
 export const getSearchCurrentDate = () => new Date().toISOString().slice(0, 10);
@@ -14,12 +16,45 @@ export const normalizeSearchQuery = (value = '') => String(value || '')
   .slice(0, TAVILY_QUERY_CHAR_LIMIT)
   .trim();
 
+// Words that carry no subject ("go look it up", "search", "please", the sentence-final particles), to tell a message that
+// says what to search for from one that only says to search.
+const FILLER = /搜索|搜尋|查詢|查證|查一下|查查|查|去|幫我|幫忙|請|麻煩|你|我|阿|啊|吧|嗎|呢|喔|哦|啦|一下|看看|找|google|search(?: for)?|look(?: it| that| this)? up|find out|please|can you|could you|go|do it|again|recherche|cherche|поищи|найди|busca/giu;
+const MIN_SUBJECT_CHARS = 6;
+const EARLIER_MESSAGES = 2;
+const EARLIER_MESSAGE_CHARS = 200;
+
+const subjectLength = (text = '') => String(text || '').replace(FILLER, '').replace(/[\s\p{P}\p{S}]/gu, '').length;
+const messageText = (message) => (message?.parts || []).map((part) => part?.text || '').join(' ').trim();
+
+/**
+ * What to search for. A message that only says to search ("go look it up", "search again") has no subject of its own: the
+ * subject is in the messages before it, so the last user messages that have one come first. Anything with a subject of
+ * its own is searched as it is. `messages` is the conversation's, which may already end with this message.
+ */
+export const withSearchContext = (text, messages = []) => {
+  const current = String(text || '').trim();
+  if (subjectLength(current) >= MIN_SUBJECT_CHARS) return current;
+  const earlier = (Array.isArray(messages) ? messages : []).filter((message) => message?.role === 'user').map(messageText);
+  if (earlier.length > 0 && earlier.at(-1) === current) earlier.pop();
+  const subjects = earlier.filter((entry) => subjectLength(entry) >= MIN_SUBJECT_CHARS).slice(-EARLIER_MESSAGES);
+  return subjects.length > 0
+    ? `${subjects.map((entry) => entry.slice(0, EARLIER_MESSAGE_CHARS)).join(' ')} ${current}`.trim()
+    : current;
+};
+
+// The search is for what the text says, as it is. The date and "latest" are added only to a text that asks about what is
+// current: on a text that does not, they were most of the query for a short one, and the search answered them (time
+// converters for "current date", exam timetables for a date, pre-order pages for "latest").
+// A query that was built is passed on to be built again (the council's, a search packet's): what it already has is not added twice.
 export const buildTavilySearchQuery = (value = '') => {
   const text = String(value || '');
-  const sportsBoost = isWorldCupQuery(text)
+  const date = getSearchCurrentDate();
+  const boost = isWorldCupQuery(text)
     ? ' FIFA World Cup official match report results scores wins group stage'
     : (isSportsResultsQuery(text) ? ' official results scores wins fixtures standings' : '');
-  return normalizeSearchQuery(`${text} current date ${getSearchCurrentDate()} latest${sportsBoost}`);
+  const sportsBoost = boost && !text.includes(boost.trim()) ? boost : '';
+  const freshness = asksForCurrentFacts(text) && !text.includes(`${date} latest`) ? ` ${date} latest` : '';
+  return normalizeSearchQuery(`${text}${freshness}${sportsBoost}`);
 };
 
 // TinyFish's search answers with a list of results that carry a snippet; this gives them the shape Tavily's have, so

@@ -32,6 +32,7 @@ const createHarness = ({
 } = {}) => {
   const calls = [];
   const tavilyCalls = [];
+  const queryConversations = [];
   const progressEvents = [];
   const finalChunks = [];
   const callCounts = new Map();
@@ -103,7 +104,10 @@ const createHarness = ({
       return text.length > limit ? `${text.slice(0, limit)}\n\n[truncated]` : text;
     },
     filterPartsForModelCapability: filterPartsForModelCapability || ((parts = []) => parts),
-    getSearchQueryFromParts: (parts = []) => parts.map((part) => part.text || '').join(' '),
+    getSearchQueryFromParts: (parts = [], conversation = null) => {
+      queryConversations.push(conversation);
+      return parts.map((part) => part.text || '').join(' ');
+    },
     fetchTavilySearchPacket: fetchTavilySearchPacket || (async (...args) => {
       tavilyCalls.push(args);
       return `search packet ${tavilyCalls.length}`;
@@ -121,6 +125,7 @@ const createHarness = ({
     finalChunks,
     lifecycle,
     progressEvents,
+    queryConversations,
     tavilyCalls,
     run: (parts = [{ text: 'Question' }], signal = new AbortController().signal, requestOptions = {}) =>
       lifecycle.runModelCouncil(
@@ -223,6 +228,13 @@ test('request-scoped web search enables council research without changing conver
 
   assert.equal(calls[0].id, 'synth');
   assert.equal(calls[0].options.forceWebSearch, true);
+});
+
+test('the council\'s search is for the conversation, so a message that only says to search has a subject', async () => {
+  const { queryConversations, run } = createHarness({ webSearchEnabled: true });
+  await run([{ text: 'Question' }]);
+  assert.equal(queryConversations.length, 1);
+  assert.equal(queryConversations[0].messages.at(-1).parts[0].text, 'Current question', 'the conversation, with its earlier messages');
 });
 
 test('web search branch uses Tavily fallback for shared and deliberation second search packets', async () => {

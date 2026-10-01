@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
-import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
+import { normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -45,6 +45,7 @@ const createHarness = ({
     },
     normalizeTinyfishSearch,
     normalizePageReads,
+    withSearchContext,
     getErrorMessage: (body, fallback) => body?.error?.message || fallback,
     readErrorBody: async (response) => JSON.parse(await response.text()),
     getApiKeyForProvider: (provider) => apiKeys[provider] || '',
@@ -459,3 +460,24 @@ test('Tavily searches do not read whole pages, and a message with no address rea
   assert.equal(none.length, 1);
   assert.equal(fetchCalls.length, 1);
 });
+
+test('a message that only says to search is searched with what the conversation was about, by either source', async () => {
+  const conversation = { messages: [
+    { role: 'user', parts: [{ text: 'Does DeepSeek V4.1 Flash have a reasoning effort parameter?' }] },
+    { role: 'model', parts: [{ text: 'I am not sure.' }] },
+    { role: 'user', parts: [{ text: '你去查阿' }] }
+  ] };
+  for (const [apiKeys, config, route] of [
+    [{ tavily: 'tv' }, {}, '/api/tavily-search'],
+    [{ tinyfish: 'tf' }, { searchProvider: 'tinyfish' }, '/api/tinyfish-search']
+  ]) {
+    const { fetchCalls, support } = createHarness({ apiKeys, config, modelUsesTavilySearch: () => true });
+    await support.buildSingleModelTranslatedRequestParts([{ text: '你去查阿' }], { id: 'm', name: 'M', provider: 'openrouter' }, new AbortController().signal, () => {}, {
+      webSearchEnabled: true,
+      conversation
+    });
+    const search = fetchCalls.find((call) => call[0] === route);
+    assert.equal(JSON.parse(search[1].body).query, 'Does DeepSeek V4.1 Flash have a reasoning effort parameter? 你去查阿', route);
+  }
+});
+
