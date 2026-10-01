@@ -82,6 +82,8 @@ export async function runVisionCheck({ conversation, message, model, config, con
       checkAbort(controller.signal);
       const content = buildVisionResult({ result, edits, renderedSlides: presentation.layout.slides, file, language,
         checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides });
+      // The message was cut away meanwhile (the person edited an earlier one, or deleted it): its result has no place in the chat.
+      if (!conversation.messages.includes(message)) { progress.remove(); continue; }
       const revised = { id: crypto.randomUUID(), role: 'model', parts: [{ text: content }], createdAt: new Date().toISOString(),
         metadata: { visionCheck: buildVisionMetadata({ file, model, result, edits,
           checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) } };

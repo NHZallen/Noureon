@@ -75,13 +75,20 @@ export function softChange(node) {
   node.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 240, easing: EASING });
 }
 
-// Opens or closes a details element with the ease: the browser closes one at once.
+// Opens or closes a details element with the ease: the browser closes one at once. While it closes it stays `open` (its part is
+// still there to ease away), so it is marked `data-closing` from the first moment: the chevron turns back with the click, not
+// after the part has gone.
 const toggleDetails = (details, content) => {
   content.__collapseAnimation?.cancel();
   settle(content);
-  if (details.open) {
-    run(content, [openFrame(content), { opacity: 0, offset: 0.5 }, closedFrame], () => { details.open = false; });
+  if (details.open && !details.hasAttribute('data-closing')) {
+    details.setAttribute('data-closing', '');
+    run(content, [openFrame(content), { opacity: 0, offset: 0.5 }, closedFrame], () => {
+      details.open = false;
+      details.removeAttribute('data-closing');
+    });
   } else {
+    details.removeAttribute('data-closing');
     details.open = true;
     run(content, [closedFrame, { opacity: 1, offset: 0.6 }, openFrame(content)]);
   }

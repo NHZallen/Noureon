@@ -104,3 +104,93 @@ test('mobile cancellation restores the composer before the editor fade has compl
     cleanup();
   }
 });
+
+test('sending an edit hands the cut of the conversation to the submit, which makes it once the reply being written is stopped', async () => {
+  const { document, cleanup } = createDom(`
+    <main id="messages">
+      <article class="message-item" data-message-index="0"><div class="message-stack-user">Question</div></article>
+      <article class="message-item" data-message-index="1">Answer</article>
+    </main>
+    <div id="composer-parent"><div id="input-bar"><textarea id="message-input"></textarea><div id="previews"></div></div></div>
+    <button id="add-file"></button><div id="file-options"></div>
+  `);
+  try {
+    const conversation = { id: 'c1', messages: [
+      { role: 'user', parts: [{ text: 'Question' }] },
+      { role: 'model', parts: [{ text: 'Answer' }] }
+    ] };
+    const log = [];
+    let submitted = null;
+    const lifecycle = createMessageEditingLifecycle({
+      document,
+      elements: {
+        messageList: document.querySelector('#messages'),
+        messageInput: document.querySelector('#message-input'),
+        inputBarContainer: document.querySelector('#input-bar'),
+        filePreviewContainer: document.querySelector('#previews'),
+        addFileBtn: document.querySelector('#add-file'),
+        fileOptionsPopover: document.querySelector('#file-options')
+      },
+      getActiveConversation: () => conversation,
+      renderChat: () => log.push(`render:${conversation.messages.length}`),
+      saveAppData: async () => { log.push(`save:${conversation.messages.length}`); },
+      invalidateConversationMemory: async () => { log.push('memory'); },
+      submitEditedMessage: async (options) => { submitted = options; },
+      isMobile: () => false
+    });
+    lifecycle.startMessageEditing(0);
+    const textarea = document.querySelector('.message-edit-textarea');
+    textarea.value = 'Question, edited';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('[data-edit-send]').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(submitted.userMessage, 'Question, edited');
+    assert.equal(conversation.messages.length, 2, 'nothing is cut until the submit has stopped what is still writing');
+    assert.deepEqual(log, []);
+    // The reply that was being written finishes and adds its last words; then the submit cuts, whatever is there.
+    conversation.messages.push({ role: 'model', parts: [{ text: 'Late words' }] });
+    await submitted.prepare();
+    assert.equal(conversation.messages.length, 0, 'the edited message and all after it, the late reply included');
+    assert.deepEqual(log, ['memory', 'save:0', 'render:0']);
+  } finally {
+    cleanup();
+  }
+});
+
+test('a phone edit also leaves the cut to the submit', () => {
+  const { document, cleanup } = createDom(`
+    <main id="messages"><article class="message-item" data-message-index="0"><div class="message-stack-user">Question</div></article></main>
+    <div id="composer-parent"><div id="input-bar"><textarea id="message-input"></textarea><div id="previews"></div></div></div>
+    <button id="add-file"></button><div id="file-options"></div>
+  `);
+  try {
+    const conversation = { id: 'c1', messages: [{ role: 'user', parts: [{ text: 'Question' }] }, { role: 'model', parts: [{ text: 'Answer' }] }] };
+    const lifecycle = createMessageEditingLifecycle({
+      document,
+      elements: {
+        messageList: document.querySelector('#messages'),
+        messageInput: document.querySelector('#message-input'),
+        inputBarContainer: document.querySelector('#input-bar'),
+        filePreviewContainer: document.querySelector('#previews'),
+        addFileBtn: document.querySelector('#add-file'),
+        fileOptionsPopover: document.querySelector('#file-options')
+      },
+      getActiveConversation: () => conversation,
+      renderChat: () => {},
+      saveAppData: async () => {},
+      submitEditedMessage: async () => {},
+      isMobile: () => true
+    });
+    assert.equal(lifecycle.getComposerEditSubmission(), null, 'not editing: a regular send');
+    lifecycle.startMessageEditing(0);
+    document.querySelector('#message-input').value = 'Edited on the phone';
+    const submission = lifecycle.getComposerEditSubmission();
+    assert.equal(submission.userMessage, 'Edited on the phone');
+    assert.equal(submission.preserveComposer, true);
+    assert.equal(conversation.messages.length, 2, 'asking for the submission cuts nothing');
+    assert.equal(typeof submission.prepare, 'function');
+  } finally {
+    cleanup();
+  }
+});

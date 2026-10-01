@@ -12,3 +12,9 @@ test('on a touch screen a row that opens shows its chevron shut as well as open;
   const open = css.lastIndexOf("[aria-expanded='true'] .ledger-label::after");
   assert.ok(open > css.search(touch), 'the open rule comes after and sets the turn');
 });
+
+test('a row that is closing (open while its part eases away) turns its chevron back at once', () => {
+  assert.match(css, /\.ledger-row\[data-kind\]\[open\]:not\(\[data-closing\]\) > \.ledger-row-head\.is-expandable \.ledger-label::after/);
+  const runCss = readFileSync(new URL('../src/styles/sandbox-run.css', import.meta.url), 'utf8');
+  assert.match(runCss, /\.sandbox-run-details\[open\]:not\(\[data-closing\]\) > \.sandbox-run-summary::after/);
+});

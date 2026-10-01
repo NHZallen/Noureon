@@ -229,6 +229,17 @@ export function createMessageEditingLifecycle({
     scheduleFrame(() => textarea.focus());
   };
 
+  // The conversation is cut at the message being edited and the chat drawn again. It is done by the submit once any reply that
+  // is still being written (or a visual check looking at one) has been stopped: cutting first let such a reply finish and
+  // put itself back after the cut, so the regenerated answer was followed or replaced by the one from before the edit.
+  const cutAtEditedMessage = (editor) => async () => {
+    editor.conversation.messages.splice(editor.index);
+    await invalidateConversationMemory({ conversationId: editor.conversation.id });
+    await saveAppData();
+    await dismissEditor({ rerender: false, animate: false });
+    renderChat();
+  };
+
   const sendEditedMessage = async () => {
     const editor = activeEditor;
     if (!editor || editor.sending) return;
@@ -238,15 +249,11 @@ export function createMessageEditingLifecycle({
     editor.sending = true;
     const sendButton = editor.root?.querySelector('[data-edit-send]');
     if (sendButton) sendButton.disabled = true;
-    editor.conversation.messages.splice(editor.index);
-    await invalidateConversationMemory({ conversationId: editor.conversation.id });
-    await saveAppData();
-    await dismissEditor({ rerender: false, animate: false });
-    renderChat();
     await submitEditedMessage({
       userMessage: text,
       uploadedFiles: files,
-      quoteReference: editor.quoteReference
+      quoteReference: editor.quoteReference,
+      prepare: cutAtEditedMessage(editor)
     });
   };
 
@@ -256,16 +263,12 @@ export function createMessageEditingLifecycle({
     const text = String(elements.messageInput?.value || '').trim();
     const files = [...getUploadedFiles()];
     if (!text && files.length === 0) return null;
-    editor.conversation.messages.splice(editor.index);
-    void invalidateConversationMemory({ conversationId: editor.conversation.id });
-    void saveAppData();
-    void dismissEditor({ rerender: false, animate: false });
-    renderChat();
     return {
       userMessage: text,
       uploadedFiles: files,
       quoteReference: editor.quoteReference,
-      preserveComposer: true
+      preserveComposer: true,
+      prepare: cutAtEditedMessage(editor)
     };
   };
 

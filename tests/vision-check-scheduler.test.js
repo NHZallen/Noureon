@@ -44,7 +44,10 @@ test('sending is refused while the chat is under its visual check, before anythi
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('../src/app/runtime/legacy-core/submit-input-council-lifecycle.js', import.meta.url), 'utf8');
   const submit = source.slice(source.indexOf('const handleFormSubmit'));
-  const gate = submit.indexOf('vc.isRunning(getActiveConversation()?.id)');
+  const gate = submit.indexOf('vc.isRunning(activeId)');
   assert.ok(gate > 0 && gate < submit.indexOf('prepareSubmitResponse'), 'the gate comes first');
-  assert.doesNotMatch(submit.slice(0, submit.indexOf('prepareSubmitResponse')), /vc\.cancel/, 'a new message no longer cancels the check');
+  // Only an edit stops the check (it cuts the conversation under it); a new message does not.
+  const beforeGate = submit.slice(0, gate);
+  assert.match(beforeGate, /if \(isEdit\) \{[\s\S]*vc\.cancel\(activeId\)/);
+  assert.doesNotMatch(submit.slice(gate, submit.indexOf('prepareSubmitResponse')), /vc\.cancel/, 'a new message no longer cancels the check');
 });

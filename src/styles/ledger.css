@@ -336,7 +336,7 @@
 .ledger-row[data-kind].is-failed > .ledger-row-head.is-expandable:hover .ledger-label { color: #dc2626; }
 
 .ledger-row[data-kind] > .ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after,
-.ledger-row[data-kind][open] > .ledger-row-head.is-expandable .ledger-label::after {
+.ledger-row[data-kind][open]:not([data-closing]) > .ledger-row-head.is-expandable .ledger-label::after {
     opacity: 1;
     transform: rotate(45deg);
 }

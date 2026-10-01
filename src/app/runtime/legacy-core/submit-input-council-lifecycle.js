@@ -23,6 +23,7 @@ import { canCaptureConversationMessage } from '../features/temporary-chat-state.
 import { createDeckDesignControl } from '../features/deck-design-control.js';
 import { createVisionCheckScheduler } from '../features/vision-check-scheduler.js';
 import { getSearchProvider } from '../kernel/search-provider.js';
+import { stopReplyAndWait } from '../features/reply-stop.js';
 import { createWebResearchTools } from '../../legacy-runtime/features/web-research-tools.js';
 import { normalizePageReads, normalizeTinyfishSearch } from '../../legacy-runtime/features/model-request-formatting.js';
 import { getErrorMessage, readErrorBody } from './legacy-core-utilities.js';
@@ -779,15 +780,22 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   };
   const handleFormSubmit = async (event, submitOptions = {}) => {
     event?.preventDefault?.();
-    // The visual check is still looking at the last message: nothing is sent until it is done or stopped.
-    if (vc.isRunning(getActiveConversation()?.id)) {
+    let effectiveSubmitOptions = submitOptions;
+    if (!effectiveSubmitOptions.preserveComposer) effectiveSubmitOptions = getComposerEditSubmission() || effectiveSubmitOptions;
+    const isEdit = Boolean(effectiveSubmitOptions.preserveComposer);
+    const activeId = getActiveConversation()?.id;
+    if (isEdit) {
+      // An edit cuts the conversation at the edited message: a reply still being written, or a visual check looking at one,
+      // would add itself back after the cut. Both are stopped first, then the conversation is cut.
+      vc.cancel(activeId);
+      await stopReplyAndWait({ getAbortController, wait: (ms) => new Promise((resolve) => scheduleTimeout(resolve, ms)) });
+      await effectiveSubmitOptions.prepare?.();
+    } else if (vc.isRunning(activeId)) {
+      // The visual check is still looking at the last message: nothing is sent until it is done or stopped.
       showNotification(visionText(getUiLanguage(), 'sendLockedNotice'), 'warning');
       return;
-    }
-    let effectiveSubmitOptions = submitOptions;
-    if (!effectiveSubmitOptions.preserveComposer) {
-      effectiveSubmitOptions = getComposerEditSubmission() || effectiveSubmitOptions;
-      if (!effectiveSubmitOptions.preserveComposer) onRegularSubmit();
+    } else {
+      onRegularSubmit();
     }
     const preparedSubmit = Object.keys(effectiveSubmitOptions).length > 0
       ? await submitInputPreparationLifecycle.prepareSubmitResponse(effectiveSubmitOptions)

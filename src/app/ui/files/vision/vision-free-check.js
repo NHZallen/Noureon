@@ -77,6 +77,8 @@ export async function checkFreeDeck({
   checkAbort(controller.signal);
   // Advanced mode is off for this conversation now: the deck stays as it is.
   if (!fix) return false;
+  // The message was cut away meanwhile (the person edited an earlier one, or deleted it): its result has no place in the chat.
+  if (!conversation.messages.includes(message)) return false;
   const redone = fix.parts.some((part) => part.sandboxFile && part.sandboxFile.name === file.name);
   if (!redone) throw new Error(visionText(language, 'freeNoFile'));
   const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({

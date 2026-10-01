@@ -105,8 +105,16 @@ test('a details element eases open and shut when its summary is clicked', () => 
   runs[0].finish();
   click();
   assert.equal(details.open, true, 'it stays open while it closes');
+  assert.equal(details.hasAttribute('data-closing'), true, 'but is marked closing at once, so the chevron turns back with the click');
   runs[1].finish();
   assert.equal(details.open, false);
+  assert.equal(details.hasAttribute('data-closing'), false);
+  click();
+  assert.equal(details.open, true);
+  click();
+  click();
+  assert.equal(details.open, true, 'pressed again while it was closing, it opens again');
+  assert.equal(details.hasAttribute('data-closing'), false);
   window.happyDOM.abort();
 });
 

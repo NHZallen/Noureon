@@ -33,7 +33,7 @@
     transition: transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-.sandbox-run-details[open] > .sandbox-run-summary::after { transform: rotate(90deg); }
+.sandbox-run-details[open]:not([data-closing]) > .sandbox-run-summary::after { transform: rotate(90deg); }
 
 .sandbox-run-summary:hover,
 .sandbox-run-summary:focus-visible { color: var(--text-primary, #111827); }
