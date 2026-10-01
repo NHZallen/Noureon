@@ -8,7 +8,7 @@ import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
-import { createSourceChips, sourcesLabel } from './run-sources.js';
+import { createSourceChips, pagesReadLabel, sourcesLabel, splitSources } from './run-sources.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
 
 const element = (document, tag, className, text) => {
@@ -50,9 +50,13 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
   });
 }
 
-// "Searched 2 sites": the pages the web search found, as chips.
-function sourcesRow(document, sources, language) {
-  return renderRow(document, { kind: 'search', label: sourcesLabel(language, sources.length), body: [createSourceChips(document, sources)] });
+// "Searched 2 sites": the pages the web search found, as chips; and "Read 2 pages": the pages the user linked, which were read.
+function sourcesRows(document, sources, language) {
+  const { searched, read } = splitSources(sources);
+  return [
+    ...(searched.length ? [renderRow(document, { kind: 'search', label: sourcesLabel(language, searched.length), body: [createSourceChips(document, searched)] })] : []),
+    ...(read.length ? [renderRow(document, { kind: 'search', label: pagesReadLabel(language, read.length), body: [createSourceChips(document, read)] })] : [])
+  ];
 }
 
 // What the model said before a run, between the steps in ordinary text.
@@ -140,14 +144,14 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   }
   if (!run.steps.length) {
     // A reply without Python: the pages it searched, and how the model thought before it answered.
-    if (run.sources?.length) container.append(sourcesRow(document, run.sources, language));
+    if (run.sources?.length) container.append(...sourcesRows(document, run.sources, language));
     if (run.thought) container.append(renderReplyThinking(document, run, language));
     return container;
   }
   const details = element(document, 'details', 'sandbox-run-details');
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
-  if (run.sources?.length) list.append(sourcesRow(document, run.sources, language));
+  if (run.sources?.length) list.append(...sourcesRows(document, run.sources, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
     if (step.narration) list.append(narrationBlock(document, step.narration));

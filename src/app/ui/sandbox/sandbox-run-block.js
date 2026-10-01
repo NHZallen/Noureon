@@ -63,7 +63,7 @@ export function normalizeSources(sources) {
     const url = String(source?.url || '').trim().slice(0, 600);
     if (!/^https?:\/\/[^\s]+$/i.test(url) || seen.has(url)) continue;
     seen.add(url);
-    kept.push({ title: String(source?.title || '').slice(0, 160), url });
+    kept.push({ title: String(source?.title || '').slice(0, 160), url, ...(source?.read ? { read: true } : {}) });
     if (kept.length >= MAX_SOURCES) break;
   }
   return kept;

@@ -2,7 +2,7 @@ import {
     buildTavilySearchQuery,
     formatTavilySearchPacket,
     getSearchCurrentDate,
-    normalizeTinyfishFetch,
+    normalizePageReads,
     normalizeTinyfishSearch
 } from '../../legacy-runtime/features/model-request-formatting.js';
 import { createStreamApiCall } from '../../legacy-runtime/features/stream-api-call.js';
@@ -231,7 +231,7 @@ const providerRequestSupport = createProviderRequestSupport({
     buildTavilySearchQuery,
     formatTavilySearchPacket,
     normalizeTinyfishSearch,
-    normalizeTinyfishFetch,
+    normalizePageReads,
     getErrorMessage,
     readErrorBody,
     getApiKeyForProvider,
@@ -249,6 +249,8 @@ const {
     fetchTavilySearchPacket,
     filterPartsForModelCapability,
     getSearchQueryFromParts,
+    readLinkedPages,
+    readsLinkedPages,
     streamCouncilApiCallWithRetry,
     truncateCouncilText
 } = providerRequestSupport;
@@ -270,6 +272,8 @@ const councilResponseLifecycle = createCouncilResponseLifecycle({
     filterPartsForModelCapability,
     getSearchQueryFromParts,
     fetchTavilySearchPacket,
+    readLinkedPages,
+    readsLinkedPages,
     streamCouncilApiCallWithRetry,
     modelUsesNativeWebSearch,
     modelSupportsVision,

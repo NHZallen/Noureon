@@ -476,3 +476,30 @@ test('stopping while the model thinks keeps the thought also when the stream end
   assert.equal(result.run.thought, '想到一半');
   assert.equal(result.run.thoughtInterrupted, true);
 });
+
+test('the pages that were read are kept apart from the pages that were searched, in the saved reply', async () => {
+  const { document, cleanup } = createDom('<div id="root"></div>');
+  try {
+    const run = liftSandboxRunBlock(`${formatSandboxRunBlock({
+      status: 'done',
+      sources: [
+        { title: 'Linked', url: 'https://linked.example/a', read: true },
+        { title: 'Found', url: 'https://found.example/1' },
+        { title: 'bad', url: 'javascript:alert(1)', read: true }
+      ],
+      steps: []
+    })}x`).run;
+    assert.deepEqual(run.sources, [
+      { title: 'Linked', url: 'https://linked.example/a', read: true },
+      { title: 'Found', url: 'https://found.example/1' }
+    ]);
+    const view = createSandboxRunElement(document, run, { language: 'en' });
+    assert.deepEqual([...view.querySelectorAll('.ledger-label')].map((node) => node.textContent), ['Searched 1 sites', 'Read 1 pages']);
+    for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+      assert.match(sandboxText(language, 'sourcesRead', { n: 3 }), /3/, language);
+    }
+  } finally {
+    cleanup();
+  }
+});
+

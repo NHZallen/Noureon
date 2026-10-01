@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
-import { normalizeTinyfishFetch, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
+import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -44,7 +44,7 @@ const createHarness = ({
       return `${label}: ${query}: ${data.results?.[0]?.title || 'none'}${provider === 'Tavily' ? '' : ` (${provider})`}`;
     },
     normalizeTinyfishSearch,
-    normalizeTinyfishFetch,
+    normalizePageReads,
     getErrorMessage: (body, fallback) => body?.error?.message || fallback,
     readErrorBody: async (response) => JSON.parse(await response.text()),
     getApiKeyForProvider: (provider) => apiKeys[provider] || '',
@@ -295,101 +295,167 @@ test('a TinyFish HTTP error is reported by name', async () => {
   );
 });
 
-const tinyfishRoutes = ({ search, fetchPages }) => async (url, init) => {
-  if (url === '/api/tinyfish-search') return createResponse({ jsonValue: search });
-  if (url === '/api/tinyfish-fetch') return fetchPages(init);
-  throw new Error(`unexpected request ${url}`);
-};
+const LINK = 'https://example.org/article';
+const readerBody = (init) => JSON.parse(init.body);
+const pageResponse = (results) => createResponse({ jsonValue: { results } });
 
-const searchResults = {
-  results: [1, 2, 3, 4, 5].map((n) => ({ title: `Page ${n}`, url: `https://example.org/${n}`, snippet: `Snippet ${n}` }))
-};
+test('reading pages uses the search source\'s reader first, and either key is enough', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push([url, init]);
+    return pageResponse([{ url: LINK, title: 'Article', text: 'Whole article' }, { url: LINK, raw_content: 'Whole article' }].slice(url.includes('tavily') ? 1 : 0, url.includes('tavily') ? 2 : 1));
+  };
 
-test('Fetch reads whole pages for the TinyFish key, up to ten, with the text cut and the unread ones listed', async () => {
+  const { support: tinyfishFirst } = createHarness({ apiKeys: { tinyfish: 'tf', tavily: 'tv' }, config: { searchProvider: 'tinyfish' }, fetchImpl });
+  const first = await tinyfishFirst.fetchPageContents([LINK], new AbortController().signal);
+  assert.equal(first.reader, 'tinyfish');
+  assert.deepEqual(calls.map((call) => call[0]), ['/api/tinyfish-fetch']);
+  assert.equal(calls[0][1].headers.Authorization, 'Bearer tf');
+  assert.deepEqual(readerBody(calls[0][1]), { urls: [LINK], format: 'markdown' });
+
+  calls.length = 0;
+  const { support: tavilyFirst } = createHarness({ apiKeys: { tinyfish: 'tf', tavily: 'tv' }, fetchImpl });
+  const second = await tavilyFirst.fetchPageContents([LINK], new AbortController().signal);
+  assert.equal(second.reader, 'tavily');
+  assert.deepEqual(calls.map((call) => call[0]), ['/api/tavily-extract']);
+  assert.equal(calls[0][1].headers.Authorization, 'Bearer tv');
+  assert.deepEqual(readerBody(calls[0][1]), { urls: [LINK], extract_depth: 'advanced', format: 'markdown', include_images: false });
+  assert.equal(second.pages[0].text, 'Whole article');
+
+  // Only the other source's key: it is used.
+  calls.length = 0;
+  const { support: onlyTinyfishKey } = createHarness({ apiKeys: { tinyfish: 'tf' }, fetchImpl });
+  assert.equal((await onlyTinyfishKey.fetchPageContents([LINK], new AbortController().signal)).reader, 'tinyfish');
+  assert.deepEqual(calls.map((call) => call[0]), ['/api/tinyfish-fetch']);
+});
+
+test('what the first reader leaves unread, or fails on, goes to the other reader', async () => {
   const calls = [];
   const { support } = createHarness({
-    apiKeys: { tinyfish: 'tinyfish-key' },
-    config: { searchProvider: 'tavily' },
+    apiKeys: { tinyfish: 'tf', tavily: 'tv' },
+    config: { searchProvider: 'tinyfish' },
     fetchImpl: async (url, init) => {
-      calls.push([url, init]);
-      return createResponse({ jsonValue: { results: [{ url: 'https://a.test/1', final_url: 'https://a.test/one', title: 'One', text: 'x'.repeat(50), language: 'en' }] } });
+      calls.push([url, readerBody(init).urls]);
+      if (url === '/api/tinyfish-fetch') return pageResponse([{ url: 'https://a.test/1', text: 'One' }]);
+      return pageResponse([{ url: 'https://a.test/2', raw_content: 'Two' }]);
     }
   });
+  const result = await support.fetchPageContents(['https://a.test/1', 'https://a.test/2', 'https://a.test/3'], new AbortController().signal);
+  assert.deepEqual(calls, [['/api/tinyfish-fetch', ['https://a.test/1', 'https://a.test/2', 'https://a.test/3']], ['/api/tavily-extract', ['https://a.test/2', 'https://a.test/3']]]);
+  assert.deepEqual(result.pages.map((page) => page.text), ['One', 'Two']);
+  assert.deepEqual(result.failed, [{ url: 'https://a.test/3', reason: 'failed' }]);
 
-  const { pages, failed } = await support.fetchPageContents(
-    ['https://a.test/1', 'https://a.test/1', 'https://b.test/2', 'ftp://c.test/3', 'not an address', ...Array.from({ length: 12 }, (_, n) => `https://d.test/${n}`)],
-    new AbortController().signal,
-    { maxChars: 20 }
-  );
-
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0][0], '/api/tinyfish-fetch');
-  assert.equal(calls[0][1].headers.Authorization, 'Bearer tinyfish-key');
-  const body = JSON.parse(calls[0][1].body);
-  assert.equal(body.format, 'markdown');
-  assert.equal(body.urls.length, 10, 'ten at most');
-  assert.deepEqual(body.urls.slice(0, 2), ['https://a.test/1', 'https://b.test/2'], 'repeats and addresses that are not http(s) are left out');
-  assert.equal(pages.length, 1);
-  assert.deepEqual(pages[0], { url: 'https://a.test/1', finalUrl: 'https://a.test/one', title: 'One', language: 'en', text: 'x'.repeat(20), truncated: true });
-  assert.ok(failed.includes('https://b.test/2'), 'what did not come back is named');
-  assert.ok(!failed.includes('https://a.test/1'));
-
-  assert.deepEqual(await support.fetchPageContents([], new AbortController().signal), { pages: [], failed: [] });
-  const { support: noKey } = createHarness({ apiKeys: { tavily: 'tavily-key' } });
-  await assert.rejects(() => noKey.fetchPageContents(['https://a.test/1'], new AbortController().signal), /TinyFish API key is required/);
+  const { support: broken } = createHarness({
+    apiKeys: { tinyfish: 'tf', tavily: 'tv' },
+    config: { searchProvider: 'tinyfish' },
+    fetchImpl: async (url) => (url === '/api/tinyfish-fetch'
+      ? createResponse({ ok: false, status: 500, textValue: JSON.stringify({}) })
+      : pageResponse([{ url: LINK, raw_content: 'From the other' }]))
+  });
+  const recovered = await broken.fetchPageContents([LINK], new AbortController().signal);
+  assert.equal(recovered.pages[0].text, 'From the other');
+  assert.equal(recovered.reader, 'tavily');
 });
 
-test('in a normal chat with TinyFish as the source, the top three results are read in full and go in the packet', async () => {
-  const fetched = [];
-  const { support, searchData } = createHarness({
-    apiKeys: { tinyfish: 'tinyfish-key' },
-    config: { searchProvider: 'tinyfish' },
-    fetchImpl: tinyfishRoutes({
-      search: searchResults,
-      fetchPages: async (init) => {
-        fetched.push(JSON.parse(init.body).urls);
-        return createResponse({ jsonValue: { results: [
-          { url: 'https://example.org/1', title: 'Page 1', text: 'Full text one' },
-          { url: 'https://example.org/3', final_url: 'https://example.org/three', title: 'Page 3', text: 'Full text three' }
-        ] } });
-      }
-    })
-  });
+test('with no key at all, or pages that cannot be read, the result says so instead of throwing', async () => {
+  const { support: noKey } = createHarness({ apiKeys: {} });
+  assert.deepEqual(await noKey.fetchPageContents([LINK], new AbortController().signal), { pages: [], failed: [{ url: LINK, reason: 'noReader' }], reader: null });
+  assert.deepEqual(await noKey.fetchPageContents([], new AbortController().signal), { pages: [], failed: [], reader: null });
 
-  await support.fetchTavilySearchPacket('hello', new AbortController().signal);
-
-  assert.deepEqual(fetched, [['https://example.org/1', 'https://example.org/2', 'https://example.org/3']]);
-  const [first, second, third, fourth] = searchData[0].results;
-  assert.equal(first.page, 'Full text one');
-  assert.equal(second.page, undefined, 'a page that could not be read keeps its snippet');
-  assert.equal(third.page, 'Full text three');
-  assert.equal(fourth.page, undefined, 'only the top results are read');
-});
-
-test('a failed or empty page read does not fail the search, but a stop does', async () => {
-  const { support, searchData } = createHarness({
-    apiKeys: { tinyfish: 'tinyfish-key' },
-    config: { searchProvider: 'tinyfish' },
-    fetchImpl: tinyfishRoutes({ search: searchResults, fetchPages: async () => { throw new Error('fetch is down'); } })
-  });
-  const packet = await support.fetchTavilySearchPacket('hello', new AbortController().signal);
-  assert.match(packet, /Page 1/);
-  assert.equal(searchData[0].results.some((result) => result.page), false);
+  const { support: unreadable } = createHarness({ apiKeys: { tavily: 'tv' }, fetchImpl: async () => pageResponse([]) });
+  assert.deepEqual(await unreadable.fetchPageContents([LINK], new AbortController().signal), { pages: [], failed: [{ url: LINK, reason: 'failed' }], reader: null });
 
   const controller = new AbortController();
   const { support: stopped } = createHarness({
-    apiKeys: { tinyfish: 'tinyfish-key' },
-    config: { searchProvider: 'tinyfish' },
-    fetchImpl: tinyfishRoutes({
-      search: searchResults,
-      fetchPages: async () => { controller.abort(); throw new DOMException('Aborted', 'AbortError'); }
-    })
+    apiKeys: { tavily: 'tv' },
+    fetchImpl: async () => { controller.abort(); throw new DOMException('Aborted', 'AbortError'); }
   });
-  await assert.rejects(() => stopped.fetchTavilySearchPacket('hello', controller.signal), (error) => error.name === 'AbortError');
+  await assert.rejects(() => stopped.fetchPageContents([LINK], controller.signal), (error) => error.name === 'AbortError');
 });
 
-test('Tavily searches do not read whole pages', async () => {
-  const { fetchCalls, support } = createHarness();
+test('pages are read ten at a time at most, each address once, and only http(s) ones', async () => {
+  const seen = [];
+  const { support } = createHarness({
+    apiKeys: { tinyfish: 'tf' },
+    config: { searchProvider: 'tinyfish' },
+    fetchImpl: async (url, init) => { seen.push(readerBody(init).urls); return pageResponse([]); }
+  });
+  await support.fetchPageContents(['https://a.test/1', 'https://a.test/1', 'ftp://x.test', 'nope', ...Array.from({ length: 14 }, (_, n) => `https://b.test/${n}`)], new AbortController().signal);
+  assert.equal(seen[0].length, 10);
+  assert.deepEqual(seen[0].slice(0, 2), ['https://a.test/1', 'https://b.test/0']);
+});
+
+test('a linked address is read in a normal chat for OpenRouter and NVIDIA models, with or without search, and the pages are sources', async () => {
+  const calls = [];
+  const sources = [];
+  const progress = [];
+  const { support } = createHarness({
+    apiKeys: { tinyfish: 'tf' },
+    config: { searchProvider: 'tinyfish' },
+    modelUsesTavilySearch: (model) => model.provider !== 'gemini',
+    fetchImpl: async (url) => { calls.push(url); return pageResponse([{ url: LINK, final_url: `${LINK}?x=1`, title: 'Article', text: 'Whole article text' }]); }
+  });
+  const parts = [{ text: `Please summarise ${LINK}.` }];
+
+  const result = await support.buildSingleModelTranslatedRequestParts(parts, { id: 'm', name: 'Model', provider: 'openrouter' }, new AbortController().signal, (stage) => progress.push(stage), {
+    webSearchEnabled: false,
+    onSources: (found) => sources.push(...found)
+  });
+
+  assert.deepEqual(calls, ['/api/tinyfish-fetch'], 'no search: only the page is read');
+  assert.deepEqual(progress, ['linkedPages']);
+  assert.deepEqual(sources, [{ title: 'Article', url: `${LINK}?x=1`, read: true }]);
+  assert.match(result[0].text, /Web pages the user linked/);
+  assert.match(result[0].text, /Whole article text/);
+  assert.match(result[0].text, /untrusted web content/);
+  assert.equal(result.at(-1).text, parts[0].text, 'the user\'s message follows');
+
+  // Gemini opens links itself, and an image model has nothing to read them for.
+  calls.length = 0;
+  for (const model of [{ id: 'g', name: 'Gemini', provider: 'gemini' }, { id: 'i', name: 'Image', provider: 'openrouter', outputModality: 'image' }]) {
+    const untouched = await support.buildSingleModelTranslatedRequestParts(parts, model, new AbortController().signal, () => {}, {});
+    assert.deepEqual(untouched, parts);
+  }
+  assert.deepEqual(calls, []);
+});
+
+test('with a search and a linked address both, the search packet and the pages both go in', async () => {
+  const sources = [];
+  const { support } = createHarness({
+    apiKeys: { tinyfish: 'tf' },
+    config: { searchProvider: 'tinyfish' },
+    modelUsesTavilySearch: () => true,
+    fetchImpl: async (url) => (url === '/api/tinyfish-search'
+      ? createResponse()
+      : pageResponse([{ url: LINK, title: 'Article', text: 'Whole article text' }]))
+  });
+  const result = await support.buildSingleModelTranslatedRequestParts([{ text: `latest news about ${LINK}` }], { id: 'm', name: 'Model', provider: 'openrouter' }, new AbortController().signal, () => {}, {
+    webSearchEnabled: true,
+    onSources: (found) => sources.push(...found)
+  });
+  assert.match(result[0].text, /Web pages the user linked/);
+  assert.match(result[0].text, /Web search packet/);
+  assert.deepEqual(sources.map((source) => Boolean(source.read)), [true, false], 'the pages read, then the pages searched');
+});
+
+test('a linked address that cannot be read is told to the model, with the reason', async () => {
+  const noReader = createHarness({ apiKeys: {}, modelUsesTavilySearch: () => true });
+  const unreadable = await noReader.support.buildSingleModelTranslatedRequestParts([{ text: `see ${LINK}` }], { id: 'm', name: 'M', provider: 'openrouter' }, new AbortController().signal, () => {}, {});
+  assert.match(unreadable[0].text, /Linked pages that could not be read/);
+  assert.match(unreadable[0].text, new RegExp(LINK.replace(/\./g, '\\.')));
+  assert.match(unreadable[0].text, /No page reader is set up/);
+  assert.match(unreadable[0].text, /Tell the user plainly/);
+
+  const blocked = createHarness({ apiKeys: { tavily: 'tv' }, modelUsesTavilySearch: () => true, fetchImpl: async () => pageResponse([]) });
+  const failed = await blocked.support.buildSingleModelTranslatedRequestParts([{ text: `see ${LINK}` }], { id: 'm', name: 'M', provider: 'openrouter' }, new AbortController().signal, () => {}, {});
+  assert.match(failed[0].text, /could not be fetched/);
+});
+
+test('Tavily searches do not read whole pages, and a message with no address reads nothing', async () => {
+  const { fetchCalls, support } = createHarness({ modelUsesTavilySearch: () => true });
   await support.fetchTavilySearchPacket('hello', new AbortController().signal);
   assert.deepEqual(fetchCalls.map((call) => call[0]), ['/api/tavily-search']);
+  const none = await support.buildSingleModelTranslatedRequestParts([{ text: 'no address here' }], { id: 'm', name: 'M', provider: 'openrouter' }, new AbortController().signal, () => {}, {});
+  assert.equal(none.length, 1);
+  assert.equal(fetchCalls.length, 1);
 });

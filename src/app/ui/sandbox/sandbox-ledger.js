@@ -7,7 +7,7 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
-import { createSourceChips, sourcesLabel } from './run-sources.js';
+import { createSourceChips, pagesReadLabel, sourcesLabel, splitSources } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 
@@ -150,13 +150,15 @@ export function createSandboxLedger({ document, host, before = null, language = 
     row.searching = true;
   };
   const addSources = ({ sources }) => {
+    const { searched, read } = splitSources(sources || []);
     const searching = list.current?.searching ? list.current : null;
-    if (!sources?.length) {
-      searching?.discard();
-      return;
-    }
-    const row = searching || begin(sourcesLabel(language, sources.length), { body: true, kind: 'search' });
-    if (searching) row.setLabel(sourcesLabel(language, sources.length));
+    if (!searched.length) searching?.discard();
+    else addSourceRow(searched, sourcesLabel(language, searched.length), searching);
+    if (read.length) addSourceRow(read, pagesReadLabel(language, read.length), null);
+  };
+  const addSourceRow = (sources, label, searching) => {
+    const row = searching || begin(label, { body: true, kind: 'search' });
+    if (searching) row.setLabel(label);
     row.body.append(createSourceChips(document, sources));
     row.enableBody(false);
     row.searching = false;

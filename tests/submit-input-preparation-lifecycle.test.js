@@ -297,6 +297,22 @@ test('auto web search can be enabled for Tavily-backed providers through the run
   }
 });
 
+test('with auto web search on, a message with a web address enables the search, and one without does not', async () => {
+  const conversation = () => ({ archived: false, isTemporary: false, isWebSearchEnabled: false, messages: [], provider: 'openrouter', unsentMessage: '' });
+  const withAddress = createHarness({ autoWebSearch: true, messageValue: 'Summarise https://example.org/article for me', conversation: conversation() });
+  assert.equal((await withAddress.lifecycle.prepareSubmitResponse()).webSearchEnabled, true);
+  assert.ok(withAddress.calls.some(call => call[0] === 'showNotification' && call[1] === 'auto search on'));
+
+  const plain = createHarness({ autoWebSearch: true, messageValue: 'Tell me a story', conversation: conversation() });
+  assert.equal((await plain.lifecycle.prepareSubmitResponse()).webSearchEnabled, false);
+
+  const switchedOff = createHarness({ autoWebSearch: false, messageValue: 'Summarise https://example.org/article', conversation: conversation() });
+  assert.equal((await switchedOff.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'auto search off: the address alone does not turn it on');
+
+  const noAccess = createHarness({ autoWebSearch: true, messageValue: 'Summarise https://example.org/article', conversation: conversation(), canAutoEnableWebSearch: () => false });
+  assert.equal((await noAccess.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'and not where search cannot work');
+});
+
 test('local auto web search detection does not wait for a model classifier', async () => {
   const harness = createHarness({
     autoWebSearch: true,

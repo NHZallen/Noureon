@@ -245,3 +245,30 @@ test('once the answer is being written the thinking row is finished and folded, 
   list.remove();
   window.happyDOM.abort();
 });
+
+test('the pages that were read are their own row, after the pages that were searched', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({
+    type: 'sources',
+    sources: [
+      { title: 'Linked', url: 'https://linked.example/a', read: true },
+      { title: 'Found', url: 'https://found.example/1' },
+      { title: 'Linked two', url: 'https://linked.example/b', read: true }
+    ]
+  });
+  const rows = [...message.querySelectorAll('.ledger-row')];
+  assert.deepEqual(rows.map((row) => row.querySelector('.ledger-label').textContent), ['Searched 1 sites', 'Read 2 pages']);
+  assert.deepEqual([...rows[1].querySelectorAll('.run-source-host')].map((node) => node.textContent), ['linked.example', 'linked.example']);
+  assert.equal(rows.every((row) => row.classList.contains('is-done')), true);
+
+  const onlyRead = createSandboxLedger({ document, host: message, language: 'zh-TW' });
+  onlyRead.event({ type: 'sources', sources: [{ title: 'Linked', url: 'https://linked.example/a', read: true }] });
+  const labels = [...message.querySelectorAll('.ledger-label')].map((node) => node.textContent);
+  assert.equal(labels.at(-1), '已讀取 1 個網頁');
+  assert.equal(labels.filter((label) => label.startsWith('已搜尋')).length, 0, 'no pages searched, no such row');
+  list.remove();
+  onlyRead.remove();
+  window.happyDOM.abort();
+});
+

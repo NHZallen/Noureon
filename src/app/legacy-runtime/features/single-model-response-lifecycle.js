@@ -1,3 +1,4 @@
+import { extractLinkedUrls } from './linked-pages.js';
 import { patchHTML } from '../../ui/dom/patch-html.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
@@ -93,8 +94,10 @@ export function createSingleModelResponseLifecycle({
       receivedChars: 0
     };
 
+    // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which).
     const hasTranslationInputs = userParts.some((part) => part.inlineData) ||
-      Boolean(webSearchEnabled);
+      Boolean(webSearchEnabled) ||
+      extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0;
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
     let searchSources = [];
@@ -111,7 +114,15 @@ export function createSingleModelResponseLifecycle({
         modelInfo,
         signal,
         (stage, message) => renderProgress(targetElement, startedAt, stage, message),
-        { webSearchEnabled, conversation, onSources: (sources) => { searchSources = sources; } }
+        {
+          webSearchEnabled,
+          conversation,
+          // The pages a search found, and then the pages that were read (marked `read`).
+          onSources: (sources) => {
+            const known = new Set(searchSources.map((source) => source.url));
+            searchSources = [...searchSources, ...sources.filter((source) => source?.url && !known.has(source.url))];
+          }
+        }
       );
     }
 

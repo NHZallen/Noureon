@@ -14,6 +14,7 @@ import {
 import { normalizeLoadedLegacyConfig } from '../src/app/runtime/kernel/config-normalization.js';
 import handler from '../api/tinyfish-search.js';
 import fetchHandler from '../api/tinyfish-fetch.js';
+import extractHandler from '../api/tavily-extract.js';
 
 test('Tavily stays the search source unless TinyFish is chosen', () => {
   assert.equal(DEFAULT_SEARCH_PROVIDER, 'tavily');
@@ -235,6 +236,81 @@ test('the TinyFish Fetch proxy refuses what it cannot send on', async () => {
   try {
     const failed = createResponse();
     await fetchHandler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: { urls: ['https://a.test/1'] } }, failed);
+    assert.equal(failed.statusCode, 502);
+    assert.match(failed.body, /offline/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('the Tavily Extract proxy carries the page addresses on with the page\'s own Authorization header', async () => {
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push([String(url), init]);
+    return { status: 200, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({ results: [{ url: 'https://a.test/1', raw_content: 'Page' }], failed_results: [] }) };
+  };
+  try {
+    const response = createResponse();
+    await extractHandler({
+      method: 'POST',
+      headers: { authorization: 'Bearer tvly-key' },
+      body: {
+        urls: ['https://a.test/1', 'https://a.test/1', 'ftp://b.test', 'nope', ...Array.from({ length: 14 }, (_, n) => `https://d.test/${n}`)],
+        extract_depth: 'advanced',
+        format: 'text',
+        include_images: true,
+        include_favicon: true,
+        timeout: 999
+      }
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['Cache-Control'], 'no-store');
+    assert.match(response.body, /raw_content/);
+    assert.equal(calls[0][0], 'https://api.tavily.com/extract');
+    assert.equal(calls[0][1].method, 'POST');
+    assert.equal(calls[0][1].headers.Authorization, 'Bearer tvly-key');
+    const sent = JSON.parse(calls[0][1].body);
+    assert.deepEqual(Object.keys(sent).sort(), ['extract_depth', 'format', 'include_images', 'urls'], 'only the fields that read pages');
+    assert.equal(sent.urls.length, 10);
+    assert.deepEqual(sent.urls.slice(0, 2), ['https://a.test/1', 'https://d.test/0']);
+    assert.equal(sent.extract_depth, 'advanced');
+    assert.equal(sent.format, 'text');
+    assert.equal(sent.include_images, false, 'pictures are never asked for');
+
+    const defaults = createResponse();
+    await extractHandler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: JSON.stringify({ urls: ['https://a.test/1'], extract_depth: 'deep', format: 'html' }) }, defaults);
+    const defaulted = JSON.parse(calls[1][1].body);
+    assert.equal(defaulted.extract_depth, 'basic');
+    assert.equal(defaulted.format, 'markdown');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('the Tavily Extract proxy refuses what it cannot send on', async () => {
+  const noKey = createResponse();
+  await extractHandler({ method: 'POST', headers: {}, body: { urls: ['https://a.test/1'] } }, noKey);
+  assert.equal(noKey.statusCode, 401);
+
+  for (const urls of [undefined, [], ['ftp://a.test'], 'https://a.test/1']) {
+    const empty = createResponse();
+    await extractHandler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: { urls } }, empty);
+    assert.equal(empty.statusCode, 400);
+  }
+  const wrongMethod = createResponse();
+  await extractHandler({ method: 'GET', headers: {} }, wrongMethod);
+  assert.equal(wrongMethod.statusCode, 405);
+  const preflight = createResponse();
+  await extractHandler({ method: 'OPTIONS', headers: {} }, preflight);
+  assert.equal(preflight.statusCode, 204);
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  try {
+    const failed = createResponse();
+    await extractHandler({ method: 'POST', headers: { authorization: 'Bearer k' }, body: { urls: ['https://a.test/1'] } }, failed);
     assert.equal(failed.statusCode, 502);
     assert.match(failed.body, /offline/);
   } finally {

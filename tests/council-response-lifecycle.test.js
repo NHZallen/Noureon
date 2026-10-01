@@ -20,6 +20,8 @@ const createHarness = ({
   webSearchEnabled = false,
   attachmentNeed = { needsAnyPacket: false },
   fetchTavilySearchPacket,
+  readLinkedPages,
+  readsLinkedPages,
   filterPartsForModelCapability,
   getCouncilSharedSearchModel,
   getCouncilTranslatorModel,
@@ -106,6 +108,8 @@ const createHarness = ({
       tavilyCalls.push(args);
       return `search packet ${tavilyCalls.length}`;
     }),
+    ...(readLinkedPages ? { readLinkedPages } : {}),
+    ...(readsLinkedPages ? { readsLinkedPages } : {}),
     streamCouncilApiCallWithRetry: streamImpl || defaultStream,
     modelUsesNativeWebSearch,
     modelSupportsVision,
@@ -240,6 +244,45 @@ test('web search branch uses Tavily fallback for shared and deliberation second 
   assert.deepEqual(calls.map((call) => call.id), ['alpha', 'beta', 'alpha', 'beta', 'synth']);
   assert.match(calls[0].parts[0].text, /Shared council search packet/);
   assert.match(calls[2].parts[0].text, /Council search packet 2/);
+});
+
+test('web addresses in the message are read once for the whole council, and go to the first round and the synthesis', async () => {
+  const reads = [];
+  const { calls, run } = createHarness({
+    readsLinkedPages: (model) => model.id === 'alpha',
+    readLinkedPages: async (parts) => {
+      reads.push(parts);
+      return '# Web pages the user linked (system-generated)\nPage text';
+    }
+  });
+
+  await run([{ text: 'Summarise https://example.org/a' }]);
+
+  assert.equal(reads.length, 1, 'read once, not once for each model');
+  const byModel = (id) => calls.filter((call) => call.id === id);
+  for (const id of ['alpha', 'beta']) {
+    assert.match(byModel(id)[0].parts[0].text, /Web pages the user linked/, `${id} gets the pages`);
+    assert.equal(byModel(id)[0].parts.at(-1).text, 'Summarise https://example.org/a', 'and then the question');
+  }
+  assert.ok(byModel('synth').at(-1).parts.some((part) => /Web pages the user linked/.test(part.text)), 'the synthesizer too');
+});
+
+test('the council reads nothing when none of its models needs it, and carries on when the reading fails', async () => {
+  const none = [];
+  const { run: runNone } = createHarness({
+    readsLinkedPages: () => false,
+    readLinkedPages: async () => { none.push(1); return 'x'; }
+  });
+  await runNone([{ text: 'Summarise https://example.org/a' }]);
+  assert.equal(none.length, 0);
+
+  const { calls, run } = createHarness({
+    readsLinkedPages: () => true,
+    readLinkedPages: async () => { throw new Error('reader exploded'); }
+  });
+  await run([{ text: 'Summarise https://example.org/a' }]);
+  assert.ok(calls.length >= 3, 'the council still answers');
+  assert.doesNotMatch(calls[0].parts[0].text, /Web pages/);
 });
 
 test('attachment translation packets cover visual and document fallbacks with capability filtering', async () => {

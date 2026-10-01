@@ -39,14 +39,15 @@ export const normalizeTinyfishSearch = (data, limit = 6) => {
   };
 };
 
-// The pages TinyFish's Fetch read, each cut to `maxChars` (a page can be long, and the model reads many of them).
-// `requested` is what was asked for: the ones that did not come back are `failed`, so the model is told what it
-// could not read instead of silently getting fewer pages.
-export const normalizeTinyfishFetch = (data, { requested = [], maxChars = 8000 } = {}) => {
+// The pages a page reader (TinyFish's Fetch, Tavily's Extract) gave back, each cut to `maxChars` (a page can be long, and
+// the model may be given several). `requested` is what was asked for: the ones that did not come back are `failed`, so
+// the model can be told what could not be read instead of silently getting fewer pages. The text may be called
+// `text`, `markdown`, `content` or `raw_content`, the address `url`, and the one after redirects `final_url`.
+export const normalizePageReads = (data, { requested = [], maxChars = 8000 } = {}) => {
   const list = Array.isArray(data?.results) ? data.results : [];
   const pages = list
     .map((item) => {
-      const text = String(item?.text || item?.markdown || item?.content || '').trim();
+      const text = String(item?.text || item?.markdown || item?.raw_content || item?.content || '').trim();
       return {
         url: String(item?.url || '').trim(),
         finalUrl: String(item?.final_url || item?.url || '').trim(),
@@ -80,12 +81,9 @@ export const formatTavilySearchPacket = (data, query, label = 'Web search packet
       lines.push(
         '',
         `${index + 1}. ${result.title || 'Untitled source'}`,
-        `URL: ${result.url || ''}`
+        `URL: ${result.url || ''}`,
+        `Content: ${String(result.content || result.raw_content || '').trim().slice(0, 1400) || 'No snippet returned.'}`
       );
-      // The text of the page itself when it was read in full (TinyFish's Fetch), which holds the snippet and more.
-      lines.push(result.page
-        ? `Page text: ${result.page}`
-        : `Content: ${String(result.content || result.raw_content || '').trim().slice(0, 1400) || 'No snippet returned.'}`);
       if (typeof result.score === 'number') {
         lines.push(`Score: ${result.score.toFixed(3)}`);
       }

@@ -1,12 +1,13 @@
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { getSearchProvider, searchProviderLabel } from '../../runtime/kernel/search-provider.js';
+import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-pages.js';
 
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
   formatTavilySearchPacket,
   normalizeTinyfishSearch,
-  normalizeTinyfishFetch,
+  normalizePageReads,
   getErrorMessage,
   readErrorBody,
   getApiKeyForProvider,
@@ -114,7 +115,7 @@ Output requirements:
   const getTavilySearchDepth = () => getConfig().tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
   const getSearchQueryFromParts = (parts = []) => buildTavilySearchQuery(extractTextFromParts(parts));
 
-  const postSearch = async (url, { apiKey, body, signal, failure }) => {
+  const postWithKey = async (url, { apiKey, body, signal, failure }) => {
     const response = await fetchImpl(url, {
       method: 'POST',
       headers: {
@@ -131,43 +132,61 @@ Output requirements:
     return response.json();
   };
 
-  // The full text of pages (up to ten at a time) from TinyFish's Fetch, as { pages, failed }. It uses the TinyFish key,
-  // whichever source the search comes from. The search packet uses it for the top results (addPageTexts).
-  const fetchPageContents = async (urls, signal, options = {}) => {
-    const config = getConfig();
-    const apiKey = getApiKeyForProvider('tinyfish');
-    if (!apiKey) {
-      throw new Error(getRuntimeText(config.uiLanguage, 'tinyfishKeyRequired'));
-    }
-    const requested = [...new Set((urls || []).map((url) => String(url || '').trim()).filter((url) => /^https?:\/\//i.test(url)))].slice(0, 10);
-    if (requested.length === 0) return { pages: [], failed: [] };
-    const data = await postSearch('/api/tinyfish-fetch', {
+  // Reading whole pages (up to ten at a time) with a page reader: TinyFish's Fetch or Tavily's Extract, each with its own
+  // key. The one that is the search source is tried first, the other if it has no key or leaves pages unread, so having
+  // either key is enough. Returns { pages, failed, reader }, with `failed` as [{ url, reason }] ('noReader' when there
+  // is no key at all, 'failed' when the pages could not be read). Only a stop by the person throws.
+  const PAGE_READERS = {
+    tinyfish: (urls, apiKey, signal) => postWithKey('/api/tinyfish-fetch', {
       apiKey,
       signal,
       failure: 'TinyFish',
-      body: { urls: requested, format: 'markdown' }
-    });
-    return normalizeTinyfishFetch(data, { requested, maxChars: options.maxChars || 8000 });
+      body: { urls, format: 'markdown' }
+    }),
+    tavily: (urls, apiKey, signal) => postWithKey('/api/tavily-extract', {
+      apiKey,
+      signal,
+      failure: 'Tavily',
+      body: { urls, extract_depth: 'advanced', format: 'markdown', include_images: false }
+    })
+  };
+  const fetchPageContents = async (urls, signal, options = {}) => {
+    const requested = [...new Set((urls || []).map((url) => String(url || '').trim()).filter((url) => /^https?:\/\//i.test(url)))].slice(0, 10);
+    if (requested.length === 0) return { pages: [], failed: [], reader: null };
+    const first = getSearchProvider(getConfig());
+    const readers = [first, first === 'tinyfish' ? 'tavily' : 'tinyfish'].filter((reader) => getApiKeyForProvider(reader));
+    if (readers.length === 0) {
+      return { pages: [], failed: requested.map((url) => ({ url, reason: 'noReader' })), reader: null };
+    }
+    const pages = [];
+    let unread = requested;
+    let used = null;
+    for (const reader of readers) {
+      if (unread.length === 0) break;
+      try {
+        const data = await PAGE_READERS[reader](unread, getApiKeyForProvider(reader), signal);
+        const read = normalizePageReads(data, { requested: unread, maxChars: options.maxChars || 8000 });
+        if (read.pages.length > 0) used ??= reader;
+        pages.push(...read.pages);
+        unread = read.failed;
+      } catch (error) {
+        if (signal?.aborted || error?.name === 'AbortError') throw error;
+      }
+    }
+    return { pages, failed: unread.map((url) => ({ url, reason: 'failed' })), reader: used };
   };
 
-  // With TinyFish as the search source, the top results are read in full too (one more request, free with the same key),
-  // so the model has the pages and not only their snippets. If that fails the snippets are still a packet; only a stop
-  // by the person ends it.
-  const PAGES_TO_READ = 3;
-  const PAGE_TEXT_CHARS = 3000;
-  const addPageTexts = async (data, signal) => {
-    const wanted = (data.results || []).slice(0, PAGES_TO_READ).map((result) => result.url);
-    if (wanted.length === 0) return;
-    try {
-      const { pages } = await fetchPageContents(wanted, signal, { maxChars: PAGE_TEXT_CHARS });
-      for (const page of pages) {
-        const result = data.results.find((entry) => entry.url === page.url || entry.url === page.finalUrl);
-        if (result) result.page = page.text;
-      }
-    } catch (error) {
-      if (signal?.aborted || error?.name === 'AbortError') throw error;
-    }
+  // The addresses in the user's message, read for the models that cannot open a link (OpenRouter and NVIDIA ones, not
+  // image ones): the text for the model, with the pages read as sources of the reply (marked `read`).
+  const readLinkedPages = async (parts, signal, { onSources, onProgress } = {}) => {
+    const { urls, skipped } = extractLinkedUrls(extractTextFromParts(parts.filter((part) => part.text)));
+    if (urls.length === 0) return '';
+    onProgress?.('linkedPages', getRuntimeText(getConfig().uiLanguage, 'readingLinkedPages'));
+    const { pages, failed } = await fetchPageContents(urls, signal, { maxChars: pageCharsFor(urls.length) });
+    if (pages.length > 0) onSources?.(pages.map((page) => ({ title: page.title, url: page.finalUrl || page.url, read: true })));
+    return buildLinkedPagesText({ pages, failed, skipped });
   };
+  const readsLinkedPages = (model) => Boolean(modelUsesTavilySearch(model) && model?.outputModality !== 'image');
 
   // The web search for the models that have none of their own, from the source chosen in Settings (Tavily or TinyFish),
   // as the packet that goes in front of the request. The name is from when Tavily was the only source.
@@ -186,13 +205,13 @@ Output requirements:
     }
     const maxResults = options.maxResults || 6;
     const data = source === 'tinyfish'
-      ? normalizeTinyfishSearch(await postSearch('/api/tinyfish-search', {
+      ? normalizeTinyfishSearch(await postWithKey('/api/tinyfish-search', {
         apiKey,
         signal,
         failure: 'TinyFish',
         body: { query, domain_type: options.topic === 'news' ? 'news' : 'web' }
       }), maxResults)
-      : await postSearch('/api/tavily-search', {
+      : await postWithKey('/api/tavily-search', {
         apiKey,
         signal,
         failure: 'Tavily',
@@ -207,7 +226,6 @@ Output requirements:
           topic: options.topic || 'general'
         }
       });
-    if (source === 'tinyfish') await addPageTexts(data, signal);
     // The pages found, for the "Searched N sites" row of the reply.
     options.onSources?.((Array.isArray(data?.results) ? data.results : []).slice(0, 8).map((result) => ({ title: result.title || '', url: result.url || '' })));
     return formatTavilySearchPacket(data, query, options.label || 'Web search packet', searchProviderLabel(source));
@@ -246,13 +264,17 @@ Output requirements:
       );
       translatedSections.push(`# Document translation packet\nThis packet was generated by ${translatorModel.name} for ${modelInfo.name}. It replaces only files the target model cannot read directly.\n\n${truncateCouncilText(documentPacket, 7000)}`);
     }
+    if (readsLinkedPages(modelInfo)) {
+      const linkedPages = await readLinkedPages(parts, signal, { onSources, onProgress });
+      if (linkedPages) translatedSections.push(linkedPages);
+    }
     if (webSearchEnabled && modelUsesTavilySearch(modelInfo)) {
       onProgress?.('searchTranslation', getRuntimeText(config.uiLanguage, getSearchProvider(config) === 'tinyfish' ? 'searchingTinyfish' : 'searchingTavily'));
       const searchPacket = await fetchTavilySearchPacket(parts, signal, {
         label: 'Single-model web search packet',
         onSources
       });
-      translatedSections.push(`# Web search packet\nThis packet was retrieved with ${searchProviderLabel(getSearchProvider(config))} for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, getSearchProvider(config) === 'tinyfish' ? 14000 : 7000)}`);
+      translatedSections.push(`# Web search packet\nThis packet was retrieved with ${searchProviderLabel(getSearchProvider(config))} for ${modelInfo.name}. It replaces provider-native web search for this turn.\n\n${truncateCouncilText(searchPacket, 7000)}`);
     }
 
     const requestParts = [];
@@ -270,6 +292,8 @@ Output requirements:
     extractTextFromParts,
     fetchPageContents,
     fetchTavilySearchPacket,
+    readLinkedPages,
+    readsLinkedPages,
     filterPartsForModelCapability,
     getSearchQueryFromParts,
     streamCouncilApiCallWithRetry,

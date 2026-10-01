@@ -55,6 +55,15 @@ export function createSourceChips(document, sources) {
 /** "Searched 2 sites". */
 export const sourcesLabel = (language, count) => sandboxText(language, 'sourcesSearched', { n: count });
 
+/** "Read 2 pages": the pages the user linked, which were read in full (their sources are marked `read`). */
+export const pagesReadLabel = (language, count) => sandboxText(language, 'sourcesRead', { n: count });
+
+/** The pages a search found, and the pages that were read. */
+export const splitSources = (sources = []) => ({
+  searched: sources.filter((source) => !source?.read),
+  read: sources.filter((source) => source?.read)
+});
+
 /**
  * A site's icon that loads replaces the globe under it; one that does not (many sites have no /favicon.ico) is
  * removed, leaving the globe. Image events do not bubble, so they are caught on the way down.

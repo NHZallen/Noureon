@@ -1,4 +1,5 @@
 import { shouldAutoEnableWebSearch } from '../../runtime/features/auto-web-search.js';
+import { extractLinkedUrls } from './linked-pages.js';
 
 export function createSubmitInputPreparationLifecycle({
   elements,
@@ -151,7 +152,8 @@ export function createSubmitInputPreparationLifecycle({
     const autoWebSearchEnabled = !conversation.isWebSearchEnabled
       && getAutoWebSearchEnabled()
       && canAutoEnableWebSearch(conversation)
-      && shouldAutoEnableWebSearch(userMessage);
+      // A message with a web address counts too: it is about something on the web.
+      && (shouldAutoEnableWebSearch(userMessage) || extractLinkedUrls(userMessage).urls.length > 0);
     if (autoWebSearchEnabled) {
       showNotification(getAutoSearchNotice(), 'warning');
     }

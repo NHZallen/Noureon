@@ -221,6 +221,44 @@ test('pages the provider\'s own search reports while it answers are kept with th
   assert.deepEqual(liftSandboxRunBlock(result.fullResponse).run.sources.map((source) => source.title), ['A', 'B'], 'each page once');
 });
 
+test('a web address in the message has the request prepared even with no search and no file, and a message without one does not', async () => {
+  const { calls, lifecycle, signal, targetElement } = createHarness();
+  const run = (text) => lifecycle.run({
+    targetElement,
+    userParts: [{ text }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: false },
+    webSearchEnabled: false,
+    signal,
+    uiLanguage: 'en'
+  });
+
+  await run('Summarise https://example.org/article please');
+  assert.equal(calls.filter((call) => call[0] === 'translate').length, 1);
+
+  calls.length = 0;
+  await run('Nothing to read here');
+  assert.equal(calls.filter((call) => call[0] === 'translate').length, 0, 'the request goes as it is');
+});
+
+test('the pages that were read and the pages that were searched are both kept with the reply, once each', async () => {
+  const { lifecycle, signal, targetElement } = createHarness({
+    foundSources: [{ title: 'Linked', url: 'https://linked.example/a', read: true }, { title: 'Found', url: 'https://found.example/1' }]
+  });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'Summarise https://linked.example/a' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: false },
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.deepEqual(liftSandboxRunBlock(result.fullResponse).run.sources, [
+    { title: 'Linked', url: 'https://linked.example/a', read: true },
+    { title: 'Found', url: 'https://found.example/1' }
+  ]);
+});
+
 test('empty provider responses preserve the current localized failure boundary', async () => {
   const { lifecycle, signal, targetElement } = createHarness({ streamResult: '' });
 
