@@ -85,7 +85,7 @@ test('the model searches, opens a page and answers, each call a row and the sour
   assert.deepEqual(result.events[4].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', read: true }]);
   assert.equal(result.found.length, 2);
   assert.deepEqual(model.requests.map((request) => request.turns), [0, 1, 2]);
-  assert.deepEqual(model.requests[0].tools.map((tool) => tool.name), ['web_search', 'open_page']);
+  assert.deepEqual(model.requests[0].tools.map((tool) => tool.name), ['web_search', 'open_page', 'find_in_page']);
   assert.match(model.requests[0].additionalSystemInstruction, /Today is 2026-10-01/);
   assert.equal(result.chunks.join(''), 'v2.0 is the latest.');
 });
@@ -133,7 +133,7 @@ test('no page reader key is said so, and a repeated page or a bad address is not
   await run(model, helper);
   const contents = model.requests[1].toolTurns[0].results.map((entry) => entry.content);
   assert.match(contents[0], /needs a Tavily or TinyFish API key/);
-  assert.match(contents[1], /already opened/);
+  assert.match(contents[1], /needs a Tavily or TinyFish API key/, 'a page that could not be read is not fetched again');
   assert.match(contents[2], /no valid "url"/);
   assert.match(contents[3], /no "query"/);
   assert.deepEqual(helper.opened, ['https://example.com/p']);
@@ -165,12 +165,53 @@ test('a provider error before anything happened reaches the caller', async () =>
 });
 
 test('the texts and the tools are complete', () => {
-  assert.deepEqual(RESEARCH_TOOLS.map((tool) => tool.name), ['web_search', 'open_page']);
+  assert.deepEqual(RESEARCH_TOOLS.map((tool) => tool.name), ['web_search', 'open_page', 'find_in_page']);
   for (const language of SANDBOX_TEXT_LANGUAGES) {
     assert.match(sandboxText(language, 'webSearchingFor', { query: 'Q' }), /Q/);
     assert.match(sandboxText(language, 'webOpeningPage', { host: 'H' }), /H/);
   }
   assert.match(researchGuidance('2026-10-01'), /\/releases/);
   assert.match(searchResultText('q', []), /No results/);
-  assert.match(pageText({ url: 'https://a.test', text: 'T', truncated: true }), /only its first part/);
+  assert.match(pageText({ url: 'https://a.test', text: `${'T'.repeat(30_000)}` }), /Call open_page with start=10000 for the next part/);
+});
+
+const longPage = () => {
+  const menu = ['Skip to content', 'Navigation Menu', ...Array.from({ length: 20 }, (_, index) => `- [Item ${index}](/menu/${index})`)].join('\n');
+  const body = Array.from({ length: 400 }, (_, index) => `Paragraph ${index} about nothing in particular, written long enough to be read as a sentence of prose.`).join('\n');
+  return `${menu}\n\n# Releases\n\n${body}\nThe latest version is v17.3.0, see [notes](/a/b/releases/tag/v17.3.0).`;
+};
+
+test('a long page is read a window at a time, without its menu and with full-address links, and a word is found in it', async () => {
+  const model = scriptedModel([
+    { calls: [open('1', 'https://github.com/a/b/releases')] },
+    { calls: [open('2', 'https://github.com/a/b/releases'), { id: '3', name: 'open_page', args: { url: 'https://github.com/a/b/releases', start: 10000 } }, { id: '4', name: 'find_in_page', args: { url: 'https://github.com/a/b/releases', query: 'latest version' } }] },
+    { text: 'done' }
+  ]);
+  const helper = tools({ pages: { pages: [{ url: 'https://github.com/a/b/releases', title: 'Releases', text: longPage() }], failed: [] } });
+  const result = await run(model, helper);
+  const first = model.requests[1].toolTurns[0].results[0].content;
+  assert.doesNotMatch(first, /Navigation Menu|Item 3/, 'the menu is left out');
+  assert.match(first, /^Page: Releases/);
+  assert.match(first, /# Releases\n\nParagraph 0/);
+  assert.match(first, /Call open_page with start=\d+ for the next part/);
+  const [again, next, found] = model.requests[2].toolTurns[1].results.map((entry) => entry.content);
+  assert.match(again, /already opened/);
+  assert.match(next, /\(Characters 10000-/);
+  assert.match(found, /Passages with "latest version"/);
+  assert.match(found, /The latest version is v17\.3\.0, see \[notes\]\(https:\/\/github\.com\/a\/b\/releases\/tag\/v17\.3\.0\)/, 'links are full addresses');
+  assert.equal(helper.opened.length, 1, 'the page is fetched once, whatever is done with it');
+  assert.equal(result.events.filter((event) => event.type === 'searching').length, 1, 'and is one row');
+});
+
+test('find_in_page opens the page when it was not, and says when a word is not in it', async () => {
+  const model = scriptedModel([
+    { calls: [{ id: '1', name: 'find_in_page', args: { url: 'https://example.com/p', query: 'zebra' } }, { id: '2', name: 'find_in_page', args: { url: 'https://example.com/p' } }] },
+    { text: 'ok' }
+  ]);
+  const helper = tools({ pages: { pages: [{ url: 'https://example.com/p', text: 'a short page about cats' }], failed: [] } });
+  await run(model, helper);
+  const [none, bad] = model.requests[1].toolTurns[0].results.map((entry) => entry.content);
+  assert.match(none, /"zebra" is not in this page/);
+  assert.match(bad, /needs a valid "url"/);
+  assert.deepEqual(helper.opened, ['https://example.com/p']);
 });

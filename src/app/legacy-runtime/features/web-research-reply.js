@@ -6,6 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
+import { findPassages, pageWindow, readablePage } from './web-page-text.js';
 
 export const WEB_SEARCH_TOOL = Object.freeze({
   name: 'web_search',
@@ -22,22 +23,38 @@ export const WEB_SEARCH_TOOL = Object.freeze({
 
 export const OPEN_PAGE_TOOL = Object.freeze({
   name: 'open_page',
-  description: 'Open one web page and read its text. Use it when a search result is not enough: the page of a repository\'s releases, tags or README, documentation, an article, a product page. An address the user gave you is opened with it too.',
+  description: 'Open one web page and read its text (the site\'s menu is left out; the links in the text are written as [text](address), so open one to go deeper). Use it when a search result is not enough: the page of a repository\'s releases, tags or README, documentation, an article, a product page, a file\'s raw text. An address the user gave you is opened with it too. A long page is read a part at a time.',
   parameters: Object.freeze({
     type: 'object',
     properties: {
-      url: { type: 'string', description: 'The full address (https://…) of the page to open.' }
+      url: { type: 'string', description: 'The full address (https://…) of the page to open.' },
+      start: { type: 'integer', description: 'Where to start reading a long page, in characters (the end of the part before it is told). Leave out for the beginning.' }
     },
     required: ['url']
   })
 });
 
-export const RESEARCH_TOOLS = Object.freeze([WEB_SEARCH_TOOL, OPEN_PAGE_TOOL]);
+export const FIND_IN_PAGE_TOOL = Object.freeze({
+  name: 'find_in_page',
+  description: 'Look for a word or phrase in a page (opened first if it was not) and get the passages around it, with where each starts. Use it on a long page to jump to what you need, such as a version number, a date or a name.',
+  parameters: Object.freeze({
+    type: 'object',
+    properties: {
+      url: { type: 'string', description: 'The full address of the page.' },
+      query: { type: 'string', description: 'The word or phrase to look for.' }
+    },
+    required: ['url', 'query']
+  })
+});
+
+export const RESEARCH_TOOLS = Object.freeze([WEB_SEARCH_TOOL, OPEN_PAGE_TOOL, FIND_IN_PAGE_TOOL]);
 const TOOL_NAMES = new Set(RESEARCH_TOOLS.map((tool) => tool.name));
 
-// Calls (searches and pages opened) in one reply.
-export const MAX_RESEARCH_CALLS = 8;
-const PAGE_CHARS = 12_000;
+// Calls (searches, pages opened and looked through) in one reply.
+export const MAX_RESEARCH_CALLS = 20;
+// A page is kept whole (up to this) so it can be read on and searched; the model is given a window of it at a time.
+const PAGE_KEPT_CHARS = 150_000;
+const PAGE_CHARS = 10_000;
 const SNIPPET_CHARS = 700;
 const RESULTS_SHOWN = 8;
 // A round's first words are held back this long: if a call follows, they were the model saying what it is about to do.
@@ -70,16 +87,20 @@ export function searchResultText(query, results = []) {
   ].join('\n');
 }
 
-/** What the model is given for a page: its address, and its text marked as the app's source material. */
-export function pageText(page) {
+/** What the model is given for a page: its address, and a window of its text marked as the app's source material. */
+export function pageText(page, start = 0) {
+  const window = pageWindow(page.text, start, PAGE_CHARS);
+  const more = window.to < window.total;
   return [
     `Page: ${page.title || page.url}`,
     `URL: ${page.finalUrl || page.url}`,
-    ...(page.truncated ? ['(The page is longer: only its first part is given.)'] : []),
+    window.total > window.to - window.from
+      ? `(Characters ${window.from}-${window.to} of ${window.total}.${more ? ` Call open_page with start=${window.to} for the next part, or find_in_page to jump to a word.` : ''})`
+      : '',
     '<web_page_text>',
-    page.text,
+    window.text,
     '</web_page_text>'
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 const addressOf = (value) => {
@@ -109,7 +130,6 @@ export function createResearchCalls({
   onEvent = () => {},
   onSources = () => {}
 }) {
-  const opened = new Set();
   let used = 0;
 
   const doSearch = async (call) => {
@@ -130,30 +150,60 @@ export function createResearchCalls({
     }
   };
 
-  const doOpen = async (call) => {
-    const url = addressOf(call.args?.url);
-    if (!url) return 'The call had no valid "url" argument (it must start with http:// or https://).';
-    if (opened.has(url)) return 'You already opened this page; its text is above.';
-    opened.add(url);
+  // The pages opened so far, whole, by address: reading on and looking for a word need no second fetch.
+  const kept = new Map();
+  const unreadable = new Map();
+  const load = async (url) => {
+    if (kept.has(url)) return { page: kept.get(url) };
+    // A page that could not be read is not fetched again and again.
+    if (unreadable.has(url)) return { error: unreadable.get(url) };
     onEvent({ type: 'searching', label: sandboxText(language, 'webOpeningPage', { host: hostOf(url) }) });
     try {
-      const { pages, failed } = await openPage([url], signal, { maxChars: PAGE_CHARS });
-      const [page] = pages;
-      if (!page) {
+      const { pages, failed } = await openPage([url], signal, { maxChars: PAGE_KEPT_CHARS });
+      const [raw] = pages;
+      const text = raw ? readablePage(raw.text, raw.finalUrl || raw.url) : '';
+      if (!text) {
         onEvent({ type: 'sources', sources: [] });
-        return failed[0]?.reason === 'noReader'
+        const error = failed[0]?.reason === 'noReader'
           ? 'No page reader is set up: reading a page needs a Tavily or TinyFish API key in Settings. Tell the user.'
           : 'The page could not be read (it may block automated reading, need a login, or be down). Tell the user, or try another page.';
+        unreadable.set(url, error);
+        return { error };
       }
+      const page = { ...raw, text };
+      kept.set(url, page);
       const source = { title: page.title || '', url: page.finalUrl || page.url, read: true };
       onSources([source]);
       onEvent({ type: 'sources', sources: [source] });
-      return pageText(page);
+      return { page };
     } catch (error) {
       throwIfStopped(signal);
       onEvent({ type: 'sources', sources: [] });
-      return `The page could not be read (${cut(error?.message, 200) || 'unknown error'}).`;
+      return { error: `The page could not be read (${cut(error?.message, 200) || 'unknown error'}).` };
     }
+  };
+
+  const doOpen = async (call) => {
+    const url = addressOf(call.args?.url);
+    if (!url) return 'The call had no valid "url" argument (it must start with http:// or https://).';
+    const start = Number.isFinite(Number(call.args?.start)) ? Number(call.args.start) : 0;
+    if (kept.has(url) && !start) return 'You already opened this page; its text is above. Use start to read further on, or find_in_page.';
+    const { page, error } = await load(url);
+    return error || pageText(page, start);
+  };
+
+  const doFind = async (call) => {
+    const url = addressOf(call.args?.url);
+    const query = typeof call.args?.query === 'string' ? call.args.query.trim() : '';
+    if (!url || !query) return 'The call needs a valid "url" (http:// or https://) and a "query".';
+    const { page, error } = await load(url);
+    if (error) return error;
+    const passages = findPassages(page.text, query);
+    if (passages.length === 0) return `"${query}" is not in this page (${page.text.length} characters). Try another word, or open another page.`;
+    return [
+      `Passages with "${query}" in ${page.title || page.url}:`,
+      ...passages.map((passage, index) => `\n${index + 1}. (from character ${passage.from})\n${passage.text}`)
+    ].join('\n');
   };
 
   return {
@@ -163,7 +213,8 @@ export function createResearchCalls({
     async run(call) {
       if (used >= maxCalls) return `The limit of ${maxCalls} searches and pages per reply is reached. Answer with what you have.`;
       used += 1;
-      return call.name === WEB_SEARCH_TOOL.name ? doSearch(call) : doOpen(call);
+      if (call.name === WEB_SEARCH_TOOL.name) return doSearch(call);
+      return call.name === FIND_IN_PAGE_TOOL.name ? doFind(call) : doOpen(call);
     }
   };
 }

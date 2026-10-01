@@ -295,7 +295,7 @@ test('a model that calls tools searches and opens pages by itself, and the pages
   assert.deepEqual(searches, ['a/b releases']);
   assert.deepEqual(opened, ['https://github.com/a/b/releases']);
   assert.equal(requests.length, 3);
-  assert.deepEqual(requests[0].options.tools.map((tool) => tool.name), ['web_search', 'open_page']);
+  assert.deepEqual(requests[0].options.tools.map((tool) => tool.name), ['web_search', 'open_page', 'find_in_page']);
   assert.equal(requests[2].options.toolTurns.length, 2);
   assert.equal(calls.some((entry) => entry[0] === 'translate' && entry[2]?.webSearchEnabled), false, 'no search packet is made before the model');
   const { run, text } = liftSandboxRunBlock(result.fullResponse);

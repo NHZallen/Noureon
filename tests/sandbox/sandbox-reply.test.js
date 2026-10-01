@@ -149,7 +149,7 @@ test('with web research, the model searches and opens pages next to Python, and 
     },
     onEvent: (event) => events.push(event)
   });
-  assert.deepEqual(model.requests[0].tools.map((tool) => tool.name), ['run_python', 'web_search', 'open_page']);
+  assert.deepEqual(model.requests[0].tools.map((tool) => tool.name), ['run_python', 'web_search', 'open_page', 'find_in_page']);
   assert.match(model.requests[0].additionalSystemInstruction, /web_search/);
   assert.deepEqual(searched, ['noureon version']);
   assert.deepEqual(opened, ['https://example.com/v']);
