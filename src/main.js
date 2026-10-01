@@ -47,9 +47,6 @@ const recordBootstrapMilestone = (markName, measureName) => {
   );
 };
 
-// TEMPORARY (scroll diagnostics): the address as loaded, before start-up can rewrite it.
-const scrollDebugParams = new URLSearchParams(window.location.search);
-
 async function bootstrap() {
   markStartup(STARTUP_MARKS.BOOTSTRAP_START);
   await loadVendorScript(katexScriptUrl);
@@ -79,14 +76,6 @@ async function bootstrap() {
   }
 
   mountAppShell(appShell);
-  // TEMPORARY: scroll diagnostics shown to everyone while the iPhone scrolling bug is traced; remove this
-  // block and src/app/debug/ afterwards. The panel now, the scroll watching only once the app is
-  // interactive, so it never touches start-up. ?noscrolldebug hides it.
-  const scrollDebug = scrollDebugParams.has('noscrolldebug')
-    ? null
-    : import('./app/debug/scroll-debug.js')
-      .then((module) => { module.installScrollDebugPanel(document, scrollDebugParams); return module; })
-      .catch(() => null);
   recordBootstrapMilestone(
     STARTUP_MARKS.SHELL_MOUNTED,
     STARTUP_MEASURES.TO_SHELL
@@ -135,7 +124,6 @@ async function bootstrap() {
   const legacyApp = await import('./app/legacy-app.js');
   await legacyApp.legacyAppReady;
   dismissStartupSkeleton(document);
-  void scrollDebug?.then((module) => module?.watchChatScrolling());
   keepChatOffItsEdges(document.getElementById('chat-container'));
   keepScrollBoxesOffTheirEdges(document);
   settleScrollBoxesOffTheirEdges(document);
