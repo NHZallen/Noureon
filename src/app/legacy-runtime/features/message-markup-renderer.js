@@ -1,4 +1,5 @@
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
+import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
@@ -24,12 +25,18 @@ const COMPOSER_MODE_ICONS = {
     'astras-input-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"></path></svg>'
 };
 
+// A web address in the user's text is shown as the site's icon and a short link.
+const renderUserTextWithLinks = (text, renderUserText) => splitAtAddresses(text)
+    .map((piece) => (piece.url ? renderLinkChipHTML(piece.url) : renderUserText(piece.text)))
+    .join('');
+
 const renderUserComposerPart = (part, renderUserText) => {
     if (!Array.isArray(part.displaySegments)) {
-        return renderUserText(part.displayText ?? part.text);
+        return renderUserTextWithLinks(part.displayText ?? part.text, renderUserText);
     }
     return part.displaySegments.map((segment) => {
-        if (segment?.type !== 'mode') return renderUserText(segment?.text || '');
+        if (segment?.type === 'link') return segment.url ? renderLinkChipHTML(segment.url) : '';
+        if (segment?.type !== 'mode') return renderUserTextWithLinks(segment?.text || '', renderUserText);
         const icon = COMPOSER_MODE_ICONS[segment.indicatorId];
         if (!icon) return '';
         return `<span class="sent-composer-mode" data-composer-mode="${escapeHTML(segment.indicatorId)}">${icon}<span>${escapeHTML(segment.label)}</span></span>`;
@@ -93,7 +100,7 @@ export function buildMessageRenderView({
                 const hasComposerModes = textParts.some(part => Array.isArray(part.displaySegments));
                 const renderedUserText = hasComposerModes
                     ? textParts.map(part => renderUserComposerPart(part, renderUserText)).join('<br>')
-                    : renderUserText(textParts.map(part => part.displayText ?? part.text).join('\n'));
+                    : renderUserTextWithLinks(textParts.map(part => part.displayText ?? part.text).join('\n'), renderUserText);
                 contentHTML = `<div>${renderedUserText}</div>`;
             } else {
                 // Files made in Advanced mode are parts; their cards come from the text.

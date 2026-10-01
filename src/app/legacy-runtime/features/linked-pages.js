@@ -25,8 +25,8 @@ const cutTrailingPunctuation = (address) => {
   }
 };
 
-/** The addresses in a text, in order and without repeats: the first `limit`, and how many more there were. */
-export function extractLinkedUrls(text, limit = MAX_LINKED_PAGES) {
+/** Every web address in a text with where it sits (`start` to `end`), in order, repeats included. */
+export function findAddresses(text) {
   const found = [];
   for (const match of String(text || '').matchAll(ADDRESS)) {
     const address = cutTrailingPunctuation(match[0]);
@@ -35,8 +35,14 @@ export function extractLinkedUrls(text, limit = MAX_LINKED_PAGES) {
     } catch {
       continue;
     }
-    if (!found.includes(address)) found.push(address);
+    found.push({ url: address, start: match.index, end: match.index + address.length });
   }
+  return found;
+}
+
+/** The addresses in a text, in order and without repeats: the first `limit`, and how many more there were. */
+export function extractLinkedUrls(text, limit = MAX_LINKED_PAGES) {
+  const found = [...new Set(findAddresses(text).map((entry) => entry.url))];
   return { urls: found.slice(0, limit), skipped: Math.max(0, found.length - limit) };
 }
 

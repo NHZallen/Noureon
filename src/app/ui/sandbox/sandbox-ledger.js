@@ -7,7 +7,7 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
-import { createSourceChips, pagesReadLabel, sourcesLabel, splitSources } from './run-sources.js';
+import { createSourceChips, pagesReadLabel, putFirstSiteIcon, sourcesLabel, splitSources } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 
@@ -160,6 +160,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     const row = searching || begin(label, { body: true, kind: 'search' });
     if (searching) row.setLabel(label);
     row.body.append(createSourceChips(document, sources));
+    putFirstSiteIcon(document, row.node, sources);
     row.enableBody(false);
     row.searching = false;
     row.finish('done');

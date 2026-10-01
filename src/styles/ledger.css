@@ -394,6 +394,12 @@
 }
 
 .run-source-icon.is-loaded::before { display: none; }
+
+/* The first site's icon in front of "Searched N sites": it covers the row's own icon once it has loaded. */
+.ledger-mark { position: relative; }
+.run-mark-site { position: absolute; inset: 0.15rem 0.1rem; width: auto; height: auto; }
+.run-mark-site::before { display: none; }
+.ledger-mark:has(.run-mark-site.is-loaded)::before { visibility: hidden; }
 .run-source-icon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 
 /* The code of a step sits in a light card headed by the language and a copy button. */

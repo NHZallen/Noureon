@@ -8,7 +8,7 @@ import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
-import { createSourceChips, pagesReadLabel, sourcesLabel, splitSources } from './run-sources.js';
+import { createSourceChips, pagesReadLabel, putFirstSiteIcon, sourcesLabel, splitSources } from './run-sources.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
 
 const element = (document, tag, className, text) => {
@@ -27,7 +27,7 @@ const formatSize = (bytes) => {
 // One line of the process list, the same look the live step list has (ledger.js): an icon for the kind of step, the
 // label, the time, and a small chevron when there is something to open. It is a details element so it also works from
 // the saved markup, where no listener was attached.
-function renderRow(document, { kind, label, time = '', failed = false, body }) {
+function renderRow(document, { kind, label, time = '', failed = false, body, sources }) {
   const row = element(document, 'details', `ledger-row sandbox-run-row is-${failed ? 'failed' : 'done'}`);
   row.dataset.kind = kind;
   const head = element(document, 'summary', 'ledger-row-head is-expandable');
@@ -36,6 +36,7 @@ function renderRow(document, { kind, label, time = '', failed = false, body }) {
   const content = element(document, 'div', 'ledger-body');
   content.append(...body);
   row.append(head, content);
+  if (sources) putFirstSiteIcon(document, row, sources);
   return animateDetails(row);
 }
 
@@ -54,8 +55,8 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
 function sourcesRows(document, sources, language) {
   const { searched, read } = splitSources(sources);
   return [
-    ...(searched.length ? [renderRow(document, { kind: 'search', label: sourcesLabel(language, searched.length), body: [createSourceChips(document, searched)] })] : []),
-    ...(read.length ? [renderRow(document, { kind: 'search', label: pagesReadLabel(language, read.length), body: [createSourceChips(document, read)] })] : [])
+    ...(searched.length ? [renderRow(document, { kind: 'search', label: sourcesLabel(language, searched.length), body: [createSourceChips(document, searched)], sources: searched })] : []),
+    ...(read.length ? [renderRow(document, { kind: 'search', label: pagesReadLabel(language, read.length), body: [createSourceChips(document, read)], sources: read })] : [])
   ];
 }
 

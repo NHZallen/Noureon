@@ -1,9 +1,14 @@
+import { createLinkChipElement, splitAtAddresses } from '../../ui/links/link-chip.js';
+import { findAddresses } from '../../legacy-runtime/features/linked-pages.js';
+
+const LINK_SELECTOR = '.composer-link-token';
 const TOKEN_SELECTOR = '.composer-inline-mode-token';
 const SEPARATOR_SELECTOR = '.composer-inline-mode-separator';
 const BLOCK_ELEMENTS = new Set(['DIV', 'P', 'LI']);
 
 const isElement = (node) => node?.nodeType === 1;
 const isToken = (node) => isElement(node) && node.matches(TOKEN_SELECTOR);
+const isLink = (node) => isElement(node) && node.matches(LINK_SELECTOR);
 const isSeparator = (node) => isElement(node) && node.matches(SEPARATOR_SELECTOR);
 const containsNode = (editor, node) => node === editor || Boolean(node && editor.contains(node));
 const getTokenLabel = (token) => {
@@ -19,6 +24,7 @@ const dispatchComposerInput = (editor) => editor.dispatchEvent(
 
 function serializeComposerNode(node) {
     if (node?.nodeType === 3) return node.data || '';
+    if (isLink(node)) return node.dataset.url || '';
     if (!isElement(node) || isToken(node)) return '';
     if (isSeparator(node)) return ' ';
     if (node.tagName === 'BR') return '\n';
@@ -34,6 +40,7 @@ function serializeComposerNode(node) {
 }
 
 function serializeComposerDisplayNode(node) {
+    if (isLink(node)) return node.dataset.url || '';
     if (isToken(node)) {
         if (node.dataset.indicatorId === 'model-council-indicator') return '';
         const icons = {
@@ -66,6 +73,10 @@ function serializeComposerDisplaySegments(node, segments = []) {
         if (previous?.type === 'text') previous.text += text;
         else segments.push({ type: 'text', text });
     };
+    if (isLink(node)) {
+        segments.push({ type: 'link', url: node.dataset.url || '' });
+        return segments;
+    }
     if (isToken(node)) {
         if (node.dataset.indicatorId !== 'model-council-indicator') {
             segments.push({
@@ -161,6 +172,45 @@ function insertTokenAtCaret(editor, document, token, separator) {
     setCaret(editor, document, parent, Array.prototype.indexOf.call(parent.childNodes, separator) + 1);
 }
 
+// Text with web addresses in it as nodes: the text, and a link chip (icon and short link) for each address. A chip is
+// followed by a space, so the next word does not run into the address.
+function nodesWithLinkChips(document, text, { closeWithSpace = false } = {}) {
+    const pieces = splitAtAddresses(text);
+    const nodes = [];
+    pieces.forEach((piece, index) => {
+        if (piece.url) {
+            nodes.push(createLinkChipElement(document, piece.url));
+            const next = pieces[index + 1];
+            if (closeWithSpace && !(next?.text && /^\s/.test(next.text))) nodes.push(document.createTextNode(' '));
+        } else {
+            nodes.push(document.createTextNode(piece.text));
+        }
+    });
+    return nodes;
+}
+
+// A web address typed (not pasted) becomes a chip when the space after it is typed.
+function chipTypedAddress(editor, document) {
+    const selection = document.getSelection?.();
+    if (!selection?.rangeCount || !selection.isCollapsed) return false;
+    const { startContainer: node, startOffset: offset } = selection.getRangeAt(0);
+    if (node?.nodeType !== 3 || !containsNode(editor, node) || node.parentNode?.closest?.(LINK_SELECTOR)) return false;
+    const before = node.data.slice(0, offset);
+    const word = /(\S+)\s$/.exec(before)?.[1];
+    if (!word) return false;
+    const [found] = findAddresses(word);
+    if (!found || found.start !== 0 || found.end !== word.length) return false;
+    const range = document.createRange();
+    range.setStart(node, offset - 1 - word.length);
+    range.setEnd(node, offset - 1);
+    range.deleteContents();
+    const chip = createLinkChipElement(document, found.url);
+    range.insertNode(chip);
+    const rest = chip.nextSibling;
+    if (rest?.nodeType === 3) setCaret(editor, document, rest, Math.min(1, rest.data.length));
+    return true;
+}
+
 function updateEditableState(editor, disabled) {
     editor.setAttribute('aria-disabled', String(disabled));
     editor.setAttribute('contenteditable', disabled ? 'false' : 'plaintext-only');
@@ -184,7 +234,7 @@ export function initializeComposerRichEditor({
                 const inlineNodes = Array.from(editor.querySelectorAll(`${TOKEN_SELECTOR}, ${SEPARATOR_SELECTOR}`));
                 editor.replaceChildren(...inlineNodes);
                 const text = String(nextValue ?? '');
-                if (text) editor.appendChild(document.createTextNode(text));
+                if (text) editor.append(...nodesWithLinkChips(document, text));
             }
         },
         displayValue: {
@@ -216,7 +266,8 @@ export function initializeComposerRichEditor({
     ['focus', 'keyup', 'mouseup'].forEach((eventName) => {
         editor.addEventListener(eventName, () => saveSelection(editor, document));
     });
-    editor.addEventListener('input', () => {
+    editor.addEventListener('input', (event) => {
+        if (event?.inputType === 'insertText' && event.data === ' ') chipTypedAddress(editor, document);
         const onlyPlaceholderBreak = editor.childNodes.length === 1 && editor.firstChild?.tagName === 'BR';
         if (onlyPlaceholderBreak && !editor.querySelector(TOKEN_SELECTOR)) {
             editor.replaceChildren();
@@ -231,9 +282,12 @@ export function initializeComposerRichEditor({
         event.preventDefault();
         const range = getInsertionRange(editor, document);
         range.deleteContents();
-        const textNode = document.createTextNode(plainText);
-        range.insertNode(textNode);
-        setCaret(editor, document, textNode, textNode.data.length);
+        const nodes = nodesWithLinkChips(document, plainText, { closeWithSpace: true });
+        if (nodes.length === 0) nodes.push(document.createTextNode(''));
+        const last = nodes.at(-1);
+        for (let index = nodes.length - 1; index >= 0; index -= 1) range.insertNode(nodes[index]);
+        if (last.nodeType === 3) setCaret(editor, document, last, last.data.length);
+        else setCaret(editor, document, last.parentNode, Array.prototype.indexOf.call(last.parentNode.childNodes, last) + 1);
         dispatchComposerInput(editor);
     });
 
@@ -366,6 +420,16 @@ export function removeInlineComposerTokenOnDelete({ event, editor, inputIndicato
     const direction = event.key === 'Backspace' ? -1 : 1;
     const adjacent = adjacentNode(editor, range, direction);
     if (isSeparator(adjacent)) {
+        event.preventDefault();
+        const parent = adjacent.parentNode;
+        const offset = Array.prototype.indexOf.call(parent.childNodes, adjacent);
+        adjacent.remove();
+        setCaret(editor, editor.ownerDocument, parent, Math.max(0, offset));
+        dispatchComposerInput(editor);
+        return true;
+    }
+
+    if (isLink(adjacent)) {
         event.preventDefault();
         const parent = adjacent.parentNode;
         const offset = Array.prototype.indexOf.call(parent.childNodes, adjacent);

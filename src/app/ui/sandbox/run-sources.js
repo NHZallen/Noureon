@@ -28,6 +28,29 @@ const element = (document, tag, className, text) => {
   return node;
 };
 
+const siteIcon = (document, host, className) => {
+  const icon = element(document, 'span', className);
+  const image = document.createElement('img');
+  image.alt = '';
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  image.referrerPolicy = 'no-referrer';
+  image.src = `https://${host}/favicon.ico`;
+  icon.append(image);
+  return icon;
+};
+
+/**
+ * The icon of the first site a search found, in front of the row's label ("Searched 4 sites"), the way ChatGPT does it.
+ * The row's own icon stays under it until the site's icon has loaded (see watchSourceIcons).
+ */
+export function putFirstSiteIcon(document, row, sources) {
+  const mark = row?.querySelector?.('.ledger-mark');
+  const first = (sources || []).find((source) => source?.url);
+  if (!mark || !first || mark.querySelector('.run-mark-site')) return;
+  mark.append(siteIcon(document, displayHost(first), 'run-source-icon run-mark-site'));
+}
+
 /** One chip per page. The icon comes from the site itself (its /favicon.ico); a globe shows until it loads. */
 export function createSourceChips(document, sources) {
   const list = element(document, 'div', 'run-sources');
@@ -38,15 +61,7 @@ export function createSourceChips(document, sources) {
     chip.dataset.url = source.url;
     chip.dataset.host = host;
     chip.title = source.title ? `${source.title}\n${source.url}` : source.url;
-    const icon = element(document, 'span', 'run-source-icon');
-    const image = document.createElement('img');
-    image.alt = '';
-    image.loading = 'lazy';
-    image.decoding = 'async';
-    image.referrerPolicy = 'no-referrer';
-    image.src = `https://${host}/favicon.ico`;
-    icon.append(image);
-    chip.append(icon, element(document, 'span', 'run-source-host', host));
+    chip.append(siteIcon(document, host, 'run-source-icon'), element(document, 'span', 'run-source-host', host));
     list.append(chip);
   }
   return list;
@@ -64,18 +79,20 @@ export const splitSources = (sources = []) => ({
   read: sources.filter((source) => source?.read)
 });
 
+const ICON_BOX = '.run-source-icon, .link-chip-icon';
+
 /**
  * A site's icon that loads replaces the globe under it; one that does not (many sites have no /favicon.ico) is
  * removed, leaving the globe. Image events do not bubble, so they are caught on the way down.
  */
 export function watchSourceIcons(doc = document) {
   const onLoad = (event) => {
-    const icon = event.target?.closest?.('.run-source-icon');
+    const icon = event.target?.closest?.(ICON_BOX);
     if (icon && event.target.tagName === 'IMG' && event.target.naturalWidth > 1) icon.classList.add('is-loaded');
     else if (icon && event.target.tagName === 'IMG') event.target.remove();
   };
   const onError = (event) => {
-    if (event.target?.tagName === 'IMG' && event.target.closest?.('.run-source-icon')) event.target.remove();
+    if (event.target?.tagName === 'IMG' && event.target.closest?.(ICON_BOX)) event.target.remove();
   };
   doc.addEventListener('load', onLoad, true);
   doc.addEventListener('error', onError, true);
