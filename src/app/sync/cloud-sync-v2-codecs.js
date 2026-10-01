@@ -35,7 +35,7 @@ function canonicalizeShadowRow(value) {
     if (row[key]) row[key] = canonicalizeTimestamp(row[key]);
   }
   if (row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)) {
-    for (const key of ['clientUpdatedAt', 'stateUpdatedAt', 'trashStateUpdatedAt']) {
+    for (const key of ['clientUpdatedAt', 'stateUpdatedAt', 'trashStateUpdatedAt', 'messagesCutAt']) {
       if (row.metadata[key]) row.metadata[key] = canonicalizeTimestamp(row.metadata[key]);
     }
     if (row.metadata.trashStateUpdatedAt == null) delete row.metadata.trashStateUpdatedAt;
@@ -98,6 +98,7 @@ function conversationMetadata(conversation = {}) {
     ...(!conversation.deletedAt && conversation.folderId
       ? { legacyFolderId: conversation.folderId }
       : {}),
+    ...(conversation.messagesCutAt ? { messagesCutAt: conversation.messagesCutAt } : {}),
     clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null,
     stateUpdatedAt: conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || null,
     ...(trashStateUpdatedAt ? { trashStateUpdatedAt } : {})
@@ -150,7 +151,8 @@ function conversationFromRow(row = {}, messages = []) {
     astrasId: metadata.astrasId || null,
     isWebSearchEnabled: Boolean(metadata.isWebSearchEnabled),
     isTemporary: Boolean(metadata.isTemporary),
-    isNaming: false
+    isNaming: false,
+    ...(canonicalizeTimestamp(metadata.messagesCutAt) ? { messagesCutAt: canonicalizeTimestamp(metadata.messagesCutAt) } : {})
   };
 }
 
@@ -428,7 +430,8 @@ export function decodeWorkspaceConversationShadow({
 } = {}) {
   const messagesByConversation = new Map();
   for (const row of [...messages].sort((left, right) => (left.sequence || 0) - (right.sequence || 0))) {
-    if (!row?.conversation_id) continue;
+    // A message cut away by an edit is kept in the cloud as deleted, and is not part of the conversation.
+    if (!row?.conversation_id || row.deleted_at) continue;
     const list = messagesByConversation.get(row.conversation_id) || [];
     list.push(messageFromRow(row));
     messagesByConversation.set(row.conversation_id, list);

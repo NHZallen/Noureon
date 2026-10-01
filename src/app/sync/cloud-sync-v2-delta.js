@@ -156,3 +156,28 @@ export function countShadowUploadRows(rows = {}) {
     0
   );
 }
+
+const MESSAGE_ROW_FIELDS = COMPARABLE_FIELDS.messages;
+
+/**
+ * The messages the cloud still has for a conversation that was cut back (an edit removed a message and all after it): its
+ * rows past the end of the conversation, made before the cut, are sent as deleted. Without it the cloud kept them, and they
+ * came back into the conversation. Only conversations marked with a cut (`metadata.messagesCutAt`) are touched, and only the
+ * rows that were already there at the time of the cut, so messages another device wrote since are left alone.
+ */
+export function markCutMessagesDeleted(encoded = {}, baseline = {}, deletedAt = new Date().toISOString()) {
+  const baselineMessages = Array.isArray(baseline.messages) ? baseline.messages : [];
+  const localMessages = Array.isArray(encoded.messages) ? encoded.messages : [];
+  const removed = [];
+  for (const conversation of Array.isArray(encoded.conversations) ? encoded.conversations : []) {
+    const cutAt = Date.parse(conversation?.metadata?.messagesCutAt || '');
+    if (!conversation?.id || !Number.isFinite(cutAt)) continue;
+    const kept = localMessages.filter((row) => row?.conversation_id === conversation.id).length;
+    for (const row of baselineMessages) {
+      if (row?.conversation_id !== conversation.id || row.deleted_at) continue;
+      if (!(Number(row.sequence) >= kept) || !(Date.parse(row.created_at || '') <= cutAt)) continue;
+      removed.push(Object.fromEntries(MESSAGE_ROW_FIELDS.map((field) => [field, field === 'deleted_at' ? deletedAt : row[field] ?? null])));
+    }
+  }
+  return removed.length ? { ...encoded, messages: [...localMessages, ...removed] } : encoded;
+}

@@ -21,6 +21,7 @@ import { repairWorkspaceEntityIds } from './cloud-sync-v2-id-repair.js';
 import {
   countShadowUploadRows,
   createShadowUploadDelta,
+  markCutMessagesDeleted,
   mergeShadowUploadIntoBaseline
 } from './cloud-sync-v2-delta.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
@@ -1048,11 +1049,11 @@ export function createConversationShadowSync({
       error.details = { reason: reconciliation.reason };
       throw error;
     }
-    const encoded = preserveDeferredConversationFolderRows(
+    const encoded = markCutMessagesDeleted(preserveDeferredConversationFolderRows(
       reconciliation.encoded,
       hadTrustedBaseline ? uploadBaseline : emptyShadowRows(),
       deferredConversationFolderIds
-    );
+    ), hadTrustedBaseline ? uploadBaseline : emptyShadowRows());
     const deferredFolderSyncCount = deferredConversationFolderIds.size;
     const fullResyncRequired = capture.journal?.fullResyncRequired === true;
     const forceFullUpload = fullResyncRequired || baselineMissingAtStart || !hadTrustedBaseline;

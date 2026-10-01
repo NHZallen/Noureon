@@ -548,3 +548,40 @@ test('shadow row comparison treats equivalent timestamptz formats as equal', () 
     }
   ), true);
 });
+
+test('the time a conversation was cut back travels with it, and messages marked deleted are not part of it', async () => {
+  const cutAt = '2026-10-01T12:00:00.000Z';
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Edited chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-10-01T11:00:00.000Z',
+        messagesCutAt: cutAt,
+        messages: [{ role: 'user', createdAt: '2026-10-01T11:00:01.000Z', parts: [{ text: 'A' }] }]
+      }]
+    }
+  });
+  assert.equal(encoded.conversations[0].metadata.messagesCutAt, cutAt);
+  const decoded = decodeWorkspaceConversationShadow({
+    conversations: encoded.conversations,
+    messages: [
+      ...encoded.messages,
+      { ...encoded.messages[0], id: '99999999-9999-4999-8999-999999999999', sequence: 1, parts: [{ text: 'cut away' }], deleted_at: '2026-10-01T12:01:00.000Z' }
+    ]
+  });
+  assert.equal(decoded.conversations[0].messagesCutAt, cutAt);
+  assert.deepEqual(decoded.conversations[0].messages.map((message) => message.parts[0].text), ['A']);
+
+  const plain = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: { conversations: [{ id: conversationId, title: 'x', model: 'm', provider: 'p', createdAt: '2026-10-01T11:00:00.000Z', messages: [] }] }
+  });
+  assert.equal('messagesCutAt' in plain.conversations[0].metadata, false, 'a conversation never cut carries nothing new');
+  assert.equal('messagesCutAt' in decodeWorkspaceConversationShadow({ conversations: plain.conversations }).conversations[0], false);
+});

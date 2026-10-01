@@ -33,7 +33,11 @@ function conversationContentScore(conversation = {}) {
     (partTotal, part) => partTotal + (part.text?.length || 0) + (part.inlineData ? 1 : 0) + (part.generatedImage ? 1 : 0) + (part.sandboxFile ? 1 : 0),
     0
   ), 0);
+  // A conversation cut back on purpose (an edited message and everything after it removed) is newer than the longer one it was
+  // cut from: the time of the cut comes before the number of messages, or the removed messages would come back from the copy
+  // that still has them.
   return [
+    Date.parse(conversation.messagesCutAt || '') || 0,
     messages.length,
     contentSize,
     conversation.isNaming ? 0 : 1,

@@ -396,3 +396,19 @@ test('cloud value comparison ignores object property insertion order', () => {
     { folders: [], conversations: [{ title: 'Hello', id: '1' }] }
   ), true);
 });
+
+test('a conversation cut back by an edit wins over the longer copy it was cut from, and the longer one wins where nothing was cut', () => {
+  const message = (text) => ({ role: 'user', parts: [{ text }] });
+  const longer = { id: 'c', lastUpdatedAt: '2026-10-01T11:00:00.000Z', messages: ['A', 'a', 'B', 'b', 'C', 'c'].map(message) };
+  const cut = { id: 'c', lastUpdatedAt: '2026-10-01T12:00:00.000Z', messagesCutAt: '2026-10-01T12:00:00.000Z', messages: ['A', 'a', 'B*', 'b*'].map(message) };
+
+  assert.equal(mergeWorkspaceAppData({ conversations: [cut] }, { conversations: [longer] }).conversations[0].messages.length, 4, 'local was cut: it is kept');
+  assert.equal(mergeRemoteWorkspaceAppData({ conversations: [cut] }, { conversations: [longer] }).conversations[0].messages.length, 4, 'the copy refreshed from the cloud does not bring them back');
+  assert.equal(mergeWorkspaceAppData({ conversations: [longer] }, { conversations: [cut] }).conversations[0].messages.length, 4, 'another device that has the longer one takes the cut');
+  const plainShort = { ...cut, messagesCutAt: undefined };
+  assert.equal(mergeWorkspaceAppData({ conversations: [plainShort] }, { conversations: [longer] }).conversations[0].messages.length, 6, 'no cut: more messages still win, as before');
+  const later = { ...cut, messagesCutAt: '2026-10-01T13:00:00.000Z', messages: ['A', 'a'].map(message) };
+  assert.equal(mergeWorkspaceAppData({ conversations: [cut] }, { conversations: [later] }).conversations[0].messages.length, 2, 'the later cut wins');
+  const grown = { ...cut, messages: [...cut.messages, message('D'), message('d')] };
+  assert.equal(mergeWorkspaceAppData({ conversations: [cut] }, { conversations: [grown] }).conversations[0].messages.length, 6, 'the same cut: more messages win again');
+});

@@ -152,6 +152,8 @@ test('sending an edit hands the cut of the conversation to the submit, which mak
     conversation.messages.push({ role: 'model', parts: [{ text: 'Late words' }] });
     await submitted.prepare();
     assert.equal(conversation.messages.length, 0, 'the edited message and all after it, the late reply included');
+    assert.match(conversation.messagesCutAt, /^\d{4}-\d\d-\d\dT/, 'and the cut is marked, for the cloud');
+    assert.equal(conversation.lastUpdatedAt, conversation.messagesCutAt);
     assert.deepEqual(log, ['memory', 'save:0', 'render:0']);
   } finally {
     cleanup();

@@ -234,6 +234,9 @@ export function createMessageEditingLifecycle({
   // put itself back after the cut, so the regenerated answer was followed or replaced by the one from before the edit.
   const cutAtEditedMessage = (editor) => async () => {
     editor.conversation.messages.splice(editor.index);
+    // The cut is marked, so the cloud (and the other devices) take it for newer than the longer conversation it was cut from.
+    editor.conversation.messagesCutAt = new Date().toISOString();
+    editor.conversation.lastUpdatedAt = editor.conversation.messagesCutAt;
     await invalidateConversationMemory({ conversationId: editor.conversation.id });
     await saveAppData();
     await dismissEditor({ rerender: false, animate: false });

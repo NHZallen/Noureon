@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   countShadowUploadRows,
   createShadowUploadDelta,
+  markCutMessagesDeleted,
   mergeShadowUploadIntoBaseline
 } from '../src/app/sync/cloud-sync-v2-delta.js';
 
@@ -207,4 +208,58 @@ test('baseline merge preserves duplicate ambiguity and neither helper mutates it
   assert.equal(next.folders.filter(row => row.id === 'folder-1').length, 3);
   assert.notEqual(next.folders, remote.folders);
   assert.notEqual(next.folders[0], remote.folders[0]);
+});
+
+const remoteMessage = (id, sequence, createdAt, extra = {}) => ({
+  id,
+  user_id: 'user-1',
+  conversation_id: 'conversation-1',
+  role: sequence % 2 ? 'model' : 'user',
+  parts: [{ text: id }],
+  metadata: null,
+  status: 'complete',
+  sequence,
+  created_at: createdAt,
+  deleted_at: null,
+  updated_at: '2026-10-01T10:00:00.000Z',
+  sync_seq: 7,
+  ...extra
+});
+
+test('a conversation cut back by an edit has the cloud\'s messages past its end sent as deleted, and nothing else', () => {
+  const cutAt = '2026-10-01T12:00:00.000Z';
+  // A B C each with an answer on the cloud; B was edited, so the conversation is A, A\', B* (and B*\' is still being written).
+  const baseline = { messages: [
+    remoteMessage('a', 0, '2026-10-01T11:00:00.000Z'), remoteMessage('a2', 1, '2026-10-01T11:00:01.000Z'),
+    remoteMessage('b', 2, '2026-10-01T11:01:00.000Z'), remoteMessage('b2', 3, '2026-10-01T11:01:01.000Z'),
+    remoteMessage('c', 4, '2026-10-01T11:02:00.000Z'), remoteMessage('c2', 5, '2026-10-01T11:02:01.000Z'),
+    // Written by another device after the cut: not the cut\'s to remove.
+    remoteMessage('late', 6, '2026-10-01T12:30:00.000Z'),
+    remoteMessage('gone', 7, '2026-10-01T11:03:00.000Z', { deleted_at: '2026-10-01T11:30:00.000Z' })
+  ] };
+  const encoded = {
+    conversations: [{ id: 'conversation-1', metadata: { messagesCutAt: cutAt } }, { id: 'conversation-2', metadata: {} }],
+    messages: [
+      remoteMessage('a', 0, '2026-10-01T11:00:00.000Z'), remoteMessage('a2', 1, '2026-10-01T11:00:01.000Z'),
+      remoteMessage('b', 2, '2026-10-01T12:00:05.000Z', { parts: [{ text: 'B edited' }] })
+    ]
+  };
+  const marked = markCutMessagesDeleted(encoded, baseline, '2026-10-01T12:01:00.000Z');
+  const removed = marked.messages.slice(encoded.messages.length);
+  assert.deepEqual(removed.map((row) => [row.id, row.sequence, row.deleted_at]), [
+    ['b2', 3, '2026-10-01T12:01:00.000Z'],
+    ['c', 4, '2026-10-01T12:01:00.000Z'],
+    ['c2', 5, '2026-10-01T12:01:00.000Z']
+  ]);
+  assert.deepEqual(Object.keys(removed[0]).sort(), ['conversation_id', 'created_at', 'deleted_at', 'id', 'metadata', 'parts', 'role', 'sequence', 'status', 'user_id'], 'only what the upload takes: no server fields');
+  assert.equal(marked.messages.slice(0, 3).every((row, index) => row === encoded.messages[index]), true, 'the conversation itself is as it was');
+});
+
+test('without a cut, or without anything past the end, nothing is marked', () => {
+  const baseline = { messages: [remoteMessage('a', 0, '2026-10-01T11:00:00.000Z'), remoteMessage('b', 1, '2026-10-01T11:00:01.000Z')] };
+  const longer = { conversations: [{ id: 'conversation-1', metadata: {} }], messages: [remoteMessage('a', 0, '2026-10-01T11:00:00.000Z')] };
+  assert.equal(markCutMessagesDeleted(longer, baseline), longer, 'a conversation that was never cut keeps what the cloud has');
+  const whole = { conversations: [{ id: 'conversation-1', metadata: { messagesCutAt: '2026-10-01T12:00:00.000Z' } }], messages: baseline.messages };
+  assert.equal(markCutMessagesDeleted(whole, baseline), whole, 'the cut was already sent');
+  assert.equal(markCutMessagesDeleted({}, {}).messages, undefined);
 });
