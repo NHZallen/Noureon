@@ -177,7 +177,7 @@ export function createSingleModelResponseLifecycle({
     let liveRun = null;
     const stepList = () => {
       if (!liveRun && targetElement.parentElement) {
-        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage });
+        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true });
       }
       return liveRun;
     };

@@ -24,6 +24,8 @@ export function collectSettingsSaveFormValues({
         enableAutoWebSearch: elements.autoWebSearchToggleSwitch.checked,
         visionCheckEnabled: elements.visionCheckToggleSwitch?.checked !== false,
         // Kept as it was where the setting is not shown.
+        processOpen: elements.processToggle ? elements.processToggle.checked : config.processOpen === true,
+        // Kept as it was where the setting is not shown.
         fileModeDefault: elements.fileModeDefaultSelect?.value === 'standard' ? 'standard'
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
         outputMode: elements.outputModeSelect?.value === 'realtime' ? 'realtime' : 'typewriter',

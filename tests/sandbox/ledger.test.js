@@ -299,3 +299,46 @@ test('every search and page of a reply adds to one row of sites, and the rows of
   list.remove();
   window.happyDOM.abort();
 });
+
+test('with a summary all the steps are one line that says what the work is at and opens to them, every step folded', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en', summary: true });
+  const rows = () => [...message.querySelectorAll('.ledger-row')];
+  const line = () => rows()[0];
+  assert.equal(line().querySelector('.ledger-label').textContent, 'Working');
+  assert.equal(line().querySelector('.ledger-body').hidden, true, 'folded until it is opened');
+  assert.equal(line().querySelectorAll('.ledger-list .ledger-row').length, 0);
+
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  assert.equal(line().querySelector('.ledger-label').textContent, 'Working · Thinking…');
+  list.event({ type: 'searching', label: 'Searching: a' });
+  assert.equal(line().querySelector('.ledger-label').textContent, 'Working · Searching: a');
+  list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1' }] });
+  list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1)' });
+  assert.equal(line().querySelector('.ledger-label').textContent, 'Working · Running code: Sum');
+  const step = [...line().querySelectorAll('.ledger-row[data-kind="code"]')][0];
+  assert.equal(step.querySelector('.ledger-body').hidden, true, 'the step that is running is folded too: it runs all the same');
+  assert.equal(step.querySelector('.run-code-card, pre') !== null, true, 'its code is there to open');
+  assert.equal(message.querySelectorAll('.ledger-list').length, 2, 'the steps sit in a list inside the line');
+  assert.ok(line().querySelector('.ledger-list'));
+
+  list.event({ type: 'answering' });
+  assert.match(line().querySelector('.ledger-label').textContent, /^Processed for \d/);
+  assert.equal(line().classList.contains('is-quiet'), true);
+  list.remove();
+  assert.equal(message.querySelectorAll('.ledger-row').length, 0, 'all of it goes');
+  window.happyDOM.abort();
+});
+
+test('the line can start open, and without a summary the steps are the list itself, as before', () => {
+  const { window, document, message } = setup();
+  const open = createSandboxLedger({ document, host: message, language: 'en', summary: true, open: true });
+  assert.equal(message.querySelector('.ledger-row .ledger-body').hidden, false);
+  open.remove();
+  const plain = createSandboxLedger({ document, host: message, language: 'en' });
+  plain.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  assert.equal(message.querySelectorAll('.ledger-row').length, 1);
+  assert.equal(message.querySelector('.ledger-label').textContent, 'Thinking…');
+  plain.remove();
+  window.happyDOM.abort();
+});

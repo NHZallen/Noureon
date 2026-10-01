@@ -41,3 +41,30 @@ test('visual check setting follows the language menu while settings stay open', 
     window.happyDOM.abort();
   }
 });
+
+test('the setting for showing the steps by default sits under the visual check one, follows the config, and translates', async () => {
+  const { sandboxText } = await import('../../src/app/runtime/sandbox/sandbox-texts.js');
+  const window = new Window();
+  try {
+    const document = window.document;
+    document.body.innerHTML = '<section id="accessibility-section"><div class="flex items-center justify-between"><input id="auto-web-search-toggle-switch"></div></section><select id="lang"><option value="zh-TW"></option><option value="fr"></option></select>';
+    const elements = { uiLanguageSelect: document.getElementById('lang') };
+    ensureVisionCheckSettingsControl({ document, elements, config: { uiLanguage: 'zh-TW', processOpen: true } });
+    const row = document.getElementById('process-open-setting-row');
+    assert.equal(row.previousElementSibling.id, 'vision-check-setting-row');
+    assert.equal(elements.processToggle.checked, true);
+    assert.equal(row.querySelector('label').textContent, sandboxText('zh-TW', 'processOpenSetting'));
+    ensureVisionCheckSettingsControl({ document, elements, config: { uiLanguage: 'zh-TW', processOpen: false } });
+    assert.equal(elements.processToggle.checked, false);
+    assert.equal(document.querySelectorAll('#process-open-setting-row').length, 1);
+    elements.uiLanguageSelect.value = 'fr';
+    elements.uiLanguageSelect.dispatchEvent(new window.Event('change'));
+    assert.equal(row.querySelector('label').textContent, sandboxText('fr', 'processOpenSetting'));
+    assert.equal(row.querySelector('p').textContent, sandboxText('fr', 'processOpenHint'));
+    for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+      assert.ok(sandboxText(language, 'processWorking') && sandboxText(language, 'processOpenSetting') && sandboxText(language, 'processOpenHint'), language);
+    }
+  } finally {
+    window.happyDOM.abort();
+  }
+});

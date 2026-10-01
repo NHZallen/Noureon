@@ -5,7 +5,7 @@
 // runSandboxReply reports.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
-import { createLedger } from '../ledger/ledger.js';
+import { createLedger, formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
@@ -19,9 +19,23 @@ const IMAGE_TYPES = Object.freeze({ png: 'image/png', jpg: 'image/jpeg', jpeg: '
 const extensionOf = (name) => String(name || '').split('.').pop().toLowerCase();
 const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW' }) {
+/**
+ * `summary` puts all the steps under one line, "Working · Reading page: github.com ›  24s", which says what the work is at and
+ * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
+ * itself (where this is inside a row of another list, such as the visual check's).
+ */
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false }) {
   const text = (key, values) => sandboxText(language, key, values);
-  const list = createLedger({ document, host, before });
+  const outer = summary ? createLedger({ document, host, before }) : null;
+  const line = outer ? outer.addRow(text('processWorking')) : null;
+  line?.enableBody(open);
+  const list = line ? createLedger({ document, host: line.body }) : createLedger({ document, host, before });
+  const startedAt = Date.now();
+  // The line says which step the work is at, so the steps can stay folded.
+  const syncLine = () => {
+    const current = list.current;
+    if (line && current) line.setLabel(`${text('processWorking')} · ${current.label}`);
+  };
   const urls = [];
   const steps = new Map();
   const create = (name, className, content) => {
@@ -77,7 +91,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     const running = title ? text('sandboxRunning', { n, title }) : text('sandboxRunningUntitled', { n });
     const row = begin(running, { body: true, kind: 'code' });
     row.doneLabel = title ? text('ledgerRan', { n, title }) : text('ledgerRanUntitled', { n });
-    row.enableBody(true);
+    row.enableBody(false);
     const source = code.length > MAX_CODE_CHARS ? `${code.slice(0, MAX_CODE_CHARS)}\n…` : code;
     const output = create('pre', 'ledger-output');
     output.hidden = true;
@@ -178,8 +192,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     webSources = all;
   };
 
-  return {
-    event(event) {
+  const handle = (event) => {
       if (event.type === 'narration') {
         addNarration(event);
       } else if (event.type === 'searching') {
@@ -193,6 +206,12 @@ export function createSandboxLedger({ document, host, before = null, language = 
         // Writing the answer is not thinking: that row is over and folds.
         endCurrent();
         list.foldFinished();
+        if (line) {
+          // The line becomes what the saved reply shows once the answer is written.
+          line.setLabel(text('processedIn', { t: formatElapsed(Date.now() - startedAt, { always: true }) }));
+          line.finish('done');
+          line.node.classList.add('is-quiet');
+        }
       } else if (event.type === 'prepare') {
         list.current?.setDetail(event.text);
       } else if (event.type === 'finishing') {
@@ -208,11 +227,17 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'step-end') {
         endStep(event);
       }
+  };
+
+  return {
+    event(event) {
+      handle(event);
+      syncLine();
     },
     // The status line for callers that only have text (the visual check's redo).
-    detail(line) { list.current?.setDetail(line); },
+    detail(status) { list.current?.setDetail(status); },
     remove() {
-      list.remove();
+      (outer || list).remove();
       urls.forEach((url) => document.defaultView.URL.revokeObjectURL(url));
     }
   };

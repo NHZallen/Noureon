@@ -540,6 +540,7 @@ const setupSettingsModal = () => {
     ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
     ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
     if (ALL_ELEMENTS.visionCheckToggleSwitch) ALL_ELEMENTS.visionCheckToggleSwitch.checked = config.visionCheckEnabled !== false;
+    if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
     if (ALL_ELEMENTS.outputModeSelect) {
         ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
         syncOutputModeSettingsControls();
@@ -608,6 +609,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,
         enableAutoWebSearch: collectedSettings.enableAutoWebSearch,
         visionCheckEnabled: collectedSettings.visionCheckEnabled,
+        processOpen: collectedSettings.processOpen,
         fileModeDefault: collectedSettings.fileModeDefault,
         outputMode: collectedSettings.outputMode,
         aiBubbleColor: collectedSettings.aiBubbleColor,

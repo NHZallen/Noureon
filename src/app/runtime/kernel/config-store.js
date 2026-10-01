@@ -5,6 +5,8 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     modelSettings: [],
     enableAutoWebSearch: false,
     visionCheckEnabled: true,
+    // Whether the steps of a reply being made start open (otherwise they are folded into one line).
+    processOpen: false,
     fileModeDefault: 'advanced',
     searchProvider: 'tavily',
     tavilySearchDepth: 'basic',

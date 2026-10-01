@@ -13,6 +13,7 @@ const expectedConfig = (defaultModelId) => ({
   modelSettings: [],
   enableAutoWebSearch: false,
   visionCheckEnabled: true,
+  processOpen: false,
   fileModeDefault: 'advanced',
   searchProvider: 'tavily',
   tavilySearchDepth: 'basic',
