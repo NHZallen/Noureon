@@ -181,7 +181,7 @@ const longPage = () => {
   return `${menu}\n\n# Releases\n\n${body}\nThe latest version is v17.3.0, see [notes](/a/b/releases/tag/v17.3.0).`;
 };
 
-test('a long page is read a window at a time, without its menu and with full-address links, and a word is found in it', async () => {
+test('a long page is read a window at a time, whole and with full-address links, and a word is found in it', async () => {
   const model = scriptedModel([
     { calls: [open('1', 'https://github.com/a/b/releases')] },
     { calls: [open('2', 'https://github.com/a/b/releases'), { id: '3', name: 'open_page', args: { url: 'https://github.com/a/b/releases', start: 10000 } }, { id: '4', name: 'find_in_page', args: { url: 'https://github.com/a/b/releases', query: 'latest version' } }] },
@@ -190,9 +190,9 @@ test('a long page is read a window at a time, without its menu and with full-add
   const helper = tools({ pages: { pages: [{ url: 'https://github.com/a/b/releases', title: 'Releases', text: longPage() }], failed: [] } });
   const result = await run(model, helper);
   const first = model.requests[1].toolTurns[0].results[0].content;
-  assert.doesNotMatch(first, /Navigation Menu|Item 3/, 'the menu is left out');
+  assert.match(first, /Navigation Menu/, 'the menu is not cut');
   assert.match(first, /^Page: Releases/);
-  assert.match(first, /# Releases\n\nParagraph 0/);
+  assert.match(first, /\[Item 3\]\(https:\/\/github\.com\/menu\/3\)/);
   assert.match(first, /Call open_page with start=\d+ for the next part/);
   const [again, next, found] = model.requests[2].toolTurns[1].results.map((entry) => entry.content);
   assert.match(again, /already opened/);

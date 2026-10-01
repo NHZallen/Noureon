@@ -6,7 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
-import { findPassages, pageWindow, readablePage } from './web-page-text.js';
+import { absoluteLinks, findPassages, pageWindow } from './web-page-text.js';
 
 export const WEB_SEARCH_TOOL = Object.freeze({
   name: 'web_search',
@@ -23,7 +23,7 @@ export const WEB_SEARCH_TOOL = Object.freeze({
 
 export const OPEN_PAGE_TOOL = Object.freeze({
   name: 'open_page',
-  description: 'Open one web page and read its text (the site\'s menu is left out; the links in the text are written as [text](address), so open one to go deeper). Use it when a search result is not enough: the page of a repository\'s releases, tags or README, documentation, an article, a product page, a file\'s raw text. An address the user gave you is opened with it too. A long page is read a part at a time.',
+  description: 'Open one web page and read its text (the links in the text are written as [text](address), so open one to go deeper). Use it when a search result is not enough: the page of a repository\'s releases, tags or README, documentation, an article, a product page, a file\'s raw text. An address the user gave you is opened with it too. A long page is read a part at a time.',
   parameters: Object.freeze({
     type: 'object',
     properties: {
@@ -166,7 +166,7 @@ export function createResearchCalls({
     try {
       const { pages, failed } = await openPage([url], signal, { maxChars: PAGE_KEPT_CHARS });
       const [raw] = pages;
-      const text = raw ? readablePage(raw.text, raw.finalUrl || raw.url) : '';
+      const text = raw ? absoluteLinks(raw.text, raw.finalUrl || raw.url) : '';
       if (!text) {
         onEvent({ type: 'sources', sources: [] });
         const error = failed[0]?.reason === 'noReader'

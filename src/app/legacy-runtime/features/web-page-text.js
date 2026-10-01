@@ -1,47 +1,9 @@
-// What a model reads of a web page it opened (web-research-reply.js). A page reader gives the whole page as Markdown, and
-// most of what comes first is the site's own menu (GitHub's page starts with "Skip to content, Navigation Menu, Platform,
-// Copilot…"), which would use up the window the model reads. So the menu is cut, links are made absolute so the model can
-// open the ones it wants, and the rest is read a window at a time, or jumped to by a word (find_in_page).
+// What a model reads of a web page it opened (web-research-reply.js). A page reader gives the whole page as Markdown; nothing
+// of it is cut (a site's menu can be what the person is after). Its links are made absolute so the model can open the ones it
+// wants, and the page is read a window at a time, or jumped to by a word (find_in_page), so a long menu at the top does not
+// hide the rest.
 
-const MENU_MIN_CHARS = 200;
-// How far into a page the menu may reach: a page that is nothing but links is left as it is.
-const MENU_MAX_SHARE = 0.9;
 const LINK = /\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-
-const withoutLinks = (line) => line.replace(LINK, '$1');
-
-/** A line of a menu: nothing, only links, or a few short words that make no sentence. */
-const isMenuLine = (line) => {
-  const text = line.trim();
-  if (!text) return true;
-  if (/^#{1,6}\s/.test(text) && text.length > 40) return false;
-  const bare = withoutLinks(text).replace(/^[\s>*+\-•·|]+/, '').trim();
-  if (LINK.test(text)) {
-    LINK.lastIndex = 0;
-    if (bare.length <= text.length * 0.5 && bare.length < 60) return true;
-  }
-  LINK.lastIndex = 0;
-  return bare.length < 45 && !/[.。!?！？]$/.test(bare) && !/^#{1,6}\s/.test(text);
-};
-
-/** The page without its menu at the top and without a line repeated over and over (menus are drawn twice). */
-export function stripMenu(text) {
-  const lines = String(text || '').split('\n');
-  let first = 0;
-  while (first < lines.length && isMenuLine(lines[first])) first += 1;
-  const menuChars = lines.slice(0, first).join('\n').length;
-  const body = menuChars >= MENU_MIN_CHARS && menuChars <= text.length * MENU_MAX_SHARE ? lines.slice(first) : lines;
-  const seen = new Set();
-  return body.filter((line) => {
-    const key = line.trim();
-    if (key.length < 3 || key.length > 80) return true;
-    if (!seen.has(key)) {
-      seen.add(key);
-      return true;
-    }
-    return !/^\s*([*+\-]|\d+\.)?\s*\[/.test(line);
-  }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
 
 /** Links in the text written as full addresses, so the model can open one as it stands. */
 export function absoluteLinks(text, baseUrl) {
@@ -54,9 +16,6 @@ export function absoluteLinks(text, baseUrl) {
     }
   });
 }
-
-/** What a model is given of a page it opens: no menu, full-address links. */
-export const readablePage = (text, baseUrl) => absoluteLinks(stripMenu(text), baseUrl);
 
 /** A window of the text: from `start`, up to `size` characters, cut at a line end when one is near. */
 export function pageWindow(text, start = 0, size = 10_000) {

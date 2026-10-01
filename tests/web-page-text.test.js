@@ -1,24 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { absoluteLinks, findPassages, pageWindow, readablePage, stripMenu } from '../src/app/legacy-runtime/features/web-page-text.js';
+import { absoluteLinks, findPassages, pageWindow } from '../src/app/legacy-runtime/features/web-page-text.js';
 
 const menu = ['Skip to content', '', 'Navigation Menu', ...Array.from({ length: 15 }, (_, index) => `- [Item ${index}](/m/${index})`)].join('\n');
-const prose = 'A sentence that is long enough to be prose and not a menu entry, with a full stop at its end.';
 
-test('the menu at the top is cut, and a page that is only a menu is left as it is', () => {
-  assert.equal(stripMenu(`${menu}\n\n# Title of the page here\n\n${prose}`).startsWith('# Title of the page here'), true);
-  assert.equal(stripMenu(menu), menu.trim());
-  assert.equal(stripMenu(`${prose}\nmore`).startsWith('A sentence'), true, 'a page without a menu keeps its start');
-});
-
-test('a short heading right at the top is not taken for a menu', () => {
-  assert.match(stripMenu(`# Releases\n\n${prose}`), /^# Releases/);
-});
-
-test('links get full addresses; anchors and mail links become their text', () => {
+test('links get full addresses and the page is kept whole; anchors and mail links become their text', () => {
   assert.equal(absoluteLinks('[a](/x) [b](#top) [c](mailto:x@y.z) [d](https://o.test/p)', 'https://s.test/q/r'), '[a](https://s.test/x) b c [d](https://o.test/p)');
-  assert.equal(readablePage(`${menu}\n\n## A heading that is long enough to count as one of the page\n\n[go](/z)`, 'https://s.test/').endsWith('[go](https://s.test/z)'), true);
+  const page = absoluteLinks(`${menu}\n\n[go](/z)`, 'https://s.test/');
+  assert.match(page, /Navigation Menu/, 'nothing of the page is cut, its menu included');
+  assert.match(page, /\[Item 3\]\(https:\/\/s\.test\/m\/3\)/);
+  assert.equal(page.endsWith('[go](https://s.test/z)'), true);
 });
 
 test('a window is read from a place, cut at a line end, and says where it ends', () => {

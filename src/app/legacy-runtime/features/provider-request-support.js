@@ -4,7 +4,7 @@ import { getSearchProvider, searchProviderLabel } from '../../runtime/kernel/sea
 import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-pages.js';
 import { createSearchQueryRewriter } from './search-query-rewriter.js';
 import { createWebResearchTools } from './web-research-tools.js';
-import { readablePage } from './web-page-text.js';
+import { absoluteLinks } from './web-page-text.js';
 
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
@@ -145,8 +145,8 @@ Output requirements:
     onProgress?.('linkedPages', getRuntimeText(getConfig().uiLanguage, 'readingLinkedPages'));
     const { pages, failed } = await fetchPageContents(urls, signal, { maxChars: pageCharsFor(urls.length) });
     if (pages.length > 0) onSources?.(pages.map((page) => ({ title: page.title, url: page.finalUrl || page.url, read: true })));
-    // The site's menu is cut from the top of a page, which would use up the part of it the model is given.
-    const readable = pages.map((page) => ({ ...page, text: readablePage(page.text, page.finalUrl || page.url) || page.text }));
+    // Links get full addresses, so the model can tell which page they lead to.
+    const readable = pages.map((page) => ({ ...page, text: absoluteLinks(page.text, page.finalUrl || page.url) || page.text }));
     return buildLinkedPagesText({ pages: readable, failed, skipped });
   };
   const readsLinkedPages = (model) => Boolean(modelUsesTavilySearch(model) && model?.outputModality !== 'image');
