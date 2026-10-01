@@ -155,7 +155,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // What the model says before a run, in ordinary text between the step lines (the saved reply draws it the same way).
   const addNarration = ({ text: said }) => {
     if (!String(said || '').trim()) return;
-    const block = create('div', 'sandbox-run-narration');
+    // Said while the model was quiet, it arrives whole: it unfolds instead of appearing at once.
+    const block = create('div', 'sandbox-run-narration is-arriving');
     fillThinkingText(document, block, String(said).trim());
     list.list.append(block);
   };
@@ -215,6 +216,9 @@ export function createSandboxLedger({ document, host, before = null, language = 
           line.finish('done');
           line.node.classList.add('is-quiet');
         }
+      } else if (event.type === 'writing') {
+        // The thinking is over and the model is writing what it will call: the line says so.
+        list.current?.setLabel(event.label);
       } else if (event.type === 'prepare') {
         list.current?.setDetail(event.text);
       } else if (event.type === 'finishing') {

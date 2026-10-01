@@ -542,3 +542,42 @@ test('the pages that were read and the pages that were searched for are one row 
   }
 });
 
+
+test('when the model goes quiet after thinking, the line says it is writing the code, and goes back if the thinking goes on', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const events = [];
+  const streamApiCall = async (parts, onChunk, signal, forced, options) => {
+    options.onReasoning('Let me think. ', 'raw');
+    t.mock.timers.tick(2900);
+    assert.equal(events.some((event) => event.type === 'writing'), false, 'a short pause is not worth saying');
+    t.mock.timers.tick(200);
+    assert.equal(events.filter((event) => event.type === 'writing').at(-1)?.label, 'Writing the code…');
+    options.onReasoning('Still thinking. ', 'raw');
+    assert.equal(events.filter((event) => event.type === 'writing').at(-1)?.label, 'Thinking…', 'it was only a pause in the thinking');
+    t.mock.timers.tick(3100);
+    assert.equal(events.filter((event) => event.type === 'writing').at(-1)?.label, 'Writing the code…');
+    options.onResponseComplete({ text: 'Done.', toolCalls: [], parts: [], reasoningDetails: [] });
+    return 'Done.';
+  };
+  await runSandboxReply({ streamApiCall, requestParts: [], getSandbox: () => fakeSandbox([]).sandbox, language: 'en', onEvent: (event) => events.push(event) });
+  const before = events.length;
+  t.mock.timers.tick(10_000);
+  assert.equal(events.length, before, 'nothing is said after the round is over');
+});
+
+test('code that starts to arrive says the line is writing it at once, in every language', async () => {
+  for (const language of SANDBOX_TEXT_LANGUAGES) {
+    const events = [];
+    const streamApiCall = async (parts, onChunk, signal, forced, options) => {
+      options.onToolArguments({ name: 'run_python', arguments: '{"code":"pri' });
+      options.onToolArguments({ name: 'run_python', arguments: '{"code":"print(1)' });
+      options.onResponseComplete({ text: 'Done.', toolCalls: [], parts: [], reasoningDetails: [] });
+      return 'Done.';
+    };
+    await runSandboxReply({ streamApiCall, requestParts: [], getSandbox: () => fakeSandbox([]).sandbox, language, onEvent: (event) => events.push(event) });
+    const writing = events.filter((event) => event.type === 'writing');
+    assert.equal(writing.length, 1, 'said once');
+    assert.equal(writing[0].label, sandboxText(language, 'sandboxWriting'));
+    assert.ok(sandboxText(language, 'sandboxNextStep'));
+  }
+});

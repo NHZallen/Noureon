@@ -377,3 +377,14 @@ test('removing a ledger with a summary stops every clock it started, the one of 
   assert.equal(active.size, 0);
   window.happyDOM.abort();
 });
+
+test('the line names what the model is doing once it says it is writing, and what it said while quiet unfolds', () => {
+  const { document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'writing', label: 'Writing the code…' });
+  assert.match(message.querySelector('.ledger-label').textContent, /Writing the code…/, 'the one line says it');
+  list.event({ type: 'narration', text: 'I will make the deck now.' });
+  assert.ok(message.querySelector('.sandbox-run-narration').classList.contains('is-arriving'));
+  list.remove();
+});

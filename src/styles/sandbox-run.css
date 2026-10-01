@@ -59,6 +59,15 @@
 
 .sandbox-run-narration strong { font-weight: 600; }
 
+.sandbox-run-narration.is-arriving { animation: narration-in 0.5s ease-out; }
+@keyframes narration-in {
+    from { opacity: 0; clip-path: inset(0 0 100% 0); }
+    to { opacity: 1; clip-path: inset(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sandbox-run-narration.is-arriving { animation: none; }
+}
+
 .sandbox-run-label {
     display: block;
     margin: 0.35rem 0 0.1rem;

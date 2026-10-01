@@ -17,6 +17,9 @@ const NARRATION_HOLD_CHARS = 400;
 // The thinking kept with the run (it is saved with the message), per round and in all.
 const THOUGHT_CHARS_PER_ROUND = 6000;
 const THOUGHT_CHARS_IN_ALL = 30_000;
+// After the model has gone quiet this long in a round that may call a tool, the line says it is writing it: a long
+// program arrives all at once, and the line would otherwise look stuck on what came before.
+const WRITING_AFTER_MS = 3000;
 
 // Long output keeps its start and end for the model.
 export function trimForModel(text = '', limit = MODEL_TEXT_CHARS) {
@@ -78,9 +81,11 @@ export async function runSandboxReply({
   // The model's name in the status lines, so the wait says who is working.
   const model = requestOptions.modelInfo?.name || requestOptions.modelInfo?.id || 'AI';
   const say = (key, values = {}) => onStatus(sandboxText(language, key, { model, ...values }));
+  let roundLabel = '';
   // A new stretch of work with its own line in the step list.
   const round = (key, values = {}) => {
     const label = sandboxText(language, key, { model, ...values });
+    roundLabel = label;
     onStatus(label);
     onEvent({ type: 'round', label, doneLabel: sandboxText(language, 'ledgerThought', { model }) });
   };
@@ -114,10 +119,14 @@ export async function runSandboxReply({
   // What a round has said so far while it may still turn out to be the model announcing a run.
   let held = '';
   let holding = false;
+  // Set per round: starts the wait for the model to go quiet (see WRITING_AFTER_MS), and ends it.
+  let watchSilence = () => {};
+  let stopWatching = () => {};
   const emit = (chunk) => {
     if (!chunk) return;
     if (holding) {
       held += chunk;
+      watchSilence();
       // The model has started to write: it is no longer thinking.
       thoughtEndedAt ??= Date.now();
       if (held.length > NARRATION_HOLD_CHARS) {
@@ -143,6 +152,7 @@ export async function runSandboxReply({
       onEvent({ type: 'answering' });
     }
     deliver.continuing = true;
+    stopWatching();
     text += separator + chunk;
     streamed = (streamed + liveSeparator + chunk).slice(-8);
     onChunk(liveSeparator + chunk);
@@ -201,10 +211,32 @@ export async function runSandboxReply({
     else if (outcome?.failed) round('sandboxFixing');
     else if (outcome?.files) round('sandboxContinuedFiles', { count: outcome.files });
     else round('sandboxThinking');
+    let writingShown = false;
+    let codeStarted = false;
+    let writingTimer = null;
+    const showWriting = (key) => {
+      if (writingShown) return;
+      writingShown = true;
+      const label = sandboxText(language, key, { model });
+      onStatus(label);
+      onEvent({ type: 'writing', label });
+    };
+    stopWatching = () => { clearTimeout(writingTimer); writingTimer = null; };
+    watchSilence = () => {
+      stopWatching();
+      if (canRun && !writingShown) writingTimer = setTimeout(() => showWriting(canResearch ? 'sandboxNextStep' : 'sandboxWriting'), WRITING_AFTER_MS);
+    };
     const options = {
       ...requestOptions,
       // What the model is thinking and the code it is writing, as it streams.
       onReasoning: (chunk, kind) => {
+        // It was only a pause in the thinking: the line goes back to what the round is.
+        if (writingShown && !codeStarted) {
+          writingShown = false;
+          onStatus(roundLabel);
+          onEvent({ type: 'writing', label: roundLabel });
+        }
+        watchSilence();
         thought += chunk;
         thoughtStartedAt ??= Date.now();
         if (kind) thoughtKind = kind;
@@ -217,7 +249,12 @@ export async function runSandboxReply({
           narrationShown = true;
           onEvent({ type: 'narration', text: held.trim() });
         }
-        if (name === RUN_PYTHON_TOOL.name) onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
+        if (name === RUN_PYTHON_TOOL.name) {
+          stopWatching();
+          codeStarted = true;
+          showWriting('sandboxWriting');
+          onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
+        }
       },
       tools: [...(canRun ? [RUN_PYTHON_TOOL] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
       toolTurns,
@@ -226,7 +263,9 @@ export async function runSandboxReply({
     };
     try {
       await streamApiCall(requestParts, emit, signal, false, options);
+      stopWatching();
     } catch (error) {
+      stopWatching();
       // Stopping ends the stream with an error: what was thought so far is kept below, not thrown away.
       if (!signal?.aborted) {
         // Gemini may refuse its web search together with our tool; answer with
