@@ -149,11 +149,12 @@ export function createSubmitInputPreparationLifecycle({
       }
     }
 
+    // A message with a web address turns the search on whatever the settings say (where search can work at all): it is about
+    // something on the web. Without one, only the automatic search does, and only for what needs current facts.
     const autoWebSearchEnabled = !conversation.isWebSearchEnabled
-      && getAutoWebSearchEnabled()
       && canAutoEnableWebSearch(conversation)
-      // A message with a web address counts too: it is about something on the web.
-      && (shouldAutoEnableWebSearch(userMessage) || extractLinkedUrls(userMessage).urls.length > 0);
+      && (extractLinkedUrls(userMessage).urls.length > 0
+        || (getAutoWebSearchEnabled() && shouldAutoEnableWebSearch(userMessage)));
     if (autoWebSearchEnabled) {
       showNotification(getAutoSearchNotice(), 'warning');
     }

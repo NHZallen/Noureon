@@ -407,7 +407,7 @@ test('a linked address is read in a normal chat for OpenRouter and NVIDIA models
   assert.deepEqual(sources, [{ title: 'Article', url: `${LINK}?x=1`, read: true }]);
   assert.match(result[0].text, /Web pages the user linked/);
   assert.match(result[0].text, /Whole article text/);
-  assert.match(result[0].text, /untrusted web content/);
+  assert.match(result[0].text, /The user did not write this text/);
   assert.equal(result.at(-1).text, parts[0].text, 'the user\'s message follows');
 
   // Gemini opens links itself, and an image model has nothing to read them for.

@@ -297,7 +297,7 @@ test('auto web search can be enabled for Tavily-backed providers through the run
   }
 });
 
-test('with auto web search on, a message with a web address enables the search, and one without does not', async () => {
+test('a message with a web address enables the search whatever the auto search setting is, and one without it follows the setting', async () => {
   const conversation = () => ({ archived: false, isTemporary: false, isWebSearchEnabled: false, messages: [], provider: 'openrouter', unsentMessage: '' });
   const withAddress = createHarness({ autoWebSearch: true, messageValue: 'Summarise https://example.org/article for me', conversation: conversation() });
   assert.equal((await withAddress.lifecycle.prepareSubmitResponse()).webSearchEnabled, true);
@@ -307,7 +307,14 @@ test('with auto web search on, a message with a web address enables the search, 
   assert.equal((await plain.lifecycle.prepareSubmitResponse()).webSearchEnabled, false);
 
   const switchedOff = createHarness({ autoWebSearch: false, messageValue: 'Summarise https://example.org/article', conversation: conversation() });
-  assert.equal((await switchedOff.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'auto search off: the address alone does not turn it on');
+  assert.equal((await switchedOff.lifecycle.prepareSubmitResponse()).webSearchEnabled, true, 'auto search off: an address turns it on all the same');
+  assert.ok(switchedOff.calls.some(call => call[0] === 'showNotification' && call[1] === 'auto search on'));
+
+  const switchedOffNoAddress = createHarness({ autoWebSearch: false, messageValue: 'What are the latest news headlines?', conversation: conversation() });
+  assert.equal((await switchedOffNoAddress.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'without an address, auto search off means no search');
+
+  const alreadyOn = createHarness({ autoWebSearch: false, messageValue: 'Summarise https://example.org/article', conversation: { ...conversation(), isWebSearchEnabled: true } });
+  assert.equal(alreadyOn.calls.some(call => call[0] === 'showNotification' && call[1] === 'auto search on'), false, 'search already on: nothing is announced');
 
   const noAccess = createHarness({ autoWebSearch: true, messageValue: 'Summarise https://example.org/article', conversation: conversation(), canAutoEnableWebSearch: () => false });
   assert.equal((await noAccess.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'and not where search cannot work');
