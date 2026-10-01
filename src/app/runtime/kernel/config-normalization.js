@@ -1,4 +1,5 @@
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
+import { normalizeSearchProvider } from './search-provider.js';
 
 export function normalizeApiKeyValue(value) {
   if (typeof value === 'string') {
@@ -89,6 +90,7 @@ export function normalizeLoadedLegacyConfig({
     normalizedConfig.uiTheme.adaptivePalette = normalizedConfig.uiTheme.adaptivePalette || [];
     normalizedConfig.uiTheme.adaptiveGradient = normalizedConfig.uiTheme.adaptiveGradient || '';
     normalizedConfig.outputMode = normalizedConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter';
+    normalizedConfig.searchProvider = normalizeSearchProvider(normalizedConfig.searchProvider);
     normalizedConfig.tavilySearchDepth = normalizedConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
   } else {
     normalizedConfig = {

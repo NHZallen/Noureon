@@ -1,7 +1,8 @@
 import {
     buildTavilySearchQuery,
     formatTavilySearchPacket,
-    getSearchCurrentDate
+    getSearchCurrentDate,
+    normalizeTinyfishSearch
 } from '../../legacy-runtime/features/model-request-formatting.js';
 import { createStreamApiCall } from '../../legacy-runtime/features/stream-api-call.js';
 import { createCurrentMemoryContextProvider } from '../memory/current-memory-context-provider.js';
@@ -22,6 +23,7 @@ import { createSettingsHistoryRecallControls } from './settings-history-recall-c
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { createMemoryModelRunner } from './memory-model-runner.js';
 import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
+import { getSearchProvider } from '../kernel/search-provider.js';
 import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl } from './settings-vision-check-control.js';
 
 const requiredDependencies = [
@@ -227,6 +229,7 @@ const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS }
 const providerRequestSupport = createProviderRequestSupport({
     buildTavilySearchQuery,
     formatTavilySearchPacket,
+    normalizeTinyfishSearch,
     getErrorMessage,
     readErrorBody,
     getApiKeyForProvider,
@@ -365,7 +368,8 @@ const {
     ensureCouncilTranslatorSettingsControls,
     ensureOutputModeSettingsControls,
     renderTranslatorModelPickers,
-    syncOutputModeSettingsControls
+    syncOutputModeSettingsControls,
+    syncSearchProviderControls
 } = outputTranslatorControls;
 const getSettingsText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
 const authActionsHelper = createSettingsAuthActionsHelper({
@@ -519,6 +523,8 @@ const setupSettingsModal = () => {
     ensureOutputModeSettingsControls();
     prepareApiKeyInputsForSettings();
     if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();
+    if (ALL_ELEMENTS.searchProviderSelect) ALL_ELEMENTS.searchProviderSelect.value = getSearchProvider(config);
+    syncSearchProviderControls();
     renderTranslatorModelPickers();
     applyLanguage(config.uiLanguage);
     ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
@@ -586,6 +592,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         ALL_ELEMENTS.historyRecallToggleSwitch.checked = false;
     }
     Object.assign(config, {
+        searchProvider: collectedSettings.searchProvider,
         tavilySearchDepth: collectedSettings.tavilySearchDepth,
         councilTranslatorModelId: collectedSettings.councilTranslatorModelId,
         singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,

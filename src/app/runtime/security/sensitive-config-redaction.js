@@ -2,7 +2,8 @@ export const SENSITIVE_API_KEY_FIELDS = Object.freeze([
   'gemini',
   'openrouter',
   'nvidia',
-  'tavily'
+  'tavily',
+  'tinyfish'
 ]);
 
 const SENSITIVE_API_KEY_FIELD_SET = new Set(SENSITIVE_API_KEY_FIELDS);

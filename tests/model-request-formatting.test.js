@@ -6,7 +6,8 @@ import {
   buildTavilySearchQuery,
   formatTavilySearchPacket,
   getSearchCurrentDate,
-  normalizeSearchQuery
+  normalizeSearchQuery,
+  normalizeTinyfishSearch
 } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -96,4 +97,35 @@ test('model request formatting helper remains isolated from runtime side effects
   ]) {
     assert.doesNotMatch(helperSource, new RegExp(`\\b${forbidden}\\b`));
   }
+});
+
+test('TinyFish results are given the shape of Tavily\'s, whatever the snippet is called', () => {
+  const normalized = normalizeTinyfishSearch({
+    results: [
+      { position: 1, site_name: 'example.org', title: 'First', snippet: ' One ', url: 'https://example.org/1' },
+      { position: 2, title: 'Second', text: 'Two', url: 'https://example.org/2' },
+      { position: 3, title: 'No address', snippet: 'Lost' },
+      { position: 4, domain: 'example.net', content: 'Four', link: 'https://example.net/4' }
+    ]
+  });
+
+  assert.deepEqual(normalized.results, [
+    { title: 'First', url: 'https://example.org/1', content: 'One' },
+    { title: 'Second', url: 'https://example.org/2', content: 'Two' },
+    { title: 'example.net', url: 'https://example.net/4', content: 'Four' }
+  ]);
+  assert.equal(normalizeTinyfishSearch({ results: normalized.results.concat(normalized.results) }, 2).results.length, 2, 'limited to what was asked');
+  assert.deepEqual(normalizeTinyfishSearch(undefined).results, []);
+  assert.equal(normalizeTinyfishSearch([{ title: 'Bare list', url: 'https://example.org' }]).results.length, 1);
+});
+
+test('the search packet names the source it came from', () => {
+  const data = normalizeTinyfishSearch({ results: [{ title: 'First', url: 'https://example.org/1', snippet: 'One' }] });
+  const packet = formatTavilySearchPacket(data, 'query', 'Web search packet', 'TinyFish');
+  assert.match(packet, /Provider: TinyFish/);
+  assert.match(packet, /URL: https:\/\/example\.org\/1/);
+  assert.match(packet, /Content: One/);
+  assert.doesNotMatch(packet, /Tavily/);
+  assert.match(formatTavilySearchPacket({ results: [] }, 'query', 'Web search packet', 'TinyFish'), /No TinyFish results were returned/);
+  assert.match(formatTavilySearchPacket({ results: [] }, 'query'), /Provider: Tavily/, 'Tavily stays the default');
 });

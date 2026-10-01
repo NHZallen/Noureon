@@ -54,7 +54,7 @@ Noureon 目前支援：
 - Google Gemini
 - OpenRouter
 - NVIDIA API Catalog
-- Tavily 網路搜尋
+- Tavily 或 TinyFish 網路搜尋
 
 你只需要設定實際打算使用的服務。
 
@@ -80,7 +80,7 @@ Noureon 支援以下工作流程：
 - 媒體附件
 - 搜尋輔助的模型回覆
 
-Gemini 模型可以使用其支援的原生搜尋能力。其他受支援的供應商可在設定 Tavily API 金鑰後使用 Tavily。
+Gemini 模型可以使用其支援的原生搜尋能力。其他受支援的供應商可在設定中選擇 Tavily 或 TinyFish 作為搜尋來源，並設定該服務的 API 金鑰後使用。
 
 附件支援範圍取決於所選的模型與供應商。
 
@@ -181,6 +181,7 @@ http://localhost:5173
 | OpenRouter | 多家 AI 實驗室的模型與圖片生成 | Noureon 設定 |
 | NVIDIA | 受支援的 NVIDIA 託管模型 | Noureon 設定 |
 | Tavily | 為受支援的非原生供應商提供網路搜尋 | Noureon 設定 |
+| TinyFish | 為受支援的非原生供應商提供免費網路搜尋（Tavily 的替代選擇） | Noureon 設定 |
 
 模型供應情況、價格、速率限制與地區存取均由各供應商決定。
 

@@ -421,6 +421,7 @@ export const getProviderLabel = (provider) => {
     if (provider === 'openrouter') return 'OpenRouter';
     if (provider === 'nvidia') return 'NVIDIA';
     if (provider === 'tavily') return 'Tavily';
+    if (provider === 'tinyfish') return 'TinyFish';
     return provider || '';
 };
 

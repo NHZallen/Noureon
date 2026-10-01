@@ -55,6 +55,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
   });
 
   assert.deepEqual(result, {
+    searchProvider: 'tavily',
     tavilySearchDepth: 'advanced',
     councilTranslatorModelId: 'gemini-translator',
     singleDocumentTranslatorModelId: 'doc-translator',

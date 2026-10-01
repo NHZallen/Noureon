@@ -22,6 +22,7 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { canCaptureConversationMessage } from '../features/temporary-chat-state.js';
 import { createDeckDesignControl } from '../features/deck-design-control.js';
 import { createVisionCheckScheduler } from '../features/vision-check-scheduler.js';
+import { getSearchProvider } from '../kernel/search-provider.js';
 import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { createChatScrollPosition } from '../features/chat-scroll-position.js';
@@ -740,11 +741,11 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       if (isCouncilEnabled(conversation)) {
         const { synthesizer } = getCouncilSelectedModels(conversation);
         if (!hasCouncilWebSearchAccess(synthesizer || modelInfo)) return false;
-        if (modelUsesTavilySearch(synthesizer || modelInfo) && !getApiKeyForProvider('tavily')) return false;
+        if (modelUsesTavilySearch(synthesizer || modelInfo) && !getApiKeyForProvider(getSearchProvider(getLiveConfig()))) return false;
         return true;
       }
       if (!hasSingleWebSearchAccess(modelInfo)) return false;
-      if (modelUsesTavilySearch(modelInfo) && !getApiKeyForProvider('tavily')) return false;
+      if (modelUsesTavilySearch(modelInfo) && !getApiKeyForProvider(getSearchProvider(getLiveConfig()))) return false;
       return true;
     },
     getAutoSearchNotice: () => i18n[getLiveConfig().uiLanguage].autoSearchNotice || '自動啟用網路搜尋。',

@@ -47,6 +47,7 @@ test('store reads, writes, merges, replaces, clears, and protects external mutat
     gemini: '',
     openrouter: '',
     nvidia: '',
-    tavily: ''
+    tavily: '',
+    tinyfish: ''
   });
 });

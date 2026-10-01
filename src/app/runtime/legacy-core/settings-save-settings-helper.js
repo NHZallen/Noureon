@@ -1,3 +1,5 @@
+import { normalizeSearchProvider } from '../kernel/search-provider.js';
+
 export function collectSettingsSaveFormValues({
     document,
     elements,
@@ -14,6 +16,8 @@ export function collectSettingsSaveFormValues({
             : '');
 
     return {
+        // Kept as it was where the setting is not shown.
+        searchProvider: elements.searchProviderSelect ? normalizeSearchProvider(elements.searchProviderSelect.value) : normalizeSearchProvider(config.searchProvider),
         tavilySearchDepth: elements.tavilySearchDepthSelect?.value === 'advanced' ? 'advanced' : 'basic',
         councilTranslatorModelId: elements.councilTranslatorModelSelect?.value || null,
         singleDocumentTranslatorModelId: elements.singleDocumentTranslatorModelSelect?.value || null,

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
+import { normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -26,6 +27,7 @@ const createResponse = ({
 const createHarness = ({
   activeConversation = { isWebSearchEnabled: false },
   apiKeys = { tavily: 'tavily-key' },
+  config = {},
   fetchImpl,
   modelUsesTavilySearch = () => false,
   streamImpl,
@@ -36,11 +38,12 @@ const createHarness = ({
   const timers = [];
   const support = createProviderRequestSupport({
     buildTavilySearchQuery: (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 120),
-    formatTavilySearchPacket: (data, query, label) => `${label}: ${query}: ${data.results?.[0]?.title || 'none'}`,
+    formatTavilySearchPacket: (data, query, label, provider = 'Tavily') => `${label}: ${query}: ${data.results?.[0]?.title || 'none'}${provider === 'Tavily' ? '' : ` (${provider})`}`,
+    normalizeTinyfishSearch,
     getErrorMessage: (body, fallback) => body?.error?.message || fallback,
     readErrorBody: async (response) => JSON.parse(await response.text()),
     getApiKeyForProvider: (provider) => apiKeys[provider] || '',
-    getConfig: () => ({ tavilySearchDepth: 'advanced', uiLanguage: 'en' }),
+    getConfig: () => ({ tavilySearchDepth: 'advanced', uiLanguage: 'en', ...config }),
     getActiveConversation: () => activeConversation,
     streamApiCall: streamImpl || (async (parts, onChunk, signal, isWebSearchForced, options = {}) => {
       streamCalls.push({ parts, signal, isWebSearchForced, options });
@@ -239,4 +242,50 @@ test('provider request support source avoids DOM, storage schema, package, and V
   ]) {
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
+});
+
+test('with TinyFish chosen the search goes to its proxy with its key, and the packet names it', async () => {
+  const { fetchCalls, support } = createHarness({
+    apiKeys: { tinyfish: 'tinyfish-key' },
+    config: { searchProvider: 'tinyfish' },
+    fetchImpl: undefined
+  });
+  const sources = [];
+
+  const packet = await support.fetchTavilySearchPacket('  latest   facts ', new AbortController().signal, {
+    label: 'Single search',
+    topic: 'news',
+    onSources: (found) => sources.push(...found)
+  });
+
+  assert.equal(packet, 'Single search: latest facts: Result (TinyFish)');
+  assert.equal(fetchCalls[0][0], '/api/tinyfish-search');
+  assert.equal(fetchCalls[0][1].headers.Authorization, 'Bearer tinyfish-key');
+  assert.deepEqual(JSON.parse(fetchCalls[0][1].body), { query: 'latest facts', domain_type: 'news' });
+  assert.deepEqual(sources, [{ title: 'Result', url: 'https://example.test' }]);
+});
+
+test('each search source needs its own key: the other one does not do', async () => {
+  const { support: tinyfishWithTavilyKey } = createHarness({ apiKeys: { tavily: 'tavily-key' }, config: { searchProvider: 'tinyfish' } });
+  await assert.rejects(
+    () => tinyfishWithTavilyKey.fetchTavilySearchPacket('hello', new AbortController().signal),
+    /TinyFish API key is required/
+  );
+  const { support: tavilyWithTinyfishKey } = createHarness({ apiKeys: { tinyfish: 'tinyfish-key' } });
+  await assert.rejects(
+    () => tavilyWithTinyfishKey.fetchTavilySearchPacket('hello', new AbortController().signal),
+    /Tavily API key is required/
+  );
+});
+
+test('a TinyFish HTTP error is reported by name', async () => {
+  const { support } = createHarness({
+    apiKeys: { tinyfish: 'tinyfish-key' },
+    config: { searchProvider: 'tinyfish' },
+    fetchImpl: async () => createResponse({ ok: false, status: 429, textValue: JSON.stringify({}) })
+  });
+  await assert.rejects(
+    () => support.fetchTavilySearchPacket('hello', new AbortController().signal),
+    /TinyFish HTTP 429/
+  );
 });

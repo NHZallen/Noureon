@@ -20,7 +20,7 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 test('sensitive config redaction exports the expected helper API', () => {
   assert.deepEqual(
     [...SENSITIVE_API_KEY_FIELDS].sort(),
-    ['gemini', 'nvidia', 'openrouter', 'tavily'].sort()
+    ['gemini', 'nvidia', 'openrouter', 'tavily', 'tinyfish'].sort()
   );
   assert.equal(typeof isSensitiveConfigKey, 'function');
   assert.equal(typeof isMaskedApiKeyDisplayValue, 'function');

@@ -1,3 +1,4 @@
+import { getSearchProvider } from '../kernel/search-provider.js';
 import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 
@@ -42,7 +43,7 @@ export function createSettingsUpdateInputStateHelper({
         const modelInfo = normalizeConversationModel(conv);
         const provider = modelInfo?.provider;
         const councilValidation = getCouncilValidation(conv);
-        const hasTavilyKey = !conversationNeedsTavilySearch(conv) || !!getApiKeyForProvider('tavily');
+        const hasTavilyKey = !conversationNeedsTavilySearch(conv) || !!getApiKeyForProvider(getSearchProvider(config));
         const hasModelApiKey = isCouncilEnabled(conv)
             ? councilValidation.reason !== 'missingApiKey'
             : !!getApiKeyForProvider(provider);

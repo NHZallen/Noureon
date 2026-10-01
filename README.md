@@ -54,7 +54,7 @@ Noureon currently supports:
 - Google Gemini
 - OpenRouter
 - NVIDIA API Catalog
-- Tavily web search
+- Tavily or TinyFish web search
 
 You only need to configure the providers you intend to use.
 
@@ -80,7 +80,7 @@ Noureon supports workflows involving:
 - Media attachments
 - Search-assisted model responses
 
-Gemini models can use their supported native search capabilities. Other supported providers can use Tavily when a Tavily API key is configured.
+Gemini models can use their supported native search capabilities. Other supported providers use web search from Tavily or TinyFish (chosen in Settings) when that service's API key is configured.
 
 Attachment support depends on the selected model and provider.
 
@@ -181,6 +181,7 @@ Provider API keys do not need to be added to `.env`.
 | OpenRouter | Models from multiple AI labs and image generation | Noureon Settings |
 | NVIDIA | Supported NVIDIA-hosted models | Noureon Settings |
 | Tavily | Web search for supported non-native providers | Noureon Settings |
+| TinyFish | Free web search for supported non-native providers (alternative to Tavily) | Noureon Settings |
 
 Model availability, pricing, rate limits, and regional access are determined by each provider.
 

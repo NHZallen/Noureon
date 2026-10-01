@@ -40,6 +40,61 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
     escapeHTML
   } = dependencies;
 
+  // Which search source is used for the models with no search of their own, and the key field of the one in use: the
+  // select goes above the Tavily key, the TinyFish key after the Tavily depth. Only the chosen source's fields show.
+  const SEARCH_SOURCE_BLOCKS = {
+    tavily: ['tavily-api-key-input', 'tavily-search-depth-select'],
+    tinyfish: ['tinyfish-api-key-input']
+  };
+  const syncSearchProviderControls = () => {
+    const select = document.getElementById('search-provider-select');
+    if (!select) return;
+    const chosen = select.value === 'tinyfish' ? 'tinyfish' : 'tavily';
+    Object.entries(SEARCH_SOURCE_BLOCKS).forEach(([source, ids]) => {
+      ids.forEach((id) => {
+        const block = document.getElementById(id)?.closest('div.search-source-block');
+        if (block?.style) block.style.display = source === chosen ? '' : 'none';
+      });
+    });
+  };
+  const ensureSearchProviderSettingsControls = () => {
+    const tavilyInput = document.getElementById('tavily-api-key-input');
+    const tavilyBlock = tavilyInput?.closest('div');
+    if (!tavilyBlock) return;
+    if (!document.getElementById('search-provider-select')) {
+      tavilyBlock.insertAdjacentHTML('beforebegin', `
+                <div>
+                    <label for="search-provider-select" class="block text-sm font-medium mb-1" data-lang-key="searchProvider">Search source</label>
+                    <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="searchProviderDesc">Where web search comes from for OpenRouter and NVIDIA models. Use the one you have a key for.</p>
+                    <select id="search-provider-select" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]">
+                        <option value="tavily">Tavily</option>
+                        <option value="tinyfish">TinyFish</option>
+                    </select>
+                </div>
+            `);
+    }
+    if (!document.getElementById('tinyfish-api-key-input')) {
+      const depthBlock = document.getElementById('tavily-search-depth-select')?.closest('div') || tavilyBlock;
+      depthBlock.insertAdjacentHTML('afterend', `
+                <div>
+                    <label for="tinyfish-api-key-input" class="block text-sm font-medium mb-1" data-lang-key="tinyfishApiKey">TinyFish API Key</label>
+                    <p class="text-xs text-[var(--text-secondary)] mb-2" data-lang-key="tinyfishApiDesc">Free web search for OpenRouter and NVIDIA models. Get a key at agent.tinyfish.ai.</p>
+                    <input type="password" id="tinyfish-api-key-input" class="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]" placeholder="sk-tinyfish-..." data-lang-key-placeholder="tinyfishApiPlaceholder">
+                </div>
+            `);
+    }
+    // The blocks that come and go with the choice (the key fields are wrapped again by the key controls).
+    ['tavily-api-key-input', 'tavily-search-depth-select', 'tinyfish-api-key-input'].forEach((id) => {
+      document.getElementById(id)?.closest('div')?.classList.add('search-source-block');
+    });
+    const select = document.getElementById('search-provider-select');
+    if (select && select.dataset.searchSourceBound !== 'true') {
+      select.dataset.searchSourceBound = 'true';
+      select.addEventListener('change', syncSearchProviderControls);
+    }
+    syncSearchProviderControls();
+  };
+
   const ensureCouncilTranslatorSettingsControls = () => {
     if (!document.getElementById('nvidia-api-key-input')) {
       const openrouterInput = document.getElementById('openrouter-api-key-input-all');
@@ -109,9 +164,12 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
             `);
       }
     }
+    ensureSearchProviderSettingsControls();
     elements.nvidiaApiKeyInput = document.getElementById('nvidia-api-key-input');
     elements.tavilyApiKeyInput = document.getElementById('tavily-api-key-input');
     elements.tavilySearchDepthSelect = document.getElementById('tavily-search-depth-select');
+    elements.searchProviderSelect = document.getElementById('search-provider-select');
+    elements.tinyfishApiKeyInput = document.getElementById('tinyfish-api-key-input');
     elements.councilTranslatorModelSelect = document.getElementById('council-translator-model-select');
     elements.singleDocumentTranslatorModelSelect = document.getElementById('single-document-translator-model-select');
   };
@@ -275,6 +333,7 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
     ensureOutputModeSettingsControls,
     renderTranslatorModelPicker,
     renderTranslatorModelPickers,
-    syncOutputModeSettingsControls
+    syncOutputModeSettingsControls,
+    syncSearchProviderControls
   };
 }

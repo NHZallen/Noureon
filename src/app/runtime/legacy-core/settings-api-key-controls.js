@@ -41,7 +41,8 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     { provider: 'gemini', input: elements.geminiApiKeyInput },
     { provider: 'openrouter', input: elements.openrouterApiKeyInputAll },
     { provider: 'nvidia', input: elements.nvidiaApiKeyInput },
-    { provider: 'tavily', input: elements.tavilyApiKeyInput }
+    { provider: 'tavily', input: elements.tavilyApiKeyInput },
+    { provider: 'tinyfish', input: elements.tinyfishApiKeyInput }
   ].filter(({ input }) => input);
 
   const createApiKeyClearButton = (provider, input) => {

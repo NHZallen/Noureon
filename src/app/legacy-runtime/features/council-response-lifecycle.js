@@ -1,3 +1,4 @@
+import { getSearchProvider, searchProviderLabel } from '../../runtime/kernel/search-provider.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 
@@ -400,7 +401,7 @@ export function createCouncilResponseLifecycle({
       if (searchState) {
           const sharedSearchModel = getCouncilSharedSearchModel(synthesizer);
           searchState.status = 'running';
-          searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || 'Tavily'}`;
+          searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || searchProviderLabel(getSearchProvider(getConfig()))}`;
           progress('search', searchState.detail);
           try {
               const searchStreamTracker = createCouncilStageTracker('search', () => runtimeTexts.searchRunning);
@@ -507,7 +508,7 @@ export function createCouncilResponseLifecycle({
           if (searchState) {
               const sharedSearchModel = getCouncilSharedSearchModel(synthesizer);
               searchState.status = 'running';
-              searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || 'Tavily'} (discussion)`;
+              searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || searchProviderLabel(getSearchProvider(getConfig()))} (discussion)`;
               progress('search', searchState.detail);
               try {
                   const searchStreamTracker = createCouncilStageTracker('search', () => searchState.detail);

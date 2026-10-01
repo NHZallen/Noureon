@@ -53,6 +53,7 @@ import { notifyCloudConversationSave } from '/src/app/runtime/kernel/cloud-conve
 import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/src/app/runtime/security/sensitive-config-store.js';
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
 import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
+import { searchSourceModel } from '/src/app/runtime/kernel/search-provider.js';
 import { getCouncilRuntimeTexts as getCouncilRuntimeTextsForLanguage } from '/src/app/runtime/legacy-core/council-runtime-texts.js';
 import { AI_BUBBLE_COLORS, FOLDER_COLORS, UI_THEME_COLORS, USER_BUBBLE_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
 
@@ -227,10 +228,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             const selectedCouncilModels = [...participants, synthesizer].filter(Boolean);
             const translationNeed = getCouncilAttachmentTranslationNeed(selectedCouncilModels, files);
             const translatorModel = translationNeed.needsAnyPacket ? getCouncilTranslatorModel() : null;
-            const tavilySearchModel = conv?.isWebSearchEnabled && modelUsesTavilySearch(synthesizer)
-                ? { id: 'tavily-search', name: 'Tavily Search', provider: 'tavily' }
-                : null;
-            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : []), ...(tavilySearchModel ? [tavilySearchModel] : [])]
+            const searchModel = conv?.isWebSearchEnabled && modelUsesTavilySearch(synthesizer) ? searchSourceModel(runtimeConfigAccess.getConfig()) : null;
+            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : []), ...(searchModel ? [searchModel] : [])]
                 .filter((model, index, arr) => arr.findIndex(item => item.id === model.id) === index)
                 .filter(model => !getApiKeyForProvider(model.provider));
             if (missingKeyModels.length > 0) {

@@ -22,18 +22,35 @@ export const buildTavilySearchQuery = (value = '') => {
   return normalizeSearchQuery(`${text} current date ${getSearchCurrentDate()} latest${sportsBoost}`);
 };
 
-export const formatTavilySearchPacket = (data, query, label = 'Web search packet') => {
+// TinyFish's search answers with a list of results that carry a snippet; this gives them the shape Tavily's have, so
+// one packet format serves both. The field names are taken defensively: a result's text may come as `snippet`,
+// `text` or `content`, and its site as `site_name`, `domain` or `source`.
+export const normalizeTinyfishSearch = (data, limit = 6) => {
+  const list = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+  return {
+    results: list
+      .map((item) => ({
+        title: String(item?.title || item?.site_name || item?.domain || '').trim(),
+        url: String(item?.url || item?.link || '').trim(),
+        content: String(item?.snippet || item?.text || item?.content || item?.description || '').trim()
+      }))
+      .filter((item) => item.url)
+      .slice(0, limit)
+  };
+};
+
+export const formatTavilySearchPacket = (data, query, label = 'Web search packet', provider = 'Tavily') => {
   const results = Array.isArray(data?.results) ? data.results : [];
   const lines = [
     `# ${label}`,
     '',
-    `Provider: Tavily`,
+    `Provider: ${provider}`,
     `Query: ${data?.query || query}`,
     `Current date: ${getSearchCurrentDate()}`,
     `Retrieved at: ${new Date().toISOString()}`
   ];
   if (data?.answer) {
-    lines.push('', '## Tavily answer', String(data.answer).trim());
+    lines.push('', `## ${provider} answer`, String(data.answer).trim());
   }
   if (results.length > 0) {
     lines.push('', '## Sources');
@@ -49,7 +66,7 @@ export const formatTavilySearchPacket = (data, query, label = 'Web search packet
       }
     });
   } else {
-    lines.push('', 'No Tavily results were returned.');
+    lines.push('', `No ${provider} results were returned.`);
   }
   lines.push(
     '',
