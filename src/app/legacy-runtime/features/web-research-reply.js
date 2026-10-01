@@ -61,10 +61,15 @@ const RESULTS_SHOWN = 8;
 const NARRATION_HOLD_CHARS = 400;
 
 export const researchGuidance = (today = new Date().toISOString().slice(0, 10)) => [
-  `You can search the web (web_search) and open pages (open_page). Today is ${today}.`,
+  `You can search the web (web_search), open pages (open_page) and look for a word in a page (find_in_page). Today is ${today}. Python, if you have it, has no internet: everything from the web comes through these tools.`,
   'Search when the answer depends on facts that may have changed or that you do not know. Do not search for what you already know well.',
-  'Look at the results before you decide what to open. When a snippet does not answer, open the page: for a GitHub repository its /releases, /tags or /commits pages or its README tell what a snippet cannot. Search again with other words when the results miss.',
-  'Stop when you can answer, and answer from what you read. Name the sources (site and title) in your answer in a natural way, and say plainly when you could not find something or could not open a page.'
+  'Research like a person who needs the real answer, not the first plausible one:',
+  '- A snippet is a hint. Open the page that is likely to hold the answer and read it; on a long page use find_in_page to jump to the word you need (a version, a date, a name, a price).',
+  '- The text of a page has its links as [text](address): follow the ones that lead closer, one level after another (a repository to its releases, tags or files; a site to its docs, changelog or pricing page).',
+  '- For a GitHub repository, its README and /releases, /tags and /commits pages are the first places; a version is also written in files such as package.json, pyproject.toml or a version file, whose raw text is at raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>.',
+  '- When a search misses, search again with other words (the exact name, another language, a site name added). When a page cannot be read, try another route to the same fact before giving up.',
+  '- Do not stop after one search and do not say you cannot look it up: you can. Stop when you have the answer or when the routes you tried are used up, and then say what you tried.',
+  'Answer from what you read. Name the sources (site and title) naturally in your answer, and say plainly what you could not find or open.'
 ].join('\n');
 
 const cut = (text, limit) => {
