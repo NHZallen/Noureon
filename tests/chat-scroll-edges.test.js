@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { setEndRoomEnabled } from '../src/app/ui/motion/reader-scroll-guard.js';
 import { keepChatOffItsEdges } from '../src/app/runtime/features/chat-scroll-edges.js';
 
 const createScroller = ({ scrollTop, scrollHeight = 2000, clientHeight = 600 }) => {
@@ -20,8 +19,6 @@ const createScroller = ({ scrollTop, scrollHeight = 2000, clientHeight = 600 }) 
     touch: () => listeners.touchstart?.()
   };
 };
-setEndRoomEnabled(true);
-
 const room = (scroller) => scroller.style.getPropertyValue('--end-room');
 
 test('a finger landing on a chat resting on its end gives it more range there and moves nothing', () => {

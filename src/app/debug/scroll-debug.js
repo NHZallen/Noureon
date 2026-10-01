@@ -10,6 +10,8 @@ import { setEndRoomEnabled } from '../ui/motion/reader-scroll-guard.js';
 const MAX_LINES = 14;
 // The longest time, in the last ten seconds, that the page went without drawing a frame.
 let stallMax = 0;
+// When the page last set the chat's position itself, and when it last moved without the page doing so.
+const marks = { write: -1e9, userScroll: -1e9, ownTop: null };
 
 const describe = (node) => {
   if (!node || node === document) return 'document';
@@ -58,16 +60,15 @@ export function installScrollDebugPanel(doc = document, params = new URLSearchPa
     if (osb === 'on') view.localStorage.removeItem('scrollDebugOsb');
   } catch {}
 
-  // ?room=on gives the chat and the thinking boxes extra range at their ends (off by default), ?room=off takes it away
-  // again; remembered on this device.
-  let roomOn = false;
+  // The extra range at the ends of the chat and the thinking boxes is on by default; ?room=off takes it away and ?room=on
+  // puts it back (remembered on this device).
+  let roomOn = true;
   try {
     const room = params.get('room');
-    if (room === 'on') view.localStorage.setItem('scrollDebugRoom', 'on');
-    if (room === 'off') view.localStorage.removeItem('scrollDebugRoom');
-    roomOn = view.localStorage.getItem('scrollDebugRoom') === 'on';
+    if (room === 'on' || room === 'off') view.localStorage.setItem('scrollDebugRoomMode', room);
+    roomOn = view.localStorage.getItem('scrollDebugRoomMode') !== 'off';
   } catch {
-    roomOn = params.get('room') === 'on';
+    roomOn = params.get('room') !== 'off';
   }
   setEndRoomEnabled(roomOn);
 
@@ -159,6 +160,20 @@ export function watchChatScrolling(doc = document) {
     }, 2000);
     const max = chat.scrollHeight - chat.clientHeight;
     log(`TS  room=${chat.style.getPropertyValue('--end-room') || '0'} y=${Math.round(gesture.y)} n=${event.touches.length} on ${gesture.target} chat=${chat.scrollTop.toFixed(2)}/${max} gapEnd=${(max - chat.scrollTop).toFixed(2)} gapTop=${chat.scrollTop.toFixed(2)}`);
+    // What the layout really says (the DOM rounds to whole pixels), how long since the page last moved the chat and
+    // since the reader last did, and what is between the finger and the chat.
+    const list = doc.getElementById('message-list');
+    const pad = Number.parseFloat(view.getComputedStyle(chat).paddingBottom) || 0;
+    const exactGap = list ? (list.getBoundingClientRect().bottom + pad) - chat.getBoundingClientRect().bottom : NaN;
+    const now = view.performance.now();
+    const chain = [];
+    for (let el = event.target; el && el !== chat && chain.length < 6; el = el.parentElement) {
+      const style = view.getComputedStyle(el);
+      const scrolls = /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      chain.push(`${describe(el)}${scrolls ? '[S]' : ''}${style.touchAction !== 'auto' ? `[ta:${style.touchAction}]` : ''}`);
+    }
+    log(`    exactGap=${exactGap.toFixed(2)} sinceW=${Math.round(now - marks.write)}ms sinceUserScroll=${Math.round(now - marks.userScroll)}ms`);
+    log(`    path ${chain.join(' < ')}`);
     const box = scrollBoxUnder(event.target);
     if (box) log(`    box ${describe(box)} ${box.scrollTop.toFixed(1)}/${box.scrollHeight - box.clientHeight}`);
   };
@@ -200,6 +215,7 @@ export function watchChatScrolling(doc = document) {
   doc.addEventListener('scroll', (event) => {
     const target = event.target === doc ? doc.scrollingElement : event.target;
     const name = describe(event.target);
+    if (event.target === chat && view.performance.now() - marks.write > 200) marks.userScroll = view.performance.now();
     if (gesture && gesture.firstScroll === null) gesture.firstScroll = Math.round(view.performance.now() - gesture.at);
     if (!pending.has(name)) {
       pending.set(name, { count: 0, from: Math.round(target?.scrollTop || 0) });
@@ -218,6 +234,8 @@ export function watchChatScrolling(doc = document) {
     configurable: true,
     get() { return proto.get.call(this); },
     set(value) {
+      marks.write = view.performance.now();
+      marks.ownTop = value;
       log(`W   scrollTop=${Math.round(value)} from ${Math.round(proto.get.call(this))} by ${callerOf(new Error().stack)}`);
       proto.set.call(this, value);
     }

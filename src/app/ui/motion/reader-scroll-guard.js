@@ -46,10 +46,11 @@ const setRoom = (box, px) => {
   else box.style.removeProperty(END_ROOM);
 };
 
-// The extra range at an end is OFF by default. Recordings from an iPhone (the diagnostics' ?room=on / ?room=off) showed
-// swipes from the very end of the chat working every time without it, while with it some failed (it was given at the
-// moment a finger landed). It stays in the code, switched off, until the same is confirmed for the thinking boxes.
-let endRoomEnabled = false;
+// The extra range at an end is ON. Recordings from an iPhone (the diagnostics' ?room=on / ?room=off) showed that with it
+// off a swipe from the very end of the chat sometimes fails over and over (the chat does not move at all, and the
+// page does not either), in some sessions and not in others; with it on, the failures that remained were at the
+// moment it was given. The diagnostics can still switch it off to compare.
+let endRoomEnabled = true;
 export function setEndRoomEnabled(enabled) {
   endRoomEnabled = Boolean(enabled);
 }

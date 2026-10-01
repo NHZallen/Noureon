@@ -3,9 +3,6 @@ import test from 'node:test';
 
 import { giveEndRoom, isReaderScrolling, setEndRoomEnabled, setScrollTopQuietly, takeBackEndRoom, watchReader } from '../src/app/ui/motion/reader-scroll-guard.js';
 
-// The extra range is off by default in the app; these tests are about what it does when it is on.
-setEndRoomEnabled(true);
-
 const makeBox = (top = 0, height = 1000, client = 200) => {
   const listeners = {};
   const values = new Map();
@@ -339,8 +336,8 @@ test('the diagnostics can switch the end room off and on again', () => {
   assert.equal(room(box), '2px');
 });
 
-test('the extra range at an end is off unless it is switched on', async () => {
+test('the extra range at an end is on unless the diagnostics switch it off', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('../src/app/ui/motion/reader-scroll-guard.js', import.meta.url), 'utf8');
-  assert.match(source, /let endRoomEnabled = false;/);
+  assert.match(source, /let endRoomEnabled = true;/);
 });
