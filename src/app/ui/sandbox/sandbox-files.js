@@ -167,12 +167,18 @@ export function describeSandboxFile(entry, { canRerun = false } = {}) {
 // A model that saved a file with Python sometimes also writes it as a file
 // block of the same name (a second, often empty card). The real file wins:
 // blocks named like a saved file are taken out of the answer.
+// A line "[File: name]" is how earlier conversations are summarized for the model (the history it is shown), and a model
+// sometimes copies it into its answer where the file's card is: for a saved file that line is taken out too.
+const FILE_MARKER = /^[ \t]*\[File:[ \t]*([^\]\n]+?)[ \t]*\][ \t]*$/gim;
+
 export function withoutDuplicatedFileBlocks(text, names = []) {
   const taken = new Set(names);
   if (!taken.size || !text) return text;
   let result = text;
   const blocks = scanFileBlocks(text).filter((block) => taken.has(block.name));
   for (const block of blocks.reverse()) result = `${result.slice(0, block.start)}${result.slice(block.end)}`;
+  const takenLower = new Set([...taken].map((name) => String(name).toLowerCase()));
+  result = result.replace(FILE_MARKER, (line, name) => (takenLower.has(name.toLowerCase()) ? '' : line));
   return result === text ? text : result.replace(/\n{3,}/g, '\n\n').trim();
 }
 

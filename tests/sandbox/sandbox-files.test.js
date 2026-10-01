@@ -206,3 +206,11 @@ test('a file block named like a file Python saved is taken out of the answer', (
   assert.equal(withoutDuplicatedFileBlocks(answer, []), answer);
   assert.equal(withoutDuplicatedFileBlocks(answer, ['none.pptx']), answer);
 });
+
+test('a "[File: name]" marker the model copied from the summaries of earlier chats is taken out for a saved file, and only that', () => {
+  const answer = '完成了！共 13 頁。\n\n[File: 章魚_地球上的外星智慧.pptx]\n\n## 靈感來源\n\n[File: other.docx]\n\n句子裡的 [File: 章魚_地球上的外星智慧.pptx] 不動。';
+  const cleaned = withoutDuplicatedFileBlocks(answer, ['章魚_地球上的外星智慧.pptx']);
+  assert.equal(cleaned, '完成了！共 13 頁。\n\n## 靈感來源\n\n[File: other.docx]\n\n句子裡的 [File: 章魚_地球上的外星智慧.pptx] 不動。');
+  assert.equal(withoutDuplicatedFileBlocks('[File: A.PPTX]\nx', ['a.pptx']), 'x', 'the name is compared without regard to case');
+  assert.equal(withoutDuplicatedFileBlocks(answer, []), answer, 'with no saved file nothing is taken out');
+});

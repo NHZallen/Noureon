@@ -73,5 +73,5 @@ When to use it:
 - Before each run_python call, write one short sentence in the language of your reply saying what you are about to do and why (for example "First I'll check what is in the folder."). The user sees it between the steps. Do not write it when you are not calling the tool.
 - If a run fails, read the error, fix the code and try again; do not repeat the same code. You can run code at most ${MAX_RUNS_PER_REPLY} times per reply.
 
-In your answer, explain the results in words. Do not paste the code you ran: the user can open the run log above your answer. Refer to files you created by their names.`;
+In your answer, explain the results in words. Do not paste the code you ran: the user can open the run log above your answer. Refer to files you created by their names. A file appears under your answer as a card by itself: never write a marker such as "[File: name]" for it (that form only stands for a file in summaries of earlier conversations).`;
 }
