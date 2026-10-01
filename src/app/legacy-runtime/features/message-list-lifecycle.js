@@ -1,4 +1,5 @@
 import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
+import { isReaderScrolling } from '../../ui/motion/reader-scroll-guard.js';
 
 export function createMessageListLifecycle({
     document,
@@ -154,7 +155,8 @@ export function createMessageListLifecycle({
         };
         const settleMedia = ({ target }) => {
             if (!pendingMedia.delete(target)) return;
-            if (renderToken === renderSequence) scrollChatToBottom();
+            // Not under a finger: setting the position while someone swipes the chat stops the swipe on iPhone.
+            if (renderToken === renderSequence && !isReaderScrolling(chatContainer)) scrollChatToBottom();
             if (pendingMedia.size === 0) cancel();
         };
         eventNames.forEach(eventName => messageList.addEventListener(eventName, settleMedia, {

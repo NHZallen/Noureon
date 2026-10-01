@@ -194,7 +194,8 @@ test('legacy model registry owns static model metadata and capability helpers', 
 
   assert.equal(existsSync(projectFile(modelRegistryPath)), true);
   assert.equal(existsSync(projectFile('tests/runtime-model-registry.test.js')), true);
-  assert.match(modelRegistrySource, /export\s+const\s+MODELS\s*=\s*\[/);
+  assert.match(modelRegistrySource, /export\s+const\s+MODEL_CATALOG\s*=\s*\[/);
+  assert.match(modelRegistrySource, /export\s+const\s+MODELS\s*=\s*MODEL_CATALOG\.filter\(/);
   assert.match(modelRegistrySource, /export\s+const\s+CHEAP_MODEL_ID\s*=/);
   assert.match(modelRegistrySource, /export\s+const\s+OPENROUTER_VISION_MODELS\s*=\s*\[/);
   assert.match(modelRegistrySource, /export\s+const\s+NVIDIA_VISION_MODELS\s*=\s*\[/);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { chatsUnderVisionCheck } from '../src/app/runtime/features/vision-check-lock.js';
 import { createSettingsUpdateInputStateHelper } from '../src/app/runtime/legacy-core/settings-update-input-state-helper.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -242,4 +243,30 @@ test('updateInputState remains safe with injected default DOM fallbacks', () => 
   assert.doesNotThrow(() => helper.updateInputState());
   assert.equal(elements.submitButton.disabled, true);
   assertDisabledSubmitIcon(elements.submitButtonIcon.innerHTML);
+});
+
+test('a chat whose last message is under its visual check cannot send until it is done or stopped', () => {
+  chatsUnderVisionCheck.clear();
+  chatsUnderVisionCheck.add('conv-1');
+  try {
+    const locked = createHarness();
+    locked.helper.updateInputState();
+    assert.equal(locked.elements.submitButton.disabled, true);
+    assertDisabledSubmitIcon(locked.elements.submitButtonIcon.innerHTML);
+    assert.match(locked.elements.messageInput.placeholder, /visual check is running/i);
+    assert.equal(locked.elements.messageInput.disabled, false, 'a draft can still be written');
+
+    chatsUnderVisionCheck.clear();
+    chatsUnderVisionCheck.add('another-chat');
+    const elsewhere = createHarness();
+    elsewhere.helper.updateInputState();
+    assert.equal(elsewhere.elements.submitButton.disabled, false, 'a check in another chat does not lock this one');
+
+    chatsUnderVisionCheck.clear();
+    const done = createHarness();
+    done.helper.updateInputState();
+    assert.equal(done.elements.submitButton.disabled, false);
+  } finally {
+    chatsUnderVisionCheck.clear();
+  }
 });

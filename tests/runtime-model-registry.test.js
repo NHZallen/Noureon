@@ -7,6 +7,7 @@ import {
   COUNCIL_MAX_MODELS,
   COUNCIL_MIN_MODELS,
   MODELS,
+  MODEL_CATALOG,
   createLegacyModelRegistry,
   getCanonicalModelId,
   getModelApiId,
@@ -15,6 +16,7 @@ import {
   getReasoningEffortLabel,
   getModelTiers,
   getProviderLabel,
+  isModelRetired,
   modelSupportsReasoningSelection,
   modelSupportsDocumentUpload,
   modelSupportsVision,
@@ -276,7 +278,7 @@ test('model registry import is inert and independent from retired runtime fragme
 
 test('the Space Bunny Alpha test model is listed with its retirement date, vision, tools and reasoning levels', async () => {
   const { modelSupportsToolCalling, getModelTiers } = await import('../src/app/runtime/legacy-core/model-registry.js');
-  const model = MODELS.find((entry) => entry.id === 'stealth/space-bunny-alpha');
+  const model = MODEL_CATALOG.find((entry) => entry.id === 'stealth/space-bunny-alpha');
   assert.ok(model, 'listed');
   assert.equal(model.provider, 'openrouter');
   assert.equal(model.retirementDate, '2026-10-05', 'OpenRouter takes it down on 5 October 2026: the picker shows the date');
@@ -287,4 +289,15 @@ test('the Space Bunny Alpha test model is listed with its retirement date, visio
   assert.deepEqual(getModelReasoningConfig(model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(normalizeReasoningEffort(model, 'none'), 'medium');
   assert.deepEqual(getModelTiers(model), [], 'a beta model has no price tier');
+});
+
+test('a model leaves the list on its retirement date by itself', () => {
+  const model = MODEL_CATALOG.find((entry) => entry.id === 'stealth/space-bunny-alpha');
+  assert.equal(isModelRetired(model, new Date('2026-10-04T23:59:59')), false, 'still there the day before');
+  assert.equal(isModelRetired(model, new Date('2026-10-05T00:00:00')), true, 'gone on the day');
+  assert.equal(isModelRetired(model, new Date('2027-01-01T00:00:00')), true);
+  assert.equal(isModelRetired({ id: 'no-date' }, new Date('2099-01-01')), false, 'no date: stays');
+  assert.equal(isModelRetired({ id: 'bad', retirementDate: 'soon' }, new Date('2099-01-01')), false, 'not a date: stays');
+  assert.deepEqual(MODELS.filter((entry) => isModelRetired(entry)), [], 'nothing retired is offered');
+  assert.equal(MODELS.length + MODEL_CATALOG.filter((entry) => isModelRetired(entry)).length, MODEL_CATALOG.length);
 });

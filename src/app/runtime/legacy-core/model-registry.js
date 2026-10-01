@@ -44,7 +44,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'z-ai/glm-5.3-flash': { releasedAt: 20260826, outputPricePerMillion: 0.25 }
 });
 
-export const MODELS = [
+export const MODEL_CATALOG = [
     // Gemini Models (Native)
     { id: 'gemini-3.8-flash', legacyIds: ['gemini-3.7-flash'], name: 'Gemini 3.8 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_8_flash_desc' },
     { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_lite_desc' },
@@ -114,6 +114,14 @@ export const MODELS = [
     { id: 'z-ai/glm-5.3', name: 'Z.ai GLM 5.3', provider: 'openrouter', descriptionKey: 'model_glm_5_3_desc', category: 'general' },
     { id: 'z-ai/glm-5.3-flash', name: 'Z.ai GLM 5.3 Flash', provider: 'openrouter', descriptionKey: 'model_glm_5_3_flash_desc', category: 'general' },
 ].map((model) => Object.freeze({ ...model, ...MODEL_RELEASE_METADATA[model.id] }));
+
+// A model with a retirementDate leaves the list on that day, when its provider takes it down, so nobody has to remove
+// it by hand: the picker, the saved model settings and chats that used it all fall back to the default model.
+export const isModelRetired = (model, now = new Date()) => {
+    const day = new Date(`${model?.retirementDate || ''}T00:00:00`);
+    return !Number.isNaN(day.getTime()) && now.getTime() >= day.getTime();
+};
+export const MODELS = MODEL_CATALOG.filter((model) => !isModelRetired(model));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2.5-flare',
     'openai/gpt-image-2.5-sunburst',

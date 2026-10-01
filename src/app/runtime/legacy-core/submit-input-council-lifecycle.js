@@ -22,6 +22,8 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { canCaptureConversationMessage } from '../features/temporary-chat-state.js';
 import { createDeckDesignControl } from '../features/deck-design-control.js';
 import { createVisionCheckScheduler } from '../features/vision-check-scheduler.js';
+import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
+import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { createChatScrollPosition } from '../features/chat-scroll-position.js';
 import { createProgressTicker } from '../features/progress-ticker.js';
 import {
@@ -151,7 +153,13 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
   const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
   const getIsAutoScrolling = () => Boolean(state.isAutoScrolling);
-  const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController });
+  const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController,
+    // The composer follows the checks: a chat with one running cannot send (settings-update-input-state-helper.js).
+    onChange: (conversationIds) => {
+      chatsUnderVisionCheck.clear();
+      conversationIds.forEach((id) => chatsUnderVisionCheck.add(id));
+      legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(false);
+    } });
   const isImageConversation = (conversation = getActiveConversation()) => modelGeneratesImages(
     normalizeConversationModel(conversation)
   );
@@ -758,7 +766,11 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   };
   const handleFormSubmit = async (event, submitOptions = {}) => {
     event?.preventDefault?.();
-    vc.cancel(getActiveConversation()?.id);
+    // The visual check is still looking at the last message: nothing is sent until it is done or stopped.
+    if (vc.isRunning(getActiveConversation()?.id)) {
+      showNotification(visionText(getUiLanguage(), 'sendLockedNotice'), 'warning');
+      return;
+    }
     let effectiveSubmitOptions = submitOptions;
     if (!effectiveSubmitOptions.preserveComposer) {
       effectiveSubmitOptions = getComposerEditSubmission() || effectiveSubmitOptions;

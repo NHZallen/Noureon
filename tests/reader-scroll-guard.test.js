@@ -239,3 +239,86 @@ test('a box that arrives at its end gets more range there at once, and the rest 
   assert.equal(timers.size, 0, 'stopped');
   window.happyDOM.abort();
 });
+
+test('a touch that never reports its end does not hold the box for ever', () => {
+  const box = makeBox(100);
+  watchReader(box);
+  const realNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+  try {
+    box.listeners.touchstart({ touches: [{}] });
+    // The element under the finger was removed: no touchend ever reaches the box.
+    assert.equal(isReaderScrolling(box), true, 'held while the finger is believed down');
+    now += 1000;
+    box.listeners.touchmove();
+    now += 1000;
+    assert.equal(isReaderScrolling(box), true, 'a finger that keeps moving keeps the hold');
+    now += 1600;
+    assert.equal(isReaderScrolling(box), false, 'no touch event for a while: the finger is gone');
+    assert.equal(setScrollTopQuietly(box, 500), true, 'the app can follow again');
+    // A touchstart that reports no fingers on the screen clears a hold at once.
+    box.listeners.touchstart({ touches: [{}] });
+    box.listeners.touchstart({ touches: [] });
+    now += 300;
+    assert.equal(isReaderScrolling(box), false);
+    // One finger lifted while another is still down.
+    box.listeners.touchstart({ touches: [{}, {}] });
+    box.listeners.touchend({ touches: [{}] });
+    now += 300;
+    assert.equal(isReaderScrolling(box), true);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('a finger whose touchend never arrived does not stop the room being given at the end of the chat', async () => {
+  const { Window } = await import('happy-dom');
+  const { settleScrollBoxesOffTheirEdges } = await import('../src/app/ui/motion/reader-scroll-guard.js');
+  const window = new Window();
+  const document = window.document;
+  document.body.innerHTML = '<div id="chat-container"></div>';
+  const timers = new Map();
+  let next = 1;
+  const view = {
+    setTimeout: (callback) => { timers.set(next, callback); return next++; },
+    clearTimeout: (id) => { timers.delete(id); }
+  };
+  const runTimers = () => { const due = [...timers]; timers.clear(); due.forEach(([, callback]) => callback()); };
+  const stop = settleScrollBoxesOffTheirEdges(document, { view });
+  const chat = document.getElementById('chat-container');
+  const touch = (type, touches) => {
+    const event = new window.Event(type, { bubbles: true });
+    event.touches = touches;
+    document.dispatchEvent(event);
+  };
+  const realNow = Date.now;
+  let now = 2_000_000;
+  Date.now = () => now;
+  try {
+    // Two touches started and their ends were lost with the elements they began on.
+    touch('touchstart', [{}]);
+    touch('touchstart', [{}]);
+    now += 3000;
+    // The chat comes to rest on its end some time later: the room must still be given.
+    Object.defineProperty(chat, 'scrollHeight', { get: () => 1000 + (Number.parseFloat(chat.style.getPropertyValue('--end-room')) || 0), configurable: true });
+    Object.defineProperty(chat, 'clientHeight', { value: 200, configurable: true });
+    chat.scrollTop = 800;
+    chat.dispatchEvent(new window.Event('scroll'));
+    chat.style.removeProperty('--end-room');
+    runTimers();
+    assert.notEqual(chat.style.getPropertyValue('--end-room'), '', 'the lost touches are not held against it');
+    // A touchend that reports no fingers left puts everything back at once.
+    touch('touchstart', [{}]);
+    touch('touchend', []);
+    chat.style.removeProperty('--end-room');
+    chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+    chat.dispatchEvent(new window.Event('scroll'));
+    runTimers();
+    assert.notEqual(chat.style.getPropertyValue('--end-room'), '');
+  } finally {
+    Date.now = realNow;
+    stop();
+    window.happyDOM.abort();
+  }
+});

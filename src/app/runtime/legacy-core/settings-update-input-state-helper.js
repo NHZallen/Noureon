@@ -1,3 +1,6 @@
+import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
+import { visionText } from '../../ui/files/vision/vision-texts.js';
+
 export function createSettingsUpdateInputStateHelper({
     elements,
     state,
@@ -49,6 +52,13 @@ export function createSettingsUpdateInputStateHelper({
         elements.messageInput.placeholder = hasModelApiKey
             ? (isCouncilEnabled(conv) && !councilValidation.ok ? councilValidation.message : i18n[config.uiLanguage].enterMessagePlaceholder)
             : i18n[config.uiLanguage].enterApiKeyPlaceholder;
+        // The visual check of the last message is still running: nothing can be sent until it is done or stopped.
+        if (chatsUnderVisionCheck.has(conv.id)) {
+            elements.messageInput.placeholder = visionText(config.uiLanguage, 'sendLocked');
+            submitButton.disabled = true;
+            submitButtonIcon.innerHTML = disabledIconHTML;
+            return;
+        }
         if (!hasApiKey || !hasContent || (isCouncilEnabled(conv) && !councilValidation.ok)) {
             submitButton.disabled = true;
             submitButtonIcon.innerHTML = disabledIconHTML;

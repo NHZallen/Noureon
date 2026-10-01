@@ -13,6 +13,12 @@
 export const EDGE_ROOM = 2;
 
 const SETTLE_MS = 250; // a flick keeps scrolling after the finger lifts; its scroll events push this forward
+// A finger down is told by touchstart and touchend, but a touch that began on something the app then removed (a step of
+// the work finishing, a reply redrawn) never reports its end to the box: touchend goes to the removed element, which
+// no longer has the box above it. Without a limit the box was taken for held forever, and the chat stopped following
+// a reply and stopped being given room at its end. Every touch event renews the hold; with none for this long, the
+// finger is taken to be gone.
+const HOLD_MAX_MS = 1500;
 
 // The scroll event for a position the app set arrives a frame later, so the app's own moves are known by where
 // they land, not by a flag around the assignment.
@@ -67,17 +73,26 @@ export function takeBackEndRoom(box) {
 export function watchReader(box, { nudge = true } = {}) {
   if (!box) return null;
   if (box.__readerGuard) return box.__readerGuard;
-  const guard = { holding: false, lastScroll: 0, expected: null, pinned: false };
+  const guard = { holding: false, holdStamp: 0, lastScroll: 0, expected: null, pinned: false };
   box.__readerGuard = guard;
   if (typeof box.addEventListener !== 'function') return guard;
   const stamp = () => { guard.lastScroll = Date.now(); };
-  box.addEventListener('touchstart', () => {
+  const hold = () => { guard.holding = true; guard.holdStamp = Date.now(); };
+  box.addEventListener('touchstart', (event) => {
     guard.pinned = false;
-    guard.holding = true;
+    // The fingers on the screen tell the truth even when an earlier touchend was lost.
+    if (event?.touches && event.touches.length === 0) guard.holding = false;
+    else hold();
     stamp();
     if (nudge) giveEndRoom(box);
   }, { passive: true });
-  const release = () => { guard.holding = false; stamp(); };
+  box.addEventListener('touchmove', hold, { passive: true });
+  const release = (event) => {
+    // Another finger may still be down.
+    guard.holding = Boolean(event?.touches?.length);
+    if (guard.holding) guard.holdStamp = Date.now();
+    stamp();
+  };
   box.addEventListener('wheel', () => { guard.pinned = false; }, { passive: true });
   box.addEventListener('touchend', release, { passive: true });
   box.addEventListener('touchcancel', release, { passive: true });
@@ -95,7 +110,10 @@ export function watchReader(box, { nudge = true } = {}) {
 /** Whether a person is dragging the box, or it is still coasting from their flick. */
 export function isReaderScrolling(box) {
   const guard = watchReader(box);
-  return Boolean(guard && (guard.holding || Date.now() - guard.lastScroll < SETTLE_MS));
+  if (!guard) return false;
+  const now = Date.now();
+  if (guard.holding && now - guard.holdStamp >= HOLD_MAX_MS) guard.holding = false;
+  return guard.holding || now - guard.lastScroll < SETTLE_MS;
 }
 
 /** Moves the box, unless a person is scrolling it or it is already there. Returns whether it moved. */
@@ -142,11 +160,15 @@ const STILL_MS = 160;
 export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${NUDGED_BOXES}, #chat-container`, view = doc.defaultView } = {}) {
   if (!view || typeof doc.addEventListener !== 'function') return () => {};
   const timers = new WeakMap();
+  // Fingers down, as the touch events last said, and when. Not a count of starts and ends: an end that is never
+  // delivered (the element was removed under the finger) would leave it above zero for the rest of the session.
   let touching = 0;
+  let touchStamp = 0;
+  const fingersDown = () => touching > 0 && Date.now() - touchStamp < HOLD_MAX_MS;
   const settle = (box) => {
     timers.delete(box);
     // A finger on the screen, even one held still, is not the time to move anything.
-    if (touching > 0) {
+    if (fingersDown()) {
       timers.set(box, view.setTimeout(() => settle(box), STILL_MS));
       return;
     }
@@ -164,17 +186,19 @@ export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${N
     if (pending !== undefined) view.clearTimeout(pending);
     timers.set(box, view.setTimeout(() => settle(box), STILL_MS));
   };
-  const down = () => { touching += 1; };
-  const up = () => { touching = Math.max(0, touching - 1); };
+  const touched = (event) => {
+    touching = event?.touches ? event.touches.length : (event?.type === 'touchend' || event?.type === 'touchcancel' ? 0 : 1);
+    touchStamp = Date.now();
+  };
   doc.addEventListener('scroll', onScroll, { capture: true, passive: true });
-  doc.addEventListener('touchstart', down, { capture: true, passive: true });
-  doc.addEventListener('touchend', up, { capture: true, passive: true });
-  doc.addEventListener('touchcancel', up, { capture: true, passive: true });
+  ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((name) => {
+    doc.addEventListener(name, touched, { capture: true, passive: true });
+  });
   return () => {
     doc.removeEventListener('scroll', onScroll, { capture: true });
-    doc.removeEventListener('touchstart', down, { capture: true });
-    doc.removeEventListener('touchend', up, { capture: true });
-    doc.removeEventListener('touchcancel', up, { capture: true });
+    ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((name) => {
+      doc.removeEventListener(name, touched, { capture: true });
+    });
   };
 }
 

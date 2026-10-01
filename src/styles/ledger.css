@@ -344,6 +344,8 @@
 
 .ledger-row[data-kind='thought'] > .ledger-row-head .ledger-mark { display: none; }
 .ledger-row[data-kind='thought'] > .ledger-row-head { gap: 0; }
+/* The thinking line has no icon in front, so no gap either; the clock gets its own room after the chevron. */
+.ledger-row[data-kind='thought'] > .ledger-row-head .ledger-time { margin-left: 0.75rem; }
 
 /* The pages a web search found: chips with the site's icon and name. */
 .run-sources {
