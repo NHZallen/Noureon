@@ -61,3 +61,10 @@ body.custom-wallpaper-active #chat-container::before {
     display: block;
     height: var(--end-room, 0px);
 }
+
+/* A chat too short to scroll still scrolls: its list is one pixel taller than the scroller. On iPhone a scroller with nothing to
+   scroll does not take the swipe, the page behind it does, and the chat looks frozen. With a pixel of range the swipe is the
+   chat's, and it springs back as it does when it is longer. */
+#message-list {
+    min-height: calc(100% + 1px);
+}

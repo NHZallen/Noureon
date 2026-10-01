@@ -18,3 +18,10 @@ test('a row that is closing (open while its part eases away) turns its chevron b
   const runCss = readFileSync(new URL('../src/styles/sandbox-run.css', import.meta.url), 'utf8');
   assert.match(runCss, /\.sandbox-run-details\[open\]:not\(\[data-closing\]\) > \.sandbox-run-summary::after/);
 });
+
+test('the file preview\'s close button has no focus ring, and a chat too short to scroll is one pixel taller than its scroller', () => {
+  const cards = readFileSync(new URL('../src/styles/file-cards.css', import.meta.url), 'utf8');
+  assert.match(cards, /\.ac-file-preview-close:focus,\s*\.ac-file-preview-close:focus-visible \{\s*outline: none;\s*box-shadow: none;\s*\}/);
+  const edge = readFileSync(new URL('../src/styles/chat-edge-fade.css', import.meta.url), 'utf8');
+  assert.match(edge, /#message-list \{\s*min-height: calc\(100% \+ 1px\);\s*\}/);
+});

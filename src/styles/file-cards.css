@@ -309,6 +309,13 @@
     background: var(--hover-bg, rgba(0, 0, 0, 0.05));
 }
 
+/* The dialog puts the focus on the close button as it opens, and a ring round it on every opening is not wanted. */
+.ac-file-preview-close:focus,
+.ac-file-preview-close:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
 .ac-file-preview .ac-file-card-compact {
     max-width: none;
     width: auto;
