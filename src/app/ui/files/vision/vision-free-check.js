@@ -8,6 +8,7 @@ import { formatSandboxRunBlock } from '../../sandbox/sandbox-run-block.js';
 import { createContactSheets } from './slide-rasterizer.js';
 import { parseVisionResponse } from './vision-prompt.js';
 import { buildFixRequest, buildFreeVisionMetadata, buildFreeVisionPrompt, buildFreeVisionResult } from './vision-free.js';
+import { findMessageInChat } from './vision-eligibility.js';
 import { visionText } from './vision-texts.js';
 
 const FIX_TIMEOUT_MS = 300_000;
@@ -78,7 +79,8 @@ export async function checkFreeDeck({
   // Advanced mode is off for this conversation now: the deck stays as it is.
   if (!fix) return false;
   // The message was cut away meanwhile (the person edited an earlier one, or deleted it): its result has no place in the chat.
-  if (!conversation.messages.includes(message)) return false;
+  const inChat = findMessageInChat({ conversation, message, getActiveConversation });
+  if (!inChat) return false;
   const redone = fix.parts.some((part) => part.sandboxFile && part.sandboxFile.name === file.name);
   if (!redone) throw new Error(visionText(language, 'freeNoFile'));
   const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({
@@ -89,10 +91,11 @@ export async function checkFreeDeck({
     metadata: { visionCheck: buildFreeVisionMetadata({ file, model, result, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) }
   };
   markChecked();
-  conversation.messages.push(revised);
-  conversation.lastUpdatedAt = new Date().toISOString();
+  inChat.message.metadata = { ...(inChat.message.metadata || {}), visionChecked: [...new Set([...(inChat.message.metadata?.visionChecked || []), file.id])] };
+  inChat.conversation.messages.push(revised);
+  inChat.conversation.lastUpdatedAt = new Date().toISOString();
   progress.remove();
-  addMessageToUI(revised, conversation.messages.length - 1, false, true, { conversation });
+  addMessageToUI(revised, inChat.conversation.messages.length - 1, false, true, { conversation: inChat.conversation });
   await saveAppData();
   return true;
 }

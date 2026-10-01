@@ -16,3 +16,16 @@ export function eligibleVisionFiles({ conversation, message, model, config, sign
     .map(describeFileBlock).filter(file => !checked.has(file.id) && parseDocumentSpec(file.content, { uiLanguage: config?.uiLanguage }).ok);
   return [...designed, ...freeDecks(message).filter(file => !checked.has(file.id))];
 }
+
+/**
+ * Where the message is in the chat now: { conversation, message } as they are in the live chat, or null when it is not in it
+ * any more (the person edited an earlier message, or deleted it). A check takes minutes, and meanwhile the cloud sync can
+ * replace the conversation and its messages with refreshed copies of the same ones, so the live copy is found by the
+ * message's id, not by being the very object the check started from.
+ */
+export function findMessageInChat({ conversation, message, getActiveConversation }) {
+  const active = getActiveConversation?.();
+  const live = active?.id === conversation?.id ? active : conversation;
+  const found = (live?.messages || []).find((item) => item === message || (message?.id && item?.id === message.id));
+  return found ? { conversation: live, message: found } : null;
+}
