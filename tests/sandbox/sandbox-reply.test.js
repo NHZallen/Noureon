@@ -329,7 +329,7 @@ test('the pages a search found and what the model said before a run are kept, sh
     const rows = [...view.querySelectorAll('.sandbox-run-row')];
     assert.equal(rows[0].dataset.kind, 'search');
     assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Searched 1 sites');
-    assert.equal(rows[0].querySelector('.ledger-mark .run-mark-site img').getAttribute('src'), 'https://developer.mozilla.org/favicon.ico', 'the saved row shows the first site\'s icon too');
+    assert.equal(rows[0].querySelector('.ledger-mark .run-mark-site img').getAttribute('src'), '/api/site-icon?host=developer.mozilla.org', 'the saved row shows the first site\'s icon too');
     const chip = rows[0].querySelector('button.run-source-chip');
     assert.equal(chip.dataset.url, 'https://developer.mozilla.org/docs');
     assert.equal(chip.querySelector('.run-source-host').textContent, 'developer.mozilla.org');

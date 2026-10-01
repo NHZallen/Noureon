@@ -26,7 +26,7 @@ test('addresses are found with their place, and the text between them is kept', 
 test('the chip is a link with the site icon, and the address cannot break out of its markup', () => {
   const html = renderLinkChipHTML('https://example.com/a"><script>x</script>');
   assert.match(html, /^<a class="link-chip" href="https:\/\/example\.com\//);
-  assert.match(html, /src="https:\/\/example\.com\/favicon\.ico"/);
+  assert.match(html, /src="\/api\/site-icon\?host=example\.com"/);
   assert.doesNotMatch(html, /<script>/);
 });
 

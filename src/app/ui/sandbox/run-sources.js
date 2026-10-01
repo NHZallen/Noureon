@@ -4,6 +4,7 @@
 // (app-bootstrap-lifecycle.js, openSourceChip below).
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { siteIconUrl } from '../links/site-icon.js';
 
 export const hostOf = (url) => {
   try {
@@ -35,20 +36,50 @@ const siteIcon = (document, host, className) => {
   image.loading = 'lazy';
   image.decoding = 'async';
   image.referrerPolicy = 'no-referrer';
-  image.src = `https://${host}/favicon.ico`;
+  image.src = siteIconUrl(host);
   icon.append(image);
   return icon;
 };
 
+// How many sites the line's icon may try, one after the other, before the globe stays.
+const MARK_CANDIDATES = 6;
+
 /**
  * The icon of the first site a search found, in front of the row's label ("Searched 4 sites"), the way ChatGPT does it.
- * The row's own icon stays under it until the site's icon has loaded (see watchSourceIcons).
+ * When that site has no icon the next one's is tried, and so on down the list, and the one that loads is kept (see
+ * watchSourceIcons). The row's own icon stays under it until a site's icon has loaded.
  */
 export function putFirstSiteIcon(document, row, sources) {
   const mark = row?.querySelector?.('.ledger-mark');
-  const first = (sources || []).find((source) => source?.url);
-  if (!mark || !first || mark.querySelector('.run-mark-site')) return;
-  mark.append(siteIcon(document, displayHost(first), 'run-source-icon run-mark-site'));
+  const hosts = [...new Set((sources || []).filter((source) => source?.url).map(displayHost))].slice(0, MARK_CANDIDATES);
+  if (!mark || !hosts.length) return;
+  let icon = mark.querySelector('.run-mark-site');
+  if (!icon) {
+    icon = siteIcon(document, hosts[0], 'run-source-icon run-mark-site');
+    icon.dataset.at = '0';
+    mark.append(icon);
+  }
+  // Sites that came later are candidates too. If every site before them failed, the next one is tried now.
+  icon.dataset.hosts = hosts.join(' ');
+  if (!icon.querySelector('img') && !icon.classList.contains('is-loaded')) tryNextSiteIcon(icon);
+}
+
+/** Puts the next candidate's icon in the line's icon; false when there is none left. */
+function tryNextSiteIcon(icon) {
+  const hosts = String(icon.dataset.hosts || '').split(' ').filter(Boolean);
+  const next = Number(icon.dataset.at || 0) + 1;
+  if (next >= hosts.length) return false;
+  icon.dataset.at = String(next);
+  let image = icon.querySelector('img');
+  if (!image) {
+    image = icon.ownerDocument.createElement('img');
+    image.alt = '';
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    icon.append(image);
+  }
+  image.src = siteIconUrl(hosts[next]);
+  return true;
 }
 
 /** One chip per page. The icon comes from the site itself (its /favicon.ico); a globe shows until it loads. */
@@ -99,17 +130,23 @@ export const sourcesRowLabel = (language, sources) => (sources.some((source) => 
 const ICON_BOX = '.run-source-icon, .link-chip-icon';
 
 /**
- * A site's icon that loads replaces the globe under it; one that does not (many sites have no /favicon.ico) is
+ * A site's icon that loads replaces the globe under it; one that does not (many sites have none) is
  * removed, leaving the globe. Image events do not bubble, so they are caught on the way down.
  */
 export function watchSourceIcons(doc = document) {
+  // An icon that does not load (or is a one-pixel stand-in) gives its place to the next site's, when the icon has one.
+  const failed = (image, icon) => {
+    if (icon.dataset.hosts && tryNextSiteIcon(icon)) return;
+    image.remove();
+  };
   const onLoad = (event) => {
     const icon = event.target?.closest?.(ICON_BOX);
     if (icon && event.target.tagName === 'IMG' && event.target.naturalWidth > 1) icon.classList.add('is-loaded');
-    else if (icon && event.target.tagName === 'IMG') event.target.remove();
+    else if (icon && event.target.tagName === 'IMG') failed(event.target, icon);
   };
   const onError = (event) => {
-    if (event.target?.tagName === 'IMG' && event.target.closest?.(ICON_BOX)) event.target.remove();
+    const icon = event.target?.tagName === 'IMG' ? event.target.closest?.(ICON_BOX) : null;
+    if (icon) failed(event.target, icon);
   };
   doc.addEventListener('load', onLoad, true);
   doc.addEventListener('error', onError, true);

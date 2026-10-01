@@ -3,6 +3,7 @@
 // text of the message is still the address itself, so what the model is sent does not change.
 
 import { findAddresses } from '../../legacy-runtime/features/linked-pages.js';
+import { siteIconUrl } from './site-icon.js';
 
 const MAX_LABEL = 48;
 
@@ -42,7 +43,7 @@ export const linkHost = (url) => {
 
 const iconSource = (url) => {
   const host = linkHost(url);
-  return host ? `https://${host}/favicon.ico` : '';
+  return host ? siteIconUrl(host) : '';
 };
 
 /** The chip as markup, for a sent message. A link opens in a new tab. */

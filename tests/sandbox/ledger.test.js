@@ -174,7 +174,7 @@ test('the pages a search found show as a finished, folded row before the model s
   assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Searched 2 sites');
   assert.equal(rows[0].classList.contains('is-done'), true);
   const markIcon = rows[0].querySelector('.ledger-mark .run-mark-site img');
-  assert.equal(markIcon?.getAttribute('src'), 'https://a.example/favicon.ico', 'the first site\'s icon is in front of the label');
+  assert.equal(markIcon?.getAttribute('src'), '/api/site-icon?host=a.example', 'the first site\'s icon is in front of the label');
   assert.equal(rows[0].querySelectorAll('.ledger-mark .run-mark-site').length, 1);
   assert.deepEqual([...rows[0].querySelectorAll('.run-source-host')].map((node) => node.textContent), ['a.example', 'b.example']);
   assert.equal(rows[0].querySelector('.ledger-body').hidden, true, 'folded until it is opened');
