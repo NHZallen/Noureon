@@ -32,7 +32,6 @@ import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
 import { loadSharingVendor } from './app/vendors/sharing-vendor.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
-import { keepChatOffItsEdges } from './app/runtime/features/chat-scroll-edges.js';
 import { easeSavedDetails } from './app/ui/motion/collapse-motion.js';
 import { watchSourceIcons } from './app/ui/sandbox/run-sources.js';
 import { keepScrollBoxesOffTheirEdges, settleScrollBoxesOffTheirEdges } from './app/ui/motion/reader-scroll-guard.js';
@@ -136,7 +135,6 @@ async function bootstrap() {
   await legacyApp.legacyAppReady;
   dismissStartupSkeleton(document);
   void scrollDebug?.then((module) => module?.watchChatScrolling());
-  keepChatOffItsEdges(document.getElementById('chat-container'));
   keepScrollBoxesOffTheirEdges(document);
   settleScrollBoxesOffTheirEdges(document);
   easeSavedDetails(document);

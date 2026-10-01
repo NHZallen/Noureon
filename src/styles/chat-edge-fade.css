@@ -53,11 +53,3 @@
 body.custom-wallpaper-active #chat-container::before {
     display: none;
 }
-
-/* Room at the end of the chat: an empty block after the messages whose height is set by the script
-   (reader-scroll-guard.js) to take a chat that has come to rest on its end off it, without moving anything on screen. */
-#chat-container::after {
-    content: "";
-    display: block;
-    height: var(--end-room, 0px);
-}

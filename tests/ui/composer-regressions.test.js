@@ -170,11 +170,9 @@ test('the header is a slim block without a divider and the chat fades under it',
   assert.doesNotMatch(css, /position:\s*absolute/);
   assert.doesNotMatch(css, /(?<!-)mask-image\s*:/);
   assert.match(css, /#chat-container::before\s*\{[^}]*top:\s*calc\(var\(--chat-pad\) \* -1\);[^}]*linear-gradient\(to bottom, var\(--chat-bg\), transparent\)/s);
-  // Nothing sticky or coloured is placed at the bottom: the only thing there is an empty block with no height until
-  // the script gives the chat room at its end (reader-scroll-guard.js).
-  const after = /#chat-container::after\s*\{([^}]*)\}/.exec(css)?.[1] || '';
-  assert.match(after, /height:\s*var\(--end-room,\s*0px\)/);
-  assert.doesNotMatch(after, /position|background|gradient/);
+  // Nothing is placed at the bottom of the chat, not even an empty block: measured on an iPhone, swipes from the very end
+  // work, and extra range given there as a finger landed made some of them fail.
+  assert.doesNotMatch(css, /#chat-container::after/);
   assert.match(css, /body\.custom-wallpaper-active #chat-container::before/);
   assert.doesNotMatch(css, /backdrop-filter/);
 });

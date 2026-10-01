@@ -5,7 +5,7 @@
 // On iPhone, setting scrollTop while a finger is down, or while a flick is still coasting, stops the scroll dead.
 // And a swipe that starts with a box exactly at its end is handed to the page instead of the box, so a box that
 // follows new text (always exactly at its end) could not be scrolled at all. One pixel of room in both directions
-// lets WebKit give every swipe to the box (measured on an iPhone for the chat, see chat-scroll-edges.js).
+// lets WebKit give every swipe to the box (measured on an iPhone, at a time when a page-wide touch listener that could cancel touches was still installed).
 
 // How far off an end a box is kept. One pixel was enough for the chat; a thinking box's height and content are
 // often fractions of a pixel, so its real end can be a fraction short of the reported one, and two pixels of room
@@ -164,7 +164,7 @@ const STILL_MS = 160;
  * following new text, so this is done when they stop. Scroll events do not bubble, so one listener on the page
  * catches them on the way down. Far from the end again, the extra range is given back.
  */
-export function settleScrollBoxesOffTheirEdges(doc = document, { selector = `${NUDGED_BOXES}, #chat-container`, view = doc.defaultView } = {}) {
+export function settleScrollBoxesOffTheirEdges(doc = document, { selector = NUDGED_BOXES, view = doc.defaultView } = {}) {
   if (!view || typeof doc.addEventListener !== 'function') return () => {};
   const timers = new WeakMap();
   // Fingers down, as the touch events last said, and when. Not a count of starts and ends: an end that is never

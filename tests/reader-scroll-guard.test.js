@@ -170,7 +170,7 @@ test('a box that arrives at its end gets more range there at once, and the rest 
     clearTimeout: (id) => { timers.delete(id); }
   };
   const runTimers = () => { const due = [...timers]; timers.clear(); due.forEach(([, callback]) => callback()); };
-  const stop = settleScrollBoxesOffTheirEdges(document, { view });
+  const stop = settleScrollBoxesOffTheirEdges(document, { view, selector: '#chat-container, .ledger-thought' });
   const roomOf = (node) => node.style.getPropertyValue('--end-room');
   // A box whose scrollable height includes its end room, as the real one does.
   const size = (node, top, base = 1000) => {
@@ -285,7 +285,7 @@ test('a finger whose touchend never arrived does not stop the room being given a
     clearTimeout: (id) => { timers.delete(id); }
   };
   const runTimers = () => { const due = [...timers]; timers.clear(); due.forEach(([, callback]) => callback()); };
-  const stop = settleScrollBoxesOffTheirEdges(document, { view });
+  const stop = settleScrollBoxesOffTheirEdges(document, { view, selector: '#chat-container, .ledger-thought' });
   const chat = document.getElementById('chat-container');
   const touch = (type, touches) => {
     const event = new window.Event(type, { bubbles: true });
