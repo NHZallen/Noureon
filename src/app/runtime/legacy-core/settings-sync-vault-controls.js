@@ -1,3 +1,4 @@
+import { createSyncNowControls, syncNowMarkup } from './settings-sync-now-controls.js';
 import {
   cancelSyncVaultRotation,
   changeSyncVaultPassword,
@@ -30,6 +31,7 @@ export function createSettingsSyncVaultControls({
 } = {}) {
   const text = (key, fallback) => getText?.(key, fallback) || fallback;
   let busy = false;
+  const syncNow = createSyncNowControls({ document, getText: text });
   let accountTurnstile;
   let accountTurnstileMounted = false;
   let recoveryTurnstileMounted = false;
@@ -176,7 +178,7 @@ export function createSettingsSyncVaultControls({
             </div>
             <button id="sync-vault-recovery-save-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="confirmCloudSyncPasswordReset">重設同步密碼</button>
           </div>
-          <div id="sync-vault-unlocked-panel" class="hidden py-4 space-y-4">
+          <div id="sync-vault-unlocked-panel" class="hidden py-4 space-y-4">${syncNowMarkup()}
             <div class="flex flex-wrap gap-2">
               <button id="sync-vault-lock-btn" type="button" class="px-4 py-2 rounded-md bg-[var(--hover-bg)]" data-lang-key="lockCloudSync">鎖定</button>
               <button id="sync-vault-reset-btn" type="button" class="px-4 py-2 rounded-md text-red-600 bg-transparent hover:bg-red-50" data-lang-key="resetCloudSyncPassword">清除同步密碼</button>
@@ -422,6 +424,7 @@ export function createSettingsSyncVaultControls({
     elements.unlockPanel.classList.toggle('hidden', !isCloudUser || !record || unlocked || recoveryMode);
     elements.recoveryPanel.classList.toggle('hidden', !recoveryMode);
     elements.unlockedPanel.classList.toggle('hidden', !isCloudUser || !record || !unlocked || recoveryMode);
+    if (isCloudUser && record && unlocked && !recoveryMode) syncNow.refresh();
     if (isCloudUser && record && !unlocked && !recoveryMode) await ensureRecoveryTurnstile();
   };
 
@@ -457,6 +460,7 @@ export function createSettingsSyncVaultControls({
 
   const bindEvents = () => {
     const elements = getElements();
+    syncNow.bind();
     elements.emailForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (busy) return;

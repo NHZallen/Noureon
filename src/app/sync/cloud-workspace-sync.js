@@ -123,6 +123,11 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   let remoteWriteEpoch = 0;
   let timer = null;
   let syncing = false;
+  // What the settings page tells the person (getStatus): when everything was last known to be sent and received, what is
+  // waiting (an upload that cannot go yet: the vault is locked), and what failed.
+  let lastSyncedAt = null;
+  const waiting = new Set();
+  const kindErrors = new Map();
   let realtimeWork = Promise.resolve();
   let realtimeDeferred = false;
   let remoteRefreshTimer = null;
@@ -206,7 +211,11 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     activeUploads.set(kind, localRevision);
     try {
       const value = await prepareUpload(kind);
-      if (value === undefined) return { complete: false };
+      if (value === undefined) {
+        waiting.add(kind);
+        return { complete: false };
+      }
+      waiting.delete(kind);
       const clientTimestamp = new Date().toISOString();
       const payload = {
         user_id: user.id,
@@ -224,6 +233,10 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
         settled = settleCloudUpload(latest[kind], localRevision, remoteUpdatedAt);
         return { ...latest, [kind]: settled.state };
       });
+      if (settled.complete) {
+        kindErrors.delete(kind);
+        lastSyncedAt = Date.now();
+      }
       if (kind === 'sensitive' && settled.complete && await storage.getItem(rotationKey)) {
         await storage.removeItem(rotationKey);
         clearPreviousSyncVaultKeys(username);
@@ -338,11 +351,15 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     try {
       const kinds = [...pending];
       for (const kind of kinds) {
-        const result = await uploadKind(kind);
-        if (result.complete && meta[kind]?.localRevision === result.localRevision) pending.delete(kind);
+        // One that fails does not stop the others from going; it is shown on the settings page and retried.
+        try {
+          const result = await uploadKind(kind);
+          if (result.complete && meta[kind]?.localRevision === result.localRevision) pending.delete(kind);
+        } catch (error) {
+          kindErrors.set(kind, String(error?.message || error));
+          console.warn('Noureon cloud sync is waiting to retry:', error);
+        }
       }
-    } catch (error) {
-      console.warn('Noureon cloud sync is waiting to retry:', error);
     } finally {
       syncing = false;
       if (realtimeDeferred) scheduleRemoteRefresh();
@@ -461,7 +478,56 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     if (realtimeDeferred) scheduleRemoteRefresh();
   };
 
-  const api = { enabled: true, queueLocalChange, flush, refresh: async () => {
+  const kindState = (kind) => {
+    if (kindErrors.has(kind)) return { state: 'failed', reason: kindErrors.get(kind) };
+    if (waiting.has(kind)) return { state: 'waiting' };
+    return { state: pending.has(kind) || meta[kind]?.dirty ? 'pending' : 'synced' };
+  };
+  /** What the settings page shows: whether each kind (config, sensitive = API keys, vault = the sync password) is up to date. */
+  const getStatus = () => ({
+    online: globalThis.navigator?.onLine !== false,
+    syncing,
+    lastSyncedAt,
+    kinds: Object.fromEntries(Object.keys(CLOUD_SYNC_KINDS).map((kind) => [kind, kindState(kind)]))
+  });
+
+  const waitForRunningFlush = async () => {
+    for (let waited = 0; syncing && waited < 150; waited += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+  };
+
+  /**
+   * "Sync now": sends what is waiting, fetches what the cloud has and applies it (the newer side wins, as always), sends what
+   * that queued, and says how it stands. Conversations are not touched: they sync by their own way.
+   */
+  async function syncNow() {
+    if (globalThis.navigator?.onLine === false) return { ok: false, reason: 'offline', status: getStatus() };
+    kindErrors.clear();
+    await waitForRunningFlush();
+    await flush();
+    try {
+      await fetchRemote();
+      for (const kind of Object.keys(CLOUD_SYNC_KINDS)) {
+        try {
+          await reconcileKind(kind);
+        } catch (error) {
+          kindErrors.set(kind, String(error?.message || error));
+          console.warn(`Noureon ${kind} sync failed:`, error);
+        }
+      }
+    } catch (error) {
+      for (const kind of Object.keys(CLOUD_SYNC_KINDS)) kindErrors.set(kind, String(error?.message || error));
+      console.warn('Noureon could not reach the cloud:', error);
+    }
+    await waitForRunningFlush();
+    await flush();
+    await refreshMeta();
+    const status = getStatus();
+    const ok = Object.values(status.kinds).every((entry) => entry.state === 'synced');
+    if (ok) lastSyncedAt = Date.now();
+    return { ok, status: getStatus() };
+  }
+
+  const api = { enabled: true, queueLocalChange, flush, getStatus, syncNow, refresh: async () => {
     await fetchRemote();
     for (const kind of Object.keys(CLOUD_SYNC_KINDS)) await reconcileKind(kind);
   } };

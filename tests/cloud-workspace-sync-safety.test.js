@@ -125,3 +125,22 @@ test('empty sensitive data can clear remote secrets while locked and vault rotat
   assert.match(source, /if\s*\(rotation\s*\|\|\s*meta\.sensitive\?\.dirty\)\s*return undefined/);
   assert.match(source, /kind\s*===\s*'sensitive'[\s\S]*?storage\.removeItem\(rotationKey\)[\s\S]*?queueLocalChange\('vault'\)/);
 });
+
+test('"sync now" sends, fetches and reports per kind, leaves conversations alone, and a failed kind does not stop the others', async () => {
+  const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
+  const syncNowAt = source.indexOf('async function syncNow()');
+  const syncNow = source.slice(syncNowAt, source.indexOf('const api = {', syncNowAt));
+
+  assert.ok(syncNowAt >= 0);
+  assert.match(source, /const api = \{[^}]*getStatus,\s*syncNow/);
+  // Offline says so; running first waits for a flush already going; then upload, fetch + reconcile every kind, upload again.
+  assert.match(syncNow, /onLine === false\) return \{ ok: false, reason: 'offline'/);
+  assert.ok(syncNow.indexOf('await flush()') < syncNow.indexOf('await fetchRemote()'));
+  assert.match(syncNow, /for \(const kind of Object\.keys\(CLOUD_SYNC_KINDS\)\)[\s\S]*await reconcileKind\(kind\)/);
+  assert.ok(syncNow.lastIndexOf('await flush()') > syncNow.indexOf('await fetchRemote()'));
+  assert.doesNotMatch(syncNow, /conversationShadowSync|memorySummarySync/);
+  // Each kind that fails is told, and the others still go.
+  assert.match(source, /try \{\s*const result = await uploadKind\(kind\);[\s\S]*?\} catch \(error\) \{\s*kindErrors\.set\(kind/);
+  // A kind is synced, pending, waiting for the vault, or failed.
+  assert.match(source, /return \{ state: 'failed'[\s\S]*return \{ state: 'waiting' \}[\s\S]*'pending' : 'synced'/);
+});
