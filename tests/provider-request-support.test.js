@@ -270,7 +270,7 @@ test('with TinyFish chosen the search goes to its proxy with its key, and the pa
   assert.equal(fetchCalls[0][0], '/api/tinyfish-search');
   assert.equal(fetchCalls[0][1].headers.Authorization, 'Bearer tinyfish-key');
   assert.deepEqual(JSON.parse(fetchCalls[0][1].body), { query: 'latest facts', domain_type: 'news' });
-  assert.deepEqual(sources, [{ title: 'Result', url: 'https://example.test' }]);
+  assert.deepEqual(sources, [{ title: 'Result', url: 'https://example.test', n: 1 }], 'numbered as the packet numbers it, so [n] finds its page');
 });
 
 test('each search source needs its own key: the other one does not do', async () => {

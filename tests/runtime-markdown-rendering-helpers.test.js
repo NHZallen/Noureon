@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
+import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { Window } from 'happy-dom';
 import katex from 'katex';
 import { marked } from 'marked';
@@ -295,6 +296,31 @@ test('preserves formula decoding, options, logging, and block or inline error fa
     assert.equal(errors.length, 2);
     assert.equal(errors[0][0], 'KaTeX block rendering error:');
     assert.equal(errors[1][0], 'KaTeX inline rendering error:');
+  } finally {
+    harness.window.close();
+  }
+});
+
+test('the citations of a reply with sources become labels in the rendered answer, and the answer stays plain without them', () => {
+  const harness = createHarness();
+  try {
+    const record = formatSandboxRunBlock({ status: 'done', steps: [], sources: [
+      { n: 1, title: 'Security - Vercel', url: 'https://vercel.com/security' },
+      { n: 2, title: 'WAF', url: 'https://vercel.com/docs/waf' }
+    ] });
+    const html = harness.helpers.renderMarkdownWithFormulas(`${record}Rates are limited [1]. Also **bold** [2][1] and \`code [1]\`.`);
+    const root = harness.window.document.createElement('div');
+    root.innerHTML = html;
+    const pills = [...root.querySelectorAll('.cite-pill')];
+    assert.equal(pills.length, 2);
+    assert.equal(pills[1].querySelector('.cite-pill-more').textContent, '+1');
+    assert.equal(root.querySelector('code').textContent, 'code [1]', 'code is left as written');
+    assert.ok(root.querySelector('.sandbox-run'), 'the process row is still above the answer');
+    root.querySelector('code').remove();
+    assert.doesNotMatch(root.querySelector('p').textContent, /\[\d\]/, 'the markers are gone from the text');
+    const plain = harness.helpers.renderMarkdownWithFormulas('A list [1] with brackets [2].');
+    assert.match(plain, /\[1\]/);
+    assert.doesNotMatch(plain, /cite-pill/, 'without sources a bracket is only a bracket');
   } finally {
     harness.window.close();
   }

@@ -793,6 +793,8 @@ export function createStreamApiCall({
     const collected = collector.result();
     // The pages the provider's own web search used, for the reply's "Searched N sites" row.
     if (collected.sources?.length) requestOptions.onSources?.(collected.sources);
+    // Where Gemini's answer cites those pages.
+    if (collected.supports?.length) requestOptions.onSupports?.(collected.supports);
     requestOptions.onResponseComplete?.(collected);
     return fullText;
   };

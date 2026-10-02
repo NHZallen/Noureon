@@ -1,7 +1,7 @@
 // The pages a web search found, shown in the process list as chips (the site's icon and its name), the way ChatGPT
 // shows "Searched 2 sites". A chip does not link anywhere by itself: the saved markup is a string with no
 // listeners, so one listener on the message list asks first and then opens the page in a new tab
-// (app-bootstrap-lifecycle.js, openSourceChip below).
+// (app-bootstrap-lifecycle.js, openSourceUrl below).
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { siteIconUrl } from '../links/site-icon.js';
@@ -29,7 +29,7 @@ const element = (document, tag, className, text) => {
   return node;
 };
 
-const siteIcon = (document, host, className) => {
+export const siteIcon = (document, host, className) => {
   const icon = element(document, 'span', className);
   const image = document.createElement('img');
   image.alt = '';
@@ -156,51 +156,12 @@ export function watchSourceIcons(doc = document) {
   };
 }
 
-const TRUST_KEY = 'noureon.openSourcesWithoutAsking';
-
 /**
- * "Don't ask again" for opening a source, kept on this device only. A browser that does not allow storage just
- * asks every time.
+ * Opens a page in a new tab, as it is: a tap on a source is what the reader asked for, so nothing is asked first. Only
+ * web addresses are opened. Returns whether the page was opened.
  */
-export function createSourceTrust(win) {
-  return {
-    isTrusted: () => {
-      try {
-        return win?.localStorage?.getItem(TRUST_KEY) === '1';
-      } catch {
-        return false;
-      }
-    },
-    trust: () => {
-      try {
-        win?.localStorage?.setItem(TRUST_KEY, '1');
-      } catch {
-        // The choice is just not kept.
-      }
-    }
-  };
-}
-
-/**
- * A tap on a chip: ask before leaving, then open the page in a new tab. `confirm(message, title, { remember })` is
- * the app's own dialog; with a tick box ("don't ask again") it answers `{ accepted, remember }`. `isTrusted()` says
- * the reader chose not to be asked, and `trust()` keeps that choice. Returns whether the page was opened.
- */
-export async function openSourceChip(chip, { confirm, language, open, isTrusted = () => false, trust = () => {} }) {
-  const url = chip?.dataset?.url || '';
-  if (!/^https?:\/\//i.test(url)) return false;
-  if (!isTrusted()) {
-    // The name of the site (a Gemini address is a long redirect that says nothing).
-    const shown = chip.dataset.host && !url.includes(chip.dataset.host) ? chip.dataset.host : url;
-    const answer = await confirm(
-      sandboxText(language, 'openSourceMessage', { url: shown }),
-      sandboxText(language, 'openSourceTitle'),
-      { remember: sandboxText(language, 'openSourceRemember') }
-    );
-    const accepted = typeof answer === 'object' && answer !== null ? answer.accepted : Boolean(answer);
-    if (!accepted) return false;
-    if (answer?.remember) trust();
-  }
+export function openSourceUrl(url, open) {
+  if (!/^https?:\/\//i.test(String(url || ''))) return false;
   open(url, '_blank', 'noopener,noreferrer');
   return true;
 }

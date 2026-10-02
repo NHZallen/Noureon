@@ -24,6 +24,7 @@ const createHarness = ({
   streamResult = 'Hello Astra',
   foundSources = null,
   reportWhileStreaming = null,
+  supports = null,
   streamError,
   afterChunks = () => {},
   extraDependencies = {},
@@ -64,6 +65,7 @@ const createHarness = ({
       calls.push(['api', parts, receivedSignal, forced, options]);
       if (streamError) throw streamError;
       if (reportWhileStreaming) options?.onSources?.(reportWhileStreaming);
+      if (supports) options?.onSupports?.(supports);
       onChunk('Hello');
       onChunk(' Astra');
       afterChunks();
@@ -202,7 +204,7 @@ test('the pages a web search found are kept with the reply, ahead of its text', 
     uiLanguage: 'en'
   });
   const { run, text } = liftSandboxRunBlock(result.fullResponse);
-  assert.deepEqual(run.sources, sources);
+  assert.deepEqual(run.sources, [{ title: 'MDN', url: 'https://developer.mozilla.org/x', n: 1 }], 'pages that came without a number are numbered, so an answer can cite them');
   assert.deepEqual(run.steps, []);
   assert.match(text, /Hello/);
 });
@@ -353,8 +355,8 @@ test('the pages that were read and the pages that were searched are both kept wi
     uiLanguage: 'en'
   });
   assert.deepEqual(liftSandboxRunBlock(result.fullResponse).run.sources, [
-    { title: 'Linked', url: 'https://linked.example/a', read: true },
-    { title: 'Found', url: 'https://found.example/1' }
+    { title: 'Linked', url: 'https://linked.example/a', n: 1, read: true },
+    { title: 'Found', url: 'https://found.example/1', n: 2 }
   ]);
 });
 
@@ -499,4 +501,39 @@ test('the model\'s thinking is a step under the "Working" line, which says it is
   assert.equal(host.querySelectorAll('.ledger').length, 0, 'it goes when the reply is finished: the saved reply shows it');
   assert.match(result.fullResponse, /The answer\./);
   window.happyDOM.abort();
+});
+
+test('where Gemini\'s answer cites its pages goes into the text as markers once the answer is whole, and the view is drawn again', async () => {
+  const pages = [{ title: 'A', url: 'https://a.example/1' }, { title: 'B', url: 'https://b.example/2' }];
+  const { lifecycle, signal, targetElement } = createHarness({
+    reportWhileStreaming: pages,
+    supports: [{ text: 'Hello Astra', urls: ['https://b.example/2', 'https://a.example/1'] }]
+  });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'Hi' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: true },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  const { run, text } = liftSandboxRunBlock(result.fullResponse);
+  assert.equal(text, 'Hello Astra [1][2]');
+  assert.deepEqual(run.sources.map((source) => [source.url, source.n]), [['https://a.example/1', 1], ['https://b.example/2', 2]]);
+  assert.equal(targetElement.dataset.streamRendered, 'false', 'drawn again, so the markers show as labels');
+});
+
+test('an answer that cites nothing is left as it is', async () => {
+  const { lifecycle, signal, targetElement } = createHarness({ reportWhileStreaming: [{ title: 'A', url: 'https://a.example/1' }] });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'Hi' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: true },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.equal(liftSandboxRunBlock(result.fullResponse).text, 'Hello Astra');
 });

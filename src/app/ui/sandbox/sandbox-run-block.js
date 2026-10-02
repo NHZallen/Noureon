@@ -11,6 +11,8 @@
 // collapsible "Ran code N times" row; the model only ever sees a one-line
 // summary of it.
 
+import { stripCitationMarkers } from '../citations/citation-model.js';
+
 const FENCE = '```noureon-run';
 const BLOCK_PATTERN = /^```noureon-run\n([^\n]*)\n```[ \t]*(?:\n+|$)/;
 
@@ -65,7 +67,16 @@ export function normalizeSources(sources) {
     const key = `${source?.read ? 'read' : 'found'} ${url}`;
     if (!/^https?:\/\/[^\s]+$/i.test(url) || seen.has(key)) continue;
     seen.add(key);
-    kept.push({ title: String(source?.title || '').slice(0, 160), url, ...(source?.read ? { read: true } : {}) });
+    // `n` is the number the model was told the page by (it cites it with [n]); `snippet` and `date` are for the sources list.
+    const n = Number(source?.n);
+    kept.push({
+      title: String(source?.title || '').slice(0, 160),
+      url,
+      ...(Number.isInteger(n) && n > 0 && n < 1000 ? { n } : {}),
+      ...(source?.date ? { date: String(source.date).slice(0, 40) } : {}),
+      ...(String(source?.snippet || '').trim() ? { snippet: String(source.snippet).replace(/\s+/g, ' ').trim().slice(0, 220) } : {}),
+      ...(source?.read ? { read: true } : {})
+    });
     if (kept.length >= MAX_SOURCES) break;
   }
   return kept;
@@ -122,7 +133,8 @@ export function summarizeSandboxRun(run) {
 
 export function summarizeSandboxRunText(text = '') {
   const { run, text: rest } = liftSandboxRunBlock(text);
-  return run ? `${summarizeSandboxRun(run)}${rest}` : String(text || '');
+  // The [n] that cite its sources mean nothing to a later reply (which numbers its own pages), so the model is not shown them.
+  return run ? `${summarizeSandboxRun(run)}${stripCitationMarkers(rest, run.sources)}` : String(text || '');
 }
 
 // History sent to the model: each model message's run block becomes its

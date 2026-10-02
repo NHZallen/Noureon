@@ -135,7 +135,7 @@ const es = {
   "extendedFeatures": "Funciones extendidas",
   "howCanIHelp": "¿Le puedo ayudar en algo?",
   "viewingArchived": "Ver un chat archivado. No se pueden enviar mensajes.",
-  "messageDirectory": "Directorio de mensajes",
+  "messageDirectory": "Cronología",
   "chart": "Cuadro",
   "moreModels": "Más modelos",
   "betaModels": "Modelos Beta",

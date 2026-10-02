@@ -5,6 +5,7 @@ import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-
 import { createSearchQueryRewriter } from './search-query-rewriter.js';
 import { createWebResearchTools } from './web-research-tools.js';
 import { absoluteLinks } from './web-page-text.js';
+import { resultDate } from './model-request-formatting.js';
 
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
@@ -174,7 +175,14 @@ Output requirements:
       signal
     });
     // The pages found, for the "Searched N sites" row of the reply.
-    options.onSources?.((Array.isArray(data?.results) ? data.results : []).slice(0, 8).map((result) => ({ title: result.title || '', url: result.url || '' })));
+    // Numbered as the packet numbers them, so the answer's [n] finds its page.
+    options.onSources?.((Array.isArray(data?.results) ? data.results : []).slice(0, 8)
+      .map((result, index) => {
+        const snippet = String(result.content || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+        const date = resultDate(result);
+        return { title: result.title || '', url: result.url || '', n: index + 1, ...(snippet ? { snippet } : {}), ...(date ? { date } : {}) };
+      })
+      .filter((source) => source.url));
     return formatTavilySearchPacket(data, query, options.label || 'Web search packet', searchProviderLabel(source));
   };
 

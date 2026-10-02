@@ -137,7 +137,7 @@
         extendedFeatures: 'Extended Features',
         howCanIHelp: 'How can I help you?',
         viewingArchived: 'Viewing an archived chat. Cannot send messages.',
-        messageDirectory: 'Message Directory',
+        messageDirectory: 'Timeline',
         chart: 'Chart',
         // Model Switcher
         moreModels: 'More Models',

@@ -128,7 +128,7 @@ export const formatTavilySearchPacket = (data, query, label = 'Web search packet
       const published = resultDate(result);
       lines.push(
         '',
-        `${index + 1}. ${result.title || 'Untitled source'}`,
+        `[${index + 1}] ${result.title || 'Untitled source'}`,
         `URL: ${result.url || ''}`,
         ...(published ? [`Published: ${published}`] : []),
         `Content: ${String(result.content || result.raw_content || '').trim().slice(0, 1400) || 'No snippet returned.'}`
@@ -142,7 +142,8 @@ export const formatTavilySearchPacket = (data, query, label = 'Web search packet
   }
   lines.push(
     '',
-    'Use this as system-generated web context. Do not say or imply that the user wrote this packet. Prefer dated source evidence from the Sources section when making current factual claims, and state uncertainty when sources conflict.'
+    'Use this as system-generated web context. Do not say or imply that the user wrote this packet. Prefer dated source evidence from the Sources section when making current factual claims, and state uncertainty when sources conflict.',
+    'Cite the sources you rely on with their numbers in square brackets right after the sentence they support, for example [2] or [1][3]. Use only numbers listed above, never invent one, and do not add a list of sources at the end: the app shows them.'
   );
   return lines.join('\n');
 };

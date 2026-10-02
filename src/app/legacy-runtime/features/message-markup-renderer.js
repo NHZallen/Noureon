@@ -1,6 +1,7 @@
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+import { replySourcesButtonHTML } from '../../ui/citations/citation-pills.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
     '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -50,6 +51,7 @@ export function buildMessageRenderView({
     buildMediaAttachmentView,
     formatTimestamp,
     copyTitle,
+    uiLanguage = 'zh-TW',
     historySources = [],
     historySourceTexts = {}
 }) {
@@ -136,9 +138,12 @@ export function buildMessageRenderView({
             const timeString = formatTimestamp(message.createdAt);
             actionButtons = `
                         <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                            <div class="message-footer-left">
                             <button class="copy-content-btn p-1 rounded-md hover:bg-gray-500/20 text-[var(--text-secondary)] opacity-50 hover:opacity-100 transition-opacity" title="${copyTitle}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                             </button>
+                            ${replySourcesButtonHTML(message, uiLanguage)}
+                            </div>
                             <span class="text-xs text-gray-400">${timeString}</span></div>
                     `;
             contentPaddingClass = 'pb-8';

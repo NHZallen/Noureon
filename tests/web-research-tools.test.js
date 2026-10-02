@@ -102,6 +102,6 @@ test('the date of a result is read from what the sources call it, and shown in t
   const tiny = normalizeTinyfishSearch({ results: [{ url: 'https://a.example/', title: 'A', snippet: 's', published_at: '2026-09-01' }] });
   assert.equal(tiny.results[0].published_date, '2026-09-01');
   const packet = formatTavilySearchPacket({ results: [{ title: 'A', url: 'https://a.example/', content: 's', published_date: '2026-09-29' }, { title: 'B', url: 'https://b.example/', content: 't' }] }, 'q');
-  assert.match(packet, /1\. A\nURL: https:\/\/a\.example\/\nPublished: 2026-09-29\nContent: s/);
-  assert.match(packet, /2\. B\nURL: https:\/\/b\.example\/\nContent: t/);
+  assert.match(packet, /\[1\] A\nURL: https:\/\/a\.example\/\nPublished: 2026-09-29\nContent: s/);
+  assert.match(packet, /\[2\] B\nURL: https:\/\/b\.example\/\nContent: t/);
 });

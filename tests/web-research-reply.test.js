@@ -83,7 +83,8 @@ test('the model searches, opens a page and answers, each call a row and the sour
   assert.equal(result.events[0].text, 'Let me look.', 'what the model says about a call is its note, shown between the rows, not in the answer');
   assert.equal(result.events[1].label, 'Searching: a/b releases');
   assert.equal(result.events[3].label, 'Reading page: github.com');
-  assert.deepEqual(result.events[4].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', read: true }]);
+  assert.deepEqual(result.events[2].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', n: 1, snippet: 'v2.0' }], 'a result is numbered, with the start of its text');
+  assert.deepEqual(result.events[4].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', n: 1, snippet: 'v2.0', read: true }], 'the page that was found and then read keeps its number');
   assert.equal(result.found.length, 2);
   assert.deepEqual(model.requests.map((request) => request.turns), [0, 1, 2]);
   assert.deepEqual(model.requests[0].tools.map((tool) => tool.name), ['web_search', 'open_page', 'find_in_page']);
@@ -99,7 +100,7 @@ test('what the model reads back is the results and the page, marked as source ma
   await run(model, tools());
   const [first, second] = model.requests[1].toolTurns[0].results;
   assert.equal(first.id, '1');
-  assert.match(first.content, /Results for "q":\n\n1\. Releases\nURL: https:\/\/github\.com\/a\/b\/releases\nSnippet: v2\.0/);
+  assert.match(first.content, /Results for "q":\n\n\[1\] Releases\nURL: https:\/\/github\.com\/a\/b\/releases\nSnippet: v2\.0/);
   assert.equal(second.id, '2');
   assert.match(second.content, /<web_page_text>\nnotes of v2\.0\n<\/web_page_text>/);
 });
@@ -210,13 +211,13 @@ test('a long page is read a window at a time, whole and with full-address links,
   const result = await run(model, helper);
   const first = model.requests[1].toolTurns[0].results[0].content;
   assert.match(first, /Navigation Menu/, 'the menu is not cut');
-  assert.match(first, /^Page: Releases/);
+  assert.match(first, /^Page \[1\]: Releases/, 'a page opened without a search is numbered too');
   assert.match(first, /\[Item 3\]\(https:\/\/github\.com\/menu\/3\)/);
   assert.match(first, /Call open_page with start=\d+ for the next part/);
   const [again, next, found] = model.requests[2].toolTurns[1].results.map((entry) => entry.content);
   assert.match(again, /already opened/);
   assert.match(next, /\(Characters 10000-/);
-  assert.match(found, /Passages with "latest version"/);
+  assert.match(found, /Passages with "latest version" in Releases \[1\]/);
   assert.match(found, /The latest version is v17\.3\.0, see \[notes\]\(https:\/\/github\.com\/a\/b\/releases\/tag\/v17\.3\.0\)/, 'links are full addresses');
   assert.equal(helper.opened.length, 1, 'the page is fetched once, whatever is done with it');
   assert.equal(result.events.filter((event) => event.type === 'searching').length, 1, 'and is one row');
@@ -294,8 +295,9 @@ test('a result\'s publishing date is shown to the model when the source gave one
     { title: 'Undated', url: 'https://b.example/', content: 'y' },
     { title: 'Odd', url: 'https://c.example/', content: 'z', published_date: 'last tuesday-ish' }
   ]);
-  assert.match(text, /1\. New\nURL: https:\/\/a\.example\/\nDate: 2026-09-29\nSnippet: x/);
-  assert.match(text, /2\. Undated\nURL: https:\/\/b\.example\/\nSnippet: y/);
-  assert.match(text, /3\. Odd\nURL: https:\/\/c\.example\/\nSnippet: z/, 'a date that cannot be read is left out');
+  assert.match(text, /\[1\] New\nURL: https:\/\/a\.example\/\nDate: 2026-09-29\nSnippet: x/);
+  assert.match(text, /\[2\] Undated\nURL: https:\/\/b\.example\/\nSnippet: y/);
+  assert.match(text, /\[3\] Odd\nURL: https:\/\/c\.example\/\nSnippet: z/, 'a date that cannot be read is left out');
   assert.match(researchGuidance('2026-10-01'), /Date:/);
+  assert.match(researchGuidance('2026-10-01'), /number in square brackets/);
 });

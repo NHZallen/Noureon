@@ -197,6 +197,7 @@ export function createMessageListLifecycle({
             buildMediaAttachmentView,
             formatTimestamp,
             copyTitle: getText('copyContent'),
+            uiLanguage: getText('uiLanguage'),
             historySources: historySourceViews,
             historySourceTexts: getHistorySourceTexts()
         });
@@ -235,6 +236,7 @@ export function createMessageListLifecycle({
             buildMediaAttachmentView,
             formatTimestamp,
             copyTitle: getText('copyContent'),
+            uiLanguage: getText('uiLanguage'),
             historySources: historySourceViews,
             historySourceTexts: getHistorySourceTexts()
         });

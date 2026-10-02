@@ -1,0 +1,170 @@
+/* Citations: the small labels inside an answer, the "Sources" button under it, the sheet that rises from the bottom with the
+   sources, and the tabs of the right-hand panel (Timeline | Sources). Colours come from the theme, so a wallpaper or dark mode
+   is followed. */
+
+/* The label that cites a source: a round grey chip with the site's icon and name; the one under the pointer turns dark. */
+.cite-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    max-width: 14rem;
+    margin-left: 0.35em;
+    padding: 0.1rem 0.55rem 0.1rem 0.3rem;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--hover-bg, #f3f4f6);
+    color: var(--text-secondary, #6b7280);
+    font: inherit;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    white-space: nowrap;
+    vertical-align: 0.08em;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.cite-pill:hover,
+.cite-pill:focus-visible {
+    background: var(--text-primary, #111827);
+    color: var(--chat-bg, #ffffff);
+}
+
+.cite-pill-icon { width: 0.95rem; height: 0.95rem; }
+.cite-pill-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cite-pill-more { flex: none; opacity: 0.7; }
+
+/* The "Sources" button beside the copy button: three icons laid over each other, then the word. */
+.sources-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.15rem 0.45rem;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sources-button:hover,
+.sources-button:focus-visible { background: var(--hover-bg, #f3f4f6); color: var(--text-primary, #111827); }
+.sources-button-icons { display: inline-flex; align-items: center; }
+.sources-button-icon { width: 1.15rem; height: 1.15rem; box-shadow: 0 0 0 2px var(--chat-bg, #ffffff); background: var(--chat-bg, #ffffff); }
+.sources-button-icon + .sources-button-icon { margin-left: -0.4rem; }
+.message-footer-left { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+
+/* A row of the sources list (the sheet and the panel): the site, the page's title, its date, the start of its text. */
+.source-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.8rem 1.1rem;
+    color: var(--text-primary, #111827);
+    text-decoration: none;
+    border-radius: 0.9rem;
+}
+
+.source-item:hover,
+.source-item:focus-visible,
+.source-item.is-cited { background: var(--hover-bg, #f3f4f6); }
+.source-item-site { display: flex; align-items: center; gap: 0.5rem; min-width: 0; color: var(--text-secondary, #6b7280); font-size: 0.9rem; }
+.source-item-icon { width: 1.25rem; height: 1.25rem; }
+.source-item-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-item-title { font-size: 1.02rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+.source-item-date { color: var(--text-secondary, #6b7280); font-size: 0.88rem; }
+.source-item-snippet {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+/* The sheet from the bottom. */
+.source-sheet-root { position: fixed; inset: 0; z-index: 1000; }
+
+.source-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.32);
+    opacity: 0;
+    touch-action: none;
+    transition: opacity 0.28s ease;
+}
+
+.source-sheet {
+    position: absolute;
+    left: 50%;
+    bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    width: min(calc(100% - 1.5rem), 38rem);
+    height: min(62vh, 32rem);
+    border-radius: 1.75rem;
+    background: var(--chat-bg, #ffffff);
+    color: var(--text-primary, #111827);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+    transform: translate(-50%, 110%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), height 0.28s ease;
+    outline: none;
+}
+
+.source-sheet.is-all.is-large { height: min(92vh, 56rem); }
+.source-sheet:not(.is-all) { height: auto; max-height: 62vh; }
+.source-sheet-root.is-open .source-sheet-backdrop { opacity: 1; }
+.source-sheet-root.is-open .source-sheet { transform: translate(-50%, var(--sheet-drag, 0px)); }
+.source-sheet.is-dragging { transition: none; }
+.source-sheet-grip { flex: none; width: 2.4rem; height: 0.3rem; margin: 0.6rem auto 0.2rem; border-radius: 9999px; background: var(--border-color, #d1d5db); touch-action: none; }
+.source-sheet-head { position: relative; flex: none; display: flex; align-items: center; justify-content: center; min-height: 3rem; padding: 0.2rem 1rem; touch-action: none; }
+.source-sheet-title { font-size: 1.05rem; font-weight: 600; text-align: center; }
+.source-sheet.is-all .source-sheet-title { align-self: flex-start; margin-top: 0.5rem; margin-right: auto; font-size: 0.9rem; font-weight: 500; color: var(--text-secondary, #6b7280); }
+.source-sheet-close {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.9rem;
+    display: grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--text-primary, #111827);
+    cursor: pointer;
+}
+
+.source-sheet-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0.6rem 1rem; -webkit-overflow-scrolling: touch; }
+.source-sheet-list .source-item + .source-item { border-top: 1px solid color-mix(in srgb, var(--border-color, #e5e7eb) 70%, transparent); border-radius: 0; }
+
+/* The right-hand panel: Timeline | Sources, wider, and docked beside the chat on a wide screen. */
+.history-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.7rem 0.8rem; border-bottom: 1px solid var(--border-color); }
+.history-tabs { display: inline-flex; gap: 0.2rem; padding: 0.2rem; border-radius: 9999px; background: var(--hover-bg, #f3f4f6); }
+.history-tab { padding: 0.3rem 0.9rem; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary, #6b7280); font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+.history-tab[aria-selected='true'] { background: var(--chat-bg, #ffffff); color: var(--text-primary, #111827); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1); }
+.history-tab-count { margin-left: 0.3rem; opacity: 0.7; }
+.history-close { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary, #6b7280); cursor: pointer; }
+.history-close:hover { background: var(--hover-bg, #f3f4f6); color: var(--text-primary, #111827); }
+#history-sources-list { padding: 0.4rem; }
+#history-sources-list[hidden], #history-sidebar-list[hidden] { display: none; }
+.history-sources-count { padding: 0.5rem 0.9rem 0.3rem; color: var(--text-secondary, #6b7280); font-size: 0.875rem; }
+.history-sources-empty { padding: 1rem; text-align: center; color: var(--text-secondary, #6b7280); font-size: 0.9rem; }
+
+@media (min-width: 768px) {
+    #history-sidebar { width: 25rem; }
+}
+
+@media (min-width: 1024px) {
+    /* Open, the panel takes its width from the chat instead of lying over it, and there is no veil. */
+    main.flex-1 { transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    main.flex-1.history-docked { padding-right: 25rem; }
+    main.flex-1.history-docked #history-sidebar-overlay { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .source-sheet, .source-sheet-backdrop, main.flex-1 { transition: none; }
+}

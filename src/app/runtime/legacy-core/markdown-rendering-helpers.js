@@ -1,6 +1,7 @@
 import { applyChartMarkdownPlaceholders } from '../../ui/charts/chart-markdown-placeholders.js';
 import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
 import { applyFileCards, prepareFileBlocksForMarkdown, setFileMarkdownRenderer } from '../../ui/files/file-markdown-cards.js';
+import { applyCitationPills } from '../../ui/citations/citation-pills.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { createSandboxRunElement } from '../../ui/sandbox/sandbox-run-view.js';
 import { describeSandboxFile, latestRunFiles, referencedAssetNames } from '../../ui/sandbox/sandbox-files.js';
@@ -242,6 +243,9 @@ export function createMarkdownRenderingHelpers({
       extraDescriptors: sandboxFiles,
       decorate: assets ? (descriptor) => ({ ...descriptor, sandboxAssets: assets }) : undefined
     });
+
+    // The [n] an answer writes to cite the pages of the reply's search become small labels (site icon and name).
+    applyCitationPills(documentFragment.body, sandboxRun?.sources, { document: documentFragment, language: getUiLanguage() });
 
     // Advanced mode's "Ran code N times" row goes above the answer.
     const runElement = createSandboxRunElement(documentFragment, sandboxRun, { language: getUiLanguage() });

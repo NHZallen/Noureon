@@ -379,67 +379,26 @@ test('the pages a search found and what the model said before a run are kept, sh
     const only = createSandboxRunElement(document, { status: 'done', steps: [], sources: run.sources }, { language: 'en' });
     assert.equal(only.querySelectorAll('.sandbox-run-row').length, 1);
     for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-      for (const key of ['sourcesSearched', 'openSourceTitle', 'openSourceMessage']) assert.notEqual(sandboxText(language, key), key, `${language} ${key}`);
+      for (const key of ['sourcesSearched', 'citeSources', 'sourcesTab', 'timelineTab', 'sourcesPanelCount', 'closePanel', 'noSourcesInReply']) assert.notEqual(sandboxText(language, key), key, `${language} ${key}`);
     }
   } finally {
     cleanup();
   }
 });
 
-test('a tap on a source asks first and opens a new tab only when it is accepted', async () => {
-  const { openSourceChip } = await import('../../src/app/ui/sandbox/run-sources.js');
+test('a tap on a source opens the page in a new tab at once, and only web addresses', async () => {
+  const { openSourceUrl } = await import('../../src/app/ui/sandbox/run-sources.js');
   const opened = [];
-  const asked = [];
-  const chip = (url) => ({ dataset: { url } });
-  const options = (answer) => ({ language: 'en', confirm: async (message, title) => { asked.push([message, title]); return answer; }, open: (...args) => opened.push(args) });
-  assert.equal(await openSourceChip(chip('https://a.example/x'), options(false)), false);
-  assert.deepEqual(opened, [], 'declined: nothing opens');
-  assert.equal(await openSourceChip(chip('https://a.example/x'), options(true)), true);
+  const open = (...args) => opened.push(args);
+  assert.equal(openSourceUrl('https://a.example/x', open), true);
   assert.deepEqual(opened, [['https://a.example/x', '_blank', 'noopener,noreferrer']]);
-  assert.match(asked[0][0], /https:\/\/a\.example\/x/);
-  assert.equal(await openSourceChip(chip('javascript:alert(1)'), options(true)), false, 'only web addresses');
-  assert.equal(asked.length, 2, 'and it does not even ask about the others');
-});
-
-test('the choice not to be asked is kept on the device, and a browser without storage just asks', async () => {
-  const { createSourceTrust } = await import('../../src/app/ui/sandbox/run-sources.js');
-  const store = new Map();
-  const win = { localStorage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) } };
-  const trust = createSourceTrust(win);
-  assert.equal(trust.isTrusted(), false);
-  trust.trust();
-  assert.equal(createSourceTrust(win).isTrusted(), true, 'still there for the next tap');
-  const blocked = createSourceTrust({ get localStorage() { throw new Error('blocked'); } });
-  assert.equal(blocked.isTrusted(), false);
-  assert.doesNotThrow(() => blocked.trust());
-  assert.equal(createSourceTrust(null).isTrusted(), false);
-});
-
-test('"don\'t ask again" is kept only when the page is opened, and then a tap opens at once', async () => {
-  const { openSourceChip } = await import('../../src/app/ui/sandbox/run-sources.js');
-  let trusted = false;
-  const opened = [];
-  let asked = 0;
-  const chip = { dataset: { url: 'https://a.example/x' } };
-  const make = (answer) => ({
-    language: 'en',
-    confirm: async (message, title, options) => { asked += 1; assert.equal(options.remember, sandboxText('en', 'openSourceRemember')); return answer; },
-    open: (...args) => opened.push(args),
-    isTrusted: () => trusted,
-    trust: () => { trusted = true; }
-  });
-  await openSourceChip(chip, make({ accepted: false, remember: true }));
-  assert.equal(trusted, false, 'ticked but declined: nothing is remembered');
-  await openSourceChip(chip, make({ accepted: true, remember: false }));
-  assert.equal(trusted, false);
+  assert.equal(openSourceUrl('javascript:alert(1)', open), false);
+  assert.equal(openSourceUrl('', open), false);
+  assert.equal(openSourceUrl(undefined, open), false);
   assert.equal(opened.length, 1);
-  await openSourceChip(chip, make({ accepted: true, remember: true }));
-  assert.equal(trusted, true);
-  assert.equal(opened.length, 2);
-  await openSourceChip(chip, make(false));
-  assert.equal(asked, 3, 'once trusted it does not ask again');
-  assert.equal(opened.length, 3);
-  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) assert.notEqual(sandboxText(language, 'openSourceRemember'), 'openSourceRemember', language);
+  const sources = await import('../../src/app/ui/sandbox/run-sources.js');
+  assert.equal('openSourceChip' in sources, false, 'nothing asks first any more');
+  assert.equal('createSourceTrust' in sources, false);
 });
 
 test('the wait says what is happening and what comes next', async () => {

@@ -576,7 +576,8 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       newChat: i18n[getConfig().uiLanguage].newChat,
       archived: i18n[getConfig().uiLanguage].archived || '已封存',
       howCanIHelp: i18n[getConfig().uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？',
-      copyContent: i18n[getConfig().uiLanguage].copyContent || '複製內容'
+      copyContent: i18n[getConfig().uiLanguage].copyContent || '複製內容',
+      uiLanguage: getConfig().uiLanguage
     }[key]),
     getHistorySourceViews: (message) => normalizeHistorySourceConversationIds(
       message?.metadata?.historySourceConversationIds

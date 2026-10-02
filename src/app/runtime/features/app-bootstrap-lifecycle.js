@@ -9,7 +9,11 @@ import { installFileCardInteractions } from '../../ui/files/file-card-interactio
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 import { codeOfCard } from '../../ui/sandbox/run-code-card.js';
-import { createSourceTrust, openSourceChip } from '../../ui/sandbox/run-sources.js';
+import { openSourceUrl } from '../../ui/sandbox/run-sources.js';
+import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
+import { listableSources } from '../../ui/citations/citation-model.js';
+import { copyableAnswerText, sourcesOfPill } from '../../ui/citations/citation-pills.js';
+import { openSourceSheet } from '../../ui/citations/source-sheet.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -490,15 +494,30 @@ export function createLegacyAppBootstrapLifecycle({
                             .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '複製失敗。', 'error'));
                         return;
                     }
-                    // A page the reply's web search found: ask first, then open it in a new tab.
+                    // A page the reply's web search found: opened in a new tab, as it is.
                     const sourceChip = e.target.closest('.run-source-chip');
                     if (sourceChip) {
-                        openSourceChip(sourceChip, {
-                            confirm: showCustomConfirm,
-                            language: getConfig().uiLanguage,
-                            open: (...args) => window.open(...args),
-                            ...createSourceTrust(window)
-                        });
+                        openSourceUrl(sourceChip.dataset.url, (...args) => window.open(...args));
+                        return;
+                    }
+                    // A label that cites sources inside an answer: one source opens its page, several rise as a sheet.
+                    const citePill = e.target.closest('.cite-pill');
+                    if (citePill) {
+                        const cited = sourcesOfPill(citePill);
+                        if (cited.length === 1) openSourceUrl(cited[0].url, (...args) => window.open(...args));
+                        else if (cited.length) openSourceSheet({ document, sources: cited, language: getConfig().uiLanguage });
+                        return;
+                    }
+                    // The "Sources" button under a reply: its sources in the right-hand panel on a wide screen, as a sheet on a phone.
+                    const sourcesButton = e.target.closest('[data-sources-button]');
+                    if (sourcesButton) {
+                        const item = sourcesButton.closest('.message-item');
+                        const reply = getActiveConversation()?.messages?.[parseInt(item?.dataset.messageIndex, 10)];
+                        const { run } = liftSandboxRunBlock((reply?.parts || []).map((part) => part.text || '').join('\n'));
+                        const sources = listableSources(run?.sources);
+                        if (!sources.length) return;
+                        if (window.innerWidth >= 768) document.dispatchEvent(new window.CustomEvent('noureon:open-sources', { detail: { sources } }));
+                        else openSourceSheet({ document, sources, all: true, language: getConfig().uiLanguage });
                         return;
                     }
                     const copyBtn = e.target.closest('.copy-content-btn');
@@ -509,7 +528,8 @@ export function createLegacyAppBootstrapLifecycle({
                             const conv = getActiveConversation();
                             const msg = conv?.messages[messageIndex];
                             if (msg && msg.role === 'model') {
-                                const textToCopy = msg.parts.map(p => p.text).join('\n');
+                                // What was said, without the record of what the model did and without the citation markers.
+                                const textToCopy = copyableAnswerText(msg);
                                 copyTextToClipboard(textToCopy)
                                     .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '內容已複製！', 'success'))
                                     .catch(err => {

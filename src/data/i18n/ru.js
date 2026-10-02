@@ -135,7 +135,7 @@ const ru = {
   "extendedFeatures": "Расширенные возможности",
   "howCanIHelp": "Могу я чем-нибудь помочь?",
   "viewingArchived": "Просмотр архивного чата. Невозможно отправлять сообщения.",
-  "messageDirectory": "Каталог сообщений",
+  "messageDirectory": "Хронология",
   "chart": "Диаграмма",
   "moreModels": "Больше моделей",
   "betaModels": "Бета-модели",

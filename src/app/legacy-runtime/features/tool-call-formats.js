@@ -162,10 +162,23 @@ export function createGeminiCollector({ onReasoning = null, onToolArguments = nu
   const toolCalls = [];
   // The pages Gemini's own web search used (grounding chunks), once each.
   const sources = [];
+  // Which words of the answer a page supports (`groundingSupports`), as { text, urls }: where the answer cites its pages.
+  const supports = [];
+  const supportKeys = new Set();
   let text = '';
   return {
     // Returns the visible text of one streamed chunk.
     add(chunk) {
+      const grounding = chunk?.candidates?.[0]?.groundingMetadata;
+      for (const support of grounding?.groundingSupports || []) {
+        const words = String(support?.segment?.text || '');
+        const urls = (support?.groundingChunkIndices || []).map((index) => String(grounding.groundingChunks?.[index]?.web?.uri || '')).filter(Boolean);
+        const key = `${words}|${urls.join(',')}`;
+        if (words && urls.length && !supportKeys.has(key)) {
+          supportKeys.add(key);
+          supports.push({ text: words, urls });
+        }
+      }
       for (const found of chunk?.candidates?.[0]?.groundingMetadata?.groundingChunks || []) {
         const url = String(found?.web?.uri || '');
         if (url && !sources.some((source) => source.url === url)) sources.push({ title: String(found.web.title || ''), url });
@@ -192,7 +205,7 @@ export function createGeminiCollector({ onReasoning = null, onToolArguments = nu
       text += visible;
       return visible;
     },
-    result: () => ({ text, parts, toolCalls, reasoningDetails: [], sources: [...sources] })
+    result: () => ({ text, parts, toolCalls, reasoningDetails: [], sources: [...sources], supports: [...supports] })
   };
 }
 

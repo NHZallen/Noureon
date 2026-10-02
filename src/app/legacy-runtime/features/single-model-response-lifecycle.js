@@ -1,3 +1,5 @@
+import { insertGroundingMarkers } from '../../ui/citations/citation-model.js';
+import { watchCitations } from '../../ui/citations/citation-pills.js';
 import { extractLinkedUrls } from './linked-pages.js';
 import { patchHTML } from '../../ui/dom/patch-html.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
@@ -118,8 +120,22 @@ export function createSingleModelResponseLifecycle({
     // that was found and then read is both, so each is kept once.
     const addSearchSources = (found) => {
       const known = new Set(searchSources.map((source) => `${Boolean(source.read)} ${source.url}`));
-      searchSources = [...searchSources, ...found.filter((source) => source?.url && !known.has(`${Boolean(source.read)} ${source.url}`))];
+      const fresh = found.filter((source) => source?.url && !known.has(`${Boolean(source.read)} ${source.url}`));
+      searchSources = [...searchSources, ...fresh];
+      // A page that came without a number (Gemini's own search gives none) is numbered after the others, once per address.
+      let highest = searchSources.reduce((most, source) => Math.max(most, Number(source.n) || 0), 0);
+      const numbers = new Map(searchSources.filter((source) => Number(source.n) > 0).map((source) => [source.url, Number(source.n)]));
+      searchSources = searchSources.map((source) => {
+        if (Number(source.n) > 0) return source;
+        if (!numbers.has(source.url)) numbers.set(source.url, (highest += 1));
+        return { ...source, n: numbers.get(source.url) };
+      });
     };
+    // Where Gemini's answer cites its pages, kept until the answer is whole (the markers go into the text then).
+    let groundingSupports = [];
+    const withGroundingMarkers = (answer) => (groundingSupports.length
+      ? insertGroundingMarkers(answer, groundingSupports, (url) => Number(searchSources.find((source) => source.url === url)?.n) || 0)
+      : answer);
     if (hasTranslationInputs) {
       renderProgress(
         targetElement,
@@ -164,7 +180,7 @@ export function createSingleModelResponseLifecycle({
       }
     };
 
-    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
+    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
     // The run record (or the reason for Standard mode) kept above the answer.
     let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
       ? { status: 'done', steps: [], fallback: replyMode.reason }
@@ -182,6 +198,8 @@ export function createSingleModelResponseLifecycle({
       return liveRun;
     };
     const showRunStatus = () => {};
+    // The [n] an answer writes become small labels as it streams (and in the final view, from the saved sources).
+    const stopCitations = watchCitations(targetElement, () => searchSources, { document: getDocument(), language: uiLanguage });
     // A reply without Python shows the model's thinking above the answer, as it streams,
     // and folds it when the answer starts.
     let thinkingBlock = null;
@@ -361,6 +379,7 @@ export function createSingleModelResponseLifecycle({
       }
     } finally {
       stop();
+      stopCitations();
       liveRun?.remove();
       // What was thought is kept with the reply (the run record), so it is still there after a reload.
       endThinking();
@@ -369,6 +388,16 @@ export function createSingleModelResponseLifecycle({
       if (searchSources.length) sandboxRun = { status: 'done', steps: [], elapsedMs: now() - startedAt, ...(sandboxRun || {}), sources: searchSources };
       if (thought.text && !replyMode.advanced) {
         sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(signal?.aborted && !answered ? { thoughtInterrupted: true } : {}) };
+      }
+    }
+
+    // Gemini says where its answer cites its pages only once it is whole: the markers go into the text now, and the final
+    // view is drawn again so they show as labels.
+    if (groundingSupports.length && fullResponse) {
+      const marked = withGroundingMarkers(fullResponse);
+      if (marked !== fullResponse) {
+        fullResponse = marked;
+        if (targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
       }
     }
 

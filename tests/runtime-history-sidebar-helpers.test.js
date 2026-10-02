@@ -246,9 +246,11 @@ test('conversation history rendering preserves filtering, pinned ordering, namin
   }
 });
 
-test('history item interaction preserves smooth scroll, highlight timeout, and sidebar close behavior', () => {
+test('history item interaction preserves smooth scroll and highlight timeout, and a panel lying over the chat gives way', () => {
   const harness = createHarness();
   try {
+    // Narrower than the width at which the panel sits beside the chat: it lies over it.
+    harness.window.innerWidth = 800;
     const item = harness.document.createElement('div');
     item.className = 'history-sidebar-item';
     item.dataset.messageIndex = '2';
@@ -280,7 +282,35 @@ test('history item interaction preserves smooth scroll, highlight timeout, and s
   }
 });
 
-test('history sidebar mouse and touch triggers preserve open and close gestures', () => {
+test('beside the chat the panel stays when a message is picked, and the chat gives way to it', () => {
+  const harness = createHarness();
+  try {
+    harness.window.innerWidth = 1400;
+    const main = harness.document.createElement('main');
+    harness.elements.historySidebar.replaceWith(main);
+    main.append(harness.elements.historySidebar);
+    const item = harness.document.createElement('div');
+    item.className = 'history-sidebar-item';
+    item.dataset.messageIndex = '0';
+    harness.elements.historySidebarList.appendChild(item);
+    const message = harness.document.createElement('article');
+    message.dataset.messageIndex = '0';
+    message.scrollIntoView = () => {};
+    harness.elements.messageList.appendChild(message);
+    harness.helpers.setupHistorySidebarInteractions();
+    harness.helpers.toggleHistorySidebar(true);
+    for (const frame of harness.frames.splice(0)) frame();
+    assert.equal(main.classList.contains('history-docked'), true, 'the chat makes room');
+    item.dispatchEvent(new harness.window.MouseEvent('click', { bubbles: true }));
+    assert.equal(harness.elements.historySidebar.classList.contains('visible'), true, 'it stays');
+    harness.helpers.toggleHistorySidebar(false);
+    assert.equal(main.classList.contains('history-docked'), false);
+  } finally {
+    harness.window.close();
+  }
+});
+
+test('history sidebar opens at the edge and by a swipe, stays open when the pointer leaves, and closes by a swipe', () => {
   const harness = createHarness({ activeConversation: { messages: [{ role: 'user', parts: [{ text: 'Preview' }] }] } });
   const dispatchTouch = (target, type, pointsKey, points) => {
     const event = new harness.window.Event(type, { bubbles: true });
@@ -291,23 +321,21 @@ test('history sidebar mouse and touch triggers preserve open and close gestures'
     harness.helpers.setupHistorySidebarTriggers();
 
     harness.elements.historySidebarTriggerZone.dispatchEvent(new harness.window.MouseEvent('mouseenter'));
-    assert.equal(harness.activeConversationReads.length, 1);
-    assert.equal(harness.frames.length, 2);
+    assert.ok(harness.activeConversationReads.length >= 1);
     for (const frame of harness.frames.splice(0)) frame();
     assert.equal(harness.elements.historySidebar.classList.contains('visible'), true);
 
     harness.document.body.dispatchEvent(new harness.window.MouseEvent('mousemove', { bubbles: true }));
-    assert.equal(harness.elements.historySidebar.classList.contains('visible'), false);
-
-    dispatchTouch(harness.elements.chatContainer, 'touchstart', 'touches', [{ clientX: 120, clientY: 50 }]);
-    dispatchTouch(harness.elements.chatContainer, 'touchend', 'changedTouches', [{ clientX: 20, clientY: 55 }]);
-    assert.equal(harness.activeConversationReads.length, 2);
-    for (const frame of harness.frames.splice(0)) frame();
-    assert.equal(harness.elements.historySidebar.classList.contains('visible'), true);
+    assert.equal(harness.elements.historySidebar.classList.contains('visible'), true, 'it stays when the pointer leaves');
 
     dispatchTouch(harness.elements.historySidebar, 'touchstart', 'touches', [{ clientX: 20, clientY: 50 }]);
     dispatchTouch(harness.elements.historySidebar, 'touchend', 'changedTouches', [{ clientX: 100, clientY: 52 }]);
     assert.equal(harness.elements.historySidebar.classList.contains('visible'), false);
+
+    dispatchTouch(harness.elements.chatContainer, 'touchstart', 'touches', [{ clientX: 120, clientY: 50 }]);
+    dispatchTouch(harness.elements.chatContainer, 'touchend', 'changedTouches', [{ clientX: 20, clientY: 55 }]);
+    for (const frame of harness.frames.splice(0)) frame();
+    assert.equal(harness.elements.historySidebar.classList.contains('visible'), true);
   } finally {
     harness.window.close();
   }

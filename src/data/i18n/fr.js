@@ -137,7 +137,7 @@
         extendedFeatures: 'Fonctionnalités étendues',
         howCanIHelp: 'Comment puis-je vous aider ?',
         viewingArchived: 'Consultation d\'un chat archivé. Impossible d\'envoyer des messages.',
-        messageDirectory: 'Répertoire des Messages',
+        messageDirectory: 'Chronologie',
         chart: 'Graphique',
         // Model Switcher
         moreModels: 'Plus de modèles',

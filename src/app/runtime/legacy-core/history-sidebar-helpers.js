@@ -1,3 +1,33 @@
+import { sandboxText } from '../sandbox/sandbox-texts.js';
+import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
+import { listableSources, stripCitationMarkers } from '../../ui/citations/citation-model.js';
+import { fillSourceList } from '../../ui/citations/source-list.js';
+
+// A message as the timeline names it: the start of what it says. The record of what the model did (and the markers that
+// cite sources) are kept in the message's text but are not what it says.
+export function timelineSnippet(message, fallback) {
+  const raw = (message?.parts || []).filter((part) => part.text).map((part) => part.text).join('\n');
+  const { run, text } = liftSandboxRunBlock(raw);
+  const said = stripCitationMarkers(text, run?.sources)
+    .replace(/(`{3,})file[^\n]*\n[\s\S]*?(?:\1`*|$)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return said ? said.slice(0, 240) : fallback;
+}
+
+/** The sources of the latest reply that has any (what the Sources tab shows when it was not opened from a reply). */
+export function latestSources(conversation) {
+  const messages = conversation?.messages || [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role !== 'model') continue;
+    const { run } = liftSandboxRunBlock((message.parts || []).map((part) => part.text || '').join('\n'));
+    const sources = listableSources(run?.sources);
+    if (sources.length) return sources;
+  }
+  return [];
+}
+
 export function createHistorySidebarHelpers({
   document,
   elements,
@@ -16,19 +46,76 @@ export function createHistorySidebarHelpers({
   setTimeout,
   setupMessageIntersectionObserver
 }) {
-  function toggleHistorySidebar(show) {
+  const win = document.defaultView;
+  // Wide enough, the panel takes its place beside the chat (and the chat gives way); narrower, it lies over it.
+  const isDocked = () => (win?.innerWidth || 0) >= 1024;
+  let activeTab = 'timeline';
+
+  const language = () => getConfig()?.uiLanguage || 'zh-TW';
+
+  // Timeline | Sources: the tab shown, with its content.
+  function setHistoryTab(tab, { sources = null, highlight = null } = {}) {
+    const { historySidebar } = elements;
+    activeTab = tab === 'sources' ? 'sources' : 'timeline';
+    const timelineList = historySidebar.querySelector('#history-sidebar-list');
+    const sourcesList = historySidebar.querySelector('#history-sources-list');
+    const shown = sources ? listableSources(sources) : latestSources(getActiveConversation());
+    historySidebar.querySelectorAll('[data-history-tab]').forEach((button) => {
+      button.setAttribute('aria-selected', String(button.dataset.historyTab === activeTab));
+      if (button.dataset.historyTab === 'sources') {
+        button.textContent = sandboxText(language(), 'sourcesTab');
+        if (shown.length) {
+          const count = document.createElement('span');
+          count.className = 'history-tab-count';
+          count.textContent = String(shown.length);
+          button.append(count);
+        }
+      }
+    });
+    const closeButton = historySidebar.querySelector('[data-history-close]');
+    closeButton?.setAttribute('aria-label', sandboxText(language(), 'closePanel'));
+    if (timelineList) timelineList.hidden = activeTab !== 'timeline';
+    if (sourcesList) sourcesList.hidden = activeTab !== 'sources';
+    if (activeTab === 'timeline') {
+      renderHistorySidebarContent();
+      return;
+    }
+    if (!sourcesList) return;
+    sourcesList.replaceChildren();
+    if (!shown.length) {
+      const empty = document.createElement('p');
+      empty.className = 'history-sources-empty';
+      empty.textContent = sandboxText(language(), 'noSourcesInReply');
+      sourcesList.append(empty);
+      return;
+    }
+    const count = document.createElement('div');
+    count.className = 'history-sources-count';
+    count.textContent = sandboxText(language(), 'sourcesPanelCount', { n: shown.length });
+    const list = document.createElement('div');
+    fillSourceList(list, shown, { language: language(), detailed: true });
+    if (highlight?.size) list.querySelectorAll('.source-item').forEach((item) => item.classList.toggle('is-cited', highlight.has(Number(item.dataset.n))));
+    sourcesList.append(count, list);
+    list.querySelector('.source-item.is-cited')?.scrollIntoView?.({ block: 'nearest' });
+  }
+
+  function toggleHistorySidebar(show, options = {}) {
     const { historySidebar, historySidebarOverlay } = elements;
+    const main = historySidebar.closest('main');
     if (show) {
+      setHistoryTab(options.tab || 'timeline', options);
       requestAnimationFrame(() => {
         setupMessageIntersectionObserver();
       });
       historySidebarOverlay.classList.remove('hidden');
+      if (main && isDocked()) main.classList.add('history-docked');
       requestAnimationFrame(() => {
         historySidebar.classList.add('visible');
         historySidebarOverlay.classList.add('visible');
       });
     } else {
       historySidebar.classList.remove('visible');
+      main?.classList.remove('history-docked');
       historySidebarOverlay.classList.remove('visible');
       historySidebarOverlay.addEventListener('transitionend', () => {
         if (!historySidebarOverlay.classList.contains('visible')) {
@@ -49,8 +136,7 @@ export function createHistorySidebarHelpers({
     }
 
     conv.messages.forEach((msg, index) => {
-      const textPart = msg.parts.find((part) => part.text);
-      const snippet = textPart ? textPart.text : (msg.role === 'user' ? '用戶訊息' : 'AI 回覆');
+      const snippet = timelineSnippet(msg, msg.role === 'user' ? '用戶訊息' : 'AI 回覆');
       const listItem = document.createElement('div');
       const isUser = msg.role === 'user';
       const colorConfig = isUser ? userBubbleColors : aiBubbleColors;
@@ -88,7 +174,28 @@ export function createHistorySidebarHelpers({
           bubble.classList.remove('message-highlight');
         }, 1500);
       }
-      toggleHistorySidebar(false);
+      // Beside the chat it stays; over it, it gives way to the message.
+      if (!isDocked()) toggleHistorySidebar(false);
+    });
+
+    const { historySidebar } = elements;
+    historySidebar.addEventListener('click', (event) => {
+      const tab = event.target.closest('[data-history-tab]');
+      if (tab) {
+        setHistoryTab(tab.dataset.historyTab);
+        return;
+      }
+      if (event.target.closest('[data-history-close]')) toggleHistorySidebar(false);
+    });
+    // The "Sources" button under a reply asks for its sources in the panel.
+    document.addEventListener('noureon:open-sources', (event) => {
+      const detail = event.detail || {};
+      toggleHistorySidebar(true, { tab: 'sources', sources: detail.sources || null, highlight: detail.highlight ? new Set(detail.highlight) : null });
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && historySidebar.classList.contains('visible') && !document.documentElement.classList.contains('source-sheet-open')) {
+        toggleHistorySidebar(false);
+      }
     });
   }
 
@@ -113,19 +220,10 @@ export function createHistorySidebarHelpers({
       toggleHistorySidebar(false);
     });
 
+    // The pointer at the right edge opens the panel on the Timeline. It stays open until it is closed (its button, the
+    // Escape key, or a tap on the veil where the panel lies over the chat).
     historySidebarTriggerZone.addEventListener('mouseenter', () => {
-      renderHistorySidebarContent();
-      toggleHistorySidebar(true);
-    });
-
-    document.body.addEventListener('mousemove', (event) => {
-      if (historySidebar.classList.contains('visible')) {
-        const isOverSidebar = historySidebar.contains(event.target);
-        const isOverTrigger = historySidebarTriggerZone.contains(event.target);
-        if (!isOverSidebar && !isOverTrigger) {
-          toggleHistorySidebar(false);
-        }
-      }
+      if (!historySidebar.classList.contains('visible')) toggleHistorySidebar(true, { tab: 'timeline' });
     });
 
     chatContainer.addEventListener('touchstart', (event) => {
@@ -141,9 +239,8 @@ export function createHistorySidebarHelpers({
       if (touchStartX === null) return;
       const deltaX = event.changedTouches[0].clientX - touchStartX;
       const deltaY = event.changedTouches[0].clientY - touchStartY;
-      if (deltaX < -50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
-        renderHistorySidebarContent();
-        toggleHistorySidebar(true);
+      if (deltaX < -50 && Math.abs(deltaY) < Math.abs(deltaX) / 2 && !historySidebar.classList.contains('visible')) {
+        toggleHistorySidebar(true, { tab: 'timeline' });
       }
     }, { passive: true });
 

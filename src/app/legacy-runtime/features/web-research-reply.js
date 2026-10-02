@@ -74,6 +74,7 @@ export const researchGuidance = (today = new Date().toISOString().slice(0, 10)) 
   '- When a search misses, search again with other words (the exact name, another language, a site name added). When a page cannot be read, try another route to the same fact before giving up.',
   '- Do not stop after one search and do not say you cannot look it up: you can. Stop when you have the answer or when the routes you tried are used up, and then say what you tried.',
   'Say what a call is for in its `note` argument: one short sentence in the language of your reply. The user sees it between the steps. Do not write text before a call: any text you write is shown as your answer at once.',
+  'Cite what you rely on: each result and page has a number in square brackets. Put the number right after the sentence it supports, like [2], or [1][3] for several. Use only numbers you were given, never invent one, and do not add a list of sources at the end: the app shows them.',
   'Answer from what you read. Name the sources (site and title) naturally in your answer, and say plainly what you could not find or open.'
 ].join('\n');
 
@@ -82,15 +83,18 @@ const cut = (text, limit) => {
   return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
 };
 
-/** What the model is given for a search: numbered results with their address and the start of their text. */
-export function searchResultText(query, results = []) {
+/**
+ * What the model is given for a search: its results, each with the number it is cited by (`numbers[i]`, the number the
+ * reply knows that page as; the position when there are none), its address and the start of its text.
+ */
+export function searchResultText(query, results = [], numbers = []) {
   const shown = results.slice(0, RESULTS_SHOWN);
   if (shown.length === 0) return `No results for "${query}". Try other words.`;
   return [
     `Results for "${query}":`,
     ...shown.map((result, index) => [
       '',
-      `${index + 1}. ${cut(result.title, 160) || hostOf(result.url)}`,
+      `[${numbers[index] ?? index + 1}] ${cut(result.title, 160) || hostOf(result.url)}`,
       `URL: ${result.url}`,
       // When the page was published, if the source says: what changes over time is best answered from the newer pages.
       ...(resultDate(result) ? [`Date: ${resultDate(result)}`] : []),
@@ -100,11 +104,11 @@ export function searchResultText(query, results = []) {
 }
 
 /** What the model is given for a page: its address, and a window of its text marked as the app's source material. */
-export function pageText(page, start = 0) {
+export function pageText(page, start = 0, n = 0) {
   const window = pageWindow(page.text, start, PAGE_CHARS);
   const more = window.to < window.total;
   return [
-    `Page: ${page.title || page.url}`,
+    `Page${n ? ` [${n}]` : ''}: ${page.title || page.url}`,
     `URL: ${page.finalUrl || page.url}`,
     window.total > window.to - window.from
       ? `(Characters ${window.from}-${window.to} of ${window.total}.${more ? ` Call open_page with start=${window.to} for the next part, or find_in_page to jump to a word.` : ''})`
@@ -167,6 +171,16 @@ export function createResearchCalls({
 }) {
   let used = 0;
 
+  // Every page the model has been shown, numbered in the order it first appeared: the number the model cites it by, and the
+  // one the saved sources carry, so an answer's [3] is the third page the reply met.
+  const numbered = new Map();
+  const numberFor = (url, fields = {}) => {
+    if (!numbered.has(url)) numbered.set(url, { n: numbered.size + 1, url });
+    const entry = numbered.get(url);
+    for (const [key, value] of Object.entries(fields)) if (value && !entry[key]) entry[key] = value;
+    return entry;
+  };
+
   // Searches and pages are fetched as soon as they are known and each only once: the calls of one round are started
   // together, so the waits overlap, and then answered one at a time in the order they were asked, so the step list reads
   // the same. A page asked for twice is one fetch, and the pages of one round go to the reader in one request.
@@ -228,10 +242,11 @@ export function createResearchCalls({
     try {
       const data = await promise;
       const results = (Array.isArray(data?.results) ? data.results : []).filter((result) => result?.url);
-      const sources = results.slice(0, RESULTS_SHOWN).map((result) => ({ title: result.title || '', url: result.url }));
+      const entries = results.slice(0, RESULTS_SHOWN).map((result) => numberFor(result.url, { title: result.title || '', snippet: cut(result.content, 220), date: resultDate(result) }));
+      const sources = entries.map(({ n, url, title, snippet, date }) => ({ title: title || '', url, n, ...(snippet ? { snippet } : {}), ...(date ? { date } : {}) }));
       onSources(sources);
       onEvent({ type: 'sources', sources });
-      return searchResultText(query, results);
+      return searchResultText(query, results, entries.map((entry) => entry.n));
     } catch (error) {
       throwIfStopped(signal);
       // A search that failed may be tried again.
@@ -248,7 +263,9 @@ export function createResearchCalls({
       const outcome = await pageOnce(url);
       shown.add(url);
       if (outcome.page) {
-        const source = { title: outcome.page.title || '', url: outcome.page.finalUrl || outcome.page.url, read: true };
+        const entry = numberFor(url, { title: outcome.page.title || '' });
+        outcome.n = entry.n;
+        const source = { title: outcome.page.title || '', url: outcome.page.finalUrl || outcome.page.url, n: entry.n, ...(entry.snippet ? { snippet: entry.snippet } : {}), ...(entry.date ? { date: entry.date } : {}), read: true };
         onSources([source]);
         onEvent({ type: 'sources', sources: [source] });
       } else {
@@ -267,20 +284,20 @@ export function createResearchCalls({
     if (!url) return 'The call had no valid "url" argument (it must start with http:// or https://).';
     const start = Number.isFinite(Number(call.args?.start)) ? Number(call.args.start) : 0;
     if (shown.has(url) && settled.get(url)?.page && !start) return 'You already opened this page; its text is above. Use start to read further on, or find_in_page.';
-    const { page, error } = await load(url);
-    return error || pageText(page, start);
+    const { page, error, n } = await load(url);
+    return error || pageText(page, start, n);
   };
 
   const doFind = async (call) => {
     const url = addressOf(call.args?.url);
     const query = typeof call.args?.query === 'string' ? call.args.query.trim() : '';
     if (!url || !query) return 'The call needs a valid "url" (http:// or https://) and a "query".';
-    const { page, error } = await load(url);
+    const { page, error, n } = await load(url);
     if (error) return error;
     const passages = findPassages(page.text, query);
     if (passages.length === 0) return `"${query}" is not in this page (${page.text.length} characters). Try another word, or open another page.`;
     return [
-      `Passages with "${query}" in ${page.title || page.url}:`,
+      `Passages with "${query}" in ${page.title || page.url}${n ? ` [${n}]` : ''}:`,
       ...passages.map((passage, index) => `\n${index + 1}. (from character ${passage.from})\n${passage.text}`)
     ].join('\n');
   };

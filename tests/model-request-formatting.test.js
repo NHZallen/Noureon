@@ -65,11 +65,12 @@ test('Tavily search packet formatting preserves provider, query, answer, sources
   assert.match(packet, /Current date: \d{4}-\d{2}-\d{2}/);
   assert.match(packet, /Retrieved at: \d{4}-\d{2}-\d{2}T/);
   assert.match(packet, /## Tavily answer\nShort answer/);
-  assert.match(packet, /1\. Source title/);
+  assert.match(packet, /\[1\] Source title/);
   assert.match(packet, /URL: https:\/\/example\.com\/story/);
   assert.match(packet, /Content: Useful snippet/);
   assert.match(packet, /Score: 0\.988/);
   assert.match(packet, /system-generated web context/);
+  assert.match(packet, /Cite the sources you rely on with their numbers in square brackets/);
 });
 
 test('Tavily search packet formatting keeps the no-results fallback', () => {
