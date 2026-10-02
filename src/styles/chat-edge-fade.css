@@ -2,8 +2,7 @@
    lower edge and fade out over a short distance there.
    The fade is a sticky gradient strip inside the scroller, not a mask on it: a mask on a scrolling
    element made scrolling sluggish on phones. There is no strip inside the scroller at the bottom edge: nothing is placed
-   where the scroller ends, so reaching the end behaves as the browser normally does (the fade above the composer is
-   laid over it by the composer itself, see edge-fades.css). With a wallpaper
+   where the scroller ends, so reaching the end behaves as the browser normally does. With a wallpaper
    there is no page colour to fade into, so the strip is left out. */
 
 #chat-workspace {
