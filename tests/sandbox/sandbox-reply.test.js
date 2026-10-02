@@ -618,3 +618,25 @@ test('code that starts to arrive says the line is writing it at once, in every l
     assert.ok(sandboxText(language, 'sandboxNextStep'));
   }
 });
+
+test('a reply that searched the web but ran no Python has the one line with how long it took, opening to the pages and the thinking', () => {
+  const { document, cleanup } = createDom('<div id="root"></div>');
+  try {
+    const base = { v: 1, status: 'done', steps: [], sources: [{ title: 'A', url: 'https://a.example/' }], thought: 'Let me think.', thoughtKind: 'raw', thoughtMs: 4000 };
+    const timed = createSandboxRunElement(document, { ...base, elapsedMs: 83_000 }, { language: 'en' });
+    assert.equal(timed.querySelector('summary.sandbox-run-summary').textContent, sandboxText('en', 'processedIn', { t: '1m 23s' }));
+    assert.equal(timed.querySelectorAll('.sandbox-run-steps .ledger-row').length, 2, 'the pages and the thinking are inside it');
+    assert.match(timed.querySelector('.sandbox-run-steps').textContent, /Let me think\./);
+
+    // A reply saved before the time was kept looks as it did.
+    const old = createSandboxRunElement(document, base, { language: 'en' });
+    assert.equal(old.querySelector('summary.sandbox-run-summary')?.textContent.includes('Processed'), false);
+    assert.ok(old.querySelector('.ledger-row'), 'the pages row is there, loose');
+
+    // Thinking alone keeps its own line.
+    const thinkingOnly = createSandboxRunElement(document, { ...base, sources: [], elapsedMs: 5000 }, { language: 'en' });
+    assert.match(thinkingOnly.querySelector('summary').textContent, /4/);
+  } finally {
+    cleanup();
+  }
+});

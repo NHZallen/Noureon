@@ -366,7 +366,7 @@ export function createSingleModelResponseLifecycle({
       endThinking();
       thinkingBlocks.forEach((block) => block.remove());
       thinkingBlock?.remove();
-      if (searchSources.length) sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), sources: searchSources };
+      if (searchSources.length) sandboxRun = { status: 'done', steps: [], elapsedMs: now() - startedAt, ...(sandboxRun || {}), sources: searchSources };
       if (thought.text && !replyMode.advanced) {
         sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(signal?.aborted && !answered ? { thoughtInterrupted: true } : {}) };
       }

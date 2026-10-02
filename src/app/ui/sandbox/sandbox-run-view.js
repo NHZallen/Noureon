@@ -120,13 +120,15 @@ function summaryText(run, language) {
 
 // "Thinking · 12s ›" above an answer, opening to the thinking (the model's own,
 // or the summary its provider gives).
+const thinkingLabel = (run, language) => (run.thoughtInterrupted
+  ? sandboxText(language, 'thinkingInterrupted')
+  : run.thoughtMs
+  ? sandboxText(language, run.thoughtKind === 'summary' ? 'thinkingDoneSummary' : 'thinkingDoneRaw', { s: Math.max(1, Math.round(run.thoughtMs / 1000)) })
+  : sandboxText(language, 'sandboxThought'));
+
 function renderReplyThinking(document, run, language) {
   const details = element(document, 'details', 'sandbox-run-details');
-  const label = run.thoughtInterrupted
-    ? sandboxText(language, 'thinkingInterrupted')
-    : run.thoughtMs
-    ? sandboxText(language, run.thoughtKind === 'summary' ? 'thinkingDoneSummary' : 'thinkingDoneRaw', { s: Math.max(1, Math.round(run.thoughtMs / 1000)) })
-    : sandboxText(language, 'sandboxThought');
+  const label = thinkingLabel(run, language);
   const pre = element(document, 'div', 'ledger-thought is-saved sandbox-run-thought-text');
   fillThinkingText(document, pre, run.thought);
   details.append(element(document, 'summary', 'sandbox-run-summary', label), pre);
@@ -139,6 +141,19 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const container = element(document, 'div', 'sandbox-run');
   if (run.fallback) {
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
+  }
+  if (!run.steps.length && run.sources?.length && run.elapsedMs > 0) {
+    // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
+    // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
+    const details = element(document, 'details', 'sandbox-run-details');
+    const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
+    const list = element(document, 'div', 'sandbox-run-steps');
+    list.append(...sourcesRows(document, run.sources, language));
+    if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
+    details.append(summary, list);
+    animateDetails(details);
+    container.append(details);
+    return container;
   }
   if (!run.steps.length) {
     // A reply without Python: the pages it searched, and how the model thought before it answered.
