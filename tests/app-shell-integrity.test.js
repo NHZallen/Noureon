@@ -116,13 +116,12 @@ test('desktop composer shell exposes a stable layout root and descriptive tools 
   );
 });
 
-test('desktop message directory hover strip starts below the header actions', () => {
+test('the panel opens from a button at the right of the header, and no strip lies over the chat scrollbar', () => {
   const document = renderShell();
-  const triggerZone = document.getElementById('history-sidebar-trigger-zone');
+  const button = document.getElementById('history-panel-toggle-btn');
 
-  assert.ok(triggerZone);
-  assert.equal(triggerZone.style.top, '3.5rem');
-  assert.equal(triggerZone.classList.contains('bottom-0'), true);
-  assert.equal(triggerZone.classList.contains('top-0'), false);
-  assert.equal(triggerZone.classList.contains('h-full'), false);
+  assert.ok(button);
+  assert.equal(button.closest('#header-actions') !== null, true);
+  assert.equal(button.getAttribute('aria-controls'), 'history-sidebar');
+  assert.equal(document.getElementById('history-sidebar-trigger-zone'), null, 'the edge strip took the scrollbar\'s presses');
 });

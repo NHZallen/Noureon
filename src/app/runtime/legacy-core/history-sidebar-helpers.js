@@ -101,6 +101,14 @@ export function createHistorySidebarHelpers({
   function toggleHistorySidebar(show, options = {}) {
     const { historySidebar, historySidebarOverlay } = elements;
     const main = historySidebar.closest('main');
+    const toggleButton = elements.historyPanelToggleBtn;
+    if (toggleButton) {
+      toggleButton.classList.toggle('is-active', Boolean(show));
+      toggleButton.setAttribute('aria-expanded', String(Boolean(show)));
+      const label = sandboxText(language(), 'panelToggle');
+      toggleButton.setAttribute('title', label);
+      toggleButton.setAttribute('aria-label', label);
+    }
     if (show) {
       setHistoryTab(options.tab || 'timeline', options);
       requestAnimationFrame(() => {
@@ -202,7 +210,7 @@ export function createHistorySidebarHelpers({
   }
 
   function setupHistorySidebarTriggers() {
-    const { chatContainer, historySidebar, historySidebarTriggerZone, historySidebarOverlay, menuToggleBtn } = elements;
+    const { chatContainer, historySidebar, historySidebarOverlay, menuToggleBtn, historyPanelToggleBtn } = elements;
     let touchStartX = 0;
     let touchStartY = 0;
 
@@ -227,10 +235,11 @@ export function createHistorySidebarHelpers({
       if (!isDocked() && historySidebar.classList.contains('visible')) toggleHistorySidebar(false);
     });
 
-    // The pointer at the right edge opens the panel on the Timeline. It stays open until it is closed (its button, the
-    // Escape key, or a tap on the veil where the panel lies over the chat).
-    historySidebarTriggerZone.addEventListener('mouseenter', () => {
-      if (!historySidebar.classList.contains('visible')) toggleHistorySidebar(true, { tab: 'timeline' });
+    // The button at the right of the top bar opens the panel on the Timeline, and closes it again. It stays open until it is
+    // closed (this button, the panel's own, the Escape key, or a tap on the veil where the panel lies over the chat).
+    historyPanelToggleBtn?.addEventListener('click', () => {
+      if (historySidebar.classList.contains('visible')) toggleHistorySidebar(false);
+      else toggleHistorySidebar(true, { tab: 'timeline' });
     });
 
     chatContainer.addEventListener('touchstart', (event) => {

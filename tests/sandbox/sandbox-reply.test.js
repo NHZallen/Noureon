@@ -379,7 +379,7 @@ test('the pages a search found and what the model said before a run are kept, sh
     const only = createSandboxRunElement(document, { status: 'done', steps: [], sources: run.sources }, { language: 'en' });
     assert.equal(only.querySelectorAll('.sandbox-run-row').length, 1);
     for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-      for (const key of ['sourcesSearched', 'citeSources', 'sourcesTab', 'timelineTab', 'sourcesPanelCount', 'closePanel', 'noSourcesInReply']) assert.notEqual(sandboxText(language, key), key, `${language} ${key}`);
+      for (const key of ['sourcesSearched', 'citeSources', 'sourcesTab', 'timelineTab', 'sourcesPanelCount', 'closePanel', 'noSourcesInReply', 'panelToggle']) assert.notEqual(sandboxText(language, key), key, `${language} ${key}`);
     }
   } finally {
     cleanup();

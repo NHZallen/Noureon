@@ -237,3 +237,7 @@ main.flex-1 > header { z-index: 11; }
 .history-sidebar-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-secondary, #6b7280); font-size: 0.9rem; line-height: 1.45; overflow-wrap: anywhere; }
 .history-sidebar-item.is-user .history-sidebar-text { color: var(--text-primary, #111827); font-weight: 500; }
 .history-sidebar-item.active .history-sidebar-text { color: var(--text-primary, #111827); }
+
+/* The button at the right of the top bar that opens and closes the panel: last in its row, grey behind it while it is open. */
+.history-panel-toggle { order: 99; color: var(--text-primary, #111827); }
+.history-panel-toggle.is-active { background: var(--hover-bg, #f3f4f6); }

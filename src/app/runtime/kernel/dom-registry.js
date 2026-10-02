@@ -24,7 +24,7 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['chatContainer', 'chat-container'],
   ['historySidebar', 'history-sidebar'],
   ['historySidebarList', 'history-sidebar-list'],
-  ['historySidebarTriggerZone', 'history-sidebar-trigger-zone'],
+  ['historyPanelToggleBtn', 'history-panel-toggle-btn'],
   ['historySidebarOverlay', 'history-sidebar-overlay'],
   ['messageList', 'message-list'],
   ['messageInput', 'message-input'],

@@ -31,14 +31,14 @@ const createHarness = ({ messages = [], width = 1400, language = 'en' } = {}) =>
         <div id="history-sidebar-list"></div>
         <div id="history-sources-list" hidden></div>
       </div>
-      <div id="history-sidebar-trigger-zone"></div>
+      <button id="history-panel-toggle-btn" type="button"></button>
     </main><div id="history-list"></div>`;
   const elements = {
     chatContainer: document.getElementById('chat-container'),
     historySidebar: document.getElementById('history-sidebar'),
     historySidebarList: document.getElementById('history-sidebar-list'),
     historySidebarOverlay: document.getElementById('history-sidebar-overlay'),
-    historySidebarTriggerZone: document.getElementById('history-sidebar-trigger-zone'),
+    historyPanelToggleBtn: document.getElementById('history-panel-toggle-btn'),
     messageList: document.getElementById('message-list')
   };
   const conversation = { messages };
@@ -113,14 +113,19 @@ test('the Sources button opens the panel on the Sources tab with the sources of 
   assert.equal(harness.elements.historySidebar.classList.contains('visible'), true);
   harness.document.querySelector('[data-history-close]').click();
   assert.equal(harness.elements.historySidebar.classList.contains('visible'), false);
-  // Opened by hand (the edge, a swipe, the toggle): the Timeline, on a computer and on a phone alike.
-  harness.elements.historySidebarTriggerZone.dispatchEvent(new harness.window.MouseEvent('mouseenter'));
+  // Opened by hand (the button, a swipe): the Timeline, on a computer and on a phone alike; the button closes it again.
+  const toggle = harness.elements.historyPanelToggleBtn;
+  toggle.click();
   harness.settle();
   assert.equal(harness.selected(), 'timeline');
-  // It stays on the tab it is on when the pointer touches the edge again.
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(toggle.classList.contains('is-active'), true);
   harness.document.querySelector('[data-history-tab="sources"]').click();
-  harness.elements.historySidebarTriggerZone.dispatchEvent(new harness.window.MouseEvent('mouseenter'));
   assert.equal(harness.selected(), 'sources');
+  toggle.click();
+  assert.equal(harness.elements.historySidebar.classList.contains('visible'), false);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(toggle.classList.contains('is-active'), false);
   harness.window.close();
 });
 

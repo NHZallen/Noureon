@@ -4,6 +4,8 @@
 // one arrow's length of an end.
 
 const MIN_ARROW = 12;
+// Up and down take the same time, whatever the distance.
+const DURATION = 500;
 
 /** 'top', 'bottom' or '' for a press at (`x`, `y`) of a scroller: which scrollbar arrow it is on, when it is on one. */
 export function scrollbarArrowAt(element, x, y) {
@@ -27,9 +29,7 @@ export function scrollbarArrowAt(element, x, y) {
   return '';
 }
 
-const INTERACTIVE = 'button, a, input, textarea, select, summary, [role="button"], [contenteditable="true"]';
-
-// The list runs to its end instead of appearing there: a short ease-out whose length grows with the distance, stopped by
+// The list runs to its end instead of appearing there: half a second, eased in and out, stopped by
 // any move of the reader's own (wheel, touch, a press, a key).
 function scrollTo(element, top, win, smooth) {
   const start = element.scrollTop;
@@ -39,7 +39,7 @@ function scrollTo(element, top, win, smooth) {
     element.scrollTop = top;
     return;
   }
-  const duration = Math.min(800, 240 + Math.sqrt(Math.abs(distance)) * 9);
+  const duration = DURATION;
   const began = win.performance?.now?.() ?? Date.now();
   let frame = 0;
   const stop = () => {
@@ -49,7 +49,7 @@ function scrollTo(element, top, win, smooth) {
   };
   const step = (now) => {
     const progress = Math.min(1, ((now ?? Date.now()) - began) / duration);
-    element.scrollTop = start + distance * (1 - (1 - progress) ** 3);
+    element.scrollTop = start + distance * (progress < 0.5 ? 4 * progress ** 3 : 1 - ((-2 * progress + 2) ** 3) / 2);
     if (progress < 1) frame = win.requestAnimationFrame(step);
     else stop();
   };
@@ -57,26 +57,17 @@ function scrollTo(element, top, win, smooth) {
   frame = win.requestAnimationFrame(step);
 }
 
-/**
- * Makes every vertical scrollbar's arrows run to the top and to the end. A scrollbar that something lies over (the
- * composer over the end of the chat) does not get the press itself, so the scrollers under the pointer are asked too, unless
- * the press is on a button, a link or a field.
- */
+/** Makes every vertical scrollbar's arrows run to the top and to the end. */
 export function installScrollbarArrows(document, { smooth = true } = {}) {
   const win = document.defaultView;
   const onPress = (event) => {
     if (event.button !== undefined && event.button !== 0) return;
-    const hit = event.target;
-    if (!hit?.getBoundingClientRect) return;
-    let candidates = [hit];
-    if (!hit.closest?.(INTERACTIVE) && document.elementsFromPoint) candidates = [hit, ...document.elementsFromPoint(event.clientX, event.clientY)];
-    for (const element of candidates) {
-      const direction = scrollbarArrowAt(element, event.clientX, event.clientY);
-      if (!direction) continue;
-      const scroller = element === document.documentElement || element === document.body ? document.scrollingElement || document.documentElement : element;
-      scrollTo(scroller, direction === 'top' ? 0 : scroller.scrollHeight, win, smooth);
-      return;
-    }
+    const element = event.target;
+    if (!element?.getBoundingClientRect) return;
+    const direction = scrollbarArrowAt(element, event.clientX, event.clientY);
+    if (!direction) return;
+    const scroller = element === document.documentElement || element === document.body ? document.scrollingElement || document.documentElement : element;
+    scrollTo(scroller, direction === 'top' ? 0 : scroller.scrollHeight, win, smooth);
   };
   document.addEventListener('mousedown', onPress, true);
   return () => document.removeEventListener('mousedown', onPress, true);

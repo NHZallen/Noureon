@@ -83,23 +83,3 @@ test('the list runs to its end rather than appearing there, and a reader\'s own 
     window.close();
   }
 });
-
-test('a scrollbar under something else still gets its arrows, but a button over it is a button', () => {
-  const { document, list, window } = scene();
-  try {
-    installScrollbarArrows(document, { smooth: false });
-    const cover = document.createElement('div');
-    const button = document.createElement('button');
-    cover.append(button);
-    document.body.append(cover);
-    document.elementsFromPoint = () => [cover, list];
-    list.scrollTop = 0;
-    cover.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 395, clientY: 445 }));
-    assert.equal(list.scrollTop, 2000);
-    list.scrollTop = 500;
-    button.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 395, clientY: 445 }));
-    assert.equal(list.scrollTop, 500);
-  } finally {
-    window.close();
-  }
-});

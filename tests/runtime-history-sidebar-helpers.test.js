@@ -22,7 +22,7 @@ function createHarness({
   const { document } = window;
   document.body.innerHTML = `
     <main id="chat-container"></main>
-    <div id="history-sidebar-trigger-zone"></div>
+    <button id="history-panel-toggle-btn" type="button"></button>
     <aside id="history-sidebar"></aside>
     <div id="history-sidebar-overlay" class="hidden"></div>
     <div id="history-sidebar-list"></div>
@@ -34,7 +34,7 @@ function createHarness({
     historySidebar: document.getElementById('history-sidebar'),
     historySidebarList: document.getElementById('history-sidebar-list'),
     historySidebarOverlay: document.getElementById('history-sidebar-overlay'),
-    historySidebarTriggerZone: document.getElementById('history-sidebar-trigger-zone'),
+    historyPanelToggleBtn: document.getElementById('history-panel-toggle-btn'),
     messageList: document.getElementById('message-list')
   };
   const frames = [];
@@ -314,7 +314,7 @@ test('beside the chat the panel stays when a message is picked, and the chat giv
   }
 });
 
-test('history sidebar opens at the edge and by a swipe, stays open when the pointer leaves, and closes by a swipe', () => {
+test('history sidebar opens by its button and by a swipe, stays open when the pointer leaves, and closes by a swipe', () => {
   const harness = createHarness({ activeConversation: { messages: [{ role: 'user', parts: [{ text: 'Preview' }] }] } });
   const dispatchTouch = (target, type, pointsKey, points) => {
     const event = new harness.window.Event(type, { bubbles: true });
@@ -324,7 +324,7 @@ test('history sidebar opens at the edge and by a swipe, stays open when the poin
   try {
     harness.helpers.setupHistorySidebarTriggers();
 
-    harness.elements.historySidebarTriggerZone.dispatchEvent(new harness.window.MouseEvent('mouseenter'));
+    harness.elements.historyPanelToggleBtn.click();
     assert.ok(harness.activeConversationReads.length >= 1);
     for (const frame of harness.frames.splice(0)) frame();
     assert.equal(harness.elements.historySidebar.classList.contains('visible'), true);
