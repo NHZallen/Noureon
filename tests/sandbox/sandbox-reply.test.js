@@ -24,13 +24,14 @@ function scriptedModel(rounds) {
     const round = rounds[requests.length - 1] || { text: 'Done.' };
     if (round.error) throw round.error;
     for (const chunk of round.chunks || [round.text || '']) onChunk(chunk);
+    for (const raw of round.argumentChunks || []) options.onToolArguments?.({ name: round.argumentName || 'run_python', arguments: raw });
     options.onResponseComplete({ text: round.text || '', toolCalls: round.calls || [], parts: [], reasoningDetails: [] });
     return round.text || '';
   };
   return { streamApiCall, requests };
 }
 
-const call = (id, code, title = '') => ({ id, name: 'run_python', arguments: JSON.stringify({ code, title }), args: { code, title } });
+const call = (id, code, title = '', note = '') => ({ id, name: 'run_python', arguments: JSON.stringify({ ...(note ? { note } : {}), code, title }), args: { ...(note ? { note } : {}), code, title } });
 
 function fakeSandbox(results) {
   const runs = [];
@@ -88,7 +89,7 @@ test('interface texts exist in all five languages', () => {
 
 test('the loop runs each requested call, returns the results and stops when the model answers', async () => {
   const model = scriptedModel([
-    { text: '我來算一下。', calls: [call('c1', 'print(sum([3, 5, 7]))', '加總')] },
+    { calls: [call('c1', 'print(sum([3, 5, 7]))', '加總', '我來算一下。')] },
     { text: '總和是 15。' }
   ]);
   const { sandbox, runs } = fakeSandbox([{ stdout: { text: '15\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [{ name: 'a.csv', size: 3, bytes: new Uint8Array(3) }], elapsedMs: 12 }]);
@@ -104,10 +105,10 @@ test('the loop runs each requested call, returns the results and stops when the 
     onEvent: (event) => events.push(event)
   });
   assert.deepEqual(runs, ['print(sum([3, 5, 7]))']);
-  // What was said before the run goes with the run; the answer is only the answer, live and kept.
+  // What the model says about the run is the call's note: it goes with the run; the answer is only the answer, live and kept.
   assert.equal(result.text, '總和是 15。');
   assert.equal(result.run.steps[0].narration, '我來算一下。');
-  assert.equal(chunks.join(''), '總和是 15。', 'the announcement is not streamed into the answer');
+  assert.equal(chunks.join(''), '總和是 15。', 'the note is not streamed into the answer');
   const kinds = events.map((event) => event.type);
   assert.equal(kinds.indexOf('narration') < kinds.indexOf('step'), true, 'shown between the steps before the run starts');
   assert.equal(events.find((event) => event.type === 'narration').text, '我來算一下。');
@@ -126,7 +127,7 @@ test('the loop runs each requested call, returns the results and stops when the 
 
 test('with web research, the model searches and opens pages next to Python, and the words before them are not the answer', async () => {
   const model = scriptedModel([
-    { text: '先查一下。', calls: [{ id: 's1', name: 'web_search', arguments: '{}', args: { query: 'noureon version' } }] },
+    { calls: [{ id: 's1', name: 'web_search', arguments: '{}', args: { note: '先查一下。', query: 'noureon version' } }] },
     { text: '', calls: [{ id: 'o1', name: 'open_page', arguments: '{}', args: { url: 'https://example.com/v' } }, call('c1', 'print(1)', '算')] },
     { text: '版本是 17.3.0。' }
   ]);
@@ -162,18 +163,54 @@ test('with web research, the model searches and opens pages next to Python, and 
   assert.equal(result.run.steps.length, 1, 'only Python is a step');
 });
 
-test('a long first stretch of text is the answer and streams; a short one that no run follows is flushed at the end', async () => {
+test('text is the answer and shows as it comes, a short one as much as a long one', async () => {
   const long = '長'.repeat(500);
-  const model = scriptedModel([{ text: long }]);
+  const model = scriptedModel([{ chunks: [long.slice(0, 100), long.slice(100)], text: long }]);
   const chunks = [];
   const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => chunks.push(chunk), getSandbox: () => fakeSandbox([]).sandbox });
   assert.equal(result.text, long);
-  assert.equal(chunks.join(''), long);
-  const short = scriptedModel([{ text: '短的答案。' }]);
+  assert.deepEqual(chunks, [long.slice(0, 100), long.slice(100)], 'streamed in the pieces it came in');
+  const short = scriptedModel([{ chunks: ['短的', '答案。'], text: '短的答案。' }]);
   const shortChunks = [];
   const shortResult = await runSandboxReply({ streamApiCall: short.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => shortChunks.push(chunk), getSandbox: () => fakeSandbox([]).sandbox });
   assert.equal(shortResult.text, '短的答案。');
-  assert.equal(shortChunks.join(''), '短的答案。', 'held while it might have been an announcement, then given as the answer');
+  assert.deepEqual(shortChunks, ['短的', '答案。'], 'nothing is held back to find out whether it was an announcement');
+});
+
+test('a note is shown between the rows as soon as it is written, once, and the text a model writes before a call stays in the answer', async () => {
+  const events = [];
+  const chunks = [];
+  const model = scriptedModel([
+    {
+      // The code is still being written when the note is complete.
+      argumentChunks: ['{"note":"先看一下檔', '{"note":"先看一下檔案。","code":"pri', '{"note":"先看一下檔案。","code":"print(1)","title":"看"}'],
+      calls: [call('c1', 'print(1)', '看', '先看一下檔案。')]
+    },
+    { chunks: ['好，', '結果是 1。'], text: '好，結果是 1。' }
+  ]);
+  const { sandbox } = fakeSandbox([{ stdout: { text: '1\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]);
+  const seen = [];
+  const original = model.streamApiCall;
+  const result = await runSandboxReply({
+    streamApiCall: (parts, onChunk, signal, forced, options) => original(parts, onChunk, signal, forced, { ...options, onToolArguments: (value) => { options.onToolArguments(value); seen.push(events.filter((event) => event.type === 'narration').length); } }),
+    requestParts: [{ text: 'q' }], onChunk: (chunk) => chunks.push(chunk), getSandbox: () => sandbox, onEvent: (event) => events.push(event)
+  });
+  assert.deepEqual(seen, [0, 1, 1], 'told when its closing quote arrives, not before and not again');
+  assert.equal(events.filter((event) => event.type === 'narration').length, 1, 'and not told a second time when the round is over');
+  assert.equal(result.run.steps[0].narration, '先看一下檔案。');
+
+  // A model that writes text before its call anyway: it is shown at once as the answer and kept, not held back or lost.
+  const lateEvents = [];
+  const lateChunks = [];
+  const late = scriptedModel([{ chunks: ['我先算一下。'], text: '我先算一下。', calls: [call('c1', 'print(2)')] }, { text: '答案是 2。' }]);
+  const lateResult = await runSandboxReply({
+    streamApiCall: late.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => lateChunks.push(chunk),
+    getSandbox: () => fakeSandbox([{ stdout: { text: '2\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]).sandbox,
+    onEvent: (event) => lateEvents.push(event)
+  });
+  assert.equal(lateChunks[0], '我先算一下。', 'shown at once');
+  assert.equal(lateResult.text, '我先算一下。\n\n答案是 2。');
+  assert.equal(lateEvents.some((event) => event.type === 'narration'), false, 'it is not made into a note');
 });
 
 test('after the run limit the model gets no tool and must answer', async () => {

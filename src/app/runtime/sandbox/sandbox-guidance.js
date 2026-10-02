@@ -1,12 +1,15 @@
 // What the model is told in Advanced mode, and the one tool it gets.
 // Loaded only for Advanced mode replies.
 
+import { NOTE_PARAMETER } from '../../legacy-runtime/features/tool-call-formats.js';
+
 export const RUN_PYTHON_TOOL = Object.freeze({
   name: 'run_python',
   description: 'Run Python 3.14 in a sandbox in the user\'s browser (no network, no package installs). Variables persist between calls within this reply. /input holds the user\'s files; write files meant for the user to /output. Returns stdout, stderr, any error and the files written to /output.',
   parameters: Object.freeze({
     type: 'object',
     properties: {
+      note: NOTE_PARAMETER,
       title: { type: 'string', description: 'What this step does, in one short sentence in the language of your reply.' },
       code: { type: 'string', description: 'The Python code to run.' }
     },
@@ -70,7 +73,7 @@ When to use it:
 - Use Python for the files above, calculations, data analysis, reading or transforming the user's files, and charts the user asked for. Do not run code for ordinary conversation, writing or questions you can answer directly.
 - Plain text files (Markdown, CSV, code, JSON) can still be written directly as \`\`\`\`file blocks.
 - Print short summaries (for example df.head() or totals), not whole datasets.
-- Before each run_python call, write one short sentence in the language of your reply saying what you are about to do and why (for example "First I'll check what is in the folder."). The user sees it between the steps. Do not write it when you are not calling the tool.
+- Say what a run_python call is for in its \`note\` argument: one short sentence in the language of your reply (for example "First I'll check what is in the folder."). The user sees it between the steps. Do not write text before a call: any text you write is shown as your answer at once, so write text only when you are answering.
 - If a run fails, read the error, fix the code and try again; do not repeat the same code. You can run code at most ${MAX_RUNS_PER_REPLY} times per reply.
 
 In your answer, explain the results in words. Do not paste the code you ran: the user can open the run log above your answer. Refer to files you created by their names. A file appears under your answer as a card by itself: never write a marker such as "[File: name]" for it (that form only stands for a file in summaries of earlier conversations).`;

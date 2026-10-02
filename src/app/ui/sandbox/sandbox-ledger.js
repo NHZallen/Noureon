@@ -196,7 +196,17 @@ export function createSandboxLedger({ document, host, before = null, language = 
     webSources = all;
   };
 
+  // Words the model wrote before a call (it was asked to put that in the call's note) were taken for the answer, and the
+  // line said the work was over. When more work follows, the line goes back to running.
+  let answered = false;
   const handle = (event) => {
+      if (answered && ['round', 'searching', 'step'].includes(event.type)) {
+        answered = false;
+        if (line && line.state !== 'running') {
+          line.resume();
+          line.node.classList.remove('is-quiet');
+        }
+      }
       if (event.type === 'narration') {
         addNarration(event);
       } else if (event.type === 'searching') {
@@ -208,6 +218,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
         row.doneLabel = event.doneLabel;
       } else if (event.type === 'answering') {
         // Writing the answer is not thinking: that row is over and folds.
+        answered = true;
         endCurrent();
         list.foldFinished();
         if (line) {

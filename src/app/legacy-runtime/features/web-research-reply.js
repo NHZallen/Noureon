@@ -1,12 +1,13 @@
 // A reply that searches the web the way ChatGPT does: the model is given two tools, web_search and open_page, and decides
 // for itself what to look up, which results to open and when it knows enough, a round at a time (a repository's releases,
-// then the page of one release, then its notes). Each call is a row in the step list. The model's own words before a call
-// are shown between the rows; the words after the last call are the answer and stream as usual. For the models that have
+// then the page of one release, then its notes). Each call is a row in the step list. What the model says about a call is the
+// call's `note`, shown between the rows; every word it writes as text is the answer and streams as it comes. For the models that have
 // no search of their own but do call tools (OpenRouter's); the others get a search packet in front of the request.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
 import { resultDate } from './model-request-formatting.js';
+import { NOTE_PARAMETER, partialJsonString } from './tool-call-formats.js';
 import { absoluteLinks, findPassages, pageWindow } from './web-page-text.js';
 
 export const WEB_SEARCH_TOOL = Object.freeze({
@@ -15,6 +16,7 @@ export const WEB_SEARCH_TOOL = Object.freeze({
   parameters: Object.freeze({
     type: 'object',
     properties: {
+      note: NOTE_PARAMETER,
       query: { type: 'string', description: 'What to search for: the specific names, products or versions, a few words, no sentence.' },
       topic: { type: 'string', enum: ['general', 'news'], description: '"news" for what happened recently; otherwise "general".' }
     },
@@ -28,6 +30,7 @@ export const OPEN_PAGE_TOOL = Object.freeze({
   parameters: Object.freeze({
     type: 'object',
     properties: {
+      note: NOTE_PARAMETER,
       url: { type: 'string', description: 'The full address (https://…) of the page to open.' },
       start: { type: 'integer', description: 'Where to start reading a long page, in characters (the end of the part before it is told). Leave out for the beginning.' }
     },
@@ -41,6 +44,7 @@ export const FIND_IN_PAGE_TOOL = Object.freeze({
   parameters: Object.freeze({
     type: 'object',
     properties: {
+      note: NOTE_PARAMETER,
       url: { type: 'string', description: 'The full address of the page.' },
       query: { type: 'string', description: 'The word or phrase to look for.' }
     },
@@ -58,8 +62,6 @@ const PAGE_KEPT_CHARS = 150_000;
 const PAGE_CHARS = 10_000;
 const SNIPPET_CHARS = 700;
 const RESULTS_SHOWN = 8;
-// A round's first words are held back this long: if a call follows, they were the model saying what it is about to do.
-const NARRATION_HOLD_CHARS = 400;
 
 export const researchGuidance = (today = new Date().toISOString().slice(0, 10)) => [
   `You can search the web (web_search), open pages (open_page) and look for a word in a page (find_in_page). Today is ${today}. Python, if you have it, has no internet: everything from the web comes through these tools.`,
@@ -71,6 +73,7 @@ export const researchGuidance = (today = new Date().toISOString().slice(0, 10)) 
   '- For a GitHub repository, its README and /releases, /tags and /commits pages are the first places; a version is also written in files such as package.json, pyproject.toml or a version file, whose raw text is at raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>.',
   '- When a search misses, search again with other words (the exact name, another language, a site name added). When a page cannot be read, try another route to the same fact before giving up.',
   '- Do not stop after one search and do not say you cannot look it up: you can. Stop when you have the answer or when the routes you tried are used up, and then say what you tried.',
+  'Say what a call is for in its `note` argument: one short sentence in the language of your reply. The user sees it between the steps. Do not write text before a call: any text you write is shown as your answer at once.',
   'Answer from what you read. Name the sources (site and title) naturally in your answer, and say plainly what you could not find or open.'
 ].join('\n');
 
@@ -124,6 +127,29 @@ const addressOf = (value) => {
 const throwIfStopped = (signal) => {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 };
+
+/**
+ * What the model says about a step comes in the call's `note` argument, not as text before it, so every word of text is
+ * the answer and shows at once. A note is told once to `onEvent` as a narration (shown between the rows): as soon as it
+ * is complete while the call is still being written, or when the round is done, whichever is first.
+ */
+export function createNotes(onEvent) {
+  let told = new Set();
+  const tell = (value) => {
+    const note = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!note || told.has(note)) return;
+    told.add(note);
+    onEvent({ type: 'narration', text: note });
+  };
+  return {
+    /** A new round: its notes are told afresh. */
+    reset() { told = new Set(); },
+    /** The arguments of a call as far as they have come. */
+    fromArguments(raw) { tell(partialJsonString(raw, 'note', { complete: true })); },
+    /** A call that has arrived whole. */
+    fromCall(call) { tell(call?.args?.note); }
+  };
+}
 
 /**
  * The model's searches and page openings, run for it: `run(call)` does one call (a row in the step list, the pages reported)
@@ -304,41 +330,24 @@ export async function runWebResearchReply({
 }) {
   const toolTurns = [];
   const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources });
+  const notes = createNotes(onEvent);
   let text = '';
-  let answering = false;
   const guidance = researchGuidance(today);
 
   for (;;) {
     const canCall = research.left > 0;
     let response = null;
-    let held = '';
-    let holding = canCall;
     let roundStarted = false;
-    const deliver = (chunk) => {
+    notes.reset();
+    // The words of a round are the answer (what the model says about a call is in the call's note), so they show as they come.
+    const emit = (chunk) => {
       if (!chunk) return;
-      if (!answering) {
-        answering = true;
-        onEvent({ type: 'answering' });
-      }
+      if (!roundStarted) onEvent({ type: 'answering' });
       // Words after a round of calls start a new paragraph when some were already written.
       const lead = !roundStarted && text && !text.endsWith('\n') ? '\n\n' : '';
       roundStarted = true;
       text += lead + chunk;
       onChunk(lead + chunk);
-    };
-    const emit = (chunk) => {
-      if (!chunk) return;
-      if (!holding) {
-        deliver(chunk);
-        return;
-      }
-      held += chunk;
-      if (held.length > NARRATION_HOLD_CHARS) {
-        holding = false;
-        const flushed = held;
-        held = '';
-        deliver(flushed);
-      }
     };
     try {
       await streamApiCall(requestParts, emit, signal, false, {
@@ -346,6 +355,10 @@ export async function runWebResearchReply({
         tools: canCall ? RESEARCH_TOOLS : [],
         toolTurns,
         additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
+        onToolArguments: ({ name, arguments: raw }) => {
+          if (TOOL_NAMES.has(name)) notes.fromArguments(raw);
+          requestOptions.onToolArguments?.({ name, arguments: raw });
+        },
         onResponseComplete: (value) => { response = value; }
       });
     } catch (error) {
@@ -353,18 +366,13 @@ export async function runWebResearchReply({
       if (!signal?.aborted) throw error;
     }
     const calls = (response?.toolCalls || []).filter((call) => research.handles(call.name));
-    if (signal?.aborted || !canCall || calls.length === 0) {
-      holding = false;
-      deliver(held);
-      break;
-    }
+    if (signal?.aborted || !canCall || calls.length === 0) break;
 
-    // What was held back was the model saying what it is about to do.
-    if (held.trim()) onEvent({ type: 'narration', text: held.trim() });
-    // Everything the round asks for is fetched at once; the answers are taken in order.
+    // Everything the round asks for is fetched at once; the answers are taken in order, each after its note.
     research.prefetch(calls);
     const results = [];
     for (const call of calls) {
+      notes.fromCall(call);
       const content = await research.run(call);
       results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
       if (signal?.aborted) break;

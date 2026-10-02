@@ -7,13 +7,10 @@ import { MAX_RUNS_PER_REPLY, RUN_PYTHON_TOOL, getSandboxGuidance } from './sandb
 import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
-import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../../legacy-runtime/features/web-research-reply.js';
+import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../../legacy-runtime/features/web-research-reply.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
-// A round's first words are held back this long: if a run follows, they were the model saying what it is about to
-// do (shown between the steps); if the round goes on past this, it is the answer and streams as before.
-const NARRATION_HOLD_CHARS = 400;
 // The thinking kept with the run (it is saved with the message), per round and in all.
 const THOUGHT_CHARS_PER_ROUND = 6000;
 const THOUGHT_CHARS_IN_ALL = 30_000;
@@ -116,33 +113,18 @@ export async function runSandboxReply({
     return kept;
   };
 
-  // What a round has said so far while it may still turn out to be the model announcing a run.
-  let held = '';
-  let holding = false;
   // Set per round: starts the wait for the model to go quiet (see WRITING_AFTER_MS), and ends it.
   let watchSilence = () => {};
   let stopWatching = () => {};
+  // What the model says about a step is in the call's `note`, so any text it writes is the answer and shows as it comes.
   const emit = (chunk) => {
     if (!chunk) return;
-    if (holding) {
-      held += chunk;
-      watchSilence();
-      // The model has started to write: it is no longer thinking.
-      thoughtEndedAt ??= Date.now();
-      if (held.length > NARRATION_HOLD_CHARS) {
-        holding = false;
-        const flushed = held;
-        held = '';
-        deliver(flushed);
-      }
-      return;
-    }
     deliver(chunk);
   };
+  const notes = createNotes(onEvent);
   const deliver = (chunk) => {
     if (!chunk) return;
-    // Text written after a tool round starts on a new paragraph (in the live view, which still shows what was
-    // said before the runs; the kept text no longer has it).
+    // Text written after a tool round starts on a new paragraph.
     const newRound = toolTurns.length && !deliver.continuing;
     const liveSeparator = newRound && streamed && !streamed.endsWith('\n') ? '\n\n' : '';
     const separator = newRound && text && !text.endsWith('\n') ? '\n\n' : '';
@@ -194,16 +176,10 @@ export async function runSandboxReply({
   for (;;) {
     const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;
     const canResearch = Boolean(research && research.left > 0);
-    // Either kind of call may follow, so what the round says first is held back.
     const canCall = canRun || canResearch;
     let response = null;
-    // Where this round's own text starts: what the model says before its runs is kept with them (below), not in the answer.
-    const roundTextStart = text.length;
-    let narrationTaken = false;
     deliver.continuing = false;
-    held = '';
-    holding = canCall;
-    let narrationShown = false;
+    notes.reset();
     thought = '';
     thoughtStartedAt = null;
     thoughtEndedAt = null;
@@ -244,11 +220,8 @@ export async function runSandboxReply({
       },
       onToolArguments: ({ name, arguments: raw }) => {
         if (name !== RUN_PYTHON_TOOL.name && !research?.handles(name)) return;
-        // A call is coming: what was held back was the model saying what it is about to do.
-        if (!narrationShown && held.trim()) {
-          narrationShown = true;
-          onEvent({ type: 'narration', text: held.trim() });
-        }
+        // What the model says about the step is in its note: shown between the rows as soon as it is written.
+        notes.fromArguments(raw);
         if (name === RUN_PYTHON_TOOL.name) {
           stopWatching();
           codeStarted = true;
@@ -279,10 +252,6 @@ export async function runSandboxReply({
       }
     }
     if (signal?.aborted) {
-      // What the round had written so far is not lost either.
-      holding = false;
-      if (held) deliver(held);
-      held = '';
       // Stopped while thinking: what was thought so far stays, marked as interrupted.
       const kept = takeThought();
       if (kept) {
@@ -296,11 +265,6 @@ export async function runSandboxReply({
     const calls = (response?.toolCalls || []).filter((call) => call.name === RUN_PYTHON_TOOL.name || research?.handles(call.name));
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
-    // What the round held back: the answer (no run follows), or the model saying what it is about to do (below).
-    const heldText = held;
-    held = '';
-    holding = false;
-    if ((!canCall || !calls.length) && heldText) deliver(heldText);
     if (!canCall || !calls.length) {
       if (roundThought) {
         run.thought = roundThought;
@@ -316,11 +280,8 @@ export async function runSandboxReply({
     for (const call of calls) {
       const reply = (content) => results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
       if (call.name !== RUN_PYTHON_TOOL.name) {
-        // A search or a page: the words before it are shown between the rows, and are not the answer.
-        if (!narrationShown && heldText.trim()) {
-          narrationShown = true;
-          onEvent({ type: 'narration', text: heldText.trim() });
-        }
+        // A search or a page: what the model says about it is shown between the rows.
+        notes.fromCall(call);
         try {
           reply(await research.run(call));
         } catch (error) {
@@ -341,20 +302,12 @@ export async function runSandboxReply({
       const title = typeof call.args?.title === 'string' ? call.args.title.trim() : '';
       const step = { title, code, stdout: '', stderr: '', files: [], elapsedMs: 0, ...(roundThought ? { thought: roundThought } : {}) };
       roundThought = '';
-      // "I'll check the environment first": said before the runs of this round, it goes with the first of them
-      // and leaves the answer, so the answer is only the answer.
-      if (!narrationTaken) {
-        narrationTaken = true;
-        const narration = `${text.slice(roundTextStart)}${heldText}`.trim();
-        if (narration) {
-          step.narration = narration;
-          text = text.slice(0, roundTextStart);
-          // Shown between the steps as the run begins, when it was not already shown while its code was written.
-          if (!narrationShown) {
-            narrationShown = true;
-            onEvent({ type: 'narration', text: narration });
-          }
-        }
+      // "I'll check the environment first": the note of the call, shown between the steps as the run begins (when it was not
+      // already shown while the code was written) and kept with the step.
+      const said = String(call.args?.note || '').replace(/\s+/g, ' ').trim();
+      if (said) {
+        step.narration = said;
+        notes.fromCall(call);
       }
       run.steps.push(step);
       currentStep = run.steps.length;

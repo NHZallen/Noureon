@@ -185,6 +185,8 @@ export function createSingleModelResponseLifecycle({
     // A reply without Python shows the model's thinking above the answer, as it streams,
     // and folds it when the answer starts.
     let thinkingBlock = null;
+    // Every block made (more than one when words written before a search were taken for the answer, and work went on).
+    const thinkingBlocks = [];
     let thought = { text: '', kind: 'raw', startedAt: null, endedAt: null };
     // Whether any of the answer has arrived (stopping before it leaves the thinking interrupted).
     let answered = false;
@@ -199,6 +201,7 @@ export function createSingleModelResponseLifecycle({
         thinkingBlock = steps?.body
           ? createThinkingBlock({ document: getDocument(), host: steps.body, before: steps.stepsElement, language: uiLanguage, now })
           : createThinkingBlock({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, now });
+        if (thinkingBlock) thinkingBlocks.push(thinkingBlock);
       }
       thinkingBlock?.add(chunk, kind);
       liveRun?.activity(sandboxText(uiLanguage, 'thinkingLive'));
@@ -208,6 +211,12 @@ export function createSingleModelResponseLifecycle({
       if (thought.startedAt !== null) thought.endedAt ??= now();
       thinkingBlock?.collapse();
       liveRun?.activity('');
+    };
+    // More work after words that were taken for the answer: the line runs again, and what the model thinks next is a block of its own.
+    const workResumed = () => {
+      if (!answerStarted) return;
+      answerStarted = false;
+      thinkingBlock = null;
     };
     const runApiStream = replyMode.advanced
       ? async (onChunk) => {
@@ -290,7 +299,10 @@ export function createSingleModelResponseLifecycle({
               language: uiLanguage,
               onSources: addSearchSources,
               onEvent: (event) => {
-                if (event.type === 'searching') started = true;
+                if (event.type === 'searching') {
+                  started = true;
+                  workResumed();
+                }
                 stepList()?.event(event);
               }
             });
@@ -352,6 +364,7 @@ export function createSingleModelResponseLifecycle({
       liveRun?.remove();
       // What was thought is kept with the reply (the run record), so it is still there after a reload.
       endThinking();
+      thinkingBlocks.forEach((block) => block.remove());
       thinkingBlock?.remove();
       if (searchSources.length) sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), sources: searchSources };
       if (thought.text && !replyMode.advanced) {

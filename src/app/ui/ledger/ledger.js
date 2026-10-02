@@ -148,6 +148,13 @@ export function createLedger({ document, host, before = null }) {
         const index = rows.indexOf(row);
         if (index >= 0) rows.splice(index, 1);
       },
+      // The work went on after the row was called done: it runs again, its clock with it.
+      resume() {
+        if (state === 'running') return;
+        state = 'running';
+        finishedAt = null;
+        draw();
+      },
       finish(next = 'done') {
         if (state !== 'running') return;
         state = next;

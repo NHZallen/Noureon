@@ -388,3 +388,19 @@ test('the line names what the model is doing once it says it is writing, and wha
   assert.ok(message.querySelector('.sandbox-run-narration').classList.contains('is-arriving'));
   list.remove();
 });
+
+test('words taken for the answer end the line, and more work after them starts it again', () => {
+  const { document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en', summary: true });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'answering' });
+  const line = message.querySelector('.ledger-label');
+  assert.match(line.textContent, /./);
+  assert.equal(message.querySelector('.ledger-row.is-running'), null, 'the work looked over');
+  list.event({ type: 'searching', label: 'Searching: x' });
+  assert.ok(message.querySelector('.ledger-row.is-running'), 'the work goes on');
+  assert.match(message.querySelector('.ledger-label').textContent, new RegExp(`^${sandboxText('en', 'processWorking')}`), 'the line says it is working again');
+  assert.equal(message.querySelector('.ledger-row.is-quiet'), null);
+  list.event({ type: 'answering' });
+  list.remove();
+});

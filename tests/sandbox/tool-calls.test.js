@@ -134,3 +134,10 @@ test('the thinking is labelled as the model itself or as the summary its provide
   for (const id of ['anthropic/claude-opus-5.5', 'openai/gpt-6-luna', 'google/gemini-3.1-flash-image']) assert.equal(modelThinkingKind('openrouter', id), 'summary', id);
   assert.equal(modelThinkingKind('gemini', 'gemini-3.8-flash'), 'summary');
 });
+
+test('a value that is still arriving can be asked for only once it is complete', () => {
+  assert.equal(partialJsonString('{"note":"First I', 'note', { complete: true }), '', 'the closing quote has not come');
+  assert.equal(partialJsonString('{"note":"First I\\"ll look.","code":"x', 'note', { complete: true }), 'First I"ll look.');
+  assert.equal(partialJsonString('{"note":"First I', 'note'), 'First I', 'without it, what there is so far');
+  assert.equal(partialJsonString('{"code":"print(\\"note\\")"}', 'note', { complete: true }), '', 'a word inside the code is not the note');
+});

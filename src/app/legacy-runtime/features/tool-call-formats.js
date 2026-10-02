@@ -110,16 +110,21 @@ export function modelThinkingKind(provider, modelId = '') {
 
 /**
  * The string value of `key` in JSON that is still arriving (a tool call's
- * arguments so far): what has been written of it, escapes decoded.
+ * arguments so far): what has been written of it, escapes decoded. With
+ * `complete`, only a value whose closing quote has arrived ('' until then).
  */
-export function partialJsonString(raw = '', key = 'code') {
+export function partialJsonString(raw = '', key = 'code', { complete = false } = {}) {
   const start = new RegExp(`"${key}"\\s*:\\s*"`).exec(raw);
   if (!start) return '';
   const escapes = { n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', '"': '"', '\\': '\\', '/': '/' };
   let out = '';
+  let closed = false;
   for (let index = start.index + start[0].length; index < raw.length; index += 1) {
     const char = raw[index];
-    if (char === '"') break;
+    if (char === '"') {
+      closed = true;
+      break;
+    }
     if (char !== '\\') {
       out += char;
       continue;
@@ -136,8 +141,17 @@ export function partialJsonString(raw = '', key = 'code') {
       index += 1;
     }
   }
-  return out;
+  return complete && !closed ? '' : out;
 }
+
+/**
+ * The `note` every tool takes: what the model says to the user about the step it is taking, in one sentence. It travels
+ * in the call, not as text before it, so any text the model writes is the answer and can be shown as it comes.
+ */
+export const NOTE_PARAMETER = Object.freeze({
+  type: 'string',
+  description: 'One short sentence to the user, in the language of your reply: what this step is for and why (for example "First I\'ll check what is in the folder."). It is shown between the steps. Put it here; do not write text before the call.'
+});
 
 // Collects one Gemini streamed response: its visible text, every part (to
 // send back unchanged) and its function calls. `onReasoning(text)` hears the
