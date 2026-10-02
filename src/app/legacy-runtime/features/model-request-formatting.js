@@ -64,14 +64,26 @@ export const normalizeTinyfishSearch = (data, limit = 6) => {
   const list = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
   return {
     results: list
-      .map((item) => ({
-        title: String(item?.title || item?.site_name || item?.domain || '').trim(),
-        url: String(item?.url || item?.link || '').trim(),
-        content: String(item?.snippet || item?.text || item?.content || item?.description || '').trim()
-      }))
+      .map((item) => {
+        const published = String(item?.published_date || item?.published_at || item?.published || item?.date || '').trim();
+        return {
+          title: String(item?.title || item?.site_name || item?.domain || '').trim(),
+          url: String(item?.url || item?.link || '').trim(),
+          content: String(item?.snippet || item?.text || item?.content || item?.description || '').trim(),
+          // Only when the source says when the page was published.
+          ...(published ? { published_date: published } : {})
+        };
+      })
       .filter((item) => item.url)
       .slice(0, limit)
   };
+};
+
+/** When a result's page was published, as YYYY-MM-DD, or '' when the source gave no date (or one that cannot be read). */
+export const resultDate = (result) => {
+  const raw = String(result?.published_date || result?.publishedDate || result?.date || '').trim();
+  const time = raw ? Date.parse(raw) : NaN;
+  return Number.isNaN(time) ? '' : new Date(time).toISOString().slice(0, 10);
 };
 
 // The pages a page reader (TinyFish's Fetch, Tavily's Extract) gave back, each cut to `maxChars` (a page can be long, and
@@ -113,10 +125,12 @@ export const formatTavilySearchPacket = (data, query, label = 'Web search packet
   if (results.length > 0) {
     lines.push('', '## Sources');
     results.slice(0, 8).forEach((result, index) => {
+      const published = resultDate(result);
       lines.push(
         '',
         `${index + 1}. ${result.title || 'Untitled source'}`,
         `URL: ${result.url || ''}`,
+        ...(published ? [`Published: ${published}`] : []),
         `Content: ${String(result.content || result.raw_content || '').trim().slice(0, 1400) || 'No snippet returned.'}`
       );
       if (typeof result.score === 'number') {

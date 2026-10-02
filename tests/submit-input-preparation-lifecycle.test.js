@@ -74,6 +74,7 @@ const createHarness = (overrides = {}) => {
     saveAppData: overrides.saveAppData || (async () => calls.push(['saveAppData'])),
     getAutoWebSearchEnabled: () => overrides.autoWebSearch ?? false,
     canAutoEnableWebSearch: overrides.canAutoEnableWebSearch || (() => true),
+    ...(overrides.canModelDecideWebSearch ? { canModelDecideWebSearch: overrides.canModelDecideWebSearch } : {}),
     getAutoSearchNotice: () => 'auto search on',
     renderInputIndicators: () => calls.push(['renderInputIndicators']),
     beginFirstSubmit: () => calls.push(['beginFirstSubmit']),
@@ -422,4 +423,21 @@ test('submit preparation helper source avoids provider parser, storage schema, p
   ]) {
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
+});
+
+test('a model that decides for itself whether to search is given the search with every message, without an announcement', async () => {
+  const conversation = () => ({ archived: false, isTemporary: false, isWebSearchEnabled: false, messages: [], provider: 'openrouter', unsentMessage: '' });
+  const offered = createHarness({ autoWebSearch: true, messageValue: 'Tell me a story', conversation: conversation(), canModelDecideWebSearch: () => true });
+  assert.equal((await offered.lifecycle.prepareSubmitResponse()).webSearchEnabled, true, 'a question with none of the words that need current facts');
+  assert.equal(offered.calls.some((call) => call[0] === 'showNotification'), false, 'the step list shows what it searches; nothing to announce');
+
+  const settingOff = createHarness({ autoWebSearch: false, messageValue: 'Tell me a story', conversation: conversation(), canModelDecideWebSearch: () => true });
+  assert.equal((await settingOff.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'smart search off: no search unless asked for');
+
+  const cannot = createHarness({ autoWebSearch: true, messageValue: 'Tell me a story', conversation: conversation(), canModelDecideWebSearch: () => false });
+  assert.equal((await cannot.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'a model that cannot call tools still needs the words');
+
+  const latest = createHarness({ autoWebSearch: true, messageValue: 'What are the latest news headlines?', conversation: conversation(), canModelDecideWebSearch: () => true });
+  assert.equal((await latest.lifecycle.prepareSubmitResponse()).webSearchEnabled, true);
+  assert.ok(latest.calls.some((call) => call[0] === 'showNotification' && call[1] === 'auto search on'), 'the words that need current facts are still announced');
 });

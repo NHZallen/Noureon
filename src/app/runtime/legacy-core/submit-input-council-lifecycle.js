@@ -761,6 +761,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       if (modelUsesTavilySearch(modelInfo) && !getApiKeyForProvider(getSearchProvider(getLiveConfig()))) return false;
       return true;
     },
+    canModelDecideWebSearch: (conversation) => !isCouncilEnabled(conversation) && webResearch.canUse(normalizeConversationModel(conversation)),
     getAutoSearchNotice: () => i18n[getLiveConfig().uiLanguage].autoSearchNotice || '自動啟用網路搜尋。',
     renderInputIndicators,
     adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),

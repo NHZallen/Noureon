@@ -215,3 +215,68 @@ test('find_in_page opens the page when it was not, and says when a word is not i
   assert.match(bad, /needs a valid "url"/);
   assert.deepEqual(helper.opened, ['https://example.com/p']);
 });
+
+test('what a round asks for is fetched together, the pages in one request, and answered in the order asked', async () => {
+  const log = [];
+  const gates = new Map();
+  const gate = (name) => new Promise((resolve) => gates.set(name, resolve));
+  const waits = { a: gate('a'), b: gate('b') };
+  let opened = [];
+  const searchWeb = async ({ query }) => {
+    log.push(`start ${query}`);
+    await waits[query];
+    log.push(`end ${query}`);
+    return { results: [{ title: query, url: `https://${query}.example/`, content: 'x' }] };
+  };
+  const openPage = async (urls) => {
+    opened.push([...urls]);
+    return { pages: urls.map((url) => ({ url, title: url, text: `text of ${url}` })), failed: [] };
+  };
+  const model = scriptedModel([
+    { calls: [search('1', 'a'), search('2', 'b'), open('3', 'https://p1.example/'), open('4', 'https://p2.example/')] },
+    { text: 'done' }
+  ]);
+  const running = runWebResearchReply({
+    streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], searchWeb, openPage, language: 'en', today: '2026-10-01', onEvent: () => {}
+  });
+  // Let the round's calls start: both searches are under way before either has answered.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(log, ['start a', 'start b']);
+  gates.get('b')();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  gates.get('a')();
+  const result = await running;
+  assert.equal(result.text, 'done');
+  assert.deepEqual(opened, [['https://p1.example/', 'https://p2.example/']], 'the two pages went to the reader in one request');
+  const answered = model.requests[1].toolTurns[0].results;
+  assert.deepEqual(answered.map((entry) => entry.id), ['1', '2', '3', '4'], 'answered in the order asked');
+  assert.match(answered[0].content, /Results for "a"/);
+  assert.match(answered[2].content, /text of https:\/\/p1\.example\//);
+});
+
+test('the same search or page asked twice in a reply is one fetch', async () => {
+  const model = scriptedModel([
+    { calls: [search('1', 'Same Query'), search('2', 'same query'), open('3', 'https://p.example/')] },
+    { calls: [open('4', 'https://p.example/'), { id: '5', name: 'find_in_page', args: { url: 'https://p.example/', query: 'text' } }] },
+    { text: 'done' }
+  ]);
+  const helper = tools({ pages: { pages: [{ url: 'https://p.example/', title: 'P', text: 'some text here' }], failed: [] } });
+  const events = [];
+  await run(model, helper, { onEvent: (event) => events.push(event) });
+  assert.equal(helper.searches.length, 1);
+  assert.deepEqual(helper.opened, ['https://p.example/']);
+  assert.match(model.requests[2].toolTurns[1].results[0].content, /You already opened this page/);
+  assert.match(model.requests[2].toolTurns[1].results[1].content, /some text here/);
+});
+
+test('a result\'s publishing date is shown to the model when the source gave one', () => {
+  const text = searchResultText('q', [
+    { title: 'New', url: 'https://a.example/', content: 'x', published_date: 'Tue, 29 Sep 2026 10:00:00 GMT' },
+    { title: 'Undated', url: 'https://b.example/', content: 'y' },
+    { title: 'Odd', url: 'https://c.example/', content: 'z', published_date: 'last tuesday-ish' }
+  ]);
+  assert.match(text, /1\. New\nURL: https:\/\/a\.example\/\nDate: 2026-09-29\nSnippet: x/);
+  assert.match(text, /2\. Undated\nURL: https:\/\/b\.example\/\nSnippet: y/);
+  assert.match(text, /3\. Odd\nURL: https:\/\/c\.example\/\nSnippet: z/, 'a date that cannot be read is left out');
+  assert.match(researchGuidance('2026-10-01'), /Date:/);
+});

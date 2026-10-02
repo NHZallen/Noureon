@@ -6,6 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
+import { resultDate } from './model-request-formatting.js';
 import { absoluteLinks, findPassages, pageWindow } from './web-page-text.js';
 
 export const WEB_SEARCH_TOOL = Object.freeze({
@@ -64,6 +65,7 @@ export const researchGuidance = (today = new Date().toISOString().slice(0, 10)) 
   `You can search the web (web_search), open pages (open_page) and look for a word in a page (find_in_page). Today is ${today}. Python, if you have it, has no internet: everything from the web comes through these tools.`,
   'Search when the answer depends on facts that may have changed or that you do not know. Do not search for what you already know well.',
   'Research like a person who needs the real answer, not the first plausible one:',
+  '- A result may have a Date: when its page was published. For what changes over time (versions, prices, news), prefer the newer pages; an undated result is not necessarily old.',
   '- A snippet is a hint. Open the page that is likely to hold the answer and read it; on a long page use find_in_page to jump to the word you need (a version, a date, a name, a price).',
   '- The text of a page has its links as [text](address): follow the ones that lead closer, one level after another (a repository to its releases, tags or files; a site to its docs, changelog or pricing page).',
   '- For a GitHub repository, its README and /releases, /tags and /commits pages are the first places; a version is also written in files such as package.json, pyproject.toml or a version file, whose raw text is at raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>.',
@@ -87,6 +89,8 @@ export function searchResultText(query, results = []) {
       '',
       `${index + 1}. ${cut(result.title, 160) || hostOf(result.url)}`,
       `URL: ${result.url}`,
+      // When the page was published, if the source says: what changes over time is best answered from the newer pages.
+      ...(resultDate(result) ? [`Date: ${resultDate(result)}`] : []),
       `Snippet: ${cut(result.content, SNIPPET_CHARS) || '(none)'}`
     ].join('\n'))
   ].join('\n');
@@ -137,12 +141,66 @@ export function createResearchCalls({
 }) {
   let used = 0;
 
+  // Searches and pages are fetched as soon as they are known and each only once: the calls of one round are started
+  // together, so the waits overlap, and then answered one at a time in the order they were asked, so the step list reads
+  // the same. A page asked for twice is one fetch, and the pages of one round go to the reader in one request.
+  const searchPromises = new Map();
+  const searchOnce = (query, topic) => {
+    const key = `${topic}|${query.toLowerCase()}`;
+    if (!searchPromises.has(key)) {
+      const promise = searchWeb({ query, topic, signal });
+      promise.catch(() => {});
+      searchPromises.set(key, promise);
+    }
+    return { key, promise: searchPromises.get(key) };
+  };
+
+  const NO_READER = 'No page reader is set up: reading a page needs a Tavily or TinyFish API key in Settings. Tell the user.';
+  const UNREADABLE = 'The page could not be read (it may block automated reading, need a login, or be down). Tell the user, or try another page.';
+  // The pages asked for, whole, by address; `settled` has the ones that are done, `shown` the ones the model was already
+  // given (a page it has read needs no new row; one only fetched ahead of its turn does).
+  const pagePromises = new Map();
+  const settled = new Map();
+  const shown = new Set();
+  let queued = [];
+  const flush = async () => {
+    const batch = queued;
+    queued = [];
+    try {
+      const { pages, failed } = await openPage(batch.map((entry) => entry.url), signal, { maxChars: PAGE_KEPT_CHARS });
+      for (const entry of batch) {
+        const raw = pages.find((page) => page.url === entry.url || page.finalUrl === entry.url);
+        const text = raw ? absoluteLinks(raw.text, raw.finalUrl || raw.url) : '';
+        if (text) entry.resolve({ page: { ...raw, text } });
+        else entry.resolve({ error: failed.find((item) => item.url === entry.url)?.reason === 'noReader' ? NO_READER : UNREADABLE });
+      }
+    } catch (error) {
+      for (const entry of batch) {
+        if (signal?.aborted || error?.name === 'AbortError') entry.reject(error);
+        else entry.resolve({ error: `The page could not be read (${cut(error?.message, 200) || 'unknown error'}).` });
+      }
+    }
+  };
+  const pageOnce = (url) => {
+    if (!pagePromises.has(url)) {
+      const promise = new Promise((resolve, reject) => {
+        if (queued.length === 0) queueMicrotask(flush);
+        queued.push({ url, resolve, reject });
+      });
+      promise.then((outcome) => { settled.set(url, outcome); }, () => { pagePromises.delete(url); });
+      pagePromises.set(url, promise);
+    }
+    return pagePromises.get(url);
+  };
+
   const doSearch = async (call) => {
     const query = typeof call.args?.query === 'string' ? call.args.query.trim() : '';
     if (!query) return 'The call had no "query" argument.';
+    const topic = call.args?.topic === 'news' ? 'news' : 'general';
     onEvent({ type: 'searching', label: sandboxText(language, 'webSearchingFor', { query: cut(query, 80) }) });
+    const { key, promise } = searchOnce(query, topic);
     try {
-      const data = await searchWeb({ query, topic: call.args?.topic === 'news' ? 'news' : 'general', signal });
+      const data = await promise;
       const results = (Array.isArray(data?.results) ? data.results : []).filter((result) => result?.url);
       const sources = results.slice(0, RESULTS_SHOWN).map((result) => ({ title: result.title || '', url: result.url }));
       onSources(sources);
@@ -150,37 +208,27 @@ export function createResearchCalls({
       return searchResultText(query, results);
     } catch (error) {
       throwIfStopped(signal);
+      // A search that failed may be tried again.
+      searchPromises.delete(key);
       onEvent({ type: 'sources', sources: [] });
       return `The search failed (${cut(error?.message, 200) || 'unknown error'}). You can try other words, or answer without it and say so.`;
     }
   };
 
-  // The pages opened so far, whole, by address: reading on and looking for a word need no second fetch.
-  const kept = new Map();
-  const unreadable = new Map();
   const load = async (url) => {
-    if (kept.has(url)) return { page: kept.get(url) };
-    // A page that could not be read is not fetched again and again.
-    if (unreadable.has(url)) return { error: unreadable.get(url) };
+    if (shown.has(url) && settled.has(url)) return settled.get(url);
     onEvent({ type: 'searching', label: sandboxText(language, 'webOpeningPage', { host: hostOf(url) }) });
     try {
-      const { pages, failed } = await openPage([url], signal, { maxChars: PAGE_KEPT_CHARS });
-      const [raw] = pages;
-      const text = raw ? absoluteLinks(raw.text, raw.finalUrl || raw.url) : '';
-      if (!text) {
+      const outcome = await pageOnce(url);
+      shown.add(url);
+      if (outcome.page) {
+        const source = { title: outcome.page.title || '', url: outcome.page.finalUrl || outcome.page.url, read: true };
+        onSources([source]);
+        onEvent({ type: 'sources', sources: [source] });
+      } else {
         onEvent({ type: 'sources', sources: [] });
-        const error = failed[0]?.reason === 'noReader'
-          ? 'No page reader is set up: reading a page needs a Tavily or TinyFish API key in Settings. Tell the user.'
-          : 'The page could not be read (it may block automated reading, need a login, or be down). Tell the user, or try another page.';
-        unreadable.set(url, error);
-        return { error };
       }
-      const page = { ...raw, text };
-      kept.set(url, page);
-      const source = { title: page.title || '', url: page.finalUrl || page.url, read: true };
-      onSources([source]);
-      onEvent({ type: 'sources', sources: [source] });
-      return { page };
+      return outcome;
     } catch (error) {
       throwIfStopped(signal);
       onEvent({ type: 'sources', sources: [] });
@@ -192,7 +240,7 @@ export function createResearchCalls({
     const url = addressOf(call.args?.url);
     if (!url) return 'The call had no valid "url" argument (it must start with http:// or https://).';
     const start = Number.isFinite(Number(call.args?.start)) ? Number(call.args.start) : 0;
-    if (kept.has(url) && !start) return 'You already opened this page; its text is above. Use start to read further on, or find_in_page.';
+    if (shown.has(url) && settled.get(url)?.page && !start) return 'You already opened this page; its text is above. Use start to read further on, or find_in_page.';
     const { page, error } = await load(url);
     return error || pageText(page, start);
   };
@@ -213,6 +261,21 @@ export function createResearchCalls({
 
   return {
     handles: (name) => TOOL_NAMES.has(name),
+    /** Starts the searches and page reads of a round's calls together; `run` then answers them in order. */
+    prefetch(calls) {
+      let budget = Math.max(0, maxCalls - used);
+      for (const call of calls || []) {
+        if (!TOOL_NAMES.has(call.name)) continue;
+        if (budget-- <= 0) break;
+        if (call.name === WEB_SEARCH_TOOL.name) {
+          const query = typeof call.args?.query === 'string' ? call.args.query.trim() : '';
+          if (query) searchOnce(query, call.args?.topic === 'news' ? 'news' : 'general');
+        } else {
+          const url = addressOf(call.args?.url);
+          if (url && !shown.has(url)) pageOnce(url);
+        }
+      }
+    },
     get used() { return used; },
     get left() { return Math.max(0, maxCalls - used); },
     async run(call) {
@@ -298,6 +361,8 @@ export async function runWebResearchReply({
 
     // What was held back was the model saying what it is about to do.
     if (held.trim()) onEvent({ type: 'narration', text: held.trim() });
+    // Everything the round asks for is fetched at once; the answers are taken in order.
+    research.prefetch(calls);
     const results = [];
     for (const call of calls) {
       const content = await research.run(call);

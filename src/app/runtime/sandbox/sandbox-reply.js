@@ -310,6 +310,8 @@ export async function runSandboxReply({
       break;
     }
 
+    // The searches and pages of the round are fetched at once, while the code of the round runs; the answers are taken in order.
+    research?.prefetch(calls);
     const results = [];
     for (const call of calls) {
       const reply = (content) => results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });

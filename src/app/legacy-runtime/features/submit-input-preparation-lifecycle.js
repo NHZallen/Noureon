@@ -22,6 +22,8 @@ export function createSubmitInputPreparationLifecycle({
   saveAppData,
   getAutoWebSearchEnabled,
   canAutoEnableWebSearch = () => true,
+  // A model that searches by itself, when it judges that it needs to, is given the search with every message.
+  canModelDecideWebSearch = () => false,
   getAutoSearchNotice,
   renderInputIndicators,
   adjustTextareaHeight,
@@ -158,6 +160,13 @@ export function createSubmitInputPreparationLifecycle({
     if (autoWebSearchEnabled) {
       showNotification(getAutoSearchNotice(), 'warning');
     }
+    // Smart search on, and a model that calls tools: it has the search at hand and decides for itself whether the question
+    // needs it, so there is nothing to announce (the step list shows each search it makes). The words that need current
+    // facts are only what turns the search on for the other models.
+    const searchOfferedToModel = !conversation.isWebSearchEnabled
+      && !autoWebSearchEnabled
+      && getAutoWebSearchEnabled()
+      && canModelDecideWebSearch(conversation);
 
     const loadingParts = isImageConversation(conversation)
       ? [{
@@ -197,7 +206,7 @@ export function createSubmitInputPreparationLifecycle({
       loadingMessageDiv,
       responseUsesCouncil,
       shouldContinue: true,
-      webSearchEnabled: Boolean(conversation.isWebSearchEnabled || autoWebSearchEnabled),
+      webSearchEnabled: Boolean(conversation.isWebSearchEnabled || autoWebSearchEnabled || searchOfferedToModel),
       userMessage,
       userMessageObject,
       userParts
