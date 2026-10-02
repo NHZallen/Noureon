@@ -1,0 +1,18 @@
+/* Scrollbars, everywhere: thin, a round grey thumb on no track, no arrow buttons (as ChatGPT draws them). The thumb takes
+   its colour from the text colour, so dark mode and wallpapers are followed. A place that wants none says
+   `scrollbar-width: none` itself. */
+:root { --scrollbar-thumb: color-mix(in srgb, var(--text-primary, #111827) 26%, transparent); }
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* A browser that does not know the two properties above (Safari before 18.2) draws the same by pieces. */
+@supports not (scrollbar-width: thin) {
+    ::-webkit-scrollbar { width: 12px; height: 12px; }
+    ::-webkit-scrollbar-button { display: none; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 9999px; background: var(--scrollbar-thumb); background-clip: content-box; }
+    ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--text-primary, #111827) 42%, transparent); background-clip: content-box; }
+}

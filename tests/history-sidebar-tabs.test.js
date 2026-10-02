@@ -87,7 +87,7 @@ test('the panel opens on the Timeline by default, with the sources of the latest
   assert.equal(harness.elements.historySidebar.classList.contains('visible'), true);
   assert.equal(harness.document.getElementById('history-sidebar-list').hidden, false);
   assert.equal(harness.document.getElementById('history-sources-list').hidden, true);
-  assert.deepEqual([...harness.document.querySelectorAll('.history-sidebar-item')].map((item) => item.textContent), ['Weather?', 'Mild.', 'And?', 'No search here.'], 'the record is not what is listed');
+  assert.deepEqual([...harness.document.querySelectorAll('.history-sidebar-item .history-sidebar-text')].map((item) => item.textContent), ['Weather?', 'Mild.', 'And?', 'No search here.'], 'the record is not what is listed');
   const sourcesTab = harness.document.querySelector('[data-history-tab="sources"]');
   assert.equal(sourcesTab.querySelector('.history-tab-count').textContent, '2');
   sourcesTab.click();

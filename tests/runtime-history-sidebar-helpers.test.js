@@ -186,12 +186,13 @@ test('history message content renders normal and fallback previews through the a
     assert.equal(harness.activeConversationReads[0], activeConversation);
     assert.equal(items.length, 3);
     assert.deepEqual(items.map((item) => item.dataset.messageIndex), ['0', '1', '2']);
-    assert.equal(items[0].textContent, '[user] First question');
-    assert.equal(items[1].textContent, '[model] First answer');
-    assert.match(items[2].textContent, /^\[user\]\s+.+/);
-    assert.equal(items[0].style.backgroundColor, 'rgba(255, 255, 255, 0.4)');
-    assert.equal(items[1].style.backgroundColor, 'rgba(238, 238, 238, 0.4)');
-    assert.equal(items[0].style.color, '#000000');
+    const said = (item) => item.querySelector('.history-sidebar-text').textContent;
+    assert.equal(said(items[0]), '[user] First question');
+    assert.equal(said(items[1]), '[model] First answer');
+    assert.match(said(items[2]), /^\[user\]\s+.+/);
+    assert.deepEqual(items.map((item) => item.classList.contains('is-user')), [true, false, true]);
+    assert.deepEqual(items.map((item) => item.querySelector('.history-sidebar-role').textContent), ['你', 'Noureon', '你']);
+    assert.equal(items[0].style.backgroundColor, '', 'the timeline is black and white: no bubble colours');
   } finally {
     harness.window.close();
   }

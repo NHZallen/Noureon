@@ -243,3 +243,12 @@ test('the saved sources keep their number, date and the start of their text, and
   const text = `${formatSandboxRunBlock({ status: 'done', steps: [], sources: [{ title: 'A', url: 'https://a.example/', n: 1 }] })}It rains [1]. Maybe [4].`;
   assert.match(summarizeSandboxRunText(text), /It rains\. Maybe \[4\]\.$/);
 });
+
+test('plainMarkdown takes the marks off a few words and leaves tables alone', async () => {
+  const { plainMarkdown } = await import('../src/app/ui/citations/plain-text.js');
+  assert.equal(plainMarkdown('## 重點提醒\n- **明天**多雲，*不需*帶傘\n1. 看 [氣象署](https://cwa.gov.tw)\n> 引用 `code` ~~舊~~'), '重點提醒 明天多雲，不需帶傘 看 氣象署 引用 code 舊');
+  assert.equal(plainMarkdown('| 日期 | **高溫** |\n|---|---|\n| 週日 | 30 |'), '| 日期 | 高溫 | | 週日 | 30 |');
+  assert.equal(plainMarkdown('a_b_c and snake_case_name, 2 * 3 * 4'), 'a_b_c and snake_case_name, 2 * 3 * 4');
+  assert.equal(plainMarkdown('---\n***\n'), '');
+  assert.equal(plainMarkdown(null), '');
+});

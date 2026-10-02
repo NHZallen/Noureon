@@ -5,6 +5,7 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { siteIcon } from '../sandbox/run-sources.js';
 import { siteHost, siteLabel } from './citation-model.js';
+import { plainMarkdown } from './plain-text.js';
 import { knownSiteName, loadSiteNames } from './site-names.js';
 
 const knownNames = { get: (host) => knownSiteName(host) };
@@ -41,7 +42,7 @@ export function createSourceItem(document, source, { language = 'zh-TW', detaile
   item.append(site, make(document, 'span', 'source-item-title', source.title || host));
   const date = formatSourceDate(source.date, language);
   if (date) item.append(make(document, 'span', 'source-item-date', date));
-  if (detailed && source.snippet) item.append(make(document, 'span', 'source-item-snippet', source.snippet));
+  if (detailed && source.snippet) item.append(make(document, 'span', 'source-item-snippet', plainMarkdown(source.snippet)));
   return item;
 }
 

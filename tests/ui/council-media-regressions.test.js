@@ -40,9 +40,8 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
   assert.match(css, /\.mp-panel\s*\{[^}]*max-height:\s*min\(40rem,\s*calc\(100vh - 8rem\)\);[^}]*overflow:\s*hidden;/s);
   assert.match(css, /\.mp-scroll\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s);
   // Quiet: a thin thumb that only shows while the pointer is over the list.
-  assert.match(css, /\.mp-scroll::-webkit-scrollbar\s*\{\s*width:\s*4px;/);
-  assert.match(css, /\.mp-scroll::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*transparent;/s);
-  assert.match(css, /\.mp-scroll:hover::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*color-mix/s);
+  assert.match(css, /\.mp-scroll\s*\{\s*scrollbar-color:\s*transparent transparent;/);
+  assert.match(css, /\.mp-scroll:hover\s*\{\s*scrollbar-color:\s*color-mix/);
   // Flat and black and white: the tints follow the text colour.
   assert.doesNotMatch(css, /!important/);
   assert.match(css, /\.mp-mode\.is-active\s*\{[^}]*border-color:\s*var\(--text-primary\)/s);

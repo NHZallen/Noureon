@@ -1454,10 +1454,7 @@ test('color contrast helper is shared without later-fragment lexical ownership',
   assert.doesNotMatch(coreTailSource, /getThemeTextColorForBackground/);
   assert.doesNotMatch(coreTailSource, /const\s+hexToRgb\s*=/);
   assert.doesNotMatch(coreTailSource, /const\s+getTextColorForBackground\s*=/);
-  assert.match(
-    renderHistorySidebarContentBody,
-    /listItem\.style\.color\s*=\s*getTextColorForBackground\(bgColor\);/
-  );
+  assert.doesNotMatch(renderHistorySidebarContentBody, /style\.(?:color|backgroundColor)/, 'the timeline takes its colours from the theme');
   assert.match(
     applyUiThemeBody,
     /const\s+textColor\s*=\s*\(state\.config\.uiTheme\.style\s*===\s*'gradient'\s*&&\s*state\.config\.uiTheme\.mode\s*===\s*'adaptive'\)\s*\?\s*'#ffffff'\s*:\s*getThemeTextColorForBackground\(primaryBg\);/

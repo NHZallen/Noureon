@@ -132,6 +132,10 @@
     display: none;
 }
 
+.input-media-preview {
+    scrollbar-width: none;
+}
+
 .input-media-preview::-webkit-scrollbar {
     display: none;
 }

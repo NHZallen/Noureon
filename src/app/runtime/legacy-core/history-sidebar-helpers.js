@@ -2,16 +2,15 @@ import { sandboxText } from '../sandbox/sandbox-texts.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { listableSources, stripCitationMarkers } from '../../ui/citations/citation-model.js';
 import { fillSourceList } from '../../ui/citations/source-list.js';
+import { plainMarkdown } from '../../ui/citations/plain-text.js';
 
 // A message as the timeline names it: the start of what it says. The record of what the model did (and the markers that
 // cite sources) are kept in the message's text but are not what it says.
 export function timelineSnippet(message, fallback) {
   const raw = (message?.parts || []).filter((part) => part.text).map((part) => part.text).join('\n');
   const { run, text } = liftSandboxRunBlock(raw);
-  const said = stripCitationMarkers(text, run?.sources)
-    .replace(/(`{3,})file[^\n]*\n[\s\S]*?(?:\1`*|$)/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const said = plainMarkdown(stripCitationMarkers(text, run?.sources)
+    .replace(/(`{3,})file[^\n]*\n[\s\S]*?(?:\1`*|$)/g, ' '));
   return said ? said.slice(0, 240) : fallback;
 }
 
@@ -131,24 +130,27 @@ export function createHistorySidebarHelpers({
 
     historySidebarList.innerHTML = '';
     if (!conv || conv.messages.length === 0) {
-      historySidebarList.innerHTML = '<p class="p-4 text-sm text-center text-[var(--text-secondary)]">沒有歷史訊息</p>';
+      const empty = document.createElement('p');
+      empty.className = 'p-4 text-sm text-center text-[var(--text-secondary)]';
+      empty.textContent = sandboxText(language(), 'timelineEmpty');
+      historySidebarList.appendChild(empty);
       return;
     }
 
     conv.messages.forEach((msg, index) => {
-      const snippet = timelineSnippet(msg, msg.role === 'user' ? '用戶訊息' : 'AI 回覆');
-      const listItem = document.createElement('div');
       const isUser = msg.role === 'user';
-      const colorConfig = isUser ? userBubbleColors : aiBubbleColors;
-      const currentConfig = getConfig();
-      const colorName = isUser ? currentConfig.userBubbleColor : currentConfig.aiBubbleColor;
-      const bgColor = (colorConfig[colorName] || colorConfig.default).light;
-
-      listItem.className = 'history-sidebar-item';
+      const listItem = document.createElement('div');
+      listItem.className = `history-sidebar-item ${isUser ? 'is-user' : 'is-model'}`;
       listItem.dataset.messageIndex = index;
-      listItem.style.backgroundColor = hexToRgba(bgColor, 0.4);
-      listItem.style.color = getTextColorForBackground(bgColor);
-      listItem.textContent = getMessageTypeIcon(msg) + snippet;
+      const role = document.createElement('span');
+      role.className = 'history-sidebar-role';
+      role.textContent = sandboxText(language(), isUser ? 'timelineYou' : 'timelineReply');
+      const words = document.createElement('span');
+      words.className = 'history-sidebar-text';
+      words.textContent = getMessageTypeIcon(msg) + timelineSnippet(msg, sandboxText(language(), isUser ? 'timelineYourMessage' : 'timelineEmptyReply'));
+      const dot = document.createElement('span');
+      dot.className = 'history-sidebar-dot';
+      listItem.append(dot, role, words);
       historySidebarList.appendChild(listItem);
     });
   }

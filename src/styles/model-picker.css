@@ -156,15 +156,9 @@
     overscroll-behavior: contain;
 }
 
-.mp-scroll::-webkit-scrollbar { width: 4px; }
-.mp-scroll::-webkit-scrollbar-button { display: none; }
-.mp-scroll::-webkit-scrollbar-thumb { border-radius: 2px; background: transparent; }
-.mp-scroll:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-primary) 28%, transparent); }
-
-@supports not selector(::-webkit-scrollbar) {
-    .mp-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-    .mp-scroll:hover { scrollbar-color: color-mix(in srgb, var(--text-primary) 28%, transparent) transparent; }
-}
+/* Its scrollbar shows only while the pointer is over it. */
+.mp-scroll { scrollbar-color: transparent transparent; }
+.mp-scroll:hover { scrollbar-color: color-mix(in srgb, var(--text-primary) 28%, transparent) transparent; }
 
 .mp-group[hidden],
 .mp-row[hidden],

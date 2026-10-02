@@ -102,24 +102,35 @@ export function openSourceSheet({ document, sources, all = false, language = 'zh
   backdrop.addEventListener('click', close);
   closeButton?.addEventListener('click', close);
 
-  // Pulling the handle or the heading: the sheet follows the finger, and settles where `decideSheetDrag` says.
+  // Pulling the handle or the heading: the sheet follows the finger (only moved, never laid out again), and settles where
+  // `decideSheetDrag` says. The whole-reply sheet cannot be pulled higher than its large height.
   let drag = null;
+  let frame = 0;
+  const paint = () => {
+    frame = 0;
+    if (drag) sheet.style.setProperty('--sheet-drag', `${drag.shown}px`);
+  };
   const pointerDown = (event) => {
     if (event.button !== undefined && event.button > 0) return;
-    drag = { y: event.clientY, at: Date.now(), dy: 0, pointer: event.pointerId };
+    const rest = all ? Math.max(0, sheet.getBoundingClientRect().top - (root.getBoundingClientRect().height - sheet.offsetHeight)) : 0;
+    drag = { y: event.clientY, at: Date.now(), dy: 0, shown: 0, rest, pointer: event.pointerId };
     sheet.classList.add('is-dragging');
     try { event.target.setPointerCapture?.(event.pointerId); } catch { /* no capture */ }
   };
   const pointerMove = (event) => {
     if (!drag || event.pointerId !== drag.pointer) return;
     drag.dy = event.clientY - drag.y;
-    sheet.style.setProperty('--sheet-drag', `${drag.dy > 0 ? drag.dy : (all ? drag.dy : 0)}px`);
+    // Up is stopped where the large sheet ends (a little give past it); a sheet that does not grow does not go up.
+    const limit = all ? -drag.rest : 0;
+    drag.shown = drag.dy < limit ? limit + (drag.dy - limit) * 0.15 : drag.dy;
+    if (win?.requestAnimationFrame) { if (!frame) frame = win.requestAnimationFrame(paint); } else paint();
   };
   const pointerUp = (event) => {
     if (!drag || (event.pointerId !== undefined && event.pointerId !== drag.pointer)) return;
     const elapsed = Math.max(1, Date.now() - drag.at);
     const outcome = decideSheetDrag({ state, dy: drag.dy, speed: drag.dy / elapsed, expandable: all });
     drag = null;
+    if (frame) { win?.cancelAnimationFrame?.(frame); frame = 0; }
     sheet.classList.remove('is-dragging');
     sheet.style.removeProperty('--sheet-drag');
     if (outcome === 'close') close();

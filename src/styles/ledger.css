@@ -177,15 +177,9 @@
     border-left: 1px solid color-mix(in srgb, var(--text-primary, #111827) 14%, transparent);
 }
 
-.ledger-thought::-webkit-scrollbar { width: 4px; }
-.ledger-thought::-webkit-scrollbar-button { display: none; }
-.ledger-thought::-webkit-scrollbar-thumb { border-radius: 2px; background: transparent; }
-.ledger-thought:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-primary, #111827) 28%, transparent); }
-
-@supports not selector(::-webkit-scrollbar) {
-    .ledger-thought { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-    .ledger-thought:hover { scrollbar-color: color-mix(in srgb, var(--text-primary, #111827) 28%, transparent) transparent; }
-}
+/* Its scrollbar shows only while the pointer is over it. */
+.ledger-thought { scrollbar-color: transparent transparent; }
+.ledger-thought:hover { scrollbar-color: color-mix(in srgb, var(--text-primary, #111827) 28%, transparent) transparent; }
 
 .ledger-output.is-error { color: #dc2626; }
 
