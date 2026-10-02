@@ -3,6 +3,7 @@
 // pulled up to nearly the whole screen). It closes with its button, a tap outside it, the Escape key or by pulling it down.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { trackPointedRow } from '../scroll/pointed-row.js';
 import { fillSourceList } from './source-list.js';
 
 const CLOSE_DISTANCE = 110;
@@ -67,6 +68,7 @@ export function openSourceSheet({ document, sources, all = false, language = 'zh
   const list = document.createElement('div');
   list.className = 'source-sheet-list';
   fillSourceList(list, sources, { language });
+  trackPointedRow(list, '.source-item');
   sheet.append(grip, head, list);
   root.append(backdrop, sheet);
   document.body.append(root);

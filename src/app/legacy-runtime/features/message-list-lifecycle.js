@@ -257,6 +257,12 @@ export function createMessageListLifecycle({
         );
     };
 
+    // The right-hand panel (timeline, sources) draws itself again from the chat that is now on screen.
+    const announceChatChanged = () => {
+        const view = document.defaultView;
+        if (view?.CustomEvent) document.dispatchEvent(new view.CustomEvent('noureon:chat-changed'));
+    };
+
     const renderChat = ({ animate = true, scrollMode = 'none', renderMessages = true } = {}) => {
         const conversation = getActiveConversation();
         const messageList = elements.messageList;
@@ -288,6 +294,7 @@ export function createMessageListLifecycle({
             messageList.classList.remove('chat-view-transition');
             messageList.innerHTML = '';
             syncComposerLayout({ animate: false });
+            announceChatChanged();
             return;
         }
 
@@ -340,6 +347,7 @@ export function createMessageListLifecycle({
             messageList.classList.add('chat-view-transition');
         }
         updateInputState();
+        announceChatChanged();
     };
 
     return {

@@ -113,7 +113,7 @@ body.custom-wallpaper-active #history-sidebar h3 {
 }
 
 
-.history-sidebar-item:hover {
+.history-sidebar-item.is-pointed {
     background-color: var(--hover-bg);
     color: var(--text-primary);
 }

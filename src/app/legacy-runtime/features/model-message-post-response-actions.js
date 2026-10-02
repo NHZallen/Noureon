@@ -33,5 +33,7 @@ export function applyModelMessagePostResponseActions({
                             </div>
                         `;
     bubble.insertAdjacentHTML('beforeend', actionButtonsHTML);
+    // The right-hand panel (timeline, sources) is told that the chat has a new reply.
+    lastMessageElement.ownerDocument.dispatchEvent(new lastMessageElement.ownerDocument.defaultView.CustomEvent('noureon:chat-changed'));
     return true;
 }

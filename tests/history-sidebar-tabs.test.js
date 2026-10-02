@@ -41,7 +41,7 @@ const createHarness = ({ messages = [], width = 1400, language = 'en' } = {}) =>
     historyPanelToggleBtn: document.getElementById('history-panel-toggle-btn'),
     messageList: document.getElementById('message-list')
   };
-  const conversation = { messages };
+  let conversation = { id: 'a', messages };
   const frames = [];
   const helpers = createHistorySidebarHelpers({
     document,
@@ -65,7 +65,8 @@ const createHarness = ({ messages = [], width = 1400, language = 'en' } = {}) =>
   helpers.setupHistorySidebarInteractions();
   helpers.setupHistorySidebarTriggers();
   const selected = () => [...document.querySelectorAll('[data-history-tab]')].find((button) => button.getAttribute('aria-selected') === 'true')?.dataset.historyTab;
-  return { window, document, elements, helpers, settle, selected, main: document.getElementById('main') };
+  const show = (next) => { conversation = next; };
+  return { window, document, elements, helpers, settle, selected, show, main: document.getElementById('main') };
 };
 
 test('the timeline names a message by what it says, not by the record of what the model did or its citation markers', () => {
@@ -159,4 +160,38 @@ test('on a wide screen the chat makes room for the panel and no veil is needed; 
   assert.equal(narrow.elements.historySidebarOverlay.classList.contains('visible'), true, 'over the chat, with its veil');
   wide.window.close();
   narrow.window.close();
+});
+
+test('an open panel follows the chat: another chat, a new reply', () => {
+  resetSiteNames();
+  const harness = createHarness({ messages: [reply('Mild [1].')] });
+  const titles = () => [...harness.document.querySelectorAll('#history-sources-list .source-item-title')].map((node) => node.textContent);
+  const items = () => harness.document.querySelectorAll('#history-sidebar-list .history-sidebar-item').length;
+  harness.helpers.toggleHistorySidebar(true, { tab: 'sources', sources: [{ n: 1, title: 'Of the first chat', url: 'https://one.example/a' }] });
+  harness.settle();
+  assert.deepEqual(titles(), ['Of the first chat']);
+
+  // The panel shows the sources of one reply; another chat on screen is not that reply's chat any more.
+  const other = { id: 'b', messages: [reply('Other [1].', [{ n: 1, title: 'Of the second chat', url: 'https://two.example/b' }])] };
+  harness.show(other);
+  harness.document.dispatchEvent(new harness.window.CustomEvent('noureon:chat-changed'));
+  harness.settle();
+  assert.deepEqual(titles(), ['Of the second chat']);
+
+  // The timeline and the sources of the chat on screen grow with it.
+  harness.document.querySelector('[data-history-tab="timeline"]').click();
+  assert.equal(items(), 1);
+  other.messages.push({ role: 'user', parts: [{ text: 'Again?' }] }, reply('Again [1].', [{ n: 1, title: 'Newer page', url: 'https://three.example/c' }]));
+  harness.document.dispatchEvent(new harness.window.CustomEvent('noureon:chat-changed'));
+  harness.settle();
+  assert.equal(items(), 3);
+  harness.document.querySelector('[data-history-tab="sources"]').click();
+  assert.deepEqual(titles(), ['Newer page'], 'the latest reply that has pages');
+
+  // A closed panel is left alone.
+  harness.document.querySelector('[data-history-close]').click();
+  other.messages.push({ role: 'user', parts: [{ text: 'More' }] });
+  harness.document.dispatchEvent(new harness.window.CustomEvent('noureon:chat-changed'));
+  harness.settle();
+  harness.window.close();
 });

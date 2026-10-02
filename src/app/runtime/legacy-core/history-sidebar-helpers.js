@@ -3,6 +3,7 @@ import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { listableSources, stripCitationMarkers } from '../../ui/citations/citation-model.js';
 import { fillSourceList } from '../../ui/citations/source-list.js';
 import { plainMarkdown } from '../../ui/citations/plain-text.js';
+import { trackPointedRow } from '../../ui/scroll/pointed-row.js';
 
 // A message as the timeline names it: the start of what it says. The record of what the model did (and the markers that
 // cite sources) are kept in the message's text but are not what it says.
@@ -49,13 +50,22 @@ export function createHistorySidebarHelpers({
   // Wide enough, the panel takes its place beside the chat (and the chat gives way); narrower, it lies over it.
   const isDocked = () => (win?.innerWidth || 0) >= 1024;
   let activeTab = 'timeline';
+  let pinned = null;
 
   const language = () => getConfig()?.uiLanguage || 'zh-TW';
 
   // Timeline | Sources: the tab shown, with its content.
-  function setHistoryTab(tab, { sources = null, highlight = null } = {}) {
+  // `sources`: the sources of one reply, asked for by its "Sources" button (kept while its chat is the one on screen);
+  // `keep`: the same tab or the same panel drawn again, not opened afresh.
+  function setHistoryTab(tab, { sources = null, highlight = null, keep = false } = {}) {
     const { historySidebar } = elements;
     activeTab = tab === 'sources' ? 'sources' : 'timeline';
+    const conversationId = getActiveConversation()?.id ?? null;
+    if (sources) pinned = { id: conversationId, sources, highlight };
+    else if (!keep) pinned = null;
+    if (pinned && pinned.id !== conversationId) pinned = null;
+    highlight = pinned?.highlight ?? null;
+    sources = pinned?.sources ?? null;
     const timelineList = historySidebar.querySelector('#history-sidebar-list');
     const sourcesList = historySidebar.querySelector('#history-sources-list');
     const shown = sources ? listableSources(sources) : latestSources(getActiveConversation());
@@ -96,6 +106,27 @@ export function createHistorySidebarHelpers({
     if (highlight?.size) list.querySelectorAll('.source-item').forEach((item) => item.classList.toggle('is-cited', highlight.has(Number(item.dataset.n))));
     sourcesList.append(count, list);
     list.querySelector('.source-item.is-cited')?.scrollIntoView?.({ block: 'nearest' });
+  }
+
+  // The panel follows the chat: a different chat, a reply that has finished, an edit, a deletion. Drawn again once per frame at most.
+  let refreshFrame = 0;
+  function refreshHistoryPanel() {
+    refreshFrame = 0;
+    const { historySidebar } = elements;
+    if (!historySidebar.classList.contains('visible')) return;
+    const lists = ['#history-sidebar-list', '#history-sources-list'].map((selector) => historySidebar.querySelector(selector));
+    const tops = lists.map((list) => list?.scrollTop || 0);
+    setHistoryTab(activeTab, { keep: true });
+    lists.forEach((list, index) => { if (list) list.scrollTop = tops[index]; });
+  }
+  const scheduleHistoryRefresh = () => {
+    if (refreshFrame) return;
+    refreshFrame = requestAnimationFrame(refreshHistoryPanel);
+  };
+  document.addEventListener('noureon:chat-changed', scheduleHistoryRefresh);
+  for (const [selector, row] of [['#history-sidebar-list', '.history-sidebar-item'], ['#history-sources-list', '.source-item']]) {
+    const list = elements.historySidebar?.querySelector?.(selector);
+    if (list) trackPointedRow(list, row);
   }
 
   function toggleHistorySidebar(show, options = {}) {
@@ -192,7 +223,7 @@ export function createHistorySidebarHelpers({
     historySidebar.addEventListener('click', (event) => {
       const tab = event.target.closest('[data-history-tab]');
       if (tab) {
-        setHistoryTab(tab.dataset.historyTab);
+        setHistoryTab(tab.dataset.historyTab, { keep: true });
         return;
       }
       if (event.target.closest('[data-history-close]')) toggleHistorySidebar(false);
