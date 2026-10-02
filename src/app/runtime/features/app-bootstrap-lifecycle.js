@@ -14,6 +14,7 @@ import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { listableSources } from '../../ui/citations/citation-model.js';
 import { copyableAnswerText, sourcesOfPill } from '../../ui/citations/citation-pills.js';
 import { openSourceSheet } from '../../ui/citations/source-sheet.js';
+import { installScrollbarArrows } from '../../ui/scroll/scrollbar-arrows.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -674,6 +675,7 @@ export function createLegacyAppBootstrapLifecycle({
         }
     });
                 ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit);
+                installScrollbarArrows(document);
                 document.addEventListener('click', (e) => {
                     const targets = [
                         ALL_ELEMENTS.modelSwitcherContainer,
