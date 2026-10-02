@@ -203,6 +203,8 @@ main.flex-1 > header { z-index: 11; }
     text-overflow: clip;
 }
 #history-sidebar #history-sidebar-list .history-sidebar-item::before { content: none; }
+/* The message in view is told by its dot and its words, not by a grey that would stay on after the pointer has gone. */
+#history-sidebar #history-sidebar-list .history-sidebar-item.active:not(.is-pointed) { background: transparent; padding-left: 0.75rem; font-weight: inherit; }
 /* The thin line joins one dot to the next: from the middle of the dot to below the item. */
 #history-sidebar #history-sidebar-list .history-sidebar-item::after {
     content: '';
@@ -228,9 +230,8 @@ main.flex-1 > header { z-index: 11; }
     transition: transform 0.15s ease;
 }
 .history-sidebar-item.is-user .history-sidebar-dot { background: var(--text-primary, #111827); border-color: var(--text-primary, #111827); }
-.history-sidebar-item.active .history-sidebar-dot { transform: scale(1.4); border-color: var(--text-primary, #111827); }
-#history-sidebar #history-sidebar-list .history-sidebar-item.is-pointed,
-#history-sidebar #history-sidebar-list .history-sidebar-item.active { background: color-mix(in srgb, var(--text-primary, #111827) 8%, transparent); padding-left: 0.75rem; font-weight: inherit; }
+.history-sidebar-item.active .history-sidebar-dot { transform: scale(1.4); background: var(--text-primary, #111827); border-color: var(--text-primary, #111827); }
+#history-sidebar #history-sidebar-list .history-sidebar-item.is-pointed { background: color-mix(in srgb, var(--text-primary, #111827) 8%, transparent); padding-left: 0.75rem; font-weight: inherit; }
 .history-sidebar-role { display: block; margin-bottom: 0.15rem; color: var(--text-secondary, #6b7280); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.02em; }
 .history-sidebar-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-secondary, #6b7280); font-size: 0.9rem; line-height: 1.45; overflow-wrap: anywhere; }
 .history-sidebar-item.is-user .history-sidebar-text { color: var(--text-primary, #111827); font-weight: 500; }
