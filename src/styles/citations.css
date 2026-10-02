@@ -173,6 +173,9 @@
 .history-sources-count { padding: 0.5rem 0.9rem 0.3rem; color: var(--text-secondary, #6b7280); font-size: 0.875rem; }
 .history-sources-empty { padding: 1rem; text-align: center; color: var(--text-secondary, #6b7280); font-size: 0.9rem; }
 
+/* The veil behind a panel that lies over the chat stops below the top bar, so the menu button there still answers. */
+main.flex-1 > header { z-index: 11; }
+
 @media (min-width: 768px) {
     #history-sidebar { width: 25rem; }
 }

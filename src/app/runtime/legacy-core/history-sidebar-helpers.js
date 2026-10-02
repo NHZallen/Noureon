@@ -202,7 +202,7 @@ export function createHistorySidebarHelpers({
   }
 
   function setupHistorySidebarTriggers() {
-    const { chatContainer, historySidebar, historySidebarTriggerZone, historySidebarOverlay } = elements;
+    const { chatContainer, historySidebar, historySidebarTriggerZone, historySidebarOverlay, menuToggleBtn } = elements;
     let touchStartX = 0;
     let touchStartY = 0;
 
@@ -220,6 +220,11 @@ export function createHistorySidebarHelpers({
         }
       }, { passive: true });
       toggleHistorySidebar(false);
+    });
+
+    // Where the panel lies over the chat, opening the left menu puts the panel away (the two would cover each other).
+    menuToggleBtn?.addEventListener('click', () => {
+      if (!isDocked() && historySidebar.classList.contains('visible')) toggleHistorySidebar(false);
     });
 
     // The pointer at the right edge opens the panel on the Timeline. It stays open until it is closed (its button, the

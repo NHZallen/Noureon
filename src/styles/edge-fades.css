@@ -1,0 +1,78 @@
+/* Where a list that scrolls meets a bar that does not, the list fades out instead of being cut off at a line: the chat
+   under the header (chat-edge-fade.css) and above the composer, the left menu under its search row and above the account
+   row, the right panel under its tabs and at its foot. Each fade is a strip laid over the edge by the bar that does not
+   scroll (a pseudo-element with no pointer), never a mask on the scroller, which made scrolling sluggish on phones. With a
+   wallpaper there is no page colour to fade into, so the strips are left out. */
+
+:root { --edge-fade: 1rem; }
+
+/* The chat, above the composer. */
+#input-bar-container { position: relative; }
+#input-bar-container::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    z-index: 1;
+    height: var(--edge-fade);
+    pointer-events: none;
+    background: linear-gradient(to top, var(--chat-bg), transparent);
+}
+
+/* The left menu: the search row above the list, the account row below it. The menu is a pale veil over the page, so it fades
+   into the page's colour. */
+#sidebar > :first-child { position: relative; z-index: 2; }
+#sidebar > :first-child::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: var(--edge-fade);
+    pointer-events: none;
+    background: linear-gradient(to bottom, var(--chat-bg), transparent);
+}
+
+#sidebar > :last-child { position: relative; z-index: 2; border-top-color: transparent; }
+#sidebar > :last-child::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: var(--edge-fade);
+    pointer-events: none;
+    background: linear-gradient(to top, var(--chat-bg), transparent);
+}
+
+/* The right panel: under its tabs and at its foot. */
+.history-sidebar-head { position: relative; z-index: 2; border-bottom-color: transparent; }
+.history-sidebar-head::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: var(--edge-fade);
+    pointer-events: none;
+    background: linear-gradient(to bottom, var(--sidebar-bg), transparent);
+}
+
+#history-sidebar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    height: var(--edge-fade);
+    pointer-events: none;
+    background: linear-gradient(to top, var(--sidebar-bg), transparent);
+}
+
+body.custom-wallpaper-active #input-bar-container::before,
+body.custom-wallpaper-active #sidebar > :first-child::after,
+body.custom-wallpaper-active #sidebar > :last-child::before,
+body.custom-wallpaper-active .history-sidebar-head::after,
+body.custom-wallpaper-active #history-sidebar::after { display: none; }
