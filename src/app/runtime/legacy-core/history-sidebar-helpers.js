@@ -116,11 +116,11 @@ export function createHistorySidebarHelpers({
       historySidebar.classList.remove('visible');
       main?.classList.remove('history-docked');
       historySidebarOverlay.classList.remove('visible');
-      historySidebarOverlay.addEventListener('transitionend', () => {
-        if (!historySidebarOverlay.classList.contains('visible')) {
-          historySidebarOverlay.classList.add('hidden');
-        }
-      }, { once: true });
+      // The veil is taken out of the way once it has faded. It is not left to a transition ending: beside the chat the veil
+      // is not drawn, so nothing fades and nothing ends, and it would stay over the chat and take every tap.
+      setTimeout(() => {
+        if (!historySidebarOverlay.classList.contains('visible')) historySidebarOverlay.classList.add('hidden');
+      }, 320);
     }
   }
 

@@ -119,7 +119,7 @@ test('opening the history sidebar preserves overlay and RAF ordering', () => {
   }
 });
 
-test('closing waits for transition end before hiding the overlay', () => {
+test('closing hides the overlay once it has faded, whether or not a transition ends', () => {
   const harness = createHarness();
   try {
     harness.elements.historySidebar.classList.add('visible');
@@ -132,7 +132,10 @@ test('closing waits for transition end before hiding the overlay', () => {
     assert.equal(harness.elements.historySidebarOverlay.classList.contains('visible'), false);
     assert.equal(harness.elements.historySidebarOverlay.classList.contains('hidden'), false);
 
-    harness.elements.historySidebarOverlay.dispatchEvent(new harness.window.Event('transitionend'));
+    // Beside the chat the veil is not drawn, so no transition ends: the timer takes it away all the same.
+    const hide = harness.timeouts.find((timeout) => timeout.delay === 320);
+    assert.ok(hide, 'a timer hides the veil');
+    hide.callback();
     assert.equal(harness.elements.historySidebarOverlay.classList.contains('hidden'), true);
   } finally {
     harness.window.close();
@@ -273,10 +276,10 @@ test('history item interaction preserves smooth scroll and highlight timeout, an
 
     assert.deepEqual(scrollOptions, { behavior: 'smooth', block: 'start' });
     assert.equal(bubble.classList.contains('message-highlight'), true);
-    assert.equal(harness.timeouts.length, 1);
-    assert.equal(harness.timeouts[0].delay, 1500);
+    const highlight = harness.timeouts.filter((timeout) => timeout.delay === 1500);
+    assert.equal(highlight.length, 1);
     assert.equal(harness.elements.historySidebar.classList.contains('visible'), false);
-    harness.timeouts[0].callback();
+    highlight[0].callback();
     assert.equal(bubble.classList.contains('message-highlight'), false);
   } finally {
     harness.window.close();
