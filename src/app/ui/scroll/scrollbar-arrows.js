@@ -27,16 +27,56 @@ export function scrollbarArrowAt(element, x, y) {
   return '';
 }
 
-/** Makes every vertical scrollbar's arrows jump to the top and the end. Returns a function that takes it away again. */
-export function installScrollbarArrows(document) {
+const INTERACTIVE = 'button, a, input, textarea, select, summary, [role="button"], [contenteditable="true"]';
+
+// The list runs to its end instead of appearing there: a short ease-out whose length grows with the distance, stopped by
+// any move of the reader's own (wheel, touch, a press, a key).
+function scrollTo(element, top, win, smooth) {
+  const start = element.scrollTop;
+  const distance = top - start;
+  const reduced = win?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if (!smooth || reduced || !win?.requestAnimationFrame || Math.abs(distance) < 2) {
+    element.scrollTop = top;
+    return;
+  }
+  const duration = Math.min(800, 240 + Math.sqrt(Math.abs(distance)) * 9);
+  const began = win.performance?.now?.() ?? Date.now();
+  let frame = 0;
+  const stop = () => {
+    if (frame) win.cancelAnimationFrame?.(frame);
+    frame = 0;
+    for (const type of ['wheel', 'touchstart', 'keydown']) element.removeEventListener(type, stop);
+  };
+  const step = (now) => {
+    const progress = Math.min(1, ((now ?? Date.now()) - began) / duration);
+    element.scrollTop = start + distance * (1 - (1 - progress) ** 3);
+    if (progress < 1) frame = win.requestAnimationFrame(step);
+    else stop();
+  };
+  for (const type of ['wheel', 'touchstart', 'keydown']) element.addEventListener(type, stop, { passive: true, once: true });
+  frame = win.requestAnimationFrame(step);
+}
+
+/**
+ * Makes every vertical scrollbar's arrows run to the top and to the end. A scrollbar that something lies over (the
+ * composer over the end of the chat) does not get the press itself, so the scrollers under the pointer are asked too, unless
+ * the press is on a button, a link or a field.
+ */
+export function installScrollbarArrows(document, { smooth = true } = {}) {
+  const win = document.defaultView;
   const onPress = (event) => {
     if (event.button !== undefined && event.button !== 0) return;
-    const element = event.target;
-    if (!element?.getBoundingClientRect) return;
-    const direction = scrollbarArrowAt(element, event.clientX, event.clientY);
-    if (!direction) return;
-    const scroller = element === document.documentElement || element === document.body ? document.scrollingElement || document.documentElement : element;
-    scroller.scrollTop = direction === 'top' ? 0 : scroller.scrollHeight;
+    const hit = event.target;
+    if (!hit?.getBoundingClientRect) return;
+    let candidates = [hit];
+    if (!hit.closest?.(INTERACTIVE) && document.elementsFromPoint) candidates = [hit, ...document.elementsFromPoint(event.clientX, event.clientY)];
+    for (const element of candidates) {
+      const direction = scrollbarArrowAt(element, event.clientX, event.clientY);
+      if (!direction) continue;
+      const scroller = element === document.documentElement || element === document.body ? document.scrollingElement || document.documentElement : element;
+      scrollTo(scroller, direction === 'top' ? 0 : scroller.scrollHeight, win, smooth);
+      return;
+    }
   };
   document.addEventListener('mousedown', onPress, true);
   return () => document.removeEventListener('mousedown', onPress, true);

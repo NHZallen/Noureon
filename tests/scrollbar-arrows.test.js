@@ -50,7 +50,7 @@ test('nothing scrolls, nothing to press', () => {
 test('pressing the arrows takes the list to its top and to its end', () => {
   const { document, list, window } = scene();
   try {
-    const remove = installScrollbarArrows(document);
+    const remove = installScrollbarArrows(document, { smooth: false });
     list.scrollTop = 700;
     list.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 395, clientY: 55 }));
     assert.equal(list.scrollTop, 0);
@@ -64,6 +64,41 @@ test('pressing the arrows takes the list to its top and to its end', () => {
     remove();
     list.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 395, clientY: 55 }));
     assert.equal(list.scrollTop, 700, 'taken away');
+  } finally {
+    window.close();
+  }
+});
+
+test('the list runs to its end rather than appearing there, and a reader\'s own move stops it', async () => {
+  const { document, list, window } = scene();
+  try {
+    installScrollbarArrows(document, { smooth: true });
+    list.scrollTop = 0;
+    list.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 395, clientY: 445 }));
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    assert.ok(list.scrollTop > 0 && list.scrollTop < 2000, `on its way: ${list.scrollTop}`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    assert.equal(list.scrollTop, 2000);
+  } finally {
+    window.close();
+  }
+});
+
+test('a scrollbar under something else still gets its arrows, but a button over it is a button', () => {
+  const { document, list, window } = scene();
+  try {
+    installScrollbarArrows(document, { smooth: false });
+    const cover = document.createElement('div');
+    const button = document.createElement('button');
+    cover.append(button);
+    document.body.append(cover);
+    document.elementsFromPoint = () => [cover, list];
+    list.scrollTop = 0;
+    cover.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 395, clientY: 445 }));
+    assert.equal(list.scrollTop, 2000);
+    list.scrollTop = 500;
+    button.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 395, clientY: 445 }));
+    assert.equal(list.scrollTop, 500);
   } finally {
     window.close();
   }
