@@ -4,9 +4,10 @@
    scroll (a pseudo-element with no pointer), never a mask on the scroller, which made scrolling sluggish on phones. With a
    wallpaper there is no page colour to fade into, so the strips are left out. */
 
-:root { --edge-fade: 1rem; }
+:root { --edge-fade: 1rem; --composer-fade: 2.5rem; }
 
-/* The chat, above the composer. */
+/* The chat, above the composer: taller than the others and eased (a straight line from solid to clear shows its start as a
+   hard edge), so the words dissolve before they reach the bar instead of being cut off at it. */
 #input-bar-container { position: relative; }
 #input-bar-container::before {
     content: "";
@@ -15,9 +16,17 @@
     right: 0;
     bottom: 100%;
     z-index: 1;
-    height: var(--edge-fade);
+    height: var(--composer-fade);
     pointer-events: none;
-    background: linear-gradient(to top, var(--chat-bg), transparent);
+    background: linear-gradient(
+        to top,
+        var(--chat-bg) 0%,
+        color-mix(in srgb, var(--chat-bg) 94%, transparent) 20%,
+        color-mix(in srgb, var(--chat-bg) 72%, transparent) 42%,
+        color-mix(in srgb, var(--chat-bg) 40%, transparent) 64%,
+        color-mix(in srgb, var(--chat-bg) 14%, transparent) 84%,
+        transparent 100%
+    );
 }
 
 /* The left menu: the search row above the list, the account row below it. The menu is a pale veil over the page, so it fades
