@@ -50,7 +50,7 @@ plt.figure(); plt.plot([1,2,3],[3,1,2]); plt.title("中文字型 abc"); plt.save
 print("chart")' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "chart.png" ] && check "a chart with Chinese text is made" ok || check "a chart with Chinese text is made" "$R"
 R=$(step 'from docx import Document
 d = Document(); d.add_paragraph("你好"); d.save("/output/a.docx")' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "a.docx" ] && check "a Word file is made" ok || check "a Word file is made" "$R"
-R=$(step 'x = bytearray(2 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json "d['error']" | grep -qi "memory" && check "too much memory is stopped" ok || check "too much memory is stopped" "$R"
+R=$(step 'x = bytearray(3 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json "d['error']" | grep -qi "memory" && check "too much memory is stopped" ok || check "too much memory is stopped" "$R"
 R=$(step 'while True: pass' "$ID" ); echo "$R" | grep -q "time limit" && check "an endless loop is stopped" ok || check "an endless loop is stopped" "(waited 60 s) $R"
 call -X DELETE "$BASE/v1/sessions/$ID" >/dev/null
 sleep 1

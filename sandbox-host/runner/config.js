@@ -23,8 +23,8 @@ export function loadConfig(env = process.env) {
     dataDir: env.SANDBOX_DATA_DIR || '/var/lib/noureon-sandbox',
     maxSessions: number(env.SANDBOX_MAX_SESSIONS, 2, 1, 8),
     // Per container.
-    memory: env.SANDBOX_MEMORY || '1g',
-    cpus: env.SANDBOX_CPUS || '1.5',
+    memory: env.SANDBOX_MEMORY || '2g',
+    cpus: env.SANDBOX_CPUS || '2',
     pids: number(env.SANDBOX_PIDS, 256, 16, 4096),
     tmpSize: env.SANDBOX_TMP_SIZE || '256m',
     workSize: env.SANDBOX_WORK_SIZE || '512m',

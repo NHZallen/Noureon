@@ -40,7 +40,7 @@ test('a container is started one way: no network, no rights, limited, with only 
   const config = loadConfig({ RUNNER_TOKEN: SECRET });
   const args = dockerRunArgs({ config, sessionId: 'a1b2c3d4e5f6a1b2c3d4e5f6', dirs: { input: '/data/x/input', output: '/data/x/output' }, language: 'zh-TW; rm -rf /' });
   const joined = args.join(' ');
-  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 1g', '--memory-swap 1g', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw']) {
+  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 2g', '--memory-swap 2g', '--cpus 2', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw']) {
     assert.ok(joined.includes(wanted), wanted);
   }
   assert.equal(args.at(-1), 'noureon-sandbox:1', 'the image is the runner\'s');
