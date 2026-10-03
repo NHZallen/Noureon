@@ -18,6 +18,9 @@ const FOLLOW_LIMIT_MS = (2 * 60 + 20) * 60 * 1000;
 const STOP_GRACE_MS = 20_000;
 // The live channel sends a line at least every 15 seconds; this long without anything and it is taken to be broken.
 const LIVE_IDLE_MS = 40_000;
+// The live channel is joined again at most this many times, this long apart, while the reply goes on.
+const MAX_LIVE_JOINS = 60;
+const LIVE_REJOIN_MS = 1500;
 
 // Why a reply is made in the browser, for the ones that are not a failure (nothing is said about these).
 export const LOCAL_REASONS = Object.freeze({
@@ -278,6 +281,10 @@ export function createServerReply({
       let lastRow = null;
       let sourceCount = 0;
       let visionRunId = null;
+      // How many times the live channel was joined, and whether the reply began again after it was lost (the server was replaced).
+      let connections = 0;
+      let everJoined = false;
+      let restarted = false;
       let queue = '';
       const emit = (delta) => {
         if (paceMs) queue += delta;
@@ -307,6 +314,12 @@ export function createServerReply({
       const handleLive = (event) => {
         if (event.r) {
           const text = String(event.r.answer || '');
+          // Joined again after the channel was lost: the steps are told again from their start, so the list is drawn afresh; and a reply that
+          // began again (its words are not those already shown) goes on in the step list only, the finished text replaces what was shown.
+          if (connections > 1) {
+            if (Array.isArray(event.r.events)) onEvent({ type: 'reset' });
+            if (!text.startsWith(answerSoFar)) restarted = true;
+          }
           if (text.startsWith(answerSoFar) && text.length > answerSoFar.length) {
             onText(text.slice(answerSoFar.length));
             answerSoFar = text;
@@ -324,7 +337,7 @@ export function createServerReply({
         } else if (event.ev) onEvent(withFileBytes(event.ev));
         else if (typeof event.a === 'string') {
           answerSoFar += event.a;
-          onText(event.a);
+          if (!restarted) onText(event.a);
         } else if (typeof event.th === 'string') onThought(event.th, event.k);
         else if (typeof event.te === 'number') onThoughtEnd(event.te);
         else if (Array.isArray(event.src) && event.src.length > sourceCount) {
@@ -337,19 +350,20 @@ export function createServerReply({
       let liveAbort = null;
       const readLive = async () => {
         const token = await getAccessToken();
-        if (!token) return;
+        if (!token) return null;
         liveAbort = new AbortController();
         let lastData = now();
         const watchdog = setRepeating(() => { if (now() - lastData > LIVE_IDLE_MS) liveAbort.abort(); }, 5000);
         try {
           const response = await fetchImpl(`${getBaseUrl()}/v1/runs/${runId}/stream`, { headers: { Authorization: `Bearer ${token}` }, signal: liveAbort.signal });
-          if (!response.ok || !response.body) return;
+          if (!response.ok || !response.body) return null;
+          everJoined = everJoined || /event-stream/i.test(response.headers?.get?.('content-type') || '');
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
           for (;;) {
             const { done, value } = await reader.read();
-            if (done) return;
+            if (done) return null;
             lastData = now();
             buffer += decoder.decode(value, { stream: true });
             for (let end = buffer.indexOf('\n\n'); end >= 0; end = buffer.indexOf('\n\n')) {
@@ -362,7 +376,7 @@ export function createServerReply({
               } catch {
                 continue;
               }
-              if (handleLive(event) === 'done') return;
+              if (handleLive(event) === 'done') return 'done';
             }
           }
         } catch {
@@ -371,6 +385,7 @@ export function createServerReply({
           clearRepeating(watchdog);
           liveAbort.abort();
         }
+        return null;
       };
       // A stop: the server is told at once; the channel is given a little time to say it is over, then the message is read.
       const onStopAsked = () => {
@@ -383,7 +398,23 @@ export function createServerReply({
       };
       if (signal?.aborted) onStopAsked();
       signal?.addEventListener?.('abort', onStopAsked, { once: true });
-      await readLive();
+      // The channel is joined again when it breaks while the reply goes on (the server was replaced, the network dropped): the reply is
+      // then followed live again, not only read from the message when it is over.
+      for (let attempt = 0; attempt < MAX_LIVE_JOINS; attempt += 1) {
+        connections += 1;
+        if (await readLive() === 'done' || signal?.aborted || stopSent) break;
+        // A server that has no live channel is read from the message, as before: only a channel that worked and broke is joined again.
+        if (!everJoined) break;
+        let over = false;
+        try {
+          const status = await request('GET', `/v1/runs/${runId}`, { timeoutMs: 8000 });
+          over = Boolean(status.ok && isTerminalRun(status.data?.run?.status));
+        } catch {
+          over = false;
+        }
+        if (over) break;
+        await idle(LIVE_REJOIN_MS);
+      }
       signal?.removeEventListener?.('abort', onStopAsked);
       for (;;) {
         if (signal?.aborted && !stopSent) {
@@ -465,7 +496,7 @@ export function createServerReply({
    * now first. Resolves when the server says it is over (or the run is seen to be over, when the channel cannot be had).
    */
   const watchRun = async (runId, { onEvent = () => {}, signal } = {}) => {
-    for (let attempt = 0; attempt < 3 && !signal?.aborted; attempt += 1) {
+    for (let attempt = 0; attempt < MAX_LIVE_JOINS && !signal?.aborted; attempt += 1) {
       const token = await getAccessToken();
       if (!token) return false;
       const outcome = await readRunStream({ url: `${getBaseUrl()}/v1/runs/${runId}/stream`, token, fetchImpl, signal, onEvent: (event) => (onEvent(event) === 'done' || event.done ? 'done' : null), now, setRepeating, clearRepeating });
@@ -473,7 +504,9 @@ export function createServerReply({
       // The channel broke or never opened: the run may be over, or may go on and be joined again.
       const status = await request('GET', `/v1/runs/${runId}`, { timeoutMs: 8000 });
       if (status.ok && isTerminalRun(status.data?.run?.status)) return true;
-      await wait(2000);
+      // A run that is not there (or not this person's) is not waited for.
+      if (status.status === 404 || status.status === 403) return true;
+      await wait(LIVE_REJOIN_MS);
     }
     return false;
   };

@@ -59,6 +59,8 @@ export function createVisionProgress({ document, language, controller, host = nu
   };
 
   const progress = {
+    // Whether the line is still on the page (a chat drawn again takes the message it sat under with it).
+    isConnected() { return outer.element.isConnected !== false; },
     // The time (ms, like Date.now()) the next calls happened at, when they are told later; null for now.
     happenedAt(time) {
       outer.happenedAt(time);

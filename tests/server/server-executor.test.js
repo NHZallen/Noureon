@@ -172,7 +172,9 @@ test('every small piece is given to those watching live as it comes: the start, 
     onLive: (event) => events.push(event),
     fetchImpl: async () => streamResponse(sse({ choices: [{ delta: { reasoning: 'Let me think' } }] }, content('Hel'), content('lo')))
   });
-  assert.deepEqual(events[0], { r: { answer: '', thought: { text: '', kind: 'model', ms: 0, ended: false }, sources: [], elapsedMs: 0 } }, 'what there is at the start');
+  const { elapsedMs, ...start } = events[0].r;
+  assert.ok(elapsedMs >= 0 && elapsedMs < 1000, 'the clock starts at the start (a slow machine may already read a millisecond)');
+  assert.deepEqual(start, { answer: '', thought: { text: '', kind: 'model', ms: 0, ended: false }, sources: [] }, 'what there is at the start');
   assert.deepEqual(events.filter((event) => event.a !== undefined).map((event) => event.a), ['Hel', 'lo']);
   assert.ok(events.some((event) => typeof event.th === 'string' && event.th.includes('think')), 'the thinking too');
   const resumed = [];

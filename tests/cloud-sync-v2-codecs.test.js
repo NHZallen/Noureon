@@ -132,6 +132,45 @@ test('conversation shadow codec round-trips only history source conversation met
   });
 });
 
+test('what the visual check and the server leave on a message goes to the cloud and comes back, other fields still stay home', async () => {
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: {
+      conversations: [{
+        id: conversationId,
+        title: 'Checked chat',
+        model: 'model-1',
+        provider: 'provider-1',
+        createdAt: '2026-07-06T01:00:00.000Z',
+        messages: [{
+          id: '77777777-7777-4777-8777-777777777777',
+          role: 'model',
+          parts: [{ text: 'Answer' }],
+          metadata: {
+            visionCheck: { note: 'clean' },
+            visionChecked: ['file-1'],
+            serverError: { code: 'time_limit', message: 'The reply took too long.' },
+            huge: 'x'.repeat(50),
+            privateValue: 'must not sync'
+          }
+        }, {
+          id: '88888888-8888-4888-8888-888888888888',
+          role: 'model',
+          parts: [{ text: 'Too much' }],
+          metadata: { visionCheck: { issues: 'x'.repeat(25_000) } }
+        }]
+      }]
+    }
+  });
+  const decoded = decodeWorkspaceConversationShadow(encoded);
+  const kept = { visionCheck: { note: 'clean' }, visionChecked: ['file-1'], serverError: { code: 'time_limit', message: 'The reply took too long.' } };
+  assert.deepEqual(encoded.messages[0].metadata, kept);
+  assert.deepEqual(decoded.conversations[0].messages[0].metadata, kept);
+  assert.equal(JSON.stringify(encoded).includes('privateValue'), false);
+  assert.deepEqual(encoded.messages[1].metadata, {}, 'a field too large for a message row stays home');
+});
+
 test('conversation shadow codec round-trips quote references and hidden request context', async () => {
   const quotePart = {
     text: 'Quoted text:\n「Original answer」',

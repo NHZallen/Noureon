@@ -127,8 +127,6 @@ async function bootstrap() {
   keepChatOffItsEdges(document.getElementById('chat-container'));
   keepScrollBoxesOffTheirEdges(document);
   settleScrollBoxesOffTheirEdges(document);
-  // `?debugScroll`: logs what moves the chat by itself (see ui/motion/scroll-debug.js).
-  if (/[?&]debugScroll\b/.test(window.location.search)) void import('./app/ui/motion/scroll-debug.js').then((module) => module.installScrollDebug(document)).catch(() => {});
   easeSavedDetails(document);
   watchSourceIcons(document);
   installPressFeedback(document);

@@ -79,7 +79,7 @@ const failureReason = ({ error, timedOut, language }) => {
  */
 export async function executeVisionCheck({
   spec, secrets, signal, userId, files, sandboxHost = null, decks = new Map(), onLive = () => {}, writeMessage, getKit, fetchImpl = fetch,
-  now = Date.now, createId = () => crypto.randomUUID()
+  now = Date.now, createId = () => crypto.randomUUID(), onProblem = () => {}
 }) {
   const language = spec.request.language;
   const model = spec.model.info;
@@ -90,16 +90,20 @@ export async function executeVisionCheck({
   const emit = (event) => onLive({ vc: event });
   const written = [];
   const outcomes = [];
+  // How each file ended, with the reason: kept with the run (the check leaves no other trace when nothing was corrected).
+  const details = [];
   let checked = 0;
   // How a check ended, written into the conversation as a reply of its own (the same way a corrected reply is), so it is there on every
   // page and after a reload, not only as a notice that goes. Resolves its id, or '' when it could not be written (the notice remains).
-  const note = async (text, outcome) => {
+  const note = async (text, outcome, detail = {}) => {
     outcomes.push(outcome);
+    details.push({ outcome, ...detail });
     try {
       const id = createId();
       await writeMessage({ id, parts: [{ text }], metadata: { ...(spec.request.messageMetadata || {}), visionCheck: { note: outcome } } });
       return id;
-    } catch {
+    } catch (error) {
+      onProblem('vision_note_failed', error);
       return '';
     }
   };
@@ -127,16 +131,17 @@ export async function executeVisionCheck({
         await writeMessage({ id, parts: outcome.revised.parts, metadata: outcome.revised.metadata });
         written.push(id);
         outcomes.push('fixed');
+        details.push({ outcome: 'fixed', name: file.name });
         emit({ m: 'file-end', a: [{ outcome: 'fixed', messageId: id }] });
         checked += 1;
       } else if (outcome.clean) {
-        const messageId = await note(visionText(language, 'clean'), 'clean');
+        const messageId = await note(visionText(language, 'clean'), 'clean', { name: file.name });
         emit({ m: 'file-end', a: [{ outcome: 'clean', ...(messageId ? { messageId } : {}) }] });
         checked += 1;
       } else {
         // Left alone (the deck cannot be redone here): the person is told in the chat, not only by a notice that goes.
         progress.remove();
-        const messageId = await note(outcome.found ? visionText(language, 'leftAlone', { found: outcome.found }) : visionText(language, 'failed', { reason: visionText(language, 'unreadable') }), 'left');
+        const messageId = await note(outcome.found ? visionText(language, 'leftAlone', { found: outcome.found }) : visionText(language, 'failed', { reason: visionText(language, 'unreadable') }), 'left', { name: file.name, ...(outcome.found ? { found: outcome.found } : {}), ...(outcome.unreadable ? { reason: 'unreadable' } : { reason: 'no_python' }) });
         emit({ m: 'file-end', a: [{ outcome: 'left', ...(outcome.found ? { found: outcome.found } : {}), ...(messageId ? { messageId } : {}) }] });
       }
     } catch (error) {
@@ -144,19 +149,20 @@ export async function executeVisionCheck({
       if (controller.signal.aborted && !timedOut) {
         // A stop: nothing is said.
         outcomes.push('stopped');
+        details.push({ outcome: 'stopped', name: file.name });
         emit({ m: 'file-end', a: [{ outcome: 'stopped' }] });
         break;
       }
       const reason = failureReason({ error, timedOut, language });
       const reasonText = scrubMessage(reason.text, secrets);
-      const messageId = await note(visionText(language, 'failed', { reason: reasonText }), 'failed');
+      const messageId = await note(visionText(language, 'failed', { reason: reasonText }), 'failed', { name: file.name, code: reason.code, reason: reasonText.slice(0, 200) });
       emit({ m: 'file-end', a: [{ outcome: 'failed', code: reason.code, reason: reasonText, ...(messageId ? { messageId } : {}) }] });
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener?.('abort', abort);
     }
   }
-  return { checked, written, outcomes };
+  return { checked, written, outcomes, details };
 }
 
 // ------------------------------------------------------------ a deck from the design system

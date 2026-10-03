@@ -105,6 +105,9 @@ function conversationMetadata(conversation = {}) {
   };
 }
 
+const KEPT_MESSAGE_METADATA = ['visionCheck', 'visionChecked', 'serverError'];
+const KEPT_METADATA_CHARS = 20_000;
+
 function messageMetadata(message = {}) {
   const historySourceConversationIds = [...new Set(
     (Array.isArray(message?.metadata?.historySourceConversationIds)
@@ -113,7 +116,14 @@ function messageMetadata(message = {}) {
       .map((id) => String(id || '').trim())
       .filter(isUuid)
   )];
-  return historySourceConversationIds.length > 0 ? { historySourceConversationIds } : {};
+  const metadata = historySourceConversationIds.length > 0 ? { historySourceConversationIds } : {};
+  // What the visual check and the server leave on a message: kept in the cloud too, or a copy that comes back from it loses the label of a
+  // checked reply, the marks of the decks already checked, and the error a reply ended with.
+  for (const key of KEPT_MESSAGE_METADATA) {
+    const value = message?.metadata?.[key];
+    if (value && typeof value === 'object' && JSON.stringify(value).length <= KEPT_METADATA_CHARS) metadata[key] = value;
+  }
+  return metadata;
 }
 
 function folderFromRow(row = {}, conversationIds = []) {

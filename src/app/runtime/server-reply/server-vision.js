@@ -9,6 +9,9 @@ import { withFileBytes } from './server-reply.js';
 
 const LOOKS = 4;
 const LOOK_EVERY_MS = 1500;
+// How often it is looked at whether the line is still on the page, and how many calls are kept to draw it again.
+const KEEP_ON_PAGE_MS = 1000;
+const MAX_REPLAYED_CALLS = 300;
 
 // Whether a reply may hold a presentation (as the page's own check asks): a block of a .pptx file in its text, or a .pptx that Python made.
 const DECK_BLOCK = /(?:`{3,}|~{3,})\s*file\s+[^\n]*\.pptx/i;
@@ -26,6 +29,8 @@ export function createServerVisionFollow({
   onLockChange = () => {},
   findHost = lastMessageStack,
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  setRepeating = (fn, ms) => setInterval(fn, ms),
+  clearRepeating = (id) => clearInterval(id),
   warn = () => {}
 }) {
   const following = new Set();
@@ -56,9 +61,16 @@ export function createServerVisionFollow({
     // When the check began, in this page's clock: the server says how long it has been going (the calls so far come with it), and each
     // call says when it happened, so every page shows the same seconds, however late it was opened.
     let began = null;
+    // The calls of the file being checked, so the line can be drawn again where it was when the page takes it away (a chat that is drawn
+    // again, for the cloud sync bringing in a message, takes the message the line sat under with it).
+    let calls = [];
+    const timeOf = (call) => (began !== null && Number.isFinite(call.t) ? began + call.t : null);
     const handle = (call) => {
+      if (call.m === 'begin') calls = [];
+      calls.push(call);
+      if (calls.length > MAX_REPLAYED_CALLS) calls.splice(1, calls.length - MAX_REPLAYED_CALLS);
       const [first, second] = call.a || [];
-      const at = began !== null && Number.isFinite(call.t) ? began + call.t : null;
+      const at = timeOf(call);
       progress?.happenedAt?.(at);
       try {
         apply(call, first, second, at);
@@ -66,12 +78,27 @@ export function createServerVisionFollow({
         progress?.happenedAt?.(null);
       }
     };
+    // The line is gone from the page while the check goes on: it is drawn again, under the message that is last now.
+    const keepOnPage = () => {
+      if (!progress || progress.isConnected?.() !== false) return;
+      const seen = calls;
+      calls = [];
+      progress.remove();
+      progress = null;
+      python = null;
+      replaying = true;
+      try {
+        seen.forEach(handle);
+      } finally {
+        replaying = false;
+      }
+    };
     const apply = (call, first, second, at) => {
       switch (call.m) {
         case 'begin':
           progress?.remove();
           python = null;
-          progress = createVisionProgress({ document, language, controller, host: host || findHost(document), startedAt: at });
+          progress = createVisionProgress({ document, language, controller, host: host?.isConnected !== false && host ? host : findHost(document), startedAt: at });
           break;
         case 'set': progress?.set(first, second); break;
         case 'slide': progress?.slideRendered(first); break;
@@ -108,11 +135,14 @@ export function createServerVisionFollow({
         default: break;
       }
     };
+    let guard = null;
     try {
       ({ createVisionProgress } = await import('../../ui/files/vision/vision-progress.js'));
+      guard = setRepeating(keepOnPage, KEEP_ON_PAGE_MS);
       await serverReply.watchRun(runId, {
         signal: stopWatching.signal,
         onEvent: (event) => {
+          keepOnPage();
           if (event.r && began === null) began = Date.now() - (Number(event.r.elapsedMs) || 0);
           if (Array.isArray(event.r?.vc)) {
             replaying = true;
@@ -128,6 +158,7 @@ export function createServerVisionFollow({
     } catch (error) {
       warn('Following the visual check of the server failed.', error);
     } finally {
+      if (guard !== null) clearRepeating(guard);
       stopWatching.abort();
       progress?.remove();
       following.delete(runId);

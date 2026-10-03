@@ -123,6 +123,30 @@ test('every page shows the same seconds: a page that joins a minute in is told w
   assert.ok(seen.some((row) => /\|40s$/.test(row)), 'the step that took 40 seconds says 40 seconds, not 0');
 });
 
+test('the line is drawn again where it was when a chat drawn again takes it away, and the check goes on from there', async () => {
+  let afterRedraw = null;
+  const { follow, document, stack } = harness({
+    watch: async (runId, { onEvent }) => {
+      onEvent(call('begin', { name: 'a.pptx' }));
+      onEvent(call('set', 'rendering'));
+      onEvent(call('slide', { index: 0, total: 3, number: 1, url: 'data:image/jpeg;base64,AA==' }));
+      // The chat is drawn again: the message the line sat under is replaced by a new one.
+      stack.remove();
+      const fresh = document.createElement('div');
+      fresh.className = 'message-stack';
+      document.body.append(fresh);
+      onEvent(call('slide', { index: 1, total: 3, number: 2, url: 'data:image/jpeg;base64,AA==' }));
+      afterRedraw = { inFresh: fresh.querySelectorAll('.ledger-row').length > 0, thumbs: fresh.querySelectorAll('.ledger-thumb img').length, lines: document.querySelectorAll('.ledger-label').length };
+      onEvent({ done: 'complete' });
+      return true;
+    }
+  });
+  await follow.attach({ runId: 'run-v', conversation });
+  assert.equal(afterRedraw.inFresh, true, 'under the message that is last now');
+  assert.equal(afterRedraw.thumbs, 2, 'with the slides drawn so far and the new one');
+  assert.ok(afterRedraw.lines >= 1);
+});
+
 test('a check that could not finish says why; a stop says nothing', async () => {
   const { follow, notices } = harness({ events: [call('begin', { name: 'a.pptx' }), call('file-end', { outcome: 'failed', code: 'timed_out', reason: 'it took too long' }), call('begin', { name: 'b.pptx' }), call('file-end', { outcome: 'stopped' }), { done: 'complete' }] });
   await follow.attach({ runId: 'run-v', conversation });

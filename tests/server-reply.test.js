@@ -270,6 +270,31 @@ test('a reply watched live is given to the page piece by piece as the server mak
   assert.equal(streamCall.options.headers.Authorization, 'Bearer token-123');
 });
 
+test('the live channel is joined again when it breaks while the reply goes on, the steps are drawn afresh, and a reply that began again goes on in the steps only', async () => {
+  const streams = [
+    sseBody([{ r: { answer: 'Old words', thought: { text: '', kind: 'model' }, sources: [], events: [{ type: 'step', n: 1 }] } }, { ev: { type: 'step-end', n: 1 } }]).body,
+    sseBody([{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], events: [{ type: 'step', n: 1 }] } }, { a: 'New words' }, { ev: { type: 'step-end', n: 1 } }, { done: 'complete' }]).body
+  ];
+  let opened = 0;
+  const { reply } = harness({
+    fetchImpl: async (url) => {
+      if (String(url).endsWith('/stream')) return new Response(streams[Math.min(opened++, streams.length - 1)], { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+      if (/\/v1\/runs\/run-1$/.test(String(url))) return new Response(JSON.stringify({ run: { status: 'running' } }), { status: 200 });
+      return new Response(JSON.stringify({ runId: 'run-1' }), { status: 202 });
+    },
+    readMessage: async () => row('Old wordsNew words'.slice(9), 'complete'),
+    paceMs: 0
+  });
+  const { run } = await reply.start(startArgs());
+  const texts = [];
+  const events = [];
+  const result = await run.follow({ onText: (delta) => texts.push(delta), onEvent: (event) => events.push(event.type) });
+  assert.equal(opened, 2, 'joined again');
+  assert.deepEqual(events, ['step', 'step-end', 'reset', 'step', 'step-end'], 'the list is cleared and drawn again from the new start');
+  assert.deepEqual(texts, ['Old words'], 'the words of the reply that began again are not added to the old ones');
+  assert.equal(result.rewritten, true, 'the finished text replaces what was shown');
+});
+
 test('a page that comes in late is given what there is so far at once, then goes on with the rest', async () => {
   const { reply } = liveHarness({
     events: [{ r: { answer: 'Apple pie is', thought: { text: 'thinking', kind: 'model' }, sources: [] } }, { a: ' good' }, { done: 'complete' }],

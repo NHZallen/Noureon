@@ -77,7 +77,7 @@ test('which files of a reply are checked: designed decks and decks Python drew, 
 test('a deck Python drew that looks fine: it is drawn, shown to the model, and the result is written into the chat as a note', async () => {
   const { run, live, written, requests } = harness({ answers: [chunk('{"issues":[],"summary":""}')], source: freeSource, decks: new Map([['deck-1', deckBytes]]) });
   const result = await run();
-  assert.deepEqual(result, { checked: 1, written: [], outcomes: ['clean'] });
+  assert.deepEqual(result, { checked: 1, written: [], outcomes: ['clean'], details: [{ outcome: 'clean', name: 'deck.pptx' }] });
   assert.equal(written.length, 1, 'the result is a message of its own, so it is there on every page and after a reload');
   assert.match(written[0].parts[0].text, /nothing needs fixing/);
   assert.deepEqual(written[0].metadata.visionCheck, { note: 'clean' });
@@ -121,7 +121,7 @@ test('a deck Python drew with problems: the model is asked to redo it in the san
 test('a deck Python drew with problems, when Python cannot be used here: the deck is left as it is', async () => {
   const issues = '{"issues":[{"slide":1,"category":"text","problem":"Small text","fix":"Make it larger"}],"summary":""}';
   const { run, live, written } = harness({ answers: [chunk(issues)], source: freeSource, decks: new Map([['deck-1', deckBytes]]) });
-  assert.deepEqual(await run(), { checked: 0, written: [], outcomes: ['left'] });
+  assert.deepEqual(await run(), { checked: 0, written: [], outcomes: ['left'], details: [{ outcome: 'left', name: 'deck.pptx', found: 1, reason: 'no_python' }] });
   assert.equal(written.length, 1, 'the person is told in the chat that problems were found and the deck was left');
   assert.match(written[0].parts[0].text, /1 issues found, but they cannot be fixed automatically here/);
   assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'left', found: 1, messageId: written[0].id }] });
@@ -142,7 +142,10 @@ test('a deck from the design system with problems: the spec is corrected by the 
 
 test('an answer that cannot be read, twice: the check says why it did not finish and the deck stays', async () => {
   const { run, live, written } = harness({ answers: [chunk('I think the slides look fine.')], source: designedSource });
-  assert.deepEqual(await run(), { checked: 0, written: [], outcomes: ['failed'] });
+  const failedResult = await run();
+  assert.deepEqual(failedResult.outcomes, ['failed']);
+  assert.equal(failedResult.details[0].code, 'invalid_response', 'the reason is kept with the run, for whoever looks into it');
+  assert.ok(failedResult.details[0].reason);
   assert.equal(written.length, 1, 'and says why in the chat');
   assert.match(written[0].parts[0].text, /did not finish/);
   const end = live.at(-1);
@@ -150,6 +153,19 @@ test('an answer that cannot be read, twice: the check says why it did not finish
   assert.equal(end.a[0].outcome, 'failed');
   assert.equal(end.a[0].code, 'invalid_response');
   assert.equal(JSON.stringify(live).includes(KEY), false);
+});
+
+test('a note that cannot be written is told to the log, and the notice remains (the end of the check names no message)', async () => {
+  const problems = [];
+  const live = [];
+  const result = await executeVisionCheck({
+    spec: { ...specFor(), source: freeSource }, secrets: { providerKey: KEY }, userId: USER, files: null, sandboxHost: null, decks: new Map([['deck-1', deckBytes]]), getKit: getFontKit,
+    onLive: (event) => live.push(event.vc), writeMessage: async () => { throw new Error('database down'); }, onProblem: (what, error) => problems.push([what, error.message]),
+    fetchImpl: async () => streamResponse(chunk('{"issues":[],"summary":""}'))
+  });
+  assert.equal(result.checked, 1);
+  assert.deepEqual(problems, [['vision_note_failed', 'database down']]);
+  assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'clean' }] });
 });
 
 test('a stop ends the check without a word about failure', async () => {

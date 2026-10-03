@@ -299,7 +299,15 @@ export function createSingleModelResponseLifecycle({
           onThoughtEnd: (ms) => endThinking(ms),
           // The steps of Python (and the pages it searched) as they happen, in the same step list as a reply made here.
           // Each event says when it happened on the server, so every page draws the same times.
-          onEvent: (event) => stepList()?.event(Number.isFinite(event.t) ? { ...event, at: runStartedAt + event.t } : event),
+          onEvent: (event) => {
+            // The channel was joined again (the server was replaced): the steps come again from their start, so the list is drawn afresh.
+            if (event.type === 'reset') {
+              liveRun?.remove();
+              liveRun = null;
+              return;
+            }
+            stepList()?.event(Number.isFinite(event.t) ? { ...event, at: runStartedAt + event.t } : event);
+          },
           onText: (delta) => {
             if (!answered) endThinking();
             answered = true;

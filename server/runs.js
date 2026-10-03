@@ -240,8 +240,8 @@ export function createRunManager({
         // The corrected replies were written as they were made; the run only says how it ended.
         finalStatus = 'complete';
         // How each file ended is kept with the run and in the log: the check leaves no other trace when nothing was corrected.
-        log('vision_ended', { runId, outcomes: (result.outcomes || []).join(',') });
-        await store.finish(runId, { status: controller.signal.aborted ? 'stopped' : 'done', usage: { checked: result.checked, outcomes: result.outcomes || [] } });
+        log('vision_ended', { runId, outcomes: (result.outcomes || []).join(','), details: JSON.stringify(result.details || []).slice(0, 600) });
+        await store.finish(runId, { status: controller.signal.aborted ? 'stopped' : 'done', usage: { checked: result.checked, outcomes: result.outcomes || [], details: result.details || [] } });
         return;
       }
       if (controller.signal.reason === 'time_limit') {
@@ -340,6 +340,7 @@ export function createRunManager({
       getKit: vision.getKit,
       fetchImpl,
       now,
+      onProblem: (what, error) => log(what, { runId, ...diagnosis(error, secrets) }),
       onLive: (event) => {
         const stamped = event.vc ? { ...event, vc: { ...event.vc, t: Math.max(0, now() - began) } } : event;
         applyLive(live, stamped);
