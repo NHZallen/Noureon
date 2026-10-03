@@ -28,10 +28,12 @@ cp -r src/assets/fonts "$BUILD/src/assets/fonts"
 cp package.json "$BUILD/package.json"
 
 say "2. The Python image (the first time this takes several minutes)"
-docker build -f "$BUILD/sandbox-host/Dockerfile" -t noureon-sandbox:1 "$BUILD"
+# The build steps use the machine's own network (Docker is set not to touch the network rules, so they would have none); the containers
+# that run Python afterwards have no network at all.
+docker build --network host -f "$BUILD/sandbox-host/Dockerfile" -t noureon-sandbox:1 "$BUILD"
 
 say "3. The runner image"
-docker build -f "$BUILD/sandbox-host/Dockerfile.runner" -t noureon-sandbox-runner:1 "$BUILD"
+docker build --network host -f "$BUILD/sandbox-host/Dockerfile.runner" -t noureon-sandbox-runner:1 "$BUILD"
 
 say "4. The secret between the runner and Noureon's server"
 mkdir -p "$SECRET_DIR" "$DATA"
