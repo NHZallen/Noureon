@@ -79,7 +79,7 @@ test('the model searches, opens a page and answers, each call a row and the sour
   assert.equal(result.calls, 2);
   assert.deepEqual(helper.searches.map((entry) => [entry.query, entry.topic]), [['a/b releases', 'general']]);
   assert.deepEqual(helper.opened, ['https://github.com/a/b/releases']);
-  assert.deepEqual(result.events.map((event) => event.type), ['narration', 'searching', 'sources', 'searching', 'sources', 'answering']);
+  assert.deepEqual(result.events.map((event) => event.type), ['narration', 'searching', 'sources', 'searching', 'sources', 'answering', 'answered']);
   assert.equal(result.events[0].text, 'Let me look.', 'what the model says about a call is its note, shown between the rows, not in the answer');
   assert.equal(result.events[1].label, 'Searching: a/b releases');
   assert.equal(result.events[3].label, 'Reading page: github.com');

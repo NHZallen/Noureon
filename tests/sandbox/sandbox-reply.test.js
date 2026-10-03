@@ -439,12 +439,27 @@ test('the reply reports each stretch of work as an event for the step list', asy
     language: 'en',
     onEvent: (event) => events.push(event)
   });
-  assert.deepEqual(events.map((event) => event.type), ['round', 'step', 'prepare', 'step-end', 'round', 'answering', 'finishing']);
+  assert.deepEqual(events.map((event) => event.type), ['round', 'step', 'prepare', 'step-end', 'round', 'answering', 'answered', 'finishing']);
   assert.equal(events[0].label, 'Thinking…');
   assert.equal(events[0].doneLabel, 'Finished thinking');
   assert.deepEqual([events[1].n, events[1].title, events[1].code], [1, 'One', 'print(1)']);
   assert.deepEqual([events[3].ok, events[3].files.length, events[3].elapsedMs], [true, 1, 12]);
   assert.equal(events[4].label, '1 file(s) made; continuing…');
+});
+
+test('words before a call are told with `more` (the work may go on), and the end of the answer is told once the last round is over', async () => {
+  const model = scriptedModel([{ chunks: ['先看資料。'], text: '先看資料。', calls: [call('c1', 'print(1)', 'One')] }, { text: '完成。' }]);
+  const { sandbox } = fakeSandbox([{ stdout: '1\n', stderr: '', error: null, files: [], elapsedMs: 1 }]);
+  const events = [];
+  await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [], getSandbox: () => sandbox, onEvent: (event) => events.push(event) });
+  const marks = events.filter((event) => event.type === 'answering' || event.type === 'answered').map((event) => `${event.type}${event.more ? '+' : ''}`);
+  assert.deepEqual(marks, ['answering+', 'answering+', 'answered'], 'the first words are not the end; only the last round says it is over');
+  // A round that can call nothing (the run limit, Python lost) is the answer from its first word.
+  const noTool = scriptedModel([{ calls: [call('c1', 'print(1)')] }, { text: '好。' }]);
+  const plain = [];
+  await runSandboxReply({ streamApiCall: noTool.streamApiCall, requestParts: [], getSandbox: () => ({ prepare: async () => { throw new Error('offline'); }, clear: async () => {}, run: async () => ({}) }), onEvent: (event) => plain.push(event) });
+  assert.equal(plain.filter((event) => event.type === 'answering').every((event) => event.more === false), true);
+  assert.equal(plain.some((event) => event.type === 'answered'), false, 'nothing to end: the first words already said it');
 });
 
 test('the model\'s thinking is kept with the run it led to, and the last round\'s with the run', async () => {

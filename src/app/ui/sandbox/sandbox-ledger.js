@@ -220,12 +220,16 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'round') {
         const row = begin(event.label, { kind: 'thought' });
         row.doneLabel = event.doneLabel;
-      } else if (event.type === 'answering') {
+      } else if (event.type === 'answering' || event.type === 'answered') {
         // Writing the answer is not thinking: that row is over and folds.
-        answered = true;
-        endCurrent();
-        list.foldFinished();
-        if (line) {
+        if (event.type === 'answering') {
+          endCurrent();
+          list.foldFinished();
+        }
+        // A round that could still call a tool may be followed by more work: the line says it is over only when the answer is known to be
+        // the last (`answered`), not while the model may yet write the code of its next step.
+        if (!event.more) answered = true;
+        if (line && !event.more) {
           // The line becomes what the saved reply shows once the answer is written.
           line.setLabel(text('processedIn', { t: formatElapsed(now() - startedAt, { always: true }) }));
           line.finish('done');

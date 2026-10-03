@@ -345,7 +345,7 @@ export async function runWebResearchReply({
   language = 'zh-TW',
   maxCalls = MAX_RESEARCH_CALLS,
   today,
-  // { type: 'searching', label }, { type: 'sources', sources }, { type: 'narration', text }, { type: 'answering' }.
+  // { type: 'searching', label }, { type: 'sources', sources }, { type: 'narration', text }, { type: 'answering', more }, { type: 'answered' }.
   onEvent = () => {},
   onSources = () => {},
   // A reply taken up again after an interruption: { toolTurns, text, research } as `onRound` last reported them.
@@ -367,7 +367,8 @@ export async function runWebResearchReply({
     // The words of a round are the answer (what the model says about a call is in the call's note), so they show as they come.
     const emit = (chunk) => {
       if (!chunk) return;
-      if (!roundStarted) onEvent({ type: 'answering' });
+      // `more`: the round could still call a tool, so the work may go on after these words.
+      if (!roundStarted) onEvent({ type: 'answering', more: canCall });
       // Words after a round of calls start a new paragraph when some were already written.
       const lead = !roundStarted && text && !text.endsWith('\n') ? '\n\n' : '';
       roundStarted = true;
@@ -391,7 +392,11 @@ export async function runWebResearchReply({
       if (!signal?.aborted) throw error;
     }
     const calls = (response?.toolCalls || []).filter((call) => research.handles(call.name));
-    if (signal?.aborted || !canCall || calls.length === 0) break;
+    if (signal?.aborted || !canCall || calls.length === 0) {
+      // The words of the round were the answer: the work is over.
+      if (roundStarted && canCall) onEvent({ type: 'answered' });
+      break;
+    }
 
     // Everything the round asks for is fetched at once; the answers are taken in order, each after its note.
     research.prefetch(calls);

@@ -124,6 +124,7 @@ export async function runSandboxReply({
     deliver(chunk);
   };
   const notes = createNotes(onEvent);
+  let roundMayCall = false;
   const deliver = (chunk) => {
     if (!chunk) return;
     // Text written after a tool round starts on a new paragraph.
@@ -133,7 +134,8 @@ export async function runSandboxReply({
     if (!deliver.continuing) {
       // The answer has begun: the model is no longer thinking.
       thoughtEndedAt ??= Date.now();
-      onEvent({ type: 'answering' });
+      // `more`: the round could still call a tool, so the work may go on after these words (the step list does not say it is over yet).
+      onEvent({ type: 'answering', more: roundMayCall });
     }
     deliver.continuing = true;
     stopWatching();
@@ -181,6 +183,7 @@ export async function runSandboxReply({
     const canCall = canRun || canResearch;
     let response = null;
     deliver.continuing = false;
+    roundMayCall = canCall;
     notes.reset();
     thought = '';
     thoughtStartedAt = null;
@@ -253,7 +256,10 @@ export async function runSandboxReply({
         throw error;
       }
     }
+    // The round wrote its words and no call follows: that was the answer, and the work is over.
+    const answerEnded = () => { if (deliver.continuing && roundMayCall) onEvent({ type: 'answered' }); };
     if (signal?.aborted) {
+      answerEnded();
       // Stopped while thinking: what was thought so far stays, marked as interrupted.
       const kept = takeThought();
       if (kept) {
@@ -268,6 +274,7 @@ export async function runSandboxReply({
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     if (!canCall || !calls.length) {
+      answerEnded();
       if (roundThought) {
         run.thought = roundThought;
         run.thoughtKind = thoughtKind;

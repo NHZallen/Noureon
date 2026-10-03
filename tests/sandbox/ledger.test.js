@@ -330,6 +330,27 @@ test('with a summary all the steps are one line that says what the work is at an
   window.happyDOM.abort();
 });
 
+test('words before a possible next step do not end the line: it says the work is over only when the answer is known to be the last', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en', summary: true });
+  const line = () => message.querySelector('.ledger-row');
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  list.event({ type: 'answering', more: true });
+  assert.match(line().querySelector('.ledger-label').textContent, /^Working/, 'the model may still write the code of its next step');
+  assert.equal(line().classList.contains('is-quiet'), false);
+  list.event({ type: 'step', n: 1, title: 'Build', code: 'print(1)' });
+  list.event({ type: 'step-end', n: 1, ok: true, files: [], elapsedMs: 5 });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  list.event({ type: 'answering', more: true });
+  list.event({ type: 'answered' });
+  assert.match(line().querySelector('.ledger-label').textContent, /^Processed for \d/, 'the answer is the last: now it is over');
+  assert.equal(line().classList.contains('is-quiet'), true);
+  list.event({ type: 'step', n: 2, title: 'Again', code: 'print(2)' });
+  assert.match(line().querySelector('.ledger-label').textContent, /^Working/, 'and more work after all runs the line again');
+  list.remove();
+  window.happyDOM.abort();
+});
+
 test('the line can start open, and without a summary the steps are the list itself, as before', () => {
   const { window, document, message } = setup();
   const open = createSandboxLedger({ document, host: message, language: 'en', summary: true, open: true });
