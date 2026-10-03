@@ -672,7 +672,10 @@ test('those watching the check are given what it has told so far (joined where t
   await settle();
   const late = [];
   manager.watch({ userId: USER, runId: 'run-2', send: (event) => late.push(event), close() {} });
-  assert.deepEqual(late[0].r.vc, [{ m: 'begin', a: [{ name: 'deck.pptx', free: false }] }, { m: 'think', a: ['Looking closely'] }]);
+  // Each call says when it happened (ms since the check's run began), so every page, whenever it joined, draws the same seconds.
+  assert.ok(late[0].r.vc.every((call) => Number.isFinite(call.t) && call.t >= 0));
+  assert.deepEqual(late[0].r.vc.map(({ t, ...call }) => call), [{ m: 'begin', a: [{ name: 'deck.pptx', free: false }] }, { m: 'think', a: ['Looking closely'] }]);
+  assert.ok(Number.isFinite(late[0].r.elapsedMs), 'with how long the check has been going, to set the clock by');
   release();
   await settle();
   assert.ok(late.some((event) => event.vc?.m === 'file-end'));

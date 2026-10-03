@@ -114,7 +114,7 @@ export function createRunManager({
     const size = JSON.stringify(event).length;
     if (live.vision.chars + size > MAX_MIRRORED_VISION_CHARS) return;
     live.vision.chars += size;
-    events.push({ m: event.m, a: structuredClone(event.a) });
+    events.push({ m: event.m, a: structuredClone(event.a), ...(Number.isFinite(event.t) ? { t: event.t } : {}) });
   };
   // The events of the steps, kept so that a page that joins late can draw the same step list. Neighbours of one kind are joined (the
   // thinking and what the code prints arrive in small pieces, and each version of the program replaces the one before).
@@ -324,6 +324,9 @@ export function createRunManager({
   }
 
   async function runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) {
+    // Every call says when it happened (ms since the check's run began, the clock a page that joins late is given), so every page draws the
+    // same seconds, whenever it joined.
+    const began = live.elapsedAt;
     const result = await vision.execute({
       spec,
       secrets,
@@ -336,8 +339,9 @@ export function createRunManager({
       fetchImpl,
       now,
       onLive: (event) => {
-        applyLive(live, event);
-        fan(live, event);
+        const stamped = event.vc ? { ...event, vc: { ...event.vc, t: Math.max(0, now() - began) } } : event;
+        applyLive(live, stamped);
+        fan(live, stamped);
       },
       writeMessage: async ({ id, parts, metadata }) => {
         const sequence = await nextSequence(userId, spec.conversationId);

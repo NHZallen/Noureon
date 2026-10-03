@@ -53,13 +53,25 @@ export function createServerVisionFollow({
     let python = null;
     let replaying = false;
     let createVisionProgress = null;
+    // When the check began, in this page's clock: the server says how long it has been going (the calls so far come with it), and each
+    // call says when it happened, so every page shows the same seconds, however late it was opened.
+    let began = null;
     const handle = (call) => {
       const [first, second] = call.a || [];
+      const at = began !== null && Number.isFinite(call.t) ? began + call.t : null;
+      progress?.happenedAt?.(at);
+      try {
+        apply(call, first, second, at);
+      } finally {
+        progress?.happenedAt?.(null);
+      }
+    };
+    const apply = (call, first, second, at) => {
       switch (call.m) {
         case 'begin':
           progress?.remove();
           python = null;
-          progress = createVisionProgress({ document, language, controller, host: host || findHost(document) });
+          progress = createVisionProgress({ document, language, controller, host: host || findHost(document), startedAt: at });
           break;
         case 'set': progress?.set(first, second); break;
         case 'slide': progress?.slideRendered(first); break;
@@ -69,7 +81,7 @@ export function createServerVisionFollow({
         case 'text': progress?.setText(first); break;
         case 'py':
           python ||= progress?.python(language) || null;
-          python?.event(withFileBytes(first));
+          python?.event(at === null ? withFileBytes(first) : { ...withFileBytes(first), at });
           break;
         case 'pyEnd':
           python?.remove();
@@ -99,6 +111,7 @@ export function createServerVisionFollow({
       await serverReply.watchRun(runId, {
         signal: stopWatching.signal,
         onEvent: (event) => {
+          if (event.r && began === null) began = Date.now() - (Number(event.r.elapsedMs) || 0);
           if (Array.isArray(event.r?.vc)) {
             replaying = true;
             try {

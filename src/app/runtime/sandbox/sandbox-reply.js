@@ -142,6 +142,8 @@ export async function runSandboxReply({
     text += separator + chunk;
     streamed = (streamed + liveSeparator + chunk).slice(-8);
     onChunk(liveSeparator + chunk);
+    // Words that may be followed by a call: when the model then goes quiet (it is writing the call), the line says so.
+    if (roundMayCall) watchSilence();
   };
 
   const ensureSandbox = () => {

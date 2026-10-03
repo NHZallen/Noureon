@@ -11,7 +11,7 @@ import { visionText } from './vision-texts.js';
  * model looking, the problems found and the redoing. `host` is the message;
  * the line's stop button stops the check through `controller`.
  */
-export function createVisionProgress({ document, language, controller, host = null, before = null }) {
+export function createVisionProgress({ document, language, controller, host = null, before = null, startedAt = null }) {
   const text = (key, values) => visionText(language, key, values);
   let floating = null;
   if (!host) {
@@ -21,7 +21,10 @@ export function createVisionProgress({ document, language, controller, host = nu
     document.body.append(floating);
   }
   const outer = createLedger({ document, host: host || floating, before });
+  // A check the server makes began when the server began it: the same time on every page, whenever it was opened.
+  outer.happenedAt(startedAt);
   const parent = outer.addRow(text('ledgerTitle'));
+  outer.happenedAt(null);
   parent.enableBody(false);
   parent.addAction(text('stop'), () => controller?.abort());
   const ledger = createLedger({ document, host: parent.body });
@@ -56,6 +59,11 @@ export function createVisionProgress({ document, language, controller, host = nu
   };
 
   const progress = {
+    // The time (ms, like Date.now()) the next calls happened at, when they are told later; null for now.
+    happenedAt(time) {
+      outer.happenedAt(time);
+      ledger.happenedAt(time);
+    },
     set(key, values) {
       if (key === 'preparing') open('prepare', text('preparing'));
       else if (key === 'rendering') {

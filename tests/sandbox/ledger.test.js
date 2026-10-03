@@ -351,6 +351,35 @@ test('words before a possible next step do not end the line: it says the work is
   window.happyDOM.abort();
 });
 
+test('words before a call end the thinking row, but the line still shows the model writing the call, with its code as it comes', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en', summary: true });
+  const line = () => message.querySelector('.ledger-row');
+  const label = () => line().querySelector('.ledger-label').textContent;
+  const rows = () => [...message.querySelectorAll('.ledger-list .ledger-row')];
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  list.event({ type: 'answering', more: true });
+  assert.equal(label(), 'Working', 'nothing is running yet that could be named');
+  list.event({ type: 'writing', label: 'Writing the code…' });
+  assert.equal(label(), 'Working · Writing the code…', 'the quiet is named');
+  assert.equal(rows().filter((row) => row.textContent.includes('Writing the code')).length, 2, 'as a row of its own (and the line that says it)');
+  list.event({ type: 'code', text: 'import pptx\nprs = 1' });
+  assert.match(rows().at(-1).textContent, /import pptx/, 'with the code as it is written');
+  list.event({ type: 'step', n: 1, title: 'Build', code: 'import pptx\nprs = 1' });
+  assert.equal(rows().filter((row) => row.textContent.includes('Writing the code')).length, 0, 'the draft is gone when the step starts');
+  assert.equal(label(), 'Working · Running code: Build');
+  // Quiet only, and the words were the answer: the draft goes with the end.
+  list.event({ type: 'step-end', n: 1, ok: true, files: [], elapsedMs: 3 });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  list.event({ type: 'answering', more: true });
+  list.event({ type: 'writing', label: 'Writing the code…' });
+  list.event({ type: 'answered' });
+  assert.equal(rows().filter((row) => row.textContent.includes('Writing the code')).length, 0);
+  assert.match(label(), /^Processed for \d/);
+  list.remove();
+  window.happyDOM.abort();
+});
+
 test('the line can start open, and without a summary the steps are the list itself, as before', () => {
   const { window, document, message } = setup();
   const open = createSandboxLedger({ document, host: message, language: 'en', summary: true, open: true });

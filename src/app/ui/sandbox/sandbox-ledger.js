@@ -56,6 +56,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
   const endCurrent = (state = 'done') => {
     const row = list.current;
     if (!row) return;
+    // A row that only said the model was writing (and no step or answer came of it) goes.
+    if (row.draft) {
+      row.discard();
+      return;
+    }
     if (row.doneLabel) row.setLabel(row.doneLabel);
     row.finish(state);
   };
@@ -63,6 +68,13 @@ export function createSandboxLedger({ document, host, before = null, language = 
     endCurrent();
     list.foldFinished();
     return list.addRow(label, options);
+  };
+  // The model is writing what it will call and no row is running (words it wrote before ended the thinking's): a row says so, and
+  // shows the code as it comes. It goes when the step it was for starts.
+  const beginDraft = (label) => {
+    const row = begin(label, { body: true, kind: 'thought' });
+    row.draft = true;
+    return row;
   };
 
   // The model's thinking, as it streams, in the row of the round it belongs to.
@@ -82,8 +94,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
 
   // The code as the model writes it (before it runs).
   const addCode = ({ text: source }) => {
-    const row = list.current;
-    if (!row || !source) return;
+    if (!source) return;
+    const row = list.current || beginDraft(text('sandboxWriting'));
     if (!row.writing) {
       row.writing = create('pre', 'ledger-code');
       row.body.append(row.writing);
@@ -225,6 +237,9 @@ export function createSandboxLedger({ document, host, before = null, language = 
         if (event.type === 'answering') {
           endCurrent();
           list.foldFinished();
+        } else if (list.current?.draft) {
+          // The answer was the last words: a row that said the model was writing a call (it was only quiet a while) goes.
+          list.current.discard();
         }
         // A round that could still call a tool may be followed by more work: the line says it is over only when the answer is known to be
         // the last (`answered`), not while the model may yet write the code of its next step.
@@ -237,7 +252,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
         }
       } else if (event.type === 'writing') {
         // The thinking is over and the model is writing what it will call: the line says so.
-        list.current?.setLabel(event.label);
+        if (list.current) list.current.setLabel(event.label);
+        else beginDraft(event.label);
       } else if (event.type === 'prepare') {
         list.current?.setDetail(event.text);
       } else if (event.type === 'finishing') {

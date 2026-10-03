@@ -106,6 +106,23 @@ test('a page that joins late is given the calls so far in one go, draws the same
   assert.equal(notices[0][1], 'success');
 });
 
+test('every page shows the same seconds: a page that joins a minute in is told when the check began and when each step happened', async () => {
+  let seen = null;
+  const { follow, document } = harness({
+    watch: async (runId, { onEvent }) => {
+      const withTime = (t, event) => ({ vc: { ...event.vc, t } });
+      onEvent({ r: { answer: '', elapsedMs: 65_000, vc: [withTime(0, call('begin', { name: 'a.pptx' })).vc, withTime(1000, call('set', 'rendering')).vc, withTime(41_000, call('set', 'reviewing', { model: 'M' })).vc] } });
+      const rows = [...document.querySelectorAll('.ledger-row')];
+      seen = rows.map((row) => `${row.querySelector('.ledger-label')?.textContent}|${row.querySelector('.ledger-time')?.textContent}`);
+      onEvent({ done: 'complete' });
+      return true;
+    }
+  });
+  await follow.attach({ runId: 'run-v', conversation });
+  assert.match(seen[0], /^Automatic visual check.*\|1:05$/, 'the line has been going as long as the server says');
+  assert.ok(seen.some((row) => /\|40s$/.test(row)), 'the step that took 40 seconds says 40 seconds, not 0');
+});
+
 test('a check that could not finish says why; a stop says nothing', async () => {
   const { follow, notices } = harness({ events: [call('begin', { name: 'a.pptx' }), call('file-end', { outcome: 'failed', code: 'timed_out', reason: 'it took too long' }), call('begin', { name: 'b.pptx' }), call('file-end', { outcome: 'stopped' }), { done: 'complete' }] });
   await follow.attach({ runId: 'run-v', conversation });
