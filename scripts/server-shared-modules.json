@@ -58,6 +58,10 @@
       "note": "Reviewed 2026-10-03: no browser globals."
     },
     {
+      "path": "src/app/ui/charts/chart-schema.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
       "path": "src/app/ui/charts/chart-selection-policy.js"
     },
     {
@@ -70,10 +74,18 @@
       "path": "src/app/ui/files/design/color.js"
     },
     {
+      "path": "src/app/ui/files/design/deck-font-faces.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
       "path": "src/app/ui/files/design/design-params.js"
     },
     {
       "path": "src/app/ui/files/design/design-presets.js"
+    },
+    {
+      "path": "src/app/ui/files/design/design-tokens.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
     {
       "path": "src/app/ui/files/design/document-design.js"
@@ -82,13 +94,57 @@
       "path": "src/app/ui/files/design/document-presets.js"
     },
     {
+      "path": "src/app/ui/files/design/document-spec.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
       "path": "src/app/ui/files/design/fonts.js"
+    },
+    {
+      "path": "src/app/ui/files/design/icons.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
     {
       "path": "src/app/ui/files/design/language.js"
     },
     {
+      "path": "src/app/ui/files/design/markdown-deck.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
       "path": "src/app/ui/files/design/palette.js"
+    },
+    {
+      "path": "src/app/ui/files/design/quality-checks.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/design/relaxed-json.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/design/rich-text.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/files/design/slide-engine.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/design/slide-kit.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/design/slide-layouts.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/design/svg-path.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/files/design/text-layout.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
     {
       "path": "src/app/ui/files/file-authoring-guidance.js"
@@ -117,14 +173,58 @@
       "note": "Reviewed 2026-10-03: no browser globals (the server gives it the archive tool, the font files and the subsetter)."
     },
     {
+      "path": "src/app/ui/files/generators/pptx-assets.js",
+      "note": "Reviewed 2026-10-03: browser only (Vite asset URLs, FontFace, fetch). pptx-layout.js loads it only in its page branch; the server gives the layout its own `prepareFonts` and never reaches it."
+    },
+    {
+      "path": "src/app/ui/files/generators/pptx-charts.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/files/generators/pptx-layout.js",
+      "note": "Reviewed 2026-10-03: the page branch (isBrowser) uses a document and FontFace; the server passes `context.prepareFonts` and no document, so that branch is not taken."
+    },
+    {
+      "path": "src/app/ui/files/previews/slide-chart-preview.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/files/previews/slide-preview.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-sheet-plan.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
       "path": "src/app/ui/links/site-icon.js"
     },
     {
       "path": "src/app/ui/model-picker/model-groups.js"
     },
     {
+      "path": "src/app/ui/sandbox/free-slide-layout.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
       "path": "src/app/ui/sandbox/office-fonts.js",
       "note": "Reviewed 2026-10-03: no browser globals (the server gives it the archive tool, the font files and the subsetter)."
+    },
+    {
+      "path": "src/app/ui/sandbox/pptx-chart-reader.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/sandbox/pptx-reader.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/sandbox/pptx-shapes.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/sandbox/pptx-styles.js",
+      "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
     {
       "path": "src/app/ui/sandbox/run-sources.js",

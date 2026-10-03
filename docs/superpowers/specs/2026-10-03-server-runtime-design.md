@@ -207,6 +207,18 @@
 - **歷史檔案走雲端位置**：`start()` 送出前對歷史訊息裡帶 base64 的 `sandboxFile`，用同步的資產傳輸（`window.__astraCloudAssets.externalize`）先確認在雲端（不在就先上傳），請求裡只放 `__astraCloudAsset` 標記；上傳失敗的檔案才隨請求帶 base64。伺服器讀回時只讀自己的資料夾。這不影響送給模型的內容（模型看不到 `sandboxFile` 的資料）。目前只處理 `sandboxFile`；使用者附件（`inlineData`）仍隨請求（模型要看圖片）。
 - **Gemini 的先搜尋**：Gemini 無法同時用內建搜尋與工具，Python 回覆時先做一次不帶工具的搜尋簡報再交給 Python（`webSearch: 'briefing'`，只用於 Python 回覆，`server/executor.js`）。不會用工具的模型沒有 Python（進階模式要求會用工具），所以「搜尋封包＋Python」的組合只有 Gemini；非 Python 回覆的搜尋封包（`buildSingleModelTranslatedRequestParts`，含檔案翻譯）仍在瀏覽器。
 
+## 10b. 看圖檢查搬到伺服器（V2，分三階段）
+
+**起因：** 看圖檢查目前只在「剛完成這則回覆的那個分頁」的記憶體裡跑（`vision-check-scheduler.js` 的 `jobs`，進度畫在該分頁的畫面），沒有任何地方記錄它在進行，也沒有任何地方會重新啟動它。關閉頁面就中斷，新分頁看不到進度、也不會補做；完成時沒有頁面開著就永遠不會檢查。使用者決定採完整做法：整個檢查在伺服器上做。
+
+**階段：**
+
+- **V2a 伺服器畫圖（✅）**：不用瀏覽器把投影片畫成圖。流程：`pptx-reader.js`／`layoutDeck`（共用）→ `renderSlideSvg`（共用，餵 `@xmldom/xmldom` 的文件）→ `@resvg/resvg-js` 轉成圖 → `@napi-rs/canvas` 拼成 2×2 的聯絡表並輸出 JPEG。字型：`server/slides/font-kit.js` 把 App 的字型每個字重做成完整的靜態字型（可變字型固定字重，沿用嵌入 Office 的做法與命名 `Noureon Deck <字型>`），註冊給畫布量字，也寫成檔案給 resvg；整個程序共用，第一份投影片付一次成本。解決的陷阱：resvg 遇到「先寫不存在的字型名、後寫 App 字型」的字型清單時會忽略字重，所以 `onlyShippedFonts` 把清單裡不是 App 字型的名稱拿掉。測量用 canvas 的 `measureText`，和瀏覽器同一條路。兩種簡報都可：Python 畫的（`free-deck.js`）與設計系統的（`designed-deck.js`，`pptx-layout.js` 新增 `context.prepareFonts` 讓伺服器自行準備字型）。測試以真的 python-pptx 檔（`tests/fixtures/free-deck.pptx`）畫出聯絡表並確認中文、粗體、表格、圖表都畫得出來。Docker 映像另外安裝 `@xmldom/xmldom`、`@napi-rs/canvas`、`@resvg/resvg-js`（版本與測試用的相同）。
+- **V2b 伺服器的檢查流程**：回覆完成後由伺服器自動檢查（用 RunSpec 的 `tools.visionCheck` 告訴它這則回覆合格：設定開啟、模型看得懂圖、非理事會）；`askVision`（共用）、Python 簡報的重做用 `runSandboxReply`、設計系統簡報用 `applyVisionEdits`；結果訊息由伺服器寫進對話（序號取資料庫目前最大值加一）。檢查是回覆之後的第二個執行（`server_runs` 新增 `kind`），重新封存同一組金鑰。
+- **V2c 即時進度與瀏覽器端**：進度事件（`createVisionProgress` 的每個方法呼叫）經 SSE 推給所有分頁，晚加入的分頁拿到鏡像；新分頁用 `findLiveRun` 接回；撰寫區在檢查期間鎖住（所有分頁）；停止鈕通知伺服器。伺服器不能檢查時（沒裝畫圖套件、模型不合格），瀏覽器照舊自己檢查。
+
+**已知保真度差異（和瀏覽器版相同的共用程式）：** Python 畫的圖表若沒有明確填色，讀取器預設為黑色（PowerPoint 會用佈景主題色）；之後可改善讀取器。
+
 ## 11. 決定紀錄
 
 | # | 項目 | 結果 |

@@ -37,6 +37,8 @@ const isBrowser = (context) => Boolean(context.document?.createElement && typeof
  * it out with. `eastAsian: false` skips the large CJK faces (thumbnails).
  */
 export async function prepareFonts(design, language, context, { eastAsian = true } = {}) {
+  // Where there is no page (the server), the caller says how its fonts are made ready: (design, language, { eastAsian }) => { measure, fontAlias }.
+  if (typeof context.prepareFonts === 'function') return context.prepareFonts(design, language, { eastAsian });
   if (!isBrowser(context)) return { measure: createEstimatingMeasurer(), fontAlias: (family) => family, assets: null, tokens: null };
   const assets = await import('./pptx-assets.js');
   const tokens = buildDesignTokens(design, { language });

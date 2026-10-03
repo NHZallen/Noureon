@@ -46,6 +46,8 @@
     "write-excel-file": "4.1.1"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.9",
+    "@resvg/resvg-js": "^2.6.2",
     "@xmldom/xmldom": "^0.9.12",
     "autoprefixer": "^10.4.21",
     "happy-dom": "^20.10.6",

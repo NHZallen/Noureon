@@ -3,8 +3,9 @@ FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json ./
-# The archive tool and the font subsetter, for the fonts embedded in the Word and PowerPoint files Python makes (server/office-fonts.js): only these two, with the versions the app uses.
-RUN mkdir /tmp/deps && cd /tmp/deps && npm init -y > /dev/null && npm install --omit=dev --ignore-scripts --no-audit --no-fund jszip@3.10.1 harfbuzzjs@1.6.2 && mv node_modules /app/node_modules && rm -rf /tmp/deps
+# The archive tool and the font subsetter, for the fonts embedded in the Word and PowerPoint files Python makes (server/office-fonts.js), and the XML, canvas and
+# renderer that draw slides for the visual check without a browser (server/slides/): only these, with the versions the app and its tests use.
+RUN mkdir /tmp/deps && cd /tmp/deps && npm init -y > /dev/null && npm install --omit=dev --ignore-scripts --no-audit --no-fund jszip@3.10.1 harfbuzzjs@1.6.2 @xmldom/xmldom@0.9.12 @napi-rs/canvas@1.0.9 @resvg/resvg-js@2.6.2 && mv node_modules /app/node_modules && rm -rf /tmp/deps
 COPY server ./server
 # The shared modules the server reuses from the app (scripts/server-shared-modules.json); without them the server cannot start.
 COPY src ./src
