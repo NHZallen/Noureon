@@ -34,3 +34,33 @@ test('the scroll debug tool says what moved the chat, and gives everything back 
   assert.equal(window.Element.prototype.scrollTo, original);
   window.happyDOM.abort();
 });
+
+test('without a console (a phone) the moves are written in a panel with a button that copies them', async () => {
+  const window = new Window();
+  const { document } = window;
+  const chat = document.createElement('div');
+  chat.id = 'chat-container';
+  document.body.append(chat);
+  let copied = '';
+  Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async (text) => { copied = text; } }, configurable: true });
+  const warn = console.warn;
+  console.warn = () => {};
+  const stop = installScrollDebug(document);
+  try {
+    const panel = document.querySelector('[data-scroll-debug]');
+    assert.ok(panel);
+    chat.scrollTop = 40;
+    assert.match(panel.textContent, /scrollTop 0 -> 40/);
+    const [copy, clear] = panel.querySelectorAll('button');
+    copy.click();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.match(copied, /scrollTop 0 -> 40/);
+    clear.click();
+    assert.doesNotMatch(panel.querySelector('pre').textContent, /scrollTop/);
+  } finally {
+    console.warn = warn;
+    stop();
+  }
+  assert.equal(document.querySelector('[data-scroll-debug]'), null, 'the panel goes when it is stopped');
+  window.happyDOM.abort();
+});
