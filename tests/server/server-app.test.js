@@ -207,7 +207,7 @@ test('/v1/runs turns the manager\'s refusals into the right answers, and does no
 
 test('replies with Python are taken when the sandbox host is set, except with the provider\'s own web search', async () => {
   const started = [];
-  const runs = { advancedEnabled: true, start: async ({ spec: given }) => { started.push(given.tools); return RUN_ID; }, stop: async () => true, get: async () => null };
+  const runs = { advancedAvailable: async () => true, start: async ({ spec: given }) => { started.push(given.tools); return RUN_ID; }, stop: async () => true, get: async () => null };
   await withServer(async ({ base }) => {
     const python = spec();
     python.tools = { webSearch: 'research', advanced: true, designs: { deck: 'Slate', document: 'auto' }, inputs: [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }] };

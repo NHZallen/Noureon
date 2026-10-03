@@ -22,6 +22,9 @@ const MOUNT_CALL_MS = 180_000;
 // All the host's sandboxes may be in use (it holds a few at a time): a reply waits for one, this long at most.
 const BUSY_WAIT_MS = 5 * 60_000;
 const BUSY_RETRY_MS = 3000;
+// How long what `ready` found is trusted: a host that works, and one that does not (asked again sooner, to notice it is back).
+const READY_OK_MS = 30_000;
+const READY_FAILED_MS = 10_000;
 
 const bytesOf = (value) => {
   if (value instanceof Uint8Array) return value;
@@ -76,8 +79,23 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
       await call('DELETE', `/v1/sessions/${made.id}`, { stage: 'check' }).catch(() => {});
       return { ok: true, reason: '' };
     } catch (error) {
+      // Every sandbox in use is a busy host, not a broken one: the reply waits its turn.
+      if (error.status === 429) return { ok: true, reason: 'busy' };
       return { ok: false, reason: error.status === 401 || error.status === 403 ? 'refused' : 'failed' };
     }
+  }
+
+  // check(), remembered for a short while (and shared by the replies asking at the same time): a reply with Python asks before it is
+  // taken, so that when the host is down the browser makes it instead.
+  let remembered = null;
+  function ready() {
+    if (remembered && now() - remembered.at < (remembered.state.ok ? READY_OK_MS : READY_FAILED_MS)) return remembered.promise;
+    const promise = check().then((state) => {
+      if (remembered?.promise === promise) remembered.state = state;
+      return state;
+    });
+    remembered = { at: now(), state: { ok: true }, promise };
+    return promise;
   }
 
   /** A sandbox for one reply. `onProgress({ stage: 'output', stream, text })` hears what the code prints. */
@@ -228,5 +246,5 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
     return sandbox;
   }
 
-  return { configured, check, getSandbox };
+  return { configured, check, ready, getSandbox };
 }

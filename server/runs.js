@@ -224,8 +224,15 @@ export function createRunManager({
   return {
     get activeCount() { return active.size; },
     get draining() { return draining; },
-    /** Whether replies that run Python can be taken (the sandbox host is set). */
-    get advancedEnabled() { return Boolean(sandbox?.host?.configured); },
+    /** Whether a reply that runs Python can be taken now: the sandbox host is set and answers (it is not asked more than every so often). */
+    async advancedAvailable() {
+      if (!sandbox?.host?.configured) return false;
+      try {
+        return (await sandbox.host.ready()).ok === true;
+      } catch {
+        return false;
+      }
+    },
 
     /** Accepts a reply: seals its keys, records it (the limit and the conversation are checked in the database), and starts it. */
     async start({ userId, spec }) {

@@ -199,7 +199,7 @@
 - `runSandboxReply` 原封不動共用（新增 `host: 'server'` 選項，只改提示詞與工具說明：伺服器上是 Python 3.12 的隔離容器，不是瀏覽器的 Pyodide）。步驟事件（`step`、`output`、`code`、`step-end`、`thinking` 等）經 `onLive` 的 `ev` 即時推給所有分頁；管理器保留一份事件鏡像（相鄰同類事件合併，上限 600 KB），晚加入的分頁在快照 `r.events` 拿到目前為止的步驟。`step-end` 的小圖片（≤1 MB，每步合計 ≤3 MB）以 base64 帶在事件中，讓步驟列在執行當下就顯示圖片。
 - 伺服器重啟後接手的 Python 回覆**從頭重做**（沙盒的狀態隨程序消失，不做檢查點）。
 - 檔案存不進儲存桶時：≤5 MB 的檔案直接留在訊息裡（App 之後同步時會自己上傳），更大的不提供並在該步驟記錄 `not-saved`。
-- 設定：Zeabur 環境變數 `SANDBOX_RUNNER_URL`（如 `http://10.42.0.1:7788`）與 `SANDBOX_RUNNER_TOKEN`（兩者要一起設）。沒設時伺服器對 Python 回覆回 `unsupported_mode`，瀏覽器退回本機執行。啟動時自檢並記錄 `sandbox_ok`／`sandbox_failed`（原因：`unreachable`、`refused`、`failed`）。
+- 設定：Zeabur 環境變數 `SANDBOX_RUNNER_URL`（如 `http://10.42.0.1:7788`）與 `SANDBOX_RUNNER_TOKEN`（兩者要一起設）。沒設，或設了但沙盒主機現在不回應（`host.ready()`：開一個沙盒再刪掉；正常結果記 30 秒、失敗記 10 秒、同時詢問合併成一次；主機「全部在用」視為正常，回覆排隊），伺服器對 Python 回覆回 `unsupported_mode`，瀏覽器退回本機（Pyodide）執行。啟動時自檢並記錄 `sandbox_ok`／`sandbox_failed`（原因：`unreachable`、`refused`、`failed`）。
 - 瀏覽器：`planServerReply` 對 Python 回覆也回 `ok`（`advanced: true`），但「搜尋結果封包」（非工具型模型、Gemini 內建搜尋）仍在本機；RunSpec 的 `tools.designs`（簡報／文件範本選擇）與 `tools.inputs`（這則訊息的附件）；`follow` 多了 `onEvent`，結束時回傳 `extraParts`（檔案 part，經 `window.__astraCloudAssets.hydrateConversation` 把標記換成資料）；步驟列與本機執行時是同一個。
 - 步驟事件帶 `t`（回覆開始後的毫秒，伺服器時鐘）；瀏覽器換成 `at = runStartedAt + t`，步驟列（`ledger.js` 的 `happenedAt`、`sandbox-ledger.js` 的 `startedAt` 與 `event.at`）用它當每一列的開始與結束時間，所以晚加入的分頁顯示的秒數與其他分頁相同。
 - **字型嵌入在伺服器**（`server/office-fonts.js`）：沿用共用的 `office-fonts.js`／`font-embedding.js`，伺服器提供 jszip、harfbuzz 子集化器（wasm）與字型檔。Dockerfile 只另外安裝這兩個套件（版本與 App 相同），`.dockerignore` 改為保留 `src/assets/fonts`（約 31 MB）。共用的 `embedFontsInRunOutputs` 不再有預設載入器（瀏覽器端改用 `office-fonts-browser.js`），避免伺服器邊界檢查連到只能在瀏覽器用的 `pptx-assets.js`。檔案在存進雲端之前嵌入，所以存的就是嵌好的檔案。

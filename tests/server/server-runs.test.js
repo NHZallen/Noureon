@@ -522,7 +522,7 @@ test('the steps of a reply with Python are kept for a page that joins late, join
   const gate = new Promise((resolve) => { release = resolve; });
   const given = {};
   const { manager } = managerHarness({
-    sandbox: { host: { configured: true }, files: { marker: 'files' } },
+    sandbox: { host: { configured: true, ready: async () => ({ ok: true }) }, files: { marker: 'files' } },
     execute: async ({ onLive, userId, sandboxHost, files }) => {
       Object.assign(given, { userId, sandboxHost, files });
       onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
@@ -538,11 +538,11 @@ test('the steps of a reply with Python are kept for a page that joins late, join
       return { parts: [{ text: 'x' }], status: 'done', run: {}, toolCalls: 1 };
     }
   });
-  assert.equal(manager.advancedEnabled, true);
+  assert.equal(await manager.advancedAvailable(), true);
   await manager.start({ userId: USER, spec: specOf() });
   await settle();
   assert.equal(given.userId, USER, 'the run knows whose files these are');
-  assert.deepEqual(given.sandboxHost, { configured: true });
+  assert.equal(given.sandboxHost.configured, true);
   const late = [];
   manager.watch({ userId: USER, runId: 'run-1', send: (event) => late.push(event), close() {} });
   assert.deepEqual(late[0].r.events, [
@@ -556,6 +556,12 @@ test('the steps of a reply with Python are kept for a page that joins late, join
   assert.deepEqual(late[1], { ev: { type: 'step-end', n: 1, ok: true, files: [], elapsedMs: 9 } });
 });
 
-test('without a sandbox host, replies with Python are not taken', () => {
-  assert.equal(managerHarness({ execute: async () => ({}) }).manager.advancedEnabled, false);
+test('without a sandbox host, or while it does not answer, replies with Python are not taken (the browser makes them)', async () => {
+  assert.equal(await managerHarness({ execute: async () => ({}) }).manager.advancedAvailable(), false);
+  const down = managerHarness({ execute: async () => ({}), sandbox: { host: { configured: true, ready: async () => ({ ok: false, reason: 'unreachable' }) }, files: {} } });
+  assert.equal(await down.manager.advancedAvailable(), false);
+  const broken = managerHarness({ execute: async () => ({}), sandbox: { host: { configured: true, ready: async () => { throw new Error('x'); } }, files: {} } });
+  assert.equal(await broken.manager.advancedAvailable(), false);
+  const up = managerHarness({ execute: async () => ({}), sandbox: { host: { configured: true, ready: async () => ({ ok: true }) }, files: {} } });
+  assert.equal(await up.manager.advancedAvailable(), true);
 });

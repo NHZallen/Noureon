@@ -138,3 +138,32 @@ test('the secret is not in what an error says', async (t) => {
   const wrong = createSandboxHost({ url: runner.url, token: `${TOKEN}-wrong` }).getSandbox();
   await assert.rejects(() => wrong.prepare(), (error) => !JSON.stringify({ message: error.message, stage: error.stage }).includes(TOKEN));
 });
+
+test('ready: a host that works is remembered for a while, one that does not is asked again sooner, and a busy host is a working one', async (t) => {
+  const runner = await fakeRunner();
+  t.after(runner.close);
+  let clock = 0;
+  const host = createSandboxHost({ url: runner.url, token: TOKEN, now: () => clock });
+  const asked = () => runner.calls.filter((call) => call.method === 'POST' && call.path === '/v1/sessions').length;
+  const [first, second] = await Promise.all([host.ready(), host.ready()]);
+  assert.deepEqual([first.ok, second.ok], [true, true]);
+  assert.equal(asked(), 1, 'asked at the same time, asked once');
+  clock = 20_000;
+  await host.ready();
+  assert.equal(asked(), 1, 'remembered for 30 seconds');
+  clock = 31_000;
+  await host.ready();
+  assert.equal(asked(), 2);
+
+  const down = createSandboxHost({ url: 'http://127.0.0.1:1', token: TOKEN, now: () => clock });
+  assert.equal((await down.ready()).ok, false);
+  clock += 5000;
+  const again = await down.ready();
+  assert.equal(again.ok, false, 'still down');
+  clock += 6000;
+  assert.equal((await down.ready()).ok, false, 'asked again after 10 seconds');
+
+  const busy = await fakeRunner({ busyTimes: 1 });
+  t.after(busy.close);
+  assert.deepEqual(await createSandboxHost({ url: busy.url, token: TOKEN }).check(), { ok: true, reason: 'busy' });
+});
