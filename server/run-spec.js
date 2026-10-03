@@ -62,6 +62,17 @@ export function validateRunSpec(input) {
     if (!WEB_SEARCH.includes(tools.webSearch)) fail('tools.webSearch', `must be one of ${WEB_SEARCH.join(', ')}`);
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
     if (typeof tools.advanced !== 'boolean') fail('tools.advanced', 'must be true or false');
+    // The Design menu's choices (a template name each, or "auto"), and the files of this message that Python is given.
+    if (tools.designs !== undefined) {
+      if (!isObject(tools.designs)) fail('tools.designs', 'must be an object');
+      else for (const kind of ['deck', 'document']) if (tools.designs[kind] !== undefined && !text(tools.designs[kind], 80)) fail(`tools.designs.${kind}`, 'must be a short text');
+    }
+    if (tools.inputs !== undefined) {
+      if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
+      else tools.inputs.forEach((file, index) => {
+        if (!isObject(file) || !text(file.name, 300) || typeof file.data !== 'string' || (file.mimeType !== undefined && !text(file.mimeType, 120))) fail(`tools.inputs[${index}]`, 'must have a name and data');
+      });
+    }
   }
 
   const secrets = input.secrets;
@@ -91,7 +102,13 @@ export function validateRunSpec(input) {
         ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}),
         language: request.language
       },
-      tools: { webSearch: tools.webSearch, searchProvider: tools.searchProvider || 'tavily', advanced: tools.advanced },
+      tools: {
+        webSearch: tools.webSearch,
+        searchProvider: tools.searchProvider || 'tavily',
+        advanced: tools.advanced,
+        ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
+        ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
+      },
       secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}) }
     }
   };

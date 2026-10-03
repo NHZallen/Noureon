@@ -185,13 +185,23 @@
 - 新增 `src/app/runtime/server-reply/`：`server-reply.js`（判斷、組裝 RunSpec、POST `/v1/runs`、輪詢 `workspace_messages` 並串流顯示、停止、錯誤本地化）、`server-reply-runtime.js`（瀏覽器接線：登入權杖、讀訊息、送出前先把對話同步到雲端、退回本機時的提示）、`server-reply-texts.js`（隱私分頁與提示的五種語言文字）。
 - 接線點：`single-model-response-lifecycle.js`（翻譯完請求內容後，若伺服器接手就改為「跟隨」；否則照舊本機）、`submit-input-council-lifecycle.js`（訊息 id 與位置由送出端先決定，伺服器寫入同一則訊息；伺服器回報的錯誤用同一個 id 存成錯誤訊息，避免兩則）、`stream-api-call.js`（`describeOnly` 只組出系統指令文字，不呼叫供應商）。
 - 隱私分頁：`settings-privacy-section.js`；選擇立即儲存（`config.replyRunLocation`，預設 `server`），手機設定清單也有。
-- 預設進階模式（Python）：只有訊息與檔案／資料有關，或對話中已有檔案（`inlineData`、`sandboxFile`）時才留在本機；其他回覆即使在進階模式也交給伺服器（曾因為預設就是進階而幾乎全留本機，已修正）。要等 S2 才能讓 Python 也在伺服器上。
+- 預設進階模式（Python）：只有訊息與檔案／資料有關，或對話中已有檔案（`inlineData`、`sandboxFile`）時才留在本機；其他回覆即使在進階模式也交給伺服器（曾因為預設就是進階而幾乎全留本機，已修正）。S2b 之後 Python 回覆也交給伺服器（見下）。
 - 資料庫保護（遷移 `20261003030000`）：`upsert_workspace_messages` 不覆蓋仍在進行中的伺服器回覆（瀏覽器那份可能是空的或寫到一半）。
 - 多裝置：本機有回覆進行時，既有的同步機制會延後套用遠端變更（`busy()`），伺服器寫入的同一則訊息在回覆結束後合併，不會重複。
 - 伺服器失敗時寫入的錯誤訊息有頁面語言版本（`server/error-texts.js`），頁面關閉期間失敗也讀得懂。
 - 回覆的顯示一律即時（輸出模式設定與「完整輸出後打字機」已移除；`config.outputMode` 載入時固定為 `realtime`，`getOutputMode()` 固定回傳 `realtime`）。回來接續（`server-reply/reattach.js`）因此一律一路顯示。
 - 即時直播通道：`GET /v1/runs/:id/stream`（server-sent events，`server/app.js`）。執行器每產生一小段就以 `onLive` 事件交給管理器（`r` 快照、`a` 答案、`th` 思考、`src` 網頁），管理器維持一份記憶體中的鏡像，晚加入的分頁先收到快照再收到之後每一段，最後收到 `done`（訂單：最終訊息寫入資料庫之後才送 `done`）；每帳號最多 12 個觀看者；每 15 秒一行 keep-alive；瀏覽器 40 秒沒收到任何資料就當作中斷，改成讀 `workspace_messages`（輪詢 350 ms）。伺服器對資料庫的寫入照舊節流（300 ms），只是持久化與備援，不再是顯示的路徑。
 - 提示用通知（toast）而非訊息旁的小字：只在「連不上伺服器」與「同時進行太多」時出現，進階模式等預期內的本機執行不提示。
+
+**S2b／S2c（Python 在伺服器上，程式完成，待實機驗證）實作備註：**
+
+- 伺服器：`server/sandbox-client.js`（把沙盒主機的 runner 接成瀏覽器沙盒的同一介面 `prepare/clear/mount/run/dispose`；檔案以 base64 往返、`/run` 的 NDJSON 轉成 `onProgress`；主機的沙盒都在用時（429）最多等 5 分鐘；停止時呼叫 runner 的 `/stop`）、`server/file-store.js`（產生的檔案存進使用者自己的 Supabase Storage：桶 `user-assets`、路徑 `<userId>/<sha256>`，與 App 自己同步附件的格式完全相同，訊息裡放 `__astraCloudAsset` 標記；也負責把先前回覆的檔案讀回給 `/input`，只讀自己的資料夾）、`server/advanced-reply.js`（收集 `/input` 檔案、步驟事件節流、回覆結束後的存檔與訊息組裝）。
+- `runSandboxReply` 原封不動共用（新增 `host: 'server'` 選項，只改提示詞與工具說明：伺服器上是 Python 3.12 的隔離容器，不是瀏覽器的 Pyodide）。步驟事件（`step`、`output`、`code`、`step-end`、`thinking` 等）經 `onLive` 的 `ev` 即時推給所有分頁；管理器保留一份事件鏡像（相鄰同類事件合併，上限 600 KB），晚加入的分頁在快照 `r.events` 拿到目前為止的步驟。`step-end` 的小圖片（≤1 MB，每步合計 ≤3 MB）以 base64 帶在事件中，讓步驟列在執行當下就顯示圖片。
+- 伺服器重啟後接手的 Python 回覆**從頭重做**（沙盒的狀態隨程序消失，不做檢查點）。
+- 檔案存不進儲存桶時：≤5 MB 的檔案直接留在訊息裡（App 之後同步時會自己上傳），更大的不提供並在該步驟記錄 `not-saved`。
+- 設定：Zeabur 環境變數 `SANDBOX_RUNNER_URL`（如 `http://10.42.0.1:7788`）與 `SANDBOX_RUNNER_TOKEN`（兩者要一起設）。沒設時伺服器對 Python 回覆回 `unsupported_mode`，瀏覽器退回本機執行。啟動時自檢並記錄 `sandbox_ok`／`sandbox_failed`（原因：`unreachable`、`refused`、`failed`）。
+- 瀏覽器：`planServerReply` 對 Python 回覆也回 `ok`（`advanced: true`），但「搜尋結果封包」（非工具型模型、Gemini 內建搜尋）仍在本機；RunSpec 的 `tools.designs`（簡報／文件範本選擇）與 `tools.inputs`（這則訊息的附件）；`follow` 多了 `onEvent`，結束時回傳 `extraParts`（檔案 part，經 `window.__astraCloudAssets.hydrateConversation` 把標記換成資料）；步驟列與本機執行時是同一個。
+- 已知限制：晚加入的分頁，步驟列上每一列的計時從加入那刻重算（事件沒有帶伺服器時間）；Word／PowerPoint 檔案的字型嵌入（`office-fonts.js`）在瀏覽器端做，伺服器產生的檔案目前不嵌入字型（檔案只記字型名稱，由閱讀者的電腦替代）；歷史訊息裡的檔案以 base64 隨請求送出，超過請求上限（20 MB）就改在本機執行。
 
 ## 11. 決定紀錄
 

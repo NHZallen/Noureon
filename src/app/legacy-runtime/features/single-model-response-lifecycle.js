@@ -10,7 +10,7 @@ import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.j
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
-import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
+import { collectSandboxInputs, createSandboxFileParts, registerSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
 import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
 
@@ -182,6 +182,14 @@ export function createSingleModelResponseLifecycle({
           modelInfo,
           requestParts,
           webSearch: plan.webSearch,
+          // Python runs on the server too: with the Design menu's choices and the files attached to this message.
+          advanced: Boolean(plan.advanced),
+          designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
+          inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
+            name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
+            mimeType: part.inlineData.mimeType || '',
+            data: part.inlineData.data
+          })),
           assistantMessageId,
           sequence,
           uiLanguage,
@@ -283,6 +291,8 @@ export function createSingleModelResponseLifecycle({
           // What the model thinks is shown as it thinks, as in a reply made here.
           onThought: (chunk, kind, soFarMs) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined, soFarMs),
           onThoughtEnd: (ms) => endThinking(ms),
+          // The steps of Python (and the pages it searched) as they happen, in the same step list as a reply made here.
+          onEvent: (event) => stepList()?.event(event),
           onText: (delta) => {
             if (!answered) endThinking();
             answered = true;
@@ -294,6 +304,11 @@ export function createSingleModelResponseLifecycle({
           if (outcome.run.sources?.length) searchSources = outcome.run.sources;
         }
         if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
+        // The files the reply made are parts of its message (their bytes are in the person's cloud storage; they are brought here).
+        if (outcome.extraParts?.length) {
+          sandboxParts = outcome.extraParts;
+          registerSandboxFileParts(sandboxParts);
+        }
         return outcome.text;
       } catch (error) {
         throw serverReply.localizeError(error, uiLanguage);

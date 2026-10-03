@@ -20,4 +20,6 @@ Each container may use 2 GB of memory and 2 CPU cores (`SANDBOX_MEMORY`, `SANDBO
 The runner is only reachable from the machine's own pod network (`RUNNER_ALLOW`, default `10.42.0.0/16`) and needs the secret
 (`/etc/noureon-sandbox/token`). It is not on the internet. Containers never get a network (`--network none`).
 
+The Noureon server reaches the runner with two Zeabur variables: `SANDBOX_RUNNER_URL` (`http://10.42.0.1:7788`) and `SANDBOX_RUNNER_TOKEN` (the contents of `/etc/noureon-sandbox/token`; never paste it anywhere else). The server's side of this interface is `server/sandbox-client.js`; `tests/sandbox-host/server-adapter.test.js` runs both halves together.
+
 Tests (no Docker needed, a stand-in `docker` runs `repl.py` as a plain process): `node --test tests/sandbox-host/`.

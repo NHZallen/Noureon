@@ -14,6 +14,8 @@ const SWEEP_MS = 30_000;
 const RESTART = Symbol('restart');
 // Pages open on the same account (tabs, devices) may watch replies live; not more than this many at once.
 const MAX_WATCHERS_PER_USER = 12;
+// What a page that joins late is told of the steps of a reply with Python (their events, joined where they follow each other).
+const MAX_MIRRORED_STEP_CHARS = 600_000;
 
 export class RunError extends Error {
   constructor(code, message) {
@@ -27,6 +29,8 @@ export function createRunManager({
   store,
   db,
   vault,
+  // Where Python runs and where the files it makes are kept ({ host, files }, see server/sandbox-client.js and file-store.js), or null.
+  sandbox = null,
   limits = LIMITS,
   fetchImpl = fetch,
   log = () => {},
@@ -67,6 +71,33 @@ export function createRunManager({
       live.thought.ended = true;
       live.thought.ms = event.te;
     } else if (Array.isArray(event.src)) live.sources = event.src;
+    else if (event.ev) mirrorStepEvent(live, event.ev);
+  };
+  // The events of the steps, kept so that a page that joins late can draw the same step list. Neighbours of one kind are joined (the
+  // thinking and what the code prints arrive in small pieces, and each version of the program replaces the one before).
+  const mirrorStepEvent = (live, event) => {
+    const events = live.steps.events;
+    const last = events[events.length - 1];
+    if (event.type === 'code' && last?.type === 'code') {
+      live.steps.chars += String(event.text || '').length - String(last.text || '').length;
+      events[events.length - 1] = event;
+      return;
+    }
+    if (last && event.type === 'thinking' && last.type === 'thinking' && last.kind === event.kind) {
+      last.text = `${last.text || ''}${event.text || ''}`;
+      live.steps.chars += String(event.text || '').length;
+      return;
+    }
+    if (last && event.type === 'output' && last.type === 'output' && last.n === event.n && last.stream === event.stream) {
+      last.text = `${last.text || ''}${event.text || ''}`;
+      live.steps.chars += String(event.text || '').length;
+      return;
+    }
+    const size = JSON.stringify(event).length;
+    // Past the limit a late page misses the rest of the steps; pages that were there all along still get everything.
+    if (live.steps.chars + size > MAX_MIRRORED_STEP_CHARS) return;
+    live.steps.chars += size;
+    events.push({ ...event });
   };
   // What a page that comes in late is given first: the reply as it is now, with the times as they are now.
   const snapshot = (live) => ({
@@ -74,7 +105,8 @@ export function createRunManager({
       answer: live.answer,
       thought: { text: live.thought.text, kind: live.thought.kind, ended: live.thought.ended, ms: live.thought.ended ? live.thought.ms : (live.thought.first ? now() - live.thought.first : live.thought.ms) },
       sources: live.sources,
-      elapsedMs: live.elapsedFrom + (now() - live.elapsedAt)
+      elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
+      ...(live.steps.events.length ? { events: live.steps.events } : {})
     }
   });
   const fan = (live, event) => {
@@ -99,7 +131,7 @@ export function createRunManager({
 
   async function run({ runId, userId, spec, secrets, resume }) {
     const controller = new AbortController();
-    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), subscribers: new Set() };
+    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, subscribers: new Set() };
     active.set(runId, { controller, userId, live });
     let finalStatus = 'error';
     const writer = createMessageWriter({
@@ -133,6 +165,9 @@ export function createRunManager({
         secrets,
         signal: controller.signal,
         resume,
+        userId,
+        sandboxHost: sandbox?.host || null,
+        files: sandbox?.files || null,
         fetchImpl,
         now,
         onUpdate: (parts) => writer.update(parts),
@@ -189,6 +224,8 @@ export function createRunManager({
   return {
     get activeCount() { return active.size; },
     get draining() { return draining; },
+    /** Whether replies that run Python can be taken (the sandbox host is set). */
+    get advancedEnabled() { return Boolean(sandbox?.host?.configured); },
 
     /** Accepts a reply: seals its keys, records it (the limit and the conversation are checked in the database), and starts it. */
     async start({ userId, spec }) {

@@ -93,3 +93,28 @@ test('size limits are kept', () => {
   longKey.secrets.providerKey = 'k'.repeat(601);
   assert.equal(validateRunSpec(longKey).ok, false);
 });
+
+test('the Design menu\'s choices and the files of the message are checked, and kept when right', () => {
+  const given = good();
+  given.tools.advanced = true;
+  given.tools.designs = { deck: 'Slate' };
+  given.tools.inputs = [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }];
+  const result = validateRunSpec(given);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.spec.tools.designs, { deck: 'Slate', document: 'auto' });
+  assert.deepEqual(result.spec.tools.inputs, [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }]);
+  assert.equal('designs' in validateRunSpec(good()).spec.tools, false);
+
+  for (const [change, path] of [
+    [(spec) => { spec.tools.designs = 'Slate'; }, 'tools.designs'],
+    [(spec) => { spec.tools.designs = { deck: 5 }; }, 'tools.designs.deck'],
+    [(spec) => { spec.tools.inputs = 'a'; }, 'tools.inputs'],
+    [(spec) => { spec.tools.inputs = [{ name: 'a' }]; }, 'tools.inputs[0]']
+  ]) {
+    const broken = good();
+    change(broken);
+    const outcome = validateRunSpec(broken);
+    assert.equal(outcome.ok, false);
+    assert.ok(outcome.errors.some((error) => error.path === path), path);
+  }
+});

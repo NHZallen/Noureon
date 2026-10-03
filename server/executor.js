@@ -10,7 +10,9 @@ import { getModelReasoningConfig, modelSupportsUploadedFile, modelSupportsVision
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
-import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
+import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
 export const CHECKPOINT_VERSION = 1;
@@ -48,9 +50,12 @@ export class ReplyError extends Error {
  * (status 'done' or 'stopped'); throws a ReplyError (code provider_error, with a message free of keys) when the reply cannot be
  * made. A stop keeps what was written. `onLive(event)` gets every small piece as it comes, for the ones watching the reply live:
  * { r: snapshot } (the start), { a: text of the answer }, { th: thinking text, k: kind }, { te: how long it thought, in ms, when the answer
- * starts }, { src: pages found }.
+ * starts }, { src: pages found }, { ev: what a step of Python does, for the page's step list }.
+ * A reply that runs Python (`spec.tools.advanced`) is given `sandboxHost` (server/sandbox-client.js) and `files` (server/file-store.js)
+ * and `userId`; it is made again from its start when it is taken up after a restart (the sandbox was lost with the process).
  */
-export async function executeReply({ spec, secrets, signal, resume = null, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
+  const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
   const startedAt = now() - (Number(resume?.elapsedMs) || 0);
@@ -143,8 +148,40 @@ export async function executeReply({ spec, secrets, signal, resume = null, onUpd
   const parts = spec.request.currentMessage.parts;
 
   let toolCalls = 0;
+  // A reply with Python: the run and what it made, set when the loop is over.
+  let advanced = null;
   try {
-    if (mode === 'research') {
+    if (spec.tools.advanced) {
+      if (!sandboxHost?.configured || !files) throw new ReplyError('Python is not available on the server.', 'provider_error');
+      const tools = mode === 'research' ? createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch }) : null;
+      const stepEvents = createStepEvents({ send: (event) => onLive({ ev: event }), now });
+      let sandbox = null;
+      try {
+        const result = await runSandboxReply({
+          streamApiCall,
+          requestParts: parts,
+          onChunk,
+          signal,
+          requestOptions,
+          host: 'server',
+          getSandbox: (options) => {
+            sandbox = sandboxHost.getSandbox({ ...options, language, signal });
+            return sandbox;
+          },
+          language,
+          provider: modelInfo.provider,
+          inputFiles: collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
+          designs: spec.tools.designs || {},
+          research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
+          onEvent: stepEvents.event
+        });
+        stepEvents.flush();
+        advanced = result;
+      } finally {
+        // The container goes with the reply, however it ended.
+        await sandbox?.dispose().catch(() => {});
+      }
+    } else if (mode === 'research') {
       const tools = createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch });
       const result = await runWebResearchReply({
         streamApiCall,
@@ -166,6 +203,25 @@ export async function executeReply({ spec, secrets, signal, resume = null, onUpd
   } catch (error) {
     // A stop keeps what was written; anything else is the reply's failure.
     if (!signal?.aborted) throw new ReplyError(scrubMessage(error?.message, secrets), 'provider_error');
+  }
+
+  if (advanced) {
+    const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
+    const run = advanced.run || (sources.length ? { status: RUN_STATUS.done, steps: [] } : null);
+    if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
+      if (!advanced.text.trim() && !sources.length) {
+        if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
+        throw new ReplyError('The model gave no answer.', 'provider_error');
+      }
+      if (!run) return { parts: [{ text: advanced.text }], status: stopped ? 'stopped' : 'done', run: record(stopped ? 'stopped' : 'done'), toolCalls };
+    }
+    // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
+    if (sources.length) run.sources = sources;
+    run.elapsedMs = now() - startedAt;
+    if (stopped) run.status = RUN_STATUS.stopped;
+    toolCalls = run.steps.length;
+    const finished = await finishAdvancedReply({ result: advanced, run, userId, files });
+    return { parts: [{ text: finished.text }, ...finished.parts], status: stopped ? 'stopped' : 'done', run, toolCalls };
   }
 
   // Where Gemini's answer cites its pages is known only when it is whole: the markers go into the text now.

@@ -26,6 +26,12 @@ export function loadConfig(env = process.env) {
   if (env.KEY_ENCRYPTION_KEY_PREVIOUS && encryptionVersion > 1) encryptionKeys.push({ version: encryptionVersion - 1, key: String(env.KEY_ENCRYPTION_KEY_PREVIOUS) });
   if (Boolean(serviceKey) !== (encryptionKeys.length > 0)) problems.push('SUPABASE_SERVICE_KEY and KEY_ENCRYPTION_KEY go together: set both or neither');
   if (!Number.isInteger(encryptionVersion) || encryptionVersion < 1) problems.push('KEY_ENCRYPTION_KEY_VERSION must be a whole number from 1');
+  // The sandbox host (sandbox-host/README.md): where Python runs for replies in Advanced mode. Both or neither.
+  const sandboxUrl = String(env.SANDBOX_RUNNER_URL || '').replace(/\/+$/, '');
+  const sandboxToken = String(env.SANDBOX_RUNNER_TOKEN || '');
+  if (Boolean(sandboxUrl) !== Boolean(sandboxToken)) problems.push('SANDBOX_RUNNER_URL and SANDBOX_RUNNER_TOKEN go together: set both or neither');
+  if (sandboxUrl && !/^https?:\/\/[^\s/]+(?::\d+)?$/i.test(sandboxUrl)) problems.push('SANDBOX_RUNNER_URL must be an address like http://10.42.0.1:7788');
+  if (sandboxToken && sandboxToken.length < 32) problems.push('SANDBOX_RUNNER_TOKEN is too short');
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
     port,
@@ -34,6 +40,8 @@ export function loadConfig(env = process.env) {
     serviceKey,
     encryptionKeys: Object.freeze(encryptionKeys),
     runsConfigured: Boolean(serviceKey && encryptionKeys.length),
+    sandboxUrl,
+    sandboxToken,
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
     // The version of the server (shown by /healthz): the Git commit when the deployment gives it.
     build: String(env.SOURCE_COMMIT || env.GIT_COMMIT || 'dev').slice(0, 12)

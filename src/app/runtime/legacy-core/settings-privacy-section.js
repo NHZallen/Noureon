@@ -50,8 +50,8 @@ export function renderPrivacySection({ document, section, config, language, hasA
     section.appendChild(el(document, 'h3', 'text-lg font-semibold mb-3 mt-6', t(titleKey)));
     section.appendChild(bulletList(document, keys.map(t)));
   };
-  block('sentTitle', ['sent1', 'sent2', 'sent3']);
-  block('localTitle', ['local1', 'local2', 'local3']);
+  block('sentTitle', ['sent1', 'sent2', 'sent3', 'sent4']);
+  block('localTitle', ['local2', 'local3']);
   block('storageTitle', ['storage1', 'storage2']);
 }
 

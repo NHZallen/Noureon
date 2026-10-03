@@ -3,7 +3,7 @@
 // answers without a call (at most MAX_RUNS_PER_REPLY runs). Returns the
 // answer text and the run record kept above it. Loaded on demand.
 
-import { MAX_RUNS_PER_REPLY, RUN_PYTHON_TOOL, getSandboxGuidance } from './sandbox-guidance.js';
+import { MAX_RUNS_PER_REPLY, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, getSandboxGuidance } from './sandbox-guidance.js';
 import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
@@ -64,6 +64,8 @@ export async function runSandboxReply({
   getSandbox,
   language = 'zh-TW',
   provider = '',
+  // Where the code runs: 'browser' (Pyodide in the page) or 'server' (a container; the server makes the reply).
+  host = 'browser',
   // Files for /input: [{ name, type, size, bytes: () => Uint8Array }].
   inputFiles = [],
   // The Design menu's choices: a template means the design system.
@@ -168,7 +170,7 @@ export async function runSandboxReply({
     return sandboxReady;
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs }), researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
@@ -229,7 +231,7 @@ export async function runSandboxReply({
           onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
         }
       },
-      tools: [...(canRun ? [RUN_PYTHON_TOOL] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
+      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }
@@ -332,7 +334,7 @@ export async function runSandboxReply({
         run.fallback = 'sandbox-load-failed';
         toolsAllowed = false;
         step.error = String(error?.message || error);
-        reply(toolResultFor({ error: 'Python could not be loaded in this browser.' }, {
+        reply(toolResultFor({ error: host === 'server' ? 'Python could not be started.' : 'Python could not be loaded in this browser.' }, {
           note: 'Do not call run_python again. Answer without it; write any file the user asked for as a ````file block instead.'
         }));
         continue;

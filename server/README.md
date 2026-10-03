@@ -21,9 +21,11 @@
 | `SUPABASE_URL` | 專案網址，跟網站用的 `VITE_SUPABASE_URL` 一樣 |
 | `SUPABASE_PUBLISHABLE_KEY` | 公開金鑰，跟網站用的 `VITE_SUPABASE_PUBLISHABLE_KEY` 一樣（不是服務金鑰） |
 | `ALLOWED_ORIGINS` | 選填，允許從哪些網站呼叫，用逗號分隔；不填就是 `https://noureon.com` 與 `https://www.noureon.com` |
+| `SUPABASE_SERVICE_KEY`、`KEY_ENCRYPTION_KEY` | 伺服器代寫回覆用的服務金鑰與加密暫存金鑰用的主金鑰（要一起設） |
+| `SANDBOX_RUNNER_URL`、`SANDBOX_RUNNER_TOKEN` | 選填，要一起設：Python 沙盒主機的 runner 位址（如 `http://10.42.0.1:7788`）與密鑰（VPS 上 `/etc/noureon-sandbox/token` 的內容）。沒設時 Python 回覆回 `unsupported_mode`，瀏覽器改在本機執行。啟動日誌會有 `sandbox_ok` 或 `sandbox_failed` |
 | `PORT` | 選填，預設 8080 |
 
-之後的階段會再加：Supabase 服務金鑰、加密暫存金鑰用的主金鑰。**這些只能放在 Zeabur 的環境變數裡，不要寫進程式碼、不要貼到對話或日誌。**
+**服務金鑰、主金鑰與沙盒密鑰只能放在 Zeabur 的環境變數裡，不要寫進程式碼、不要貼到對話或日誌。**
 
 ## 在 Zeabur 部署（使用者操作）
 

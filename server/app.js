@@ -126,7 +126,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const result = validateRunSpec(await readJson(request, LIMITS.maxRequestBytes));
         if (result.unsupportedProtocol) throw new RequestError(ERROR_CODES.protocolUnsupported, 'This server speaks another protocol version.', { protocol: PROTOCOL_VERSION });
         if (!result.ok) throw new RequestError(ERROR_CODES.invalidRunSpec, 'The request is not in the right shape.', { details: result.errors });
-        if (result.spec.tools.advanced) throw new RequestError(ERROR_CODES.unsupportedMode, 'Advanced mode is not run on the server yet.');
+        // Python needs the sandbox host, and its own web search is a packet made in the browser (Gemini's search does not go with tools).
+        if (result.spec.tools.advanced && (!runs.advancedEnabled || result.spec.tools.webSearch === 'grounding')) throw new RequestError(ERROR_CODES.unsupportedMode, 'Advanced mode is not run on the server.');
         try {
           const runId = await runs.start({ userId: user.id, spec: result.spec });
           send(response, 202, { runId }, origin);

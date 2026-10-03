@@ -17,6 +17,12 @@ export const RUN_PYTHON_TOOL = Object.freeze({
   })
 });
 
+// The same tool when the code runs on the server (a real Python in a container of its own, not Pyodide in the page).
+export const RUN_PYTHON_TOOL_SERVER = Object.freeze({
+  ...RUN_PYTHON_TOOL,
+  description: RUN_PYTHON_TOOL.description.replace('Python 3.14 in a sandbox in the user\'s browser', 'Python 3.12 in an isolated sandbox on a server')
+});
+
 export const MAX_RUNS_PER_REPLY = 10;
 
 const PACKAGES = 'numpy, pandas, matplotlib, scipy, scikit-learn, sympy, Pillow, lxml, beautifulsoup4, python-docx (import docx), python-pptx (import pptx), openpyxl, XlsxWriter, reportlab, fpdf2 (import fpdf), pypdf, and the standard library';
@@ -44,7 +50,7 @@ function templateRule(kind, template) {
  * `designs`: the conversation's choices from the Design menu,
  * { deck, document }, each "auto" or a template name.
  */
-export function getSandboxGuidance({ inputFiles = [], designs = {} } = {}) {
+export function getSandboxGuidance({ inputFiles = [], designs = {}, host = 'browser' } = {}) {
   const inputs = inputFiles.length
     ? inputFiles.map((file) => `- /input/${file.name} (${file.type || 'file'}, ${file.size} bytes)`).join('\n')
     : '- (none)';
@@ -52,9 +58,10 @@ export function getSandboxGuidance({ inputFiles = [], designs = {} } = {}) {
     designs.deck && designs.deck !== 'auto' ? templateRule('deck', designs.deck) : '',
     designs.document && designs.document !== 'auto' ? templateRule('document', designs.document) : ''
   ].filter(Boolean);
-  return `## Advanced mode: Python in the browser
+  const onServer = host === 'server';
+  return `## Advanced mode: Python ${onServer ? 'on the server' : 'in the browser'}
 
-You can call the tool run_python to run Python 3.14 (Pyodide) in a sandbox in the user's browser.
+You can call the tool run_python to run ${onServer ? 'Python 3.12 in an isolated sandbox on a server' : "Python 3.14 (Pyodide) in a sandbox in the user's browser"}.
 - No network access and no pip/micropip installs. Available: ${PACKAGES}. Packages load automatically on import.
 - Each call may take up to 60 seconds. Variables persist between calls in this reply; a new reply starts with a clean environment.
 - Files from the user are in /input:

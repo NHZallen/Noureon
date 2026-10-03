@@ -201,7 +201,7 @@ test('the four search paths and NVIDIA\'s chat go straight to their services, wi
 
 // ----- the run manager
 
-function managerHarness({ execute, db = fakeDatabase(), logs = [] } = {}) {
+function managerHarness({ execute, db = fakeDatabase(), logs = [], sandbox = null } = {}) {
   const vault = createKeyVault([{ version: 1, key: masterKey() }]);
   const repeating = [];
   const timers = [];
@@ -210,6 +210,7 @@ function managerHarness({ execute, db = fakeDatabase(), logs = [] } = {}) {
     store,
     db,
     vault,
+    sandbox,
     execute,
     log: (event, fields) => logs.push(JSON.stringify({ event, ...fields })),
     setRepeating: (fn, ms) => { repeating.push({ fn, ms }); return repeating.length; },
@@ -515,3 +516,46 @@ test('a page that comes in late is given the times as they are now: how long the
   await settle();
 }
 );
+
+test('the steps of a reply with Python are kept for a page that joins late, joined where they follow each other, and given to every page as they come', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const given = {};
+  const { manager } = managerHarness({
+    sandbox: { host: { configured: true }, files: { marker: 'files' } },
+    execute: async ({ onLive, userId, sandboxHost, files }) => {
+      Object.assign(given, { userId, sandboxHost, files });
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
+      onLive({ ev: { type: 'thinking', text: 'Let ', kind: 'raw' } });
+      onLive({ ev: { type: 'thinking', text: 'me see', kind: 'raw' } });
+      onLive({ ev: { type: 'step', n: 1, title: 'Run', code: '' } });
+      onLive({ ev: { type: 'code', text: 'pri' } });
+      onLive({ ev: { type: 'code', text: 'print(1)' } });
+      onLive({ ev: { type: 'output', n: 1, stream: 'stdout', text: '1' } });
+      onLive({ ev: { type: 'output', n: 1, stream: 'stdout', text: '\n' } });
+      await gate;
+      onLive({ ev: { type: 'step-end', n: 1, ok: true, files: [], elapsedMs: 9 } });
+      return { parts: [{ text: 'x' }], status: 'done', run: {}, toolCalls: 1 };
+    }
+  });
+  assert.equal(manager.advancedEnabled, true);
+  await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.equal(given.userId, USER, 'the run knows whose files these are');
+  assert.deepEqual(given.sandboxHost, { configured: true });
+  const late = [];
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => late.push(event), close() {} });
+  assert.deepEqual(late[0].r.events, [
+    { type: 'thinking', text: 'Let me see', kind: 'raw' },
+    { type: 'step', n: 1, title: 'Run', code: '' },
+    { type: 'code', text: 'print(1)' },
+    { type: 'output', n: 1, stream: 'stdout', text: '1\n' }
+  ]);
+  release();
+  await settle();
+  assert.deepEqual(late[1], { ev: { type: 'step-end', n: 1, ok: true, files: [], elapsedMs: 9 } });
+});
+
+test('without a sandbox host, replies with Python are not taken', () => {
+  assert.equal(managerHarness({ execute: async () => ({}) }).manager.advancedEnabled, false);
+});

@@ -15,7 +15,11 @@ test('the plan: the server is used unless the person chose this device, or the r
   assert.deepEqual(planServerReply({ config: { replyRunLocation: 'server' } }), { ok: true, webSearch: 'off' });
   assert.equal(planServerReply({ config: { replyRunLocation: 'local' } }).reason, LOCAL_REASONS.setting);
   assert.equal(planServerReply({ config: {}, hasAccount: false }).reason, LOCAL_REASONS.noAccount);
-  assert.equal(planServerReply({ config: {}, advanced: true }).reason, LOCAL_REASONS.advanced);
+  // Python runs on the server too, with the model's own web search; a search packet is still made here.
+  assert.deepEqual(planServerReply({ config: {}, advanced: true }), { ok: true, webSearch: 'off', advanced: true });
+  assert.deepEqual(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, researchByModel: true }), { ok: true, webSearch: 'research', advanced: true });
+  assert.equal(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, provider: 'gemini' }).reason, LOCAL_REASONS.packetSearch);
+  assert.equal(planServerReply({ config: { replyRunLocation: 'local' }, advanced: true }).reason, LOCAL_REASONS.setting);
   assert.equal(planServerReply({ config: {}, conversation: { isTemporary: true } }).reason, LOCAL_REASONS.notSynced);
   assert.equal(planServerReply({ config: {}, conversation: { retentionMode: 'ephemeral' } }).reason, LOCAL_REASONS.notSynced);
   assert.deepEqual(planServerReply({ config: {}, webSearchEnabled: true, researchByModel: true }), { ok: true, webSearch: 'research' });
@@ -330,4 +334,51 @@ test('the times are the server\'s: how long the reply has gone on and how long i
   const lateEnds = [];
   await lateRun.follow({ onText() {}, onThoughtEnd: (ms) => lateEnds.push(ms) });
   assert.deepEqual(lateEnds, [8800], 'a page that comes in after it stopped thinking is told how long it thought');
+});
+
+test('a reply with Python is handed over with the Design menu\'s choices and the files of the message, and only then', async () => {
+  const { reply, calls } = harness();
+  const files = [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }];
+  await reply.start(startArgs({ advanced: true, designs: { deck: 'Slate', document: 'auto' }, inputs: files }));
+  assert.deepEqual(JSON.parse(calls[0].options.body).tools, { webSearch: 'off', advanced: true, designs: { deck: 'Slate', document: 'auto' }, inputs: files });
+  await reply.start(startArgs({ advanced: false, designs: { deck: 'Slate' }, inputs: files }));
+  assert.deepEqual(JSON.parse(calls[1].options.body).tools, { webSearch: 'off', advanced: false }, 'a reply without Python carries neither');
+});
+
+test('the steps of a reply with Python reach the page as they happen, a page that joins late is given the ones so far, and the files come back as parts', async () => {
+  const marker = { __astraCloudAsset: { path: 'u/abc', mimeType: 'image/png', encoding: 'base64' } };
+  const finished = { parts: [{ text: 'Done.' }, { sandboxFile: { id: 'f1', name: 'chart.png', mimeType: 'image/png', size: 3, data: marker } }], status: 'complete', metadata: null };
+  const hydrated = [];
+  const { reply } = liveHarness({
+    events: [
+      { r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], events: [{ type: 'step', n: 1, title: 'Plot', code: 'plot()' }] } },
+      { ev: { type: 'output', n: 1, stream: 'stdout', text: 'ok' } },
+      { ev: { type: 'step-end', n: 1, ok: true, files: [{ name: 'chart.png', size: 3, data: Buffer.from([1, 2, 3]).toString('base64') }, { name: 'notes.txt', size: 5 }], elapsedMs: 4 } },
+      { a: 'Done.' },
+      { done: 'complete' }
+    ],
+    rows: [finished],
+    extra: { hydrateParts: async (parts) => { hydrated.push(parts); return parts.map((part) => ({ sandboxFile: { ...part.sandboxFile, data: 'AQID' } })); } }
+  });
+  const { run } = await reply.start(startArgs({ advanced: true }));
+  const events = [];
+  const result = await run.follow({ onEvent: (event) => events.push(event) });
+  assert.deepEqual(events.map((event) => event.type), ['step', 'output', 'step-end']);
+  const end = events[2];
+  assert.deepEqual([...end.files[0].bytes], [1, 2, 3], 'a picture in the event is given as bytes');
+  assert.equal('data' in end.files[0], false);
+  assert.deepEqual(end.files[1], { name: 'notes.txt', size: 5 });
+  assert.equal(result.text, 'Done.');
+  assert.deepEqual(hydrated[0], [finished.parts[1]], 'the file parts were handed to be brought here');
+  assert.equal(result.extraParts[0].sandboxFile.data, 'AQID');
+  assert.equal(result.extraParts[0].sandboxFile.name, 'chart.png');
+});
+
+test('a file that cannot be brought here is still listed, as the server wrote it', async () => {
+  const finished = { parts: [{ text: 'Done.' }, { sandboxFile: { id: 'f1', name: 'a.txt', size: 1, data: { __astraCloudAsset: { path: 'u/x' } } } }], status: 'complete', metadata: null };
+  const { reply } = liveHarness({ events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { a: 'Done.' }, { done: 'complete' }], rows: [finished], extra: { hydrateParts: async () => { throw new Error('storage down'); } } });
+  const { run } = await reply.start(startArgs({ advanced: true }));
+  const result = await run.follow({});
+  assert.equal(result.extraParts.length, 1);
+  assert.equal(result.extraParts[0].sandboxFile.name, 'a.txt');
 });

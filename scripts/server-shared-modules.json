@@ -43,6 +43,14 @@
       "path": "src/app/runtime/nouras/nouras-policy.js"
     },
     {
+      "path": "src/app/runtime/sandbox/sandbox-guidance.js",
+      "note": "Reviewed 2026-10-03: no browser globals (the words \"document\" and \"window\" there are ordinary words)."
+    },
+    {
+      "path": "src/app/runtime/sandbox/sandbox-reply.js",
+      "note": "Reviewed 2026-10-03: no browser globals (the words \"document\" and \"window\" there are ordinary words)."
+    },
+    {
       "path": "src/app/runtime/sandbox/sandbox-texts.js"
     },
     {
@@ -82,6 +90,10 @@
       "path": "src/app/ui/files/file-authoring-guidance.js"
     },
     {
+      "path": "src/app/ui/files/file-block-model.js",
+      "note": "Reviewed 2026-10-03: no browser globals (the words \"document\" and \"window\" there are ordinary words)."
+    },
+    {
       "path": "src/app/ui/files/file-block-protocol.js"
     },
     {
@@ -105,6 +117,10 @@
     {
       "path": "src/app/ui/sandbox/run-sources.js",
       "note": "Reviewed 2026-10-03: builds icons only from a `document` passed in; the server never calls those."
+    },
+    {
+      "path": "src/app/ui/sandbox/sandbox-files.js",
+      "note": "Reviewed 2026-10-03: no browser globals (the words \"document\" and \"window\" there are ordinary words)."
     },
     {
       "path": "src/app/ui/sandbox/sandbox-run-block.js"

@@ -34,7 +34,12 @@ export function planServerReply({ config = {}, conversation = null, advanced = f
   if (!hasAccount) return { ok: false, reason: LOCAL_REASONS.noAccount };
   // A temporary chat is never in the cloud, so the server has nowhere to write the reply.
   if (conversation?.isTemporary || conversation?.retentionMode === 'ephemeral') return { ok: false, reason: LOCAL_REASONS.notSynced };
-  if (advanced) return { ok: false, reason: LOCAL_REASONS.advanced };
+  // A reply with Python: the server runs it in its sandbox, with the model's own web search next to it; a search made as a packet in front
+  // of the request is made here (the provider's own search does not go with tools).
+  if (advanced) {
+    if (!webSearchEnabled) return { ok: true, webSearch: 'off', advanced: true };
+    return researchByModel ? { ok: true, webSearch: 'research', advanced: true } : { ok: false, reason: LOCAL_REASONS.packetSearch };
+  }
   if (!webSearchEnabled) return { ok: true, webSearch: 'off' };
   if (researchByModel) return { ok: true, webSearch: 'research' };
   // Gemini searches by itself; for the others a search is a packet put in front of the request, made in the browser.
@@ -61,6 +66,25 @@ export function localizeServerError(error, language) {
   return new ServerReplyError(serverReplyText(language, key), error.code);
 }
 
+// A picture in the event of a finished step comes as base64 (small ones, to be shown while the step runs): the step list takes bytes.
+const withFileBytes = (event) => {
+  if (event?.type !== 'step-end' || !Array.isArray(event.files)) return event;
+  return {
+    ...event,
+    files: event.files.map(({ data, ...file }) => {
+      if (typeof data !== 'string') return file;
+      try {
+        const binary = atob(data);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+        return { ...file, bytes };
+      } catch {
+        return file;
+      }
+    })
+  };
+};
+
 const isTerminalRun = (status) => status === 'done' || status === 'failed' || status === 'stopped';
 
 export function createServerReply({
@@ -76,6 +100,8 @@ export function createServerReply({
   flushSync = async () => {},
   // (messageId) => { parts, status, metadata } | null: the message as the server has written it so far
   readMessage,
+  // (parts) => parts: the files the server kept in the person's cloud storage, brought here (a file part holds a marker until then)
+  hydrateParts = async (parts) => parts,
   // (conversationId) => { id, message_id } | null: the reply of this conversation the server is still making
   findLiveRun = async () => null,
   fetchImpl = (...args) => fetch(...args),
@@ -128,7 +154,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const start = async ({ conversation, modelInfo, requestParts, webSearch = 'off', assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const start = async ({ conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -163,7 +189,14 @@ export function createServerReply({
         ...(metadata ? { messageMetadata: metadata } : {}),
         language: uiLanguage
       },
-      tools: { webSearch, ...(search ? { searchProvider: search.searchProvider } : {}), advanced: false },
+      tools: {
+        webSearch,
+        ...(search ? { searchProvider: search.searchProvider } : {}),
+        advanced: Boolean(advanced),
+        // What Python is given: the Design menu's choices, and the files attached to this message.
+        ...(advanced && designs ? { designs } : {}),
+        ...(advanced && inputs.length ? { inputs } : {})
+      },
       secrets: { providerKey, ...(search ? { searchKey: search.searchKey } : {}) }
     };
     const body = JSON.stringify(spec);
@@ -195,9 +228,9 @@ export function createServerReply({
      * Follows the reply until the server has finished it, the way a live broadcast is followed: the server pushes every small piece as
      * it is made, to every page watching, and a page that comes in late is given what there is so far (when the channel cannot be
      * had, the message is read instead, a few times a second). `onText(delta)` gets the answer as it grows, `onThought(text, kind, msSoFar)` the thinking, `onThoughtEnd(ms)` how long it thought, `onTiming(ms)` how long the reply has gone on. `onRun(run)` gets the run record when it has more pages. Resolves { text, run, rewritten }
-     * ('rewritten': the finished text is not just the streamed one with more at the end), or throws a ServerReplyError.
+     * ('rewritten': the finished text is not just the streamed one with more at the end; `extraParts`: the files the reply made), or throws a ServerReplyError. `onEvent(event)` gets what the steps of a reply with Python do, for the step list.
      */
-    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, signal } = {}) {
+    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, onEvent = () => {}, signal } = {}) {
       const startedAt = now();
       let answerSoFar = '';
       let stopSent = false;
@@ -247,7 +280,10 @@ export function createServerReply({
             sourceCount = event.r.sources.length;
             onRun({ sources: event.r.sources });
           }
-        } else if (typeof event.a === 'string') {
+          // A page that joins late is given the steps so far, to draw the same list.
+          if (Array.isArray(event.r.events)) for (const step of event.r.events) onEvent(withFileBytes(step));
+        } else if (event.ev) onEvent(withFileBytes(event.ev));
+        else if (typeof event.a === 'string') {
           answerSoFar += event.a;
           onText(event.a);
         } else if (typeof event.th === 'string') onThought(event.th, event.k);
@@ -316,7 +352,7 @@ export function createServerReply({
           await this.stop().catch(() => {});
         }
         if (now() - startedAt > FOLLOW_LIMIT_MS || (stopSent && now() - stopAt > STOP_GRACE_MS)) {
-          if (lastRow) return finish(lastRow, true);
+          if (lastRow) return await finish(lastRow, true);
           throw new ServerReplyError('The reply did not finish.', 'time_limit');
         }
         let row = null;
@@ -337,7 +373,7 @@ export function createServerReply({
             emit(lifted.text.slice(answerSoFar.length));
             answerSoFar = lifted.text;
           }
-          if (row.status === 'complete' || row.status === 'error') return finish(row, false);
+          if (row.status === 'complete' || row.status === 'error') return await finish(row, false);
         }
         polls += 1;
         if (polls % RUN_CHECK_EVERY === 0) {
@@ -346,7 +382,7 @@ export function createServerReply({
           if (status.ok && isTerminalRun(status.data?.run?.status)) {
             terminalRunSeen += 1;
             if (terminalRunSeen >= 3) {
-              if (lastRow) return finish({ ...lastRow, status: 'complete' }, true);
+              if (lastRow) return await finish({ ...lastRow, status: 'complete' }, true);
               throw new ServerReplyError('The server could not finish this reply.', status.data.run.error_code || 'unknown');
             }
           }
@@ -354,7 +390,7 @@ export function createServerReply({
         await idle(POLL_MS);
       }
 
-      function finish(row, partial) {
+      async function finish(row, partial) {
         if (row.status === 'error' && !partial) {
           const failure = row.metadata?.serverError || {};
           throw new ServerReplyError(failure.message || 'The server could not finish this reply.', failure.code || 'unknown');
@@ -362,7 +398,18 @@ export function createServerReply({
         const lifted = liftSandboxRunBlock(textOf(row.parts));
         if (lifted.text.startsWith(answerSoFar) && lifted.text.length > answerSoFar.length) emit(lifted.text.slice(answerSoFar.length));
         flush();
-        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar) };
+        // The files of the reply: kept in the person's storage by the server, brought here.
+        const fileParts = (Array.isArray(row.parts) ? row.parts : []).filter((part) => part?.sandboxFile);
+        let extraParts = [];
+        if (fileParts.length) {
+          try {
+            extraParts = await hydrateParts(fileParts);
+          } catch (error) {
+            warn('Bringing the files of the reply here failed.', error);
+            extraParts = fileParts;
+          }
+        }
+        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts };
       }
     }
   });

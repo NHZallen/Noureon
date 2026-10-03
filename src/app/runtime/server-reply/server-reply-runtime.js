@@ -36,6 +36,14 @@ export function createBrowserServerReply({
     return data || null;
   };
 
+  // The files a reply made are in the person's cloud storage (the message holds markers); the sync's asset transport brings them here.
+  const hydrateParts = async (parts) => {
+    const assets = globalThis.window?.__astraCloudAssets || globalThis.__astraCloudAssets;
+    if (!assets?.hydrateConversation) return parts;
+    const { conversation } = await assets.hydrateConversation({ parts });
+    return conversation.parts;
+  };
+
   const findLiveRun = async (conversationId) => {
     const client = await getClient();
     if (!client || !conversationId) return null;
@@ -60,6 +68,7 @@ export function createBrowserServerReply({
     describeRequest,
     flushSync,
     readMessage,
+    hydrateParts,
     findLiveRun,
     fetchImpl,
     clientVersion: PRODUCT_VERSION,

@@ -639,6 +639,50 @@ test('in the default Advanced mode an ordinary reply goes to the server, and one
   assert.deepEqual(asked, [false, true, true, true]);
 });
 
+test('a reply with Python the server makes: Python is asked for with the attachments and the Design menu\'s choices, the steps are drawn as they come, and the files are parts of the message', async () => {
+  const window = new Window();
+  const { document } = window;
+  const host = document.createElement('div');
+  const target = document.createElement('div');
+  host.append(target);
+  document.body.append(host);
+  const shown = {};
+  const file = { sandboxFile: { id: 'f1', name: 'chart.png', mimeType: 'image/png', size: 3, data: 'AQID' } };
+  const serverReply = serverReplyDouble({
+    plan: { ok: true, webSearch: 'off', advanced: true },
+    follow: async ({ onEvent, onText }) => {
+      onEvent({ type: 'round', label: 'Thinking', doneLabel: 'Thought' });
+      onEvent({ type: 'step', n: 1, title: 'Plot it', code: 'plot()' });
+      shown.rows = [...host.querySelectorAll('.ledger-row .ledger-label')].map((label) => label.textContent);
+      onEvent({ type: 'step-end', n: 1, ok: true, files: [{ name: 'chart.png', size: 3 }], elapsedMs: 5 });
+      onText('Here it is.');
+      return { text: 'Here it is.', run: { status: 'done', steps: [{ title: 'Plot it', code: 'plot()', stdout: '', stderr: '', files: [{ name: 'chart.png', size: 3, id: 'f1' }], elapsedMs: 5 }] }, rewritten: false, extraParts: [file] };
+    }
+  });
+  const { lifecycle, signal } = createHarness({ extraDependencies: { serverReply, getDocument: () => document, supportsToolCalling: () => true, getWindow: () => ({ WebAssembly: {}, Worker: function Worker() {}, postMessage() {} }) } });
+  const attachment = { inlineData: { name: 'data.csv', mimeType: 'text/csv', data: 'YSxi' } };
+  const result = await lifecycle.run({
+    targetElement: target,
+    userParts: [{ text: 'Plot my data' }, attachment],
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation: { id: 'c1', model: 'model', messages: [], deckDesign: 'Slate' },
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    sequence: 2
+  });
+  const [start] = serverReply.record.starts;
+  assert.equal(start.advanced, true);
+  assert.deepEqual(start.designs, { deck: 'Slate', document: 'auto' });
+  assert.deepEqual(start.inputs, [{ name: 'data.csv', mimeType: 'text/csv', data: 'YSxi' }]);
+  assert.ok(shown.rows.some((label) => /Plot it/.test(label) || /Thinking/.test(label)), 'the steps were drawn while the reply went on');
+  assert.deepEqual(result.extraParts, [file], 'the files the server made are parts of the reply');
+  const { run, text } = liftSandboxRunBlock(result.fullResponse);
+  assert.equal(text, 'Here it is.');
+  assert.equal(run.steps[0].files[0].id, 'f1');
+  window.happyDOM.abort();
+});
+
 test('a reply the server is still making is followed without preparing or sending anything again', async () => {
   const serverReply = serverReplyDouble({ follow: async () => { throw new Error('not used'); } });
   const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });

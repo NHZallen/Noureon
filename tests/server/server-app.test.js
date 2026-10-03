@@ -205,6 +205,22 @@ test('/v1/runs turns the manager\'s refusals into the right answers, and does no
   }, { runs });
 });
 
+test('replies with Python are taken when the sandbox host is set, except with the provider\'s own web search', async () => {
+  const started = [];
+  const runs = { advancedEnabled: true, start: async ({ spec: given }) => { started.push(given.tools); return RUN_ID; }, stop: async () => true, get: async () => null };
+  await withServer(async ({ base }) => {
+    const python = spec();
+    python.tools = { webSearch: 'research', advanced: true, designs: { deck: 'Slate', document: 'auto' }, inputs: [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }] };
+    assert.equal((await call(base, 'POST', '/v1/runs', python)).status, 202);
+    assert.deepEqual(started[0].designs, { deck: 'Slate', document: 'auto' });
+    assert.deepEqual(started[0].inputs, [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }]);
+    python.tools.webSearch = 'grounding';
+    const refused = await call(base, 'POST', '/v1/runs', python);
+    assert.equal(refused.status, 422);
+    assert.equal((await refused.json()).error.code, 'unsupported_mode');
+  }, { runs });
+});
+
 test('/v1/runs/:id/stream pushes the reply as it comes to any page that asks, and only for the signed-in person\'s own live reply', async () => {
   const watchers = [];
   const runs = {
