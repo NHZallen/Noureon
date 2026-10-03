@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.5.1",
+    date: "2026-10-03",
+    content: [
+      "<strong>Noureon 17.5.1 發布說明</strong>",
+      "本版本修正伺服器回覆在預設的進階模式下幾乎不會啟用的問題。",
+      "<strong>修正與改進</strong>",
+      "<ul><li><strong>一般聊天交給伺服器：</strong>預設的進階模式會讓幾乎所有回覆都被當成要執行 Python 而留在這個裝置上，關閉頁面就中斷。現在只有訊息與檔案、資料有關，或對話中已經有檔案時才留在本機執行 Python；其他回覆照設定交給伺服器，關閉頁面也會繼續。</li><li><strong>隱私分頁說明：</strong>「目前一定在本機的功能」改為更精確的描述。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移，既有對話、記憶與同步資料不受影響。"
+    ]
+  },
+  {
     version: "17.5.0",
     date: "2026-10-03",
     content: [

@@ -184,7 +184,7 @@
 - 新增 `src/app/runtime/server-reply/`：`server-reply.js`（判斷、組裝 RunSpec、POST `/v1/runs`、輪詢 `workspace_messages` 並串流顯示、停止、錯誤本地化）、`server-reply-runtime.js`（瀏覽器接線：登入權杖、讀訊息、送出前先把對話同步到雲端、退回本機時的提示）、`server-reply-texts.js`（隱私分頁與提示的五種語言文字）。
 - 接線點：`single-model-response-lifecycle.js`（翻譯完請求內容後，若伺服器接手就改為「跟隨」；否則照舊本機）、`submit-input-council-lifecycle.js`（訊息 id 與位置由送出端先決定，伺服器寫入同一則訊息；伺服器回報的錯誤用同一個 id 存成錯誤訊息，避免兩則）、`stream-api-call.js`（`describeOnly` 只組出系統指令文字，不呼叫供應商）。
 - 隱私分頁：`settings-privacy-section.js`；選擇立即儲存（`config.replyRunLocation`，預設 `server`），手機設定清單也有。
-- 預設進階模式（Python）的回覆會留在本機，所以預設進階模式下，會呼叫工具的模型多半仍在本機執行；要等 S2。
+- 預設進階模式（Python）：只有訊息與檔案／資料有關，或對話中已有檔案（`inlineData`、`sandboxFile`）時才留在本機；其他回覆即使在進階模式也交給伺服器（17.5.1 修正；17.5.0 曾因為預設就是進階而幾乎全留本機）。要等 S2 才能讓 Python 也在伺服器上。
 - 資料庫保護（遷移 `20261003030000`）：`upsert_workspace_messages` 不覆蓋仍在進行中的伺服器回覆（瀏覽器那份可能是空的或寫到一半）。
 - 多裝置：本機有回覆進行時，既有的同步機制會延後套用遠端變更（`busy()`），伺服器寫入的同一則訊息在回覆結束後合併，不會重複。
 - 伺服器失敗時寫入的錯誤訊息有頁面語言版本（`server/error-texts.js`），頁面關閉期間失敗也讀得懂。

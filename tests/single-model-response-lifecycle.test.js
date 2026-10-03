@@ -618,3 +618,23 @@ test('an error the server reports is the error of the reply, and what the person
   const { lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply: failing } });
   await assert.rejects(() => lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2 }), (error) => error.message === 'The provider said no' && error.serverRun === true);
 });
+
+test('in the default Advanced mode an ordinary reply goes to the server, and one that needs Python stays here', async () => {
+  const advancedWindow = { WebAssembly: {}, Worker: function Worker() {}, postMessage() {} };
+  const asked = [];
+  const make = () => {
+    const serverReply = serverReplyDouble({ plan: { ok: false, reason: 'advanced' } });
+    const originalPlan = serverReply.plan;
+    serverReply.plan = (context) => { asked.push(context.advanced); return originalPlan(context); };
+    return createHarness({ extraDependencies: { serverReply, supportsToolCalling: () => true, getWindow: () => advancedWindow } });
+  };
+  const run = async (text, conversationExtra = {}) => {
+    const { lifecycle, signal, targetElement } = make();
+    await lifecycle.run({ targetElement, userParts: [{ text }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [], ...conversationExtra }, signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2 });
+  };
+  await run('Write me a long short story about the sea');
+  await run('Make me an Excel file of these numbers');
+  await run('Thanks, one more thing', { messages: [{ role: 'user', parts: [{ inlineData: { mimeType: 'text/csv', data: 'YQ==' } }] }] });
+  await run('Thanks, one more thing', { messages: [{ role: 'model', parts: [{ text: 'here' }, { sandboxFile: { name: 'a.xlsx' } }] }] });
+  assert.deepEqual(asked, [false, true, true, true]);
+});

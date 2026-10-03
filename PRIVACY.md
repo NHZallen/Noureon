@@ -20,7 +20,7 @@ Sensitive cloud vault or recovery payloads are encrypted with the user's sync ke
 
 Signed-in cloud users can have replies made on the Noureon server, so a reply continues when the page is closed. This is the default; Settings → Privacy lets a user make replies only on their own device instead. When a reply runs on the server, the browser sends it the conversation history, the system instructions, the selected model and the provider API key (and, for searches by the model, the search provider key) needed for that one reply.
 
-The keys are kept encrypted, and only for the reply: they are deleted when the reply ends, or after 2 hours 15 minutes at most, and they are never stored long term, written to logs or put in error messages. The server writes the reply into the same cloud workspace record the app already syncs. Replies that need the browser (Advanced mode with Python, web search for models that cannot call tools), replies of users who are not signed in, and temporary chats are made on the user's device.
+The keys are kept encrypted, and only for the reply: they are deleted when the reply ends, or after 2 hours 15 minutes at most, and they are never stored long term, written to logs or put in error messages. The server writes the reply into the same cloud workspace record the app already syncs. Replies that need the browser (replies that need Python, web search for models that cannot call tools), replies of users who are not signed in, and temporary chats are made on the user's device.
 
 ## Authentication And Email
 

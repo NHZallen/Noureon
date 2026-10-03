@@ -25,6 +25,11 @@ const loadSandboxReply = () => Promise.all([
 const looksLikeFileTask = (parts = []) => parts.some((part) => part?.inlineData)
   || mayNeedFileGuidance(parts.map((part) => part?.text || '').join('\n'));
 
+// Files in the conversation (attached by the person, or made by Python): a follow-up may well be about them.
+const conversationHasFiles = (conversation) => (conversation?.messages || []).some((message) => (
+  (message?.parts || []).some((part) => part?.inlineData || part?.sandboxFile)
+));
+
 export function createSingleModelResponseLifecycle({
   now = () => Date.now(),
   getOutputMode,
@@ -161,7 +166,10 @@ export function createSingleModelResponseLifecycle({
     // only follows what the server writes. Otherwise it is made here, as always.
     let serverRun = null;
     if (serverReply && assistantMessageId) {
-      const plan = serverReply.plan({ conversation, advanced: replyMode.advanced, webSearchEnabled, researchByModel, provider: modelInfo?.provider });
+      // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
+      // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
+      const needsPython = replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation));
+      const plan = serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider });
       if (plan.ok) {
         const started = await serverReply.start({
           conversation,
