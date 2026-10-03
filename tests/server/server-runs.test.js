@@ -98,8 +98,8 @@ function fakeDatabase({ startError = null, stale = [], specs = {} } = {}) {
     },
     async select(table, options) {
       log.selects.push({ table, options });
-      // The conversation's last message has this number.
-      if (table === 'workspace_messages') return [{ sequence: 0 }];
+      // The server may call the message functions but cannot read the message table (the database refuses, as it did in production).
+      if (table === 'workspace_messages') throw new DatabaseError('permission denied for table workspace_messages', { code: '42501' });
       const id = String(options.filters.id).replace('eq.', '');
       return specs[id] ? [{ spec: specs[id] }] : [];
     },
@@ -658,7 +658,7 @@ test('a reply that wrote a presentation is followed by its check, a run of its o
   const fixed = writes.find((row) => row.parts[0].text === 'Fixed.');
   assert.equal(fixed.role, 'model');
   assert.equal(fixed.status, 'complete');
-  assert.equal(fixed.sequence, 1, 'after the last message of the conversation (the fake database says 0)');
+  assert.equal('sequence' in fixed, false, 'it comes with no sequence: the database takes the next place under its lock');
   assert.deepEqual(fixed.metadata, { visionCheck: { applied: 1 } });
   assert.equal(db.log.updates.filter((update) => update.values.status === 'done').length, 2, 'both runs end done');
 });

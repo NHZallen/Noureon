@@ -319,12 +319,6 @@ export function createRunManager({
     return { runId, userId, spec: visionSpec, secrets, resume: null, decks: result.artifacts?.decks || new Map() };
   }
 
-  // The next number in the conversation: a corrected reply goes after everything there is.
-  async function nextSequence(userId, conversationId) {
-    const rows = await db.select('workspace_messages', { filters: { conversation_id: `eq.${conversationId}`, user_id: `eq.${userId}` }, select: 'sequence', order: 'sequence.desc', limit: 1 });
-    return Number(rows?.[0]?.sequence ?? -1) + 1;
-  }
-
   async function runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) {
     // Every call says when it happened (ms since the check's run began, the clock a page that joins late is given), so every page draws the
     // same seconds, whenever it joined.
@@ -346,11 +340,12 @@ export function createRunManager({
         applyLive(live, stamped);
         fan(live, stamped);
       },
+      // A reply that goes after everything in the conversation comes with no sequence: the database takes the next place under its lock (the
+      // server may call that function but cannot read the message table).
       writeMessage: async ({ id, parts, metadata }) => {
-        const sequence = await nextSequence(userId, spec.conversationId);
         await db.rpc('server_upsert_workspace_message', {
           p_user_id: userId,
-          p_row: { id, conversation_id: spec.conversationId, role: 'model', parts, status: 'complete', sequence, ...(metadata ? { metadata } : {}) }
+          p_row: { id, conversation_id: spec.conversationId, role: 'model', parts, status: 'complete', ...(metadata ? { metadata } : {}) }
         });
       }
     });

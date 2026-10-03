@@ -54,3 +54,18 @@ test('the container image holds what the server needs: its modules load from a c
     rmSync(copy, { recursive: true, force: true });
   }
 });
+
+test('the server never reads the workspace tables itself: the database lets it call the message functions only', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const folder = join(process.cwd(), 'server');
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.js') && /\b(?:select|update|insert|delete)\(\s*['"]workspace_/.test(readFileSync(path, 'utf8'))) offenders.push(path);
+    }
+  };
+  walk(folder);
+  assert.deepEqual(offenders, [], 'go through a function of the database (supabase/migrations/20261003020000_add_server_run_functions.sql)');
+});
