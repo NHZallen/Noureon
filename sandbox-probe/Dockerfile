@@ -1,0 +1,12 @@
+# A tiny test service, only to find out what a service on this host is allowed to do (run isolated programs? open containers?).
+# It prints what it finds to its log and then waits. It has no address, takes no requests and holds no keys.
+FROM node:22-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends bubblewrap util-linux curl python3 iproute2 procps ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /probe
+COPY probe.sh ./probe.sh
+RUN chmod +x probe.sh
+# Not root: the same kind of user the real service runs as.
+USER node
+CMD ["sh", "-c", "./probe.sh; echo; echo '== done; waiting (the service can be stopped) =='; sleep 100000"]
