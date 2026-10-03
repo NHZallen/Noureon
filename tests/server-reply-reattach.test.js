@@ -50,3 +50,25 @@ test('nothing is shown when there is no such reply, a reply being made here, or 
   const broken = harness({ messages: ask, find: async () => { throw new Error('offline'); } });
   assert.equal(await broken.lifecycle.reattachServerReply(), false);
 });
+
+test('the visual check of a presentation that the server is making is followed, not shown as a reply', async () => {
+  const followed = [];
+  const messages = [{ id: 'u1', role: 'user', parts: [{ text: 'make a deck' }] }, { id: 'a1', role: 'model', parts: [{ text: 'Here it is' }] }];
+  const conv = { id: 'c1', messages };
+  const lifecycle = createServerReplyReattach({
+    getActiveConversation: () => conv,
+    getAbortController: () => null,
+    setAbortController() {},
+    serverReply: { find: async () => ({ runId: 'run-v', assistantMessageId: 'm-v', kind: 'vision' }), followVision: (args) => followed.push(args) },
+    messageList: () => ({ children: [] }),
+    setSubmitBusy() { assert.fail('the chat is not made busy'); },
+    addMessageToUI() { assert.fail('no reply is shown'); },
+    completeReply: async () => assert.fail('no reply is followed'),
+    document: null,
+    window: null,
+    scheduleTimeout: () => null
+  });
+  assert.equal(await lifecycle.reattachServerReply(), true);
+  assert.deepEqual(followed, [{ runId: 'run-v', conversation: conv }]);
+  assert.equal(conv.messages.length, 2, 'nothing is taken out of the chat');
+});

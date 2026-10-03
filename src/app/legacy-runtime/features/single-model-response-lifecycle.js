@@ -46,6 +46,8 @@ export function createSingleModelResponseLifecycle({
   getConfig = () => ({}),
   // Without it (older callers, tests) replies never use Advanced mode.
   supportsToolCalling = null,
+  // (modelInfo) => whether the model can look at images: the automatic visual check of presentations is asked of the server for those.
+  supportsVision = null,
   // The model's own web searching ({ canUse(modelInfo), searchWeb, openPage }, see web-research-reply.js). Without it a search is
   // a packet in front of the request.
   webResearch = null,
@@ -184,6 +186,10 @@ export function createSingleModelResponseLifecycle({
           webSearch: plan.webSearch,
           // Python runs on the server too: with the Design menu's choices and the files attached to this message.
           advanced: Boolean(plan.advanced),
+          // The check of a presentation the reply writes: asked of the server when the page's setting is on and the model can see images.
+          visionCheck: getConfig().visionCheckEnabled !== false && modelInfo?.outputModality !== 'image' && supportsVision?.(modelInfo)
+            ? { deckDesign: conversation?.deckDesign || 'auto', advanced: replyMode.advanced }
+            : null,
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
             name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
@@ -305,6 +311,8 @@ export function createSingleModelResponseLifecycle({
           if (outcome.run.sources?.length) searchSources = outcome.run.sources;
         }
         if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
+        // The server may check the presentations of the reply too: the page then follows that check and makes none of its own.
+        serverReply.noteVision?.(assistantMessageId, { vision: Boolean(serverRun.vision), visionRunId: outcome.visionRunId });
         // The files the reply made are parts of its message (their bytes are in the person's cloud storage; they are brought here).
         if (outcome.extraParts?.length) {
           sandboxParts = outcome.extraParts;

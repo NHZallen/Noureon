@@ -12,6 +12,11 @@ export function createBrowserServerReply({
   describeRequest,
   saveAppData = async () => {},
   showNotification = () => {},
+  // For the visual check the server makes: the language of the page, the open chat, what to do when a chat is locked or freed.
+  getUiLanguage = () => 'zh-TW',
+  getActiveConversation = () => null,
+  onVisionLock = () => {},
+  document = globalThis.document,
   // The conversation sync (src/app/sync/cloud-sync-v2-shadow.js): enabled only for a signed-in cloud account.
   getSync = () => globalThis.__astraCloudSyncV2,
   // Loaded when first needed: the page's main code does not carry the account library for a reply made here.
@@ -56,7 +61,7 @@ export function createBrowserServerReply({
     // Nobody signed in to the cloud: there is nothing of the server to look for.
     const { data: auth } = await client.auth.getSession();
     if (!auth?.session) return null;
-    const { data, error } = await client.from('server_runs').select('id,message_id').eq('conversation_id', conversationId).in('status', ['queued', 'running']).order('created_at', { ascending: false }).limit(1);
+    const { data, error } = await client.from('server_runs').select('id,message_id,kind:model->>kind,vision:model->>vision').eq('conversation_id', conversationId).in('status', ['queued', 'running']).order('created_at', { ascending: false }).limit(1);
     if (error) throw error;
     return data?.[0] || null;
   };
@@ -83,8 +88,30 @@ export function createBrowserServerReply({
     warn
   });
 
+  // The visual check the server makes is followed by a module loaded when the first one is (not part of every page).
+  let visionFollow = null;
+  const vision = () => {
+    visionFollow ||= import('./server-vision.js').then((module) => module.createServerVisionFollow({ serverReply, document, getLanguage: getUiLanguage, showNotification, getActiveConversation, getSync, onLockChange: onVisionLock, warn }));
+    return visionFollow;
+  };
+  // What the server said of a reply it made: whether it checks its presentations, and the id of the check when it began.
+  const visionNotes = new Map();
+
   return {
     hasAccount,
+    // The visual check of the presentations a reply wrote, when the server makes it (server-vision.js).
+    noteVision: (messageId, { vision: checked = false, visionRunId = null } = {}) => {
+      if (messageId && (checked || visionRunId)) visionNotes.set(messageId, { vision: checked, visionRunId });
+    },
+    // What the finished reply does about its check: a reply whose check the server makes has it followed and the page makes none; any other
+    // reply is given to `localSchedule` (the page's own check).
+    visionSchedule: (localSchedule) => (args) => {
+      const note = visionNotes.get(args.message?.id);
+      if (!note) return localSchedule(args);
+      visionNotes.delete(args.message.id);
+      return vision().then((follow) => follow.scheduleServer({ ...args, note })).catch((error) => warn('Following the visual check of the server failed.', error));
+    },
+    followVision: (args) => vision().then((follow) => follow.attach(args)),
     find: (conversationId) => serverReply.find(conversationId),
     plan: (context) => planServerReply({ ...context, hasAccount: hasAccount() }),
     start: (args) => serverReply.start({ ...args, config: args.config }),

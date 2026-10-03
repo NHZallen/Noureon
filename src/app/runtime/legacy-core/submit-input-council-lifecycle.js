@@ -29,7 +29,7 @@ import { createServerReplyReattach } from '../server-reply/reattach.js';
 import { createWebResearchTools } from '../../legacy-runtime/features/web-research-tools.js';
 import { normalizePageReads, normalizeTinyfishSearch } from '../../legacy-runtime/features/model-request-formatting.js';
 import { getErrorMessage, readErrorBody } from './legacy-core-utilities.js';
-import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
+import { setVisionLocked } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { createChatScrollPosition } from '../features/chat-scroll-position.js';
 import { createProgressTicker } from '../features/progress-ticker.js';
@@ -164,8 +164,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController,
     // The composer follows the checks: a chat with one running cannot send (settings-update-input-state-helper.js).
     onChange: (conversationIds) => {
-      chatsUnderVisionCheck.clear();
-      conversationIds.forEach((id) => chatsUnderVisionCheck.add(id));
+      setVisionLocked('page', conversationIds);
       legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(false);
     } });
   const isImageConversation = (conversation = getActiveConversation()) => modelGeneratesImages(
@@ -720,7 +719,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     // stream-api-call.js puts the system instruction together (and asks no provider) for `describeOnly`.
     describeRequest: (parts, options) => streamApiCall(parts, null, undefined, false, { ...options, describeOnly: true }),
     saveAppData,
-    showNotification
+    showNotification,
+    getUiLanguage,
+    getActiveConversation,
+    onVisionLock: () => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(false)
   });
 
   const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
@@ -738,6 +740,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     restoreOpenCouncilDetails,
     getConfig: getLiveConfig,
     supportsToolCalling: modelSupportsToolCalling,
+    supportsVision: modelSupportsVision,
     webResearch,
     serverReply
   });
@@ -932,7 +935,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         historySourceConversationIds: [...historySourceConversationIds],
         persistAppData: saveAppData,
         completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
-        scheduleVisionCheck: vc.schedule,
+        scheduleVisionCheck: serverReply.visionSchedule(vc.schedule),
         restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
         renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),

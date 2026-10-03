@@ -214,8 +214,18 @@
 **階段：**
 
 - **V2a 伺服器畫圖（✅）**：不用瀏覽器把投影片畫成圖。流程：`pptx-reader.js`／`layoutDeck`（共用）→ `renderSlideSvg`（共用，餵 `@xmldom/xmldom` 的文件）→ `@resvg/resvg-js` 轉成圖 → `@napi-rs/canvas` 拼成 2×2 的聯絡表並輸出 JPEG。字型：`server/slides/font-kit.js` 把 App 的字型每個字重做成完整的靜態字型（可變字型固定字重，沿用嵌入 Office 的做法與命名 `Noureon Deck <字型>`），註冊給畫布量字，也寫成檔案給 resvg；整個程序共用，第一份投影片付一次成本。解決的陷阱：resvg 遇到「先寫不存在的字型名、後寫 App 字型」的字型清單時會忽略字重，所以 `onlyShippedFonts` 把清單裡不是 App 字型的名稱拿掉。測量用 canvas 的 `measureText`，和瀏覽器同一條路。兩種簡報都可：Python 畫的（`free-deck.js`）與設計系統的（`designed-deck.js`，`pptx-layout.js` 新增 `context.prepareFonts` 讓伺服器自行準備字型）。測試以真的 python-pptx 檔（`tests/fixtures/free-deck.pptx`）畫出聯絡表並確認中文、粗體、表格、圖表都畫得出來。Docker 映像另外安裝 `@xmldom/xmldom`、`@napi-rs/canvas`、`@resvg/resvg-js`（版本與測試用的相同）。
-- **V2b 伺服器的檢查流程**：回覆完成後由伺服器自動檢查（用 RunSpec 的 `tools.visionCheck` 告訴它這則回覆合格：設定開啟、模型看得懂圖、非理事會）；`askVision`（共用）、Python 簡報的重做用 `runSandboxReply`、設計系統簡報用 `applyVisionEdits`；結果訊息由伺服器寫進對話（序號取資料庫目前最大值加一）。檢查是回覆之後的第二個執行（`server_runs` 新增 `kind`），重新封存同一組金鑰。
-- **V2c 即時進度與瀏覽器端**：進度事件（`createVisionProgress` 的每個方法呼叫）經 SSE 推給所有分頁，晚加入的分頁拿到鏡像；新分頁用 `findLiveRun` 接回；撰寫區在檢查期間鎖住（所有分頁）；停止鈕通知伺服器。伺服器不能檢查時（沒裝畫圖套件、模型不合格），瀏覽器照舊自己檢查。
+- **V2b 伺服器的檢查流程（✅）**：回覆完成後由伺服器自動檢查（用 RunSpec 的 `tools.visionCheck` 告訴它這則回覆合格：設定開啟、模型看得懂圖、非理事會）；`askVision`（共用）、Python 簡報的重做用 `runSandboxReply`、設計系統簡報用 `applyVisionEdits`；結果訊息由伺服器寫進對話（序號取資料庫目前最大值加一）。檢查是回覆之後的第二個執行（`server_runs` 新增 `kind`），重新封存同一組金鑰。
+- **V2c 即時進度與瀏覽器端（✅）**：進度事件（`createVisionProgress` 的每個方法呼叫）經 SSE 推給所有分頁，晚加入的分頁拿到鏡像；新分頁用 `findLiveRun` 接回；撰寫區在檢查期間鎖住（所有分頁）；停止鈕通知伺服器。伺服器不能檢查時（沒裝畫圖套件、模型不合格），瀏覽器照舊自己檢查。
+
+**V2b／V2c 實作備註：**
+
+- 伺服器：`server/vision-check.js`（`visionFiles`：用瀏覽器同一個 `eligibleVisionFiles` 找出設計系統簡報與 Python 簡報；`executeVisionCheck`：逐份檔案畫圖→`askVision`→設計系統簡報用 `applyVisionEdits` 改規格並確認改後能排版；Python 簡報用 `runSandboxReply` 請模型重做；結果由 `writeMessage` 寫成新的回覆，序號取對話目前最大值加一，不會與瀏覽器的序號衝突）。`server/model-access.js` 是回覆與檢查共用的「跟模型說話」。`server/slides/available.js` 回報能不能畫圖。
+- **檢查是回覆之後另一個執行**（`server_runs` 一列，`message_id` 是將寫出的修正回覆的 id）：重新封存同一組金鑰（兩個執行各自活到結束就刪）；回覆結束的 `done` 事件帶上檢查的執行 id，所以各分頁馬上接上。重啟後由清掃接手，從頭重做（寫的訊息 id 固定，不會重複）。
+- 頁面能讀的 `server_runs` 欄位有限（沒有 `spec`，那裡有對話歷史），所以用 `model` 欄位帶旗標：檢查的執行是 `{ kind: 'vision' }`，要求伺服器檢查的回覆是 `{ vision: true }`。
+- 事件：進度的每個呼叫（`set`、`slide`、`sheet`、`think`、`issues`、`py`、`pyEnd`、`remove`、`begin`、`file-end`）以 `{ vc: { m, a } }` 經同一條 SSE 推出；管理器保留鏡像（模型思考與 Python 小段輸出合併，上限 1.5 MB），晚加入的分頁在快照 `r.vc` 拿到目前為止的全部（重播時不重複跳通知）。
+- 瀏覽器：`server-vision.js`（`attach`、`noteReply`、`schedule`）把事件放進同一個 `createVisionProgress`；撰寫區鎖（`vision-check-lock.js` 的 `setVisionLocked` 合併頁面自己的檢查與伺服器的）；停止鈕通知伺服器；結束時「沒問題」跳通知、「失敗」跳警告（含原因）、「已修正」請同步機制把新回覆帶進來。`planServerReply` 之外，`start` 多送 `tools.visionCheck`（設定開啟、模型看得懂圖、不是圖片模型），回應的 `vision` 為真時頁面自己不檢查；為假（伺服器畫不了圖）就照舊自己檢查。
+- 新分頁／重新整理：`reattach.js` 發現 `kind: 'vision'` 的執行就接上，進度列放在最後一則訊息下，撰寫區同樣鎖住。
+- 映像：Dockerfile 另裝 `marked`（設計系統簡報解析用）；畫圖用的原生套件（`@napi-rs/canvas`、`@resvg/resvg-js`）放在獨立的一步，裝不起來只會印一行字而不讓映像做失敗（伺服器照常運作，啟動日誌 `slides_unavailable`，檢查由瀏覽器做）。邊界檢查新增「伺服器碰到的 npm 套件都要在 Dockerfile 安裝」。啟動日誌 `slides_ok` 表示畫圖可用。
 
 **已知保真度差異（和瀏覽器版相同的共用程式）：** Python 畫的圖表若沒有明確填色，讀取器預設為黑色（PowerPoint 會用佈景主題色）；之後可改善讀取器。
 

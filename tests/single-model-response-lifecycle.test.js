@@ -683,6 +683,28 @@ test('a reply with Python the server makes: Python is asked for with the attachm
   window.happyDOM.abort();
 });
 
+test('the check of a presentation is asked of the server for a model that can see images, and what the server says about it is remembered for the reply', async () => {
+  const notes = [];
+  const serverReply = serverReplyDouble({
+    started: { ok: true, run: { vision: true, follow: async () => ({ text: 'Here.', run: null, rewritten: false, visionRunId: 'run-check' }) } }
+  });
+  serverReply.noteVision = (id, value) => notes.push([id, value]);
+  const make = (supportsVision, config = {}) => createHarness({ extraDependencies: { serverReply, supportsVision, getConfig: () => config } });
+  const run = async (harness, modelInfo = { id: 'model', name: 'Model', provider: 'gemini' }) => harness.lifecycle.run({
+    targetElement: harness.targetElement, userParts: [{ text: 'Hi' }], modelInfo, conversation: { id: 'c1', model: 'model', messages: [], deckDesign: 'Slate' },
+    signal: harness.signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2
+  });
+  await run(make(() => true));
+  assert.deepEqual(serverReply.record.starts.at(-1).visionCheck, { deckDesign: 'Slate', advanced: false });
+  assert.deepEqual(notes, [['m1', { vision: true, visionRunId: 'run-check' }]]);
+  await run(make(() => false));
+  assert.equal(serverReply.record.starts.at(-1).visionCheck, null, 'a model that cannot see images');
+  await run(make(() => true, { visionCheckEnabled: false }));
+  assert.equal(serverReply.record.starts.at(-1).visionCheck, null, 'the setting is off');
+  await run(make(() => true), { id: 'img', name: 'Img', provider: 'gemini', outputModality: 'image' });
+  assert.equal(serverReply.record.starts.at(-1).visionCheck, null, 'an image model');
+});
+
 test('the server lost its Python before it had an answer: the reply is made here, with the page\'s own Python, and nothing of the failure is shown', async () => {
   const lost = Object.assign(new Error('The Python sandbox is not available.'), { code: 'sandbox_unavailable', serverRun: true });
   const serverReply = serverReplyDouble({ plan: { ok: true, webSearch: 'off', advanced: true }, follow: async () => { throw lost; } });

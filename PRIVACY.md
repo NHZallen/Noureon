@@ -24,6 +24,8 @@ The keys are kept encrypted, and only for the reply: they are deleted when the r
 
 When a reply needs Python (Advanced mode), the code the model writes and the files attached to the conversation are sent to Noureon's sandbox server, which runs them in an isolated container with no network access, its own limited memory and CPU, and no access to anything else; the container is removed when the reply ends. The files the code makes are saved in the user's own cloud storage (the same place attachments are kept) and listed in the reply.
 
+When the automatic visual check is on and a reply writes a presentation, the server draws its slides into pictures and shows them to the model the user chose (with the user's own key), then writes any corrected reply into the conversation; the pictures are not kept.
+
 ## Authentication And Email
 
 Noureon supports account sign-in and recovery for users who choose cloud sync. Authentication-related emails are used only for account access and recovery.

@@ -83,19 +83,23 @@ test('the database client sends the service key, and its errors carry the databa
 
 function fakeDatabase({ startError = null, stale = [], specs = {} } = {}) {
   const log = { rpcs: [], updates: [], selects: [] };
+  let started = 0;
   return {
     log,
     async rpc(name, args) {
       log.rpcs.push({ name, args });
       if (name === 'server_start_run') {
         if (startError) throw startError;
-        return 'run-1';
+        started += 1;
+        return `run-${started}`;
       }
       if (name === 'server_claim_stale_runs') return stale;
       return null;
     },
     async select(table, options) {
       log.selects.push({ table, options });
+      // The conversation's last message has this number.
+      if (table === 'workspace_messages') return [{ sequence: 0 }];
       const id = String(options.filters.id).replace('eq.', '');
       return specs[id] ? [{ spec: specs[id] }] : [];
     },
@@ -201,7 +205,7 @@ test('the four search paths and NVIDIA\'s chat go straight to their services, wi
 
 // ----- the run manager
 
-function managerHarness({ execute, db = fakeDatabase(), logs = [], sandbox = null } = {}) {
+function managerHarness({ execute, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl } = {}) {
   const vault = createKeyVault([{ version: 1, key: masterKey() }]);
   const repeating = [];
   const timers = [];
@@ -211,6 +215,8 @@ function managerHarness({ execute, db = fakeDatabase(), logs = [], sandbox = nul
     db,
     vault,
     sandbox,
+    ...(vision ? { vision } : {}),
+    ...(fetchImpl ? { fetchImpl } : {}),
     execute,
     log: (event, fields) => logs.push(JSON.stringify({ event, ...fields })),
     setRepeating: (fn, ms) => { repeating.push({ fn, ms }); return repeating.length; },
@@ -564,4 +570,137 @@ test('without a sandbox host, or while it does not answer, replies with Python a
   assert.equal(await broken.manager.advancedAvailable(), false);
   const up = managerHarness({ execute: async () => ({}), sandbox: { host: { configured: true, ready: async () => ({ ok: true }) }, files: {} } });
   assert.equal(await up.manager.advancedAvailable(), true);
+});
+
+// ----- the visual check that follows a reply with a presentation
+
+const VISION_SPEC = () => ({ ...specOf(), model: { provider: 'gemini', id: 'g', info: { provider: 'gemini', id: 'g', name: 'G' } }, tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false, visionCheck: { deckDesign: 'auto', advanced: false } } });
+const DECK_TEXT = '````file deck.pptx\n{"design":{"preset":"office"},"meta":{"language":"en","title":"T"},"slides":[{"layout":"cover","title":"Hello"}]}\n````';
+
+function visionHarness({ available = true, onCheck } = {}) {
+  const checks = [];
+  const db = fakeDatabase();
+  const kit = { marker: 'kit' };
+  const { manager } = managerHarness({
+    db,
+    execute: async ({ onLive }) => {
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
+      return { parts: [{ text: DECK_TEXT }], status: 'done', run: {}, toolCalls: 0, artifacts: { decks: new Map() } };
+    },
+    vision: {
+      available: async () => available,
+      getKit: async () => kit,
+      execute: async (args) => {
+        checks.push(args);
+        args.onLive({ vc: { m: 'begin', a: [{ name: 'deck.pptx', free: false }] } });
+        args.onLive({ vc: { m: 'think', a: ['Looking'] } });
+        args.onLive({ vc: { m: 'think', a: [' closely'] } });
+        if (onCheck) await onCheck(args);
+        await args.writeMessage({ id: args.spec.assistantMessageId, parts: [{ text: 'Fixed.' }], metadata: { visionCheck: { applied: 1 } } });
+        args.onLive({ vc: { m: 'file-end', a: [{ outcome: 'fixed', messageId: args.spec.assistantMessageId }] } });
+        return { checked: 1, written: [args.spec.assistantMessageId] };
+      }
+    }
+  });
+  return { manager, db, checks, kit };
+}
+
+test('a reply that wrote a presentation is followed by its check, a run of its own that the page is told of, and the check writes its reply after everything in the conversation', async () => {
+  const { manager, db, checks, kit } = visionHarness();
+  const seen = [];
+  await manager.start({ userId: USER, spec: VISION_SPEC() });
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => seen.push(event), close() {} });
+  await settle();
+  await settle();
+  const done = seen.find((event) => event?.done);
+  assert.ok(done.vision, 'the page is told the id of the check');
+  assert.equal(checks.length, 1);
+  assert.equal(checks[0].spec.kind, 'vision');
+  assert.equal(checks[0].spec.source.messageId, specOf().assistantMessageId);
+  assert.match(checks[0].spec.source.text, /deck\.pptx/);
+  assert.equal(await checks[0].getKit(), kit);
+  assert.equal(checks[0].secrets.providerKey, KEY, 'the check has the key too');
+  const starts = db.log.rpcs.filter((call) => call.name === 'server_start_run');
+  assert.equal(starts.length, 2, 'the check is recorded as a run of its own');
+  assert.notEqual(starts[1].args.p_message_id, specOf().assistantMessageId);
+  assert.deepEqual(starts[0].args.p_model, { provider: 'gemini', id: 'g', vision: true }, 'the page can tell by the model column that this reply has a check');
+  assert.deepEqual(starts[1].args.p_model, { provider: 'gemini', id: 'g', kind: 'vision' }, 'and that the check is not a reply');
+  const saved = db.log.updates.filter((update) => update.values.spec?.kind === 'vision');
+  assert.equal(JSON.stringify(saved).includes(KEY), false, 'its record has no key');
+  const writes = messageWrites(db);
+  const fixed = writes.find((row) => row.parts[0].text === 'Fixed.');
+  assert.equal(fixed.role, 'model');
+  assert.equal(fixed.status, 'complete');
+  assert.equal(fixed.sequence, 1, 'after the last message of the conversation (the fake database says 0)');
+  assert.deepEqual(fixed.metadata, { visionCheck: { applied: 1 } });
+  assert.equal(db.log.updates.filter((update) => update.values.status === 'done').length, 2, 'both runs end done');
+});
+
+test('those watching the check are given what it has told so far (joined where the model\'s thinking runs on), then every piece', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager } = visionHarness({ onCheck: () => gate });
+  await manager.start({ userId: USER, spec: VISION_SPEC() });
+  await settle();
+  await settle();
+  const late = [];
+  manager.watch({ userId: USER, runId: 'run-2', send: (event) => late.push(event), close() {} });
+  assert.deepEqual(late[0].r.vc, [{ m: 'begin', a: [{ name: 'deck.pptx', free: false }] }, { m: 'think', a: ['Looking closely'] }]);
+  release();
+  await settle();
+  assert.ok(late.some((event) => event.vc?.m === 'file-end'));
+  assert.ok(late.some((event) => event.done));
+});
+
+test('a stop of the check ends it without a reply, and nothing is started when the server cannot draw, the reply was stopped or no presentation was written', async () => {
+  const none = visionHarness({ available: false });
+  await none.manager.start({ userId: USER, spec: VISION_SPEC() });
+  await settle();
+  assert.equal(none.checks.length, 0, 'the page makes the check itself');
+
+  const plain = managerHarness({
+    execute: async () => ({ parts: [{ text: 'Just words.' }], status: 'done', run: {}, toolCalls: 0 }),
+    vision: { available: async () => true, execute: async () => { throw new Error('must not run'); }, getKit: async () => null }
+  });
+  await plain.manager.start({ userId: USER, spec: VISION_SPEC() });
+  await settle();
+  assert.equal(plain.db.log.rpcs.filter((call) => call.name === 'server_start_run').length, 1);
+
+  const without = visionHarness();
+  await without.manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.equal(without.checks.length, 0, 'not asked');
+});
+
+test('the whole way: a reply writes a presentation, the server draws it, the model looks at the pictures, and the corrected reply is written and told to those watching', async () => {
+  const { executeVisionCheck } = await import('../../server/vision-check.js');
+  const { canDrawSlides } = await import('../../server/slides/available.js');
+  const { getFontKit } = await import('../../server/slides/font-kit.js');
+  const answer = '{"issues":[{"slide":2,"category":"text","problem":"Cramped","fix":"Shorten"}],"edits":[{"op":"setItemText","specSlide":2,"list":"bullets","item":0,"field":"text","value":"Revenue up 23 percent"}],"summary":"Tightened."}';
+  const sheets = [];
+  const db = fakeDatabase();
+  const deck = JSON.stringify({ design: { preset: 'office' }, meta: { language: 'en', title: 'T' }, slides: [{ layout: 'cover', title: 'Annual report' }, { layout: 'bullets', title: 'Points', bullets: ['Revenue grew 23 percent in a year', 'Margin improved'] }] });
+  const { manager } = managerHarness({
+    db,
+    execute: async () => ({ parts: [{ text: `Here.\n\n\`\`\`\`file deck.pptx\n${deck}\n\`\`\`\`` }], status: 'done', run: {}, toolCalls: 0, artifacts: { decks: new Map() } }),
+    vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit },
+    fetchImpl: async (url, options) => {
+      const body = JSON.parse(options.body);
+      sheets.push(body.contents[0].parts.filter((part) => part.inlineData).length);
+      return new Response(`data: ${JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text: answer }] }, finishReason: 'STOP' }] })}\r\n\r\n`, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    }
+  });
+  const seen = [];
+  await manager.start({ userId: USER, spec: VISION_SPEC() });
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => seen.push(event), close() {} });
+  for (let wait = 0; wait < 100 && !seen.some((event) => event?.done); wait += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+  const visionId = seen.find((event) => event?.done)?.vision;
+  assert.equal(visionId, 'run-2');
+  const late = [];
+  for (let wait = 0; wait < 100 && !messageWrites(db).some((row) => /Cramped/.test(row.parts[0]?.text || '')); wait += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+  const corrected = messageWrites(db).find((row) => /Cramped/.test(row.parts[0]?.text || ''));
+  assert.ok(corrected, 'the corrected reply was written');
+  assert.match(corrected.parts[0].text, /Revenue up 23 percent/);
+  assert.deepEqual(sheets, [1], 'the model was shown the one contact sheet');
+  void late;
 });

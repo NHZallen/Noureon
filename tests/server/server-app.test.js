@@ -163,7 +163,7 @@ test('/v1/runs accepts a reply, hands it over without its keys in the log, and s
   await withServer(async ({ base, lines }) => {
     const accepted = await call(base, 'POST', '/v1/runs', spec());
     assert.equal(accepted.status, 202);
-    assert.deepEqual(await accepted.json(), { runId: RUN_ID });
+    assert.deepEqual(await accepted.json(), { runId: RUN_ID, vision: false });
     assert.equal(started[0].userId, USER);
     assert.equal(started[0].spec.secrets.providerKey, KEY);
     assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/stop`)).status, 200);
@@ -219,6 +219,26 @@ test('replies with Python are taken when the sandbox host is set, except with th
     assert.equal(refused.status, 422);
     assert.equal((await refused.json()).error.code, 'unsupported_mode');
   }, { runs });
+});
+
+test('a reply that asks for the visual check is told whether the server makes it', async () => {
+  const runs = { visionAvailable: async () => true, start: async () => RUN_ID, stop: async () => true, get: async () => null };
+  await withServer(async ({ base }) => {
+    const asked = spec();
+    asked.tools = { webSearch: 'off', advanced: false, visionCheck: { deckDesign: 'Slate', advanced: true } };
+    const accepted = await call(base, 'POST', '/v1/runs', asked);
+    assert.deepEqual(await accepted.json(), { runId: RUN_ID, vision: true });
+    const not = await call(base, 'POST', '/v1/runs', spec());
+    assert.deepEqual(await not.json(), { runId: RUN_ID, vision: false }, 'not asked: not made');
+    asked.tools.visionCheck = { deckDesign: 5 };
+    assert.equal((await call(base, 'POST', '/v1/runs', asked)).status, 422);
+  }, { runs });
+  const down = { visionAvailable: async () => false, start: async () => RUN_ID, stop: async () => true, get: async () => null };
+  await withServer(async ({ base }) => {
+    const asked = spec();
+    asked.tools = { webSearch: 'off', advanced: false, visionCheck: { deckDesign: 'auto', advanced: false } };
+    assert.deepEqual(await (await call(base, 'POST', '/v1/runs', asked)).json(), { runId: RUN_ID, vision: false }, 'a server that cannot draw leaves the check to the page');
+  }, { runs: down });
 });
 
 test('/v1/runs/:id/stream pushes the reply as it comes to any page that asks, and only for the signed-in person\'s own live reply', async () => {

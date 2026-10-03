@@ -18,13 +18,15 @@ export function runStartErrorCode(error) {
 export function createRunStore({ db, limits, now = () => new Date() }) {
   return {
     /** Records a new run (checks the limit and the conversation in the database, under one lock); returns its id. */
-    async start({ userId, conversationId, messageId, model, envelope, keyVersion }) {
+    async start({ userId, conversationId, messageId, model, envelope, keyVersion, flags = null }) {
       const expires = new Date(now().getTime() + limits.keyTtlMs).toISOString();
       return db.rpc('server_start_run', {
         p_user_id: userId,
         p_conversation_id: conversationId,
         p_message_id: messageId,
-        p_model: { provider: model.provider, id: model.id },
+        // Which model, and (for the page, which may read this column but not the request) what kind of run: { kind: 'vision' } for the visual
+        // check, { vision: true } for a reply whose presentations the server checks.
+        p_model: { provider: model.provider, id: model.id, ...(flags || {}) },
         p_key_envelope: envelope,
         p_key_version: keyVersion,
         p_key_expires_at: expires,

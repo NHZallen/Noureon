@@ -29,7 +29,7 @@ test('a module of the app may be imported only when it is on the list', () => {
 });
 
 test('the container image holds what the server needs: its modules load from a copy made the way the Dockerfile makes it', async () => {
-  const { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } = await import('node:fs');
+  const { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { pathToFileURL } = await import('node:url');
   const dockerfile = readFileSync(join(process.cwd(), 'Dockerfile'), 'utf8');
@@ -38,12 +38,15 @@ test('the container image holds what the server needs: its modules load from a c
   const ignored = readFileSync(join(process.cwd(), '.dockerignore'), 'utf8').split('\n').map((line) => line.trim()).filter(Boolean);
   assert.equal(ignored.includes('src'), false, 'the shared modules must not be left out of the image');
   assert.ok(ignored.includes('!src/assets/fonts'), 'the fonts embedded in files are in the image');
-  assert.match(dockerfile, /npm install[^\n]*jszip@[\d.]+ harfbuzzjs@[\d.]+[^\n]*@resvg\/resvg-js@[\d.]+/, 'with the tools that embed them and draw slides');
+  assert.match(dockerfile, /npm install[^\n]*jszip@[\d.]+ harfbuzzjs@[\d.]+/, 'with the tools that embed them');
+  assert.match(dockerfile, /npm install[^\n]*@resvg\/resvg-js@[\d.]+[^\n]*\|\| echo/, 'and, tolerated if they cannot be had, the tools that draw slides');
   const copy = mkdtempSync(join(tmpdir(), 'noureon-image-'));
   try {
     cpSync(join(process.cwd(), 'package.json'), join(copy, 'package.json'));
     cpSync(join(process.cwd(), 'server'), join(copy, 'server'), { recursive: true });
     cpSync(join(process.cwd(), 'src'), join(copy, 'src'), { recursive: true, filter: (from) => !from.includes(`${join('src', 'assets')}`) });
+    // The packages the image installs (check:server makes sure they are all there): the copy borrows the project's.
+    symlinkSync(join(process.cwd(), 'node_modules'), join(copy, 'node_modules'), 'dir');
     for (const name of readdirSync(join(copy, 'server')).filter((entry) => entry.endsWith('.js') && entry !== 'main.js')) {
       await import(pathToFileURL(join(copy, 'server', name)).href);
     }

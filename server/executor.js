@@ -2,11 +2,9 @@
 // what the browser packed in the RunSpec instead of what the page knows. Returns the message as it should be saved, and calls
 // `onUpdate` with the message so far (the caller writes it out, a few times a second at most).
 
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
 import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 import { runWebResearchReply } from '../src/app/legacy-runtime/features/web-research-reply.js';
 import { createWebResearchTools } from '../src/app/legacy-runtime/features/web-research-tools.js';
-import { getModelReasoningConfig, modelSupportsUploadedFile, modelSupportsVision, normalizeReasoningEffort } from '../src/app/runtime/legacy-core/model-registry.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
@@ -16,10 +14,9 @@ import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
 import { ERROR_CODES } from './protocol.js';
-import { createUpstreamFetch } from './upstream-fetch.js';
+import { createModelAccess, DEFAULT_GENERATION } from './model-access.js';
 
 export const CHECKPOINT_VERSION = 1;
-const DEFAULT_GENERATION = Object.freeze({ temperature: 0.7, topP: 0.95, maxTokens: null });
 
 const readErrorBody = async (response) => {
   const text = await response.text();
@@ -64,7 +61,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
   const startedAt = now() - (Number(resume?.elapsedMs) || 0);
-  const upstreamFetch = createUpstreamFetch({ fetchImpl });
+  const access = createModelAccess({ spec, secrets, fetchImpl, grounding: mode === 'grounding' });
 
   let answer = typeof resume?.text === 'string' ? resume.text : '';
   let sources = Array.isArray(resume?.sources) ? resume.sources : [];
@@ -111,32 +108,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     update();
   };
 
-  const modelInfo = spec.model.info;
-  const conversation = { messages: [], astrasId: null, isWebSearchEnabled: mode === 'grounding', genConfig: null, reasoningEffort: spec.request.reasoningEffort ?? null };
-  const keyFor = (name) => {
-    if (name === modelInfo.provider) return secrets.providerKey || '';
-    if (name === spec.tools.searchProvider) return secrets.searchKey || '';
-    return '';
-  };
-  const config = { searchProvider: spec.tools.searchProvider, tavilySearchDepth: 'basic', aiDefaultLanguage: language, uiLanguage: language, memorySystemVersion: 1, memoryEnabled1: false, isLearningMode: false };
-
-  const streamApiCall = createStreamApiCall({
-    getActiveConversation: () => conversation,
-    normalizeConversationModel: () => modelInfo,
-    getModelApiId: () => spec.model.id,
-    getApiKeyForProvider: keyFor,
-    getDefaultGenConfig: () => ({ ...DEFAULT_GENERATION }),
-    getConfig: () => config,
-    getAstras: () => [],
-    getPersonalMemories: () => [],
-    getMemoryContext: () => null,
-    modelSupportsUploadedFile,
-    modelSupportsVision,
-    getModelReasoningConfig,
-    normalizeReasoningEffort,
-    fetchImpl: upstreamFetch,
-    warn: () => {}
-  });
+  const { streamApiCall, upstreamFetch, modelInfo, conversation, keyFor, config } = access;
   const requestOptions = {
     conversation,
     modelInfo,
@@ -273,7 +245,15 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     if (stopped) run.status = RUN_STATUS.stopped;
     toolCalls = run.steps.length;
     const finished = await finishAdvancedReply({ result: advanced, run, userId, files });
-    return { parts: [{ text: finished.text }, ...finished.parts], status: stopped ? 'stopped' : 'done', run, toolCalls };
+    // The presentations Python made, as bytes, for the visual check that follows (by the id the file has in the message).
+    const decks = new Map();
+    for (const part of finished.parts) {
+      const file = part.sandboxFile;
+      if (!file || !/\.pptx$/i.test(file.name)) continue;
+      const output = run.steps.flatMap((step) => step.outputs || []).filter((entry) => entry.name === file.name).at(-1);
+      if (output?.bytes) decks.set(file.id, output.bytes);
+    }
+    return { parts: [{ text: finished.text }, ...finished.parts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
   }
 
   // Where Gemini's answer cites its pages is known only when it is whole: the markers go into the text now.

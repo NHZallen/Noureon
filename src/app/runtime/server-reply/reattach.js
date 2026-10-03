@@ -36,6 +36,11 @@ export function createServerReplyReattach({
       }
       // Asked a moment ago: the reply may be over, a new one may have started here, another chat may have been opened.
       if (!run || getAbortController() || conv.__astraPendingResponse || getActiveConversation()?.id !== conv.id) return false;
+      // The visual check of a presentation that the server is making: its progress is shown under the last message, and the chat is locked.
+      if (run.kind === 'vision') {
+        void serverReply.followVision({ runId: run.runId, conversation: conv });
+        return true;
+      }
       const others = conv.messages.filter((message) => message.id !== run.assistantMessageId);
       const userMessageObject = others.at(-1);
       if (userMessageObject?.role !== 'user') return false;

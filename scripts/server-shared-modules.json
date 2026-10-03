@@ -139,6 +139,10 @@
       "note": "Reviewed 2026-10-03: no browser globals."
     },
     {
+      "path": "src/app/ui/files/design/spec-serializer.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
       "path": "src/app/ui/files/design/svg-path.js",
       "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
@@ -193,8 +197,36 @@
       "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
     {
+      "path": "src/app/ui/files/vision/vision-ask.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-edits.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-eligibility.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-free.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-prompt.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-result.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
       "path": "src/app/ui/files/vision/vision-sheet-plan.js",
       "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-texts.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
     },
     {
       "path": "src/app/ui/links/site-icon.js"

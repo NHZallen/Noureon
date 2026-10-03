@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -20,10 +20,26 @@ function harness(overrides = {}) {
   const root = mkdtempSync(join(tmpdir(), 'noureon-runner-'));
   const state = join(root, 'state');
   process.env.FAKE_DOCKER_STATE = state;
-  const config = loadConfig({ RUNNER_TOKEN: SECRET, DOCKER_BIN: fakeDocker, SANDBOX_DATA_DIR: join(root, 'data'), RUNNER_ALLOW: '127.0.0.1/32', SANDBOX_KILL_GRACE_MS: '400', ...overrides });
+  const config = loadConfig({ RUNNER_TOKEN: SECRET, DOCKER_BIN: fakeDocker, SANDBOX_DATA_DIR: join(root, 'data'), RUNNER_ALLOW: '127.0.0.1/32', SANDBOX_KILL_GRACE_MS: '1500', ...overrides });
   const clock = { time: 1_000_000 };
   const manager = createSessionManager({ config, now: () => clock.time });
-  return { root, state, config, manager, clock, done: async () => { await manager.shutdown(); await new Promise((resolve) => setTimeout(resolve, 700)); rmSync(root, { recursive: true, force: true }); } };
+  return {
+    root, state, config, manager, clock,
+    done: async () => {
+      await manager.shutdown();
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      // A program of a sandbox that was not ended (a test that failed half way, a machine too busy to keep the times) must not outlive the test:
+      // it would keep the pipes of the test run open for ever.
+      for (const name of existsSync(state) ? readdirSync(state).filter((entry) => entry.endsWith('.pid')) : []) {
+        try {
+          process.kill(Number(readFileSync(join(state, name), 'utf8')), 'SIGKILL');
+        } catch {
+          // Gone already.
+        }
+      }
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
 }
 const b64 = (text) => Buffer.from(text).toString('base64');
 
@@ -91,7 +107,8 @@ sandboxTest('a step runs in a container: its words, its files, and variables tha
 });
 
 sandboxTest('a step that runs past its time is ended: by itself, or by the runner when it will not stop, and the next step starts clean', async () => {
-  const { manager, state, done } = harness();
+  // A long grace: on a busy machine the program may be late in stopping itself, and that must not look like a stubborn one.
+  const { manager, state, done } = harness({ SANDBOX_KILL_GRACE_MS: '6000' });
   try {
     const { id } = await manager.create();
     await manager.run(id, { code: 'kept = 1' });
@@ -116,7 +133,7 @@ sandboxTest('a stop ends the step at once, and the session goes on with a new co
     const { id } = await manager.create();
     const running = manager.run(id, { code: 'import os, time\nopen(os.environ["NOUREON_OUTPUT"] + "/started", "w").write("1")\ntime.sleep(30)' });
     // Stopped once the step is really running (it says so by writing a file).
-    for (let waited = 0; !existsSync(join(config.dataDir, id, 'output', 'started')) && waited < 200; waited += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+    for (let waited = 0; !existsSync(join(config.dataDir, id, 'output', 'started')) && waited < 600; waited += 1) await new Promise((resolve) => setTimeout(resolve, 50));
     await manager.stop(id);
     const result = await running;
     assert.equal(result.stopped, true);

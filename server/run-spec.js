@@ -69,6 +69,15 @@ export function validateRunSpec(input) {
       if (!isObject(tools.designs)) fail('tools.designs', 'must be an object');
       else for (const kind of ['deck', 'document']) if (tools.designs[kind] !== undefined && !text(tools.designs[kind], 80)) fail(`tools.designs.${kind}`, 'must be a short text');
     }
+    // The visual check of presentations after the reply: asked for by the page (its setting is on, the model can see images, it is not a
+    // council); `deckDesign` is the conversation's template choice and `advanced` whether Python may redo a deck it drew.
+    if (tools.visionCheck !== undefined && tools.visionCheck !== null) {
+      if (!isObject(tools.visionCheck)) fail('tools.visionCheck', 'must be an object');
+      else {
+        if (tools.visionCheck.deckDesign !== undefined && !text(tools.visionCheck.deckDesign, 80)) fail('tools.visionCheck.deckDesign', 'must be a short text');
+        if (tools.visionCheck.advanced !== undefined && typeof tools.visionCheck.advanced !== 'boolean') fail('tools.visionCheck.advanced', 'must be true or false');
+      }
+    }
     if (tools.inputs !== undefined) {
       if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
       else tools.inputs.forEach((file, index) => {
@@ -108,6 +117,7 @@ export function validateRunSpec(input) {
         webSearch: tools.webSearch,
         searchProvider: tools.searchProvider || 'tavily',
         advanced: tools.advanced,
+        ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },

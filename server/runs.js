@@ -6,6 +6,7 @@ import { errorText } from './error-texts.js';
 import { createMessageWriter } from './message-writer.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
 import { runStartErrorCode } from './run-store.js';
+import { executeVisionCheck, visionFiles } from './vision-check.js';
 
 const HEARTBEAT_MS = 15_000;
 // A run whose heartbeat is older than this has no process: the next sweep takes it up.
@@ -16,6 +17,8 @@ const RESTART = Symbol('restart');
 const MAX_WATCHERS_PER_USER = 12;
 // What a page that joins late is told of the steps of a reply with Python (their events, joined where they follow each other).
 const MAX_MIRRORED_STEP_CHARS = 600_000;
+// The same for the visual check: its pictures (small slides and sheets) make it larger.
+const MAX_MIRRORED_VISION_CHARS = 1_500_000;
 
 export class RunError extends Error {
   constructor(code, message) {
@@ -31,6 +34,8 @@ export function createRunManager({
   vault,
   // Where Python runs and where the files it makes are kept ({ host, files }, see server/sandbox-client.js and file-store.js), or null.
   sandbox = null,
+  // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
+  vision = { available: async () => false, execute: executeVisionCheck, getKit: async () => null },
   limits = LIMITS,
   fetchImpl = fetch,
   log = () => {},
@@ -72,6 +77,36 @@ export function createRunManager({
       live.thought.ms = event.te;
     } else if (Array.isArray(event.src)) live.sources = event.src;
     else if (event.ev) mirrorStepEvent(live, event.ev);
+    else if (event.vc) mirrorVisionEvent(live, event.vc);
+  };
+  // The events of the visual check, kept so that a page that joins late draws the same line. The model's thinking is joined, and so are
+  // the small pieces of the Python steps of a redoing (see mirrorStepEvent).
+  const mirrorVisionEvent = (live, event) => {
+    const events = live.vision.events;
+    const last = events[events.length - 1];
+    if (last && event.m === 'think' && last.m === 'think') {
+      last.a = [`${last.a[0]}${event.a[0]}`];
+      live.vision.chars += String(event.a[0]).length;
+      return;
+    }
+    if (last && event.m === 'py' && last.m === 'py') {
+      const before = last.a[0];
+      const next = event.a[0];
+      if (next.type === 'code' && before.type === 'code') {
+        live.vision.chars += String(next.text || '').length - String(before.text || '').length;
+        last.a = [next];
+        return;
+      }
+      if ((next.type === 'thinking' && before.type === 'thinking' && before.kind === next.kind) || (next.type === 'output' && before.type === 'output' && before.n === next.n && before.stream === next.stream)) {
+        before.text = `${before.text || ''}${next.text || ''}`;
+        live.vision.chars += String(next.text || '').length;
+        return;
+      }
+    }
+    const size = JSON.stringify(event).length;
+    if (live.vision.chars + size > MAX_MIRRORED_VISION_CHARS) return;
+    live.vision.chars += size;
+    events.push({ m: event.m, a: structuredClone(event.a) });
   };
   // The events of the steps, kept so that a page that joins late can draw the same step list. Neighbours of one kind are joined (the
   // thinking and what the code prints arrive in small pieces, and each version of the program replaces the one before).
@@ -106,7 +141,8 @@ export function createRunManager({
       thought: { text: live.thought.text, kind: live.thought.kind, ended: live.thought.ended, ms: live.thought.ended ? live.thought.ms : (live.thought.first ? now() - live.thought.first : live.thought.ms) },
       sources: live.sources,
       elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
-      ...(live.steps.events.length ? { events: live.steps.events } : {})
+      ...(live.steps.events.length ? { events: live.steps.events } : {}),
+      ...(live.vision.events.length ? { vc: live.vision.events } : {})
     }
   });
   const fan = (live, event) => {
@@ -129,9 +165,10 @@ export function createRunManager({
     live.subscribers.clear();
   };
 
-  async function run({ runId, userId, spec, secrets, resume }) {
+  async function run({ runId, userId, spec, secrets, resume, decks = new Map() }) {
+    const isVision = spec.kind === 'vision';
     const controller = new AbortController();
-    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, subscribers: new Set() };
+    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, subscribers: new Set() };
     active.set(runId, { controller, userId, live });
     let finalStatus = 'error';
     const writer = createMessageWriter({
@@ -146,6 +183,7 @@ export function createRunManager({
     let beat = null;
     let limit = null;
     let ended = false;
+    let visionNext = null;
     const abort = (reason) => {
       if (!controller.signal.aborted) controller.abort(reason);
     };
@@ -160,7 +198,7 @@ export function createRunManager({
       }, heartbeatMs);
       limit = setTimer(() => abort('time_limit'), limits.maxRunMs);
 
-      const result = await execute({
+      const result = isVision ? await runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) : await execute({
         spec,
         secrets,
         signal: controller.signal,
@@ -187,6 +225,12 @@ export function createRunManager({
       });
       if (controller.signal.reason === RESTART) return;
       ended = true;
+      if (isVision) {
+        // The corrected replies were written as they were made; the run only says how it ended.
+        finalStatus = 'complete';
+        await store.finish(runId, { status: controller.signal.aborted ? 'stopped' : 'done', usage: { checked: result.checked } });
+        return;
+      }
       if (controller.signal.reason === 'time_limit') {
         await writer.finish(result.parts, 'error', { serverError: { code: ERROR_CODES.timeLimit, message: 'The reply took too long.' } });
         await store.finish(runId, { status: 'failed', errorCode: ERROR_CODES.timeLimit, usage: { toolCalls: result.toolCalls } });
@@ -195,11 +239,20 @@ export function createRunManager({
       await writer.finish(result.parts, 'complete');
       finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs } });
+      // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
+      if (result.status === 'done' && !controller.signal.aborted) visionNext = await planVision({ userId, spec, secrets, result }).catch((error) => {
+        log('vision_not_started', { runId, message: String(error?.message || '').slice(0, 160) });
+        return null;
+      });
     } catch (error) {
       if (controller.signal.reason === RESTART) return;
       const failure = failureOf(error, secrets);
       log('run_failed', { runId, code: failure.code });
-      try {
+      if (isVision) {
+        // The check could not be made at all: the page is told, and no reply is written.
+        applyLive(live, { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason: scrubMessage(failure.message, secrets) }] } });
+        fan(live, { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason: scrubMessage(failure.message, secrets) }] } });
+      } else try {
         await writer.finish([{ text: errorText(spec.request.language, failure) }], 'error', { serverError: failure });
       } catch (writeError) {
         log('final_write_failed', { runId, message: String(writeError?.message || '').slice(0, 160) });
@@ -213,19 +266,90 @@ export function createRunManager({
       // Those watching are told it is over only once the finished message is written, so what they read then is whole.
       if (controller.signal.reason === RESTART) closeWatchers(live);
       else {
-        fan(live, { done: finalStatus });
+        fan(live, { done: finalStatus, ...(visionNext ? { vision: visionNext.runId } : {}) });
         closeWatchers(live);
       }
       if (beat) clearRepeating(beat);
       if (limit) clearTimer(limit);
       active.delete(runId);
       if (!ended && controller.signal.reason !== RESTART && !controller.signal.aborted) log('run_left_open', { runId });
+      if (visionNext && controller.signal.reason !== RESTART) void run(visionNext);
     }
+  }
+
+  // The check of the presentations a reply wrote: a run of its own (its own record, its own key), started with what the reply made.
+  async function planVision({ userId, spec, secrets, result }) {
+    if (!spec.tools.visionCheck || spec.kind === 'vision' || draining || !(await vision.available())) return null;
+    const text = result.parts[0]?.text || '';
+    const fileParts = result.parts.filter((part) => part.sandboxFile);
+    if (!visionFiles({ spec, text, parts: fileParts }).length) return null;
+    const { secrets: _keys, ...own } = spec;
+    const visionSpec = {
+      kind: 'vision',
+      protocol: spec.protocol,
+      clientVersion: spec.clientVersion,
+      conversationId: spec.conversationId,
+      assistantMessageId: crypto.randomUUID(),
+      sequence: 0,
+      model: spec.model,
+      request: { history: own.request.history, currentMessage: own.request.currentMessage, systemInstruction: own.request.systemInstruction, language: own.request.language, ...(own.request.generation ? { generation: own.request.generation } : {}), ...(own.request.reasoningEffort ? { reasoningEffort: own.request.reasoningEffort } : {}) },
+      tools: own.tools,
+      source: { messageId: spec.assistantMessageId, text, parts: fileParts }
+    };
+    const { envelope, keyVersion } = vault.seal(secrets, { userId, messageId: visionSpec.assistantMessageId });
+    const runId = await store.start({ userId, conversationId: spec.conversationId, messageId: visionSpec.assistantMessageId, model: spec.model, envelope, keyVersion, flags: { kind: 'vision' } });
+    try {
+      await db.update('server_runs', { id: `eq.${runId}` }, { spec: visionSpec });
+    } catch (error) {
+      log('spec_save_failed', { runId, message: String(error?.message || '').slice(0, 160) });
+    }
+    return { runId, userId, spec: visionSpec, secrets, resume: null, decks: result.artifacts?.decks || new Map() };
+  }
+
+  // The next number in the conversation: a corrected reply goes after everything there is.
+  async function nextSequence(userId, conversationId) {
+    const rows = await db.select('workspace_messages', { filters: { conversation_id: `eq.${conversationId}`, user_id: `eq.${userId}` }, select: 'sequence', order: 'sequence.desc', limit: 1 });
+    return Number(rows?.[0]?.sequence ?? -1) + 1;
+  }
+
+  async function runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) {
+    const result = await vision.execute({
+      spec,
+      secrets,
+      signal: controller.signal,
+      userId,
+      files: sandbox?.files || null,
+      sandboxHost: sandbox?.host || null,
+      decks,
+      getKit: vision.getKit,
+      fetchImpl,
+      now,
+      onLive: (event) => {
+        applyLive(live, event);
+        fan(live, event);
+      },
+      writeMessage: async ({ id, parts, metadata }) => {
+        const sequence = await nextSequence(userId, spec.conversationId);
+        await db.rpc('server_upsert_workspace_message', {
+          p_user_id: userId,
+          p_row: { id, conversation_id: spec.conversationId, role: 'model', parts, status: 'complete', sequence, ...(metadata ? { metadata } : {}) }
+        });
+      }
+    });
+    return result;
   }
 
   return {
     get activeCount() { return active.size; },
     get draining() { return draining; },
+    /** Whether the server can draw slides, so a reply with a presentation gets its visual check here (asked when a reply is accepted). */
+    async visionAvailable() {
+      try {
+        return Boolean(await vision.available());
+      } catch {
+        return false;
+      }
+    },
     /** Whether a reply that runs Python can be taken now: the sandbox host is set and answers (it is not asked more than every so often). */
     async advancedAvailable() {
       if (!sandbox?.host?.configured) return false;
@@ -243,7 +367,7 @@ export function createRunManager({
       const { envelope, keyVersion } = vault.seal(secrets, { userId, messageId: spec.assistantMessageId });
       let runId;
       try {
-        runId = await store.start({ userId, conversationId: spec.conversationId, messageId: spec.assistantMessageId, model: spec.model, envelope, keyVersion });
+        runId = await store.start({ userId, conversationId: spec.conversationId, messageId: spec.assistantMessageId, model: spec.model, envelope, keyVersion, flags: spec.tools.visionCheck ? { vision: true } : null });
       } catch (error) {
         const code = runStartErrorCode(error);
         if (code === ERROR_CODES.internal) log('start_failed', { message: String(error?.message || '').slice(0, 160) });

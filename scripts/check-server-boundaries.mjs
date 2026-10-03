@@ -73,12 +73,35 @@ export function sharedClosure() {
   return [...found].sort();
 }
 
+/** The npm packages the server and the modules it reaches import (the first part of each bare specifier), with the file that does. */
+export function packagesReached() {
+  const found = new Map();
+  const files = [...filesUnder(join(root, 'server')), ...sharedClosure().map((path) => join(root, path))];
+  for (const path of files) {
+    for (const match of stripComments(readFileSync(path, 'utf8')).matchAll(IMPORT)) {
+      const specifier = match[1] || match[2] || match[3];
+      if (!specifier || specifier.startsWith('node:') || /^[./]/.test(specifier) || !/^@?[\w-]/.test(specifier)) continue;
+      const name = specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0];
+      if (!found.has(name)) found.set(name, relative(root, path));
+    }
+  }
+  return found;
+}
+
+// What the container image installs next to the server (Dockerfile): a package the server reaches that is not there would stop it at start.
+const installedInImage = () => {
+  const line = readFileSync(join(root, 'Dockerfile'), 'utf8').split('\n').filter((text) => /npm install/.test(text)).join(' ');
+  return new Set([...line.matchAll(/(?:^|\s)((?:@[\w.-]+\/)?[\w.-]+)@[\w.^~-]+/g)].map((match) => match[1]));
+};
+
 export function checkServer() {
   const problems = filesUnder(join(root, 'server')).flatMap((path) => checkServerSource(path, readFileSync(path, 'utf8')));
   const listed = new Set(ALLOWED_SHARED);
   const reached = sharedClosure();
   for (const path of reached) if (!listed.has(path)) problems.push(`${path}: is reached by the server (through its imports) but is not on the reviewed list, scripts/server-shared-modules.json`);
   for (const path of listed) if (!reached.includes(path)) problems.push(`${path}: is on the reviewed list but the server no longer uses it; take it off`);
+  const installed = installedInImage();
+  for (const [name, from] of packagesReached()) if (!installed.has(name)) problems.push(`${name}: is imported (by ${from}) but the container image does not install it (Dockerfile)`);
   return problems;
 }
 

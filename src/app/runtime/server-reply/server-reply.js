@@ -4,6 +4,7 @@
 
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { serverReplyText } from './server-reply-texts.js';
+import { readRunStream } from './server-stream.js';
 
 export const SERVER_PROTOCOL_VERSION = 1;
 export const DEFAULT_SERVER_API_URL = 'https://api.noureon.com';
@@ -69,7 +70,7 @@ export function localizeServerError(error, language) {
 }
 
 // A picture in the event of a finished step comes as base64 (small ones, to be shown while the step runs): the step list takes bytes.
-const withFileBytes = (event) => {
+export const withFileBytes = (event) => {
   if (event?.type !== 'step-end' || !Array.isArray(event.files)) return event;
   return {
     ...event,
@@ -186,7 +187,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const start = async ({ conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const start = async ({ conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], visionCheck = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -227,7 +228,9 @@ export function createServerReply({
         advanced: Boolean(advanced),
         // What Python is given: the Design menu's choices, and the files attached to this message.
         ...(advanced && designs ? { designs } : {}),
-        ...(advanced && inputs.length ? { inputs } : {})
+        ...(advanced && inputs.length ? { inputs } : {}),
+        // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
+        ...(visionCheck ? { visionCheck } : {})
       },
       secrets: { providerKey, ...(search ? { searchKey: search.searchKey } : {}) }
     };
@@ -249,12 +252,15 @@ export function createServerReply({
     }
     const runId = result.data?.runId;
     if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };
-    return { ok: true, run: createRun({ runId, assistantMessageId }) };
+    return { ok: true, run: createRun({ runId, assistantMessageId, vision: result.data?.vision === true }) };
   };
 
-  const createRun = ({ runId, assistantMessageId }) => ({
+  const createRun = ({ runId, assistantMessageId, kind = 'reply', vision = false }) => ({
     runId,
     assistantMessageId,
+    // 'vision': the check of a presentation (not a reply); `vision`: the server makes the check of this reply's presentations.
+    kind,
+    vision,
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
     /**
      * Follows the reply until the server has finished it, the way a live broadcast is followed: the server pushes every small piece as
@@ -271,6 +277,7 @@ export function createServerReply({
       let terminalRunSeen = 0;
       let lastRow = null;
       let sourceCount = 0;
+      let visionRunId = null;
       let queue = '';
       const emit = (delta) => {
         if (paceMs) queue += delta;
@@ -324,6 +331,7 @@ export function createServerReply({
           sourceCount = event.src.length;
           onRun({ sources: event.src });
         }
+        if (event.vision) visionRunId = event.vision;
         return event.done ? 'done' : null;
       };
       let liveAbort = null;
@@ -441,7 +449,7 @@ export function createServerReply({
             extraParts = fileParts;
           }
         }
-        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts };
+        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts, visionRunId };
       }
     }
   });
@@ -449,8 +457,26 @@ export function createServerReply({
   /** A reply of this conversation the server is still making (the page was closed or left meanwhile), to follow from here, or null. */
   const find = async (conversationId) => {
     const row = await findLiveRun(conversationId);
-    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id }) : null;
+    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' ? 'vision' : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
   };
 
-  return { start, find, request };
+  /**
+   * Watches a run that makes no message of its own to follow (the visual check): `onEvent(event)` gets what the server tells, the run as it is
+   * now first. Resolves when the server says it is over (or the run is seen to be over, when the channel cannot be had).
+   */
+  const watchRun = async (runId, { onEvent = () => {}, signal } = {}) => {
+    for (let attempt = 0; attempt < 3 && !signal?.aborted; attempt += 1) {
+      const token = await getAccessToken();
+      if (!token) return false;
+      const outcome = await readRunStream({ url: `${getBaseUrl()}/v1/runs/${runId}/stream`, token, fetchImpl, signal, onEvent: (event) => (onEvent(event) === 'done' || event.done ? 'done' : null), now, setRepeating, clearRepeating });
+      if (outcome.done) return true;
+      // The channel broke or never opened: the run may be over, or may go on and be joined again.
+      const status = await request('GET', `/v1/runs/${runId}`, { timeoutMs: 8000 });
+      if (status.ok && isTerminalRun(status.data?.run?.status)) return true;
+      await wait(2000);
+    }
+    return false;
+  };
+
+  return { start, find, request, watchRun };
 }

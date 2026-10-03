@@ -11,6 +11,9 @@ import { createRunStore } from './run-store.js';
 import { createFileStore } from './file-store.js';
 import { createSandboxHost } from './sandbox-client.js';
 import { createServiceClient } from './supabase-rest.js';
+import { canDrawSlides } from './slides/available.js';
+import { getFontKit } from './slides/font-kit.js';
+import { executeVisionCheck } from './vision-check.js';
 
 const log = createLogger();
 let config;
@@ -24,6 +27,7 @@ try {
 let runs = null;
 let checkRunsStore = async () => {};
 let checkSandbox = async () => {};
+let checkSlides = async () => {};
 if (config.runsConfigured) {
   try {
     const db = createServiceClient({ url: config.supabaseUrl, serviceKey: config.serviceKey });
@@ -34,8 +38,9 @@ if (config.runsConfigured) {
     // Python runs on the sandbox host when it is set; the files it makes are kept in the person's storage.
     const host = config.sandboxUrl ? createSandboxHost({ url: config.sandboxUrl, token: config.sandboxToken }) : null;
     const sandbox = host ? { host, files: createFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }) } : null;
+    checkSlides = () => canDrawSlides().then((ok) => log(ok ? 'slides_ok' : 'slides_unavailable'));
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault: createKeyVault(config.encryptionKeys), sandbox, limits: LIMITS, log });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault: createKeyVault(config.encryptionKeys), sandbox, vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);
@@ -50,6 +55,7 @@ server.listen(config.port, () => {
   log('listening', { port: config.port, build: config.build, runs: Boolean(runs), sandbox: Boolean(config.sandboxUrl) });
   void checkRunsStore();
   void checkSandbox();
+  void checkSlides();
   runs?.startSweeping();
 });
 

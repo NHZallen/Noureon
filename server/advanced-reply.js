@@ -100,7 +100,7 @@ export function createStepEvents({ send, now = Date.now, setTimer = setTimeout, 
 /**
  * The reply as it is saved. Keeps the files the code made (the newest of each name) in the person's storage and lists them in the
  * message as parts, the way the browser does, and puts the run record, the answer and the documents handed to the design system
- * into the text. Mutates `run` (the listed files get their ids). Resolves { text, parts }.
+ * into the text. Mutates `run` (the listed files get their ids). Resolves { text, parts, answer, documents }.
  */
 export async function finishAdvancedReply({ result, run, userId, files, embedFonts = embedRunFonts, createId = () => crypto.randomUUID() }) {
   // Word and PowerPoint files made freely get the app's fonts embedded (the sizes in the step lists follow).
@@ -138,5 +138,5 @@ export async function finishAdvancedReply({ result, run, userId, files, embedFon
   const documents = sandboxDocumentBlocks(run);
   // A block the model also wrote under the name of a file it made is a second, empty card.
   const answer = withoutEmptyDocumentBlocks(withoutDuplicatedFileBlocks(result.text, [...parts.map((part) => part.sandboxFile.name), ...sandboxDocumentNames(run)]));
-  return { text: `${formatSandboxRunBlock(run)}${answer || ''}${documents ? `\n\n${documents}` : ''}`, parts };
+  return { text: `${formatSandboxRunBlock(run)}${answer || ''}${documents ? `\n\n${documents}` : ''}`, parts, answer: answer || '', documents };
 }

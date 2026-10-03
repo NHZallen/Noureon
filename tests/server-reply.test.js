@@ -411,3 +411,73 @@ test('a reply whose Python the server lost is told apart, in the language of the
   assert.equal(localizeServerError(error, 'zh-TW').message, SERVER_REPLY_TEXTS['zh-TW'].sandboxUnavailable);
   assert.equal(localizeServerError(error, 'en').code, 'sandbox_unavailable');
 });
+
+test('a reply asks for the check of its presentations, is told whether the server makes it, and learns the id of the check when the reply is over', async () => {
+  const requests = [];
+  const { reply } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { a: 'Here.' }, { done: 'complete', vision: 'run-check' }],
+    rows: [row('Here.', 'complete')],
+    extra: { fetchSpy: requests }
+  });
+  const { run } = await reply.start(startArgs({ visionCheck: { deckDesign: 'Slate', advanced: true } }));
+  assert.equal(run.kind, 'reply');
+  const result = await run.follow({});
+  assert.equal(result.visionRunId, 'run-check');
+});
+
+test('the server\'s answer says whether it makes the check, and what is asked is only what the page decided', async () => {
+  const bodies = [];
+  const make = (vision) => harness({ fetchImpl: async (url, options) => { bodies.push(JSON.parse(options.body)); return new Response(JSON.stringify({ runId: 'run-1', vision }), { status: 202 }); } });
+  const yes = await make(true).reply.start(startArgs({ visionCheck: { deckDesign: 'auto', advanced: false } }));
+  assert.equal(yes.run.vision, true);
+  assert.deepEqual(bodies[0].tools.visionCheck, { deckDesign: 'auto', advanced: false });
+  const no = await make(false).reply.start(startArgs());
+  assert.equal(no.run.vision, false);
+  assert.equal('visionCheck' in bodies[1].tools, false, 'not asked: not sent');
+});
+
+test('a run found for the chat says what kind it is: a reply, or the check of a presentation', async () => {
+  const { reply } = harness({ findLiveRun: async () => ({ id: 'run-9', message_id: 'm-9', kind: 'vision', vision: false }) });
+  const found = await reply.find('conv-1');
+  assert.deepEqual([found.runId, found.kind], ['run-9', 'vision']);
+  const plain = await harness({ findLiveRun: async () => ({ id: 'run-8', message_id: 'm-8', kind: null, vision: 'true' }) }).reply.find('conv-1');
+  assert.deepEqual([plain.kind, plain.vision], ['reply', true]);
+});
+
+test('a run that makes no message is watched through the live channel: what the server tells, until it says it is over', async () => {
+  const seen = [];
+  const { reply } = liveHarness({ events: [{ r: { vc: [{ m: 'begin', a: [{}] }] } }, { vc: { m: 'set', a: ['rendering'] } }, { done: 'complete' }] });
+  const finished = await reply.watchRun('run-1', { onEvent: (event) => seen.push(event) });
+  assert.equal(finished, true);
+  assert.deepEqual(seen.map((event) => Object.keys(event)[0]), ['r', 'vc', 'done']);
+});
+
+test('when the channel cannot be had, the run itself says whether it is over', async () => {
+  const requests = [];
+  const { reply } = harness({
+    fetchImpl: async (url) => {
+      requests.push(String(url));
+      if (String(url).endsWith('/stream')) return new Response('nope', { status: 503 });
+      return new Response(JSON.stringify({ run: { status: 'done' } }), { status: 200 });
+    }
+  });
+  assert.equal(await reply.watchRun('run-1', {}), true);
+  assert.ok(requests.some((url) => url.endsWith('/v1/runs/run-1')));
+});
+
+test('the browser\'s wiring: a reply whose check the server makes has it followed and no check of the page; any other reply is the page\'s own', async () => {
+  const { createBrowserServerReply } = await import('../src/app/runtime/server-reply/server-reply-runtime.js');
+  const wiring = createBrowserServerReply({ getApiKeyForProvider: () => '', getModelApiId: () => '', getDefaultGenConfig: () => ({}), describeRequest: async () => ({}), getSync: () => ({}), getClient: async () => null, document: null });
+  const local = [];
+  const schedule = wiring.visionSchedule((args) => local.push(args.message.id));
+  schedule({ message: { id: 'plain' } });
+  assert.deepEqual(local, ['plain']);
+  wiring.noteVision('plain-2', {});
+  schedule({ message: { id: 'plain-2' } });
+  assert.deepEqual(local, ['plain', 'plain-2'], 'nothing was said of it: the page checks');
+  wiring.noteVision('server', { vision: true, visionRunId: null });
+  const outcome = schedule({ message: { id: 'server', parts: [{ text: 'Just words.' }] }, conversation: { id: 'c' } });
+  assert.ok(outcome && typeof outcome.then === 'function', 'handed to the module that follows the check');
+  await outcome;
+  assert.deepEqual(local, ['plain', 'plain-2'], 'the page made no check of its own');
+});

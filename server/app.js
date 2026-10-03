@@ -130,7 +130,9 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (result.spec.tools.advanced && (result.spec.tools.webSearch === 'grounding' || !(await runs.advancedAvailable?.()))) throw new RequestError(ERROR_CODES.unsupportedMode, 'Advanced mode is not run on the server.');
         try {
           const runId = await runs.start({ userId: user.id, spec: result.spec });
-          send(response, 202, { runId }, origin);
+          // Whether the check of a presentation it writes is made here too (otherwise the page makes it, as it always did).
+          const vision = Boolean(result.spec.tools.visionCheck) && Boolean(await runs.visionAvailable?.());
+          send(response, 202, { runId, vision }, origin);
           status = 202;
         } catch (error) {
           if (error?.name === 'RunError') throw new RequestError(error.code, error.message);
