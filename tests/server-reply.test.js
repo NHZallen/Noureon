@@ -203,3 +203,17 @@ test('a reply the server is still making is found for the conversation and follo
   const none = harness({ findLiveRun: async () => null });
   assert.equal(await none.reply.find('conv-2'), null, 'nothing is shown for a reply that is over');
 });
+
+test('with pacing the words the server wrote are handed over in small pieces until the next look, and all of them arrive', async () => {
+  const rows = [row('Hello wonderful world'), row('Hello wonderful world, and more', 'complete')];
+  let index = 0;
+  const waits = [];
+  const { reply } = harness({ paceMs: 50, wait: async (ms) => { waits.push(ms); }, readMessage: async () => rows[Math.min(index++, rows.length - 1)] });
+  const { run } = await reply.start(startArgs());
+  const pieces = [];
+  const result = await run.follow({ onText: (delta) => pieces.push(delta) });
+  assert.equal(pieces.join(''), 'Hello wonderful world, and more');
+  assert.ok(pieces.length > 4, 'in small pieces, not one block');
+  assert.equal(result.text, 'Hello wonderful world, and more');
+  assert.ok(waits.every((ms) => ms === 50 || ms === 350));
+});

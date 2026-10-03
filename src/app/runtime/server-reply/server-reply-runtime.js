@@ -39,6 +39,9 @@ export function createBrowserServerReply({
   const findLiveRun = async (conversationId) => {
     const client = await getClient();
     if (!client || !conversationId) return null;
+    // Nobody signed in to the cloud: there is nothing of the server to look for.
+    const { data: auth } = await client.auth.getSession();
+    if (!auth?.session) return null;
     const { data, error } = await client.from('server_runs').select('id,message_id').eq('conversation_id', conversationId).in('status', ['queued', 'running']).order('created_at', { ascending: false }).limit(1);
     if (error) throw error;
     return data?.[0] || null;
@@ -60,6 +63,7 @@ export function createBrowserServerReply({
     findLiveRun,
     fetchImpl,
     clientVersion: PRODUCT_VERSION,
+    paceMs: 45,
     warn
   });
 

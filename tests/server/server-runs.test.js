@@ -127,7 +127,7 @@ test('the run record: a run is started with the limit, its key goes the moment i
 
 // ----- writing the message
 
-test('the message is written as it grows, at most every 750 ms, in order, and the last write says how it ended', async () => {
+test('the message is written as it grows, at most every 300 ms, in order, and the last write says how it ended', async () => {
   const written = [];
   let clock = 10000;
   const timers = [];
@@ -147,7 +147,7 @@ test('the message is written as it grows, at most every 750 ms, in order, and th
   writer.update([{ text: 'ab' }]);
   writer.update([{ text: 'abc' }]);
   assert.equal(timers.length, 1, 'later ones wait for the one timer');
-  assert.ok(timers[0].wait > 0 && timers[0].wait <= 750);
+  assert.ok(timers[0].wait > 0 && timers[0].wait <= 300);
   clock = 10800;
   timers[0].fn();
   await writer.finish([{ text: 'abcd' }], 'complete');

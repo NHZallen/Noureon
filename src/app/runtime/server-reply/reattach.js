@@ -24,13 +24,14 @@ export function createServerReplyReattach({
 
   const reattachServerReply = async () => {
     const conv = getActiveConversation();
-    if (!conv || reattaching || getAbortController() || conv.__astraPendingResponse || !serverReply.hasAccount()) return false;
+    if (!conv || reattaching || getAbortController() || conv.__astraPendingResponse) return false;
     reattaching = true;
     try {
       let run = null;
       try {
         run = await serverReply.find(conv.id);
-      } catch {
+      } catch (error) {
+        logger?.warn?.('Looking for a reply of the server failed.', error);
         return false;
       }
       // Asked a moment ago: the reply may be over, a new one may have started here, another chat may have been opened.
@@ -78,7 +79,8 @@ export function createServerReplyReattach({
   document?.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleLook(300); });
   window?.addEventListener?.('focus', () => scheduleLook(300));
   if (window?.MutationObserver && messageList()?.nodeType === 1) new window.MutationObserver(() => scheduleLook(1000)).observe(messageList(), { childList: true });
-  for (const delay of [3000, 9000, 20000]) scheduleTimeout(() => scheduleLook(0), delay);
+  // The cloud sync may take a while to be ready after the page opens: look again a few times.
+  for (const delay of [3000, 6000, 10000, 16000, 25000, 40000, 60000]) scheduleTimeout(() => scheduleLook(0), delay);
 
   return { reattachServerReply };
 }

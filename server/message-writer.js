@@ -1,8 +1,8 @@
 // Writes the reply into the person's message as it grows, the way the browser does: the same message id, at most one write in
-// 750 ms while it streams, and a last write that says how it ended. Writes go one after another, so a slow one never lets an
+// 300 ms while it streams, and a last write that says how it ended. Writes go one after another, so a slow one never lets an
 // older text arrive after a newer one.
 
-export const WRITE_INTERVAL_MS = 750;
+export const WRITE_INTERVAL_MS = 300;
 
 export function createMessageWriter({
   store,

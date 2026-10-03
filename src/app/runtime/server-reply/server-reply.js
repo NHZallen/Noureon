@@ -10,7 +10,7 @@ export const DEFAULT_SERVER_API_URL = 'https://api.noureon.com';
 // The server's limit on a request is 25 MB; a request is kept well under it, and a larger one is made in the browser instead.
 const MAX_REQUEST_CHARS = 20 * 1024 * 1024;
 const START_TIMEOUT_MS = 20_000;
-const POLL_MS = 900;
+const POLL_MS = 350;
 const RUN_CHECK_EVERY = 5;
 // Longer than the server's own limit of 2 hours, so the server's reason arrives first.
 const FOLLOW_LIMIT_MS = (2 * 60 + 20) * 60 * 1000;
@@ -80,6 +80,9 @@ export function createServerReply({
   clientVersion = '',
   now = () => Date.now(),
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  // What the server wrote since the last look is handed over in small pieces over the time until the next look (0: all at once), so
+  // the words come out smoothly and not once in a while.
+  paceMs = 0,
   warn = () => {}
 } = {}) {
   const request = async (method, path, { body, signal, timeoutMs = START_TIMEOUT_MS } = {}) => {
@@ -196,6 +199,31 @@ export function createServerReply({
       let terminalRunSeen = 0;
       let lastRow = null;
       let sourceCount = 0;
+      let queue = '';
+      const emit = (delta) => {
+        if (paceMs) queue += delta;
+        else onText(delta);
+      };
+      const flush = () => {
+        if (!queue) return;
+        onText(queue);
+        queue = '';
+      };
+      const idle = async (ms) => {
+        if (!paceMs || !queue) {
+          await wait(ms);
+          return;
+        }
+        const ticks = Math.max(1, Math.round(ms / paceMs));
+        for (let tick = 0; tick < ticks; tick += 1) {
+          const piece = Math.ceil(queue.length / (ticks - tick));
+          if (piece > 0) {
+            onText(queue.slice(0, piece));
+            queue = queue.slice(piece);
+          }
+          await wait(paceMs);
+        }
+      };
       for (;;) {
         if (signal?.aborted && !stopSent) {
           stopSent = true;
@@ -221,7 +249,7 @@ export function createServerReply({
             onRun(lifted.run);
           }
           if (lifted.text.startsWith(answerSoFar) && lifted.text.length > answerSoFar.length) {
-            onText(lifted.text.slice(answerSoFar.length));
+            emit(lifted.text.slice(answerSoFar.length));
             answerSoFar = lifted.text;
           }
           if (row.status === 'complete' || row.status === 'error') return finish(row, false);
@@ -238,7 +266,7 @@ export function createServerReply({
             }
           }
         }
-        await wait(POLL_MS);
+        await idle(POLL_MS);
       }
 
       function finish(row, partial) {
@@ -247,7 +275,8 @@ export function createServerReply({
           throw new ServerReplyError(failure.message || 'The server could not finish this reply.', failure.code || 'unknown');
         }
         const lifted = liftSandboxRunBlock(textOf(row.parts));
-        if (lifted.text.startsWith(answerSoFar) && lifted.text.length > answerSoFar.length) onText(lifted.text.slice(answerSoFar.length));
+        if (lifted.text.startsWith(answerSoFar) && lifted.text.length > answerSoFar.length) emit(lifted.text.slice(answerSoFar.length));
+        flush();
         return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar) };
       }
     }

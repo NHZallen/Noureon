@@ -38,12 +38,11 @@ test('a reply the server is still making is shown being written: the half-writte
   assert.equal(done.options.resumeRun.assistantMessageId, 'a1');
 });
 
-test('nothing is shown when there is no such reply, no account, a reply being made here, or the chat does not end with a question', async () => {
+test('nothing is shown when there is no such reply, a reply being made here, or the chat does not end with a question', async () => {
   const ask = [{ id: 'u1', role: 'user', parts: [{ text: 'q' }] }];
   const none = harness({ messages: ask, find: async () => null });
   assert.equal(await none.lifecycle.reattachServerReply(), false);
   assert.equal(none.calls.completed.length, 0);
-  assert.equal(await harness({ messages: ask, hasAccount: false }).lifecycle.reattachServerReply(), false);
   assert.equal(await harness({ messages: ask, abortController: {} }).lifecycle.reattachServerReply(), false);
   const odd = harness({ messages: [{ id: 'a0', role: 'model', parts: [{ text: 'hi' }] }] });
   assert.equal(await odd.lifecycle.reattachServerReply(), false);
