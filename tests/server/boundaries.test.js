@@ -27,3 +27,25 @@ test('a module of the app may be imported only when it is on the list', () => {
   assert.equal(checkServerSource(file, "import x from '../scripts/tool.js';\n", []).length, 1, 'but not outside the server folder either');
   assert.deepEqual(checkServerSource(file, "import { createServer } from 'node:http';\nimport { a } from './auth.js';\nimport z from 'a-package';\n", []), []);
 });
+
+test('the container image holds what the server needs: its modules load from a copy made the way the Dockerfile makes it', async () => {
+  const { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { pathToFileURL } = await import('node:url');
+  const dockerfile = readFileSync(join(process.cwd(), 'Dockerfile'), 'utf8');
+  assert.match(dockerfile, /^COPY server \.\/server$/m);
+  assert.match(dockerfile, /^COPY src \.\/src$/m);
+  const ignored = readFileSync(join(process.cwd(), '.dockerignore'), 'utf8').split('\n').map((line) => line.trim()).filter(Boolean);
+  assert.equal(ignored.includes('src'), false, 'the shared modules must not be left out of the image');
+  const copy = mkdtempSync(join(tmpdir(), 'noureon-image-'));
+  try {
+    cpSync(join(process.cwd(), 'package.json'), join(copy, 'package.json'));
+    cpSync(join(process.cwd(), 'server'), join(copy, 'server'), { recursive: true });
+    cpSync(join(process.cwd(), 'src'), join(copy, 'src'), { recursive: true, filter: (from) => !from.includes(`${join('src', 'assets')}`) });
+    for (const name of readdirSync(join(copy, 'server')).filter((entry) => entry.endsWith('.js') && entry !== 'main.js')) {
+      await import(pathToFileURL(join(copy, 'server', name)).href);
+    }
+  } finally {
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
