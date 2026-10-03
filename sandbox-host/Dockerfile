@@ -8,6 +8,8 @@ FROM python:3.12-slim-bookworm AS assets
 RUN pip install --no-cache-dir fonttools brotli
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
+# package.json says the .js files are modules (without it Node reads public/sandbox/runtime.js the old way and cannot import from it).
+COPY package.json ./package.json
 COPY public/sandbox ./public/sandbox
 COPY sandbox-host/export-noureon-module.mjs sandbox-host/build_fonts.py ./sandbox-host/
 COPY src/assets/fonts ./fonts
