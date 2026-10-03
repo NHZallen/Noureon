@@ -77,7 +77,7 @@ function readTheme(root) {
   const scheme = {};
   const colors = child(child(root, 'themeElements'), 'clrScheme');
   for (const entry of colors?.children || []) {
-    const value = entry.firstElementChild;
+    const value = [...(entry.children || [])][0];
     scheme[entry.localName] = value?.localName === 'sysClr' ? value.getAttribute('lastClr') : value?.getAttribute('val');
   }
   const fonts = child(child(root, 'themeElements'), 'fontScheme');

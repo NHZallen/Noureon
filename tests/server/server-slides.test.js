@@ -104,3 +104,11 @@ test('a deck from the design system is laid out with its own fonts and drawn the
   assert.ok(isJpeg(Buffer.from(result.images[0], 'base64')));
   if (process.env.SLIDE_SHEET_OUT) writeFileSync(process.env.SLIDE_SHEET_OUT.replace('.jpg', '-designed.jpg'), Buffer.from(result.images[0], 'base64'));
 });
+
+test('the colours of the file\'s theme are read with the server\'s XML parser too: a chart that names no colours takes the theme\'s accents in turn', async () => {
+  const kit = await getFontKit();
+  const presentation = await buildFreePresentation(deck, { kit });
+  const chart = presentation.layout.slides.flatMap((slide) => slide.elements).find((element) => element.type === 'chart');
+  assert.ok(chart, 'the deck has a chart');
+  assert.deepEqual(chart.native.options.chartColors, ['4F81BD', 'C0504D'], 'blue, then red: the first two accents of the theme, not black');
+});

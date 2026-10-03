@@ -48,7 +48,13 @@ export function readChartSpace(root, { paint, scheme, scale = 1 }) {
   const defaultRun = child(child(child(child(root, 'txPr'), 'p'), 'pPr'), 'defRPr');
   const fontSize = ((Number(attribute(defaultRun, 'sz')) || 1000) / 100) * scale;
   const accent = (index) => hex(scheme(FALLBACK_ACCENTS[index % FALLBACK_ACCENTS.length]) || '#4F81BD');
-  const seriesColor = (item, index) => hex(paint(child(item, 'spPr')) || paint(child(child(item, 'spPr'), 'ln')) || scheme(FALLBACK_ACCENTS[index % FALLBACK_ACCENTS.length]));
+  // A series that names no colour takes the theme's accents in turn (what PowerPoint draws); `paint` of a missing node must not be asked
+  // (it answers black).
+  const seriesColor = (item, index) => {
+    const properties = child(item, 'spPr');
+    const line = child(properties, 'ln');
+    return hex((properties && paint(properties)) || (line && paint(line)) || scheme(FALLBACK_ACCENTS[index % FALLBACK_ACCENTS.length]));
+  };
   const pointColors = (item) => {
     const colors = new Map();
     for (const point of children(item, 'dPt')) {
