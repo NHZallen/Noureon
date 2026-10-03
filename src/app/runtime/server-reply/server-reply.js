@@ -63,7 +63,7 @@ export class ServerReplyError extends Error {
 
 /** The error of a reply the server could not finish, in the language of the page (the provider's own words stay as they are). */
 export function localizeServerError(error, language) {
-  const key = { time_limit: 'timeLimit', server_restarted: 'serverRestarted', unknown: 'unknownError', internal_error: 'unknownError' }[error?.code];
+  const key = { time_limit: 'timeLimit', server_restarted: 'serverRestarted', sandbox_unavailable: 'sandboxUnavailable', unknown: 'unknownError', internal_error: 'unknownError' }[error?.code];
   if (!key) return error;
   return new ServerReplyError(serverReplyText(language, key), error.code);
 }

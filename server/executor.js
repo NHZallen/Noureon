@@ -15,6 +15,7 @@ import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/sear
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
+import { ERROR_CODES } from './protocol.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
 export const CHECKPOINT_VERSION = 1;
@@ -54,9 +55,11 @@ export class ReplyError extends Error {
  * { r: snapshot } (the start), { a: text of the answer }, { th: thinking text, k: kind }, { te: how long it thought, in ms, when the answer
  * starts }, { src: pages found }, { ev: what a step of Python does, for the page's step list }.
  * A reply that runs Python (`spec.tools.advanced`) is given `sandboxHost` (server/sandbox-client.js) and `files` (server/file-store.js)
- * and `userId`; it is made again from its start when it is taken up after a restart (the sandbox was lost with the process).
+ * and `userId`; it is made again from its start when it is taken up after a restart (the sandbox was lost with the process). When the
+ * sandbox cannot be had before any answer was written and a page is watching (`watching()`), it ends with a ReplyError of code
+ * `sandbox_unavailable`: the page then makes the reply itself, with its own Python.
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -159,6 +162,12 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       // Each event says when it happened (ms since the reply began), so a page that joins late draws the same times as the others.
       const stepEvents = createStepEvents({ send: (event) => onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }), now });
       let sandbox = null;
+      // The reply is made with a signal of its own, so that it can be ended when the sandbox is lost and the page is to take over.
+      const inner = new AbortController();
+      const passStop = () => inner.abort();
+      if (signal?.aborted) inner.abort();
+      signal?.addEventListener?.('abort', passStop, { once: true });
+      let handBack = false;
       let advancedParts = parts;
       let advancedOptions = requestOptions;
       if (mode === 'briefing') {
@@ -181,12 +190,32 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           streamApiCall,
           requestParts: advancedParts,
           onChunk,
-          signal,
+          signal: inner.signal,
           requestOptions: advancedOptions,
           host: 'server',
           getSandbox: (options) => {
-            sandbox = sandboxHost.getSandbox({ ...options, language, signal });
-            return sandbox;
+            const real = sandboxHost.getSandbox({ ...options, language, signal: inner.signal });
+            sandbox = real;
+            // Lost for good (the host does not come back) before there is an answer, with a page there to take over: the reply ends so the
+            // page can make it with its own Python, and nothing of this one is shown. Otherwise the model finishes without Python.
+            const guard = async (step) => {
+              try {
+                return await step();
+              } catch (error) {
+                if (!inner.signal.aborted && !answer.trim() && watching()) {
+                  handBack = true;
+                  inner.abort();
+                }
+                throw error;
+              }
+            };
+            return {
+              prepare: () => guard(() => real.prepare()),
+              clear: () => guard(() => real.clear()),
+              mount: (inputs) => guard(() => real.mount(inputs)),
+              run: (code, options) => guard(() => real.run(code, options)),
+              dispose: () => real.dispose()
+            };
           },
           language,
           provider: modelInfo.provider,
@@ -198,9 +227,11 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         stepEvents.flush();
         advanced = result;
       } finally {
+        signal?.removeEventListener?.('abort', passStop);
         // The container goes with the reply, however it ended.
         await sandbox?.dispose().catch(() => {});
       }
+      if (handBack && !signal?.aborted) throw new ReplyError('The Python sandbox is not available.', ERROR_CODES.sandboxUnavailable);
     } else if (mode === 'research') {
       const tools = createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch });
       const result = await runWebResearchReply({
@@ -222,6 +253,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     }
   } catch (error) {
     // A stop keeps what was written; anything else is the reply's failure.
+    if (error instanceof ReplyError && error.code === ERROR_CODES.sandboxUnavailable) throw error;
     if (!signal?.aborted) throw new ReplyError(scrubMessage(error?.message, secrets), 'provider_error');
   }
 

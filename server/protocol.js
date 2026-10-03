@@ -19,6 +19,8 @@ export const ERROR_CODES = Object.freeze({
   providerError: 'provider_error',
   serverRestarted: 'server_restarted',
   timeLimit: 'time_limit',
+  // The Python sandbox was lost before the reply had an answer, with a page watching: the page makes the reply itself.
+  sandboxUnavailable: 'sandbox_unavailable',
   stopped: 'stopped',
   notFound: 'not_found',
   internal: 'internal_error'

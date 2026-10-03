@@ -683,6 +683,37 @@ test('a reply with Python the server makes: Python is asked for with the attachm
   window.happyDOM.abort();
 });
 
+test('the server lost its Python before it had an answer: the reply is made here, with the page\'s own Python, and nothing of the failure is shown', async () => {
+  const lost = Object.assign(new Error('The Python sandbox is not available.'), { code: 'sandbox_unavailable', serverRun: true });
+  const serverReply = serverReplyDouble({ plan: { ok: true, webSearch: 'off', advanced: true }, follow: async () => { throw lost; } });
+  const asked = [];
+  const { lifecycle, signal, targetElement } = createHarness({
+    extraDependencies: {
+      serverReply,
+      supportsToolCalling: () => true,
+      getWindow: () => ({ WebAssembly: {}, Worker: function Worker() {}, postMessage() {} }),
+      streamApiCall: async (parts, onChunk, receivedSignal, forced, options) => {
+        asked.push(options.tools?.map((tool) => tool.name));
+        onChunk('Made here.');
+        return 'Made here.';
+      }
+    }
+  });
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'Make me an Excel file of these numbers' }],
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation: { id: 'c1', model: 'model', messages: [] },
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    sequence: 2
+  });
+  assert.equal(serverReply.record.starts.length, 1, 'the server was asked first');
+  assert.deepEqual(asked, [['run_python']], 'then the page made the reply, with Python');
+  assert.equal(liftSandboxRunBlock(result.fullResponse).text, 'Made here.');
+});
+
 test('a reply the server is still making is followed without preparing or sending anything again', async () => {
   const serverReply = serverReplyDouble({ follow: async () => { throw new Error('not used'); } });
   const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });

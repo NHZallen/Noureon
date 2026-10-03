@@ -97,7 +97,7 @@ test('a step that fails to run, or a runner that answers nothing, is a failure t
 
   const silent = await fakeRunner({ run: ({ end }) => end() });
   t.after(silent.close);
-  const quiet = createSandboxHost({ url: silent.url, token: TOKEN }).getSandbox();
+  const quiet = createSandboxHost({ url: silent.url, token: TOKEN, wait: async () => {} }).getSandbox();
   await quiet.prepare();
   await assert.rejects(() => quiet.run('print(1)'), (error) => error instanceof SandboxHostError && error.code === 'sandbox-unreachable');
 });
@@ -166,4 +166,50 @@ test('ready: a host that works is remembered for a while, one that does not is a
   const busy = await fakeRunner({ busyTimes: 1 });
   t.after(busy.close);
   assert.deepEqual(await createSandboxHost({ url: busy.url, token: TOKEN }).check(), { ok: true, reason: 'busy' });
+});
+
+test('a host lost while a step runs: it is waited for, a new sandbox gets the same files, and the step is run again (told as restarted)', async (t) => {
+  let runs = 0;
+  const runner = await fakeRunner({
+    run: ({ write, end, response }) => {
+      runs += 1;
+      if (runs === 1) { response.destroy(); return; }
+      write({ type: 'result', stdout: { text: 'second try\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, elapsedMs: 3, files: [], skippedFiles: [] });
+      end();
+    }
+  });
+  t.after(runner.close);
+  const waits = [];
+  const sandbox = createSandboxHost({ url: runner.url, token: TOKEN, wait: async (ms) => { waits.push(ms); } }).getSandbox();
+  await sandbox.prepare();
+  await sandbox.mount([{ name: 'in.txt', type: 'text/plain', bytes: new TextEncoder().encode('hi') }]);
+  const result = await sandbox.run('print("second try")');
+  assert.equal(result.stdout.text, 'second try\n');
+  assert.equal(result.restarted, true, 'the model is told the variables of earlier steps are gone');
+  assert.equal(waits.length, 1);
+  const sessions = runner.calls.filter((call) => call.method === 'POST' && call.path === '/v1/sessions').length;
+  assert.equal(sessions, 2, 'a new sandbox');
+  const mounts = runner.calls.filter((call) => call.path.endsWith('/mount'));
+  assert.equal(mounts.length, 2);
+  assert.deepEqual(mounts[1].body.files, mounts[0].body.files, 'with the same files');
+});
+
+test('a host that does not come back: after the tries the step fails (the reply goes on without Python)', async (t) => {
+  const runner = await fakeRunner({ run: ({ response }) => { response.destroy(); } });
+  t.after(runner.close);
+  const sandbox = createSandboxHost({ url: runner.url, token: TOKEN, wait: async () => {} }).getSandbox();
+  await sandbox.prepare();
+  await assert.rejects(() => sandbox.run('print(1)'), (error) => error.code === 'sandbox-unreachable');
+  assert.equal(runner.calls.filter((call) => call.path.endsWith('/run')).length, 3);
+});
+
+test('a stop is not mistaken for a lost host', async (t) => {
+  const runner = await fakeRunner({ run: ({ response }) => { response.destroy(); } });
+  t.after(runner.close);
+  const controller = new AbortController();
+  const sandbox = createSandboxHost({ url: runner.url, token: TOKEN, wait: async () => {} }).getSandbox();
+  await sandbox.prepare();
+  controller.abort();
+  assert.deepEqual(await sandbox.run('print(1)', { signal: controller.signal }), { stopped: true });
+  assert.equal(runner.calls.filter((call) => call.path.endsWith('/run')).length, 0);
 });

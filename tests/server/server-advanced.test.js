@@ -282,3 +282,43 @@ test('a reply with Python and a briefing: the search is made first on its own, a
   assert.ok(live.some((event) => event.ev?.type === 'searching'));
   assert.equal(liftSandboxRunBlock(result.parts[0].text).text, 'Answer using the briefing.', 'the briefing is not part of the answer');
 });
+
+const lostHost = () => ({ configured: true, getSandbox: () => ({ prepare: async () => { throw new Error('The Python sandbox could not be reached.'); }, dispose: async () => {} }) });
+const callsPython = (round) => (round === 1 ? sse(toolCall('c', 'run_python', { code: 'print(1)' })) : sse(content('Answer without Python.')));
+
+test('the sandbox is lost for good before there is an answer, and a page is watching: the reply ends so the page can make it with its own Python', async () => {
+  let round = 0;
+  await assert.rejects(() => executeReply({
+    spec: specFor(), secrets, userId: USER, sandboxHost: lostHost(), files: fakeFiles(), watching: () => true,
+    fetchImpl: async () => { round += 1; return streamResponse(callsPython(round)); }
+  }), (error) => error instanceof ReplyError && error.code === 'sandbox_unavailable');
+  assert.equal(round, 1, 'the model is not asked again to answer without Python');
+});
+
+test('the same with nobody watching: the model finishes without Python, so the reply is not lost', async () => {
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor(), secrets, userId: USER, sandboxHost: lostHost(), files: fakeFiles(), watching: () => false,
+    fetchImpl: async () => { round += 1; return streamResponse(callsPython(round)); }
+  });
+  assert.equal(liftSandboxRunBlock(result.parts[0].text).text, 'Answer without Python.');
+});
+
+test('once an answer has been written the page cannot take over without showing it twice: the model finishes without Python', async () => {
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor(), secrets, userId: USER, sandboxHost: lostHost(), files: fakeFiles(), watching: () => true,
+    fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(content('Let me check. '), toolCall('c', 'run_python', { code: 'print(1)' })) : sse(content('Done without it.'))); }
+  });
+  assert.match(liftSandboxRunBlock(result.parts[0].text).text, /Let me check\..*Done without it\./s);
+});
+
+test('a stop is a stop, not a lost sandbox', async () => {
+  const controller = new AbortController();
+  const result = await executeReply({
+    spec: specFor(), secrets, userId: USER, signal: controller.signal, files: fakeFiles(), watching: () => true,
+    sandboxHost: { configured: true, getSandbox: () => ({ prepare: async () => { controller.abort(); throw new Error('stopped'); }, dispose: async () => {} }) },
+    fetchImpl: async () => streamResponse(sse(content('Starting. '), toolCall('c', 'run_python', { code: 'print(1)' })))
+  });
+  assert.equal(result.status, 'stopped');
+});

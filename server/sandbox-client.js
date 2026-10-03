@@ -22,6 +22,9 @@ const MOUNT_CALL_MS = 180_000;
 // All the host's sandboxes may be in use (it holds a few at a time): a reply waits for one, this long at most.
 const BUSY_WAIT_MS = 5 * 60_000;
 const BUSY_RETRY_MS = 3000;
+// A host lost while a step runs: waited for this long, and the step is made again (this many tries in all).
+const RECOVER_WAIT_MS = 6000;
+const RECOVER_ATTEMPTS = 3;
 // How long what `ready` found is trusted: a host that works, and one that does not (asked again sooner, to notice it is back).
 const READY_OK_MS = 30_000;
 const READY_FAILED_MS = 10_000;
@@ -103,18 +106,26 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
     let id = null;
     let starting = null;
     let stopped = false;
+    let mountedFiles = [];
 
     const ensure = () => {
       starting ||= (async () => {
         const waitingSince = now();
         let made;
+        let lost = 0;
         for (;;) {
           try {
             made = await call('POST', '/v1/sessions', { body: { language: replyLanguage }, timeoutMs: 90_000, stage: 'prepare' });
             break;
           } catch (error) {
+            if (replySignal?.aborted) throw error;
+            // The host cannot be reached for a moment (it restarted): it is waited for a few times.
+            if (error.code === 'sandbox-unreachable' && (lost += 1) < RECOVER_ATTEMPTS) {
+              await wait(RECOVER_WAIT_MS);
+              continue;
+            }
             // Every sandbox of the host is in use: wait for one to be free.
-            if (error.status !== 429 || replySignal?.aborted || now() - waitingSince > BUSY_WAIT_MS) throw error;
+            if (error.status !== 429 || now() - waitingSince > BUSY_WAIT_MS) throw error;
             onProgress({ stage: 'runtime' });
             await wait(BUSY_RETRY_MS);
           }
@@ -148,10 +159,34 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
           total += bytes.byteLength;
           prepared.push({ name: String(file.name || 'file'), type: String(file.type || ''), data: Buffer.from(bytes).toString('base64') });
         }
+        // Kept, to give a new sandbox the same files if the host is lost and the step is made again.
+        mountedFiles = prepared;
         return call('POST', `/v1/sessions/${id}/mount`, { body: { files: prepared }, timeoutMs: MOUNT_CALL_MS, stage: 'mount' });
       },
-      /** Runs code; resolves what the browser's sandbox resolves ({ stdout, stderr, error, files, elapsedMs, … }), or { stopped: true }. */
-      async run(code, { timeoutMs = 60_000, signal } = {}) {
+      /**
+       * Runs code; resolves what the browser's sandbox resolves ({ stdout, stderr, error, files, elapsedMs, … }), or { stopped: true }. When the
+       * host cannot be reached while the step runs (it restarted, the network blinked), it is waited for, a new sandbox is made with the same
+       * files, and the step is run again there: `restarted` tells the model that what earlier steps left in variables is gone.
+       */
+      async run(code, options = {}) {
+        for (let attempt = 1; ; attempt += 1) {
+          try {
+            const result = await sandbox.runStep(code, options);
+            return attempt > 1 && !result.stopped ? { ...result, restarted: true } : result;
+          } catch (error) {
+            const lost = error instanceof SandboxHostError && error.code === 'sandbox-unreachable';
+            if (!lost || attempt >= RECOVER_ATTEMPTS || options.signal?.aborted || stopped) throw error;
+            await wait(RECOVER_WAIT_MS);
+            // A new sandbox on the host (the one that was is gone with it), with the same files.
+            id = null;
+            starting = null;
+            await ensure();
+            if (mountedFiles.length) await call('POST', `/v1/sessions/${id}/mount`, { body: { files: mountedFiles }, timeoutMs: MOUNT_CALL_MS, stage: 'mount' });
+          }
+        }
+      },
+      /** One attempt at a step (see `run`). */
+      async runStep(code, { timeoutMs = 60_000, signal } = {}) {
         await ensure();
         if (signal?.aborted || stopped) return { stopped: true };
         const limit = Math.max(1000, Math.min(Number(timeoutMs) || 60_000, MAX_RUN_MS));

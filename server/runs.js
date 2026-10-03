@@ -168,6 +168,8 @@ export function createRunManager({
         userId,
         sandboxHost: sandbox?.host || null,
         files: sandbox?.files || null,
+        // A page is watching: it can take over a reply whose Python was lost.
+        watching: () => live.subscribers.size > 0,
         fetchImpl,
         now,
         onUpdate: (parts) => writer.update(parts),

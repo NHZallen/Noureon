@@ -405,3 +405,9 @@ test('the files earlier replies made are kept in the cloud first, and the reques
   assert.equal(history[1].parts[2].sandboxFile.data, 'YQ==', 'a file that could not be kept there goes with the request');
   assert.deepEqual(history[0], { role: 'user', parts: [{ text: 'make a file' }] });
 });
+
+test('a reply whose Python the server lost is told apart, in the language of the page', () => {
+  const error = new ServerReplyError('The Python sandbox is not available.', 'sandbox_unavailable');
+  assert.equal(localizeServerError(error, 'zh-TW').message, SERVER_REPLY_TEXTS['zh-TW'].sandboxUnavailable);
+  assert.equal(localizeServerError(error, 'en').code, 'sandbox_unavailable');
+});

@@ -25,6 +25,13 @@ const OWN = {
     ru: 'Сервер обновлялся, и этот ответ прервался. Попробуйте ещё раз.',
     es: 'El servidor se actualizó y esta respuesta se interrumpió. Inténtalo de nuevo.'
   },
+  sandbox_unavailable: {
+    'zh-TW': 'Python 沙盒暫時不能用，這則回覆沒能完成，請再試一次。',
+    en: 'The Python sandbox is not available right now, so this reply could not be finished. Please try again.',
+    fr: 'Le bac à sable Python n’est pas disponible pour le moment ; cette réponse n’a pas pu être terminée. Veuillez réessayer.',
+    ru: 'Песочница Python сейчас недоступна, поэтому ответ не удалось завершить. Попробуйте ещё раз.',
+    es: 'El entorno aislado de Python no está disponible ahora, así que no se pudo terminar esta respuesta. Inténtalo de nuevo.'
+  },
   internal_error: {
     'zh-TW': '伺服器沒能完成這則回覆。',
     en: 'The server could not finish this reply.',

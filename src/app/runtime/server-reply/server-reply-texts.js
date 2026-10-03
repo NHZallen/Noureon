@@ -24,6 +24,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     fallbackBusy: '伺服器上同時進行的回覆太多，這則回覆改在這個裝置上產生。',
     timeLimit: '這則回覆花的時間太久，已被停止。',
     serverRestarted: '伺服器更新時中斷了這則回覆，請再試一次。',
+    sandboxUnavailable: 'Python 沙盒暫時不能用，這則回覆沒能完成，請再試一次。',
     unknownError: '伺服器沒能完成這則回覆。',
     working: '回覆正在伺服器上產生'
   },
@@ -50,6 +51,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     fallbackBusy: 'Too many replies are running on the server; this one is made on this device.',
     timeLimit: 'This reply took too long and was stopped.',
     serverRestarted: 'The server was updated and this reply was interrupted. Please try again.',
+    sandboxUnavailable: 'The Python sandbox is not available right now, so this reply could not be finished. Please try again.',
     unknownError: 'The server could not finish this reply.',
     working: 'The reply is being made on the server'
   },
@@ -76,6 +78,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     fallbackBusy: 'Trop de réponses sont en cours sur le serveur ; celle-ci est générée sur cet appareil.',
     timeLimit: 'Cette réponse a pris trop de temps et a été arrêtée.',
     serverRestarted: 'Le serveur a été mis à jour et cette réponse a été interrompue. Veuillez réessayer.',
+    sandboxUnavailable: 'Le bac à sable Python n’est pas disponible pour le moment ; cette réponse n’a pas pu être terminée. Veuillez réessayer.',
     unknownError: 'Le serveur n’a pas pu terminer cette réponse.',
     working: 'La réponse est en cours de génération sur le serveur'
   },
@@ -102,6 +105,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     fallbackBusy: 'На сервере слишком много ответов одновременно; этот создаётся на этом устройстве.',
     timeLimit: 'Этот ответ шёл слишком долго и был остановлен.',
     serverRestarted: 'Сервер обновлялся, и этот ответ прервался. Попробуйте ещё раз.',
+    sandboxUnavailable: 'Песочница Python сейчас недоступна, поэтому ответ не удалось завершить. Попробуйте ещё раз.',
     unknownError: 'Сервер не смог завершить этот ответ.',
     working: 'Ответ создаётся на сервере'
   },
@@ -128,6 +132,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     fallbackBusy: 'Hay demasiadas respuestas en curso en el servidor; esta se genera en este dispositivo.',
     timeLimit: 'Esta respuesta tardó demasiado y se detuvo.',
     serverRestarted: 'El servidor se actualizó y esta respuesta se interrumpió. Inténtalo de nuevo.',
+    sandboxUnavailable: 'El entorno aislado de Python no está disponible ahora, así que no se pudo terminar esta respuesta. Inténtalo de nuevo.',
     unknownError: 'El servidor no pudo terminar esta respuesta.',
     working: 'La respuesta se está generando en el servidor'
   }

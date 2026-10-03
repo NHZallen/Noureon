@@ -312,11 +312,15 @@ export function createSingleModelResponseLifecycle({
         }
         return outcome.text;
       } catch (error) {
+        // The server lost its Python before it had an answer, and this page was there: the reply is made here, with the page's own Python.
+        if (error?.code === 'sandbox_unavailable' && replyMode.advanced) {
+          sandboxRun = null;
+          return runLocalAdvanced(onChunk);
+        }
         throw serverReply.localizeError(error, uiLanguage);
       }
     };
-    const runApiStream = serverRun ? runServerStream : replyMode.advanced
-      ? async (onChunk) => {
+    const runLocalAdvanced = async (onChunk) => {
         const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
         let advancedParts = requestParts;
         let advancedOptions = streamOptions;
@@ -369,8 +373,8 @@ export function createSingleModelResponseLifecycle({
         sandboxDocuments = sandboxDocumentBlocks(result.run);
         // A block the model also wrote under the name of a file it made (with Python, or through the design system) is a second, empty card.
         return withoutEmptyDocumentBlocks(withoutDuplicatedFileBlocks(result.text, [...sandboxParts.map((part) => part.sandboxFile.name), ...sandboxDocumentNames(result.run)]));
-      }
-      : async (onChunk) => {
+    };
+    const runStandard = async (onChunk) => {
         const onAnswer = (chunk) => {
           answered = true;
           endThinking();
@@ -413,7 +417,8 @@ export function createSingleModelResponseLifecycle({
           });
         }
         return streamApiCall(requestParts, onAnswer, signal, false, { ...streamOptions, onReasoning: showThinking });
-      };
+    };
+    const runApiStream = serverRun ? runServerStream : replyMode.advanced ? runLocalAdvanced : runStandard;
 
     let fullResponse;
     let responseRenderedInRealtime = false;
