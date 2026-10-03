@@ -156,7 +156,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     if (spec.tools.advanced) {
       if (!sandboxHost?.configured || !files) throw new ReplyError('Python is not available on the server.', 'provider_error');
       const tools = mode === 'research' ? createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch }) : null;
-      const stepEvents = createStepEvents({ send: (event) => onLive({ ev: event }), now });
+      // Each event says when it happened (ms since the reply began), so a page that joins late draws the same times as the others.
+      const stepEvents = createStepEvents({ send: (event) => onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }), now });
       let sandbox = null;
       let advancedParts = parts;
       let advancedOptions = requestOptions;

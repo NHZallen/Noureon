@@ -404,3 +404,22 @@ test('words taken for the answer end the line, and more work after them starts i
   list.event({ type: 'answering' });
   list.remove();
 });
+
+test('steps told later keep the time they happened at: a page that joins late shows the same seconds as the others', () => {
+  const { window, document, message, answer } = setup();
+  const began = Date.now() - 100_000;
+  const ledger = createSandboxLedger({ document, host: message, before: answer, language: 'en', summary: true, startedAt: began });
+  ledger.event({ type: 'round', label: 'Thinking', doneLabel: 'Thought', at: began + 1000 });
+  ledger.event({ type: 'step', n: 1, title: 'Plot', code: 'plot()', at: began + 20_000 });
+  ledger.event({ type: 'step-end', n: 1, ok: true, files: [], elapsedMs: 5, at: began + 50_000 });
+  ledger.event({ type: 'step', n: 2, title: 'Save', code: 'save()', at: began + 60_000 });
+  const times = [...message.querySelectorAll('.ledger-row')].map((row) => row.querySelector(':scope > .ledger-row-head .ledger-time')?.textContent);
+  // The thinking ran from 1 s to 20 s (19 s), the first step from 20 s to 50 s (30 s); the running one has been going since 60 s (about 40 s).
+  assert.ok(times.includes('19s'), times.join(','));
+  assert.ok(times.includes('30s'), times.join(','));
+  assert.ok(times.some((time) => /^(39|40|41)s$/.test(time)), times.join(','));
+  ledger.event({ type: 'answering', at: began + 70_000 });
+  assert.match(message.textContent, /Processed for 1:10/, 'the line counts from when the server began');
+  ledger.remove();
+  window.happyDOM.abort();
+});

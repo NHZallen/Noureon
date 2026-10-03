@@ -24,13 +24,17 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
   line?.enableBody(open);
   const list = line ? createLedger({ document, host: line.body }) : createLedger({ document, host, before });
-  const startedAt = Date.now();
+  // When the work began (a reply the server makes: when the server began it, the same on every page).
+  const startedAt = Number.isFinite(workStartedAt) ? workStartedAt : Date.now();
+  // The time an event happened at, when it is told later (`event.at`, in the clock of Date.now()).
+  let eventAt = null;
+  const now = () => eventAt ?? Date.now();
   // The line says which step the work is at, so the steps can stay folded.
   // What the work is at when no step of the list is running (the model thinking, with no step yet): set by the caller.
   let activityLabel = '';
@@ -223,7 +227,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
         list.foldFinished();
         if (line) {
           // The line becomes what the saved reply shows once the answer is written.
-          line.setLabel(text('processedIn', { t: formatElapsed(Date.now() - startedAt, { always: true }) }));
+          line.setLabel(text('processedIn', { t: formatElapsed(now() - startedAt, { always: true }) }));
           line.finish('done');
           line.node.classList.add('is-quiet');
         }
@@ -249,7 +253,16 @@ export function createSandboxLedger({ document, host, before = null, language = 
 
   return {
     event(event) {
-      handle(event);
+      eventAt = Number.isFinite(event?.at) ? event.at : null;
+      list.happenedAt(eventAt);
+      outer?.happenedAt(eventAt);
+      try {
+        handle(event);
+      } finally {
+        eventAt = null;
+        list.happenedAt(null);
+        outer?.happenedAt(null);
+      }
       syncLine();
     },
     // Where something else can put its own rows under the line (the model's thinking), above the steps; null without a line.

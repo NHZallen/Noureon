@@ -235,7 +235,7 @@ export function createSingleModelResponseLifecycle({
     let liveRun = null;
     const stepList = () => {
       if (!liveRun && targetElement.parentElement) {
-        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true });
+        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, ...(serverRun ? { startedAt: runStartedAt } : {}) });
       }
       return liveRun;
     };
@@ -292,7 +292,8 @@ export function createSingleModelResponseLifecycle({
           onThought: (chunk, kind, soFarMs) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined, soFarMs),
           onThoughtEnd: (ms) => endThinking(ms),
           // The steps of Python (and the pages it searched) as they happen, in the same step list as a reply made here.
-          onEvent: (event) => stepList()?.event(event),
+          // Each event says when it happened on the server, so every page draws the same times.
+          onEvent: (event) => stepList()?.event(Number.isFinite(event.t) ? { ...event, at: runStartedAt + event.t } : event),
           onText: (delta) => {
             if (!answered) endThinking();
             answered = true;

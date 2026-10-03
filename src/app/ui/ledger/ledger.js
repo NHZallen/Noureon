@@ -39,6 +39,10 @@ export function createLedger({ document, host, before = null }) {
   else host.append(root);
 
   const rows = [];
+  // What is being told happened earlier (a page that joined late is told the steps so far, with the time each happened): the rows take
+  // that time as their start or end, not the time they are drawn. null: now.
+  let happenedAt = null;
+  const clock = () => happenedAt ?? Date.now();
   // One clock for every running row.
   const tick = () => rows.forEach((row) => row.draw());
   const timer = window?.setInterval?.(tick, 1000);
@@ -61,7 +65,7 @@ export function createLedger({ document, host, before = null }) {
     node.append(head, detail, content);
     list.append(node);
 
-    const startedAt = Date.now();
+    const startedAt = clock();
     let state = 'running';
     let finishedAt = null;
     let expandable = body;
@@ -158,7 +162,7 @@ export function createLedger({ document, host, before = null }) {
       finish(next = 'done') {
         if (state !== 'running') return;
         state = next;
-        finishedAt = Date.now();
+        finishedAt = clock();
         detail.hidden = true;
         draw();
       }
@@ -173,6 +177,8 @@ export function createLedger({ document, host, before = null }) {
     list,
     addRow,
     get rows() { return rows; },
+    /** The time (ms, like Date.now()) the next changes happened at; null for now. */
+    happenedAt(time) { happenedAt = Number.isFinite(time) ? time : null; },
     // The row in progress, if any.
     get current() { return [...rows].reverse().find((row) => row.state === 'running') || null; },
     // Folds the rows that are done, so the newest is the one open.

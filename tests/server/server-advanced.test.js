@@ -101,6 +101,7 @@ test('a reply with Python: the model\'s code runs in the sandbox, its files are 
   assert.equal(JSON.stringify(result.parts).includes(KEY), false);
 
   // What the page's step list is told.
+  assert.ok(events.every((event) => Number.isFinite(event.t) && event.t >= 0), 'each event says when it happened, so a page that joins late draws the same times');
   const types = events.map((event) => event.type);
   assert.ok(types.includes('step') && types.includes('output') && types.includes('step-end'));
   const end = events.find((event) => event.type === 'step-end');
