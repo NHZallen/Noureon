@@ -13,7 +13,7 @@ const good = () => ({
   conversationId: ID_A,
   assistantMessageId: ID_B,
   sequence: 4,
-  model: { provider: 'openrouter', id: 'some/model', info: { name: 'Some model' } },
+  model: { provider: 'openrouter', id: 'some/model', info: { name: 'Some model', provider: 'openrouter' } },
   request: {
     history: [{ role: 'user', parts: [{ text: 'hi' }] }, { role: 'model', parts: [{ text: 'hello' }] }],
     currentMessage: { parts: [{ text: 'what is new?' }] },
@@ -21,7 +21,7 @@ const good = () => ({
     generation: { temperature: 0.7 },
     language: 'en'
   },
-  tools: { webSearch: 'auto', searchProvider: 'tinyfish', advanced: false },
+  tools: { webSearch: 'research', searchProvider: 'tinyfish', advanced: false },
   secrets: { providerKey: 'sk-provider-secret-value', searchKey: 'search-secret-value' }
 });
 
@@ -32,7 +32,6 @@ test('a well-formed request is accepted and only its known fields are kept', () 
   assert.equal(result.spec.tools.searchProvider, 'tinyfish');
   assert.equal(result.spec.secrets.providerKey, 'sk-provider-secret-value');
   const minimal = good();
-  delete minimal.model.info;
   delete minimal.request.generation;
   delete minimal.tools.searchProvider;
   delete minimal.secrets.searchKey;
@@ -61,7 +60,7 @@ test('each mistake is named by where it is', () => {
   broken.request.history = [{ role: 'robot', parts: [] }];
   broken.request.currentMessage = { parts: [] };
   broken.request.language = 'de';
-  broken.tools.webSearch = 'sometimes';
+  broken.tools.webSearch = 'auto';
   broken.tools.advanced = 'yes';
   broken.secrets = { providerKey: '' };
   broken.extra = 1;

@@ -6,7 +6,8 @@ import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROLES = ['user', 'model', 'system'];
-const WEB_SEARCH = ['auto', 'forced', 'off'];
+// 'research': the model calls search tools itself; 'grounding': the provider's own search (Gemini); 'off': no search.
+const WEB_SEARCH = ['off', 'research', 'grounding'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
 const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets'];
 
@@ -34,7 +35,7 @@ export function validateRunSpec(input) {
   else {
     if (!text(model.provider, 60)) fail('model.provider', 'must be a short text');
     if (!text(model.id, 200)) fail('model.id', 'must be a short text');
-    if (model.info !== undefined && !isObject(model.info)) fail('model.info', 'must be an object');
+    if (!isObject(model.info)) fail('model.info', 'must be an object');
   }
 
   const request = input.request;
@@ -50,6 +51,8 @@ export function validateRunSpec(input) {
     if (!isObject(request.currentMessage) || !Array.isArray(request.currentMessage.parts) || request.currentMessage.parts.length === 0) fail('request.currentMessage', 'must have parts');
     if (typeof request.systemInstruction !== 'string' || request.systemInstruction.length > LIMITS.maxSystemInstructionChars) fail('request.systemInstruction', `must be a text of at most ${LIMITS.maxSystemInstructionChars} characters`);
     if (request.generation !== undefined && !isObject(request.generation)) fail('request.generation', 'must be an object');
+    if (request.reasoningEffort !== undefined && request.reasoningEffort !== null && !text(request.reasoningEffort, 40)) fail('request.reasoningEffort', 'must be a short text');
+    if (request.messageMetadata !== undefined && (!isObject(request.messageMetadata) || JSON.stringify(request.messageMetadata).length > 8192)) fail('request.messageMetadata', 'must be an object of at most 8 KB');
     if (!LANGUAGES.includes(request.language)) fail('request.language', `must be one of ${LANGUAGES.join(', ')}`);
   }
 
@@ -78,12 +81,14 @@ export function validateRunSpec(input) {
       conversationId: input.conversationId,
       assistantMessageId: input.assistantMessageId,
       sequence: input.sequence,
-      model: { provider: model.provider, id: model.id, ...(model.info ? { info: model.info } : {}) },
+      model: { provider: model.provider, id: model.id, info: model.info },
       request: {
         history: request.history,
         currentMessage: request.currentMessage,
         systemInstruction: request.systemInstruction,
         ...(request.generation ? { generation: request.generation } : {}),
+        ...(request.reasoningEffort ? { reasoningEffort: request.reasoningEffort } : {}),
+        ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}),
         language: request.language
       },
       tools: { webSearch: tools.webSearch, searchProvider: tools.searchProvider || 'tavily', advanced: tools.advanced },

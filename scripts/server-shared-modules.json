@@ -1,0 +1,113 @@
+{
+  "comment": "Modules of src/ the server may use, with everything they import. Read a module for browser use (window, document, storage, import.meta.env) before adding it; the check fails when the server starts using a module that is not here, or when one here is no longer used.",
+  "modules": [
+    {
+      "path": "src/app/legacy-runtime/features/learning-mode-prompt.js"
+    },
+    {
+      "path": "src/app/legacy-runtime/features/model-request-formatting.js"
+    },
+    {
+      "path": "src/app/legacy-runtime/features/stream-api-call.js",
+      "note": "Reviewed 2026-10-03: no browser globals (\"document.pdf\" is a file name)."
+    },
+    {
+      "path": "src/app/legacy-runtime/features/tool-call-formats.js"
+    },
+    {
+      "path": "src/app/legacy-runtime/features/web-page-text.js"
+    },
+    {
+      "path": "src/app/legacy-runtime/features/web-research-reply.js",
+      "note": "Reviewed 2026-10-03: `window` there is a local variable (a window of a page)."
+    },
+    {
+      "path": "src/app/legacy-runtime/features/web-research-tools.js"
+    },
+    {
+      "path": "src/app/runtime/features/auto-web-search.js"
+    },
+    {
+      "path": "src/app/runtime/kernel/config-normalization.js"
+    },
+    {
+      "path": "src/app/runtime/kernel/search-provider.js"
+    },
+    {
+      "path": "src/app/runtime/legacy-core/model-registry.js"
+    },
+    {
+      "path": "src/app/runtime/memory/memory-context-builder.js"
+    },
+    {
+      "path": "src/app/runtime/nouras/nouras-policy.js"
+    },
+    {
+      "path": "src/app/runtime/sandbox/sandbox-texts.js"
+    },
+    {
+      "path": "src/app/ui/charts/chart-selection-policy.js"
+    },
+    {
+      "path": "src/app/ui/citations/citation-model.js"
+    },
+    {
+      "path": "src/app/ui/citations/source-numbering.js"
+    },
+    {
+      "path": "src/app/ui/files/design/color.js"
+    },
+    {
+      "path": "src/app/ui/files/design/design-params.js"
+    },
+    {
+      "path": "src/app/ui/files/design/design-presets.js"
+    },
+    {
+      "path": "src/app/ui/files/design/document-design.js"
+    },
+    {
+      "path": "src/app/ui/files/design/document-presets.js"
+    },
+    {
+      "path": "src/app/ui/files/design/fonts.js"
+    },
+    {
+      "path": "src/app/ui/files/design/language.js"
+    },
+    {
+      "path": "src/app/ui/files/design/palette.js"
+    },
+    {
+      "path": "src/app/ui/files/file-authoring-guidance.js"
+    },
+    {
+      "path": "src/app/ui/files/file-block-protocol.js"
+    },
+    {
+      "path": "src/app/ui/files/file-history-compaction.js"
+    },
+    {
+      "path": "src/app/ui/files/file-intent.js"
+    },
+    {
+      "path": "src/app/ui/files/file-name-policy.js"
+    },
+    {
+      "path": "src/app/ui/files/file-type-registry.js"
+    },
+    {
+      "path": "src/app/ui/links/site-icon.js"
+    },
+    {
+      "path": "src/app/ui/model-picker/model-groups.js"
+    },
+    {
+      "path": "src/app/ui/sandbox/run-sources.js",
+      "note": "Reviewed 2026-10-03: builds icons only from a `document` passed in; the server never calls those."
+    },
+    {
+      "path": "src/app/ui/sandbox/sandbox-run-block.js"
+    }
+  ]
+}

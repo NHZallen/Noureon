@@ -1,3 +1,4 @@
+import { addNumberedSources } from '../../ui/citations/source-numbering.js';
 import { insertGroundingMarkers } from '../../ui/citations/citation-model.js';
 import { watchCitations } from '../../ui/citations/citation-pills.js';
 import { extractLinkedUrls } from './linked-pages.js';
@@ -119,17 +120,7 @@ export function createSingleModelResponseLifecycle({
     // The provider's own web search (Gemini) reports the pages it used as the answer streams; rounds add to them. A page
     // that was found and then read is both, so each is kept once.
     const addSearchSources = (found) => {
-      const known = new Set(searchSources.map((source) => `${Boolean(source.read)} ${source.url}`));
-      const fresh = found.filter((source) => source?.url && !known.has(`${Boolean(source.read)} ${source.url}`));
-      searchSources = [...searchSources, ...fresh];
-      // A page that came without a number (Gemini's own search gives none) is numbered after the others, once per address.
-      let highest = searchSources.reduce((most, source) => Math.max(most, Number(source.n) || 0), 0);
-      const numbers = new Map(searchSources.filter((source) => Number(source.n) > 0).map((source) => [source.url, Number(source.n)]));
-      searchSources = searchSources.map((source) => {
-        if (Number(source.n) > 0) return source;
-        if (!numbers.has(source.url)) numbers.set(source.url, (highest += 1));
-        return { ...source, n: numbers.get(source.url) };
-      });
+      searchSources = addNumberedSources(searchSources, found);
     };
     // Where Gemini's answer cites its pages, kept until the answer is whole (the markers go into the text then).
     let groundingSupports = [];

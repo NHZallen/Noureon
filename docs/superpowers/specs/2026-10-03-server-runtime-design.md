@@ -170,6 +170,15 @@
 
 **已知限制（S1）：** 伺服器端回覆不觸發看圖檢查；接續時正在進行的那一次模型串流會重做；不能在使用者離線時自己開始工作。
 
+**S1a（伺服器端，✅ 程式完成，待使用者設定環境變數後部署驗證）實作備註：**
+
+- 資料庫：`server_runs`（遷移 `20261003010000`）與三個只給服務金鑰的函式（`20261003020000`）：`server_upsert_workspace_message`（沿用瀏覽器寫入相同的鎖；不復活已刪訊息；不把已完成的訊息改回串流中）、`server_start_run`（同一把鎖下檢查上限與新增）、`server_claim_stale_runs`（心跳過期 45 秒的才被接手，超過次數即標記失敗）。請求內容（不含金鑰）存在 `server_runs.spec`，由另一次更新寫入；Supabase 的遷移工具遇到 `DROP` 會逾時，所以舊的函式簽名保留、不使用 `DROP`。
+- 金鑰：`nk1.<iv>.<tag>.<密文>`，AES-256-GCM，AAD＝`使用者:訊息`，主金鑰在環境變數 `KEY_ENCRYPTION_KEY`（可換版本，舊版仍可解開舊的）；結束或過期（2 小時 15 分）即刪。
+- 搜尋與 NVIDIA 路徑：瀏覽器走 `/api/*` 代理，伺服器用 `server/upstream-fetch.js` 直接對上游，欄位同樣過濾。
+- 環境變數：`SUPABASE_SERVICE_KEY` 與 `KEY_ENCRYPTION_KEY` 必須一起設定，否則 `/healthz` 顯示 `runs:false`，`POST /v1/runs` 回 503 `runs_unavailable`。
+- 尚未支援（客戶端需退回本機）：進階模式（Python）、不支援工具呼叫的模型的「搜尋結果封包」路徑。
+- Docker 映像尚未在本機驗證（此環境沒有 Docker）；以 Zeabur 實際部署為準。
+
 ## 11. 決定紀錄
 
 | # | 項目 | 結果 |

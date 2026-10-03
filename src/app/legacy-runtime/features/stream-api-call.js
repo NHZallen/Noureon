@@ -659,8 +659,11 @@ export function createStreamApiCall({
       ? normalizeReasoningEffort(modelInfo, requestOptions.reasoningEffort ?? conversation.reasoningEffort)
       : null;
     const config = getConfig();
+    // The server runs a reply whose system instruction the browser has already put together (memory, Noura, guidance and all):
+    // it is used as it is, and nothing is looked up for it here.
+    const instructionGiven = typeof requestOptions.systemInstructionText === 'string';
     let memoryContext = null;
-    if (!requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
+    if (!instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
       try {
         memoryContext = await getMemoryContext({
           config,
@@ -674,16 +677,18 @@ export function createStreamApiCall({
     if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
       requestOptions.onMemoryContextResolved(memoryContext);
     }
-    const chartAuthoringGuidance = requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
+    const chartAuthoringGuidance = instructionGiven || requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
       : await getRuntimeChartAuthoringGuidance(getMessageTextForGuidance(currentMessageForApi));
-    const fileAuthoringGuidance = await getRuntimeFileAuthoringGuidance({
+    const fileAuthoringGuidance = instructionGiven ? '' : await getRuntimeFileAuthoringGuidance({
       inputText: getMessageTextForGuidance(currentMessageForApi),
       history: historyForApi,
       requestPurpose: requestOptions.requestPurpose,
       deckDesign: conversation?.deckDesign,
       documentDesign: conversation?.documentDesign
     });
-    const systemInstruction = requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
+    const systemInstruction = instructionGiven
+      ? appendInstructionText(requestOptions.systemInstructionText ? { parts: [{ text: requestOptions.systemInstructionText }] } : null, requestOptions.additionalSystemInstruction)
+      : requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
       config,
       conversation,
       astras: getAstras(),

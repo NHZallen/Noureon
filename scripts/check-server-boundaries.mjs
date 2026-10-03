@@ -1,6 +1,8 @@
 // The server runs in Node with no page: it must not reach for the browser, and it may use the app's modules only from a list of
 // shared ones that were looked at (docs/superpowers/specs/2026-10-03-server-runtime-design.md, §9). This checks every file under
-// server/ for (1) browser globals, (2) imports from src/ that are not on the list, (3) imports of the browser-only parts of src/.
+// server/ for (1) browser globals, (2) imports of anything outside server/ and the reviewed list, and (3) that the list is exactly
+// what the server reaches, imports of imports included (scripts/server-shared-modules.json): a module added to what the server
+// uses must be read for browser use first, and one no longer used is taken off the list.
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -8,8 +10,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-// Shared app modules the server may import (paths from the project root). Add one only after reading it for browser use.
-export const ALLOWED_SHARED = Object.freeze([]);
+const LIST_FILE = join(root, 'scripts', 'server-shared-modules.json');
+const readList = () => JSON.parse(readFileSync(LIST_FILE, 'utf8')).modules.map((entry) => entry.path);
+// Shared app modules the server may import (paths from the project root).
+export const ALLOWED_SHARED = Object.freeze(readList());
 
 const BROWSER_GLOBAL = /\b(?:window|document|localStorage|sessionStorage|indexedDB|navigator|location|self)\s*(?:\.|\[)|\b(?:localStorage|sessionStorage|indexedDB)\b|\bglobalThis\.(?:window|document)\b/;
 const IMPORT = /(?:^|\n)\s*(?:import|export)\s[^'"`;]*?from\s*['"]([^'"]+)['"]|(?:^|\n)\s*import\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g;
@@ -47,11 +51,42 @@ export function checkServerSource(path, source, allowed = ALLOWED_SHARED) {
   return problems;
 }
 
+/** Every module of src/ (and public/) the server reaches, through any number of imports, from the project root, sorted. */
+export function sharedClosure() {
+  const seen = new Set();
+  const found = new Set();
+  const visit = (path) => {
+    if (seen.has(path)) return;
+    seen.add(path);
+    const code = stripComments(readFileSync(path, 'utf8'));
+    for (const match of code.matchAll(IMPORT)) {
+      const specifier = match[1] || match[2] || match[3];
+      if (!specifier || specifier.startsWith('node:') || !/^[./]/.test(specifier)) continue;
+      const target = specifier.startsWith('/') ? join(root, specifier) : resolve(dirname(path), specifier);
+      const inProject = relative(root, target).split('\\').join('/');
+      if (!existsSync(target)) continue;
+      if (inProject.startsWith('src/') || inProject.startsWith('public/')) found.add(inProject);
+      visit(target);
+    }
+  };
+  for (const path of filesUnder(join(root, 'server'))) visit(path);
+  return [...found].sort();
+}
+
 export function checkServer() {
-  return filesUnder(join(root, 'server')).flatMap((path) => checkServerSource(path, readFileSync(path, 'utf8')));
+  const problems = filesUnder(join(root, 'server')).flatMap((path) => checkServerSource(path, readFileSync(path, 'utf8')));
+  const listed = new Set(ALLOWED_SHARED);
+  const reached = sharedClosure();
+  for (const path of reached) if (!listed.has(path)) problems.push(`${path}: is reached by the server (through its imports) but is not on the reviewed list, scripts/server-shared-modules.json`);
+  for (const path of listed) if (!reached.includes(path)) problems.push(`${path}: is on the reviewed list but the server no longer uses it; take it off`);
+  return problems;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv.includes('--list')) {
+    console.log(sharedClosure().join('\n'));
+    process.exit(0);
+  }
   const problems = checkServer();
   if (problems.length) {
     console.error(`Server boundary check failed:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);

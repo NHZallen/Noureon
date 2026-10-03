@@ -8,6 +8,11 @@ import { validateRunSpec } from './run-spec.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
+  [ERROR_CODES.tooManyRuns]: 429,
+  [ERROR_CODES.conversationNotFound]: 404,
+  [ERROR_CODES.runExists]: 409,
+  [ERROR_CODES.runsUnavailable]: 503,
+  [ERROR_CODES.unsupportedMode]: 422,
   [ERROR_CODES.badRequest]: 400,
   [ERROR_CODES.invalidRunSpec]: 422,
   [ERROR_CODES.rateLimited]: 429,
@@ -51,7 +56,7 @@ async function readJson(request, maxBytes) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const startedAt = now();
@@ -92,7 +97,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         return;
       }
       if (route === 'GET /healthz') {
-        send(response, 200, { ok: true, protocol: PROTOCOL_VERSION, build: config.build, uptimeSeconds: Math.round((now() - startedAt) / 1000) }, origin);
+        send(response, 200, { ok: true, protocol: PROTOCOL_VERSION, build: config.build, runs: Boolean(runs), uptimeSeconds: Math.round((now() - startedAt) / 1000) }, origin);
         status = 200;
         return;
       }
@@ -110,6 +115,43 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (result.unsupportedProtocol) throw new RequestError(ERROR_CODES.protocolUnsupported, 'This server speaks another protocol version.', { protocol: PROTOCOL_VERSION });
         if (!result.ok) throw new RequestError(ERROR_CODES.invalidRunSpec, 'The request is not in the right shape.', { details: result.errors });
         send(response, 200, { ok: true }, origin);
+        status = 200;
+        return;
+      }
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop)?$/i.exec(url.pathname);
+      if (route === 'POST /v1/runs') {
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        if (!startLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+        const result = validateRunSpec(await readJson(request, LIMITS.maxRequestBytes));
+        if (result.unsupportedProtocol) throw new RequestError(ERROR_CODES.protocolUnsupported, 'This server speaks another protocol version.', { protocol: PROTOCOL_VERSION });
+        if (!result.ok) throw new RequestError(ERROR_CODES.invalidRunSpec, 'The request is not in the right shape.', { details: result.errors });
+        if (result.spec.tools.advanced) throw new RequestError(ERROR_CODES.unsupportedMode, 'Advanced mode is not run on the server yet.');
+        try {
+          const runId = await runs.start({ userId: user.id, spec: result.spec });
+          send(response, 202, { runId }, origin);
+          status = 202;
+        } catch (error) {
+          if (error?.name === 'RunError') throw new RequestError(error.code, error.message);
+          throw error;
+        }
+        return;
+      }
+      if (runPath && request.method === 'POST' && runPath[2]) {
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const found = await runs.stop({ userId: user.id, runId: runPath[1] });
+        if (!found) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running.');
+        send(response, 200, { ok: true }, origin);
+        status = 200;
+        return;
+      }
+      if (runPath && request.method === 'GET' && !runPath[2]) {
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const run = await runs.get({ userId: user.id, runId: runPath[1] });
+        if (!run) throw new RequestError(ERROR_CODES.notFound, 'No such reply.');
+        send(response, 200, { run }, origin);
         status = 200;
         return;
       }

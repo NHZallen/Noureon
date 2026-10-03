@@ -17,11 +17,23 @@ export function loadConfig(env = process.env) {
   if (!supabaseAnonKey) problems.push('SUPABASE_PUBLISHABLE_KEY is missing');
   const port = Number(env.PORT || 8080);
   if (!Number.isInteger(port) || port < 1 || port > 65535) problems.push('PORT must be a port number');
+  // Running replies needs the service key (to write the person's messages) and a master key (to seal the keys kept for a reply);
+  // without both the server still answers /healthz and /v1/whoami, and says replies are unavailable.
+  const serviceKey = String(env.SUPABASE_SERVICE_KEY || '');
+  const encryptionVersion = Number(env.KEY_ENCRYPTION_KEY_VERSION || 1);
+  const encryptionKeys = [];
+  if (env.KEY_ENCRYPTION_KEY) encryptionKeys.push({ version: encryptionVersion, key: String(env.KEY_ENCRYPTION_KEY) });
+  if (env.KEY_ENCRYPTION_KEY_PREVIOUS && encryptionVersion > 1) encryptionKeys.push({ version: encryptionVersion - 1, key: String(env.KEY_ENCRYPTION_KEY_PREVIOUS) });
+  if (Boolean(serviceKey) !== (encryptionKeys.length > 0)) problems.push('SUPABASE_SERVICE_KEY and KEY_ENCRYPTION_KEY go together: set both or neither');
+  if (!Number.isInteger(encryptionVersion) || encryptionVersion < 1) problems.push('KEY_ENCRYPTION_KEY_VERSION must be a whole number from 1');
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
     port,
     supabaseUrl,
     supabaseAnonKey,
+    serviceKey,
+    encryptionKeys: Object.freeze(encryptionKeys),
+    runsConfigured: Boolean(serviceKey && encryptionKeys.length),
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
     // The version of the server (shown by /healthz): the Git commit when the deployment gives it.
     build: String(env.SOURCE_COMMIT || env.GIT_COMMIT || 'dev').slice(0, 12)

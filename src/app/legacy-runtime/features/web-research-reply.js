@@ -167,13 +167,15 @@ export function createResearchCalls({
   maxCalls = MAX_RESEARCH_CALLS,
   signal,
   onEvent = () => {},
-  onSources = () => {}
+  onSources = () => {},
+  // Where a reply that was interrupted had got to (what `snapshot()` gave): the calls made so far and the pages numbered.
+  resume = null
 }) {
-  let used = 0;
+  let used = Math.max(0, Number(resume?.used) || 0);
 
   // Every page the model has been shown, numbered in the order it first appeared: the number the model cites it by, and the
   // one the saved sources carry, so an answer's [3] is the third page the reply met.
-  const numbered = new Map();
+  const numbered = new Map((Array.isArray(resume?.numbered) ? resume.numbered : []).filter((entry) => entry?.url && Number(entry.n) > 0).map((entry) => [entry.url, { ...entry }]));
   const numberFor = (url, fields = {}) => {
     if (!numbered.has(url)) numbered.set(url, { n: numbered.size + 1, url });
     const entry = numbered.get(url);
@@ -320,6 +322,8 @@ export function createResearchCalls({
       }
     },
     get used() { return used; },
+    /** What a reply needs to carry on from here after an interruption: the number of calls made and the pages numbered. */
+    snapshot() { return { used, numbered: [...numbered.values()].map((entry) => ({ ...entry })) }; },
     get left() { return Math.max(0, maxCalls - used); },
     async run(call) {
       if (used >= maxCalls) return `The limit of ${maxCalls} searches and pages per reply is reached. Answer with what you have.`;
@@ -343,12 +347,16 @@ export async function runWebResearchReply({
   today,
   // { type: 'searching', label }, { type: 'sources', sources }, { type: 'narration', text }, { type: 'answering' }.
   onEvent = () => {},
-  onSources = () => {}
+  onSources = () => {},
+  // A reply taken up again after an interruption: { toolTurns, text, research } as `onRound` last reported them.
+  resume = null,
+  // Called after every round of calls with what is needed to take the reply up again from there.
+  onRound = () => {}
 }) {
-  const toolTurns = [];
-  const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources });
+  const toolTurns = Array.isArray(resume?.toolTurns) ? [...resume.toolTurns] : [];
+  const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources, resume: resume?.research });
   const notes = createNotes(onEvent);
-  let text = '';
+  let text = typeof resume?.text === 'string' ? resume.text : '';
   const guidance = researchGuidance(today);
 
   for (;;) {
@@ -396,6 +404,7 @@ export async function runWebResearchReply({
     }
     toolTurns.push({ assistant: response, results });
     if (signal?.aborted) break;
+    onRound({ toolTurns: [...toolTurns], text, research: research.snapshot() });
   }
 
   return { text, calls: research.used };

@@ -3,7 +3,12 @@
 import { createServer } from 'node:http';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
+import { createKeyVault } from './key-vault.js';
 import { createLogger } from './log.js';
+import { LIMITS } from './protocol.js';
+import { createRunManager } from './runs.js';
+import { createRunStore } from './run-store.js';
+import { createServiceClient } from './supabase-rest.js';
 
 const log = createLogger();
 let config;
@@ -14,17 +19,33 @@ try {
   process.exit(1);
 }
 
-const server = createServer(createApp({ config, log }));
+let runs = null;
+if (config.runsConfigured) {
+  try {
+    const db = createServiceClient({ url: config.supabaseUrl, serviceKey: config.serviceKey });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault: createKeyVault(config.encryptionKeys), limits: LIMITS, log });
+  } catch (error) {
+    log('config_error', { message: error.message });
+    process.exit(1);
+  }
+}
+
+const server = createServer(createApp({ config, log, runs }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;
-server.listen(config.port, () => log('listening', { port: config.port, build: config.build }));
+server.listen(config.port, () => {
+  log('listening', { port: config.port, build: config.build, runs: Boolean(runs) });
+  runs?.startSweeping();
+});
 
-const stop = (signal) => {
+const stop = async (signal) => {
   log('stopping', { signal });
-  // No new requests; what is in progress gets a moment (later: runs write their checkpoint) before the process ends.
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 10_000).unref();
+  server.close();
+  // The replies that are running are put down where they are and handed over for the next process to take up.
+  const handedOver = await runs?.shutdown().catch(() => 0);
+  log('stopped', { handedOver: handedOver || 0 });
+  process.exit(0);
 };
-process.on('SIGTERM', () => stop('SIGTERM'));
-process.on('SIGINT', () => stop('SIGINT'));
+process.on('SIGTERM', () => { void stop('SIGTERM'); });
+process.on('SIGINT', () => { void stop('SIGINT'); });
