@@ -12,6 +12,8 @@ const HEARTBEAT_MS = 15_000;
 const STALE_SECONDS = 45;
 const SWEEP_MS = 30_000;
 const RESTART = Symbol('restart');
+// Pages open on the same account (tabs, devices) may watch replies live; not more than this many at once.
+const MAX_WATCHERS_PER_USER = 12;
 
 export class RunError extends Error {
   constructor(code, message) {
@@ -37,6 +39,7 @@ export function createRunManager({
   clearRepeating = clearInterval
 }) {
   const active = new Map();
+  const watchers = new Map();
   let draining = false;
   let sweeper = null;
 
@@ -46,9 +49,45 @@ export function createRunManager({
     return { code: ERROR_CODES.internal, message: 'The reply could not be made on the server.' };
   };
 
+  // What those watching a reply live are given: every small piece as it comes. The mirror is what a page that comes in late is
+  // given first, so it sees the reply as it is now (see executor.js for the events).
+  const applyLive = (live, event) => {
+    if (event.r) {
+      live.answer = String(event.r.answer || '');
+      live.thought = { text: String(event.r.thought?.text || ''), kind: event.r.thought?.kind || 'model' };
+      live.sources = Array.isArray(event.r.sources) ? event.r.sources : [];
+    } else if (typeof event.a === 'string') live.answer += event.a;
+    else if (typeof event.th === 'string') {
+      live.thought.text += event.th;
+      if (event.k) live.thought.kind = event.k;
+    } else if (Array.isArray(event.src)) live.sources = event.src;
+  };
+  const snapshot = (live) => ({ r: { answer: live.answer, thought: live.thought, sources: live.sources } });
+  const fan = (live, event) => {
+    for (const watcher of [...live.subscribers]) {
+      try {
+        watcher.send(event);
+      } catch {
+        live.subscribers.delete(watcher);
+      }
+    }
+  };
+  const closeWatchers = (live) => {
+    for (const watcher of [...live.subscribers]) {
+      try {
+        watcher.close();
+      } catch {
+        // Gone already.
+      }
+    }
+    live.subscribers.clear();
+  };
+
   async function run({ runId, userId, spec, secrets, resume }) {
     const controller = new AbortController();
-    active.set(runId, { controller, userId });
+    const live = { answer: '', thought: { text: '', kind: 'model' }, sources: [], subscribers: new Set() };
+    active.set(runId, { controller, userId, live });
+    let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
       userId,
@@ -83,6 +122,10 @@ export function createRunManager({
         fetchImpl,
         now,
         onUpdate: (parts) => writer.update(parts),
+        onLive: (event) => {
+          applyLive(live, event);
+          if (!event.r) fan(live, event);
+        },
         onCheckpoint: async (checkpoint) => {
           try {
             await store.saveCheckpoint(runId, checkpoint);
@@ -99,6 +142,7 @@ export function createRunManager({
         return;
       }
       await writer.finish(result.parts, 'complete');
+      finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs } });
     } catch (error) {
       if (controller.signal.reason === RESTART) return;
@@ -115,6 +159,12 @@ export function createRunManager({
         log('finish_failed', { runId, message: String(storeError?.message || '').slice(0, 160) });
       }
     } finally {
+      // Those watching are told it is over only once the finished message is written, so what they read then is whole.
+      if (controller.signal.reason === RESTART) closeWatchers(live);
+      else {
+        fan(live, { done: finalStatus });
+        closeWatchers(live);
+      }
       if (beat) clearRepeating(beat);
       if (limit) clearTimer(limit);
       active.delete(runId);
@@ -158,6 +208,30 @@ export function createRunManager({
     },
 
     get: (args) => store.get(args),
+
+    /** Whether this person's reply is being made by this process (so it can be watched live). */
+    isLive: ({ userId, runId }) => active.get(runId)?.userId === userId,
+
+    /**
+     * Watches a reply live: `send(event)` is given the reply as it is now, then every small piece as it comes, then { done }; `close()`
+     * when it is over. Returns a function that stops watching, or null (not live here, or too many watchers on the account).
+     */
+    watch({ userId, runId, send, close }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId) return null;
+      if ((watchers.get(userId) || 0) >= MAX_WATCHERS_PER_USER) return null;
+      const watcher = { send, close };
+      entry.live.subscribers.add(watcher);
+      watchers.set(userId, (watchers.get(userId) || 0) + 1);
+      send(snapshot(entry.live));
+      let stopped = false;
+      return () => {
+        if (stopped) return;
+        stopped = true;
+        entry.live.subscribers.delete(watcher);
+        watchers.set(userId, Math.max(0, (watchers.get(userId) || 1) - 1));
+      };
+    },
 
     /** Takes up the runs that lost their process; also deletes keys past their time. Run at start and every half minute. */
     async sweep() {

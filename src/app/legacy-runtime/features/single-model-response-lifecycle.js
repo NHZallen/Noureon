@@ -272,7 +272,10 @@ export function createSingleModelResponseLifecycle({
         const outcome = await serverRun.follow({
           signal,
           onRun: (run) => { searchSources = run.sources; },
+          // What the model thinks is shown as it thinks, as in a reply made here.
+          onThought: (chunk, kind) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined),
           onText: (delta) => {
+            if (!answered) endThinking();
             answered = true;
             onChunk(delta);
           }

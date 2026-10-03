@@ -15,6 +15,8 @@ const RUN_CHECK_EVERY = 5;
 // Longer than the server's own limit of 2 hours, so the server's reason arrives first.
 const FOLLOW_LIMIT_MS = (2 * 60 + 20) * 60 * 1000;
 const STOP_GRACE_MS = 20_000;
+// The live channel sends a line at least every 15 seconds; this long without anything and it is taken to be broken.
+const LIVE_IDLE_MS = 40_000;
 
 // Why a reply is made in the browser, for the ones that are not a failure (nothing is said about these).
 export const LOCAL_REASONS = Object.freeze({
@@ -83,6 +85,9 @@ export function createServerReply({
   // What the server wrote since the last look is handed over in small pieces over the time until the next look (0: all at once), so
   // the words come out smoothly and not once in a while.
   paceMs = 0,
+  setTimer = (...args) => setTimeout(...args),
+  setRepeating = (...args) => setInterval(...args),
+  clearRepeating = (...args) => clearInterval(...args),
   warn = () => {}
 } = {}) {
   const request = async (method, path, { body, signal, timeoutMs = START_TIMEOUT_MS } = {}) => {
@@ -187,10 +192,12 @@ export function createServerReply({
     assistantMessageId,
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
     /**
-     * Follows the reply until the server has finished it. `onText(delta)` gets the answer as it grows. `onRun(run)` gets the run record when it has more pages. Resolves { text, run, rewritten }
+     * Follows the reply until the server has finished it, the way a live broadcast is followed: the server pushes every small piece as
+     * it is made, to every page watching, and a page that comes in late is given what there is so far (when the channel cannot be
+     * had, the message is read instead, a few times a second). `onText(delta)` gets the answer as it grows, `onThought(text, kind)` the thinking. `onRun(run)` gets the run record when it has more pages. Resolves { text, run, rewritten }
      * ('rewritten': the finished text is not just the streamed one with more at the end), or throws a ServerReplyError.
      */
-    async follow({ onText = () => {}, onRun = () => {}, signal } = {}) {
+    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, signal } = {}) {
       const startedAt = now();
       let answerSoFar = '';
       let stopSent = false;
@@ -224,6 +231,80 @@ export function createServerReply({
           await wait(paceMs);
         }
       };
+      // The live channel: nothing waits for a database or a poll, so every page watching has the same words at the same time.
+      const handleLive = (event) => {
+        if (event.r) {
+          const text = String(event.r.answer || '');
+          if (text.startsWith(answerSoFar) && text.length > answerSoFar.length) {
+            onText(text.slice(answerSoFar.length));
+            answerSoFar = text;
+          }
+          if (event.r.thought?.text) onThought(event.r.thought.text, event.r.thought.kind);
+          if (event.r.sources?.length > sourceCount) {
+            sourceCount = event.r.sources.length;
+            onRun({ sources: event.r.sources });
+          }
+        } else if (typeof event.a === 'string') {
+          answerSoFar += event.a;
+          onText(event.a);
+        } else if (typeof event.th === 'string') onThought(event.th, event.k);
+        else if (Array.isArray(event.src) && event.src.length > sourceCount) {
+          sourceCount = event.src.length;
+          onRun({ sources: event.src });
+        }
+        return event.done ? 'done' : null;
+      };
+      let liveAbort = null;
+      const readLive = async () => {
+        const token = await getAccessToken();
+        if (!token) return;
+        liveAbort = new AbortController();
+        let lastData = now();
+        const watchdog = setRepeating(() => { if (now() - lastData > LIVE_IDLE_MS) liveAbort.abort(); }, 5000);
+        try {
+          const response = await fetchImpl(`${getBaseUrl()}/v1/runs/${runId}/stream`, { headers: { Authorization: `Bearer ${token}` }, signal: liveAbort.signal });
+          if (!response.ok || !response.body) return;
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) return;
+            lastData = now();
+            buffer += decoder.decode(value, { stream: true });
+            for (let end = buffer.indexOf('\n\n'); end >= 0; end = buffer.indexOf('\n\n')) {
+              const line = buffer.slice(0, end).split('\n').find((text) => text.startsWith('data: '));
+              buffer = buffer.slice(end + 2);
+              if (!line) continue;
+              let event = null;
+              try {
+                event = JSON.parse(line.slice(6));
+              } catch {
+                continue;
+              }
+              if (handleLive(event) === 'done') return;
+            }
+          }
+        } catch {
+          // The reply is read from the message instead.
+        } finally {
+          clearRepeating(watchdog);
+          liveAbort.abort();
+        }
+      };
+      // A stop: the server is told at once; the channel is given a little time to say it is over, then the message is read.
+      const onStopAsked = () => {
+        if (!stopSent) {
+          stopSent = true;
+          stopAt = now();
+          void this.stop().catch(() => {});
+        }
+        setTimer(() => liveAbort?.abort(), STOP_GRACE_MS);
+      };
+      if (signal?.aborted) onStopAsked();
+      signal?.addEventListener?.('abort', onStopAsked, { once: true });
+      await readLive();
+      signal?.removeEventListener?.('abort', onStopAsked);
       for (;;) {
         if (signal?.aborted && !stopSent) {
           stopSent = true;

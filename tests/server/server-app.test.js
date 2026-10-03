@@ -204,3 +204,45 @@ test('/v1/runs turns the manager\'s refusals into the right answers, and does no
     assert.equal(lines.join('').includes(KEY), false);
   }, { runs });
 });
+
+test('/v1/runs/:id/stream pushes the reply as it comes to any page that asks, and only for the signed-in person\'s own live reply', async () => {
+  const watchers = [];
+  const runs = {
+    isLive: ({ userId, runId }) => userId === USER && runId === RUN_ID,
+    watch: ({ userId, runId, send, close }) => {
+      if (userId !== USER || runId !== RUN_ID) return null;
+      send({ r: { answer: 'so far', thought: { text: '', kind: 'model' }, sources: [] } });
+      watchers.push({ send, close });
+      return () => { watchers.length = 0; };
+    },
+    start: async () => RUN_ID, stop: async () => true, get: async () => null
+  };
+  await withServer(async ({ base }) => {
+    const response = await fetch(`${base}/v1/runs/${RUN_ID}/stream`, { headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'https://noureon.com' } });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /text\/event-stream/);
+    assert.equal(response.headers.get('x-accel-buffering'), 'no');
+    assert.match(response.headers.get('cache-control'), /no-transform/);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'https://noureon.com');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    const readUntil = async (needle) => {
+      while (!text.includes(needle)) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+      }
+    };
+    await readUntil('so far');
+    watchers[0].send({ a: ' and more' });
+    await readUntil('and more');
+    watchers[0].send({ done: 'complete' });
+    watchers[0].close();
+    await readUntil('complete');
+    assert.deepEqual(text.split('\n\n').filter(Boolean).map((block) => JSON.parse(block.replace(/^data: /, ''))).map((event) => event.done || event.a || event.r.answer), ['so far', ' and more', 'complete']);
+    assert.equal((await reader.read()).done, true, 'the stream ends when the reply does');
+    assert.equal((await fetch(`${base}/v1/runs/${RUN_ID}/stream`)).status, 401);
+    assert.equal((await fetch(`${base}/v1/runs/423e4567-e89b-12d3-a456-4266141740ff/stream`, { headers: { Authorization: `Bearer ${TOKEN}` } })).status, 404, 'not a reply that is live');
+  }, { runs });
+});

@@ -163,3 +163,26 @@ test('a stop keeps what was written', async () => {
   assert.equal(stopped.status, 'stopped');
   assert.deepEqual(stopped.parts, [{ text: '' }]);
 });
+
+test('every small piece is given to those watching live as it comes: the start, the answer, the thinking, the pages found', async () => {
+  const events = [];
+  await executeReply({
+    spec: specFor(),
+    secrets,
+    onLive: (event) => events.push(event),
+    fetchImpl: async () => streamResponse(sse({ choices: [{ delta: { reasoning: 'Let me think' } }] }, content('Hel'), content('lo')))
+  });
+  assert.deepEqual(events[0], { r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, 'what there is at the start');
+  assert.deepEqual(events.filter((event) => event.a !== undefined).map((event) => event.a), ['Hel', 'lo']);
+  assert.ok(events.some((event) => typeof event.th === 'string' && event.th.includes('think')), 'the thinking too');
+  const resumed = [];
+  await executeReply({
+    spec: specFor(),
+    secrets,
+    resume: { toolTurns: [], text: 'Half an ans', research: null, sources: [{ url: 'https://a.example', title: 'A', n: 1 }] },
+    onLive: (event) => resumed.push(event),
+    fetchImpl: async () => streamResponse(sse(content('wer')))
+  });
+  assert.equal(resumed[0].r.answer, 'Half an ans', 'a reply taken up again starts from what it had');
+  assert.equal(resumed[0].r.sources.length, 1);
+});

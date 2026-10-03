@@ -46,9 +46,10 @@ export class ReplyError extends Error {
 /**
  * Runs the reply. `resume`: what `onCheckpoint` last gave, to carry on from there. Resolves { parts, status, run, toolCalls }
  * (status 'done' or 'stopped'); throws a ReplyError (code provider_error, with a message free of keys) when the reply cannot be
- * made. A stop keeps what was written.
+ * made. A stop keeps what was written. `onLive(event)` gets every small piece as it comes, for the ones watching the reply live:
+ * { r: snapshot } (the start), { a: text of the answer }, { th: thinking text, k: kind }, { src: pages found }.
  */
-export async function executeReply({ spec, secrets, signal, resume = null, onUpdate = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume = null, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
   const startedAt = now() - (Number(resume?.elapsedMs) || 0);
@@ -68,14 +69,17 @@ export async function executeReply({ spec, secrets, signal, resume = null, onUpd
   });
   const messageText = (status) => `${sources.length || thought.text ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   const update = () => onUpdate([{ text: messageText('running') }]);
+  onLive({ r: { answer, thought: { text: thought.text, kind: thought.kind }, sources } });
 
   const addSources = (found) => {
     sources = addNumberedSources(sources, found);
+    onLive({ src: sources });
     update();
   };
   const onChunk = (chunk) => {
     if (!chunk) return;
     answer += chunk;
+    onLive({ a: chunk });
     update();
   };
   const onReasoning = (chunk, kind) => {
@@ -84,6 +88,7 @@ export async function executeReply({ spec, secrets, signal, resume = null, onUpd
     if (kind === 'summary') thought.kind = 'summary';
     thought.first ??= now();
     thought.last = now();
+    onLive({ th: chunk, k: thought.kind });
     update();
   };
 

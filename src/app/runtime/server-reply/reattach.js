@@ -2,7 +2,7 @@
 // written, as if it had been started here. The half-written copy of the message that the cloud gave this page is taken out first.
 // The reply itself is then followed and kept like any other (completeReply is the part of the submit that comes after the preparation).
 
-const MIN_SECONDS_BETWEEN_LOOKS = 5;
+const MIN_SECONDS_BETWEEN_LOOKS = 2;
 
 export function createServerReplyReattach({
   getActiveConversation,
@@ -76,11 +76,11 @@ export function createServerReplyReattach({
       reattachServerReply().catch((error) => logger?.warn?.('Following the reply of the server failed.', error));
     }, Math.max(delay, MIN_SECONDS_BETWEEN_LOOKS * 1000 - (now() - lastLook)));
   };
-  document?.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleLook(300); });
-  window?.addEventListener?.('focus', () => scheduleLook(300));
-  if (window?.MutationObserver && messageList()?.nodeType === 1) new window.MutationObserver(() => scheduleLook(1000)).observe(messageList(), { childList: true });
+  document?.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleLook(0); });
+  window?.addEventListener?.('focus', () => scheduleLook(0));
+  if (window?.MutationObserver && messageList()?.nodeType === 1) new window.MutationObserver(() => scheduleLook(250)).observe(messageList(), { childList: true });
   // The cloud sync may take a while to be ready after the page opens: look again a few times.
-  for (const delay of [3000, 6000, 10000, 16000, 25000, 40000, 60000]) scheduleTimeout(() => scheduleLook(0), delay);
+  for (const delay of [1000, 2500, 5000, 9000, 15000, 25000, 40000, 60000]) scheduleTimeout(() => scheduleLook(0), delay);
 
   return { reattachServerReply };
 }

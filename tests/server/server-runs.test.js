@@ -409,3 +409,73 @@ test('the words of a failed reply are in the language of the page, the provider\
   assert.equal(errorText('xx', { code: 'internal_error', message: 'x' }), 'Sorry, an error occurred: The server could not finish this reply.');
   assert.equal(errorText('es', { code: 'server_restarted' }).startsWith('Lo sentimos, ocurrió un error: '), true);
 });
+
+// ----- watching a reply live
+
+test('a reply can be watched live: the page gets what there is now, then every piece, then that it is over (after the message is written)', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager, db } = managerHarness({
+    execute: async ({ onLive }) => {
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } });
+      onLive({ a: 'Hel' });
+      await gate;
+      onLive({ a: 'lo' });
+      onLive({ th: 'hmm', k: 'summary' });
+      onLive({ src: [{ url: 'https://a.example', n: 1 }] });
+      return { parts: [{ text: 'Hello' }], status: 'done', run: {}, toolCalls: 0 };
+    }
+  });
+  await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.equal(manager.isLive({ userId: USER, runId: 'run-1' }), true);
+  assert.equal(manager.isLive({ userId: 'someone-else', runId: 'run-1' }), false);
+  const early = [];
+  const stopEarly = manager.watch({ userId: USER, runId: 'run-1', send: (event) => early.push(event), close: () => early.push('closed') });
+  assert.deepEqual(early[0], { r: { answer: 'Hel', thought: { text: '', kind: 'model' }, sources: [] } }, 'a page that comes in now sees the reply as it is now');
+  const late = [];
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => late.push(event), close: () => late.push('closed') });
+  release();
+  await settle();
+  assert.deepEqual(early.slice(1), [{ a: 'lo' }, { th: 'hmm', k: 'summary' }, { src: [{ url: 'https://a.example', n: 1 }] }, { done: 'complete' }, 'closed']);
+  assert.deepEqual(late.slice(1), early.slice(1), 'every page sees the same pieces');
+  const written = messageWrites(db).at(-1);
+  assert.equal(written.status, 'complete', 'the message was whole before the pages were told');
+  assert.equal(manager.isLive({ userId: USER, runId: 'run-1' }), false);
+  stopEarly();
+  assert.equal(manager.watch({ userId: USER, runId: 'run-1', send() {}, close() {} }), null, 'nothing to watch once it is over');
+});
+
+test('a reply that failed tells those watching it ended in error; one handed over at a restart just lets them go', async () => {
+  const failing = managerHarness({ execute: async () => { throw new ReplyError('no', 'provider_error'); } });
+  await failing.manager.start({ userId: USER, spec: specOf() });
+  const seen = [];
+  failing.manager.watch({ userId: USER, runId: 'run-1', send: (event) => seen.push(event), close: () => seen.push('closed') });
+  await settle();
+  assert.deepEqual(seen.slice(-2), [{ done: 'error' }, 'closed']);
+
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const restarting = managerHarness({ execute: async ({ signal }) => { await gate; return { parts: [{ text: 'cut' }], status: signal.aborted ? 'stopped' : 'done', run: {}, toolCalls: 0 }; } });
+  await restarting.manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const watched = [];
+  restarting.manager.watch({ userId: USER, runId: 'run-1', send: (event) => watched.push(event), close: () => watched.push('closed') });
+  await restarting.manager.shutdown();
+  release();
+  await settle();
+  assert.equal(watched.some((event) => event?.done), false, 'not told it is over: it goes on elsewhere');
+  assert.equal(watched.at(-1), 'closed');
+});
+
+test('there is a limit to how many pages may watch for one account', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager } = managerHarness({ execute: async () => { await gate; return { parts: [{ text: 'x' }], status: 'done', run: {}, toolCalls: 0 }; } });
+  await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const results = Array.from({ length: 14 }, () => manager.watch({ userId: USER, runId: 'run-1', send() {}, close() {} }));
+  assert.equal(results.filter(Boolean).length, 12);
+  release();
+  await settle();
+});

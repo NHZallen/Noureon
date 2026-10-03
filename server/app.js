@@ -118,7 +118,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs') {
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
@@ -137,7 +137,38 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         }
         return;
       }
-      if (runPath && request.method === 'POST' && runPath[2]) {
+      if (runPath && request.method === 'GET' && runPath[2] === '/stream') {
+        // The reply as it is written, pushed as it comes (server-sent events): any page may join at any moment and sees what is there now.
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        if (!runs.isLive({ userId: user.id, runId: runPath[1] })) throw new RequestError(ERROR_CODES.notFound, 'This reply is not being made here.');
+        response.writeHead(200, { ...SECURITY_HEADERS, ...corsHeaders(origin), 'Cache-Control': 'no-store, no-transform', 'Content-Type': 'text/event-stream; charset=utf-8', 'X-Accel-Buffering': 'no' });
+        status = 200;
+        let unwatch = null;
+        const beat = setInterval(() => response.write(': keep-alive\n\n'), 15_000);
+        const end = () => {
+          clearInterval(beat);
+          unwatch?.();
+          if (!response.writableEnded) response.end();
+        };
+        request.on('close', end);
+        unwatch = runs.watch({
+          userId: user.id,
+          runId: runPath[1],
+          send: (event) => {
+            response.write(`data: ${JSON.stringify(event)}\n\n`);
+            // A page that cannot keep up is let go (it reads the rest from the message).
+            if (response.writableLength > 2 * 1024 * 1024) end();
+          },
+          close: end
+        });
+        if (!unwatch) {
+          response.write(`data: ${JSON.stringify({ done: 'gone' })}\n\n`);
+          end();
+        }
+        return;
+      }
+      if (runPath && request.method === 'POST' && runPath[2] === '/stop') {
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
         const found = await runs.stop({ userId: user.id, runId: runPath[1] });

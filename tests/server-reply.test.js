@@ -217,3 +217,97 @@ test('with pacing the words the server wrote are handed over in small pieces unt
   assert.equal(result.text, 'Hello wonderful world, and more');
   assert.ok(waits.every((ms) => ms === 50 || ms === 350));
 });
+
+// ----- the live channel
+
+const sseBody = (events, { end = true } = {}) => {
+  const encoder = new TextEncoder();
+  let controllerRef;
+  const body = new ReadableStream({ start(controller) { controllerRef = controller; for (const event of events) controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)); if (end) controller.close(); } });
+  return { body, push: (event) => controllerRef.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)), close: () => controllerRef.close() };
+};
+const liveHarness = ({ events, rows = [], extra = {} }) => {
+  const calls = [];
+  let index = 0;
+  const live = sseBody(events, extra.sseOptions);
+  const { reply } = harness({
+    fetchImpl: async (url, options) => {
+      calls.push({ url: String(url), options });
+      if (String(url).endsWith('/stream')) return new Response(live.body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+      return new Response(JSON.stringify({ runId: 'run-1' }), { status: 202 });
+    },
+    readMessage: async () => rows[Math.min(index++, rows.length - 1)] || null,
+    paceMs: 50,
+    ...extra
+  });
+  return { reply, calls, live };
+};
+
+test('a reply watched live is given to the page piece by piece as the server makes it, with nothing waiting for a database', async () => {
+  const waits = [];
+  const { reply, calls } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { th: 'Let me think', k: 'summary' }, { a: 'Hel' }, { a: 'lo' }, { src: [{ url: 'https://a.example', n: 1 }] }, { a: ' world' }, { done: 'complete' }],
+    rows: [row('Hello world', 'complete')],
+    extra: { wait: async (ms) => { waits.push(ms); } }
+  });
+  const { run } = await reply.start(startArgs());
+  const texts = [];
+  const thoughts = [];
+  const runs = [];
+  const result = await run.follow({ onText: (delta) => texts.push(delta), onThought: (text, kind) => thoughts.push([text, kind]), onRun: (value) => runs.push(value) });
+  assert.deepEqual(texts, ['Hel', 'lo', ' world'], 'each piece as it came');
+  assert.deepEqual(thoughts, [['Let me think', 'summary']]);
+  assert.equal(runs[0].sources[0].url, 'https://a.example');
+  assert.equal(result.text, 'Hello world');
+  assert.equal(result.rewritten, false);
+  assert.equal(waits.length, 0, 'no poll was waited for');
+  const streamCall = calls.find((call) => call.url.endsWith('/v1/runs/run-1/stream'));
+  assert.equal(streamCall.options.headers.Authorization, 'Bearer token-123');
+});
+
+test('a page that comes in late is given what there is so far at once, then goes on with the rest', async () => {
+  const { reply } = liveHarness({
+    events: [{ r: { answer: 'Apple pie is', thought: { text: 'thinking', kind: 'model' }, sources: [] } }, { a: ' good' }, { done: 'complete' }],
+    rows: [row('Apple pie is good', 'complete')]
+  });
+  const { run } = await reply.start(startArgs());
+  const texts = [];
+  const thoughts = [];
+  const result = await run.follow({ onText: (delta) => texts.push(delta), onThought: (text) => thoughts.push(text) });
+  assert.deepEqual(texts, ['Apple pie is', ' good']);
+  assert.deepEqual(thoughts, ['thinking']);
+  assert.equal(result.text, 'Apple pie is good');
+});
+
+test('when the live channel breaks the message is read instead and nothing is shown twice', async () => {
+  const { reply } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { a: 'Hello' }],
+    rows: [row('Hello wor', 'streaming'), row('Hello world', 'complete')]
+  });
+  const { run } = await reply.start(startArgs());
+  const texts = [];
+  const result = await run.follow({ onText: (delta) => texts.push(delta) });
+  assert.equal(texts.join(''), 'Hello world');
+  assert.equal(result.text, 'Hello world');
+});
+
+test('a stop is sent at once while the page is following live, and the words written so far are kept', async () => {
+  const controller = new AbortController();
+  const { reply, calls, live } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { a: 'Partial' }],
+    rows: [row('Partial text', 'complete')],
+    extra: { sseOptions: { end: false } }
+  });
+  const { run } = await reply.start(startArgs());
+  const texts = [];
+  const following = run.follow({ onText: (delta) => texts.push(delta), signal: controller.signal });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  controller.abort();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(calls.filter((call) => call.url.endsWith('/stop')).length, 1, 'the server was told straight away');
+  live.push({ done: 'complete' });
+  live.close();
+  const result = await following;
+  assert.equal(texts.join(''), 'Partial text');
+  assert.equal(result.text, 'Partial text');
+});
