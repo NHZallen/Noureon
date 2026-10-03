@@ -17,12 +17,6 @@ const THOUGHT_CHARS_IN_ALL = 30_000;
 // After the model has gone quiet this long in a round that may call a tool, the line says it is writing it: a long
 // program arrives all at once, and the line would otherwise look stuck on what came before.
 const WRITING_AFTER_MS = 3000;
-// Words a model writes before a call ("first I'll look up the numbers…") are what it is saying about its work, not the answer. In a
-// round that may call a tool they are held until it is known which they are: a call that follows makes them a narration (shown
-// between the steps), the end of a round without one makes them the answer. Words that run longer than this, or a wait longer than
-// this, are the answer, and flow as they come.
-const HOLD_TEXT_CHARS = 500;
-const HOLD_TEXT_MS = 2500;
 
 // Long output keeps its start and end for the model.
 export function trimForModel(text = '', limit = MODEL_TEXT_CHARS) {
@@ -124,48 +118,13 @@ export async function runSandboxReply({
   // Set per round: starts the wait for the model to go quiet (see WRITING_AFTER_MS), and ends it.
   let watchSilence = () => {};
   let stopWatching = () => {};
-  // What the model says about a step is best in the call's `note`; words it writes before a call anyway are held and told as a narration
-  // (see HOLD_TEXT_CHARS). Any other text is the answer and shows as it comes.
+  // What the model says about a step is in the call's `note`, so any text it writes is the answer and shows as it comes.
   const emit = (chunk) => {
     if (!chunk) return;
     deliver(chunk);
   };
   const notes = createNotes(onEvent);
-  // The words of the round that are held (see HOLD_TEXT_CHARS) and what has been said between the steps that no step has taken yet.
-  let held = '';
-  let holdTimer = null;
-  let holding = false;
-  let spoken = [];
-  const clearHold = () => {
-    clearTimeout(holdTimer);
-    holdTimer = null;
-  };
-  // The held words are the answer: they flow from here on.
-  const release = () => {
-    clearHold();
-    holding = false;
-    const words = held;
-    held = '';
-    deliverNow(words);
-  };
-  // The held words are what the model says about its work.
-  const narrate = () => {
-    clearHold();
-    const said = held.replace(/\s+/g, ' ').trim();
-    held = '';
-    if (!said) return;
-    spoken.push(said);
-    onEvent({ type: 'narration', text: said });
-  };
   const deliver = (chunk) => {
-    if (!chunk) return;
-    stopWatching();
-    if (!holding) return deliverNow(chunk);
-    held += chunk;
-    if (held.length > HOLD_TEXT_CHARS) release();
-    else if (!holdTimer) holdTimer = setTimeout(release, HOLD_TEXT_MS);
-  };
-  const deliverNow = (chunk) => {
     if (!chunk) return;
     // Text written after a tool round starts on a new paragraph.
     const newRound = toolTurns.length && !deliver.continuing;
@@ -222,9 +181,6 @@ export async function runSandboxReply({
     const canCall = canRun || canResearch;
     let response = null;
     deliver.continuing = false;
-    clearHold();
-    held = '';
-    holding = canCall;
     notes.reset();
     thought = '';
     thoughtStartedAt = null;
@@ -266,8 +222,6 @@ export async function runSandboxReply({
       },
       onToolArguments: ({ name, arguments: raw }) => {
         if (name !== RUN_PYTHON_TOOL.name && !research?.handles(name)) return;
-        // A call has begun: the words held before it are what the model says about it.
-        if (holding) narrate();
         // What the model says about the step is in its note: shown between the rows as soon as it is written.
         notes.fromArguments(raw);
         if (name === RUN_PYTHON_TOOL.name) {
@@ -287,7 +241,6 @@ export async function runSandboxReply({
       stopWatching();
     } catch (error) {
       stopWatching();
-      clearHold();
       // Stopping ends the stream with an error: what was thought so far is kept below, not thrown away.
       if (!signal?.aborted) {
         // Gemini may refuse its web search together with our tool; answer with
@@ -301,9 +254,6 @@ export async function runSandboxReply({
       }
     }
     if (signal?.aborted) {
-      // Words that were held are kept as the answer, as a stop keeps what was written.
-      if (held) release();
-      clearHold();
       // Stopped while thinking: what was thought so far stays, marked as interrupted.
       const kept = takeThought();
       if (kept) {
@@ -315,12 +265,6 @@ export async function runSandboxReply({
       break;
     }
     const calls = (response?.toolCalls || []).filter((call) => call.name === RUN_PYTHON_TOOL.name || research?.handles(call.name));
-    // The words held through the round: said about the calls that follow, or, with none, the answer.
-    if (held) {
-      if (canCall && calls.length) narrate();
-      else release();
-    }
-    clearHold();
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     if (!canCall || !calls.length) {
@@ -363,11 +307,10 @@ export async function runSandboxReply({
       // "I'll check the environment first": the note of the call, shown between the steps as the run begins (when it was not
       // already shown while the code was written) and kept with the step.
       const said = String(call.args?.note || '').replace(/\s+/g, ' ').trim();
-      // What was said between the steps since the last one (words written before the calls) is kept with the step it came before.
-      const narration = [...spoken, said].filter(Boolean).join('\n\n');
-      spoken = [];
-      if (narration) step.narration = narration;
-      if (said) notes.fromCall(call);
+      if (said) {
+        step.narration = said;
+        notes.fromCall(call);
+      }
       run.steps.push(step);
       currentStep = run.steps.length;
       onEvent({ type: 'step', n: currentStep, title, code });
@@ -442,8 +385,5 @@ export async function runSandboxReply({
     }
   }
   run.elapsedMs = Date.now() - startedAt;
-  // Said before searches that no step followed: kept with the last step, so the saved reply still has it.
-  const lastStep = run.steps.at(-1);
-  if (spoken.length && lastStep) lastStep.narration = [lastStep.narration, ...spoken].filter(Boolean).join('\n\n');
   return { text, run: run.steps.length || run.fallback || run.thought ? run : null };
 }

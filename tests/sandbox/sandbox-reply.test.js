@@ -163,38 +163,21 @@ test('with web research, the model searches and opens pages next to Python, and 
   assert.equal(result.run.steps.length, 1, 'only Python is a step');
 });
 
-test('an answer without a call is held only while it is short, then flows as it comes', async () => {
-  const long = '長'.repeat(900);
-  const pieces = Array.from({ length: 9 }, (_, index) => long.slice(index * 100, index * 100 + 100));
-  const model = scriptedModel([{ chunks: pieces, text: long }]);
+test('text is the answer and shows as it comes, a short one as much as a long one', async () => {
+  const long = '長'.repeat(500);
+  const model = scriptedModel([{ chunks: [long.slice(0, 100), long.slice(100)], text: long }]);
   const chunks = [];
   const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => chunks.push(chunk), getSandbox: () => fakeSandbox([]).sandbox });
   assert.equal(result.text, long);
-  assert.equal(chunks.join(''), long);
-  assert.deepEqual(chunks.map((chunk) => chunk.length), [600, 100, 100, 100], 'what was held is given at once when it is too long to be an announcement, the rest as it comes');
-  // A short one is held until the round ends (no call follows): then it is the answer.
+  assert.deepEqual(chunks, [long.slice(0, 100), long.slice(100)], 'streamed in the pieces it came in');
   const short = scriptedModel([{ chunks: ['短的', '答案。'], text: '短的答案。' }]);
   const shortChunks = [];
-  const shortEvents = [];
-  const shortResult = await runSandboxReply({ streamApiCall: short.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => shortChunks.push(chunk), getSandbox: () => fakeSandbox([]).sandbox, onEvent: (event) => shortEvents.push(event) });
+  const shortResult = await runSandboxReply({ streamApiCall: short.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => shortChunks.push(chunk), getSandbox: () => fakeSandbox([]).sandbox });
   assert.equal(shortResult.text, '短的答案。');
-  assert.deepEqual(shortChunks, ['短的答案。']);
-  assert.equal(shortEvents.some((event) => event.type === 'narration'), false);
-  assert.equal(shortEvents.filter((event) => event.type === 'answering').length, 1);
+  assert.deepEqual(shortChunks, ['短的', '答案。'], 'nothing is held back to find out whether it was an announcement');
 });
 
-test('a round that cannot call anything is not held at all', async () => {
-  const model = scriptedModel([{ calls: [call('c1', 'print(1)')] }, { chunks: ['短的', '答案。'], text: '短的答案。' }]);
-  const chunks = [];
-  const result = await runSandboxReply({
-    streamApiCall: model.streamApiCall, requestParts: [], onChunk: (chunk) => chunks.push(chunk),
-    getSandbox: () => ({ prepare: async () => { throw new Error('offline'); }, clear: async () => {}, run: async () => ({}) })
-  });
-  assert.equal(result.run.fallback, 'sandbox-load-failed');
-  assert.deepEqual(chunks, ['短的', '答案。'], 'with no tool left the words flow as they come');
-});
-
-test('a note is shown between the rows as soon as it is written, once, and the text a model writes before a call becomes a narration, not the answer', async () => {
+test('a note is shown between the rows as soon as it is written, once, and the text a model writes before a call stays in the answer', async () => {
   const events = [];
   const chunks = [];
   const model = scriptedModel([
@@ -216,26 +199,18 @@ test('a note is shown between the rows as soon as it is written, once, and the t
   assert.equal(events.filter((event) => event.type === 'narration').length, 1, 'and not told a second time when the round is over');
   assert.equal(result.run.steps[0].narration, '先看一下檔案。');
 
-  // A model that writes text before its call anyway (not in the note): what it says is a narration between the steps, not the answer.
+  // A model that writes text before its call anyway: it is shown at once as the answer and kept, not held back or lost.
   const lateEvents = [];
   const lateChunks = [];
-  const late = scriptedModel([{ chunks: ['我先算', '一下。'], text: '我先算一下。', calls: [call('c1', 'print(2)')] }, { text: '答案是 2。' }]);
+  const late = scriptedModel([{ chunks: ['我先算一下。'], text: '我先算一下。', calls: [call('c1', 'print(2)')] }, { text: '答案是 2。' }]);
   const lateResult = await runSandboxReply({
     streamApiCall: late.streamApiCall, requestParts: [{ text: 'q' }], onChunk: (chunk) => lateChunks.push(chunk),
     getSandbox: () => fakeSandbox([{ stdout: { text: '2\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]).sandbox,
     onEvent: (event) => lateEvents.push(event)
   });
-  assert.deepEqual(lateChunks, ['答案是 2。'], 'only the answer is the answer');
-  assert.equal(lateResult.text, '答案是 2。');
-  assert.deepEqual(lateEvents.filter((event) => event.type === 'narration'), [{ type: 'narration', text: '我先算一下。' }]);
-  assert.ok(lateEvents.findIndex((event) => event.type === 'narration') < lateEvents.findIndex((event) => event.type === 'step'), 'told before its step');
-  assert.equal(lateResult.run.steps[0].narration, '我先算一下。', 'and kept with the step');
-
-  // Words before a call and a note on the call: both are said, in order, and kept.
-  const both = scriptedModel([{ chunks: ['先看資料。'], text: '先看資料。', calls: [call('c1', 'print(3)', '看', '讀取檔案。')] }, { text: '好了。' }]);
-  const bothResult = await runSandboxReply({ streamApiCall: both.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([{ stdout: { text: '3\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]).sandbox });
-  assert.equal(bothResult.run.steps[0].narration, '先看資料。\n\n讀取檔案。');
-  assert.equal(bothResult.text, '好了。');
+  assert.equal(lateChunks[0], '我先算一下。', 'shown at once');
+  assert.equal(lateResult.text, '我先算一下。\n\n答案是 2。');
+  assert.equal(lateEvents.some((event) => event.type === 'narration'), false, 'it is not made into a note');
 });
 
 test('after the run limit the model gets no tool and must answer', async () => {
