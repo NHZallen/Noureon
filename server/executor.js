@@ -56,7 +56,7 @@ export class ReplyError extends Error {
  * sandbox cannot be had before any answer was written and a page is watching (`watching()`), it ends with a ReplyError of code
  * `sandbox_unavailable`: the page then makes the reply itself, with its own Python.
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -244,16 +244,23 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     run.elapsedMs = now() - startedAt;
     if (stopped) run.status = RUN_STATUS.stopped;
     toolCalls = run.steps.length;
-    const finished = await finishAdvancedReply({ result: advanced, run, userId, files });
-    // The presentations Python made, as bytes, for the visual check that follows (by the id the file has in the message).
-    const decks = new Map();
-    for (const part of finished.parts) {
-      const file = part.sandboxFile;
-      if (!file || !/\.pptx$/i.test(file.name)) continue;
-      const output = run.steps.flatMap((step) => step.outputs || []).filter((entry) => entry.name === file.name).at(-1);
-      if (output?.bytes) decks.set(file.id, output.bytes);
+    // The end of the reply (keeping the files, listing them) must not throw away the work: when it fails, the words of the reply are
+    // given as they are, without the files, and the step list the page already drew stays on the page.
+    try {
+      const finished = await finishAdvancedReply({ result: advanced, run, userId, files });
+      // The presentations Python made, as bytes, for the visual check that follows (by the id the file has in the message).
+      const decks = new Map();
+      for (const part of finished.parts) {
+        const file = part.sandboxFile;
+        if (!file || !/\.pptx$/i.test(file.name)) continue;
+        const output = run.steps.flatMap((step) => step.outputs || []).filter((entry) => entry.name === file.name).at(-1);
+        if (output?.bytes) decks.set(file.id, output.bytes);
+      }
+      return { parts: [{ text: finished.text }, ...finished.parts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
+    } catch (error) {
+      onProblem('finish_failed', error);
+      return { parts: [{ text: advanced.text }], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks: new Map() } };
     }
-    return { parts: [{ text: finished.text }, ...finished.parts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
   }
 
   // Where Gemini's answer cites its pages is known only when it is whole: the markers go into the text now.

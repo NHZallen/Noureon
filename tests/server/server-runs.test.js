@@ -163,10 +163,30 @@ test('the message is written as it grows, at most every 300 ms, in order, and th
   await Promise.resolve();
   assert.equal(written.length, 3, 'nothing is written after the end');
   const errors = [];
-  const failing = createMessageWriter({ store: { rpc: async () => { throw new Error('db down'); } }, userId: USER, conversationId: CONVERSATION, messageId: MESSAGE, sequence: 1, onError: (error) => errors.push(error) });
+  const failing = createMessageWriter({ store: { rpc: async () => { throw new Error('db down'); } }, userId: USER, conversationId: CONVERSATION, messageId: MESSAGE, sequence: 1, onError: (error) => errors.push(error), retryWait: async () => {} });
   failing.update([{ text: 'x' }]);
   await new Promise((resolve) => setTimeout(resolve, 5));
   await assert.rejects(() => failing.finish([{ text: 'x' }], 'complete'), /db down/, 'a failed final write is heard of');
+  assert.equal(errors.length, 5, 'one streaming write and the final one tried four times');
+
+  // The end of a reply is written again when the first try fails, and a failed end does not keep the error that follows from being written.
+  const attempts = [];
+  const endings = [];
+  let fails = 2;
+  const later = createMessageWriter({
+    store: { rpc: async (name, args) => { attempts.push(args.p_row.status); if (fails > 0) { fails -= 1; throw new Error('blip'); } } },
+    userId: USER, conversationId: CONVERSATION, messageId: MESSAGE, sequence: 1, retryWait: async () => {}, onWritten: (status, attempt) => endings.push([status, attempt])
+  });
+  await later.finish([{ text: 'done' }], 'complete');
+  assert.deepEqual(attempts, ['complete', 'complete', 'complete']);
+  assert.deepEqual(endings, [['complete', 2]]);
+  const stuck = [];
+  let broken = true;
+  const afterFailure = createMessageWriter({ store: { rpc: async (name, args) => { stuck.push(args.p_row.status); if (broken) throw new Error('too big'); } }, userId: USER, conversationId: CONVERSATION, messageId: MESSAGE, sequence: 1, retries: 0, retryWait: async () => {} });
+  await assert.rejects(() => afterFailure.finish([{ text: 'x' }], 'complete'), /too big/);
+  broken = false;
+  await afterFailure.finish([{ text: 'sorry' }], 'error');
+  assert.deepEqual(stuck, ['complete', 'error'], 'the error text still gets written');
   const withError = [];
   const ending = createMessageWriter({ store: { rpc: async (name, args) => { withError.push(args.p_row); } }, userId: USER, conversationId: CONVERSATION, messageId: MESSAGE, sequence: 1, metadata: { model: 'm' } });
   await ending.finish([{ text: '' }], 'error', { serverError: { code: 'provider_error', message: 'x' } });
@@ -299,6 +319,13 @@ test('a failed reply is saved as an error with a message that has no key in it, 
   await settle();
   assert.equal(messageWrites(odd.db).at(-1).metadata.serverError.code, 'internal_error');
   assert.equal(JSON.stringify([odd.db.log, odd.logs]).includes(KEY), false);
+  // The log says what went wrong and where (the person is told only the code), with the key hidden.
+  const failure = JSON.parse(odd.logs.find((line) => JSON.parse(line).event === 'run_failed'));
+  assert.equal(failure.code, 'internal_error');
+  assert.match(failure.message, /^secret \[hidden\] leaked in a stack$/);
+  assert.equal(failure.name, 'Error');
+  assert.match(failure.at, /server-runs\.test\.js/);
+  assert.ok(odd.logs.some((line) => JSON.parse(line).event === 'message_written'), 'and the log says when the end of the reply landed');
 });
 
 test('a stop, from the person or found at a heartbeat, ends the reply and keeps what was written', async () => {

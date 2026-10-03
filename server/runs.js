@@ -58,6 +58,14 @@ export function createRunManager({
     return { code: ERROR_CODES.internal, message: 'The reply could not be made on the server.' };
   };
 
+  /** What goes to the log when a run fails: where it went wrong, with no key in it (the person is told only the code). */
+  const diagnosis = (error, secrets) => ({
+    name: String(error?.name || '').slice(0, 60),
+    message: scrubMessage(error?.message, secrets),
+    at: scrubMessage(String(error?.stack || '').split('\n').slice(1, 5).map((line) => line.trim()).join(' | '), secrets).slice(0, 300),
+    ...(error?.cause ? { cause: scrubMessage(error.cause?.message || error.cause, secrets) } : {})
+  });
+
   // What those watching a reply live are given: every small piece as it comes. The mirror is what a page that comes in late is
   // given first, so it sees the reply as it is now (see executor.js for the events).
   const applyLive = (live, event) => {
@@ -178,7 +186,8 @@ export function createRunManager({
       messageId: spec.assistantMessageId,
       sequence: spec.sequence,
       metadata: spec.request.messageMetadata || null,
-      onError: (error) => log('message_write_failed', { runId, code: error?.code || '', message: String(error?.message || '').slice(0, 160) })
+      onError: (error) => log('message_write_failed', { runId, code: error?.code || '', message: scrubMessage(error?.message, secrets).slice(0, 200) }),
+      onWritten: (status, attempt) => log('message_written', { runId, status, attempt })
     });
     let beat = null;
     let limit = null;
@@ -211,6 +220,8 @@ export function createRunManager({
         fetchImpl,
         now,
         onUpdate: (parts) => writer.update(parts),
+        // Something that went wrong without ending the reply: only the log hears of it.
+        onProblem: (what, error) => log(what, { runId, ...diagnosis(error, secrets) }),
         onLive: (event) => {
           applyLive(live, event);
           if (!event.r) fan(live, event);
@@ -247,7 +258,7 @@ export function createRunManager({
     } catch (error) {
       if (controller.signal.reason === RESTART) return;
       const failure = failureOf(error, secrets);
-      log('run_failed', { runId, code: failure.code });
+      log('run_failed', { runId, code: failure.code, ...diagnosis(error, secrets) });
       if (isVision) {
         // The check could not be made at all: the page is told, and no reply is written.
         applyLive(live, { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason: scrubMessage(failure.message, secrets) }] } });

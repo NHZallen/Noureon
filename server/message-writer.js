@@ -15,7 +15,12 @@ export function createMessageWriter({
   now = () => Date.now(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
-  onError = () => {}
+  onError = () => {},
+  // Called after a write that says how the reply ended (not the streaming ones), so the log can tell it landed.
+  onWritten = () => {},
+  // A last write that fails is tried again this many times (a moment apart) before the caller hears of it.
+  retries = 3,
+  retryWait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 }) {
   let latest = null;
   let lastWriteAt = 0;
@@ -24,20 +29,26 @@ export function createMessageWriter({
   let finished = false;
 
   const write = (parts, status, extraMetadata = null) => {
-    chain = chain.then(async () => {
-      try {
-        await store.rpc('server_upsert_workspace_message', {
-          p_user_id: userId,
-          p_row: { id: messageId, conversation_id: conversationId, role: 'model', parts, status, sequence, ...(metadata || extraMetadata ? { metadata: { ...(metadata || {}), ...(extraMetadata || {}) } } : {}) }
-        });
-        lastWriteAt = now();
-      } catch (error) {
-        onError(error);
-        // A final write that failed is the caller's to hear of; a streaming one is replaced by the next.
-        if (status !== 'streaming') throw error;
+    // A write that failed must not stop the ones after it (the error written when the end of a reply fails): the chain goes on, the caller hears.
+    const result = chain.then(async () => {
+      const row = { id: messageId, conversation_id: conversationId, role: 'model', parts, status, sequence, ...(metadata || extraMetadata ? { metadata: { ...(metadata || {}), ...(extraMetadata || {}) } } : {}) };
+      // A streaming write is replaced by the next one; the one that ends the reply is the only copy, so it is tried again.
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          await store.rpc('server_upsert_workspace_message', { p_user_id: userId, p_row: row });
+          lastWriteAt = now();
+          if (status !== 'streaming') onWritten(status, attempt);
+          return;
+        } catch (error) {
+          onError(error);
+          if (status === 'streaming') return;
+          if (attempt >= retries) throw error;
+          await retryWait(500 * 2 ** attempt);
+        }
       }
     });
-    return chain;
+    chain = result.catch(() => {});
+    return result;
   };
 
   const flushLatest = () => {

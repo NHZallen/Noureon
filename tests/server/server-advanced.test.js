@@ -201,7 +201,8 @@ test('stopping a reply with Python keeps what was written and marks the run stop
   const { run, text } = liftSandboxRunBlock(result.parts[0].text);
   assert.equal(run.status, 'stopped');
   assert.equal(run.steps[0].stopped, true);
-  assert.match(text, /Starting\./);
+  assert.equal(run.steps[0].narration, 'Starting.', 'what it said before the call is kept with the step, as a narration');
+  assert.equal(text, '');
 });
 
 test('Python without a sandbox host is a failure the person is told of, not a reply without it', async () => {
@@ -231,6 +232,31 @@ test('a file the store cannot take: a small one stays in the message, a large on
   const { run: kept } = liftSandboxRunBlock(out.text);
   assert.deepEqual(kept.steps[0].files.map((file) => file.name), ['small.txt']);
   assert.deepEqual(kept.steps[0].skipped, [{ name: 'large.bin', reason: 'not-saved' }]);
+});
+
+test('the end of a reply that cannot be finished with its files still gives the answer, and the log is told', async () => {
+  // A file the host names in a way the listing cannot take: the answer is kept, the files are left out.
+  const host = fakeHost([{ stdout: 'ok\n', files: [{ name: 5, size: 3, bytes: new Uint8Array([1, 2, 3]) }] }]);
+  const problems = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor(),
+    secrets,
+    userId: USER,
+    sandboxHost: host,
+    files: fakeFiles(),
+    onProblem: (what, error) => problems.push([what, error.message]),
+    fetchImpl: async () => {
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'run_python', { code: 'print("ok")' })) : sse(content('Here is the answer.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.equal(result.parts.length, 1);
+  assert.equal(result.parts[0].text, 'Here is the answer.');
+  assert.equal(result.artifacts.decks.size, 0);
+  assert.equal(problems.length, 1);
+  assert.equal(problems[0][0], 'finish_failed');
 });
 
 test('documents handed to the design system become file blocks after the answer; a block the model also wrote is dropped', async () => {
@@ -304,13 +330,22 @@ test('the same with nobody watching: the model finishes without Python, so the r
   assert.equal(liftSandboxRunBlock(result.parts[0].text).text, 'Answer without Python.');
 });
 
-test('once an answer has been written the page cannot take over without showing it twice: the model finishes without Python', async () => {
+test('words before the call are a narration, not an answer: a page that is watching can still take over', async () => {
   let round = 0;
-  const result = await executeReply({
+  await assert.rejects(() => executeReply({
     spec: specFor(), secrets, userId: USER, sandboxHost: lostHost(), files: fakeFiles(), watching: () => true,
     fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(content('Let me check. '), toolCall('c', 'run_python', { code: 'print(1)' })) : sse(content('Done without it.'))); }
+  }), (error) => error.code === 'sandbox_unavailable');
+});
+
+test('once an answer has been written the page cannot take over without showing it twice: the model finishes without Python', async () => {
+  let round = 0;
+  const written = 'A long first part of the answer. '.repeat(20);
+  const result = await executeReply({
+    spec: specFor(), secrets, userId: USER, sandboxHost: lostHost(), files: fakeFiles(), watching: () => true,
+    fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(content(written), toolCall('c', 'run_python', { code: 'print(1)' })) : sse(content('Done without it.'))); }
   });
-  assert.match(liftSandboxRunBlock(result.parts[0].text).text, /Let me check\..*Done without it\./s);
+  assert.match(liftSandboxRunBlock(result.parts[0].text).text, /A long first part.*Done without it\./s);
 });
 
 test('a stop is a stop, not a lost sandbox', async () => {
