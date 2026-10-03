@@ -360,8 +360,8 @@ export function createSingleModelResponseLifecycle({
         if (sandboxRun && searchMs) sandboxRun.elapsedMs = (sandboxRun.elapsedMs || 0) + searchMs;
         // Word and PowerPoint files made freely get the app's fonts embedded.
         if (result.run?.steps?.length) {
-          await import('../../ui/sandbox/office-fonts.js')
-            .then((module) => module.embedFontsInRunOutputs(result.run))
+          await import('../../ui/sandbox/office-fonts-browser.js')
+            .then((module) => module.embedFontsInBrowser(result.run))
             .catch(() => {});
         }
         sandboxParts = createSandboxFileParts(result.run);

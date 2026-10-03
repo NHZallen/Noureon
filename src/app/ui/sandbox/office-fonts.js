@@ -82,11 +82,9 @@ export async function embedOfficeFonts(bytes, extension, { JSZip, assets, embedd
 
 // After a run: embeds fonts in every Word and PowerPoint file it made
 // (not the documents handed to the design system, which embed their own).
-export async function embedFontsInRunOutputs(run, {
-  loadArchive = () => import('../../vendors/archive-vendor.js').then((module) => module.loadArchiveVendor()),
-  loadAssets = () => import('../files/generators/pptx-assets.js'),
-  loadEmbedding = () => import('../files/generators/font-embedding.js')
-} = {}) {
+// `loadArchive`, `loadAssets` and `loadEmbedding` are where the page (office-fonts-browser.js) or the server (server/office-fonts.js) gives the
+// archive tool, the font files with the subsetter, and the embedding functions.
+export async function embedFontsInRunOutputs(run, { loadArchive, loadAssets, loadEmbedding }) {
   const outputs = (run?.steps || []).flatMap((step) => (step.outputs || []).map((output) => ({ step, output })))
     .filter(({ output }) => !output.name.startsWith('.noureon/') && /\.(?:docx|pptx)$/i.test(output.name));
   if (!outputs.length) return;

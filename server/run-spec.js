@@ -6,8 +6,9 @@ import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROLES = ['user', 'model', 'system'];
-// 'research': the model calls search tools itself; 'grounding': the provider's own search (Gemini); 'off': no search.
-const WEB_SEARCH = ['off', 'research', 'grounding'];
+// 'research': the model calls search tools itself; 'grounding': the provider's own search (Gemini); 'briefing': Gemini searches first, then the
+// reply with Python gets what it found (it cannot do both at once); 'off': no search.
+const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
 const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets'];
 
@@ -62,6 +63,7 @@ export function validateRunSpec(input) {
     if (!WEB_SEARCH.includes(tools.webSearch)) fail('tools.webSearch', `must be one of ${WEB_SEARCH.join(', ')}`);
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
     if (typeof tools.advanced !== 'boolean') fail('tools.advanced', 'must be true or false');
+    if (tools.webSearch === 'briefing' && tools.advanced !== true) fail('tools.webSearch', 'briefing is for replies with Python');
     // The Design menu's choices (a template name each, or "auto"), and the files of this message that Python is given.
     if (tools.designs !== undefined) {
       if (!isObject(tools.designs)) fail('tools.designs', 'must be an object');

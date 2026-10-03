@@ -255,3 +255,29 @@ test('the program as it is written is told at most every 150 ms, and always befo
   steps.event({ type: 'step', n: 1, title: 't', code: 'abc' });
   assert.deepEqual(sent.map((event) => event.text || event.type), ['a', 'abc', 'step'], 'the latest version comes first, then the step');
 });
+
+test('a reply with Python and a briefing: the search is made first on its own, and Python\'s round is given what it found', async () => {
+  const bodies = [];
+  const live = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ webSearch: 'briefing' }),
+    secrets,
+    userId: USER,
+    sandboxHost: fakeHost([]),
+    files: fakeFiles(),
+    onLive: (event) => live.push(event),
+    fetchImpl: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      round += 1;
+      return streamResponse(round === 1 ? sse(content('The price is 42 euros (source: shop.example).')) : sse(content('Answer using the briefing.')));
+    }
+  });
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].tools, undefined, 'the search round has no tools');
+  assert.match(JSON.stringify(bodies[1].messages), /Web search packet/);
+  assert.match(JSON.stringify(bodies[1].messages), /The price is 42 euros/);
+  assert.ok(bodies[1].tools.some((tool) => tool.function.name === 'run_python'), 'Python\'s round has its tool');
+  assert.ok(live.some((event) => event.ev?.type === 'searching'));
+  assert.equal(liftSandboxRunBlock(result.parts[0].text).text, 'Answer using the briefing.', 'the briefing is not part of the answer');
+});

@@ -34,11 +34,13 @@ export function planServerReply({ config = {}, conversation = null, advanced = f
   if (!hasAccount) return { ok: false, reason: LOCAL_REASONS.noAccount };
   // A temporary chat is never in the cloud, so the server has nowhere to write the reply.
   if (conversation?.isTemporary || conversation?.retentionMode === 'ephemeral') return { ok: false, reason: LOCAL_REASONS.notSynced };
-  // A reply with Python: the server runs it in its sandbox, with the model's own web search next to it; a search made as a packet in front
-  // of the request is made here (the provider's own search does not go with tools).
+  // A reply with Python: the server runs it in its sandbox, with the model's own web search next to it (or Gemini's briefing). A search
+  // made as a packet in front of the request cannot go with Python (those models do not call tools, so there is no Python for them).
   if (advanced) {
     if (!webSearchEnabled) return { ok: true, webSearch: 'off', advanced: true };
-    return researchByModel ? { ok: true, webSearch: 'research', advanced: true } : { ok: false, reason: LOCAL_REASONS.packetSearch };
+    if (researchByModel) return { ok: true, webSearch: 'research', advanced: true };
+    // Gemini cannot search and call a tool at once: it searches first, then Python gets the briefing.
+    return provider === 'gemini' ? { ok: true, webSearch: 'briefing', advanced: true } : { ok: false, reason: LOCAL_REASONS.packetSearch };
   }
   if (!webSearchEnabled) return { ok: true, webSearch: 'off' };
   if (researchByModel) return { ok: true, webSearch: 'research' };
@@ -102,6 +104,8 @@ export function createServerReply({
   readMessage,
   // (parts) => parts: the files the server kept in the person's cloud storage, brought here (a file part holds a marker until then)
   hydrateParts = async (parts) => parts,
+  // (parts) => parts: keeps the files of these parts in the person's cloud storage and gives markers in place of their bytes
+  externalizeParts = async (parts) => parts,
   // (conversationId) => { id, message_id } | null: the reply of this conversation the server is still making
   findLiveRun = async () => null,
   fetchImpl = (...args) => fetch(...args),
@@ -150,6 +154,34 @@ export function createServerReply({
     return null;
   };
 
+  // The files earlier replies made are kept in the cloud (first, if they are not there yet); the request names where they are instead
+  // of carrying them, so a long conversation of files does not outgrow it. A file that cannot be kept there stays in the request.
+  const withCloudFiles = async (history) => {
+    const result = [];
+    for (const message of history) {
+      if (!message.parts?.some((part) => typeof part?.sandboxFile?.data === 'string')) {
+        result.push(message);
+        continue;
+      }
+      const parts = [];
+      for (const part of message.parts) {
+        if (typeof part?.sandboxFile?.data !== 'string') {
+          parts.push(part);
+          continue;
+        }
+        try {
+          const [kept] = await externalizeParts([part]);
+          parts.push(kept || part);
+        } catch (error) {
+          warn('Keeping a file in the cloud before the request failed; it goes with the request.', error);
+          parts.push(part);
+        }
+      }
+      result.push({ ...message, parts });
+    }
+    return result;
+  };
+
   /**
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
@@ -171,7 +203,7 @@ export function createServerReply({
     }
     // The conversations the memory drew on are known once the request was put together.
     const historySourceIds = getHistorySourceIds();
-    const history = (conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts }));
+    const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })));
     const metadata = historySourceIds.length ? { historySourceConversationIds: historySourceIds } : null;
     const spec = {
       protocol: SERVER_PROTOCOL_VERSION,

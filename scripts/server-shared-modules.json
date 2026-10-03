@@ -54,6 +54,10 @@
       "path": "src/app/runtime/sandbox/sandbox-texts.js"
     },
     {
+      "path": "src/app/runtime/sandbox/search-briefing.js",
+      "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
       "path": "src/app/ui/charts/chart-selection-policy.js"
     },
     {
@@ -109,10 +113,18 @@
       "path": "src/app/ui/files/file-type-registry.js"
     },
     {
+      "path": "src/app/ui/files/generators/font-embedding.js",
+      "note": "Reviewed 2026-10-03: no browser globals (the server gives it the archive tool, the font files and the subsetter)."
+    },
+    {
       "path": "src/app/ui/links/site-icon.js"
     },
     {
       "path": "src/app/ui/model-picker/model-groups.js"
+    },
+    {
+      "path": "src/app/ui/sandbox/office-fonts.js",
+      "note": "Reviewed 2026-10-03: no browser globals (the server gives it the archive tool, the font files and the subsetter)."
     },
     {
       "path": "src/app/ui/sandbox/run-sources.js",

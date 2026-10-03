@@ -24,7 +24,7 @@ export async function runSandboxFix({
   const [{ runSandboxReply }, { getPythonSandbox }, offices] = await Promise.all([
     import('../../runtime/sandbox/sandbox-reply.js'),
     import('../../runtime/sandbox/python-sandbox.js'),
-    import('./office-fonts.js')
+    import('./office-fonts-browser.js')
   ]);
   const result = await runSandboxReply({
     streamApiCall,
@@ -45,7 +45,7 @@ export async function runSandboxFix({
     onStatus,
     onEvent
   });
-  if (result.run?.steps?.length) await offices.embedFontsInRunOutputs(result.run).catch(() => {});
+  if (result.run?.steps?.length) await offices.embedFontsInBrowser(result.run).catch(() => {});
   const parts = createSandboxFileParts(result.run);
   return {
     // A file block the model wrote for a file it saved would be a second, empty card.

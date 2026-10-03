@@ -11,7 +11,9 @@ import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
 import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
+import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
@@ -156,13 +158,30 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       const tools = mode === 'research' ? createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch }) : null;
       const stepEvents = createStepEvents({ send: (event) => onLive({ ev: event }), now });
       let sandbox = null;
+      let advancedParts = parts;
+      let advancedOptions = requestOptions;
+      if (mode === 'briefing') {
+        // Gemini cannot search and call a tool in one request: it searches first, and Python gets the briefing as reference text.
+        stepEvents.event({ type: 'searching', label: sandboxText(language, 'sandboxSearching') });
+        try {
+          const briefing = await runSearchBriefing({ streamApiCall, requestParts: parts, requestOptions: { ...requestOptions, webSearchEnabled: true }, signal });
+          addSources(briefing.sources);
+          const part = briefingPart(briefing, modelInfo?.name);
+          if (part) advancedParts = [part, ...parts];
+        } catch (error) {
+          // Stopping stops the reply; a search that failed leaves the reply to go on without it.
+          if (signal?.aborted) throw error;
+        }
+        stepEvents.event({ type: 'sources', sources });
+        advancedOptions = { ...requestOptions, webSearchEnabled: false, ignoreConversationWebSearch: true };
+      }
       try {
         const result = await runSandboxReply({
           streamApiCall,
-          requestParts: parts,
+          requestParts: advancedParts,
           onChunk,
           signal,
-          requestOptions,
+          requestOptions: advancedOptions,
           host: 'server',
           getSandbox: (options) => {
             sandbox = sandboxHost.getSandbox({ ...options, language, signal });

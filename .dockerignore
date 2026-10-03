@@ -5,7 +5,8 @@ dist
 docs
 tests
 public
-src/assets
+src/assets/*
+!src/assets/fonts
 scripts
 supabase
 api

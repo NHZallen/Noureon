@@ -114,7 +114,9 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   const metaKey = `chatCloudSyncMeta_v1_${username}`;
   const assets = createCloudAssetTransport({ supabase, storage, userId: user.id });
   const cloudAssetRuntime = Object.freeze({
-    hydrateConversation: conversation => assets.hydrateConversation(conversation)
+    hydrateConversation: conversation => assets.hydrateConversation(conversation),
+    // Keeps a value's files in the cloud storage (what is already there is not sent again) and gives their markers in place of the bytes.
+    externalize: value => assets.externalize(value)
   });
   window.__astraCloudAssets = cloudAssetRuntime;
   let meta = parseJson(await storage.getItem(metaKey)) || {};

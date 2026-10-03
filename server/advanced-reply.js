@@ -2,6 +2,7 @@
 // steps while they run, and how the files the code made are kept and listed in the message. The tool loop itself is the browser's
 // (src/app/runtime/sandbox/sandbox-reply.js); the server only gives it a sandbox that runs on the sandbox host.
 
+import { embedRunFonts } from './office-fonts.js';
 import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { DOCUMENT_PREFIX, sandboxDocumentBlocks, sandboxDocumentNames, sandboxFileType, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../src/app/ui/sandbox/sandbox-files.js';
 
@@ -101,7 +102,9 @@ export function createStepEvents({ send, now = Date.now, setTimer = setTimeout, 
  * message as parts, the way the browser does, and puts the run record, the answer and the documents handed to the design system
  * into the text. Mutates `run` (the listed files get their ids). Resolves { text, parts }.
  */
-export async function finishAdvancedReply({ result, run, userId, files, createId = () => crypto.randomUUID() }) {
+export async function finishAdvancedReply({ result, run, userId, files, embedFonts = embedRunFonts, createId = () => crypto.randomUUID() }) {
+  // Word and PowerPoint files made freely get the app's fonts embedded (the sizes in the step lists follow).
+  if (run.steps.length) await embedFonts(run);
   const newest = new Map();
   run.steps.forEach((step, stepIndex) => {
     (step.outputs || []).forEach((output) => {

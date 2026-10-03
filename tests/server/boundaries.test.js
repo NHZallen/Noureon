@@ -37,6 +37,8 @@ test('the container image holds what the server needs: its modules load from a c
   assert.match(dockerfile, /^COPY src \.\/src$/m);
   const ignored = readFileSync(join(process.cwd(), '.dockerignore'), 'utf8').split('\n').map((line) => line.trim()).filter(Boolean);
   assert.equal(ignored.includes('src'), false, 'the shared modules must not be left out of the image');
+  assert.ok(ignored.includes('!src/assets/fonts'), 'the fonts embedded in files are in the image');
+  assert.match(dockerfile, /npm install[^\n]*jszip@[\d.]+ harfbuzzjs@[\d.]+/, 'with the two tools that embed them');
   const copy = mkdtempSync(join(tmpdir(), 'noureon-image-'));
   try {
     cpSync(join(process.cwd(), 'package.json'), join(copy, 'package.json'));

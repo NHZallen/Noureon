@@ -18,7 +18,8 @@ test('the plan: the server is used unless the person chose this device, or the r
   // Python runs on the server too, with the model's own web search; a search packet is still made here.
   assert.deepEqual(planServerReply({ config: {}, advanced: true }), { ok: true, webSearch: 'off', advanced: true });
   assert.deepEqual(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, researchByModel: true }), { ok: true, webSearch: 'research', advanced: true });
-  assert.equal(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, provider: 'gemini' }).reason, LOCAL_REASONS.packetSearch);
+  assert.deepEqual(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, provider: 'gemini' }), { ok: true, webSearch: 'briefing', advanced: true });
+  assert.equal(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, provider: 'openrouter' }).reason, LOCAL_REASONS.packetSearch);
   assert.equal(planServerReply({ config: { replyRunLocation: 'local' }, advanced: true }).reason, LOCAL_REASONS.setting);
   assert.equal(planServerReply({ config: {}, conversation: { isTemporary: true } }).reason, LOCAL_REASONS.notSynced);
   assert.equal(planServerReply({ config: {}, conversation: { retentionMode: 'ephemeral' } }).reason, LOCAL_REASONS.notSynced);
@@ -381,4 +382,26 @@ test('a file that cannot be brought here is still listed, as the server wrote it
   const result = await run.follow({});
   assert.equal(result.extraParts.length, 1);
   assert.equal(result.extraParts[0].sandboxFile.name, 'a.txt');
+});
+
+test('the files earlier replies made are kept in the cloud first, and the request names where they are instead of carrying them', async () => {
+  const withFiles = { ...CONVERSATION, messages: [
+    { role: 'user', parts: [{ text: 'make a file' }] },
+    { role: 'model', parts: [{ text: 'here' }, { sandboxFile: { id: 'f1', name: 'a.xlsx', mimeType: 'application/octet-stream', size: 3, data: 'AQID' } }, { sandboxFile: { id: 'f2', name: 'b.txt', mimeType: 'text/plain', size: 1, data: 'YQ==' } }] },
+    { role: 'user', parts: [{ text: 'now change it' }] }
+  ] };
+  const kept = [];
+  const { reply, calls } = harness({
+    externalizeParts: async (parts) => {
+      kept.push(parts[0].sandboxFile.name);
+      if (parts[0].sandboxFile.name === 'b.txt') throw new Error('storage down');
+      return [{ sandboxFile: { ...parts[0].sandboxFile, data: { __astraCloudAsset: { path: 'u/hash', mimeType: 'application/octet-stream', encoding: 'base64' } } } }];
+    }
+  });
+  await reply.start(startArgs({ conversation: withFiles }));
+  const history = JSON.parse(calls[0].options.body).request.history;
+  assert.deepEqual(kept, ['a.xlsx', 'b.txt']);
+  assert.deepEqual(history[1].parts[1].sandboxFile.data, { __astraCloudAsset: { path: 'u/hash', mimeType: 'application/octet-stream', encoding: 'base64' } }, 'named by its place in the cloud');
+  assert.equal(history[1].parts[2].sandboxFile.data, 'YQ==', 'a file that could not be kept there goes with the request');
+  assert.deepEqual(history[0], { role: 'user', parts: [{ text: 'make a file' }] });
 });

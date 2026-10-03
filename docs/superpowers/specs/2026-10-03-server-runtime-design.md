@@ -201,7 +201,10 @@
 - 檔案存不進儲存桶時：≤5 MB 的檔案直接留在訊息裡（App 之後同步時會自己上傳），更大的不提供並在該步驟記錄 `not-saved`。
 - 設定：Zeabur 環境變數 `SANDBOX_RUNNER_URL`（如 `http://10.42.0.1:7788`）與 `SANDBOX_RUNNER_TOKEN`（兩者要一起設）。沒設時伺服器對 Python 回覆回 `unsupported_mode`，瀏覽器退回本機執行。啟動時自檢並記錄 `sandbox_ok`／`sandbox_failed`（原因：`unreachable`、`refused`、`failed`）。
 - 瀏覽器：`planServerReply` 對 Python 回覆也回 `ok`（`advanced: true`），但「搜尋結果封包」（非工具型模型、Gemini 內建搜尋）仍在本機；RunSpec 的 `tools.designs`（簡報／文件範本選擇）與 `tools.inputs`（這則訊息的附件）；`follow` 多了 `onEvent`，結束時回傳 `extraParts`（檔案 part，經 `window.__astraCloudAssets.hydrateConversation` 把標記換成資料）；步驟列與本機執行時是同一個。
-- 已知限制：晚加入的分頁，步驟列上每一列的計時從加入那刻重算（事件沒有帶伺服器時間）；Word／PowerPoint 檔案的字型嵌入（`office-fonts.js`）在瀏覽器端做，伺服器產生的檔案目前不嵌入字型（檔案只記字型名稱，由閱讀者的電腦替代）；歷史訊息裡的檔案以 base64 隨請求送出，超過請求上限（20 MB）就改在本機執行。
+- 已知限制：晚加入的分頁，步驟列上每一列的計時從加入那刻重算（事件沒有帶伺服器時間）。
+- **字型嵌入在伺服器**（`server/office-fonts.js`）：沿用共用的 `office-fonts.js`／`font-embedding.js`，伺服器提供 jszip、harfbuzz 子集化器（wasm）與字型檔。Dockerfile 只另外安裝這兩個套件（版本與 App 相同），`.dockerignore` 改為保留 `src/assets/fonts`（約 31 MB）。共用的 `embedFontsInRunOutputs` 不再有預設載入器（瀏覽器端改用 `office-fonts-browser.js`），避免伺服器邊界檢查連到只能在瀏覽器用的 `pptx-assets.js`。檔案在存進雲端之前嵌入，所以存的就是嵌好的檔案。
+- **歷史檔案走雲端位置**：`start()` 送出前對歷史訊息裡帶 base64 的 `sandboxFile`，用同步的資產傳輸（`window.__astraCloudAssets.externalize`）先確認在雲端（不在就先上傳），請求裡只放 `__astraCloudAsset` 標記；上傳失敗的檔案才隨請求帶 base64。伺服器讀回時只讀自己的資料夾。這不影響送給模型的內容（模型看不到 `sandboxFile` 的資料）。目前只處理 `sandboxFile`；使用者附件（`inlineData`）仍隨請求（模型要看圖片）。
+- **Gemini 的先搜尋**：Gemini 無法同時用內建搜尋與工具，Python 回覆時先做一次不帶工具的搜尋簡報再交給 Python（`webSearch: 'briefing'`，只用於 Python 回覆，`server/executor.js`）。不會用工具的模型沒有 Python（進階模式要求會用工具），所以「搜尋封包＋Python」的組合只有 Gemini；非 Python 回覆的搜尋封包（`buildSingleModelTranslatedRequestParts`，含檔案翻譯）仍在瀏覽器。
 
 ## 11. 決定紀錄
 

@@ -44,6 +44,12 @@ export function createBrowserServerReply({
     return conversation.parts;
   };
 
+  // The files a request would carry are kept in the cloud first, and the request names where they are.
+  const externalizeParts = async (parts) => {
+    const assets = globalThis.window?.__astraCloudAssets || globalThis.__astraCloudAssets;
+    return assets?.externalize ? assets.externalize(parts) : parts;
+  };
+
   const findLiveRun = async (conversationId) => {
     const client = await getClient();
     if (!client || !conversationId) return null;
@@ -69,6 +75,7 @@ export function createBrowserServerReply({
     flushSync,
     readMessage,
     hydrateParts,
+    externalizeParts,
     findLiveRun,
     fetchImpl,
     clientVersion: PRODUCT_VERSION,
