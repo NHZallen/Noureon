@@ -172,7 +172,7 @@ test('every small piece is given to those watching live as it comes: the start, 
     onLive: (event) => events.push(event),
     fetchImpl: async () => streamResponse(sse({ choices: [{ delta: { reasoning: 'Let me think' } }] }, content('Hel'), content('lo')))
   });
-  assert.deepEqual(events[0], { r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, 'what there is at the start');
+  assert.deepEqual(events[0], { r: { answer: '', thought: { text: '', kind: 'model', ms: 0, ended: false }, sources: [], elapsedMs: 0 } }, 'what there is at the start');
   assert.deepEqual(events.filter((event) => event.a !== undefined).map((event) => event.a), ['Hel', 'lo']);
   assert.ok(events.some((event) => typeof event.th === 'string' && event.th.includes('think')), 'the thinking too');
   const resumed = [];
@@ -185,4 +185,34 @@ test('every small piece is given to those watching live as it comes: the start, 
   });
   assert.equal(resumed[0].r.answer, 'Half an ans', 'a reply taken up again starts from what it had');
   assert.equal(resumed[0].r.sources.length, 1);
+});
+
+test('the times pages show come from the server: the reply\'s own clock, and how long it thought, said once when the answer starts', async () => {
+  let clock = 1000;
+  const events = [];
+  await executeReply({
+    spec: specFor(),
+    secrets,
+    now: () => clock,
+    onLive: (event) => events.push(event),
+    fetchImpl: async () => {
+      const encoder = new TextEncoder();
+      return new Response(new ReadableStream({
+        async start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning: 'a' } }] })}\n\n`));
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          clock += 4000;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning: 'b' } }] })}\n\n`));
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          clock += 2000;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(content('Hi'))}\n\ndata: [DONE]\n\n`));
+          controller.close();
+        }
+      }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    }
+  });
+  const ended = events.filter((event) => typeof event.te === 'number');
+  assert.equal(ended.length, 1, 'said once');
+  assert.equal(ended[0].te, 6000, 'from the first thought to the first words of the answer');
+  assert.ok(events.indexOf(ended[0]) < events.findIndex((event) => event.a === 'Hi'), 'before the answer');
 });

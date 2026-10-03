@@ -311,3 +311,23 @@ test('a stop is sent at once while the page is following live, and the words wri
   assert.equal(texts.join(''), 'Partial text');
   assert.equal(result.text, 'Partial text');
 });
+
+test('the times are the server\'s: how long the reply has gone on and how long it thought are given to the page, so every page shows the same seconds', async () => {
+  const { reply } = liveHarness({
+    events: [{ r: { answer: 'Hi', thought: { text: 'thinking', kind: 'model', ms: 4200, ended: false }, sources: [], elapsedMs: 9100 } }, { th: ' more', k: 'model' }, { te: 6500 }, { a: ' there' }, { done: 'complete' }],
+    rows: [row('Hi there', 'complete')]
+  });
+  const { run } = await reply.start(startArgs());
+  const timings = [];
+  const thoughts = [];
+  const ends = [];
+  await run.follow({ onText() {}, onTiming: (ms) => timings.push(ms), onThought: (text, kind, ms) => thoughts.push([text, ms]), onThoughtEnd: (ms) => ends.push(ms) });
+  assert.deepEqual(timings, [9100]);
+  assert.deepEqual(thoughts, [['thinking', 4200], [' more', undefined]]);
+  assert.deepEqual(ends, [6500]);
+  const late = liveHarness({ events: [{ r: { answer: 'Hi', thought: { text: 'done thinking', kind: 'model', ms: 8800, ended: true }, sources: [], elapsedMs: 15_000 } }, { done: 'complete' }], rows: [row('Hi', 'complete')] });
+  const lateRun = (await late.reply.start(startArgs())).run;
+  const lateEnds = [];
+  await lateRun.follow({ onText() {}, onThoughtEnd: (ms) => lateEnds.push(ms) });
+  assert.deepEqual(lateEnds, [8800], 'a page that comes in after it stopped thinking is told how long it thought');
+});

@@ -649,3 +649,27 @@ test('a reply the server is still making is followed without preparing or sendin
   assert.equal(calls.some((call) => call[0] === 'api' || call[0] === 'translate'), false);
   assert.equal(serverReply.record.starts.length, 0, 'nothing is handed to the server again');
 });
+
+test('the seconds of a reply the server makes are the server\'s clock, and the saved record keeps the server\'s thinking time', async () => {
+  let clock = 1_000_000;
+  const ticks = [];
+  const serverReply = serverReplyDouble({
+    follow: async ({ onTiming, onThought, onThoughtEnd, onText }) => {
+      onTiming(30_000);
+      ticks.at(-1)();
+      onThought('hmm', 'raw', 12_000);
+      clock += 3000;
+      onThoughtEnd(15_300);
+      onText('Answer');
+      return { text: 'Answer', run: { status: 'done', steps: [], elapsedMs: 33_000, thought: 'hmm', thoughtKind: 'raw', thoughtMs: 15_300 }, rewritten: false };
+    }
+  });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply, now: () => clock, startProgressTicker: (tick) => { ticks.push(tick); return { id: 1 }; } } });
+  const result = await lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2 });
+  assert.equal(lifecycle.getLatestProgress().elapsedMs, 30_000, 'the seconds shown start from the server\'s clock');
+  const lifted = liftSandboxRunBlock(result.fullResponse);
+  assert.equal(lifted.run.thoughtMs, 15_300, 'not what this page measured');
+  assert.equal(lifted.run.elapsedMs, 33_000);
+  assert.equal(lifted.text, 'Answer');
+  assert.ok(calls.length > 0);
+});

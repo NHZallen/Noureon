@@ -54,15 +54,29 @@ export function createRunManager({
   const applyLive = (live, event) => {
     if (event.r) {
       live.answer = String(event.r.answer || '');
-      live.thought = { text: String(event.r.thought?.text || ''), kind: event.r.thought?.kind || 'model' };
+      live.thought = { text: String(event.r.thought?.text || ''), kind: event.r.thought?.kind || 'model', ended: Boolean(event.r.thought?.ended), ms: Number(event.r.thought?.ms) || 0, first: null };
       live.sources = Array.isArray(event.r.sources) ? event.r.sources : [];
+      live.elapsedFrom = Number(event.r.elapsedMs) || 0;
+      live.elapsedAt = now();
     } else if (typeof event.a === 'string') live.answer += event.a;
     else if (typeof event.th === 'string') {
       live.thought.text += event.th;
+      live.thought.first ??= now();
       if (event.k) live.thought.kind = event.k;
+    } else if (typeof event.te === 'number') {
+      live.thought.ended = true;
+      live.thought.ms = event.te;
     } else if (Array.isArray(event.src)) live.sources = event.src;
   };
-  const snapshot = (live) => ({ r: { answer: live.answer, thought: live.thought, sources: live.sources } });
+  // What a page that comes in late is given first: the reply as it is now, with the times as they are now.
+  const snapshot = (live) => ({
+    r: {
+      answer: live.answer,
+      thought: { text: live.thought.text, kind: live.thought.kind, ended: live.thought.ended, ms: live.thought.ended ? live.thought.ms : (live.thought.first ? now() - live.thought.first : live.thought.ms) },
+      sources: live.sources,
+      elapsedMs: live.elapsedFrom + (now() - live.elapsedAt)
+    }
+  });
   const fan = (live, event) => {
     for (const watcher of [...live.subscribers]) {
       try {
@@ -85,7 +99,7 @@ export function createRunManager({
 
   async function run({ runId, userId, spec, secrets, resume }) {
     const controller = new AbortController();
-    const live = { answer: '', thought: { text: '', kind: 'model' }, sources: [], subscribers: new Set() };
+    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), subscribers: new Set() };
     active.set(runId, { controller, userId, live });
     let finalStatus = 'error';
     const writer = createMessageWriter({

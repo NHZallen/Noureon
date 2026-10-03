@@ -194,3 +194,22 @@ test('an interrupted thought is drawn as interrupted in every language, with or 
     cleanup();
   }
 });
+
+test('the seconds a thinking line shows can be the server\'s: a page that comes in late counts from when it began, and the time is told at the end', () => {
+  const { window, cleanup } = createDom('');
+  try {
+    const { document } = window;
+    const { host, answer } = bubble(document);
+    let clock = 100_000;
+    // This page came in when the reply had been thinking for 7 seconds already.
+    const block = createThinkingBlock({ document, host, before: answer, language: 'en', now: () => clock, startOffsetMs: 7000 });
+    block.add('thinking', 'raw');
+    clock += 2000;
+    // What this page measured would be 9 s; the server says it was 10.4 s on every page.
+    block.collapse(10_400);
+    assert.equal(host.querySelector('.ledger-label').textContent, sandboxText('en', 'thinkingDoneRaw', { s: 10 }));
+    block.remove();
+  } finally {
+    cleanup();
+  }
+});

@@ -417,7 +417,7 @@ test('a reply can be watched live: the page gets what there is now, then every p
   const gate = new Promise((resolve) => { release = resolve; });
   const { manager, db } = managerHarness({
     execute: async ({ onLive }) => {
-      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } });
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
       onLive({ a: 'Hel' });
       await gate;
       onLive({ a: 'lo' });
@@ -432,7 +432,9 @@ test('a reply can be watched live: the page gets what there is now, then every p
   assert.equal(manager.isLive({ userId: 'someone-else', runId: 'run-1' }), false);
   const early = [];
   const stopEarly = manager.watch({ userId: USER, runId: 'run-1', send: (event) => early.push(event), close: () => early.push('closed') });
-  assert.deepEqual(early[0], { r: { answer: 'Hel', thought: { text: '', kind: 'model' }, sources: [] } }, 'a page that comes in now sees the reply as it is now');
+  const { elapsedMs, ...nowOn } = early[0].r;
+  assert.deepEqual(nowOn, { answer: 'Hel', thought: { text: '', kind: 'model', ended: false, ms: 0 }, sources: [] }, 'a page that comes in now sees the reply as it is now');
+  assert.equal(typeof elapsedMs, 'number', 'with how long it has been going');
   const late = [];
   manager.watch({ userId: USER, runId: 'run-1', send: (event) => late.push(event), close: () => late.push('closed') });
   release();
@@ -479,3 +481,37 @@ test('there is a limit to how many pages may watch for one account', async () =>
   release();
   await settle();
 });
+
+test('a page that comes in late is given the times as they are now: how long the reply has gone on, and how long it has thought', async () => {
+  let clock = 5000;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const vault = createKeyVault([{ version: 1, key: masterKey() }]);
+  const db = fakeDatabase();
+  const manager = createRunManager({
+    store: createRunStore({ db, limits: LIMITS }), db, vault, now: () => clock,
+    execute: async ({ onLive }) => {
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 100 } });
+      clock += 1000;
+      onLive({ th: 'a', k: 'model' });
+      clock += 3000;
+      onLive({ th: 'b', k: 'model' });
+      await gate;
+      return { parts: [{ text: 'x' }], status: 'done', run: {}, toolCalls: 0 };
+    },
+    setRepeating: () => 1, clearRepeating: () => {}, setTimer: () => 1, clearTimer: () => {}
+  });
+  await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  clock += 500;
+  const seen = [];
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => seen.push(event), close() {} });
+  assert.equal(seen[0].r.elapsedMs, 100 + 4500, 'the reply\'s own clock');
+  assert.equal(seen[0].r.thought.ms, 3500, 'it has been thinking since the first thought');
+  assert.equal(seen[0].r.thought.ended, false);
+  seen.length = 0;
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => seen.push(event), close() {} });
+  release();
+  await settle();
+}
+);

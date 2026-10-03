@@ -56,6 +56,9 @@ export function createSingleModelResponseLifecycle({
 }) {
   let progressTimer = null;
   let latestProgress = null;
+  // When the reply began, for the seconds shown. For a reply the server makes it is moved to the server's own clock, so every page
+  // that shows the reply shows the same seconds.
+  let runStartedAt = 0;
 
   const stop = () => {
     if (!progressTimer) return;
@@ -68,18 +71,18 @@ export function createSingleModelResponseLifecycle({
       ...latestProgress,
       stage,
       message,
-      elapsedMs: now() - startedAt,
+      elapsedMs: now() - runStartedAt,
       ...extra
     };
     patchHTML(targetElement, renderSingleModelProgress(latestProgress));
     return latestProgress;
   };
 
-  const startTicker = (targetElement, startedAt) => {
+  const startTicker = (targetElement) => {
     progressTimer = startProgressTicker(() => {
       latestProgress = {
         ...latestProgress,
-        elapsedMs: now() - startedAt
+        elapsedMs: now() - runStartedAt
       };
       // Only the numbers change in place: see patch-html.js.
       patchHTML(targetElement, renderSingleModelProgress(latestProgress));
@@ -104,6 +107,7 @@ export function createSingleModelResponseLifecycle({
   }) => {
     stop();
     const startedAt = now();
+    runStartedAt = startedAt;
     latestProgress = {
       stage: 'preparing',
       message: getRuntimeText(uiLanguage, 'preparingRequest'),
@@ -239,25 +243,27 @@ export function createSingleModelResponseLifecycle({
     // Whether any of the answer has arrived (stopping before it leaves the thinking interrupted).
     let answered = false;
     let answerStarted = false;
-    const showThinking = (chunk, kind) => {
+    // `soFarMs`: it has been thinking for this long already (a page that came in late); the server tells it.
+    const showThinking = (chunk, kind, soFarMs = 0) => {
       if (!chunk) return;
-      thought.startedAt ??= now();
+      thought.startedAt ??= now() - Math.max(0, Number(soFarMs) || 0);
       thought = { ...thought, text: (thought.text + chunk).slice(0, 12_000), kind: kind || thought.kind };
       if (!thinkingBlock && targetElement.parentElement) {
         // The thinking is a step of the work: its row is under the "Working" line, above the other steps.
         const steps = stepList();
         thinkingBlock = steps?.body
-          ? createThinkingBlock({ document: getDocument(), host: steps.body, before: steps.stepsElement, language: uiLanguage, now })
-          : createThinkingBlock({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, now });
+          ? createThinkingBlock({ document: getDocument(), host: steps.body, before: steps.stepsElement, language: uiLanguage, now, startOffsetMs: soFarMs })
+          : createThinkingBlock({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, now, startOffsetMs: soFarMs });
         if (thinkingBlock) thinkingBlocks.push(thinkingBlock);
       }
       thinkingBlock?.add(chunk, kind);
       liveRun?.activity(sandboxText(uiLanguage, 'thinkingLive'));
     };
     // The answer has started: the thinking is over.
-    const endThinking = () => {
-      if (thought.startedAt !== null) thought.endedAt ??= now();
-      thinkingBlock?.collapse();
+    // `ms`: how long it thought, told by the server for a reply it makes (the same on every page).
+    const endThinking = (ms = null) => {
+      if (thought.startedAt !== null) thought.endedAt ??= Number.isFinite(ms) ? thought.startedAt + ms : now();
+      thinkingBlock?.collapse(ms);
       liveRun?.activity('');
     };
     // More work after words that were taken for the answer: the line runs again, and what the model thinks next is a block of its own.
@@ -272,8 +278,11 @@ export function createSingleModelResponseLifecycle({
         const outcome = await serverRun.follow({
           signal,
           onRun: (run) => { searchSources = run.sources; },
+          // The seconds are the server's.
+          onTiming: (elapsedMs) => { runStartedAt = now() - elapsedMs; },
           // What the model thinks is shown as it thinks, as in a reply made here.
-          onThought: (chunk, kind) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined),
+          onThought: (chunk, kind, soFarMs) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined, soFarMs),
+          onThoughtEnd: (ms) => endThinking(ms),
           onText: (delta) => {
             if (!answered) endThinking();
             answered = true;
@@ -399,7 +408,7 @@ export function createSingleModelResponseLifecycle({
           ...latestProgress,
           stage: 'streaming',
           message: undefined,
-          elapsedMs: now() - startedAt
+          elapsedMs: now() - runStartedAt
         };
         latestProgress = realtimeProgress;
         patchHTML(targetElement, renderSingleModelProgress(realtimeProgress));
@@ -439,8 +448,9 @@ export function createSingleModelResponseLifecycle({
       endThinking();
       thinkingBlocks.forEach((block) => block.remove());
       thinkingBlock?.remove();
-      if (searchSources.length) sandboxRun = { status: 'done', steps: [], elapsedMs: now() - startedAt, ...(sandboxRun || {}), sources: searchSources };
-      if (thought.text && !replyMode.advanced) {
+      if (searchSources.length) sandboxRun = { status: 'done', steps: [], elapsedMs: now() - runStartedAt, ...(sandboxRun || {}), sources: searchSources };
+      // (For a reply the server made, the time it thought is the server's, kept in its run record.)
+      if (thought.text && !replyMode.advanced && !serverRun) {
         sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(signal?.aborted && !answered ? { thoughtInterrupted: true } : {}) };
       }
     }

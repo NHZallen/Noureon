@@ -47,7 +47,8 @@ export class ReplyError extends Error {
  * Runs the reply. `resume`: what `onCheckpoint` last gave, to carry on from there. Resolves { parts, status, run, toolCalls }
  * (status 'done' or 'stopped'); throws a ReplyError (code provider_error, with a message free of keys) when the reply cannot be
  * made. A stop keeps what was written. `onLive(event)` gets every small piece as it comes, for the ones watching the reply live:
- * { r: snapshot } (the start), { a: text of the answer }, { th: thinking text, k: kind }, { src: pages found }.
+ * { r: snapshot } (the start), { a: text of the answer }, { th: thinking text, k: kind }, { te: how long it thought, in ms, when the answer
+ * starts }, { src: pages found }.
  */
 export async function executeReply({ spec, secrets, signal, resume = null, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, fetchImpl = fetch, now = Date.now }) {
   const mode = spec.tools.webSearch;
@@ -69,7 +70,9 @@ export async function executeReply({ spec, secrets, signal, resume = null, onUpd
   });
   const messageText = (status) => `${sources.length || thought.text ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   const update = () => onUpdate([{ text: messageText('running') }]);
-  onLive({ r: { answer, thought: { text: thought.text, kind: thought.kind }, sources } });
+  // The times every page shows come from here, so they agree: how long the reply has been going, and how long it thought.
+  let thoughtClosed = false;
+  onLive({ r: { answer, thought: { text: thought.text, kind: thought.kind, ms: 0, ended: false }, sources, elapsedMs: now() - startedAt } });
 
   const addSources = (found) => {
     sources = addNumberedSources(sources, found);
@@ -78,6 +81,12 @@ export async function executeReply({ spec, secrets, signal, resume = null, onUpd
   };
   const onChunk = (chunk) => {
     if (!chunk) return;
+    // The first words of the answer end the thinking: that is the moment the time it thought is taken.
+    if (!thoughtClosed && thought.text && thought.first) {
+      thoughtClosed = true;
+      thought.last = now();
+      onLive({ te: thought.last - thought.first });
+    }
     answer += chunk;
     onLive({ a: chunk });
     update();

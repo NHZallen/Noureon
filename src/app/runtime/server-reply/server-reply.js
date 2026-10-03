@@ -194,10 +194,10 @@ export function createServerReply({
     /**
      * Follows the reply until the server has finished it, the way a live broadcast is followed: the server pushes every small piece as
      * it is made, to every page watching, and a page that comes in late is given what there is so far (when the channel cannot be
-     * had, the message is read instead, a few times a second). `onText(delta)` gets the answer as it grows, `onThought(text, kind)` the thinking. `onRun(run)` gets the run record when it has more pages. Resolves { text, run, rewritten }
+     * had, the message is read instead, a few times a second). `onText(delta)` gets the answer as it grows, `onThought(text, kind, msSoFar)` the thinking, `onThoughtEnd(ms)` how long it thought, `onTiming(ms)` how long the reply has gone on. `onRun(run)` gets the run record when it has more pages. Resolves { text, run, rewritten }
      * ('rewritten': the finished text is not just the streamed one with more at the end), or throws a ServerReplyError.
      */
-    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, signal } = {}) {
+    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, signal } = {}) {
       const startedAt = now();
       let answerSoFar = '';
       let stopSent = false;
@@ -239,7 +239,10 @@ export function createServerReply({
             onText(text.slice(answerSoFar.length));
             answerSoFar = text;
           }
-          if (event.r.thought?.text) onThought(event.r.thought.text, event.r.thought.kind);
+          // The times are the server's: how long the reply has gone on, and how long it thought, so every page shows the same.
+          if (Number.isFinite(event.r.elapsedMs)) onTiming(event.r.elapsedMs);
+          if (event.r.thought?.text) onThought(event.r.thought.text, event.r.thought.kind, event.r.thought.ms);
+          if (event.r.thought?.ended) onThoughtEnd(event.r.thought.ms);
           if (event.r.sources?.length > sourceCount) {
             sourceCount = event.r.sources.length;
             onRun({ sources: event.r.sources });
@@ -248,6 +251,7 @@ export function createServerReply({
           answerSoFar += event.a;
           onText(event.a);
         } else if (typeof event.th === 'string') onThought(event.th, event.k);
+        else if (typeof event.te === 'number') onThoughtEnd(event.te);
         else if (Array.isArray(event.src) && event.src.length > sourceCount) {
           sourceCount = event.src.length;
           onRun({ sources: event.src });
