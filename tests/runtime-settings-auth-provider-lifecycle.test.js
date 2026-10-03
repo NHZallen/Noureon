@@ -103,7 +103,7 @@ const createDependencies = (overrides = {}) => {
       theme: 'dark',
       aiBubbleColor: 'default',
       userBubbleColor: 'default',
-      outputMode: 'typewriter',
+      outputMode: 'realtime',
       tavilySearchDepth: 'basic'
     },
     conversations: [],
@@ -365,21 +365,19 @@ test('output and translator controls are composed through the extracted helper',
   );
   assert.match(source, /const\s+outputTranslatorControls\s*=\s*createSettingsOutputTranslatorControls\(\{/);
   assert.match(source, /elements:\s*ALL_ELEMENTS/);
-  assert.match(source, /getOutputMode,/);
   assert.match(source, /getCouncilTranslatorCandidates,/);
   assert.match(source, /getSingleTranslatorCandidates,/);
   assert.match(source, /ensureCouncilTranslatorSettingsControls\(\);/);
-  assert.match(source, /ensureOutputModeSettingsControls\(\);/);
   assert.match(source, /renderTranslatorModelPickers\(\);/);
-  assert.match(source, /syncOutputModeSettingsControls\(\);/);
   assert.doesNotMatch(source, /const\s+renderTranslatorModelPicker\s*=/);
   assert.doesNotMatch(source, /const\s+renderTranslatorModelPickers\s*=/);
-  assert.doesNotMatch(source, /const\s+ensureOutputModeSettingsControls\s*=/);
+  // There is no output mode to choose: replies are always shown as they are written.
+  assert.doesNotMatch(source, /OutputModeSettingsControls/);
+  assert.doesNotMatch(controlsSource, /OutputModeSettingsControls/);
   assert.doesNotMatch(source, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
   assert.match(controlsSource, /export\s+function\s+createSettingsOutputTranslatorControls/);
   assert.match(controlsSource, /const\s+renderTranslatorModelPicker\s*=/);
   assert.match(controlsSource, /const\s+renderTranslatorModelPickers\s*=/);
-  assert.match(controlsSource, /const\s+ensureOutputModeSettingsControls\s*=/);
   assert.match(controlsSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
 });
 
@@ -901,7 +899,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   dependencies.elements.tavilyApiKeyInput.value = ' tavily-key ';
   dependencies.elements.tavilySearchDepthSelect.value = 'advanced';
   dependencies.elements.autoWebSearchToggleSwitch.checked = true;
-  dependencies.elements.outputModeSelect.value = 'realtime';
   dependencies.elements.autoNamingToggleSwitch.checked = true;
   dependencies.elements.memoryToggle1.checked = true;
   dependencies.elements.autoMemoryToggleSwitch.checked = true;
@@ -982,10 +979,6 @@ test('setupSettingsModal restores missing auto web search toggle control', () =>
         }
         return createdAutoSearchInput;
       }
-      if (selector === '.custom-output-mode-select') return makeElement('custom-output-mode-select');
-      if (selector === '#output-mode-label' || selector === 'p') return makeElement(selector);
-      if (selector === '[data-output-mode-option="typewriter"]') return makeElement('typewriter-output-mode');
-      if (selector === '[data-output-mode-option="realtime"]') return makeElement('realtime-output-mode');
       return null;
     },
     querySelectorAll() { return []; },
@@ -1050,7 +1043,6 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
     rawValue: 'gemini-secret-value-abcd'
   });
   dependencies.elements.tavilySearchDepthSelect.value = 'basic';
-  dependencies.elements.outputModeSelect.value = 'typewriter';
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
@@ -1091,7 +1083,6 @@ test('saveSettings writes new and cleared API key intents through sensitive call
   prepareApiKeyInput(dependencies.elements.nvidiaApiKeyInput, { provider: 'nvidia', rawValue: 'old-nvidia-key' });
   markApiKeyInputCleared(dependencies.elements.nvidiaApiKeyInput);
   dependencies.elements.tavilySearchDepthSelect.value = 'basic';
-  dependencies.elements.outputModeSelect.value = 'typewriter';
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });

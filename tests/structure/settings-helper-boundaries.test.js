@@ -156,7 +156,6 @@ test('settings output, translator, theme, mobile, and desktop controls remain de
   assert.match(lifecycleSource, /const\s+outputTranslatorControls\s*=\s*createSettingsOutputTranslatorControls\(\{/);
   assert.match(lifecycleSource, /getCouncilTranslatorCandidates,/);
   assert.match(lifecycleSource, /getSingleTranslatorCandidates,/);
-  assert.match(lifecycleSource, /syncOutputModeSettingsControls/);
   assert.match(lifecycleSource, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
   assert.match(lifecycleSource, /aiBubbleColors:\s*AI_BUBBLE_COLORS/);
   assert.match(lifecycleSource, /userBubbleColors:\s*USER_BUBBLE_COLORS/);
@@ -213,7 +212,7 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   assert.doesNotMatch(lifecycleSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPicker\s*=/);
   assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPickers\s*=/);
-  assert.doesNotMatch(lifecycleSource, /const\s+ensureOutputModeSettingsControls\s*=\s*\(\)\s*=>\s*\{/);
+  assert.doesNotMatch(lifecycleSource, /OutputModeSettingsControls/);
   assert.doesNotMatch(lifecycleSource, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value/);
   assert.doesNotMatch(lifecycleSource, /const\s+selectedThemeMode\s*=\s*document\.querySelector\('input\[name="color-theme"\]:checked'\)/);
   assert.doesNotMatch(lifecycleSource, /const\s+selectedGradientSwatch\s*=\s*ALL_ELEMENTS\.gradientSwatches\.querySelector/);
@@ -222,7 +221,6 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   assert.match(lifecycleSource, /collectSettingsSaveFormValues\(\{/);
   assert.match(lifecycleSource, /Object\.assign\(config\.uiTheme,\s*collectedSettings\.uiTheme\);/);
   assert.match(lifecycleSource, /ensureCouncilTranslatorSettingsControls\(\);/);
-  assert.match(lifecycleSource, /ensureOutputModeSettingsControls\(\);/);
   assert.match(lifecycleSource, /renderTranslatorModelPickers\(\);/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
   assert.doesNotMatch(lifecycleSource, /async\s+function\s+shouldPerformWebSearch\b/);
@@ -252,8 +250,7 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   assert.match(outputTranslatorControlsSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
   assert.match(outputTranslatorControlsSource, /const\s+renderTranslatorModelPicker\s*=/);
   assert.match(outputTranslatorControlsSource, /const\s+renderTranslatorModelPickers\s*=/);
-  assert.match(outputTranslatorControlsSource, /const\s+ensureOutputModeSettingsControls\s*=/);
-  assert.match(outputTranslatorControlsSource, /getOutputModeSettingsText/);
+  assert.doesNotMatch(outputTranslatorControlsSource, /OutputMode/);
   assert.doesNotMatch(lifecycleSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
   assert.doesNotMatch(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
@@ -288,8 +285,8 @@ test('settings modal orchestration and legacy core wiring remain in place', () =
     /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
   );
   assert.match(legacyCoreSource, /const\s+settingsAuthProviderLifecycle\s*=\s*createLegacySettingsAuthProviderLifecycle\(\{/);
-  assert.match(legacyCoreSource, /getOutputMode,\s*\n\s*renderHistorySidebar,/);
-  assert.match(lifecycleSource, /getOutputMode\s*=\s*\(\)\s*=>\s*'typewriter'/);
+  // There is only one way replies are shown, so the settings do not ask for it.
+  assert.doesNotMatch(legacyCoreSource, /getOutputMode,\s*\n\s*renderHistorySidebar,/);
   assert.match(legacyCoreSource, /const\s+\{[\s\S]*runModelCouncil,[\s\S]*callApiWithSchema,[\s\S]*updateSubmitButtonState,[\s\S]*updateInputState,[\s\S]*setupSettingsModal,[\s\S]*saveSettings,[\s\S]*handleLogin,[\s\S]*handleLogout,[\s\S]*handleDeleteAllData[\s\S]*\}\s*=\s*settingsAuthProviderLifecycle;/);
   assert.match(legacyCoreSource, /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/);
   assert.match(legacyCoreSource, /legacyRuntimeContext\.registerLazyBinding\('input\.updateInputState',\s*\(\)\s*=>\s*updateInputState\);/);

@@ -322,7 +322,7 @@ test('loadConfig keeps API, model, and council normalization in legacy order', (
     'runtimeConfigAccess.replaceConfig(normalizedConfig)'
   ], 'loadConfig normalization');
   assertMarkersInOrder(normalizationSource, [
-    "normalizedConfig.outputMode = normalizedConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter'",
+    "normalizedConfig.outputMode = 'realtime'",
     "normalizedConfig.tavilySearchDepth = normalizedConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic'",
     'const allModelIds = new Set(models.map(m => m.id))',
     'const id = canonicalizeModelId(setting.id)',

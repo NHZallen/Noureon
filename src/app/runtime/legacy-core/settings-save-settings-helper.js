@@ -28,7 +28,6 @@ export function collectSettingsSaveFormValues({
         // Kept as it was where the setting is not shown.
         fileModeDefault: elements.fileModeDefaultSelect?.value === 'standard' ? 'standard'
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
-        outputMode: elements.outputModeSelect?.value === 'realtime' ? 'realtime' : 'typewriter',
         aiBubbleColor: elements.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         userBubbleColor: elements.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         autoNaming: elements.autoNamingToggleSwitch.checked,

@@ -32,7 +32,7 @@ const baseConfig = () => ({
   defaultModel: 'gemini-default',
     lastUsedModel: null,
     acknowledgedStealthModelTerms: [],
-  outputMode: 'typewriter',
+  outputMode: 'realtime',
   tavilySearchDepth: 'basic',
   modelSettings: [],
   uiTheme: {
@@ -162,7 +162,7 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
   assert.equal(currentConfig.apiKeys.openrouter, '');
   assert.equal(savedConfig.apiKeys.openrouter.next, ' openrouter-key ');
   assert.deepEqual(normalized.apiKeys, currentConfig.apiKeys);
-  assert.equal(normalized.outputMode, 'typewriter');
+  assert.equal(normalized.outputMode, 'realtime');
   assert.equal(normalized.tavilySearchDepth, 'advanced');
   assert.equal(normalized.defaultModel, 'gemini-default');
   assert.equal(normalized.lastUsedModel, 'nvidia-modern');

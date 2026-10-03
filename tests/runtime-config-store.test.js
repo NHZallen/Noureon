@@ -18,7 +18,7 @@ const expectedConfig = (defaultModelId) => ({
   replyRunLocation: 'server',
   searchProvider: 'tavily',
   tavilySearchDepth: 'basic',
-  outputMode: 'typewriter',
+  outputMode: 'realtime',
   aiBubbleColor: 'default',
   userBubbleColor: 'default',
   autoNaming: true,

@@ -32,7 +32,6 @@ function createElements(overrides = {}) {
     councilTranslatorModelSelect: select('gemini-translator'),
     singleDocumentTranslatorModelSelect: select('doc-translator'),
     autoWebSearchToggleSwitch: toggle(true),
-    outputModeSelect: select('realtime'),
     aiBubbleColorDropdown: dropdown('blue'),
     userBubbleColorDropdown: dropdown('green'),
     autoNamingToggleSwitch: toggle(true),
@@ -63,7 +62,6 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     visionCheckEnabled: true,
     processOpen: false,
     fileModeDefault: 'advanced',
-    outputMode: 'realtime',
     aiBubbleColor: 'blue',
     userBubbleColor: 'green',
     autoNaming: true,
@@ -90,7 +88,6 @@ test('preserves existing saveSettings fallbacks for missing optional controls', 
       tavilySearchDepthSelect: undefined,
       councilTranslatorModelSelect: undefined,
       singleDocumentTranslatorModelSelect: undefined,
-      outputModeSelect: undefined,
       aiBubbleColorDropdown: dropdown(undefined),
       userBubbleColorDropdown: { querySelector: () => null },
       customColorSwatches: { querySelector: () => null },
@@ -107,7 +104,7 @@ test('preserves existing saveSettings fallbacks for missing optional controls', 
   assert.equal(result.tavilySearchDepth, 'basic');
   assert.equal(result.councilTranslatorModelId, null);
   assert.equal(result.singleDocumentTranslatorModelId, null);
-  assert.equal(result.outputMode, 'typewriter');
+  assert.equal('outputMode' in result, false, 'there is no output mode to choose');
   assert.equal(result.aiBubbleColor, 'default');
   assert.equal(result.userBubbleColor, 'default');
   assert.deepEqual(result.uiTheme, {

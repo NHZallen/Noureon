@@ -1,11 +1,8 @@
-import { getOutputModeSettingsText } from '../../legacy-runtime/features/output-mode-settings-text.js';
-
 const REQUIRED_DEPENDENCIES = [
   'document',
   'elements',
   'config',
   'i18n',
-  'getOutputMode',
   'getCouncilTranslatorCandidates',
   'getSingleTranslatorCandidates',
   'getProviderLabel',
@@ -30,7 +27,6 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
     elements,
     config,
     i18n,
-    getOutputMode,
     getCouncilTranslatorCandidates,
     getSingleTranslatorCandidates,
     getProviderLabel,
@@ -272,68 +268,10 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
     }
   };
 
-  const syncOutputModeSettingsControls = () => {
-    if (!elements.outputModeSelect) return;
-    const row = document.getElementById('output-mode-setting-row');
-    if (!row) return;
-    const value = elements.outputModeSelect.value === 'realtime' ? 'realtime' : 'typewriter';
-    row.querySelectorAll('[data-output-mode-option]').forEach(button => {
-      const isActive = button.dataset.outputModeOption === value;
-      button.classList.toggle('active', isActive);
-      button.setAttribute('aria-checked', String(isActive));
-    });
-  };
-
-  const ensureOutputModeSettingsControls = () => {
-    const section = document.getElementById('accessibility-section');
-    if (!section) return;
-    let row = document.getElementById('output-mode-setting-row');
-    if (!row) {
-      row = document.createElement('div');
-      row.id = 'output-mode-setting-row';
-      row.className = 'mt-4';
-      const anchor = section.querySelector('#auto-web-search-toggle-switch')?.closest('.flex.items-center.justify-between');
-      if (anchor) {
-        anchor.after(row);
-      } else {
-        section.appendChild(row);
-      }
-    }
-    if (!row.querySelector('.custom-output-mode-select')) {
-      row.innerHTML = `
-            <div id="output-mode-label" class="block text-sm font-medium mb-1"></div>
-            <p class="text-xs text-[var(--text-secondary)] mb-2"></p>
-            <input type="hidden" id="output-mode-select" value="${escapeHTML(getOutputMode())}">
-            <div class="custom-output-mode-select" role="radiogroup" aria-labelledby="output-mode-label">
-                <button type="button" class="custom-output-mode-option" data-output-mode-option="typewriter" role="radio" aria-checked="false"></button>
-                <button type="button" class="custom-output-mode-option" data-output-mode-option="realtime" role="radio" aria-checked="false"></button>
-            </div>
-        `;
-    }
-    const text = getOutputModeSettingsText(config.uiLanguage);
-    row.querySelector('#output-mode-label').textContent = text.title;
-    row.querySelector('p').textContent = text.desc;
-    elements.outputModeSelect = row.querySelector('#output-mode-select');
-    row.querySelector('[data-output-mode-option="typewriter"]').textContent = text.typewriter;
-    row.querySelector('[data-output-mode-option="realtime"]').textContent = text.realtime;
-    row.querySelectorAll('[data-output-mode-option]').forEach(button => {
-      if (button.dataset.outputModeBound === 'true') return;
-      button.dataset.outputModeBound = 'true';
-      button.addEventListener('click', () => {
-        elements.outputModeSelect.value = button.dataset.outputModeOption === 'realtime' ? 'realtime' : 'typewriter';
-        syncOutputModeSettingsControls();
-        elements.outputModeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-    });
-    syncOutputModeSettingsControls();
-  };
-
   return {
     ensureCouncilTranslatorSettingsControls,
-    ensureOutputModeSettingsControls,
     renderTranslatorModelPicker,
     renderTranslatorModelPickers,
-    syncOutputModeSettingsControls,
     syncSearchProviderControls
   };
 }

@@ -89,7 +89,7 @@ export function normalizeLoadedLegacyConfig({
     normalizedConfig.uiTheme.style = normalizedConfig.uiTheme.style || 'single';
     normalizedConfig.uiTheme.adaptivePalette = normalizedConfig.uiTheme.adaptivePalette || [];
     normalizedConfig.uiTheme.adaptiveGradient = normalizedConfig.uiTheme.adaptiveGradient || '';
-    normalizedConfig.outputMode = normalizedConfig.outputMode === 'realtime' ? 'realtime' : 'typewriter';
+    normalizedConfig.outputMode = 'realtime';
     normalizedConfig.searchProvider = normalizeSearchProvider(normalizedConfig.searchProvider);
     normalizedConfig.tavilySearchDepth = normalizedConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
   } else {

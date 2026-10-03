@@ -229,8 +229,6 @@ test('settings control selectors stay visible and scoped by surface', () => {
     ['.translator-picker-menu', ['src/styles/settings-output-translator.css']],
     ['.translator-picker-button', ['src/styles/settings-output-translator.css']],
     ['.translator-picker-option', ['src/styles/settings-output-translator.css']],
-    ['.custom-output-mode-select', ['src/styles/settings-output-translator.css']],
-    ['.custom-output-mode-option', ['src/styles/settings-output-translator.css']],
     ['#settings-modal #delete-all-data-btn', ['src/styles/settings-danger.css']]
   ];
 
@@ -241,7 +239,6 @@ test('settings control selectors stay visible and scoped by surface', () => {
   const css = readUiSource('src/styles/main.css');
   assert.match(css, /\.api-key-visibility-btn,\s*\.api-key-clear-btn,\s*\.api-key-clear-all-btn\s*\{/);
   assert.match(css, /\.translator-picker-button[^{]*\{/);
-  assert.match(css, /\.custom-output-mode-option[^{]*\{/);
 
   const settingsCss = readUiSource('src/styles/settings.css');
   assert.doesNotMatch(settingsCss, /\.api-key-visibility-btn/);
@@ -334,10 +331,7 @@ test('theme and output button overrides live in their owner surfaces instead of 
   assert.match(settingsThemeBubbleCss, /\.theme-btn:not\(\.active\):hover\s*\{/);
   assert.match(settingsThemeBubbleCss, /\.theme-btn:not\(\.active\):active\s*\{/);
   assert.match(settingsThemeBubbleCss, /\.theme-btn\.active,\s*#settings-modal\s+\.theme-btn\.active\s*\{/);
-  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option:not\(\.active\)\s*\{/);
-  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option:not\(\.active\):hover\s*\{/);
-  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option:not\(\.active\):active\s*\{/);
-  assert.match(settingsOutputTranslatorCss, /\.custom-output-mode-option\.active,\s*#settings-modal\s+\.custom-output-mode-option\.active\s*\{/);
+  assert.doesNotMatch(settingsOutputTranslatorCss, /custom-output-mode/);
   assert.doesNotMatch(regressionOverridesCss, /\.theme-btn:not\(\.active\),\s*\.custom-output-mode-option:not\(\.active\),/);
 });
 

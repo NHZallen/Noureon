@@ -142,7 +142,6 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         saveSensitiveConfig = async () => {},
         getCouncilTranslatorCandidates,
         getSingleTranslatorCandidates,
-        getOutputMode = () => 'typewriter',
         escapeHTML,
         hexToRgba,
         renderPersonalMemoryList,
@@ -365,7 +364,6 @@ const outputTranslatorControls = createSettingsOutputTranslatorControls({
     elements: ALL_ELEMENTS,
     config,
     i18n,
-    getOutputMode,
     getCouncilTranslatorCandidates,
     getSingleTranslatorCandidates,
     getProviderLabel,
@@ -376,9 +374,7 @@ const outputTranslatorControls = createSettingsOutputTranslatorControls({
 });
 const {
     ensureCouncilTranslatorSettingsControls,
-    ensureOutputModeSettingsControls,
     renderTranslatorModelPickers,
-    syncOutputModeSettingsControls,
     syncSearchProviderControls
 } = outputTranslatorControls;
 const getSettingsText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
@@ -530,7 +526,6 @@ const setupSettingsModal = () => {
     bindHistoryIndexAudit({ showCustomDialog });
     bindHistoryIndexStatusUpdates();
     ensureCouncilTranslatorSettingsControls();
-    ensureOutputModeSettingsControls();
     prepareApiKeyInputsForSettings();
     if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();
     if (ALL_ELEMENTS.searchProviderSelect) ALL_ELEMENTS.searchProviderSelect.value = getSearchProvider(config);
@@ -541,10 +536,6 @@ const setupSettingsModal = () => {
     ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
     if (ALL_ELEMENTS.visionCheckToggleSwitch) ALL_ELEMENTS.visionCheckToggleSwitch.checked = config.visionCheckEnabled !== false;
     if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
-    if (ALL_ELEMENTS.outputModeSelect) {
-        ALL_ELEMENTS.outputModeSelect.value = getOutputMode();
-        syncOutputModeSettingsControls();
-    }
     if (ALL_ELEMENTS.memoryToggle1?.isConnected) ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
     if (ALL_ELEMENTS.autoMemoryToggleSwitch?.isConnected) ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
     if (ALL_ELEMENTS.historyRecallToggleSwitch) {
@@ -611,7 +602,6 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         visionCheckEnabled: collectedSettings.visionCheckEnabled,
         processOpen: collectedSettings.processOpen,
         fileModeDefault: collectedSettings.fileModeDefault,
-        outputMode: collectedSettings.outputMode,
         aiBubbleColor: collectedSettings.aiBubbleColor,
         userBubbleColor: collectedSettings.userBubbleColor,
         autoNaming: collectedSettings.autoNaming,

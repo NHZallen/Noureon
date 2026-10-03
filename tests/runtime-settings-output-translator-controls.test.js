@@ -45,51 +45,6 @@ function createButton(dataset = {}) {
   };
 }
 
-function createOutputRow() {
-  const typewriterButton = createButton({ outputModeOption: 'typewriter' });
-  const realtimeButton = createButton({ outputModeOption: 'realtime' });
-  const input = {
-    value: '',
-    dispatched: [],
-    dispatchEvent(event) {
-      this.dispatched.push(event);
-    }
-  };
-  const label = { textContent: '' };
-  const description = { textContent: '' };
-  return {
-    id: '',
-    className: '',
-    hasSelect: false,
-    set innerHTML(value) {
-      this.html = value;
-      this.hasSelect = true;
-      const initialValue = value.match(/id="output-mode-select" value="([^"]*)"/)?.[1];
-      if (initialValue) input.value = initialValue;
-    },
-    get innerHTML() {
-      return this.html || '';
-    },
-    querySelector(selector) {
-      if (selector === '.custom-output-mode-select') return this.hasSelect ? {} : null;
-      if (selector === '#output-mode-label') return label;
-      if (selector === 'p') return description;
-      if (selector === '#output-mode-select') {
-        input.__row = this;
-        return input;
-      }
-      if (selector === '[data-output-mode-option="typewriter"]') return typewriterButton;
-      if (selector === '[data-output-mode-option="realtime"]') return realtimeButton;
-      return null;
-    },
-    querySelectorAll(selector) {
-      if (selector === '[data-output-mode-option]') return [typewriterButton, realtimeButton];
-      return [];
-    },
-    _parts: { typewriterButton, realtimeButton, input, label, description }
-  };
-}
-
 function createTranslatorPicker(documentRef) {
   const picker = {
     html: '',
@@ -137,7 +92,6 @@ function createHarness(overrides = {}) {
     translatorButtons: [],
     translatorMenus: [],
     createElement(tagName) {
-      if (tagName === 'div') return createOutputRow();
       return {};
     },
     getElementById(id) {
@@ -180,7 +134,6 @@ function createHarness(overrides = {}) {
 
   const config = {
     uiLanguage: 'en',
-    outputMode: 'realtime',
     councilTranslatorModelId: 'gemini-pro',
     singleDocumentTranslatorModelId: 'nvidia-doc'
   };
@@ -198,7 +151,6 @@ function createHarness(overrides = {}) {
       },
       'zh-TW': {}
     },
-    getOutputMode: () => config.outputMode,
     getCouncilTranslatorCandidates: () => [
       { id: 'gemini-pro', name: 'Gemini Pro', provider: 'gemini' },
       { id: 'openrouter-doc', name: 'OpenRouter Doc', provider: 'openrouter' }
@@ -230,30 +182,11 @@ test('factory validates required dependencies', () => {
   );
 });
 
-test('output mode controls render with the injected current value and update on click', () => {
-  const { controls, elements } = createHarness();
-
-  controls.ensureOutputModeSettingsControls();
-
-  assert.equal(elements.outputModeSelect.value, 'realtime');
-  const outputRow = elements.outputModeSelect.__row;
-  assert.equal(elements.outputModeSelect.dispatched.length, 0);
-  const typewriterButton = controlsTestOutputButton(elements.outputModeSelect, 'typewriter', outputRow);
-  const realtimeButton = controlsTestOutputButton(elements.outputModeSelect, 'realtime', outputRow);
-  assert.equal(realtimeButton.classList.contains('active'), true);
-
-  typewriterButton.listeners.click();
-
-  assert.equal(elements.outputModeSelect.value, 'typewriter');
-  assert.equal(typewriterButton.classList.contains('active'), true);
-  assert.equal(realtimeButton.classList.contains('active'), false);
-  assert.equal(elements.outputModeSelect.dispatched.length, 1);
+test('there is no output mode control: replies are always shown as they are written', () => {
+  const { controls } = createHarness();
+  assert.equal(controls.ensureOutputModeSettingsControls, undefined);
+  assert.equal(controls.syncOutputModeSettingsControls, undefined);
 });
-
-function controlsTestOutputButton(input, mode, outputRow) {
-  if (outputRow) return outputRow.querySelector(`[data-output-mode-option="${mode}"]`);
-  throw new Error('output row was not attached to test input');
-}
 
 test('translator model picker renders candidates and preserves selected value', () => {
   const { controls, config, elements, elementsById, documentRef } = createHarness();

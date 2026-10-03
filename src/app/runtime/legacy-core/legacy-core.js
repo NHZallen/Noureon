@@ -150,7 +150,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             conversationNeedsTavilySearch,
             getModelTiers
         } = legacyModelRegistry;
-        const getOutputMode = () => runtimeConfigAccess.getConfig().outputMode === 'realtime' ? 'realtime' : 'typewriter';
+        const getOutputMode = () => 'realtime';
         const getModelRetirementLabel = (model) => {
             const retirementDate = model?.retirementDate || model?.deprecationDate || model?.sunsetDate;
             if (!retirementDate) return '';
@@ -1153,7 +1153,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             conversationNeedsTavilySearch,
             getCouncilValidation,
             isCouncilEnabled,
-            getOutputMode,
             renderHistorySidebar,
             conversationStateAccess,
             getProviderLabel,

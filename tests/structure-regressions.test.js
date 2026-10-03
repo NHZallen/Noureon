@@ -2937,25 +2937,6 @@ test('settings mobile metadata helpers are isolated from the 02 runtime fragment
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
 });
 
-test('output mode settings text helper is isolated from the 02 runtime fragment', async () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/output-mode-settings-text.js');
-  const fragmentSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const outputTranslatorControlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
-  const helpers = await import(projectFile('src/app/legacy-runtime/features/output-mode-settings-text.js'));
-
-  assert.equal(typeof helpers.getOutputModeSettingsText, 'function');
-  assert.match(helperSource, /export\s+const\s+getOutputModeSettingsText\b/);
-  assert.match(
-    outputTranslatorControlsSource,
-    /import\s*\{[\s\S]*\bgetOutputModeSettingsText\b[\s\S]*\}\s*from\s+['"][^'"]*output-mode-settings-text\.js['"];/
-  );
-  assert.match(settingsAuthProviderSource, /createSettingsOutputTranslatorControls/);
-  assert.match(outputTranslatorControlsSource, /getOutputModeSettingsText\(\s*config\.uiLanguage\s*\)/);
-  assert.doesNotMatch(fragmentSource, /const\s+getOutputModeSettingsText\s*=\s*\(\)\s*=>/);
-  assert.equal(existsSync(projectFile('src/app/legacy-runtime/fragments/02-runtime.fragment.js')), false);
-});
-
 test('search text formatting helper is isolated from the transition bus', async () => {
   const helperSource = readSource('src/app/legacy-runtime/features/search-text-formatting.js');
   const fragmentSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');

@@ -12,7 +12,8 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     replyRunLocation: 'server',
     searchProvider: 'tavily',
     tavilySearchDepth: 'basic',
-    outputMode: 'typewriter',
+    // Replies are always shown as they are written (there is no other mode).
+    outputMode: 'realtime',
     aiBubbleColor: 'default',
     userBubbleColor: 'default',
     autoNaming: true,
