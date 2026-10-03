@@ -19,4 +19,4 @@ Rules that always apply:
 - Tag every minor release (`x.y.0`) as `v<version>` on its release commit (see `RELEASING.md`); patch releases need no tag.
 - Every feature and text covers zh-TW, en, fr, ru and es.
 - Base visual designs on real vendor designs with references; the owner prefers minimal black and white. Ask before deciding user-facing layout.
-- Before finishing: `npm test`, `npm run build`, `npm run check:sizes`, `npm run check:legacy-runtime`, `npm audit --omit=dev`.
+- Before finishing: `npm test`, `npm run build`, `npm run check:sizes`, `npm run check:legacy-runtime`, `npm run check:server`, `npm audit --omit=dev`.

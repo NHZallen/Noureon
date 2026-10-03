@@ -1,0 +1,13 @@
+.git
+.claude
+node_modules
+dist
+docs
+tests
+public
+src
+scripts
+supabase
+api
+*.md
+!server/README.md
