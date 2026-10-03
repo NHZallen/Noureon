@@ -27,10 +27,11 @@ test('deployment enables CSP in report-only mode before enforcement', () => {
   }
 });
 
-test('report-only CSP covers current provider, auth, verification, and P2P transports', () => {
+test('report-only CSP covers current provider, auth, verification, P2P and server transports', () => {
   const policy = getGlobalHeaders()['Content-Security-Policy-Report-Only'];
 
   for (const source of [
+    'https://api.noureon.com',
     'https://generativelanguage.googleapis.com',
     'https://openrouter.ai',
     'https://*.supabase.co',
