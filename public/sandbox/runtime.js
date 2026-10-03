@@ -22,7 +22,7 @@ export const DOCUMENTS_FOLDER = `${FOLDERS.output}/.noureon`;
 const MODULE_FOLDER = '/opt/noureon';
 
 // The `noureon` module the model's code can import.
-const NOUREON_MODULE = `"""Noureon's design system, from Python.
+export const NOUREON_MODULE = `"""Noureon's design system, from Python.
 
 save_document(name, content) writes a Word (.docx), PowerPoint (.pptx),
 Excel (.xlsx) or PDF (.pdf) file laid out by Noureon with the design chosen

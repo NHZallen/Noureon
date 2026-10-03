@@ -1,0 +1,12 @@
+# The runner that opens and closes the sandbox containers, as a container itself, so the machine needs nothing but Docker.
+# Built from a folder that holds sandbox-host/, public/sandbox/protocol.js and package.json (install.sh makes it).
+FROM node:22-slim
+# The Docker program (only the client: the machine's own Docker does the work).
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+ && curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.5.1.tgz | tar -xz --strip-components=1 -C /usr/local/bin docker/docker \
+ && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY package.json ./package.json
+COPY public/sandbox/protocol.js ./public/sandbox/protocol.js
+COPY sandbox-host/runner ./sandbox-host/runner
+CMD ["node", "sandbox-host/runner/main.js"]
