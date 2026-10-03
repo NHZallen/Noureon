@@ -141,6 +141,7 @@
 - 介面與現在的 `getSandbox` 相同（`prepare`／`clear`／`mount`／`run`），讓 `runSandboxReply` 不改就能用。
 - 實作：每次執行開一個**用完即丟的容器**，限制 CPU、記憶體、時間、磁碟，預設無對外網路，映像檔含 Python 與常用套件。輸出檔案上傳 Supabase Storage（沿用現有的雲端資產機制），訊息 part 指向資產（`sandboxFile` 格式相容，需在 S2 開頭確認現有 part 的資產參照寫法）。
 - **未驗證的關鍵風險：** Zeabur 管理的機器上，服務能不能即時開隔離容器、需要什麼權限。S0 先用一個最小的測試服務確認；若不行，備案是另買一台約 5 美元的小機器專跑沙盒，由伺服器服務呼叫它。計畫不依賴這件事在 S1 之前成立。
+- **2026-10-03 在 Zeabur 實測（`sandbox-probe/`，已刪除服務）：** 4 核心、8 GB（約 6.5 GB 可用），沒有 cgroup 記憶體上限；服務以 root 身分跑，權限是一般容器預設（沒有 SYS_ADMIN）；**沒有 Docker 或 containerd 的 socket，不能從服務裡開容器**；`unshare --user --net`（使用者與網路命名空間）可用，所以可以讓一個程式**完全沒有網路**；`unshare --pid --mount-proc`、`bwrap` 失敗（`cannot change root filesystem propagation`），檔案系統隔離做不到；`ulimit -v` 有效（超過記憶體上限會 MemoryError）；可連網際網路，連不到 169.254.169.254。結論：在 Zeabur 內採用「Pyodide（WASM 圍牆）＋斷網命名空間＋ulimit＋逾時，在一個沒有任何金鑰、也沒有資料庫權限的獨立服務裡，每次執行開一個新的子程序」；真正的容器（LibreOffice 等）留到 S3，在 VPS 上直接裝 Docker。Pyodide 在 Node 裡實測：`js` 模組只看到白名單、讀不到主機檔案、不能執行系統指令、環境變數裡沒有金鑰；Python 的 `socket` 仍會「連上」，所以必須用斷網命名空間封死（已確認可行）。
 - 「完整技能支援」需要更完整的映像檔（辦公軟體、瀏覽器、Node、常用命令列工具），映像檔體積與維護是 S3 的工作。
 
 ## 8. 與技能、命令列工具的關係（S3 預告）
