@@ -239,7 +239,9 @@ export function createRunManager({
       if (isVision) {
         // The corrected replies were written as they were made; the run only says how it ended.
         finalStatus = 'complete';
-        await store.finish(runId, { status: controller.signal.aborted ? 'stopped' : 'done', usage: { checked: result.checked } });
+        // How each file ended is kept with the run and in the log: the check leaves no other trace when nothing was corrected.
+        log('vision_ended', { runId, outcomes: (result.outcomes || []).join(',') });
+        await store.finish(runId, { status: controller.signal.aborted ? 'stopped' : 'done', usage: { checked: result.checked, outcomes: result.outcomes || [] } });
         return;
       }
       if (controller.signal.reason === 'time_limit') {

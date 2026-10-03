@@ -16,7 +16,7 @@ const THOUGHT_CHARS_PER_ROUND = 6000;
 const THOUGHT_CHARS_IN_ALL = 30_000;
 // After the model has gone quiet this long in a round that may call a tool, the line says it is writing it: a long
 // program arrives all at once, and the line would otherwise look stuck on what came before.
-const WRITING_AFTER_MS = 3000;
+const WRITING_AFTER_MS = 600;
 
 // Long output keeps its start and end for the model.
 export function trimForModel(text = '', limit = MODEL_TEXT_CHARS) {

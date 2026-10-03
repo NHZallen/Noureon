@@ -9,7 +9,7 @@ export const VISION_TEXTS = Object.freeze({
     hint: '支援看圖的模型寫完簡報後，會把頁面轉成圖片再檢查一輪並修正。每份會多用一些 token。',
     sendLocked: '自動看圖檢查進行中，完成或按「停止」後才能傳送訊息', sendLockedNotice: '看圖檢查還沒結束，請等它完成，或先按「停止」。',
     categories: { text: '文字', layout: '版面', image: '圖片', chart: '圖表', consistency: '一致性' },
-    timedOut: '等太久了，簡報維持原樣', invalidResponse: 'AI 回覆的格式不對，簡報維持原樣'
+    timedOut: '等太久了，簡報維持原樣', invalidResponse: 'AI 回覆的格式不對，簡報維持原樣', leftAlone: '看圖檢查發現 {found} 個問題，但無法在這裡自動修正，簡報維持原樣。', unreadable: '讀不出這份簡報的內容，簡報維持原樣'
   },
   en: {
     ledgerTitle: 'Automatic visual check', renderedSlides: 'Drew {total} slides', sheetsDone: 'Made {total} contact sheets', reviewedBy: 'Finished looking',
@@ -21,7 +21,7 @@ export const VISION_TEXTS = Object.freeze({
     hint: 'After a model that can see images writes a presentation, its slides are checked as images once and fixed. Uses extra tokens for each deck.',
     sendLocked: 'The visual check is running. You can send again when it finishes or after you press Stop', sendLockedNotice: 'The visual check has not finished. Wait for it, or press Stop first.',
     categories: { text: 'Text', layout: 'Layout', image: 'Image', chart: 'Chart', consistency: 'Consistency' },
-    timedOut: 'it took too long; the presentation is left as it was', invalidResponse: 'the AI’s reply could not be read; the presentation is left as it was'
+    timedOut: 'it took too long; the presentation is left as it was', invalidResponse: 'the AI’s reply could not be read; the presentation is left as it was', leftAlone: 'Visual check done: {found} issues found, but they cannot be fixed automatically here; the presentation is left as it was.', unreadable: 'the presentation could not be read; it is left as it was'
   },
   fr: {
     ledgerTitle: 'Vérification visuelle automatique', renderedSlides: '{total} diapositives dessinées', sheetsDone: '{total} planches créées', reviewedBy: 'Examen terminé',
@@ -33,7 +33,7 @@ export const VISION_TEXTS = Object.freeze({
     hint: 'Après qu’un modèle capable de voir les images a rédigé une présentation, ses diapositives sont vérifiées une fois en images et corrigées. Consomme des jetons supplémentaires.',
     sendLocked: 'La vérification visuelle est en cours. Vous pourrez envoyer à sa fin ou après avoir appuyé sur Arrêter', sendLockedNotice: 'La vérification visuelle n’est pas terminée. Attendez-la ou appuyez d’abord sur Arrêter.',
     categories: { text: 'Texte', layout: 'Mise en page', image: 'Image', chart: 'Graphique', consistency: 'Cohérence' },
-    timedOut: 'trop long ; la présentation reste telle quelle', invalidResponse: 'la réponse de l’IA est illisible ; la présentation reste telle quelle'
+    timedOut: 'trop long ; la présentation reste telle quelle', invalidResponse: 'la réponse de l’IA est illisible ; la présentation reste telle quelle', leftAlone: 'Vérification visuelle terminée : {found} problèmes trouvés, mais ils ne peuvent pas être corrigés automatiquement ici ; la présentation reste telle quelle.', unreadable: 'la présentation est illisible ; elle reste telle quelle'
   },
   ru: {
     ledgerTitle: 'Автоматическая визуальная проверка', renderedSlides: 'Нарисовано слайдов: {total}', sheetsDone: 'Создано листов: {total}', reviewedBy: 'Просмотр завершён',
@@ -45,7 +45,7 @@ export const VISION_TEXTS = Object.freeze({
     hint: 'После того как модель с поддержкой изображений создаст презентацию, слайды один раз проверяются как изображения и исправляются. Требует дополнительных токенов.',
     sendLocked: 'Идёт визуальная проверка. Отправка станет доступна после её завершения или после нажатия «Остановить»', sendLockedNotice: 'Визуальная проверка ещё не завершена. Дождитесь её окончания или сначала нажмите «Остановить».',
     categories: { text: 'Текст', layout: 'Макет', image: 'Изображение', chart: 'Диаграмма', consistency: 'Единообразие' },
-    timedOut: 'слишком долго; презентация осталась без изменений', invalidResponse: 'ответ ИИ не удалось прочитать; презентация осталась без изменений'
+    timedOut: 'слишком долго; презентация осталась без изменений', invalidResponse: 'ответ ИИ не удалось прочитать; презентация осталась без изменений', leftAlone: 'Визуальная проверка завершена: найдено проблем — {found}, но автоматически исправить их здесь нельзя; презентация осталась без изменений.', unreadable: 'презентацию не удалось прочитать; она осталась без изменений'
   },
   es: {
     ledgerTitle: 'Revisión visual automática', renderedSlides: '{total} diapositivas dibujadas', sheetsDone: '{total} hojas creadas', reviewedBy: 'Revisión terminada',
@@ -57,7 +57,7 @@ export const VISION_TEXTS = Object.freeze({
     hint: 'Cuando un modelo que puede ver imágenes escribe una presentación, sus diapositivas se revisan una vez como imágenes y se corrigen. Usa tokens adicionales.',
     sendLocked: 'La revisión visual está en curso. Podrás enviar al terminar o tras pulsar Detener', sendLockedNotice: 'La revisión visual no ha terminado. Espera a que acabe o pulsa Detener primero.',
     categories: { text: 'Texto', layout: 'Diseño', image: 'Imagen', chart: 'Gráfico', consistency: 'Consistencia' },
-    timedOut: 'tardó demasiado; la presentación queda como estaba', invalidResponse: 'no se pudo leer la respuesta de la IA; la presentación queda como estaba'
+    timedOut: 'tardó demasiado; la presentación queda como estaba', invalidResponse: 'no se pudo leer la respuesta de la IA; la presentación queda como estaba', leftAlone: 'Revisión visual terminada: {found} problemas encontrados, pero no se pueden corregir automáticamente aquí; la presentación queda como estaba.', unreadable: 'no se pudo leer la presentación; queda como estaba'
   }
 });
 

@@ -97,10 +97,12 @@ export function createServerVisionFollow({
           python = null;
           // What the page already told is not told again when the calls so far are replayed to it.
           if (replaying) break;
-          if (first?.outcome === 'clean' && getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
+          // The result is a reply the server wrote into the chat (a corrected reply, or a note of how the check ended): the cloud sync brings it
+          // in. Only when it could not be written is the result told by a notice.
+          if (first?.messageId) void Promise.resolve(getSync()?.flush?.()).catch(() => {});
+          else if (first?.outcome === 'clean' && getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
           else if (first?.outcome === 'failed') showNotification(visionText(language, 'failed', { reason: first.reason || '' }), 'warning');
-          // A corrected reply was written by the server: the cloud sync brings it into the chat.
-          else if (first?.outcome === 'fixed') void Promise.resolve(getSync()?.flush?.()).catch(() => {});
+          else if (first?.outcome === 'left' && first.found) showNotification(visionText(language, 'leftAlone', { found: first.found }), 'warning');
           break;
         }
         default: break;

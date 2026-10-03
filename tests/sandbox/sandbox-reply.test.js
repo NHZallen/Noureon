@@ -559,13 +559,13 @@ test('when the model goes quiet after thinking, the line says it is writing the 
   const events = [];
   const streamApiCall = async (parts, onChunk, signal, forced, options) => {
     options.onReasoning('Let me think. ', 'raw');
-    t.mock.timers.tick(2900);
+    t.mock.timers.tick(500);
     assert.equal(events.some((event) => event.type === 'writing'), false, 'a short pause is not worth saying');
     t.mock.timers.tick(200);
     assert.equal(events.filter((event) => event.type === 'writing').at(-1)?.label, 'Writing the code…');
     options.onReasoning('Still thinking. ', 'raw');
     assert.equal(events.filter((event) => event.type === 'writing').at(-1)?.label, 'Thinking…', 'it was only a pause in the thinking');
-    t.mock.timers.tick(3100);
+    t.mock.timers.tick(700);
     assert.equal(events.filter((event) => event.type === 'writing').at(-1)?.label, 'Writing the code…');
     options.onResponseComplete({ text: 'Done.', toolCalls: [], parts: [], reasoningDetails: [] });
     return 'Done.';
@@ -574,6 +574,21 @@ test('when the model goes quiet after thinking, the line says it is writing the 
   const before = events.length;
   t.mock.timers.tick(10_000);
   assert.equal(events.length, before, 'nothing is said after the round is over');
+});
+
+test('words written before a call, and then quiet while the call is written: the line says it is writing it after a moment, not seconds', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const events = [];
+  const streamApiCall = async (parts, onChunk, signal, forced, options) => {
+    onChunk('先看資料。');
+    t.mock.timers.tick(400);
+    assert.equal(events.some((event) => event.type === 'writing'), false);
+    t.mock.timers.tick(300);
+    assert.equal(events.filter((event) => event.type === 'writing').at(-1)?.label, 'Writing the code…');
+    options.onResponseComplete({ text: '先看資料。', toolCalls: [], parts: [], reasoningDetails: [] });
+    return '先看資料。';
+  };
+  await runSandboxReply({ streamApiCall, requestParts: [], getSandbox: () => fakeSandbox([]).sandbox, language: 'en', onEvent: (event) => events.push(event) });
 });
 
 test('code that starts to arrive says the line is writing it at once, in every language', async () => {

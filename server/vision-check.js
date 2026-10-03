@@ -89,7 +89,20 @@ export async function executeVisionCheck({
   const targets = visionFiles({ spec, text: source.text, parts: source.parts });
   const emit = (event) => onLive({ vc: event });
   const written = [];
+  const outcomes = [];
   let checked = 0;
+  // How a check ended, written into the conversation as a reply of its own (the same way a corrected reply is), so it is there on every
+  // page and after a reload, not only as a notice that goes. Resolves its id, or '' when it could not be written (the notice remains).
+  const note = async (text, outcome) => {
+    outcomes.push(outcome);
+    try {
+      const id = createId();
+      await writeMessage({ id, parts: [{ text }], metadata: { ...(spec.request.messageMetadata || {}), visionCheck: { note: outcome } } });
+      return id;
+    } catch {
+      return '';
+    }
+  };
 
   for (const file of targets) {
     if (signal?.aborted) break;
@@ -113,31 +126,37 @@ export async function executeVisionCheck({
         const id = written.length ? createId() : spec.assistantMessageId;
         await writeMessage({ id, parts: outcome.revised.parts, metadata: outcome.revised.metadata });
         written.push(id);
+        outcomes.push('fixed');
         emit({ m: 'file-end', a: [{ outcome: 'fixed', messageId: id }] });
         checked += 1;
       } else if (outcome.clean) {
-        emit({ m: 'file-end', a: [{ outcome: 'clean' }] });
+        const messageId = await note(visionText(language, 'clean'), 'clean');
+        emit({ m: 'file-end', a: [{ outcome: 'clean', ...(messageId ? { messageId } : {}) }] });
         checked += 1;
       } else {
-        // Left alone (the deck cannot be redone here).
+        // Left alone (the deck cannot be redone here): the person is told in the chat, not only by a notice that goes.
         progress.remove();
-        emit({ m: 'file-end', a: [{ outcome: 'left' }] });
+        const messageId = await note(outcome.found ? visionText(language, 'leftAlone', { found: outcome.found }) : visionText(language, 'failed', { reason: visionText(language, 'unreadable') }), 'left');
+        emit({ m: 'file-end', a: [{ outcome: 'left', ...(outcome.found ? { found: outcome.found } : {}), ...(messageId ? { messageId } : {}) }] });
       }
     } catch (error) {
       progress.remove();
       if (controller.signal.aborted && !timedOut) {
         // A stop: nothing is said.
+        outcomes.push('stopped');
         emit({ m: 'file-end', a: [{ outcome: 'stopped' }] });
         break;
       }
       const reason = failureReason({ error, timedOut, language });
-      emit({ m: 'file-end', a: [{ outcome: 'failed', code: reason.code, reason: scrubMessage(reason.text, secrets) }] });
+      const reasonText = scrubMessage(reason.text, secrets);
+      const messageId = await note(visionText(language, 'failed', { reason: reasonText }), 'failed');
+      emit({ m: 'file-end', a: [{ outcome: 'failed', code: reason.code, reason: reasonText, ...(messageId ? { messageId } : {}) }] });
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener?.('abort', abort);
     }
   }
-  return { checked, written };
+  return { checked, written, outcomes };
 }
 
 // ------------------------------------------------------------ a deck from the design system
@@ -163,7 +182,7 @@ const imageResolver = (history, current) => {
 async function checkDesignedDeck({ file, spec, access, model, language, controller, progress, arm, getKit, source }) {
   const [{ layoutDesignedDeck }, { renderContactSheets }, kit] = await Promise.all([import('./slides/designed-deck.js'), import('./slides/render.js'), getKit()]);
   const parsed = parseDocumentSpec(file.content, { uiLanguage: language });
-  if (!parsed.ok) return { left: true };
+  if (!parsed.ok) return { left: true, unreadable: true };
   const resolveImage = imageResolver(spec.request.history, spec.request.currentMessage.parts);
   const presentation = await layoutDesignedDeck(parsed.spec, { kit, language, resolveImage });
   controller.signal.throwIfAborted();
@@ -196,7 +215,7 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   let bytes = decks.get(file.id);
   if (!bytes) {
     const part = source.parts.find((entry) => entry.sandboxFile?.id === file.id)?.sandboxFile;
-    if (!part) return { left: true };
+    if (!part) return { left: true, unreadable: true };
     bytes = typeof part.data === 'string' ? new Uint8Array(Buffer.from(part.data, 'base64')) : await files.load({ userId, marker: part.data });
   }
   const presentation = await buildFreePresentation(bytes, { kit });
@@ -214,7 +233,7 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   progress.showIssues(result.issues);
   progress.set('fixing', { model: model.name || model.id });
   // Redoing the deck needs Python, which the person's conversation may not have (the page says: advanced) or the host may not answer: the deck stays as it is.
-  if (!spec.tools.visionCheck.advanced || !sandboxHost?.configured) return { left: true };
+  if (!spec.tools.visionCheck.advanced || !sandboxHost?.configured) return { left: true, found: result.issues.length };
   arm(FIX_TIMEOUT_MS);
   const steps = progress.python(language);
   let fix;

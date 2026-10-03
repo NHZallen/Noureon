@@ -74,17 +74,19 @@ test('which files of a reply are checked: designed decks and decks Python drew, 
   assert.equal(visionFiles({ spec: blind, ...designedSource }).length, 0, 'a model that cannot see images');
 });
 
-test('a deck Python drew that looks fine: it is drawn, shown to the model, and nothing is written', async () => {
+test('a deck Python drew that looks fine: it is drawn, shown to the model, and the result is written into the chat as a note', async () => {
   const { run, live, written, requests } = harness({ answers: [chunk('{"issues":[],"summary":""}')], source: freeSource, decks: new Map([['deck-1', deckBytes]]) });
   const result = await run();
-  assert.deepEqual(result, { checked: 1, written: [] });
-  assert.deepEqual(written, []);
+  assert.deepEqual(result, { checked: 1, written: [], outcomes: ['clean'] });
+  assert.equal(written.length, 1, 'the result is a message of its own, so it is there on every page and after a reload');
+  assert.match(written[0].parts[0].text, /nothing needs fixing/);
+  assert.deepEqual(written[0].metadata.visionCheck, { note: 'clean' });
   const order = methods(live);
   assert.equal(order[0], 'begin');
   assert.ok(order.indexOf('slide') > order.indexOf('set') && order.indexOf('sheet') > order.indexOf('slide'));
   assert.equal(live.filter((event) => event.m === 'slide').length, 4);
   assert.deepEqual(live.filter((event) => event.m === 'set').map((event) => event.a[0]), ['rendering', 'reviewing']);
-  assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'clean' }] });
+  assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'clean', messageId: written[0].id }] });
   const images = requests[0].body.contents[0].parts.filter((part) => part.inlineData);
   assert.equal(images.length, 1, 'one contact sheet of four slides');
   assert.equal(images[0].inlineData.mimeType, 'image/jpeg');
@@ -119,9 +121,10 @@ test('a deck Python drew with problems: the model is asked to redo it in the san
 test('a deck Python drew with problems, when Python cannot be used here: the deck is left as it is', async () => {
   const issues = '{"issues":[{"slide":1,"category":"text","problem":"Small text","fix":"Make it larger"}],"summary":""}';
   const { run, live, written } = harness({ answers: [chunk(issues)], source: freeSource, decks: new Map([['deck-1', deckBytes]]) });
-  assert.deepEqual(await run(), { checked: 0, written: [] });
-  assert.deepEqual(written, []);
-  assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'left' }] });
+  assert.deepEqual(await run(), { checked: 0, written: [], outcomes: ['left'] });
+  assert.equal(written.length, 1, 'the person is told in the chat that problems were found and the deck was left');
+  assert.match(written[0].parts[0].text, /1 issues found, but they cannot be fixed automatically here/);
+  assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'left', found: 1, messageId: written[0].id }] });
 });
 
 test('a deck from the design system with problems: the spec is corrected by the model\'s edits and written as a reply with the new file', async () => {
@@ -139,8 +142,9 @@ test('a deck from the design system with problems: the spec is corrected by the 
 
 test('an answer that cannot be read, twice: the check says why it did not finish and the deck stays', async () => {
   const { run, live, written } = harness({ answers: [chunk('I think the slides look fine.')], source: designedSource });
-  assert.deepEqual(await run(), { checked: 0, written: [] });
-  assert.deepEqual(written, []);
+  assert.deepEqual(await run(), { checked: 0, written: [], outcomes: ['failed'] });
+  assert.equal(written.length, 1, 'and says why in the chat');
+  assert.match(written[0].parts[0].text, /did not finish/);
   const end = live.at(-1);
   assert.equal(end.m, 'file-end');
   assert.equal(end.a[0].outcome, 'failed');
