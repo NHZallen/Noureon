@@ -106,6 +106,8 @@
 
 - **訊息：** 伺服器以 `status='streaming'` 寫入同一個 `assistantMessageId`，節流與客戶端一致（750 毫秒），結束時寫 `complete` 或 `error`。`parts` 的格式與客戶端完全相同（包含 `noureon-run` 區塊、引用標記、檔案區塊文字）。
 - **新資料表 `server_runs`**（遷移檔放 `supabase/migrations/`）：`id`、`user_id`、`conversation_id`、`message_id`、`status`、`stop_requested`、`model`、`created_at`、`started_at`、`finished_at`、`error_code`、`usage` jsonb、`checkpoint` jsonb（§6a）、`key_envelope`（加密後的暫存金鑰，§6）、`key_expires_at`、`attempts`。RLS：使用者只能讀自己的列；寫入只有伺服器。
+- **`server_runs` 已建立於正式資料庫（2026-10-03）：** 遷移檔 `supabase/migrations/20261003010000_add_server_runs.sql`。使用者只能讀自己的列，而且只能讀事實欄位（狀態、模型名稱、時間、錯誤碼）；加密的暫存金鑰、檢查點、心跳欄位在欄位權限上就讀不到。**這張表刻意不加入即時推送**（即時推送會送出整列，包含加密金鑰）；狀態改由訊息本身的同步與 `GET /v1/runs/:id` 取得。
+- **寫入訊息的方式（S1a 調查結果）：** 客戶端是透過 `upsert_workspace_messages` 函式寫入，該函式先取「對話」與「訊息」的諮詢鎖（`workspace_entity_lock_key`）、拒絕已刪除（墓碑）或不屬於自己的對話、再以最後寫入為準覆蓋。伺服器不會直接寫資料表，而是新增只有服務金鑰能呼叫的 `server_upsert_workspace_message(p_user_id, p_row)`，沿用同樣的鎖與檢查，並多兩道保護：不得把已 `complete`／`error` 的訊息改回 `streaming`；不得復活已被使用者刪除的訊息。同樣地，新增 `server_start_run(...)` 在一個交易裡檢查「同時最多 5 個」並建立列，避免兩個請求同時通過檢查。
 - **伺服器的資料庫權限：** 使用服務金鑰，只放在 Zeabur 的環境變數。寫入前一律檢查「該對話屬於該 `user_id`」，且只能寫 `workspace_messages` 與 `server_runs` 的指定欄位，程式內集中成一個小模組，方便審查。
 - **客戶端的接續：** 打開對話時若有 `server_runs.status='running'` 的列，介面顯示「伺服器處理中」，訊息內容由同步更新；使用者按停止就呼叫 `/stop`。
 - **一個訊息 ID、一個寫入者：** 伺服器執行期間客戶端不得對該訊息寫入（避免互相覆蓋）；同步引擎已對相同 ID 以較新 `updated_at` 為準，仍須在測試中涵蓋。
