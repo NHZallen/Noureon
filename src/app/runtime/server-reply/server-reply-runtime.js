@@ -36,6 +36,14 @@ export function createBrowserServerReply({
     return data || null;
   };
 
+  const findLiveRun = async (conversationId) => {
+    const client = await getClient();
+    if (!client || !conversationId) return null;
+    const { data, error } = await client.from('server_runs').select('id,message_id').eq('conversation_id', conversationId).in('status', ['queued', 'running']).order('created_at', { ascending: false }).limit(1);
+    if (error) throw error;
+    return data?.[0] || null;
+  };
+
   const flushSync = async () => {
     await saveAppData();
     await getSync()?.flush?.();
@@ -49,12 +57,15 @@ export function createBrowserServerReply({
     describeRequest,
     flushSync,
     readMessage,
+    findLiveRun,
     fetchImpl,
     clientVersion: PRODUCT_VERSION,
     warn
   });
 
   return {
+    hasAccount,
+    find: (conversationId) => serverReply.find(conversationId),
     plan: (context) => planServerReply({ ...context, hasAccount: hasAccount() }),
     start: (args) => serverReply.start({ ...args, config: args.config }),
     notify: (kind, language) => showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info'),

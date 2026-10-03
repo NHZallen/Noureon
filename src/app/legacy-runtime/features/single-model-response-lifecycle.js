@@ -98,7 +98,9 @@ export function createSingleModelResponseLifecycle({
     // For a reply the server makes: the id and place of the message it writes, and the conversations the memory drew on.
     assistantMessageId = null,
     sequence = 0,
-    getHistorySourceIds = () => []
+    getHistorySourceIds = () => [],
+    // A reply the server is still making, picked up again after the page was closed or left: it is only followed.
+    resumeRun = null
   }) => {
     stop();
     const startedAt = now();
@@ -122,9 +124,9 @@ export function createSingleModelResponseLifecycle({
     // packet is for the others).
     const researchByModel = Boolean(webSearchEnabled && webResearch?.canUse(modelInfo));
     // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which).
-    const hasTranslationInputs = userParts.some((part) => part.inlineData) ||
+    const hasTranslationInputs = !resumeRun && (userParts.some((part) => part.inlineData) ||
       Boolean(webSearchEnabled && !researchByModel) ||
-      extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0;
+      extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0);
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
     let searchSources = [];
@@ -164,8 +166,8 @@ export function createSingleModelResponseLifecycle({
 
     // The server makes the reply when it can (settings, the kind of reply and the account allow it, and it takes it); the page then
     // only follows what the server writes. Otherwise it is made here, as always.
-    let serverRun = null;
-    if (serverReply && assistantMessageId) {
+    let serverRun = resumeRun;
+    if (!serverRun && serverReply && assistantMessageId) {
       // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
       // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
       const needsPython = replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation));

@@ -74,6 +74,8 @@ export function createServerReply({
   flushSync = async () => {},
   // (messageId) => { parts, status, metadata } | null: the message as the server has written it so far
   readMessage,
+  // (conversationId) => { id, message_id } | null: the reply of this conversation the server is still making
+  findLiveRun = async () => null,
   fetchImpl = (...args) => fetch(...args),
   clientVersion = '',
   now = () => Date.now(),
@@ -251,5 +253,11 @@ export function createServerReply({
     }
   });
 
-  return { start, request };
+  /** A reply of this conversation the server is still making (the page was closed or left meanwhile), to follow from here, or null. */
+  const find = async (conversationId) => {
+    const row = await findLiveRun(conversationId);
+    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id }) : null;
+  };
+
+  return { start, find, request };
 }

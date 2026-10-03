@@ -183,3 +183,23 @@ test('the server\'s own reasons are told in the language of the page, the provid
   const provider = new ServerReplyError('Rate limit exceeded', 'provider_error');
   assert.equal(localizeServerError(provider, 'fr'), provider);
 });
+
+test('a reply the server is still making is found for the conversation and followed from where it is', async () => {
+  const rows = [row('Hel'), row('Hello', 'streaming'), row('Hello world', 'complete')];
+  let index = 0;
+  const queried = [];
+  const { reply } = harness({
+    findLiveRun: async (conversationId) => { queried.push(conversationId); return { id: 'run-7', message_id: MESSAGE_ID }; },
+    readMessage: async () => rows[Math.min(index++, rows.length - 1)]
+  });
+  const run = await reply.find('conv-1');
+  assert.deepEqual(queried, ['conv-1']);
+  assert.equal(run.runId, 'run-7');
+  assert.equal(run.assistantMessageId, MESSAGE_ID);
+  const seen = [];
+  const result = await run.follow({ onText: (delta) => seen.push(delta) });
+  assert.deepEqual(seen, ['Hel', 'lo', ' world']);
+  assert.equal(result.text, 'Hello world');
+  const none = harness({ findLiveRun: async () => null });
+  assert.equal(await none.reply.find('conv-2'), null, 'nothing is shown for a reply that is over');
+});

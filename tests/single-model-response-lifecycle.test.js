@@ -638,3 +638,14 @@ test('in the default Advanced mode an ordinary reply goes to the server, and one
   await run('Thanks, one more thing', { messages: [{ role: 'model', parts: [{ text: 'here' }, { sandboxFile: { name: 'a.xlsx' } }] }] });
   assert.deepEqual(asked, [false, true, true, true]);
 });
+
+test('a reply the server is still making is followed without preparing or sending anything again', async () => {
+  const serverReply = serverReplyDouble({ follow: async () => { throw new Error('not used'); } });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  const resumeRun = { assistantMessageId: 'm9', follow: async ({ onText }) => { onText('so far '); onText('and more'); return { text: 'so far and more', run: null, rewritten: false }; } };
+  const result = await lifecycle.run({ targetElement, userParts: [], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'en', resumeRun });
+  assert.equal(result.fullResponse, 'so far and more');
+  assert.deepEqual(calls.find((call) => call[0] === 'stream-render-finish')[1], ['so far ', 'and more']);
+  assert.equal(calls.some((call) => call[0] === 'api' || call[0] === 'translate'), false);
+  assert.equal(serverReply.record.starts.length, 0, 'nothing is handed to the server again');
+});

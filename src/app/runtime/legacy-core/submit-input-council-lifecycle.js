@@ -25,6 +25,7 @@ import { createVisionCheckScheduler } from '../features/vision-check-scheduler.j
 import { getSearchProvider } from '../kernel/search-provider.js';
 import { stopReplyAndWait } from '../features/reply-stop.js';
 import { createBrowserServerReply } from '../server-reply/server-reply-runtime.js';
+import { createServerReplyReattach } from '../server-reply/reattach.js';
 import { createWebResearchTools } from '../../legacy-runtime/features/web-research-tools.js';
 import { normalizePageReads, normalizeTinyfishSearch } from '../../legacy-runtime/features/model-request-formatting.js';
 import { getErrorMessage, readErrorBody } from './legacy-core-utilities.js';
@@ -816,6 +817,11 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       ? await submitInputPreparationLifecycle.prepareSubmitResponse(effectiveSubmitOptions)
       : await prepareDefaultSubmit();
     if (!preparedSubmit.shouldContinue) return;
+    await completePreparedReply(preparedSubmit);
+  };
+
+  // What follows the preparation of a reply: it is made (or, for a reply the server is still making, followed), shown, and kept.
+  const completePreparedReply = async (preparedSubmit, { resumeRun = null } = {}) => {
     const {
       abortController: submitAbortController,
       contentDiv,
@@ -829,7 +835,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     } = preparedSubmit;
 
     // The id of the reply's message is chosen first: the server writes under it, and an error it reports is saved under it.
-    const assistantMessageId = crypto.randomUUID();
+    const assistantMessageId = resumeRun?.assistantMessageId || crypto.randomUUID();
     try {
       let fullResponse = '';
       const finalAiMessage = { id: assistantMessageId, role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
@@ -893,7 +899,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             // The message the reply becomes: the server writes it under this id, at the place the reply will take.
             assistantMessageId,
             sequence: conv.messages.length,
-            getHistorySourceIds: () => [...historySourceConversationIds]
+            getHistorySourceIds: () => [...historySourceConversationIds],
+            resumeRun
           });
           fullResponse = singleResult.fullResponse;
           responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
@@ -1042,7 +1049,25 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
   };
 
+  // A reply the server is still making when the page is opened again (or returned to) is shown being written (server-reply/reattach.js).
+  const { reattachServerReply } = createServerReplyReattach({
+    getActiveConversation,
+    getAbortController,
+    setAbortController,
+    serverReply,
+    messageList: () => ALL_ELEMENTS.messageList,
+    setSubmitBusy: (busy) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(busy),
+    addMessageToUI,
+    completeReply: completePreparedReply,
+    document,
+    window,
+    scheduleTimeout,
+    logger,
+    AbortController
+  });
+
   return {
+    reattachServerReply,
     openCouncilPopoverFromAttachmentMenu,
     ensureCouncilMenuButton,
     updateFunctionButtonsState,
