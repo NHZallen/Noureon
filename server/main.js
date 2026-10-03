@@ -20,9 +20,14 @@ try {
 }
 
 let runs = null;
+let checkRunsStore = async () => {};
 if (config.runsConfigured) {
   try {
     const db = createServiceClient({ url: config.supabaseUrl, serviceKey: config.serviceKey });
+    // Said once at the start, so a missing privilege shows in the log at once and not as replies that end in errors.
+    checkRunsStore = () => db.select('server_runs', { select: 'id', limit: 1 })
+      .then(() => log('runs_store_ok'))
+      .catch((error) => log('runs_store_failed', { code: error?.code || '', status: error?.status || 0, message: String(error?.message || '').slice(0, 160) }));
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault: createKeyVault(config.encryptionKeys), limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
@@ -36,6 +41,7 @@ server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;
 server.listen(config.port, () => {
   log('listening', { port: config.port, build: config.build, runs: Boolean(runs) });
+  void checkRunsStore();
   runs?.startSweeping();
 });
 
