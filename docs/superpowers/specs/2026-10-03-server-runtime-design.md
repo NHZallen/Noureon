@@ -179,6 +179,17 @@
 - 尚未支援（客戶端需退回本機）：進階模式（Python）、不支援工具呼叫的模型的「搜尋結果封包」路徑。
 - Docker 映像尚未在本機驗證（此環境沒有 Docker）；以 Zeabur 實際部署為準。
 
+**S1b（客戶端，✅ 程式完成，待使用者驗證）實作備註：**
+
+- 新增 `src/app/runtime/server-reply/`：`server-reply.js`（判斷、組裝 RunSpec、POST `/v1/runs`、輪詢 `workspace_messages` 並串流顯示、停止、錯誤本地化）、`server-reply-runtime.js`（瀏覽器接線：登入權杖、讀訊息、送出前先把對話同步到雲端、退回本機時的提示）、`server-reply-texts.js`（隱私分頁與提示的五種語言文字）。
+- 接線點：`single-model-response-lifecycle.js`（翻譯完請求內容後，若伺服器接手就改為「跟隨」；否則照舊本機）、`submit-input-council-lifecycle.js`（訊息 id 與位置由送出端先決定，伺服器寫入同一則訊息；伺服器回報的錯誤用同一個 id 存成錯誤訊息，避免兩則）、`stream-api-call.js`（`describeOnly` 只組出系統指令文字，不呼叫供應商）。
+- 隱私分頁：`settings-privacy-section.js`；選擇立即儲存（`config.replyRunLocation`，預設 `server`），手機設定清單也有。
+- 預設進階模式（Python）的回覆會留在本機，所以預設進階模式下，會呼叫工具的模型多半仍在本機執行；要等 S2。
+- 資料庫保護（遷移 `20261003030000`）：`upsert_workspace_messages` 不覆蓋仍在進行中的伺服器回覆（瀏覽器那份可能是空的或寫到一半）。
+- 多裝置：本機有回覆進行時，既有的同步機制會延後套用遠端變更（`busy()`），伺服器寫入的同一則訊息在回覆結束後合併，不會重複。
+- 伺服器失敗時寫入的錯誤訊息有頁面語言版本（`server/error-texts.js`），頁面關閉期間失敗也讀得懂。
+- 提示用通知（toast）而非訊息旁的小字：只在「連不上伺服器」與「同時進行太多」時出現，進階模式等預期內的本機執行不提示。
+
 ## 11. 決定紀錄
 
 | # | 項目 | 結果 |

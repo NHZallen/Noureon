@@ -624,6 +624,51 @@ export function createStreamApiCall({
   TextDecoderImpl = TextDecoder,
   warn = (...args) => console.warn(...args)
 }) {
+  // The system instruction of a reply: what the app adds to the request (language, Noura, learning mode, memory, guidance).
+  // A reply run by the server gets this text from the browser (`systemInstructionText`), which puts it together with this same function.
+  const resolveSystemInstruction = async ({ config, conversation, currentMessageForApi, historyForApi, requestOptions }) => {
+    // The server runs a reply whose system instruction the browser has already put together (memory, Noura, guidance and all):
+    // it is used as it is, and nothing is looked up for it here.
+    const instructionGiven = typeof requestOptions.systemInstructionText === 'string';
+    let memoryContext = null;
+    if (!instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
+      try {
+        memoryContext = await getMemoryContext({
+          config,
+          conversation,
+          currentMessage: currentMessageForApi
+        });
+      } catch (error) {
+        warn('Memory context retrieval failed; continuing without it.', error);
+      }
+    }
+    if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
+      requestOptions.onMemoryContextResolved(memoryContext);
+    }
+    const chartAuthoringGuidance = instructionGiven || requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
+      : await getRuntimeChartAuthoringGuidance(getMessageTextForGuidance(currentMessageForApi));
+    const fileAuthoringGuidance = instructionGiven ? '' : await getRuntimeFileAuthoringGuidance({
+      inputText: getMessageTextForGuidance(currentMessageForApi),
+      history: historyForApi,
+      requestPurpose: requestOptions.requestPurpose,
+      deckDesign: conversation?.deckDesign,
+      documentDesign: conversation?.documentDesign
+    });
+    return instructionGiven
+      ? appendInstructionText(requestOptions.systemInstructionText ? { parts: [{ text: requestOptions.systemInstructionText }] } : null, requestOptions.additionalSystemInstruction)
+      : requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
+        config,
+        conversation,
+        astras: getAstras(),
+        personalMemories: getPersonalMemories(),
+        memoryContext,
+        additionalSystemInstruction: requestOptions.additionalSystemInstruction,
+        chartAuthoringGuidance,
+        fileAuthoringGuidance,
+        requestPurpose: requestOptions.requestPurpose
+      });
+  };
+
   return async function streamApiCall(
     parts,
     onChunk,
@@ -631,6 +676,17 @@ export function createStreamApiCall({
     isWebSearchForced = false,
     requestOptions = {}
   ) {
+    // A reply the server is to make: only the system instruction is put together here (everything the app adds to the request),
+    // as text for the browser to hand over. Nothing is asked of a provider.
+    if (requestOptions.describeOnly === true) {
+      const conversation = requestOptions.conversation || getActiveConversation();
+      const historyForApi = mergeAdjacentModelMessages(compactSandboxRunsForApi(compactFileHistoryForApi(
+        requestOptions.historyForApi || (conversation?.messages || []).slice(0, -1)
+      )));
+      const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
+      const systemInstruction = await resolveSystemInstruction({ config: getConfig(), conversation, currentMessageForApi, historyForApi, requestOptions });
+      return { systemInstructionText: (systemInstruction?.parts || []).map((part) => part.text).filter(Boolean).join('\n\n') };
+    }
     const activeConversation = getActiveConversation();
     const conversation = requestOptions.conversation || activeConversation || {
       messages: [],
@@ -659,46 +715,7 @@ export function createStreamApiCall({
       ? normalizeReasoningEffort(modelInfo, requestOptions.reasoningEffort ?? conversation.reasoningEffort)
       : null;
     const config = getConfig();
-    // The server runs a reply whose system instruction the browser has already put together (memory, Noura, guidance and all):
-    // it is used as it is, and nothing is looked up for it here.
-    const instructionGiven = typeof requestOptions.systemInstructionText === 'string';
-    let memoryContext = null;
-    if (!instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
-      try {
-        memoryContext = await getMemoryContext({
-          config,
-          conversation,
-          currentMessage: currentMessageForApi
-        });
-      } catch (error) {
-        warn('Memory context retrieval failed; continuing without it.', error);
-      }
-    }
-    if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
-      requestOptions.onMemoryContextResolved(memoryContext);
-    }
-    const chartAuthoringGuidance = instructionGiven || requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
-      : await getRuntimeChartAuthoringGuidance(getMessageTextForGuidance(currentMessageForApi));
-    const fileAuthoringGuidance = instructionGiven ? '' : await getRuntimeFileAuthoringGuidance({
-      inputText: getMessageTextForGuidance(currentMessageForApi),
-      history: historyForApi,
-      requestPurpose: requestOptions.requestPurpose,
-      deckDesign: conversation?.deckDesign,
-      documentDesign: conversation?.documentDesign
-    });
-    const systemInstruction = instructionGiven
-      ? appendInstructionText(requestOptions.systemInstructionText ? { parts: [{ text: requestOptions.systemInstructionText }] } : null, requestOptions.additionalSystemInstruction)
-      : requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
-      config,
-      conversation,
-      astras: getAstras(),
-      personalMemories: getPersonalMemories(),
-      memoryContext,
-      additionalSystemInstruction: requestOptions.additionalSystemInstruction,
-      chartAuthoringGuidance,
-      fileAuthoringGuidance,
-      requestPurpose: requestOptions.requestPurpose
-    });
+    const systemInstruction = await resolveSystemInstruction({ config, conversation, currentMessageForApi, historyForApi, requestOptions });
 
     // Advanced mode: the Python tool and the tool rounds of this reply so far.
     const toolOptions = { tools: requestOptions.tools || [], toolTurns: requestOptions.toolTurns || [] };

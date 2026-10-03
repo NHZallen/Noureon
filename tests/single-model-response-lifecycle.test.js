@@ -537,3 +537,84 @@ test('an answer that cites nothing is left as it is', async () => {
   });
   assert.equal(liftSandboxRunBlock(result.fullResponse).text, 'Hello Astra');
 });
+
+const serverReplyDouble = ({ plan = { ok: true, webSearch: 'off' }, started, follow }) => {
+  const record = { plans: [], starts: [], notices: [] };
+  return {
+    record,
+    plan: (context) => { record.plans.push(context); return plan; },
+    start: async (args) => { record.starts.push(args); return started ?? { ok: true, run: { follow } }; },
+    notify: (kind, language) => record.notices.push([kind, language]),
+    localizeError: (error) => error
+  };
+};
+
+test('a reply the server makes is followed, not made here, and the answer is shown as the server writes it', async () => {
+  const serverReply = serverReplyDouble({
+    follow: async ({ onText }) => { onText('Hel'); onText('lo'); return { text: 'Hello', run: null, rewritten: false }; }
+  });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  const conversation = { id: 'c1', model: 'model', isWebSearchEnabled: false, messages: [] };
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'Hi' }],
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation,
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    sequence: 4,
+    getHistorySourceIds: () => ['h1']
+  });
+  assert.equal(result.fullResponse, 'Hello');
+  assert.equal(result.responseRenderedInRealtime, true);
+  assert.equal(calls.some((call) => call[0] === 'api'), false, 'nothing is asked of the provider from here');
+  assert.deepEqual(calls.find((call) => call[0] === 'stream-render-finish')[1], ['Hel', 'lo']);
+  const [start] = serverReply.record.starts;
+  assert.equal(start.assistantMessageId, 'm1');
+  assert.equal(start.sequence, 4);
+  assert.equal(start.webSearch, 'off');
+  assert.deepEqual(start.getHistorySourceIds(), ['h1']);
+  assert.deepEqual(serverReply.record.plans[0].advanced, false);
+});
+
+test('the run record the server wrote (the pages it searched) is kept with the reply, and a text that was rewritten is drawn again', async () => {
+  const sources = [{ url: 'https://a.example', title: 'A', n: 1 }];
+  const serverReply = serverReplyDouble({
+    follow: async ({ onText, onRun }) => { onRun({ sources }); onText('Fact [1]'); return { text: 'Fact [1]', run: { status: 'done', steps: [], elapsedMs: 5, sources }, rewritten: true }; }
+  });
+  const { lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  const result = await lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2 });
+  const lifted = liftSandboxRunBlock(result.fullResponse);
+  assert.equal(lifted.text, 'Fact [1]');
+  assert.equal(lifted.run.sources[0].url, 'https://a.example');
+  assert.equal(targetElement.dataset.streamRendered, 'false');
+});
+
+test('a reply the server does not take is made here as usual, and the person is told only when it matters', async () => {
+  const declined = serverReplyDouble({ started: { ok: false, reason: 'unreachable', notify: 'unreachable' } });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply: declined } });
+  const result = await lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'fr', assistantMessageId: 'm1', sequence: 2 });
+  assert.equal(result.fullResponse, 'Hello Astra');
+  assert.ok(calls.some((call) => call[0] === 'api'));
+  assert.deepEqual(declined.record.notices, [['unreachable', 'fr']]);
+
+  const quiet = serverReplyDouble({ plan: { ok: false, reason: 'advanced' } });
+  const second = createHarness({ extraDependencies: { serverReply: quiet } });
+  await second.lifecycle.run({ targetElement: second.targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal: second.signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2 });
+  assert.equal(quiet.record.starts.length, 0);
+  assert.deepEqual(quiet.record.notices, []);
+  assert.ok(second.calls.some((call) => call[0] === 'api'));
+
+  // Without an id for the message (an older caller) the server is not asked.
+  const unnamed = serverReplyDouble({});
+  const third = createHarness({ extraDependencies: { serverReply: unnamed } });
+  await third.lifecycle.run({ targetElement: third.targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal: third.signal, uiLanguage: 'en' });
+  assert.equal(unnamed.record.plans.length, 0);
+});
+
+test('an error the server reports is the error of the reply, and what the person stopped is returned as far as it got', async () => {
+  const failing = serverReplyDouble({ follow: async () => { throw Object.assign(new Error('The provider said no'), { serverRun: true }); } });
+  const { lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply: failing } });
+  await assert.rejects(() => lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2 }), (error) => error.message === 'The provider said no' && error.serverRun === true);
+});

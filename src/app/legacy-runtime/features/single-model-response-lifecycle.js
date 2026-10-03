@@ -44,6 +44,8 @@ export function createSingleModelResponseLifecycle({
   // The model's own web searching ({ canUse(modelInfo), searchWeb, openPage }, see web-research-reply.js). Without it a search is
   // a packet in front of the request.
   webResearch = null,
+  // Replies run by the server ({ plan, start, notify, localizeError }, see runtime/server-reply/server-reply.js). Without it every reply is made here.
+  serverReply = null,
   getWindow = () => globalThis.window,
   getDocument = () => globalThis.document
 }) {
@@ -87,7 +89,11 @@ export function createSingleModelResponseLifecycle({
     webSearchEnabled = false,
     onMemoryContextResolved = () => {},
     signal,
-    uiLanguage
+    uiLanguage,
+    // For a reply the server makes: the id and place of the message it writes, and the conversations the memory drew on.
+    assistantMessageId = null,
+    sequence = 0,
+    getHistorySourceIds = () => []
   }) => {
     stop();
     const startedAt = now();
@@ -149,6 +155,29 @@ export function createSingleModelResponseLifecycle({
           }
         }
       );
+    }
+
+    // The server makes the reply when it can (settings, the kind of reply and the account allow it, and it takes it); the page then
+    // only follows what the server writes. Otherwise it is made here, as always.
+    let serverRun = null;
+    if (serverReply && assistantMessageId) {
+      const plan = serverReply.plan({ conversation, advanced: replyMode.advanced, webSearchEnabled, researchByModel, provider: modelInfo?.provider });
+      if (plan.ok) {
+        const started = await serverReply.start({
+          conversation,
+          modelInfo,
+          requestParts,
+          webSearch: plan.webSearch,
+          assistantMessageId,
+          sequence,
+          uiLanguage,
+          config: getConfig(),
+          requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER },
+          getHistorySourceIds
+        });
+        if (started.ok) serverRun = started.run;
+        else if (started.notify) serverReply.notify(started.notify, uiLanguage);
+      }
     }
 
     let receivedChars = 0;
@@ -227,7 +256,28 @@ export function createSingleModelResponseLifecycle({
       answerStarted = false;
       thinkingBlock = null;
     };
-    const runApiStream = replyMode.advanced
+    // A reply the server is making: its words are shown as they are written, and its run record (the pages it searched) is kept.
+    const runServerStream = async (onChunk) => {
+      try {
+        const outcome = await serverRun.follow({
+          signal,
+          onRun: (run) => { searchSources = run.sources; },
+          onText: (delta) => {
+            answered = true;
+            onChunk(delta);
+          }
+        });
+        if (outcome.run) {
+          sandboxRun = outcome.run;
+          if (outcome.run.sources?.length) searchSources = outcome.run.sources;
+        }
+        if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
+        return outcome.text;
+      } catch (error) {
+        throw serverReply.localizeError(error, uiLanguage);
+      }
+    };
+    const runApiStream = serverRun ? runServerStream : replyMode.advanced
       ? async (onChunk) => {
         const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
         let advancedParts = requestParts;

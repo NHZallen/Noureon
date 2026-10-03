@@ -14,7 +14,13 @@ By default, Noureon stores conversations, folders, Nouras, app settings, appeara
 
 When a user signs in and enables cloud sync, Supabase stores the workspace records required for cross-device sync, including conversations, messages, folders, Nouras, sync metadata, deletion markers/tombstones, and supported uploaded or generated assets in Supabase Storage.
 
-Sensitive cloud vault or recovery payloads are encrypted with the user's sync key/password when configured. Provider API keys remain local by default unless the user explicitly includes or syncs them through a supported encrypted flow. Users are responsible for keeping sync passwords and recovery secrets safe.
+Sensitive cloud vault or recovery payloads are encrypted with the user's sync key/password when configured. Provider API keys remain local by default (apart from the temporary, encrypted copy a reply made by the server needs, described below) unless the user explicitly includes or syncs them through a supported encrypted flow. Users are responsible for keeping sync passwords and recovery secrets safe.
+
+## Replies Made By The Server
+
+Signed-in cloud users can have replies made on the Noureon server, so a reply continues when the page is closed. This is the default; Settings → Privacy lets a user make replies only on their own device instead. When a reply runs on the server, the browser sends it the conversation history, the system instructions, the selected model and the provider API key (and, for searches by the model, the search provider key) needed for that one reply.
+
+The keys are kept encrypted, and only for the reply: they are deleted when the reply ends, or after 2 hours 15 minutes at most, and they are never stored long term, written to logs or put in error messages. The server writes the reply into the same cloud workspace record the app already syncs. Replies that need the browser (Advanced mode with Python, web search for models that cannot call tools), replies of users who are not signed in, and temporary chats are made on the user's device.
 
 ## Authentication And Email
 

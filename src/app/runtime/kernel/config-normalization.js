@@ -104,6 +104,7 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.visionCheckEnabled = normalizedConfig.visionCheckEnabled !== false;
   normalizedConfig.processOpen = normalizedConfig.processOpen === true;
   normalizedConfig.fileModeDefault = normalizedConfig.fileModeDefault === 'standard' ? 'standard' : 'advanced';
+  normalizedConfig.replyRunLocation = normalizedConfig.replyRunLocation === 'local' ? 'local' : 'server';
   normalizedConfig.aiDefaultLanguage = normalizeLanguageCode(normalizedConfig.aiDefaultLanguage);
   normalizedConfig.acknowledgedStealthModelTerms = Array.isArray(normalizedConfig.acknowledgedStealthModelTerms)
     ? normalizedConfig.acknowledgedStealthModelTerms

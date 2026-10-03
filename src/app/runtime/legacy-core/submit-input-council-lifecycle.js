@@ -24,6 +24,7 @@ import { createDeckDesignControl } from '../features/deck-design-control.js';
 import { createVisionCheckScheduler } from '../features/vision-check-scheduler.js';
 import { getSearchProvider } from '../kernel/search-provider.js';
 import { stopReplyAndWait } from '../features/reply-stop.js';
+import { createBrowserServerReply } from '../server-reply/server-reply-runtime.js';
 import { createWebResearchTools } from '../../legacy-runtime/features/web-research-tools.js';
 import { normalizePageReads, normalizeTinyfishSearch } from '../../legacy-runtime/features/model-request-formatting.js';
 import { getErrorMessage, readErrorBody } from './legacy-core-utilities.js';
@@ -121,6 +122,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     refreshMessageHistorySources = () => null,
     buildSingleModelTranslatedRequestParts,
     streamApiCall,
+    getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null }),
     runModelCouncil,
     extractPersonalMemory,
     requestAnimationFrame = (callback) => callback(),
@@ -709,6 +711,17 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     openPage: researchTools.fetchPageContents
   };
 
+  // Replies the server makes while the page may be closed (see runtime/server-reply/).
+  const serverReply = createBrowserServerReply({
+    getApiKeyForProvider,
+    getModelApiId,
+    getDefaultGenConfig,
+    // stream-api-call.js puts the system instruction together (and asks no provider) for `describeOnly`.
+    describeRequest: (parts, options) => streamApiCall(parts, null, undefined, false, { ...options, describeOnly: true }),
+    saveAppData,
+    showNotification
+  });
+
   const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
     now: () => Date.now(),
     getOutputMode,
@@ -724,7 +737,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     restoreOpenCouncilDetails,
     getConfig: getLiveConfig,
     supportsToolCalling: modelSupportsToolCalling,
-    webResearch
+    webResearch,
+    serverReply
   });
 
   const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({
@@ -814,9 +828,11 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       userParts
     } = preparedSubmit;
 
+    // The id of the reply's message is chosen first: the server writes under it, and an error it reports is saved under it.
+    const assistantMessageId = crypto.randomUUID();
     try {
       let fullResponse = '';
-      const finalAiMessage = { id: crypto.randomUUID(), role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
+      const finalAiMessage = { id: assistantMessageId, role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
       let councilMetadata = null;
       let responseRenderedInRealtime = false;
       let generatedImageParts = null;
@@ -873,7 +889,11 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             webSearchEnabled,
             onMemoryContextResolved: collectHistorySources,
             signal: submitAbortController.signal,
-            uiLanguage: getLiveConfig().uiLanguage
+            uiLanguage: getLiveConfig().uiLanguage,
+            // The message the reply becomes: the server writes it under this id, at the place the reply will take.
+            assistantMessageId,
+            sequence: conv.messages.length,
+            getHistorySourceIds: () => [...historySourceConversationIds]
           });
           fullResponse = singleResult.fullResponse;
           responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
@@ -988,7 +1008,9 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         getLatestProgress: () => (!responseUsesCouncil && singleModelResponseLifecycle.getLatestProgress()),
         stopSingleModelLifecycle: () => singleModelResponseLifecycle.stop(),
         renderError: renderSingleModelError,
-        persistAppData: saveAppData
+        persistAppData: saveAppData,
+        // An error the server reported is saved under the id of the message it wrote, so there is one message, not two.
+        messageId: error?.serverRun ? assistantMessageId : null
       });
     } finally {
       if (conv.__astraPendingResponse?.loadingMessageDiv === loadingMessageDiv) {

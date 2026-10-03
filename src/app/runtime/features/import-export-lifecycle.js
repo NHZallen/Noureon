@@ -218,6 +218,7 @@ export function createLegacyImportExportLifecycle({
         enableAutoWebSearch: config.enableAutoWebSearch,
         visionCheckEnabled: config.visionCheckEnabled !== false,
         fileModeDefault: config.fileModeDefault === 'standard' ? 'standard' : 'advanced',
+        replyRunLocation: config.replyRunLocation === 'local' ? 'local' : 'server',
         memoryEnabled1: config.memoryEnabled1,
         enableAutoMemory: config.enableAutoMemory,
         customWallpaper: config.customWallpaper,

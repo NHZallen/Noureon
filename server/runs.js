@@ -2,6 +2,7 @@
 // taking up the ones that lost their process (a restart, an update, a crash). See the design, §3, §6 and §6a.
 
 import { executeReply, ReplyError, scrubMessage } from './executor.js';
+import { errorText } from './error-texts.js';
 import { createMessageWriter } from './message-writer.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
 import { runStartErrorCode } from './run-store.js';
@@ -104,7 +105,7 @@ export function createRunManager({
       const failure = failureOf(error, secrets);
       log('run_failed', { runId, code: failure.code });
       try {
-        await writer.finish([{ text: '' }], 'error', { serverError: failure });
+        await writer.finish([{ text: errorText(spec.request.language, failure) }], 'error', { serverError: failure });
       } catch (writeError) {
         log('final_write_failed', { runId, message: String(writeError?.message || '').slice(0, 160) });
       }

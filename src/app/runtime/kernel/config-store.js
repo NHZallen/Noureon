@@ -8,6 +8,8 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     // Whether the steps of a reply being made start open (otherwise they are folded into one line).
     processOpen: false,
     fileModeDefault: 'advanced',
+    // Where replies are made: the server (they go on when the page is closed) or this device. See runtime/server-reply/.
+    replyRunLocation: 'server',
     searchProvider: 'tavily',
     tavilySearchDepth: 'basic',
     outputMode: 'typewriter',

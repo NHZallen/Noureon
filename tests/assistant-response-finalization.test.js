@@ -402,3 +402,22 @@ test('assistant response finalization source avoids provider parser, storage sch
   }
   assert.doesNotMatch(source, /sendConversationToMail|conversation-mail|google-form-submit/);
 });
+
+test('an error the server reported is saved under the id of the message the server wrote, so there is one message', async () => {
+  const conversation = { model: 'm', messages: [] };
+  await persistAssistantResponseError({
+    error: new Error('The provider said no'),
+    signal: new AbortController().signal,
+    conversation,
+    targetElement: { innerHTML: '' },
+    errorPrefix: 'Sorry: ',
+    fallbackModelName: 'M',
+    getLatestProgress: () => null,
+    stopSingleModelLifecycle: () => {},
+    renderError: (progress, message) => message,
+    persistAppData: async () => {},
+    messageId: 'server-message-id',
+    nowIso: () => 't'
+  });
+  assert.deepEqual(conversation.messages, [{ id: 'server-message-id', role: 'model', parts: [{ text: 'Sorry: The provider said no' }], createdAt: 't' }]);
+});

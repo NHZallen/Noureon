@@ -1008,3 +1008,27 @@ test('the thinking is reported to whoever listens, with its kind, and never beco
   await silent.streamApiCall([{ text: 'Hi' }], () => {}, undefined, false);
   assert.equal(JSON.parse(silent.requests[0].options.body).generationConfig.thinkingConfig, undefined, 'summaries are asked for only when someone listens');
 });
+
+test('describeOnly puts the system instruction together as text for the server, asks no provider, and uses the same memory and Noura as a reply here', async () => {
+  const memories = [];
+  const { streamApiCall, requests, conversation } = createHarness({
+    conversation: { astrasId: 'a1' },
+    astras: [{ id: 'a1', name: 'Helper', instructions: 'Be a helper.' }],
+    config: { aiDefaultLanguage: 'fr', memorySystemVersion: 2 },
+    getMemoryContext: async () => ({ summary: 'likes tea', sources: [] })
+  });
+  const described = await streamApiCall([{ text: 'Hello' }], null, undefined, false, {
+    conversation,
+    requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER,
+    describeOnly: true,
+    onMemoryContextResolved: (context) => memories.push(context)
+  });
+  assert.equal(requests.length, 0, 'nothing is asked of a provider');
+  assert.equal(typeof described.systemInstructionText, 'string');
+  assert.match(described.systemInstructionText, /Be a helper\./);
+  assert.equal(memories.length, 1, 'the memory it drew on is reported, as for a reply here');
+  // What the server is given is used as it is.
+  await streamApiCall([{ text: 'Hello' }], () => {}, undefined, false, { conversation, systemInstructionText: described.systemInstructionText });
+  const body = JSON.parse(requests[0].options.body);
+  assert.match(JSON.stringify(body.messages[0]), /Be a helper\./);
+});

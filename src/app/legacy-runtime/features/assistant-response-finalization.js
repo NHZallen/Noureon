@@ -146,6 +146,8 @@ export async function persistAssistantResponseError({
   stopSingleModelLifecycle,
   renderError,
   persistAppData,
+  // The id of the message the server already wrote for this reply, when it was the server's.
+  messageId = null,
   nowIso = () => new Date().toISOString()
 }) {
   if (signal?.aborted) {
@@ -165,6 +167,7 @@ export async function persistAssistantResponseError({
   };
   targetElement.innerHTML = renderError(currentProgress, errorMessage);
   const finalAiMessage = {
+    ...(messageId ? { id: messageId } : {}),
     role: 'model',
     parts: [{ text: errorMessage }],
     createdAt: nowIso()

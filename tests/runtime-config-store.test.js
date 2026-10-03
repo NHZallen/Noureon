@@ -15,6 +15,7 @@ const expectedConfig = (defaultModelId) => ({
   visionCheckEnabled: true,
   processOpen: false,
   fileModeDefault: 'advanced',
+  replyRunLocation: 'server',
   searchProvider: 'tavily',
   tavilySearchDepth: 'basic',
   outputMode: 'typewriter',

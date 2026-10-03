@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 
+import { errorText } from '../../server/error-texts.js';
 import { ReplyError } from '../../server/executor.js';
 import { createKeyVault } from '../../server/key-vault.js';
 import { createMessageWriter } from '../../server/message-writer.js';
@@ -280,6 +281,7 @@ test('a failed reply is saved as an error with a message that has no key in it, 
   const last = messageWrites(db).at(-1);
   assert.equal(last.status, 'error');
   assert.deepEqual(last.metadata.serverError, { code: 'provider_error', message: 'The provider said no' });
+  assert.deepEqual(last.parts, [{ text: 'Sorry, an error occurred: The provider said no' }], 'a reply that failed with the page closed still reads as an error');
   const finished = db.log.updates.find((update) => update.values.status === 'failed');
   assert.equal(finished.values.error_code, 'provider_error');
   assert.equal(finished.values.key_envelope, null);
@@ -399,4 +401,11 @@ test('when the process ends its replies are put down, handed over at once, and n
   assert.equal(db.log.updates.some((update) => ['done', 'stopped', 'failed'].includes(update.values.status)), false, 'the run is left for the next process');
   assert.equal(messageWrites(db).some((row) => row.status === 'complete' || row.status === 'error'), false);
   await assert.rejects(() => manager.start({ userId: USER, spec: specOf() }), (error) => error.code === 'runs_unavailable', 'no new replies while ending');
+});
+
+test('the words of a failed reply are in the language of the page, the provider\'s own text is kept, and the server\'s own reasons are told plainly', () => {
+  assert.equal(errorText('fr', { code: 'provider_error', message: 'Rate limit' }), 'Désolé, une erreur est survenue : Rate limit');
+  assert.equal(errorText('zh-TW', { code: 'time_limit', message: 'x' }), '抱歉，發生錯誤：這則回覆花的時間太久，已被停止。');
+  assert.equal(errorText('xx', { code: 'internal_error', message: 'x' }), 'Sorry, an error occurred: The server could not finish this reply.');
+  assert.equal(errorText('es', { code: 'server_restarted' }).startsWith('Lo sentimos, ocurrió un error: '), true);
 });
