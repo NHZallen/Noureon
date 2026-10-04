@@ -5,7 +5,7 @@ import { Window } from 'happy-dom';
 
 import { createNetAskCards } from '../../src/app/ui/sandbox/net-ask-card.js';
 import { createSandboxLedger } from '../../src/app/ui/sandbox/sandbox-ledger.js';
-import { renderPermissionsView, resetPermissionsView } from '../../src/app/ui/cli/permissions-view.js';
+import { invalidatePermissionsCredentials, renderPermissionsView, resetPermissionsView } from '../../src/app/ui/cli/permissions-view.js';
 import { closeLicenses, openLicenses } from '../../src/app/ui/cli/licenses-view.js';
 import { createNetAnswerHandler } from '../../src/app/runtime/cli/net-answer.js';
 import { registerCliMode } from '../../src/app/runtime/cli/cli-bridge.js';
@@ -287,4 +287,26 @@ test('the page of third-party software lists the tools of the store, the sandbox
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
   assert.equal(document.querySelector('.pm-lic'), null, 'Escape closes it');
   closeLicenses();
+});
+
+test('a credential saved elsewhere (the window in a chat) shows in the open tab, and the list is read again each time the settings open', async () => {
+  const t = permissions({ credentialItems: [] });
+  await flush();
+  t.row('credentials').click();
+  await flush();
+  assert.match(t.host.textContent, /No secure credentials yet/);
+  // Saved from the window in a chat: the tab is told, and draws the new list at once.
+  t.items.push({ name: 'TWITTER_CT0', value: 'v' });
+  invalidatePermissionsCredentials(t.host);
+  t.draw();
+  await flush();
+  assert.ok(t.host.querySelector('.pm-cred[data-name="TWITTER_CT0"]'));
+  // Opened again later: read again, not the list it had.
+  t.items.push({ name: 'REDDIT_SESSION', value: 'w' });
+  resetPermissionsView(t.host);
+  t.draw();
+  await flush();
+  t.row('credentials').click();
+  await flush();
+  assert.ok(t.host.querySelector('.pm-cred[data-name="REDDIT_SESSION"]'));
 });

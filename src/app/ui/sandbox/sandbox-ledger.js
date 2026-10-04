@@ -33,16 +33,18 @@ export function createSandboxLedger({ document, host, before = null, language = 
   line?.enableBody(open);
   const list = line ? createLedger({ document, host: line.body }) : createLedger({ document, host, before });
   // When the work began (a reply the server makes: when the server began it, the same on every page).
-  const startedAt = Number.isFinite(workStartedAt) ? workStartedAt : Date.now();
+  let startedAt = Number.isFinite(workStartedAt) ? workStartedAt : Date.now();
   // The time an event happened at, when it is told later (`event.at`, in the clock of Date.now()).
   let eventAt = null;
   const now = () => eventAt ?? Date.now();
   // The line says which step the work is at, so the steps can stay folded.
   // What the work is at when no step of the list is running (the model thinking, with no step yet): set by the caller.
   let activityLabel = '';
+  // What the work waits for (the person's answer, in a window): the line says it above everything else while it lasts.
+  let waitingLabel = '';
   const syncLine = () => {
     if (!line || line.state !== 'running') return;
-    const doing = list.current?.label || activityLabel;
+    const doing = waitingLabel || list.current?.label || activityLabel;
     line.setLabel(doing ? `${text('processWorking')} · ${doing}` : text('processWorking'));
   };
   const urls = [];
@@ -289,11 +291,16 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'net') {
         askAboutSite(event);
       } else if (event.type === 'credential') {
+        waitingLabel = event.event === 'ask' ? text('sandboxCredentialWaiting', { tool: event.tool?.name || '' }) : '';
         askForCredentials(event);
       }
   };
 
   return {
+    /** The reply's clock was set back (time spent waiting for the person is not counted): the time shown at the end follows. */
+    setStartedAt(ms) {
+      if (Number.isFinite(ms)) startedAt = ms;
+    },
     event(event) {
       eventAt = Number.isFinite(event?.at) ? event.at : null;
       list.happenedAt(eventAt);

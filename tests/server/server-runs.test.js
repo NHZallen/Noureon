@@ -895,3 +895,31 @@ test('the person\'s answer to the window for a tool\'s login goes to the reply t
   assert.deepEqual(await manager.answerCredential({ userId: USER, runId, askId: 'ask0000000000001', decision: 'saved' }), { ok: false, reason: 'not_running' });
   assert.equal(answered.length, 2);
 });
+
+test('time the reply spent waiting for the person is given back to its time limit, and every page is told the clock was set back', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const seen = [];
+  const { manager, timers } = managerHarness({
+    execute: async ({ onPaused, onLive }) => {
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0 }, sources: [], elapsedMs: 0 } });
+      onPaused(90_000);
+      onLive({ tm: 1234 });
+      await gate;
+      return { parts: [{ text: 'done' }], status: 'done', run: {}, toolCalls: 0 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.equal(timers[0].ms, 2 * 60 * 60 * 1000);
+  assert.ok(timers.length >= 2, 'a new timer for what is left');
+  const remaining = timers.at(-1).ms;
+  assert.ok(remaining > 2 * 60 * 60 * 1000 + 89_000 && remaining <= 2 * 60 * 60 * 1000 + 90_000, `the limit is longer by what was waited (${remaining})`);
+  const stop = manager.watch({ userId: USER, runId, send: (event) => seen.push(event) });
+  assert.ok(stop);
+  const first = seen[0].r.elapsedMs;
+  assert.ok(first >= 1234 && first < 1234 + 2000, 'a page that joins is given the clock as it was set back');
+  stop();
+  release();
+  await settle();
+});

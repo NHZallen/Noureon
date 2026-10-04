@@ -53,7 +53,7 @@ export function createNetAskCards({ document, host, language, onAnswer = async (
     const failure = make('div', 'net-ask-failed');
     failure.hidden = true;
     for (const [decision, key, primary] of [['once', 'netAskOnce', true], ['always', 'netAskAlways', false], ['deny', 'netAskDeny', false]]) {
-      const button = make('button', `net-ask-button${primary ? ' is-primary' : ''}`, text(key));
+      const button = make('button', `net-ask-button${primary ? ' is-primary btn-primary' : ''}`, text(key));
       button.type = 'button';
       button.addEventListener('click', async () => {
         if (card.resolved) return;

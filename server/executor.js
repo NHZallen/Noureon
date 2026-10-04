@@ -61,11 +61,11 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, netControl = null, credentialControl = null, credentialWaitMs = 10 * 60 * 1000, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, netControl = null, credentialControl = null, credentialWaitMs = 10 * 60 * 1000, onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
-  const startedAt = now() - (Number(resume?.elapsedMs) || 0);
+  let startedAt = now() - (Number(resume?.elapsedMs) || 0);
   const access = createModelAccess({ spec, secrets, fetchImpl, grounding: mode === 'grounding' });
 
   let answer = typeof resume?.text === 'string' ? resume.text : '';
@@ -178,6 +178,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         const wanted = toolCredentials.missing[toolId] || [];
         if (!tool || !wanted.length || !credentials) return { provided: Boolean(tool) && !wanted.length };
         const id = crypto.randomUUID();
+        const waitingSince = now();
         const fields = (tool.credentials || []).filter((credential) => wanted.includes(credential.env)).map(({ env, label, type, site }) => ({ env, label, type, site }));
         const decision = await new Promise((resolve) => {
           let timer = null;
@@ -205,6 +206,12 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             onProblem('credentials_failed', error);
           }
         }
+        // The time spent waiting for the person is not the reply's: its clock goes on from where it was, on every page (they are told the time as
+        // it now is), and the reply's time limit is given the time back.
+        const waited = Math.max(0, now() - waitingSince);
+        startedAt += waited;
+        onPaused(waited);
+        onLive({ tm: Math.max(0, now() - startedAt) });
         stepEvents.event({ type: 'credential', event: 'answer', id, decision, tool: { id: tool.id, name: tool.name } });
         return { provided: !(toolCredentials.missing[toolId] || []).length, decision };
       };

@@ -74,7 +74,7 @@ export function openCredentialModal({ document, language, tool, fields, onSubmit
   const actions = make('div', 'cred-modal-actions');
   const skip = make('button', 'cred-modal-button', t('credModalSkip'));
   skip.type = 'button';
-  const save = make('button', 'cred-modal-button is-primary', t('credModalSave'));
+  const save = make('button', 'cred-modal-button is-primary btn-primary', t('credModalSave'));
   save.type = 'submit';
   actions.append(skip, save);
   dialog.append(error, actions);
