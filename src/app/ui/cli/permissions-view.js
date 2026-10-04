@@ -166,15 +166,15 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
       mark.innerHTML = toolIconMarkup(tool, 24);
       const text = make(document, 'span', 'pm-row-text');
       text.append(make(document, 'span', 'pm-row-label', tool.name), make(document, 'span', 'pm-row-desc', t('modelUse')));
-      // The same switch as the other settings (the blue one): the input and its label are what settings.css and modals.css draw.
-      const toggle = make(document, 'div', 'pm-switch relative inline-block w-12 h-6 select-none');
-      const input = make(document, 'input', 'toggle-checkbox');
+      // The very same switch as the other settings (the blue one, with its markup and classes as in the shell template), so it looks and answers alike.
+      const toggle = make(document, 'div', 'pm-switch relative inline-block w-12 h-6 mr-2 align-middle select-none transition duration-200 ease-in');
+      const input = make(document, 'input', 'toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer');
       input.type = 'checkbox';
       input.id = `pm-model-use-${tool.id}`;
       input.checked = on;
       input.setAttribute('role', 'switch');
       input.setAttribute('aria-label', `${tool.name}: ${t('modelUse')}`);
-      const track = make(document, 'label', 'toggle-label');
+      const track = make(document, 'label', 'toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer');
       track.htmlFor = input.id;
       toggle.append(input, track);
       input.addEventListener('change', () => change(() => setCliModelUse(getConfig(), tool.id, input.checked)));
