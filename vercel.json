@@ -107,6 +107,10 @@
     {
       "source": "/reset-password",
       "destination": "/index.html"
+    },
+    {
+      "source": "/cli",
+      "destination": "/index.html"
     }
   ]
 }

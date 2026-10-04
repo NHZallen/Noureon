@@ -1,5 +1,7 @@
 import { shouldAutoEnableWebSearch } from '../../runtime/features/auto-web-search.js';
 import { extractLinkedUrls } from './linked-pages.js';
+import { clearCliSelection, getCliSelection } from '../../runtime/cli/cli-bridge.js';
+import { withCliSegments } from '../../runtime/cli/cli-state.js';
 
 export function createSubmitInputPreparationLifecycle({
   elements,
@@ -95,6 +97,9 @@ export function createSubmitInputPreparationLifecycle({
         composerTextPart.displaySegments = composerDisplaySegments;
       }
     }
+    // The CLI tools chosen with "@" are in the message as chips (on a phone the chips are not in the box, so they are put in here).
+    const cliTarget = composerTextPart || userParts.find((part) => typeof part?.text === 'string');
+    if (cliTarget) withCliSegments(cliTarget, getCliSelection());
     userParts.push(...buildUserParts('', uploadedFiles));
     const userMessage = userParts
       .filter(part => part?.text)
@@ -120,6 +125,7 @@ export function createSubmitInputPreparationLifecycle({
     conversation.unsentMessage = '';
 
     if (!preserveComposer) {
+      clearCliSelection();
       elements.messageInput.value = '';
       setUploadedFiles([]);
       clearQuoteReference();

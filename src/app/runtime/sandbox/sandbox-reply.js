@@ -3,7 +3,7 @@
 // answers without a call (at most MAX_RUNS_PER_REPLY runs). Returns the
 // answer text and the run record kept above it. Loaded on demand.
 
-import { MAX_RUNS_PER_REPLY, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, getSandboxGuidance } from './sandbox-guidance.js';
+import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
 import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
@@ -72,6 +72,9 @@ export async function runSandboxReply({
   designs = {},
   // The model's own web searching and page opening next to Python: { searchWeb, openPage, onSources }, or null.
   research: researchTools = null,
+  // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program: { file, url, sha256, size } }].
+  // The model gets run_command for them.
+  cli: cliTools = [],
   onStatus = () => {},
   // What happens in each run, for the work window: { type: 'step', n, title, code },
   // { type: 'output', n, stream, text } and { type: 'step-end', n, ok, error, files, elapsedMs }.
@@ -124,6 +127,13 @@ export async function runSandboxReply({
     deliver(chunk);
   };
   const notes = createNotes(onEvent);
+  const useCli = host === 'server' && cliTools.length > 0;
+  const maxRuns = useCli ? MAX_RUNS_WITH_CLI : MAX_RUNS_PER_REPLY;
+  // What the programs of the tools need in the environment of a command.
+  const cliEnv = Object.assign({}, ...cliTools.map((tool) => tool.env || {}));
+  // Set when the programs could not be put in the sandbox: a command then fails with this.
+  let cliFailure = '';
+  const isRunTool = (name) => name === RUN_PYTHON_TOOL.name || (useCli && name === RUN_COMMAND_TOOL.name);
   let roundMayCall = false;
   const deliver = (chunk) => {
     if (!chunk) return;
@@ -168,19 +178,31 @@ export async function runSandboxReply({
       // A new reply starts clean; loaded packages stay loaded.
       await sandbox.clear();
       await sandbox.mount(inputFiles.map((file) => ({ name: file.name, type: file.type, bytes: file.bytes() })));
+      if (useCli) {
+        // The programs: fetched by the host the first time (this can take a while).
+        const label = sandboxText(language, 'sandboxCliPreparing');
+        onStatus(label);
+        onEvent({ type: 'prepare', text: label });
+        try {
+          await sandbox.mountCli(cliTools.map((tool) => ({ id: tool.id, ...tool.program })));
+        } catch (error) {
+          if (signal?.aborted) throw error;
+          cliFailure = String(error?.message || error).slice(0, 300);
+        }
+      }
       return sandbox;
     })();
     sandboxReady.catch(() => { sandboxReady = null; });
     return sandboxReady;
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file }))) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
 
   for (;;) {
-    const canRun = toolsAllowed && run.steps.length < MAX_RUNS_PER_REPLY;
+    const canRun = toolsAllowed && run.steps.length < maxRuns;
     const canResearch = Boolean(research && research.left > 0);
     const canCall = canRun || canResearch;
     let response = null;
@@ -226,17 +248,17 @@ export async function runSandboxReply({
         onEvent({ type: 'thinking', text: chunk, kind });
       },
       onToolArguments: ({ name, arguments: raw }) => {
-        if (name !== RUN_PYTHON_TOOL.name && !research?.handles(name)) return;
+        if (!isRunTool(name) && !research?.handles(name)) return;
         // What the model says about the step is in its note: shown between the rows as soon as it is written.
         notes.fromArguments(raw);
-        if (name === RUN_PYTHON_TOOL.name) {
+        if (isRunTool(name)) {
           stopWatching();
           codeStarted = true;
           showWriting('sandboxWriting');
-          onEvent({ type: 'code', text: partialJsonString(raw, 'code') });
+          onEvent({ type: 'code', text: partialJsonString(raw, name === RUN_COMMAND_TOOL.name ? 'command' : 'code') });
         }
       },
-      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
+      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }
@@ -272,7 +294,7 @@ export async function runSandboxReply({
       }
       break;
     }
-    const calls = (response?.toolCalls || []).filter((call) => call.name === RUN_PYTHON_TOOL.name || research?.handles(call.name));
+    const calls = (response?.toolCalls || []).filter((call) => isRunTool(call.name) || research?.handles(call.name));
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     if (!canCall || !calls.length) {
@@ -290,7 +312,7 @@ export async function runSandboxReply({
     const results = [];
     for (const call of calls) {
       const reply = (content) => results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
-      if (call.name !== RUN_PYTHON_TOOL.name) {
+      if (!isRunTool(call.name)) {
         // A search or a page: what the model says about it is shown between the rows.
         notes.fromCall(call);
         try {
@@ -301,17 +323,19 @@ export async function runSandboxReply({
         }
         continue;
       }
-      const code = typeof call.args?.code === 'string' ? call.args.code : '';
+      const isCommand = call.name === RUN_COMMAND_TOOL.name;
+      const argument = isCommand ? 'command' : 'code';
+      const code = typeof call.args?.[argument] === 'string' ? call.args[argument] : '';
       if (!code.trim()) {
-        reply(toolResultFor({ error: 'The call had no "code" argument (or its arguments were not valid JSON).' }));
+        reply(toolResultFor({ error: `The call had no "${argument}" argument (or its arguments were not valid JSON).` }));
         continue;
       }
-      if (run.steps.length >= MAX_RUNS_PER_REPLY || !toolsAllowed) {
-        reply(toolResultFor({ error: `The limit of ${MAX_RUNS_PER_REPLY} runs per reply is reached. Answer with the results you have.` }));
+      if (run.steps.length >= maxRuns || !toolsAllowed) {
+        reply(toolResultFor({ error: `The limit of ${maxRuns} runs per reply is reached. Answer with the results you have.` }));
         continue;
       }
       const title = typeof call.args?.title === 'string' ? call.args.title.trim() : '';
-      const step = { title, code, stdout: '', stderr: '', files: [], elapsedMs: 0, ...(roundThought ? { thought: roundThought } : {}) };
+      const step = { title, code, ...(isCommand ? { command: true } : {}), stdout: '', stderr: '', files: [], elapsedMs: 0, ...(roundThought ? { thought: roundThought } : {}) };
       roundThought = '';
       // "I'll check the environment first": the note of the call, shown between the steps as the run begins (when it was not
       // already shown while the code was written) and kept with the step.
@@ -322,7 +346,7 @@ export async function runSandboxReply({
       }
       run.steps.push(step);
       currentStep = run.steps.length;
-      onEvent({ type: 'step', n: currentStep, title, code });
+      onEvent({ type: 'step', n: currentStep, title, code, ...(isCommand ? { command: true } : {}) });
       onStatus(title
         ? sandboxText(language, 'sandboxRunning', { n: currentStep, title })
         : sandboxText(language, 'sandboxRunningUntitled', { n: currentStep }));
@@ -333,7 +357,11 @@ export async function runSandboxReply({
         onStatus(title
           ? sandboxText(language, 'sandboxRunning', { n: currentStep, title })
           : sandboxText(language, 'sandboxRunningUntitled', { n: currentStep }));
-        result = await sandbox.run(code, { signal });
+        result = isCommand
+          ? (cliFailure
+            ? { stdout: '', stderr: '', error: `The CLI tools could not be prepared (${cliFailure}). Do not call run_command again; answer without it.`, files: [], elapsedMs: 0 }
+            : await sandbox.command(code, { signal, env: cliEnv, timeoutMs: Math.min(120, Math.max(5, Number(call.args?.timeout_seconds) || 60)) * 1000 }))
+          : await sandbox.run(code, { signal });
       } catch (error) {
         if (signal?.aborted || error?.code === 'stopped') {
           step.stopped = true;
@@ -344,7 +372,7 @@ export async function runSandboxReply({
         toolsAllowed = false;
         step.error = String(error?.message || error);
         reply(toolResultFor({ error: host === 'server' ? 'Python could not be started.' : 'Python could not be loaded in this browser.' }, {
-          note: 'Do not call run_python again. Answer without it; write any file the user asked for as a ````file block instead.'
+          note: `Do not call ${isCommand ? 'run_command' : 'run_python'} again. Answer without it; write any file the user asked for as a \`\`\`\`file block instead.`
         }));
         continue;
       }
@@ -378,7 +406,7 @@ export async function runSandboxReply({
     }
     toolTurns.push({ assistant: response, results });
     if (signal?.aborted || run.steps.some((step) => step.stopped)) break;
-    const pythonCalls = calls.filter((entry) => entry.name === RUN_PYTHON_TOOL.name).length;
+    const pythonCalls = calls.filter((entry) => isRunTool(entry.name)).length;
     const latest = run.steps.slice(-pythonCalls);
     outcome = !pythonCalls ? null : { failed: latest.some((step) => step.error), files: latest.reduce((sum, step) => sum + step.files.length, 0) };
   }

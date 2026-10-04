@@ -23,7 +23,40 @@ export const RUN_PYTHON_TOOL_SERVER = Object.freeze({
   description: RUN_PYTHON_TOOL.description.replace('Python 3.14 in a sandbox in the user\'s browser', 'Python 3.12 in an isolated sandbox on a server')
 });
 
+// The tool of the CLI tools (命令工具) the person chose with "@": a command line in the same sandbox, in /output, with their programs on the
+// path. Only a reply made on the server has it (the browser's Python has no programs to run).
+export const RUN_COMMAND_TOOL = Object.freeze({
+  name: 'run_command',
+  description: 'Run a shell command line in the isolated sandbox on the server, in the folder /output, with the CLI tools the user chose on the path. It may be one command or several (a short shell script, with && or new lines). /input holds the user\'s files (read only); files meant for the user must end up in /output. Returns stdout, stderr, any error (a command that exits with a code other than 0 is an error) and the files in /output. There is no network.',
+  parameters: Object.freeze({
+    type: 'object',
+    properties: {
+      note: NOTE_PARAMETER,
+      title: { type: 'string', description: 'What this step does, in one short sentence in the language of your reply.' },
+      command: { type: 'string', description: 'The command line to run.' },
+      timeout_seconds: { type: 'number', description: 'How long the command may run, in seconds: 60 when left out, at most 120.' }
+    },
+    required: ['command']
+  })
+});
+
 export const MAX_RUNS_PER_REPLY = 10;
+// A document made with a CLI tool is many small commands; a reply that has one may run more steps.
+export const MAX_RUNS_WITH_CLI = 25;
+
+/** What the model is told about the CLI tools the person chose: each tool and how to use it. `tools`: [{ name, version, id, usage }]. */
+export function getCliGuidance(tools = []) {
+  if (!tools.length) return '';
+  const sections = tools.map((tool) => `### ${tool.name} (\`${tool.file || tool.id}\`${tool.version ? `, version ${tool.version}` : ''})\n${tool.usage}`).join('\n\n');
+  return `## CLI tools
+
+The user chose ${tools.length === 1 ? 'a CLI tool' : 'these CLI tools'} for this message with "@": ${tools.map((tool) => tool.name).join(', ')}. Use ${tools.length === 1 ? 'it' : 'them'} with the tool run_command when the request is about what ${tools.length === 1 ? 'it does' : 'they do'}; ${tools.length === 1 ? 'its' : 'their'} program${tools.length === 1 ? ' is' : 's are'} on the path of the command.
+- run_command runs in /output. Read the user's files from /input (read only: copy a file to /output before changing it). Save files meant for the user in /output; files elsewhere are not delivered. Never write macro-enabled or executable files.
+- A command that exits with a code other than 0 is an error: read its output, fix the command and try again; do not repeat the same command. There is no network. You can run steps at most ${MAX_RUNS_WITH_CLI} times per reply (Python and commands together).
+- Say what a step is for in its \`note\` argument (one short sentence in the language of your reply), as with run_python. In your answer explain the results in words and refer to files by name; do not paste the commands.
+
+${sections}`;
+}
 
 const PACKAGES = 'numpy, pandas, matplotlib, scipy, scikit-learn, sympy, Pillow, lxml, beautifulsoup4, python-docx (import docx), python-pptx (import pptx), openpyxl, XlsxWriter, reportlab, fpdf2 (import fpdf), pypdf, and the standard library';
 

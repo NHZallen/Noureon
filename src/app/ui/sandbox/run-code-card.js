@@ -12,7 +12,8 @@ const element = (document, tag, className, text) => {
   return node;
 };
 
-export function createCodeCard(document, source, language = 'zh-TW') {
+/** `shell`: the source is a command line of a CLI tool, not Python. */
+export function createCodeCard(document, source, language = 'zh-TW', { shell = false } = {}) {
   const card = element(document, 'div', 'run-code-card');
   const head = element(document, 'div', 'run-code-head');
   const label = sandboxText(language, 'copyCode');
@@ -21,10 +22,10 @@ export function createCodeCard(document, source, language = 'zh-TW') {
   copy.title = label;
   copy.setAttribute('aria-label', label);
   copy.append(element(document, 'span', 'run-code-copy-icon'));
-  head.append(element(document, 'span', 'run-code-icon'), element(document, 'span', 'run-code-name', 'Python'), copy);
+  head.append(element(document, 'span', 'run-code-icon'), element(document, 'span', 'run-code-name', shell ? 'Shell' : 'Python'), copy);
   // A code element inside, so the page's code colouring picks the code up once it is on screen.
   const pre = element(document, 'pre', 'ledger-code sandbox-run-code');
-  pre.append(element(document, 'code', 'language-python', source));
+  pre.append(element(document, 'code', shell ? 'language-bash' : 'language-python', source));
   card.append(head, pre);
   return card;
 }

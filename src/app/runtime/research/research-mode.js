@@ -5,6 +5,7 @@
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
+import { createCliMode } from '../cli/cli-mode.js';
 import { researchText } from './research-texts.js';
 
 export const RESEARCH_INDICATOR_ID = 'deep-research-indicator';
@@ -30,6 +31,7 @@ export function createResearchMode({
   saveAppData,
   showNotification,
   getConfig,
+  saveConfig,
   getUiLanguage,
   setAbortController,
   updateSubmitButtonState,
@@ -38,6 +40,11 @@ export function createResearchMode({
   logger = console
 }) {
   const getInput = () => messageInput;
+  // The CLI tools (命令工具) share this host: they too put a chip in the box and an entry in the menus. A box that cannot take listeners
+  // (a test) has none.
+  const cli = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
+    ? createCliMode({ document, messageInput, getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
+    : null;
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);
   const releaseBusy = () => {
@@ -130,6 +137,7 @@ export function createResearchMode({
 
   /** Called when the buttons of the "+" menu are brought up to date. */
   const syncMenu = () => {
+    cli?.sync();
     const button = ensureMenuButton();
     if (!button) return;
     button.style.display = isUnavailable() ? 'none' : 'flex';
@@ -138,6 +146,7 @@ export function createResearchMode({
 
   /** Adds this mode's chips to the composer's (the same markup as the others: `closeButton(id, title)` gives the ✕). */
   const indicators = (map, closeButton) => {
+    cli?.indicators(map, closeButton);
     if (armed && !isUnavailable()) {
       map.set(RESEARCH_INDICATOR_ID, {
         id: RESEARCH_INDICATOR_ID,

@@ -274,6 +274,10 @@
     },
     {
       "path": "src/app/ui/sandbox/sandbox-run-block.js"
+    },
+    {
+      "path": "src/data/cli-catalog.js",
+      "note": "Reviewed 2026-10-04: plain data and checks, no browser globals."
     }
   ]
 }

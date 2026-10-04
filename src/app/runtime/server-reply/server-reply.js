@@ -190,7 +190,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -234,6 +234,8 @@ export function createServerReply({
         // What Python is given: the Design menu's choices, and the files attached to this message.
         ...(advanced && designs ? { designs } : {}),
         ...(advanced && inputs.length ? { inputs } : {}),
+        // The CLI tools (命令工具) chosen for this reply: ids of tools in the store (they run in the same sandbox).
+        ...(advanced && cli.length ? { cli: cli.map((id) => ({ id })) } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {})
       },

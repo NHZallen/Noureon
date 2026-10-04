@@ -2,7 +2,8 @@
 variables stay between the steps of a reply.
 
 It talks to the runner over stdin and stdout, one JSON object per line:
-  in:   {"id", "type": "run", "code", "timeoutMs"}  |  {"id", "type": "clear"}  |  {"id", "type": "init", "language"}
+  in:   {"id", "type": "run", "code", "timeoutMs"}  |  {"id", "type": "command", "command", "env", "timeoutMs"}  |  {"id", "type": "clear"}
+        |  {"id", "type": "init", "language"}
   out:  {"type": "ready"}  |  {"id", "type": "progress", "stage": "output", "stream", "text"}
         |  {"id", "type": "result", "stdout": {"text", "dropped"}, "stderr": {...}, "error", "elapsedMs"}
 
@@ -15,13 +16,18 @@ import asyncio
 import inspect
 import json
 import os
+import re
 import shutil
 import signal
+import subprocess
 import sys
+import threading
 import time
 import traceback
 
 INPUT = os.environ.get("NOUREON_INPUT", "/input")
+# The programs of the CLI tools (read only); a command finds them first.
+CLI = os.environ.get("NOUREON_CLI", "/opt/cli")
 OUTPUT = os.environ.get("NOUREON_OUTPUT", "/output")
 WORK = os.environ.get("NOUREON_WORK", "/work")
 CAPTURE_LIMIT = 1_000_000
@@ -37,9 +43,13 @@ os.dup2(_null_in, 0)
 os.dup2(_null_out, 1)
 
 
+_send_lock = threading.Lock()
+
+
 def send(message):
-    _channel.write(json.dumps(message, ensure_ascii=False) + "\n")
-    _channel.flush()
+    with _send_lock:
+        _channel.write(json.dumps(message, ensure_ascii=False) + "\n")
+        _channel.flush()
 
 
 class Sink:
@@ -183,6 +193,81 @@ def run_step(request, user_globals):
     })
 
 
+ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+# What a tool may not change in the environment of its command (where programs and libraries are found, where Python looks).
+ENV_BLOCKED = {"PATH", "HOME", "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "SHELL", "IFS"}
+
+
+def command_environment(extra):
+    env = dict(os.environ)
+    for name, value in (extra if isinstance(extra, dict) else {}).items():
+        if ENV_NAME.match(str(name)) and str(name) not in ENV_BLOCKED:
+            env[str(name)] = str(value)[:200]
+    env["PATH"] = CLI + os.pathsep + env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+    return env
+
+
+def pump(stream, sink):
+    """Hands what a program writes to a pipe on, as it comes (in pieces; the text of a program is not always whole lines)."""
+    try:
+        while True:
+            chunk = os.read(stream.fileno(), 65536)
+            if not chunk:
+                break
+            sink.write(chunk.decode("utf-8", errors="replace"))
+    except OSError:
+        pass
+
+
+def run_command(request):
+    """A command line of a CLI tool: run by the shell in /output, what it prints told as it goes, its group ended when it is over."""
+    request_id = request.get("id")
+    command = str(request.get("command") or "")
+    if not command.strip() or len(command) > MAX_CODE_CHARS:
+        send({"id": request_id, "type": "result", "error": "The command is empty or longer than " + str(MAX_CODE_CHARS) + " characters."})
+        return
+    timeout = max(1, min(int(request.get("timeoutMs") or 60_000), 120_000)) / 1000
+    out, err = Sink("stdout", request_id), Sink("stderr", request_id)
+    started = time.monotonic()
+    error = None
+    try:
+        process = subprocess.Popen(
+            ["/bin/sh", "-c", command], cwd=OUTPUT if os.path.isdir(OUTPUT) else WORK, env=command_environment(request.get("env")),
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True,
+        )
+    except OSError as caught:
+        send({"id": request_id, "type": "result", "stdout": out.result(), "stderr": err.result(), "error": f"The command could not be started ({caught.strerror or caught}).", "elapsedMs": 0})
+        return
+    readers = [threading.Thread(target=pump, args=(process.stdout, out), daemon=True), threading.Thread(target=pump, args=(process.stderr, err), daemon=True)]
+    for reader in readers:
+        reader.start()
+    try:
+        code = process.wait(timeout=timeout)
+        if code != 0:
+            error = f"The command exited with code {code}."
+    except subprocess.TimeoutExpired:
+        error = "The code ran longer than its time limit."
+    finally:
+        # Whatever the command left running (a program in the background) must not outlive it, or hold the files it wrote.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        process.wait()
+    for reader in readers:
+        reader.join(timeout=2)
+    out.flush()
+    err.flush()
+    send({
+        "id": request_id,
+        "type": "result",
+        "stdout": out.result(),
+        "stderr": err.result(),
+        "error": error,
+        "elapsedMs": int((time.monotonic() - started) * 1000),
+    })
+
+
 def main():
     prepare_folders()
     user_globals = new_globals()
@@ -205,6 +290,8 @@ def main():
             send({"id": request.get("id"), "type": "result", "cleared": True})
         elif kind == "run":
             run_step(request, user_globals)
+        elif kind == "command":
+            run_command(request)
         elif kind == "exit":
             break
 

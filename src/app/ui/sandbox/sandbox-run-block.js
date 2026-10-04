@@ -40,6 +40,8 @@ const cleanStep = (step = {}) => {
     ...(step.thought ? { thought: clip(step.thought, STORED_THOUGHT_CHARS).text } : {}),
     ...(String(step.narration || '').trim() ? { narration: clip(String(step.narration).trim(), STORED_NARRATION_CHARS).text } : {}),
     code: clip(step.code, STORED_CODE_CHARS).text,
+    // A command line of a CLI tool, not Python.
+    ...(step.command ? { command: true } : {}),
     stdout: stdout.text,
     stderr: stderr.text,
     ...(stdout.trimmed || stderr.trimmed || step.outputTrimmed ? { outputTrimmed: true } : {}),
@@ -128,6 +130,7 @@ export function summarizeSandboxRun(run) {
   if (!run.steps.length) return run.fallback ? '[Answered in Standard mode.]\n' : '';
   const files = [...new Set(run.steps.flatMap((step) => step.files.map((file) => file.name)))];
   const produced = files.length ? `; it created ${files.map((name) => `/output/${name}`).join(', ')}` : '';
+  if (run.steps.some((step) => step.command)) return `[Earlier in this reply ${run.steps.length} step${run.steps.length === 1 ? '' : 's'} (Python or CLI commands) ran in the sandbox${produced}. That environment is gone.]\n`;
   return `[Earlier in this reply Python ran ${run.steps.length} time${run.steps.length === 1 ? '' : 's'} in the sandbox${produced}. That environment is gone.]\n`;
 }
 
