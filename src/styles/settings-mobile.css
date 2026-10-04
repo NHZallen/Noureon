@@ -80,18 +80,18 @@
     }
 
     #settings-modal #settings-mobile-header {
-        position: relative !important;
+        position: absolute !important;
+        inset: 0 0 auto;
+        z-index: 40;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        flex: 0 0 auto !important;
         min-height: 4.75rem !important;
         padding: 0 4.25rem !important;
-        background: #f4f3f8 !important;
-    }
-
-    #settings-modal:not(.settings-mobile-detail-open) #settings-mobile-header {
-        display: none !important;
+        background: rgba(255, 255, 255, 0.72) !important;
+        backdrop-filter: blur(20px) saturate(1.15);
+        -webkit-backdrop-filter: blur(20px) saturate(1.15);
+        pointer-events: none;
     }
 
     #settings-mobile-title {
@@ -281,7 +281,7 @@
         flex: 1 1 auto !important;
         min-height: 0 !important;
         width: 100% !important;
-        padding: 0.25rem 1.15rem 1.4rem !important;
+        padding: 5rem 1.15rem 1.4rem !important;
         overflow-y: auto !important;
         background: #ffffff !important;
         scrollbar-width: none !important;
