@@ -16,6 +16,12 @@ const TEXTS = Object.freeze({
     sandboxCliPreparing: '正在準備命令工具……',
     sandboxCliInstalling: '正在安裝 {name}……',
     sandboxNetWaiting: '等你回答：要不要允許連到 {host}？',
+    sandboxSkippedLarge: '未提供下載：{name}（{size}，超過每個檔案 {limit} 的上限）',
+    sandboxSkippedTotal: '未提供下載：{name}（這一步的檔案總量超過上限）',
+    sandboxSkippedCount: '未提供下載：{name}（這一步的檔案太多）',
+    sandboxSkippedBlocked: '未提供下載：{name}（不允許的檔案類型）',
+    sandboxSkippedNotSaved: '未提供下載：{name}（無法保存到雲端空間）',
+    sandboxSkippedQuota: '未提供下載：{name}（雲端空間已滿，請先清理）',
     netAskTitle: '命令工具想連到 {host}',
     netAskOnce: '同意這一次',
     netAskAlways: '永遠同意',
@@ -95,6 +101,12 @@ const TEXTS = Object.freeze({
     sandboxCliPreparing: 'Preparing the CLI tools…',
     sandboxCliInstalling: 'Installing {name}…',
     sandboxNetWaiting: 'Waiting for your answer: allow {host}?',
+    sandboxSkippedLarge: 'Not offered for download: {name} ({size}, over the limit of {limit} per file)',
+    sandboxSkippedTotal: 'Not offered for download: {name} (the files of this step are over the total limit)',
+    sandboxSkippedCount: 'Not offered for download: {name} (too many files in this step)',
+    sandboxSkippedBlocked: 'Not offered for download: {name} (a type of file that is not allowed)',
+    sandboxSkippedNotSaved: 'Not offered for download: {name} (it could not be saved to your cloud space)',
+    sandboxSkippedQuota: 'Not offered for download: {name} (your cloud space is full: clear some first)',
     netAskTitle: 'A command tool wants to connect to {host}',
     netAskOnce: 'Allow this time',
     netAskAlways: 'Always allow',
@@ -174,6 +186,12 @@ const TEXTS = Object.freeze({
     sandboxCliPreparing: 'Préparation des outils CLI…',
     sandboxCliInstalling: 'Installation de {name}…',
     sandboxNetWaiting: 'En attente de votre réponse : autoriser {host} ?',
+    sandboxSkippedLarge: 'Non proposé au téléchargement : {name} ({size}, au-delà de la limite de {limit} par fichier)',
+    sandboxSkippedTotal: 'Non proposé au téléchargement : {name} (les fichiers de cette étape dépassent la limite totale)',
+    sandboxSkippedCount: 'Non proposé au téléchargement : {name} (trop de fichiers dans cette étape)',
+    sandboxSkippedBlocked: 'Non proposé au téléchargement : {name} (type de fichier non autorisé)',
+    sandboxSkippedNotSaved: 'Non proposé au téléchargement : {name} (impossible de l’enregistrer dans votre espace cloud)',
+    sandboxSkippedQuota: 'Non proposé au téléchargement : {name} (votre espace cloud est plein : faites de la place)',
     netAskTitle: 'Un outil en ligne de commande veut se connecter à {host}',
     netAskOnce: 'Autoriser cette fois',
     netAskAlways: 'Toujours autoriser',
@@ -253,6 +271,12 @@ const TEXTS = Object.freeze({
     sandboxCliPreparing: 'Подготовка CLI-инструментов…',
     sandboxCliInstalling: 'Установка {name}…',
     sandboxNetWaiting: 'Ждём вашего ответа: разрешить {host}?',
+    sandboxSkippedLarge: 'Не предложен для скачивания: {name} ({size}, больше лимита {limit} на файл)',
+    sandboxSkippedTotal: 'Не предложен для скачивания: {name} (файлы этого шага превышают общий лимит)',
+    sandboxSkippedCount: 'Не предложен для скачивания: {name} (слишком много файлов в этом шаге)',
+    sandboxSkippedBlocked: 'Не предложен для скачивания: {name} (недопустимый тип файла)',
+    sandboxSkippedNotSaved: 'Не предложен для скачивания: {name} (не удалось сохранить в облачное хранилище)',
+    sandboxSkippedQuota: 'Не предложен для скачивания: {name} (облачное хранилище заполнено: освободите место)',
     netAskTitle: 'Инструмент командной строки хочет подключиться к {host}',
     netAskOnce: 'Разрешить на этот раз',
     netAskAlways: 'Всегда разрешать',
@@ -332,6 +356,12 @@ const TEXTS = Object.freeze({
     sandboxCliPreparing: 'Preparando las herramientas CLI…',
     sandboxCliInstalling: 'Instalando {name}…',
     sandboxNetWaiting: 'Esperando tu respuesta: ¿permitir {host}?',
+    sandboxSkippedLarge: 'No se ofrece para descargar: {name} ({size}, supera el límite de {limit} por archivo)',
+    sandboxSkippedTotal: 'No se ofrece para descargar: {name} (los archivos de este paso superan el límite total)',
+    sandboxSkippedCount: 'No se ofrece para descargar: {name} (demasiados archivos en este paso)',
+    sandboxSkippedBlocked: 'No se ofrece para descargar: {name} (tipo de archivo no permitido)',
+    sandboxSkippedNotSaved: 'No se ofrece para descargar: {name} (no se pudo guardar en tu espacio en la nube)',
+    sandboxSkippedQuota: 'No se ofrece para descargar: {name} (tu espacio en la nube está lleno: libera espacio)',
     netAskTitle: 'Una herramienta de línea de comandos quiere conectarse a {host}',
     netAskOnce: 'Permitir esta vez',
     netAskAlways: 'Permitir siempre',
@@ -409,3 +439,12 @@ export function sandboxText(language, key, values = {}) {
 }
 
 export const sandboxTextsFor = (language) => TEXTS[language] || TEXTS['zh-TW'];
+
+const SKIPPED_KEYS = Object.freeze({ 'file-too-large': 'sandboxSkippedLarge', 'total-too-large': 'sandboxSkippedTotal', 'too-many-files': 'sandboxSkippedCount', 'blocked-type': 'sandboxSkippedBlocked', 'not-saved': 'sandboxSkippedNotSaved', quota: 'sandboxSkippedQuota' });
+const megabytes = (bytes) => `${Math.max(1, Math.round(Number(bytes) / (1024 * 1024)))} MB`;
+
+/** The line that says a file was made but not offered for download, and why ({ name, reason, size?, limit? } as the sandbox reports it). */
+export function skippedFileText(language, file) {
+  const key = SKIPPED_KEYS[file?.reason] || 'sandboxSkippedNotSaved';
+  return sandboxText(language, key, { name: String(file?.name || ''), size: file?.size ? megabytes(file.size) : '', limit: file?.limit ? megabytes(file.limit) : '' });
+}

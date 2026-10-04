@@ -61,7 +61,12 @@ export const PERMISSION_TEXTS = Object.freeze({
     licensesTools: '命令工具',
     licensesSandbox: '伺服器沙盒裡的軟體',
     licensesApp: 'Noureon 使用的程式庫',
-    licensesNote: '命令工具都是原作者發布的程式，Noureon 只在沙盒裡執行它們，沒有修改。下載與使用網路上的內容時，請遵守各網站的使用條款與著作權。'
+    licensesNote: '命令工具都是原作者發布的程式，Noureon 只在沙盒裡執行它們，沒有修改。下載與使用網路上的內容時，請遵守各網站的使用條款與著作權。',
+    storageTitle: '雲端空間',
+    storageUsed: '雲端空間 {used} / {total}',
+    storageFull: '空間已滿，新的檔案不會再儲存。請到對話或附件中刪除不要的內容。',
+    storageNote: '附件與 AI 做出的檔案都算在這裡。刪除的對話所留下沒用到的檔案，大約一天後會自動清掉。',
+    storageUnknown: '暫時無法取得用量。'
   },
   en: {
     nav: 'Permissions',
@@ -122,7 +127,12 @@ export const PERMISSION_TEXTS = Object.freeze({
     licensesTools: 'CLI tools',
     licensesSandbox: 'Software in the server sandbox',
     licensesApp: 'Libraries Noureon uses',
-    licensesNote: 'The CLI tools are the programs their authors publish; Noureon only runs them in a sandbox and does not change them. When you download or use content from the internet, follow each site’s terms of use and copyright law.'
+    licensesNote: 'The CLI tools are the programs their authors publish; Noureon only runs them in a sandbox and does not change them. When you download or use content from the internet, follow each site’s terms of use and copyright law.',
+    storageTitle: 'Cloud space',
+    storageUsed: 'Cloud space {used} / {total}',
+    storageFull: 'Your space is full, so new files are not saved. Delete conversations or files you no longer need.',
+    storageNote: 'Attachments and the files the AI makes both count here. Files left behind by a deleted conversation that nothing uses any more are cleared automatically after about a day.',
+    storageUnknown: 'The usage cannot be read right now.'
   },
   fr: {
     nav: 'Autorisations',
@@ -183,7 +193,12 @@ export const PERMISSION_TEXTS = Object.freeze({
     licensesTools: 'Outils CLI',
     licensesSandbox: 'Logiciels du bac à sable du serveur',
     licensesApp: 'Bibliothèques utilisées par Noureon',
-    licensesNote: 'Les outils CLI sont les programmes publiés par leurs auteurs ; Noureon se contente de les exécuter dans un bac à sable, sans les modifier. Lorsque vous téléchargez ou utilisez du contenu sur Internet, respectez les conditions d’utilisation de chaque site et le droit d’auteur.'
+    licensesNote: 'Les outils CLI sont les programmes publiés par leurs auteurs ; Noureon se contente de les exécuter dans un bac à sable, sans les modifier. Lorsque vous téléchargez ou utilisez du contenu sur Internet, respectez les conditions d’utilisation de chaque site et le droit d’auteur.',
+    storageTitle: 'Espace cloud',
+    storageUsed: 'Espace cloud {used} / {total}',
+    storageFull: 'Votre espace est plein : les nouveaux fichiers ne sont plus enregistrés. Supprimez les conversations ou fichiers dont vous n’avez plus besoin.',
+    storageNote: 'Les pièces jointes et les fichiers créés par l’IA comptent tous deux. Les fichiers qu’une conversation supprimée laisse derrière elle et que plus rien n’utilise sont effacés automatiquement au bout d’environ un jour.',
+    storageUnknown: 'L’utilisation ne peut pas être lue pour le moment.'
   },
   ru: {
     nav: 'Разрешения',
@@ -244,7 +259,12 @@ export const PERMISSION_TEXTS = Object.freeze({
     licensesTools: 'CLI-инструменты',
     licensesSandbox: 'ПО в песочнице сервера',
     licensesApp: 'Библиотеки, которые использует Noureon',
-    licensesNote: 'CLI-инструменты — это программы, опубликованные их авторами; Noureon лишь запускает их в песочнице и не изменяет. Скачивая или используя материалы из интернета, соблюдайте условия использования сайтов и авторские права.'
+    licensesNote: 'CLI-инструменты — это программы, опубликованные их авторами; Noureon лишь запускает их в песочнице и не изменяет. Скачивая или используя материалы из интернета, соблюдайте условия использования сайтов и авторские права.',
+    storageTitle: 'Облачное хранилище',
+    storageUsed: 'Облачное хранилище {used} / {total}',
+    storageFull: 'Хранилище заполнено, новые файлы не сохраняются. Удалите ненужные диалоги или файлы.',
+    storageNote: 'Учитываются и вложения, и файлы, созданные ИИ. Файлы, оставшиеся после удалённого диалога и больше нигде не используемые, автоматически удаляются примерно через сутки.',
+    storageUnknown: 'Сейчас не удаётся получить данные об использовании.'
   },
   es: {
     nav: 'Permisos',
@@ -305,7 +325,12 @@ export const PERMISSION_TEXTS = Object.freeze({
     licensesTools: 'Herramientas CLI',
     licensesSandbox: 'Software del entorno aislado del servidor',
     licensesApp: 'Bibliotecas que usa Noureon',
-    licensesNote: 'Las herramientas CLI son los programas que publican sus autores; Noureon solo los ejecuta en un entorno aislado y no los modifica. Al descargar o usar contenido de internet, respeta las condiciones de uso de cada sitio y los derechos de autor.'
+    licensesNote: 'Las herramientas CLI son los programas que publican sus autores; Noureon solo los ejecuta en un entorno aislado y no los modifica. Al descargar o usar contenido de internet, respeta las condiciones de uso de cada sitio y los derechos de autor.',
+    storageTitle: 'Espacio en la nube',
+    storageUsed: 'Espacio en la nube {used} / {total}',
+    storageFull: 'Tu espacio está lleno, así que los archivos nuevos no se guardan. Elimina las conversaciones o archivos que ya no necesites.',
+    storageNote: 'Cuentan tanto los adjuntos como los archivos que crea la IA. Los archivos que deja una conversación eliminada y que ya nada utiliza se borran automáticamente al cabo de un día aproximadamente.',
+    storageUnknown: 'No se puede leer el uso en este momento.'
   }
 });
 

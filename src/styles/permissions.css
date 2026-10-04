@@ -88,3 +88,8 @@ button.pm-row > .pm-row-label { flex: 1; }
 a.pm-lic-name { text-decoration: underline; text-underline-offset: 2px; }
 .pm-lic-license { color: var(--text-secondary); }
 .pm-lic-note { flex-basis: 100%; color: var(--text-secondary); font-size: 0.78rem; }
+
+/* The cloud space bar of the Data management tab (settings-storage-usage.js): thin, black on grey, like the rest. */
+.storage-usage-track { height: 6px; border-radius: 3px; background: var(--border-color); overflow: hidden; }
+.storage-usage-fill { height: 100%; border-radius: 3px; background: var(--text-primary); transition: width 0.2s ease; }
+.storage-usage-fill.is-full { background: #c0392b; }

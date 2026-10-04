@@ -4,7 +4,7 @@
 // (pictures as thumbnails), then the files being finished. Fed by the events
 // runSandboxReply reports.
 
-import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger, formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
 import { createNetAskCards } from './net-ask-card.js';
@@ -163,7 +163,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.files.hidden = false;
   };
 
-  const endStep = ({ n, ok, error, files }) => {
+  const endStep = ({ n, ok, error, files, skipped = [] }) => {
     const step = steps.get(n);
     if (!step) return;
     if (error) {
@@ -172,6 +172,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
       step.output.textContent = `${step.written ? `${step.written}\n` : ''}${String(error).slice(-1200)}`;
     }
     files.forEach((file) => addFile(step, file));
+    // A file that was made but is not offered (too large, no room in the cloud space) is said, so it does not look like a file that went missing.
+    for (const file of skipped) step.row.body.append(create('p', 'sandbox-run-note is-skipped', skippedFileText(language, file)));
     step.row.setDetail('');
     step.row.setLabel(step.row.doneLabel);
     step.row.finish(ok ? 'done' : 'failed');

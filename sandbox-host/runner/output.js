@@ -35,7 +35,8 @@ export function snapshotOutput(directory) {
   }));
 }
 
-export function collectOutput(directory, before = new Map()) {
+/** `limits`: { outputFileCount, outputFileBytes, outputTotalBytes } (the runner may allow more than the browser's sandbox does). */
+export function collectOutput(directory, before = new Map(), limits = LIMITS) {
   const files = [];
   const skipped = [];
   let total = 0;
@@ -44,9 +45,9 @@ export function collectOutput(directory, before = new Map()) {
     const stat = lstatSync(path);
     if (before.get(name) === `${stat.size}:${Math.round(stat.mtimeMs)}`) continue;
     if (isBlockedOutputName(name)) skipped.push({ name, reason: 'blocked-type' });
-    else if (files.length >= LIMITS.outputFileCount) skipped.push({ name, reason: 'too-many-files' });
-    else if (stat.size > LIMITS.outputFileBytes) skipped.push({ name, reason: 'file-too-large', size: stat.size });
-    else if (total + stat.size > LIMITS.outputTotalBytes) skipped.push({ name, reason: 'total-too-large', size: stat.size });
+    else if (files.length >= limits.outputFileCount) skipped.push({ name, reason: 'too-many-files' });
+    else if (stat.size > limits.outputFileBytes) skipped.push({ name, reason: 'file-too-large', size: stat.size, limit: limits.outputFileBytes });
+    else if (total + stat.size > limits.outputTotalBytes) skipped.push({ name, reason: 'total-too-large', size: stat.size, limit: limits.outputTotalBytes });
     else {
       const bytes = readFileSync(path);
       total += bytes.byteLength;

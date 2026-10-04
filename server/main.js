@@ -3,6 +3,7 @@
 import { createServer } from 'node:http';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
+import { createAssetSweeper } from './asset-sweeper.js';
 import { createCredentialStore } from './cli-credentials.js';
 import { createKeyVault } from './key-vault.js';
 import { createLogger } from './log.js';
@@ -27,6 +28,8 @@ try {
 
 let runs = null;
 let credentials = null;
+let files = null;
+let sweeper = null;
 let checkRunsStore = async () => {};
 let checkSandbox = async () => {};
 let checkSlides = async () => {};
@@ -39,7 +42,9 @@ if (config.runsConfigured) {
       .catch((error) => log('runs_store_failed', { code: error?.code || '', status: error?.status || 0, message: String(error?.message || '').slice(0, 160) }));
     // Python runs on the sandbox host when it is set; the files it makes are kept in the person's storage.
     const host = config.sandboxUrl ? createSandboxHost({ url: config.sandboxUrl, token: config.sandboxToken }) : null;
-    const sandbox = host ? { host, files: createFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }) } : null;
+    files = createFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey, db });
+    const sandbox = host ? { host, files } : null;
+    sweeper = createAssetSweeper({ db, files, log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
     checkSlides = () => canDrawSlides().then((ok) => log(ok ? 'slides_ok' : 'slides_unavailable'));
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);
@@ -51,7 +56,7 @@ if (config.runsConfigured) {
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials }));
+const server = createServer(createApp({ config, log, runs, credentials, files }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;
@@ -61,11 +66,13 @@ server.listen(config.port, () => {
   void checkSandbox();
   void checkSlides();
   runs?.startSweeping();
+  sweeper?.start();
 });
 
 const stop = async (signal) => {
   log('stopping', { signal });
   server.close();
+  sweeper?.stop();
   // The replies that are running are put down where they are and handed over for the next process to take up.
   const handedOver = await runs?.shutdown().catch(() => 0);
   log('stopped', { handedOver: handedOver || 0 });

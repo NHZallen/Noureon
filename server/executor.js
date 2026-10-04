@@ -10,7 +10,7 @@ import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.j
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
 import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
-import { CLI_PLATFORM, cliInstallCommand, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
+import { CLI_PLATFORM, cliInstallCommand, cliPipCommands, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { effectiveNetPolicy } from '../src/data/cli-net.js';
 import { prepareToolCredentials, scrubResult, scrubSecrets } from './cli-credentials.js';
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
@@ -149,7 +149,9 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       let advancedOptions = requestOptions;
       // The CLI tools of this reply: the programs to bring, the pip tools to install, and what each needs for its login. The credentials come from the
       // person's own, kept here (the model never sees a value, and what a command prints is scrubbed of them).
-      const chosenTools = (spec.tools.cli || []).map(({ id }) => getCliTool(id)).filter(isCliReady);
+      const cliEntries = (spec.tools.cli || []).map((entry) => ({ tool: getCliTool(entry.id), chosen: entry.chosen === true })).filter((entry) => isCliReady(entry.tool));
+      const chosenTools = cliEntries.map((entry) => entry.tool);
+      const chosenIds = new Set(cliEntries.filter((entry) => entry.chosen).map((entry) => entry.tool.id));
       let toolCredentials = { env: {}, files: [], missing: {}, secrets: [] };
       if (chosenTools.some((tool) => (tool.credentials || []).length) && credentials) {
         try {
@@ -231,8 +233,10 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             name: tool.name,
             version: tool.version,
             usage: tool.usage,
+            // Whether the person chose it for this message with "@" (else the model may use it by itself, when it is clearly needed).
+            chosen: chosenIds.has(tool.id),
             env: tool.env || {},
-            ...(tool.kind === 'pip' ? { pip: { command: tool.pip.command }, install: cliInstallCommand(tool) } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } }),
+            ...(tool.kind === 'pip' ? { pip: { command: tool.pip.command, commands: cliPipCommands(tool) }, install: cliInstallCommand(tool) } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } }),
             ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
           })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,

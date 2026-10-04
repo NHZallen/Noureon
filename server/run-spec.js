@@ -87,6 +87,7 @@ export function validateRunSpec(input) {
       else {
         tools.cli.forEach((entry, index) => {
           if (!isObject(entry) || !text(entry.id, 40) || !isCliReady(getCliTool(entry.id))) fail(`tools.cli[${index}]`, 'must name a tool of the store that can be used');
+          else if (entry.chosen !== undefined && typeof entry.chosen !== 'boolean') fail(`tools.cli[${index}].chosen`, 'must be true or false');
         });
         if (tools.cli.length && tools.advanced !== true) fail('tools.cli', 'CLI tools run in the sandbox: advanced must be true');
       }
@@ -158,7 +159,7 @@ export function validateRunSpec(input) {
         advanced: tools.advanced,
         ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
-        ...(Array.isArray(tools.cli) && tools.cli.length ? { cli: [...new Set(tools.cli.map((entry) => entry.id))].map((id) => ({ id })) } : {}),
+        ...(Array.isArray(tools.cli) && tools.cli.length ? { cli: [...new Set(tools.cli.map((entry) => entry.id))].map((id) => ({ id, chosen: tools.cli.some((entry) => entry.id === id && entry.chosen === true) })) } : {}),
         ...(Array.isArray(tools.cli) && tools.cli.length && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules) } } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },

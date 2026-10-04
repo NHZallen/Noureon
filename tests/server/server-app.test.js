@@ -12,14 +12,14 @@ const USER = '123e4567-e89b-12d3-a456-426614174000';
 const TOKEN = 'good-token-good-token-good-token';
 const KEY = 'sk-live-provider-key-value';
 
-async function withServer(run, { auth = true, runs = null, credentials = null } = {}) {
+async function withServer(run, { auth = true, runs = null, credentials = null, files = null } = {}) {
   const lines = [];
   const config = loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon', SOURCE_COMMIT: 'abc123' });
   const fetchImpl = async (url, options) => {
     if (!auth) throw new Error('offline');
     return options.headers.Authorization === `Bearer ${TOKEN}` ? new Response(JSON.stringify({ id: USER }), { status: 200 }) : new Response('{}', { status: 401 });
   };
-  const server = createServer(createApp({ config, fetchImpl, runs, credentials, log: createLogger((line) => lines.push(line)) }));
+  const server = createServer(createApp({ config, fetchImpl, runs, credentials, files, log: createLogger((line) => lines.push(line)) }));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -394,4 +394,19 @@ test('an answer about a site reaches the reply of the person who gives it, and o
     assert.equal((await answer('323e4567-e89b-12d3-a456-426614174002', { askId: 'ask0000000000001', decision: 'once' })).status, 404, 'a reply that is not running here');
     assert.equal((await fetch(`${base}/v1/runs/${USER}/net`, { method: 'POST', headers: json, body: '{}' })).status, 401);
   }, { runs });
+});
+
+test('/v1/storage tells the signed-in person how much of their space is used', async () => {
+  const asked = [];
+  const files = { quotaBytes: 500 * 1024 * 1024, usage: async (userId) => { asked.push(userId); return 1234; } };
+  await withServer(async ({ base }) => {
+    assert.equal((await fetch(`${base}/v1/storage`)).status, 401);
+    const response = await fetch(`${base}/v1/storage`, { headers: auth });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { usedBytes: 1234, quotaBytes: 500 * 1024 * 1024 });
+    assert.deepEqual(asked, [USER]);
+  }, { files });
+  await withServer(async ({ base }) => {
+    assert.equal((await fetch(`${base}/v1/storage`, { headers: auth })).status, 503);
+  });
 });

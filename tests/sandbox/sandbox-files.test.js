@@ -214,3 +214,13 @@ test('a "[File: name]" marker the model copied from the summaries of earlier cha
   assert.equal(withoutDuplicatedFileBlocks('[File: A.PPTX]\nx', ['a.pptx']), 'x', 'the name is compared without regard to case');
   assert.equal(withoutDuplicatedFileBlocks(answer, []), answer, 'with no saved file nothing is taken out');
 });
+
+test('video and audio files the command tools make are delivered like any file: a type, a mime and a download, not "text"', () => {
+  for (const [name, mime] of [['a.mp4', 'video/mp4'], ['b.webm', 'video/webm'], ['c.mkv', 'video/x-matroska'], ['d.mov', 'video/quicktime'], ['e.m4a', 'audio/mp4'], ['f.mp3', 'audio/mpeg'], ['g.opus', 'audio/opus'], ['h.flac', 'audio/flac'], ['i.avi', 'video/x-msvideo']]) {
+    const type = sandboxFileType(name);
+    assert.equal(type.policy, 'allow', name);
+    assert.equal(type.mime, mime, name);
+    assert.equal(type.binary, true, name);
+    assert.notEqual(type.family, 'text', name);
+  }
+});

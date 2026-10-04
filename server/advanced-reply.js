@@ -118,15 +118,18 @@ export async function finishAdvancedReply({ result, run, userId, files, embedFon
     const bytes = output.bytes instanceof Uint8Array ? output.bytes : new Uint8Array(output.bytes || 0);
     const mimeType = sandboxFileType(name).mime || 'application/octet-stream';
     let data = null;
+    let reason = 'not-saved';
     try {
       data = await files.save({ userId, bytes, mimeType });
-    } catch {
-      if (bytes.byteLength <= INLINE_FALLBACK_BYTES) data = Buffer.from(bytes).toString('base64');
+    } catch (error) {
+      // A full space is not a fault to work around: a file kept inside the message would only be a second way past the limit.
+      if (error?.code === 'quota') reason = 'quota';
+      else if (bytes.byteLength <= INLINE_FALLBACK_BYTES) data = Buffer.from(bytes).toString('base64');
     }
     const step = run.steps[stepIndex];
     if (data === null) {
       // Not saved: the file is not offered, and the step says so.
-      step.skipped = [...(step.skipped || []), { name, reason: 'not-saved' }];
+      step.skipped = [...(step.skipped || []), { name, reason }];
       step.files = step.files.filter((entry) => entry.name !== name);
       continue;
     }

@@ -3,7 +3,7 @@
 // the model thought, the code (coloured like other code blocks), its output and the files it made. The rows are
 // drawn like the live step list is (ledger.js), so what streamed in is what stays.
 
-import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
 import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { formatElapsed } from '../ledger/ledger.js';
@@ -85,6 +85,8 @@ function stepRow(document, step, index, language) {
     files.append(document.createTextNode(` ${step.files.map((file) => `${shown(file.name)}（${formatSize(file.size)}）`).join('、')}`));
     body.push(files);
   }
+  // A file the step made that is not offered (too large, no room in the cloud space): said here, so it is not a file that went missing.
+  for (const file of Array.isArray(step.skipped) ? step.skipped : []) body.push(element(document, 'p', 'sandbox-run-note is-skipped', skippedFileText(language, file)));
   const number = index + 1;
   return renderRow(document, {
     kind: 'code',

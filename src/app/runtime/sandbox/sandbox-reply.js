@@ -39,7 +39,10 @@ export function toolResultFor(result = {}, { note = '' } = {}) {
     stderr: trimForModel(outputText(result.stderr)),
     ...(result.error ? { error: trimForModel(result.error, 4000) } : {}),
     files: (result.files || []).map((file) => ({ path: `/output/${file.name}`, size: file.size })),
-    ...(result.skippedFiles?.length ? { skipped_files: result.skippedFiles.map((file) => ({ path: `/output/${file.name}`, reason: file.reason })) } : {}),
+    ...(result.skippedFiles?.length ? {
+      skipped_files: result.skippedFiles.map((file) => ({ path: `/output/${file.name}`, reason: file.reason, ...(file.size ? { size_mb: Math.round(file.size / 1048576) } : {}), ...(file.limit ? { limit_mb: Math.round(file.limit / 1048576) } : {}) })),
+      skipped_note: 'These files were NOT delivered to the user. If a file was too large, make a smaller one (a lower quality or resolution, a shorter clip, audio only) and tell the user why; do not claim the file was delivered.'
+    } : {}),
     ...(result.restarted ? { restarted: true, note: 'The Python environment was restarted; variables from earlier calls are gone.' } : {}),
     ...(result.packageError ? { package_error: trimForModel(result.packageError, 2000) } : {}),
     elapsed_ms: Math.round(Number(result.elapsedMs) || 0)
@@ -200,27 +203,34 @@ export async function runSandboxReply({
           if (signal?.aborted) throw error;
           cliFailure = String(error?.message || error).slice(0, 300);
         }
-        // The Python tools are installed now, in the sandbox (the person is asked about a site the install needs that has no rule).
-        if (!cliFailure) {
-          for (const tool of cliTools.filter((entry) => entry.install)) {
-            const installing = sandboxText(language, 'sandboxCliInstalling', { name: tool.name });
-            onStatus(installing);
-            onEvent({ type: 'prepare', text: installing });
-            try {
-              const done = await sandbox.command(tool.install, { signal, plain: true, timeoutMs: 120_000 });
-              if (done?.stopped) throw Object.assign(new Error('stopped'), { code: 'stopped' });
-              if (done?.error) cliProblems[tool.id] = lastLine(outputText(done.stderr)) || String(done.error).slice(0, 200);
-            } catch (error) {
-              if (signal?.aborted || error?.code === 'stopped') throw error;
-              cliProblems[tool.id] = String(error?.message || error).slice(0, 200);
-            }
-          }
-        }
       }
       return sandbox;
     })();
     sandboxReady.catch(() => { sandboxReady = null; });
     return sandboxReady;
+  };
+
+  // A Python tool is installed the first time a command uses it (not for every reply that merely has it among its tools): the person is asked about
+  // a site the install needs that has no rule, and the install is told in the step that needs it.
+  const installed = new Set();
+  const installFor = async (sandbox, commandLine) => {
+    for (const tool of cliTools) {
+      if (!tool.install || installed.has(tool.id) || cliProblems[tool.id]) continue;
+      const names = Array.isArray(tool.pip?.commands) && tool.pip.commands.length ? tool.pip.commands : [tool.pip?.command].filter(Boolean);
+      if (!names.some((name) => new RegExp(`(^|[\\s;&|(\\/])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[\\s;&|)])`).test(commandLine))) continue;
+      installed.add(tool.id);
+      const installing = sandboxText(language, 'sandboxCliInstalling', { name: tool.name });
+      onStatus(installing);
+      onEvent({ type: 'prepare', text: installing });
+      try {
+        const done = await sandbox.command(tool.install, { signal, plain: true, timeoutMs: 120_000 });
+        if (done?.stopped) throw Object.assign(new Error('stopped'), { code: 'stopped' });
+        if (done?.error) cliProblems[tool.id] = lastLine(outputText(done.stderr)) || String(done.error).slice(0, 200);
+      } catch (error) {
+        if (signal?.aborted || error?.code === 'stopped') throw error;
+        cliProblems[tool.id] = String(error?.message || error).slice(0, 200);
+      }
+    }
   };
 
   const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command }))) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
@@ -387,7 +397,10 @@ export async function runSandboxReply({
         result = isCommand
           ? (cliFailure
             ? { stdout: '', stderr: '', error: `The CLI tools could not be prepared (${cliFailure}). Do not call run_command again; answer without it.`, files: [], elapsedMs: 0 }
-            : await sandbox.command(code, { signal, env: cliEnv, timeoutMs: Math.min(120, Math.max(5, Number(call.args?.timeout_seconds) || 60)) * 1000 }))
+            : await (async () => {
+              await installFor(sandbox, code);
+              return sandbox.command(code, { signal, env: cliEnv, timeoutMs: Math.min(120, Math.max(5, Number(call.args?.timeout_seconds) || 60)) * 1000 });
+            })())
           : await sandbox.run(code, { signal });
       } catch (error) {
         if (signal?.aborted || error?.code === 'stopped') {
@@ -419,7 +432,7 @@ export async function runSandboxReply({
         // Kept in memory for B3, which saves them with the message.
         outputs: result.files || []
       });
-      onEvent({ type: 'step-end', n: currentStep, ok: !result.error, error: result.error || '', files: result.files || [], elapsedMs: result.elapsedMs || 0 });
+      onEvent({ type: 'step-end', n: currentStep, ok: !result.error, error: result.error || '', files: result.files || [], skipped: result.skippedFiles || [], elapsedMs: result.elapsedMs || 0 });
       let note = '';
       if (result.crashed) {
         crashes += 1;

@@ -1,5 +1,6 @@
 import { ensurePrivacySettingsSection } from './settings-privacy-section.js';
 import { ensurePermissionsSettingsSection } from './settings-permissions-section.js';
+import { ensureStorageUsageBlock } from './settings-storage-usage.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { FILE_MODES, chosenFileMode } from '../sandbox/file-mode.js';
 import { sandboxText } from '../sandbox/sandbox-texts.js';
@@ -29,6 +30,7 @@ export function ensureVisionCheckSettingsControl({ document, elements, config, s
   // The Privacy and Permissions tabs are set up with the other tabs that are added here.
   ensurePrivacySettingsSection({ document, elements, config, saveConfig });
   ensurePermissionsSettingsSection({ document, elements, config, saveConfig, showNotification });
+  ensureStorageUsageBlock({ document, elements, config });
   const section = document.getElementById('accessibility-section');
   if (!section) return;
   let row = document.getElementById('vision-check-setting-row');

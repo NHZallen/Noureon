@@ -50,6 +50,7 @@ Every command saves the file. After a series of commands, \`officecli validate <
 const FFMPEG_USAGE = `ffmpeg converts, trims, joins and re-encodes audio and video (a static build: the program is one file; there is no ffprobe).
 Read the user's files from /input (read only) and write every result to /output. Always name an output file, add -y to overwrite and -hide_banner -loglevel error to keep the output short.
 A step may run for at most about two minutes (give timeout_seconds up to 120): work on short clips, a lower resolution or a fast preset (-preset veryfast) for long files, and say so when a file is too long.
+Leave only the finished file in /output (no intermediate files), and keep it under 50 MB: a larger file is not delivered, so lower the resolution or the bitrate (-crf 28, -vf scale=-2:480) when the result would be bigger.
 
   Convert / compress video:   ffmpeg -y -i /input/in.mov -c:v libx264 -crf 23 -preset veryfast -c:a aac /output/out.mp4
   Audio only:                 ffmpeg -y -i /input/in.mp4 -vn -c:a libmp3lame -q:a 2 /output/audio.mp3
@@ -60,13 +61,15 @@ A step may run for at most about two minutes (give timeout_seconds up to 120): w
   Join files of the same kind: put "file '/input/a.mp4'" lines in /output/list.txt, then ffmpeg -y -f concat -safe 0 -i /output/list.txt -c copy /output/joined.mp4
   What a file holds:          ffmpeg -hide_banner -i /input/in.mp4 2>&1   (it lists the streams, then complains that there is no output: that is expected)`;
 
-const YTDLP_USAGE = `yt-dlp downloads video and audio from many sites (it is run as a Python program and reaches the sites through the network that the person allows). Write everything to /output.
-  Download:            yt-dlp -o "/output/%(title).80B.%(ext)s" "URL"
-  Audio as mp3:        yt-dlp -x --audio-format mp3 -o "/output/%(title).80B.%(ext)s" "URL"     (the conversion needs the ffmpeg tool, when the user chose it too)
-  A limit on quality:  yt-dlp -f "bv*[height<=720]+ba/b[height<=720]" "URL"
-  Only one video:      add --no-playlist. Subtitles: --write-subs --sub-langs "en.*,zh.*" --skip-download
+const YTDLP_USAGE = `yt-dlp downloads video and audio from many sites (it is run as a Python program and reaches the sites through the network that the person allows).
+Deliver ONE finished file and leave nothing else in /output: ask for MP4 straight away, keep scratch files in /work (-P "temp:/work"), and delete anything else it left in /output (a .webm or .m4a source, .part files, subtitles that were not asked for) with rm before you answer.
+  Video (MP4):         yt-dlp -P "temp:/work" -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b" --merge-output-format mp4 -o "/output/%(title).80B.%(ext)s" "URL"
+                       (joining a separate video and audio needs the ffmpeg tool; when it is not among the tools, use a single-file format: -f "b[ext=mp4]/b")
+  Audio as mp3:        yt-dlp -P "temp:/work" -x --audio-format mp3 -o "/output/%(title).80B.%(ext)s" "URL"     (the conversion needs the ffmpeg tool)
+  A limit on quality:  -f "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720]"
+  Only one video:      add --no-playlist. Subtitles only: --write-subs --sub-langs "en.*,zh.*" --skip-download
   What exists:         yt-dlp -F "URL"      Information only: yt-dlp -J --no-playlist "URL"
-Mind the time of a step (at most about two minutes: give timeout_seconds up to 120) and the size of files: prefer a lower quality when asked for something long.`;
+Mind the time of a step (at most about two minutes: give timeout_seconds up to 120) and the size: a file larger than 50 MB is not delivered to the user, so for anything long choose a lower quality (720p or 480p) or only the audio, and say so.`;
 
 const TWITTER_USAGE = `twitter reads and writes on X (Twitter) with the person's own login (the credentials are in the environment as TWITTER_AUTH_TOKEN and TWITTER_CT0). Add --json for structured output and --max N to limit how many.
   twitter feed [-t following]        the home timeline         twitter bookmarks
@@ -304,7 +307,7 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       ru: 'Набор инструментов для CSV: статистика по столбцам, выбор, фильтрация, сортировка, объединение, SQL и преобразование в JSON.',
       es: 'Un conjunto de herramientas para archivos CSV: estadísticas por columna, selección, filtros, orden, uniones, SQL y conversión a JSON.'
     }),
-    pip: Object.freeze({ package: 'csvkit', version: '2.2.0', command: 'csvstat' }),
+    pip: Object.freeze({ package: 'csvkit', version: '2.2.0', command: 'csvstat', commands: Object.freeze(['csvstat', 'csvcut', 'csvgrep', 'csvsort', 'csvjoin', 'csvsql', 'csvjson', 'csvlook', 'csvclean', 'csvformat', 'csvstack', 'csvpy', 'in2csv', 'sql2csv']) }),
     credentials: Object.freeze([]),
     details: Object.freeze({
       'zh-TW': 'csvkit 是一組處理 CSV 檔案的工具：統計每個欄位、挑選欄位、篩選與排序列、合併多個檔案、用 SQL 查詢，並在 Excel、JSON 與 CSV 之間轉換。適合整理與分析表格資料。它是 Python 套件，第一次使用時會在沙盒裡用 pip 安裝，需要連到 pypi.org（預設已允許，可在設定的「權限」裡調整）；處理你的資料本身不需要網路。',
@@ -448,6 +451,9 @@ export const CLI_PIP_TARGET = '/opt/pip';
 export const cliInstallCommand = (tool) => (tool?.kind === 'pip' && tool.pip
   ? `pip install --quiet --no-input --disable-pip-version-check --no-cache-dir --target ${CLI_PIP_TARGET} ${tool.pip.package}==${tool.pip.version} && test -x ${CLI_PIP_TARGET}/bin/${tool.pip.command}`
   : '');
+
+/** The command names of a pip tool (what a command line says when it uses the tool). */
+export const cliPipCommands = (tool) => (tool?.kind === 'pip' && tool.pip ? (tool.pip.commands?.length ? [...tool.pip.commands] : [tool.pip.command]) : []);
 
 /** The programs that make a tool's files for its login, in the form the sandbox's commands take: [{ path, format, from }]. */
 export const cliCredentialFiles = (tool) => (Array.isArray(tool?.credentialFiles) ? tool.credentialFiles : []);

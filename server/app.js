@@ -61,7 +61,7 @@ async function readJson(request, maxBytes, { optional = false } = {}) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
@@ -253,6 +253,14 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           if (error instanceof CredentialError) throw new RequestError(ERROR_CODES.badRequest, error.message, { reason: error.code });
           throw error;
         }
+        return;
+      }
+      // How much of the person's space in the cloud is used: { usedBytes, quotaBytes } (usedBytes is null when it cannot be known).
+      if (route === 'GET /v1/storage') {
+        const user = await authenticate(request);
+        if (!files) throw new RequestError(ERROR_CODES.runsUnavailable, 'Storage is not set up yet.');
+        send(response, 200, { usedBytes: await files.usage(user.id), quotaBytes: files.quotaBytes }, origin);
+        status = 200;
         return;
       }
       throw new RequestError(ERROR_CODES.notFound, 'Not found.');

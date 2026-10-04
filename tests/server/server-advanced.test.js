@@ -393,7 +393,9 @@ test('a request names CLI tools of the store, for a reply with Python only', () 
   const base = { protocol: 1, clientVersion: '17.6.0', conversationId: '123e4567-e89b-12d3-a456-426614174000', assistantMessageId: '223e4567-e89b-12d3-a456-426614174001', sequence: 0, model: { provider: 'openrouter', id: 'm', info: modelInfo }, request: { history: [], currentMessage: { parts: [{ text: 'x' }] }, systemInstruction: '', language: 'en' }, secrets: { providerKey: KEY } };
   const ok = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli' }, { id: 'officecli' }] } });
   assert.equal(ok.ok, true);
-  assert.deepEqual(ok.spec.tools.cli, [{ id: 'officecli' }], 'once each');
+  assert.deepEqual(ok.spec.tools.cli, [{ id: 'officecli', chosen: false }], 'once each');
+  assert.deepEqual(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli', chosen: true }, { id: 'ffmpeg' }] } }).spec.tools.cli, [{ id: 'officecli', chosen: true }, { id: 'ffmpeg', chosen: false }], 'what the person chose with @ is told apart');
+  assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli', chosen: 'yes' }] } }).ok, false);
   for (const [cli, advanced, what] of [[[{ id: 'nothing-here' }], true, 'a tool that is not in the store'], [[{ id: 'officecli' }], false, 'a reply without Python'], [{}, true, 'not a list'], [Array.from({ length: 9 }, () => ({ id: 'officecli' })), true, 'too many']]) {
     const bad = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced, cli } });
     assert.equal(bad.ok, false, what);
@@ -608,4 +610,45 @@ test('what the proxy asks the person goes to the page as an event, and the perso
   assert.equal(typeof netControl.answer, 'function', 'the run manager has the way to answer');
   assert.deepEqual(await netControl.answer(ask.id, 'always'), { answered: true });
   assert.deepEqual(host.record.answers, [[ask.id, 'always']]);
+});
+
+test('what the person chose with "@" is told to the model as chosen, what it may use by itself as not chosen, with the rule to leave it alone for ordinary requests', async () => {
+  const bodies = [];
+  const run = async (cli) => {
+    bodies.length = 0;
+    await executeReply({
+      spec: specFor({ cli }), secrets, userId: USER, sandboxHost: fakeCliHost(), files: fakeFiles(), onLive: () => {},
+      fetchImpl: async (url, options) => { bodies.push(options.body); return streamResponse(sse(content('Hello.'))); }
+    });
+    return bodies[0];
+  };
+  const chosen = await run([{ id: 'officecli', chosen: true }]);
+  assert.match(chosen, /The user chose this CLI tool for this message with \\"@\\": OfficeCLI/);
+  assert.doesNotMatch(chosen, /did NOT choose/);
+  const own = await run([{ id: 'ffmpeg', chosen: false }, { id: 'yt-dlp', chosen: false }]);
+  assert.match(own, /did NOT choose any for this message: FFmpeg, yt-dlp/);
+  assert.match(own, /use no CLI tool and do not call run_command/);
+  assert.doesNotMatch(own, /The user chose/, 'the words that pushed the model to use every tool are gone');
+  const mixed = await run([{ id: 'officecli', chosen: true }, { id: 'ffmpeg', chosen: false }]);
+  assert.match(mixed, /Also available, but NOT chosen for this message: FFmpeg/);
+});
+
+test('a Python tool is installed when a command first uses it, once, and not for a reply that only has it among its tools', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'ok\n' }) });
+  let round = 0;
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'csvkit', chosen: false }, { id: 'twitter-cli', chosen: false }, { id: 'ffmpeg', chosen: false }] }),
+    secrets, userId: USER, sandboxHost: host, files: fakeFiles(), credentials: { values: async () => ({}) }, onLive: () => {},
+    fetchImpl: async () => {
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('c1', 'run_command', { command: 'ffmpeg -version' })));
+      if (round === 2) return streamResponse(sse(toolCall('c2', 'run_command', { command: 'cd /output && csvcut -n /input/a.csv | head' })));
+      if (round === 3) return streamResponse(sse(toolCall('c3', 'run_command', { command: 'csvstat /input/a.csv' })));
+      return streamResponse(sse(content('Done.')));
+    }
+  });
+  const lines = host.record.commands.map((command) => command.line);
+  assert.equal(lines.filter((line) => line.startsWith('pip install')).length, 1, 'csvkit once; twitter-cli never');
+  assert.match(lines.find((line) => line.startsWith('pip install')), /csvkit==/);
+  assert.deepEqual(lines.map((line) => line.split(' ')[0]), ['ffmpeg', 'pip', 'cd', 'csvstat'], 'installed right before the first command that uses it');
 });
