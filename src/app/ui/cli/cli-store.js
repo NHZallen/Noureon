@@ -3,7 +3,7 @@
 // follows the directories of ChatGPT (Apps) and Claude (Connectors): one row for each, the action on the right, black and white.
 // A tool is added by a record in the settings (nothing is downloaded: the server fetches the program when a message first uses it).
 
-import { OFFICIAL_CLI_CATALOG, cliDescription, isCliReady } from '../../../data/cli-catalog.js';
+import { OFFICIAL_CLI_CATALOG, cliDescription, cliDetails, isCliReady } from '../../../data/cli-catalog.js';
 import { addCli, canModelUseCli, cliUpdates, isCliEnabled, removeCli, setCliModelUse, updateCli } from '../../runtime/cli/cli-state.js';
 import { cliText } from '../../runtime/cli/cli-texts.js';
 import { terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
@@ -155,8 +155,13 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
     const added = isCliEnabled(config, tool.id);
     const element = make(document, 'div', `cs-row${added ? ' is-added' : ''}`);
     element.dataset.cliId = tool.id;
-    const mark = make(document, 'div', 'cs-mark');
-    mark.innerHTML = toolIconMarkup(tool, 30);
+    // The picture is made once per tool and moved into each new row: drawing the list again (opening the details, a search) must not load the logos again.
+    let mark = marks.get(tool.id);
+    if (!mark) {
+      mark = make(document, 'div', 'cs-mark');
+      mark.innerHTML = toolIconMarkup(tool, 30);
+      marks.set(tool.id, mark);
+    }
     const text = make(document, 'button', 'cs-text');
     text.type = 'button';
     text.setAttribute('aria-expanded', String(state.expanded.has(tool.id)));
@@ -195,6 +200,8 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
     }
     element.append(mark, text, action);
     if (state.expanded.has(tool.id)) {
+      const about = cliDetails(tool, getLanguage());
+      if (about) element.append(make(document, 'p', 'cs-about', about));
       const details = make(document, 'dl', 'cs-details');
       const entries = [[t('author'), tool.author], [t('license'), tool.license], [t('version'), tool.version]].filter(([, value]) => value);
       for (const [label, value] of entries) details.append(make(document, 'dt', '', label), make(document, 'dd', '', value));
@@ -217,13 +224,18 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
     return box;
   };
 
+  // Whether the account is ready is known a little after the page starts (when the page is opened by its address, or right after signing in): it is looked at again while the page is open.
+  const marks = new Map();
+  const syncNote = () => { note.hidden = Boolean(getAccountReady()); };
+  const noteTimer = win.setInterval(syncNote, 400);
+
   const draw = () => {
     const config = getConfig();
     const updates = cliUpdates(config);
     const mine = OFFICIAL_CLI_CATALOG.filter((tool) => isCliEnabled(config, tool.id) && matches(tool));
     // The tools that can be added come first, the ones that are coming after them.
     const official = OFFICIAL_CLI_CATALOG.filter((tool) => !isCliEnabled(config, tool.id) && matches(tool)).sort((a, b) => Number(isCliReady(b)) - Number(isCliReady(a)));
-    note.hidden = Boolean(getAccountReady());
+    syncNote();
     note.textContent = t('needAccount');
     tabs.replaceChildren(...[['all', t('tabAll')], ['mine', t('tabMine')], ['updates', `${t('tabUpdates')}${updates.length ? ` · ${updates.length}` : ''}`]].map(([id, label]) => {
       const tab = make(document, 'button', 'history-tab', label);
@@ -266,6 +278,7 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
     win.removeEventListener('keydown', onKey, true);
     win.removeEventListener('click', onClick, true);
     win.removeEventListener('popstate', onPopState);
+    win.clearInterval(noteTimer);
     leaveAddress();
     root.remove();
     document.documentElement.classList.remove('cs-open');

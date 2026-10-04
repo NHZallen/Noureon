@@ -22,8 +22,8 @@ import { collectInputFiles, createStepEvents, finishAdvancedReply } from './adva
 import { createModelAccess } from './model-access.js';
 import { scrubMessage } from './executor.js';
 
-const REVIEW_TIMEOUT_MS = 120_000;
-const FIX_TIMEOUT_MS = 300_000;
+const REVIEW_TIMEOUT_MS = 240_000;
+const FIX_TIMEOUT_MS = 600_000;
 
 export class VisionRefused extends Error {}
 

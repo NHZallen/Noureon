@@ -31,7 +31,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
       clearTimeout(timer);
       timer = setTimeout(() => { timedOut = true; controller.abort(); }, ms);
     };
-    arm(120_000);
+    arm(240_000);
     try {
       if (file.free) {
         // A deck Python drew: reviewed as images, redone by the model when needed.

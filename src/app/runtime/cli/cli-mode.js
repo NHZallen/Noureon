@@ -70,7 +70,7 @@ export function createCliMode({ document, messageInput, getConfig, saveConfig = 
     for (const { id, indicatorId, label } of selection()) {
       map.set(indicatorId, {
         id: indicatorId,
-        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${terminalIcon(18, 'input-indicator-mode-icon')}</span><span>${escapeHTML(label)}</span></span>${closeButton(`close-cli-btn-input-${id}`, escapeHTML(t('chipClose', { name: label })))}`,
+        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${toolIconMarkup(getCliTool(id), 18, 'input-indicator-mode-icon')}</span><span>${escapeHTML(label)}</span></span>${closeButton(`close-cli-btn-input-${id}`, escapeHTML(t('chipClose', { name: label })))}`,
         eventListener: (element) => element.querySelector(`#close-cli-btn-input-${id}`)?.addEventListener('click', () => remove(id))
       });
     }
@@ -216,6 +216,8 @@ export function createCliMode({ document, messageInput, getConfig, saveConfig = 
       choose(tools[menuState.active].id);
     }
   };
+  // The logos in the chips and in the sent messages: the glyph takes the place of one that fails to load.
+  watchToolIcons(document, 18);
   document.addEventListener('keydown', onKeyDown, true);
   messageInput.addEventListener('input', evaluate);
   messageInput.addEventListener('keyup', (event) => {

@@ -25,7 +25,7 @@ export async function askVision({ streamApiCall, prompt, images, model, conversa
     } catch (error) {
       if (error?.code !== INVALID_VISION_RESPONSE || attempt >= 1) throw error;
       // Another go has its own time.
-      arm(120_000);
+      arm(240_000);
     }
   }
 }
