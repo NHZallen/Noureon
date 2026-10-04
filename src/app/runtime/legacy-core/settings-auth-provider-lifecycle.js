@@ -481,7 +481,7 @@ const loadSyncVaultControls = () => {
 };
 const ensureAutoWebSearchSettingsControl = () => ensureAutoWebSearchControl({ document, elements: ALL_ELEMENTS });
 const ensureVisionCheckSettingsControl = () => {
-    ensureVisionControl({ document, elements: ALL_ELEMENTS, config, saveConfig });
+    ensureVisionControl({ document, elements: ALL_ELEMENTS, config, saveConfig, showNotification });
     ensureFileModeControl({ document, elements: ALL_ELEMENTS, config });
 };
 const historyRecallControls = createSettingsHistoryRecallControls({

@@ -1,4 +1,5 @@
 import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
+import { normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
 import { normalizeSearchProvider } from './search-provider.js';
 
@@ -165,6 +166,9 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.cliModelUseIds = normalizeCliIds(normalizedConfig.cliModelUseIds).filter((id) => normalizedConfig.cliEnabledIds.includes(id));
   // The version of each tool when it was added or last updated (the store lists the ones whose version has moved on).
   normalizedConfig.cliVersions = normalizeCliVersions(normalizedConfig.cliVersions);
+  // The network of those tools: whether every site is asked about, and the person's rules for sites.
+  normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
+  normalizedConfig.netRules = normalizeNetRules(normalizedConfig.netRules);
   if (!councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)) {
     normalizedConfig.councilTranslatorModelId = councilTranslatorCandidates[0]?.id || null;
   }

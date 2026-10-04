@@ -352,8 +352,8 @@ test('a stop is a stop, not a lost sandbox', async () => {
 
 // ----- CLI tools (命令工具)
 
-function fakeCliHost({ commandResult = { stdout: 'created\n' }, failMount = '' } = {}) {
-  const record = { mountedCli: null, commands: [], disposed: 0 };
+function fakeCliHost({ commandResult = { stdout: 'created\n' }, failMount = '', commandFor = null } = {}) {
+  const record = { mountedCli: null, net: null, commands: [], disposed: 0, answers: [] };
   return {
     record,
     configured: true,
@@ -361,16 +361,21 @@ function fakeCliHost({ commandResult = { stdout: 'created\n' }, failMount = '' }
       prepare: async () => ({}),
       clear: async () => ({}),
       mount: async () => ({}),
-      mountCli: async (tools) => {
+      mountCli: async (tools, opts = {}) => {
         if (failMount) throw new Error(failMount);
         record.mountedCli = tools;
+        record.net = opts.net || null;
         return {};
       },
       command: async (line, run) => {
-        record.commands.push({ line, env: run.env });
-        options.onProgress?.({ stage: 'output', stream: 'stdout', text: commandResult.stdout });
-        return { stdout: { text: commandResult.stdout, dropped: 0 }, stderr: { text: '', dropped: 0 }, error: commandResult.error || '', elapsedMs: 80, files: commandResult.files || [], skippedFiles: [] };
+        record.commands.push({ line, env: run.env, files: run.files, plain: run.plain });
+        // A step may be scripted (what it prints, what the proxy asks) by commandFor(line, run) -> { stdout, stderr, error, progress: [...] }.
+        const outcome = { ...commandResult, ...(commandFor?.(line, run) || {}) };
+        for (const message of outcome.progress || []) options.onProgress?.(message);
+        if (outcome.stdout) options.onProgress?.({ stage: 'output', stream: 'stdout', text: outcome.stdout });
+        return { stdout: { text: outcome.stdout || '', dropped: 0 }, stderr: { text: outcome.stderr || '', dropped: 0 }, error: outcome.error || '', elapsedMs: 80, files: outcome.files || [], skippedFiles: [] };
       },
+      answerNet: async (askId, decision) => { record.answers.push([askId, decision]); return { answered: true }; },
       run: async () => ({ stdout: { text: '', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: '', elapsedMs: 1, files: [], skippedFiles: [] }),
       dispose: async () => { record.disposed += 1; }
     })
@@ -395,7 +400,7 @@ test('a request names CLI tools of the store, for a reply with Python only', () 
     assert.ok(bad.errors.every((error) => error.path.startsWith('tools.cli')), what);
   }
   assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true } }).spec.tools.cli, undefined, 'none when none were chosen');
-  const soon = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'twitter-cli' }] } });
+  const soon = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'pandoc' }] } });
   assert.equal(soon.ok, false, 'a tool that is only listed cannot be used yet');
   assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'ffmpeg' }, { id: 'officecli' }] } }).ok, true);
 });
@@ -467,4 +472,140 @@ test('without the tool chosen the model has no run_command; programs that cannot
   const { run } = liftSandboxRunBlock(result.parts[0].text);
   assert.match(run.steps[0].error, /could not be prepared/);
   assert.match(run.steps[0].error, /hash differs/);
+});
+
+// ----- CLI tools that need the network and the person's credentials (the second stage of the store)
+
+const callsCommand = (command) => {
+  let round = 0;
+  return async () => {
+    round += 1;
+    return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { title: 'Run it', command })) : sse(content('Done.')));
+  };
+};
+
+test('a tool that is a Python package is installed first, by the manifest\'s own command and with no credentials; the sandbox gets the rules for sites', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? { stdout: '' } : { stdout: 'rows: 3\n' }) });
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'csvkit' }], net: { mode: 'always', rules: { 'example.org': 'allow', 'pypi.org': 'ask', 'bad.example': 'deny' } } }),
+    secrets, userId: USER, sandboxHost: host, files: fakeFiles(), onLive: () => {}, fetchImpl: callsCommand('csvstat /input/data.csv')
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(host.record.mountedCli, [], 'a pip tool has no program to bring');
+  assert.equal(host.record.net.mode, 'always');
+  assert.equal(host.record.net.rules['example.org'], 'allow');
+  assert.equal(host.record.net.rules['bad.example'], 'deny');
+  assert.equal(host.record.net.rules['pypi.org'], undefined, '"ask" takes a site that is allowed at first back out');
+  assert.equal(host.record.net.rules['files.pythonhosted.org'], 'allow', 'the sites tools are made of are allowed at first');
+  const [install, step] = host.record.commands;
+  assert.match(install.line, /^pip install .* --target \/opt\/pip csvkit==2\.2\.0 && test -x \/opt\/pip\/bin\/csvstat$/);
+  assert.equal(install.plain, true);
+  assert.deepEqual(install.env, {}, 'the install gets no environment of the tool and no credential');
+  assert.equal(step.line, 'csvstat /input/data.csv');
+  assert.equal(liftSandboxRunBlock(result.parts[0].text).run.steps.length, 1, 'only the model\'s own step is a step of the reply');
+});
+
+test('a sandbox with CLI tools has the sites allowed at first even when the page sent no rules', async () => {
+  const host = fakeCliHost();
+  await executeReply({ spec: specFor({ cli: [{ id: 'officecli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), onLive: () => {}, fetchImpl: callsCommand('officecli --version') });
+  assert.equal(host.record.net.mode, 'new');
+  assert.equal(host.record.net.rules['github.com'], 'allow');
+});
+
+test('the person\'s credentials go into the environment of the commands, never into what the model reads, and what a command prints is scrubbed of them', async () => {
+  const TOKEN = 'auth_token_value_1234567890';
+  const CT0 = 'ct0_value_abcdefghij';
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: `token is ${TOKEN} and ct0 ${CT0}\n`, stderr: `oops ${TOKEN}`, error: `failed with ${CT0}` }) });
+  const bodies = [];
+  const live = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }),
+    secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+    credentials: { values: async (userId, names) => { assert.equal(userId, USER); assert.deepEqual(names.sort(), ['TWITTER_AUTH_TOKEN', 'TWITTER_CT0']); return { TWITTER_AUTH_TOKEN: TOKEN, TWITTER_CT0: CT0 }; } },
+    onLive: (event) => { if (event.ev) live.push(event.ev); },
+    fetchImpl: async (url, options) => {
+      bodies.push(options.body);
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { title: 'Look', command: 'twitter feed' })) : sse(content('Done.')));
+    }
+  });
+  const step = host.record.commands.find((command) => command.line === 'twitter feed');
+  assert.equal(step.env.TWITTER_AUTH_TOKEN, TOKEN);
+  assert.equal(step.env.TWITTER_CT0, CT0);
+  const everything = JSON.stringify(bodies) + JSON.stringify(result.parts) + JSON.stringify(live);
+  assert.equal(everything.includes(TOKEN), false, 'a credential is nowhere the model, the page or the saved message could read it');
+  assert.equal(everything.includes(CT0), false);
+  assert.match(everything, /token is ••••/);
+  assert.equal(host.record.commands[0].env.TWITTER_AUTH_TOKEN, undefined, 'not into the install');
+});
+
+test('a login file a tool needs is made from the credential for the command only', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'ok\n' }) });
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'rdt-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+    credentials: { values: async () => ({ REDDIT_SESSION: 'reddit_session_value_xyz' }) },
+    onLive: () => {}, fetchImpl: callsCommand('rdt popular --json')
+  });
+  const step = host.record.commands.find((command) => command.line.startsWith('rdt'));
+  assert.equal(step.files.length, 1);
+  assert.equal(step.files[0].path, '.config/rdt-cli/credential.json');
+  assert.equal(JSON.parse(step.files[0].content).cookies.reddit_session, 'reddit_session_value_xyz');
+  assert.deepEqual(host.record.commands[0].files, [], 'none for the install');
+});
+
+test('a credential the person has not set is told to the model as missing, with where to add it, and the tool is not given an empty one', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'not logged in\n' }) });
+  const bodies = [];
+  let round = 0;
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+    credentials: { values: async () => ({ TWITTER_CT0: 'only_this_one_value' }) },
+    onLive: () => {},
+    fetchImpl: async (url, options) => { bodies.push(options.body); round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'twitter feed' })) : sse(content('Please add it.'))); }
+  });
+  assert.match(bodies[0], /Not set yet: TWITTER_AUTH_TOKEN/);
+  assert.match(bodies[0], /Permissions → Secure credentials/);
+  assert.equal(host.record.commands.find((command) => command.line === 'twitter feed').env.TWITTER_AUTH_TOKEN, undefined);
+});
+
+test('a credential store that fails does not end the reply: the tool is told its credentials are not set', async () => {
+  const host = fakeCliHost();
+  const problems = [];
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+    credentials: { values: async () => { throw new Error('database down'); } },
+    onProblem: (what) => problems.push(what), onLive: () => {}, fetchImpl: callsCommand('twitter feed')
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(problems, ['credentials_failed']);
+});
+
+test('a tool that could not be installed is told with the result of the next command, and the others go on', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? { stderr: 'ERROR: No matching distribution\n', error: 'The command exited with code 1.' } : { stdout: 'x\n' }) });
+  const bodies = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'csvkit' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), onLive: () => {},
+    fetchImpl: async (url, options) => { bodies.push(options.body); round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'csvstat a.csv' })) : sse(content('It is not installed.'))); }
+  });
+  assert.equal(result.status, 'done');
+  assert.match(bodies[1], /csvkit could not be installed \(ERROR: No matching distribution\)/);
+});
+
+test('what the proxy asks the person goes to the page as an event, and the person\'s answer reaches the sandbox that asked', async () => {
+  const ask = { stage: 'net', event: 'ask', id: 'ask000000000001', host: 'x.com', port: 443, waitMs: 600000 };
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'ok\n', progress: [ask, { stage: 'net', event: 'answer', id: ask.id, decision: 'once' }] }) });
+  const events = [];
+  const netControl = { answer: null };
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), netControl,
+    credentials: { values: async () => ({}) },
+    onLive: (event) => { if (event.ev) events.push(event.ev); }, fetchImpl: callsCommand('twitter feed')
+  });
+  const heard = events.filter((event) => event.type === 'net');
+  assert.deepEqual(heard.map((event) => [event.event, event.id, event.host, event.port, event.decision]), [['ask', ask.id, 'x.com', 443, ''], ['answer', ask.id, '', 0, 'once']]);
+  assert.equal(typeof netControl.answer, 'function', 'the run manager has the way to answer');
+  assert.deepEqual(await netControl.answer(ask.id, 'always'), { answered: true });
+  assert.deepEqual(host.record.answers, [[ask.id, 'always']]);
 });

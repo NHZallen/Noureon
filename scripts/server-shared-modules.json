@@ -278,6 +278,10 @@
     {
       "path": "src/data/cli-catalog.js",
       "note": "Reviewed 2026-10-04: plain data and checks, no browser globals."
+    },
+    {
+      "path": "src/data/cli-net.js",
+      "note": "Reviewed 2026-10-05: plain data and checks (the rules for the network of the CLI tools); URL is a global of Node and browsers alike."
     }
   ]
 }

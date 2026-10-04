@@ -4,10 +4,10 @@ import test from 'node:test';
 import { CLI_DOWNLOAD_HOSTS, OFFICIAL_CLI_CATALOG, cliDescription, getCliTool, isCliReady, normalizeCliIds, normalizeCliVersions, validateCliManifest } from '../../src/data/cli-catalog.js';
 import { CLI_TEXTS, cliText } from '../../src/app/runtime/cli/cli-texts.js';
 
-test('the store has the five official tools, each a well formed manifest, and the ones that need the network are not usable yet', () => {
+test('the store has the official tools, each a well formed manifest, and the ones still waiting for something are not usable yet', () => {
   assert.deepEqual(OFFICIAL_CLI_CATALOG.map((tool) => tool.id), ['officecli', 'ffmpeg', 'yt-dlp', 'twitter-cli', 'rdt-cli', 'csvkit', 'pandoc', 'sox']);
   for (const tool of OFFICIAL_CLI_CATALOG) assert.deepEqual(validateCliManifest(tool), [], tool.id);
-  assert.deepEqual(OFFICIAL_CLI_CATALOG.filter(isCliReady).map((tool) => tool.id), ['officecli', 'ffmpeg'], 'what works without the network');
+  assert.deepEqual(OFFICIAL_CLI_CATALOG.filter(isCliReady).map((tool) => tool.id), ['officecli', 'ffmpeg', 'yt-dlp', 'twitter-cli', 'rdt-cli', 'csvkit'], 'what works now, with the network and the credentials of the second stage');
   for (const tool of OFFICIAL_CLI_CATALOG.filter((entry) => !isCliReady(entry))) assert.ok(tool.needs.length > 0, `${tool.id} says what it waits for`);
   assert.equal(getCliTool('twitter-cli').kind, 'pip');
   assert.equal(getCliTool('nothing'), null);

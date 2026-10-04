@@ -60,6 +60,8 @@ const expectedConfig = (defaultModelId) => ({
   cliEnabledIds: [],
   cliModelUseIds: [],
   cliVersions: {},
+  netMode: 'new',
+  netRules: {},
   councilTranslatorModelId: null,
   singleDocumentTranslatorModelId: null
 });

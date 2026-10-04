@@ -6,6 +6,7 @@
 import { OFFICIAL_CLI_CATALOG, cliDescription, cliDetails, isCliReady } from '../../../data/cli-catalog.js';
 import { addCli, canModelUseCli, cliUpdates, isCliEnabled, removeCli, setCliModelUse, updateCli } from '../../runtime/cli/cli-state.js';
 import { cliText } from '../../runtime/cli/cli-texts.js';
+import { permissionText } from '../../runtime/cli/permission-texts.js';
 import { terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
 
 const ICONS = {
@@ -75,7 +76,14 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
   const tabs = make(document, 'div', 'history-tabs cs-tabs');
   tabs.setAttribute('role', 'tablist');
   const list = make(document, 'div', 'cs-list');
-  column.append(note, search, tabs, list);
+  // The page of third-party software and licences (the tools' licences are there too).
+  const licenses = make(document, 'button', 'cs-link cs-footer-link', permissionText(getLanguage(), 'licensesLink'));
+  licenses.type = 'button';
+  licenses.addEventListener('click', async () => {
+    const { openLicenses } = await import('./licenses-view.js');
+    openLicenses({ document, getLanguage });
+  });
+  column.append(note, search, tabs, list, licenses);
   body.append(column);
   const edgeBottom = make(document, 'div', 'cs-edge-bottom');
   root.append(head, body, edgeBottom);

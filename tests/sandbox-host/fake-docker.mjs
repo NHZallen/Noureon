@@ -26,13 +26,17 @@ if (args[0] === 'run') {
   writeFileSync(join(state, `${name}.args.json`), JSON.stringify(args));
   const child = spawn(process.env.PYTHON_BIN || 'python3', ['-u', repl], {
     stdio: 'inherit',
-    env: { ...process.env, NOUREON_INPUT: hostOf('/input'), NOUREON_OUTPUT: output, NOUREON_CLI: hostOf('/opt/cli') || '/opt/cli', NOUREON_WORK: work, NOUREON_MPL_CACHE: join(work, 'no-cache'), MPLCONFIGDIR: join(work, 'mpl') }
+    env: { ...process.env, NOUREON_INPUT: hostOf('/input'), NOUREON_OUTPUT: output, NOUREON_CLI: hostOf('/opt/cli') || '/opt/cli', NOUREON_NET_SOCKET: join(hostOf('/run/noureon-net') || '/run/noureon-net', 'p.sock'), NOUREON_PIP: join(work, 'pip'), NOUREON_WORK: work, NOUREON_MPL_CACHE: join(work, 'no-cache'), MPLCONFIGDIR: join(work, 'mpl') }
   });
   writeFileSync(join(state, `${name}.pid`), String(child.pid));
   child.on('exit', (code, signal) => process.exit(signal === 'SIGKILL' ? 137 : (code ?? 0)));
 } else if (args[0] === 'kill') {
+  // Like the real one, it ends the container that is there when it is asked: a container started after this program began (the runner starts
+  // the next step's right after a stop) is not the one it was asked about, and the pid file may already be the new one's.
+  const startedAt = (pid) => Number(readFileSync(`/proc/${pid}/stat`, 'utf8').replace(/^.*\) /, '').split(' ')[19]);
   try {
-    process.kill(Number(readFileSync(join(state, `${args[1]}.pid`), 'utf8')), 'SIGKILL');
+    const pid = Number(readFileSync(join(state, `${args[1]}.pid`), 'utf8'));
+    if (startedAt(pid) < startedAt(process.pid)) process.kill(pid, 'SIGKILL');
   } catch {
     // Gone already.
   }

@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import test from 'node:test';
 
 import { createApp } from '../../server/app.js';
+import { CredentialError } from '../../server/cli-credentials.js';
 import { loadConfig } from '../../server/config.js';
 import { createLogger } from '../../server/log.js';
 import { PROTOCOL_VERSION } from '../../server/protocol.js';
@@ -11,14 +12,14 @@ const USER = '123e4567-e89b-12d3-a456-426614174000';
 const TOKEN = 'good-token-good-token-good-token';
 const KEY = 'sk-live-provider-key-value';
 
-async function withServer(run, { auth = true, runs = null } = {}) {
+async function withServer(run, { auth = true, runs = null, credentials = null } = {}) {
   const lines = [];
   const config = loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon', SOURCE_COMMIT: 'abc123' });
   const fetchImpl = async (url, options) => {
     if (!auth) throw new Error('offline');
     return options.headers.Authorization === `Bearer ${TOKEN}` ? new Response(JSON.stringify({ id: USER }), { status: 200 }) : new Response('{}', { status: 401 });
   };
-  const server = createServer(createApp({ config, fetchImpl, runs, log: createLogger((line) => lines.push(line)) }));
+  const server = createServer(createApp({ config, fetchImpl, runs, credentials, log: createLogger((line) => lines.push(line)) }));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -325,5 +326,72 @@ test('a deep research is started at its own address and nowhere else, and the pe
     assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/stop`, { mode: 'report' })).status, 200);
     assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/stop`)).status, 200);
     assert.deepEqual(stops, ['report', null]);
+  }, { runs });
+});
+
+// ----- secure credentials of CLI tools, and the person's answers about sites
+
+const auth = { Authorization: `Bearer ${TOKEN}` };
+const json = { 'Content-Type': 'application/json' };
+
+function fakeCredentials() {
+  const calls = [];
+  return {
+    calls,
+    list: async (userId) => { calls.push(['list', userId]); return [{ name: 'TWITTER_CT0', value: 'abc', updatedAt: '2026-10-05T00:00:00Z' }]; },
+    set: async (userId, name, value) => {
+      calls.push(['set', userId, name, value]);
+      if (name === 'BAD') throw new CredentialError('bad_value', 'A value is 1 to 4000 characters.');
+      return { name };
+    },
+    remove: async (userId, name) => { calls.push(['remove', userId, name]); }
+  };
+}
+
+test('secure credentials: a signed-in person lists, sets and removes their own, and nothing else may', async () => {
+  const credentials = fakeCredentials();
+  await withServer(async ({ base }) => {
+    assert.equal((await fetch(`${base}/v1/credentials`)).status, 401, 'signing in is needed');
+    const listed = await fetch(`${base}/v1/credentials`, { headers: auth });
+    assert.equal(listed.status, 200);
+    assert.deepEqual((await listed.json()).credentials, [{ name: 'TWITTER_CT0', value: 'abc', updatedAt: '2026-10-05T00:00:00Z' }]);
+    assert.equal(listed.headers.get('cache-control'), 'no-store');
+    const put = await fetch(`${base}/v1/credentials/TWITTER_CT0`, { method: 'PUT', headers: { ...auth, ...json }, body: JSON.stringify({ value: 'new-value' }) });
+    assert.equal(put.status, 200);
+    assert.deepEqual(credentials.calls.at(-1), ['set', USER, 'TWITTER_CT0', 'new-value'], 'always for the person who signed in');
+    const refused = await fetch(`${base}/v1/credentials/BAD`, { method: 'PUT', headers: { ...auth, ...json }, body: JSON.stringify({ value: '' }) });
+    assert.equal(refused.status, 400);
+    assert.equal((await refused.json()).error.reason, 'bad_value');
+    const removed = await fetch(`${base}/v1/credentials/TWITTER_CT0`, { method: 'DELETE', headers: auth });
+    assert.equal(removed.status, 200);
+    assert.deepEqual(credentials.calls.at(-1), ['remove', USER, 'TWITTER_CT0']);
+    assert.equal((await fetch(`${base}/v1/credentials/lower-case`, { method: 'DELETE', headers: auth })).status, 404, 'not a credential name');
+    assert.equal((await fetch(`${base}/v1/credentials`, { method: 'PUT', headers: { ...auth, ...json }, body: '{}' })).status, 404, 'a PUT needs a name');
+    const preflight = await fetch(`${base}/v1/credentials/X`, { method: 'OPTIONS', headers: { Origin: 'https://noureon.com' } });
+    assert.match(preflight.headers.get('access-control-allow-methods'), /PUT/);
+    assert.match(preflight.headers.get('access-control-allow-methods'), /DELETE/);
+  }, { credentials });
+});
+
+test('secure credentials: without the store set up, the server says so', async () => {
+  await withServer(async ({ base }) => {
+    const response = await fetch(`${base}/v1/credentials`, { headers: auth });
+    assert.equal(response.status, 503);
+  });
+});
+
+test('an answer about a site reaches the reply of the person who gives it, and only a valid answer is taken', async () => {
+  const answers = [];
+  const runs = { answerNet: async (args) => { answers.push(args); return args.runId === USER ? { ok: true, answered: true } : { ok: false, reason: 'not_running' }; } };
+  await withServer(async ({ base }) => {
+    const answer = (runId, body) => fetch(`${base}/v1/runs/${runId}/net`, { method: 'POST', headers: { ...auth, ...json }, body: JSON.stringify(body) });
+    const ok = await answer(USER, { askId: 'ask0000000000001', decision: 'always' });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), { ok: true, answered: true });
+    assert.deepEqual(answers[0], { userId: USER, runId: USER, askId: 'ask0000000000001', decision: 'always' });
+    assert.equal((await answer(USER, { askId: 'ask0000000000001', decision: 'maybe' })).status, 400);
+    assert.equal((await answer(USER, { askId: '../x', decision: 'once' })).status, 400);
+    assert.equal((await answer('323e4567-e89b-12d3-a456-426614174002', { askId: 'ask0000000000001', decision: 'once' })).status, 404, 'a reply that is not running here');
+    assert.equal((await fetch(`${base}/v1/runs/${USER}/net`, { method: 'POST', headers: json, body: '{}' })).status, 401);
   }, { runs });
 });

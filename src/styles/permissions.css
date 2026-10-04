@@ -1,0 +1,90 @@
+/* The Permissions tab of the settings and the page of third-party software (ui/cli/permissions-view.js, licenses-view.js). Black and white, like the CLI store. */
+
+.pm { color: var(--text-primary); }
+.pm-block { margin-bottom: 1.5rem; }
+.pm-sub { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 600; }
+.pm-minor { margin: 1.1rem 0 0.4rem; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+.pm-desc { margin: 0 0 0.8rem; font-size: 0.85rem; line-height: 1.55; color: var(--text-secondary); }
+.pm-empty { margin: 0.6rem 0; font-size: 0.88rem; color: var(--text-secondary); }
+.pm-error { margin: 0.4rem 0; font-size: 0.82rem; color: #dc2626; }
+.pm-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+
+.pm-options { display: flex; flex-direction: column; gap: 0.5rem; }
+.pm-option { display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.75rem 0.9rem; border: 1px solid var(--border-color); border-radius: 0.8rem; cursor: pointer; }
+.pm-option:has(input:checked) { border-color: var(--text-primary); }
+.pm-option input { margin-top: 0.2rem; accent-color: var(--text-primary); }
+.pm-option-text { display: flex; flex-direction: column; gap: 0.15rem; }
+.pm-option-label { font-size: 0.92rem; font-weight: 500; }
+.pm-option-desc { font-size: 0.8rem; color: var(--text-secondary); }
+
+.pm-list { border: 1px solid var(--border-color); border-radius: 0.8rem; overflow: hidden; }
+.pm-row { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.8rem 0.95rem; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
+button.pm-row { cursor: pointer; }
+button.pm-row:hover { background: var(--hover-bg); }
+.pm-row + .pm-row, .pm-cred + .pm-cred { border-top: 1px solid var(--border-color); }
+.pm-row-label { font-size: 0.92rem; font-weight: 500; overflow-wrap: anywhere; }
+.pm-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.pm-row-desc { font-size: 0.78rem; color: var(--text-secondary); }
+button.pm-row > .pm-row-label { flex: 1; }
+.pm-count { color: var(--text-secondary); font-size: 0.88rem; }
+.pm-chevron { display: inline-flex; color: var(--text-secondary); }
+.pm-mark { flex: none; width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 0.55rem; }
+.pm-host { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; }
+
+.pm-link { display: block; margin-top: 0.4rem; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.pm-back { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0 0 0.8rem -0.2rem; padding: 0.25rem 0.5rem 0.25rem 0.2rem; border: 0; border-radius: 0.5rem; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.pm-back:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.pm-button, .pm-chip, .pm-rule { border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.pm-button { padding: 0.45rem 1rem; font-size: 0.85rem; }
+.pm-button:hover, .pm-chip:hover, .pm-rule:hover { background: var(--hover-bg); }
+.pm-button:disabled { opacity: 0.5; cursor: default; }
+.pm-button.is-primary { border-color: var(--text-primary); background: var(--text-primary); color: var(--chat-bg); }
+.pm-button.is-primary:hover { opacity: 0.88; background: var(--text-primary); }
+.pm-chip { padding: 0.25rem 0.7rem; font-size: 0.78rem; }
+.pm-chip.is-danger { color: #dc2626; }
+.pm-rule { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem 0.3rem 0.85rem; font-size: 0.82rem; }
+.pm-rule-icon { display: inline-flex; color: var(--text-secondary); }
+
+.pm-switch { flex: none; position: relative; width: 2.6rem; height: 1.5rem; border: 1px solid var(--border-color); border-radius: 9999px; background: var(--hover-bg); cursor: pointer; transition: background 0.15s ease; }
+.pm-switch-knob { position: absolute; top: 0.12rem; left: 0.14rem; width: 1.1rem; height: 1.1rem; border-radius: 9999px; background: var(--text-secondary); transition: transform 0.15s ease, background 0.15s ease; }
+.pm-switch[aria-checked='true'] { border-color: var(--text-primary); background: var(--text-primary); }
+.pm-switch[aria-checked='true'] .pm-switch-knob { transform: translateX(1.1rem); background: var(--chat-bg); }
+
+.pm-add { display: flex; gap: 0.5rem; margin-bottom: 0.4rem; }
+.pm-form { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.7rem 0 0.2rem; }
+.pm-input { flex: 1; min-width: 0; padding: 0.5rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--input-field-bg, transparent); color: inherit; font: inherit; font-size: 0.9rem; }
+.pm-input:focus { outline: 2px solid color-mix(in srgb, var(--text-primary) 30%, transparent); outline-offset: 1px; }
+.pm-actions { display: flex; gap: 0.5rem; }
+
+.pm-cred { padding: 0.8rem 0.95rem; }
+.pm-cred-head { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; }
+.pm-cred-value { margin: 0.35rem 0 0.5rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.pm-cred-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* The menu of a site's rule: a small menu next to the button, a sheet from below on a phone. */
+.pm-backdrop { position: fixed; inset: 0; z-index: 1300; }
+.pm-backdrop.is-sheet { background: rgba(0, 0, 0, 0.32); }
+.pm-menu { position: fixed; z-index: 1301; width: 12rem; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg, var(--chat-bg)); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16); }
+.pm-menu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; width: auto; padding: 0.6rem 0.6rem max(0.8rem, env(safe-area-inset-bottom, 0px)); border-radius: 1.2rem 1.2rem 0 0; }
+.pm-menu-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: 0.65rem 0.8rem; border: 0; border-radius: 0.65rem; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pm-menu-item:hover, .pm-menu-item:focus-visible { background: var(--hover-bg); outline: 0; }
+.pm-menu-item.is-danger { color: #dc2626; }
+.pm-menu-check { display: inline-flex; width: 1rem; justify-content: center; }
+
+/* The page of third-party software. */
+.pm-lic { position: fixed; inset: 0; z-index: 1200; display: flex; flex-direction: column; background: var(--chat-bg); color: var(--text-primary); }
+.pm-lic-head { flex: none; display: flex; align-items: center; gap: 0.6rem; padding: max(0.7rem, env(safe-area-inset-top, 0px)) 0.9rem 0.6rem; border-bottom: 1px solid var(--border-color); }
+.pm-lic-back { width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; cursor: pointer; }
+.pm-lic-back:hover { background: var(--hover-bg); }
+.pm-lic-title { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.pm-lic-body { flex: 1; overflow-y: auto; padding: 1rem 0.9rem 3rem; }
+.pm-lic-column { max-width: 46rem; margin: 0 auto; }
+.pm-lic-section { margin: 1.6rem 0 0.5rem; font-size: 0.95rem; font-weight: 600; }
+.pm-lic-list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border-color); border-radius: 0.8rem; overflow: hidden; }
+.pm-lic-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.8rem; padding: 0.6rem 0.9rem; font-size: 0.88rem; }
+.pm-lic-item + .pm-lic-item { border-top: 1px solid var(--border-color); }
+.pm-lic-name { flex: 1 1 10rem; color: var(--text-primary); font-weight: 500; text-decoration: none; }
+a.pm-lic-name { text-decoration: underline; text-underline-offset: 2px; }
+.pm-lic-license { color: var(--text-secondary); }
+.pm-lic-note { flex-basis: 100%; color: var(--text-secondary); font-size: 0.78rem; }

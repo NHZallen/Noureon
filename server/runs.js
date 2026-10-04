@@ -37,6 +37,8 @@ export function createRunManager({
   vault,
   // Where Python runs and where the files it makes are kept ({ host, files }, see server/sandbox-client.js and file-store.js), or null.
   sandbox = null,
+  // The person's secure credentials for CLI tools (server/cli-credentials.js), or null.
+  credentials = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
   vision = { available: async () => false, execute: executeVisionCheck, getKit: async () => null },
   limits = LIMITS,
@@ -190,8 +192,10 @@ export function createRunManager({
     // How a person's requests reach a deep research that is running (start, pause, stop and the rest).
     const controls = isResearch ? createResearchControls() : null;
     const controller = new AbortController();
+    // How the person's answer to a question about a site gets to the sandbox that asked (the reply sets `answer` when it has one).
+    const netControl = { answer: null };
     const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, subscribers: new Set() };
-    active.set(runId, { controller, userId, live, controls });
+    active.set(runId, { controller, userId, live, controls, netControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
@@ -230,6 +234,8 @@ export function createRunManager({
         ...(isResearch ? { controls } : {}),
         sandboxHost: sandbox?.host || null,
         files: sandbox?.files || null,
+        credentials,
+        netControl,
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
         fetchImpl,
@@ -446,6 +452,22 @@ export function createRunManager({
       const entry = active.get(runId);
       if (!entry?.controls || entry.userId !== userId) return { ok: false, reason: 'not_running' };
       return entry.controls.send(action, payload);
+    },
+
+    /**
+     * A person's answer ('once', 'always' or 'deny') to the question a tool's command put about a site, in a reply of theirs that is running here.
+     * Resolves { ok: true, answered } (answered: false when the question was no longer open), or { ok: false, reason: 'not_running' }.
+     */
+    async answerNet({ userId, runId, askId, decision }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.netControl.answer) return { ok: false, reason: 'not_running' };
+      try {
+        const result = await entry.netControl.answer(askId, decision);
+        return { ok: true, answered: Boolean(result?.answered) };
+      } catch (error) {
+        log('net_answer_failed', { runId, message: String(error?.message || '').slice(0, 160) });
+        return { ok: false, reason: 'not_running' };
+      }
     },
 
     /** Whether this person's reply is being made by this process (so it can be watched live). */

@@ -28,6 +28,8 @@ export function trimForModel(text = '', limit = MODEL_TEXT_CHARS) {
 }
 
 const outputText = (value) => (typeof value === 'string' ? value : String(value?.text || ''));
+/** The last line with something in it, short (what a failed install said last). */
+const lastLine = (text) => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean).at(-1)?.slice(0, 200) || '';
 
 // The tool result the model reads.
 export function toolResultFor(result = {}, { note = '' } = {}) {
@@ -72,8 +74,8 @@ export async function runSandboxReply({
   designs = {},
   // The model's own web searching and page opening next to Python: { searchWeb, openPage, onSources }, or null.
   research: researchTools = null,
-  // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program: { file, url, sha256, size } }].
-  // The model gets run_command for them.
+  // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program?: { file, url, sha256, size },
+  // install?: the command that installs a pip tool, missing?: the secure credentials it needs that are not set }]. The model gets run_command for them.
   cli: cliTools = [],
   onStatus = () => {},
   // What happens in each run, for the work window: { type: 'step', n, title, code },
@@ -133,6 +135,8 @@ export async function runSandboxReply({
   const cliEnv = Object.assign({}, ...cliTools.map((tool) => tool.env || {}));
   // Set when the programs could not be put in the sandbox: a command then fails with this.
   let cliFailure = '';
+  // A tool that could not be made ready (its install failed): the model is told, and the others work.
+  const cliProblems = {};
   const isRunTool = (name) => name === RUN_PYTHON_TOOL.name || (useCli && name === RUN_COMMAND_TOOL.name);
   let roundMayCall = false;
   const deliver = (chunk) => {
@@ -167,6 +171,12 @@ export async function runSandboxReply({
             onEvent({ type: 'output', n: currentStep, stream: message.stream, text: String(message.text || '') });
             return;
           }
+          // A program asks to reach a site (the person is asked), or the person has answered: the work window shows it as a card.
+          if (message.stage === 'net') {
+            onEvent({ type: 'net', event: message.event, id: String(message.id || ''), host: String(message.host || ''), port: Number(message.port) || 0, decision: String(message.decision || ''), waitMs: Number(message.waitMs) || 0 });
+            if (message.event === 'ask') onStatus(sandboxText(language, 'sandboxNetWaiting', { host: String(message.host || '') }));
+            return;
+          }
           const status = describeProgress(language, message);
           if (status && message.stage !== 'running') {
             onStatus(status);
@@ -184,10 +194,27 @@ export async function runSandboxReply({
         onStatus(label);
         onEvent({ type: 'prepare', text: label });
         try {
-          await sandbox.mountCli(cliTools.map((tool) => ({ id: tool.id, ...tool.program })));
+          // Also with no program to bring (a pip tool only): the sandbox gets its network here.
+          await sandbox.mountCli(cliTools.filter((tool) => tool.program).map((tool) => ({ id: tool.id, ...tool.program })));
         } catch (error) {
           if (signal?.aborted) throw error;
           cliFailure = String(error?.message || error).slice(0, 300);
+        }
+        // The Python tools are installed now, in the sandbox (the person is asked about a site the install needs that has no rule).
+        if (!cliFailure) {
+          for (const tool of cliTools.filter((entry) => entry.install)) {
+            const installing = sandboxText(language, 'sandboxCliInstalling', { name: tool.name });
+            onStatus(installing);
+            onEvent({ type: 'prepare', text: installing });
+            try {
+              const done = await sandbox.command(tool.install, { signal, plain: true, timeoutMs: 120_000 });
+              if (done?.stopped) throw Object.assign(new Error('stopped'), { code: 'stopped' });
+              if (done?.error) cliProblems[tool.id] = lastLine(outputText(done.stderr)) || String(done.error).slice(0, 200);
+            } catch (error) {
+              if (signal?.aborted || error?.code === 'stopped') throw error;
+              cliProblems[tool.id] = String(error?.message || error).slice(0, 200);
+            }
+          }
         }
       }
       return sandbox;
@@ -196,7 +223,7 @@ export async function runSandboxReply({
     return sandboxReady;
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file }))) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command }))) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
@@ -401,6 +428,11 @@ export async function runSandboxReply({
           toolsAllowed = false;
           note = 'The Python environment keeps crashing. Do not call run_python again; answer without it.';
         }
+      }
+      // A tool whose install failed (known only now: the sandbox is made when the first step needs it): the model is told with the result.
+      if (isCommand) {
+        const failed = cliTools.filter((tool) => cliProblems[tool.id]).map((tool) => `${tool.name} could not be installed (${cliProblems[tool.id]})`);
+        if (failed.length) note = `${note ? `${note} ` : ''}${failed.join('; ')}. Do not use ${failed.length === 1 ? 'it' : 'them'} or install ${failed.length === 1 ? 'it' : 'them'} another way: tell the person.`;
       }
       reply(toolResultFor(result, { note }));
     }

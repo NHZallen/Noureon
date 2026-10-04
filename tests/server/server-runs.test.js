@@ -225,7 +225,7 @@ test('the four search paths and NVIDIA\'s chat go straight to their services, wi
 
 // ----- the run manager
 
-function managerHarness({ execute, executeDeepResearch, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl } = {}) {
+function managerHarness({ execute, executeDeepResearch, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl, credentials = null } = {}) {
   const vault = createKeyVault([{ version: 1, key: masterKey() }]);
   const repeating = [];
   const timers = [];
@@ -235,6 +235,7 @@ function managerHarness({ execute, executeDeepResearch, db = fakeDatabase(), log
     db,
     vault,
     sandbox,
+    credentials,
     ...(executeDeepResearch ? { executeDeepResearch } : {}),
     ...(vision ? { vision } : {}),
     ...(fetchImpl ? { fetchImpl } : {}),
@@ -844,4 +845,31 @@ test('a page that joins a research late is given where it stands, what it has do
   unwatch();
   release();
   await settle();
+});
+
+test('the person\'s answer about a site goes to the reply that asked, the reply of that person only, and only while it runs', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const answered = [];
+  let received = null;
+  const { manager } = managerHarness({
+    execute: async ({ netControl, credentials }) => {
+      received = { hasCredentials: credentials === 'the-store' };
+      netControl.answer = async (askId, decision) => { answered.push([askId, decision]); return { answered: askId === 'ask0000000000001' }; };
+      await gate;
+      return { parts: [{ text: 'done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
+    },
+    credentials: 'the-store'
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.deepEqual(received, { hasCredentials: true }, 'the reply is given the credential store');
+  assert.deepEqual(await manager.answerNet({ userId: USER, runId, askId: 'ask0000000000001', decision: 'once' }), { ok: true, answered: true });
+  assert.deepEqual(await manager.answerNet({ userId: USER, runId, askId: 'ask0000000000009', decision: 'deny' }), { ok: true, answered: false }, 'a question that is no longer open');
+  assert.deepEqual(await manager.answerNet({ userId: '999e4567-e89b-12d3-a456-426614174009', runId, askId: 'ask0000000000001', decision: 'once' }), { ok: false, reason: 'not_running' }, 'not another person\'s reply');
+  assert.deepEqual(await manager.answerNet({ userId: USER, runId: 'nothing', askId: 'ask0000000000001', decision: 'once' }), { ok: false, reason: 'not_running' });
+  release();
+  await settle();
+  assert.deepEqual(await manager.answerNet({ userId: USER, runId, askId: 'ask0000000000001', decision: 'once' }), { ok: false, reason: 'not_running' }, 'it is over');
+  assert.equal(answered.length, 2);
 });

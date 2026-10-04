@@ -58,6 +58,9 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     cliEnabledIds: [],
     cliModelUseIds: [],
     cliVersions: {},
+    // The network of the CLI tools: ask about a site with no rule ('new') or about every site ('always'), and the person's rules for sites.
+    netMode: 'new',
+    netRules: {},
     councilTranslatorModelId: null,
     singleDocumentTranslatorModelId: null
   };

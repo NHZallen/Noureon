@@ -90,6 +90,23 @@ R=$(cli_step 'officecli --version' "$ID"); printf '%s' "$R" | json "d['stdout'][
 R=$(cli_step 'ffmpeg -hide_banner -version | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -qi "ffmpeg version" && check "ffmpeg runs" ok || check "ffmpeg runs" "$R"
 R=$(cli_step 'cd /output && officecli create t.docx && ls' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "t.docx" ] && check "officecli makes a Word file in /output" ok || check "officecli makes a Word file in /output" "$R"
 R=$(cli_step 'exit 3' "$ID"); printf '%s' "$R" | json "d['error']" | grep -q "code 3" && check "a failing command is an error" ok || check "a failing command is an error" "$R"
+# The network: the container has none; what a command reaches goes through the runner's proxy, by the person's rules.
+echo "== the network of the command tools =="
+NETMOUNT=$(python3 - "$ID" "$BASE" "$SECRET" <<'PY'
+import json, sys, urllib.request
+session, base, secret = sys.argv[1], sys.argv[2], sys.argv[3]
+net = {"mode": "new", "rules": {"example.com": "allow", "pypi.org": "allow", "files.pythonhosted.org": "allow"}}
+request = urllib.request.Request(f"{base}/v1/sessions/{session}/cli", data=json.dumps({"tools": [], "net": net}).encode(), headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, method="POST")
+with urllib.request.urlopen(request, timeout=60) as response:
+    print(response.read().decode())
+PY
+)
+printf '%s' "$NETMOUNT" | grep -q '"network":true' && check "a session is given its proxy" ok || check "a session is given its proxy" "$NETMOUNT"
+R=$(cli_step 'echo "$HTTPS_PROXY"; pip --version; node --version; git --version | head -1; curl --version | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "127.0.0.1" && printf '%s' "$R" | json "d['stdout']['text']" | grep -q "^pip " && check "pip, node, git and curl are there, with the proxy in the environment" ok || check "pip, node, git and curl are there" "$R"
+R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" https://example.com' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].strip()")" = "200" ] && check "a site the person allowed is reached (https)" ok || check "a site the person allowed is reached (https)" "$R"
+R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" http://127.0.0.1/; echo; curl -sS -m 30 -o /dev/null -w "%{http_code}" http://localhost:7788/healthz; echo; curl -sS -m 30 -o /dev/null -w "%{http_code}" http://169.254.169.254/' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].split()")" = "['403', '403', '403']" ] && check "this machine, the pod network and the metadata address are refused" ok || check "this machine, the pod network and the metadata address are refused" "$R"
+R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" --noproxy "*" -m 5 https://example.com || echo unreachable' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "unreachable" && check "without the proxy there is no way out" ok || check "without the proxy there is no way out" "$R"
+R=$(cli_step 'pip install --quiet --no-input --target /opt/pip six && python3 -c "import six; print(six.__version__)"' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -Eq "^[0-9]+\.[0-9]+" && check "pip installs a package into /opt/pip and Python finds it" ok || check "pip installs a package into /opt/pip" "$R"
 R=$(step 'x = bytearray(3 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json "d['error']" | grep -qi "memory" && check "too much memory is stopped" ok || check "too much memory is stopped" "$R"
 R=$(step 'while True: pass' "$ID" ); echo "$R" | grep -q "time limit" && check "an endless loop is stopped" ok || check "an endless loop is stopped" "(waited 60 s) $R"
 call -X DELETE "$BASE/v1/sessions/$ID" >/dev/null

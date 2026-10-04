@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { LIMITS } from '../../public/sandbox/protocol.js';
 import { containerName, dockerRunArgs } from './docker-args.js';
 import { createCliCache } from './cli-cache.js';
+import { createNetProxy } from './net-proxy.js';
 import { collectOutput, snapshotOutput } from './output.js';
 
 export class RunnerError extends Error {
@@ -42,22 +43,38 @@ const emptyFolder = (directory) => {
   }
 };
 
+const ASK_ID_SHAPE = /^[A-Za-z0-9-]{8,64}$/;
+const DECISIONS = new Set(['once', 'always', 'deny']);
+const MAX_NET_RULES = 1000;
+/** The person's rules as the proxy takes them: { mode, rules } with only the known words, or null when none were given. */
+const cleanNet = (net) => {
+  if (!net || typeof net !== 'object' || Array.isArray(net)) return null;
+  const rules = {};
+  if (net.rules && typeof net.rules === 'object' && !Array.isArray(net.rules)) {
+    for (const [host, rule] of Object.entries(net.rules).slice(0, MAX_NET_RULES)) if (rule === 'allow' || rule === 'deny') rules[host] = rule;
+  }
+  return { mode: net.mode === 'always' ? 'always' : 'new', rules };
+};
+
 const CLI_ID = /^[a-z][a-z0-9-]{1,39}$/;
 const CLI_FILE = /^[A-Za-z0-9._-]{1,60}$/;
 const MAX_CLI_TOOLS = 8;
 
-export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex'), fetchImpl = fetch }) {
+export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex'), fetchImpl = fetch, proxyOptions = {} }) {
   const sessions = new Map();
   const cliCache = createCliCache({ dir: config.cliCacheDir, hosts: config.cliHosts, maxBytes: config.cliMaxBytes, fetchImpl, log });
 
   const makeDirs = (id) => {
     const root = join(config.dataDir, id);
-    const dirs = { root, input: join(root, 'input'), output: join(root, 'output'), cli: join(root, 'cli') };
+    const dirs = { root, input: join(root, 'input'), output: join(root, 'output'), cli: join(root, 'cli'), net: join(root, 'net') };
     mkdirSync(dirs.input, { recursive: true });
     mkdirSync(dirs.output, { recursive: true });
     // Held by the runner, read (and run) by the container.
     mkdirSync(dirs.cli, { recursive: true });
     chmodSync(dirs.cli, 0o755);
+    // The socket of the session's proxy (and a sign that a question to the person is open) lives here: the runner writes, the container only looks.
+    mkdirSync(dirs.net, { recursive: true });
+    chmodSync(dirs.net, 0o755);
     // The container's user writes to the output folder and reads the input one.
     try {
       const [uid, gid] = config.owner.split(':').map(Number);
@@ -139,6 +156,28 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
     }
   };
 
+  // The time a step may take does not run while the person is being asked about a site (the question may wait for minutes): the clocks of
+  // the steps stop when the first question opens and go on when the last is answered.
+  const armClock = (session, entry) => {
+    clearTimer(entry.timer);
+    entry.timer = null;
+    if (!entry.timeoutMs || session.asks.size > 0) return;
+    entry.armedAt = Date.now();
+    // The program stops itself at its own limit; this is for the one that does not.
+    entry.timer = setTimer(() => killContainer(session, 'time-limit'), Math.max(100, entry.timeoutMs + config.killGraceMs - entry.spent));
+  };
+  const pauseClocks = (session) => {
+    for (const entry of session.state?.pending.values() || []) {
+      if (!entry.timer) continue;
+      clearTimer(entry.timer);
+      entry.timer = null;
+      entry.spent += Date.now() - entry.armedAt;
+    }
+  };
+  const resumeClocks = (session) => {
+    for (const entry of session.state?.pending.values() || []) armClock(session, entry);
+  };
+
   const request = (session, message, { onProgress, timeoutMs }) => new Promise((resolve, reject) => {
     const state = session.state;
     if (!state?.alive) {
@@ -146,20 +185,72 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       return;
     }
     const id = randomId();
-    let timer = null;
+    const entry = { onProgress, timeoutMs: timeoutMs || 0, spent: 0, armedAt: 0, timer: null };
     const done = (fn) => (value) => {
-      clearTimer(timer);
+      clearTimer(entry.timer);
       fn(value);
     };
-    state.pending.set(id, { onProgress, resolve: done(resolve), reject: done(reject) });
-    if (timeoutMs) {
-      // The program stops itself at its own limit; this is for the one that does not.
-      timer = setTimer(() => {
-        killContainer(session, 'time-limit');
-      }, timeoutMs + config.killGraceMs);
-    }
+    entry.resolve = done(resolve);
+    entry.reject = done(reject);
+    state.pending.set(id, entry);
+    armClock(session, entry);
     state.child.stdin.write(`${JSON.stringify({ ...message, id })}\n`);
   });
+
+  // ----- the network of a session: a proxy of the runner on a socket the container sees (net-proxy.js), and the questions it puts to the person
+  const waitingMarker = (session) => join(session.dirs.net, 'waiting');
+  const emitNet = (session, payload) => {
+    try {
+      session.emit?.({ type: 'progress', stage: 'net', ...payload });
+    } catch {
+      // The step's answer is already closed: nobody is there to hear.
+    }
+  };
+  const settleAsk = (session, id, decision) => {
+    const entry = session.asks.get(id);
+    if (!entry) return false;
+    session.asks.delete(id);
+    clearTimer(entry.timer);
+    emitNet(session, { event: 'answer', id, decision });
+    entry.resolve(decision);
+    if (session.asks.size === 0) {
+      try {
+        rmSync(waitingMarker(session), { force: true });
+      } catch {
+        // The marker is only a hint to the container.
+      }
+      resumeClocks(session);
+    }
+    return true;
+  };
+  const cancelAsks = (session) => {
+    for (const id of [...session.asks.keys()]) settleAsk(session, id, 'timeout');
+  };
+  /** The question the proxy puts when a program reaches for a site with no rule: told to the step that is running, answered by answerNet. */
+  const askPerson = (session, { host, port }) => new Promise((resolve) => {
+    // No step is running (a program left in the background): nobody can be asked.
+    if (!session.emit) {
+      resolve('timeout');
+      return;
+    }
+    const id = randomId();
+    const entry = { id, host, port, resolve, timer: setTimer(() => settleAsk(session, id, 'timeout'), config.netAskTimeoutMs) };
+    const first = session.asks.size === 0;
+    session.asks.set(id, entry);
+    if (first) {
+      try {
+        writeFileSync(waitingMarker(session), '1');
+      } catch {
+        // The marker is only a hint to the container.
+      }
+      pauseClocks(session);
+    }
+    emitNet(session, { event: 'ask', id, host, port, waitMs: config.netAskTimeoutMs });
+  });
+  /** Tells the program in the container to open its end of the socket (after the container starts, and again if it is started anew). */
+  const enableNet = async (session) => {
+    await request(session, { type: 'net', on: true }, { timeoutMs: 20_000 });
+  };
 
   /** A container that is not running (killed by a stop or a limit) is started again, empty, before the next step. */
   const ensureRunning = async (session) => {
@@ -167,6 +258,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
     emptyFolder(session.dirs.output);
     await startContainer(session);
     await request(session, { type: 'init', language: session.language }, { timeoutMs: 20_000 });
+    if (session.proxy) await enableNet(session);
     session.fresh = true;
   };
 
@@ -190,7 +282,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
     async create({ language = 'zh-TW' } = {}) {
       if (sessions.size >= config.maxSessions) throw new RunnerError('busy', 'All sandboxes are in use.', 429);
       const id = randomId();
-      const session = { id, language, dirs: makeDirs(id), createdAt: now(), lastUsed: now(), state: null, queue: null };
+      const session = { id, language, dirs: makeDirs(id), createdAt: now(), lastUsed: now(), state: null, queue: null, proxy: null, asks: new Map(), emit: null };
       sessions.set(id, session);
       try {
         await startContainer(session);
@@ -233,8 +325,9 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
      * Puts the programs of CLI tools in /opt/cli: [{ id, file, url, sha256, size }]. Each is fetched (and checked) when this machine does not
      * have it yet, then linked in under its file name.
      */
-    async mountCli(id, tools = []) {
+    async mountCli(id, tools = [], net = null) {
       const session = get(id);
+      const policy = cleanNet(net);
       const list = Array.isArray(tools) ? tools.slice(0, MAX_CLI_TOOLS) : [];
       for (const tool of list) {
         if (!CLI_ID.test(String(tool?.id || '')) || !CLI_FILE.test(String(tool?.file || ''))) throw new RunnerError('bad_request', 'A tool has no valid id or file name.', 400);
@@ -263,24 +356,43 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
           chmodSync(target, 0o755);
           mounted.push({ id: tool.id, file: tool.file });
         });
-        return { mounted };
+        // The network: with a policy the session gets its proxy (the person's rules for sites); the container itself still has no network.
+        if (policy) {
+          if (session.proxy) session.proxy.setPolicy(policy);
+          else {
+            session.proxy = createNetProxy({ socketPath: join(session.dirs.net, 'p.sock'), policy, ask: (question) => askPerson(session, question), log, ...proxyOptions });
+            await session.proxy.listen();
+            await ensureRunning(session);
+            await enableNet(session);
+          }
+        }
+        return { mounted, network: Boolean(session.proxy) };
       });
+    },
+
+    /** The person's answer to a question about a site ('once', 'always' or 'deny'). Not queued behind the step that is waiting for it. */
+    async answerNet(id, askId, decision) {
+      const session = get(id);
+      if (!DECISIONS.has(decision) || !ASK_ID_SHAPE.test(String(askId || ''))) throw new RunnerError('bad_request', 'Not a valid answer.', 400);
+      return { answered: settleAsk(session, askId, decision) };
     },
 
     /**
      * Runs a step: Python code, or (`command`) a command line of a CLI tool. `onProgress` hears what it prints as it runs. Resolves what the
      * step printed, its error and its files.
      */
-    async run(id, { code, command, env, timeoutMs }, onProgress = () => {}) {
+    async run(id, { code, command, env, files, timeoutMs }, onProgress = () => {}) {
       const session = get(id);
       return serialized(session, async () => {
         const limit = Math.max(1000, Math.min(Number(timeoutMs) || 60_000, LIMITS.maxRunTimeoutMs));
         await ensureRunning(session);
         const before = snapshotOutput(session.dirs.output);
+        // What the network proxy has to ask the person while the step runs is told through the step's own stream.
+        session.emit = onProgress;
         try {
           const message = command === undefined || command === null
             ? { type: 'run', code: String(code || ''), timeoutMs: limit }
-            : { type: 'command', command: String(command), env: env && typeof env === 'object' ? env : {}, timeoutMs: limit };
+            : { type: 'command', command: String(command), env: env && typeof env === 'object' ? env : {}, files: Array.isArray(files) ? files : [], timeoutMs: limit };
           const result = await request(session, message, { onProgress, timeoutMs: limit });
           const output = collectOutput(session.dirs.output, before);
           return { ...result, type: 'result', files: output.files, skippedFiles: output.skipped };
@@ -303,6 +415,10 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
             skippedFiles: [],
             restarted: true
           };
+        } finally {
+          // A question still open when the step is over (stopped, out of time) has nobody to answer it any more.
+          cancelAsks(session);
+          session.emit = null;
         }
       });
     },
@@ -329,7 +445,9 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       const session = sessions.get(id);
       if (!session) return { destroyed: false };
       sessions.delete(id);
+      cancelAsks(session);
       killContainer(session, 'destroyed');
+      void session.proxy?.close().catch(() => {});
       // Folders go once the container has let go of them.
       setTimer(() => {
         try {

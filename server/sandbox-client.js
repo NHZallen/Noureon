@@ -108,6 +108,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
     let stopped = false;
     let mountedFiles = [];
     let mountedCli = [];
+    let mountedNet = null;
 
     const ensure = () => {
       starting ||= (async () => {
@@ -168,10 +169,16 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
        * Puts the programs of CLI tools in the sandbox: [{ id, file, url, sha256, size }]. The host fetches (and checks) them; this can take a
        * while the first time.
        */
-      async mountCli(tools = []) {
+      async mountCli(tools = [], { net = null } = {}) {
         await ensure();
         mountedCli = tools;
-        return call('POST', `/v1/sessions/${id}/cli`, { body: { tools }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
+        mountedNet = net;
+        return call('POST', `/v1/sessions/${id}/cli`, { body: { tools, ...(net ? { net } : {}) }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
+      },
+      /** The person's answer to a question about a site that a running step put (`onProgress` heard it as `stage: 'net'`): 'once', 'always' or 'deny'. */
+      async answerNet(askId, decision) {
+        if (!id) return { answered: false };
+        return call('POST', `/v1/sessions/${id}/net/answer`, { body: { askId, decision }, stage: 'net' });
       },
       /** Runs a command line of a CLI tool (in /output, the tools on the path); resolves what `run` resolves. `env`: what its tools need. */
       async command(commandLine, options = {}) {
@@ -196,17 +203,24 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
             starting = null;
             await ensure();
             if (mountedFiles.length) await call('POST', `/v1/sessions/${id}/mount`, { body: { files: mountedFiles }, timeoutMs: MOUNT_CALL_MS, stage: 'mount' });
-            if (mountedCli.length) await call('POST', `/v1/sessions/${id}/cli`, { body: { tools: mountedCli }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
+            if (mountedCli.length || mountedNet) await call('POST', `/v1/sessions/${id}/cli`, { body: { tools: mountedCli, ...(mountedNet ? { net: mountedNet } : {}) }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
           }
         }
       },
       /** One attempt at a step (see `run`). */
-      async runStep(code, { timeoutMs = 60_000, signal, command, env } = {}) {
+      async runStep(code, { timeoutMs = 60_000, signal, command, env, files: commandFiles } = {}) {
         await ensure();
         if (signal?.aborted || stopped) return { stopped: true };
         const limit = Math.max(1000, Math.min(Number(timeoutMs) || 60_000, MAX_RUN_MS));
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), limit + RUN_EXTRA_WAIT_MS);
+        // The wait for the runner does not run while the person is being asked about a site (the runner stops its own clock then too).
+        let timer = null;
+        const open = new Set();
+        const arm = () => {
+          clearTimeout(timer);
+          timer = open.size ? null : setTimeout(() => controller.abort(), limit + RUN_EXTRA_WAIT_MS);
+        };
+        arm();
         const onAbort = () => {
           stopped = true;
           // The runner ends the step and answers; the connection is let go if it does not.
@@ -220,7 +234,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
             response = await fetchImpl(`${base}/v1/sessions/${id}/run`, {
               method: 'POST',
               headers: headers({ 'Content-Type': 'application/json' }),
-              body: JSON.stringify(command === undefined ? { code: String(code || ''), timeoutMs: limit } : { command: String(command), env: env || {}, timeoutMs: limit }),
+              body: JSON.stringify(command === undefined ? { code: String(code || ''), timeoutMs: limit } : { command: String(command), env: env || {}, ...(commandFiles?.length ? { files: commandFiles } : {}), timeoutMs: limit }),
               signal: controller.signal
             });
           } catch {
@@ -240,7 +254,14 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
             } catch {
               return;
             }
-            if (message.type === 'progress') onProgress(message);
+            if (message.type === 'progress') {
+              if (message.stage === 'net') {
+                if (message.event === 'ask') open.add(message.id);
+                else if (message.event === 'answer') open.delete(message.id);
+                arm();
+              }
+              onProgress(message);
+            }
             else if (message.type === 'result') result = message;
             else if (message.type === 'failure') failure = message;
           };

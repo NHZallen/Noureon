@@ -45,6 +45,10 @@ export function createServiceClient({ url, serviceKey, fetchImpl = fetch, timeou
     /** Rows of a table. `filters`: { column: 'eq.value' } (PostgREST filter syntax), `select`: the columns. */
     select: (table, { filters, select = '*', limit, order } = {}) => call(`${encodeURIComponent(table)}?select=${encodeURIComponent(select)}${filters ? `&${filterQuery(filters)}` : ''}${order ? `&order=${encodeURIComponent(order)}` : ''}${limit ? `&limit=${Number(limit)}` : ''}`),
     /** Changes the rows that match; returns the changed rows (minimal columns). */
+    /** Adds a row, or replaces the one with the same `onConflict` columns ("user_id,name"). */
+    upsert: (table, row, { onConflict }) => call(`${encodeURIComponent(table)}?on_conflict=${encodeURIComponent(onConflict)}`, { method: 'POST', body: row, extraHeaders: { Prefer: 'resolution=merge-duplicates,return=minimal' } }),
+    /** Removes the rows that match (a filter is required). */
+    remove: (table, filters) => call(`${encodeURIComponent(table)}?${filterQuery(filters)}`, { method: 'DELETE', extraHeaders: { Prefer: 'return=minimal' } }),
     update: (table, filters, values, { returning = 'id' } = {}) => call(`${encodeURIComponent(table)}?${filterQuery(filters)}&select=${encodeURIComponent(returning)}`, { method: 'PATCH', body: values, extraHeaders: { Prefer: 'return=representation' } })
   };
 }

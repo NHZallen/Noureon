@@ -7,6 +7,7 @@ import { terminalIcon, toolIconMarkup, watchToolIcons } from '../../ui/cli/cli-i
 import { registerCliMode } from './cli-bridge.js';
 import { cliIndicatorId, enabledCliTools } from './cli-state.js';
 import { cliText } from './cli-texts.js';
+import { rememberNetAnswer } from './net-state.js';
 
 const escapeHTML = (value = '') => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 // "@" and what is typed after it, at the end of the text before the caret, at the start or after a space.
@@ -240,7 +241,17 @@ export function createCliMode({ document, messageInput, getConfig, saveConfig = 
   // The address noureon.com/cli opens the page (a refresh, a bookmark, a shared link).
   if (win.location?.pathname === '/cli') void openStore();
 
-  const mode = { sync, indicators, selection, clear, openStore, closeMenu, ensureEntry };
+  // What a person's answer to a question about a site leaves in the settings (a rule for "always" and for a refusal, the site in the list for "once").
+  const rememberNet = async (host, decision) => {
+    if (!rememberNetAnswer(getConfig(), host, decision)) return;
+    try {
+      await saveConfig();
+    } catch (error) {
+      logger?.warn?.('Saving the rule for a site failed.', error);
+    }
+  };
+
+  const mode = { sync, indicators, selection, clear, openStore, closeMenu, ensureEntry, rememberNet };
   registerCliMode(mode);
   sync();
   return mode;

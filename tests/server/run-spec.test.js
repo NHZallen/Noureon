@@ -136,3 +136,17 @@ test('a deep research carries its topic, searches with tools, and is not made wi
   assert.deepEqual(paths({ ...good(), research: { topic: 'x' } }), ['research'], 'a topic is only for a research');
   assert.deepEqual(paths({ ...good(), kind: 'vision' }), ['kind'], 'the visual check is not asked for from outside');
 });
+
+test('the rules for the sites of CLI tools are checked, and kept only with a tool', () => {
+  const withTools = (tools) => validateRunSpec({ ...good(), tools: { webSearch: 'off', advanced: true, ...tools } });
+  const ok = withTools({ cli: [{ id: 'officecli' }], net: { mode: 'always', rules: { 'Example.ORG.': 'allow', 'bad.example': 'deny', 'x.com': 'ask' } } });
+  assert.equal(ok.ok, true);
+  assert.deepEqual(ok.spec.tools.net, { mode: 'always', rules: { 'example.org': 'allow', 'bad.example': 'deny', 'x.com': 'ask' } }, 'in one form');
+  assert.equal(withTools({ net: { mode: 'new', rules: {} } }).spec.tools.net, undefined, 'no tool, no network');
+  assert.equal(withTools({ cli: [{ id: 'officecli' }] }).spec.tools.net, undefined);
+  for (const [net, what] of [[[], 'a list'], [{ mode: 'sometimes' }, 'a mode that is not one'], [{ rules: { 'a b': 'allow' } }, 'a site that is not a name'], [{ rules: { '127.0.0.1': 'allow' } }, 'an address'], [{ rules: { 'a.example': 'maybe' } }, 'a rule that is not one'], [{ rules: [] }, 'rules as a list'], [{ other: 1 }, 'an unknown field'], [{ rules: Object.fromEntries(Array.from({ length: 501 }, (_, index) => [`site${index}.example`, 'allow'])) }, 'too many sites']]) {
+    const bad = withTools({ cli: [{ id: 'officecli' }], net });
+    assert.equal(bad.ok, false, what);
+    assert.ok(bad.errors.every((error) => error.path.startsWith('tools.net')), what);
+  }
+});

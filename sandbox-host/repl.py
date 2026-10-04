@@ -2,14 +2,17 @@
 variables stay between the steps of a reply.
 
 It talks to the runner over stdin and stdout, one JSON object per line:
-  in:   {"id", "type": "run", "code", "timeoutMs"}  |  {"id", "type": "command", "command", "env", "timeoutMs"}  |  {"id", "type": "clear"}
-        |  {"id", "type": "init", "language"}
+  in:   {"id", "type": "run", "code", "timeoutMs"}  |  {"id", "type": "command", "command", "env", "files", "timeoutMs"}  |  {"id", "type": "clear"}
+        |  {"id", "type": "init", "language"}  |  {"id", "type": "net", "on": true}
   out:  {"type": "ready"}  |  {"id", "type": "progress", "stage": "output", "stream", "text"}
         |  {"id", "type": "result", "stdout": {"text", "dropped"}, "stderr": {...}, "error", "elapsedMs"}
 
 The files a step writes are not sent here: they are in the output folder, which the runner reads. The program's own stdin and stdout are
 taken away from the user's code (it gets /dev/null), so nothing it prints can pass for a message.
 Folders: /input (read only), /output, /work (home), /fonts. NOUREON_INPUT, NOUREON_OUTPUT and NOUREON_WORK move them (tests).
+
+The container has no network. When the runner gives the session a network proxy (the "net" message), a socket of it is in /run/noureon-net and
+this program relays 127.0.0.1:<port> to it: the commands it runs get HTTP_PROXY and HTTPS_PROXY pointing there (the code of a Python step does not).
 """
 import ast
 import asyncio
@@ -19,6 +22,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -28,6 +32,10 @@ import traceback
 INPUT = os.environ.get("NOUREON_INPUT", "/input")
 # The programs of the CLI tools (read only); a command finds them first.
 CLI = os.environ.get("NOUREON_CLI", "/opt/cli")
+# Where a tool's Python packages are installed (pip --target), and the socket and sign of the network proxy.
+PIP = os.environ.get("NOUREON_PIP", "/opt/pip")
+NET_SOCKET = os.environ.get("NOUREON_NET_SOCKET", "/run/noureon-net/p.sock")
+NET_WAITING = os.path.join(os.path.dirname(NET_SOCKET), "waiting")
 OUTPUT = os.environ.get("NOUREON_OUTPUT", "/output")
 WORK = os.environ.get("NOUREON_WORK", "/work")
 CAPTURE_LIMIT = 1_000_000
@@ -194,17 +202,130 @@ def run_step(request, user_globals):
 
 
 ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
-# What a tool may not change in the environment of its command (where programs and libraries are found, where Python looks).
-ENV_BLOCKED = {"PATH", "HOME", "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "SHELL", "IFS"}
+# What a tool may not change in the environment of its command (where programs and libraries are found, where Python looks, where the network goes).
+ENV_BLOCKED = {"PATH", "HOME", "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "SHELL", "IFS",
+               "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "FTP_PROXY"}
+ENV_VALUE_LIMIT = 4096
+FILE_LIMIT = 16_384
+
+# The port the relay to the proxy listens on (set by the "net" message).
+_net_port = None
+_net_lock = threading.Lock()
+
+
+def _forward(source, target):
+    """Copies one direction of a connection; at its end tells the other side nothing more comes."""
+    try:
+        while True:
+            chunk = source.recv(65536)
+            if not chunk:
+                break
+            target.sendall(chunk)
+    except OSError:
+        pass
+    try:
+        target.shutdown(socket.SHUT_WR)
+    except OSError:
+        pass
+
+
+def _relay(client):
+    upstream = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        upstream.connect(NET_SOCKET)
+    except OSError:
+        client.close()
+        upstream.close()
+        return
+    back = threading.Thread(target=_forward, args=(upstream, client), daemon=True)
+    back.start()
+    _forward(client, upstream)
+    back.join()
+    client.close()
+    upstream.close()
+
+
+def start_network():
+    """Opens 127.0.0.1:<port> and relays what comes in to the proxy's socket. Returns the port (the same one when asked again)."""
+    global _net_port
+    with _net_lock:
+        if _net_port is not None:
+            return _net_port
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(64)
+
+        def serve():
+            while True:
+                try:
+                    client, _ = listener.accept()
+                except OSError:
+                    return
+                threading.Thread(target=_relay, args=(client,), daemon=True).start()
+
+        threading.Thread(target=serve, daemon=True).start()
+        _net_port = listener.getsockname()[1]
+        return _net_port
 
 
 def command_environment(extra):
     env = dict(os.environ)
     for name, value in (extra if isinstance(extra, dict) else {}).items():
         if ENV_NAME.match(str(name)) and str(name) not in ENV_BLOCKED:
-            env[str(name)] = str(value)[:200]
-    env["PATH"] = CLI + os.pathsep + env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+            env[str(name)] = str(value)[:ENV_VALUE_LIMIT]
+    # The programs of the tools, then what pip installed for them.
+    env["PATH"] = os.pathsep.join([CLI, os.path.join(PIP, "bin"), env.get("PATH", "/usr/local/bin:/usr/bin:/bin")])
+    env["PYTHONPATH"] = os.pathsep.join([entry for entry in (env.get("PYTHONPATH", ""), PIP) if entry])
+    env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    env["PIP_NO_CACHE_DIR"] = "1"
+    if _net_port is not None:
+        proxy = f"http://127.0.0.1:{_net_port}"
+        for name in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
+            env[name] = proxy
+        for name in ("NO_PROXY", "no_proxy", "ALL_PROXY", "all_proxy"):
+            env.pop(name, None)
     return env
+
+
+def write_command_files(files):
+    """Files a command needs in its home (a tool's login, made by the server from the person's credentials): written with only the owner
+    able to read them, and removed again when the command is over. Returns the paths written."""
+    written = []
+    for entry in (files if isinstance(files, list) else [])[:4]:
+        if not isinstance(entry, dict):
+            continue
+        relative = os.path.normpath(str(entry.get("path") or ""))
+        content = str(entry.get("content") or "")
+        if not relative or relative.startswith(("/", "..")) or len(content) > FILE_LIMIT:
+            continue
+        target = os.path.join(WORK, relative)
+        try:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(content)
+            written.append(target)
+        except OSError:
+            continue
+    return written
+
+
+def wait_for(process, timeout):
+    """Waits for a process; the time does not run while the runner is asking the person about a site (a sign file is there then).
+    Returns (exit code, timed out)."""
+    deadline = time.monotonic() + timeout
+    tick = time.monotonic()
+    while True:
+        try:
+            return process.wait(timeout=0.25), False
+        except subprocess.TimeoutExpired:
+            now = time.monotonic()
+            if os.path.exists(NET_WAITING):
+                deadline += now - tick
+            tick = now
+            if now >= deadline:
+                return None, True
 
 
 def pump(stream, sink):
@@ -230,23 +351,25 @@ def run_command(request):
     out, err = Sink("stdout", request_id), Sink("stderr", request_id)
     started = time.monotonic()
     error = None
+    written = write_command_files(request.get("files"))
     try:
         process = subprocess.Popen(
             ["/bin/sh", "-c", command], cwd=OUTPUT if os.path.isdir(OUTPUT) else WORK, env=command_environment(request.get("env")),
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True,
         )
     except OSError as caught:
+        remove_files(written)
         send({"id": request_id, "type": "result", "stdout": out.result(), "stderr": err.result(), "error": f"The command could not be started ({caught.strerror or caught}).", "elapsedMs": 0})
         return
     readers = [threading.Thread(target=pump, args=(process.stdout, out), daemon=True), threading.Thread(target=pump, args=(process.stderr, err), daemon=True)]
     for reader in readers:
         reader.start()
     try:
-        code = process.wait(timeout=timeout)
-        if code != 0:
+        code, timed_out = wait_for(process, timeout)
+        if timed_out:
+            error = "The code ran longer than its time limit."
+        elif code != 0:
             error = f"The command exited with code {code}."
-    except subprocess.TimeoutExpired:
-        error = "The code ran longer than its time limit."
     finally:
         # Whatever the command left running (a program in the background) must not outlive it, or hold the files it wrote.
         try:
@@ -256,6 +379,7 @@ def run_command(request):
         process.wait()
     for reader in readers:
         reader.join(timeout=2)
+    remove_files(written)
     out.flush()
     err.flush()
     send({
@@ -266,6 +390,14 @@ def run_command(request):
         "error": error,
         "elapsedMs": int((time.monotonic() - started) * 1000),
     })
+
+
+def remove_files(paths):
+    for path in paths:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
 
 
 def main():
@@ -292,6 +424,8 @@ def main():
             run_step(request, user_globals)
         elif kind == "command":
             run_command(request)
+        elif kind == "net":
+            send({"id": request.get("id"), "type": "result", "port": start_network()})
         elif kind == "exit":
             break
 
