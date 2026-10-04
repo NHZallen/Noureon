@@ -34,9 +34,10 @@ export function closeSourceSheet() {
  * Opens a sheet. `all`: the "Sources" sheet of a whole reply (otherwise the sheet of one label: its count and a close button).
  * `tabs` ([{ id, label }]) with `tab` (the one shown first) and `renderTab(id, list)` make it a sheet of several lists to switch between
  * (what a research shows: its sources and what it did), the way the panel at the side has its tabs.
+ * `title` and `renderContent(list)` reuse the same draggable sheet for a custom list, such as a report's contents.
  * Returns { close, element }.
  */
-export function openSourceSheet({ document, sources, all = false, language = 'zh-TW', tabs = null, tab = null, renderTab = null, onClose = () => {} }) {
+export function openSourceSheet({ document, sources, all = false, language = 'zh-TW', tabs = null, tab = null, renderTab = null, title: customTitle = null, renderContent = null, onClose = () => {} }) {
   closeSourceSheet();
   const win = document.defaultView;
   const opener = document.activeElement;
@@ -49,7 +50,7 @@ export function openSourceSheet({ document, sources, all = false, language = 'zh
   sheet.setAttribute('role', 'dialog');
   sheet.setAttribute('aria-modal', 'true');
   let shownTab = tabs?.length ? (tabs.find((entry) => entry.id === tab) || tabs[0]) : null;
-  const title = shownTab ? shownTab.label : all ? sandboxText(language, 'sourcesTab') : sandboxText(language, 'citeSources', { n: sources.length });
+  const title = customTitle ?? (shownTab ? shownTab.label : all ? sandboxText(language, 'sourcesTab') : sandboxText(language, 'citeSources', { n: sources.length }));
   sheet.setAttribute('aria-label', title);
   const grip = document.createElement('div');
   grip.className = 'source-sheet-grip';
@@ -96,7 +97,8 @@ export function openSourceSheet({ document, sources, all = false, language = 'zh
   if (shownTab) {
     for (const entry of tabs) tabButtons.get(entry.id).addEventListener('click', () => showTab(entry));
     showTab(shownTab);
-  } else fillSourceList(list, sources, { language });
+  } else if (renderContent) renderContent(list);
+  else fillSourceList(list, sources, { language });
   trackPointedRow(list, '.source-item');
   sheet.append(grip, head, list);
   root.append(backdrop, sheet);
