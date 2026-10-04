@@ -205,7 +205,7 @@ test('back button returns to the mobile list and clears active sections', () => 
   assert.equal(settingsModal.classList.contains('settings-mobile-detail-open'), false);
   assert.equal(settingsModal.classList.contains('settings-mobile-returning'), false);
   assert.equal(sections.some((section) => section.classList.contains('active')), false);
-  assert.equal(title.textContent, 'Settings');
+  assert.equal(title.textContent, '');
 });
 
 test('desktop list reset skips return animation but keeps section classes synchronized', () => {

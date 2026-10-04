@@ -1,7 +1,7 @@
 // The report read in a window of its own over the chat (docs/superpowers/specs/2026-10-04-deep-research-design.md, §3.4): the article in a
 // column; the contents as short ticks at the left edge (hover for the list, click to jump); the citations as grey circles that show their
 // sources on hover; a panel at the right with the sources and what the research did; the download menu. On a phone the contents, the
-// download and the activity are three floating buttons.
+// download and the sources sit in a floating toolbar.
 
 import { formatResearchTime, researchText } from '../../runtime/research/research-texts.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
@@ -21,8 +21,9 @@ const ICONS = {
   close: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   download: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
   panel: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>',
-  list: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
-  activity: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>',
+  list: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="7" r="3"/><circle cx="6" cy="17" r="3"/><path d="M13 7h8M13 17h8"/></svg>',
+  downloadCircle: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10m-4-4 4 4 4-4"/></svg>',
+  activity: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>',
   prev: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>',
   next: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
 };
@@ -86,11 +87,12 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   const tocCard = make(document, 'div', 'rr-toc-card');
   const tocList = make(document, 'ul', 'rr-toc-list');
   const rowsById = new Map();
+  let readerSheet = null;
   const jump = (id) => {
     const target = article.querySelector(`[id="${id}"]`);
     if (!target) return;
     scroller.scrollTo({ top: target.offsetTop - 24, behavior: 'smooth' });
-    root.classList.remove('rr-toc-open');
+    readerSheet?.close();
   };
   for (const heading of tocEntries) {
     const tick = make(document, 'span', `rr-tick rr-tick-${heading.level}`);
@@ -249,7 +251,7 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
       setPanel(true, which);
       return;
     }
-    openSourceSheet({
+    readerSheet = openSourceSheet({
       document,
       sources,
       all: true,
@@ -297,26 +299,34 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   const panelButton = button(document, 'rr-btn rr-panel-toggle', t('sources'), ICONS.panel);
   panelButton.addEventListener('click', () => (root.classList.contains('rr-panel-open') ? setPanel(false) : showPanel('sources')));
   const top = make(document, 'div', 'rr-top');
-  top.append(downloadButton, panelButton, menu);
+  top.append(downloadButton, panelButton);
 
-  // ----- the three buttons of a phone
+  // ----- the bottom toolbar of a phone
   const fab = make(document, 'div', 'rr-fab');
   const fabToc = button(document, 'rr-fab-btn', t('toc'), ICONS.list);
-  const fabDownload = button(document, 'rr-fab-btn', t('download'), ICONS.download);
-  const fabSources = button(document, 'rr-fab-btn', t('sources'), ICONS.panel);
-  const fabActivity = button(document, 'rr-fab-btn', t('activity'), ICONS.activity);
-  fabToc.addEventListener('click', () => root.classList.toggle('rr-toc-open'));
+  const fabDownload = button(document, 'rr-fab-btn', t('download'), ICONS.downloadCircle);
+  const fabSources = button(document, 'rr-fab-btn', t('sources'), ICONS.activity);
+  fabToc.addEventListener('click', () => {
+    readerSheet = openSourceSheet({
+      document,
+      sources: [],
+      all: true,
+      language,
+      title: t('toc'),
+      renderContent: (container) => {
+        const list = tocList.cloneNode(true);
+        list.querySelectorAll('.rr-toc-link').forEach((link, index) => link.addEventListener('click', () => jump(tocEntries[index].id)));
+        container.append(list);
+      }
+    });
+  });
   fabDownload.addEventListener('click', (event) => {
     event.stopPropagation();
     menu.hidden = !menu.hidden;
   });
   fabSources.addEventListener('click', () => showPanel('sources'));
-  fabActivity.addEventListener('click', () => showPanel('activity'));
   if (tocEntries.length < 2) fabToc.hidden = true;
-  fab.append(fabToc, fabDownload, fabSources, fabActivity);
-  const tocSheet = make(document, 'div', 'rr-toc-sheet');
-  tocSheet.append(make(document, 'div', 'rr-toc-sheet-title', t('toc')), tocList.cloneNode(true));
-  tocSheet.querySelectorAll('.rr-toc-link').forEach((link, index) => link.addEventListener('click', () => jump(tocEntries[index].id)));
+  fab.append(fabToc, fabDownload, fabSources);
 
   // ----- a citation's card: the site, the title and the start of the page; arrows when one mark stands for several sources
   const pop = make(document, 'div', 'rr-pop');
@@ -393,7 +403,7 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   pop.addEventListener('mouseenter', keepPop);
   pop.addEventListener('mouseleave', hidePop);
 
-  root.append(closeButton, top, ticks, main, panel, tocSheet, fab, pop);
+  root.append(closeButton, top, ticks, main, panel, fab, menu, pop);
   document.body.append(root);
   document.documentElement.classList.add('rr-reading');
 
@@ -401,6 +411,7 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   const close = () => {
     if (closed) return;
     closed = true;
+    readerSheet?.close();
     win.removeEventListener('keydown', onKey, true);
     win.removeEventListener('click', onDocumentClick, true);
     root.remove();
@@ -418,14 +429,12 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
     event.stopPropagation();
     if (!pop.hidden) pop.hidden = true;
     else if (!menu.hidden) menu.hidden = true;
-    else if (root.classList.contains('rr-toc-open')) root.classList.remove('rr-toc-open');
     else if (root.classList.contains('rr-panel-open')) setPanel(false);
     else close();
   }
   function onDocumentClick(event) {
-    if (!menu.hidden && !menu.contains(event.target)) menu.hidden = true;
+    if (!menu.hidden && !menu.contains(event.target) && !downloadButton.contains(event.target) && !fabDownload.contains(event.target)) menu.hidden = true;
     if (!pop.hidden && !pop.contains(event.target) && !event.target.closest('.rr-cite')) pop.hidden = true;
-    if (root.classList.contains('rr-toc-open') && !tocSheet.contains(event.target) && !fabToc.contains(event.target)) root.classList.remove('rr-toc-open');
   }
   win.addEventListener('keydown', onKey, true);
   win.addEventListener('click', onDocumentClick, true);
