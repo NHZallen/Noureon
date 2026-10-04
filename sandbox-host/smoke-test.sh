@@ -65,7 +65,13 @@ PY
 }
 # The programs and their hashes come from the app's own catalog (run from the repository), so this checks what the app really uses.
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-CATALOG=$(cd "$REPO" && node -e "import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(m.OFFICIAL_CLI_CATALOG.filter(m.isCliReady).map((t) => ({ id: t.id, file: t.artifacts[m.CLI_PLATFORM].file, url: t.artifacts[m.CLI_PLATFORM].url, sha256: t.artifacts[m.CLI_PLATFORM].sha256, size: t.artifacts[m.CLI_PLATFORM].size })))))")
+CATALOG_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(m.OFFICIAL_CLI_CATALOG.filter(m.isCliReady).map((t) => ({ id: t.id, file: t.artifacts[m.CLI_PLATFORM].file, url: t.artifacts[m.CLI_PLATFORM].url, sha256: t.artifacts[m.CLI_PLATFORM].sha256, size: t.artifacts[m.CLI_PLATFORM].size })))))"
+if command -v node >/dev/null 2>&1; then
+  CATALOG=$(cd "$REPO" && node -e "$CATALOG_JS")
+else
+  # No Node on this machine: the runner's image has it.
+  CATALOG=$(docker run --rm -v "$REPO/src/data:/app/src/data:ro" -w /app --entrypoint node noureon-sandbox-runner:1 -e "$CATALOG_JS")
+fi
 MOUNT=$(python3 - "$ID" "$BASE" "$SECRET" "$CATALOG" <<'PY'
 import json, sys, urllib.request
 session, base, secret, catalog = sys.argv[1], sys.argv[2], sys.argv[3], json.loads(sys.argv[4])
