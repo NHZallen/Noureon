@@ -179,13 +179,24 @@ test('the report card has its statistics, its title, the start of the text faded
   await flush();
   assert.deepEqual(opened, [{ messageId: 'm6' }, { messageId: 'm6' }]);
   click(window, cardHost.querySelector('[data-act="download-menu"]'));
-  assert.deepEqual([...cardHost.querySelectorAll('.rc-menu button')].map((item) => item.dataset.act), ['copy', 'export-md']);
+  assert.deepEqual([...cardHost.querySelectorAll('.rc-menu button')].map((item) => item.dataset.act), ['copy', 'export-md', 'export-docx', 'export-pdf']);
+  assert.deepEqual([...cardHost.querySelectorAll('.rc-menu button')].map((item) => item.textContent), ['Copy content', 'Export Markdown', 'Export Word', 'Export PDF']);
   const copied = [];
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { clipboard: { writeText: async (text) => { copied.push(text); } } } });
   click(window, cardHost.querySelector('[data-act="copy"]'));
   await flush();
   assert.match(copied[0], /## References\n\n\[1\] A page — https:\/\/a\.example\/x/);
   assert.equal(notices.at(-1)[0], 'Copied');
+});
+
+test('the reader\'s download menu has the three files, and shows that one is being made', async () => {
+  const { window, document } = setup();
+  updateResearch('m9', { report: REPORT });
+  openResearchReader({ messageId: 'm9', getLanguage: () => 'fr', document });
+  const root = document.querySelector('.rr');
+  assert.deepEqual([...root.querySelectorAll('.rr-menu-item')].map((item) => item.textContent), ['Copier le contenu', 'Exporter en Markdown', 'Exporter en Word', 'Exporter en PDF']);
+  closeResearchReader();
+  assert.equal(window.document.querySelector('.rr'), null);
 });
 
 test('the Markdown of a report ends with its sources, and its file name is safe', () => {

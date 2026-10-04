@@ -149,6 +149,7 @@ test('a research is planned, waits out its countdown, searches each item, and wr
   assert.match(markdown, /^# Solid-state battery research\n\n## Executive summary\n\nThe summary says things \[1\]\.\n\n## Overview\n\nBody of Overview with a claim \[1\]\./);
   assert.match(markdown, /## Players\n\nBody of Players/);
   assert.equal(report.stats.searches, 3);
+  assert.equal(typeof report.finishedAt, 'number', 'it says when it was finished');
   assert.equal(report.stats.citations, 1);
   assert.deepEqual(report.sources.map((source) => [source.n, source.url]), [[1, 'https://site1.example/page']]);
   assert.deepEqual(report.toc.map((entry) => entry.text), ['Solid-state battery research', 'Executive summary', 'Overview', 'Players']);

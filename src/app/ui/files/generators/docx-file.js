@@ -42,7 +42,7 @@ import { buildDocumentTheme, legacyDocumentTheme } from '../design/document-desi
 import { FONT_FAMILIES, fontSource } from '../design/fonts.js';
 import { renderChartImages, resolveDocumentImages } from './chart-images.js';
 import { CHART_TABLE_LABELS, IMAGE_LABELS, TOC_LABELS } from './document-labels.js';
-import { buildDocumentModel, collectHeadings, runsToPlainText } from './document-model.js';
+import { buildDocumentModel, collectHeadings, numericColumns, runsToPlainText } from './document-model.js';
 import { createDisplayEquation, createInlineEquation } from './docx-omml.js';
 import { embedFontsInDocument, prepareEmbeddedFamilies } from './font-embedding.js';
 import { runFaces } from './pptx-text.js';
@@ -128,6 +128,10 @@ class DocxRenderer {
     const bold = run.bold || extra.bold;
     this.track(role, role === 'heading' ? this.headingWeight() : bold ? 700 : 400, text);
     const code = run.code ? this.face('mono', 400) : null;
+    // A research report's citation: a grey link to the source, a little smaller than the text and not underlined.
+    if (run.cite) {
+      return new TextRun({ text, color: this.colors.muted, size: Math.round(this.sizes.body * 0.85), style: 'Hyperlink', underline: { type: 'none' } });
+    }
     return new TextRun({
       text,
       bold: bold || undefined,
@@ -327,6 +331,16 @@ class DocxRenderer {
     const { colors } = this;
     const style = this.theme.tables;
     const thin = { style: BorderStyle.SINGLE, size: 4, color: colors.border };
+    // A report's table: a line under the head, fine rules between the rows, nothing at the sides.
+    if (style === 'report') {
+      const underHead = { style: BorderStyle.SINGLE, size: 8, color: colors.text };
+      return {
+        borders: { top: NO_BORDER, bottom: thin, left: NO_BORDER, right: NO_BORDER, insideHorizontal: thin, insideVertical: NO_BORDER },
+        headerFill: null,
+        cellBorders: (header) => (header ? { bottom: underHead } : undefined),
+        stripe: null
+      };
+    }
     if (style === 'lines') {
       // The rules sit on the cells: renderers other than Word (the preview,
       // LibreOffice) draw a table's top and bottom border on every row.
@@ -359,7 +373,8 @@ class DocxRenderer {
     const widths = this.columnWidths(block);
     const columnCount = widths.length;
     const look = this.tableLook();
-    const alignment = (index) => ({ center: AlignmentType.CENTER, right: AlignmentType.RIGHT })[block.align[index]] || AlignmentType.LEFT;
+    const numeric = this.theme.tables === 'report' ? numericColumns(block) : [];
+    const alignment = (index) => ({ center: AlignmentType.CENTER, right: AlignmentType.RIGHT })[block.align[index]] || (numeric[index] ? AlignmentType.RIGHT : AlignmentType.LEFT);
     // Table text stays single spaced even in a double-spaced document.
     const cellSpacing = this.theme.legacy ? { before: 0, after: 0 } : { before: 0, after: 0, line: Math.min(this.theme.spacing.line, 276) };
     const cell = (runs, index, { header = false, stripe = false, last = false } = {}) => new TableCell({
@@ -928,12 +943,14 @@ class DocxRenderer {
 }
 
 async function composeDocx(descriptor, context = {}) {
-  const { meta, blocks } = buildDocumentModel(descriptor.content);
+  const { meta, blocks } = buildDocumentModel(descriptor.content, { citations: Boolean(context.report) });
   const baseName = descriptor.name.replace(/\.[^.]+$/, '');
   const language = context.language || 'zh-TW';
-  const theme = meta.design
+  const built = meta.design
     ? buildDocumentTheme(meta.design.design, { content: descriptor.content, language })
     : legacyDocumentTheme(descriptor.content);
+  // A research report (ui/research/research-document.js) sets the page margin in points and the look of its tables.
+  const theme = context.report && !built.legacy ? Object.freeze({ ...built, ...(context.report.margin ? { margin: context.report.margin * 20 } : {}), tables: 'report' }) : built;
   const renderer = new DocxRenderer({
     meta,
     language,

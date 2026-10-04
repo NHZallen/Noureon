@@ -706,6 +706,7 @@ export async function executeResearch({
           title: plan.title,
           topic,
           text: markdown.slice(0, MAX_REPORT_CHARS),
+          finishedAt: now(),
           stats: { ms: activeNow(), searches: research.used, citations: listed.length },
           sources: listed,
           toc: reportHeadings(markdown).slice(0, 200),

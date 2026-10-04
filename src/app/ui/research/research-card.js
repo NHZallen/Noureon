@@ -91,7 +91,8 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
 
   const reportHtml = (report) => {
     const stats = t('doneStats', { t: formatResearchTime(report.stats?.ms), c: report.stats?.citations ?? 0, s: report.stats?.searches ?? 0 });
-    const menu = state.menu ? `<div class="rc-menu" role="menu"><button type="button" role="menuitem" data-act="copy">${esc(t('copy'))}</button><button type="button" role="menuitem" data-act="export-md">${esc(t('exportMarkdown'))}</button></div>` : '';
+    const item = (act, key) => `<button type="button" role="menuitem" data-act="${act}"${state.busy ? ' disabled' : ''}>${esc(state.busy === act.replace('export-', '') ? t('preparing') : t(key))}</button>`;
+    const menu = state.menu ? `<div class="rc-menu" role="menu">${item('copy', 'copy')}${item('export-md', 'exportMarkdown')}${item('export-docx', 'exportWord')}${item('export-pdf', 'exportPdf')}</div>` : '';
     return `<div class="rc-stats-line">${esc(stats)}</div><div class="rc-report"><div class="rc-report-head"><span class="rc-doc">${DOC_ICON}</span><span class="rc-report-title">${esc(report.title || '')}</span><span class="rc-report-actions"><span class="rc-menu-anchor"><button type="button" class="rc-chip" data-act="download-menu" aria-haspopup="menu" aria-expanded="${state.menu}">${DOWNLOAD_ICON}<span>${esc(t('download'))}</span></button>${menu}</span><button type="button" class="rc-chip" data-act="expand">${EXPAND_ICON}<span>${esc(t('expand'))}</span></button></span></div><div class="rc-report-body" data-act="expand"><div class="rc-preview"></div><div class="rc-fade"></div></div></div><div class="rc-note">${esc(t('intro', { topic: report.topic || report.title || '' }))}</div>`;
   };
 
@@ -204,11 +205,17 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
         draw();
         break;
       }
-      case 'export-md': {
-        state.menu = false;
-        const { exportReportMarkdown } = await import('./research-export.js');
-        if (current?.report) exportReportMarkdown(current.report, language(), host.ownerDocument);
-        draw();
+      case 'export-md':
+      case 'export-docx':
+      case 'export-pdf': {
+        if (!current?.report || state.busy) break;
+        const { exportWithNotice } = await import('./research-export.js');
+        await exportWithNotice(name.slice(7), current.report, {
+          language: language(),
+          document: host.ownerDocument,
+          showNotification,
+          onBusy: (kind) => { state.busy = kind; if (kind === null) state.menu = false; draw(); }
+        });
         break;
       }
       case 'expand':

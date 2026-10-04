@@ -9,7 +9,7 @@ import { fillSourceList } from '../citations/source-list.js';
 import { knownSiteName } from '../citations/site-names.js';
 import { siteIcon, hostOf } from '../sandbox/run-sources.js';
 import { getFileMarkdownRenderer } from '../files/file-markdown-cards.js';
-import { copyReport, exportReportMarkdown } from './research-export.js';
+import { copyReport, exportWithNotice } from './research-export.js';
 import { numbersOf, renderReport } from './research-render.js';
 
 const ICONS = {
@@ -175,17 +175,31 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   // ----- the download menu
   const menu = make(document, 'div', 'rr-menu');
   menu.hidden = true;
-  const addMenuItem = (label, run) => {
+  const addMenuItem = (label, run, kind = null) => {
     const item = make(document, 'button', 'rr-menu-item', label);
     item.type = 'button';
+    item.dataset.label = label;
+    if (kind) item.dataset.kind = kind;
     item.addEventListener('click', async () => {
-      menu.hidden = true;
+      if (busy) return;
+      if (!kind) menu.hidden = true;
       await run();
     });
     menu.append(item);
   };
+  let busy = null;
+  const setBusy = (kind) => {
+    busy = kind;
+    menu.querySelectorAll('.rr-menu-item').forEach((item) => {
+      item.disabled = Boolean(kind);
+      item.textContent = kind && item.dataset.kind === kind ? t('preparing') : item.dataset.label;
+    });
+    if (!kind) menu.hidden = true;
+  };
   addMenuItem(t('copy'), async () => showNotification(await copyReport(report, language) ? t('copied') : t('actionFailed'), 'success'));
-  addMenuItem(t('exportMarkdown'), () => exportReportMarkdown(report, language, document));
+  for (const [kind, key] of [['md', 'exportMarkdown'], ['docx', 'exportWord'], ['pdf', 'exportPdf']]) {
+    addMenuItem(t(key), () => exportWithNotice(kind, report, { language, document, showNotification, onBusy: setBusy }), kind);
+  }
   const downloadButton = button(document, 'rr-btn rr-download', t('download'), ICONS.download);
   downloadButton.addEventListener('click', (event) => {
     event.stopPropagation();

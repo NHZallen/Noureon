@@ -11,7 +11,7 @@ import { buildDocumentTheme } from '../design/document-design.js';
 import { DOCUMENT_PRESETS } from '../design/document-presets.js';
 import { renderChartImages, resolveDocumentImages } from './chart-images.js';
 import { CHART_TABLE_LABELS, IMAGE_LABELS, TOC_LABELS } from './document-labels.js';
-import { buildDocumentModel, collectHeadings, runsToPlainText } from './document-model.js';
+import { buildDocumentModel, collectHeadings, numericColumns, runsToPlainText } from './document-model.js';
 import { latexToInlineRuns } from './latex-inline.js';
 import { PdfFontSet } from './pdf-fonts.js';
 
@@ -77,6 +77,13 @@ class PdfRenderer {
       if (run.math !== undefined) {
         const pieces = latexToInlineRuns(run.math).map((piece) => ({ ...piece, link: run.link }));
         inlines.push(...this.inline(pieces, { role, bold, color: textColor, pitch }));
+        continue;
+      }
+      // A research report's citation: a small grey label (a number between thin spaces) that opens the source.
+      if (run.cite) {
+        for (const piece of this.fonts.runs(`\u00a0${run.cite}\u00a0`, { role, weight: 400, italic: false, pitch })) {
+          inlines.push({ ...piece, link: run.link, color: color(this.colors.muted), background: color(this.colors.inlineCodeFill), fontSize: Math.round(this.sizes.body * 0.8 * 10) / 10 });
+        }
         continue;
       }
       let text = run.image
@@ -215,7 +222,7 @@ class PdfRenderer {
       ...(rank <= 2 && this.theme.headingTracking ? { characterSpacing: this.theme.headingTracking * size } : {}),
       ...(headings === 'centered' && rank === 1 ? { alignment: 'center' } : {})
     };
-    if (rank <= 3) {
+    if (rank <= (this.outlineDepth || 3)) {
       text.outline = true;
       text.outlineText = plainText;
       const parent = this.outlineParents[rank - 2];
@@ -307,6 +314,15 @@ class PdfRenderer {
     const style = this.theme.tables;
     const padding = { paddingLeft: () => 5.5, paddingRight: () => 5.5, paddingTop: () => 3.5, paddingBottom: () => 3.5 };
     const stripe = (row) => (row > 0 && row % 2 === 0 ? color(colors.stripeFill) : null);
+    // A report's table: a line under the head, fine rules between the rows, nothing at the sides.
+    if (style === 'report') {
+      return {
+        ...padding,
+        hLineWidth: (index, node) => (index === 0 ? 0 : index === 1 ? 0.9 : index === node.table.body.length ? 0.5 : 0.4),
+        vLineWidth: () => 0,
+        hLineColor: (index) => (index === 1 ? color(colors.text) : color(colors.border))
+      };
+    }
     if (style === 'lines') {
       return {
         ...padding,
@@ -337,7 +353,8 @@ class PdfRenderer {
   renderTable(block) {
     const widths = this.columnWidths(block);
     const count = widths.length;
-    const alignment = (index) => ({ center: 'center', right: 'right' })[block.align[index]] || 'left';
+    const numeric = this.theme.tables === 'report' ? numericColumns(block) : [];
+    const alignment = (index) => ({ center: 'center', right: 'right' })[block.align[index]] || (numeric[index] ? 'right' : 'left');
     const pad = (row) => Array.from({ length: count }, (_, index) => row[index] || []);
     const cell = (runs, index, header) => ({
       text: this.inline(runs, { bold: header, pitch: this.pitch.table }),
@@ -459,6 +476,16 @@ class PdfRenderer {
     return { canvas: [{ type: 'line', x1: x, y1: 0, x2: x + width, y2: 0, lineWidth: 2.25, lineColor: color(this.colors.accent) }], margin };
   }
 
+  // The mark and the name at the top of a report's first page; both open the site.
+  brandLine() {
+    const { name, url, logo } = this.brand;
+    const size = Math.round(this.sizes.body * 1.15 * 10) / 10;
+    const columns = [];
+    if (logo) columns.push({ width: 17, image: logo, link: url, margin: [0, 0, 0, 0] });
+    columns.push({ width: 'auto', text: this.plain(name, { role: 'heading', bold: true }).map((piece) => ({ ...piece, link: url })), fontSize: size, color: color(this.colors.text), margin: [0, logo ? 2 : 0, 0, 0] });
+    return { columns, columnGap: 6, margin: [0, 0, 0, 16] };
+  }
+
   // The title at the top of the first page (covers "none" and "block").
   renderTitleBlock() {
     const { title, subtitle } = this.meta;
@@ -466,6 +493,7 @@ class PdfRenderer {
     const block = this.theme.cover === 'block';
     const alignment = this.theme.titleAlign === 'center' && !block ? 'center' : undefined;
     const parts = [];
+    if (this.brand) parts.push(this.brandLine());
     if (title) parts.push({ ...this.titleText(title, { size: this.sizes.title, alignment }), margin: [0, 0, 0, 6] });
     if (subtitle) parts.push(this.smallText(subtitle, { alignment, margin: [0, 0, 0, 8] }));
     if (byline) parts.push(this.smallText(byline, { size: this.sizes.byline, alignment, margin: [0, 0, 0, block ? 0 : 18] }));
@@ -654,12 +682,14 @@ async function loadFontAssets(context) {
  */
 export async function composePdf(descriptor, context = {}) {
   const content = String(descriptor.content || '');
-  const { meta, blocks } = buildDocumentModel(content);
+  const { meta, blocks } = buildDocumentModel(content, { citations: Boolean(context.report) });
   const language = context.language || 'zh-TW';
   // PDFs never had a look of their own before the design system: documents
   // without design keys get the standard template.
   const design = meta.design?.design || DOCUMENT_PRESETS.standard.params;
-  const theme = buildDocumentTheme(design, { content, language });
+  const built = buildDocumentTheme(design, { content, language });
+  // A research report (ui/research/research-document.js) sets the page margin in points and the look of its tables.
+  const theme = context.report ? Object.freeze({ ...built, ...(context.report.margin ? { margin: context.report.margin * 20 } : {}), tables: 'report' }) : built;
   const assets = await loadFontAssets(context);
   const fonts = new PdfFontSet({
     roles: theme.roles,
@@ -677,6 +707,9 @@ export async function composePdf(descriptor, context = {}) {
   renderer.topLevel = Math.min(6, ...collectHeadings(blocks, 6).map((heading) => heading.level)) || 1;
   renderer.tocMinimum = Math.min(...collectHeadings(blocks, 3).map((heading) => heading.level), 3);
   renderer.outlineParents = [];
+  // A report has a bookmark for every heading, however many levels it has.
+  renderer.outlineDepth = context.report?.outlineDepth || 3;
+  renderer.brand = context.report?.brand || null;
   // Page numbers and list markers use the body face's digits.
   renderer.numberFont = fonts.runs('0', { role: 'body' })[0].font;
   fonts.reserve('0123456789 /.', { role: 'body' });

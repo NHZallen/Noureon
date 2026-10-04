@@ -170,6 +170,12 @@ function inlineRuns(tokens = [], formulas, marks = {}) {
         break;
       case 'link': {
         const href = SAFE_LINK.test(token.href || '') ? token.href : '';
+        // A research report's citation, [[2]](address): a mark of its own, so the page can draw it as a label.
+        const cited = formulas.citations && href ? /^\[(\d{1,4})\]$/.exec(String(token.text || '').trim()) : null;
+        if (cited) {
+          runs.push({ ...htmlMarks, link: href, cite: Number(cited[1]), text: `[${cited[1]}]` });
+          break;
+        }
         runs.push(...inlineRuns(token.tokens, formulas, { ...htmlMarks, ...(href ? { link: href } : {}) }));
         break;
       }
@@ -203,7 +209,7 @@ function inlineRuns(tokens = [], formulas, marks = {}) {
 function mergeRuns(runs) {
   const merged = [];
   const sameMarks = (a, b) => ['bold', 'italic', 'strike', 'underline', 'code', 'link', 'superscript', 'subscript', 'image']
-    .every((key) => Boolean(a[key]) === Boolean(b[key]) && (key !== 'link' || a.link === b.link));
+    .every((key) => Boolean(a[key]) === Boolean(b[key]) && (key !== 'link' || a.link === b.link)) && a.cite === b.cite;
   runs.forEach((run) => {
     if (run.text === '') return;
     const previous = merged.at(-1);
@@ -329,9 +335,11 @@ function blockFromToken(token, context) {
  * The first level-1 heading becomes the document title when it is the only
  * one and no front matter title was given, matching how models write reports.
  */
-export function buildDocumentModel(content = '') {
+export function buildDocumentModel(content = '', { citations = false } = {}) {
   const { meta, body } = parseFrontMatter(cleanDocumentText(String(content || '').replace(/\r\n?/g, '\n')));
   const formulas = [];
+  // `citations`: a link whose text is "[n]" is a citation of a research report (run.cite = n).
+  formulas.citations = citations;
   const withBreaks = body.replace(PAGE_BREAK_LINE, `\n\n${PAGE_BREAK_TOKEN}\n\n`);
   const tokens = marked.lexer(protectMath(withBreaks, formulas), { gfm: true });
   const context = { formulas, headingCount: 0 };
@@ -355,4 +363,18 @@ export function collectHeadings(blocks, maxLevel = 3) {
   });
   visit(blocks);
   return headings;
+}
+
+const NUMBER_CELL = /^[+\-−~≈<>]?\s*[$€£¥]?\s*\d[\d,]*(?:\.\d+)?\s*(?:%|[A-Za-z]{0,4}|[萬万億亿元])\s*$/;
+
+/**
+ * Which columns of a table hold numbers (every filled cell below the header is one): a report sets them to the right,
+ * as a table of figures is read.
+ */
+export function numericColumns(block) {
+  const count = Math.max(block.header.length, ...block.rows.map((row) => row.length), 1);
+  return Array.from({ length: count }, (_, index) => {
+    const cells = block.rows.map((row) => runsToPlainText(row[index] || []).trim()).filter(Boolean);
+    return cells.length > 0 && cells.every((text) => NUMBER_CELL.test(text));
+  });
 }
