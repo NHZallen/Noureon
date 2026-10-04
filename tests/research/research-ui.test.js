@@ -125,6 +125,13 @@ test('the running card shows the items\' states, the searches and the time, paus
   assert.match(cardHost.textContent, /Paused/);
   click(window, cardHost.querySelector('[data-act="resume"]'));
   await flush();
+  const edits = [];
+  registerResearchMode({ control: async (runId, action, payload) => { controls.push([runId, action, payload]); return { ok: true }; }, beginEdit: async (info) => { edits.push(info); return true; } });
+  click(window, cardHost.querySelector('[data-act="steer"]'));
+  await flush();
+  assert.deepEqual(edits, [{ runId: 'run-4', messageId: 'm4', title: 'Battery research', kind: 'steer' }], 'the card offers to add an instruction');
+  updateResearch('m4', { plan: { ...running, steers: 2, clock: Date.now() + 2 } });
+  assert.match(cardHost.textContent, /2 instructions added/);
   click(window, cardHost.querySelector('[data-act="stop"]'));
   assert.match(cardHost.textContent, /Write a short report from what has been found/);
   assert.ok(cardHost.querySelector('[data-act="stop-report"]'), 'a report can be asked for when an item is done');
@@ -295,6 +302,7 @@ test('on a phone the contents are a list behind a button, and the close button c
 test('the activity list says what the research did, and leaves out what is not worth a line', () => {
   assert.deepEqual(activityLine({ type: 'item', text: 'Makers' }, 'en'), { kind: 'title', text: 'Makers' });
   assert.deepEqual(activityLine({ type: 'searching', text: 'Searching: x' }, 'en'), { kind: 'chip', text: 'Searching: x' });
+  assert.deepEqual(activityLine({ type: 'steer', text: 'cost' }, 'en'), { kind: 'title', text: 'Add instructions: cost' });
   assert.deepEqual(activityLine({ type: 'paused' }, 'fr'), { kind: 'text', text: 'En pause' });
   assert.equal(activityLine({ type: 'phase', text: 'writing' }, 'en'), null);
   assert.equal(activityLine({ type: 'done' }, 'en'), null);

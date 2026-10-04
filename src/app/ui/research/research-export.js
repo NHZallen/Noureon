@@ -4,9 +4,25 @@
 
 import { researchText } from '../../runtime/research/research-texts.js';
 
+/** A ```chart block as what a Markdown reader can show: its title and the numbers as a table. */
+export function chartsAsTables(markdown) {
+  return String(markdown).replace(/```chart[ \t]*\n([\s\S]*?)\n```/g, (block, json) => {
+    try {
+      const chart = JSON.parse(json);
+      const rows = Array.isArray(chart.data) ? chart.data.filter((row) => row && typeof row === 'object') : [];
+      const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((key) => rows.some((row) => ['string', 'number'].includes(typeof row[key])));
+      if (!rows.length || !keys.length) return block;
+      const cell = (value) => String(value ?? '').replace(/\|/g, '\\|');
+      return `${chart.title ? `**${chart.title}**\n\n` : ''}| ${keys.map(cell).join(' | ')} |\n|${keys.map(() => '---').join('|')}|\n${rows.map((row) => `| ${keys.map((key) => cell(row[key])).join(' | ')} |`).join('\n')}`;
+    } catch {
+      return block;
+    }
+  });
+}
+
 /** The report as a Markdown file's text: its `[n]` citations stay, and a list of the sources ends it. */
 export function reportMarkdown(report, language = 'en') {
-  const text = String(report?.text || '').trimEnd();
+  const text = chartsAsTables(String(report?.text || '').trimEnd());
   const sources = (Array.isArray(report?.sources) ? report.sources : []).filter((source) => source?.url && Number(source.n) > 0);
   if (!sources.length) return `${text}\n`;
   const list = sources.map((source) => `[${source.n}] ${source.title || source.site || source.url} — ${source.url}`).join('\n\n');

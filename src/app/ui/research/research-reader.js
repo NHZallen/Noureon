@@ -50,6 +50,7 @@ export function activityLine(entry, language) {
     case 'searching': return { kind: 'chip', text: entry.text };
     case 'narration': return { kind: 'text', text: entry.text };
     case 'section': return { kind: 'text', text: entry.text };
+    case 'steer': return { kind: 'title', text: `${t('steer')}: ${entry.text}` };
     case 'paused': return { kind: 'text', text: t('paused') };
     case 'resumed': return { kind: 'text', text: t('resume') };
     default: return null;
@@ -75,7 +76,8 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
 
   const closeButton = button(document, 'rr-btn rr-close', t('close'), ICONS.close);
   const scroller = make(document, 'main', 'rr-scroll');
-  const article = make(document, 'article', 'rr-article');
+  // The class of a chat reply: the charts and the tables of the report are drawn by the styles of a reply.
+  const article = make(document, 'article', 'rr-article model-message');
   const { element: body, headings } = renderReport({ markdown: report.text || '', renderer: getFileMarkdownRenderer(), sources: report.sources || [], document });
   article.append(body);
   scroller.append(article);

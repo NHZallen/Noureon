@@ -122,7 +122,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/pause|\/resume)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
         const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
@@ -190,7 +190,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      if (runPath && request.method === 'POST' && ['/start', '/hold', '/release', '/plan', '/pause', '/resume'].includes(runPath[2])) {
+      if (runPath && request.method === 'POST' && ['/start', '/hold', '/release', '/plan', '/steer', '/pause', '/resume'].includes(runPath[2])) {
         // What a person does to a deep research: start it now, hold the countdown (they are editing the plan), let it run again, change the
         // plan in their own words, pause it or let it go on.
         const user = await authenticate(request);
@@ -199,7 +199,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const result = runs.control({ userId: user.id, runId: runPath[1], action: runPath[2].slice(1), payload: { instruction: typeof body?.instruction === 'string' ? body.instruction : '' } });
         if (!result.ok) {
           if (result.reason === 'wrong_phase') throw new RequestError(ERROR_CODES.wrongPhase, 'The research is not at a stage where that can be done.');
-          if (result.reason === 'empty') throw new RequestError(ERROR_CODES.badRequest, 'Say what to change.');
+          if (result.reason === 'empty' || result.reason === 'too_many') throw new RequestError(ERROR_CODES.badRequest, result.reason === 'empty' ? 'Say what to add.' : 'That is enough instructions for one research.');
           throw new RequestError(ERROR_CODES.notFound, 'No such research is running here.');
         }
         send(response, 200, { ok: true }, origin);

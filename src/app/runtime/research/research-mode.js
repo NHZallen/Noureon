@@ -135,7 +135,7 @@ export function createResearchMode({
     if (editingHere()) {
       map.set(PLAN_INDICATOR_ID, {
         id: PLAN_INDICATOR_ID,
-        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${renderComposerToolIcon('deepResearch', 'input-indicator-mode-icon')}</span><span>${escapeHTML(shorten(editing.title || researchText(language(), 'menuLabel'), 28))}</span></span>${closeButton('close-research-plan-btn-input', escapeHTML(researchText(language(), 'planChipClose')))}`,
+        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${renderComposerToolIcon('deepResearch', 'input-indicator-mode-icon')}</span><span>${escapeHTML(shorten(editing.kind === 'steer' ? `${researchText(language(), 'steer')}: ${editing.title || ''}` : editing.title || researchText(language(), 'menuLabel'), 28))}</span></span>${closeButton('close-research-plan-btn-input', escapeHTML(researchText(language(), 'planChipClose')))}`,
         eventListener: (element) => element.querySelector('#close-research-plan-btn-input').addEventListener('click', () => { void endEdit(); })
       });
     }
@@ -149,13 +149,15 @@ export function createResearchMode({
     const text = String(input.value || '').trim();
     if (!text) return;
     const rt = await loadRuntime();
-    const result = await rt.control(editing.runId, 'plan', { instruction: text });
+    const steering = editing.kind === 'steer';
+    const result = await rt.control(editing.runId, steering ? 'steer' : 'plan', { instruction: text });
     if (!result.ok) {
       showNotification(researchText(language(), result.code === 'wrong_phase' ? 'wrongPhase' : 'actionFailed'), 'warning');
       if (result.code === 'wrong_phase' || result.code === 'not_found') editing = null;
       refresh();
       return;
     }
+    if (steering) showNotification(researchText(language(), 'steerSent'), 'success');
     input.value = '';
     // The box is told it was emptied, so it takes its height again.
     input.dispatchEvent(new (input.ownerDocument?.defaultView || globalThis).Event('input', { bubbles: true }));
@@ -186,15 +188,16 @@ export function createResearchMode({
   };
 
   /** The card's "Edit": the countdown is held and what is written next changes that plan. */
-  const beginEdit = async ({ runId, messageId, title }) => {
+  const beginEdit = async ({ runId, messageId, title, kind = 'plan' }) => {
     const rt = await loadRuntime();
-    const result = await rt.control(runId, 'hold');
+    // A plan is held (its countdown stops) while it is changed; an instruction for the research that runs holds nothing.
+    const result = kind === 'steer' ? { ok: true } : await rt.control(runId, 'hold');
     if (!result.ok) {
       showNotification(researchText(language(), result.code === 'wrong_phase' ? 'wrongPhase' : 'actionFailed'), 'warning');
       return false;
     }
     armed = false;
-    editing = { runId, messageId, title, conversationId: getActiveConversation()?.id };
+    editing = { runId, messageId, title, kind, conversationId: getActiveConversation()?.id };
     refresh();
     getInput()?.focus?.();
     return true;
@@ -205,7 +208,7 @@ export function createResearchMode({
     const was = editing;
     editing = null;
     refresh();
-    if (was && release) {
+    if (was && release && was.kind !== 'steer') {
       try {
         await (await loadRuntime()).control(was.runId, 'release');
       } catch (error) {

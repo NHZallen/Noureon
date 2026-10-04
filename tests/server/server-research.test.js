@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { ReplyError } from '../../server/executor.js';
-import { citedNumbers, createResearchControls, executeResearch, parseOutline, parsePlan, reportHeadings, reportSources, RESEARCH_LIMITS } from '../../server/research.js';
+import { acceptCharts, citedNumbers, createResearchControls, executeResearch, parseOutline, parsePlan, reportHeadings, reportSources, RESEARCH_LIMITS } from '../../server/research.js';
 
 const KEY = 'sk-provider-secret-value';
 const sse = (...objects) => `${objects.map((object) => `data: ${JSON.stringify(object)}\n\n`).join('')}data: [DONE]\n\n`;
@@ -32,7 +32,7 @@ const PLAN = 'TITLE: Solid-state battery research\nBRIEF: Find where the technol
  * A provider and a search service that answer by what is asked: the plan, an item (one search, then notes), the outline, a section, the
  * summary. `hooks.onRequest(kind)` is called for each request so a test can act at a chosen moment.
  */
-function scripted({ plan = PLAN, onRequest = () => {}, searchesPerItem = 1, failOn = null } = {}) {
+function scripted({ plan = PLAN, onRequest = () => {}, searchesPerItem = 1, failOn = null, chart = 'NONE' } = {}) {
   const requests = [];
   const itemRounds = new Map();
   let searchNumber = 0;
@@ -49,6 +49,7 @@ function scripted({ plan = PLAN, onRequest = () => {}, searchesPerItem = 1, fail
     else if (/Plan the sections/.test(text)) kind = 'outline';
     else if (/You are writing one section/.test(text)) kind = 'section';
     else if (/Write the executive summary/.test(text)) kind = 'summary';
+    else if (/whether the report needs a chart/.test(text)) kind = 'chart';
     requests.push({ kind, text, body });
     await onRequest(kind, requests.length);
     if (failOn === kind) return new Response('{"error":{"message":"boom sk-provider-secret-value"}}', { status: 500 });
@@ -65,6 +66,7 @@ function scripted({ plan = PLAN, onRequest = () => {}, searchesPerItem = 1, fail
       const heading = /Write the section \\"([^"\\]+)\\"/.exec(text)?.[1] || 'x';
       return streamResponse(sse(content(`Body of ${heading} with a claim [1].`)));
     }
+    if (kind === 'chart') return streamResponse(sse(content(typeof chart === 'function' ? chart(text) : chart)));
     if (kind === 'summary') return streamResponse(sse(content('The summary says things [1].')));
     return streamResponse(sse(content('?')));
   };
@@ -402,4 +404,92 @@ test('every change of the run reaches the page and the message, and a checkpoint
   assert.ok(harness.state.live.some((event) => event.src), 'the pages found are told');
   assert.ok(harness.state.checkpoints.every((checkpoint) => JSON.stringify(checkpoint).length < 200_000));
   assert.doesNotMatch(JSON.stringify(harness.state.checkpoints), new RegExp(KEY));
+});
+
+// ----- steering and charts
+
+test('what the person adds while it researches is taken into every request that follows, kept in the checkpoint, and told in the activity', async () => {
+  let sent = false;
+  const script = scripted({ searchesPerItem: 2, onRequest: (kind) => { if (kind === 'item' && !sent) { sent = true; assert.deepEqual(harness.controls.send('steer', { instruction: 'Focus on cost per kWh' }), { ok: true }); } } });
+  const harness = run({ script });
+  const { parts } = await harness.promise;
+  const asked = (kind) => script.requests.filter((request) => request.kind === kind);
+  assert.doesNotMatch(asked('item')[0].text, /Focus on cost/, 'not before it was said');
+  assert.match(asked('item')[1].text, /The person added these instructions[\s\S]*- Focus on cost per kWh/, 'the next round of the same item has it');
+  assert.match(asked('item').at(-1).text, /Focus on cost per kWh/, 'and the items after it');
+  for (const kind of ['outline', 'section', 'summary']) assert.match(asked(kind)[0].text, /Focus on cost per kWh/, `${kind} too`);
+  assert.ok(harness.state.checkpoints.some((checkpoint) => checkpoint.steering?.[0]?.text === 'Focus on cost per kWh'), 'a restart keeps it');
+  assert.ok(harness.state.live.some((event) => event.ra?.type === 'steer' && event.ra.text === 'Focus on cost per kWh'));
+  assert.equal(harness.state.live.find((event) => event.rs?.steers)?.rs.steers, 1);
+  assert.ok(parts.find((part) => part.researchReport).researchReport.activity.some((entry) => entry.type === 'steer'));
+});
+
+test('a steering is taken while it researches, also when paused, and only then', async () => {
+  let paused = false;
+  const script = scripted({ onRequest: (kind) => { if (kind === 'item' && !paused) { paused = true; harness.controls.send('pause'); } } });
+  const harness = run({ script, limits: { ...fastLimits, countdownMs: 300 } });
+  assert.deepEqual(harness.controls.send('steer', { instruction: 'x' }), { ok: false, reason: 'wrong_phase' }, 'not before it starts (that is the plan)');
+  await until(() => harness.lastPlan()?.paused === true);
+  assert.deepEqual(harness.controls.send('steer', { instruction: '  ' }), { ok: false, reason: 'empty' });
+  assert.deepEqual(harness.controls.send('steer', { instruction: 'while paused' }), { ok: true });
+  assert.equal(harness.lastPlan().paused, true, 'it stays paused');
+  harness.controls.send('resume');
+  const { status } = await harness.promise;
+  assert.equal(status, 'done');
+  assert.ok(script.requests.some((request) => request.kind === 'item' && /while paused/.test(request.text)));
+  assert.deepEqual(harness.controls.send('steer', { instruction: 'late' }), { ok: false, reason: 'not_running' });
+});
+
+const CHART = '{"type":"bar","title":"Cost per kWh","data":[{"label":"A","value":132},{"label":"B","value":98.5}]}';
+const asChart = (heading, json = CHART) => `SECTION: ${heading}\nCAPTION: Cost per kWh of two makers [1].\n\`\`\`chart\n${json}\n\`\`\``;
+
+test('a chart is accepted only when it is valid, belongs to a section and holds numbers that are in the notes', () => {
+  const outline = ['Overview', 'Players'];
+  const notes = { i1: 'Maker A: 132 dollars per kWh [1]. Maker B: 98.5 dollars [2]. Sales 1,200 units.' };
+  const accepted = acceptCharts(asChart('players'), { outline, notes });
+  assert.equal(accepted.length, 1);
+  assert.equal(accepted[0].heading, 'Players');
+  assert.equal(accepted[0].caption, 'Cost per kWh of two makers [1].');
+  assert.equal(accepted[0].chart.type, 'bar');
+  assert.deepEqual(acceptCharts('NONE', { outline, notes }), []);
+  assert.deepEqual(acceptCharts(asChart('Nowhere'), { outline, notes }), [], 'a section that is not in the report');
+  assert.deepEqual(acceptCharts(asChart('Players', CHART.replace('98.5', '97')), { outline, notes }), [], 'a number nobody wrote is not charted');
+  assert.deepEqual(acceptCharts(asChart('Players', '{"type":"nonsense"}'), { outline, notes }), [], 'a chart that is not valid');
+  assert.deepEqual(acceptCharts(asChart('Players', 'not json'), { outline, notes }), []);
+  assert.equal(acceptCharts(`${asChart('Players')}\n\n${asChart('Overview', CHART.replace('132', '1200'))}\n\n${asChart('Overview')}`, { outline, notes }).length, 2, 'at most one a section, two in all');
+});
+
+test('a chart that is proposed goes at the end of its section, with its caption; none is asked of a short report; a failure of the step leaves the report whole', async () => {
+  const script = scripted({ chart: (text) => asChart('Overview', CHART.replace('132', '1').replace('98.5', '2')) });
+  // The notes of the scripted provider hold "a finding [n]" only: numbers 1 and 2 are the source numbers, which do not count as findings of their own.
+  const harness = run({ script });
+  const { parts } = await harness.promise;
+  assert.doesNotMatch(parts.find((part) => part.researchReport).researchReport.text, /```chart/, 'numbers that are not in the notes are not charted');
+
+  const accepted = scripted({ plan: PLAN, chart: asChart('Overview', '{"type":"bar","title":"T","data":[{"label":"A","value":3},{"label":"B","value":1}]}') });
+  const original = accepted.fetchImpl;
+  accepted.fetchImpl = async (url, options) => {
+    const response = await original(url, options);
+    if (String(url).includes('tavily')) return response;
+    const text = JSON.stringify(JSON.parse(options.body).messages);
+    if (/research this item with the tools/.test(text) && !/call_/.test(text)) return streamResponse(sse(content('Notes: values 3 and 1 [1].')));
+    return response;
+  };
+  const withChart = run({ script: accepted });
+  const done = await withChart.promise;
+  const report = done.parts.find((part) => part.researchReport).researchReport;
+  assert.match(report.text, /## Overview\n\nBody of Overview with a claim \[1\]\.\n\n```chart\n\{[\s\S]*"type": "bar"[\s\S]*\}\n```\n\n\*Cost per kWh of two makers \[1\]\.\*/);
+  assert.equal(accepted.requests.filter((request) => request.kind === 'chart').length, 1);
+
+  let items = 0;
+  const shortScript = scripted({ onRequest: (kind) => { if (kind === 'item' && ++items === 3) shortHarness.controls.send('stop', { mode: 'report' }); } });
+  const shortHarness = run({ script: shortScript });
+  await shortHarness.promise;
+  assert.equal(shortScript.requests.filter((request) => request.kind === 'chart').length, 0, 'a short report has none');
+
+  const failing = scripted({ failOn: 'chart' });
+  const failed = run({ script: failing });
+  const result = await failed.promise;
+  assert.equal(result.status, 'done');
+  assert.ok(failed.state.problems.includes('research_charts_failed'));
 });

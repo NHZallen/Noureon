@@ -9,6 +9,8 @@ import { createNotes, createResearchCalls, researchGuidance, RESEARCH_TOOLS } fr
 import { createWebResearchTools } from '../src/app/legacy-runtime/features/web-research-tools.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
+import { parseAndNormalizeChartSchema } from '../src/app/ui/charts/chart-schema.js';
+import { getCompactChartGuidance } from '../src/app/ui/charts/chart-selection-policy.js';
 import { hostOf } from '../src/app/ui/sandbox/run-sources.js';
 import { getErrorMessage, readErrorBody, ReplyError, scrubMessage } from './executor.js';
 import { createModelAccess, DEFAULT_GENERATION } from './model-access.js';
@@ -160,6 +162,49 @@ const summaryPrompt = ({ topic, plan, sections, language }) => [
   `Write the executive summary of the report: 120 to 220 words, the main findings and what they mean, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. Keep the [number] source marks of the facts you use. Write only the summary, no heading.`
 ].join('\n\n');
 
+const chartPrompt = ({ topic, plan, notes, outline, language }) => [
+  `A research report on: ${topic}`,
+  `Report title: ${plan.title}\nThe sections: ${outline.join(' | ')}`,
+  `Research notes (the numbers in square brackets are the sources):\n${compactNotes(plan.items, notes)}`,
+  'Decide whether the report needs a chart. A chart is worth it only when the notes hold several numbers that can be compared (over time, between products or companies) and a picture shows it better than a sentence. Most reports need none, or one; never more than two.',
+  'Use ONLY numbers that are written in the notes, exactly as written. Never estimate, convert or calculate a number for a chart.',
+  'If no chart is worth it, answer exactly: NONE',
+  'Otherwise answer with one block for each chart, in this form and nothing else:',
+  'SECTION: the heading of the section the chart belongs to, exactly as listed above',
+  `CAPTION: one sentence on what the chart shows, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language, ending with the [number] of the source of the numbers`,
+  '```chart\n{ the chart as JSON }\n```',
+  getCompactChartGuidance()
+].join('\n\n');
+
+const numbersIn = (text) => [...String(text || '').matchAll(/-?\d[\d,]*(?:\.\d+)?/g)].map((match) => Number(match[0].replace(/,/g, ''))).filter(Number.isFinite);
+const numberLeaves = (value, found = []) => {
+  if (typeof value === 'number' && Number.isFinite(value)) found.push(value);
+  else if (Array.isArray(value)) value.forEach((item) => numberLeaves(item, found));
+  else if (value && typeof value === 'object') Object.values(value).forEach((item) => numberLeaves(item, found));
+  return found;
+};
+
+/**
+ * The charts a model proposed that may go into the report: each is a valid chart, belongs to a section of the report, and holds only numbers
+ * that are in the notes (a chart of made-up or calculated numbers is left out). Returns [{ heading, caption, chart }].
+ */
+export function acceptCharts(text, { outline = [], notes = {} } = {}) {
+  // The numbers of the sources, [2], are not findings.
+  const known = new Set(numbersIn(Object.values(notes).join('\n').replace(/\[\d{1,4}\]/g, ' ')));
+  const accepted = [];
+  const pattern = /SECTION\s*[:：]\s*(.+?)\s*\n\s*CAPTION\s*[:：]\s*(.+?)\s*\n\s*```(?:chart|json)?[ \t]*\n([\s\S]*?)\n\s*```/gi;
+  for (const match of String(text || '').matchAll(pattern)) {
+    const heading = outline.find((entry) => entry.trim().toLowerCase() === match[1].replace(/^\*+|\*+$/g, '').trim().toLowerCase());
+    if (!heading || accepted.length >= 2 || accepted.some((entry) => entry.heading === heading)) continue;
+    const parsed = parseAndNormalizeChartSchema(match[3]);
+    if (!parsed.ok) continue;
+    const values = numberLeaves(parsed.chart.data ?? parsed.chart);
+    if (!values.length || !values.every((value) => known.has(value))) continue;
+    accepted.push({ heading, caption: clip(match[2], 300), chart: parsed.chart });
+  }
+  return accepted;
+}
+
 // ----- the report
 
 /** The headings of a Markdown report, in order: [{ level, text }]. */
@@ -243,6 +288,10 @@ export async function executeResearch({
   const sections = Array.isArray(cp?.sections) ? cp.sections.map((section) => ({ ...section })) : [];
   let summary = typeof cp?.summary === 'string' ? cp.summary : '';
   let shortReport = Boolean(cp?.shortReport);
+  let chartsDone = Boolean(cp?.chartsDone);
+  // What the person added while it researched (steer): taken into every request that follows.
+  const steering = Array.isArray(cp?.steering) ? cp.steering.map((entry) => ({ text: String(entry.text || '') })).filter((entry) => entry.text) : [];
+  const steerText = () => (steering.length ? `\n\nThe person added these instructions while the research went on; follow them from now on:\n${steering.map((entry) => `- ${entry.text}`).join('\n')}` : '');
   let activity = Array.isArray(cp?.activity) ? cp.activity.slice(-limits.maxActivity) : [];
   let inItem = cp?.item && typeof cp.item === 'object' ? cp.item : null;
   let report = null;
@@ -304,6 +353,7 @@ export async function executeResearch({
     ...(heldUntil ? { editing: true } : {}),
     ...(revising ? { revising: true } : {}),
     ...(paused ? { paused: true } : pausing ? { pausing: true } : {}),
+    ...(steering.length ? { steers: steering.length } : {}),
     ...(failure ? { error: failure } : {}),
     stats: { searches: research?.used || 0, sources: new Set(sources.map((source) => source.n)).size, activeMs: activeNow() },
     running: Boolean(activeSince),
@@ -331,6 +381,8 @@ export async function executeResearch({
       sections,
       summary,
       shortReport,
+      chartsDone,
+      steering,
       activity,
       item: inItem && turnsSize <= MAX_CHECKPOINT_TURNS_CHARS ? inItem : (inItem ? { id: inItem.id } : null)
     });
@@ -438,6 +490,14 @@ export async function executeResearch({
       heldUntil = 0;
       startAt = null;
       publish();
+    } else if (action === 'steer') {
+      const text = String(payload.instruction || '').trim().slice(0, 2000);
+      if (here !== 'researching') return { ok: false, reason: 'wrong_phase' };
+      if (!text) return { ok: false, reason: 'empty' };
+      if (steering.length >= 20) return { ok: false, reason: 'too_many' };
+      steering.push({ text });
+      log({ type: 'steer', text: clip(text, 300) });
+      saveSoon();
     } else if (action === 'pause') {
       if (here !== 'researching' || paused || pausing) return { ok: false, reason: 'wrong_phase' };
       pausing = true;
@@ -601,7 +661,7 @@ export async function executeResearch({
             await withRetry(async () => {
               roundText = '';
               response = null;
-              await streamApiCall([{ text: prompt }], (chunk) => { roundText += chunk || ''; }, work.signal, false, baseOptions({
+              await streamApiCall([{ text: `${prompt}${steerText()}` }], (chunk) => { roundText += chunk || ''; }, work.signal, false, baseOptions({
                 historyForApi: [],
                 systemInstructionText: '',
                 tools: canCall ? RESEARCH_TOOLS : [],
@@ -669,7 +729,7 @@ export async function executeResearch({
       // A stop before the first item was done has nothing to write a report from.
       if (!Object.keys(notes).length) return finishParts('stopped');
       if (!outline) {
-        const text = await generate(outlinePrompt({ topic, plan, notes, language, short: shortReport }), { system: 'You plan the sections of a research report. Follow the answer format exactly.' });
+        const text = await generate(`${outlinePrompt({ topic, plan, notes, language, short: shortReport })}${steerText()}`, { system: 'You plan the sections of a research report. Follow the answer format exactly.' });
         if (aborted()) return finishParts('stopped');
         outline = parseOutline(text, plan, shortReport ? 4 : 10);
         await publish({ save: true });
@@ -680,13 +740,30 @@ export async function executeResearch({
         const heading = outline[index];
         log({ type: 'section', text: heading });
         onLive({ rw: { n: index + 1, of: outline.length, heading } });
-        const text = await generate(sectionPrompt({ topic, plan, notes, outline, heading, sourcesText, language, short: shortReport }), { system: 'You write a section of a research report with the facts and the source numbers you are given.' });
+        const text = await generate(`${sectionPrompt({ topic, plan, notes, outline, heading, sourcesText, language, short: shortReport })}${steerText()}`, { system: 'You write a section of a research report with the facts and the source numbers you are given.' });
         if (aborted()) return finishParts('stopped');
         sections.push({ heading, text });
         await checkpoint();
       }
+      // Charts: the model may propose one or two, with numbers that are in the notes; a failure here never costs the report.
+      if (!chartsDone && !shortReport) {
+        try {
+          log({ type: 'section', text: 'charts' });
+          const proposed = await generate(chartPrompt({ topic, plan, notes, outline, language }), { system: 'You decide whether a research report needs a chart and write it from the numbers in the notes. Follow the answer format exactly.', persona: false });
+          if (aborted()) return finishParts('stopped');
+          for (const found of acceptCharts(proposed, { outline, notes })) {
+            const section = sections.find((entry) => entry.heading === found.heading);
+            if (section) section.text = `${section.text.trimEnd()}\n\n\`\`\`chart\n${JSON.stringify(found.chart, null, 2)}\n\`\`\`\n\n*${found.caption}*`;
+          }
+        } catch (error) {
+          if (aborted()) return finishParts('stopped');
+          onProblem('research_charts_failed', error);
+        }
+        chartsDone = true;
+        await checkpoint();
+      }
       if (!summary) {
-        summary = await generate(summaryPrompt({ topic, plan, sections, language }), { system: 'You write the executive summary of a research report.' });
+        summary = await generate(`${summaryPrompt({ topic, plan, sections, language })}${steerText()}`, { system: 'You write the executive summary of a research report.' });
         if (aborted()) return finishParts('stopped');
         await checkpoint();
       }

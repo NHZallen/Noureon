@@ -67,11 +67,11 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
       const done = (plan.items || []).filter((item) => item.state === 'done').length;
       const total = Math.max(1, (plan.items || []).length);
       const label = plan.paused ? t('paused') : plan.pausing ? t('pausing') : t('researching');
-      const stats = `${t('searched', { n: plan.stats?.searches || 0 })} · <span class="rc-elapsed">${esc(t('elapsed', { t: formatResearchTime(elapsedMs()) }))}</span>`;
+      const stats = `${plan.steers ? `${esc(t('steers', { n: plan.steers }))} · ` : ''}${t('searched', { n: plan.stats?.searches || 0 })} · <span class="rc-elapsed">${esc(t('elapsed', { t: formatResearchTime(elapsedMs()) }))}</span>`;
       if (state.confirmStop) {
         return `<div class="rc-confirm"><div class="rc-confirm-text">${esc(t('stopAsk'))}</div><div class="rc-actions">${done ? `<button type="button" class="rc-btn rc-btn-primary" data-act="stop-report"${disabled}>${esc(t('stopWrite'))}</button>` : ''}<button type="button" class="rc-btn" data-act="stop-discard"${disabled}>${esc(t('stopDiscard'))}</button><button type="button" class="rc-btn" data-act="stop-back">${esc(t('stopBack'))}</button></div></div>`;
       }
-      return `<div class="rc-status">${plan.paused ? '' : '<span class="rc-spinner" aria-hidden="true"></span>'}<span>${esc(label)}</span><span class="rc-stats">${stats}</span></div><div class="rc-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><span style="width:${Math.round((done / total) * 100)}%"></span></div><div class="rc-actions">${plan.paused || plan.pausing ? `<button type="button" class="rc-btn" data-act="resume"${disabled}>${esc(t('resume'))}</button>` : `<button type="button" class="rc-btn" data-act="pause"${disabled}>${esc(t('pause'))}</button>`}<button type="button" class="rc-btn" data-act="stop"${disabled}>${esc(t('stop'))}</button></div>`;
+      return `<div class="rc-status">${plan.paused ? '' : '<span class="rc-spinner" aria-hidden="true"></span>'}<span>${esc(label)}</span><span class="rc-stats">${stats}</span></div><div class="rc-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><span style="width:${Math.round((done / total) * 100)}%"></span></div><div class="rc-actions">${plan.paused || plan.pausing ? `<button type="button" class="rc-btn" data-act="resume"${disabled}>${esc(t('resume'))}</button>` : `<button type="button" class="rc-btn" data-act="pause"${disabled}>${esc(t('pause'))}</button>`}<button type="button" class="rc-btn" data-act="steer"${disabled}>${esc(t('steer'))}</button><button type="button" class="rc-btn" data-act="stop"${disabled}>${esc(t('stop'))}</button></div>`;
     }
     if (phase === 'writing') return `<div class="rc-status"><span class="rc-spinner" aria-hidden="true"></span><span>${esc(t('writing'))}</span>${entry()?.writing ? `<span class="rc-stats">${entry().writing.n}/${entry().writing.of}</span>` : ''}</div><div class="rc-progress rc-progress-busy"><span style="width:100%"></span></div>`;
     if (phase === 'stopped') return `<div class="rc-status rc-status-end">${esc(t('stopped'))}</div>`;
@@ -84,9 +84,12 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
   const previewOf = (text) => {
     const source = String(text || '');
     if (source.length <= 3600) return source;
-    const cut = source.slice(0, 3600);
+    let cut = source.slice(0, 3600);
     const paragraph = cut.lastIndexOf('\n\n');
-    return paragraph > 1800 ? cut.slice(0, paragraph) : cut;
+    if (paragraph > 1800) cut = cut.slice(0, paragraph);
+    // A code block (a chart) that the cut left open is left out.
+    const fences = cut.match(/^\s*```/gm) || [];
+    return fences.length % 2 ? cut.slice(0, cut.lastIndexOf('```')) : cut;
   };
 
   const reportHtml = (report) => {
@@ -175,6 +178,9 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     switch (name) {
       case 'edit':
         await getResearchMode()?.beginEdit({ runId: current?.runId, messageId: id, title: current?.plan?.title });
+        break;
+      case 'steer':
+        await getResearchMode()?.beginEdit({ runId: current?.runId, messageId: id, title: current?.plan?.title, kind: 'steer' });
         break;
       case 'cancel': await control('stop', { mode: 'discard' }); break;
       case 'start': await control('start'); break;

@@ -151,3 +151,21 @@ test('choosing the research while a plan is being changed lets that plan go on',
   mode.indicators(map, chipCloseButton);
   assert.deepEqual([...map.keys()], [RESEARCH_INDICATOR_ID]);
 });
+
+test('an instruction for the research that runs: nothing is held, what is sent goes to it, and the chip can be given up without a word to the server', async () => {
+  const { mode, log, input } = harness();
+  assert.equal(await mode.beginEdit({ runId: 'run-1', messageId: 'm1', title: 'Battery research', kind: 'steer' }), true);
+  assert.deepEqual(log.controls, [], 'no hold');
+  const map = new Map();
+  mode.indicators(map, chipCloseButton);
+  assert.match(map.get(PLAN_INDICATOR_ID).html, /Add instructions: Battery/);
+  input.value = ' cover the cost ';
+  await mode.submit();
+  assert.deepEqual(log.controls[0], ['POST', '/v1/runs/run-1/steer', '{"instruction":"cover the cost"}']);
+  assert.equal(log.prepared, 0, 'no message of the chat is made');
+  assert.match(log.notices.at(-1)[0], /Added: the next round will follow it/);
+  assert.equal(mode.takes(), false);
+  await mode.beginEdit({ runId: 'run-1', messageId: 'm1', title: 'T', kind: 'steer' });
+  await mode.endEdit();
+  assert.equal(log.controls.length, 1, 'giving it up tells the server nothing');
+});

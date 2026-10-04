@@ -8,7 +8,7 @@ import { createFontSubsetter } from '../../src/app/ui/files/generators/font-embe
 import { generateDocxFile } from '../../src/app/ui/files/generators/docx-file.js';
 import { generatePdfFile } from '../../src/app/ui/files/generators/pdf-file.js';
 import { buildDocumentModel, numericColumns } from '../../src/app/ui/files/generators/document-model.js';
-import { exportReport, exportWithNotice, reportFileName } from '../../src/app/ui/research/research-export.js';
+import { chartsAsTables, exportReport, exportWithNotice, reportFileName } from '../../src/app/ui/research/research-export.js';
 import { linkCitations, raiseHeadings, reportDescriptor, reportDocumentSource, reportGeneratorOptions, sourcesSection, splitTitle } from '../../src/app/ui/research/research-document.js';
 
 const FONT_DIRECTORY = new URL('../../src/assets/fonts/', import.meta.url);
@@ -204,4 +204,25 @@ test('a failed export is told with its reason and the busy label goes away', asy
   assert.match(notices[0][0], /^The export failed: /);
   assert.equal(notices[0][1], 'error');
   assert.deepEqual(busy, ['pdf', null]);
+});
+
+const WITH_CHART = {
+  ...REPORT,
+  text: `${REPORT.text}\n\n\`\`\`chart\n${JSON.stringify({ type: 'bar', title: 'Cost per kWh', data: [{ label: 'A', value: 132 }, { label: 'B', value: 98.5 }] })}\n\`\`\`\n\n*Cost of two makers [1].*`
+};
+
+test('a chart of the report is a table in the Markdown file and a chart or its table in the PDF and the Word file', async () => {
+  const table = chartsAsTables(WITH_CHART.text);
+  assert.match(table, /\*\*Cost per kWh\*\*\n\n\| label \| value \|\n\|---\|---\|\n\| A \| 132 \|\n\| B \| 98\.5 \|/);
+  assert.doesNotMatch(table, /```chart/);
+  assert.equal(chartsAsTables('```chart\nnot json\n```'), '```chart\nnot json\n```', 'what cannot be read is left');
+  const model = buildDocumentModel(reportDocumentSource(WITH_CHART, { language: 'en', target: 'pdf' }), { citations: true });
+  assert.ok(model.blocks.some((block) => block.type === 'chart' && block.chart.title === 'Cost per kWh'), 'the generators read it as a chart');
+  const pdf = await generatePdfFile(reportDescriptor(WITH_CHART, { language: 'en', target: 'pdf', name: 'r.pdf' }), { language: 'en', fontAssets: await fontAssets(), report: reportGeneratorOptions('pdf') });
+  const text = (await pdfInfo(await pdf.arrayBuffer())).pages.join('\n');
+  assert.match(text, /Cost per kWh/);
+  assert.match(text, /98\.5/);
+  const docx = await generateDocxFile(reportDescriptor(WITH_CHART, { language: 'en', target: 'docx', name: 'r.docx' }), { language: 'en', fontAssets: await fontAssets(), report: reportGeneratorOptions('docx') });
+  const xml = await (await JSZip.loadAsync(await docx.arrayBuffer())).file('word/document.xml').async('string');
+  assert.match(xml, /Cost per kWh/);
 });

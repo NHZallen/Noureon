@@ -13,6 +13,7 @@
 | `POST /v1/runs/validate` | 是 | 檢查一份回覆請求的格式，不會真的執行（S1 的 `POST /v1/runs` 會用同一份檢查） |
 | `POST /v1/research` | 是 | 開始一次深度研究（請求內 `kind: 'research'`、`research.topic`）；一般回覆走 `POST /v1/runs`，兩個位址互不接對方的請求 |
 | `POST /v1/runs/:id/start` `hold` `release` `plan` `pause` `resume` | 是 | 對進行中的深度研究下指令：馬上開始、暫停倒數（編輯計劃中）、恢復倒數、用文字修改計劃（`{instruction}`）、暫停、繼續。階段不對回 409 `wrong_phase` |
+| `POST /v1/runs/:id/steer` | 是 | 研究進行中（或暫停中）補充一條指令（`{instruction}`，最多 2000 字、一次研究最多 20 條），之後的輪次、大綱、各章與摘要都會參考。階段不對回 409 `wrong_phase`；空白或超過上限回 400 `bad_request` |
 | `POST /v1/runs/:id/stop` | 是 | 停止；深度研究可帶 `{mode: 'report'}`，表示「用目前的資料寫報告」，不帶則結束 |
 
 登入方式：`Authorization: Bearer <網站登入後取得的 access token>`。伺服器會問 Supabase 這個 token 是否有效，不自己解碼。

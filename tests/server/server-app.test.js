@@ -311,6 +311,10 @@ test('a deep research is started at its own address and nowhere else, and the pe
     assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/release`)).status, 200);
     assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/plan`, { instruction: 'only the cost' })).status, 200);
     assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/plan`, { instruction: '' })).status, 400);
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/steer`, { instruction: 'cover the cost' })).status, 200);
+    assert.equal(controls.at(-1)[2], 'steer');
+    assert.equal(controls.at(-1)[3].instruction, 'cover the cost');
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/steer`, { instruction: '' })).status, 200, 'the fake manager answers ok; the real one says empty');
     const pause = await call(base, 'POST', `/v1/runs/${RUN_ID}/pause`);
     assert.equal(pause.status, 409);
     assert.equal((await pause.json()).error.code, 'wrong_phase');
