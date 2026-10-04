@@ -10,6 +10,7 @@ import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.j
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
 import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
+import { CLI_PLATFORM, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
@@ -185,6 +186,9 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
               prepare: () => guard(() => real.prepare()),
               clear: () => guard(() => real.clear()),
               mount: (inputs) => guard(() => real.mount(inputs)),
+              // A program that cannot be fetched is a problem of that tool (the reply tells the model), not of the sandbox: no hand-back.
+              mountCli: (tools) => real.mountCli(tools),
+              command: (commandLine, options) => guard(() => real.command(commandLine, options)),
               run: (code, options) => guard(() => real.run(code, options)),
               dispose: () => real.dispose()
             };
@@ -193,6 +197,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           provider: modelInfo.provider,
           inputFiles: collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
           designs: spec.tools.designs || {},
+          cli: (spec.tools.cli || []).map(({ id }) => getCliTool(id)).filter(isCliReady).map((tool) => ({ id: tool.id, name: tool.name, version: tool.version, usage: tool.usage, env: tool.env || {}, program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
           onEvent: stepEvents.event
         });

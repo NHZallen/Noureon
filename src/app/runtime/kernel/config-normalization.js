@@ -1,3 +1,4 @@
+import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
 import { normalizeSearchProvider } from './search-provider.js';
 
@@ -159,6 +160,11 @@ export function normalizeLoadedLegacyConfig({
     isKnownModel: (id) => allModelIds.has(id),
     canonicalizeModelId
   });
+  // The CLI tools the person added, and the ones the model may use without being asked for (the "@" is what asks).
+  normalizedConfig.cliEnabledIds = normalizeCliIds(normalizedConfig.cliEnabledIds);
+  normalizedConfig.cliModelUseIds = normalizeCliIds(normalizedConfig.cliModelUseIds).filter((id) => normalizedConfig.cliEnabledIds.includes(id));
+  // The version of each tool when it was added or last updated (the store lists the ones whose version has moved on).
+  normalizedConfig.cliVersions = normalizeCliVersions(normalizedConfig.cliVersions);
   if (!councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)) {
     normalizedConfig.councilTranslatorModelId = councilTranslatorCandidates[0]?.id || null;
   }

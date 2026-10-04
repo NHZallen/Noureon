@@ -4,6 +4,8 @@ import test from 'node:test';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from '../../server/advanced-reply.js';
 import { executeReply, ReplyError } from '../../server/executor.js';
 import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
+import { OFFICIAL_CLI_CATALOG, validateCliManifest } from '../../src/data/cli-catalog.js';
+import { validateRunSpec } from '../../server/run-spec.js';
 
 const KEY = 'sk-provider-secret-value';
 const USER = '323e4567-e89b-12d3-a456-426614174002';
@@ -346,4 +348,123 @@ test('a stop is a stop, not a lost sandbox', async () => {
     fetchImpl: async () => streamResponse(sse(content('Starting. '), toolCall('c', 'run_python', { code: 'print(1)' })))
   });
   assert.equal(result.status, 'stopped');
+});
+
+// ----- CLI tools (命令工具)
+
+function fakeCliHost({ commandResult = { stdout: 'created\n' }, failMount = '' } = {}) {
+  const record = { mountedCli: null, commands: [], disposed: 0 };
+  return {
+    record,
+    configured: true,
+    getSandbox: (options) => ({
+      prepare: async () => ({}),
+      clear: async () => ({}),
+      mount: async () => ({}),
+      mountCli: async (tools) => {
+        if (failMount) throw new Error(failMount);
+        record.mountedCli = tools;
+        return {};
+      },
+      command: async (line, run) => {
+        record.commands.push({ line, env: run.env });
+        options.onProgress?.({ stage: 'output', stream: 'stdout', text: commandResult.stdout });
+        return { stdout: { text: commandResult.stdout, dropped: 0 }, stderr: { text: '', dropped: 0 }, error: commandResult.error || '', elapsedMs: 80, files: commandResult.files || [], skippedFiles: [] };
+      },
+      run: async () => ({ stdout: { text: '', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: '', elapsedMs: 1, files: [], skippedFiles: [] }),
+      dispose: async () => { record.disposed += 1; }
+    })
+  };
+}
+
+test('every tool of the store is a well formed manifest', () => {
+  assert.ok(OFFICIAL_CLI_CATALOG.length >= 1);
+  for (const tool of OFFICIAL_CLI_CATALOG) assert.deepEqual(validateCliManifest(tool), [], tool.id);
+  assert.ok(validateCliManifest({ ...OFFICIAL_CLI_CATALOG[0], artifacts: { 'linux-x64': { ...OFFICIAL_CLI_CATALOG[0].artifacts['linux-x64'], url: 'https://evil.example/x' } } }).some((problem) => /url/.test(problem)), 'a host that is not allowed');
+  assert.ok(validateCliManifest({ ...OFFICIAL_CLI_CATALOG[0], artifacts: { 'linux-x64': { ...OFFICIAL_CLI_CATALOG[0].artifacts['linux-x64'], sha256: 'abc' } } }).some((problem) => /sha256/.test(problem)));
+});
+
+test('a request names CLI tools of the store, for a reply with Python only', () => {
+  const base = { protocol: 1, clientVersion: '17.6.0', conversationId: '123e4567-e89b-12d3-a456-426614174000', assistantMessageId: '223e4567-e89b-12d3-a456-426614174001', sequence: 0, model: { provider: 'openrouter', id: 'm', info: modelInfo }, request: { history: [], currentMessage: { parts: [{ text: 'x' }] }, systemInstruction: '', language: 'en' }, secrets: { providerKey: KEY } };
+  const ok = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli' }, { id: 'officecli' }] } });
+  assert.equal(ok.ok, true);
+  assert.deepEqual(ok.spec.tools.cli, [{ id: 'officecli' }], 'once each');
+  for (const [cli, advanced, what] of [[[{ id: 'nothing-here' }], true, 'a tool that is not in the store'], [[{ id: 'officecli' }], false, 'a reply without Python'], [{}, true, 'not a list'], [Array.from({ length: 9 }, () => ({ id: 'officecli' })), true, 'too many']]) {
+    const bad = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced, cli } });
+    assert.equal(bad.ok, false, what);
+    assert.ok(bad.errors.every((error) => error.path.startsWith('tools.cli')), what);
+  }
+  assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true } }).spec.tools.cli, undefined, 'none when none were chosen');
+  const soon = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'twitter-cli' }] } });
+  assert.equal(soon.ok, false, 'a tool that is only listed cannot be used yet');
+  assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'ffmpeg' }, { id: 'officecli' }] } }).ok, true);
+});
+
+test('a reply with a CLI tool: the program is mounted, the model gets run_command and the tool\'s usage, and the command runs as a step', async () => {
+  const host = fakeCliHost({ commandResult: { stdout: 'created\n', files: [{ name: 'report.docx', size: 3, bytes: new Uint8Array([1, 2, 3]) }] } });
+  const files = fakeFiles();
+  const events = [];
+  const bodies = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'officecli' }] }),
+    secrets,
+    userId: USER,
+    sandboxHost: host,
+    files,
+    onLive: (event) => { if (event.ev) events.push(event.ev); },
+    fetchImpl: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      round += 1;
+      return streamResponse(round === 1
+        ? sse(toolCall('call_1', 'run_command', { title: 'Create the file', note: 'Creating it.', command: 'officecli create report.docx' }))
+        : sse(content('Made report.docx.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(host.record.mountedCli.map((tool) => [tool.id, tool.file, tool.sha256.length, tool.url.startsWith('https://github.com/')]), [['officecli', 'officecli', 64, true]]);
+  assert.equal(host.record.commands[0].line, 'officecli create report.docx');
+  assert.equal(host.record.commands[0].env.DOTNET_SYSTEM_GLOBALIZATION_INVARIANT, '1', 'the tool\'s environment goes with the command');
+  assert.equal(host.record.disposed, 1);
+
+  const first = bodies[0];
+  assert.ok(first.tools.some((tool) => tool.function.name === 'run_command'));
+  assert.ok(first.tools.some((tool) => tool.function.name === 'run_python'), 'Python stays');
+  assert.match(JSON.stringify(first.messages), /CLI tools/);
+  assert.match(JSON.stringify(first.messages), /officecli help/, 'the tool\'s own usage is told');
+
+  const { run } = liftSandboxRunBlock(result.parts[0].text);
+  assert.equal(run.steps.length, 1);
+  assert.equal(run.steps[0].command, true, 'the step is a command, shown as shell');
+  assert.equal(run.steps[0].code, 'officecli create report.docx');
+  assert.deepEqual(result.parts.slice(1).map((part) => part.sandboxFile.name), ['report.docx'], 'a file the tool made is kept like any other');
+  const step = events.find((event) => event.type === 'step');
+  assert.equal(step.command, true, 'the page is told it is a command');
+});
+
+test('without the tool chosen the model has no run_command; programs that cannot be fetched fail the command, not the reply', async () => {
+  const none = fakeCliHost();
+  const bodies = [];
+  await executeReply({ spec: specFor(), secrets, userId: USER, sandboxHost: none, files: fakeFiles(), onLive: () => {}, fetchImpl: async (url, options) => { bodies.push(JSON.parse(options.body)); return streamResponse(sse(content('Hello.'))); } });
+  assert.equal(bodies[0].tools.some((tool) => tool.function.name === 'run_command'), false);
+
+  const broken = fakeCliHost({ failMount: 'The program is not the one that was listed (its size or hash differs).' });
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'officecli' }] }),
+    secrets,
+    userId: USER,
+    sandboxHost: broken,
+    files: fakeFiles(),
+    onLive: () => {},
+    fetchImpl: async () => {
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'officecli create a.docx' })) : sse(content('I could not use the tool.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.equal(broken.record.commands.length, 0, 'nothing is run without the program');
+  const { run } = liftSandboxRunBlock(result.parts[0].text);
+  assert.match(run.steps[0].error, /could not be prepared/);
+  assert.match(run.steps[0].error, /hash differs/);
 });

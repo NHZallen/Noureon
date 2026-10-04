@@ -65,7 +65,7 @@ function narrationBlock(document, text) {
 }
 
 function stepRow(document, step, index, language) {
-  const body = [createCodeCard(document, step.code, language)];
+  const body = [createCodeCard(document, step.code, language, { shell: Boolean(step.command) })];
 
   const output = [step.stdout, step.stderr].filter(Boolean).join(step.stdout && step.stderr ? '\n' : '');
   if (output) {

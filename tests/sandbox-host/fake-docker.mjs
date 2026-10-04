@@ -26,7 +26,7 @@ if (args[0] === 'run') {
   writeFileSync(join(state, `${name}.args.json`), JSON.stringify(args));
   const child = spawn(process.env.PYTHON_BIN || 'python3', ['-u', repl], {
     stdio: 'inherit',
-    env: { ...process.env, NOUREON_INPUT: hostOf('/input'), NOUREON_OUTPUT: output, NOUREON_WORK: work, NOUREON_MPL_CACHE: join(work, 'no-cache'), MPLCONFIGDIR: join(work, 'mpl') }
+    env: { ...process.env, NOUREON_INPUT: hostOf('/input'), NOUREON_OUTPUT: output, NOUREON_CLI: hostOf('/opt/cli') || '/opt/cli', NOUREON_WORK: work, NOUREON_MPL_CACHE: join(work, 'no-cache'), MPLCONFIGDIR: join(work, 'mpl') }
   });
   writeFileSync(join(state, `${name}.pid`), String(child.pid));
   child.on('exit', (code, signal) => process.exit(signal === 'SIGKILL' ? 137 : (code ?? 0)));

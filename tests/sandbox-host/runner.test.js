@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -9,6 +10,7 @@ import test from 'node:test';
 import { loadConfig } from '../../sandbox-host/runner/config.js';
 import { containerName, dockerRunArgs } from '../../sandbox-host/runner/docker-args.js';
 import { addressAllowed, createHandler } from '../../sandbox-host/runner/http.js';
+import { createCliCache } from '../../sandbox-host/runner/cli-cache.js';
 import { RunnerError, createSessionManager, safeFileName } from '../../sandbox-host/runner/session.js';
 
 // These start the container program (repl.py) as an ordinary process, so they need Python 3.
@@ -54,14 +56,14 @@ test('the settings need a real secret and have safe defaults: only the machine i
 
 test('a container is started one way: no network, no rights, limited, with only its folders; nothing of a request can change that', () => {
   const config = loadConfig({ RUNNER_TOKEN: SECRET });
-  const args = dockerRunArgs({ config, sessionId: 'a1b2c3d4e5f6a1b2c3d4e5f6', dirs: { input: '/data/x/input', output: '/data/x/output' }, language: 'zh-TW; rm -rf /' });
+  const args = dockerRunArgs({ config, sessionId: 'a1b2c3d4e5f6a1b2c3d4e5f6', dirs: { input: '/data/x/input', output: '/data/x/output', cli: '/data/x/cli' }, language: 'zh-TW; rm -rf /' });
   const joined = args.join(' ');
-  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 2g', '--memory-swap 2g', '--cpus 2', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw']) {
+  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 2g', '--memory-swap 2g', '--cpus 2', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw', '-v /data/x/cli:/opt/cli:ro']) {
     assert.ok(joined.includes(wanted), wanted);
   }
   assert.equal(args.at(-1), 'noureon-sandbox:1', 'the image is the runner\'s');
   assert.equal(args.includes('--privileged'), false);
-  assert.equal(args.filter((arg) => arg === '-v').length, 2, 'nothing else is mounted');
+  assert.equal(args.filter((arg) => arg === '-v').length, 3, 'nothing else is mounted (the programs of the CLI tools are read only)');
   assert.ok(args.some((arg) => arg === 'LANGUAGE=zh-TWrm-rf'), 'a language is only letters and dashes');
   assert.equal(containerName('a1b2c3d4e5f6a1b2c3d4e5f6'), 'nsb-a1b2c3d4e5f6a1b2c3d4e5f6');
   assert.throws(() => containerName('../../etc'), /Not a session id/);
@@ -215,4 +217,98 @@ test('the address list: the pod network and the machine itself, nothing else', (
   assert.equal(addressAllowed('10.43.0.1', allow), false);
   assert.equal(addressAllowed('', allow), false);
   assert.equal(addressAllowed('::1', allow), false);
+});
+
+// ----- the CLI tools
+
+const sha256Of = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const TOOL_BYTES = Buffer.from('#!/bin/sh\necho "tool says $1 $GREETING"\nexit ${EXIT:-0}\n');
+/** A fetch that serves one program, the way GitHub does: the first address sends on to another host. */
+function toolFetch(bytes = TOOL_BYTES, calls = []) {
+  return async (address, options = {}) => {
+    calls.push(String(address));
+    assert.equal(options.redirect, 'manual', 'the runner follows redirects itself, to check each address');
+    if (String(address).startsWith('https://github.com/')) return new Response(null, { status: 302, headers: { location: 'https://release-assets.githubusercontent.com/file?sig=abc' } });
+    if (String(address).startsWith('https://release-assets.githubusercontent.com/')) return new Response(bytes, { status: 200 });
+    return new Response('no', { status: 404 });
+  };
+}
+const toolSpec = (overrides = {}) => ({ id: 'mytool', file: 'mytool', url: 'https://github.com/o/r/releases/download/v1/mytool', sha256: sha256Of(TOOL_BYTES), size: TOOL_BYTES.length, ...overrides });
+
+test('a program is fetched once, from an allowed host, and only kept when it is the listed size and hash', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'noureon-clicache-'));
+  try {
+    const calls = [];
+    const cache = createCliCache({ dir, hosts: ['github.com', 'release-assets.githubusercontent.com'], maxBytes: 1024 * 1024, fetchImpl: toolFetch(TOOL_BYTES, calls) });
+    const path = await cache.ensure(toolSpec());
+    assert.equal(readFileSync(path).toString(), TOOL_BYTES.toString());
+    assert.equal(statSync(path).mode & 0o777, 0o755, 'it can be run');
+    await cache.ensure(toolSpec());
+    assert.equal(calls.length, 2, 'the second time it is already here (one fetch is the address and the host it sent on to)');
+    assert.deepEqual(readdirSync(dir), [sha256Of(TOOL_BYTES)], 'nothing else is left in the folder');
+
+    const other = mkdtempSync(join(tmpdir(), 'noureon-clicache-'));
+    try {
+      const strict = createCliCache({ dir: other, hosts: ['github.com', 'release-assets.githubusercontent.com'], maxBytes: 1024 * 1024, fetchImpl: toolFetch(Buffer.from('something else')) });
+      await assert.rejects(() => strict.ensure(toolSpec()), /not the one that was listed/, 'a different file is refused');
+      await assert.rejects(() => strict.ensure(toolSpec({ size: 3, sha256: sha256Of('abc') })), /larger than listed/);
+      await assert.rejects(() => strict.ensure(toolSpec({ url: 'http://github.com/x' })), /may not be fetched/, 'https only');
+      await assert.rejects(() => strict.ensure(toolSpec({ url: 'https://evil.example/x' })), /may not be fetched/, 'allowed hosts only');
+      await assert.rejects(() => strict.ensure(toolSpec({ sha256: 'zz' })), /hash/);
+      await assert.rejects(() => strict.ensure(toolSpec({ size: 10 * 1024 * 1024 })), /size/);
+      const wandering = createCliCache({ dir: other, hosts: ['github.com'], maxBytes: 1024 * 1024, fetchImpl: toolFetch() });
+      await assert.rejects(() => wandering.ensure(toolSpec()), /sent on to an address that is not allowed/, 'a redirect to another host is refused');
+      assert.deepEqual(readdirSync(other), [], 'a refused file leaves nothing');
+    } finally {
+      rmSync(other, { recursive: true, force: true });
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+sandboxTest('a command of a CLI tool runs in /output with the tool on its path, tells its output, and its failure and time limit are reported', async () => {
+  const h = harness();
+  const manager = createSessionManager({ config: h.config, now: () => h.clock.time, fetchImpl: toolFetch() });
+  try {
+    const { id } = await manager.create({ language: 'en' });
+    assert.deepEqual((await manager.mountCli(id, [toolSpec()])).mounted, [{ id: 'mytool', file: 'mytool' }]);
+    const lines = [];
+    const ok = await manager.run(id, { command: 'mytool hello', env: { GREETING: 'there' }, timeoutMs: 20_000 }, (progress) => lines.push(progress.text));
+    assert.equal(ok.stdout.text, 'tool says hello there\n');
+    assert.equal(ok.error, null);
+    assert.ok(lines.join('').includes('tool says hello'), 'the output is told as it comes');
+
+    const failed = await manager.run(id, { command: 'EXIT=3 mytool x', timeoutMs: 20_000 });
+    assert.match(failed.error, /exited with code 3/);
+
+    const wrote = await manager.run(id, { command: 'echo made > note.txt', timeoutMs: 20_000 });
+    assert.deepEqual(wrote.files.map((file) => file.name), ['note.txt'], 'a file the command writes is an output of the step');
+
+    const blocked = await manager.run(id, { command: 'echo "$PATH|$HOME|$LD_PRELOAD"', env: { PATH: '/evil', LD_PRELOAD: '/evil.so', HOME: '/evil' }, timeoutMs: 20_000 });
+    assert.ok(blocked.stdout.text.split('|')[0].startsWith(join(h.root, 'data', id, 'cli')), 'the tools come first on the path and the tool cannot change it');
+    assert.doesNotMatch(blocked.stdout.text, /evil/, 'neither the path, the home nor the loader of programs');
+
+    const slow = await manager.run(id, { command: 'sleep 30', timeoutMs: 1500 });
+    assert.match(slow.error, /time limit/);
+    const left = await manager.run(id, { command: '(sleep 30 &) ; echo started', timeoutMs: 20_000 });
+    assert.equal(left.error, null);
+    await manager.destroy(id);
+  } finally {
+    await h.done();
+  }
+});
+
+test('the programs of the tools are asked for by a plain id and file name, and a request that is not is refused', async () => {
+  const h = harness();
+  const manager = createSessionManager({ config: h.config, now: () => h.clock.time, fetchImpl: toolFetch() });
+  try {
+    const { id } = await manager.create({ language: 'en' }).catch(() => ({ id: null }));
+    if (!id) return;
+    await assert.rejects(() => manager.mountCli(id, [toolSpec({ file: '../x' })]), /no valid id or file name/);
+    await assert.rejects(() => manager.mountCli(id, [toolSpec({ id: 'Bad Id' })]), /no valid id or file name/);
+    await manager.destroy(id);
+  } finally {
+    await h.done();
+  }
 });

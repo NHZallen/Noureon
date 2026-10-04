@@ -1,0 +1,22 @@
+/* The "@" list of the CLI tools (命令工具) and their entry in the left menu: always loaded (the store page's own styles load with the page).
+   Black and white; the list is the shape of ChatGPT's "@" list: a header, then rows of the mark, the name and the kind on the right. */
+
+.cli-menu-host { position: relative; }
+.cli-menu { position: absolute; left: 0; right: 0; z-index: 30; display: flex; flex-direction: column; max-height: min(22rem, 52vh); border: 1px solid var(--border-color); border-radius: 1.6rem; background: var(--modal-bg, var(--chat-bg)); color: var(--text-primary); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14); overflow: hidden; }
+.cli-menu[hidden] { display: none; }
+.cli-menu-header { flex: none; padding: 1rem 1.3rem 0.4rem; color: var(--text-secondary); font-size: 0.95rem; }
+.cli-menu-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0.4rem 0.6rem 0.7rem; }
+.cli-menu-item { display: flex; align-items: center; gap: 0.9rem; width: 100%; padding: 0.7rem 0.8rem; border: 0; border-radius: 0.9rem; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cli-menu-item.is-active { background: var(--hover-bg); }
+.cli-menu-icon { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--border-color); border-radius: 0.6rem; background: var(--chat-bg); }
+.cli-menu-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.02rem; font-weight: 500; }
+.cli-menu-kind { flex: none; color: var(--text-secondary); font-size: 0.9rem; }
+.cli-menu-empty { padding: 0.9rem 0.8rem 0.4rem; color: var(--text-secondary); }
+.cli-menu-store { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0.4rem 0.4rem; padding: 0.6rem 0.8rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.cli-menu-store:hover { background: var(--hover-bg); }
+
+/* The row of the left menu. */
+.cli-sidebar-entry { gap: 0.7rem; margin: 0.1rem 0 0.4rem; padding: 0.55rem 0.75rem; }
+.cli-sidebar-icon { flex: none; }
+
+.cli-tool-img { display: block; border-radius: 0.4rem; object-fit: cover; }

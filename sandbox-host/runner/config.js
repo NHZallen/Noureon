@@ -1,6 +1,7 @@
 // The runner's settings, from the environment (a service file sets them on the host).
 
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const number = (value, fallback, min, max) => {
   const parsed = Number(value);
@@ -11,6 +12,7 @@ export function loadConfig(env = process.env) {
   const tokenFile = env.RUNNER_TOKEN_FILE;
   const token = String(env.RUNNER_TOKEN || (tokenFile ? readFileSync(tokenFile, 'utf8') : '')).trim();
   if (token.length < 32) throw new Error('RUNNER_TOKEN (or RUNNER_TOKEN_FILE) must hold a secret of at least 32 characters.');
+  const dataDir = env.SANDBOX_DATA_DIR || '/var/lib/noureon-sandbox';
   return Object.freeze({
     // Where it listens: the host's address inside the machine, which the services of the machine reach and the internet does not.
     host: env.RUNNER_HOST || '127.0.0.1',
@@ -20,7 +22,12 @@ export function loadConfig(env = process.env) {
     allow: Object.freeze(String(env.RUNNER_ALLOW || '10.42.0.0/16,127.0.0.1/32').split(',').map((entry) => entry.trim()).filter(Boolean)),
     dockerBin: env.DOCKER_BIN || 'docker',
     image: env.SANDBOX_IMAGE || 'noureon-sandbox:1',
-    dataDir: env.SANDBOX_DATA_DIR || '/var/lib/noureon-sandbox',
+    dataDir,
+    // The programs of the CLI tools: kept here (inside the data folder, so the machine's Docker sees the same path), fetched only from
+    // these hosts, none larger than this.
+    cliCacheDir: env.SANDBOX_CLI_CACHE_DIR || join(dataDir, 'cli-cache'),
+    cliHosts: Object.freeze(String(env.SANDBOX_CLI_HOSTS || 'github.com,objects.githubusercontent.com,release-assets.githubusercontent.com').split(',').map((entry) => entry.trim()).filter(Boolean)),
+    cliMaxBytes: number(env.SANDBOX_CLI_MAX_BYTES, 150 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
     maxSessions: number(env.SANDBOX_MAX_SESSIONS, 2, 1, 8),
     // Per container.
     memory: env.SANDBOX_MEMORY || '2g',

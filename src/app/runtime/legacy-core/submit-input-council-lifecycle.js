@@ -803,7 +803,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   researchMode = createResearchMode({
     document, getActiveConversation, normalizeConversationModel, modelSupportsToolCalling, isImageConversation, isCouncilEnabled, serverReply, researchTools,
     addMessageToUI, saveAppData, showNotification, getUiLanguage, logger, closeAllPopovers, setAbortController, updateSubmitButtonState,
-    messageInput: ALL_ELEMENTS.messageInput, prepare: prepareDefaultSubmit, getConfig: getLiveConfig,
+    messageInput: ALL_ELEMENTS.messageInput, prepare: prepareDefaultSubmit, getConfig: getLiveConfig, saveConfig,
     refresh: () => { renderInputIndicators(); updateFunctionButtonsState(); }
   });
   const handleFormSubmit = async (event, submitOptions = {}) => {

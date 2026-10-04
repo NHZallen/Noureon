@@ -57,6 +57,9 @@ const expectedConfig = (defaultModelId) => ({
   },
   councilGroups: [],
   recentModelIds: [],
+  cliEnabledIds: [],
+  cliModelUseIds: [],
+  cliVersions: {},
   councilTranslatorModelId: null,
   singleDocumentTranslatorModelId: null
 });

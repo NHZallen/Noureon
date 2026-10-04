@@ -107,6 +107,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
     let starting = null;
     let stopped = false;
     let mountedFiles = [];
+    let mountedCli = [];
 
     const ensure = () => {
       starting ||= (async () => {
@@ -164,6 +165,19 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
         return call('POST', `/v1/sessions/${id}/mount`, { body: { files: prepared }, timeoutMs: MOUNT_CALL_MS, stage: 'mount' });
       },
       /**
+       * Puts the programs of CLI tools in the sandbox: [{ id, file, url, sha256, size }]. The host fetches (and checks) them; this can take a
+       * while the first time.
+       */
+      async mountCli(tools = []) {
+        await ensure();
+        mountedCli = tools;
+        return call('POST', `/v1/sessions/${id}/cli`, { body: { tools }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
+      },
+      /** Runs a command line of a CLI tool (in /output, the tools on the path); resolves what `run` resolves. `env`: what its tools need. */
+      async command(commandLine, options = {}) {
+        return sandbox.run('', { ...options, command: String(commandLine || '') });
+      },
+      /**
        * Runs code; resolves what the browser's sandbox resolves ({ stdout, stderr, error, files, elapsedMs, … }), or { stopped: true }. When the
        * host cannot be reached while the step runs (it restarted, the network blinked), it is waited for, a new sandbox is made with the same
        * files, and the step is run again there: `restarted` tells the model that what earlier steps left in variables is gone.
@@ -182,11 +196,12 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
             starting = null;
             await ensure();
             if (mountedFiles.length) await call('POST', `/v1/sessions/${id}/mount`, { body: { files: mountedFiles }, timeoutMs: MOUNT_CALL_MS, stage: 'mount' });
+            if (mountedCli.length) await call('POST', `/v1/sessions/${id}/cli`, { body: { tools: mountedCli }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
           }
         }
       },
       /** One attempt at a step (see `run`). */
-      async runStep(code, { timeoutMs = 60_000, signal } = {}) {
+      async runStep(code, { timeoutMs = 60_000, signal, command, env } = {}) {
         await ensure();
         if (signal?.aborted || stopped) return { stopped: true };
         const limit = Math.max(1000, Math.min(Number(timeoutMs) || 60_000, MAX_RUN_MS));
@@ -205,7 +220,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
             response = await fetchImpl(`${base}/v1/sessions/${id}/run`, {
               method: 'POST',
               headers: headers({ 'Content-Type': 'application/json' }),
-              body: JSON.stringify({ code: String(code || ''), timeoutMs: limit }),
+              body: JSON.stringify(command === undefined ? { code: String(code || ''), timeoutMs: limit } : { command: String(command), env: env || {}, timeoutMs: limit }),
               signal: controller.signal
             });
           } catch {

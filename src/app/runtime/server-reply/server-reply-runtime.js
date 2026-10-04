@@ -1,6 +1,7 @@
 // The server-reply hand-over as the page uses it: the signed-in account's token, the message read from the cloud, the conversation
 // written to the cloud first, and a word to the person when a reply is made here instead (see server-reply.js).
 
+import { cliText } from '../cli/cli-texts.js';
 import { PRODUCT_VERSION } from '../../../data/version.js';
 import { createServerReply, localizeServerError, planServerReply } from './server-reply.js';
 import { serverReplyText } from './server-reply-texts.js';
@@ -121,7 +122,11 @@ export function createBrowserServerReply({
     watchRun: (...args) => serverReply.watchRun(...args),
     hydrateParts: (parts) => hydrateParts(parts),
     flushSync: () => flushSync(),
-    notify: (kind, language) => showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info'),
+    notify: (kind, language) => {
+      // A CLI tool (命令工具) that was chosen but could not be used: it needs a model that calls tools and the server.
+      if (kind === 'cli-local' || kind === 'cli-tool-model') showNotification(cliText(language, kind === 'cli-local' ? 'notOnServer' : 'needToolModel'), 'warning');
+      else showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info');
+    },
     localizeError: localizeServerError
   };
 }

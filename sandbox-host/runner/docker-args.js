@@ -9,7 +9,7 @@ export function containerName(sessionId) {
   return name;
 }
 
-/** Arguments of `docker run` for a session whose folders are at `dirs` ({ input, output }). */
+/** Arguments of `docker run` for a session whose folders are at `dirs` ({ input, output, cli }). */
 export function dockerRunArgs({ config, sessionId, dirs, language }) {
   const name = containerName(sessionId);
   const tmp = (size) => `rw,noexec,nosuid,nodev,size=${size}`;
@@ -29,6 +29,8 @@ export function dockerRunArgs({ config, sessionId, dirs, language }) {
     '--tmpfs', `/work:${tmp(config.workSize)},uid=${config.owner.split(':')[0]}`,
     '-v', `${dirs.input}:/input:ro`,
     '-v', `${dirs.output}:/output:rw`,
+    // The programs of the CLI tools: put there by the runner, only read (and run) in the container.
+    '-v', `${dirs.cli}:/opt/cli:ro`,
     '-e', `LANGUAGE=${String(language || 'zh-TW').replace(/[^A-Za-z-]/g, '').slice(0, 12) || 'zh-TW'}`,
     '-e', 'HOME=/work', '-e', 'MPLCONFIGDIR=/tmp/mpl',
     '--stop-timeout', '1',

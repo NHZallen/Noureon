@@ -104,7 +104,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     keepEndInView(row.writing, () => { row.writing.textContent = source.length > MAX_CODE_CHARS ? `${source.slice(0, MAX_CODE_CHARS)}\n…` : source; });
   };
 
-  const startStep = ({ n, title, code }) => {
+  const startStep = ({ n, title, code, command }) => {
     // The run shows the code itself; the draft in the thinking row goes.
     list.current?.writing?.remove();
     const running = title ? text('sandboxRunning', { n, title }) : text('sandboxRunningUntitled', { n });
@@ -116,7 +116,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     output.hidden = true;
     const files = create('div', 'ledger-files');
     files.hidden = true;
-    row.body.append(createCodeCard(document, source, language), output, files);
+    row.body.append(createCodeCard(document, source, language, { shell: Boolean(command) }), output, files);
     steps.set(n, { row, output, files, written: '' });
   };
 

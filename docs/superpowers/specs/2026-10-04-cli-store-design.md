@@ -124,3 +124,29 @@
 - 把深度研究、學習、搜尋、製作圖像併進同一個 `@` 選單。
 - 技能（另一份設計）是否也放進同一個商城，做成第二個分頁。
 - 第 4 期的「寫入確認」是否需要。
+
+## 9. 第 1 期實作紀錄（2026-10-04）
+
+**可用與「即將推出」**：目錄在 `src/data/cli-catalog.js`（客戶端與伺服器共用）。八個官方工具都上架，但只有不需要網路、程式是單一檔案的兩個 `ready`：
+
+| 工具 | 狀態 | 說明 |
+|---|---|---|
+| OfficeCLI 1.0.153 | 可用 | 單一執行檔，來自官方 release；需要環境變數 `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`、`OFFICECLI_SKIP_UPDATE=1`、`OFFICECLI_NO_AUTO_RESIDENT=1`（容器裡沒有 ICU，也不能自己更新）。本機已驗證可執行；容器內（noexec、唯讀）尚未實測，要用 `smoke-test.sh` 驗。 |
+| FFmpeg 7.0.2 | 可用 | FFmpeg 官方 repo 只有原始碼、沒有執行檔，所以用 `eugeneware/ffmpeg-static` 的靜態編譯（GPL-3.0-or-later，單一檔，沒有 ffprobe）。 |
+| yt-dlp | 即將推出（需要網路） | 用官方的單檔 Python 程式（zipapp，用沙盒的 Python 跑）；Linux 單檔版會自己解壓到不能執行的資料夾，所以不用。 |
+| twitter-cli、rdt-cli | 即將推出（網路＋憑證） | pip 套件；rdt-cli 只支援從瀏覽器讀 cookie 登入，伺服器上要靠第 2 期的安全憑證另外想辦法。 |
+| csvkit | 即將推出（需要網路） | pip 套件（2.2.0）。 |
+| Pandoc | 即將推出 | 官方 release 是 `.tar.gz` 壓縮檔（程式很大），商城目前只收單一檔案；要先補「解壓縮」才能上，下載位址與雜湊屆時再定。 |
+| SoX 14.4.2 | 即將推出 | SourceForge 官方只有原始碼與 Windows／macOS 版，沒有 Linux 執行檔；要自己編譯，且 SourceForge 不在下載白名單內。 |
+
+「即將推出」的工具列在商城、不能加入、不能被 `@`，伺服器的 `validateRunSpec` 也會拒絕（只收 `ready` 的工具）。
+
+**程式檔由沙盒主機（runner）下載，不是 Zeabur 伺服器**：伺服器把 `{id, file, url, sha256, size}` 交給 runner（`POST /v1/sessions/:id/cli`），runner 只用 https 從白名單網域（GitHub，每一次轉址都檢查）下載，大小與 sha256 不符就拒絕，依雜湊快取在 `cli-cache/`，再硬連結進該 session 的資料夾，容器以唯讀掛載成 `/opt/cli`。`/tmp`、`/work` 仍是 noexec：只有這些程式能執行，模型寫的檔案不能。
+
+**執行命令**：模型多一個工具 `run_command`（`command`、`note`、`title`、`timeout_seconds`，預設 60 秒、最多 120 秒），在 `/output` 以 `sh -c` 執行，`PATH` 前面加上 `/opt/cli`，環境變數不得改 `PATH`/`HOME`/`LD_*`/`PYTHON*`，結束後整個 process group 都清掉；非 0 結束碼視為錯誤。有 CLI 時一則回覆最多 25 步（原本 10）。只有伺服器上的回覆有這個工具，所以選了命令工具就強制走伺服器的進階路徑；沒登入雲端或關了伺服器回覆時會用通知說明。
+
+**設定**：`cliEnabledIds`（已加入）、`cliModelUseIds`（允許模型自己使用，預設關）、`cliVersions`（加入時的版本，與目錄版本不同就出現在「更新」）；都隨雲端設定同步。
+
+**介面**：左側欄入口「命令工具」（其他語言「CLI」）；商城頁是全視窗頁面（全部／我的／更新、搜尋、列表式卡片、＋／已加入／…／更新／「即將推出」，手機上「…」選單是底部面板）；網址是 `noureon.com/cli`（開啟時加進瀏覽器歷史，上一頁會關閉，重新整理或分享連結會直接開啟；`vercel.json` 有對應的 rewrite）；每個工具用專案自己的 logo（GitHub 擁有者頭像，載不到時換回終端機圖示；由個人擁有的專案不用，免得顯示個人照片）；輸入欄 `@` 選單與晶片。
+
+**未做**：容器內實測（需 owner 在 Contabo 重新部署 runner 並跑 `smoke-test.sh`）、網路與權限（第 2 期）、使用者上傳（第 3 期）。

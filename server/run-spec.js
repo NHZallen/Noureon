@@ -2,6 +2,7 @@
 // together everything the reply needs; this checks its shape and size before anything is done with it. Errors name a place in the
 // request and say what is wrong, and never repeat a value: a key must not end up in an error message or a log.
 
+import { getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -78,6 +79,17 @@ export function validateRunSpec(input) {
         if (tools.visionCheck.advanced !== undefined && typeof tools.visionCheck.advanced !== 'boolean') fail('tools.visionCheck.advanced', 'must be true or false');
       }
     }
+    // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
+    // with Python (`advanced`).
+    if (tools.cli !== undefined) {
+      if (!Array.isArray(tools.cli) || tools.cli.length > 8) fail('tools.cli', 'must be a list of at most 8 tools');
+      else {
+        tools.cli.forEach((entry, index) => {
+          if (!isObject(entry) || !text(entry.id, 40) || !isCliReady(getCliTool(entry.id))) fail(`tools.cli[${index}]`, 'must name a tool of the store that can be used');
+        });
+        if (tools.cli.length && tools.advanced !== true) fail('tools.cli', 'CLI tools run in the sandbox: advanced must be true');
+      }
+    }
     if (tools.inputs !== undefined) {
       if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
       else tools.inputs.forEach((file, index) => {
@@ -133,6 +145,7 @@ export function validateRunSpec(input) {
         advanced: tools.advanced,
         ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
+        ...(Array.isArray(tools.cli) && tools.cli.length ? { cli: [...new Set(tools.cli.map((entry) => entry.id))].map((id) => ({ id })) } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}) }

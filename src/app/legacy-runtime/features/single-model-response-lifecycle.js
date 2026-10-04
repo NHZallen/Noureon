@@ -8,6 +8,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { collectSandboxInputs, createSandboxFileParts, registerSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
@@ -176,8 +177,15 @@ export function createSingleModelResponseLifecycle({
     if (!serverRun && serverReply && assistantMessageId) {
       // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
       // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
-      const needsPython = replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation));
+      // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
+      // setting says; a model that cannot call tools cannot use them.
+      const canCallTools = Boolean(supportsToolCalling?.(modelInfo));
+      const cli = canCallTools ? cliIdsForReply(getConfig(), userParts) : { chosen: [], ids: [] };
+      const needsPython = cli.ids.length > 0 || (replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation)));
       const plan = serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider });
+      // A tool was chosen but cannot be used for this reply: the person is told (the reply is made without it).
+      if (!canCallTools && cliIdsForReply(getConfig(), userParts).chosen.length) serverReply.notify('cli-tool-model', uiLanguage);
+      else if (!plan.ok && cli.chosen.length) serverReply.notify('cli-local', uiLanguage);
       if (plan.ok) {
         const started = await serverReply.start({
           conversation,
@@ -191,6 +199,7 @@ export function createSingleModelResponseLifecycle({
             ? { deckDesign: conversation?.deckDesign || 'auto', advanced: replyMode.advanced }
             : null,
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
+          cli: cli.ids,
           inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
             name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
             mimeType: part.inlineData.mimeType || '',

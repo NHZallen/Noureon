@@ -3,11 +3,12 @@
 
 import { spawn as nodeSpawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { chmodSync, chownSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, chownSync, copyFileSync, linkSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 import { LIMITS } from '../../public/sandbox/protocol.js';
 import { containerName, dockerRunArgs } from './docker-args.js';
+import { createCliCache } from './cli-cache.js';
 import { collectOutput, snapshotOutput } from './output.js';
 
 export class RunnerError extends Error {
@@ -41,14 +42,22 @@ const emptyFolder = (directory) => {
   }
 };
 
-export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex') }) {
+const CLI_ID = /^[a-z][a-z0-9-]{1,39}$/;
+const CLI_FILE = /^[A-Za-z0-9._-]{1,60}$/;
+const MAX_CLI_TOOLS = 8;
+
+export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex'), fetchImpl = fetch }) {
   const sessions = new Map();
+  const cliCache = createCliCache({ dir: config.cliCacheDir, hosts: config.cliHosts, maxBytes: config.cliMaxBytes, fetchImpl, log });
 
   const makeDirs = (id) => {
     const root = join(config.dataDir, id);
-    const dirs = { root, input: join(root, 'input'), output: join(root, 'output') };
+    const dirs = { root, input: join(root, 'input'), output: join(root, 'output'), cli: join(root, 'cli') };
     mkdirSync(dirs.input, { recursive: true });
     mkdirSync(dirs.output, { recursive: true });
+    // Held by the runner, read (and run) by the container.
+    mkdirSync(dirs.cli, { recursive: true });
+    chmodSync(dirs.cli, 0o755);
     // The container's user writes to the output folder and reads the input one.
     try {
       const [uid, gid] = config.owner.split(':').map(Number);
@@ -220,15 +229,59 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       });
     },
 
-    /** Runs a step. `onProgress` hears what the code prints as it runs. Resolves what the step printed, its error and its files. */
-    async run(id, { code, timeoutMs }, onProgress = () => {}) {
+    /**
+     * Puts the programs of CLI tools in /opt/cli: [{ id, file, url, sha256, size }]. Each is fetched (and checked) when this machine does not
+     * have it yet, then linked in under its file name.
+     */
+    async mountCli(id, tools = []) {
+      const session = get(id);
+      const list = Array.isArray(tools) ? tools.slice(0, MAX_CLI_TOOLS) : [];
+      for (const tool of list) {
+        if (!CLI_ID.test(String(tool?.id || '')) || !CLI_FILE.test(String(tool?.file || ''))) throw new RunnerError('bad_request', 'A tool has no valid id or file name.', 400);
+      }
+      // Fetched before the session's queue is taken: a long download must not hold up a step of this session.
+      const paths = [];
+      for (const tool of list) {
+        try {
+          paths.push(await cliCache.ensure({ url: tool.url, sha256: tool.sha256, size: tool.size }));
+        } catch (error) {
+          if (error?.name === 'CliCacheError') throw new RunnerError(error.code, error.message, error.status);
+          throw error;
+        }
+      }
+      return serialized(session, async () => {
+        emptyFolder(session.dirs.cli);
+        const mounted = [];
+        list.forEach((tool, index) => {
+          const target = join(session.dirs.cli, tool.file);
+          try {
+            linkSync(paths[index], target);
+          } catch {
+            // Another file system than the cache's: a copy.
+            copyFileSync(paths[index], target);
+          }
+          chmodSync(target, 0o755);
+          mounted.push({ id: tool.id, file: tool.file });
+        });
+        return { mounted };
+      });
+    },
+
+    /**
+     * Runs a step: Python code, or (`command`) a command line of a CLI tool. `onProgress` hears what it prints as it runs. Resolves what the
+     * step printed, its error and its files.
+     */
+    async run(id, { code, command, env, timeoutMs }, onProgress = () => {}) {
       const session = get(id);
       return serialized(session, async () => {
         const limit = Math.max(1000, Math.min(Number(timeoutMs) || 60_000, LIMITS.maxRunTimeoutMs));
         await ensureRunning(session);
         const before = snapshotOutput(session.dirs.output);
         try {
-          const result = await request(session, { type: 'run', code: String(code || ''), timeoutMs: limit }, { onProgress, timeoutMs: limit });
+          const message = command === undefined || command === null
+            ? { type: 'run', code: String(code || ''), timeoutMs: limit }
+            : { type: 'command', command: String(command), env: env && typeof env === 'object' ? env : {}, timeoutMs: limit };
+          const result = await request(session, message, { onProgress, timeoutMs: limit });
           const output = collectOutput(session.dirs.output, before);
           return { ...result, type: 'result', files: output.files, skippedFiles: output.skipped };
         } catch (error) {

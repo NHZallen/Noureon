@@ -54,6 +54,10 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     // Up to five named sets of council members (and who combines them), and the models used lately.
     councilGroups: [],
     recentModelIds: [],
+    // The CLI tools (命令工具) the person added, and those the model may use by itself.
+    cliEnabledIds: [],
+    cliModelUseIds: [],
+    cliVersions: {},
     councilTranslatorModelId: null,
     singleDocumentTranslatorModelId: null
   };
