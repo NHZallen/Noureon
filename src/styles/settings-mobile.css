@@ -30,7 +30,7 @@
     }
 
     #settings-modal > div > .p-4.bg-\[var\(--sidebar-bg\)\].border-t {
-        top: 1.1rem !important;
+        top: 1rem !important;
         right: 1.1rem !important;
         left: auto !important;
         z-index: 45 !important;
@@ -54,9 +54,9 @@
     }
 
     #close-settings-btn {
-        width: 3.35rem !important;
-        height: 3.35rem !important;
-        min-height: 3.35rem !important;
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+        min-height: 2.75rem !important;
         background: #ffffff !important;
         border: 1px solid #d9d9dd !important;
         box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
@@ -64,7 +64,7 @@
 
     #close-settings-btn::before {
         color: #000000 !important;
-        font-size: 2.25rem !important;
+        font-size: 1.875rem !important;
     }
 
     #settings-modal .flex.flex-1.overflow-hidden {
@@ -85,8 +85,8 @@
         align-items: center !important;
         justify-content: center !important;
         flex: 0 0 auto !important;
-        min-height: 6.7rem !important;
-        padding: 1.4rem 4.8rem 1rem !important;
+        min-height: 4.75rem !important;
+        padding: 0 4.25rem !important;
         background: #f4f3f8 !important;
     }
 
@@ -106,12 +106,12 @@
     #settings-mobile-back-btn {
         position: absolute !important;
         left: 1.1rem !important;
-        top: 1.35rem !important;
+        top: 1rem !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        width: 3.35rem !important;
-        height: 3.35rem !important;
+        width: 2.75rem !important;
+        height: 2.75rem !important;
         padding: 0 !important;
         border: 1px solid #d9d9dd !important;
         border-radius: 999px !important;
@@ -131,8 +131,8 @@
 
     #settings-mobile-back-btn svg,
     #settings-mobile-back-btn svg * {
-        width: 1.75rem !important;
-        height: 1.75rem !important;
+        width: 1.5rem !important;
+        height: 1.5rem !important;
         color: #000000 !important;
         stroke: currentColor !important;
     }
@@ -179,7 +179,7 @@
         display: block !important;
         flex: 1 1 auto !important;
         min-height: 0 !important;
-        padding: 6.95rem 1.15rem calc(1.4rem + env(safe-area-inset-bottom, 0px)) !important;
+        padding: 5rem 1.15rem calc(1.4rem + env(safe-area-inset-bottom, 0px)) !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         scrollbar-width: none !important;

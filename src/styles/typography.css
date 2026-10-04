@@ -172,7 +172,7 @@ samp,
     #settings-modal #settings-mobile-list,
     #settings-modal .flex-1.p-6.overflow-y-auto {
         position: absolute !important;
-        inset: 6.7rem 0 0 !important;
+        inset: 4.75rem 0 0 !important;
         display: block !important;
         min-height: 0 !important;
         transition:
