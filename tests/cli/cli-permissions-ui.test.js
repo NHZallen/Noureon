@@ -146,7 +146,9 @@ test('the CLI tools: one row each with the switch "let the model use it by itsel
   assert.ok(t.host.querySelector('.pm-switch .toggle-label'), 'the same switch as the other settings');
   assert.deepEqual(switches().map((toggle) => toggle.checked), [false, false]);
   assert.match(t.host.querySelector('.pm-desc').textContent, /only when you choose it with @/);
-  switches()[1].click();
+  const second = switches()[1];
+  second.click();
+  assert.equal(switches()[1], second, 'it slides where it is (a new switch would show no motion): the page is not drawn again');
   assert.deepEqual(t.config.cliModelUseIds, ['ffmpeg']);
   assert.deepEqual(switches().map((toggle) => toggle.checked), [false, true]);
   await flush();

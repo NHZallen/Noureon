@@ -177,7 +177,11 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
       const track = make(document, 'label', 'toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer');
       track.htmlFor = input.id;
       toggle.append(input, track);
-      input.addEventListener('change', () => change(() => setCliModelUse(getConfig(), tool.id, input.checked)));
+      // Like the switches of Auxiliary features it slides where it is: the page is not drawn again (a new switch would show no motion), the choice is only saved.
+      input.addEventListener('change', () => {
+        if (!setCliModelUse(getConfig(), tool.id, input.checked)) input.checked = canModelUseCli(getConfig(), tool.id);
+        else void save();
+      });
       row.append(mark, text, toggle);
       list.append(row);
       row.title = cliDescription(tool, getLanguage());
