@@ -24,7 +24,10 @@ const MASK = '••••••••••••';
 const views = new WeakMap();
 
 /** The tab opens at its first page again (the settings were closed and opened). */
-export const resetPermissionsView = (root) => { const state = views.get(root); if (state) { state.view = 'home'; state.editing = state.adding = state.confirming = null; state.siteError = false; } };
+export const resetPermissionsView = (root) => { const state = views.get(root); if (state) { state.view = 'home'; state.editing = state.adding = state.confirming = null; state.siteError = false; state.creds.status = 'idle'; } };
+
+/** The credentials changed somewhere else (a window saved one): the list is read again the next time it is drawn. */
+export const invalidatePermissionsCredentials = (root) => { const state = views.get(root); if (state) state.creds.status = 'idle'; };
 
 const make = (document, tag, className = '', text) => {
   const node = document.createElement(tag);
@@ -128,7 +131,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
       row.append(chevron);
       row.addEventListener('click', () => {
         state.view = view;
-        if (view === 'credentials') void loadCredentials();
+        if (view === 'credentials') void loadCredentials(true);
         redraw();
       });
       list.append(row);
@@ -315,7 +318,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     const error = make(document, 'p', 'pm-error');
     error.hidden = true;
     const actions = make(document, 'div', 'pm-actions');
-    const submit = make(document, 'button', 'pm-button is-primary', t('credSave'));
+    const submit = make(document, 'button', 'pm-button is-primary btn-primary', t('credSave'));
     submit.type = 'submit';
     const cancel = make(document, 'button', 'pm-button', t('credCancel'));
     cancel.type = 'button';
@@ -376,6 +379,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
   };
 
   const drawCredentials = () => {
+    if (state.creds.status === 'idle') void loadCredentials();
     root.append(backButton(), make(document, 'h4', 'pm-sub', t('rowCredentials')), make(document, 'p', 'pm-desc', t('credDesc')));
     if (state.creds.status === 'no-account') {
       root.append(make(document, 'p', 'pm-empty', t('credNeedAccount')));

@@ -4,6 +4,15 @@
 import { serverRequest } from './cli-server-bridge.js';
 
 export const CREDENTIAL_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+/** Said on the window whenever a credential is saved or deleted, so a settings tab that is open (or opens later) shows the same list at once. */
+export const CREDENTIALS_CHANGED = 'noureon:credentials-changed';
+const announce = () => {
+  try {
+    if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.Event === 'function') globalThis.dispatchEvent(new globalThis.Event(CREDENTIALS_CHANGED));
+  } catch {
+    // Nothing is listening: the list is read again when the tab opens.
+  }
+};
 
 /** All of the person's credentials: { ok, credentials: [{ name, value, updatedAt }] }. */
 export async function listCredentials() {
@@ -15,11 +24,13 @@ export async function listCredentials() {
 export async function saveCredential(name, value) {
   if (!CREDENTIAL_NAME.test(String(name || ''))) return { ok: false, code: 'bad_request', reason: 'bad_name' };
   const result = await serverRequest('PUT', `/v1/credentials/${encodeURIComponent(name)}`, { body: JSON.stringify({ value }) });
+  if (result.ok) announce();
   return result.ok ? { ok: true } : { ok: false, code: result.code || `http-${result.status}`, reason: result.data?.error?.reason || '' };
 }
 
 export async function deleteCredential(name) {
   if (!CREDENTIAL_NAME.test(String(name || ''))) return { ok: false, code: 'bad_request' };
   const result = await serverRequest('DELETE', `/v1/credentials/${encodeURIComponent(name)}`);
+  if (result.ok) announce();
   return result.ok ? { ok: true } : { ok: false, code: result.code || `http-${result.status}` };
 }

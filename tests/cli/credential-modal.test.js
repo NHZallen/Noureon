@@ -37,7 +37,7 @@ test('every language has the words of the window and of the card, and a line on 
   const keys = ['credTypeToken', 'credTypeCookie', 'credTypePassword', 'credModalTitle', 'credModalDesc', 'credModalSkip', 'credModalSave', 'credModalRequired', 'credHow_TWITTER_AUTH_TOKEN', 'credHow_TWITTER_CT0', 'credHow_REDDIT_SESSION', 'credHowGeneric', 'credKnownTool'];
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
     for (const key of keys) assert.ok(PERMISSION_TEXTS[language][key], `${language} ${key}`);
-    for (const key of ['credAskTitle', 'credAskEnter', 'credAskSkip', 'credAskWait', 'credAnsweredSaved', 'credAnsweredCancel', 'credAnsweredTimeout', 'sandboxCredentialWaiting']) assert.ok(sandboxText(language, key, { tool: 'x', minutes: 1 }) !== key, `${language} ${key}`);
+    for (const key of ['credAskTitle', 'credAskSite', 'credAskEnter', 'credAskSkip', 'credAskWait', 'credAnsweredSaved', 'credAnsweredCancel', 'credAnsweredTimeout', 'sandboxCredentialWaiting']) assert.ok(sandboxText(language, key, { tool: 'x', minutes: 1 }) !== key, `${language} ${key}`);
   }
 });
 
@@ -95,7 +95,7 @@ test('the window stays open and says why when the value cannot be saved, and "no
   assert.equal(document.querySelector('.cred-modal'), null);
 });
 
-test('the card opens the window when the question arrives, is settled by the answer event, and can open the window again', async () => {
+test('the card is small and the window opens only when the person taps it; the answer event settles the card', async () => {
   const { document } = page();
   const host = document.createElement('div');
   document.body.append(host);
@@ -105,9 +105,14 @@ test('the card opens the window when the question arrives, is settled by the ans
   cards.handle(ask);
   cards.handle(ask);
   assert.equal(host.querySelectorAll('.cred-ask').length, 1, 'one card for one question');
-  assert.equal(document.querySelectorAll('.cred-modal').length, 1, 'the window opens by itself');
+  assert.equal(document.querySelectorAll('.cred-modal').length, 0, 'nothing jumps up over what the person is reading');
   assert.equal(cards.open, 1);
-  assert.equal(host.querySelector('.net-ask-title').textContent, 'twitter-cli needs your login');
+  assert.equal(host.querySelector('.cred-ask-title').textContent, 'twitter-cli needs your login');
+  assert.equal(host.querySelector('.cred-ask-sub').textContent, 'Sign in to x.com');
+
+  host.querySelector('.cred-ask-button.is-primary').click();
+  host.querySelector('.cred-ask-button.is-primary').click();
+  assert.equal(document.querySelectorAll('.cred-modal').length, 1, 'opened by the tap, once');
 
   // Typed and saved: the values and the decision go to the handler.
   const dialog = document.querySelector('.cred-modal-dialog');
@@ -119,27 +124,30 @@ test('the card opens the window when the question arrives, is settled by the ans
   assert.deepEqual(sent, [{ id: 'ask0000000000001', decision: 'saved', values: { TWITTER_AUTH_TOKEN: 't', TWITTER_CT0: 'c' } }]);
   cards.handle({ type: 'credential', event: 'answer', id: 'ask0000000000001', decision: 'saved', tool: TWITTER });
   assert.equal(cards.open, 0);
-  assert.equal(host.querySelector('.net-ask-title').textContent, 'Login for twitter-cli saved');
-  assert.equal(host.querySelector('.net-ask-actions'), null);
+  assert.equal(host.querySelector('.cred-ask-title').textContent, 'Login for twitter-cli saved');
+  assert.equal(host.querySelector('.cred-ask-actions'), null);
   assert.equal(document.querySelector('.cred-modal'), null);
 });
 
-test('"not now" on the card, and an answer that nobody gave in time', async () => {
+test('closing the window does not refuse; "not now" on the card does, and a question nobody answered in time is shown as not provided', async () => {
   const { document } = page();
   const host = document.createElement('div');
   document.body.append(host);
   const sent = [];
   const cards = createCredentialAskCards({ document, host, language: 'en', onAnswer: async (answer) => { sent.push(answer); return { ok: true }; } });
   cards.handle({ type: 'credential', event: 'ask', id: 'ask0000000000002', tool: TWITTER, fields: TWITTER_FIELDS });
-  const [enter, skip] = host.querySelectorAll('.net-ask-button');
+  const [enter, skip] = host.querySelectorAll('.cred-ask-button');
+  enter.click();
+  [...document.querySelectorAll('.cred-modal-button')].find((button) => !button.classList.contains('is-primary')).click();
+  assert.equal(document.querySelector('.cred-modal'), null);
+  assert.deepEqual(sent, [], 'cancelling the window answers nothing: the card is still open');
+  enter.click();
+  assert.equal(document.querySelectorAll('.cred-modal').length, 1, 'it can be opened again');
   skip.click();
   assert.deepEqual(sent, [{ id: 'ask0000000000002', decision: 'cancel' }]);
   assert.equal(document.querySelector('.cred-modal'), null, 'the window goes with it');
-  enter.click();
-  assert.equal(document.querySelectorAll('.cred-modal').length, 1, 'it can be opened again until the question is over');
   cards.handle({ type: 'credential', event: 'answer', id: 'ask0000000000002', decision: 'timeout', tool: TWITTER });
-  assert.equal(document.querySelector('.cred-modal'), null);
-  assert.equal(host.querySelector('.net-ask-title').textContent, 'Not entered in time: login for twitter-cli not provided');
+  assert.equal(host.querySelector('.cred-ask-title').textContent, 'Not entered in time: login for twitter-cli not provided');
   assert.ok(host.querySelector('.cred-ask').classList.contains('is-refused'));
 });
 
@@ -161,7 +169,7 @@ test('the answer handler saves every value first (always), then tells the reply;
   assert.deepEqual(await createCredentialAnswerHandler({ getRun: () => null })({ id: 'd', decision: 'cancel' }), { ok: false, reason: 'unavailable' });
 });
 
-test('the step list shows the card and the window for a tool\'s login, and passes the answer on', async () => {
+test('the step list shows the small card for a tool\'s login and passes the answer on', async () => {
   const { createSandboxLedger } = await import('../../src/app/ui/sandbox/sandbox-ledger.js');
   const { document } = page();
   const host = document.createElement('div');
@@ -170,11 +178,31 @@ test('the step list shows the card and the window for a tool\'s login, and passe
   const ledger = createSandboxLedger({ document, host, language: 'en', onCredentialAnswer: async (answer) => { sent.push(answer); return { ok: true }; } });
   ledger.event({ type: 'credential', event: 'ask', id: 'ask0000000000003', tool: TWITTER, fields: TWITTER_FIELDS, waitMs: 600000 });
   assert.equal(host.querySelectorAll('.cred-ask').length, 1);
-  assert.equal(document.querySelectorAll('.cred-modal').length, 1);
-  [...document.querySelectorAll('.cred-modal-button')].find((button) => !button.classList.contains('is-primary')).click();
+  assert.equal(document.querySelectorAll('.cred-modal').length, 0);
+  host.querySelectorAll('.cred-ask-button')[1].click();
   await flush();
   assert.deepEqual(sent, [{ id: 'ask0000000000003', decision: 'cancel' }]);
   ledger.event({ type: 'credential', event: 'answer', id: 'ask0000000000003', decision: 'cancel', tool: TWITTER });
-  assert.equal(host.querySelector('.net-ask-title').textContent, 'Login for twitter-cli not provided');
+  assert.equal(host.querySelector('.cred-ask-title').textContent, 'Login for twitter-cli not provided');
   ledger.remove();
+});
+
+test('saving or deleting a credential says so on the window, so an open settings tab can show the change', async () => {
+  const { registerServerRequest } = await import('../../src/app/runtime/cli/cli-server-bridge.js');
+  const { CREDENTIALS_CHANGED, deleteCredential, saveCredential } = await import('../../src/app/runtime/cli/credentials-client.js');
+  const heard = [];
+  const before = globalThis.dispatchEvent;
+  globalThis.dispatchEvent = (event) => { heard.push(event.type); return true; };
+  try {
+    registerServerRequest(async () => ({ ok: true, data: {} }));
+    assert.equal((await saveCredential('TWITTER_CT0', 'v')).ok, true);
+    assert.equal((await deleteCredential('TWITTER_CT0')).ok, true);
+    assert.deepEqual(heard, [CREDENTIALS_CHANGED, CREDENTIALS_CHANGED]);
+    registerServerRequest(async () => ({ ok: false, status: 500 }));
+    await saveCredential('TWITTER_CT0', 'v');
+    assert.equal(heard.length, 2, 'a failed save changes nothing, so nothing is announced');
+  } finally {
+    registerServerRequest(null);
+    if (before) globalThis.dispatchEvent = before; else delete globalThis.dispatchEvent;
+  }
 });

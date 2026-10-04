@@ -3,11 +3,12 @@
 // The choices are saved as soon as they are made (not with the Save button of the settings).
 
 import { permissionText } from '../cli/permission-texts.js';
-import { deleteCredential, listCredentials, saveCredential } from '../cli/credentials-client.js';
+import { CREDENTIALS_CHANGED, deleteCredential, listCredentials, saveCredential } from '../cli/credentials-client.js';
 
 const SECTION_ID = 'permissions-section';
 const NAV_ID = 'permissions-section-nav';
 const languageBound = new WeakSet();
+const changeBound = new WeakSet();
 
 /** Adds the tab (and its section) once, and draws it in the language of the page. */
 export function ensurePermissionsSettingsSection({ document, elements, config, saveConfig = async () => {}, getSync = () => globalThis.__astraCloudSyncV2, showNotification = () => {} }) {
@@ -67,6 +68,18 @@ export function ensurePermissionsSettingsSection({ document, elements, config, s
     });
   };
   void draw(true);
+  // A credential saved from the window in a chat (or anywhere) shows in this tab at once.
+  const win = document.defaultView;
+  if (win?.addEventListener && !changeBound.has(win)) {
+    changeBound.add(win);
+    win.addEventListener(CREDENTIALS_CHANGED, async () => {
+      const current = document.getElementById(SECTION_ID);
+      if (!current || typeof current.replaceChildren !== 'function') return;
+      const { invalidatePermissionsCredentials } = await import('../../ui/cli/permissions-view.js');
+      invalidatePermissionsCredentials(current);
+      void draw();
+    });
+  }
   // The language menu applies at once while the settings stay open.
   const languageSelect = elements.uiLanguageSelect;
   if (languageSelect?.addEventListener && !languageBound.has(languageSelect)) {

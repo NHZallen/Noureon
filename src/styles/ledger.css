@@ -551,8 +551,8 @@
 }
 .net-ask-button:hover:not(:disabled) { background: var(--hover-bg, #f3f4f6); }
 .net-ask-button:disabled { opacity: 0.5; cursor: default; }
-.net-ask-button.is-primary { border-color: var(--text-primary, #111827); background: var(--text-primary, #111827); color: var(--chat-bg, #fff); }
-.net-ask-button.is-primary:hover:not(:disabled) { background: var(--text-primary, #111827); opacity: 0.88; }
+.net-ask-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg, #111827); color: var(--gpt-primary-action-text, #ffffff); }
+.net-ask-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg, #111827); opacity: 0.88; }
 .net-ask-note, .net-ask-failed { margin: 0.5rem 0 0 1.55rem; font-size: 0.78rem; color: var(--text-secondary, #6b7280); }
 .net-ask-failed { color: #dc2626; }
 .net-ask.is-resolved { padding: 0.45rem 0.85rem; border-style: dashed; }
