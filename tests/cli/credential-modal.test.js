@@ -206,3 +206,23 @@ test('saving or deleting a credential says so on the window, so an open settings
     if (before) globalThis.dispatchEvent = before; else delete globalThis.dispatchEvent;
   }
 });
+
+test('while the work waits for the login the summary line says so, whatever else is running, and the time shown at the end follows the clock the server set back', async () => {
+  const { createSandboxLedger } = await import('../../src/app/ui/sandbox/sandbox-ledger.js');
+  const { document } = page();
+  const host = document.createElement('div');
+  document.body.append(host);
+  const ledger = createSandboxLedger({ document, host, language: 'en', summary: true, startedAt: Date.now() - 400_000 });
+  const label = () => host.querySelector('.ledger-row .ledger-label').textContent;
+  ledger.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  assert.equal(label(), 'Working · Thinking…');
+  ledger.event({ type: 'credential', event: 'ask', id: 'ask0000000000004', tool: TWITTER, fields: TWITTER_FIELDS, waitMs: 600000 });
+  assert.equal(label(), 'Working · Waiting for your login for twitter-cli…', 'the same on every page that has the card');
+  ledger.event({ type: 'credential', event: 'answer', id: 'ask0000000000004', decision: 'saved', tool: TWITTER });
+  assert.equal(label(), 'Working · Thinking…');
+  // The server set the clock back by the time spent waiting: the time shown at the end leaves it out.
+  ledger.setStartedAt(Date.now() - 20_000);
+  ledger.event({ type: 'answering', more: false });
+  assert.match(host.querySelector('.ledger-row .ledger-label').textContent, /20s|19s|21s/);
+  ledger.remove();
+});

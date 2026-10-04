@@ -749,3 +749,30 @@ test('a Python tool is installed when a command first uses it, once, and not for
   assert.match(lines.find((line) => line.startsWith('pip install')), /csvkit==/);
   assert.deepEqual(lines.map((line) => line.split(' ')[0]), ['ffmpeg', 'pip', 'cd', 'csvstat'], 'installed right before the first command that uses it');
 });
+
+test('the time spent waiting for the person to enter a login is not counted: the reply\'s clock is set back, pages are told, the time limit is given back', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'timeline\n' }) });
+  let clock = 1_000_000;
+  const setup = askingSetup({ answer: 'saved' });
+  const live = [];
+  const paused = [];
+  const originalOnLive = setup.options.onLive;
+  setup.options.onLive = (event) => {
+    live.push(event);
+    // The person takes a minute and a half to type: the clock of the server moves while the reply waits.
+    if (event.ev?.type === 'credential' && event.ev.event === 'ask') clock += 90_000;
+    originalOnLive(event);
+  };
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli', chosen: true }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), ...setup.options,
+    now: () => clock,
+    onPaused: (ms) => paused.push(ms),
+    fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'twitter feed' })) : sse(content('Here it is.'))); }
+  });
+  assert.deepEqual(paused, [90_000]);
+  const set = live.filter((event) => typeof event.tm === 'number');
+  assert.deepEqual(set.map((event) => event.tm), [0], 'the reply had gone on for no time when it began waiting, and still has not');
+  assert.ok(live.indexOf(set[0]) < live.findIndex((event) => event.ev?.event === 'answer'), 'pages hear the new clock before the answer');
+  assert.equal(result.run.elapsedMs, 0, 'the record of the reply leaves the wait out too');
+});

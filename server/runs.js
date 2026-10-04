@@ -81,6 +81,10 @@ export function createRunManager({
       live.sources = Array.isArray(event.r.sources) ? event.r.sources : [];
       live.elapsedFrom = Number(event.r.elapsedMs) || 0;
       live.elapsedAt = now();
+    } else if (typeof event.tm === 'number') {
+      // The reply's clock was set back (time spent waiting for the person is not counted): every page is told how long it has gone on.
+      live.elapsedFrom = event.tm;
+      live.elapsedAt = now();
     } else if (typeof event.a === 'string') live.answer += event.a;
     else if (typeof event.th === 'string') {
       live.thought.text += event.th;
@@ -211,6 +215,14 @@ export function createRunManager({
     });
     let beat = null;
     let limit = null;
+    let limitAt = 0;
+    // Time the reply spent waiting for the person is given back to its time limit.
+    const extendLimit = (ms) => {
+      if (!limit || !(ms > 0)) return;
+      clearTimer(limit);
+      limitAt += ms;
+      limit = setTimer(() => abort('time_limit'), Math.max(0, limitAt - now()));
+    };
     let ended = false;
     let visionNext = null;
     const abort = (reason) => {
@@ -225,7 +237,9 @@ export function createRunManager({
           log('heartbeat_failed', { runId, message: String(error?.message || '').slice(0, 160) });
         }
       }, heartbeatMs);
-      limit = setTimer(() => abort('time_limit'), isResearch ? limits.maxResearchRunMs : limits.maxRunMs);
+      const limitMs = isResearch ? limits.maxResearchRunMs : limits.maxRunMs;
+      limitAt = now() + limitMs;
+      limit = setTimer(() => abort('time_limit'), limitMs);
 
       const result = isVision ? await runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) : await (isResearch ? executeDeepResearch : execute)({
         spec,
@@ -239,6 +253,7 @@ export function createRunManager({
         credentials,
         netControl,
         credentialControl,
+        onPaused: extendLimit,
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
         fetchImpl,

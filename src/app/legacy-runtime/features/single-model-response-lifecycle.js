@@ -305,7 +305,7 @@ export function createSingleModelResponseLifecycle({
           signal,
           onRun: (run) => { searchSources = run.sources; },
           // The seconds are the server's.
-          onTiming: (elapsedMs) => { runStartedAt = now() - elapsedMs; },
+          onTiming: (elapsedMs) => { runStartedAt = now() - elapsedMs; liveRun?.setStartedAt?.(runStartedAt); },
           // What the model thinks is shown as it thinks, as in a reply made here.
           onThought: (chunk, kind, soFarMs) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined, soFarMs),
           onThoughtEnd: (ms) => endThinking(ms),

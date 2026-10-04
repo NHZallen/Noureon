@@ -342,6 +342,14 @@ test('a stop is sent at once while the page is following live, and the words wri
   assert.equal(result.text, 'Partial text');
 });
 
+test('a clock set back by the server (time spent waiting for the person) is given to the page like the other times', async () => {
+  const { reply } = liveHarness({ events: [{ r: { answer: '', thought: { text: '', kind: 'model', ms: 0, ended: false }, sources: [], elapsedMs: 0 } }, { tm: 1500 }, { done: 'complete' }], rows: [row('', 'complete')] });
+  const { run } = await reply.start(startArgs());
+  const timings = [];
+  await run.follow({ onText() {}, onTiming: (ms) => timings.push(ms) });
+  assert.deepEqual(timings, [0, 1500]);
+});
+
 test('the times are the server\'s: how long the reply has gone on and how long it thought are given to the page, so every page shows the same seconds', async () => {
   const { reply } = liveHarness({
     events: [{ r: { answer: 'Hi', thought: { text: 'thinking', kind: 'model', ms: 4200, ended: false }, sources: [], elapsedMs: 9100 } }, { th: ' more', k: 'model' }, { te: 6500 }, { a: ' there' }, { done: 'complete' }],

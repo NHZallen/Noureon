@@ -346,7 +346,8 @@ export function createServerReply({
           }
           // A page that joins late is given the steps so far, to draw the same list.
           if (Array.isArray(event.r.events)) for (const step of event.r.events) onEvent(withFileBytes(step));
-        } else if (event.ev) onEvent(withFileBytes(event.ev));
+        } else if (Number.isFinite(event.tm)) onTiming(event.tm);
+        else if (event.ev) onEvent(withFileBytes(event.ev));
         else if (typeof event.a === 'string') {
           answerSoFar += event.a;
           if (!restarted) onText(event.a);
