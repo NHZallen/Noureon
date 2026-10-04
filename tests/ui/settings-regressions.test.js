@@ -79,12 +79,12 @@ test('mobile scroll-to-bottom button is centered without horizontal translate', 
   assert.match(css, /@media\s*\(max-width:\s*768px\)\s*\{[\s\S]*#scroll-to-bottom-btn\.visible\s*\{[^}]*transform:\s*scale\(1\);/s);
 });
 
-test('mobile settings open to a GPT-style category list before drilling into details', () => {
+test('mobile settings cover the viewport before drilling into category details', () => {
   const css = readUiSource('src/styles/main.css');
 
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-header[^{]*\{[^}]*display:\s*flex\s*!important;/s);
-  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\.visible[^{]*\{[^}]*align-items:\s*flex-end\s*!important;[^}]*padding:\s*0\s*!important;/s);
-  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s*>\s*div[^{]*\{[^}]*width:\s*100vw\s*!important;[^}]*margin:\s*0\s*!important;[^}]*border-radius:\s*2rem\s+2rem\s+0\s+0\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\.visible[^{]*\{[^}]*align-items:\s*stretch\s*!important;[^}]*padding:\s*0\s*!important;/s);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s*>\s*div[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s*!important;[^}]*width:\s*100vw\s*!important;[^}]*height:\s*100%\s*!important;[^}]*max-width:\s*none\s*!important;[^}]*max-height:\s*none\s*!important;[^}]*margin:\s*0\s*!important;[^}]*border-radius:\s*0\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*display:\s*block\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-list[^{]*\{[^}]*transform:\s*translateX\(-100%\)\s*!important;/s);
   assert.match(css, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(100%\)\s*!important;/s);
@@ -108,8 +108,8 @@ test('mobile settings use readable default surfaces without dark mode selectors'
   const css = readUiSource('src/styles/main.css');
 
   assert.doesNotMatch(css, /\.dark\b|dark\\:|dark:/);
-  assert.match(css, /#settings-modal\s*>\s*div[^{]*\{[^}]*background:\s*#ffffff\s*!important;/s);
-  assert.match(css, /#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*background:\s*#ffffff\s*!important;/s);
+  assert.match(css, /#settings-modal\s*>\s*div[^{]*\{[^}]*background:\s*#f4f3f8\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*background:\s*#f4f3f8\s*!important;/s);
   assert.match(css, /#settings-modal\s+\.settings-mobile-list-item,\s*#settings-modal\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*background:\s*#ffffff\s*!important;[^}]*color:\s*#000000\s*!important;/s);
   assert.match(css, /#settings-modal\s+\.settings-mobile-row-label[^{]*\{[^}]*color:\s*#000000;/s);
 });
