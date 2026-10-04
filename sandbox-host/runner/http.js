@@ -1,8 +1,9 @@
 // The runner's requests. Every one needs the secret (and an allowed address); the sandbox runs what it is given and nothing else.
 //   POST   /v1/sessions                     { language }          -> { id }
 //   POST   /v1/sessions/:id/mount           { files: [{ name, type, data (base64) }] }
-//   POST   /v1/sessions/:id/cli             { tools: [{ id, file, url, sha256, size }] } -> { mounted }   (the programs of CLI tools, in /opt/cli)
-//   POST   /v1/sessions/:id/run             { code, timeoutMs } or { command, env, timeoutMs }  -> lines of JSON: { type: 'progress', ... } ... { type: 'result', ... }
+//   POST   /v1/sessions/:id/cli             { tools: [{ id, file, url, sha256, size }], net?: { mode, rules } } -> { mounted, network }   (the programs of CLI tools, in /opt/cli; `net` gives the session its proxy)
+//   POST   /v1/sessions/:id/net/answer      { askId, decision: 'once' | 'always' | 'deny' }  -> { answered }   (the person's answer to a question about a site, which a running step told in its stream)
+//   POST   /v1/sessions/:id/run             { code, timeoutMs } or { command, env, files, timeoutMs }  -> lines of JSON: { type: 'progress', ... } ... { type: 'result', ... }
 //   POST   /v1/sessions/:id/clear | /stop
 //   DELETE /v1/sessions/:id
 //   GET    /healthz                         (answers without the secret, says nothing about what runs)
@@ -77,7 +78,14 @@ export function createHandler({ manager, config, log = () => {} }) {
 
       if (route === 'POST /v1/sessions') return json(response, 201, await manager.create(await readJson(request)));
       if (route === 'POST /v1/sessions/:id/mount') return json(response, 200, await manager.mount(id, (await readJson(request)).files));
-      if (route === 'POST /v1/sessions/:id/cli') return json(response, 200, await manager.mountCli(id, (await readJson(request)).tools));
+      if (route === 'POST /v1/sessions/:id/cli') {
+        const body = await readJson(request);
+        return json(response, 200, await manager.mountCli(id, body.tools, body.net));
+      }
+      if (route === 'POST /v1/sessions/:id/net/answer') {
+        const body = await readJson(request);
+        return json(response, 200, await manager.answerNet(id, body.askId, body.decision));
+      }
       if (route === 'POST /v1/sessions/:id/clear') return json(response, 200, await manager.clear(id));
       if (route === 'POST /v1/sessions/:id/stop') return json(response, 200, await manager.stop(id));
       if (route === 'DELETE /v1/sessions/:id') return json(response, 200, await manager.destroy(id));
@@ -86,7 +94,7 @@ export function createHandler({ manager, config, log = () => {} }) {
         // Lines of JSON as the step goes on: what it prints, then the result.
         response.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
         try {
-          const result = await manager.run(id, { code: body.code, command: body.command, env: body.env, timeoutMs: body.timeoutMs }, (progress) => {
+          const result = await manager.run(id, { code: body.code, command: body.command, env: body.env, files: body.files, timeoutMs: body.timeoutMs }, (progress) => {
             response.write(`${JSON.stringify(progress)}\n`);
           });
           response.write(`${JSON.stringify(result)}\n`);

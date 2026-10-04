@@ -1,5 +1,5 @@
-# The image every sandbox container is made from: Python with the packages the model is told it has, the app's fonts pinned to regular
-# and bold, and the `noureon` module. Built on the host from the repository root:
+# The image every sandbox container is made from: Python with the packages the model is told it has, node, git and curl for the command
+# tools, the app's fonts pinned to regular and bold, and the `noureon` module. Built on the host from the repository root:
 #     docker build -f sandbox-host/Dockerfile -t noureon-sandbox:1 .
 # Nothing in it is secret.
 
@@ -18,6 +18,9 @@ RUN node sandbox-host/export-noureon-module.mjs /build/noureon.py \
 
 # 2. The image.
 FROM python:3.12-slim-bookworm
+# What the command tools need when they reach the network (through the runner's proxy): node and npm, git, curl and the certificates.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git nodejs npm \
+ && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir \
     numpy pandas matplotlib scipy scikit-learn sympy pillow lxml beautifulsoup4 \
     python-docx python-pptx openpyxl XlsxWriter reportlab fpdf2 pypdf

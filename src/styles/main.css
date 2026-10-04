@@ -18,6 +18,7 @@
 @import './settings-theme-bubble.css';
 @import './settings-desktop.css';
 @import './settings-danger.css';
+@import './permissions.css';
 @import './conversation-search.css';
 @import './regression-overrides.css';
 @import './desktop-composer-layout.css';

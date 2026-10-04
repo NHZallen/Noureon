@@ -3,6 +3,7 @@
 // request and say what is wrong, and never repeat a value: a key must not end up in an error message or a log.
 
 import { getCliTool, isCliReady } from '../src/data/cli-catalog.js';
+import { NET_MAX_RULES, NET_MODES, NET_RULES, normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../src/data/cli-net.js';
 import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -90,6 +91,18 @@ export function validateRunSpec(input) {
         if (tools.cli.length && tools.advanced !== true) fail('tools.cli', 'CLI tools run in the sandbox: advanced must be true');
       }
     }
+    // The person's rules for the sites the tools may reach (settings: netMode, netRules); the sandbox's proxy is given them.
+    if (tools.net !== undefined) {
+      if (!isObject(tools.net)) fail('tools.net', 'must be an object');
+      else {
+        if (tools.net.mode !== undefined && !NET_MODES.includes(tools.net.mode)) fail('tools.net.mode', `must be one of ${NET_MODES.join(', ')}`);
+        if (tools.net.rules !== undefined) {
+          if (!isObject(tools.net.rules) || Object.keys(tools.net.rules).length > NET_MAX_RULES) fail('tools.net.rules', `must be an object of at most ${NET_MAX_RULES} sites`);
+          else for (const [host, rule] of Object.entries(tools.net.rules)) if (!normalizeNetHost(host) || !NET_RULES.includes(rule)) fail('tools.net.rules', 'must name sites with the rules allow, ask or deny');
+        }
+        for (const name of Object.keys(tools.net)) if (!['mode', 'rules'].includes(name)) fail(`tools.net.${name}`, 'is not a known field');
+      }
+    }
     if (tools.inputs !== undefined) {
       if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
       else tools.inputs.forEach((file, index) => {
@@ -146,6 +159,7 @@ export function validateRunSpec(input) {
         ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
         ...(Array.isArray(tools.cli) && tools.cli.length ? { cli: [...new Set(tools.cli.map((entry) => entry.id))].map((id) => ({ id })) } : {}),
+        ...(Array.isArray(tools.cli) && tools.cli.length && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules) } } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}) }

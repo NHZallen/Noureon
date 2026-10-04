@@ -1,6 +1,6 @@
 # The Python sandbox host
 
-Runs the Python that models write (Advanced mode) in containers made for it: one per reply, no network, limited memory, CPU and time,
+Runs the Python that models write (Advanced mode) in containers made for it: one per reply, no network of their own, limited memory, CPU and time,
 removed when the reply ends. Design and decisions: `docs/superpowers/specs/2026-10-03-server-runtime-design.md` (§7).
 
 ```
@@ -14,12 +14,13 @@ Noureon server (Zeabur) ──token──▶ runner (container, this machine, 10
 | `Dockerfile.runner`, `runner/` | the runner: opens and closes the containers, answers the server |
 | `install.sh` | builds both images, makes the secret, starts the runner |
 | `runner/cli-cache.js` | fetches the programs of CLI tools (命令工具) once, checks their hash, keeps them in `cli-cache/` |
+| `runner/net-proxy.js` | the filtering proxy of a session (the only way out of a container, by a unix socket): rules of sites, internal addresses always refused, questions to the person |
 | `smoke-test.sh` | tries the sandbox for real (Python, the walls, and the CLI tools) and checks the walls hold |
 
 Each container may use 2 GB of memory and 2 CPU cores (`SANDBOX_MEMORY`, `SANDBOX_CPUS`), and at most 2 run at once (`SANDBOX_MAX_SESSIONS`): the machine has 8 GB and no swap, so more would risk the services next to it.
 
 The runner is only reachable from the machine's own pod network (`RUNNER_ALLOW`, default `10.42.0.0/16`) and needs the secret
-(`/etc/noureon-sandbox/token`). It is not on the internet. Containers never get a network (`--network none`).
+(`/etc/noureon-sandbox/token`). It is not on the internet. Containers never get a network (`--network none`); what a CLI tool may reach goes through the session's proxy (below).
 
 The Noureon server reaches the runner with two Zeabur variables: `SANDBOX_RUNNER_URL` (`http://10.42.0.1:7788`) and `SANDBOX_RUNNER_TOKEN` (the contents of `/etc/noureon-sandbox/token`; never paste it anywhere else). The server's side of this interface is `server/sandbox-client.js`; `tests/sandbox-host/server-adapter.test.js` runs both halves together.
 
@@ -27,6 +28,19 @@ The Noureon server reaches the runner with two Zeabur variables: `SANDBOX_RUNNER
 
 The CLI store (`docs/superpowers/specs/2026-10-04-cli-store-design.md`) puts programs such as OfficeCLI and FFmpeg in a sandbox. The server sends the runner a list `{ id, file, url, sha256, size }` (`POST /v1/sessions/:id/cli`); the runner downloads each program itself, only over https from `SANDBOX_CLI_HOSTS` (GitHub by default, every redirect checked), refuses a file whose size or sha256 is not the announced one, keeps it in `SANDBOX_CLI_CACHE_DIR` (default `<data dir>/cli-cache`, by hash, so the same program is fetched once) and hard-links it into the session's folder, which the container sees read only as `/opt/cli` (on the `PATH` of `run_command`). `/tmp` and `/work` stay `noexec`: only these programs run, never a file the model wrote.
 
-After updating this folder on the machine, redeploy the runner: `sh sandbox-host/install.sh`, then `sh sandbox-host/smoke-test.sh` (it fetches OfficeCLI and FFmpeg from GitHub, so the machine needs to reach github.com; the sandboxes themselves still have no network).
+After updating this folder on the machine, redeploy the runner: `sh sandbox-host/install.sh`, then `sh sandbox-host/smoke-test.sh` (it fetches OfficeCLI and FFmpeg from GitHub and tries pip and curl through the proxy, so the machine needs to reach github.com, pypi.org and example.com; the containers themselves have no network).
 
 Tests (no Docker needed, a stand-in `docker` runs `repl.py` as a plain process): `node --test tests/sandbox-host/`.
+
+## The network of the CLI tools (stage 2 of the store)
+
+A container has no network at all (`--network none`: only its own loopback). When the server mounts CLI tools it also sends the person's rules for sites (`POST /v1/sessions/:id/cli`, field `net: { mode, rules }`), and the runner then:
+
+1. starts a filtering proxy for that session on a unix socket, `<data dir>/<session>/net/p.sock` (mode 666), mounted read only in the container as `/run/noureon-net`;
+2. tells the program in the container (`repl.py`, message `net`) to open `127.0.0.1:<port>` and relay it to that socket. The commands it runs get `HTTP_PROXY`/`HTTPS_PROXY` pointing there (the code of a Python step does not), so `pip`, `curl`, `git`, `npm` and the tools reach the internet only through the proxy.
+
+The proxy (`runner/net-proxy.js`) opens only ports 80 and 443; looks the site up itself and **refuses, whatever the rules say,** any name that leads to an internal address (127/8, 10/8, 172.16/12, 192.168/16, 100.64/10, 169.254/16, the IPv6 equivalents, mapped addresses, and the addresses of the machine's own interfaces) — one such address among the answers is enough — and then connects to the address it checked. A site with a rule is let through or refused (`403`, header `X-Noureon-Block`); a site with none is **asked about**: the step that is running tells it in its stream (`stage: 'net'`, `event: 'ask'`), the server shows a card, the person's answer comes back with `POST /v1/sessions/:id/net/answer`, and no answer in `SANDBOX_NET_ASK_MS` (10 minutes) is a refusal. While a question is open the step's time does not run (the runner stops its clock, and `repl.py` sees `/run/noureon-net/waiting`).
+
+A step may also be given `files` (a login file a tool needs, written under `/work` with mode 600 for the time of the command only) and values of up to 4096 characters in `env`. Python packages a tool installs go to `/opt/pip` (a tmpfs that may run programs, `SANDBOX_PIP_SIZE`, default 512m); it is on the `PATH` and `PYTHONPATH` of commands.
+
+After updating this folder on the machine the image has to be rebuilt (it gained node, npm, git, curl): `git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`.

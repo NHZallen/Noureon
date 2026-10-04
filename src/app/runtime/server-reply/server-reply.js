@@ -5,6 +5,7 @@
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { serverReplyText } from './server-reply-texts.js';
 import { readRunStream } from './server-stream.js';
+import { netPolicyForRun } from '../cli/net-state.js';
 
 export const SERVER_PROTOCOL_VERSION = 1;
 export const DEFAULT_SERVER_API_URL = 'https://api.noureon.com';
@@ -235,7 +236,7 @@ export function createServerReply({
         ...(advanced && designs ? { designs } : {}),
         ...(advanced && inputs.length ? { inputs } : {}),
         // The CLI tools (命令工具) chosen for this reply: ids of tools in the store (they run in the same sandbox).
-        ...(advanced && cli.length ? { cli: cli.map((id) => ({ id })) } : {}),
+        ...(advanced && cli.length ? { cli: cli.map((id) => ({ id })), net: netPolicyForRun(config) } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {})
       },
@@ -272,6 +273,8 @@ export function createServerReply({
     kind,
     vision,
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
+    // The person's answer ('once', 'always' or 'deny') to the question a tool's command put about a site.
+    answerNet: (askId, decision) => request('POST', `/v1/runs/${runId}/net`, { body: JSON.stringify({ askId, decision }) }),
     /**
      * Follows the reply until the server has finished it, the way a live broadcast is followed: the server pushes every small piece as
      * it is made, to every page watching, and a page that comes in late is given what there is so far (when the channel cannot be

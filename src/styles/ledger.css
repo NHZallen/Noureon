@@ -518,3 +518,43 @@
     color: var(--text-secondary, #6b7280);
     font-size: 0.75rem;
 }
+
+/* The question to the person about a site a CLI tool wants to reach (net-ask-card.js). */
+.net-ask {
+    margin: 0.5rem 0;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.75rem;
+    background: var(--chat-bg, transparent);
+    animation: ledger-in 0.18s ease;
+}
+.net-ask-head { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+.net-ask-icon { display: inline-flex; color: var(--text-secondary, #6b7280); }
+.net-ask-title { overflow-wrap: anywhere; }
+.net-ask-command {
+    margin: 0.3rem 0 0 1.55rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--text-secondary, #6b7280);
+    overflow-wrap: anywhere;
+}
+.net-ask-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.65rem 0 0 1.55rem; }
+.net-ask-button {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 9999px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.net-ask-button:hover:not(:disabled) { background: var(--hover-bg, #f3f4f6); }
+.net-ask-button:disabled { opacity: 0.5; cursor: default; }
+.net-ask-button.is-primary { border-color: var(--text-primary, #111827); background: var(--text-primary, #111827); color: var(--chat-bg, #fff); }
+.net-ask-button.is-primary:hover:not(:disabled) { background: var(--text-primary, #111827); opacity: 0.88; }
+.net-ask-note, .net-ask-failed { margin: 0.5rem 0 0 1.55rem; font-size: 0.78rem; color: var(--text-secondary, #6b7280); }
+.net-ask-failed { color: #dc2626; }
+.net-ask.is-resolved { padding: 0.45rem 0.85rem; border-style: dashed; }
+.net-ask.is-resolved .net-ask-head { font-weight: 500; color: var(--text-secondary, #6b7280); }
+.net-ask.is-resolved.is-refused .net-ask-title { color: #dc2626; }

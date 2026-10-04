@@ -2,6 +2,7 @@
 // written to the cloud first, and a word to the person when a reply is made here instead (see server-reply.js).
 
 import { cliText } from '../cli/cli-texts.js';
+import { registerServerRequest } from '../cli/cli-server-bridge.js';
 import { PRODUCT_VERSION } from '../../../data/version.js';
 import { createServerReply, localizeServerError, planServerReply } from './server-reply.js';
 import { serverReplyText } from './server-reply-texts.js';
@@ -88,6 +89,9 @@ export function createBrowserServerReply({
     paceMs: 45,
     warn
   });
+
+  // The permissions tab (secure credentials) and the card that asks about a site talk to the server through the same connection.
+  registerServerRequest((...args) => serverReply.request(...args));
 
   // The visual check the server makes is followed by a module loaded when the first one is (not part of every page).
   let visionFollow = null;

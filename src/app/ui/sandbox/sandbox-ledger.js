@@ -7,6 +7,7 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger, formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
+import { createNetAskCards } from './net-ask-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
@@ -24,7 +25,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -45,6 +46,13 @@ export function createSandboxLedger({ document, host, before = null, language = 
   };
   const urls = [];
   const steps = new Map();
+  // The question about a site a CLI tool reaches for (only a reply with tools has one): the card is in the list, answered from the page.
+  let currentStep = 0;
+  let netCards = null;
+  const askAboutSite = (event) => {
+    netCards ||= createNetAskCards({ document, host: list.list, language, onAnswer: onNetAnswer || (async () => ({ ok: false })), commandOf: () => steps.get(currentStep)?.command || '' });
+    netCards.handle(event);
+  };
   const create = (name, className, content) => {
     const node = document.createElement(name);
     node.className = className;
@@ -117,7 +125,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
     const files = create('div', 'ledger-files');
     files.hidden = true;
     row.body.append(createCodeCard(document, source, language, { shell: Boolean(command) }), output, files);
-    steps.set(n, { row, output, files, written: '' });
+    steps.set(n, { row, output, files, written: '', command: command ? code : '' });
+    currentStep = n;
   };
 
   const addOutput = ({ n, stream, text: chunk }) => {
@@ -268,6 +277,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
         addOutput(event);
       } else if (event.type === 'step-end') {
         endStep(event);
+      } else if (event.type === 'net') {
+        askAboutSite(event);
       }
   };
 

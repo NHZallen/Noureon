@@ -16,12 +16,15 @@ export const CLI_MAX_PROGRAM_BYTES = 150 * 1024 * 1024;
 
 // What a tool is: 'binary' (a program that is one file, fetched from where its makers publish it) or 'pip' (a Python package, installed in the
 // sandbox the first time it is used). `status`: 'ready' (it can be used now) or 'soon' (it is listed, but needs what a later stage of the
-// store brings: the network for the sandbox, the person's credentials).
+// store brings). `needs` says what a tool asks of the sandbox: 'network' (it reaches sites, which the person is asked about) and 'credentials'
+// (the person's secure credentials, `credentials`, which the server puts in the tool's environment).
 const KINDS = Object.freeze(['binary', 'pip']);
 const STATUSES = Object.freeze(['ready', 'soon']);
 const ID = /^[a-z][a-z0-9-]{1,39}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);
+// What the server can make a login file of (see server/cli-credentials.js).
+const CREDENTIAL_FILE_FORMATS = Object.freeze(['rdt-cookies']);
 
 export const OFFICECLI_USAGE = `officecli reads, creates and edits Word (.docx), Excel (.xlsx) and PowerPoint (.pptx) files. No Office is installed; it is one program.
 Work in /output (files there are given to the user) and read the user's files from /input (read only: copy a file to /output before changing it).
@@ -57,7 +60,7 @@ A step may run for at most about two minutes (give timeout_seconds up to 120): w
   Join files of the same kind: put "file '/input/a.mp4'" lines in /output/list.txt, then ffmpeg -y -f concat -safe 0 -i /output/list.txt -c copy /output/joined.mp4
   What a file holds:          ffmpeg -hide_banner -i /input/in.mp4 2>&1   (it lists the streams, then complains that there is no output: that is expected)`;
 
-const YTDLP_USAGE = `yt-dlp downloads video and audio from many sites (it is run as a Python program; it needs the network). Write everything to /output.
+const YTDLP_USAGE = `yt-dlp downloads video and audio from many sites (it is run as a Python program and reaches the sites through the network that the person allows). Write everything to /output.
   Download:            yt-dlp -o "/output/%(title).80B.%(ext)s" "URL"
   Audio as mp3:        yt-dlp -x --audio-format mp3 -o "/output/%(title).80B.%(ext)s" "URL"     (the conversion needs the ffmpeg tool, when the user chose it too)
   A limit on quality:  yt-dlp -f "bv*[height<=720]+ba/b[height<=720]" "URL"
@@ -78,7 +81,7 @@ const RDT_USAGE = `rdt reads and writes on Reddit with the person's own login. A
   rdt user <name>      rdt user-posts <name>      rdt user-comments <name>
   Writing (only when the person asked for it): rdt upvote <n>, rdt save <n>, rdt subscribe <name>, rdt comment ...`;
 
-const CSVKIT_USAGE = `csvkit is a set of command line tools for CSV files (it is installed with pip the first time, so it needs the network). Read the user's files from /input and write results to /output.
+const CSVKIT_USAGE = `csvkit is a set of command line tools for CSV files (it is already installed). Read the user's files from /input and write results to /output.
   csvstat /input/data.csv                 the type, range and most common values of each column
   csvcut -c name,price /input/data.csv    pick columns (csvcut -n lists them)      csvgrep -c city -m Taipei /input/data.csv    filter rows
   csvsort -c price -r /input/data.csv     sort                                     csvjoin -c id a.csv b.csv    join on a column
@@ -126,11 +129,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     // What the program needs in the sandbox: no globalization data (the image has none), no update checks, no program left running in
     // the background that holds the file (every command writes it).
     details: Object.freeze({
-      'zh-TW': 'OfficeCLI 讓 AI 直接建立、讀取與修改 Word、Excel、PowerPoint 檔案，不需要安裝 Office。適合製作報告、簡報與報表，或批次修改你上傳的檔案，做完後會自己檢查檔案有沒有問題。它在伺服器的獨立沙盒裡執行，沒有網路；做好的檔案會出現在回覆下方，可以直接下載。',
-      en: 'OfficeCLI lets the AI create, read and edit Word, Excel and PowerPoint files without Office installed. It suits reports, presentations and spreadsheets, or changes to files you upload, and it checks the result for problems. It runs in an isolated sandbox on the server with no network; the finished files appear under the reply, ready to download.',
-      fr: 'OfficeCLI permet à l’IA de créer, lire et modifier des fichiers Word, Excel et PowerPoint sans Office installé. Il convient aux rapports, présentations et tableurs, ou à la modification de fichiers que vous envoyez, et il vérifie le résultat. Il s’exécute dans un bac à sable isolé sur le serveur, sans réseau ; les fichiers terminés apparaissent sous la réponse, prêts à être téléchargés.',
-      ru: 'OfficeCLI позволяет ИИ создавать, читать и изменять файлы Word, Excel и PowerPoint без установленного Office. Подходит для отчётов, презентаций и таблиц, а также для правки загруженных вами файлов; результат проверяется на ошибки. Работает в изолированной песочнице на сервере без доступа к сети; готовые файлы появляются под ответом и доступны для скачивания.',
-      es: 'OfficeCLI permite que la IA cree, lea y edite archivos de Word, Excel y PowerPoint sin tener Office instalado. Sirve para informes, presentaciones y hojas de cálculo, o para modificar archivos que subas, y comprueba el resultado. Se ejecuta en un entorno aislado del servidor, sin red; los archivos terminados aparecen bajo la respuesta, listos para descargar.'
+      'zh-TW': 'OfficeCLI 讓 AI 直接建立、讀取與修改 Word、Excel、PowerPoint 檔案，不需要安裝 Office。適合製作報告、簡報與報表，或批次修改你上傳的檔案，做完後會自己檢查檔案有沒有問題。它在伺服器的獨立沙盒裡執行，本身用不到網路；做好的檔案會出現在回覆下方，可以直接下載。',
+      en: 'OfficeCLI lets the AI create, read and edit Word, Excel and PowerPoint files without Office installed. It suits reports, presentations and spreadsheets, or changes to files you upload, and it checks the result for problems. It runs in an isolated sandbox on the server and does not need the network itself; the finished files appear under the reply, ready to download.',
+      fr: 'OfficeCLI permet à l’IA de créer, lire et modifier des fichiers Word, Excel et PowerPoint sans Office installé. Il convient aux rapports, présentations et tableurs, ou à la modification de fichiers que vous envoyez, et il vérifie le résultat. Il s’exécute dans un bac à sable isolé sur le serveur et n’a pas besoin du réseau ; les fichiers terminés apparaissent sous la réponse, prêts à être téléchargés.',
+      ru: 'OfficeCLI позволяет ИИ создавать, читать и изменять файлы Word, Excel и PowerPoint без установленного Office. Подходит для отчётов, презентаций и таблиц, а также для правки загруженных вами файлов; результат проверяется на ошибки. Работает в изолированной песочнице на сервере и сам не использует сеть; готовые файлы появляются под ответом и доступны для скачивания.',
+      es: 'OfficeCLI permite que la IA cree, lea y edite archivos de Word, Excel y PowerPoint sin tener Office instalado. Sirve para informes, presentaciones y hojas de cálculo, o para modificar archivos que subas, y comprueba el resultado. Se ejecuta en un entorno aislado del servidor y no necesita red; los archivos terminados aparecen bajo la respuesta, listos para descargar.'
     }),
     env: Object.freeze({
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1',
@@ -168,11 +171,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       })
     }),
     details: Object.freeze({
-      'zh-TW': 'FFmpeg 是處理影片與音訊的標準工具：轉換格式、剪裁片段、合併檔案、壓縮、抽出聲音、擷取畫面、製作 GIF。把影音檔附加到對話後，用 @ 選它並說明想怎麼處理。每一步最長約兩分鐘，所以建議處理短片或降低畫質；它在沒有網路的獨立沙盒裡執行，不能直接下載網路上的影片。',
-      en: 'FFmpeg is the standard tool for video and audio: convert formats, trim clips, join files, compress, extract sound, capture frames and make GIFs. Attach a media file to the conversation, choose it with @ and say what you want. A step may run for about two minutes, so work on short clips or a lower quality; it runs in an isolated sandbox with no network, so it cannot fetch videos from the internet.',
-      fr: 'FFmpeg est l’outil de référence pour la vidéo et l’audio : conversion de formats, découpe, assemblage, compression, extraction du son, capture d’images et création de GIF. Joignez un fichier à la conversation, choisissez l’outil avec @ et dites ce que vous voulez. Une étape dure environ deux minutes au plus : préférez de courts extraits ou une qualité réduite ; il s’exécute dans un bac à sable isolé sans réseau et ne peut donc pas télécharger de vidéos.',
-      ru: 'FFmpeg — стандартный инструмент для видео и аудио: преобразование форматов, обрезка, склейка, сжатие, извлечение звука, снимки кадров и создание GIF. Прикрепите файл к разговору, выберите инструмент через @ и опишите, что нужно сделать. Один шаг длится не более двух минут, поэтому лучше работать с короткими фрагментами или снижать качество; инструмент работает в изолированной песочнице без сети и не может скачивать видео из интернета.',
-      es: 'FFmpeg es la herramienta estándar para vídeo y audio: convierte formatos, recorta, une archivos, comprime, extrae el sonido, captura fotogramas y crea GIF. Adjunta un archivo a la conversación, elígela con @ y di qué quieres. Un paso puede durar unos dos minutos, así que conviene usar clips cortos o menor calidad; se ejecuta en un entorno aislado sin red, por lo que no puede descargar vídeos de internet.'
+      'zh-TW': 'FFmpeg 是處理影片與音訊的標準工具：轉換格式、剪裁片段、合併檔案、壓縮、抽出聲音、擷取畫面、製作 GIF。把影音檔附加到對話後，用 @ 選它並說明想怎麼處理。每一步最長約兩分鐘，所以建議處理短片或降低畫質。它在獨立沙盒裡執行；如果要處理網路上的檔案，連到該網站前會先問你。',
+      en: 'FFmpeg is the standard tool for video and audio: convert formats, trim clips, join files, compress, extract sound, capture frames and make GIFs. Attach a media file to the conversation, choose it with @ and say what you want. A step may run for about two minutes, so work on short clips or a lower quality. It runs in an isolated sandbox; if it has to read a file from the internet, you are asked about that site first.',
+      fr: 'FFmpeg est l’outil de référence pour la vidéo et l’audio : conversion de formats, découpe, assemblage, compression, extraction du son, capture d’images et création de GIF. Joignez un fichier à la conversation, choisissez l’outil avec @ et dites ce que vous voulez. Une étape dure environ deux minutes au plus : préférez de courts extraits ou une qualité réduite. Il s’exécute dans un bac à sable isolé ; s’il doit lire un fichier sur Internet, on vous demande d’abord l’autorisation pour ce site.',
+      ru: 'FFmpeg — стандартный инструмент для видео и аудио: преобразование форматов, обрезка, склейка, сжатие, извлечение звука, снимки кадров и создание GIF. Прикрепите файл к разговору, выберите инструмент через @ и опишите, что нужно сделать. Один шаг длится не более двух минут, поэтому лучше работать с короткими фрагментами или снижать качество. Работает в изолированной песочнице; если нужно прочитать файл из интернета, сначала спросят вашего разрешения для этого сайта.',
+      es: 'FFmpeg es la herramienta estándar para vídeo y audio: convierte formatos, recorta, une archivos, comprime, extrae el sonido, captura fotogramas y crea GIF. Adjunta un archivo a la conversación, elígela con @ y di qué quieres. Un paso puede durar unos dos minutos, así que conviene usar clips cortos o menor calidad. Se ejecuta en un entorno aislado; si tiene que leer un archivo de internet, primero se te pregunta por ese sitio.'
     }),
     env: Object.freeze({}),
     usage: FFMPEG_USAGE
@@ -182,8 +185,7 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     name: 'yt-dlp',
     icon: 'https://github.com/yt-dlp.png?size=96',
     kind: 'binary',
-    // It downloads from the internet, which the sandbox cannot do yet (the network comes with the permissions of the next stage).
-    status: 'soon',
+    status: 'ready',
     needs: Object.freeze(['network']),
     version: '2026.08.19',
     author: 'yt-dlp contributors',
@@ -208,11 +210,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       })
     }),
     details: Object.freeze({
-      'zh-TW': 'yt-dlp 可以從上千個網站下載影片、音訊與字幕，並能選擇畫質與格式，也能只查詢影片資訊。它需要連上網路，所以要等沙盒網路與權限功能推出後才能使用；到時候每次要連到的網站都會先問你。',
-      en: 'yt-dlp downloads video, audio and subtitles from thousands of sites, with a choice of quality and format, and can also just look up a video’s details. It needs the network, so it can be used once the sandbox network and permissions arrive; each site it wants to reach will be asked about first.',
-      fr: 'yt-dlp télécharge vidéos, audio et sous-titres depuis des milliers de sites, avec choix de la qualité et du format, et peut aussi simplement consulter les informations d’une vidéo. Il a besoin du réseau : il sera disponible avec le réseau du bac à sable et les autorisations ; chaque site à contacter vous sera demandé avant.',
-      ru: 'yt-dlp скачивает видео, аудио и субтитры с тысяч сайтов с выбором качества и формата, а также может просто показать сведения о видео. Ему нужна сеть, поэтому он станет доступен вместе с сетью песочницы и разрешениями; о каждом сайте, к которому нужно подключиться, вас спросят заранее.',
-      es: 'yt-dlp descarga vídeo, audio y subtítulos de miles de sitios, con elección de calidad y formato, y también puede solo consultar los datos de un vídeo. Necesita red, así que podrá usarse cuando lleguen la red del entorno aislado y los permisos; antes de conectar con cada sitio se te preguntará.'
+      'zh-TW': 'yt-dlp 可以從上千個網站下載影片、音訊與字幕，並能選擇畫質與格式，也能只查詢影片資訊。它需要連上網路：每個要連到的網站第一次都會先問你，你可以同意這一次、永遠同意或拒絕，之後也能在設定的「權限」裡調整。下載好的檔案會出現在回覆下方。請自行負責遵守各網站的使用條款與著作權，只下載你有權使用的內容。',
+      en: 'yt-dlp downloads video, audio and subtitles from thousands of sites, with a choice of quality and format, and can also just look up a video’s details. It needs the network: you are asked about each site the first time (allow once, always allow, or refuse), and you can change that later under Permissions in the settings. The downloaded files appear under the reply. You are responsible for following each site’s terms of use and copyright law: only download what you have the right to use.',
+      fr: 'yt-dlp télécharge vidéos, audio et sous-titres depuis des milliers de sites, avec choix de la qualité et du format, et peut aussi simplement consulter les informations d’une vidéo. Il a besoin du réseau : on vous demande l’autorisation pour chaque site la première fois (autoriser une fois, toujours autoriser ou refuser), et vous pouvez la modifier ensuite dans « Autorisations » des réglages. Les fichiers téléchargés apparaissent sous la réponse. Il vous appartient de respecter les conditions d’utilisation de chaque site et le droit d’auteur : ne téléchargez que ce que vous avez le droit d’utiliser.',
+      ru: 'yt-dlp скачивает видео, аудио и субтитры с тысяч сайтов с выбором качества и формата, а также может просто показать сведения о видео. Ему нужна сеть: о каждом сайте вас спросят при первом обращении (разрешить один раз, всегда разрешать или отказать), а позже это можно изменить в разделе «Разрешения» в настройках. Скачанные файлы появляются под ответом. Вы сами отвечаете за соблюдение условий использования сайтов и авторских прав: скачивайте только то, что вправе использовать.',
+      es: 'yt-dlp descarga vídeo, audio y subtítulos de miles de sitios, con elección de calidad y formato, y también puede solo consultar los datos de un vídeo. Necesita red: se te pregunta por cada sitio la primera vez (permitir una vez, permitir siempre o rechazar) y luego puedes cambiarlo en «Permisos» de los ajustes. Los archivos descargados aparecen bajo la respuesta. Eres responsable de cumplir los términos de uso de cada sitio y los derechos de autor: descarga solo lo que tengas derecho a usar.'
     }),
     env: Object.freeze({}),
     usage: YTDLP_USAGE
@@ -222,7 +224,7 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     name: 'twitter-cli',
     icon: 'https://github.com/public-clis.png?size=96',
     kind: 'pip',
-    status: 'soon',
+    status: 'ready',
     needs: Object.freeze(['network', 'credentials']),
     version: '0.8.5',
     author: 'jackwener',
@@ -239,11 +241,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     pip: Object.freeze({ package: 'twitter-cli', version: '0.8.5', command: 'twitter' }),
     credentials: Object.freeze([Object.freeze({ env: 'TWITTER_AUTH_TOKEN', label: 'auth_token' }), Object.freeze({ env: 'TWITTER_CT0', label: 'ct0' })]),
     details: Object.freeze({
-      'zh-TW': 'twitter-cli 用你自己的 X（Twitter）帳號讀取時間軸、搜尋、書籤與使用者，也能發文、回覆與按讚。需要網路和你的登入憑證（安全憑證），所以要等沙盒網路與權限功能推出後才能使用。請留意：X 的服務條款不允許自動化存取，帳號可能被限制，也不保證一定連得上。',
-      en: 'twitter-cli reads X (Twitter) timelines, search, bookmarks and users with your own account, and can post, reply and like. It needs the network and your login (a secure credential), so it can be used once the sandbox network and permissions arrive. Note that X’s terms do not allow automated access, so the account may be restricted and it is not guaranteed to work.',
-      fr: 'twitter-cli lit les fils, la recherche, les signets et les profils de X (Twitter) avec votre propre compte, et peut publier, répondre et aimer. Il a besoin du réseau et de votre connexion (identifiant sécurisé) : il sera disponible avec le réseau du bac à sable et les autorisations. Attention : les conditions de X n’autorisent pas l’accès automatisé ; le compte peut être limité et le fonctionnement n’est pas garanti.',
-      ru: 'twitter-cli читает ленты, поиск, закладки и профили X (Twitter) с вашим аккаунтом, а также может публиковать, отвечать и ставить отметки. Нужны сеть и ваши данные для входа (защищённые учётные данные), поэтому инструмент станет доступен вместе с сетью песочницы и разрешениями. Учтите: условия X не разрешают автоматизированный доступ, аккаунт могут ограничить, а работа не гарантируется.',
-      es: 'twitter-cli lee líneas de tiempo, búsquedas, marcadores y usuarios de X (Twitter) con tu propia cuenta, y puede publicar, responder y dar me gusta. Necesita red y tu inicio de sesión (una credencial segura), así que podrá usarse cuando lleguen la red del entorno aislado y los permisos. Ten en cuenta que las condiciones de X no permiten el acceso automatizado: la cuenta puede limitarse y no se garantiza que funcione.'
+      'zh-TW': 'twitter-cli 用你自己的 X（Twitter）帳號讀取時間軸、搜尋、書籤與使用者，也能發文、回覆與按讚。它需要網路（連到 x.com 前會先問你），也需要你的登入憑證 auth_token 與 ct0：請到設定的「權限」→「安全憑證」新增。憑證加密保存在伺服器，只在執行時使用，AI 看不到內容。請注意：X 的服務條款不允許自動化存取，帳號可能被限制；資料中心的網路位址也常被擋，所以不保證能用。',
+      en: 'twitter-cli reads X (Twitter) timelines, search, bookmarks and users with your own account, and can post, reply and like. It needs the network (you are asked before it reaches x.com) and your login credentials, auth_token and ct0: add them under Permissions → Secure credentials in the settings. They are kept encrypted on the server and only used while the tool runs; the AI never sees them. Note that X’s terms do not allow automated access, so the account may be restricted, and data-centre addresses are often blocked: it is not guaranteed to work.',
+      fr: 'twitter-cli lit les fils, la recherche, les signets et les profils de X (Twitter) avec votre propre compte, et peut publier, répondre et aimer. Il a besoin du réseau (on vous demande avant qu’il n’accède à x.com) et de vos identifiants de connexion, auth_token et ct0 : ajoutez-les dans Réglages → Autorisations → Identifiants sécurisés. Ils sont chiffrés sur le serveur et utilisés seulement pendant l’exécution ; l’IA ne les voit jamais. Attention : les conditions de X n’autorisent pas l’accès automatisé, le compte peut être restreint, et les adresses de centres de données sont souvent bloquées : le fonctionnement n’est pas garanti.',
+      ru: 'twitter-cli читает ленты, поиск, закладки и профили X (Twitter) с вашим аккаунтом, а также может публиковать, отвечать и ставить отметки. Ему нужна сеть (перед обращением к x.com вас спросят) и данные для входа auth_token и ct0: добавьте их в настройках в разделе «Разрешения» → «Защищённые учётные данные». Они хранятся на сервере в зашифрованном виде и используются только во время работы; ИИ их не видит. Учтите: условия X не разрешают автоматизированный доступ, аккаунт могут ограничить, а адреса дата-центров часто блокируются — работа не гарантируется.',
+      es: 'twitter-cli lee líneas de tiempo, búsquedas, marcadores y usuarios de X (Twitter) con tu propia cuenta, y puede publicar, responder y dar me gusta. Necesita red (se te pregunta antes de que acceda a x.com) y tus credenciales de inicio de sesión, auth_token y ct0: añádelas en Ajustes → Permisos → Credenciales seguras. Se guardan cifradas en el servidor y solo se usan mientras la herramienta se ejecuta; la IA nunca las ve. Ten en cuenta que los términos de X no permiten el acceso automatizado, así que la cuenta puede ser restringida, y las direcciones de centros de datos suelen bloquearse: no se garantiza que funcione.'
     }),
     env: Object.freeze({}),
     usage: TWITTER_USAGE
@@ -253,8 +255,9 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     name: 'rdt-cli',
     icon: 'https://github.com/public-clis.png?size=96',
     kind: 'pip',
-    // Its login is read from a browser on the machine it runs on: on a server that needs the person's credentials another way.
-    status: 'soon',
+    // It reads its login from a browser on the machine it runs on, which a server has none of: the person's reddit_session cookie is
+    // a secure credential, and the server writes the file the tool would have saved (credentialFiles) for the time a command runs.
+    status: 'ready',
     needs: Object.freeze(['network', 'credentials']),
     version: '0.4.1',
     author: 'jackwener',
@@ -269,13 +272,14 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       es: 'Explora feeds, publicaciones y comentarios de Reddit, busca, consulta usuarios, vota y guarda.'
     }),
     pip: Object.freeze({ package: 'rdt-cli', version: '0.4.1', command: 'rdt' }),
-    credentials: Object.freeze([]),
+    credentials: Object.freeze([Object.freeze({ env: 'REDDIT_SESSION', label: 'reddit_session' })]),
+    credentialFiles: Object.freeze([Object.freeze({ path: '.config/rdt-cli/credential.json', format: 'rdt-cookies', from: 'REDDIT_SESSION' })]),
     details: Object.freeze({
-      'zh-TW': 'rdt-cli 可以瀏覽 Reddit 的版面、貼文與留言、搜尋、查看使用者，也能投票與收藏。需要網路與你的 Reddit 登入，所以要等沙盒網路與權限功能推出後才能使用；它原本是從瀏覽器讀取登入狀態，在伺服器上會改用你提供的安全憑證。',
-      en: 'rdt-cli browses Reddit feeds, posts and comments, searches, looks up users, votes and saves. It needs the network and your Reddit login, so it can be used once the sandbox network and permissions arrive; it normally reads the login from a browser, and on the server it will use a secure credential you provide.',
-      fr: 'rdt-cli parcourt les fils, publications et commentaires de Reddit, recherche, consulte des profils, vote et enregistre. Il a besoin du réseau et de votre connexion Reddit : il sera disponible avec le réseau du bac à sable et les autorisations ; il lit d’ordinaire la connexion depuis un navigateur, et sur le serveur il utilisera un identifiant sécurisé que vous fournissez.',
-      ru: 'rdt-cli просматривает ленты, посты и комментарии Reddit, ищет, показывает профили, голосует и сохраняет. Нужны сеть и ваш вход в Reddit, поэтому инструмент станет доступен вместе с сетью песочницы и разрешениями; обычно он берёт вход из браузера, а на сервере будет использовать защищённые учётные данные, которые вы укажете.',
-      es: 'rdt-cli explora feeds, publicaciones y comentarios de Reddit, busca, consulta usuarios, vota y guarda. Necesita red y tu inicio de sesión de Reddit, así que podrá usarse cuando lleguen la red del entorno aislado y los permisos; normalmente lee el inicio de sesión de un navegador y en el servidor usará una credencial segura que facilites.'
+      'zh-TW': 'rdt-cli 可以瀏覽 Reddit 的版面、貼文與留言、搜尋、查看使用者，也能投票與收藏。它需要網路（連到 reddit.com 前會先問你），也需要你的 Reddit 登入：它原本是從瀏覽器讀取登入，在伺服器上改用你提供的安全憑證，請到設定的「權限」→「安全憑證」新增 REDDIT_SESSION（瀏覽器開發者工具裡 reddit_session 這個 cookie 的值）。憑證加密保存在伺服器，只在執行時使用，AI 看不到內容。請自行負責遵守 Reddit 的使用條款。',
+      en: 'rdt-cli browses Reddit feeds, posts and comments, searches, looks up users, votes and saves. It needs the network (you are asked before it reaches reddit.com) and your Reddit login. It normally reads the login from a browser; on the server it uses a secure credential you provide instead: add REDDIT_SESSION under Permissions → Secure credentials in the settings (the value of the reddit_session cookie, found in your browser’s developer tools). It is kept encrypted on the server and only used while the tool runs; the AI never sees it. You are responsible for following Reddit’s terms of use.',
+      fr: 'rdt-cli parcourt les fils, publications et commentaires de Reddit, recherche, consulte des profils, vote et enregistre. Il a besoin du réseau (on vous demande avant qu’il n’accède à reddit.com) et de votre connexion Reddit. Il lit normalement la connexion depuis un navigateur ; sur le serveur, il utilise à la place un identifiant sécurisé que vous fournissez : ajoutez REDDIT_SESSION dans Réglages → Autorisations → Identifiants sécurisés (la valeur du cookie reddit_session, visible dans les outils de développement du navigateur). Il est chiffré sur le serveur et utilisé seulement pendant l’exécution ; l’IA ne le voit jamais. Il vous appartient de respecter les conditions d’utilisation de Reddit.',
+      ru: 'rdt-cli просматривает ленты, посты и комментарии Reddit, ищет, показывает профили, голосует и сохраняет. Ему нужна сеть (перед обращением к reddit.com вас спросят) и ваш вход в Reddit. Обычно он берёт вход из браузера; на сервере вместо этого используются защищённые учётные данные, которые вы укажете: добавьте REDDIT_SESSION в настройках в разделе «Разрешения» → «Защищённые учётные данные» (значение cookie reddit_session из инструментов разработчика браузера). Они хранятся на сервере в зашифрованном виде и используются только во время работы; ИИ их не видит. Вы сами отвечаете за соблюдение условий использования Reddit.',
+      es: 'rdt-cli explora feeds, publicaciones y comentarios de Reddit, busca, consulta usuarios, vota y guarda. Necesita red (se te pregunta antes de que acceda a reddit.com) y tu inicio de sesión de Reddit. Normalmente lee el inicio de sesión de un navegador; en el servidor usa en su lugar una credencial segura que tú proporcionas: añade REDDIT_SESSION en Ajustes → Permisos → Credenciales seguras (el valor de la cookie reddit_session, que se ve en las herramientas de desarrollo del navegador). Se guarda cifrada en el servidor y solo se usa mientras la herramienta se ejecuta; la IA nunca la ve. Eres responsable de cumplir los términos de uso de Reddit.'
     }),
     env: Object.freeze({}),
     usage: RDT_USAGE
@@ -285,8 +289,8 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     name: 'csvkit',
     icon: 'https://github.com/wireservice.png?size=96',
     kind: 'pip',
-    // A Python package: it is installed in the sandbox the first time, which needs the network.
-    status: 'soon',
+    // A Python package: it is installed in the sandbox the first time, which needs pypi.org (allowed at first).
+    status: 'ready',
     needs: Object.freeze(['network']),
     version: '2.2.0',
     author: 'wireservice',
@@ -303,11 +307,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     pip: Object.freeze({ package: 'csvkit', version: '2.2.0', command: 'csvstat' }),
     credentials: Object.freeze([]),
     details: Object.freeze({
-      'zh-TW': 'csvkit 是一組處理 CSV 檔案的工具：統計每個欄位、挑選欄位、篩選與排序列、合併多個檔案、用 SQL 查詢，並在 Excel、JSON 與 CSV 之間轉換。適合整理與分析表格資料。它要在沙盒裡用 pip 安裝，需要網路，所以要等沙盒網路功能推出後才能使用。',
-      en: 'csvkit is a set of tools for CSV files: statistics for each column, picking columns, filtering and sorting rows, joining files, running SQL, and converting between Excel, JSON and CSV. It suits cleaning and analysing tables. It is installed with pip inside the sandbox, which needs the network, so it can be used once the sandbox network arrives.',
-      fr: 'csvkit est un ensemble d’outils pour les fichiers CSV : statistiques par colonne, sélection de colonnes, filtrage et tri des lignes, jointure de fichiers, requêtes SQL et conversion entre Excel, JSON et CSV. Il convient au nettoyage et à l’analyse de tableaux. Il s’installe avec pip dans le bac à sable, ce qui demande le réseau : il sera disponible avec le réseau du bac à sable.',
-      ru: 'csvkit — набор инструментов для CSV: статистика по столбцам, выбор столбцов, фильтрация и сортировка строк, объединение файлов, SQL-запросы и преобразование между Excel, JSON и CSV. Подходит для очистки и анализа таблиц. Устанавливается через pip в песочнице, для чего нужна сеть, поэтому станет доступен вместе с сетью песочницы.',
-      es: 'csvkit es un conjunto de herramientas para archivos CSV: estadísticas por columna, selección de columnas, filtrado y orden de filas, unión de archivos, consultas SQL y conversión entre Excel, JSON y CSV. Sirve para limpiar y analizar tablas. Se instala con pip en el entorno aislado, lo que requiere red, así que podrá usarse cuando llegue la red del entorno aislado.'
+      'zh-TW': 'csvkit 是一組處理 CSV 檔案的工具：統計每個欄位、挑選欄位、篩選與排序列、合併多個檔案、用 SQL 查詢，並在 Excel、JSON 與 CSV 之間轉換。適合整理與分析表格資料。它是 Python 套件，第一次使用時會在沙盒裡用 pip 安裝，需要連到 pypi.org（預設已允許，可在設定的「權限」裡調整）；處理你的資料本身不需要網路。',
+      en: 'csvkit is a set of tools for CSV files: statistics for each column, picking columns, filtering and sorting rows, joining files, running SQL, and converting between Excel, JSON and CSV. It suits cleaning and analysing tables. It is a Python package that is installed with pip in the sandbox the first time, which needs pypi.org (allowed by default; you can change that under Permissions in the settings); working on your data does not need the network.',
+      fr: 'csvkit est un ensemble d’outils pour les fichiers CSV : statistiques par colonne, sélection de colonnes, filtrage et tri des lignes, jointure de fichiers, requêtes SQL et conversion entre Excel, JSON et CSV. Il convient au nettoyage et à l’analyse de tableaux. C’est un paquet Python installé avec pip dans le bac à sable à la première utilisation, ce qui demande pypi.org (autorisé par défaut ; modifiable dans « Autorisations » des réglages) ; le traitement de vos données n’a pas besoin du réseau.',
+      ru: 'csvkit — набор инструментов для CSV: статистика по столбцам, выбор столбцов, фильтрация и сортировка строк, объединение файлов, SQL-запросы и преобразование между Excel, JSON и CSV. Подходит для очистки и анализа таблиц. Это пакет Python, который при первом использовании устанавливается через pip в песочнице; для этого нужен pypi.org (по умолчанию разрешён, изменить можно в разделе «Разрешения» в настройках); для обработки ваших данных сеть не нужна.',
+      es: 'csvkit es un conjunto de herramientas para archivos CSV: estadísticas por columna, selección de columnas, filtrado y orden de filas, unión de archivos, consultas SQL y conversión entre Excel, JSON y CSV. Sirve para limpiar y analizar tablas. Es un paquete de Python que se instala con pip en el entorno aislado la primera vez, lo que necesita pypi.org (permitido por defecto; puedes cambiarlo en «Permisos» de los ajustes); trabajar con tus datos no necesita red.'
     }),
     env: Object.freeze({}),
     usage: CSVKIT_USAGE
@@ -427,9 +431,26 @@ export function validateCliManifest(tool) {
   }
   for (const credential of tool.credentials || []) {
     if (!/^[A-Z][A-Z0-9_]{0,63}$/.test(String(credential?.env || ''))) problems.push('credential env');
+    if (!String(credential?.label || '').trim()) problems.push('credential label');
+  }
+  for (const file of tool.credentialFiles || []) {
+    if (!/^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/.test(String(file?.path || '')) || String(file.path).includes('..')) problems.push('credential file path');
+    if (!CREDENTIAL_FILE_FORMATS.includes(file?.format)) problems.push('credential file format');
+    if (!(tool.credentials || []).some((credential) => credential.env === file?.from)) problems.push('credential file source');
   }
   return problems;
 }
+
+/** Where a tool's Python packages are installed in the sandbox (a place that may run programs: some packages are compiled). */
+export const CLI_PIP_TARGET = '/opt/pip';
+
+/** The command that installs a pip tool in the sandbox ('' for a tool that is not one). The package and its version are the manifest's, never the model's. */
+export const cliInstallCommand = (tool) => (tool?.kind === 'pip' && tool.pip
+  ? `pip install --quiet --no-input --disable-pip-version-check --no-cache-dir --target ${CLI_PIP_TARGET} ${tool.pip.package}==${tool.pip.version} && test -x ${CLI_PIP_TARGET}/bin/${tool.pip.command}`
+  : '');
+
+/** The programs that make a tool's files for its login, in the form the sandbox's commands take: [{ path, format, from }]. */
+export const cliCredentialFiles = (tool) => (Array.isArray(tool?.credentialFiles) ? tool.credentialFiles : []);
 
 /** Whether a tool can be used now (a tool that is "soon" is listed in the store and cannot be added or chosen yet). */
 export const isCliReady = (tool) => Boolean(tool) && tool.status === 'ready';

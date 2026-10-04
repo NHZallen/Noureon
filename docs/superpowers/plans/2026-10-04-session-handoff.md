@@ -15,6 +15,7 @@
 
 ## 2. 目前狀態
 
+- （2026-10-05 補充）第二期程式在這個工作階段的工作目錄裡，**還沒 commit、沒推**（owner 沒要求）；`npm test` 2708 項全過、`npm run build`、`check:sizes`、`check:legacy-runtime`、`check:server`、`npm audit --omit=dev` 都通過。這個環境原本沒有 `node_modules`，要先 `npm ci` 才跑得了完整測試。
 - `main` 在 `00f5973`（命令工具商城第一期與後續修正已合併並推上，Vercel 與 Zeabur 已部署）。產品版本仍是 **17.6.0**，命令工具還沒發版、沒寫更新日誌。
 - 工作分支：`claude/cloud-mode-check-lk6fkx`（內容與 `main` 一致）。新工作階段若被指定別的分支，先 `git merge origin/main`。
 - Contabo VPS 的 runner 已更新到命令工具版本，`sh sandbox-host/smoke-test.sh` 通過 17 項（含 OfficeCLI、FFmpeg 在容器內實測）。
@@ -28,7 +29,7 @@
 
 ## 3. 待辦（依 owner 已表達的順序）
 
-1. **命令工具第二期**（owner 已同意，授權／使用條款的文字一起做）：
+1. **命令工具第二期——已實作（2026-10-05），等 owner 測試再說推不推**（實作紀錄與已知限制見 `specs/2026-10-04-cli-store-design.md` §10）。**要 owner 做的事：** ① 在 Supabase 套用 `supabase/migrations/20261005010000_add_user_credentials.sql`（安全憑證的資料表）；② VPS：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 node／npm／git／curl，要重建；smoke-test 新增網路與 pip 的項目，這個環境沒有 Docker 服務，容器內的行為只用假 docker 測過）；③ 測 twitter／rdt 要自己的登入憑證（設定 → 權限 → 安全憑證），資料中心 IP 可能被 X 擋；④ 設定的「權限」分頁、詢問卡、授權頁的版面是照規格 §2.3／§2.4 做的，**請 owner 看過再決定要不要調整**。下面是原本的待辦清單（保留供對照）：
    - 沙盒網路（過濾代理）、每個網域詢問卡（同意此次／永遠同意／拒絕，等 10 分鐘）、設定頁新增「權限」分頁（網路存取預設設定＋管理權限：命令工具／網站／安全憑證；安全憑證可再次查看）、「允許模型自己使用」開關（預設關）、映像檔補 pip／node／npm／git／curl。
    - 解鎖 yt-dlp、csvkit（pip，需要網路）、twitter-cli、rdt-cli（需要安全憑證；rdt-cli 原本只支援從瀏覽器讀 cookie，要改用憑證）。
    - 加「第三方軟體與授權」清單頁；yt-dlp 說明與使用條款加上「使用者自行負責遵守網站條款與著作權」；FFmpeg 詳細資料裡「不能直接下載網路上的影片」要在聯網後改掉。
@@ -48,4 +49,5 @@
 - 雲端環境限制：`gh` 與 GitHub API 只能碰已授權的 repo（`NHZallen/Noureon`）；`github.com/<x>.png`、其他專案的 release API、多數外部網站會被代理擋（403）；`raw.githubusercontent.com` 多半可用；推標籤會被擋。
 - 瀏覽器實測：Playwright + Chromium（`/opt/pw-browsers/chromium-*/chrome-linux/chrome`，`--no-sandbox`），開發伺服器 `npx vite --port 5199`。測試帳號沒有 API 金鑰時輸入欄是 `contenteditable=false` 且會自己改回來，要在 `addInitScript` 裡攔 `setAttribute`／`contentEditable` 才能打字。
 - 單檔大小預算由 `npm run check:sizes` 管；`src/app/runtime/legacy-core/submit-input-council-lifecycle.js` 已接近上限（約 51 KB），新邏輯不要再塞進去。
+- 命令工具網路與憑證（第二期）：`sandbox-host/runner/net-proxy.js`（過濾代理）→ `session.js`（掛載、詢問、暫停計時）→ `server/sandbox-client.js`／`executor.js`（規則、憑證注入、輸出遮蔽）→ `server/runs.js`＋`app.js`（`POST /v1/runs/:id/net`、`/v1/credentials`）→ 客戶端 `src/app/ui/sandbox/net-ask-card.js`（詢問卡）、`src/app/ui/cli/permissions-view.js`（設定「權限」分頁）、`src/app/runtime/cli/net-state.js`（規則存在設定 `netMode`／`netRules`）。
 - 命令工具資料流：`src/data/cli-catalog.js`（客戶端與伺服器共用，列在 `scripts/server-shared-modules.json`）→ 設定 `cliEnabledIds`／`cliModelUseIds`／`cliVersions` → `src/app/runtime/cli/*`（`@` 選單、狀態）→ `server/run-spec.js` 驗證（只收 `ready` 的工具、需要 `advanced:true`）→ `server/executor.js` → `server/sandbox-client.js` → runner（`sandbox-host/runner/cli-cache.js` 下載與快取、`session.js` 掛載與執行）→ 容器內 `repl.py` 的 `command` 訊息。

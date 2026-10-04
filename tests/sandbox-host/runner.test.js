@@ -56,14 +56,15 @@ test('the settings need a real secret and have safe defaults: only the machine i
 
 test('a container is started one way: no network, no rights, limited, with only its folders; nothing of a request can change that', () => {
   const config = loadConfig({ RUNNER_TOKEN: SECRET });
-  const args = dockerRunArgs({ config, sessionId: 'a1b2c3d4e5f6a1b2c3d4e5f6', dirs: { input: '/data/x/input', output: '/data/x/output', cli: '/data/x/cli' }, language: 'zh-TW; rm -rf /' });
+  const args = dockerRunArgs({ config, sessionId: 'a1b2c3d4e5f6a1b2c3d4e5f6', dirs: { input: '/data/x/input', output: '/data/x/output', cli: '/data/x/cli', net: '/data/x/net' }, language: 'zh-TW; rm -rf /' });
   const joined = args.join(' ');
-  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 2g', '--memory-swap 2g', '--cpus 2', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw', '-v /data/x/cli:/opt/cli:ro']) {
+  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 2g', '--memory-swap 2g', '--cpus 2', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw', '-v /data/x/cli:/opt/cli:ro', '-v /data/x/net:/run/noureon-net:ro', '--tmpfs /opt/pip:rw,exec,nosuid,nodev,size=512m,uid=65534']) {
     assert.ok(joined.includes(wanted), wanted);
   }
   assert.equal(args.at(-1), 'noureon-sandbox:1', 'the image is the runner\'s');
   assert.equal(args.includes('--privileged'), false);
-  assert.equal(args.filter((arg) => arg === '-v').length, 3, 'nothing else is mounted (the programs of the CLI tools are read only)');
+  assert.equal(args.filter((arg) => arg === '-v').length, 4, 'nothing else is mounted (the programs of the CLI tools and the socket of the proxy are read only)');
+  assert.equal(args.includes('host'), false, 'the container never shares the host\'s network');
   assert.ok(args.some((arg) => arg === 'LANGUAGE=zh-TWrm-rf'), 'a language is only letters and dashes');
   assert.equal(containerName('a1b2c3d4e5f6a1b2c3d4e5f6'), 'nsb-a1b2c3d4e5f6a1b2c3d4e5f6');
   assert.throws(() => containerName('../../etc'), /Not a session id/);
@@ -310,5 +311,152 @@ test('the programs of the tools are asked for by a plain id and file name, and a
     await manager.destroy(id);
   } finally {
     await h.done();
+  }
+});
+
+// ----- the network: a proxy of the runner on a socket, and the questions it puts to the person while a step runs
+
+/** A web site on this machine, for a command to fetch through the proxy; and a manager whose proxy takes its address for a public one. */
+async function networkHarness({ proxyOptions } = {}) {
+  const h = harness({ SANDBOX_NET_ASK_MS: '8000' });
+  const site = createServer((request, response) => response.end('hello from the site'));
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const port = site.address().port;
+  const manager = createSessionManager({
+    config: h.config,
+    now: () => h.clock.time,
+    fetchImpl: toolFetch(),
+    proxyOptions: proxyOptions === undefined ? { resolve: async () => [{ address: '127.0.0.1', family: 4 }], isInternal: () => false, ports: [port] } : proxyOptions
+  });
+  // A command that fetches a page the way a tool does: by the proxy its environment names.
+  const fetchCommand = (host, path = '/') => `python3 -c "import os,urllib.request as u; r=u.build_opener(u.ProxyHandler({'http': os.environ['HTTP_PROXY']})); print(r.open('http://${host}:${port}${path}', timeout=20).read().decode())"`;
+  return { h, manager, port, fetchCommand, done: async () => { await manager.shutdown(); site.close(); await h.done(); } };
+}
+const toolNet = { mode: 'new', rules: {} };
+
+sandboxTest('a session with no network policy has none: no proxy in the environment of its commands', async () => {
+  const n = await networkHarness();
+  try {
+    const { id } = await n.manager.create({ language: 'en' });
+    await n.manager.mountCli(id, []);
+    const answer = await n.manager.run(id, { command: 'echo "[$HTTP_PROXY][$https_proxy]"', timeoutMs: 20_000 });
+    // (the test process may have a proxy of its own in its environment; what matters is that none of the session's is added)
+    assert.equal(answer.stdout.text, `[${process.env.HTTP_PROXY || ''}][${process.env.https_proxy || ''}]\n`);
+    await n.manager.destroy(id);
+  } finally {
+    await n.done();
+  }
+});
+
+sandboxTest('a program that reaches for a site with no rule makes the step ask the person; the answer lets it through, and the step\'s own time did not run meanwhile', async () => {
+  const n = await networkHarness();
+  try {
+    const { id } = await n.manager.create({ language: 'en' });
+    assert.equal((await n.manager.mountCli(id, [], toolNet)).network, true);
+    const heard = [];
+    // The step may take 2 seconds; the person takes 3 to answer, and the step still ends well.
+    const stepping = n.manager.run(id, { command: n.fetchCommand('news.test'), timeoutMs: 2000 }, (progress) => {
+      heard.push(progress);
+      if (progress.stage === 'net' && progress.event === 'ask') setTimeout(() => { void n.manager.answerNet(id, progress.id, 'once'); }, 3000);
+    });
+    const result = await stepping;
+    assert.equal(result.error, null, result.stderr?.text);
+    assert.equal(result.stdout.text, 'hello from the site\n');
+    const asks = heard.filter((message) => message.stage === 'net' && message.event === 'ask');
+    assert.equal(asks.length, 1);
+    assert.equal(asks[0].host, 'news.test');
+    assert.equal(asks[0].port, n.port);
+    assert.deepEqual(heard.filter((message) => message.event === 'answer').map((message) => message.decision), ['once']);
+    // Answered for this session: the same site is not asked about again.
+    const again = await n.manager.run(id, { command: n.fetchCommand('news.test', '/again'), timeoutMs: 20_000 }, (progress) => heard.push(progress));
+    assert.equal(again.stdout.text, 'hello from the site\n');
+    assert.equal(heard.filter((message) => message.event === 'ask').length, 1);
+    await n.manager.destroy(id);
+  } finally {
+    await n.done();
+  }
+});
+
+sandboxTest('a refused site is a 403 to the program, a question nobody answers is a refusal, and a stop ends the question', async () => {
+  const n = await networkHarness();
+  try {
+    const { id } = await n.manager.create({ language: 'en' });
+    await n.manager.mountCli(id, [], { mode: 'new', rules: { 'blocked.test': 'deny' } });
+    const refused = await n.manager.run(id, { command: n.fetchCommand('blocked.test'), timeoutMs: 20_000 });
+    assert.match(refused.stderr.text, /403/);
+    assert.notEqual(refused.error, null);
+
+    const denied = await n.manager.run(id, { command: n.fetchCommand('asked.test'), timeoutMs: 20_000 }, (progress) => {
+      if (progress.stage === 'net' && progress.event === 'ask') void n.manager.answerNet(id, progress.id, 'deny');
+    });
+    assert.match(denied.stderr.text, /403/);
+
+    // Nobody answers: after the time the question is given (8 seconds here) it counts as a refusal and the step goes on.
+    const unanswered = await n.manager.run(id, { command: n.fetchCommand('silent.test'), timeoutMs: 20_000 });
+    assert.match(unanswered.stderr.text, /403/);
+
+    // A stop while the person is being asked: the question is over with the step.
+    const heard = [];
+    const waiting = n.manager.run(id, { command: n.fetchCommand('later.test'), timeoutMs: 60_000 }, (progress) => {
+      heard.push(progress);
+      if (progress.stage === 'net' && progress.event === 'ask') setTimeout(() => { void n.manager.stop(id); }, 300);
+    });
+    const stopped = await waiting;
+    assert.equal(stopped.stopped, true);
+    await n.manager.destroy(id);
+  } finally {
+    await n.done();
+  }
+});
+
+sandboxTest('an answer that is not valid, or for a question that is not open, changes nothing', async () => {
+  const n = await networkHarness();
+  try {
+    const { id } = await n.manager.create({ language: 'en' });
+    await n.manager.mountCli(id, [], toolNet);
+    await assert.rejects(() => n.manager.answerNet(id, 'a'.repeat(24), 'maybe'), /Not a valid answer/);
+    assert.deepEqual(await n.manager.answerNet(id, 'a'.repeat(24), 'once'), { answered: false });
+    await assert.rejects(() => n.manager.answerNet('f'.repeat(24), 'a'.repeat(24), 'once'), /No such sandbox/);
+    await n.manager.destroy(id);
+  } finally {
+    await n.done();
+  }
+});
+
+sandboxTest('the real proxy refuses this machine: a program cannot reach 127.0.0.1 even with a rule that says allow, and the person is never asked', async () => {
+  const n = await networkHarness({ proxyOptions: {} });
+  try {
+    const { id } = await n.manager.create({ language: 'en' });
+    await n.manager.mountCli(id, [], { mode: 'new', rules: { '127.0.0.1': 'allow', localhost: 'allow' } });
+    const heard = [];
+    for (const host of ['127.0.0.1', 'localhost']) {
+      const result = await n.manager.run(id, { command: `python3 -c "import os,urllib.request as u; r=u.build_opener(u.ProxyHandler({'http': os.environ['HTTP_PROXY']})); r.open('http://${host}:80/', timeout=20)"`, timeoutMs: 20_000 }, (progress) => heard.push(progress));
+      assert.match(result.stderr.text, /403/, host);
+    }
+    assert.equal(heard.filter((message) => message.stage === 'net').length, 0);
+    await n.manager.destroy(id);
+  } finally {
+    await n.done();
+  }
+});
+
+sandboxTest('a command may be given files for its home (a tool\'s login) that only exist while it runs, and long values for its environment, none of it kept', async () => {
+  const n = await networkHarness();
+  try {
+    const { id } = await n.manager.create({ language: 'en' });
+    const long = 'x'.repeat(1500);
+    const result = await n.manager.run(id, {
+      // (the container's home is /work; here the folder of the stand-in is NOUREON_WORK)
+      command: 'cat "$NOUREON_WORK/.config/tool/login.json"; echo; echo ${#SECRET_COOKIE}; ls "$NOUREON_WORK/.config/tool"',
+      env: { SECRET_COOKIE: long },
+      files: [{ path: '.config/tool/login.json', content: '{"cookie":"abc"}' }, { path: '../escape.txt', content: 'no' }, { path: '/abs.txt', content: 'no' }],
+      timeoutMs: 20_000
+    });
+    assert.equal(result.stdout.text, '{"cookie":"abc"}\n1500\nlogin.json\n');
+    const after = await n.manager.run(id, { command: 'ls "$NOUREON_WORK/.config/tool"; ls "$NOUREON_WORK/.." | grep -c escape', timeoutMs: 20_000 });
+    assert.doesNotMatch(after.stdout.text, /login\.json/, 'the file is gone when the command is over');
+    await n.manager.destroy(id);
+  } finally {
+    await n.done();
   }
 });

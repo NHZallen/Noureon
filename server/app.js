@@ -5,6 +5,7 @@ import { createLogger } from './log.js';
 import { ERROR_CODES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 import { createRateLimiter } from './rate-limit.js';
 import { validateRunSpec } from './run-spec.js';
+import { CREDENTIAL_NAME, CredentialError } from './cli-credentials.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -60,13 +61,14 @@ async function readJson(request, maxBytes, { optional = false } = {}) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
+  const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const startedAt = now();
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
-    ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Max-Age': '600' }
+    ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', 'Access-Control-Max-Age': '600' }
     : { Vary: 'Origin' });
 
   const send = (response, status, body, origin) => {
@@ -122,7 +124,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
         const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
@@ -190,6 +192,18 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
+      if (runPath && request.method === 'POST' && runPath[2] === '/net') {
+        // The person's answer to a question a tool's command put about a site: { askId, decision: 'once' | 'always' | 'deny' }.
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 4096);
+        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !['once', 'always', 'deny'].includes(body?.decision)) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
+        const result = await runs.answerNet({ userId: user.id, runId: runPath[1], askId: body.askId, decision: body.decision });
+        if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
+        send(response, 200, { ok: true, answered: result.answered }, origin);
+        status = 200;
+        return;
+      }
       if (runPath && request.method === 'POST' && ['/start', '/hold', '/release', '/plan', '/steer', '/pause', '/resume'].includes(runPath[2])) {
         // What a person does to a deep research: start it now, hold the countdown (they are editing the plan), let it run again, change the
         // plan in their own words, pause it or let it go on.
@@ -213,6 +227,32 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (!run) throw new RequestError(ERROR_CODES.notFound, 'No such reply.');
         send(response, 200, { run }, origin);
         status = 200;
+        return;
+      }
+      // The secure credentials of the person's CLI tools: all of them (a person may look at their own), one set, one removed.
+      const credentialPath = /^\/v1\/credentials(?:\/([A-Za-z0-9_]{1,64}))?$/.exec(url.pathname);
+      if (credentialPath) {
+        const user = await authenticate(request);
+        if (!credentials) throw new RequestError(ERROR_CODES.runsUnavailable, 'Secure credentials are not set up yet.');
+        const name = credentialPath[1] || '';
+        try {
+          if (request.method === 'GET' && !name) {
+            send(response, 200, { credentials: await credentials.list(user.id) }, origin);
+          } else if (request.method === 'PUT' && name) {
+            if (!credentialLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            const body = await readJson(request, 16 * 1024);
+            await credentials.set(user.id, name, body?.value);
+            send(response, 200, { ok: true, name }, origin);
+          } else if (request.method === 'DELETE' && name) {
+            if (!CREDENTIAL_NAME.test(name)) throw new RequestError(ERROR_CODES.badRequest, 'Not a credential name.');
+            await credentials.remove(user.id, name);
+            send(response, 200, { ok: true }, origin);
+          } else throw new RequestError(ERROR_CODES.notFound, 'Not found.');
+          status = 200;
+        } catch (error) {
+          if (error instanceof CredentialError) throw new RequestError(ERROR_CODES.badRequest, error.message, { reason: error.code });
+          throw error;
+        }
         return;
       }
       throw new RequestError(ERROR_CODES.notFound, 'Not found.');

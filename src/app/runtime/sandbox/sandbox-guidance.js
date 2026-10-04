@@ -27,7 +27,7 @@ export const RUN_PYTHON_TOOL_SERVER = Object.freeze({
 // path. Only a reply made on the server has it (the browser's Python has no programs to run).
 export const RUN_COMMAND_TOOL = Object.freeze({
   name: 'run_command',
-  description: 'Run a shell command line in the isolated sandbox on the server, in the folder /output, with the CLI tools the user chose on the path. It may be one command or several (a short shell script, with && or new lines). /input holds the user\'s files (read only); files meant for the user must end up in /output. Returns stdout, stderr, any error (a command that exits with a code other than 0 is an error) and the files in /output. There is no network.',
+  description: 'Run a shell command line in the isolated sandbox on the server, in the folder /output, with the CLI tools the user chose on the path. It may be one command or several (a short shell script, with && or new lines). /input holds the user\'s files (read only); files meant for the user must end up in /output. Returns stdout, stderr, any error (a command that exits with a code other than 0 is an error) and the files in /output. The only way to the internet is through the network the person controls (see the CLI tools instructions).',
   parameters: Object.freeze({
     type: 'object',
     properties: {
@@ -44,15 +44,27 @@ export const MAX_RUNS_PER_REPLY = 10;
 // A document made with a CLI tool is many small commands; a reply that has one may run more steps.
 export const MAX_RUNS_WITH_CLI = 25;
 
-/** What the model is told about the CLI tools the person chose: each tool and how to use it. `tools`: [{ name, version, id, usage }]. */
+/**
+ * What the model is told about the CLI tools the person chose: each tool and how to use it. `tools`: [{ name, version, id, usage, problem?, missing? }]
+ * (`problem`: why the tool could not be made ready; `missing`: the secure credentials it needs that the person has not added).
+ */
 export function getCliGuidance(tools = []) {
   if (!tools.length) return '';
-  const sections = tools.map((tool) => `### ${tool.name} (\`${tool.file || tool.id}\`${tool.version ? `, version ${tool.version}` : ''})\n${tool.usage}`).join('\n\n');
+  const section = (tool) => {
+    const head = `### ${tool.name} (\`${tool.file || tool.id}\`${tool.version ? `, version ${tool.version}` : ''})`;
+    if (tool.problem) return `${head}\nNOT AVAILABLE in this reply: ${tool.problem}. Do not try to use it or to install it another way; tell the person.`;
+    const missing = Array.isArray(tool.missing) && tool.missing.length
+      ? `\nNot set yet: ${tool.missing.join(', ')}. The tool cannot log in until the person adds ${tool.missing.length === 1 ? 'it' : 'them'} under Settings → Permissions → Secure credentials: say so and stop; never look for another way to log in, and never ask for the value in the chat.\n`
+      : '\n';
+    return `${head}${missing}${tool.usage}`;
+  };
+  const sections = tools.map(section).join('\n\n');
   return `## CLI tools
 
 The user chose ${tools.length === 1 ? 'a CLI tool' : 'these CLI tools'} for this message with "@": ${tools.map((tool) => tool.name).join(', ')}. Use ${tools.length === 1 ? 'it' : 'them'} with the tool run_command when the request is about what ${tools.length === 1 ? 'it does' : 'they do'}; ${tools.length === 1 ? 'its' : 'their'} program${tools.length === 1 ? ' is' : 's are'} on the path of the command.
 - run_command runs in /output. Read the user's files from /input (read only: copy a file to /output before changing it). Save files meant for the user in /output; files elsewhere are not delivered. Never write macro-enabled or executable files.
-- A command that exits with a code other than 0 is an error: read its output, fix the command and try again; do not repeat the same command. There is no network. You can run steps at most ${MAX_RUNS_WITH_CLI} times per reply (Python and commands together).
+- A command that exits with a code other than 0 is an error: read its output, fix the command and try again; do not repeat the same command. You can run steps at most ${MAX_RUNS_WITH_CLI} times per reply (Python and commands together).
+- Network: a command has no direct network. What reaches the internet (the tools, pip, curl, git, npm) goes through a proxy that the person controls: the first time a site is used the person is asked, and an answer of "403 Blocked by Noureon" means they refused (or did not answer): do not try another route (another proxy, an IP address, another port); say which site was blocked and what you could not do. Only the web ports (80 and 443) are open, and addresses inside the server never are. Python code you run with run_python has no network.
 - Say what a step is for in its \`note\` argument (one short sentence in the language of your reply), as with run_python. In your answer explain the results in words and refer to files by name; do not paste the commands.
 
 ${sections}`;

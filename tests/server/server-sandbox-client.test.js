@@ -26,6 +26,8 @@ async function fakeRunner(script = {}) {
     }
     if (request.method === 'POST' && path.endsWith('/mount')) return json(200, { mounted: body.files.map((file) => ({ name: file.name })) });
     if (request.method === 'POST' && path.endsWith('/clear')) return json(200, {});
+    if (request.method === 'POST' && path.endsWith('/cli')) return json(200, { mounted: (body.tools || []).map((tool) => ({ id: tool.id, file: tool.file })), network: Boolean(body.net) });
+    if (request.method === 'POST' && path.endsWith('/net/answer')) return json(200, { answered: script.answered !== false });
     if (request.method === 'POST' && path.endsWith('/stop')) { script.stopped?.(); return json(200, { stopped: true }); }
     if (request.method === 'DELETE') return json(200, {});
     if (request.method === 'POST' && path.endsWith('/run')) {
@@ -212,4 +214,58 @@ test('a stop is not mistaken for a lost host', async (t) => {
   controller.abort();
   assert.deepEqual(await sandbox.run('print(1)', { signal: controller.signal }), { stopped: true });
   assert.equal(runner.calls.filter((call) => call.path.endsWith('/run')).length, 0);
+});
+
+test('CLI tools: the rules for sites go with the programs, the answer to a question about a site goes to the runner, and a lost host is given the same network', async (t) => {
+  let runs = 0;
+  const runner = await fakeRunner({
+    run: ({ write, end, response }) => {
+      runs += 1;
+      if (runs === 1) { response.destroy(); return; }
+      write({ type: 'result', stdout: { text: 'ok\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, elapsedMs: 3, files: [], skippedFiles: [] });
+      end();
+    }
+  });
+  t.after(runner.close);
+  const sandbox = createSandboxHost({ url: runner.url, token: TOKEN, wait: async () => {} }).getSandbox();
+  const net = { mode: 'new', rules: { 'pypi.org': 'allow' } };
+  const mounted = await sandbox.mountCli([{ id: 'mytool', file: 'mytool', url: 'https://github.com/o/r/x', sha256: 'a'.repeat(64), size: 3 }], { net });
+  assert.equal(mounted.network, true);
+  assert.deepEqual(runner.calls.find((call) => call.path.endsWith('/cli')).body.net, net);
+  assert.deepEqual(await sandbox.answerNet('ask0000000000001', 'once'), { answered: true });
+  assert.deepEqual(runner.calls.find((call) => call.path.endsWith('/net/answer')).body, { askId: 'ask0000000000001', decision: 'once' });
+  // The first try is lost; the new sandbox is given the programs and the same rules again.
+  const result = await sandbox.command('mytool x', { env: { A: '1' }, files: [{ path: '.config/x.json', content: '{}' }] });
+  assert.equal(result.stdout.text, 'ok\n');
+  const cliCalls = runner.calls.filter((call) => call.path.endsWith('/cli'));
+  assert.equal(cliCalls.length, 2);
+  assert.deepEqual(cliCalls[1].body.net, net);
+  const runCalls = runner.calls.filter((call) => call.path.endsWith('/run'));
+  assert.deepEqual(runCalls[0].body.files, [{ path: '.config/x.json', content: '{}' }], 'the files for the command travel with it');
+  assert.deepEqual(runCalls[0].body.env, { A: '1' });
+});
+
+test('a question to the person is told as progress, and the wait for the runner does not run out while it is open', async (t) => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const runner = await fakeRunner({
+    run: async ({ write, end }) => {
+      write({ type: 'progress', stage: 'net', event: 'ask', id: 'ask0000000000001', host: 'x.com', port: 443, waitMs: 600000 });
+      await gate;
+      write({ type: 'progress', stage: 'net', event: 'answer', id: 'ask0000000000001', decision: 'once' });
+      write({ type: 'result', stdout: { text: 'ok\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, elapsedMs: 3, files: [], skippedFiles: [] });
+      end();
+    }
+  });
+  t.after(runner.close);
+  const heard = [];
+  const sandbox = createSandboxHost({ url: runner.url, token: TOKEN, wait: async () => {} }).getSandbox({ onProgress: (message) => heard.push(message) });
+  await sandbox.prepare();
+  // The step may take one second (the least) and the wait for the runner is that and 45 seconds more; the question is open for longer than the step's own time.
+  const running = sandbox.command('tool', { timeoutMs: 1000 });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  release();
+  const result = await running;
+  assert.equal(result.stdout.text, 'ok\n');
+  assert.deepEqual(heard.filter((message) => message.stage === 'net').map((message) => [message.event, message.id, message.host]), [['ask', 'ask0000000000001', 'x.com'], ['answer', 'ask0000000000001', undefined]]);
 });

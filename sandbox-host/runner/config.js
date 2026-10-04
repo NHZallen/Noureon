@@ -29,12 +29,16 @@ export function loadConfig(env = process.env) {
     cliHosts: Object.freeze(String(env.SANDBOX_CLI_HOSTS || 'github.com,objects.githubusercontent.com,release-assets.githubusercontent.com').split(',').map((entry) => entry.trim()).filter(Boolean)),
     cliMaxBytes: number(env.SANDBOX_CLI_MAX_BYTES, 150 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
     maxSessions: number(env.SANDBOX_MAX_SESSIONS, 2, 1, 8),
+    // How long the person is given to answer a question about a site before it counts as a refusal.
+    netAskTimeoutMs: number(env.SANDBOX_NET_ASK_MS, 10 * 60_000, 1000, 3_600_000),
     // Per container.
     memory: env.SANDBOX_MEMORY || '2g',
     cpus: env.SANDBOX_CPUS || '2',
     pids: number(env.SANDBOX_PIDS, 256, 16, 4096),
     tmpSize: env.SANDBOX_TMP_SIZE || '256m',
     workSize: env.SANDBOX_WORK_SIZE || '512m',
+    // Where Python packages a tool installs go (they may hold programs of their own, so it is the one place besides /opt/cli that may run them).
+    pipSize: env.SANDBOX_PIP_SIZE || '512m',
     // A session nobody has used for this long, or that is older than the longest reply, is removed.
     idleMs: number(env.SANDBOX_IDLE_MS, 10 * 60_000, 1000, 24 * 3_600_000),
     maxAgeMs: number(env.SANDBOX_MAX_AGE_MS, 2.5 * 3_600_000, 1000, 24 * 3_600_000),

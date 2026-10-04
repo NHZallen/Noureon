@@ -10,7 +10,9 @@ import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.j
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
 import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
-import { CLI_PLATFORM, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
+import { CLI_PLATFORM, cliInstallCommand, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
+import { effectiveNetPolicy } from '../src/data/cli-net.js';
+import { prepareToolCredentials, scrubResult, scrubSecrets } from './cli-credentials.js';
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
@@ -56,8 +58,10 @@ export class ReplyError extends Error {
  * and `userId`; it is made again from its start when it is taken up after a restart (the sandbox was lost with the process). When the
  * sandbox cannot be had before any answer was written and a page is watching (`watching()`), it ends with a ReplyError of code
  * `sandbox_unavailable`: the page then makes the reply itself, with its own Python.
+ * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
+ * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, netControl = null, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -143,6 +147,19 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       let handBack = false;
       let advancedParts = parts;
       let advancedOptions = requestOptions;
+      // The CLI tools of this reply: the programs to bring, the pip tools to install, and what each needs for its login. The credentials come from the
+      // person's own, kept here (the model never sees a value, and what a command prints is scrubbed of them).
+      const chosenTools = (spec.tools.cli || []).map(({ id }) => getCliTool(id)).filter(isCliReady);
+      let toolCredentials = { env: {}, files: [], missing: {}, secrets: [] };
+      if (chosenTools.some((tool) => (tool.credentials || []).length) && credentials) {
+        try {
+          const names = chosenTools.flatMap((tool) => (tool.credentials || []).map((credential) => credential.env));
+          toolCredentials = prepareToolCredentials(chosenTools, await credentials.values(userId, names), { nowMs: now() });
+        } catch (error) {
+          onProblem('credentials_failed', error);
+        }
+      }
+      const netPolicy = chosenTools.length ? effectiveNetPolicy(spec.tools.net || {}) : null;
       if (mode === 'briefing') {
         // Gemini cannot search and call a tool in one request: it searches first, and Python gets the briefing as reference text.
         stepEvents.event({ type: 'searching', label: sandboxText(language, 'sandboxSearching') });
@@ -167,8 +184,15 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           requestOptions: advancedOptions,
           host: 'server',
           getSandbox: (options) => {
-            const real = sandboxHost.getSandbox({ ...options, language, signal: inner.signal });
+            // What a command prints is scrubbed of the credentials, live too.
+            const real = sandboxHost.getSandbox({
+              ...options,
+              onProgress: (message) => options.onProgress?.(message?.stage === 'output' && typeof message.text === 'string' ? { ...message, text: scrubSecrets(message.text, toolCredentials.secrets) } : message),
+              language,
+              signal: inner.signal
+            });
             sandbox = real;
+            if (netControl) netControl.answer = (askId, decision) => real.answerNet(askId, decision);
             // Lost for good (the host does not come back) before there is an answer, with a page there to take over: the reply ends so the
             // page can make it with its own Python, and nothing of this one is shown. Otherwise the model finishes without Python.
             const guard = async (step) => {
@@ -187,8 +211,13 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
               clear: () => guard(() => real.clear()),
               mount: (inputs) => guard(() => real.mount(inputs)),
               // A program that cannot be fetched is a problem of that tool (the reply tells the model), not of the sandbox: no hand-back.
-              mountCli: (tools) => real.mountCli(tools),
-              command: (commandLine, options) => guard(() => real.command(commandLine, options)),
+              mountCli: (tools) => real.mountCli(tools, { net: netPolicy }),
+              // `plain`: the installing of a tool, which is given no credentials.
+              command: (commandLine, options = {}) => guard(async () => {
+                const plain = options.plain === true;
+                const result = await real.command(commandLine, { ...options, env: { ...(options.env || {}), ...(plain ? {} : toolCredentials.env) }, files: plain ? [] : toolCredentials.files });
+                return plain ? result : scrubResult(result, toolCredentials.secrets);
+              }),
               run: (code, options) => guard(() => real.run(code, options)),
               dispose: () => real.dispose()
             };
@@ -197,7 +226,15 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           provider: modelInfo.provider,
           inputFiles: collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
           designs: spec.tools.designs || {},
-          cli: (spec.tools.cli || []).map(({ id }) => getCliTool(id)).filter(isCliReady).map((tool) => ({ id: tool.id, name: tool.name, version: tool.version, usage: tool.usage, env: tool.env || {}, program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } })),
+          cli: chosenTools.map((tool) => ({
+            id: tool.id,
+            name: tool.name,
+            version: tool.version,
+            usage: tool.usage,
+            env: tool.env || {},
+            ...(tool.kind === 'pip' ? { pip: { command: tool.pip.command }, install: cliInstallCommand(tool) } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } }),
+            ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
+          })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
           onEvent: stepEvents.event
         });

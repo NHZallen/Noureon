@@ -1,4 +1,5 @@
 import { ensurePrivacySettingsSection } from './settings-privacy-section.js';
+import { ensurePermissionsSettingsSection } from './settings-permissions-section.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { FILE_MODES, chosenFileMode } from '../sandbox/file-mode.js';
 import { sandboxText } from '../sandbox/sandbox-texts.js';
@@ -24,9 +25,10 @@ export function ensureAutoWebSearchSettingsControl({ document, elements }) {
   elements.autoWebSearchToggleSwitch = row.querySelector('#auto-web-search-toggle-switch');
 }
 
-export function ensureVisionCheckSettingsControl({ document, elements, config, saveConfig }) {
-  // The Privacy tab is set up with the other tabs that are added here.
+export function ensureVisionCheckSettingsControl({ document, elements, config, saveConfig, showNotification }) {
+  // The Privacy and Permissions tabs are set up with the other tabs that are added here.
   ensurePrivacySettingsSection({ document, elements, config, saveConfig });
+  ensurePermissionsSettingsSection({ document, elements, config, saveConfig, showNotification });
   const section = document.getElementById('accessibility-section');
   if (!section) return;
   let row = document.getElementById('vision-check-setting-row');
