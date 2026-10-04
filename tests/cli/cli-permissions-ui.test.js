@@ -142,12 +142,13 @@ test('the tab opens with the default for the network and the three things to man
 test('the CLI tools: one row each with the switch "let the model use it by itself", off at first', async () => {
   const t = permissions({ config: { cliEnabledIds: ['officecli', 'ffmpeg'], cliModelUseIds: [], cliVersions: {}, netMode: 'new', netRules: {} } });
   t.row('tools').click();
-  const switches = () => [...t.host.querySelectorAll('.pm-switch')];
-  assert.deepEqual(switches().map((toggle) => toggle.getAttribute('aria-checked')), ['false', 'false']);
+  const switches = () => [...t.host.querySelectorAll('.pm-switch .toggle-checkbox')];
+  assert.ok(t.host.querySelector('.pm-switch .toggle-label'), 'the same switch as the other settings');
+  assert.deepEqual(switches().map((toggle) => toggle.checked), [false, false]);
   assert.match(t.host.querySelector('.pm-desc').textContent, /only when you choose it with @/);
   switches()[1].click();
   assert.deepEqual(t.config.cliModelUseIds, ['ffmpeg']);
-  assert.deepEqual(switches().map((toggle) => toggle.getAttribute('aria-checked')), ['false', 'true']);
+  assert.deepEqual(switches().map((toggle) => toggle.checked), [false, true]);
   await flush();
   assert.equal(t.log.saved, 1);
   t.host.querySelector('.pm-back').click();

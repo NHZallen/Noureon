@@ -166,13 +166,18 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
       mark.innerHTML = toolIconMarkup(tool, 24);
       const text = make(document, 'span', 'pm-row-text');
       text.append(make(document, 'span', 'pm-row-label', tool.name), make(document, 'span', 'pm-row-desc', t('modelUse')));
-      const toggle = make(document, 'button', 'pm-switch');
-      toggle.type = 'button';
-      toggle.setAttribute('role', 'switch');
-      toggle.setAttribute('aria-checked', String(on));
-      toggle.setAttribute('aria-label', `${tool.name}: ${t('modelUse')}`);
-      toggle.append(make(document, 'span', 'pm-switch-knob'));
-      toggle.addEventListener('click', () => change(() => setCliModelUse(getConfig(), tool.id, !canModelUseCli(getConfig(), tool.id))));
+      // The same switch as the other settings (the blue one): the input and its label are what settings.css and modals.css draw.
+      const toggle = make(document, 'div', 'pm-switch relative inline-block w-12 h-6 select-none');
+      const input = make(document, 'input', 'toggle-checkbox');
+      input.type = 'checkbox';
+      input.id = `pm-model-use-${tool.id}`;
+      input.checked = on;
+      input.setAttribute('role', 'switch');
+      input.setAttribute('aria-label', `${tool.name}: ${t('modelUse')}`);
+      const track = make(document, 'label', 'toggle-label');
+      track.htmlFor = input.id;
+      toggle.append(input, track);
+      input.addEventListener('change', () => change(() => setCliModelUse(getConfig(), tool.id, input.checked)));
       row.append(mark, text, toggle);
       list.append(row);
       row.title = cliDescription(tool, getLanguage());
