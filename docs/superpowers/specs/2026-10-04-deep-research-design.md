@@ -162,3 +162,17 @@
 - 每個功能與文字都要有 zh-TW、en、fr、ru、es。
 - 完成前跑：`npm test`、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime`、`npm run check:server`、`npm audit --omit=dev`。
 - 注意現有大小預算：最大的 JS 區塊 gzip 約 149.8 KB／150 KB，新介面要用延遲載入。
+
+## 11. 第一期（引擎）實作紀錄（2026-10-04）
+
+已做在 `server/research.js`，由 `server/runs.js` 啟動、`server/app.js` 提供端點（見 `server/README.md`）：
+
+- 沒有新增資料表欄位，也沒有 migration：階段、倒數、暫停、計時都放在「訊息的 `researchPlan` part」與「進度點（checkpoint）」裡；`server_runs` 只多一個 `model` 旗標 `{kind:'research'}`。倒數的開始時間（`startAt`）是伺服器時間，訊息與直播事件都帶 `clock`，直播快照帶 `serverNow`，頁面用差值換算。
+- 指令（開始、暫停…）送到「正在執行這個研究的那個程序」的記憶體裡；程序剛重啟、還沒被接手的那幾十秒內會回 404，頁面稍後重試即可。
+- 金鑰保留 27 小時、整個研究最長 26 小時、單次暫停最長 24 小時；暫停期限到了以 `pause_expired` 結束，卡片顯示失敗。
+- 研究做過進度點的存檔就會把「被接手次數」歸零，所以一天的研究可以撐過多次部署；沒有進度的跳針仍照舊 3 次放棄。
+- 計數：每一次搜尋、開網頁、頁內尋找都算一次「搜尋」，上限 300；時間上限 1 小時只算實際研究（暫停、等待倒數不算）。剩下的次數平均分給還沒做的項目（每項至少 8、至多 60 次）。
+- 完成時：報告 Markdown 存成使用者雲端檔案（一個一般的 `sandboxFile` part，所以同步與下載沿用既有機制），`researchReport` part 帶標題、約 4 KB 預覽、執行摘要、來源（只含有被引用的）、目錄（標題）、活動紀錄、統計；檔案存不進去時，報告全文改放在 `researchReport.text`（上限約 1 MB）。
+- 停止：`{mode:'report'}` 用已完成的項目寫簡短報告（沒有任何完成的項目就直接結束）；其他停止直接結束，卡片顯示「已停止」。
+- 還沒做（照分期）：Python 與圖表（第四期）、研究中補充指示（第四期）、任何介面（第二期，含入口、卡片、閱讀畫面）、匯出（第三期）。
+- 之後要接介面時要注意：最大的 JS 區塊（`legacy-submit-input`）gzip 已是 149.8／150 KB，入口與卡片都要放在延遲載入的新模組，核心只能多幾行。對話歷史裡的 `researchReport` part 目前模型看不到（只有 `summary` 欄位可用），第二期要在組歷史時把標題、摘要與目錄轉成文字。
