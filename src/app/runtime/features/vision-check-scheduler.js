@@ -1,6 +1,6 @@
 // Keeps V1's heavy renderer and font pipeline outside the chat startup chunk.
 import { conversationImageSources } from '../../ui/files/conversation-images.js';
-import { freeDecks } from '../../ui/files/vision/vision-eligibility.js';
+import { freeDecks } from '../../ui/files/vision/free-decks.js';
 
 export function createVisionCheckScheduler({ getConfig, getActiveConversation, normalizeConversationModel,
   isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer,

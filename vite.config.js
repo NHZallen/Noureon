@@ -61,6 +61,9 @@ export default defineConfig({
           if (id.includes('/src/app/runtime/legacy-core/council-runtime-texts.js')) return 'legacy-council-texts';
           if (id.includes('/src/app/runtime/legacy-core/submit-input-council-lifecycle.js')) return 'legacy-submit-input';
           if (id.includes('/src/app/runtime/legacy-core/model-registry.js')) return 'legacy-model-registry';
+          // The replies the server makes (and the deep research that goes with them) are their own chunk, so the chunk of the input handler
+          // does not carry them.
+          if (id.includes('/src/app/runtime/server-reply/') || id.includes('/src/app/runtime/research/')) return 'runtime-server-reply';
           // Memory is loaded after the application shell and has its own lifecycle.
           // Keep it out of the legacy shell chunk so adding memory capabilities does
           // not make first-load chat startup heavier.

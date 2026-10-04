@@ -2,10 +2,9 @@ import { describeFileBlock } from '../file-block-model.js';
 import { scanFileBlocks } from '../file-block-protocol.js';
 import { parseDocumentSpec } from '../design/document-spec.js';
 
-// Decks Python drew itself (Advanced mode), saved with the message.
-export const freeDecks = message => (message?.parts || [])
-  .filter(part => part.sandboxFile?.id && part.sandboxFile.data && /\.pptx$/i.test(part.sandboxFile.name || ''))
-  .map(part => ({ id: part.sandboxFile.id, name: part.sandboxFile.name, free: true }));
+import { freeDecks } from './free-decks.js';
+
+export { freeDecks };
 
 export function eligibleVisionFiles({ conversation, message, model, config, signal, responseUsesCouncil, modelSupportsVision }) {
   if (!conversation || !message || signal?.aborted || responseUsesCouncil || config?.visionCheckEnabled === false
